@@ -1,0 +1,10 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.08), transparent 25%),
+    radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.12), transparent 20%),
+    #0b1224;
+  color: #e2e8f0;
+}

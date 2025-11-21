@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "react", "react-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@air-jam/sdk": ["../../packages/sdk/src/index"],
+      "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
+    },
+    "composite": true,
+    "incremental": true
+  },
+  "include": [
+    "src",
+    "vite.config.ts",
+    "tailwind.config.ts",
+    "postcss.config.cjs",
+    "index.html",
+    "../../packages/sdk/src/**/*"
+  ]
+}
