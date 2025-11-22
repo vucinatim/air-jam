@@ -3,6 +3,7 @@ import type {
   ConnectionStatus,
   ControllerInputEvent,
   ControllerStatePayload,
+  GameState,
   PlayerProfile,
   RoomCode,
   RunMode,
@@ -39,6 +40,8 @@ export interface AirJamHostApi {
   players: PlayerProfile[];
   lastError?: string;
   mode: RunMode;
+  gameState: GameState;
+  toggleGameState: () => void;
   sendState: (state: ControllerStatePayload) => boolean;
 }
 
@@ -65,6 +68,7 @@ export const useAirJamHost = (
     players: state.players,
     lastError: state.lastError,
     mode: state.mode,
+    gameState: state.gameState,
   }));
 
   useEffect(() => {
@@ -82,6 +86,8 @@ export const useAirJamHost = (
   useEffect(() => {
     const storeApi = useConnectionStore;
     const socket = getSocketClient("host", options.serverUrl);
+    let lastToggleTime = 0;
+    const TOGGLE_DEBOUNCE_MS = 300;
 
     const seedState = storeApi.getState();
     seedState.setMode(detectRunMode());
@@ -141,6 +147,24 @@ export const useAirJamHost = (
     const handleInput = (payload: ControllerInputEvent): void => {
       if (payload.roomId !== parsedRoomId) {
         return;
+      }
+      // Handle play/pause toggle with debouncing
+      if (payload.input.togglePlayPause) {
+        const now = Date.now();
+        if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
+          // Ignore rapid toggles
+          return;
+        }
+        lastToggleTime = now;
+        const store = useConnectionStore.getState();
+        const currentState = store.gameState;
+        const newGameState = currentState === "paused" ? "playing" : "paused";
+        store.setGameState(newGameState);
+        // Broadcast game state change to all controllers
+        socket.emit("host:state", {
+          roomId: parsedRoomId,
+          state: { gameState: newGameState },
+        });
       }
       onInputRef.current?.(payload);
     };
@@ -223,6 +247,21 @@ export const useAirJamHost = (
     [options.serverUrl, parsedRoomId]
   );
 
+  const toggleGameState = useCallback(() => {
+    const store = useConnectionStore.getState();
+    const currentState = store.gameState;
+    const newGameState = currentState === "paused" ? "playing" : "paused";
+    store.setGameState(newGameState);
+    // Broadcast game state change to all controllers
+    const socket = getSocketClient("host", options.serverUrl);
+    if (socket.connected) {
+      socket.emit("host:state", {
+        roomId: parsedRoomId,
+        state: { gameState: newGameState },
+      });
+    }
+  }, [options.serverUrl, parsedRoomId]);
+
   return {
     roomId: parsedRoomId,
     joinUrl,
@@ -230,6 +269,8 @@ export const useAirJamHost = (
     players: connectionState.players,
     lastError: connectionState.lastError,
     mode: connectionState.mode,
+    gameState: connectionState.gameState,
+    toggleGameState,
     sendState,
   };
 };

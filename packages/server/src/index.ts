@@ -54,8 +54,12 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEve
     cors: {
       origin: '*',
     },
+    pingInterval: 2000,
+    pingTimeout: 5000,
   },
 )
+
+
 
 const emitError = (socketId: string, payload: ServerErrorPayload): void => {
   io.to(socketId).emit('server:error', payload)

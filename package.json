@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.9.0",
   "type": "module",
   "scripts": {
+    "dev": "pnpm -r --parallel run dev",
     "dev:prototype-game": "pnpm --filter prototype-game dev -- --host",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

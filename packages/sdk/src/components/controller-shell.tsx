@@ -4,13 +4,14 @@ import type { ConnectionStatus } from "../protocol";
 import { useFullscreen } from "../hooks/use-fullscreen";
 import { cn } from "../utils/cn";
 import { Button } from "./ui/button";
-import { Card } from "./ui/card";
 import {
   CheckCircle2,
   Loader2,
   AlertCircle,
   Maximize,
   Minimize,
+  Play,
+  Pause,
 } from "lucide-react";
 
 type OrientationRequirement = "portrait" | "landscape" | "any";
@@ -20,6 +21,8 @@ interface ControllerShellProps {
   connectionStatus: ConnectionStatus;
   requiredOrientation?: OrientationRequirement;
   children: ReactNode;
+  gameState?: "paused" | "playing";
+  onTogglePlayPause?: () => void;
 }
 
 const describeStatus = (status: ConnectionStatus): string => {
@@ -50,6 +53,8 @@ export const ControllerShell = ({
   connectionStatus,
   requiredOrientation = "landscape",
   children,
+  gameState = "paused",
+  onTogglePlayPause,
 }: ControllerShellProps): JSX.Element => {
   const [isOrientationOk, setOrientationOk] = useState(() =>
     orientationMatches(requiredOrientation)
@@ -76,15 +81,17 @@ export const ControllerShell = ({
         return <CheckCircle2 className="h-5 w-5 text-primary" />;
       case "connecting":
       case "reconnecting":
-        return <Loader2 className="h-5 w-5 animate-spin text-primary" />;
+        return (
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        );
       default:
         return <AlertCircle className="h-5 w-5 text-destructive" />;
     }
   }, [connectionStatus]);
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-3">
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground select-none touch-none">
+      <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between px-6 py-2 border-b">
         <div className="pointer-events-auto">
           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
             Room
@@ -101,6 +108,22 @@ export const ControllerShell = ({
           >
             {statusIcon}
           </div>
+          {onTogglePlayPause && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onTogglePlayPause}
+              aria-label={gameState === "playing" ? "Pause" : "Play"}
+              title={gameState === "playing" ? "Pause" : "Play"}
+            >
+              {gameState === "playing" ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5" />
+              )}
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -118,25 +141,27 @@ export const ControllerShell = ({
         </div>
       </header>
 
-      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4">
-        {!orientationOk && (
-          <Card className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/90 px-6 text-center border-0">
-            <p className="text-xl font-semibold text-foreground">
-              Rotate your device
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              This game is best experienced in {requiredOrientation}{" "}
-              orientation.
-            </p>
-          </Card>
-        )}
-        <div
-          className={cn(
-            "h-full w-full",
-            !orientationOk && "pointer-events-none opacity-30"
+      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 select-none">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 backdrop-blur-sm p-6 text-center shadow-lg">
+          {!orientationOk && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-6 text-center shadow-lg">
+              <p className="text-xl font-semibold text-card-foreground">
+                Rotate your device
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This game is best experienced in {requiredOrientation}{" "}
+                orientation.
+              </p>
+            </div>
           )}
-        >
-          {children}
+          <div
+            className={cn(
+              "h-full w-full select-none",
+              !orientationOk && "pointer-events-none opacity-30"
+            )}
+          >
+            {children}
+          </div>
         </div>
       </main>
     </div>

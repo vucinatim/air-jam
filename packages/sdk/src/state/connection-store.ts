@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import type {
   ConnectionRole,
   ConnectionStatus,
+  GameState,
   PlayerProfile,
   RunMode,
 } from "../protocol";
@@ -13,6 +14,7 @@ interface AirJamStore {
   controllerId: string | null;
   connectionStatus: ConnectionStatus;
   mode: RunMode;
+  gameState: GameState;
   players: PlayerProfile[];
   lastError?: string;
   setRole: (role: ConnectionRole | null) => void;
@@ -20,6 +22,8 @@ interface AirJamStore {
   setControllerId: (controllerId: string | null) => void;
   setStatus: (status: ConnectionStatus) => void;
   setMode: (mode: RunMode) => void;
+  setGameState: (state: GameState) => void;
+  toggleGameState: () => void;
   setError: (message?: string) => void;
   upsertPlayer: (player: PlayerProfile) => void;
   removePlayer: (playerId: string) => void;
@@ -32,6 +36,7 @@ export const useConnectionStore = create<AirJamStore>((set) => ({
   controllerId: null,
   connectionStatus: "idle",
   mode: "standalone",
+  gameState: "paused",
   players: [],
   lastError: undefined,
   setRole: (role) => set({ role }),
@@ -39,6 +44,11 @@ export const useConnectionStore = create<AirJamStore>((set) => ({
   setControllerId: (controllerId) => set({ controllerId }),
   setStatus: (connectionStatus) => set({ connectionStatus }),
   setMode: (mode) => set({ mode }),
+  setGameState: (gameState) => set({ gameState }),
+  toggleGameState: () =>
+    set((state) => ({
+      gameState: state.gameState === "paused" ? "playing" : "paused",
+    })),
   setError: (message) => set({ lastError: message }),
   upsertPlayer: (player) =>
     set((state) => {

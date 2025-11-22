@@ -1,184 +1,197 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type {
   ConnectionStatus,
   ControllerInputPayload,
   ControllerStateMessage,
+  GameState,
   PlayerProfile,
   RoomCode,
-} from '../protocol'
+} from "../protocol";
 import {
   controllerInputSchema,
   controllerJoinSchema,
   type ControllerStatePayload,
   roomCodeSchema,
-} from '../protocol'
-import { detectRunMode } from '../utils/mode'
-import { generateControllerId } from '../utils/ids'
-import { disconnectSocket, getSocketClient } from '../socket-client'
-import { useConnectionState, useConnectionStore } from '../state/connection-store'
+} from "../protocol";
+import { detectRunMode } from "../utils/mode";
+import { generateControllerId } from "../utils/ids";
+import { disconnectSocket, getSocketClient } from "../socket-client";
+import {
+  useConnectionState,
+  useConnectionStore,
+} from "../state/connection-store";
 
 interface AirJamControllerOptions {
-  roomId?: string
-  serverUrl?: string
-  nickname?: string
-  onState?: (state: ControllerStatePayload) => void
+  roomId?: string;
+  serverUrl?: string;
+  nickname?: string;
+  onState?: (state: ControllerStatePayload) => void;
 }
 
 export interface AirJamControllerApi {
-  roomId: RoomCode | null
-  controllerId: string | null
-  connectionStatus: ConnectionStatus
-  lastError?: string
-  sendInput: (input: ControllerInputPayload) => boolean
-  setNickname: (value: string) => void
-  players: PlayerProfile[]
+  roomId: RoomCode | null;
+  controllerId: string | null;
+  connectionStatus: ConnectionStatus;
+  lastError?: string;
+  gameState: GameState;
+  sendInput: (input: ControllerInputPayload) => boolean;
+  setNickname: (value: string) => void;
+  players: PlayerProfile[];
 }
 
 const getRoomFromLocation = (): string | null => {
-  if (typeof window === 'undefined') {
-    return null
+  if (typeof window === "undefined") {
+    return null;
   }
-  const params = new URLSearchParams(window.location.search)
-  const code = params.get('room')
-  return code ? code.toUpperCase() : null
-}
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("room");
+  return code ? code.toUpperCase() : null;
+};
 
 export const useAirJamController = (
-  options: AirJamControllerOptions = {},
+  options: AirJamControllerOptions = {}
 ): AirJamControllerApi => {
-  const nicknameRef = useRef(options.nickname ?? '')
+  const nicknameRef = useRef(options.nickname ?? "");
   const roomId = useMemo<RoomCode | null>(() => {
-    const code = options.roomId ?? getRoomFromLocation()
+    const code = options.roomId ?? getRoomFromLocation();
     if (!code) {
-      return null
+      return null;
     }
-    return roomCodeSchema.parse(code.toUpperCase())
-  }, [options.roomId])
+    return roomCodeSchema.parse(code.toUpperCase());
+  }, [options.roomId]);
 
-  const onStateRef = useRef<AirJamControllerOptions['onState']>(options.onState)
+  const onStateRef = useRef<AirJamControllerOptions["onState"]>(
+    options.onState
+  );
   useEffect(() => {
-    onStateRef.current = options.onState
-  }, [options.onState])
+    onStateRef.current = options.onState;
+  }, [options.onState]);
 
   const connectionState = useConnectionState((state) => ({
     connectionStatus: state.connectionStatus,
     lastError: state.lastError,
     controllerId: state.controllerId,
     players: state.players,
-  }))
+    gameState: state.gameState,
+  }));
 
   useEffect(() => {
-    const store = useConnectionStore.getState()
-    store.setMode(detectRunMode())
-    store.setRole('controller')
-    store.setRoomId(roomId)
-    store.setStatus(roomId ? 'connecting' : 'idle')
-    store.setError(undefined)
+    const store = useConnectionStore.getState();
+    store.setMode(detectRunMode());
+    store.setRole("controller");
+    store.setRoomId(roomId);
+    store.setStatus(roomId ? "connecting" : "idle");
+    store.setError(undefined);
 
     if (!roomId) {
-      store.setError('No room code provided')
-      return
+      store.setError("No room code provided");
+      return;
     }
 
-    const controllerId = generateControllerId()
-    store.setControllerId(controllerId)
+    const controllerId = generateControllerId();
+    store.setControllerId(controllerId);
 
-    const socket = getSocketClient('controller', options.serverUrl)
+    const socket = getSocketClient("controller", options.serverUrl);
 
     const handleConnect = (): void => {
-      store.setStatus('connected')
+      store.setStatus("connected");
       const payload = controllerJoinSchema.parse({
         roomId,
         controllerId,
         nickname: nicknameRef.current || undefined,
-      })
-      socket.emit('controller:join', payload, (ack) => {
+      });
+      socket.emit("controller:join", payload, (ack) => {
         if (!ack.ok) {
-          store.setError(ack.message ?? 'Unable to join room')
-          store.setStatus('disconnected')
-          return
+          store.setError(ack.message ?? "Unable to join room");
+          store.setStatus("disconnected");
+          return;
         }
         if (ack.controllerId) {
-          store.setControllerId(ack.controllerId)
+          store.setControllerId(ack.controllerId);
         }
-        store.setStatus('connected')
-      })
-    }
+        store.setStatus("connected");
+      });
+    };
 
     const handleDisconnect = (): void => {
-      store.setStatus('disconnected')
-    }
+      store.setStatus("disconnected");
+    };
 
     const handleState = (payload: ControllerStateMessage): void => {
       if (payload.roomId !== roomId) {
-        return
+        return;
       }
-      onStateRef.current?.(payload.state)
-    }
+      // Update game state if provided
+      if (payload.state.gameState) {
+        useConnectionStore.getState().setGameState(payload.state.gameState);
+      }
+      onStateRef.current?.(payload.state);
+    };
 
     const handleHostLeft = (payload: { reason: string }): void => {
-      store.setError(payload.reason)
-      store.setStatus('disconnected')
-    }
+      store.setError(payload.reason);
+      store.setStatus("disconnected");
+    };
 
     const handleError = (payload: { message: string }): void => {
-      store.setError(payload.message)
-    }
+      store.setError(payload.message);
+    };
 
-    socket.on('connect', handleConnect)
-    socket.on('disconnect', handleDisconnect)
-    socket.on('server:state', handleState)
-    socket.on('server:host_left', handleHostLeft)
-    socket.on('server:error', handleError)
-    socket.connect()
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("server:state", handleState);
+    socket.on("server:host_left", handleHostLeft);
+    socket.on("server:error", handleError);
+    socket.connect();
 
     return () => {
-      socket.off('connect', handleConnect)
-      socket.off('disconnect', handleDisconnect)
-      socket.off('server:state', handleState)
-      socket.off('server:host_left', handleHostLeft)
-      socket.off('server:error', handleError)
-      disconnectSocket('controller')
-    }
-  }, [options.serverUrl, roomId])
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("server:state", handleState);
+      socket.off("server:host_left", handleHostLeft);
+      socket.off("server:error", handleError);
+      disconnectSocket("controller");
+    };
+  }, [options.serverUrl, roomId]);
 
   const setNickname = useCallback((value: string) => {
-    nicknameRef.current = value
-  }, [])
+    nicknameRef.current = value;
+  }, []);
 
   const sendInput = useCallback(
     (input: ControllerInputPayload): boolean => {
-      const store = useConnectionStore.getState()
+      const store = useConnectionStore.getState();
       if (!roomId || !store.controllerId) {
-        store.setError('Not connected to a room')
-        return false
+        store.setError("Not connected to a room");
+        return false;
       }
-      const socket = getSocketClient('controller', options.serverUrl)
+      const socket = getSocketClient("controller", options.serverUrl);
       if (!socket.connected) {
-        return false
+        return false;
       }
       const payload = controllerInputSchema.safeParse({
         roomId,
         controllerId: store.controllerId,
         input,
-      })
+      });
       if (!payload.success) {
-        store.setError(payload.error.message)
-        return false
+        store.setError(payload.error.message);
+        return false;
       }
-      socket.emit('controller:input', payload.data)
-      return true
+      socket.emit("controller:input", payload.data);
+      return true;
     },
-    [options.serverUrl, roomId],
-  )
+    [options.serverUrl, roomId]
+  );
 
   return {
     roomId,
     controllerId: connectionState.controllerId,
     connectionStatus: connectionState.connectionStatus,
     lastError: connectionState.lastError,
+    gameState: connectionState.gameState,
     sendInput,
     setNickname,
     players: connectionState.players,
-  }
-}
+  };
+};
