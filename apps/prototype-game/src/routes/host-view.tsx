@@ -1,28 +1,40 @@
 import type { JSX } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AirJamOverlay,
   useAirJamHost,
   type ControllerInputEvent,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import { GameScene } from "../game/game-scene";
+import { GameScene } from "../game/components/GameScene";
+import { useGameStore } from "../game/game-store";
+import { PhysicsRecorderUI } from "../components/PhysicsRecorderUI";
 
 export const HostView = (): JSX.Element => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const sceneRef = useRef<GameScene | null>(null);
+  const applyInput = useGameStore((state) => state.applyInput);
+  const upsertPlayer = useGameStore((state) => state.upsertPlayer);
+  const removePlayer = useGameStore((state) => state.removePlayer);
 
-  const handleInput = useCallback((event: ControllerInputEvent) => {
-    sceneRef.current?.handleInput(event);
-  }, []);
+  const handleInput = useCallback(
+    (event: ControllerInputEvent) => {
+      applyInput(event);
+    },
+    [applyInput]
+  );
 
-  const handlePlayerJoin = useCallback((player: PlayerProfile) => {
-    sceneRef.current?.addPlayer(player);
-  }, []);
+  const handlePlayerJoin = useCallback(
+    (player: PlayerProfile) => {
+      upsertPlayer(player, player.id);
+    },
+    [upsertPlayer]
+  );
 
-  const handlePlayerLeave = useCallback((controllerId: string) => {
-    sceneRef.current?.removePlayer(controllerId);
-  }, []);
+  const handlePlayerLeave = useCallback(
+    (controllerId: string) => {
+      removePlayer(controllerId);
+    },
+    [removePlayer]
+  );
 
   const [persistedRoomId] = useState(() => {
     if (typeof sessionStorage !== "undefined") {
@@ -46,21 +58,15 @@ export const HostView = (): JSX.Element => {
   }, [host.roomId]);
 
   useEffect(() => {
-    if (!containerRef.current) {
-      return undefined;
-    }
-    const scene = new GameScene(containerRef.current);
-    sceneRef.current = scene;
-    return () => {
-      scene.dispose();
-      sceneRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!sceneRef.current) return;
-    host.players.forEach((player) => sceneRef.current?.addPlayer(player));
-  }, [host.players]);
+    const activeIds = new Set(host.players.map((player) => player.id));
+    host.players.forEach((player) => upsertPlayer(player, player.id));
+    const currentPlayers = useGameStore.getState().players;
+    currentPlayers.forEach((player) => {
+      if (!activeIds.has(player.controllerId)) {
+        removePlayer(player.controllerId);
+      }
+    });
+  }, [host.players, upsertPlayer, removePlayer]);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background ">
@@ -73,7 +79,10 @@ export const HostView = (): JSX.Element => {
         gameState={host.gameState}
         onTogglePlayPause={host.toggleGameState}
       />
-      <div id="canvas-container" ref={containerRef} className="h-full w-full" />
+      <PhysicsRecorderUI />
+      <div className="h-full w-full">
+        <GameScene />
+      </div>
     </div>
   );
 };

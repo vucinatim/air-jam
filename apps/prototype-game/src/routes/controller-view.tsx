@@ -142,7 +142,7 @@ const ActionControl = ({
 // --- Main View ---
 
 export const ControllerView = (): JSX.Element => {
-  const { roomId, connectionStatus, sendInput, gameState } =
+  const { roomId, connectionStatus, sendInput, gameState, reconnect } =
     useAirJamController();
 
   // Create a stable store instance
@@ -187,6 +187,10 @@ export const ControllerView = (): JSX.Element => {
     window.location.href = url.toString();
   };
 
+  const handleRefresh = (): void => {
+    reconnect();
+  };
+
   return (
     <ControllerShell
       roomId={roomId}
@@ -195,6 +199,7 @@ export const ControllerView = (): JSX.Element => {
       gameState={gameState}
       onTogglePlayPause={handleTogglePlayPause}
       onReconnect={handleReconnect}
+      onRefresh={handleRefresh}
     >
       <div className="flex h-full w-full items-stretch gap-2 select-none touch-none">
         {/* Left Side - Left/Right Controls */}

@@ -13,6 +13,7 @@ import {
   Play,
   Pause,
   QrCode,
+  RefreshCw,
 } from "lucide-react";
 import { QRScannerDialog } from "./qr-scanner-dialog";
 
@@ -26,6 +27,7 @@ interface ControllerShellProps {
   gameState?: "paused" | "playing";
   onTogglePlayPause?: () => void;
   onReconnect?: (roomCode: string) => void;
+  onRefresh?: () => void;
 }
 
 const describeStatus = (status: ConnectionStatus): string => {
@@ -59,6 +61,7 @@ export const ControllerShell = ({
   gameState = "paused",
   onTogglePlayPause,
   onReconnect,
+  onRefresh,
 }: ControllerShellProps): JSX.Element => {
   const [isOrientationOk, setOrientationOk] = useState(() =>
     orientationMatches(requiredOrientation)
@@ -116,6 +119,22 @@ export const ControllerShell = ({
           >
             {statusIcon}
           </Button>
+          {onRefresh && roomId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onRefresh}
+              disabled={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
+              aria-label="Reconnect"
+              title="Reconnect to room"
+            >
+              <RefreshCw className={cn(
+                "h-5 w-5",
+                (connectionStatus === "connecting" || connectionStatus === "reconnecting") && "animate-spin"
+              )} />
+            </Button>
+          )}
           {onReconnect && (
             <Button
               type="button"

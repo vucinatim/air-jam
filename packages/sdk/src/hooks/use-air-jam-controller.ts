@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   ConnectionStatus,
   ControllerInputPayload,
@@ -36,6 +36,7 @@ export interface AirJamControllerApi {
   gameState: GameState;
   sendInput: (input: ControllerInputPayload) => boolean;
   setNickname: (value: string) => void;
+  reconnect: () => void;
   players: PlayerProfile[];
 }
 
@@ -74,6 +75,17 @@ export const useAirJamController = (
     players: state.players,
     gameState: state.gameState,
   }));
+
+  // Use a key to force reconnection when needed
+  const [reconnectKey, setReconnectKey] = useState(0);
+
+  const reconnect = useCallback(() => {
+    if (!roomId) return;
+    // Disconnect current socket
+    disconnectSocket("controller");
+    // Force useEffect to re-run by incrementing the key
+    setReconnectKey((prev) => prev + 1);
+  }, [roomId]);
 
   useEffect(() => {
     const store = useConnectionStore.getState();
@@ -152,7 +164,7 @@ export const useAirJamController = (
       socket.off("server:error", handleError);
       disconnectSocket("controller");
     };
-  }, [options.serverUrl, roomId]);
+  }, [options.serverUrl, roomId, reconnectKey]);
 
   const setNickname = useCallback((value: string) => {
     nicknameRef.current = value;
@@ -192,6 +204,7 @@ export const useAirJamController = (
     gameState: connectionState.gameState,
     sendInput,
     setNickname,
+    reconnect,
     players: connectionState.players,
   };
 };
