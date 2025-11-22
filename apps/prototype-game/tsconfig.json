@@ -7,6 +7,7 @@
     "types": ["vite/client", "react", "react-dom"],
     "baseUrl": ".",
     "paths": {
+      "@/*": ["./src/*"],
       "@air-jam/sdk": ["../../packages/sdk/src/index"],
       "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
     },
@@ -16,8 +17,6 @@
   "include": [
     "src",
     "vite.config.ts",
-    "tailwind.config.ts",
-    "postcss.config.cjs",
     "index.html",
     "../../packages/sdk/src/**/*"
   ]

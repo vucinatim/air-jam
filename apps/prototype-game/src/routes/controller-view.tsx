@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ControllerShell, useAirJamController } from "@air-jam/sdk";
 
 const clamp = (value: number, min: number, max: number): number =>

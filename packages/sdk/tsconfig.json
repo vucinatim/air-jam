@@ -14,7 +14,11 @@
     "sourceMap": true,
     "noEmit": false,
     "tsBuildInfoFile": "dist/.tsbuildinfo",
-    "types": ["react", "react-dom"]
+    "types": ["react", "react-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

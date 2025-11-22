@@ -14,7 +14,8 @@
     "./protocol": {
       "types": "./dist/protocol.d.ts",
       "import": "./dist/protocol.js"
-    }
+    },
+    "./styles.css": "./src/styles.css"
   },
   "files": [
     "dist",
@@ -26,12 +27,15 @@
     "dev": "tsc -p tsconfig.json --watch"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "lucide-react": "^0.554.0",
     "qrcode": "^1.5.4",
     "socket.io-client": "^4.8.1",
     "tailwind-merge": "^2.5.5",
-    "zustand": "^5.0.3",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "zustand": "^5.0.3"
   },
   "peerDependencies": {
     "react": "^19.2.0",
@@ -41,9 +45,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
-    "tailwindcss": "^3.4.17",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
+    "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3"
   }
 }
