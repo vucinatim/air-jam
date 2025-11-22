@@ -5,9 +5,13 @@ import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import {
   AdditiveBlending,
+  BoxGeometry,
   CylinderGeometry,
+  ExtrudeGeometry,
   MathUtils,
+  MeshStandardMaterial,
   Quaternion,
+  Shape,
   Vector3,
 } from "three";
 
@@ -101,11 +105,92 @@ function ShipComponent({
     inputRef.current = input;
   }, [input]);
 
+  // Shape functions for wings and fins
+  const createWingShape = useMemo(() => {
+    return () => {
+      const shape = new Shape();
+      shape.moveTo(0, 0);
+      shape.lineTo(2.0, -1.0);
+      shape.lineTo(2.0, -2.0);
+      shape.lineTo(0, -1.5);
+      return shape;
+    };
+  }, []);
+
+  const createFinShape = useMemo(() => {
+    return () => {
+      const shape = new Shape();
+      shape.moveTo(0, 0); // Bottom Rear
+      shape.lineTo(0, 1.0); // Top Rear (Vertical edge)
+      shape.lineTo(-0.5, 1.0); // Top Flat
+      shape.lineTo(-1.0, 0.0); // Bottom Front (Sloped leading edge)
+      shape.lineTo(0, 0);
+      return shape;
+    };
+  }, []);
+
+  // Ship geometries
+  const shipGeometries = useMemo(() => {
+    return {
+      body: new BoxGeometry(1.2, 0.8, 3.0),
+      nose: new CylinderGeometry(0, 1, 1.5, 4, 1, false, Math.PI / 4),
+      wing: new ExtrudeGeometry(createWingShape(), {
+        depth: 0.1,
+        bevelEnabled: true,
+        bevelThickness: 0.03,
+        bevelSize: 0.03,
+        bevelSegments: 1,
+      }),
+      fin: new ExtrudeGeometry(createFinShape(), {
+        depth: 0.1,
+        bevelEnabled: true,
+        bevelThickness: 0.02,
+        bevelSize: 0.02,
+        bevelSegments: 1,
+      }),
+      cockpit: new BoxGeometry(0.9, 0.4, 1.2),
+      nozzle: new CylinderGeometry(0.35, 0.25, 0.8, 8),
+      gun: new CylinderGeometry(0.1, 0.1, 1.5, 6),
+    };
+  }, [createWingShape, createFinShape]);
+
+  // Ship materials
+  const shipMaterials = useMemo(() => {
+    return {
+      playerBody: new MeshStandardMaterial({
+        color: 0x8899aa,
+        roughness: 0.4,
+        metalness: 0.7,
+        flatShading: true,
+      }),
+      playerWing: new MeshStandardMaterial({
+        color: 0xff4444,
+        roughness: 0.6,
+        metalness: 0.2,
+        flatShading: true,
+      }),
+      cockpit: new MeshStandardMaterial({
+        color: 0x111111,
+        roughness: 0.1,
+        metalness: 0.9,
+      }),
+      gun: new MeshStandardMaterial({
+        color: 0x222222,
+        roughness: 0.7,
+        metalness: 0.5,
+      }),
+      nozzle: new MeshStandardMaterial({
+        color: 0x333333,
+        roughness: 0.5,
+      }),
+    };
+  }, []);
+
   // Geometry and Uniforms
   const exhaustGeometry = useMemo(() => {
-    const geo = new CylinderGeometry(0.0, 0.2, 2, 12, 1, true);
+    const geo = new CylinderGeometry(0.1, 0.4, 2.5, 12, 1, true);
     geo.rotateX(Math.PI / 2);
-    geo.translate(0, 0, 1);
+    geo.translate(0, 0, 1.2);
     return geo;
   }, []);
 
@@ -293,40 +378,84 @@ function ShipComponent({
       {/* 1. The Visual Ship (No RigidBody wrapper) */}
       <group ref={visualGroupRef} position={spawnPosition}>
         <group ref={planeGroupRef}>
-          {/* ... All your Meshes ... */}
+          {/* Main Body */}
           <mesh castShadow receiveShadow>
-            <boxGeometry args={[1, 0.6, 2.5]} />
-            <meshStandardMaterial
-              color={0xaaaaaa}
-              roughness={0.3}
-              metalness={0.8}
-            />
+            <primitive object={shipGeometries.body} attach="geometry" />
+            <primitive object={shipMaterials.playerBody} attach="material" />
           </mesh>
-          <mesh position={[0, 0, 0.5]} castShadow receiveShadow>
-            <boxGeometry args={[4, 0.1, 1.5]} />
-            <meshStandardMaterial
-              color={0xff3333}
-              roughness={0.5}
-              metalness={0.4}
-            />
+
+          {/* Nose Cone */}
+          <mesh
+            rotation={[-Math.PI / 2, 0, 0]}
+            scale={[0.6, 1, 0.4]}
+            position={[0, 0, -2.25]}
+            castShadow
+          >
+            <primitive object={shipGeometries.nose} attach="geometry" />
+            <primitive object={shipMaterials.playerBody} attach="material" />
           </mesh>
-          <mesh position={[0, 0.5, -0.2]}>
-            <boxGeometry args={[0.7, 0.4, 1]} />
-            <meshStandardMaterial
-              color={0x111111}
-              roughness={0.0}
-              metalness={0.9}
-            />
+
+          {/* Wings */}
+          <mesh
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0.6, 0.1, -0.2]}
+            castShadow
+          >
+            <primitive object={shipGeometries.wing} attach="geometry" />
+            <primitive object={shipMaterials.playerWing} attach="material" />
           </mesh>
-          <mesh position={[-0.8, 0, 1.3]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.25, 0.2, 0.5, 12]} />
-            <meshStandardMaterial color={0x333333} roughness={0.5} />
+          <mesh
+            rotation={[-Math.PI / 2, 0, 0]}
+            scale={[-1, 1, 1]}
+            position={[-0.6, 0.1, -0.2]}
+            castShadow
+          >
+            <primitive object={shipGeometries.wing} attach="geometry" />
+            <primitive object={shipMaterials.playerWing} attach="material" />
           </mesh>
-          <mesh position={[0.8, 0, 1.3]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.25, 0.2, 0.5, 12]} />
-            <meshStandardMaterial color={0x333333} roughness={0.5} />
+
+          {/* Tail Fins */}
+          <group position={[-0.3, 0.4, 1.4]} rotation={[0, 0, 0.8]}>
+            <mesh rotation={[0, -Math.PI / 2, 0]}>
+              <primitive object={shipGeometries.fin} attach="geometry" />
+              <primitive object={shipMaterials.playerWing} attach="material" />
+            </mesh>
+          </group>
+          <group position={[0.3, 0.4, 1.4]} rotation={[0, 0, -0.8]}>
+            <mesh rotation={[0, -Math.PI / 2, 0]} scale={[1, 1, -1]}>
+              <primitive object={shipGeometries.fin} attach="geometry" />
+              <primitive object={shipMaterials.playerWing} attach="material" />
+            </mesh>
+          </group>
+
+          {/* Cockpit */}
+          <mesh position={[0, 0.45, -0.5]}>
+            <primitive object={shipGeometries.cockpit} attach="geometry" />
+            <primitive object={shipMaterials.cockpit} attach="material" />
           </mesh>
-          <mesh ref={flameLRef} position={[-0.8, 0, 1.5]}>
+
+          {/* Guns */}
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[-1.6, 0.0, 0.2]}>
+            <primitive object={shipGeometries.gun} attach="geometry" />
+            <primitive object={shipMaterials.gun} attach="material" />
+          </mesh>
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[1.6, 0.0, 0.2]}>
+            <primitive object={shipGeometries.gun} attach="geometry" />
+            <primitive object={shipMaterials.gun} attach="material" />
+          </mesh>
+
+          {/* Engines */}
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[-0.5, 0, 1.8]}>
+            <primitive object={shipGeometries.nozzle} attach="geometry" />
+            <primitive object={shipMaterials.nozzle} attach="material" />
+          </mesh>
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0.5, 0, 1.8]}>
+            <primitive object={shipGeometries.nozzle} attach="geometry" />
+            <primitive object={shipMaterials.nozzle} attach="material" />
+          </mesh>
+
+          {/* Exhaust Flames */}
+          <mesh ref={flameLRef} position={[-0.5, 0, 1.8]}>
             <primitive object={exhaustGeometry} attach="geometry" />
             <shaderMaterial
               ref={exhaustMaterialLRef}
@@ -336,9 +465,10 @@ function ShipComponent({
               transparent
               blending={AdditiveBlending}
               depthWrite={false}
+              side={THREE.DoubleSide}
             />
           </mesh>
-          <mesh ref={flameRRef} position={[0.8, 0, 1.5]}>
+          <mesh ref={flameRRef} position={[0.5, 0, 1.8]}>
             <primitive object={exhaustGeometry} attach="geometry" />
             <shaderMaterial
               ref={exhaustMaterialRRef}
@@ -348,21 +478,24 @@ function ShipComponent({
               transparent
               blending={AdditiveBlending}
               depthWrite={false}
+              side={THREE.DoubleSide}
             />
           </mesh>
+
+          {/* Engine Lights */}
           <pointLight
             ref={lightLRef}
-            position={[-1.5, -0.5, 0.5]}
+            position={[-0.5, 0, 2.5]}
             color={0x00ffff}
             intensity={2}
-            distance={5}
+            distance={4}
           />
           <pointLight
             ref={lightRRef}
-            position={[1.5, -0.5, 0.5]}
+            position={[0.5, 0, 2.5]}
             color={0x00ffff}
             intensity={2}
-            distance={5}
+            distance={4}
           />
         </group>
       </group>
@@ -373,7 +506,7 @@ function ShipComponent({
         type="kinematicPosition"
         position={spawnPosition}
         colliders="cuboid"
-        args={[0.8, 0.4, 1.4]}
+        args={[0.6, 0.4, 1.5]}
         linearDamping={0}
         angularDamping={0}
         userData={{ controllerId }}
