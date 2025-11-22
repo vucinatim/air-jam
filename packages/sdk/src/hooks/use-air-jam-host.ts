@@ -15,11 +15,11 @@ import {
 import { detectRunMode } from "../utils/mode";
 import { generateRoomCode } from "../utils/ids";
 import { buildControllerUrl } from "../utils/links";
-import { disconnectSocket, getSocketClient } from "../socketClient";
+import { disconnectSocket, getSocketClient } from "../socket-client";
 import {
   useConnectionState,
   useConnectionStore,
-} from "../state/connectionStore";
+} from "../state/connection-store";
 
 interface AirJamHostOptions {
   roomId?: string;

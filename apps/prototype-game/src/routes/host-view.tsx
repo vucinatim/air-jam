@@ -6,7 +6,7 @@ import {
   type ControllerInputEvent,
   type PlayerProfile,
 } from '@air-jam/sdk'
-import { GameScene } from '../game/GameScene'
+import { GameScene } from '../game/game-scene'
 
 export const HostView = (): JSX.Element => {
   const containerRef = useRef<HTMLDivElement | null>(null)

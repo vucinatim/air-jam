@@ -1,5 +1,5 @@
 import type { RoomCode } from "../protocol";
-import { getLocalNetworkIp } from "./networkIp";
+import { getLocalNetworkIp } from "./network-ip";
 
 const DEFAULT_CONTROLLER_PATH = "/joypad";
 const DEFAULT_SERVER_PORT = "4000";

@@ -14,8 +14,8 @@ import {
 } from '../protocol'
 import { detectRunMode } from '../utils/mode'
 import { generateControllerId } from '../utils/ids'
-import { disconnectSocket, getSocketClient } from '../socketClient'
-import { useConnectionState, useConnectionStore } from '../state/connectionStore'
+import { disconnectSocket, getSocketClient } from '../socket-client'
+import { useConnectionState, useConnectionStore } from '../state/connection-store'
 
 interface AirJamControllerOptions {
   roomId?: string
