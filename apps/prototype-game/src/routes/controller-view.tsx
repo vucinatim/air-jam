@@ -45,14 +45,14 @@ const DirectionControl = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
-    
+
     // Initialize audio context on first interaction
     soundEngine.init();
     soundEngine.playClick();
 
     const currentVector = store.getState().vector;
     store.getState().setVector({ ...currentVector, [axis]: value });
-    vibrate(50);
+    vibrate(10);
   };
 
   const handlePointerEnd = (e: React.PointerEvent) => {
@@ -104,19 +104,19 @@ const ActionControl = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
-    
+
     soundEngine.init();
     soundEngine.playHighClick(); // Higher pitch for actions
 
     if (action === "ability") store.getState().setAbility(true);
     else store.getState().setAction(true);
-    
-    vibrate(70);
+
+    vibrate(20);
   };
 
   const handlePointerEnd = (e: React.PointerEvent) => {
     e.preventDefault();
-    
+
     if (action === "ability") store.getState().setAbility(false);
     else store.getState().setAction(false);
   };
@@ -166,7 +166,7 @@ export const ControllerView = (): JSX.Element => {
 
   const handleTogglePlayPause = (): void => {
     if (connectionStatus !== "connected") return;
-    
+
     soundEngine.init();
     soundEngine.playHighClick();
     vibrate([50, 50, 50]);
@@ -180,34 +180,11 @@ export const ControllerView = (): JSX.Element => {
     });
   };
 
-  // Debug Haptics & Audio
-  const [debugMsg, setDebugMsg] = useState("");
-  const testHaptics = () => {
-    if (typeof navigator === "undefined") {
-      setDebugMsg("Navigator undefined");
-      return;
-    }
-    if (typeof navigator.vibrate !== "function") {
-      setDebugMsg("navigator.vibrate not supported");
-      return;
-    }
-    const result = navigator.vibrate(200);
-    setDebugMsg(`Vibrate(200): ${result}`);
-  };
-
-  const testLongHaptics = () => {
-    if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") {
-      setDebugMsg("Not supported");
-      return;
-    }
-    const result = navigator.vibrate(1000);
-    setDebugMsg(`Vibrate(1000): ${result}`);
-  };
-
-  const testAudio = () => {
-    soundEngine.init();
-    soundEngine.playClick();
-    setDebugMsg("Playing click sound...");
+  const handleReconnect = (roomCode: string): void => {
+    // Update URL with new room code and reload to reconnect
+    const url = new URL(window.location.href);
+    url.searchParams.set("room", roomCode);
+    window.location.href = url.toString();
   };
 
   return (
@@ -217,6 +194,7 @@ export const ControllerView = (): JSX.Element => {
       requiredOrientation="landscape"
       gameState={gameState}
       onTogglePlayPause={handleTogglePlayPause}
+      onReconnect={handleReconnect}
     >
       <div className="flex h-full w-full items-stretch gap-2 select-none touch-none">
         {/* Left Side - Left/Right Controls */}
@@ -274,17 +252,6 @@ export const ControllerView = (): JSX.Element => {
             label="Backward"
           />
         </div>
-      </div>
-      
-      {/* Haptic & Audio Debug Overlay */}
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-center bg-black/50 p-2 text-xs text-white pointer-events-auto">
-        <div className="flex gap-2 items-center">
-           <span>Haptics: {typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function' ? 'Supported' : 'Not Supported'}</span>
-           <button onClick={testHaptics} className="bg-blue-500 px-2 py-1 rounded hover:bg-blue-600">Short Vib</button>
-           <button onClick={testLongHaptics} className="bg-purple-500 px-2 py-1 rounded hover:bg-purple-600">Long Vib</button>
-           <button onClick={testAudio} className="bg-green-500 px-2 py-1 rounded hover:bg-green-600">Test Snd</button>
-        </div>
-        {debugMsg && <div className="mt-1 text-yellow-300">{debugMsg}</div>}
       </div>
     </ControllerShell>
   );

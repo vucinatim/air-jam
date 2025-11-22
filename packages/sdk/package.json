@@ -30,6 +30,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.554.0",
     "qrcode": "^1.5.4",
     "socket.io-client": "^4.8.1",

@@ -242,11 +242,11 @@ export const AirJamOverlay = ({
 
             {/* Play button in paused state */}
             {onTogglePlayPause && (
-              <div className="w-full pt-2">
+              <div className="pt-2">
                 <Button
                   type="button"
                   onClick={onTogglePlayPause}
-                  className="w-full"
+                  className=""
                   size="lg"
                 >
                   <Play className="mr-2 h-5 w-5" />

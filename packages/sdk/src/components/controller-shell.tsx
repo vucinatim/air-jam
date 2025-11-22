@@ -12,7 +12,9 @@ import {
   Minimize,
   Play,
   Pause,
+  QrCode,
 } from "lucide-react";
+import { QRScannerDialog } from "./qr-scanner-dialog";
 
 type OrientationRequirement = "portrait" | "landscape" | "any";
 
@@ -23,6 +25,7 @@ interface ControllerShellProps {
   children: ReactNode;
   gameState?: "paused" | "playing";
   onTogglePlayPause?: () => void;
+  onReconnect?: (roomCode: string) => void;
 }
 
 const describeStatus = (status: ConnectionStatus): string => {
@@ -55,10 +58,12 @@ export const ControllerShell = ({
   children,
   gameState = "paused",
   onTogglePlayPause,
+  onReconnect,
 }: ControllerShellProps): JSX.Element => {
   const [isOrientationOk, setOrientationOk] = useState(() =>
     orientationMatches(requiredOrientation)
   );
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { isFullscreen, toggleFullscreen } = useFullscreen();
 
   useEffect(() => {
@@ -90,7 +95,7 @@ export const ControllerShell = ({
   }, [connectionStatus]);
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground select-none touch-none">
+    <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-background text-foreground select-none touch-none">
       <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between px-6 py-2 border-b">
         <div className="pointer-events-auto">
           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
@@ -101,17 +106,32 @@ export const ControllerShell = ({
           </p>
         </div>
         <div className="pointer-events-auto flex items-center gap-3">
-          <div
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             className="flex items-center"
             title={describeStatus(connectionStatus)}
             aria-label={describeStatus(connectionStatus)}
           >
             {statusIcon}
-          </div>
+          </Button>
+          {onReconnect && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setIsScannerOpen(true)}
+              aria-label="Scan QR code to reconnect"
+              title="Scan QR code to reconnect"
+            >
+              <QrCode className="h-5 w-5" />
+            </Button>
+          )}
           {onTogglePlayPause && (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={onTogglePlayPause}
               aria-label={gameState === "playing" ? "Pause" : "Play"}
@@ -126,7 +146,7 @@ export const ControllerShell = ({
           )}
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
@@ -164,6 +184,18 @@ export const ControllerShell = ({
           </div>
         </div>
       </main>
+
+      {onReconnect && (
+        <QRScannerDialog
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onScan={(roomCode) => {
+            onReconnect(roomCode);
+            setIsScannerOpen(false);
+          }}
+          currentRoomId={roomId}
+        />
+      )}
     </div>
   );
 };
