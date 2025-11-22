@@ -10,7 +10,7 @@ export function Ships() {
         const angle = (index / Math.max(players.length, 1)) * Math.PI * 2;
         const position: [number, number, number] = [
           Math.cos(angle) * 20,
-          2,
+          5,
           Math.sin(angle) * 20,
         ];
 

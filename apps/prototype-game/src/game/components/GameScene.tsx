@@ -12,6 +12,7 @@ import { useGameStore } from "../game-store";
 import { shipPositions, shipRotations } from "./Ship";
 import { Ships } from "./Ships";
 import { SpaceEnvironment } from "./SpaceEnvironment";
+import { Obstacles } from "./Obstacles";
 
 function ArenaBounds() {
   const { world } = useRapier();
@@ -80,17 +81,17 @@ function CameraController() {
     targetPositionRef.current.copy(shipPos).add(offset);
 
     // Smoothly interpolate camera position with delta-based easing
-    const smoothFactor = Math.min(1, delta * 6); // Adjust speed (6 = responsive, higher = faster)
+    const positionSmoothFactor = Math.min(1, delta * 6); // Adjust speed (6 = responsive, higher = faster)
     currentPositionRef.current
       .copy(camera.position)
-      .lerp(targetPositionRef.current, smoothFactor);
+      .lerp(targetPositionRef.current, positionSmoothFactor);
     camera.position.copy(currentPositionRef.current);
 
     // Calculate look-ahead target for smoother camera rotation
     const lookAhead = new Vector3(0, 0, -5).applyQuaternion(shipRot);
     lookTargetRef.current.copy(shipPos).add(lookAhead);
 
-    // Smoothly rotate camera to look at target
+    // Smoothly rotate camera to look at target (faster rotation for better responsiveness)
     const currentLookAt = new Vector3();
     camera.getWorldDirection(currentLookAt);
     currentLookAt.multiplyScalar(100).add(camera.position);
@@ -101,10 +102,11 @@ function CameraController() {
       .normalize();
     const currentDirection = currentLookAt.sub(camera.position).normalize();
 
-    // Interpolate direction for smoother rotation
+    // Use faster rotation smoothing (higher multiplier for more responsive rotation)
+    const rotationSmoothFactor = Math.min(1, delta * 12); // 2x faster than position
     const lerpedDirection = currentDirection
       .clone()
-      .lerp(targetDirection, smoothFactor * 0.8);
+      .lerp(targetDirection, rotationSmoothFactor);
     const finalLookAt = camera.position
       .clone()
       .add(lerpedDirection.multiplyScalar(100));
@@ -128,6 +130,7 @@ export function GameScene() {
       <Physics gravity={[0, 0, 0]} interpolate={true} timeStep="vary">
         <SpaceEnvironment />
         <Ships />
+        <Obstacles />
         <ArenaBounds />
         <CameraController />
       </Physics>
