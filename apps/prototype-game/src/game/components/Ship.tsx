@@ -1,9 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useFrame } from "@react-three/fiber";
-import { useRef, useEffect, memo } from "react";
+import { useRef, useEffect, memo, useMemo } from "react";
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
-import { useMemo } from "react";
 import {
   AdditiveBlending,
   CylinderGeometry,
@@ -15,6 +14,7 @@ import {
 // Track ship positions for camera following
 export const shipPositions = new Map<string, Vector3>();
 export const shipRotations = new Map<string, Quaternion>();
+
 import {
   PLAYER_MAX_SPEED,
   PLAYER_ACCELERATION,
@@ -28,6 +28,7 @@ import {
 import type { InputState } from "../game-store";
 import { PhysicsRecorder } from "./PhysicsRecorder";
 
+// ... Shaders omitted for brevity (keep them as is) ...
 const exhaustVertex = `
   varying vec2 vUv;
   void main() {
@@ -62,32 +63,45 @@ function ShipComponent({
   position: initialPosition,
 }: ShipProps) {
   const spawnPosition = useMemo(() => initialPosition, [initialPosition]);
+
+  // Visual Refs
+  const visualGroupRef = useRef<THREE.Group>(null); // The Visible Ship
+  const planeGroupRef = useRef<THREE.Group>(null); // Inner rotation group
+
+  // Physics Refs
+  const rigidBodyRef = useRef<RapierRigidBody>(null); // The Invisible Collider
+
+  // FX Refs
   const flameLRef = useRef<THREE.Mesh>(null);
   const flameRRef = useRef<THREE.Mesh>(null);
   const lightLRef = useRef<THREE.PointLight>(null);
   const lightRRef = useRef<THREE.PointLight>(null);
   const exhaustMaterialLRef = useRef<THREE.ShaderMaterial>(null);
   const exhaustMaterialRRef = useRef<THREE.ShaderMaterial>(null);
-  const rigidBodyRef = useRef<RapierRigidBody>(null);
-  const planeGroupRef = useRef<THREE.Group>(null);
+
+  // Logic State
   const currentThrustRef = useRef(0);
   const smoothedInputRef = useRef({ x: 0, y: 0 });
   const currentWingRollRef = useRef(0);
-  // Store input in ref to avoid re-renders on input prop changes
   const inputRef = useRef<InputState>(input);
-  // Ref for passing debug data to recorder
+
+  // "God Mode" State Refs (Logic Source of Truth)
+  const currentPositionRef = useRef(new Vector3(...spawnPosition));
+  const currentRotationRef = useRef(new Quaternion());
+  const currentVelocityRef = useRef(new Vector3(0, 0, 0));
+  const currentAngularVelocityRef = useRef(0);
+
   const debugDataRef = useRef({
     smoothedInput: { x: 0, y: 0 },
     velocityChange: { x: 0, y: 0, z: 0 },
     angularVelocityChange: { x: 0, y: 0, z: 0 },
   });
 
-  // Update input ref when prop changes (without causing re-render)
   useEffect(() => {
     inputRef.current = input;
   }, [input]);
 
-  // Create exhaust geometry once
+  // Geometry and Uniforms
   const exhaustGeometry = useMemo(() => {
     const geo = new CylinderGeometry(0.0, 0.2, 2, 12, 1, true);
     geo.rotateX(Math.PI / 2);
@@ -95,33 +109,21 @@ function ShipComponent({
     return geo;
   }, []);
 
-  // Create exhaust uniforms
   const exhaustUniformsL = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uThrust: { value: 0.0 },
-    }),
+    () => ({ uTime: { value: 0 }, uThrust: { value: 0.0 } }),
     []
   );
   const exhaustUniformsR = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uThrust: { value: 0.0 },
-    }),
+    () => ({ uTime: { value: 0 }, uThrust: { value: 0.0 } }),
     []
   );
 
   useFrame((state, delta) => {
-    if (!rigidBodyRef.current) return;
-
-    const body = rigidBodyRef.current;
+    // 1. Logic Updates (Exactly like Code B)
     const time = state.clock.elapsedTime;
-
-    // Read input from ref to avoid closure issues and re-renders
     const currentInput = inputRef.current;
 
-    // Smooth input values using exponential decay (frame-rate independent)
-    // Uses time constant for consistent smoothing regardless of frame rate
+    // Smooth Input
     const inputSmoothAlpha = 1 - Math.exp(-delta / PLAYER_INPUT_SMOOTH_TIME);
     smoothedInputRef.current.x = MathUtils.lerp(
       smoothedInputRef.current.x,
@@ -134,79 +136,42 @@ function ShipComponent({
       inputSmoothAlpha
     );
 
-    // Track position and rotation for camera following
-    const pos = body.translation();
-    const rot = body.rotation();
-    shipPositions.set(controllerId, new Vector3(pos.x, pos.y, pos.z));
-    shipRotations.set(controllerId, new Quaternion(rot.x, rot.y, rot.z, rot.w));
-
-    // Get current rotation from physics body
-    const bodyRotation = body.rotation();
-    const shipQuaternion = new Quaternion(
-      bodyRotation.x,
-      bodyRotation.y,
-      bodyRotation.z,
-      bodyRotation.w
-    );
-
-    body.wakeUp();
-
-    // ===== VELOCITY-BASED CONTROLLER WITH SMOOTH ACCELERATION/DECELERATION =====
+    const shipQuaternion = currentRotationRef.current.clone();
     const thrust = smoothedInputRef.current.y;
     const turnInput = smoothedInputRef.current.x;
 
-    // Forward direction
+    // Velocity Math
     const forward = new Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
-
-    // Target velocity in world space
     const targetVelocity = forward
       .clone()
       .multiplyScalar(thrust * PLAYER_MAX_SPEED);
+    const currentVelocity = currentVelocityRef.current.clone();
 
-    // Current velocity
-    const currentVel = body.linvel();
-    const currentVelocity = new Vector3(
-      currentVel.x,
-      currentVel.y,
-      currentVel.z
-    );
-
-    // Project current velocity onto forward direction
     const currentSpeed = currentVelocity.dot(forward);
     const targetSpeed = thrust * PLAYER_MAX_SPEED;
     const speedDifference = targetSpeed - currentSpeed;
 
-    // Choose acceleration or deceleration rate based on whether we're speeding up or slowing down
-    // We're accelerating if moving toward the target speed or if changing direction
     const isAccelerating =
       Math.abs(targetSpeed) > Math.abs(currentSpeed) ||
-      (targetSpeed > 0 && currentSpeed < 0) ||
-      (targetSpeed < 0 && currentSpeed > 0);
+      targetSpeed * currentSpeed < 0;
     const accelerationRate = isAccelerating
       ? PLAYER_ACCELERATION
       : PLAYER_DECELERATION;
-
-    // Calculate maximum velocity change this frame (frame-rate independent acceleration)
-    // Cap it to prevent large jumps at low frame rates
     const maxVelocityChange = Math.min(
       accelerationRate * delta,
       MAX_VELOCITY_CHANGE_PER_FRAME
     );
 
-    // Apply acceleration/deceleration smoothly along forward direction
     let newVelocity: Vector3;
     if (Math.abs(speedDifference) <= maxVelocityChange) {
-      // We can reach target velocity this frame
       newVelocity = targetVelocity.clone();
     } else {
-      // Gradually accelerate/decelerate toward target
       const direction = speedDifference > 0 ? 1 : -1;
       const speedChange = direction * maxVelocityChange;
       const newSpeed = currentSpeed + speedChange;
       newVelocity = forward.clone().multiplyScalar(newSpeed);
 
-      // Decelerate any perpendicular velocity component (sideways drift when turning)
-      // This ensures smooth direction changes
+      // Re-add your smooth lateral logic here if desired
       const perpendicularVelocity = new Vector3().subVectors(
         currentVelocity,
         forward.clone().multiplyScalar(currentSpeed)
@@ -221,58 +186,69 @@ function ShipComponent({
       }
     }
 
-    // Apply velocity
-    body.setLinvel({ x: newVelocity.x, y: 0, z: newVelocity.z }, true);
+    currentVelocityRef.current.copy(newVelocity);
 
-    // Angular acceleration/deceleration (frame-rate independent)
+    // Angular Math
     const targetAngVel = -turnInput * PLAYER_MAX_ANGULAR_VELOCITY;
-    const currentAngVel = body.angvel();
-    const angVelDifference = targetAngVel - currentAngVel.y;
-    // Cap it to prevent large jumps at low frame rates
+    const currentAngVel = currentAngularVelocityRef.current;
+    const angVelDifference = targetAngVel - currentAngVel;
     const maxAngVelChange = Math.min(
       PLAYER_ANGULAR_ACCELERATION * delta,
       MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME
     );
 
-    let newAngVel: number;
+    let newAngVel = currentAngVel;
     if (Math.abs(angVelDifference) <= maxAngVelChange) {
-      // We can reach target angular velocity this frame
       newAngVel = targetAngVel;
     } else {
-      // Gradually accelerate/decelerate toward target
       const direction = angVelDifference > 0 ? 1 : -1;
-      newAngVel = currentAngVel.y + direction * maxAngVelChange;
+      newAngVel = currentAngVel + direction * maxAngVelChange;
+    }
+    currentAngularVelocityRef.current = newAngVel;
+
+    // 2. Apply Updates to State Refs
+    const rotationDelta = newAngVel * delta;
+    const rotationQuaternion = new Quaternion().setFromAxisAngle(
+      new Vector3(0, 1, 0),
+      rotationDelta
+    );
+    currentRotationRef.current.premultiply(rotationQuaternion).normalize();
+
+    const positionDelta = newVelocity.clone().multiplyScalar(delta);
+    currentPositionRef.current.add(positionDelta);
+
+    // 3. VISUAL UPDATE (The "Code B" part)
+    // We move the visual group directly. This guarantees 144hz smoothness.
+    if (visualGroupRef.current) {
+      visualGroupRef.current.position.copy(currentPositionRef.current);
+      visualGroupRef.current.quaternion.copy(currentRotationRef.current);
     }
 
-    body.setAngvel({ x: 0, y: newAngVel, z: 0 }, true);
+    // 4. PHYSICS UPDATE (The Shadow)
+    // We tell the invisible collider to chase the visual ship.
+    // It might lag slightly behind or jitter internally, but the user won't see it.
+    if (rigidBodyRef.current) {
+      rigidBodyRef.current.setNextKinematicTranslation(
+        currentPositionRef.current
+      );
+      rigidBodyRef.current.setNextKinematicRotation(currentRotationRef.current);
+    }
 
-    // Debug data - track velocity changes per frame (velocity-based system)
-    debugDataRef.current = {
-      smoothedInput: { ...smoothedInputRef.current },
-      velocityChange: {
-        x: newVelocity.x - currentVelocity.x,
-        y: 0,
-        z: newVelocity.z - currentVelocity.z,
-      },
-      angularVelocityChange: { x: 0, y: newAngVel - currentAngVel.y, z: 0 },
-    };
+    // 5. Camera Tracking & FX
+    shipPositions.set(controllerId, currentPositionRef.current.clone());
+    shipRotations.set(controllerId, currentRotationRef.current.clone());
 
-    // Update visual effects - rotate thrusters based on direction
-    const thrustInput = smoothedInputRef.current.y;
-    const targetThrust = Math.abs(thrustInput);
+    // ... (Visual FX Logic stays exactly the same) ...
+    const targetThrust = Math.abs(thrust);
     const newThrust = MathUtils.lerp(
       currentThrustRef.current,
       targetThrust,
       0.15
     );
     currentThrustRef.current = newThrust;
-
-    // Determine rotation based on direction (0 for forward, PI for backward)
-    // Instant rotation - no animation
-    const isMovingBackward = thrustInput < 0;
+    const isMovingBackward = thrust < 0;
     const flameRotation = isMovingBackward ? Math.PI : 0;
 
-    // Update exhaust uniforms
     if (exhaustMaterialLRef.current) {
       exhaustMaterialLRef.current.uniforms.uTime.value = time;
       exhaustMaterialLRef.current.uniforms.uThrust.value = newThrust;
@@ -281,20 +257,14 @@ function ShipComponent({
       exhaustMaterialRRef.current.uniforms.uTime.value = time;
       exhaustMaterialRRef.current.uniforms.uThrust.value = newThrust;
     }
-
-    // Update flame scales and rotation (instant, no animation)
     if (flameLRef.current) {
       flameLRef.current.scale.z = newThrust > 0 ? 0.5 + newThrust * 2.0 : 0.5;
-      // Rotate flames instantly to fire in opposite direction when moving backward
       flameLRef.current.rotation.y = flameRotation;
     }
     if (flameRRef.current) {
       flameRRef.current.scale.z = newThrust > 0 ? 0.5 + newThrust * 2.0 : 0.5;
-      // Rotate flames instantly to fire in opposite direction when moving backward
       flameRRef.current.rotation.y = flameRotation;
     }
-
-    // Update light intensities
     if (lightLRef.current) {
       lightLRef.current.intensity = 2 + newThrust * 10;
       lightLRef.current.distance = 5 + newThrust * 2;
@@ -304,133 +274,125 @@ function ShipComponent({
       lightRRef.current.distance = 5 + newThrust * 2;
     }
 
-    // Plane roll animation - tilt entire plane left/right when turning
-    const maxWingRoll = Math.PI / 6; // 30 degrees max roll
-    const targetWingRoll = -turnInput * maxWingRoll; // Negative for proper banking
-    const wingRollSmoothFactor = Math.min(1, delta * 8); // Smooth wing movement
+    // Plane roll animation
+    const maxWingRoll = Math.PI / 6;
+    const targetWingRoll = -turnInput * maxWingRoll;
+    const wingRollSmoothFactor = Math.min(1, delta * 8);
     currentWingRollRef.current = MathUtils.lerp(
       currentWingRollRef.current,
       targetWingRoll,
       wingRollSmoothFactor
     );
-
-    // Apply roll rotation to entire plane group (around Z axis for banking)
     if (planeGroupRef.current) {
       planeGroupRef.current.rotation.z = currentWingRollRef.current;
     }
   });
 
   return (
-    <RigidBody
-      ref={rigidBodyRef}
-      type="dynamic"
-      position={spawnPosition}
-      colliders="cuboid"
-      args={[0.8, 0.4, 1.4]}
-      linearDamping={0.3}
-      angularDamping={1.5}
-      enabledTranslations={[true, false, true]}
-      enabledRotations={[false, true, false]}
-      ccd
-      canSleep={false}
-      userData={{ controllerId }}
-    >
-      <group ref={planeGroupRef}>
-        {/* Ship body */}
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[1, 0.6, 2.5]} />
-          <meshStandardMaterial
-            color={0xaaaaaa}
-            roughness={0.3}
-            metalness={0.8}
+    <>
+      {/* 1. The Visual Ship (No RigidBody wrapper) */}
+      <group ref={visualGroupRef} position={spawnPosition}>
+        <group ref={planeGroupRef}>
+          {/* ... All your Meshes ... */}
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1, 0.6, 2.5]} />
+            <meshStandardMaterial
+              color={0xaaaaaa}
+              roughness={0.3}
+              metalness={0.8}
+            />
+          </mesh>
+          <mesh position={[0, 0, 0.5]} castShadow receiveShadow>
+            <boxGeometry args={[4, 0.1, 1.5]} />
+            <meshStandardMaterial
+              color={0xff3333}
+              roughness={0.5}
+              metalness={0.4}
+            />
+          </mesh>
+          <mesh position={[0, 0.5, -0.2]}>
+            <boxGeometry args={[0.7, 0.4, 1]} />
+            <meshStandardMaterial
+              color={0x111111}
+              roughness={0.0}
+              metalness={0.9}
+            />
+          </mesh>
+          <mesh position={[-0.8, 0, 1.3]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.25, 0.2, 0.5, 12]} />
+            <meshStandardMaterial color={0x333333} roughness={0.5} />
+          </mesh>
+          <mesh position={[0.8, 0, 1.3]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.25, 0.2, 0.5, 12]} />
+            <meshStandardMaterial color={0x333333} roughness={0.5} />
+          </mesh>
+          <mesh ref={flameLRef} position={[-0.8, 0, 1.5]}>
+            <primitive object={exhaustGeometry} attach="geometry" />
+            <shaderMaterial
+              ref={exhaustMaterialLRef}
+              uniforms={exhaustUniformsL}
+              vertexShader={exhaustVertex}
+              fragmentShader={exhaustFragment}
+              transparent
+              blending={AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh ref={flameRRef} position={[0.8, 0, 1.5]}>
+            <primitive object={exhaustGeometry} attach="geometry" />
+            <shaderMaterial
+              ref={exhaustMaterialRRef}
+              uniforms={exhaustUniformsR}
+              vertexShader={exhaustVertex}
+              fragmentShader={exhaustFragment}
+              transparent
+              blending={AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <pointLight
+            ref={lightLRef}
+            position={[-1.5, -0.5, 0.5]}
+            color={0x00ffff}
+            intensity={2}
+            distance={5}
           />
-        </mesh>
-
-        {/* Wings */}
-        <mesh position={[0, 0, 0.5]} castShadow receiveShadow>
-          <boxGeometry args={[4, 0.1, 1.5]} />
-          <meshStandardMaterial
-            color={0xff3333}
-            roughness={0.5}
-            metalness={0.4}
+          <pointLight
+            ref={lightRRef}
+            position={[1.5, -0.5, 0.5]}
+            color={0x00ffff}
+            intensity={2}
+            distance={5}
           />
-        </mesh>
+        </group>
+      </group>
 
-        {/* Cockpit */}
-        <mesh position={[0, 0.5, -0.2]}>
-          <boxGeometry args={[0.7, 0.4, 1]} />
-          <meshStandardMaterial
-            color={0x111111}
-            roughness={0.0}
-            metalness={0.9}
-          />
-        </mesh>
-
-        {/* Nozzles */}
-        <mesh position={[-0.8, 0, 1.3]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.25, 0.2, 0.5, 12]} />
-          <meshStandardMaterial color={0x333333} roughness={0.5} />
-        </mesh>
-        <mesh position={[0.8, 0, 1.3]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.25, 0.2, 0.5, 12]} />
-          <meshStandardMaterial color={0x333333} roughness={0.5} />
-        </mesh>
-
-        {/* Exhaust flames */}
-        <mesh ref={flameLRef} position={[-0.8, 0, 1.5]}>
-          <primitive object={exhaustGeometry} attach="geometry" />
-          <shaderMaterial
-            ref={exhaustMaterialLRef}
-            uniforms={exhaustUniformsL}
-            vertexShader={exhaustVertex}
-            fragmentShader={exhaustFragment}
-            transparent
-            blending={AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-        <mesh ref={flameRRef} position={[0.8, 0, 1.5]}>
-          <primitive object={exhaustGeometry} attach="geometry" />
-          <shaderMaterial
-            ref={exhaustMaterialRRef}
-            uniforms={exhaustUniformsR}
-            vertexShader={exhaustVertex}
-            fragmentShader={exhaustFragment}
-            transparent
-            blending={AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-
-        {/* Hover lights */}
-        <pointLight
-          ref={lightLRef}
-          position={[-1.5, -0.5, 0.5]}
-          color={0x00ffff}
-          intensity={2}
-          distance={5}
-        />
-        <pointLight
-          ref={lightRRef}
-          position={[1.5, -0.5, 0.5]}
-          color={0x00ffff}
-          intensity={2}
-          distance={5}
-        />
+      {/* 2. The Shadow Physics Body (Invisible) */}
+      <RigidBody
+        ref={rigidBodyRef}
+        type="kinematicPosition"
+        position={spawnPosition}
+        colliders="cuboid"
+        args={[0.8, 0.4, 1.4]}
+        linearDamping={0}
+        angularDamping={0}
+        userData={{ controllerId }}
+        // We don't need children here, the Collider generates automatically from 'args' if colliders="cuboid"
+        // If you need precise mesh colliders, you can put invisible Geometry here.
+      >
+        {/* Optional: Debug mesh to see where physics thinks you are (remove in prod) */}
+        {/* <mesh><boxGeometry args={[0.8, 0.4, 1.4]} /><meshBasicMaterial color="red" wireframe /></mesh> */}
         <PhysicsRecorder
           rigidBodyRef={rigidBodyRef as React.RefObject<RapierRigidBody>}
           inputRef={inputRef}
           debugDataRef={debugDataRef}
         />
-      </group>
-    </RigidBody>
+      </RigidBody>
+    </>
   );
 }
 
-// Memoize Ship to prevent re-renders when only non-movement input changes
-// Returns true if props are equal (skip re-render), false if different (re-render)
 export const Ship = memo(ShipComponent, (prevProps, nextProps) => {
-  // Only re-render if movement input (vector) or position changes, ignore action/ability
   const propsEqual =
     prevProps.controllerId === nextProps.controllerId &&
     prevProps.input.vector.x === nextProps.input.vector.x &&
@@ -438,7 +400,5 @@ export const Ship = memo(ShipComponent, (prevProps, nextProps) => {
     prevProps.position[0] === nextProps.position[0] &&
     prevProps.position[1] === nextProps.position[1] &&
     prevProps.position[2] === nextProps.position[2];
-
-  // Return true to skip re-render when props are equal
   return propsEqual;
 });
