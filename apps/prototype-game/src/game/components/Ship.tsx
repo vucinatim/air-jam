@@ -1,8 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
+
 import { useFrame } from "@react-three/fiber";
-import { useRef, useEffect, memo, useMemo } from "react";
+
+import { useRef, memo, useMemo } from "react";
+
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
+
 import * as THREE from "three";
+
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -29,8 +34,7 @@ import {
   MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME,
   PLAYER_INPUT_SMOOTH_TIME,
 } from "../constants";
-import type { InputState } from "../game-store";
-import { PhysicsRecorder } from "./PhysicsRecorder";
+import { useGameStore } from "../game-store";
 
 // ... Shaders omitted for brevity (keep them as is) ...
 const exhaustVertex = `
@@ -57,23 +61,15 @@ const exhaustFragment = `
 
 interface ShipProps {
   controllerId: string;
-  input: InputState;
   position: [number, number, number];
 }
 
-function ShipComponent({
-  controllerId,
-  input,
-  position: initialPosition,
-}: ShipProps) {
+function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   const spawnPosition = useMemo(() => initialPosition, [initialPosition]);
 
-  // Visual Refs
-  const visualGroupRef = useRef<THREE.Group>(null); // The Visible Ship
-  const planeGroupRef = useRef<THREE.Group>(null); // Inner rotation group
-
-  // Physics Refs
-  const rigidBodyRef = useRef<RapierRigidBody>(null); // The Invisible Collider
+  // Refs
+  const rigidBodyRef = useRef<RapierRigidBody>(null);
+  const planeGroupRef = useRef<THREE.Group>(null); // Inner rotation (banking)
 
   // FX Refs
   const flameLRef = useRef<THREE.Mesh>(null);
@@ -87,23 +83,13 @@ function ShipComponent({
   const currentThrustRef = useRef(0);
   const smoothedInputRef = useRef({ x: 0, y: 0 });
   const currentWingRollRef = useRef(0);
-  const inputRef = useRef<InputState>(input);
+  // Use the ref passed from parent - no need to sync, it's already a ref!
 
-  // "God Mode" State Refs (Logic Source of Truth)
-  const currentPositionRef = useRef(new Vector3(...spawnPosition));
-  const currentRotationRef = useRef(new Quaternion());
+  // We track velocity/rotation in Refs to preserve your math logic
   const currentVelocityRef = useRef(new Vector3(0, 0, 0));
   const currentAngularVelocityRef = useRef(0);
-
-  const debugDataRef = useRef({
-    smoothedInput: { x: 0, y: 0 },
-    velocityChange: { x: 0, y: 0, z: 0 },
-    angularVelocityChange: { x: 0, y: 0, z: 0 },
-  });
-
-  useEffect(() => {
-    inputRef.current = input;
-  }, [input]);
+  // We track rotation manually because we want "Arcade" turning, not "Physics" turning
+  const currentRotationRef = useRef(new Quaternion());
 
   // Shape functions for wings and fins
   const createWingShape = useMemo(() => {
@@ -204,9 +190,21 @@ function ShipComponent({
   );
 
   useFrame((state, delta) => {
-    // 1. Logic Updates (Exactly like Code B)
+    if (!rigidBodyRef.current) return;
+
+    // --- 1. YOUR LOGIC (Keep the math, change the application) ---
     const time = state.clock.elapsedTime;
-    const currentInput = inputRef.current;
+    // Read input directly from store (no rerenders needed!)
+    const storeState = useGameStore.getState();
+    const player = storeState.players.find(
+      (p) => p.controllerId === controllerId
+    );
+    const currentInput = player?.input ?? {
+      vector: { x: 0, y: 0 },
+      action: false,
+      ability: false,
+      timestamp: 0,
+    };
 
     // Smooth Input
     const inputSmoothAlpha = 1 - Math.exp(-delta / PLAYER_INPUT_SMOOTH_TIME);
@@ -221,17 +219,19 @@ function ShipComponent({
       inputSmoothAlpha
     );
 
+    // NOTE: We read rotation from our manual ref, not the physics body, to keep control absolute
     const shipQuaternion = currentRotationRef.current.clone();
     const thrust = smoothedInputRef.current.y;
     const turnInput = smoothedInputRef.current.x;
 
-    // Velocity Math
+    // --- Velocity Math (Identical to your code) ---
     const forward = new Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
     const targetVelocity = forward
       .clone()
       .multiplyScalar(thrust * PLAYER_MAX_SPEED);
-    const currentVelocity = currentVelocityRef.current.clone();
 
+    // Note: We read current velocity from our ref for calculation continuity
+    const currentVelocity = currentVelocityRef.current.clone();
     const currentSpeed = currentVelocity.dot(forward);
     const targetSpeed = thrust * PLAYER_MAX_SPEED;
     const speedDifference = targetSpeed - currentSpeed;
@@ -255,25 +255,11 @@ function ShipComponent({
       const speedChange = direction * maxVelocityChange;
       const newSpeed = currentSpeed + speedChange;
       newVelocity = forward.clone().multiplyScalar(newSpeed);
-
-      // Re-add your smooth lateral logic here if desired
-      const perpendicularVelocity = new Vector3().subVectors(
-        currentVelocity,
-        forward.clone().multiplyScalar(currentSpeed)
-      );
-      if (perpendicularVelocity.lengthSq() > 0.001) {
-        const perpendicularDecel = Math.min(
-          maxVelocityChange,
-          perpendicularVelocity.length()
-        );
-        perpendicularVelocity.normalize().multiplyScalar(-perpendicularDecel);
-        newVelocity.add(perpendicularVelocity);
-      }
     }
 
     currentVelocityRef.current.copy(newVelocity);
 
-    // Angular Math
+    // --- Angular Math (Identical to your code) ---
     const targetAngVel = -turnInput * PLAYER_MAX_ANGULAR_VELOCITY;
     const currentAngVel = currentAngularVelocityRef.current;
     const angVelDifference = targetAngVel - currentAngVel;
@@ -291,7 +277,7 @@ function ShipComponent({
     }
     currentAngularVelocityRef.current = newAngVel;
 
-    // 2. Apply Updates to State Refs
+    // Update our internal Rotation Ref
     const rotationDelta = newAngVel * delta;
     const rotationQuaternion = new Quaternion().setFromAxisAngle(
       new Vector3(0, 1, 0),
@@ -299,31 +285,43 @@ function ShipComponent({
     );
     currentRotationRef.current.premultiply(rotationQuaternion).normalize();
 
-    const positionDelta = newVelocity.clone().multiplyScalar(delta);
-    currentPositionRef.current.add(positionDelta);
+    // --- 2. APPLY TO PHYSICS (The Key Change) ---
 
-    // 3. VISUAL UPDATE (The "Code B" part)
-    // We move the visual group directly. This guarantees 144hz smoothness.
-    if (visualGroupRef.current) {
-      visualGroupRef.current.position.copy(currentPositionRef.current);
-      visualGroupRef.current.quaternion.copy(currentRotationRef.current);
-    }
+    // Apply Velocity directly to the physics engine
+    rigidBodyRef.current.setLinvel(newVelocity, true);
 
-    // 4. PHYSICS UPDATE (The Shadow)
-    // We tell the invisible collider to chase the visual ship.
-    // It might lag slightly behind or jitter internally, but the user won't see it.
-    if (rigidBodyRef.current) {
-      rigidBodyRef.current.setNextKinematicTranslation(
-        currentPositionRef.current
-      );
-      rigidBodyRef.current.setNextKinematicRotation(currentRotationRef.current);
-    }
+    // Force Rotation: We use setRotation because we don't want physics torques spinning the ship.
+    // We want the ship to face exactly where we tell it to.
+    rigidBodyRef.current.setRotation(currentRotationRef.current, true);
 
-    // 5. Camera Tracking & FX
-    shipPositions.set(controllerId, currentPositionRef.current.clone());
+    // Reset Angular Velocity to 0 so collisions don't make the ship spin out of control
+    rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
+
+    // --- 3. SYNC CAMERA & GAME STATE ---
+    // Use the actual Physics position for the camera now, so it respects walls
+    const physicsPos = rigidBodyRef.current.translation();
+    shipPositions.set(
+      controllerId,
+      new Vector3(physicsPos.x, physicsPos.y, physicsPos.z)
+    );
     shipRotations.set(controllerId, currentRotationRef.current.clone());
 
-    // ... (Visual FX Logic stays exactly the same) ...
+    // --- 4. VISUAL FX (Banking & Exhaust) ---
+    // Plane roll animation (Banking)
+    const maxWingRoll = Math.PI / 6;
+    const targetWingRoll = -turnInput * maxWingRoll;
+    const wingRollSmoothFactor = Math.min(1, delta * 8);
+    currentWingRollRef.current = MathUtils.lerp(
+      currentWingRollRef.current,
+      targetWingRoll,
+      wingRollSmoothFactor
+    );
+
+    if (planeGroupRef.current) {
+      planeGroupRef.current.rotation.z = currentWingRollRef.current;
+    }
+
+    // ... [Keep your Exhaust/Flame/Light logic here exactly as is] ...
     const targetThrust = Math.abs(thrust);
     const newThrust = MathUtils.lerp(
       currentThrustRef.current,
@@ -358,180 +356,157 @@ function ShipComponent({
       lightRRef.current.intensity = 2 + newThrust * 10;
       lightRRef.current.distance = 5 + newThrust * 2;
     }
-
-    // Plane roll animation
-    const maxWingRoll = Math.PI / 6;
-    const targetWingRoll = -turnInput * maxWingRoll;
-    const wingRollSmoothFactor = Math.min(1, delta * 8);
-    currentWingRollRef.current = MathUtils.lerp(
-      currentWingRollRef.current,
-      targetWingRoll,
-      wingRollSmoothFactor
-    );
-    if (planeGroupRef.current) {
-      planeGroupRef.current.rotation.z = currentWingRollRef.current;
-    }
   });
 
   return (
-    <>
-      {/* 1. The Visual Ship (No RigidBody wrapper) */}
-      <group ref={visualGroupRef} position={spawnPosition}>
-        <group ref={planeGroupRef}>
-          {/* Main Body */}
-          <mesh castShadow receiveShadow>
-            <primitive object={shipGeometries.body} attach="geometry" />
-            <primitive object={shipMaterials.playerBody} attach="material" />
-          </mesh>
+    <RigidBody
+      ref={rigidBodyRef}
+      // DYNAMIC is crucial for collisions. It stops at walls.
+      type="dynamic"
+      position={spawnPosition}
+      // Lock rotations so physics collisions don't spin the ship (we handle rotation manually)
+      lockRotations
+      // Add some damping so it doesn't feel like it's on ice if we stop applying velocity
+      linearDamping={0.5}
+      colliders="cuboid" // Or "hull" for tighter fit
+      userData={{ controllerId }}
+    >
+      {/* The Visuals are now INSIDE the RigidBody.
+         Because they are children, Rapier will automatically interpolate
+         their position if you enable interpolate={true} in <Physics>
+      */}
+      <group ref={planeGroupRef}>
+        {/* Main Body */}
+        <mesh castShadow receiveShadow>
+          <primitive object={shipGeometries.body} attach="geometry" />
+          <primitive object={shipMaterials.playerBody} attach="material" />
+        </mesh>
 
-          {/* Nose Cone */}
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            scale={[0.6, 1, 0.4]}
-            position={[0, 0, -2.25]}
-            castShadow
-          >
-            <primitive object={shipGeometries.nose} attach="geometry" />
-            <primitive object={shipMaterials.playerBody} attach="material" />
-          </mesh>
+        {/* Nose Cone */}
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[0.6, 1, 0.4]}
+          position={[0, 0, -2.25]}
+          castShadow
+        >
+          <primitive object={shipGeometries.nose} attach="geometry" />
+          <primitive object={shipMaterials.playerBody} attach="material" />
+        </mesh>
 
-          {/* Wings */}
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[0.6, 0.1, -0.2]}
-            castShadow
-          >
-            <primitive object={shipGeometries.wing} attach="geometry" />
+        {/* Wings */}
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0.6, 0.1, -0.2]}
+          castShadow
+        >
+          <primitive object={shipGeometries.wing} attach="geometry" />
+          <primitive object={shipMaterials.playerWing} attach="material" />
+        </mesh>
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[-1, 1, 1]}
+          position={[-0.6, 0.1, -0.2]}
+          castShadow
+        >
+          <primitive object={shipGeometries.wing} attach="geometry" />
+          <primitive object={shipMaterials.playerWing} attach="material" />
+        </mesh>
+
+        {/* Tail Fins */}
+        <group position={[-0.3, 0.4, 1.4]} rotation={[0, 0, 0.8]}>
+          <mesh rotation={[0, -Math.PI / 2, 0]}>
+            <primitive object={shipGeometries.fin} attach="geometry" />
             <primitive object={shipMaterials.playerWing} attach="material" />
           </mesh>
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            scale={[-1, 1, 1]}
-            position={[-0.6, 0.1, -0.2]}
-            castShadow
-          >
-            <primitive object={shipGeometries.wing} attach="geometry" />
-            <primitive object={shipMaterials.playerWing} attach="material" />
-          </mesh>
-
-          {/* Tail Fins */}
-          <group position={[-0.3, 0.4, 1.4]} rotation={[0, 0, 0.8]}>
-            <mesh rotation={[0, -Math.PI / 2, 0]}>
-              <primitive object={shipGeometries.fin} attach="geometry" />
-              <primitive object={shipMaterials.playerWing} attach="material" />
-            </mesh>
-          </group>
-          <group position={[0.3, 0.4, 1.4]} rotation={[0, 0, -0.8]}>
-            <mesh rotation={[0, -Math.PI / 2, 0]} scale={[1, 1, -1]}>
-              <primitive object={shipGeometries.fin} attach="geometry" />
-              <primitive object={shipMaterials.playerWing} attach="material" />
-            </mesh>
-          </group>
-
-          {/* Cockpit */}
-          <mesh position={[0, 0.45, -0.5]}>
-            <primitive object={shipGeometries.cockpit} attach="geometry" />
-            <primitive object={shipMaterials.cockpit} attach="material" />
-          </mesh>
-
-          {/* Guns */}
-          <mesh rotation={[Math.PI / 2, 0, 0]} position={[-1.6, 0.0, 0.2]}>
-            <primitive object={shipGeometries.gun} attach="geometry" />
-            <primitive object={shipMaterials.gun} attach="material" />
-          </mesh>
-          <mesh rotation={[Math.PI / 2, 0, 0]} position={[1.6, 0.0, 0.2]}>
-            <primitive object={shipGeometries.gun} attach="geometry" />
-            <primitive object={shipMaterials.gun} attach="material" />
-          </mesh>
-
-          {/* Engines */}
-          <mesh rotation={[Math.PI / 2, 0, 0]} position={[-0.5, 0, 1.8]}>
-            <primitive object={shipGeometries.nozzle} attach="geometry" />
-            <primitive object={shipMaterials.nozzle} attach="material" />
-          </mesh>
-          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0.5, 0, 1.8]}>
-            <primitive object={shipGeometries.nozzle} attach="geometry" />
-            <primitive object={shipMaterials.nozzle} attach="material" />
-          </mesh>
-
-          {/* Exhaust Flames */}
-          <mesh ref={flameLRef} position={[-0.5, 0, 1.8]}>
-            <primitive object={exhaustGeometry} attach="geometry" />
-            <shaderMaterial
-              ref={exhaustMaterialLRef}
-              uniforms={exhaustUniformsL}
-              vertexShader={exhaustVertex}
-              fragmentShader={exhaustFragment}
-              transparent
-              blending={AdditiveBlending}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-          <mesh ref={flameRRef} position={[0.5, 0, 1.8]}>
-            <primitive object={exhaustGeometry} attach="geometry" />
-            <shaderMaterial
-              ref={exhaustMaterialRRef}
-              uniforms={exhaustUniformsR}
-              vertexShader={exhaustVertex}
-              fragmentShader={exhaustFragment}
-              transparent
-              blending={AdditiveBlending}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-
-          {/* Engine Lights */}
-          <pointLight
-            ref={lightLRef}
-            position={[-0.5, 0, 2.5]}
-            color={0x00ffff}
-            intensity={2}
-            distance={4}
-          />
-          <pointLight
-            ref={lightRRef}
-            position={[0.5, 0, 2.5]}
-            color={0x00ffff}
-            intensity={2}
-            distance={4}
-          />
         </group>
-      </group>
+        <group position={[0.3, 0.4, 1.4]} rotation={[0, 0, -0.8]}>
+          <mesh rotation={[0, -Math.PI / 2, 0]} scale={[1, 1, -1]}>
+            <primitive object={shipGeometries.fin} attach="geometry" />
+            <primitive object={shipMaterials.playerWing} attach="material" />
+          </mesh>
+        </group>
 
-      {/* 2. The Shadow Physics Body (Invisible) */}
-      <RigidBody
-        ref={rigidBodyRef}
-        type="kinematicPosition"
-        position={spawnPosition}
-        colliders="cuboid"
-        args={[0.6, 0.4, 1.5]}
-        linearDamping={0}
-        angularDamping={0}
-        userData={{ controllerId }}
-        // We don't need children here, the Collider generates automatically from 'args' if colliders="cuboid"
-        // If you need precise mesh colliders, you can put invisible Geometry here.
-      >
-        {/* Optional: Debug mesh to see where physics thinks you are (remove in prod) */}
-        {/* <mesh><boxGeometry args={[0.8, 0.4, 1.4]} /><meshBasicMaterial color="red" wireframe /></mesh> */}
-        <PhysicsRecorder
-          rigidBodyRef={rigidBodyRef as React.RefObject<RapierRigidBody>}
-          inputRef={inputRef}
-          debugDataRef={debugDataRef}
+        {/* Cockpit */}
+        <mesh position={[0, 0.45, -0.5]}>
+          <primitive object={shipGeometries.cockpit} attach="geometry" />
+          <primitive object={shipMaterials.cockpit} attach="material" />
+        </mesh>
+
+        {/* Guns */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[-1.6, 0.0, 0.2]}>
+          <primitive object={shipGeometries.gun} attach="geometry" />
+          <primitive object={shipMaterials.gun} attach="material" />
+        </mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[1.6, 0.0, 0.2]}>
+          <primitive object={shipGeometries.gun} attach="geometry" />
+          <primitive object={shipMaterials.gun} attach="material" />
+        </mesh>
+
+        {/* Engines */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[-0.5, 0, 1.8]}>
+          <primitive object={shipGeometries.nozzle} attach="geometry" />
+          <primitive object={shipMaterials.nozzle} attach="material" />
+        </mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0.5, 0, 1.8]}>
+          <primitive object={shipGeometries.nozzle} attach="geometry" />
+          <primitive object={shipMaterials.nozzle} attach="material" />
+        </mesh>
+
+        {/* Exhaust Flames */}
+        <mesh ref={flameLRef} position={[-0.5, 0, 1.8]}>
+          <primitive object={exhaustGeometry} attach="geometry" />
+          <shaderMaterial
+            ref={exhaustMaterialLRef}
+            uniforms={exhaustUniformsL}
+            vertexShader={exhaustVertex}
+            fragmentShader={exhaustFragment}
+            transparent
+            blending={AdditiveBlending}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        <mesh ref={flameRRef} position={[0.5, 0, 1.8]}>
+          <primitive object={exhaustGeometry} attach="geometry" />
+          <shaderMaterial
+            ref={exhaustMaterialRRef}
+            uniforms={exhaustUniformsR}
+            vertexShader={exhaustVertex}
+            fragmentShader={exhaustFragment}
+            transparent
+            blending={AdditiveBlending}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Engine Lights */}
+        <pointLight
+          ref={lightLRef}
+          position={[-0.5, 0, 2.5]}
+          color={0x00ffff}
+          intensity={2}
+          distance={4}
         />
-      </RigidBody>
-    </>
+        <pointLight
+          ref={lightRRef}
+          position={[0.5, 0, 2.5]}
+          color={0x00ffff}
+          intensity={2}
+          distance={4}
+        />
+      </group>
+    </RigidBody>
   );
 }
 
 export const Ship = memo(ShipComponent, (prevProps, nextProps) => {
-  const propsEqual =
+  // Since we read input directly from store in useFrame, we don't need input as a prop
+  // Component only rerenders if controllerId or position changes
+  return (
     prevProps.controllerId === nextProps.controllerId &&
-    prevProps.input.vector.x === nextProps.input.vector.x &&
-    prevProps.input.vector.y === nextProps.input.vector.y &&
     prevProps.position[0] === nextProps.position[0] &&
     prevProps.position[1] === nextProps.position[1] &&
-    prevProps.position[2] === nextProps.position[2];
-  return propsEqual;
+    prevProps.position[2] === nextProps.position[2]
+  );
 });

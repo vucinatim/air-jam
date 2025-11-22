@@ -125,7 +125,7 @@ export function GameScene() {
         far={1000}
         position={[0, 5, 10]}
       />
-      <Physics gravity={[0, 0, 0]}>
+      <Physics gravity={[0, 0, 0]} interpolate={true} timeStep="vary">
         <SpaceEnvironment />
         <Ships />
         <ArenaBounds />

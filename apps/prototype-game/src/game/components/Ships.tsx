@@ -18,7 +18,6 @@ export function Ships() {
           <Ship
             key={player.controllerId}
             controllerId={player.controllerId}
-            input={player.input}
             position={position}
           />
         );
