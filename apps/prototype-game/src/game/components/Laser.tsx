@@ -8,6 +8,7 @@ import {
   Object3D,
   Quaternion,
 } from "three";
+import { useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { useLasersStore } from "../lasers-store";
 import { useDecalsStore } from "../decals-store";
 import type { Mesh } from "three";
@@ -21,9 +22,11 @@ interface LaserProps {
 
 const LASER_SPEED = 150;
 const LASER_LIFETIME = 2; // seconds
+const KNOCKBACK_FORCE = 300; // Force applied when laser hits a ship
 
-export function Laser({ id, position, direction }: LaserProps) {
+export function Laser({ id, position, direction, controllerId }: LaserProps) {
   const { scene } = useThree();
+  const { world } = useRapier();
   const [currentPosition, setCurrentPosition] = useState(
     () => new Vector3(...position)
   );
@@ -92,8 +95,9 @@ export function Laser({ id, position, direction }: LaserProps) {
       raycasterRef.current.set(rayOrigin, rayDirection);
       raycasterRef.current.far = maxDistance;
 
-      // Get all obstacles from the scene
+      // Get all obstacles and ships from the scene
       const obstacles: Object3D[] = [];
+      const ships: Object3D[] = [];
       scene.traverse((object) => {
         // Find obstacles (they have userData.type === "obstacle" or are RigidBody with fixed type)
         if (
@@ -102,12 +106,20 @@ export function Laser({ id, position, direction }: LaserProps) {
         ) {
           obstacles.push(object);
         }
+        // Find ships (RigidBody objects with controllerId, but not the one that fired this laser)
+        if (
+          object.userData?.controllerId &&
+          object.userData.controllerId !== controllerId
+        ) {
+          ships.push(object);
+        }
       });
 
-      const intersects = raycasterRef.current.intersectObjects(obstacles, true);
+      // Check for ship hits first (prioritize player hits)
+      const shipIntersects = raycasterRef.current.intersectObjects(ships, true);
 
-      if (intersects.length > 0) {
-        const hit = intersects[0];
+      if (shipIntersects.length > 0) {
+        const hit = shipIntersects[0];
         const hitPoint = hit.point;
         const hitNormal = hit.face?.normal;
 
@@ -120,7 +132,107 @@ export function Laser({ id, position, direction }: LaserProps) {
           }
           worldNormal.normalize();
 
-          // We hit something! Spawn decal at exact hit point with exact normal
+          // Find the RigidBody for this ship and apply knockback
+          let hitControllerId: string | null = null;
+          let currentObject: Object3D | null = hit.object;
+
+          // Traverse up the parent chain to find the RigidBody with controllerId
+          while (currentObject) {
+            if (currentObject.userData?.controllerId) {
+              hitControllerId = currentObject.userData.controllerId;
+              break;
+            }
+            currentObject = currentObject.parent;
+          }
+
+          // Find the corresponding RigidBody in the Rapier world
+          let shipRigidBody: RapierRigidBody | null = null;
+          if (hitControllerId && world) {
+            world.bodies.forEach((body) => {
+              // Access userData as a property, not a function
+              const bodyUserData = body.userData;
+              if (
+                bodyUserData &&
+                typeof bodyUserData === "object" &&
+                "controllerId" in bodyUserData
+              ) {
+                const userData = bodyUserData as { controllerId?: string };
+                if (userData.controllerId === hitControllerId) {
+                  shipRigidBody = body as unknown as RapierRigidBody;
+                }
+              }
+            });
+          }
+
+          // Apply knockback force to the ship
+          if (shipRigidBody) {
+            // Calculate knockback direction (in the direction the laser was traveling)
+            const knockbackDirection = normalizedDir
+              .clone()
+              .multiplyScalar(KNOCKBACK_FORCE);
+            // Apply as impulse (at center of mass)
+            // TypeScript needs explicit cast here because world.bodies returns a different type
+            (
+              shipRigidBody as unknown as {
+                applyImpulse(
+                  impulse: { x: number; y: number; z: number },
+                  wakeUp: boolean
+                ): void;
+              }
+            ).applyImpulse(
+              {
+                x: knockbackDirection.x,
+                y: knockbackDirection.y,
+                z: knockbackDirection.z,
+              },
+              true
+            );
+          }
+
+          // We hit a ship! Spawn decal at exact hit point with exact normal
+          hasHitRef.current = true;
+
+          // Offset decal slightly from surface to avoid z-fighting
+          const offset = worldNormal.clone().multiplyScalar(0.01);
+          const decalPosition: [number, number, number] = [
+            hitPoint.x + offset.x,
+            hitPoint.y + offset.y,
+            hitPoint.z + offset.z,
+          ];
+
+          // Spawn decal with exact hit point and surface normal
+          addDecal({
+            position: decalPosition,
+            normal: worldNormal,
+          });
+
+          // Remove laser
+          removeLaser(id);
+          return;
+        }
+      }
+
+      // Check for obstacle hits
+      const obstacleIntersects = raycasterRef.current.intersectObjects(
+        obstacles,
+        true
+      );
+
+      if (obstacleIntersects.length > 0) {
+        const hit = obstacleIntersects[0];
+        const hitPoint = hit.point;
+        const hitNormal = hit.face?.normal;
+
+        if (hitNormal) {
+          // Transform normal to world space
+          const worldNormal = hitNormal.clone();
+          if (hit.object.parent) {
+            hit.object.parent.updateMatrixWorld();
+            worldNormal.transformDirection(hit.object.parent.matrixWorld);
+          }
+          worldNormal.normalize();
+
+          // We hit an obstacle! Spawn decal at exact hit point with exact normal
           hasHitRef.current = true;
 
           // Offset decal slightly from surface to avoid z-fighting
