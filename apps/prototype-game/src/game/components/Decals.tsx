@@ -11,7 +11,7 @@ import {
 import { useDecalsStore } from "../decals-store";
 
 const DECAL_LIFETIME = 5; // seconds
-const DECAL_SIZE = 0.4; // Size of the hit mark decal
+const DECAL_SIZE = 0.2; // Size of the hit mark decal
 
 interface DecalProps {
   id: string;

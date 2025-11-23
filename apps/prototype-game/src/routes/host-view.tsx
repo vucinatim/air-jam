@@ -8,7 +8,6 @@ import {
 } from "@air-jam/sdk";
 import { GameScene } from "../game/components/GameScene";
 import { useGameStore } from "../game/game-store";
-import { PhysicsRecorderUI } from "../components/PhysicsRecorderUI";
 
 export const HostView = (): JSX.Element => {
   const applyInput = useGameStore((state) => state.applyInput);
@@ -79,7 +78,6 @@ export const HostView = (): JSX.Element => {
         gameState={host.gameState}
         onTogglePlayPause={host.toggleGameState}
       />
-      <PhysicsRecorderUI />
       <div className="h-full w-full">
         <GameScene />
       </div>

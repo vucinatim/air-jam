@@ -95,7 +95,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   // Shooting state
   const lastActionRef = useRef(false);
   const lastShootTimeRef = useRef(0);
-  const SHOOT_COOLDOWN = 0.1; // 100ms between shots
+  const HOLD_SHOOT_INTERVAL = 0.2; // 50ms between shots when button is held
   const addLaser = useLasersStore((state) => state.addLaser);
 
   // Shape functions for wings and fins
@@ -313,9 +313,14 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
     // --- 3.5. SHOOTING LOGIC ---
     const actionPressed = currentInput.action && !lastActionRef.current;
-    const canShoot = time - lastShootTimeRef.current > SHOOT_COOLDOWN;
+    const actionHeld = currentInput.action;
+    const timeSinceLastShot = time - lastShootTimeRef.current;
 
-    if (actionPressed && canShoot) {
+    // Shoot on click (no cooldown) or when held with fast interval
+    const shouldShoot =
+      actionPressed || (actionHeld && timeSinceLastShot >= HOLD_SHOOT_INTERVAL);
+
+    if (shouldShoot) {
       lastShootTimeRef.current = time;
 
       // Gun barrel positions in local space (gun is 1.5 units long, tip is at z = 0.2 + 0.75 = 0.95)

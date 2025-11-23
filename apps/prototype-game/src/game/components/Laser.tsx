@@ -1,14 +1,16 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, useMemo, useState } from "react";
 import {
-  SphereGeometry,
+  BoxGeometry,
   MeshStandardMaterial,
   Vector3,
   Raycaster,
   Object3D,
+  Quaternion,
 } from "three";
 import { useLasersStore } from "../lasers-store";
 import { useDecalsStore } from "../decals-store";
+import type { Mesh } from "three";
 
 interface LaserProps {
   id: string;
@@ -31,8 +33,11 @@ export function Laser({ id, position, direction }: LaserProps) {
   const removeLaser = useLasersStore((state) => state.removeLaser);
   const addDecal = useDecalsStore((state) => state.addDecal);
   const raycasterRef = useRef(new Raycaster());
+  const meshRef = useRef<Mesh>(null);
 
-  const geometry = useMemo(() => new SphereGeometry(0.1, 8, 8), []);
+  // Create elongated box geometry (width, height, length)
+  // Similar to the example: BoxGeometry(0.2, 0.2, 4)
+  const geometry = useMemo(() => new BoxGeometry(0.2, 0.2, 5), []);
   const material = useMemo(
     () =>
       new MeshStandardMaterial({
@@ -44,8 +49,29 @@ export function Laser({ id, position, direction }: LaserProps) {
     []
   );
 
+  // Calculate rotation quaternion to align box with direction
+  // Box's length is along Z-axis, we need to rotate it to match direction
+  const rotationQuaternion = useMemo(() => {
+    const defaultForward = new Vector3(0, 0, -1); // Box's forward is -Z
+    const targetDirection = direction.clone().normalize();
+
+    // Create quaternion that rotates from defaultForward to targetDirection
+    const quaternion = new Quaternion();
+    quaternion.setFromUnitVectors(defaultForward, targetDirection);
+    return quaternion;
+  }, [direction]);
+
   useFrame((_state, delta) => {
     if (hasHitRef.current) return;
+
+    // Update rotation to align with direction (in case direction changes)
+    if (meshRef.current) {
+      const defaultForward = new Vector3(0, 0, -1);
+      const targetDirection = direction.clone().normalize();
+      const quaternion = new Quaternion();
+      quaternion.setFromUnitVectors(defaultForward, targetDirection);
+      meshRef.current.quaternion.copy(quaternion);
+    }
 
     // Update position based on direction and speed
     const normalizedDir = direction.clone().normalize();
@@ -131,10 +157,12 @@ export function Laser({ id, position, direction }: LaserProps) {
 
   return (
     <mesh
+      ref={meshRef}
       position={currentPosition}
       geometry={geometry}
       material={material}
       castShadow
+      quaternion={rotationQuaternion}
     />
   );
 }
