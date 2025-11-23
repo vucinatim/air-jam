@@ -35,6 +35,7 @@ import {
   PLAYER_INPUT_SMOOTH_TIME,
 } from "../constants";
 import { useGameStore } from "../game-store";
+import { useLasersStore } from "../lasers-store";
 
 // ... Shaders omitted for brevity (keep them as is) ...
 const exhaustVertex = `
@@ -90,6 +91,12 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   const currentAngularVelocityRef = useRef(0);
   // We track rotation manually because we want "Arcade" turning, not "Physics" turning
   const currentRotationRef = useRef(new Quaternion());
+
+  // Shooting state
+  const lastActionRef = useRef(false);
+  const lastShootTimeRef = useRef(0);
+  const SHOOT_COOLDOWN = 0.1; // 100ms between shots
+  const addLaser = useLasersStore((state) => state.addLaser);
 
   // Shape functions for wings and fins
   const createWingShape = useMemo(() => {
@@ -300,11 +307,61 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     // --- 3. SYNC CAMERA & GAME STATE ---
     // Use the actual Physics position for the camera now, so it respects walls
     const physicsPos = rigidBodyRef.current.translation();
-    shipPositions.set(
-      controllerId,
-      new Vector3(physicsPos.x, physicsPos.y, physicsPos.z)
-    );
+    const shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
+    shipPositions.set(controllerId, shipWorldPos);
     shipRotations.set(controllerId, currentRotationRef.current.clone());
+
+    // --- 3.5. SHOOTING LOGIC ---
+    const actionPressed = currentInput.action && !lastActionRef.current;
+    const canShoot = time - lastShootTimeRef.current > SHOOT_COOLDOWN;
+
+    if (actionPressed && canShoot) {
+      lastShootTimeRef.current = time;
+
+      // Gun barrel positions in local space (gun is 1.5 units long, tip is at z = 0.2 + 0.75 = 0.95)
+      const gunTipOffset = 0.95;
+      const leftGunLocal = new Vector3(-1.6, 0.0, gunTipOffset);
+      const rightGunLocal = new Vector3(1.6, 0.0, gunTipOffset);
+
+      // Transform to world space
+      const leftGunWorld = leftGunLocal
+        .applyQuaternion(shipQuaternion)
+        .add(shipWorldPos);
+      const rightGunWorld = rightGunLocal
+        .applyQuaternion(shipQuaternion)
+        .add(shipWorldPos);
+
+      // Forward direction (ship's forward is -Z)
+      const forwardDir = new Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
+
+      // Offset laser spawn position forward to ensure it's outside ship's collider
+      // Ship body is 3.0 units long, offset by 2 units forward to be safe and prevent sticking
+      const spawnOffset = forwardDir.clone().multiplyScalar(2.0);
+      const leftGunSpawnPos = leftGunWorld.clone().add(spawnOffset);
+      const rightGunSpawnPos = rightGunWorld.clone().add(spawnOffset);
+
+      // Spawn lasers from both guns
+      const laserId1 = `${controllerId}-${time}-L`;
+      const laserId2 = `${controllerId}-${time}-R`;
+
+      addLaser({
+        id: laserId1,
+        position: [leftGunSpawnPos.x, leftGunSpawnPos.y, leftGunSpawnPos.z],
+        direction: forwardDir.clone(),
+        controllerId,
+        timestamp: time,
+      });
+
+      addLaser({
+        id: laserId2,
+        position: [rightGunSpawnPos.x, rightGunSpawnPos.y, rightGunSpawnPos.z],
+        direction: forwardDir.clone(),
+        controllerId,
+        timestamp: time,
+      });
+    }
+
+    lastActionRef.current = currentInput.action;
 
     // --- 4. VISUAL FX (Banking & Exhaust) ---
     // Plane roll animation (Banking)

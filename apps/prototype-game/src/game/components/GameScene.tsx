@@ -13,6 +13,8 @@ import { shipPositions, shipRotations } from "./Ship";
 import { Ships } from "./Ships";
 import { SpaceEnvironment } from "./SpaceEnvironment";
 import { Obstacles } from "./Obstacles";
+import { Lasers } from "./Lasers";
+import { Decals } from "./Decals";
 
 function ArenaBounds() {
   const { world } = useRapier();
@@ -131,6 +133,8 @@ export function GameScene() {
         <SpaceEnvironment />
         <Ships />
         <Obstacles />
+        <Lasers />
+        <Decals />
         <ArenaBounds />
         <CameraController />
       </Physics>
