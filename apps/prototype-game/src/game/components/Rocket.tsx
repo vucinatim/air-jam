@@ -6,6 +6,7 @@ import { useRocketsStore } from "../rockets-store";
 import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
 import { RocketModel } from "./RocketModel";
+import { RocketExplosion } from "./RocketExplosion";
 
 interface RocketProps {
   id: string;
@@ -28,7 +29,10 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
   );
   const previousPositionRef = useRef(new Vector3(...position));
   const lifetimeRef = useRef(0);
-  const hasHitRef = useRef(false);
+  const [hasHit, setHasHit] = useState(false);
+  const [explosionPosition, setExplosionPosition] = useState<
+    [number, number, number] | null
+  >(null);
   const removeRocket = useRocketsStore((state) => state.removeRocket);
   const addDecal = useDecalsStore((state) => state.addDecal);
   const reduceHealth = useHealthStore((state) => state.reduceHealth);
@@ -45,7 +49,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
   }, [direction]);
 
   useFrame((_state, delta) => {
-    if (hasHitRef.current || !groupRef.current) return;
+    if (hasHit || !groupRef.current) return;
 
     // Update rotation
     const defaultForward = new Vector3(0, 0, -1);
@@ -102,6 +106,9 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
         if (hitControllerId) {
           // Area damage - damage all ships within explosion radius
           const hitPos = new Vector3(hitPoint.x, hitPoint.y, hitPoint.z);
+
+          // Trigger explosion effect
+          setExplosionPosition([hitPos.x, hitPos.y, hitPos.z]);
 
           // Get all ship positions from the world
           world.bodies.forEach((body) => {
@@ -173,16 +180,24 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
             });
           }
 
-          hasHitRef.current = true;
-          removeRocket(id);
+          setHasHit(true);
+          // Don't remove rocket immediately - let explosion play first
+          // removeRocket will be called after explosion finishes
           return;
         }
       }
 
-      // Check for obstacle hits
-      const obstacles = scene.children.filter(
-        (obj) => obj.userData.type === "obstacle"
-      );
+      // Check for obstacle/ground hits (both handled the same way)
+      const obstacles: Object3D[] = [];
+      scene.traverse((object) => {
+        if (
+          object.userData?.type === "obstacle" ||
+          object.userData?.type === "ground"
+        ) {
+          obstacles.push(object);
+        }
+      });
+
       const obstacleIntersects = raycasterRef.current.intersectObjects(
         obstacles,
         true
@@ -194,6 +209,9 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
         const hitNormal = hit.face?.normal;
 
         if (hitNormal) {
+          // Trigger explosion effect
+          setExplosionPosition([hitPoint.x, hitPoint.y, hitPoint.z]);
+
           const worldNormal = hitNormal.clone();
           if (hit.object.parent) {
             hit.object.parent.updateMatrixWorld();
@@ -213,8 +231,9 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
             normal: worldNormal,
           });
 
-          hasHitRef.current = true;
-          removeRocket(id);
+          setHasHit(true);
+          // Don't remove rocket immediately - let explosion play first
+          // removeRocket will be called after explosion finishes
           return;
         }
       }
@@ -224,20 +243,34 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
     setCurrentPosition(newPosition);
     previousPositionRef.current.copy(newPosition);
 
-    // Check lifetime
-    lifetimeRef.current += delta;
-    if (lifetimeRef.current > ROCKET_LIFETIME) {
-      removeRocket(id);
+    // Check lifetime (only if not hit)
+    if (!hasHit) {
+      lifetimeRef.current += delta;
+      if (lifetimeRef.current > ROCKET_LIFETIME) {
+        removeRocket(id);
+      }
     }
   });
 
   return (
-    <group
-      ref={groupRef}
-      position={currentPosition}
-      quaternion={rotationQuaternion}
-    >
-      <RocketModel showParticles={true} horizontal={true} />
-    </group>
+    <>
+      {!hasHit && (
+        <group
+          ref={groupRef}
+          position={currentPosition}
+          quaternion={rotationQuaternion}
+        >
+          <RocketModel showParticles={true} horizontal={true} />
+        </group>
+      )}
+      {explosionPosition && (
+        <RocketExplosion
+          position={explosionPosition}
+          onComplete={() => {
+            removeRocket(id);
+          }}
+        />
+      )}
+    </>
   );
 }

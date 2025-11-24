@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { AdditiveBlending, BackSide, ShaderMaterial } from "three";
+import { RigidBody } from "@react-three/rapier";
 import { ARENA_RADIUS } from "../constants";
 
 function Forcefield() {
@@ -85,14 +86,21 @@ export function SpaceEnvironment() {
       />
 
       {/* Ground plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[ARENA_RADIUS * 3, ARENA_RADIUS * 3]} />
-        <meshStandardMaterial
-          color={0x222222}
-          roughness={0.8}
-          metalness={0.2}
-        />
-      </mesh>
+      <RigidBody
+        type="fixed"
+        rotation={[-Math.PI / 2, 0, 0]}
+        colliders="cuboid"
+        userData={{ type: "ground" }}
+      >
+        <mesh receiveShadow userData={{ type: "ground" }}>
+          <planeGeometry args={[ARENA_RADIUS * 3, ARENA_RADIUS * 3]} />
+          <meshStandardMaterial
+            color={0x222222}
+            roughness={0.8}
+            metalness={0.2}
+          />
+        </mesh>
+      </RigidBody>
 
       {/* Grid helper */}
       <gridHelper args={[ARENA_RADIUS * 2.5, 40, 0x555555, 0x333333]} />

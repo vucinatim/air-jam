@@ -2,6 +2,10 @@ import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
 import { useLasersStore } from "../lasers-store";
 import { useDecalsStore } from "../decals-store";
+import {
+  useAbilitiesStore,
+  getAllAbilityDefinitions,
+} from "../abilities-store";
 import { DebugSection } from "./DebugOverlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +16,15 @@ export function PlayersSection() {
   const players = useGameStore((state) => state.players);
   const health = useHealthStore((state) => state.health);
   const setHealth = useHealthStore((state) => state.setHealth);
+  const collectAbility = useAbilitiesStore((state) => state.collectAbility);
+  const clearAbility = useAbilitiesStore((state) => state.clearAbility);
+  const getAbility = useAbilitiesStore((state) => state.getAbility);
+  const isAbilityActive = useAbilitiesStore((state) => state.isAbilityActive);
+  const getRemainingDuration = useAbilitiesStore(
+    (state) => state.getRemainingDuration
+  );
+
+  const allAbilities = getAllAbilityDefinitions();
 
   const adjustHealth = (controllerId: string, delta: number) => {
     const currentHealth = health[controllerId] ?? 100;
@@ -33,13 +46,18 @@ export function PlayersSection() {
         {players.map((player) => {
           const playerHealth = health[player.controllerId] ?? 100;
           const healthPercentage = (playerHealth / 100) * 100;
+          const currentAbility = getAbility(player.controllerId);
+          const abilityActive = isAbilityActive(player.controllerId);
+          const remainingDuration = abilityActive
+            ? getRemainingDuration(player.controllerId)
+            : 0;
 
           return (
             <div
               key={player.controllerId}
               className="p-3 rounded-md border border-border bg-muted/20"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div
                     className="size-3 rounded-full"
@@ -55,7 +73,7 @@ export function PlayersSection() {
               </div>
 
               {/* Health Bar */}
-              <div className="mb-2">
+              <div className="mb-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-muted-foreground">Health</span>
                   <span className="text-xs font-mono font-semibold text-foreground">
@@ -76,7 +94,7 @@ export function PlayersSection() {
               </div>
 
               {/* Health Controls */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-3">
                 <Button
                   variant="outline"
                   size="sm"
@@ -109,6 +127,75 @@ export function PlayersSection() {
                 >
                   +10
                 </Button>
+              </div>
+
+              {/* Ability Section */}
+              <div className="border-t border-border pt-3">
+                {/* Current Ability Status */}
+                {currentAbility ? (
+                  <div className="mb-3 p-2 rounded-md bg-background/50">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{currentAbility.icon}</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {currentAbility.name}
+                        </span>
+                      </div>
+                      {abilityActive && (
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {remainingDuration.toFixed(1)}s
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded",
+                          abilityActive
+                            ? "bg-green-500/20 text-green-400"
+                            : "bg-gray-500/20 text-gray-400"
+                        )}
+                      >
+                        {abilityActive ? "Active" : "Ready"}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => clearAbility(player.controllerId)}
+                        className="h-6 text-xs ml-auto"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-3 p-2 rounded-md bg-background/50">
+                    <span className="text-xs text-muted-foreground">
+                      No ability equipped
+                    </span>
+                  </div>
+                )}
+
+                {/* Ability Buttons */}
+                <div className="grid grid-cols-3 gap-2">
+                  {allAbilities.map((ability) => (
+                    <Button
+                      key={ability.id}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => collectAbility(player.controllerId, ability.id)}
+                      className="h-10 flex flex-col items-center justify-center gap-1 text-xs"
+                      disabled={
+                        currentAbility?.id === ability.id && !abilityActive
+                      }
+                    >
+                      <span className="text-base">{ability.icon}</span>
+                      <span className="text-[10px] leading-tight">
+                        {ability.name}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           );
@@ -148,4 +235,5 @@ export function SceneInfoSection() {
     </DebugSection>
   );
 }
+
 

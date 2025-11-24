@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type React from "react";
 
 export type AbilityId = "speed_boost" | "rocket" | "health_pack" | string; // Extensible for future abilities
 
@@ -147,17 +148,17 @@ export const RARITY_INFO: Record<Rarity, RarityInfo> = {
   common: {
     name: "Common",
     color: 0x888888, // Gray
-    spawnWeight: 50, // Most common
+    spawnWeight: 30, // Reduced from 50
   },
   uncommon: {
     name: "Uncommon",
     color: 0x00ff88, // Green (current collectible color)
-    spawnWeight: 30,
+    spawnWeight: 40, // Increased from 30
   },
   rare: {
     name: "Rare",
     color: 0x0088ff, // Blue
-    spawnWeight: 15,
+    spawnWeight: 30, // Increased from 15
   },
   epic: {
     name: "Epic",
@@ -278,6 +279,12 @@ export interface AbilityImplementation {
   id: AbilityId;
   onActivate?: (controllerId: string) => void; // Called when ability is activated
   onDeactivate?: (controllerId: string) => void; // Called when ability expires/is cleared
+  /**
+   * Render visual component for this ability when equipped but not activated
+   * Returns a React component or null if no visual is needed
+   * @param controllerId - The controller ID of the player (optional, some abilities may not need it)
+   */
+  renderVisual?: (controllerId?: string) => React.ReactNode;
 }
 
 /**
@@ -293,4 +300,15 @@ export function getAbilityImplementation(
   abilityId: AbilityId
 ): AbilityImplementation | undefined {
   return ABILITY_IMPLEMENTATIONS.get(abilityId);
+}
+
+/**
+ * Get the visual component for an ability (if it has one)
+ */
+export function getAbilityVisual(
+  abilityId: AbilityId,
+  controllerId: string
+): React.ReactNode | null {
+  const impl = getAbilityImplementation(abilityId);
+  return impl?.renderVisual ? impl.renderVisual(controllerId) : null;
 }

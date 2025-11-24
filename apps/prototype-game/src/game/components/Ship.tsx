@@ -12,6 +12,7 @@ import {
   AdditiveBlending,
   BoxGeometry,
   CylinderGeometry,
+  Euler,
   ExtrudeGeometry,
   MathUtils,
   MeshStandardMaterial,
@@ -36,7 +37,7 @@ import {
 } from "../constants";
 import { useGameStore } from "../game-store";
 import { useLasersStore } from "../lasers-store";
-import { useAbilitiesStore } from "../abilities-store";
+import { useAbilitiesStore, getAbilityVisual } from "../abilities-store";
 import { usePlayerStatsStore } from "../player-stats-store";
 
 // ... Shaders omitted for brevity (keep them as is) ...
@@ -90,7 +91,8 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
   // We track velocity/rotation in Refs to preserve your math logic
   const currentVelocityRef = useRef(new Vector3(0, 0, 0));
-  const currentAngularVelocityRef = useRef(0);
+  const currentAngularVelocityRef = useRef(0); // Yaw (rotation around Y axis)
+  const currentPitchAngularVelocityRef = useRef(0); // Pitch (rotation around X axis)
   // We track rotation manually because we want "Arcade" turning, not "Physics" turning
   const currentRotationRef = useRef(new Quaternion());
 
@@ -104,6 +106,18 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   // Ability state
   const abilitiesStore = useAbilitiesStore.getState();
   const playerStatsStore = usePlayerStatsStore.getState();
+  // Get ability for rendering visual components
+  const currentAbility = useAbilitiesStore((state) =>
+    state.getAbility(controllerId)
+  );
+  const isAbilityActive = useAbilitiesStore((state) =>
+    state.isAbilityActive(controllerId)
+  );
+  // Get ability visual component if ability is equipped but not activated
+  const abilityVisual =
+    currentAbility && !isAbilityActive
+      ? getAbilityVisual(currentAbility.id, controllerId)
+      : null;
 
   // Initialize player stats
   useEffect(() => {
@@ -243,8 +257,27 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
     // NOTE: We read rotation from our manual ref, not the physics body, to keep control absolute
     const shipQuaternion = currentRotationRef.current.clone();
-    const thrust = smoothedInputRef.current.y;
-    const turnInput = smoothedInputRef.current.x;
+
+    // Get current physics position to determine control mode
+    const physicsPos = rigidBodyRef.current.translation();
+    const HOVER_HEIGHT = 5; // Minimum Y position (original spawn height)
+    const AIR_MODE_THRESHOLD = 0.5; // Small threshold to avoid flickering
+    const isInAir = physicsPos.y > HOVER_HEIGHT + AIR_MODE_THRESHOLD;
+
+    // Determine control mode
+    let thrust: number;
+    let turnInput: number;
+
+    if (isInAir) {
+      // AIR MODE: Airplane-style controls
+      thrust = 1.0; // Always max forward thrust
+      turnInput = smoothedInputRef.current.x; // Left/right controls yaw (turning)
+      // Pitch is now automatic - no player input
+    } else {
+      // GROUND MODE: Current controls
+      thrust = smoothedInputRef.current.y; // Forward/backward controls thrust
+      turnInput = smoothedInputRef.current.x; // Left/right controls yaw
+    }
 
     // --- Ability handling (Simple - abilities modify store directly!) ---
     const abilityPressed = currentInput.ability && !lastAbilityRef.current;
@@ -310,7 +343,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
     currentVelocityRef.current.copy(newVelocity);
 
-    // --- Angular Math (Identical to your code) ---
+    // --- Angular Math (Yaw - rotation around Y axis) ---
     const targetAngVel = -turnInput * PLAYER_MAX_ANGULAR_VELOCITY;
     const currentAngVel = currentAngularVelocityRef.current;
     const angVelDifference = targetAngVel - currentAngVel;
@@ -328,18 +361,228 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     }
     currentAngularVelocityRef.current = newAngVel;
 
+    // --- Pitch Math (rotation around X axis) - pitch follows derivative of parabola (vertical velocity) ---
+    let targetPitchAngVel = 0;
+    if (isInAir) {
+      const MAX_PITCH_ANGLE = Math.PI / 4; // ±45 degrees
+      const MAX_VERTICAL_VELOCITY = 30; // Maximum vertical velocity to map to max pitch
+
+      // Get current vertical velocity (derivative of height - this is what we want!)
+      const currentPhysicsVelForPitch = rigidBodyRef.current.linvel();
+      const verticalVelocity = currentPhysicsVelForPitch.y;
+
+      // Calculate height for leveling out near landing
+      const heightAboveHover = physicsPos.y - HOVER_HEIGHT;
+      const AIR_MODE_THRESHOLD = 0.5; // Same as used for isInAir check
+      const LEVELING_START_HEIGHT = 6; // Height where leveling transition starts
+      const LEVELING_COMPLETE_HEIGHT = AIR_MODE_THRESHOLD + 0.5; // Complete leveling just above air mode threshold (1.0 units above hover)
+
+      // Pitch is proportional to vertical velocity (derivative of parabola)
+      // Positive velocity (going up) = nose up, negative velocity (going down) = nose down
+      let targetPitchAngle = 0;
+
+      // Calculate velocity-based pitch
+      const clampedVelocity = Math.max(
+        -MAX_VERTICAL_VELOCITY,
+        Math.min(MAX_VERTICAL_VELOCITY, verticalVelocity)
+      );
+      const normalizedVelocity = clampedVelocity / MAX_VERTICAL_VELOCITY;
+      // Apply power curve to make it steeper at the ends (more extreme tilt)
+      const steepnessFactor = 0.6; // Lower = steeper at ends
+      const curvedVelocity =
+        Math.sign(normalizedVelocity) *
+        Math.pow(Math.abs(normalizedVelocity), steepnessFactor);
+      const velocityBasedPitch = curvedVelocity * MAX_PITCH_ANGLE;
+
+      // Smoothly transition to level pitch as ship approaches hover height
+      if (heightAboveHover > LEVELING_START_HEIGHT) {
+        // High up - use full velocity-based pitch
+        targetPitchAngle = velocityBasedPitch;
+      } else if (heightAboveHover > LEVELING_COMPLETE_HEIGHT) {
+        // Transition zone - smoothly blend from velocity-based to level
+        // Normalize height in transition zone: 1.0 = start, 0.0 = end (fully level)
+        const transitionFactor =
+          (heightAboveHover - LEVELING_COMPLETE_HEIGHT) /
+          (LEVELING_START_HEIGHT - LEVELING_COMPLETE_HEIGHT);
+        // Smooth interpolation (smoothstep) - ensures it reaches 0 at LEVELING_COMPLETE_HEIGHT
+        const smoothFactor =
+          transitionFactor * transitionFactor * (3 - 2 * transitionFactor);
+        targetPitchAngle = velocityBasedPitch * smoothFactor;
+      } else {
+        // At or below completion height - fully level (no pitch)
+        targetPitchAngle = 0;
+      }
+
+      // Get current pitch angle
+      const euler = new Euler().setFromQuaternion(
+        currentRotationRef.current,
+        "YXZ"
+      );
+      const currentPitchAngle = euler.x;
+
+      // Calculate desired pitch velocity to smoothly interpolate to target angle
+      const pitchAngleDifference = targetPitchAngle - currentPitchAngle;
+
+      // Calculate target angular velocity based on angle difference
+      // Scale the difference to get a reasonable target velocity
+      const PITCH_RESPONSIVENESS = 2.0; // How quickly pitch responds
+      targetPitchAngVel = Math.max(
+        -PLAYER_MAX_ANGULAR_VELOCITY,
+        Math.min(
+          PLAYER_MAX_ANGULAR_VELOCITY,
+          pitchAngleDifference * PITCH_RESPONSIVENESS
+        )
+      );
+    }
+
+    const currentPitchAngVel = currentPitchAngularVelocityRef.current;
+    const pitchAngVelDifference = targetPitchAngVel - currentPitchAngVel;
+
+    let newPitchAngVel = currentPitchAngVel;
+    if (Math.abs(pitchAngVelDifference) <= maxAngVelChange) {
+      newPitchAngVel = targetPitchAngVel;
+    } else {
+      const direction = pitchAngVelDifference > 0 ? 1 : -1;
+      newPitchAngVel = currentPitchAngVel + direction * maxAngVelChange;
+    }
+    currentPitchAngularVelocityRef.current = newPitchAngVel;
+
     // Update our internal Rotation Ref
-    const rotationDelta = newAngVel * delta;
-    const rotationQuaternion = new Quaternion().setFromAxisAngle(
-      new Vector3(0, 1, 0),
-      rotationDelta
+    // For proper airplane controls:
+    // - Yaw rotates around local Y axis (turning left/right)
+    // - Pitch rotates around local X axis (nose up/down)
+    //
+    // Using Euler angles for clarity: YXZ order (yaw around Y, pitch around X, roll around Z)
+    // This gives us the correct airplane control behavior
+
+    // Convert current rotation to Euler angles
+    const euler = new Euler().setFromQuaternion(
+      currentRotationRef.current,
+      "YXZ"
     );
-    currentRotationRef.current.premultiply(rotationQuaternion).normalize();
+
+    // Apply yaw rotation (around Y axis)
+    euler.y += newAngVel * delta;
+
+    // Apply pitch rotation (around X axis)
+    if (isInAir) {
+      euler.x += newPitchAngVel * delta;
+      // Clamp pitch to ±45 degrees to prevent over-rotation
+      euler.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, euler.x));
+    } else {
+      // Smoothly transition pitch to 0 when on ground (instead of instant snap)
+      // This prevents the jump in tilt when transitioning from air to ground
+      const PITCH_RESET_SPEED = 5.0; // How fast to reset pitch (radians per second)
+      const targetPitch = 0;
+      const pitchDifference = targetPitch - euler.x;
+      const maxPitchChange = PITCH_RESET_SPEED * delta;
+
+      if (Math.abs(pitchDifference) <= maxPitchChange) {
+        euler.x = targetPitch;
+      } else {
+        const direction = pitchDifference > 0 ? 1 : -1;
+        euler.x += direction * maxPitchChange;
+      }
+    }
+
+    // Convert back to quaternion
+    currentRotationRef.current.setFromEuler(euler);
+    currentRotationRef.current.normalize();
 
     // --- 2. APPLY TO PHYSICS (The Key Change) ---
 
+    // Get current physics velocity
+    const currentPhysicsVel = rigidBodyRef.current.linvel();
+    const finalVelocity = new Vector3(
+      newVelocity.x,
+      currentPhysicsVel.y, // Preserve Y velocity (allows jumps to work)
+      newVelocity.z
+    );
+
+    // Check if ship has significant upward velocity (from jump pad launch)
+    const UPWARD_VELOCITY_THRESHOLD = 10; // If moving up faster than this, assume launched
+    const isBeingLaunched = currentPhysicsVel.y > UPWARD_VELOCITY_THRESHOLD;
+
+    // Only apply gravity if ship is above hover height
+    if (isInAir) {
+      // Get pitch angle from current rotation (euler.x is pitch in YXZ order)
+      const euler = new Euler().setFromQuaternion(
+        currentRotationRef.current,
+        "YXZ"
+      );
+      const pitchAngle = euler.x; // Positive = nose up, Negative = nose down
+
+      // Base gravity - always pulls down
+      const BASE_GRAVITY = -5;
+      // Maximum additional gravity when diving (nose down)
+      const MAX_DIVE_GRAVITY = -15;
+      // Maximum lift when climbing (nose up) - reduced to prevent infinite upward flight
+      const MAX_LIFT = 3;
+
+      // Calculate gravity based on pitch:
+      // - When pitch is negative (nose down), add more downward force
+      // - When pitch is positive (nose up), reduce downward force (or add upward)
+      // Pitch ranges from -PI/4 to PI/4 (±45 degrees)
+      const pitchNormalized = pitchAngle / (Math.PI / 4); // Normalize to -1 to 1
+
+      // When diving (pitch < 0), increase gravity
+      // When climbing (pitch > 0), reduce gravity or add lift
+      let gravityEffect = BASE_GRAVITY;
+      if (pitchNormalized < 0) {
+        // Nose down - subtract extra downward force (pitchNormalized is negative, so this adds more negative)
+        gravityEffect = BASE_GRAVITY - pitchNormalized * MAX_DIVE_GRAVITY;
+      } else {
+        // Nose up - add lift (reduce downward force or make it upward)
+        gravityEffect = BASE_GRAVITY + pitchNormalized * MAX_LIFT;
+      }
+
+      // Apply pitch-based gravity
+      finalVelocity.y += gravityEffect * delta;
+      // Clamp to prevent falling too fast or rising too fast
+      finalVelocity.y = Math.max(finalVelocity.y, -40); // Allow faster diving
+      finalVelocity.y = Math.min(finalVelocity.y, 30); // Allow climbing
+    } else {
+      // At or below hover height - but don't interfere if ship is being launched upward
+      if (isBeingLaunched) {
+        // Ship is being launched - let it go! Don't apply restoring force
+        // The jump pad will handle the launch, we just preserve the velocity
+      } else {
+        // Not being launched - apply normal hover height restoration
+        const heightDifference = physicsPos.y - HOVER_HEIGHT;
+
+        // If ship is not at exact hover height, apply a restoring force
+        if (Math.abs(heightDifference) > 0.01) {
+          // Apply a strong restoring force to snap back to hover height
+          const RESTORE_FORCE = 20; // Strong force to quickly restore position
+          finalVelocity.y -= heightDifference * RESTORE_FORCE * delta;
+          // Clamp velocity to prevent overshooting
+          finalVelocity.y = Math.max(-10, Math.min(10, finalVelocity.y));
+        } else {
+          // Very close to hover height - just stop vertical movement
+          finalVelocity.y = 0;
+          // Snap to exact position if very close
+          if (Math.abs(heightDifference) > 0.001) {
+            rigidBodyRef.current.setTranslation(
+              { x: physicsPos.x, y: HOVER_HEIGHT, z: physicsPos.z },
+              true
+            );
+          }
+        }
+      }
+
+      // If ship somehow got below hover height, push it back up immediately
+      // But only if not being launched upward
+      if (physicsPos.y < HOVER_HEIGHT && !isBeingLaunched) {
+        rigidBodyRef.current.setTranslation(
+          { x: physicsPos.x, y: HOVER_HEIGHT, z: physicsPos.z },
+          true
+        );
+        finalVelocity.y = 0;
+      }
+    }
+
     // Apply Velocity directly to the physics engine
-    rigidBodyRef.current.setLinvel(newVelocity, true);
+    rigidBodyRef.current.setLinvel(finalVelocity, true);
 
     // Force Rotation: We use setRotation because we don't want physics torques spinning the ship.
     // We want the ship to face exactly where we tell it to.
@@ -350,7 +593,6 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
     // --- 3. SYNC CAMERA & GAME STATE ---
     // Use the actual Physics position for the camera now, so it respects walls
-    const physicsPos = rigidBodyRef.current.translation();
     const shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
     shipPositions.set(controllerId, shipWorldPos);
     shipRotations.set(controllerId, currentRotationRef.current.clone());
@@ -372,18 +614,23 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       const leftGunLocal = new Vector3(-1.5, 0.0, gunTipOffset);
       const rightGunLocal = new Vector3(1.5, 0.0, gunTipOffset);
 
+      // Use updated rotation for shooting (after rotation updates)
+      const currentShipRotation = currentRotationRef.current;
+
       // Transform to world space
       const leftGunWorld = leftGunLocal
-        .applyQuaternion(shipQuaternion)
+        .applyQuaternion(currentShipRotation)
         .add(shipWorldPos);
       const rightGunWorld = rightGunLocal
-        .applyQuaternion(shipQuaternion)
+        .applyQuaternion(currentShipRotation)
         .add(shipWorldPos);
 
       // Forward direction (ship's forward is -Z)
-      const forwardDir = new Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
+      const forwardDir = new Vector3(0, 0, -1).applyQuaternion(
+        currentShipRotation
+      );
       // Up direction (ship's up is +Y)
-      const upDir = new Vector3(0, 1, 0).applyQuaternion(shipQuaternion);
+      const upDir = new Vector3(0, 1, 0).applyQuaternion(currentShipRotation);
 
       // Offset laser spawn position forward and upward to ensure it's outside ship's collider
       // Increased forward offset to prevent clipping through ship, and added upward offset
@@ -432,7 +679,8 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     }
 
     // ... [Keep your Exhaust/Flame/Light logic here exactly as is] ...
-    const targetThrust = Math.abs(thrust);
+    // In air mode, always show max thrust visually
+    const targetThrust = isInAir ? 1.0 : Math.abs(thrust);
     const newThrust = MathUtils.lerp(
       currentThrustRef.current,
       targetThrust,
@@ -541,6 +789,9 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
           <primitive object={shipGeometries.cockpit} attach="geometry" />
           <primitive object={shipMaterials.cockpit} attach="material" />
         </mesh>
+
+        {/* Ability Visual Components - rendered by abilities themselves */}
+        {abilityVisual}
 
         {/* Guns */}
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[-1.6, 0.0, 0.2]}>

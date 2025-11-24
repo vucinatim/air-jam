@@ -5,6 +5,15 @@ import {
 import { useRocketsStore } from "../rockets-store";
 import { shipPositions, shipRotations } from "../components/Ship";
 import { Vector3 } from "three";
+import { RocketModel } from "../components/RocketModel";
+
+/**
+ * Rocket spawn/visual position offsets
+ * These values must match between onActivate() and renderVisual()
+ * Ship faces -Z direction, so forward is negative Z
+ */
+const FORWARD_OFFSET = 0; // Units forward (in ship's -Z direction)
+const UPWARD_OFFSET = 0.9; // Units up (in ship's +Y direction)
 
 /**
  * Rocket Ability
@@ -24,8 +33,8 @@ const rocketAbility: AbilityImplementation = {
     const upDir = new Vector3(0, 1, 0).applyQuaternion(rotation);
 
     // Spawn position - in front of ship
-    const forwardOffset = forwardDir.clone().multiplyScalar(4);
-    const upwardOffset = upDir.clone().multiplyScalar(0.5);
+    const forwardOffset = forwardDir.clone().multiplyScalar(FORWARD_OFFSET);
+    const upwardOffset = upDir.clone().multiplyScalar(UPWARD_OFFSET);
     const spawnPos = position.clone().add(forwardOffset).add(upwardOffset);
 
     // Spawn rocket
@@ -37,6 +46,15 @@ const rocketAbility: AbilityImplementation = {
       controllerId,
       timestamp: Date.now(),
     });
+  },
+  renderVisual: () => {
+    // Render rocket model on ship when ability is equipped
+    // Position matches spawn location from onActivate()
+    return (
+      <group position={[0, UPWARD_OFFSET, -FORWARD_OFFSET]}>
+        <RocketModel showParticles={false} horizontal={true} />
+      </group>
+    );
   },
 };
 

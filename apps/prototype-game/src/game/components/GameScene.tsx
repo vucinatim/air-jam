@@ -4,6 +4,7 @@ import { PerspectiveCamera } from "@react-three/drei";
 import { useRef, useEffect } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { useGameStore } from "../game-store";
+import { useDebugStore } from "../debug-store";
 import { Ships } from "./Ships";
 import { SpaceEnvironment } from "./SpaceEnvironment";
 import { Obstacles } from "./Obstacles";
@@ -13,6 +14,7 @@ import { Decals } from "./Decals";
 import { ArenaBounds } from "./ArenaBounds";
 import { Collectibles } from "./Collectibles";
 import { CollectibleSpawner } from "./CollectibleSpawner";
+import { JumpPads } from "./JumpPads";
 import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
 import { useCameraFollow } from "../hooks/useCameraFollow";
 import { useCameraViewports } from "../hooks/useCameraViewports";
@@ -93,9 +95,16 @@ export function GameScene({
     }>
   ) => void;
 }) {
+  const isDebugPanelOpen = useDebugStore((state) => state.isOpen);
+
   return (
     <Canvas shadows gl={{ antialias: true }}>
-      <Physics gravity={[0, 0, 0]} interpolate={true} timeStep="vary">
+      <Physics
+        gravity={[0, 0, 0]}
+        interpolate={true}
+        timeStep="vary"
+        debug={isDebugPanelOpen}
+      >
         <SpaceEnvironment />
         <Ships />
         <Obstacles />
@@ -105,6 +114,7 @@ export function GameScene({
         <ArenaBounds />
         <Collectibles />
         <CollectibleSpawner />
+        <JumpPads />
         <MultiCameraController onCamerasReady={onCamerasReady || (() => {})} />
       </Physics>
     </Canvas>

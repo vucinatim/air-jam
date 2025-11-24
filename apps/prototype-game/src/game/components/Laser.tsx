@@ -98,13 +98,14 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
       raycasterRef.current.set(rayOrigin, rayDirection);
       raycasterRef.current.far = maxDistance;
 
-      // Get all obstacles and ships from the scene
+      // Get all obstacles, ground, and ships from the scene
       const obstacles: Object3D[] = [];
       const ships: Object3D[] = [];
       scene.traverse((object) => {
-        // Find obstacles (they have userData.type === "obstacle" or are RigidBody with fixed type)
+        // Find obstacles and ground (they have userData.type === "obstacle" or "ground")
         if (
           object.userData?.type === "obstacle" ||
+          object.userData?.type === "ground" ||
           object.userData?.isObstacle
         ) {
           obstacles.push(object);
@@ -220,7 +221,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
         }
       }
 
-      // Check for obstacle hits
+      // Check for obstacle/ground hits (both handled the same way)
       const obstacleIntersects = raycasterRef.current.intersectObjects(
         obstacles,
         true
@@ -240,7 +241,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
           }
           worldNormal.normalize();
 
-          // We hit an obstacle! Spawn decal at exact hit point with exact normal
+          // We hit an obstacle or ground! Spawn decal at exact hit point with exact normal
           hasHitRef.current = true;
 
           // Offset decal slightly from surface to avoid z-fighting
