@@ -8,6 +8,7 @@ import { Ships } from "./Ships";
 import { SpaceEnvironment } from "./SpaceEnvironment";
 import { Obstacles } from "./Obstacles";
 import { Lasers } from "./Lasers";
+import { Rockets } from "./Rockets";
 import { Decals } from "./Decals";
 import { ArenaBounds } from "./ArenaBounds";
 import { Collectibles } from "./Collectibles";
@@ -16,7 +17,9 @@ import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
 import { useCameraFollow } from "../hooks/useCameraFollow";
 import { useCameraViewports } from "../hooks/useCameraViewports";
 // Import abilities to register them
+import "../abilities/health-pack";
 import "../abilities/speed-boost";
+import "../abilities/rocket";
 
 function MultiCameraController({
   onCamerasReady,
@@ -97,6 +100,7 @@ export function GameScene({
         <Ships />
         <Obstacles />
         <Lasers />
+        <Rockets />
         <Decals />
         <ArenaBounds />
         <Collectibles />

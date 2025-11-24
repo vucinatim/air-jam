@@ -10,7 +10,11 @@ import {
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { CollectibleData, useCollectiblesStore } from "../collectibles-store";
-import { useAbilitiesStore } from "../abilities-store";
+import {
+  useAbilitiesStore,
+  getAbilityDefinition,
+  RARITY_INFO,
+} from "../abilities-store";
 import * as THREE from "three";
 
 interface CollectibleProps {
@@ -31,24 +35,27 @@ const EXPLOSION_SPEED = 8;
 
 function ExplosionParticles({
   position,
+  color,
 }: {
   position: [number, number, number];
+  color: number;
 }) {
   const particlesRef = useRef<THREE.Group>(null);
   const particles = useRef<Particle[]>([]);
   const ageRef = useRef(0);
 
+  // Particle material with rarity color
   const particleGeometry = useMemo(() => new BoxGeometry(0.4, 0.4, 0.4), []);
   const particleMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0x00ff88,
-        emissive: 0x00ff88,
+        color,
+        emissive: color,
         emissiveIntensity: 2,
         transparent: true,
         opacity: 1,
       }),
-    []
+    [color]
   );
 
   // Initialize particles once on mount
@@ -132,32 +139,50 @@ const lightPillarVertex = `
   }
 `;
 
-const lightPillarFragment = `
-  varying vec2 vUv;
-  void main() {
-    // Simple vertical gradient - bright at base (vUv.y = 0), fading to transparent at tip (vUv.y = 1)
-    float alpha = 1.0 - vUv.y;
-    alpha = pow(alpha, 1.2); // Slight curve for smoother fade
-    
-    vec3 color = vec3(0.0, 1.0, 0.53); // Match collectible color #00ff88
-    
-    gl_FragColor = vec4(color, alpha * 0.6);
-  }
-`;
+// Light pillar fragment shader - color will be set dynamically
+const createLightPillarFragment = (colorHex: number) => {
+  const r = ((colorHex >> 16) & 0xff) / 255.0;
+  const g = ((colorHex >> 8) & 0xff) / 255.0;
+  const b = (colorHex & 0xff) / 255.0;
+
+  return `
+    varying vec2 vUv;
+    void main() {
+      // Simple vertical gradient - bright at base (vUv.y = 0), fading to transparent at tip (vUv.y = 1)
+      float alpha = 1.0 - vUv.y;
+      alpha = pow(alpha, 1.2); // Slight curve for smoother fade
+      
+      vec3 color = vec3(${r}, ${g}, ${b});
+      
+      gl_FragColor = vec4(color, alpha * 0.6);
+    }
+  `;
+};
 
 export function Collectible({ collectible }: CollectibleProps) {
+  // Get ability definition to determine rarity and color
+  const abilityDef = getAbilityDefinition(collectible.abilityId);
+  const rarity = abilityDef?.rarity ?? "common";
+  const rarityColor = RARITY_INFO[rarity].color;
+
   // OctahedronGeometry creates a proper diamond shape (8 triangular faces)
   const geometry = useMemo(() => new OctahedronGeometry(1.5, 0), []);
   const material = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0x00ff88,
+        color: rarityColor,
         roughness: 0.2,
         metalness: 0.1,
-        emissive: 0x00ff88, // Same color as base for strong glow
+        emissive: rarityColor, // Same color as base for strong glow
         emissiveIntensity: 1.2, // High intensity for visible glow
       }),
-    []
+    [rarityColor]
+  );
+
+  // Light pillar shader with rarity color
+  const lightPillarFragment = useMemo(
+    () => createLightPillarFragment(rarityColor),
+    [rarityColor]
   );
 
   const meshRef = useRef<THREE.Mesh>(null);
@@ -202,13 +227,11 @@ export function Collectible({ collectible }: CollectibleProps) {
       );
       collectedRef.current = true;
 
-      // Collect ability if collectible contains one (adds to slot, doesn't activate)
-      if (collectible.abilityId) {
-        collectAbility(controllerId, collectible.abilityId);
-        console.log(
-          `Player ${controllerId} collected ability: ${collectible.abilityId}`
-        );
-      }
+      // Collect ability (all collectibles have abilities now)
+      collectAbility(controllerId, collectible.abilityId);
+      console.log(
+        `Player ${controllerId} collected ability: ${collectible.abilityId}`
+      );
 
       // Store position for explosion
       if (groupRef.current) {
@@ -248,6 +271,7 @@ export function Collectible({ collectible }: CollectibleProps) {
           <mesh position={[0, 4, 0]}>
             <primitive object={pillarGeometry} attach="geometry" />
             <shaderMaterial
+              key={rarityColor} // Force re-create when color changes
               vertexShader={lightPillarVertex}
               fragmentShader={lightPillarFragment}
               transparent
@@ -269,7 +293,9 @@ export function Collectible({ collectible }: CollectibleProps) {
       </RigidBody>
 
       {/* Explosion particles */}
-      {showExplosion && <ExplosionParticles position={explosionPosition} />}
+      {showExplosion && (
+        <ExplosionParticles position={explosionPosition} color={rarityColor} />
+      )}
     </>
   );
 }

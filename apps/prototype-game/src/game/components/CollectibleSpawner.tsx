@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useCollectiblesStore } from "../collectibles-store";
+import { getRandomAbilityByRarity } from "../abilities-store";
 import { ARENA_RADIUS } from "../constants";
 
 const SPAWN_INTERVAL = 3; // Spawn a new collectible every 3 seconds
@@ -31,13 +32,14 @@ export function CollectibleSpawner() {
       const z = Math.sin(angle) * distance;
       const y = SPAWN_HEIGHT + Math.random() * 2; // Slight height variation
 
-      // Randomly assign speed boost ability to some collectibles
-      const hasAbility = Math.random() > 0.5; // 50% chance to have ability
+      // All collectibles have abilities - weighted by rarity
+      const ability = getRandomAbilityByRarity();
+      if (!ability) return; // Safety check
 
       addCollectible({
         type: "box",
         position: [x, y, z],
-        abilityId: hasAbility ? "speed_boost" : undefined,
+        abilityId: ability.id,
       });
 
       lastSpawnTimeRef.current = currentTime;

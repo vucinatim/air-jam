@@ -8,12 +8,14 @@ export interface CollectibleData {
   type: CollectibleType;
   position: [number, number, number];
   timestamp: number;
-  abilityId?: AbilityId; // Optional ability contained in this collectible
+  abilityId: AbilityId; // All collectibles now have abilities
 }
 
 interface CollectiblesState {
   collectibles: CollectibleData[];
-  addCollectible: (collectible: Omit<CollectibleData, "id" | "timestamp">) => string;
+  addCollectible: (
+    collectible: Omit<CollectibleData, "id" | "timestamp">
+  ) => string;
   removeCollectible: (id: string) => void;
   clearCollectibles: () => void;
   getCollectibleById: (id: string) => CollectibleData | undefined;
@@ -22,7 +24,9 @@ interface CollectiblesState {
 export const useCollectiblesStore = create<CollectiblesState>((set, get) => ({
   collectibles: [],
   addCollectible: (collectible) => {
-    const id = `collectible-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = `collectible-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
     const newCollectible: CollectibleData = {
       ...collectible,
       id,
@@ -42,4 +46,3 @@ export const useCollectiblesStore = create<CollectiblesState>((set, get) => ({
     return get().collectibles.find((c) => c.id === id);
   },
 }));
-
