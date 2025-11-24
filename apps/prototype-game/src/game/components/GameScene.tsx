@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { PerspectiveCamera } from "@react-three/drei";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { useGameStore } from "../game-store";
 import { Ships } from "./Ships";
@@ -10,11 +10,22 @@ import { Obstacles } from "./Obstacles";
 import { Lasers } from "./Lasers";
 import { Decals } from "./Decals";
 import { ArenaBounds } from "./ArenaBounds";
+import { Collectibles } from "./Collectibles";
+import { CollectibleSpawner } from "./CollectibleSpawner";
 import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
 import { useCameraFollow } from "../hooks/useCameraFollow";
 import { useCameraViewports } from "../hooks/useCameraViewports";
 
-function MultiCameraController({ onCamerasReady }: { onCamerasReady: (cameras: Array<{ camera: ThreePerspectiveCamera; viewport: { x: number; y: number; width: number; height: number } }>) => void }) {
+function MultiCameraController({
+  onCamerasReady,
+}: {
+  onCamerasReady: (
+    cameras: Array<{
+      camera: ThreePerspectiveCamera;
+      viewport: { x: number; y: number; width: number; height: number };
+    }>
+  ) => void;
+}) {
   const cameraMode = useGameStore((state) => state.cameraMode);
   const cameraRef1 = useRef<ThreePerspectiveCamera>(null);
   const cameraRef2 = useRef<ThreePerspectiveCamera>(null);
@@ -67,7 +78,16 @@ function MultiCameraController({ onCamerasReady }: { onCamerasReady: (cameras: A
   );
 }
 
-export function GameScene({ onCamerasReady }: { onCamerasReady?: (cameras: Array<{ camera: ThreePerspectiveCamera; viewport: { x: number; y: number; width: number; height: number } }>) => void }) {
+export function GameScene({
+  onCamerasReady,
+}: {
+  onCamerasReady?: (
+    cameras: Array<{
+      camera: ThreePerspectiveCamera;
+      viewport: { x: number; y: number; width: number; height: number };
+    }>
+  ) => void;
+}) {
   return (
     <Canvas shadows gl={{ antialias: true }}>
       <Physics gravity={[0, 0, 0]} interpolate={true} timeStep="vary">
@@ -77,6 +97,8 @@ export function GameScene({ onCamerasReady }: { onCamerasReady?: (cameras: Array
         <Lasers />
         <Decals />
         <ArenaBounds />
+        <Collectibles />
+        <CollectibleSpawner />
         <MultiCameraController onCamerasReady={onCamerasReady || (() => {})} />
       </Physics>
     </Canvas>
