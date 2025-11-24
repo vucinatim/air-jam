@@ -11,6 +11,7 @@ import {
 import { useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { useLasersStore } from "../lasers-store";
 import { useDecalsStore } from "../decals-store";
+import { useHealthStore } from "../health-store";
 import type { Mesh } from "three";
 
 interface LaserProps {
@@ -23,6 +24,7 @@ interface LaserProps {
 const LASER_SPEED = 150;
 const LASER_LIFETIME = 2; // seconds
 const KNOCKBACK_FORCE = 300; // Force applied when laser hits a ship
+const LASER_DAMAGE = 20; // Health damage when laser hits a ship
 
 export function Laser({ id, position, direction, controllerId }: LaserProps) {
   const { scene } = useThree();
@@ -35,6 +37,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
   const hasHitRef = useRef(false);
   const removeLaser = useLasersStore((state) => state.removeLaser);
   const addDecal = useDecalsStore((state) => state.addDecal);
+  const reduceHealth = useHealthStore((state) => state.reduceHealth);
   const raycasterRef = useRef(new Raycaster());
   const meshRef = useRef<Mesh>(null);
 
@@ -162,6 +165,11 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
                 }
               }
             });
+          }
+
+          // Reduce health of the hit ship (only if it's not the shooter)
+          if (hitControllerId && hitControllerId !== controllerId) {
+            reduceHealth(hitControllerId, LASER_DAMAGE);
           }
 
           // Apply knockback force to the ship

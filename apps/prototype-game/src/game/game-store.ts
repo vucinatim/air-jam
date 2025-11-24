@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ControllerInputEvent, PlayerProfile } from "@air-jam/sdk";
+import { useHealthStore } from "./health-store";
 
 export interface InputState {
   vector: { x: number; y: number };
@@ -67,6 +68,8 @@ export const useGameStore = create<GameState>((set) => ({
         color,
         input: createEmptyInput(),
       };
+      // Initialize health for new player
+      useHealthStore.getState().initializeHealth(controllerId);
       return { players: [...state.players, slot] };
     });
   },
@@ -76,6 +79,8 @@ export const useGameStore = create<GameState>((set) => ({
         (player) => player.controllerId !== controllerId
       ),
     }));
+    // Clean up health when player is removed
+    useHealthStore.getState().removeHealth(controllerId);
   },
   applyInput: (event) => {
     set((state) => ({

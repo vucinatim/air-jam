@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { PerspectiveCamera } from "@react-three/drei";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { useGameStore } from "../game-store";
 import { Ships } from "./Ships";
@@ -12,8 +12,9 @@ import { Decals } from "./Decals";
 import { ArenaBounds } from "./ArenaBounds";
 import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
 import { useCameraFollow } from "../hooks/useCameraFollow";
+import { useCameraViewports } from "../hooks/useCameraViewports";
 
-function MultiCameraController() {
+function MultiCameraController({ onCamerasReady }: { onCamerasReady: (cameras: Array<{ camera: ThreePerspectiveCamera; viewport: { x: number; y: number; width: number; height: number } }>) => void }) {
   const cameraMode = useGameStore((state) => state.cameraMode);
   const cameraRef1 = useRef<ThreePerspectiveCamera>(null);
   const cameraRef2 = useRef<ThreePerspectiveCamera>(null);
@@ -24,6 +25,13 @@ function MultiCameraController() {
 
   useMultiViewportRenderer(activeCamerasRef);
   useCameraFollow(cameraRefs, activeCamerasRef, cameraMode);
+  const camerasWithViewports = useCameraViewports(activeCamerasRef);
+
+  useEffect(() => {
+    if (camerasWithViewports.length > 0) {
+      onCamerasReady(camerasWithViewports);
+    }
+  }, [camerasWithViewports, onCamerasReady]);
 
   return (
     <>
@@ -59,7 +67,7 @@ function MultiCameraController() {
   );
 }
 
-export function GameScene() {
+export function GameScene({ onCamerasReady }: { onCamerasReady?: (cameras: Array<{ camera: ThreePerspectiveCamera; viewport: { x: number; y: number; width: number; height: number } }>) => void }) {
   return (
     <Canvas shadows gl={{ antialias: true }}>
       <Physics gravity={[0, 0, 0]} interpolate={true} timeStep="vary">
@@ -69,7 +77,7 @@ export function GameScene() {
         <Lasers />
         <Decals />
         <ArenaBounds />
-        <MultiCameraController />
+        <MultiCameraController onCamerasReady={onCamerasReady || (() => {})} />
       </Physics>
     </Canvas>
   );

@@ -1,0 +1,151 @@
+import { useGameStore } from "../game-store";
+import { useHealthStore } from "../health-store";
+import { useLasersStore } from "../lasers-store";
+import { useDecalsStore } from "../decals-store";
+import { DebugSection } from "./DebugOverlay";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const OBSTACLE_COUNT = 18; // From Obstacles.tsx
+
+export function PlayersSection() {
+  const players = useGameStore((state) => state.players);
+  const health = useHealthStore((state) => state.health);
+  const setHealth = useHealthStore((state) => state.setHealth);
+
+  const adjustHealth = (controllerId: string, delta: number) => {
+    const currentHealth = health[controllerId] ?? 100;
+    const newHealth = Math.max(0, Math.min(100, currentHealth + delta));
+    setHealth(controllerId, newHealth);
+  };
+
+  if (players.length === 0) {
+    return (
+      <DebugSection title="Players">
+        <p className="text-sm text-muted-foreground">No players connected</p>
+      </DebugSection>
+    );
+  }
+
+  return (
+    <DebugSection title="Players">
+      <div className="space-y-3">
+        {players.map((player) => {
+          const playerHealth = health[player.controllerId] ?? 100;
+          const healthPercentage = (playerHealth / 100) * 100;
+
+          return (
+            <div
+              key={player.controllerId}
+              className="p-3 rounded-md border border-border bg-muted/20"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="size-3 rounded-full"
+                    style={{ backgroundColor: player.color }}
+                  />
+                  <span className="text-sm font-medium text-foreground">
+                    {player.profile.name || `Player ${player.controllerId.slice(0, 8)}`}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {player.controllerId.slice(0, 8)}
+                </span>
+              </div>
+
+              {/* Health Bar */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">Health</span>
+                  <span className="text-xs font-mono font-semibold text-foreground">
+                    {Math.round(playerHealth)}/100
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full transition-all duration-200",
+                      healthPercentage > 60 && "bg-green-500",
+                      healthPercentage > 30 && healthPercentage <= 60 && "bg-yellow-500",
+                      healthPercentage <= 30 && "bg-red-500"
+                    )}
+                    style={{ width: `${healthPercentage}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Health Controls */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustHealth(player.controllerId, -10)}
+                  className="flex-1 h-8 text-xs"
+                >
+                  -10
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustHealth(player.controllerId, -1)}
+                  className="flex-1 h-8 text-xs"
+                >
+                  -1
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustHealth(player.controllerId, 1)}
+                  className="flex-1 h-8 text-xs"
+                >
+                  +1
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustHealth(player.controllerId, 10)}
+                  className="flex-1 h-8 text-xs"
+                >
+                  +10
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </DebugSection>
+  );
+}
+
+export function SceneInfoSection() {
+  const players = useGameStore((state) => state.players);
+  const lasers = useLasersStore((state) => state.lasers);
+  const decals = useDecalsStore((state) => state.decals);
+
+  const stats = [
+    { label: "Players", value: players.length, color: "text-blue-500" },
+    { label: "Lasers", value: lasers.length, color: "text-red-500" },
+    { label: "Decals", value: decals.length, color: "text-purple-500" },
+    { label: "Obstacles", value: OBSTACLE_COUNT, color: "text-gray-500" },
+  ];
+
+  return (
+    <DebugSection title="Scene Information">
+      <div className="space-y-2">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="flex items-center justify-between p-2 rounded-md bg-muted/20"
+          >
+            <span className="text-sm text-muted-foreground">{stat.label}</span>
+            <span className={cn("text-sm font-mono font-semibold", stat.color)}>
+              {stat.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </DebugSection>
+  );
+}
+

@@ -98,8 +98,8 @@ export const AirJamOverlay = ({
   // Playing mode: thin navbar at top
   if (gameState === "playing") {
     return (
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-20">
-        <div className="pointer-events-auto mx-auto w-full">
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-99999">
+        <div className="mx-auto w-full">
           <div className="flex items-center justify-between px-4 py-2">
             {/* Left: Room name */}
             <div className="flex items-center gap-3">
@@ -114,7 +114,7 @@ export const AirJamOverlay = ({
             </div>
 
             {/* Right: Avatar stack and play/pause */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center pointer-events-auto gap-3">
               {/* Avatar stack */}
               {players.length > 0 && (
                 <div className="flex items-center -space-x-2">
@@ -163,7 +163,7 @@ export const AirJamOverlay = ({
 
   // Paused mode: full overlay
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center p-4">
+    <div className="pointer-events-none fixed inset-0 z-99999 flex items-center justify-center p-4">
       <div className="pointer-events-auto w-full max-w-2xl">
         <Card className="border shadow-lg bg-card/20 backdrop-blur-sm">
           <CardHeader className="text-center">

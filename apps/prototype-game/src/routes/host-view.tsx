@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   AirJamOverlay,
   useAirJamHost,
@@ -8,6 +8,10 @@ import {
 } from "@air-jam/sdk";
 import { GameScene } from "../game/components/GameScene";
 import { useGameStore } from "../game/game-store";
+import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
+import { DebugOverlay } from "../game/components/DebugOverlay";
+import { PlayersSection, SceneInfoSection } from "../game/components/DebugSections";
+import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 
 export const HostView = (): JSX.Element => {
   const applyInput = useGameStore((state) => state.applyInput);
@@ -67,6 +71,17 @@ export const HostView = (): JSX.Element => {
     });
   }, [host.players, upsertPlayer, removePlayer]);
 
+  const [cameras, setCameras] = useState<Array<{ camera: ThreePerspectiveCamera; viewport: { x: number; y: number; width: number; height: number } }>>([]);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    // Find the canvas element
+    const canvas = document.querySelector("canvas");
+    if (canvas) {
+      canvasRef.current = canvas;
+    }
+  }, []);
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background ">
       <AirJamOverlay
@@ -78,8 +93,15 @@ export const HostView = (): JSX.Element => {
         gameState={host.gameState}
         onTogglePlayPause={host.toggleGameState}
       />
-      <div className="h-full w-full">
-        <GameScene />
+      <DebugOverlay>
+        <PlayersSection />
+        <SceneInfoSection />
+      </DebugOverlay>
+      <div className="h-full w-full relative">
+        <GameScene onCamerasReady={setCameras} />
+        {cameras.length > 0 && canvasRef.current && (
+          <PlayerHUDOverlay canvasElement={canvasRef.current} cameras={cameras} />
+        )}
       </div>
     </div>
   );
