@@ -10,6 +10,7 @@ import {
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { CollectibleData, useCollectiblesStore } from "../collectibles-store";
+import { useAbilitiesStore } from "../abilities-store";
 import * as THREE from "three";
 
 interface CollectibleProps {
@@ -170,6 +171,7 @@ export function Collectible({ collectible }: CollectibleProps) {
   const removeCollectible = useCollectiblesStore(
     (state) => state.removeCollectible
   );
+  const collectAbility = useAbilitiesStore((state) => state.collectAbility);
 
   // Light pillar geometry - cone shape, wide at base, point at top
   const pillarGeometry = useMemo(() => {
@@ -194,10 +196,19 @@ export function Collectible({ collectible }: CollectibleProps) {
       | { controllerId?: string }
       | undefined;
     if (userData?.controllerId) {
+      const controllerId = userData.controllerId;
       console.log(
-        `Collision detected! Player ${userData.controllerId} collected ${collectible.id}`
+        `Collision detected! Player ${controllerId} collected ${collectible.id}`
       );
       collectedRef.current = true;
+
+      // Collect ability if collectible contains one (adds to slot, doesn't activate)
+      if (collectible.abilityId) {
+        collectAbility(controllerId, collectible.abilityId);
+        console.log(
+          `Player ${controllerId} collected ability: ${collectible.abilityId}`
+        );
+      }
 
       // Store position for explosion
       if (groupRef.current) {

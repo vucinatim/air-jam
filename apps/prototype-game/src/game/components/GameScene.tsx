@@ -15,6 +15,8 @@ import { CollectibleSpawner } from "./CollectibleSpawner";
 import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
 import { useCameraFollow } from "../hooks/useCameraFollow";
 import { useCameraViewports } from "../hooks/useCameraViewports";
+// Import abilities to register them
+import "../abilities/speed-boost";
 
 function MultiCameraController({
   onCamerasReady,

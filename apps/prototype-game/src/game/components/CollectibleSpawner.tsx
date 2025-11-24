@@ -31,9 +31,13 @@ export function CollectibleSpawner() {
       const z = Math.sin(angle) * distance;
       const y = SPAWN_HEIGHT + Math.random() * 2; // Slight height variation
 
+      // Randomly assign speed boost ability to some collectibles
+      const hasAbility = Math.random() > 0.5; // 50% chance to have ability
+
       addCollectible({
         type: "box",
         position: [x, y, z],
+        abilityId: hasAbility ? "speed_boost" : undefined,
       });
 
       lastSpawnTimeRef.current = currentTime;

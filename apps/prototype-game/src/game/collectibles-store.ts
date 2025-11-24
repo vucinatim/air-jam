@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { AbilityId } from "./abilities-store";
 
 export type CollectibleType = "box" | "powerup" | "coin"; // Extensible for future types
 
@@ -7,6 +8,7 @@ export interface CollectibleData {
   type: CollectibleType;
   position: [number, number, number];
   timestamp: number;
+  abilityId?: AbilityId; // Optional ability contained in this collectible
 }
 
 interface CollectiblesState {

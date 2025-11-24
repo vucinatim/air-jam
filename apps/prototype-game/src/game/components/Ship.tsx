@@ -2,7 +2,7 @@
 
 import { useFrame } from "@react-three/fiber";
 
-import { useRef, memo, useMemo } from "react";
+import { useRef, memo, useMemo, useEffect } from "react";
 
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 
@@ -36,6 +36,8 @@ import {
 } from "../constants";
 import { useGameStore } from "../game-store";
 import { useLasersStore } from "../lasers-store";
+import { useAbilitiesStore } from "../abilities-store";
+import { usePlayerStatsStore } from "../player-stats-store";
 
 // ... Shaders omitted for brevity (keep them as is) ...
 const exhaustVertex = `
@@ -95,8 +97,21 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   // Shooting state
   const lastActionRef = useRef(false);
   const lastShootTimeRef = useRef(0);
+  const lastAbilityRef = useRef(false);
   const HOLD_SHOOT_INTERVAL = 0.2; // 50ms between shots when button is held
   const addLaser = useLasersStore((state) => state.addLaser);
+
+  // Ability state
+  const abilitiesStore = useAbilitiesStore.getState();
+  const playerStatsStore = usePlayerStatsStore.getState();
+
+  // Initialize player stats
+  useEffect(() => {
+    playerStatsStore.initializeStats(controllerId);
+    return () => {
+      playerStatsStore.removeStats(controllerId);
+    };
+  }, [controllerId, playerStatsStore]);
 
   // Shape functions for wings and fins
   const createWingShape = useMemo(() => {
@@ -231,16 +246,45 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     const thrust = smoothedInputRef.current.y;
     const turnInput = smoothedInputRef.current.x;
 
+    // --- Ability handling (Simple - abilities modify store directly!) ---
+    const abilityPressed = currentInput.ability && !lastAbilityRef.current;
+    const currentAbility = abilitiesStore.getAbility(controllerId);
+    const isAbilityActive = abilitiesStore.isAbilityActive(controllerId);
+    const hasAbilityInSlot = currentAbility !== null;
+
+    // Activate ability on button press (if ability is in slot but not yet activated)
+    if (
+      abilityPressed &&
+      hasAbilityInSlot &&
+      currentAbility.startTime === null
+    ) {
+      abilitiesStore.activateAbility(controllerId, currentAbility.id);
+    }
+
+    // Check if ability expired and clear it
+    if (
+      currentAbility &&
+      !isAbilityActive &&
+      currentAbility.startTime !== null
+    ) {
+      abilitiesStore.clearAbility(controllerId);
+    }
+
+    lastAbilityRef.current = currentInput.ability;
+
+    // Read speed multiplier from store (abilities modify it directly!)
+    const speedMultiplier = playerStatsStore.getSpeedMultiplier(controllerId);
+
     // --- Velocity Math (Identical to your code) ---
     const forward = new Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
     const targetVelocity = forward
       .clone()
-      .multiplyScalar(thrust * PLAYER_MAX_SPEED);
+      .multiplyScalar(thrust * PLAYER_MAX_SPEED * speedMultiplier);
 
     // Note: We read current velocity from our ref for calculation continuity
     const currentVelocity = currentVelocityRef.current.clone();
     const currentSpeed = currentVelocity.dot(forward);
-    const targetSpeed = thrust * PLAYER_MAX_SPEED;
+    const targetSpeed = thrust * PLAYER_MAX_SPEED * speedMultiplier;
     const speedDifference = targetSpeed - currentSpeed;
 
     const isAccelerating =

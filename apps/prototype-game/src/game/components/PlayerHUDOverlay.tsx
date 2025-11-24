@@ -1,6 +1,7 @@
 import { useEffect, useRef, memo } from "react";
 import { useHealthStore } from "../health-store";
 import { useGameStore } from "../game-store";
+import { useAbilitiesStore } from "../abilities-store";
 import { shipPositions } from "./Ship";
 import { Vector3 } from "three";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
@@ -28,7 +29,16 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   const health = useHealthStore((state) => state.health[controllerId] ?? 100);
   const maxHealth = 100;
   const healthPercentage = (health / maxHealth) * 100;
+  const ability = useAbilitiesStore((state) => state.getAbility(controllerId));
+  const remainingDuration = useAbilitiesStore((state) =>
+    state.getRemainingDuration(controllerId)
+  );
+  const isAbilityActive = useAbilitiesStore((state) =>
+    state.isAbilityActive(controllerId)
+  );
   const elementRef = useRef<HTMLDivElement>(null);
+  const abilityIconRef = useRef<HTMLDivElement>(null);
+  const abilityDurationRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const isVisibleRef = useRef(false);
   const camerasRef = useRef(cameras);
@@ -141,7 +151,29 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     if (healthText) {
       healthText.textContent = `${Math.round(health)}/${maxHealth}`;
     }
-  }, [health, healthPercentage, maxHealth]);
+
+    // Update ability UI - show icon if ability is in slot, show duration only if active
+    if (abilityIconRef.current) {
+      if (ability !== null) {
+        abilityIconRef.current.textContent = ability.icon;
+        abilityIconRef.current.style.display = "flex";
+        // Show reduced opacity if not activated yet
+        abilityIconRef.current.style.opacity = isAbilityActive ? "1" : "0.5";
+      } else {
+        abilityIconRef.current.style.display = "none";
+      }
+    }
+
+    if (abilityDurationRef.current) {
+      if (ability !== null && isAbilityActive) {
+        const seconds = Math.ceil(remainingDuration);
+        abilityDurationRef.current.textContent = `${seconds}s`;
+        abilityDurationRef.current.style.display = "block";
+      } else {
+        abilityDurationRef.current.style.display = "none";
+      }
+    }
+  }, [health, healthPercentage, maxHealth, ability, remainingDuration, isAbilityActive]);
 
   return (
     <div
@@ -154,7 +186,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
       }}
     >
       {/* Health Bar Container */}
-      <div className="relative w-full h-6 bg-white/20 rounded overflow-hidden">
+      <div className="relative w-full h-6 bg-white/20 rounded overflow-hidden mb-1">
         {/* Health Bar Fill */}
         <div
           className="health-bar-fill absolute opacity-50 inset-y-0 left-0 rounded transition-all duration-200 ease-out"
@@ -167,6 +199,24 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         {/* Health Text - Overlaid on top */}
         <div className="health-text absolute inset-0 flex items-center justify-center text-xs text-white font-mono font-bold [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]">
           {Math.round(health)}/{maxHealth}
+        </div>
+      </div>
+
+      {/* Ability Slot */}
+      <div className="relative w-full h-8 bg-white/10 rounded overflow-hidden flex items-center justify-center">
+        <div
+          ref={abilityIconRef}
+          className="text-lg flex items-center justify-center"
+          style={{ display: "none" }}
+        >
+          {ability?.icon}
+        </div>
+        <div
+          ref={abilityDurationRef}
+          className="absolute bottom-0 left-0 right-0 text-[10px] text-white font-mono font-bold text-center [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]"
+          style={{ display: "none" }}
+        >
+          {Math.ceil(remainingDuration)}s
         </div>
       </div>
     </div>
