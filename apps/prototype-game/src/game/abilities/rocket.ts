@@ -42,4 +42,3 @@ const rocketAbility: AbilityImplementation = {
 
 // Register the ability
 registerAbilityImplementation(rocketAbility);
-

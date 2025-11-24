@@ -28,4 +28,3 @@ export const useRocketsStore = create<RocketsState>((set) => ({
     })),
   clearRockets: () => set({ rockets: [] }),
 }));
-

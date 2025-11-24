@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs */
 import type { JSX } from "react";
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
@@ -10,7 +11,13 @@ import { GameScene } from "../game/components/GameScene";
 import { useGameStore } from "../game/game-store";
 import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
 import { DebugOverlay } from "../game/components/DebugOverlay";
-import { PlayersSection, SceneInfoSection } from "../game/components/DebugSections";
+import {
+  PlayersSection,
+  SceneInfoSection,
+} from "../game/components/DebugSections";
+import { GameObjectEditor } from "../game/components/GameObjectEditor";
+import { Button } from "../components/ui/button";
+import { Settings2, X } from "lucide-react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 
 export const HostView = (): JSX.Element => {
@@ -71,8 +78,17 @@ export const HostView = (): JSX.Element => {
     });
   }, [host.players, upsertPlayer, removePlayer]);
 
-  const [cameras, setCameras] = useState<Array<{ camera: ThreePerspectiveCamera; viewport: { x: number; y: number; width: number; height: number } }>>([]);
+  const [cameras, setCameras] = useState<
+    Array<{
+      camera: ThreePerspectiveCamera;
+      viewport: { x: number; y: number; width: number; height: number };
+    }>
+  >([]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorObjectType] = useState<
+    "rocket" | "laser" | "ship" | "collectible"
+  >("rocket");
 
   useEffect(() => {
     // Find the canvas element
@@ -97,10 +113,48 @@ export const HostView = (): JSX.Element => {
         <PlayersSection />
         <SceneInfoSection />
       </DebugOverlay>
-      <div className="h-full w-full relative">
-        <GameScene onCamerasReady={setCameras} />
-        {cameras.length > 0 && canvasRef.current && (
-          <PlayerHUDOverlay canvasElement={canvasRef.current} cameras={cameras} />
+      {/* Editor Button */}
+      <div className="absolute top-14 right-4 z-50">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setIsEditorOpen(!isEditorOpen)}
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          {isEditorOpen ? (
+            <X className="h-4 w-4" />
+          ) : (
+            <Settings2 className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+      <div className="flex h-full w-full relative">
+        {/* Game View */}
+        <div
+          className={`h-full relative transition-all duration-300 ${
+            isEditorOpen ? "w-1/2" : "w-full"
+          }`}
+        >
+          <GameScene onCamerasReady={setCameras} />
+          {cameras.length > 0 && canvasRef.current && (
+            <PlayerHUDOverlay
+              canvasElement={canvasRef.current}
+              cameras={cameras}
+            />
+          )}
+        </div>
+        {/* Editor View */}
+        {isEditorOpen && (
+          <div className="w-1/2 h-full border-l border-border bg-background flex flex-col">
+            <div className="px-6 py-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-semibold">
+                Game Object Editor - Rocket
+              </h2>
+            </div>
+            <div className="flex-1 min-h-0">
+              <GameObjectEditor objectType={editorObjectType} />
+            </div>
+          </div>
         )}
       </div>
     </div>

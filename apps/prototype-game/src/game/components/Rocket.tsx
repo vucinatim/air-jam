@@ -1,19 +1,11 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, useMemo, useState } from "react";
-import {
-  CylinderGeometry,
-  ConeGeometry,
-  MeshStandardMaterial,
-  Vector3,
-  Raycaster,
-  Quaternion,
-  Group,
-  Object3D,
-} from "three";
+import { Vector3, Raycaster, Quaternion, Group, Object3D } from "three";
 import { useRapier } from "@react-three/rapier";
 import { useRocketsStore } from "../rockets-store";
 import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
+import { RocketModel } from "./RocketModel";
 
 interface RocketProps {
   id: string;
@@ -42,32 +34,6 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
   const reduceHealth = useHealthStore((state) => state.reduceHealth);
   const raycasterRef = useRef(new Raycaster());
   const groupRef = useRef<Group>(null);
-
-  // Rocket body (cylinder)
-  const bodyGeometry = useMemo(() => new CylinderGeometry(0.3, 0.3, 2, 8), []);
-  const bodyMaterial = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        color: 0xff6600,
-        emissive: 0xff3300,
-        emissiveIntensity: 3,
-        toneMapped: false,
-      }),
-    []
-  );
-
-  // Rocket nose (cone)
-  const noseGeometry = useMemo(() => new ConeGeometry(0.3, 1, 8), []);
-  const noseMaterial = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        color: 0xffaa00,
-        emissive: 0xff6600,
-        emissiveIntensity: 2,
-        toneMapped: false,
-      }),
-    []
-  );
 
   // Calculate rotation quaternion to align rocket with direction
   const rotationQuaternion = useMemo(() => {
@@ -271,15 +237,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
       position={currentPosition}
       quaternion={rotationQuaternion}
     >
-      {/* Rocket body */}
-      <mesh geometry={bodyGeometry} material={bodyMaterial} castShadow />
-      {/* Rocket nose */}
-      <mesh
-        position={[0, 0, -1]}
-        geometry={noseGeometry}
-        material={noseMaterial}
-        castShadow
-      />
+      <RocketModel showParticles={true} horizontal={true} />
     </group>
   );
 }
