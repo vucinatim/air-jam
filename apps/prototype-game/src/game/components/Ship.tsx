@@ -325,8 +325,8 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
       // Gun barrel positions in local space (gun is 1.5 units long, tip is at z = 0.2 + 0.75 = 0.95)
       const gunTipOffset = 0.95;
-      const leftGunLocal = new Vector3(-1.6, 0.0, gunTipOffset);
-      const rightGunLocal = new Vector3(1.6, 0.0, gunTipOffset);
+      const leftGunLocal = new Vector3(-1.5, 0.0, gunTipOffset);
+      const rightGunLocal = new Vector3(1.5, 0.0, gunTipOffset);
 
       // Transform to world space
       const leftGunWorld = leftGunLocal
@@ -338,10 +338,14 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
       // Forward direction (ship's forward is -Z)
       const forwardDir = new Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
+      // Up direction (ship's up is +Y)
+      const upDir = new Vector3(0, 1, 0).applyQuaternion(shipQuaternion);
 
-      // Offset laser spawn position forward to ensure it's outside ship's collider
-      // Ship body is 3.0 units long, offset by 2 units forward to be safe and prevent sticking
-      const spawnOffset = forwardDir.clone().multiplyScalar(2.0);
+      // Offset laser spawn position forward and upward to ensure it's outside ship's collider
+      // Increased forward offset to prevent clipping through ship, and added upward offset
+      const forwardOffset = forwardDir.clone().multiplyScalar(3.5);
+      const upwardOffset = upDir.clone().multiplyScalar(0.5);
+      const spawnOffset = forwardOffset.add(upwardOffset);
       const leftGunSpawnPos = leftGunWorld.clone().add(spawnOffset);
       const rightGunSpawnPos = rightGunWorld.clone().add(spawnOffset);
 
