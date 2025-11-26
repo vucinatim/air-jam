@@ -11,8 +11,17 @@ export interface AbilityData {
   startTime: number | null; // Timestamp when ability was activated (null if not yet activated)
 }
 
+/**
+ * Represents the ability state for a single player
+ * Separates active (currently running) from queued (collected but not activated)
+ */
+export interface PlayerAbilityState {
+  activeAbility: AbilityData | null; // Currently running ability (has startTime)
+  queuedAbility: AbilityData | null; // Collected but not yet activated ability (startTime is null)
+}
+
 export interface PlayerAbilities {
-  [controllerId: string]: AbilityData | null; // Each player has 1 ability slot
+  [controllerId: string]: PlayerAbilityState;
 }
 
 // Store active timers for each controller
@@ -21,29 +30,63 @@ const activeTimers = new Map<string, NodeJS.Timeout>();
 interface AbilitiesState {
   abilities: PlayerAbilities;
   setAbility: (controllerId: string, ability: AbilityData | null) => void;
-  collectAbility: (controllerId: string, abilityId: AbilityId) => void; // Adds ability to slot (not activated)
-  activateAbility: (controllerId: string, abilityId: AbilityId) => void; // Activates ability (starts timer)
-  clearAbility: (controllerId: string) => void;
+  collectAbility: (controllerId: string, abilityId: AbilityId) => void; // Adds ability to queue (cancels active if present)
+  activateAbility: (controllerId: string, abilityId: AbilityId) => void; // Activates queued ability (starts timer)
+  clearAbility: (controllerId: string) => void; // Clears active ability only
   clearAllAbilities: () => void;
-  getAbility: (controllerId: string) => AbilityData | null;
+  getAbility: (controllerId: string) => AbilityData | null; // Returns active if present, otherwise queued (for UI)
+  getQueuedAbility: (controllerId: string) => AbilityData | null; // Returns queued ability specifically
+  getActiveAbility: (controllerId: string) => AbilityData | null; // Returns active ability specifically
   isAbilityActive: (controllerId: string) => boolean;
-  getRemainingDuration: (controllerId: string) => number; // Returns seconds remaining
+  getRemainingDuration: (controllerId: string) => number; // Returns seconds remaining for active ability
   updateActiveAbilities: (controllerId: string, delta: number) => void; // Update all active abilities for a controller
 }
 
 export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
   abilities: {},
-  setAbility: (controllerId, ability) =>
+  setAbility: (controllerId, ability) => {
+    // Legacy method - for backwards compatibility, sets as queued
+    const currentState = get().abilities[controllerId] ?? {
+      activeAbility: null,
+      queuedAbility: null,
+    };
     set((state) => ({
       abilities: {
         ...state.abilities,
-        [controllerId]: ability,
+        [controllerId]: {
+          ...currentState,
+          queuedAbility: ability,
+        },
       },
-    })),
+    }));
+  },
   collectAbility: (controllerId, abilityId) => {
     const ability = getAbilityDefinition(abilityId);
     if (!ability) return;
 
+    const currentState = get().abilities[controllerId] ?? {
+      activeAbility: null,
+      queuedAbility: null,
+    };
+
+    // If there's an active ability, cancel it first
+    if (currentState.activeAbility) {
+      // Clear the active ability (calls onDeactivate, clears timer)
+      const activeAbility = currentState.activeAbility;
+      const timer = activeTimers.get(controllerId);
+      if (timer) {
+        clearTimeout(timer);
+        activeTimers.delete(controllerId);
+      }
+
+      // Call onDeactivate for the active ability
+      const abilityImpl = getAbilityImplementation(activeAbility.id);
+      if (abilityImpl?.onDeactivate) {
+        abilityImpl.onDeactivate(controllerId);
+      }
+    }
+
+    // Create the new queued ability
     const abilityData: AbilityData = {
       id: abilityId,
       name: ability.name,
@@ -52,22 +95,45 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
       startTime: null, // Not activated yet
     };
 
+    // Set as queued ability (replacing any existing queued ability)
     set((state) => ({
       abilities: {
         ...state.abilities,
-        [controllerId]: abilityData,
+        [controllerId]: {
+          activeAbility: null, // Clear active since we canceled it
+          queuedAbility: abilityData,
+        },
       },
     }));
   },
   activateAbility: (controllerId, abilityId) => {
-    const currentAbility = get().abilities[controllerId];
-    // Only activate if ability is in slot and not already active
+    const currentState = get().abilities[controllerId] ?? {
+      activeAbility: null,
+      queuedAbility: null,
+    };
+
+    // Only activate if ability is queued and matches the requested abilityId
     if (
-      !currentAbility ||
-      currentAbility.id !== abilityId ||
-      currentAbility.startTime !== null
+      !currentState.queuedAbility ||
+      currentState.queuedAbility.id !== abilityId
     ) {
       return;
+    }
+
+    // If there's already an active ability, cancel it first
+    if (currentState.activeAbility) {
+      const activeAbility = currentState.activeAbility;
+      const timer = activeTimers.get(controllerId);
+      if (timer) {
+        clearTimeout(timer);
+        activeTimers.delete(controllerId);
+      }
+
+      // Call onDeactivate for the active ability
+      const abilityImpl = getAbilityImplementation(activeAbility.id);
+      if (abilityImpl?.onDeactivate) {
+        abilityImpl.onDeactivate(controllerId);
+      }
     }
 
     // Call ability's onActivate hook if it exists
@@ -83,7 +149,10 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
       set((state) => ({
         abilities: {
           ...state.abilities,
-          [controllerId]: null,
+          [controllerId]: {
+            activeAbility: null,
+            queuedAbility: null, // Instant abilities are consumed
+          },
         },
       }));
       return;
@@ -91,14 +160,17 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
 
     // Otherwise, start the timer for duration-based abilities
     const abilityData: AbilityData = {
-      ...currentAbility,
+      ...currentState.queuedAbility,
       startTime: Date.now(), // Start the timer
     };
 
     set((state) => ({
       abilities: {
         ...state.abilities,
-        [controllerId]: abilityData,
+        [controllerId]: {
+          activeAbility: abilityData, // Move to active
+          queuedAbility: null, // Clear from queue
+        },
       },
     }));
 
@@ -112,8 +184,26 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
     // Set up new timer that will automatically deactivate the ability
     if (abilityDef && abilityDef.duration > 0) {
       const timer = setTimeout(() => {
-        // Timer expired - automatically clear the ability
-        get().clearAbility(controllerId);
+        // Timer expired - automatically clear only the active ability
+        // Don't touch queued ability if one exists
+        const state = get().abilities[controllerId];
+        if (state?.activeAbility) {
+          const activeAbility = state.activeAbility;
+          const timerImpl = getAbilityImplementation(activeAbility.id);
+          if (timerImpl?.onDeactivate) {
+            timerImpl.onDeactivate(controllerId);
+          }
+
+          set((currentState) => ({
+            abilities: {
+              ...currentState.abilities,
+              [controllerId]: {
+                activeAbility: null, // Clear active
+                queuedAbility: state.queuedAbility, // Preserve queued
+              },
+            },
+          }));
+        }
         activeTimers.delete(controllerId);
       }, abilityDef.duration * 1000);
 
@@ -121,7 +211,10 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
     }
   },
   clearAbility: (controllerId) => {
-    const ability = get().abilities[controllerId];
+    const currentState = get().abilities[controllerId] ?? {
+      activeAbility: null,
+      queuedAbility: null,
+    };
 
     // Clear any active timer for this controller
     const timer = activeTimers.get(controllerId);
@@ -130,18 +223,24 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
       activeTimers.delete(controllerId);
     }
 
-    // Call ability's onDeactivate hook if it exists
-    if (ability) {
-      const abilityImpl = getAbilityImplementation(ability.id);
+    // Call ability's onDeactivate hook if it exists (only for active ability)
+    if (currentState.activeAbility) {
+      const abilityImpl = getAbilityImplementation(
+        currentState.activeAbility.id
+      );
       if (abilityImpl?.onDeactivate) {
         abilityImpl.onDeactivate(controllerId);
       }
     }
 
+    // Only clear the active ability, preserve queued ability
     set((state) => ({
       abilities: {
         ...state.abilities,
-        [controllerId]: null,
+        [controllerId]: {
+          activeAbility: null,
+          queuedAbility: currentState.queuedAbility, // Preserve queued
+        },
       },
     }));
   },
@@ -152,23 +251,37 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
     set({ abilities: {} });
   },
   getAbility: (controllerId) => {
-    return get().abilities[controllerId] ?? null;
+    // Returns active ability if present, otherwise queued ability (for UI compatibility)
+    const state = get().abilities[controllerId];
+    if (!state) return null;
+    return state.activeAbility ?? state.queuedAbility ?? null;
+  },
+  getQueuedAbility: (controllerId) => {
+    const state = get().abilities[controllerId];
+    return state?.queuedAbility ?? null;
+  },
+  getActiveAbility: (controllerId) => {
+    const state = get().abilities[controllerId];
+    return state?.activeAbility ?? null;
   },
   isAbilityActive: (controllerId) => {
-    const ability = get().abilities[controllerId];
-    if (!ability || ability.startTime === null) return false;
+    const state = get().abilities[controllerId];
+    if (!state?.activeAbility || state.activeAbility.startTime === null)
+      return false;
     const remaining = get().getRemainingDuration(controllerId);
     return remaining > 0;
   },
   getRemainingDuration: (controllerId) => {
-    const ability = get().abilities[controllerId];
+    const state = get().abilities[controllerId];
+    const ability = state?.activeAbility;
     if (!ability || ability.startTime === null) return 0;
     const elapsed = (Date.now() - ability.startTime) / 1000;
     const remaining = ability.duration - elapsed;
     return Math.max(0, remaining);
   },
   updateActiveAbilities: (controllerId, delta) => {
-    const ability = get().abilities[controllerId];
+    const state = get().abilities[controllerId];
+    const ability = state?.activeAbility;
     if (!ability || !get().isAbilityActive(controllerId)) return;
 
     // Get the ability implementation and call its onUpdate if it exists

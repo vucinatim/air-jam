@@ -448,16 +448,14 @@ function handleAbilities(
   lastRef: React.MutableRefObject<boolean>
 ) {
   const pressed = input.ability && !lastRef.current;
-  const ability = store.getAbility(id);
-  const active = store.isAbilityActive(id);
+  const queuedAbility = store.getQueuedAbility(id);
 
-  if (pressed && ability && ability.startTime === null) {
-    store.activateAbility(id, ability.id);
-  }
-  if (ability && !active && ability.startTime !== null) {
-    store.clearAbility(id);
+  // If button pressed and there's a queued ability, activate it
+  if (pressed && queuedAbility) {
+    store.activateAbility(id, queuedAbility.id);
   }
 
+  // Update active abilities (for onUpdate hooks)
   store.updateActiveAbilities(id, delta);
   lastRef.current = input.ability ?? false;
 }
