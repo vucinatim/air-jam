@@ -6,6 +6,7 @@ import {
   useAbilitiesStore,
   getAllAbilityDefinitions,
 } from "../abilities-store";
+import { useDebugStore } from "../debug-store";
 import { DebugSection } from "./DebugOverlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -209,6 +210,8 @@ export function SceneInfoSection() {
   const players = useGameStore((state) => state.players);
   const lasers = useLasersStore((state) => state.lasers);
   const decals = useDecalsStore((state) => state.decals);
+  const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
+  const toggleFreeFly = useDebugStore((state) => state.toggleFreeFly);
 
   const stats = [
     { label: "Players", value: players.length, color: "text-blue-500" },
@@ -231,6 +234,22 @@ export function SceneInfoSection() {
             </span>
           </div>
         ))}
+        <div className="pt-2 border-t border-border">
+          <Button
+            variant={freeFlyMode ? "default" : "outline"}
+            size="sm"
+            onClick={toggleFreeFly}
+            className="w-full"
+          >
+            {freeFlyMode ? "Disable" : "Enable"} Free Fly Mode
+          </Button>
+          {freeFlyMode && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Click canvas to lock mouse. WASD to move, Space/Shift for up/down.
+              Press ESC to unlock.
+            </p>
+          )}
+        </div>
       </div>
     </DebugSection>
   );

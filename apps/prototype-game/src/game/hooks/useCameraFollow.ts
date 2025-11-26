@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Vector3, type PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { PLAYER_CAMERA_OFFSET, TOPDOWN_CAMERA_HEIGHT } from "../constants";
 import { useGameStore } from "../game-store";
+import { useDebugStore } from "../debug-store";
 import { shipPositions, shipRotations } from "../components/Ship";
 
 interface CameraFollowState {
@@ -26,8 +27,12 @@ export function useCameraFollow(
   const topTargetRef = useRef(new Vector3(0, 0, 0));
   const players = useGameStore((state) => state.players);
   const cameraModeRef = useRef(cameraMode);
+  const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
 
   useFrame((_state, delta) => {
+    // Skip camera follow updates when in free-fly mode
+    if (freeFlyMode) return;
+    
     cameraModeRef.current = cameraMode;
 
     const maxCams = 4;

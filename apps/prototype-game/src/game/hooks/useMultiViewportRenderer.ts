@@ -2,13 +2,18 @@ import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { computeViewports } from "../utils/camera-utils";
+import { useDebugStore } from "../debug-store";
 
 export function useMultiViewportRenderer(
   activeCamerasRef: React.MutableRefObject<Array<ThreePerspectiveCamera | null>>
 ) {
   const { gl, size } = useThree();
+  const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
 
   useEffect(() => {
+    // Skip multi-viewport rendering when in free-fly mode
+    if (freeFlyMode) return;
+
     const renderer = gl;
     const originalRender = renderer.render.bind(renderer);
 
@@ -53,7 +58,7 @@ export function useMultiViewportRenderer(
       renderer.autoClear = true;
       renderer.setScissorTest(false);
     };
-  }, [gl, size.width, size.height, activeCamerasRef]);
+  }, [gl, size.width, size.height, activeCamerasRef, freeFlyMode]);
 }
 
 

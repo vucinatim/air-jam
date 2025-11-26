@@ -2,6 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { AdditiveBlending, BackSide, ShaderMaterial } from "three";
 import { RigidBody } from "@react-three/rapier";
+import { Stars } from "@react-three/drei";
 import { ARENA_RADIUS } from "../constants";
 
 function Forcefield() {
@@ -66,8 +67,19 @@ export function SpaceEnvironment() {
   return (
     <>
       {/* Scene settings */}
-      <color args={[0x202025]} attach="background" />
-      <fogExp2 args={[0x202025, 0.008]} />
+      <color args={[0x000000]} attach="background" />
+      <fogExp2 args={[0x000000, 0.0005]} />
+
+      {/* Space skybox with stars */}
+      <Stars
+        radius={ARENA_RADIUS * 5}
+        depth={100}
+        count={10000}
+        factor={8}
+        saturation={0}
+        fade={false}
+        speed={0.1}
+      />
 
       {/* Lighting */}
       <ambientLight intensity={0.4} />
