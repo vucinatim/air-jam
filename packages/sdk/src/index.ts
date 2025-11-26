@@ -1,6 +1,7 @@
 export * from "./protocol";
 export * from "./hooks/use-air-jam-host";
 export * from "./hooks/use-air-jam-controller";
+export * from "./hooks/use-air-jam-input";
 export * from "./components/air-jam-overlay";
 export * from "./components/controller-shell";
 export * from "./components/ui/button";

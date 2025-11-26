@@ -220,6 +220,7 @@ export const useAirJamController = (
         store.setError(payload.error.message);
         return false;
       }
+
       socket.emit("controller:input", payload.data);
       return true;
     },

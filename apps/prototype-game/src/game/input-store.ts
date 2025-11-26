@@ -42,10 +42,17 @@ export const useInputStore = create<InputStore>((set, get) => ({
   applyInput: (event) => {
     set((state) => {
       const newInputs = new Map(state.inputs);
+      const previousInput = state.inputs.get(event.controllerId);
+
+      // Preserve current ability state if undefined, don't default to false
+      // This prevents losing state between updates
+      const newAbilityState =
+        event.input.ability ?? previousInput?.ability ?? false;
+
       newInputs.set(event.controllerId, {
         vector: event.input.vector,
         action: event.input.action,
-        ability: event.input.ability ?? false,
+        ability: newAbilityState,
         timestamp: event.input.timestamp ?? Date.now(),
       });
       return { inputs: newInputs };

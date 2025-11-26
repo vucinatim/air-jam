@@ -17,11 +17,12 @@ import {
   PLAYER_INPUT_SMOOTH_TIME,
 } from "../constants";
 import { useGameStore } from "../game-store";
-import { useInputStore } from "../input-store";
 import { useLasersStore } from "../lasers-store";
 import { useAbilitiesStore, getAbilityVisual } from "../abilities-store";
 import { usePlayerStatsStore } from "../player-stats-store";
 import { ShipModel } from "./ShipModel";
+import { useAirJamInput } from "@air-jam/sdk";
+import { useConnectionStore } from "@air-jam/sdk";
 
 // --- Global Tracking ---
 export const shipPositions = new Map<string, Vector3>();
@@ -69,12 +70,15 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   // Gameplay Refs
   const lastActionRef = useRef(false);
   const lastShootTimeRef = useRef(0);
-  const lastAbilityRef = useRef(false);
 
   // --- Store Access ---
   const addLaser = useLasersStore((state) => state.addLaser);
   const abilitiesStore = useAbilitiesStore.getState();
   const playerStatsStore = usePlayerStatsStore.getState();
+
+  // --- Input Hook (Zero re-renders, high-performance) ---
+  const roomId = useConnectionStore((state) => state.roomId);
+  const { popInput } = useAirJamInput({ roomId: roomId ?? undefined });
 
   // Visuals & Stats
   const currentAbility = useAbilitiesStore((state) =>
@@ -111,12 +115,21 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     const shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
 
     // 1. INPUT PHASE
-    const input = useInputStore.getState().getInput(controllerId) ?? {
-      vector: { x: 0, y: 0 },
-      action: false,
-      ability: false,
-      timestamp: 0,
-    };
+    // Use the dedicated input hook for high-performance, zero-render input processing
+    // This automatically handles latch pattern to ensure rapid taps are never missed
+    const input = popInput(controllerId);
+
+    // Always update position/rotation tracking for camera (even without input)
+    // This ensures camera can follow the player immediately when they connect
+    // The rotation ref is initialized and maintained by the physics system,
+    // so it will have valid data even when there's no input
+    shipPositions.set(controllerId, shipWorldPos);
+    shipRotations.set(controllerId, currentRotationRef.current.clone());
+
+    // If no input yet, skip input-dependent logic but continue with basic physics
+    if (!input) {
+      return;
+    }
 
     // Smooth input
     const smoothAlpha = 1 - Math.exp(-delta / PLAYER_INPUT_SMOOTH_TIME);
@@ -141,7 +154,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     const turnInput = smoothedInputRef.current.x;
 
     // 2. LOGIC PHASE: ABILITIES
-    handleAbilities(input, abilitiesStore, controllerId, delta, lastAbilityRef);
+    handleAbilities(input, abilitiesStore, controllerId, delta);
     const speedMultiplier = playerStatsStore.getSpeedMultiplier(controllerId);
 
     // 3. CALCULATION PHASE: VELOCITY
@@ -225,11 +238,11 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     rigidBodyRef.current.setRotation(currentRotationRef.current, true);
     rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true); // Kill physics rotation, we control it manually
 
-    // 6. GAMEPLAY PHASE: SHOOTING & TRACKING
-    // Update global maps
+    // Update position/rotation tracking again after physics update
     shipPositions.set(controllerId, shipWorldPos);
     shipRotations.set(controllerId, currentRotationRef.current.clone());
 
+    // 6. GAMEPLAY PHASE: SHOOTING
     handleShooting({
       input,
       time,
@@ -441,23 +454,29 @@ function calculateVerticalPhysics(
 }
 
 function handleAbilities(
-  input: { ability?: boolean },
+  input: { ability: boolean },
   store: ReturnType<typeof useAbilitiesStore.getState>,
   id: string,
-  delta: number,
-  lastRef: React.MutableRefObject<boolean>
+  delta: number
 ) {
-  const pressed = input.ability && !lastRef.current;
-  const queuedAbility = store.getQueuedAbility(id);
+  // The input hook already handled the latch pattern and consumption
+  // We just need to check if ability button is pressed and we have a queued ability
+  const currentAbility = store.getAbility(id);
+  const hasAbilityInSlot = currentAbility !== null;
 
-  // If button pressed and there's a queued ability, activate it
-  if (pressed && queuedAbility) {
-    store.activateAbility(id, queuedAbility.id);
+  // Trigger Logic: Check if ability button is pressed and we have a queued ability
+  // (startTime === null means queued, not yet activated)
+  if (input.ability && hasAbilityInSlot && currentAbility.startTime === null) {
+    // Activate the ability!
+    store.activateAbility(id, currentAbility.id);
+
+    console.log(
+      `[SHIP] Ability activated for ${id}, ability: ${currentAbility.id}`
+    );
   }
 
   // Update active abilities (for onUpdate hooks)
   store.updateActiveAbilities(id, delta);
-  lastRef.current = input.ability ?? false;
 }
 
 interface HandleShootingParams {
