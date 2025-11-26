@@ -170,6 +170,9 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     );
     currentVelocityRef.current.copy(newVelocity);
 
+    // Calculate forward speed for pitch calculation
+    const currentForwardSpeed = newVelocity.dot(forward);
+
     // 4. CALCULATION PHASE: ROTATION (YAW & PITCH)
     // Yaw (Left/Right)
     const newYawVel = calculateYaw(
@@ -179,11 +182,12 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     );
     currentAngularVelocityRef.current = newYawVel;
 
-    // Pitch (Up/Down) - The complex parabolic math
+    // Pitch (Up/Down) - Flight path alignment based on velocity vector
     const newPitchVel = calculatePitchVelocity(
       isInAir,
       physicsPos.y,
       physicsVel.y,
+      currentForwardSpeed,
       currentRotationRef.current,
       currentPitchAngularVelocityRef.current,
       delta
@@ -340,11 +344,12 @@ function calculateYaw(
   return currentYawVel + (diff > 0 ? 1 : -1) * maxChange;
 }
 
-// The complex pitch logic preserved exactly
+// Flight path alignment: ship's nose points in the direction it's actually moving
 function calculatePitchVelocity(
   isInAir: boolean,
   posY: number,
   velY: number,
+  currentForwardSpeed: number,
   rotation: Quaternion,
   currentPitchVel: number,
   delta: number
@@ -356,35 +361,57 @@ function calculatePitchVelocity(
   );
 
   if (isInAir) {
-    // Calculate target angle based on vertical velocity
-    const clampedVel = MathUtils.clamp(
-      velY,
-      -SHIP_CONFIG.MAX_VERTICAL_VEL,
-      SHIP_CONFIG.MAX_VERTICAL_VEL
-    );
-    const normVel = clampedVel / SHIP_CONFIG.MAX_VERTICAL_VEL;
-    const curvedVel = Math.sign(normVel) * Math.pow(Math.abs(normVel), 0.6); // Steepness factor
-    let targetAngle = curvedVel * SHIP_CONFIG.MAX_PITCH;
+    // --- 1. NATURAL FLIGHT PATH LOGIC ---
+    // Instead of arbitrary curves, we align the nose with the actual velocity vector.
+    // atan2(y, x) gives the exact angle of the vector.
 
-    // Leveling out logic
+    // We clamp forward speed to a small min value to prevent divide-by-zero or weird flipping when stopped
+    const safeForwardSpeed = Math.max(Math.abs(currentForwardSpeed), 1.0);
+
+    // Calculate the "Flight Path Angle"
+    // This is the angle the ship is actually moving through 3D space
+    let targetAngle = Math.atan2(velY, safeForwardSpeed);
+
+    // --- 2. ARCADE TWEAKS ---
+    // Pure physics can feel a bit "laggy" visually. We amplify the look
+    // just a bit to make it feel responsive, but clamp it so it doesn't look broken.
+    const PITCH_AMPLIFIER = 1.2;
+    targetAngle *= PITCH_AMPLIFIER;
+
+    // Clamp total angle to ±45 degrees (or whatever MAX_PITCH you want)
+    // to prevent the ship from doing loops or looking broken
+    targetAngle = MathUtils.clamp(
+      targetAngle,
+      -SHIP_CONFIG.MAX_PITCH,
+      SHIP_CONFIG.MAX_PITCH
+    );
+
+    // --- 3. LEVELING OUT LOGIC (Landing Assist) ---
+    // As we get close to the ground, force the nose level so we don't crash nose-first.
     const heightAboveHover = posY - SHIP_CONFIG.HOVER_HEIGHT;
 
     if (
       heightAboveHover <= SHIP_CONFIG.LEVELING_START_HEIGHT &&
       heightAboveHover > SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT
     ) {
+      // Smoothly blend from "Flight Angle" to "0 Angle"
       const t =
         (heightAboveHover - SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT) /
         (SHIP_CONFIG.LEVELING_START_HEIGHT -
           SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT);
+      // Smoothstep function for organic transition
       const smooth = t * t * (3 - 2 * t);
       targetAngle *= smooth;
     } else if (heightAboveHover <= SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT) {
       targetAngle = 0;
     }
 
+    // --- 4. CALCULATE ANGULAR VELOCITY ---
     const currentAngle = new Euler().setFromQuaternion(rotation, "YXZ").x;
     const diff = targetAngle - currentAngle;
+
+    // PITCH_RESPONSIVENESS controls how "heavy" the nose feels.
+    // Higher = Snaps to vector instantly. Lower = Drifts into alignment.
     targetPitchAngVel = MathUtils.clamp(
       diff * SHIP_CONFIG.PITCH_RESPONSIVENESS,
       -PLAYER_MAX_ANGULAR_VELOCITY,
