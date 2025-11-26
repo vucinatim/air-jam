@@ -3,17 +3,148 @@ import { useHealthStore } from "../health-store";
 import { useGameStore } from "../game-store";
 import { useAbilitiesStore } from "../abilities-store";
 import { shipPositions } from "./Ship";
-import { Vector3 } from "three";
-import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
+import { Vector3, PerspectiveCamera } from "three";
+import { cn } from "../../lib/utils";
+
+// --- CONFIGURATION ---
+const HUD_CONFIG = {
+  OFFSET_Y: 4, // Units below the ship
+  WIDTH: 80, // Width of HUD in px
+  COLORS: {
+    HIGH: "#22c55e", // Green (>60%)
+    MID: "#eab308", // Yellow (>30%)
+    LOW: "#ef4444", // Red
+  },
+};
+
+// --- TYPES ---
+interface HUDVisualsProps {
+  health: number;
+  maxHealth: number;
+  abilityIcon?: string;
+  isAbilityActive: boolean;
+  // Refs for direct DOM manipulation (no re-renders)
+  countdownCircleRef?: React.RefObject<SVGCircleElement | null>;
+  durationTextRef?: React.RefObject<HTMLDivElement | null>;
+}
 
 interface PlayerHUDOverlayProps {
   canvasElement: HTMLCanvasElement | null;
   cameras: Array<{
-    camera: ThreePerspectiveCamera;
+    camera: PerspectiveCamera;
     viewport: { x: number; y: number; width: number; height: number };
   }>;
 }
 
+// ------------------------------------------------------------------
+// 1. PRESENTATIONAL COMPONENT (Edit your HTML/CSS here!)
+// ------------------------------------------------------------------
+const HUDVisuals = memo(
+  ({
+    health,
+    maxHealth,
+    abilityIcon,
+    isAbilityActive,
+    countdownCircleRef,
+    durationTextRef,
+  }: HUDVisualsProps) => {
+    const healthPercentage = (health / maxHealth) * 100;
+
+    // Color Logic
+    const color =
+      healthPercentage > 60
+        ? HUD_CONFIG.COLORS.HIGH
+        : healthPercentage > 30
+        ? HUD_CONFIG.COLORS.MID
+        : HUD_CONFIG.COLORS.LOW;
+
+    // SVG circle parameters for countdown
+    const size = 40; // 10 * 4 (w-10 = 40px)
+    const radius = 17;
+    const circumference = 2 * Math.PI * radius;
+
+    return (
+      <div className="w-full pointer-events-none select-none">
+        {/* Health Bar */}
+        <div className="relative w-full h-5 bg-white/20 rounded overflow-hidden mb-1.5 backdrop-blur-sm">
+          <div
+            className="absolute inset-y-0 left-0 transition-all duration-200 ease-out opacity-80"
+            style={{
+              width: `${healthPercentage}%`,
+              backgroundColor: color,
+              boxShadow: `0 0 10px ${color}`,
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white font-mono font-bold drop-shadow-md">
+            {Math.round(health)}/{maxHealth}
+          </div>
+        </div>
+
+        {/* Ability Icon with Circular Countdown */}
+        <div className="relative flex items-center justify-center">
+          <div className="relative w-10 h-10">
+            {/* Ability Icon */}
+            <div
+              className={cn(
+                "absolute inset-0 w-full h-full rounded-full border-2 flex items-center justify-center text-sm transition-all z-10",
+                isAbilityActive ? "border-transparent" : "border-white/30",
+                abilityIcon ? "bg-white/20" : "transparent"
+              )}
+            >
+              <span className="translate-y-px">{abilityIcon}</span>
+            </div>
+
+            {/* Circular Countdown Timer (WoW-style) - Always rendered, visibility controlled via DOM */}
+            <svg
+              className="absolute inset-0 w-full h-full transform -rotate-90"
+              style={{ zIndex: 5, display: isAbilityActive ? "block" : "none" }}
+            >
+              {/* Background circle (full circle, semi-transparent) */}
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke="rgba(0, 0, 0, 0.4)"
+                strokeWidth="3"
+              />
+              {/* Countdown circle (sweeps clockwise from top) - Updated via ref */}
+              <circle
+                ref={countdownCircleRef}
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke={color}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference}
+                style={{
+                  transition: "stroke-dashoffset 0.1s linear",
+                  filter: `drop-shadow(0 0 4px ${color})`,
+                }}
+              />
+            </svg>
+          </div>
+
+          {/* Duration Text - Updated via ref */}
+          <div
+            ref={durationTextRef}
+            className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-white font-mono font-bold drop-shadow-md"
+            style={{ display: "none" }}
+          />
+        </div>
+      </div>
+    );
+  }
+);
+
+HUDVisuals.displayName = "HUDVisuals";
+
+// ------------------------------------------------------------------
+// 2. LOGIC COMPONENT (Handles 3D Tracking & Data Fetching)
+// ------------------------------------------------------------------
 const PlayerHUDItem = memo(function PlayerHUDItem({
   controllerId,
   canvasElement,
@@ -23,34 +154,106 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   controllerId: string;
   canvasElement: HTMLCanvasElement | null;
   viewport: { x: number; y: number; width: number; height: number };
-  camera: ThreePerspectiveCamera;
+  camera: PerspectiveCamera;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const countdownCircleRef = useRef<SVGCircleElement | null>(null);
+  const durationTextRef = useRef<HTMLDivElement | null>(null);
+  const countdownAnimationRef = useRef<number | undefined>(undefined);
+
+  // --- Data Stores ---
   const health = useHealthStore((state) => state.health[controllerId] ?? 100);
   const maxHealth = 100;
-  const healthPercentage = (health / maxHealth) * 100;
   const ability = useAbilitiesStore((state) => state.getAbility(controllerId));
-  const remainingDuration = useAbilitiesStore((state) =>
-    state.getRemainingDuration(controllerId)
-  );
   const isAbilityActive = useAbilitiesStore((state) =>
     state.isAbilityActive(controllerId)
   );
-  const elementRef = useRef<HTMLDivElement>(null);
-  const abilityIconRef = useRef<HTMLDivElement>(null);
-  const abilityDurationRef = useRef<HTMLDivElement>(null);
-  const animationFrameRef = useRef<number | undefined>(undefined);
-  const durationTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // Update countdown circle and duration text via direct DOM manipulation (no re-renders)
+  useEffect(() => {
+    if (!isAbilityActive || !ability || ability.duration === 0) {
+      // Hide countdown when not active
+      if (countdownCircleRef.current) {
+        countdownCircleRef.current.style.display = "none";
+      }
+      if (durationTextRef.current) {
+        durationTextRef.current.style.display = "none";
+      }
+      if (countdownAnimationRef.current) {
+        cancelAnimationFrame(countdownAnimationRef.current);
+        countdownAnimationRef.current = undefined;
+      }
+      return;
+    }
+
+    // Start countdown animation loop
+    const updateCountdown = () => {
+      const store = useAbilitiesStore.getState();
+      const currentAbility = store.getAbility(controllerId);
+      const currentIsActive = store.isAbilityActive(controllerId);
+
+      if (
+        !currentIsActive ||
+        !currentAbility ||
+        currentAbility.duration === 0
+      ) {
+        if (countdownCircleRef.current) {
+          countdownCircleRef.current.style.display = "none";
+        }
+        if (durationTextRef.current) {
+          durationTextRef.current.style.display = "none";
+        }
+        return;
+      }
+
+      const remaining = store.getRemainingDuration(controllerId);
+      const totalDuration = currentAbility.duration;
+
+      if (remaining <= 0) {
+        if (countdownCircleRef.current) {
+          countdownCircleRef.current.style.display = "none";
+        }
+        if (durationTextRef.current) {
+          durationTextRef.current.style.display = "none";
+        }
+        return;
+      }
+
+      // Update countdown circle
+      if (countdownCircleRef.current) {
+        const radius = 17;
+        const circumference = 2 * Math.PI * radius;
+        const percentage = (remaining / totalDuration) * 100;
+        const offset = circumference - (percentage / 100) * circumference;
+        countdownCircleRef.current.style.strokeDashoffset = `${offset}`;
+        countdownCircleRef.current.style.display = "block";
+      }
+
+      // Update duration text
+      if (durationTextRef.current) {
+        const seconds = Math.ceil(remaining);
+        durationTextRef.current.textContent = `${seconds}s`;
+        durationTextRef.current.style.display = "block";
+      }
+
+      countdownAnimationRef.current = requestAnimationFrame(updateCountdown);
+    };
+
+    countdownAnimationRef.current = requestAnimationFrame(updateCountdown);
+
+    return () => {
+      if (countdownAnimationRef.current) {
+        cancelAnimationFrame(countdownAnimationRef.current);
+        countdownAnimationRef.current = undefined;
+      }
+    };
+  }, [controllerId, isAbilityActive, ability]);
+
+  // --- 3D Position Tracking (Runs outside React Render Cycle) ---
+  // We use Refs for values accessed inside requestAnimationFrame to avoid stale closures
   const cameraRef = useRef(camera);
   const viewportRef = useRef(viewport);
 
-  // Determine health bar color based on health percentage
-  const getHealthColor = () => {
-    if (healthPercentage > 60) return "#22c55e"; // green
-    if (healthPercentage > 30) return "#eab308"; // yellow
-    return "#ef4444"; // red
-  };
-
-  // Update camera and viewport refs when they change (but don't trigger re-render)
   useEffect(() => {
     cameraRef.current = camera;
     viewportRef.current = viewport;
@@ -59,213 +262,81 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   useEffect(() => {
     if (!canvasElement) return;
 
+    let animId: number;
     const updatePosition = () => {
+      const element = containerRef.current;
       const shipPos = shipPositions.get(controllerId);
-      const element = elementRef.current;
-      const currentCamera = cameraRef.current;
-      const currentViewport = viewportRef.current;
 
-      if (!shipPos || !element) {
-        element?.style.setProperty("display", "none");
-        animationFrameRef.current = requestAnimationFrame(updatePosition);
+      if (!element || !shipPos) {
+        if (element) element.style.display = "none";
+        animId = requestAnimationFrame(updatePosition);
         return;
       }
 
-      // World position 3 units below ship
-      const worldPos = new Vector3(shipPos.x, shipPos.y - 3, shipPos.z);
+      // 1. World Position (Offset)
+      const worldPos = new Vector3(
+        shipPos.x,
+        shipPos.y - HUD_CONFIG.OFFSET_Y,
+        shipPos.z
+      );
 
-      // Project world position to screen coordinates using THIS player's camera
-      const vector = worldPos.clone().project(currentCamera);
+      // 2. Project to Normalized Device Coordinates (NDC)
+      // Standard Three.js projection: Result is x/y between -1 and 1
+      const vector = worldPos.clone().project(cameraRef.current);
 
-      // Check if position is in front of camera (z between -1 and 1)
-      if (vector.z > -1 && vector.z < 1) {
-        // Convert normalized device coordinates to screen pixels
-        // Position is relative to the viewport container (0,0 is top-left of container)
-        const screenX = (vector.x * 0.5 + 0.5) * currentViewport.width;
-        // Flip Y coordinate: WebGL has y=0 at bottom, HTML has y=0 at top
-        // Make it relative to the viewport container
-        const screenY = (vector.y * -0.5 + 0.5) * currentViewport.height;
+      // 3. Visibility Check (Frustum Culling)
+      // z > 1 means behind far plane, z < -1 means behind near plane
+      // Usually checking if z < 1 (in front of far plane) and z > -1 (not clipped) is enough.
+      const isVisible = vector.z < 1 && vector.z > -1;
 
-        // Check if position is within viewport bounds (now relative to container)
-        if (
-          screenX >= 0 &&
-          screenX <= currentViewport.width &&
-          screenY >= 0 &&
-          screenY <= currentViewport.height
-        ) {
-          // Direct DOM manipulation - no React re-render!
-          // Position is relative to the container, not the full canvas
-          element.style.left = `${screenX}px`;
-          element.style.top = `${screenY}px`;
+      if (isVisible) {
+        const vp = viewportRef.current;
+
+        // 4. Convert NDC to Screen Pixels (Relative to the specific Viewport)
+        const x = (vector.x * 0.5 + 0.5) * vp.width;
+        const y = (vector.y * -0.5 + 0.5) * vp.height; // Flip Y for HTML
+
+        // 5. Bounds Check (Is it actually inside the player's split screen?)
+        if (x >= 0 && x <= vp.width && y >= 0 && y <= vp.height) {
           element.style.display = "block";
+          element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
         } else {
-          // Ship is outside this player's viewport
           element.style.display = "none";
         }
       } else {
-        // Ship is behind camera
         element.style.display = "none";
       }
 
-      animationFrameRef.current = requestAnimationFrame(updatePosition);
+      animId = requestAnimationFrame(updatePosition);
     };
 
-    animationFrameRef.current = requestAnimationFrame(updatePosition);
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
+    animId = requestAnimationFrame(updatePosition);
+    return () => cancelAnimationFrame(animId);
   }, [controllerId, canvasElement]);
-
-  // Update health bar fill width when health changes (only this triggers re-render)
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const healthBarFill = element.querySelector(
-      ".health-bar-fill"
-    ) as HTMLElement;
-    const healthText = element.querySelector(".health-text") as HTMLElement;
-
-    if (healthBarFill) {
-      // Calculate color inline to avoid dependency issues
-      const color =
-        healthPercentage > 60
-          ? "#22c55e"
-          : healthPercentage > 30
-          ? "#eab308"
-          : "#ef4444";
-      healthBarFill.style.width = `${healthPercentage}%`;
-      healthBarFill.style.backgroundColor = color;
-      healthBarFill.style.boxShadow = `0 0 8px ${color}`;
-    }
-
-    if (healthText) {
-      healthText.textContent = `${Math.round(health)}/${maxHealth}`;
-    }
-
-    // Update ability UI - show icon if ability is in slot, show duration only if active
-    if (abilityIconRef.current) {
-      if (ability !== null) {
-        abilityIconRef.current.textContent = ability.icon;
-        abilityIconRef.current.style.display = "flex";
-        // Show reduced opacity if not activated yet
-        abilityIconRef.current.style.opacity = isAbilityActive ? "1" : "0.5";
-      } else {
-        abilityIconRef.current.style.display = "none";
-      }
-    }
-
-    if (abilityDurationRef.current) {
-      if (ability !== null && isAbilityActive) {
-        const seconds = Math.ceil(remainingDuration);
-        abilityDurationRef.current.textContent = `${seconds}s`;
-        abilityDurationRef.current.style.display = "block";
-      } else {
-        abilityDurationRef.current.style.display = "none";
-      }
-    }
-  }, [
-    health,
-    healthPercentage,
-    maxHealth,
-    ability,
-    remainingDuration,
-    isAbilityActive,
-  ]);
-
-  // Set up timer to update ability duration display every second
-  useEffect(() => {
-    if (!isAbilityActive || !ability) {
-      // Clear timer if ability is not active
-      if (durationTimerRef.current) {
-        clearInterval(durationTimerRef.current);
-        durationTimerRef.current = undefined;
-      }
-      return;
-    }
-
-    // Update duration immediately
-    const updateDuration = () => {
-      if (abilityDurationRef.current) {
-        const store = useAbilitiesStore.getState();
-        const currentRemaining = store.getRemainingDuration(controllerId);
-        const seconds = Math.ceil(currentRemaining);
-        abilityDurationRef.current.textContent = `${seconds}s`;
-
-        // Hide if duration is 0 or less
-        if (currentRemaining <= 0) {
-          abilityDurationRef.current.style.display = "none";
-        } else {
-          abilityDurationRef.current.style.display = "block";
-        }
-      }
-    };
-
-    // Update immediately
-    updateDuration();
-
-    // Then update every second
-    durationTimerRef.current = setInterval(updateDuration, 1000);
-
-    return () => {
-      if (durationTimerRef.current) {
-        clearInterval(durationTimerRef.current);
-        durationTimerRef.current = undefined;
-      }
-    };
-  }, [controllerId, isAbilityActive, ability]);
 
   return (
     <div
-      ref={elementRef}
-      className="absolute -translate-x-1/2 -translate-y-1/2 w-[120px] pointer-events-none select-none z-10"
+      ref={containerRef}
+      className="absolute w-[80px] pointer-events-none select-none z-10"
       style={{
-        left: "0px",
-        top: "0px",
         display: "none", // Hidden by default, shown when visible
       }}
     >
-      {/* Health Bar Container */}
-      <div className="relative w-full h-6 bg-white/20 rounded overflow-hidden mb-1">
-        {/* Health Bar Fill */}
-        <div
-          className="health-bar-fill absolute opacity-50 inset-y-0 left-0 rounded transition-all duration-200 ease-out"
-          style={{
-            width: `${healthPercentage}%`,
-            backgroundColor: getHealthColor(),
-            boxShadow: `0 0 8px ${getHealthColor()}`,
-          }}
-        />
-        {/* Health Text - Overlaid on top */}
-        <div className="health-text absolute inset-0 flex items-center justify-center text-xs text-white font-mono font-bold [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]">
-          {Math.round(health)}/{maxHealth}
-        </div>
-      </div>
-
-      {/* Ability Slot */}
-      <div className="relative w-full h-8 bg-white/10 rounded overflow-hidden flex items-center justify-center">
-        <div
-          ref={abilityIconRef}
-          className="text-lg flex items-center justify-center"
-          style={{ display: "none" }}
-        >
-          {ability?.icon}
-        </div>
-        <div
-          ref={abilityDurationRef}
-          className="absolute bottom-0 left-0 right-0 text-[10px] text-white font-mono font-bold text-center [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]"
-          style={{ display: "none" }}
-        >
-          {Math.ceil(remainingDuration)}s
-        </div>
-      </div>
+      <HUDVisuals
+        health={health}
+        maxHealth={maxHealth}
+        abilityIcon={ability?.icon}
+        isAbilityActive={isAbilityActive}
+        countdownCircleRef={countdownCircleRef}
+        durationTextRef={durationTextRef}
+      />
     </div>
   );
 });
 
+// ------------------------------------------------------------------
+// 3. CONTAINER COMPONENT (Maps Players to Viewports)
+// ------------------------------------------------------------------
 export const PlayerHUDOverlay = memo(function PlayerHUDOverlay({
   canvasElement,
   cameras,
