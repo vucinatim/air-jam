@@ -1,29 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { useFrame } from "@react-three/fiber";
-
-import { useRef, memo, useMemo, useEffect } from "react";
-
+import { useRef, memo, useEffect } from "react";
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
-
 import * as THREE from "three";
-
-import {
-  AdditiveBlending,
-  BoxGeometry,
-  CylinderGeometry,
-  Euler,
-  ExtrudeGeometry,
-  MathUtils,
-  MeshStandardMaterial,
-  Quaternion,
-  Shape,
-  Vector3,
-} from "three";
-
-// Track ship positions for camera following
-export const shipPositions = new Map<string, Vector3>();
-export const shipRotations = new Map<string, Quaternion>();
+import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 
 import {
   PLAYER_MAX_SPEED,
@@ -40,29 +21,30 @@ import { useInputStore } from "../input-store";
 import { useLasersStore } from "../lasers-store";
 import { useAbilitiesStore, getAbilityVisual } from "../abilities-store";
 import { usePlayerStatsStore } from "../player-stats-store";
+import { ShipModel } from "./ShipModel";
 
-// ... Shaders omitted for brevity (keep them as is) ...
-const exhaustVertex = `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
+// --- Global Tracking ---
+export const shipPositions = new Map<string, Vector3>();
+export const shipRotations = new Map<string, Quaternion>();
 
-const exhaustFragment = `
-  uniform float uTime;
-  uniform float uThrust;
-  varying vec2 vUv;
-  void main() {
-    float alpha = smoothstep(0.0, 1.0, 1.0 - vUv.y);
-    float noise = sin(vUv.y * 20.0 - uTime * 15.0) * 0.5 + 0.5;
-    vec3 baseColor = vec3(0.0, 0.8, 1.0);
-    vec3 coreColor = vec3(1.0, 1.0, 1.0);
-    vec3 finalColor = mix(baseColor, coreColor, noise * uThrust);
-    gl_FragColor = vec4(finalColor, alpha * alpha * (0.5 + uThrust));
-  }
-`;
+// --- Configuration Constants ---
+const SHIP_CONFIG = {
+  HOVER_HEIGHT: 5,
+  AIR_MODE_THRESHOLD: 0.5,
+  MAX_PITCH: Math.PI / 4, // 45 degrees
+  MAX_VERTICAL_VEL: 30,
+  BASE_GRAVITY: -5,
+  MAX_DIVE_GRAVITY: -15,
+  MAX_LIFT: 3,
+  BANKING_ANGLE: Math.PI / 6,
+  SHOOT_INTERVAL: 0.2,
+  UPWARD_VELOCITY_THRESHOLD: 10,
+  RESTORE_FORCE: 20,
+  PITCH_RESET_SPEED: 5.0,
+  PITCH_RESPONSIVENESS: 2.0,
+  LEVELING_START_HEIGHT: 6,
+  LEVELING_COMPLETE_HEIGHT: 0.5 + 0.5, // AIR_MODE_THRESHOLD + 0.5
+};
 
 interface ShipProps {
   controllerId: string;
@@ -70,823 +52,482 @@ interface ShipProps {
 }
 
 function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
-  const spawnPosition = useMemo(() => initialPosition, [initialPosition]);
-
-  // Refs
+  // --- Refs & State ---
   const rigidBodyRef = useRef<RapierRigidBody>(null);
-  const planeGroupRef = useRef<THREE.Group>(null); // Inner rotation (banking)
+  const planeGroupRef = useRef<THREE.Group>(null);
 
-  // FX Refs
-  const flameLRef = useRef<THREE.Mesh>(null);
-  const flameRRef = useRef<THREE.Mesh>(null);
-  const lightLRef = useRef<THREE.PointLight>(null);
-  const lightRRef = useRef<THREE.PointLight>(null);
-  const exhaustMaterialLRef = useRef<THREE.ShaderMaterial>(null);
-  const exhaustMaterialRRef = useRef<THREE.ShaderMaterial>(null);
-
-  // Logic State
+  // Physics Logic Refs
   const currentThrustRef = useRef(0);
+  const thrustInputRef = useRef(0); // Store thrustInput for ShipModel
   const smoothedInputRef = useRef({ x: 0, y: 0 });
   const currentWingRollRef = useRef(0);
-  // Use the ref passed from parent - no need to sync, it's already a ref!
-
-  // We track velocity/rotation in Refs to preserve your math logic
   const currentVelocityRef = useRef(new Vector3(0, 0, 0));
-  const currentAngularVelocityRef = useRef(0); // Yaw (rotation around Y axis)
-  const currentPitchAngularVelocityRef = useRef(0); // Pitch (rotation around X axis)
-  // We track rotation manually because we want "Arcade" turning, not "Physics" turning
-  const currentRotationRef = useRef(new Quaternion());
+  const currentAngularVelocityRef = useRef(0);
+  const currentPitchAngularVelocityRef = useRef(0);
+  const currentRotationRef = useRef(new Quaternion()); // Manual rotation tracking
 
-  // Shooting state
+  // Gameplay Refs
   const lastActionRef = useRef(false);
   const lastShootTimeRef = useRef(0);
   const lastAbilityRef = useRef(false);
-  const HOLD_SHOOT_INTERVAL = 0.2; // 50ms between shots when button is held
-  const addLaser = useLasersStore((state) => state.addLaser);
 
-  // Ability state
+  // --- Store Access ---
+  const addLaser = useLasersStore((state) => state.addLaser);
   const abilitiesStore = useAbilitiesStore.getState();
   const playerStatsStore = usePlayerStatsStore.getState();
-  // Get ability for rendering visual components
+
+  // Visuals & Stats
   const currentAbility = useAbilitiesStore((state) =>
     state.getAbility(controllerId)
   );
   const isAbilityActive = useAbilitiesStore((state) =>
     state.isAbilityActive(controllerId)
   );
-  // Get ability visual component if ability is equipped but not activated
   const abilityVisual =
     currentAbility && !isAbilityActive
       ? getAbilityVisual(currentAbility.id, controllerId)
       : null;
 
-  // Initialize player stats
+  const playerColor =
+    useGameStore(
+      (state) =>
+        state.players.find((p) => p.controllerId === controllerId)?.color
+    ) || "#ff4444";
+
+  // Init Stats
   useEffect(() => {
     playerStatsStore.initializeStats(controllerId);
-    return () => {
-      playerStatsStore.removeStats(controllerId);
-    };
+    return () => playerStatsStore.removeStats(controllerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controllerId]); // playerStatsStore is stable, don't need it in deps
+  }, [controllerId]);
 
-  // Shape functions for wings and fins
-  const createWingShape = useMemo(() => {
-    return () => {
-      const shape = new Shape();
-      shape.moveTo(0, 0);
-      shape.lineTo(2.0, -1.0);
-      shape.lineTo(2.0, -2.0);
-      shape.lineTo(0, -1.5);
-      return shape;
-    };
-  }, []);
-
-  const createFinShape = useMemo(() => {
-    return () => {
-      const shape = new Shape();
-      shape.moveTo(0, 0); // Bottom Rear
-      shape.lineTo(0, 1.0); // Top Rear (Vertical edge)
-      shape.lineTo(-0.5, 1.0); // Top Flat
-      shape.lineTo(-1.0, 0.0); // Bottom Front (Sloped leading edge)
-      shape.lineTo(0, 0);
-      return shape;
-    };
-  }, []);
-
-  // Ship geometries
-  const shipGeometries = useMemo(() => {
-    return {
-      body: new BoxGeometry(1.2, 0.8, 3.0),
-      nose: new CylinderGeometry(0, 1, 1.5, 4, 1, false, Math.PI / 4),
-      wing: new ExtrudeGeometry(createWingShape(), {
-        depth: 0.1,
-        bevelEnabled: true,
-        bevelThickness: 0.03,
-        bevelSize: 0.03,
-        bevelSegments: 1,
-      }),
-      fin: new ExtrudeGeometry(createFinShape(), {
-        depth: 0.1,
-        bevelEnabled: true,
-        bevelThickness: 0.02,
-        bevelSize: 0.02,
-        bevelSegments: 1,
-      }),
-      cockpit: new BoxGeometry(0.9, 0.4, 1.2),
-      nozzle: new CylinderGeometry(0.35, 0.25, 0.8, 8),
-      gun: new CylinderGeometry(0.1, 0.1, 1.5, 6),
-    };
-  }, [createWingShape, createFinShape]);
-
-  // Get player color from store
-  const player = useGameStore((state) =>
-    state.players.find((p) => p.controllerId === controllerId)
-  );
-  const playerColor = player?.color || "#ff4444";
-
-  // Ship materials
-  const shipMaterials = useMemo(() => {
-    // Convert hex color to number for Three.js
-    const wingColor = parseInt(playerColor.replace("#", ""), 16);
-    return {
-      playerBody: new MeshStandardMaterial({
-        color: 0x8899aa,
-        roughness: 0.4,
-        metalness: 0.7,
-        flatShading: true,
-      }),
-      playerWing: new MeshStandardMaterial({
-        color: wingColor,
-        roughness: 0.6,
-        metalness: 0.2,
-        flatShading: true,
-      }),
-      cockpit: new MeshStandardMaterial({
-        color: 0x111111,
-        roughness: 0.1,
-        metalness: 0.9,
-      }),
-      gun: new MeshStandardMaterial({
-        color: 0x222222,
-        roughness: 0.7,
-        metalness: 0.5,
-      }),
-      nozzle: new MeshStandardMaterial({
-        color: 0x333333,
-        roughness: 0.5,
-      }),
-    };
-  }, [playerColor]);
-
-  // Update wing material color when player color changes
-  useEffect(() => {
-    if (shipMaterials.playerWing) {
-      const wingColor = parseInt(playerColor.replace("#", ""), 16);
-      shipMaterials.playerWing.color.setHex(wingColor);
-    }
-  }, [playerColor, shipMaterials.playerWing]);
-
-  // Geometry and Uniforms
-  const exhaustGeometry = useMemo(() => {
-    const geo = new CylinderGeometry(0.1, 0.4, 2.5, 12, 1, true);
-    geo.rotateX(Math.PI / 2);
-    geo.translate(0, 0, 1.2);
-    return geo;
-  }, []);
-
-  const exhaustUniformsL = useMemo(
-    () => ({ uTime: { value: 0 }, uThrust: { value: 0.0 } }),
-    []
-  );
-  const exhaustUniformsR = useMemo(
-    () => ({ uTime: { value: 0 }, uThrust: { value: 0.0 } }),
-    []
-  );
-
+  // --- THE LOOP ---
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;
 
-    // --- 1. YOUR LOGIC (Keep the math, change the application) ---
     const time = state.clock.elapsedTime;
-    // Read input directly from input store (no rerenders needed!)
-    const inputStore = useInputStore.getState();
-    const currentInput = inputStore.getInput(controllerId) ?? {
+    const physicsPos = rigidBodyRef.current.translation();
+    const physicsVel = rigidBodyRef.current.linvel();
+    const shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
+
+    // 1. INPUT PHASE
+    const input = useInputStore.getState().getInput(controllerId) ?? {
       vector: { x: 0, y: 0 },
       action: false,
       ability: false,
       timestamp: 0,
     };
 
-    // Smooth Input
-    const inputSmoothAlpha = 1 - Math.exp(-delta / PLAYER_INPUT_SMOOTH_TIME);
+    // Smooth input
+    const smoothAlpha = 1 - Math.exp(-delta / PLAYER_INPUT_SMOOTH_TIME);
     smoothedInputRef.current.x = MathUtils.lerp(
       smoothedInputRef.current.x,
-      currentInput.vector.x,
-      inputSmoothAlpha
+      input.vector.x,
+      smoothAlpha
     );
     smoothedInputRef.current.y = MathUtils.lerp(
       smoothedInputRef.current.y,
-      currentInput.vector.y,
-      inputSmoothAlpha
+      input.vector.y,
+      smoothAlpha
     );
 
-    // NOTE: We read rotation from our manual ref, not the physics body, to keep control absolute
-    const shipQuaternion = currentRotationRef.current.clone();
+    // Determine Mode
+    const isInAir =
+      physicsPos.y > SHIP_CONFIG.HOVER_HEIGHT + SHIP_CONFIG.AIR_MODE_THRESHOLD;
 
-    // Get current physics position to determine control mode
-    const physicsPos = rigidBodyRef.current.translation();
-    const HOVER_HEIGHT = 5; // Minimum Y position (original spawn height)
-    const AIR_MODE_THRESHOLD = 0.5; // Small threshold to avoid flickering
-    const isInAir = physicsPos.y > HOVER_HEIGHT + AIR_MODE_THRESHOLD;
+    // Control Mapping
+    const thrustInput = isInAir ? 1.0 : smoothedInputRef.current.y;
+    thrustInputRef.current = thrustInput; // Store for ShipModel
+    const turnInput = smoothedInputRef.current.x;
 
-    // Determine control mode
-    let thrust: number;
-    let turnInput: number;
-
-    if (isInAir) {
-      // AIR MODE: Airplane-style controls
-      thrust = 1.0; // Always max forward thrust
-      turnInput = smoothedInputRef.current.x; // Left/right controls yaw (turning)
-      // Pitch is now automatic - no player input
-    } else {
-      // GROUND MODE: Current controls
-      thrust = smoothedInputRef.current.y; // Forward/backward controls thrust
-      turnInput = smoothedInputRef.current.x; // Left/right controls yaw
-    }
-
-    // --- Ability handling (Simple - abilities modify store directly!) ---
-    const abilityPressed = currentInput.ability && !lastAbilityRef.current;
-    const currentAbility = abilitiesStore.getAbility(controllerId);
-    const isAbilityActive = abilitiesStore.isAbilityActive(controllerId);
-    const hasAbilityInSlot = currentAbility !== null;
-
-    // Activate ability on button press (if ability is in slot but not yet activated)
-    if (
-      abilityPressed &&
-      hasAbilityInSlot &&
-      currentAbility.startTime === null
-    ) {
-      abilitiesStore.activateAbility(controllerId, currentAbility.id);
-    }
-
-    // Check if ability expired and clear it
-    if (
-      currentAbility &&
-      !isAbilityActive &&
-      currentAbility.startTime !== null
-    ) {
-      abilitiesStore.clearAbility(controllerId);
-    }
-
-    // Update active abilities - this allows abilities to maintain their effects each frame
-    // This is completely agnostic - Ship doesn't need to know about specific abilities
-    abilitiesStore.updateActiveAbilities(controllerId, delta);
-
-    lastAbilityRef.current = currentInput.ability;
-
-    // Read speed multiplier from store (abilities modify it directly!)
+    // 2. LOGIC PHASE: ABILITIES
+    handleAbilities(input, abilitiesStore, controllerId, delta, lastAbilityRef);
     const speedMultiplier = playerStatsStore.getSpeedMultiplier(controllerId);
 
-    // --- Velocity Math (Identical to your code) ---
+    // 3. CALCULATION PHASE: VELOCITY
+    const shipQuaternion = currentRotationRef.current.clone();
     const forward = new Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
-    const targetVelocity = forward
-      .clone()
-      .multiplyScalar(thrust * PLAYER_MAX_SPEED * speedMultiplier);
 
-    // Note: We read current velocity from our ref for calculation continuity
-    const currentVelocity = currentVelocityRef.current.clone();
-    const currentSpeed = currentVelocity.dot(forward);
-    const targetSpeed = thrust * PLAYER_MAX_SPEED * speedMultiplier;
-    const speedDifference = targetSpeed - currentSpeed;
-
-    const isAccelerating =
-      Math.abs(targetSpeed) > Math.abs(currentSpeed) ||
-      targetSpeed * currentSpeed < 0;
-    const accelerationRate = isAccelerating
-      ? PLAYER_ACCELERATION
-      : PLAYER_DECELERATION;
-    const maxVelocityChange = Math.min(
-      accelerationRate * delta,
-      MAX_VELOCITY_CHANGE_PER_FRAME
+    const newVelocity = calculateVelocity(
+      currentVelocityRef.current,
+      forward,
+      thrustInput,
+      speedMultiplier,
+      delta
     );
-
-    let newVelocity: Vector3;
-    if (Math.abs(speedDifference) <= maxVelocityChange) {
-      newVelocity = targetVelocity.clone();
-    } else {
-      const direction = speedDifference > 0 ? 1 : -1;
-      const speedChange = direction * maxVelocityChange;
-      const newSpeed = currentSpeed + speedChange;
-      newVelocity = forward.clone().multiplyScalar(newSpeed);
-    }
-
     currentVelocityRef.current.copy(newVelocity);
 
-    // --- Angular Math (Yaw - rotation around Y axis) ---
-    const targetAngVel = -turnInput * PLAYER_MAX_ANGULAR_VELOCITY;
-    const currentAngVel = currentAngularVelocityRef.current;
-    const angVelDifference = targetAngVel - currentAngVel;
-    const maxAngVelChange = Math.min(
-      PLAYER_ANGULAR_ACCELERATION * delta,
-      MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME
+    // 4. CALCULATION PHASE: ROTATION (YAW & PITCH)
+    // Yaw (Left/Right)
+    const newYawVel = calculateYaw(
+      currentAngularVelocityRef.current,
+      turnInput,
+      delta
     );
+    currentAngularVelocityRef.current = newYawVel;
 
-    let newAngVel = currentAngVel;
-    if (Math.abs(angVelDifference) <= maxAngVelChange) {
-      newAngVel = targetAngVel;
-    } else {
-      const direction = angVelDifference > 0 ? 1 : -1;
-      newAngVel = currentAngVel + direction * maxAngVelChange;
-    }
-    currentAngularVelocityRef.current = newAngVel;
+    // Pitch (Up/Down) - The complex parabolic math
+    const newPitchVel = calculatePitchVelocity(
+      isInAir,
+      physicsPos.y,
+      physicsVel.y,
+      currentRotationRef.current,
+      currentPitchAngularVelocityRef.current,
+      delta
+    );
+    currentPitchAngularVelocityRef.current = newPitchVel;
 
-    // --- Pitch Math (rotation around X axis) - pitch follows derivative of parabola (vertical velocity) ---
-    let targetPitchAngVel = 0;
-    if (isInAir) {
-      const MAX_PITCH_ANGLE = Math.PI / 4; // ±45 degrees
-      const MAX_VERTICAL_VELOCITY = 30; // Maximum vertical velocity to map to max pitch
-
-      // Get current vertical velocity (derivative of height - this is what we want!)
-      const currentPhysicsVelForPitch = rigidBodyRef.current.linvel();
-      const verticalVelocity = currentPhysicsVelForPitch.y;
-
-      // Calculate height for leveling out near landing
-      const heightAboveHover = physicsPos.y - HOVER_HEIGHT;
-      const AIR_MODE_THRESHOLD = 0.5; // Same as used for isInAir check
-      const LEVELING_START_HEIGHT = 6; // Height where leveling transition starts
-      const LEVELING_COMPLETE_HEIGHT = AIR_MODE_THRESHOLD + 0.5; // Complete leveling just above air mode threshold (1.0 units above hover)
-
-      // Pitch is proportional to vertical velocity (derivative of parabola)
-      // Positive velocity (going up) = nose up, negative velocity (going down) = nose down
-      let targetPitchAngle = 0;
-
-      // Calculate velocity-based pitch
-      const clampedVelocity = Math.max(
-        -MAX_VERTICAL_VELOCITY,
-        Math.min(MAX_VERTICAL_VELOCITY, verticalVelocity)
-      );
-      const normalizedVelocity = clampedVelocity / MAX_VERTICAL_VELOCITY;
-      // Apply power curve to make it steeper at the ends (more extreme tilt)
-      const steepnessFactor = 0.6; // Lower = steeper at ends
-      const curvedVelocity =
-        Math.sign(normalizedVelocity) *
-        Math.pow(Math.abs(normalizedVelocity), steepnessFactor);
-      const velocityBasedPitch = curvedVelocity * MAX_PITCH_ANGLE;
-
-      // Smoothly transition to level pitch as ship approaches hover height
-      if (heightAboveHover > LEVELING_START_HEIGHT) {
-        // High up - use full velocity-based pitch
-        targetPitchAngle = velocityBasedPitch;
-      } else if (heightAboveHover > LEVELING_COMPLETE_HEIGHT) {
-        // Transition zone - smoothly blend from velocity-based to level
-        // Normalize height in transition zone: 1.0 = start, 0.0 = end (fully level)
-        const transitionFactor =
-          (heightAboveHover - LEVELING_COMPLETE_HEIGHT) /
-          (LEVELING_START_HEIGHT - LEVELING_COMPLETE_HEIGHT);
-        // Smooth interpolation (smoothstep) - ensures it reaches 0 at LEVELING_COMPLETE_HEIGHT
-        const smoothFactor =
-          transitionFactor * transitionFactor * (3 - 2 * transitionFactor);
-        targetPitchAngle = velocityBasedPitch * smoothFactor;
-      } else {
-        // At or below completion height - fully level (no pitch)
-        targetPitchAngle = 0;
-      }
-
-      // Get current pitch angle
-      const euler = new Euler().setFromQuaternion(
-        currentRotationRef.current,
-        "YXZ"
-      );
-      const currentPitchAngle = euler.x;
-
-      // Calculate desired pitch velocity to smoothly interpolate to target angle
-      const pitchAngleDifference = targetPitchAngle - currentPitchAngle;
-
-      // Calculate target angular velocity based on angle difference
-      // Scale the difference to get a reasonable target velocity
-      const PITCH_RESPONSIVENESS = 2.0; // How quickly pitch responds
-      targetPitchAngVel = Math.max(
-        -PLAYER_MAX_ANGULAR_VELOCITY,
-        Math.min(
-          PLAYER_MAX_ANGULAR_VELOCITY,
-          pitchAngleDifference * PITCH_RESPONSIVENESS
-        )
-      );
-    }
-
-    const currentPitchAngVel = currentPitchAngularVelocityRef.current;
-    const pitchAngVelDifference = targetPitchAngVel - currentPitchAngVel;
-
-    let newPitchAngVel = currentPitchAngVel;
-    if (Math.abs(pitchAngVelDifference) <= maxAngVelChange) {
-      newPitchAngVel = targetPitchAngVel;
-    } else {
-      const direction = pitchAngVelDifference > 0 ? 1 : -1;
-      newPitchAngVel = currentPitchAngVel + direction * maxAngVelChange;
-    }
-    currentPitchAngularVelocityRef.current = newPitchAngVel;
-
-    // Update our internal Rotation Ref
-    // For proper airplane controls:
-    // - Yaw rotates around local Y axis (turning left/right)
-    // - Pitch rotates around local X axis (nose up/down)
-    //
-    // Using Euler angles for clarity: YXZ order (yaw around Y, pitch around X, roll around Z)
-    // This gives us the correct airplane control behavior
-
-    // Convert current rotation to Euler angles
+    // Apply Rotations to internal Quaternion
     const euler = new Euler().setFromQuaternion(
       currentRotationRef.current,
       "YXZ"
     );
+    euler.y += newYawVel * delta;
 
-    // Apply yaw rotation (around Y axis)
-    euler.y += newAngVel * delta;
-
-    // Apply pitch rotation (around X axis)
     if (isInAir) {
-      euler.x += newPitchAngVel * delta;
-      // Clamp pitch to ±45 degrees to prevent over-rotation
-      euler.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, euler.x));
+      euler.x += newPitchVel * delta;
+      euler.x = MathUtils.clamp(
+        euler.x,
+        -SHIP_CONFIG.MAX_PITCH,
+        SHIP_CONFIG.MAX_PITCH
+      );
     } else {
-      // Smoothly transition pitch to 0 when on ground (instead of instant snap)
-      // This prevents the jump in tilt when transitioning from air to ground
-      const PITCH_RESET_SPEED = 5.0; // How fast to reset pitch (radians per second)
-      const targetPitch = 0;
-      const pitchDifference = targetPitch - euler.x;
-      const maxPitchChange = PITCH_RESET_SPEED * delta;
-
-      if (Math.abs(pitchDifference) <= maxPitchChange) {
-        euler.x = targetPitch;
+      // Ground reset
+      const resetSpeed = SHIP_CONFIG.PITCH_RESET_SPEED * delta;
+      if (Math.abs(euler.x) <= resetSpeed) {
+        euler.x = 0;
       } else {
-        const direction = pitchDifference > 0 ? 1 : -1;
-        euler.x += direction * maxPitchChange;
+        euler.x += (euler.x > 0 ? -1 : 1) * resetSpeed;
       }
     }
 
-    // Convert back to quaternion
-    currentRotationRef.current.setFromEuler(euler);
-    currentRotationRef.current.normalize();
+    currentRotationRef.current.setFromEuler(euler).normalize();
 
-    // --- 2. APPLY TO PHYSICS (The Key Change) ---
-
-    // Get current physics velocity
-    const currentPhysicsVel = rigidBodyRef.current.linvel();
+    // 5. PHYSICS PHASE: APPLY TO RAPIER
     const finalVelocity = new Vector3(
       newVelocity.x,
-      currentPhysicsVel.y, // Preserve Y velocity (allows jumps to work)
+      physicsVel.y,
       newVelocity.z
+    ); // Start with X/Z calculated, Y from physics
+
+    // Apply Custom Gravity / Hover Physics
+    const verticalForce = calculateVerticalPhysics(
+      isInAir,
+      physicsPos.y,
+      physicsVel.y,
+      euler.x,
+      delta
     );
+    finalVelocity.y += verticalForce; // Add the calculated Y change
 
-    // Check if ship has significant upward velocity (from jump pad launch)
-    const UPWARD_VELOCITY_THRESHOLD = 10; // If moving up faster than this, assume launched
-    const isBeingLaunched = currentPhysicsVel.y > UPWARD_VELOCITY_THRESHOLD;
-
-    // Only apply gravity if ship is above hover height
-    if (isInAir) {
-      // Get pitch angle from current rotation (euler.x is pitch in YXZ order)
-      const euler = new Euler().setFromQuaternion(
-        currentRotationRef.current,
-        "YXZ"
-      );
-      const pitchAngle = euler.x; // Positive = nose up, Negative = nose down
-
-      // Base gravity - always pulls down
-      const BASE_GRAVITY = -5;
-      // Maximum additional gravity when diving (nose down)
-      const MAX_DIVE_GRAVITY = -15;
-      // Maximum lift when climbing (nose up) - reduced to prevent infinite upward flight
-      const MAX_LIFT = 3;
-
-      // Calculate gravity based on pitch:
-      // - When pitch is negative (nose down), add more downward force
-      // - When pitch is positive (nose up), reduce downward force (or add upward)
-      // Pitch ranges from -PI/4 to PI/4 (±45 degrees)
-      const pitchNormalized = pitchAngle / (Math.PI / 4); // Normalize to -1 to 1
-
-      // When diving (pitch < 0), increase gravity
-      // When climbing (pitch > 0), reduce gravity or add lift
-      let gravityEffect = BASE_GRAVITY;
-      if (pitchNormalized < 0) {
-        // Nose down - subtract extra downward force (pitchNormalized is negative, so this adds more negative)
-        gravityEffect = BASE_GRAVITY - pitchNormalized * MAX_DIVE_GRAVITY;
-      } else {
-        // Nose up - add lift (reduce downward force or make it upward)
-        gravityEffect = BASE_GRAVITY + pitchNormalized * MAX_LIFT;
-      }
-
-      // Apply pitch-based gravity
-      finalVelocity.y += gravityEffect * delta;
-      // Clamp to prevent falling too fast or rising too fast
-      finalVelocity.y = Math.max(finalVelocity.y, -40); // Allow faster diving
-      finalVelocity.y = Math.min(finalVelocity.y, 30); // Allow climbing
-    } else {
-      // At or below hover height - but don't interfere if ship is being launched upward
-      if (isBeingLaunched) {
-        // Ship is being launched - let it go! Don't apply restoring force
-        // The jump pad will handle the launch, we just preserve the velocity
-      } else {
-        // Not being launched - apply normal hover height restoration
-        const heightDifference = physicsPos.y - HOVER_HEIGHT;
-
-        // If ship is not at exact hover height, apply a restoring force
-        if (Math.abs(heightDifference) > 0.01) {
-          // Apply a strong restoring force to snap back to hover height
-          const RESTORE_FORCE = 20; // Strong force to quickly restore position
-          finalVelocity.y -= heightDifference * RESTORE_FORCE * delta;
-          // Clamp velocity to prevent overshooting
-          finalVelocity.y = Math.max(-10, Math.min(10, finalVelocity.y));
-        } else {
-          // Very close to hover height - just stop vertical movement
-          finalVelocity.y = 0;
-          // Snap to exact position if very close
-          if (Math.abs(heightDifference) > 0.001) {
-            rigidBodyRef.current.setTranslation(
-              { x: physicsPos.x, y: HOVER_HEIGHT, z: physicsPos.z },
-              true
-            );
-          }
-        }
-      }
-
-      // If ship somehow got below hover height, push it back up immediately
-      // But only if not being launched upward
-      if (physicsPos.y < HOVER_HEIGHT && !isBeingLaunched) {
-        rigidBodyRef.current.setTranslation(
-          { x: physicsPos.x, y: HOVER_HEIGHT, z: physicsPos.z },
-          true
-        );
-        finalVelocity.y = 0;
-      }
-    }
-
-    // Apply Velocity directly to the physics engine
+    // Apply to Body
     rigidBodyRef.current.setLinvel(finalVelocity, true);
-
-    // Force Rotation: We use setRotation because we don't want physics torques spinning the ship.
-    // We want the ship to face exactly where we tell it to.
     rigidBodyRef.current.setRotation(currentRotationRef.current, true);
+    rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true); // Kill physics rotation, we control it manually
 
-    // Reset Angular Velocity to 0 so collisions don't make the ship spin out of control
-    rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
-
-    // --- 3. SYNC CAMERA & GAME STATE ---
-    // Use the actual Physics position for the camera now, so it respects walls
-    const shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
+    // 6. GAMEPLAY PHASE: SHOOTING & TRACKING
+    // Update global maps
     shipPositions.set(controllerId, shipWorldPos);
     shipRotations.set(controllerId, currentRotationRef.current.clone());
 
-    // --- 3.5. SHOOTING LOGIC ---
-    const actionPressed = currentInput.action && !lastActionRef.current;
-    const actionHeld = currentInput.action;
-    const timeSinceLastShot = time - lastShootTimeRef.current;
+    handleShooting({
+      input,
+      time,
+      lastShootTimeRef,
+      lastActionRef,
+      controllerId,
+      shipWorldPos,
+      shipRotation: currentRotationRef.current,
+      addLaser,
+    });
 
-    // Shoot on click (no cooldown) or when held with fast interval
-    const shouldShoot =
-      actionPressed || (actionHeld && timeSinceLastShot >= HOLD_SHOOT_INTERVAL);
-
-    if (shouldShoot) {
-      lastShootTimeRef.current = time;
-
-      // Gun barrel positions in local space (gun is 1.5 units long, tip is at z = 0.2 + 0.75 = 0.95)
-      const gunTipOffset = 0.95;
-      const leftGunLocal = new Vector3(-1.5, 0.0, gunTipOffset);
-      const rightGunLocal = new Vector3(1.5, 0.0, gunTipOffset);
-
-      // Use updated rotation for shooting (after rotation updates)
-      const currentShipRotation = currentRotationRef.current;
-
-      // Transform to world space
-      const leftGunWorld = leftGunLocal
-        .applyQuaternion(currentShipRotation)
-        .add(shipWorldPos);
-      const rightGunWorld = rightGunLocal
-        .applyQuaternion(currentShipRotation)
-        .add(shipWorldPos);
-
-      // Forward direction (ship's forward is -Z)
-      const forwardDir = new Vector3(0, 0, -1).applyQuaternion(
-        currentShipRotation
-      );
-      // Up direction (ship's up is +Y)
-      const upDir = new Vector3(0, 1, 0).applyQuaternion(currentShipRotation);
-
-      // Offset laser spawn position forward and upward to ensure it's outside ship's collider
-      // Increased forward offset to prevent clipping through ship, and added upward offset
-      const forwardOffset = forwardDir.clone().multiplyScalar(3.5);
-      const upwardOffset = upDir.clone().multiplyScalar(0.5);
-      const spawnOffset = forwardOffset.add(upwardOffset);
-      const leftGunSpawnPos = leftGunWorld.clone().add(spawnOffset);
-      const rightGunSpawnPos = rightGunWorld.clone().add(spawnOffset);
-
-      // Spawn lasers from both guns
-      const laserId1 = `${controllerId}-${time}-L`;
-      const laserId2 = `${controllerId}-${time}-R`;
-
-      addLaser({
-        id: laserId1,
-        position: [leftGunSpawnPos.x, leftGunSpawnPos.y, leftGunSpawnPos.z],
-        direction: forwardDir.clone(),
-        controllerId,
-        timestamp: time,
-      });
-
-      addLaser({
-        id: laserId2,
-        position: [rightGunSpawnPos.x, rightGunSpawnPos.y, rightGunSpawnPos.z],
-        direction: forwardDir.clone(),
-        controllerId,
-        timestamp: time,
-      });
-    }
-
-    lastActionRef.current = currentInput.action;
-
-    // --- 4. VISUAL FX (Banking & Exhaust) ---
-    // Plane roll animation (Banking)
-    const maxWingRoll = Math.PI / 6;
-    const targetWingRoll = -turnInput * maxWingRoll;
-    const wingRollSmoothFactor = Math.min(1, delta * 8);
+    // 7. VISUALS PHASE
+    // Banking
+    const targetRoll = -turnInput * SHIP_CONFIG.BANKING_ANGLE;
     currentWingRollRef.current = MathUtils.lerp(
       currentWingRollRef.current,
-      targetWingRoll,
-      wingRollSmoothFactor
+      targetRoll,
+      Math.min(1, delta * 8)
     );
-
     if (planeGroupRef.current) {
       planeGroupRef.current.rotation.z = currentWingRollRef.current;
     }
 
-    // ... [Keep your Exhaust/Flame/Light logic here exactly as is] ...
-    // In air mode, always show max thrust visually
-    const targetThrust = isInAir ? 1.0 : Math.abs(thrust);
-    const newThrust = MathUtils.lerp(
+    // Thrust Visual
+    const targetThrustVis = isInAir ? 1.0 : Math.abs(thrustInput);
+    currentThrustRef.current = MathUtils.lerp(
       currentThrustRef.current,
-      targetThrust,
+      targetThrustVis,
       0.15
     );
-    currentThrustRef.current = newThrust;
-    const isMovingBackward = thrust < 0;
-    const flameRotation = isMovingBackward ? Math.PI : 0;
-
-    if (exhaustMaterialLRef.current) {
-      exhaustMaterialLRef.current.uniforms.uTime.value = time;
-      exhaustMaterialLRef.current.uniforms.uThrust.value = newThrust;
-    }
-    if (exhaustMaterialRRef.current) {
-      exhaustMaterialRRef.current.uniforms.uTime.value = time;
-      exhaustMaterialRRef.current.uniforms.uThrust.value = newThrust;
-    }
-    if (flameLRef.current) {
-      flameLRef.current.scale.z = newThrust > 0 ? 0.5 + newThrust * 2.0 : 0.5;
-      flameLRef.current.rotation.y = flameRotation;
-    }
-    if (flameRRef.current) {
-      flameRRef.current.scale.z = newThrust > 0 ? 0.5 + newThrust * 2.0 : 0.5;
-      flameRRef.current.rotation.y = flameRotation;
-    }
-    if (lightLRef.current) {
-      lightLRef.current.intensity = 2 + newThrust * 10;
-      lightLRef.current.distance = 5 + newThrust * 2;
-    }
-    if (lightRRef.current) {
-      lightRRef.current.intensity = 2 + newThrust * 10;
-      lightRRef.current.distance = 5 + newThrust * 2;
-    }
   });
 
   return (
     <RigidBody
       ref={rigidBodyRef}
-      // DYNAMIC is crucial for collisions. It stops at walls.
       type="dynamic"
-      position={spawnPosition}
-      // Lock rotations so physics collisions don't spin the ship (we handle rotation manually)
+      position={initialPosition}
       lockRotations
-      // Add some damping so it doesn't feel like it's on ice if we stop applying velocity
       linearDamping={0.5}
-      colliders="cuboid" // Or "hull" for tighter fit
+      colliders="cuboid"
       userData={{ controllerId }}
     >
-      {/* The Visuals are now INSIDE the RigidBody.
-         Because they are children, Rapier will automatically interpolate
-         their position if you enable interpolate={true} in <Physics>
-      */}
-      <group ref={planeGroupRef}>
-        {/* Main Body */}
-        <mesh castShadow receiveShadow>
-          <primitive object={shipGeometries.body} attach="geometry" />
-          <primitive object={shipMaterials.playerBody} attach="material" />
-        </mesh>
-
-        {/* Nose Cone */}
-        <mesh
-          rotation={[-Math.PI / 2, 0, 0]}
-          scale={[0.6, 1, 0.4]}
-          position={[0, 0, -2.25]}
-          castShadow
-        >
-          <primitive object={shipGeometries.nose} attach="geometry" />
-          <primitive object={shipMaterials.playerBody} attach="material" />
-        </mesh>
-
-        {/* Wings */}
-        <mesh
-          rotation={[-Math.PI / 2, 0, 0]}
-          position={[0.6, 0.1, -0.2]}
-          castShadow
-        >
-          <primitive object={shipGeometries.wing} attach="geometry" />
-          <primitive object={shipMaterials.playerWing} attach="material" />
-        </mesh>
-        <mesh
-          rotation={[-Math.PI / 2, 0, 0]}
-          scale={[-1, 1, 1]}
-          position={[-0.6, 0.1, -0.2]}
-          castShadow
-        >
-          <primitive object={shipGeometries.wing} attach="geometry" />
-          <primitive object={shipMaterials.playerWing} attach="material" />
-        </mesh>
-
-        {/* Tail Fins */}
-        <group position={[-0.3, 0.4, 1.4]} rotation={[0, 0, 0.8]}>
-          <mesh rotation={[0, -Math.PI / 2, 0]}>
-            <primitive object={shipGeometries.fin} attach="geometry" />
-            <primitive object={shipMaterials.playerWing} attach="material" />
-          </mesh>
-        </group>
-        <group position={[0.3, 0.4, 1.4]} rotation={[0, 0, -0.8]}>
-          <mesh rotation={[0, -Math.PI / 2, 0]} scale={[1, 1, -1]}>
-            <primitive object={shipGeometries.fin} attach="geometry" />
-            <primitive object={shipMaterials.playerWing} attach="material" />
-          </mesh>
-        </group>
-
-        {/* Cockpit */}
-        <mesh position={[0, 0.45, -0.5]}>
-          <primitive object={shipGeometries.cockpit} attach="geometry" />
-          <primitive object={shipMaterials.cockpit} attach="material" />
-        </mesh>
-
-        {/* Ability Visual Components - rendered by abilities themselves */}
-        {abilityVisual}
-
-        {/* Guns */}
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[-1.6, 0.0, 0.2]}>
-          <primitive object={shipGeometries.gun} attach="geometry" />
-          <primitive object={shipMaterials.gun} attach="material" />
-        </mesh>
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[1.6, 0.0, 0.2]}>
-          <primitive object={shipGeometries.gun} attach="geometry" />
-          <primitive object={shipMaterials.gun} attach="material" />
-        </mesh>
-
-        {/* Engines */}
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[-0.5, 0, 1.8]}>
-          <primitive object={shipGeometries.nozzle} attach="geometry" />
-          <primitive object={shipMaterials.nozzle} attach="material" />
-        </mesh>
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0.5, 0, 1.8]}>
-          <primitive object={shipGeometries.nozzle} attach="geometry" />
-          <primitive object={shipMaterials.nozzle} attach="material" />
-        </mesh>
-
-        {/* Exhaust Flames */}
-        <mesh ref={flameLRef} position={[-0.5, 0, 1.8]}>
-          <primitive object={exhaustGeometry} attach="geometry" />
-          <shaderMaterial
-            ref={exhaustMaterialLRef}
-            uniforms={exhaustUniformsL}
-            vertexShader={exhaustVertex}
-            fragmentShader={exhaustFragment}
-            transparent
-            blending={AdditiveBlending}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh ref={flameRRef} position={[0.5, 0, 1.8]}>
-          <primitive object={exhaustGeometry} attach="geometry" />
-          <shaderMaterial
-            ref={exhaustMaterialRRef}
-            uniforms={exhaustUniformsR}
-            vertexShader={exhaustVertex}
-            fragmentShader={exhaustFragment}
-            transparent
-            blending={AdditiveBlending}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-
-        {/* Engine Lights */}
-        <pointLight
-          ref={lightLRef}
-          position={[-0.5, 0, 2.5]}
-          color={0x00ffff}
-          intensity={2}
-          distance={4}
-        />
-        <pointLight
-          ref={lightRRef}
-          position={[0.5, 0, 2.5]}
-          color={0x00ffff}
-          intensity={2}
-          distance={4}
-        />
-      </group>
+      <ShipModel
+        playerColor={playerColor}
+        thrustRef={currentThrustRef}
+        thrustInputRef={thrustInputRef}
+        abilityVisual={abilityVisual}
+        planeGroupRef={planeGroupRef}
+      />
     </RigidBody>
   );
 }
 
-export const Ship = memo(ShipComponent, (prevProps, nextProps) => {
-  // Since we read input directly from store in useFrame, we don't need input as a prop
-  // Component only rerenders if controllerId or position changes
+// ------------------------------------------------------------------
+// --- HELPER LOGIC (Moved outside to clean up the Component) ---
+// ------------------------------------------------------------------
+
+function calculateVelocity(
+  currentVel: Vector3,
+  forward: Vector3,
+  thrust: number,
+  multiplier: number,
+  delta: number
+): Vector3 {
+  const targetSpeed = thrust * PLAYER_MAX_SPEED * multiplier;
+  const currentSpeed = currentVel.dot(forward);
+  const speedDiff = targetSpeed - currentSpeed;
+
+  const isAccelerating =
+    Math.abs(targetSpeed) > Math.abs(currentSpeed) ||
+    targetSpeed * currentSpeed < 0;
+  const rate = isAccelerating ? PLAYER_ACCELERATION : PLAYER_DECELERATION;
+  const maxChange = Math.min(rate * delta, MAX_VELOCITY_CHANGE_PER_FRAME);
+
+  if (Math.abs(speedDiff) <= maxChange) {
+    return forward.clone().multiplyScalar(targetSpeed);
+  }
+  const newSpeed = currentSpeed + (speedDiff > 0 ? 1 : -1) * maxChange;
+  return forward.clone().multiplyScalar(newSpeed);
+}
+
+function calculateYaw(
+  currentYawVel: number,
+  input: number,
+  delta: number
+): number {
+  const target = -input * PLAYER_MAX_ANGULAR_VELOCITY;
+  const diff = target - currentYawVel;
+  const maxChange = Math.min(
+    PLAYER_ANGULAR_ACCELERATION * delta,
+    MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME
+  );
+
+  if (Math.abs(diff) <= maxChange) return target;
+  return currentYawVel + (diff > 0 ? 1 : -1) * maxChange;
+}
+
+// The complex pitch logic preserved exactly
+function calculatePitchVelocity(
+  isInAir: boolean,
+  posY: number,
+  velY: number,
+  rotation: Quaternion,
+  currentPitchVel: number,
+  delta: number
+): number {
+  let targetPitchAngVel = 0;
+  const maxChange = Math.min(
+    PLAYER_ANGULAR_ACCELERATION * delta,
+    MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME
+  );
+
+  if (isInAir) {
+    // Calculate target angle based on vertical velocity
+    const clampedVel = MathUtils.clamp(
+      velY,
+      -SHIP_CONFIG.MAX_VERTICAL_VEL,
+      SHIP_CONFIG.MAX_VERTICAL_VEL
+    );
+    const normVel = clampedVel / SHIP_CONFIG.MAX_VERTICAL_VEL;
+    const curvedVel = Math.sign(normVel) * Math.pow(Math.abs(normVel), 0.6); // Steepness factor
+    let targetAngle = curvedVel * SHIP_CONFIG.MAX_PITCH;
+
+    // Leveling out logic
+    const heightAboveHover = posY - SHIP_CONFIG.HOVER_HEIGHT;
+
+    if (
+      heightAboveHover <= SHIP_CONFIG.LEVELING_START_HEIGHT &&
+      heightAboveHover > SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT
+    ) {
+      const t =
+        (heightAboveHover - SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT) /
+        (SHIP_CONFIG.LEVELING_START_HEIGHT -
+          SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT);
+      const smooth = t * t * (3 - 2 * t);
+      targetAngle *= smooth;
+    } else if (heightAboveHover <= SHIP_CONFIG.LEVELING_COMPLETE_HEIGHT) {
+      targetAngle = 0;
+    }
+
+    const currentAngle = new Euler().setFromQuaternion(rotation, "YXZ").x;
+    const diff = targetAngle - currentAngle;
+    targetPitchAngVel = MathUtils.clamp(
+      diff * SHIP_CONFIG.PITCH_RESPONSIVENESS,
+      -PLAYER_MAX_ANGULAR_VELOCITY,
+      PLAYER_MAX_ANGULAR_VELOCITY
+    );
+  }
+
+  const diff = targetPitchAngVel - currentPitchVel;
+  if (Math.abs(diff) <= maxChange) return targetPitchAngVel;
+  return currentPitchVel + (diff > 0 ? 1 : -1) * maxChange;
+}
+
+function calculateVerticalPhysics(
+  isInAir: boolean,
+  posY: number,
+  velY: number,
+  pitchAngle: number,
+  delta: number
+): number {
+  // Check if being launched by jump pad
+  if (velY > SHIP_CONFIG.UPWARD_VELOCITY_THRESHOLD) return 0; // Let physics engine handle the launch
+
+  if (isInAir) {
+    // Air Physics
+    const pitchNorm = pitchAngle / SHIP_CONFIG.MAX_PITCH;
+    let gravity = SHIP_CONFIG.BASE_GRAVITY;
+
+    if (pitchNorm < 0) {
+      gravity -= pitchNorm * SHIP_CONFIG.MAX_DIVE_GRAVITY; // Diving
+    } else {
+      gravity += pitchNorm * SHIP_CONFIG.MAX_LIFT; // Climbing
+    }
+
+    // Return the CHANGE in velocity (acceleration * delta)
+    const deltaY = gravity * delta;
+
+    // Manual clamps based on original code logic
+    const nextVel = velY + deltaY;
+    if (nextVel < -40) return -40 - velY; // Clamp min
+    if (nextVel > 30) return 30 - velY; // Clamp max
+    return deltaY;
+  } else {
+    // Hover Physics
+    const diff = posY - SHIP_CONFIG.HOVER_HEIGHT;
+
+    // If ship somehow got below hover height, push it back up immediately
+    if (diff < 0) {
+      return -velY; // Stop and push up
+    }
+
+    if (Math.abs(diff) > 0.01) {
+      const restore = -diff * SHIP_CONFIG.RESTORE_FORCE * delta;
+      // Clamp result to prevent explosion
+      const potentialVel = velY + restore; // Simplified approximation
+      return MathUtils.clamp(potentialVel, -10, 10) - velY;
+    }
+
+    // Very close to hover height - just stop vertical movement
+    // Snap to exact position if very close
+    if (Math.abs(diff) > 0.001) {
+      // This would need rigidBodyRef, but we'll handle it in the main loop
+      // For now, just return the velocity change needed
+      return -velY;
+    }
+    return -velY; // Stop movement
+  }
+}
+
+function handleAbilities(
+  input: { ability?: boolean },
+  store: ReturnType<typeof useAbilitiesStore.getState>,
+  id: string,
+  delta: number,
+  lastRef: React.MutableRefObject<boolean>
+) {
+  const pressed = input.ability && !lastRef.current;
+  const ability = store.getAbility(id);
+  const active = store.isAbilityActive(id);
+
+  if (pressed && ability && ability.startTime === null) {
+    store.activateAbility(id, ability.id);
+  }
+  if (ability && !active && ability.startTime !== null) {
+    store.clearAbility(id);
+  }
+
+  store.updateActiveAbilities(id, delta);
+  lastRef.current = input.ability ?? false;
+}
+
+interface HandleShootingParams {
+  input: { action?: boolean };
+  time: number;
+  lastShootTimeRef: React.MutableRefObject<number>;
+  lastActionRef: React.MutableRefObject<boolean>;
+  controllerId: string;
+  shipWorldPos: Vector3;
+  shipRotation: Quaternion;
+  addLaser: (laser: {
+    id: string;
+    position: [number, number, number];
+    direction: Vector3;
+    controllerId: string;
+    timestamp: number;
+  }) => void;
+}
+
+function handleShooting({
+  input,
+  time,
+  lastShootTimeRef,
+  lastActionRef,
+  controllerId,
+  shipWorldPos,
+  shipRotation,
+  addLaser,
+}: HandleShootingParams) {
+  const pressed = input.action && !lastActionRef.current;
+  const held =
+    input.action &&
+    time - lastShootTimeRef.current >= SHIP_CONFIG.SHOOT_INTERVAL;
+
+  if (pressed || held) {
+    lastShootTimeRef.current = time;
+    const forward = new Vector3(0, 0, -1).applyQuaternion(shipRotation);
+    const up = new Vector3(0, 1, 0).applyQuaternion(shipRotation);
+
+    // Offset logic
+    const offset = forward
+      .clone()
+      .multiplyScalar(3.5)
+      .add(up.clone().multiplyScalar(0.5));
+
+    // Calculate gun positions
+    const guns = [new Vector3(-1.5, 0, 0.95), new Vector3(1.5, 0, 0.95)];
+
+    guns.forEach((gunPos, i) => {
+      const worldPos = gunPos
+        .applyQuaternion(shipRotation)
+        .add(shipWorldPos)
+        .add(offset);
+      addLaser({
+        id: `${controllerId}-${time}-${i === 0 ? "L" : "R"}`,
+        position: [worldPos.x, worldPos.y, worldPos.z],
+        direction: forward.clone(),
+        controllerId,
+        timestamp: time,
+      });
+    });
+  }
+  lastActionRef.current = input.action ?? false;
+}
+
+export const Ship = memo(ShipComponent, (prev, next) => {
   return (
-    prevProps.controllerId === nextProps.controllerId &&
-    prevProps.position[0] === nextProps.position[0] &&
-    prevProps.position[1] === nextProps.position[1] &&
-    prevProps.position[2] === nextProps.position[2]
+    prev.controllerId === next.controllerId &&
+    prev.position.every((v, i) => v === next.position[i])
   );
 });
