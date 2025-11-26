@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -9,9 +9,93 @@ import {
   MeshStandardMaterial,
   Shape,
   type Group,
+  Vector3,
 } from "three";
 
-// Exhaust shaders
+// ==========================================
+// 1. DESIGN CONFIGURATION (TWEAK VISUALS HERE)
+// ==========================================
+const SHIP_DESIGN = {
+  BODY: {
+    size: [1.2, 0.8, 3.0] as [number, number, number],
+    color: 0x8899aa,
+    roughness: 0.4,
+  },
+  NOSE: {
+    args: [0, 1, 1.5, 4, 1, false, Math.PI / 4] as const,
+    position: [0, 0, -2.25] as [number, number, number],
+    scale: [0.6, 1, 0.4] as [number, number, number],
+  },
+  WING: {
+    position: [0.6, 0.1, -0.2] as [number, number, number],
+    depth: 0.1,
+  },
+  FIN: {
+    position: [0.3, 0.4, 1.4] as [number, number, number],
+    rotationZ: 0.8,
+    depth: 0.1,
+  },
+  COCKPIT: {
+    size: [0.9, 0.4, 1.2] as [number, number, number],
+    position: [0, 0.45, -0.5] as [number, number, number],
+    color: 0x111111,
+  },
+  GUNS: {
+    position: [1.6, 0.0, 0.2] as [number, number, number],
+    size: [0.1, 0.1, 1.5, 6] as const,
+    color: 0x222222,
+  },
+  ENGINE: {
+    position: [0.5, 0, 1.8] as [number, number, number],
+    nozzleSize: [0.35, 0.25, 0.8, 8] as const,
+    color: 0x333333,
+  },
+  // NEW: ALL EXHAUST SETTINGS CENTRALIZED
+  EXHAUST: {
+    // Colors
+    flameColor: new Vector3(0.0, 0.8, 1.0), // RGB for Shader (Cyan)
+    lightColor: 0x00ffff, // Hex for PointLight (Cyan)
+
+    // Flame Geometry
+    // How long the flame is when idle (thrust = 0) vs max (thrust = 1)
+    flameLengthBase: 0.5,
+    flameLengthGrowth: 2.0, // length = base + (thrust * growth)
+
+    // Light Intensity
+    // Brightness when idle vs max thrust
+    intensityBase: 2.0,
+    intensityGrowth: 10.0, // intensity = base + (thrust * growth)
+
+    // Light Range (Distance)
+    // How far the light reaches
+    distanceBase: 5.0,
+    distanceGrowth: 2.0,
+  },
+};
+
+// ==========================================
+// 2. SHADERS & SHAPES
+// ==========================================
+
+const createWingShape = () => {
+  const shape = new Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(2.0, -1.0);
+  shape.lineTo(2.0, -2.0);
+  shape.lineTo(0, -1.5);
+  return shape;
+};
+
+const createFinShape = () => {
+  const shape = new Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(0, 1.0);
+  shape.lineTo(-0.5, 1.0);
+  shape.lineTo(-1.0, 0.0);
+  shape.lineTo(0, 0);
+  return shape;
+};
+
 const exhaustVertex = `
   varying vec2 vUv;
   void main() {
@@ -23,34 +107,125 @@ const exhaustVertex = `
 const exhaustFragment = `
   uniform float uTime;
   uniform float uThrust;
+  uniform vec3 uColor;
   varying vec2 vUv;
   void main() {
     float alpha = smoothstep(0.0, 1.0, 1.0 - vUv.y);
     float noise = sin(vUv.y * 20.0 - uTime * 15.0) * 0.5 + 0.5;
-    vec3 baseColor = vec3(0.0, 0.8, 1.0);
     vec3 coreColor = vec3(1.0, 1.0, 1.0);
-    vec3 finalColor = mix(baseColor, coreColor, noise * uThrust);
+    vec3 finalColor = mix(uColor, coreColor, noise * uThrust);
     gl_FragColor = vec4(finalColor, alpha * alpha * (0.5 + uThrust));
   }
 `;
 
-interface ShipModelProps {
-  /** Player color for wings and other colored parts */
-  playerColor: string;
-  /** Ref to current thrust value (0-1) for exhaust effects */
+// ==========================================
+// 3. SUB-COMPONENTS
+// ==========================================
+
+function EngineExhaust({
+  position,
+  thrustRef,
+  thrustInputRef,
+}: {
+  position: [number, number, number];
   thrustRef: React.MutableRefObject<number>;
-  /** Ref to current input thrust value (can be negative for backward) */
   thrustInputRef: React.MutableRefObject<number>;
-  /** Ability visual component to render */
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const lightRef = useRef<THREE.PointLight>(null);
+
+  const geometry = useMemo(() => {
+    const geo = new CylinderGeometry(0.1, 0.4, 2.5, 12, 1, true);
+    geo.rotateX(Math.PI / 2);
+    geo.translate(0, 0, 1.2);
+    return geo;
+  }, []);
+
+  const uniforms = useMemo(
+    () => ({
+      uTime: { value: 0 },
+      uThrust: { value: 0.0 },
+      uColor: { value: SHIP_DESIGN.EXHAUST.flameColor },
+    }),
+    []
+  );
+
+  useFrame((state) => {
+    const thrust = thrustRef.current;
+    const config = SHIP_DESIGN.EXHAUST;
+
+    // Shader Updates
+    if (materialRef.current) {
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      materialRef.current.uniforms.uThrust.value = thrust;
+    }
+
+    // Mesh Updates
+    if (meshRef.current) {
+      const isMovingBackward = thrustInputRef.current < 0;
+      meshRef.current.rotation.y = isMovingBackward ? Math.PI : 0;
+
+      // Calculate Length based on Config
+      // If thrust > 0, grow. If backward, keep small.
+      const targetScale =
+        thrust > 0
+          ? config.flameLengthBase + thrust * config.flameLengthGrowth
+          : config.flameLengthBase;
+
+      meshRef.current.scale.z = targetScale;
+    }
+
+    // Light Updates
+    if (lightRef.current) {
+      // Calculate Intensity based on Config
+      lightRef.current.intensity =
+        config.intensityBase + thrust * config.intensityGrowth;
+      // Calculate Distance based on Config
+      lightRef.current.distance =
+        config.distanceBase + thrust * config.distanceGrowth;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={meshRef}>
+        <primitive object={geometry} attach="geometry" />
+        <shaderMaterial
+          ref={materialRef}
+          uniforms={uniforms}
+          vertexShader={exhaustVertex}
+          fragmentShader={exhaustFragment}
+          transparent
+          blending={AdditiveBlending}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <pointLight
+        ref={lightRef}
+        position={[0, 0, 0.5]}
+        color={SHIP_DESIGN.EXHAUST.lightColor}
+        // Defaults, updated in useFrame
+        intensity={SHIP_DESIGN.EXHAUST.intensityBase}
+        distance={SHIP_DESIGN.EXHAUST.distanceBase}
+      />
+    </group>
+  );
+}
+
+// ==========================================
+// 4. MAIN COMPONENT
+// ==========================================
+
+interface ShipModelProps {
+  playerColor: string;
+  thrustRef: React.MutableRefObject<number>;
+  thrustInputRef: React.MutableRefObject<number>;
   abilityVisual: React.ReactNode | null;
-  /** Ref to the plane group for banking rotation (updated in Ship.tsx) */
   planeGroupRef: React.RefObject<Group | null>;
 }
 
-/**
- * Reusable ship model component
- * Contains all the visual 3D model parts (body, wings, fins, exhaust, etc.)
- */
 export function ShipModel({
   playerColor,
   thrustRef,
@@ -58,286 +233,195 @@ export function ShipModel({
   abilityVisual,
   planeGroupRef,
 }: ShipModelProps) {
-  // Shape functions for wings and fins
-  const createWingShape = useMemo(() => {
-    return () => {
-      const shape = new Shape();
-      shape.moveTo(0, 0);
-      shape.lineTo(2.0, -1.0);
-      shape.lineTo(2.0, -2.0);
-      shape.lineTo(0, -1.5);
-      return shape;
-    };
-  }, []);
-
-  const createFinShape = useMemo(() => {
-    return () => {
-      const shape = new Shape();
-      shape.moveTo(0, 0); // Bottom Rear
-      shape.lineTo(0, 1.0); // Top Rear (Vertical edge)
-      shape.lineTo(-0.5, 1.0); // Top Flat
-      shape.lineTo(-1.0, 0.0); // Bottom Front (Sloped leading edge)
-      shape.lineTo(0, 0);
-      return shape;
-    };
-  }, []);
-
-  // Ship geometries
-  const shipGeometries = useMemo(() => {
-    return {
-      body: new BoxGeometry(1.2, 0.8, 3.0),
-      nose: new CylinderGeometry(0, 1, 1.5, 4, 1, false, Math.PI / 4),
+  // --- Geometries ---
+  const geos = useMemo(
+    () => ({
+      body: new BoxGeometry(...SHIP_DESIGN.BODY.size),
+      nose: new CylinderGeometry(...SHIP_DESIGN.NOSE.args),
       wing: new ExtrudeGeometry(createWingShape(), {
-        depth: 0.1,
+        depth: SHIP_DESIGN.WING.depth,
         bevelEnabled: true,
         bevelThickness: 0.03,
         bevelSize: 0.03,
         bevelSegments: 1,
       }),
       fin: new ExtrudeGeometry(createFinShape(), {
-        depth: 0.1,
+        depth: SHIP_DESIGN.FIN.depth,
         bevelEnabled: true,
         bevelThickness: 0.02,
         bevelSize: 0.02,
         bevelSegments: 1,
       }),
-      cockpit: new BoxGeometry(0.9, 0.4, 1.2),
-      nozzle: new CylinderGeometry(0.35, 0.25, 0.8, 8),
-      gun: new CylinderGeometry(0.1, 0.1, 1.5, 6),
-    };
-  }, [createWingShape, createFinShape]);
+      cockpit: new BoxGeometry(...SHIP_DESIGN.COCKPIT.size),
+      nozzle: new CylinderGeometry(...SHIP_DESIGN.ENGINE.nozzleSize),
+      gun: new CylinderGeometry(...SHIP_DESIGN.GUNS.size),
+    }),
+    []
+  );
 
-  // Ship materials
-  const shipMaterials = useMemo(() => {
-    // Convert hex color to number for Three.js
-    const wingColor = parseInt(playerColor.replace("#", ""), 16);
+  // --- Materials ---
+  const mats = useMemo(() => {
+    const wingColorInt = parseInt(playerColor.replace("#", ""), 16);
     return {
-      playerBody: new MeshStandardMaterial({
-        color: 0x8899aa,
-        roughness: 0.4,
+      body: new MeshStandardMaterial({
+        color: SHIP_DESIGN.BODY.color,
+        roughness: SHIP_DESIGN.BODY.roughness,
         metalness: 0.7,
         flatShading: true,
       }),
-      playerWing: new MeshStandardMaterial({
-        color: wingColor,
+      wing: new MeshStandardMaterial({
+        color: wingColorInt,
         roughness: 0.6,
         metalness: 0.2,
         flatShading: true,
       }),
       cockpit: new MeshStandardMaterial({
-        color: 0x111111,
+        color: SHIP_DESIGN.COCKPIT.color,
         roughness: 0.1,
         metalness: 0.9,
       }),
       gun: new MeshStandardMaterial({
-        color: 0x222222,
+        color: SHIP_DESIGN.GUNS.color,
         roughness: 0.7,
         metalness: 0.5,
       }),
       nozzle: new MeshStandardMaterial({
-        color: 0x333333,
+        color: SHIP_DESIGN.ENGINE.color,
         roughness: 0.5,
       }),
     };
   }, [playerColor]);
 
-  // Update wing material color when player color changes
-  useEffect(() => {
-    if (shipMaterials.playerWing) {
-      const wingColor = parseInt(playerColor.replace("#", ""), 16);
-      shipMaterials.playerWing.color.setHex(wingColor);
-    }
-  }, [playerColor, shipMaterials.playerWing]);
-
-  // Geometry and Uniforms for exhaust
-  const exhaustGeometry = useMemo(() => {
-    const geo = new CylinderGeometry(0.1, 0.4, 2.5, 12, 1, true);
-    geo.rotateX(Math.PI / 2);
-    geo.translate(0, 0, 1.2);
-    return geo;
-  }, []);
-
-  const exhaustUniformsL = useMemo(
-    () => ({ uTime: { value: 0 }, uThrust: { value: 0.0 } }),
-    []
-  );
-  const exhaustUniformsR = useMemo(
-    () => ({ uTime: { value: 0 }, uThrust: { value: 0.0 } }),
-    []
-  );
-
-  // Refs for exhaust effects
-  const flameLRef = useRef<THREE.Mesh>(null);
-  const flameRRef = useRef<THREE.Mesh>(null);
-  const lightLRef = useRef<THREE.PointLight>(null);
-  const lightRRef = useRef<THREE.PointLight>(null);
-  const exhaustMaterialLRef = useRef<THREE.ShaderMaterial>(null);
-  const exhaustMaterialRRef = useRef<THREE.ShaderMaterial>(null);
-
-  // Update exhaust effects based on thrust
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    const thrust = thrustRef.current; // Read current thrust value from ref
-    const isMovingBackward = thrustInputRef.current < 0;
-    const flameRotation = isMovingBackward ? Math.PI : 0;
-
-    // Update exhaust shader uniforms
-    if (exhaustMaterialLRef.current) {
-      exhaustMaterialLRef.current.uniforms.uTime.value = time;
-      exhaustMaterialLRef.current.uniforms.uThrust.value = thrust;
-    }
-    if (exhaustMaterialRRef.current) {
-      exhaustMaterialRRef.current.uniforms.uTime.value = time;
-      exhaustMaterialRRef.current.uniforms.uThrust.value = thrust;
-    }
-
-    // Update exhaust flame visuals
-    if (flameLRef.current) {
-      flameLRef.current.scale.z = thrust > 0 ? 0.5 + thrust * 2.0 : 0.5;
-      flameLRef.current.rotation.y = flameRotation;
-    }
-    if (flameRRef.current) {
-      flameRRef.current.scale.z = thrust > 0 ? 0.5 + thrust * 2.0 : 0.5;
-      flameRRef.current.rotation.y = flameRotation;
-    }
-
-    // Update engine lights
-    if (lightLRef.current) {
-      lightLRef.current.intensity = 2 + thrust * 10;
-      lightLRef.current.distance = 5 + thrust * 2;
-    }
-    if (lightRRef.current) {
-      lightRRef.current.intensity = 2 + thrust * 10;
-      lightRRef.current.distance = 5 + thrust * 2;
-    }
-    // Note: Wing roll (banking) is updated in Ship.tsx's useFrame because
-    // it needs to read from a ref that changes every frame, and props don't update
-  });
-
   return (
     <group ref={planeGroupRef}>
-      {/* Main Body */}
-      <mesh castShadow receiveShadow>
-        <primitive object={shipGeometries.body} attach="geometry" />
-        <primitive object={shipMaterials.playerBody} attach="material" />
-      </mesh>
+      {/* --- Body Group --- */}
+      <mesh
+        castShadow
+        receiveShadow
+        geometry={geos.body}
+        material={mats.body}
+      />
 
-      {/* Nose Cone */}
+      {/* --- Nose --- */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        scale={[0.6, 1, 0.4]}
-        position={[0, 0, -2.25]}
+        scale={SHIP_DESIGN.NOSE.scale}
+        position={SHIP_DESIGN.NOSE.position}
         castShadow
-      >
-        <primitive object={shipGeometries.nose} attach="geometry" />
-        <primitive object={shipMaterials.playerBody} attach="material" />
-      </mesh>
+        geometry={geos.nose}
+        material={mats.body}
+      />
 
-      {/* Wings */}
+      {/* --- Wings (Mirrored) --- */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0.6, 0.1, -0.2]}
+        position={SHIP_DESIGN.WING.position}
         castShadow
-      >
-        <primitive object={shipGeometries.wing} attach="geometry" />
-        <primitive object={shipMaterials.playerWing} attach="material" />
-      </mesh>
+        geometry={geos.wing}
+        material={mats.wing}
+      />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         scale={[-1, 1, 1]}
-        position={[-0.6, 0.1, -0.2]}
+        position={[
+          -SHIP_DESIGN.WING.position[0],
+          SHIP_DESIGN.WING.position[1],
+          SHIP_DESIGN.WING.position[2],
+        ]}
         castShadow
+        geometry={geos.wing}
+        material={mats.wing}
+      />
+
+      {/* --- Fins (Mirrored) --- */}
+      <group
+        position={[
+          -SHIP_DESIGN.FIN.position[0],
+          SHIP_DESIGN.FIN.position[1],
+          SHIP_DESIGN.FIN.position[2],
+        ]}
+        rotation={[0, 0, SHIP_DESIGN.FIN.rotationZ]}
       >
-        <primitive object={shipGeometries.wing} attach="geometry" />
-        <primitive object={shipMaterials.playerWing} attach="material" />
-      </mesh>
-
-      {/* Tail Fins */}
-      <group position={[-0.3, 0.4, 1.4]} rotation={[0, 0, 0.8]}>
-        <mesh rotation={[0, -Math.PI / 2, 0]}>
-          <primitive object={shipGeometries.fin} attach="geometry" />
-          <primitive object={shipMaterials.playerWing} attach="material" />
-        </mesh>
+        <mesh
+          rotation={[0, -Math.PI / 2, 0]}
+          geometry={geos.fin}
+          material={mats.wing}
+        />
       </group>
-      <group position={[0.3, 0.4, 1.4]} rotation={[0, 0, -0.8]}>
-        <mesh rotation={[0, -Math.PI / 2, 0]} scale={[1, 1, -1]}>
-          <primitive object={shipGeometries.fin} attach="geometry" />
-          <primitive object={shipMaterials.playerWing} attach="material" />
-        </mesh>
+      <group
+        position={SHIP_DESIGN.FIN.position}
+        rotation={[0, 0, -SHIP_DESIGN.FIN.rotationZ]}
+      >
+        <mesh
+          rotation={[0, -Math.PI / 2, 0]}
+          scale={[1, 1, -1]}
+          geometry={geos.fin}
+          material={mats.wing}
+        />
       </group>
 
-      {/* Cockpit */}
-      <mesh position={[0, 0.45, -0.5]}>
-        <primitive object={shipGeometries.cockpit} attach="geometry" />
-        <primitive object={shipMaterials.cockpit} attach="material" />
-      </mesh>
+      {/* --- Cockpit --- */}
+      <mesh
+        position={SHIP_DESIGN.COCKPIT.position}
+        geometry={geos.cockpit}
+        material={mats.cockpit}
+      />
 
-      {/* Ability Visual Components - rendered by abilities themselves */}
+      {/* --- Guns (Mirrored) --- */}
+      <mesh
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[
+          -SHIP_DESIGN.GUNS.position[0],
+          SHIP_DESIGN.GUNS.position[1],
+          SHIP_DESIGN.GUNS.position[2],
+        ]}
+        geometry={geos.gun}
+        material={mats.gun}
+      />
+      <mesh
+        rotation={[Math.PI / 2, 0, 0]}
+        position={SHIP_DESIGN.GUNS.position}
+        geometry={geos.gun}
+        material={mats.gun}
+      />
+
+      {/* --- Engines & Exhaust (Mirrored) --- */}
+      {/* Nozzles */}
+      <mesh
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[
+          -SHIP_DESIGN.ENGINE.position[0],
+          SHIP_DESIGN.ENGINE.position[1],
+          SHIP_DESIGN.ENGINE.position[2],
+        ]}
+        geometry={geos.nozzle}
+        material={mats.nozzle}
+      />
+      <mesh
+        rotation={[Math.PI / 2, 0, 0]}
+        position={SHIP_DESIGN.ENGINE.position}
+        geometry={geos.nozzle}
+        material={mats.nozzle}
+      />
+
+      {/* Flames */}
+      <EngineExhaust
+        position={[
+          -SHIP_DESIGN.ENGINE.position[0],
+          SHIP_DESIGN.ENGINE.position[1],
+          SHIP_DESIGN.ENGINE.position[2],
+        ]}
+        thrustRef={thrustRef}
+        thrustInputRef={thrustInputRef}
+      />
+      <EngineExhaust
+        position={SHIP_DESIGN.ENGINE.position}
+        thrustRef={thrustRef}
+        thrustInputRef={thrustInputRef}
+      />
+
+      {/* Ability Visuals */}
       {abilityVisual}
-
-      {/* Guns */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[-1.6, 0.0, 0.2]}>
-        <primitive object={shipGeometries.gun} attach="geometry" />
-        <primitive object={shipMaterials.gun} attach="material" />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[1.6, 0.0, 0.2]}>
-        <primitive object={shipGeometries.gun} attach="geometry" />
-        <primitive object={shipMaterials.gun} attach="material" />
-      </mesh>
-
-      {/* Engines */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[-0.5, 0, 1.8]}>
-        <primitive object={shipGeometries.nozzle} attach="geometry" />
-        <primitive object={shipMaterials.nozzle} attach="material" />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0.5, 0, 1.8]}>
-        <primitive object={shipGeometries.nozzle} attach="geometry" />
-        <primitive object={shipMaterials.nozzle} attach="material" />
-      </mesh>
-
-      {/* Exhaust Flames */}
-      <mesh ref={flameLRef} position={[-0.5, 0, 1.8]}>
-        <primitive object={exhaustGeometry} attach="geometry" />
-        <shaderMaterial
-          ref={exhaustMaterialLRef}
-          uniforms={exhaustUniformsL}
-          vertexShader={exhaustVertex}
-          fragmentShader={exhaustFragment}
-          transparent
-          blending={AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      <mesh ref={flameRRef} position={[0.5, 0, 1.8]}>
-        <primitive object={exhaustGeometry} attach="geometry" />
-        <shaderMaterial
-          ref={exhaustMaterialRRef}
-          uniforms={exhaustUniformsR}
-          vertexShader={exhaustVertex}
-          fragmentShader={exhaustFragment}
-          transparent
-          blending={AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-
-      {/* Engine Lights */}
-      <pointLight
-        ref={lightLRef}
-        position={[-0.5, 0, 2.5]}
-        color={0x00ffff}
-        intensity={2}
-        distance={4}
-      />
-      <pointLight
-        ref={lightRRef}
-        position={[0.5, 0, 2.5]}
-        color={0x00ffff}
-        intensity={2}
-        distance={4}
-      />
     </group>
   );
 }

@@ -1,6 +1,11 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
-import { AdditiveBlending, BackSide, ShaderMaterial } from "three";
+import {
+  AdditiveBlending,
+  BackSide,
+  ShaderMaterial,
+  type DirectionalLight,
+} from "three";
 import { RigidBody } from "@react-three/rapier";
 import { Stars } from "@react-three/drei";
 import { ARENA_RADIUS } from "../constants";
@@ -64,6 +69,17 @@ const forcefieldFragment = `
 `;
 
 export function SpaceEnvironment() {
+  const lightRef = useRef<DirectionalLight>(null);
+
+  useFrame(() => {
+    if (lightRef.current?.shadow) {
+      // Lock shadow camera to center - prevent Three.js from auto-updating it
+      const cam = lightRef.current.shadow.camera;
+      cam.position.set(0, 0, 0);
+      cam.updateMatrixWorld();
+    }
+  });
+
   return (
     <>
       {/* Scene settings */}
@@ -84,17 +100,18 @@ export function SpaceEnvironment() {
       {/* Lighting */}
       <ambientLight intensity={0.4} />
       <directionalLight
-        position={[20, 50, 20]}
-        intensity={1.5}
+        ref={lightRef}
+        position={[60, 100, 60]}
+        intensity={2}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
         shadow-camera-near={0.5}
         shadow-camera-far={500}
-        shadow-camera-left={-50}
-        shadow-camera-right={50}
-        shadow-camera-top={50}
-        shadow-camera-bottom={-50}
+        shadow-camera-left={-ARENA_RADIUS * 2}
+        shadow-camera-right={ARENA_RADIUS * 2}
+        shadow-camera-top={ARENA_RADIUS * 2}
+        shadow-camera-bottom={-ARENA_RADIUS * 2}
       />
 
       {/* Ground plane */}
