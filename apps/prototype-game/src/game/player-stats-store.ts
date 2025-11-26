@@ -73,6 +73,7 @@ export const usePlayerStatsStore = create<PlayerStatsState>((set, get) => ({
   },
   removeStats: (controllerId: string) => {
     set((state) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [controllerId]: _, ...rest } = state.stats;
       return { stats: rest };
     });
@@ -84,7 +85,3 @@ export const usePlayerStatsStore = create<PlayerStatsState>((set, get) => ({
     return get().stats[controllerId]?.accelerationMultiplier ?? 1.0;
   },
 }));
-
-
-
-

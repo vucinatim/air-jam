@@ -15,6 +15,9 @@ export interface PlayerAbilities {
   [controllerId: string]: AbilityData | null; // Each player has 1 ability slot
 }
 
+// Store active timers for each controller
+const activeTimers = new Map<string, NodeJS.Timeout>();
+
 interface AbilitiesState {
   abilities: PlayerAbilities;
   setAbility: (controllerId: string, ability: AbilityData | null) => void;
@@ -25,6 +28,7 @@ interface AbilitiesState {
   getAbility: (controllerId: string) => AbilityData | null;
   isAbilityActive: (controllerId: string) => boolean;
   getRemainingDuration: (controllerId: string) => number; // Returns seconds remaining
+  updateActiveAbilities: (controllerId: string, delta: number) => void; // Update all active abilities for a controller
 }
 
 export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
@@ -97,9 +101,34 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
         [controllerId]: abilityData,
       },
     }));
+
+    // Set up automatic timer for duration-based abilities
+    // Clear any existing timer for this controller first
+    const existingTimer = activeTimers.get(controllerId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // Set up new timer that will automatically deactivate the ability
+    if (abilityDef && abilityDef.duration > 0) {
+      const timer = setTimeout(() => {
+        // Timer expired - automatically clear the ability
+        get().clearAbility(controllerId);
+        activeTimers.delete(controllerId);
+      }, abilityDef.duration * 1000);
+
+      activeTimers.set(controllerId, timer);
+    }
   },
   clearAbility: (controllerId) => {
     const ability = get().abilities[controllerId];
+
+    // Clear any active timer for this controller
+    const timer = activeTimers.get(controllerId);
+    if (timer) {
+      clearTimeout(timer);
+      activeTimers.delete(controllerId);
+    }
 
     // Call ability's onDeactivate hook if it exists
     if (ability) {
@@ -116,7 +145,12 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
       },
     }));
   },
-  clearAllAbilities: () => set({ abilities: {} }),
+  clearAllAbilities: () => {
+    // Clear all active timers
+    activeTimers.forEach((timer) => clearTimeout(timer));
+    activeTimers.clear();
+    set({ abilities: {} });
+  },
   getAbility: (controllerId) => {
     return get().abilities[controllerId] ?? null;
   },
@@ -132,6 +166,16 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
     const elapsed = (Date.now() - ability.startTime) / 1000;
     const remaining = ability.duration - elapsed;
     return Math.max(0, remaining);
+  },
+  updateActiveAbilities: (controllerId, delta) => {
+    const ability = get().abilities[controllerId];
+    if (!ability || !get().isAbilityActive(controllerId)) return;
+
+    // Get the ability implementation and call its onUpdate if it exists
+    const abilityImpl = getAbilityImplementation(ability.id);
+    if (abilityImpl?.onUpdate) {
+      abilityImpl.onUpdate(controllerId, delta);
+    }
   },
 }));
 
@@ -279,6 +323,13 @@ export interface AbilityImplementation {
   id: AbilityId;
   onActivate?: (controllerId: string) => void; // Called when ability is activated
   onDeactivate?: (controllerId: string) => void; // Called when ability expires/is cleared
+  /**
+   * Called every frame while the ability is active
+   * Allows abilities to maintain their effects, update stats, etc.
+   * @param controllerId - The controller ID of the player
+   * @param delta - Time elapsed since last frame in seconds
+   */
+  onUpdate?: (controllerId: string, delta: number) => void;
   /**
    * Render visual component for this ability when equipped but not activated
    * Returns a React component or null if no visual is needed

@@ -125,7 +125,8 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     return () => {
       playerStatsStore.removeStats(controllerId);
     };
-  }, [controllerId, playerStatsStore]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controllerId]); // playerStatsStore is stable, don't need it in deps
 
   // Shape functions for wings and fins
   const createWingShape = useMemo(() => {
@@ -302,6 +303,10 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     ) {
       abilitiesStore.clearAbility(controllerId);
     }
+
+    // Update active abilities - this allows abilities to maintain their effects each frame
+    // This is completely agnostic - Ship doesn't need to know about specific abilities
+    abilitiesStore.updateActiveAbilities(controllerId, delta);
 
     lastAbilityRef.current = currentInput.ability;
 

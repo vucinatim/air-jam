@@ -18,6 +18,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   controllerId,
   canvasElement,
   cameras,
+  playerIndex,
 }: {
   controllerId: string;
   canvasElement: HTMLCanvasElement | null;
@@ -25,6 +26,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     camera: ThreePerspectiveCamera;
     viewport: { x: number; y: number; width: number; height: number };
   }>;
+  playerIndex: number;
 }) {
   const health = useHealthStore((state) => state.health[controllerId] ?? 100);
   const maxHealth = 100;
@@ -40,7 +42,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   const abilityIconRef = useRef<HTMLDivElement>(null);
   const abilityDurationRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
-  const isVisibleRef = useRef(false);
+  const durationTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const camerasRef = useRef(cameras);
 
   // Determine health bar color based on health percentage
@@ -61,56 +63,58 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     const updatePosition = () => {
       const shipPos = shipPositions.get(controllerId);
       const element = elementRef.current;
-      const currentCameras = camerasRef.current; // Use ref instead of prop
+      const currentCameras = camerasRef.current;
 
       if (!shipPos || !element) {
-        if (element && isVisibleRef.current) {
-          element.style.display = "none";
-          isVisibleRef.current = false;
-        }
+        element?.style.setProperty("display", "none");
         animationFrameRef.current = requestAnimationFrame(updatePosition);
         return;
       }
 
+      // Get this player's specific camera and viewport
+      // Note: For 2 players, viewport[0] is top (y=height/2) and viewport[1] is bottom (y=0) in WebGL coords
+      // But in HTML, we need to account for coordinate system differences
+      // Player index maps directly to camera index (player 0 = camera 0, etc.)
+      const cameraData = currentCameras[playerIndex];
+      
+      if (!cameraData) {
+        element.style.display = "none";
+        animationFrameRef.current = requestAnimationFrame(updatePosition);
+        return;
+      }
+
+      const { camera, viewport } = cameraData;
+
       // World position 3 units below ship
       const worldPos = new Vector3(shipPos.x, shipPos.y - 3, shipPos.z);
 
-      // Try each camera/viewport to find which one can see this ship
-      let foundVisible = false;
+      // Project world position to screen coordinates using THIS player's camera
+      const vector = worldPos.clone().project(camera);
 
-      for (const { camera, viewport } of currentCameras) {
-        // Project world position to screen coordinates
-        const vector = worldPos.clone().project(camera);
+      // Check if position is in front of camera (z between -1 and 1)
+      if (vector.z > -1 && vector.z < 1) {
+        // Convert normalized device coordinates to screen pixels
+        const x = (vector.x * 0.5 + 0.5) * viewport.width + viewport.x;
+        const y = (vector.y * -0.5 + 0.5) * viewport.height + viewport.y;
 
-        // Check if position is in front of camera (z between -1 and 1)
-        if (vector.z > -1 && vector.z < 1) {
-          // Convert normalized device coordinates to screen pixels
-          const x = (vector.x * 0.5 + 0.5) * viewport.width + viewport.x;
-          const y = (vector.y * -0.5 + 0.5) * viewport.height + viewport.y;
-
-          // Check if within viewport bounds
-          if (
-            x >= viewport.x &&
-            x <= viewport.x + viewport.width &&
-            y >= viewport.y &&
-            y <= viewport.y + viewport.height
-          ) {
-            // Direct DOM manipulation - no React re-render!
-            element.style.left = `${x}px`;
-            element.style.top = `${y}px`;
-            if (!isVisibleRef.current) {
-              element.style.display = "block";
-              isVisibleRef.current = true;
-            }
-            foundVisible = true;
-            break;
-          }
+        // Only show HUD if it's within THIS player's viewport bounds
+        if (
+          x >= viewport.x &&
+          x <= viewport.x + viewport.width &&
+          y >= viewport.y &&
+          y <= viewport.y + viewport.height
+        ) {
+          // Direct DOM manipulation - no React re-render!
+          element.style.left = `${x}px`;
+          element.style.top = `${y}px`;
+          element.style.display = "block";
+        } else {
+          // Ship is outside this player's viewport
+          element.style.display = "none";
         }
-      }
-
-      if (!foundVisible && isVisibleRef.current) {
+      } else {
+        // Ship is behind camera
         element.style.display = "none";
-        isVisibleRef.current = false;
       }
 
       animationFrameRef.current = requestAnimationFrame(updatePosition);
@@ -123,7 +127,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [controllerId, canvasElement]); // Removed cameras from deps - using ref instead
+  }, [controllerId, canvasElement, playerIndex]); // Include playerIndex
 
   // Update health bar fill width when health changes (only this triggers re-render)
   useEffect(() => {
@@ -174,6 +178,48 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
       }
     }
   }, [health, healthPercentage, maxHealth, ability, remainingDuration, isAbilityActive]);
+
+  // Set up timer to update ability duration display every second
+  useEffect(() => {
+    if (!isAbilityActive || !ability) {
+      // Clear timer if ability is not active
+      if (durationTimerRef.current) {
+        clearInterval(durationTimerRef.current);
+        durationTimerRef.current = undefined;
+      }
+      return;
+    }
+
+    // Update duration immediately
+    const updateDuration = () => {
+      if (abilityDurationRef.current) {
+        const store = useAbilitiesStore.getState();
+        const currentRemaining = store.getRemainingDuration(controllerId);
+        const seconds = Math.ceil(currentRemaining);
+        abilityDurationRef.current.textContent = `${seconds}s`;
+        
+        // Hide if duration is 0 or less
+        if (currentRemaining <= 0) {
+          abilityDurationRef.current.style.display = "none";
+        } else {
+          abilityDurationRef.current.style.display = "block";
+        }
+      }
+    };
+
+    // Update immediately
+    updateDuration();
+
+    // Then update every second
+    durationTimerRef.current = setInterval(updateDuration, 1000);
+
+    return () => {
+      if (durationTimerRef.current) {
+        clearInterval(durationTimerRef.current);
+        durationTimerRef.current = undefined;
+      }
+    };
+  }, [controllerId, isAbilityActive, ability]);
 
   return (
     <div
@@ -234,12 +280,13 @@ export const PlayerHUDOverlay = memo(function PlayerHUDOverlay({
 
   return (
     <>
-      {players.map((player) => (
+      {players.map((player, index) => (
         <PlayerHUDItem
           key={player.controllerId}
           controllerId={player.controllerId}
           canvasElement={canvasElement}
           cameras={cameras}
+          playerIndex={index}
         />
       ))}
     </>
