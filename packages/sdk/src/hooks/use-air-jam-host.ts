@@ -128,15 +128,17 @@ export const useAirJamHost = (
     const handleJoin = (payload: {
       controllerId: string;
       nickname?: string;
+      player?: PlayerProfile;
     }): void => {
-      const player: PlayerProfile = {
-        id: payload.controllerId,
-        label:
-          payload.nickname ??
-          `Player ${storeApi.getState().players.length + 1}`,
-      };
-      storeApi.getState().upsertPlayer(player);
-      onPlayerJoinRef.current?.(player);
+      // Server is the single source of truth for colors - use the player profile from server
+      if (!payload.player) {
+        const error = `Server did not send player profile for controllerId: ${payload.controllerId}. This indicates a server version mismatch or bug.`;
+        storeApi.getState().setError(error);
+        console.error(`[useAirJamHost] ${error}`);
+        return;
+      }
+      storeApi.getState().upsertPlayer(payload.player);
+      onPlayerJoinRef.current?.(payload.player);
     };
 
     const handleLeave = (payload: { controllerId: string }): void => {

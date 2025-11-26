@@ -36,6 +36,7 @@ import {
   PLAYER_INPUT_SMOOTH_TIME,
 } from "../constants";
 import { useGameStore } from "../game-store";
+import { useInputStore } from "../input-store";
 import { useLasersStore } from "../lasers-store";
 import { useAbilitiesStore, getAbilityVisual } from "../abilities-store";
 import { usePlayerStatsStore } from "../player-stats-store";
@@ -177,8 +178,16 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     };
   }, [createWingShape, createFinShape]);
 
+  // Get player color from store
+  const player = useGameStore((state) =>
+    state.players.find((p) => p.controllerId === controllerId)
+  );
+  const playerColor = player?.color || "#ff4444";
+
   // Ship materials
   const shipMaterials = useMemo(() => {
+    // Convert hex color to number for Three.js
+    const wingColor = parseInt(playerColor.replace("#", ""), 16);
     return {
       playerBody: new MeshStandardMaterial({
         color: 0x8899aa,
@@ -187,7 +196,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
         flatShading: true,
       }),
       playerWing: new MeshStandardMaterial({
-        color: 0xff4444,
+        color: wingColor,
         roughness: 0.6,
         metalness: 0.2,
         flatShading: true,
@@ -207,7 +216,15 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
         roughness: 0.5,
       }),
     };
-  }, []);
+  }, [playerColor]);
+
+  // Update wing material color when player color changes
+  useEffect(() => {
+    if (shipMaterials.playerWing) {
+      const wingColor = parseInt(playerColor.replace("#", ""), 16);
+      shipMaterials.playerWing.color.setHex(wingColor);
+    }
+  }, [playerColor, shipMaterials.playerWing]);
 
   // Geometry and Uniforms
   const exhaustGeometry = useMemo(() => {
@@ -231,12 +248,9 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
     // --- 1. YOUR LOGIC (Keep the math, change the application) ---
     const time = state.clock.elapsedTime;
-    // Read input directly from store (no rerenders needed!)
-    const storeState = useGameStore.getState();
-    const player = storeState.players.find(
-      (p) => p.controllerId === controllerId
-    );
-    const currentInput = player?.input ?? {
+    // Read input directly from input store (no rerenders needed!)
+    const inputStore = useInputStore.getState();
+    const currentInput = inputStore.getInput(controllerId) ?? {
       vector: { x: 0, y: 0 },
       action: false,
       ability: false,

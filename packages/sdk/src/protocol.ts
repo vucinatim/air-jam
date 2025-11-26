@@ -82,6 +82,7 @@ export const controllerLeaveSchema = z.object({
 export interface PlayerProfile {
   id: string;
   label: string;
+  color?: string;
 }
 
 export interface HostRegistrationAck {
@@ -105,11 +106,13 @@ export interface ServerErrorPayload {
 export interface ControllerWelcomePayload {
   controllerId: string;
   roomId: RoomCode;
+  player?: PlayerProfile;
 }
 
 export interface ControllerJoinedNotice {
   controllerId: string;
   nickname?: string;
+  player?: PlayerProfile;
 }
 
 export interface ControllerLeftNotice {

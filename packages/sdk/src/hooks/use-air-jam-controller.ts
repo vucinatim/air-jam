@@ -129,6 +129,34 @@ export const useAirJamController = (
       store.setStatus("disconnected");
     };
 
+    const handleWelcome = (payload: {
+      controllerId: string;
+      roomId: RoomCode;
+      player?: PlayerProfile;
+    }): void => {
+      // Check roomId match (case-insensitive for safety)
+      // Accept if roomId matches OR if store roomId is null (initial connection)
+      const storeRoomId = store.roomId;
+      if (
+        storeRoomId &&
+        payload.roomId.toUpperCase() !== storeRoomId.toUpperCase()
+      ) {
+        return;
+      }
+      // Update roomId if it wasn't set yet
+      if (!storeRoomId && payload.roomId) {
+        store.setRoomId(payload.roomId);
+      }
+      // Store the player profile if provided
+      if (!payload.player) {
+        const error = `Welcome message received but no player profile included. This indicates a server bug.`;
+        store.setError(error);
+        console.error(`[useAirJamController] ${error}`);
+        return;
+      }
+      store.upsertPlayer(payload.player);
+    };
+
     const handleState = (payload: ControllerStateMessage): void => {
       if (payload.roomId !== roomId) {
         return;
@@ -151,6 +179,7 @@ export const useAirJamController = (
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
+    socket.on("server:welcome", handleWelcome);
     socket.on("server:state", handleState);
     socket.on("server:host_left", handleHostLeft);
     socket.on("server:error", handleError);
@@ -159,6 +188,7 @@ export const useAirJamController = (
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
+      socket.off("server:welcome", handleWelcome);
       socket.off("server:state", handleState);
       socket.off("server:host_left", handleHostLeft);
       socket.off("server:error", handleError);

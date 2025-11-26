@@ -2,19 +2,12 @@ import { create } from "zustand";
 import type { ControllerInputEvent, PlayerProfile } from "@air-jam/sdk";
 import { useHealthStore } from "./health-store";
 import { usePlayerStatsStore } from "./player-stats-store";
-
-export interface InputState {
-  vector: { x: number; y: number };
-  action: boolean;
-  ability: boolean;
-  timestamp: number;
-}
+import { useInputStore } from "./input-store";
 
 export interface PlayerSlot {
   controllerId: string;
   profile: PlayerProfile;
   color: string;
-  input: InputState;
 }
 
 export type CameraMode = "follow" | "topdown";
@@ -31,13 +24,6 @@ interface GameState {
 
 const PLAYER_COLORS = ["#38bdf8", "#a78bfa", "#f472b6", "#34d399"];
 
-const createEmptyInput = (): InputState => ({
-  vector: { x: 0, y: 0 },
-  action: false,
-  ability: false,
-  timestamp: Date.now(),
-});
-
 export const useGameStore = create<GameState>((set) => ({
   players: [],
   cameraMode: "follow",
@@ -52,7 +38,12 @@ export const useGameStore = create<GameState>((set) => ({
           players: state.players.map(
             (player): PlayerSlot =>
               player.controllerId === controllerId
-                ? { ...player, profile }
+                ? {
+                    ...player,
+                    profile,
+                    // Update color if profile has one
+                    color: profile.color || player.color,
+                  }
                 : player
           ),
         };
@@ -62,16 +53,28 @@ export const useGameStore = create<GameState>((set) => ({
         return state;
       }
 
-      const color = PLAYER_COLORS[state.players.length % PLAYER_COLORS.length];
+      // Use color from profile if available, otherwise assign from color array
+      const color =
+        profile.color ||
+        PLAYER_COLORS[state.players.length % PLAYER_COLORS.length];
       const slot: PlayerSlot = {
         controllerId,
         profile,
         color,
-        input: createEmptyInput(),
       };
       // Initialize health and stats for new player
       useHealthStore.getState().initializeHealth(controllerId);
       usePlayerStatsStore.getState().initializeStats(controllerId);
+      // Initialize input for new player (input store will handle empty input creation)
+      useInputStore.getState().applyInput({
+        controllerId,
+        input: {
+          vector: { x: 0, y: 0 },
+          action: false,
+          ability: false,
+          timestamp: Date.now(),
+        },
+      });
       return { players: [...state.players, slot] };
     });
   },
@@ -84,31 +87,15 @@ export const useGameStore = create<GameState>((set) => ({
     // Clean up health and stats when player is removed
     useHealthStore.getState().removeHealth(controllerId);
     usePlayerStatsStore.getState().removeStats(controllerId);
+    // Clean up input when player is removed
+    useInputStore.getState().removeInput(controllerId);
   },
   applyInput: (event) => {
-    set((state) => ({
-      players: state.players.map((player) =>
-        player.controllerId === event.controllerId
-          ? {
-              ...player,
-              input: {
-                vector: event.input.vector,
-                action: event.input.action,
-                ability: event.input.ability ?? false,
-                timestamp: event.input.timestamp ?? Date.now(),
-              },
-            }
-          : player
-      ),
-    }));
+    // Update input store instead of players array to avoid unnecessary rerenders
+    useInputStore.getState().applyInput(event);
   },
   clearInputs: () => {
-    const now = Date.now();
-    set((state) => ({
-      players: state.players.map((player) => ({
-        ...player,
-        input: { ...createEmptyInput(), timestamp: now },
-      })),
-    }));
+    // Clear all inputs in the input store
+    useInputStore.getState().clearAllInputs();
   },
 }));

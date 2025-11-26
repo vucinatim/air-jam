@@ -121,7 +121,10 @@ export const AirJamOverlay = ({
                   {players.slice(0, 4).map((player) => (
                     <Avatar
                       key={player.id}
-                      className="h-8 w-8 border-2 border-background"
+                      className="h-8 w-8 border-2"
+                      style={{
+                        borderColor: player.color || "hsl(var(--border))",
+                      }}
                     >
                       <AvatarImage
                         src={getPlayerAvatarUrl(player.id)}
@@ -212,13 +215,14 @@ export const AirJamOverlay = ({
                         key={player.id}
                         className="flex flex-col items-center gap-2"
                       >
-                        <div className="relative">
-                          <img
-                            src={getPlayerAvatarUrl(player.id)}
-                            alt={player.label}
-                            className="w-16 h-16 rounded-full border-2 border-border shadow-md bg-secondary/30"
-                          />
-                        </div>
+                        <img
+                          src={getPlayerAvatarUrl(player.id)}
+                          alt={player.label}
+                          className="w-16 h-16 rounded-full border-4 shadow-md bg-secondary/30"
+                          style={{
+                            borderColor: player.color || "hsl(var(--border))",
+                          }}
+                        />
                         <div className="flex flex-col items-center gap-0.5">
                           <span className="text-sm font-medium text-card-foreground text-center max-w-[100px] truncate">
                             {player.label}

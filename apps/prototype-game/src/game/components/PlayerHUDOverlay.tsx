@@ -17,16 +17,13 @@ interface PlayerHUDOverlayProps {
 const PlayerHUDItem = memo(function PlayerHUDItem({
   controllerId,
   canvasElement,
-  cameras,
-  playerIndex,
+  viewport,
+  camera,
 }: {
   controllerId: string;
   canvasElement: HTMLCanvasElement | null;
-  cameras: Array<{
-    camera: ThreePerspectiveCamera;
-    viewport: { x: number; y: number; width: number; height: number };
-  }>;
-  playerIndex: number;
+  viewport: { x: number; y: number; width: number; height: number };
+  camera: ThreePerspectiveCamera;
 }) {
   const health = useHealthStore((state) => state.health[controllerId] ?? 100);
   const maxHealth = 100;
@@ -43,7 +40,8 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   const abilityDurationRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const durationTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const camerasRef = useRef(cameras);
+  const cameraRef = useRef(camera);
+  const viewportRef = useRef(viewport);
 
   // Determine health bar color based on health percentage
   const getHealthColor = () => {
@@ -52,10 +50,11 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     return "#ef4444"; // red
   };
 
-  // Update cameras ref when it changes (but don't trigger re-render)
+  // Update camera and viewport refs when they change (but don't trigger re-render)
   useEffect(() => {
-    camerasRef.current = cameras;
-  }, [cameras]);
+    cameraRef.current = camera;
+    viewportRef.current = viewport;
+  }, [camera, viewport]);
 
   useEffect(() => {
     if (!canvasElement) return;
@@ -63,7 +62,8 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     const updatePosition = () => {
       const shipPos = shipPositions.get(controllerId);
       const element = elementRef.current;
-      const currentCameras = camerasRef.current;
+      const currentCamera = cameraRef.current;
+      const currentViewport = viewportRef.current;
 
       if (!shipPos || !element) {
         element?.style.setProperty("display", "none");
@@ -71,42 +71,32 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         return;
       }
 
-      // Get this player's specific camera and viewport
-      // Note: For 2 players, viewport[0] is top (y=height/2) and viewport[1] is bottom (y=0) in WebGL coords
-      // But in HTML, we need to account for coordinate system differences
-      // Player index maps directly to camera index (player 0 = camera 0, etc.)
-      const cameraData = currentCameras[playerIndex];
-      
-      if (!cameraData) {
-        element.style.display = "none";
-        animationFrameRef.current = requestAnimationFrame(updatePosition);
-        return;
-      }
-
-      const { camera, viewport } = cameraData;
-
       // World position 3 units below ship
       const worldPos = new Vector3(shipPos.x, shipPos.y - 3, shipPos.z);
 
       // Project world position to screen coordinates using THIS player's camera
-      const vector = worldPos.clone().project(camera);
+      const vector = worldPos.clone().project(currentCamera);
 
       // Check if position is in front of camera (z between -1 and 1)
       if (vector.z > -1 && vector.z < 1) {
         // Convert normalized device coordinates to screen pixels
-        const x = (vector.x * 0.5 + 0.5) * viewport.width + viewport.x;
-        const y = (vector.y * -0.5 + 0.5) * viewport.height + viewport.y;
+        // Position is relative to the viewport container (0,0 is top-left of container)
+        const screenX = (vector.x * 0.5 + 0.5) * currentViewport.width;
+        // Flip Y coordinate: WebGL has y=0 at bottom, HTML has y=0 at top
+        // Make it relative to the viewport container
+        const screenY = (vector.y * -0.5 + 0.5) * currentViewport.height;
 
-        // Only show HUD if it's within THIS player's viewport bounds
+        // Check if position is within viewport bounds (now relative to container)
         if (
-          x >= viewport.x &&
-          x <= viewport.x + viewport.width &&
-          y >= viewport.y &&
-          y <= viewport.y + viewport.height
+          screenX >= 0 &&
+          screenX <= currentViewport.width &&
+          screenY >= 0 &&
+          screenY <= currentViewport.height
         ) {
           // Direct DOM manipulation - no React re-render!
-          element.style.left = `${x}px`;
-          element.style.top = `${y}px`;
+          // Position is relative to the container, not the full canvas
+          element.style.left = `${screenX}px`;
+          element.style.top = `${screenY}px`;
           element.style.display = "block";
         } else {
           // Ship is outside this player's viewport
@@ -127,7 +117,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [controllerId, canvasElement, playerIndex]); // Include playerIndex
+  }, [controllerId, canvasElement]);
 
   // Update health bar fill width when health changes (only this triggers re-render)
   useEffect(() => {
@@ -177,7 +167,14 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         abilityDurationRef.current.style.display = "none";
       }
     }
-  }, [health, healthPercentage, maxHealth, ability, remainingDuration, isAbilityActive]);
+  }, [
+    health,
+    healthPercentage,
+    maxHealth,
+    ability,
+    remainingDuration,
+    isAbilityActive,
+  ]);
 
   // Set up timer to update ability duration display every second
   useEffect(() => {
@@ -197,7 +194,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         const currentRemaining = store.getRemainingDuration(controllerId);
         const seconds = Math.ceil(currentRemaining);
         abilityDurationRef.current.textContent = `${seconds}s`;
-        
+
         // Hide if duration is 0 or less
         if (currentRemaining <= 0) {
           abilityDurationRef.current.style.display = "none";
@@ -276,19 +273,46 @@ export const PlayerHUDOverlay = memo(function PlayerHUDOverlay({
   const players = useGameStore((state) => state.players);
 
   // Don't render anything if no players
-  if (players.length === 0) return null;
+  if (players.length === 0 || !canvasElement) return null;
+
+  // Get canvas dimensions for viewport positioning
+  // Use getBoundingClientRect() to get CSS dimensions (viewport coords are in CSS pixels)
+  const canvasRect = canvasElement.getBoundingClientRect();
+  const canvasHeight = canvasRect.height;
 
   return (
     <>
-      {players.map((player, index) => (
-        <PlayerHUDItem
-          key={player.controllerId}
-          controllerId={player.controllerId}
-          canvasElement={canvasElement}
-          cameras={cameras}
-          playerIndex={index}
-        />
-      ))}
+      {players.map((player, index) => {
+        const cameraData = cameras[index];
+        if (!cameraData) return null;
+
+        const { camera, viewport } = cameraData;
+
+        // Convert WebGL viewport coordinates to HTML coordinates
+        // WebGL: y=0 at bottom, HTML: y=0 at top
+        // So we need to flip the y coordinate
+        const htmlY = canvasHeight - viewport.y - viewport.height;
+
+        return (
+          <div
+            key={player.controllerId}
+            className="absolute pointer-events-none z-10"
+            style={{
+              left: `${viewport.x}px`,
+              top: `${htmlY}px`,
+              width: `${viewport.width}px`,
+              height: `${viewport.height}px`,
+            }}
+          >
+            <PlayerHUDItem
+              controllerId={player.controllerId}
+              canvasElement={canvasElement}
+              viewport={viewport}
+              camera={camera}
+            />
+          </div>
+        );
+      })}
     </>
   );
 });

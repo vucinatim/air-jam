@@ -2,8 +2,10 @@ import type { JSX } from "react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ConnectionStatus } from "../protocol";
 import { useFullscreen } from "../hooks/use-fullscreen";
+import { useConnectionState } from "../state/connection-store";
 import { cn } from "../utils/cn";
 import { Button } from "./ui/button";
+import { Avatar, AvatarImage } from "./ui/avatar";
 import {
   CheckCircle2,
   Loader2,
@@ -18,6 +20,15 @@ import {
 import { QRScannerDialog } from "./qr-scanner-dialog";
 
 type OrientationRequirement = "portrait" | "landscape" | "any";
+
+// Generate a consistent avatar URL for a player based on their ID
+const getPlayerAvatarUrl = (playerId: string): string => {
+  // Use DiceBear API with identicon style for GitHub-like avatars
+  // The seed ensures the same player ID always gets the same avatar
+  return `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
+    playerId
+  )}`;
+};
 
 interface ControllerShellProps {
   roomId?: string | null;
@@ -69,6 +80,25 @@ export const ControllerShell = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { isFullscreen, toggleFullscreen } = useFullscreen();
 
+  // Get current player info from connection store
+  const { controllerId, players } = useConnectionState((state) => ({
+    controllerId: state.controllerId,
+    players: state.players,
+  }));
+
+  // Find current player profile - must exist from server (single source of truth)
+  const currentPlayer = useMemo(() => {
+    if (!controllerId) return null;
+    const found = players.find((p) => p.id === controllerId);
+    if (!found) {
+      console.error(
+        `[ControllerShell] Player profile not found for controllerId: ${controllerId}. ` +
+          `This indicates the server did not send the player profile.`
+      );
+    }
+    return found || null;
+  }, [controllerId, players]);
+
   useEffect(() => {
     if (requiredOrientation === "any") {
       return;
@@ -100,13 +130,30 @@ export const ControllerShell = ({
   return (
     <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-background text-foreground select-none touch-none">
       <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between px-6 py-2 border-b">
-        <div className="pointer-events-auto">
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-            Room
-          </p>
-          <p className="text-lg font-semibold text-foreground">
-            {roomId ?? "N/A"}
-          </p>
+        <div className="pointer-events-auto flex items-center gap-3">
+          {(currentPlayer || controllerId) && (
+            <Avatar
+              className="h-8 w-8 border-2"
+              style={{
+                borderColor: currentPlayer?.color || "hsl(var(--border))",
+              }}
+            >
+              <AvatarImage
+                src={getPlayerAvatarUrl(
+                  currentPlayer?.id || controllerId || ""
+                )}
+                alt={currentPlayer?.label || "Player"}
+              />
+            </Avatar>
+          )}
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+              Room
+            </p>
+            <p className="text-lg font-semibold text-foreground">
+              {roomId ?? "N/A"}
+            </p>
+          </div>
         </div>
         <div className="pointer-events-auto flex items-center gap-3">
           <Button
@@ -125,14 +172,21 @@ export const ControllerShell = ({
               variant="outline"
               size="icon"
               onClick={onRefresh}
-              disabled={connectionStatus === "connecting" || connectionStatus === "reconnecting"}
+              disabled={
+                connectionStatus === "connecting" ||
+                connectionStatus === "reconnecting"
+              }
               aria-label="Reconnect"
               title="Reconnect to room"
             >
-              <RefreshCw className={cn(
-                "h-5 w-5",
-                (connectionStatus === "connecting" || connectionStatus === "reconnecting") && "animate-spin"
-              )} />
+              <RefreshCw
+                className={cn(
+                  "h-5 w-5",
+                  (connectionStatus === "connecting" ||
+                    connectionStatus === "reconnecting") &&
+                    "animate-spin"
+                )}
+              />
             </Button>
           )}
           {onReconnect && (
