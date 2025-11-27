@@ -16,6 +16,7 @@ import {
   SceneInfoSection,
 } from "../game/components/DebugSections";
 import { GameObjectEditor } from "../game/components/GameObjectEditor";
+import { ScoreDisplay } from "../game/components/ScoreDisplay";
 import { Button } from "../components/ui/button";
 import { Settings2, X } from "lucide-react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
@@ -109,6 +110,7 @@ export const HostView = (): JSX.Element => {
         gameState={host.gameState}
         onTogglePlayPause={host.toggleGameState}
       />
+      <ScoreDisplay />
       <DebugOverlay>
         <PlayersSection />
         <SceneInfoSection />
