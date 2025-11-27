@@ -15,6 +15,8 @@ import { ArenaBounds } from "./ArenaBounds";
 import { Collectibles } from "./Collectibles";
 import { CollectibleSpawner } from "./CollectibleSpawner";
 import { JumpPads } from "./JumpPads";
+import { PlayerBases } from "./PlayerBases";
+import { Flags } from "./Flags";
 import { FreeFlyCamera } from "./FreeFlyCamera";
 import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
 import { useCameraFollow } from "../hooks/useCameraFollow";
@@ -132,6 +134,8 @@ export function GameScene({
         <ArenaBounds />
         <Collectibles />
         <CollectibleSpawner />
+        <PlayerBases />
+        <Flags />
         <JumpPads />
         <MultiCameraController onCamerasReady={onCamerasReady || (() => {})} />
       </Physics>

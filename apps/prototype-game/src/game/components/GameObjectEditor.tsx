@@ -4,12 +4,13 @@ import { useState, useRef } from "react";
 import * as THREE from "three";
 import { RocketModel } from "./RocketModel";
 import { ShipModel } from "./ShipModel";
+import { FlagModel } from "./FlagModel";
 
 interface GameObjectEditorProps {
-  objectType: "rocket" | "laser" | "ship" | "collectible";
+  objectType: "rocket" | "laser" | "ship" | "collectible" | "flag";
 }
 
-type ModelType = "rocket" | "ship";
+type ModelType = "rocket" | "ship" | "flag";
 
 function EditorScene({
   objectType,
@@ -86,6 +87,11 @@ function EditorScene({
           />
         </group>
       )}
+      {objectType === "flag" && (
+        <group position={offset}>
+          <FlagModel color="#f97316" animate={true} />
+        </group>
+      )}
 
       {/* Orbit Controls */}
       <OrbitControls
@@ -121,6 +127,19 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
                 <option value="rocket">Rocket</option>
                 <option value="ship">Ship</option>
               </select>
+            </div>
+          )}
+          {objectType === "flag" && (
+            <div className="flex gap-2 items-center">
+              <label className="text-white text-sm font-medium">
+                Flag Color:
+              </label>
+              <input
+                type="color"
+                defaultValue="#f97316"
+                readOnly
+                className="w-12 h-8 bg-gray-700 rounded border border-gray-600 cursor-default"
+              />
             </div>
           )}
           <label className="text-white text-sm font-medium">Offset:</label>

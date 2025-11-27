@@ -87,8 +87,8 @@ export const HostView = (): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorObjectType] = useState<
-    "rocket" | "laser" | "ship" | "collectible"
-  >("rocket");
+    "rocket" | "laser" | "ship" | "collectible" | "flag"
+  >("flag");
 
   useEffect(() => {
     // Find the canvas element
@@ -148,7 +148,7 @@ export const HostView = (): JSX.Element => {
           <div className="w-1/2 h-full border-l border-border bg-background flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
               <h2 className="text-lg font-semibold">
-                Game Object Editor - Rocket
+                Game Object Editor - {editorObjectType.charAt(0).toUpperCase() + editorObjectType.slice(1)}
               </h2>
             </div>
             <div className="flex-1 min-h-0">

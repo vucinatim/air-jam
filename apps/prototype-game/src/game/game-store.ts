@@ -3,11 +3,17 @@ import type { ControllerInputEvent, PlayerProfile } from "@air-jam/sdk";
 import { useHealthStore } from "./health-store";
 import { usePlayerStatsStore } from "./player-stats-store";
 import { useInputStore } from "./input-store";
+import {
+  TEAM_CONFIG,
+  type TeamId,
+  useCaptureTheFlagStore,
+} from "./capture-the-flag-store";
 
 export interface PlayerSlot {
   controllerId: string;
   profile: PlayerProfile;
   color: string;
+  teamId: TeamId;
 }
 
 export type CameraMode = "follow" | "topdown";
@@ -22,8 +28,6 @@ interface GameState {
   clearInputs: () => void;
 }
 
-const PLAYER_COLORS = ["#38bdf8", "#a78bfa", "#f472b6", "#34d399"];
-
 export const useGameStore = create<GameState>((set) => ({
   players: [],
   cameraMode: "follow",
@@ -34,6 +38,9 @@ export const useGameStore = create<GameState>((set) => ({
         (player) => player.controllerId === controllerId
       );
       if (existing) {
+        const ctfStore = useCaptureTheFlagStore.getState();
+        const teamId =
+          ctfStore.getPlayerTeam(controllerId) ?? existing.teamId ?? "solaris";
         return {
           players: state.players.map(
             (player): PlayerSlot =>
@@ -41,8 +48,8 @@ export const useGameStore = create<GameState>((set) => ({
                 ? {
                     ...player,
                     profile,
-                    // Update color if profile has one
-                    color: profile.color || player.color,
+                    teamId,
+                    color: TEAM_CONFIG[teamId].color,
                   }
                 : player
           ),
@@ -53,14 +60,14 @@ export const useGameStore = create<GameState>((set) => ({
         return state;
       }
 
-      // Use color from profile if available, otherwise assign from color array
-      const color =
-        profile.color ||
-        PLAYER_COLORS[state.players.length % PLAYER_COLORS.length];
+      const ctfStore = useCaptureTheFlagStore.getState();
+      const teamId = ctfStore.assignPlayerToTeam(controllerId);
+      const color = TEAM_CONFIG[teamId].color;
       const slot: PlayerSlot = {
         controllerId,
         profile,
         color,
+        teamId,
       };
       // Initialize health and stats for new player
       useHealthStore.getState().initializeHealth(controllerId);
@@ -89,6 +96,7 @@ export const useGameStore = create<GameState>((set) => ({
     usePlayerStatsStore.getState().removeStats(controllerId);
     // Clean up input when player is removed
     useInputStore.getState().removeInput(controllerId);
+    useCaptureTheFlagStore.getState().removePlayer(controllerId);
   },
   applyInput: (event) => {
     // Update input store instead of players array to avoid unnecessary rerenders
