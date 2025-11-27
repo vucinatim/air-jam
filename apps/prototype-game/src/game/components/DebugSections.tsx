@@ -10,8 +10,43 @@ import { useDebugStore } from "../debug-store";
 import { DebugSection } from "./DebugOverlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useBotManager } from "../bot-system/BotManager";
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx
+
+export function BotsSection() {
+  const addBot = useBotManager((state) => state.addBot);
+  const removeBot = useBotManager((state) => state.removeBot);
+  const bots = useBotManager((state) => state.bots);
+
+  return (
+    <DebugSection title="Bots">
+      <div className="space-y-3">
+        <Button onClick={addBot} className="w-full" size="sm">
+          Add Bot
+        </Button>
+        
+        {bots.size > 0 && (
+          <div className="space-y-2">
+            {Array.from(bots.keys()).map((botId) => (
+              <div key={botId} className="flex items-center justify-between p-2 rounded-md bg-muted/20">
+                <span className="text-sm font-medium">{botId}</span>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  className="h-6 px-2 text-xs"
+                  onClick={() => removeBot(botId)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </DebugSection>
+  );
+}
 
 export function PlayersSection() {
   const players = useGameStore((state) => state.players);
@@ -65,7 +100,7 @@ export function PlayersSection() {
                     style={{ backgroundColor: player.color }}
                   />
                   <span className="text-sm font-medium text-foreground">
-                    {player.profile.name || `Player ${player.controllerId.slice(0, 8)}`}
+                    {player.profile.label || `Player ${player.controllerId.slice(0, 8)}`}
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground font-mono">

@@ -21,7 +21,7 @@ import { useLasersStore } from "../lasers-store";
 import { useAbilitiesStore, getAbilityVisual } from "../abilities-store";
 import { usePlayerStatsStore } from "../player-stats-store";
 import { ShipModel } from "./ShipModel";
-import { useAirJamInput } from "@air-jam/sdk";
+import { useGameInput } from "../hooks/useGameInput";
 import { useConnectionStore } from "@air-jam/sdk";
 
 // --- Global Tracking ---
@@ -78,7 +78,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
   // --- Input Hook (Zero re-renders, high-performance) ---
   const roomId = useConnectionStore((state) => state.roomId);
-  const { popInput } = useAirJamInput({ roomId: roomId ?? undefined });
+  const { popInput } = useGameInput({ roomId: roomId ?? undefined });
 
   // Visuals & Stats
   const currentAbility = useAbilitiesStore((state) =>
