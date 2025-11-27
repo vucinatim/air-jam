@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { JumpPad } from "./JumpPad";
-import { ARENA_RADIUS } from "../constants";
 
 export function JumpPads() {
   // Generate jump pads positioned around the arena
@@ -89,7 +88,3 @@ export function JumpPads() {
     </>
   );
 }
-
-
-
-

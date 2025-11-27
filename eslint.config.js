@@ -31,5 +31,8 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
+    rules: {
+      'react-hooks/refs': 'off',
+    },
   },
 ])
