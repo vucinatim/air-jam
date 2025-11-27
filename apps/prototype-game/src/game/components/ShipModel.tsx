@@ -1,6 +1,7 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame, createPortal, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { Trail } from "./Trail";
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -15,6 +16,7 @@ import {
   Mesh,
   Points,
   ShaderMaterial,
+  Object3D,
 } from "three";
 
 // ==========================================
@@ -57,14 +59,9 @@ const SHIP_DESIGN = {
   },
   // NEW: ALL EXHAUST SETTINGS CENTRALIZED
   EXHAUST: {
-    // Colors
-    flameColor: new Vector3(0.0, 0.8, 1.0), // RGB for Shader (Cyan)
-    lightColor: 0x00ffff, // Hex for PointLight (Cyan)
-
-    // Flame Geometry
-    // How long the flame is when idle (thrust = 0) vs max (thrust = 1)
-    flameLengthBase: 0.5,
-    flameLengthGrowth: 2.0, // length = base + (thrust * growth)
+    trailColor: new Color(0x00fff0), // neon cyan
+    trailWidth: 0.8,
+    trailLength: 0.1,
 
     // Light Intensity
     // Brightness when idle vs max thrust
@@ -79,15 +76,22 @@ const SHIP_DESIGN = {
   PARTICLES: {
     maxParticles: 150,
     color: new Color("#00ffff"),
-    size: 1.5,
-    sizeVariance: 0.5,
+    size: 1.2,
+    sizeVariance: 0.2,
     opacity: 0.6,
     lifetime: 0.1,
-    baseEmissionRate: 10.0,
-    boostEmissionRate: 20.0,
-    baseVelocity: -5.0,
-    boostVelocity: -10.0,
-    turbulence: 0.4,
+
+    // Idle behavior
+    idleEmissionRate: 10.0,
+    idleVelocity: 1.0,
+
+    // Thrust behavior
+    baseEmissionRate: 30.0,
+    boostEmissionRate: 50.0,
+    baseVelocity: 5.0,
+    boostVelocity: 15.0,
+    turbulence: 0.6,
+    spawnOffset: 0.08,
   },
 };
 
@@ -114,34 +118,13 @@ const createFinShape = () => {
   return shape;
 };
 
-const exhaustVertex = `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const exhaustFragment = `
-  uniform float uTime;
-  uniform float uThrust;
-  uniform vec3 uColor;
-  varying vec2 vUv;
-  void main() {
-    float alpha = smoothstep(0.0, 1.0, 1.0 - vUv.y);
-    float noise = sin(vUv.y * 20.0 - uTime * 15.0) * 0.5 + 0.5;
-    vec3 coreColor = vec3(1.0, 1.0, 1.0);
-    vec3 finalColor = mix(uColor, coreColor, noise * uThrust);
-    gl_FragColor = vec4(finalColor, alpha * alpha * (0.5 + uThrust) * 0.5);
-  }
-`;
-
 // --- PARTICLE SHADER ---
 const ParticleShaderMaterial = new ShaderMaterial({
   uniforms: {
     color: { value: new Color("cyan") },
     pointSize: { value: 1.0 },
     dpr: { value: 1.0 },
+    opacity: { value: 1.0 },
   },
   vertexShader: `
     uniform float pointSize;
@@ -161,6 +144,7 @@ const ParticleShaderMaterial = new ShaderMaterial({
   `,
   fragmentShader: `
     uniform vec3 color;
+    uniform float opacity;
     varying float vAge;
 
     void main() {
@@ -172,8 +156,8 @@ const ParticleShaderMaterial = new ShaderMaterial({
       // Soft glow
       float glow = 1.0 - r;
       glow = pow(glow, 2.0);
-      
-      float alpha = 1.0 - vAge; // Fade out
+
+      float alpha = (1.0 - vAge) * opacity;
       gl_FragColor = vec4(color, alpha * glow);
     }
   `,
@@ -219,13 +203,16 @@ function EngineParticles({
   objectRef,
   thrustRef,
 }: {
-  objectRef: React.RefObject<Mesh | null>;
+  objectRef: React.RefObject<Object3D | null>;
   thrustRef: React.MutableRefObject<number>;
 }) {
   const shaderRef = useRef<ShaderMaterial>(ParticleShaderMaterial.clone());
   const meshRef = useRef<Points>(null);
   const emissionTimer = useRef(0);
   const scene = useThree((state) => state.scene);
+  const prevPos = useRef(new Vector3());
+  const isFirstFrame = useRef(true);
+  const shipVelocity = useRef(new Vector3());
 
   const config = SHIP_DESIGN.PARTICLES;
 
@@ -243,40 +230,56 @@ function EngineParticles({
   useFrame((state, delta) => {
     if (!meshRef.current || !objectRef.current) return;
 
-    const thrust = Math.max(0, thrustRef.current);
-
-    // Update Uniforms
-    if (shaderRef.current) {
-      shaderRef.current.uniforms.color.value.set(config.color);
-      shaderRef.current.uniforms.pointSize.value = 1.0; // Base multiplier, actual size comes from particleSize attribute
-      shaderRef.current.uniforms.dpr.value = state.viewport.dpr;
-      shaderRef.current.opacity = config.opacity;
-    }
-
-    // Get Object Transforms (World Space)
     const worldPos = new Vector3();
     const worldQuat = new THREE.Quaternion();
     objectRef.current.getWorldPosition(worldPos);
     objectRef.current.getWorldQuaternion(worldQuat);
 
+    if (isFirstFrame.current) {
+      prevPos.current.copy(worldPos);
+      isFirstFrame.current = false;
+    } else {
+      shipVelocity.current
+        .subVectors(worldPos, prevPos.current)
+        .divideScalar(delta);
+    }
+    prevPos.current.copy(worldPos);
+
+    const thrust = Math.max(0, thrustRef.current);
+    const isIdle = thrust < 0.05;
+
+    if (shaderRef.current) {
+      shaderRef.current.uniforms.color.value.set(config.color);
+      shaderRef.current.uniforms.pointSize.value = 1.0;
+      shaderRef.current.uniforms.dpr.value = state.viewport.dpr;
+      shaderRef.current.uniforms.opacity.value = config.opacity;
+    }
+
+    const currentEmissionRate = isIdle
+      ? config.idleEmissionRate
+      : config.baseEmissionRate + thrust * config.boostEmissionRate;
+
+    const currentVelocity = isIdle
+      ? config.idleVelocity
+      : config.baseVelocity + thrust * config.boostVelocity;
+
+    const backwardDir = new Vector3(0, 1, 0)
+      .applyQuaternion(worldQuat)
+      .normalize();
+    const spawnPos = worldPos
+      .clone()
+      .addScaledVector(backwardDir, config.spawnOffset);
+
     const positionsArray = meshRef.current.geometry.attributes.position
       .array as Float32Array;
     const agesArray = meshRef.current.geometry.attributes.age
       .array as Float32Array;
+    const sizesArray = meshRef.current.geometry.attributes.particleSize
+      .array as Float32Array;
 
-    // Emission Logic
-    if (thrust > 0.05) {
-      const currentEmissionRate =
-        config.baseEmissionRate + thrust * config.boostEmissionRate;
-      emissionTimer.current += delta * currentEmissionRate;
-    } else {
-      emissionTimer.current = 0;
-    }
-
+    emissionTimer.current += delta * currentEmissionRate;
     let emitCount = Math.floor(emissionTimer.current);
     emissionTimer.current -= emitCount;
-
-    const currentVelocity = config.baseVelocity + thrust * config.boostVelocity;
 
     // Update Loop
     for (let i = 0; i < config.maxParticles; i++) {
@@ -285,24 +288,21 @@ function EngineParticles({
         if (emitCount > 0) {
           agesArray[i] = 0;
 
-          // Set Position to Nozzle (World Space)
-          positionsArray[i * 3] = worldPos.x;
-          positionsArray[i * 3 + 1] = worldPos.y;
-          positionsArray[i * 3 + 2] = worldPos.z;
+          positionsArray[i * 3] = spawnPos.x;
+          positionsArray[i * 3 + 1] = spawnPos.y;
+          positionsArray[i * 3 + 2] = spawnPos.z;
 
-          // Velocity Direction - exhaust goes backward from nozzle
-          // Get the backward direction in world space (negative local Z axis)
-          const dir = new Vector3(0, 0, -1); // Local backward direction
-          dir.applyQuaternion(worldQuat); // Transform to world space
+          sizesArray[i] =
+            config.size + config.sizeVariance * (Math.random() - 0.5);
 
-          // Spread
-          const spread = 0.3;
-          dir.x += (Math.random() - 0.5) * spread;
-          dir.y += (Math.random() - 0.5) * spread;
-          dir.z += (Math.random() - 0.5) * spread;
-          dir.normalize().multiplyScalar(currentVelocity);
+          const blastVel = backwardDir.clone().multiplyScalar(currentVelocity);
+          const spread = isIdle ? 0.5 : 0.2;
+          blastVel.x += (Math.random() - 0.5) * spread;
+          blastVel.y += (Math.random() - 0.5) * spread;
+          blastVel.z += (Math.random() - 0.5) * spread;
 
-          velocities[i].copy(dir);
+          const inertiaVel = shipVelocity.current.clone().multiplyScalar(0.9);
+          velocities[i].copy(blastVel.add(inertiaVel));
           emitCount--;
         } else {
           // Keep dead particles hidden
@@ -312,7 +312,8 @@ function EngineParticles({
         }
       } else {
         // Update living particles
-        agesArray[i] += delta / config.lifetime;
+        const lifeSpeed = isIdle ? 1.5 : 1.0;
+        agesArray[i] += (delta / config.lifetime) * lifeSpeed;
         positionsArray[i * 3] += velocities[i].x * delta;
         positionsArray[i * 3 + 1] += velocities[i].y * delta;
         positionsArray[i * 3 + 2] += velocities[i].z * delta;
@@ -321,6 +322,7 @@ function EngineParticles({
 
     meshRef.current.geometry.attributes.position.needsUpdate = true;
     meshRef.current.geometry.attributes.age.needsUpdate = true;
+    meshRef.current.geometry.attributes.particleSize.needsUpdate = true;
   });
 
   // FIX: Use createPortal to render particles in the global scene
@@ -346,79 +348,19 @@ function EngineParticles({
   );
 }
 
-function EngineExhaust({
+// Exhaust lights component (kept for glow effect)
+function ExhaustLight({
   position,
   thrustRef,
-  thrustInputRef,
-  nozzleRef,
 }: {
   position: [number, number, number];
-  thrustRef: React.MutableRefObject<number>;
-  thrustInputRef: React.MutableRefObject<number>;
-  nozzleRef?: React.MutableRefObject<Mesh | null>;
+  thrustRef: React.RefObject<number>;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const lightRef = useRef<THREE.SpotLight>(null);
-  const targetRef = useRef<THREE.Object3D>(new THREE.Object3D());
+  const lightRef = useRef<THREE.PointLight>(null);
 
-  useMemo(() => {
-    if (nozzleRef && meshRef.current) nozzleRef.current = meshRef.current;
-  }, [nozzleRef]);
-
-  // Fix for ref late binding
   useFrame(() => {
-    if (nozzleRef && meshRef.current && nozzleRef.current !== meshRef.current) {
-      nozzleRef.current = meshRef.current;
-    }
-  });
-
-  const geometry = useMemo(() => {
-    const geo = new CylinderGeometry(0.1, 0.4, 2.5, 12, 1, true);
-    geo.rotateX(Math.PI / 2);
-    geo.translate(0, 0, 1.2);
-    return geo;
-  }, []);
-
-  const uniforms = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uThrust: { value: 0.0 },
-      uColor: { value: SHIP_DESIGN.EXHAUST.flameColor },
-    }),
-    []
-  );
-
-  useEffect(() => {
-    if (lightRef.current) {
-      lightRef.current.target = targetRef.current;
-    }
-  }, []);
-
-  useFrame((state) => {
     const thrust = thrustRef.current;
     const config = SHIP_DESIGN.EXHAUST;
-
-    // Shader Updates
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      materialRef.current.uniforms.uThrust.value = thrust;
-    }
-
-    // Mesh Updates
-    if (meshRef.current) {
-      const isMovingBackward = thrustInputRef.current < 0;
-      meshRef.current.rotation.y = isMovingBackward ? Math.PI : 0;
-
-      // Calculate Length based on Config
-      // If thrust > 0, grow. If backward, keep small.
-      const targetScale =
-        thrust > 0
-          ? config.flameLengthBase + thrust * config.flameLengthGrowth
-          : config.flameLengthBase;
-
-      meshRef.current.scale.z = targetScale;
-    }
 
     // Light Updates
     if (lightRef.current) {
@@ -426,35 +368,18 @@ function EngineExhaust({
         config.intensityBase + thrust * config.intensityGrowth;
       lightRef.current.distance =
         config.distanceBase + thrust * config.distanceGrowth;
-      targetRef.current.position.set(0, -5, 2);
-      targetRef.current.updateMatrixWorld();
     }
   });
 
   return (
     <group position={position}>
-      <mesh ref={meshRef}>
-        <primitive object={geometry} attach="geometry" />
-        <shaderMaterial
-          ref={materialRef}
-          uniforms={uniforms}
-          vertexShader={exhaustVertex}
-          fragmentShader={exhaustFragment}
-          transparent
-          blending={AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
       <pointLight
         ref={lightRef}
         position={[0, 0, 0.5]}
-        color={SHIP_DESIGN.EXHAUST.lightColor}
-        // Defaults, updated in useFrame
+        color={SHIP_DESIGN.EXHAUST.trailColor}
         intensity={SHIP_DESIGN.EXHAUST.intensityBase}
         distance={SHIP_DESIGN.EXHAUST.distanceBase}
       />
-      <primitive object={targetRef.current} />
     </group>
   );
 }
@@ -474,12 +399,13 @@ interface ShipModelProps {
 export function ShipModel({
   playerColor,
   thrustRef,
-  thrustInputRef,
   abilityVisual,
   planeGroupRef,
 }: ShipModelProps) {
   const leftNozzleRef = useRef<Mesh | null>(null);
   const rightNozzleRef = useRef<Mesh | null>(null);
+  const leftTrailTargetRef = useRef<THREE.Object3D | null>(null);
+  const rightTrailTargetRef = useRef<THREE.Object3D | null>(null);
 
   // --- Geometries ---
   const geos = useMemo(
@@ -635,44 +561,76 @@ export function ShipModel({
 
       {/* --- Engines & Exhaust (Mirrored) --- */}
       {/* Nozzles */}
-      <mesh
+      <group
         rotation={[Math.PI / 2, 0, 0]}
         position={[
           -SHIP_DESIGN.ENGINE.position[0],
           SHIP_DESIGN.ENGINE.position[1],
           SHIP_DESIGN.ENGINE.position[2],
         ]}
-        geometry={geos.nozzle}
-        material={mats.nozzle}
-      />
-      <mesh
+      >
+        <mesh
+          ref={leftNozzleRef}
+          geometry={geos.nozzle}
+          material={mats.nozzle}
+        />
+        <group
+          ref={leftTrailTargetRef}
+          position={[0, SHIP_DESIGN.ENGINE.nozzleSize[2] / 2, 0]}
+        />
+      </group>
+      <group
         rotation={[Math.PI / 2, 0, 0]}
         position={SHIP_DESIGN.ENGINE.position}
-        geometry={geos.nozzle}
-        material={mats.nozzle}
+      >
+        <mesh
+          ref={rightNozzleRef}
+          geometry={geos.nozzle}
+          material={mats.nozzle}
+        />
+        <group
+          ref={rightTrailTargetRef}
+          position={[0, SHIP_DESIGN.ENGINE.nozzleSize[2] / 2, 0]}
+        />
+      </group>
+
+      {/* Exhaust Trails (replacing straight exhausts) */}
+      <Trail
+        target={leftTrailTargetRef}
+        thrustRef={thrustRef}
+        color={SHIP_DESIGN.EXHAUST.trailColor}
+        width={SHIP_DESIGN.EXHAUST.trailWidth}
+        length={SHIP_DESIGN.EXHAUST.trailLength}
+        maxPoints={150}
+        interval={1}
+      />
+      <Trail
+        target={rightTrailTargetRef}
+        thrustRef={thrustRef}
+        color={SHIP_DESIGN.EXHAUST.trailColor}
+        width={SHIP_DESIGN.EXHAUST.trailWidth}
+        length={SHIP_DESIGN.EXHAUST.trailLength}
+        maxPoints={150}
+        interval={1}
       />
 
-      {/* Flames + Particles (Mirrored) */}
-      <EngineExhaust
+      {/* Exhaust Lights (for glow effect) */}
+      <ExhaustLight
         position={[
           -SHIP_DESIGN.ENGINE.position[0],
           SHIP_DESIGN.ENGINE.position[1],
           SHIP_DESIGN.ENGINE.position[2],
         ]}
         thrustRef={thrustRef}
-        thrustInputRef={thrustInputRef}
-        nozzleRef={leftNozzleRef}
       />
-      <EngineExhaust
+      <ExhaustLight
         position={SHIP_DESIGN.ENGINE.position}
         thrustRef={thrustRef}
-        thrustInputRef={thrustInputRef}
-        nozzleRef={rightNozzleRef}
       />
 
       {/* Render particles via Portal (they will be children of Scene, not Ship) */}
-      <EngineParticles objectRef={leftNozzleRef} thrustRef={thrustRef} />
-      <EngineParticles objectRef={rightNozzleRef} thrustRef={thrustRef} />
+      <EngineParticles objectRef={leftTrailTargetRef} thrustRef={thrustRef} />
+      <EngineParticles objectRef={rightTrailTargetRef} thrustRef={thrustRef} />
 
       {/* Ability Visuals */}
       {abilityVisual}
