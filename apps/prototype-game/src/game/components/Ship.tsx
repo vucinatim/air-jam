@@ -225,9 +225,10 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       }
 
       // Player just died - drop flag at death position and trigger explosion
+      // Set Y to ship's Y minus hover height so flag appears at ship's hover level
       const deathPosition: [number, number, number] = [
         shipWorldPos.x,
-        shipWorldPos.y,
+        shipWorldPos.y - SHIP_CONFIG.HOVER_HEIGHT,
         shipWorldPos.z,
       ];
       try {

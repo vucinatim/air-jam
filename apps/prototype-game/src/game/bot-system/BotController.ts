@@ -159,15 +159,19 @@ class BotBrain {
       };
     }
 
-    // Priority 5: Objective - Offense - Enemy Flag at Base -> Go to Enemy Flag
-    if (enemyFlag?.status === "atBase") {
+    // Priority 5: Objective - Offense - Enemy Flag at Base or Dropped -> Go to Enemy Flag
+    if (enemyFlag && (enemyFlag.status === "atBase" || enemyFlag.status === "dropped")) {
       this.setState(BotState.CAPTURE, time);
       const flagPos = new Vector3(...enemyFlag.position);
       const target = this.checkReachabilityAndPlanPath(self.position, flagPos, context);
       this.targetPosition = target;
       this.targetPlayerId = null;
-      if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
-        console.log(`  → CAPTURE: Using jump pad to reach enemy flag`);
+      if (time - this.lastLogTime > this.logInterval) {
+        const status = enemyFlag.status === "dropped" ? "dropped" : "at base";
+        console.log(`  → CAPTURE: Enemy flag ${status} at (${flagPos.x.toFixed(1)}, ${flagPos.y.toFixed(1)}, ${flagPos.z.toFixed(1)})`);
+        if (this.usingJumpPad) {
+          console.log(`    Using jump pad to reach enemy flag`);
+        }
       }
       return {
         state: this.state,

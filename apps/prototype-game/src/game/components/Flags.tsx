@@ -1,7 +1,8 @@
-import { useRef, useMemo } from "react";
+import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   RigidBody,
+  CylinderCollider,
   type CollisionPayload,
   type RapierRigidBody,
 } from "@react-three/rapier";
@@ -57,6 +58,7 @@ function FlagCarrierTrail({
 function GroundFlag({ teamId }: { teamId: TeamId }) {
   const flagState = useCaptureTheFlagStore((state) => state.flags[teamId]);
   const tryPickup = useCaptureTheFlagStore((state) => state.tryPickupFlag);
+  const getPlayerTeam = useCaptureTheFlagStore((state) => state.getPlayerTeam);
   const color = TEAM_CONFIG[teamId].color;
   const pulseRef = useRef(0);
   const audio = useAudio(SOUND_MANIFEST);
@@ -64,30 +66,44 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
   const groupRef = useRef<THREE.Group>(null);
   const prevPositionRef = useRef<[number, number, number] | null>(null);
 
-  const pickupGeometry = useMemo(
-    () => new THREE.CylinderGeometry(4.5, 4.5, 6, 16),
-    []
-  );
-
   const handlePickup = (payload: CollisionPayload) => {
     const userData = payload.other.rigidBody?.userData as
       | { controllerId?: string }
       | undefined;
     if (!userData?.controllerId) return;
 
-    // Only play sound if pickup was successful (tryPickup returns boolean? No, it's void in store usually, but let's assume valid collision means pickup attempt)
-    // Actually, tryPickup checks logic. We should probably play sound only if state changes.
-    // But for now, collision feedback is good.
+    // Check flag state before pickup attempt
+    const store = useCaptureTheFlagStore.getState();
+    const flagBefore = store.flags[teamId];
+    const playerTeam = getPlayerTeam(userData.controllerId);
 
-    // Check if we CAN pickup (e.g. not carrying another flag, etc) - store logic handles state
-    // But we want sound feedback.
-    // Let's play it. If logic fails, it might be a bit misleading but acceptable for prototype.
-    // Better: check store state or return value.
-    // For now, just play it.
+    // Only proceed if player has a team
+    if (!playerTeam) return;
 
-    pulseRef.current = 1;
+    // Call tryPickupFlag
     tryPickup(userData.controllerId, teamId);
-    audio.play("pickup_flag");
+
+    // Check flag state after pickup attempt
+    const flagAfter = useCaptureTheFlagStore.getState().flags[teamId];
+
+    // Check if flag was recovered (same-team player returning dropped flag to base)
+    if (
+      flagBefore.status === "dropped" &&
+      flagAfter.status === "atBase" &&
+      playerTeam === teamId
+    ) {
+      pulseRef.current = 1;
+      audio.play("success");
+    }
+    // Check if flag was picked up by enemy (status changed to "carried")
+    else if (
+      flagBefore.status !== "carried" &&
+      flagAfter.status === "carried" &&
+      flagAfter.carrierId === userData.controllerId
+    ) {
+      pulseRef.current = 1;
+      audio.play("pickup_flag");
+    }
   };
 
   useFrame((_, delta) => {
@@ -129,13 +145,13 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
         ref={rigidBodyRef}
         type="fixed"
         position={[0, 3, 0]}
-        colliders="hull"
+        colliders={false}
         sensor
         onIntersectionEnter={handlePickup}
       >
-        <mesh geometry={pickupGeometry} visible={false}>
-          <meshStandardMaterial visible={false} />
-        </mesh>
+        {/* Explicit cylinder collider: [halfHeight, radius] */}
+        {/* Cylinder was height 6, radius 4.5 -> args are [3, 4.5] */}
+        <CylinderCollider args={[3, 4.5]} />
       </RigidBody>
 
       <FlagModel color={color} animate={true} />

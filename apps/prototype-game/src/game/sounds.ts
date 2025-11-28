@@ -36,6 +36,10 @@ export const SOUND_MANIFEST = {
     src: ["/sounds/score_point.wav"],
     volume: 1.0,
   },
+  touch_base: {
+    src: ["/sounds/touch_base.wav"],
+    volume: 0.6,
+  },
   jump_pad: {
     src: ["/sounds/jump_pad.wav"],
     volume: 0.3,
