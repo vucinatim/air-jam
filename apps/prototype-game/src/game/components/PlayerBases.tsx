@@ -8,6 +8,8 @@ import {
   type TeamId,
   useCaptureTheFlagStore,
 } from "../capture-the-flag-store";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../sounds";
 
 const BASE_RADIUS = 10;
 const BASE_HEIGHT = 8;
@@ -48,6 +50,7 @@ function TeamBase({ teamId }: TeamBaseProps) {
     (state) => state.handleBaseEntry
   );
   const team = TEAM_CONFIG[teamId];
+  const audio = useAudio(SOUND_MANIFEST);
 
   // Track players currently inside the base
   const playersInsideRef = useRef<Set<string>>(new Set());
@@ -88,6 +91,42 @@ function TeamBase({ teamId }: TeamBaseProps) {
       | { controllerId?: string }
       | undefined;
     if (!userData?.controllerId) return;
+
+    // Audio Logic
+    const store = useCaptureTheFlagStore.getState();
+    const playerTeam = store.getPlayerTeam(userData.controllerId);
+    
+    if (playerTeam) {
+      if (playerTeam === teamId) {
+        // In own base
+        // 1. Check for Scoring
+        // We need to find the enemy team ID. Since there are only 2 teams, it's the other one.
+        const enemyTeam = Object.keys(TEAM_CONFIG).find(id => id !== playerTeam) as TeamId;
+        const enemyFlag = store.flags[enemyTeam];
+        
+        if (enemyFlag && enemyFlag.status === "carried" && enemyFlag.carrierId === userData.controllerId) {
+            // Player is carrying enemy flag and entered own base -> SCORE!
+            audio.play("score_point");
+        }
+        
+        // 2. Check for Flag Return
+        const ownFlag = store.flags[playerTeam];
+        if (ownFlag && ownFlag.status === "dropped") {
+             // Player entered own base while own flag is dropped -> Return it? 
+             // Wait, logic says "If ownFlag.status === dropped ... return to base".
+             // But does entering base return it? 
+             // handleBaseEntry line 160: if (ownFlag.status === "dropped") -> return to base.
+             // Yes.
+             audio.play("success"); 
+        }
+      } else {
+        // In enemy base - trying to steal flag
+        const enemyFlag = store.flags[teamId]; // The flag of this base
+        if (enemyFlag && enemyFlag.status === "atBase") {
+             audio.play("pickup_flag");
+        }
+      }
+    }
 
     playersInsideRef.current.add(userData.controllerId);
     handleBaseEntry(userData.controllerId, teamId);

@@ -26,6 +26,8 @@ import { useConnectionStore } from "@air-jam/sdk";
 import { useHealthStore } from "../health-store";
 import { useCaptureTheFlagStore, TEAM_CONFIG } from "../capture-the-flag-store";
 import { ShipExplosion } from "./ShipExplosion";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../sounds";
 
 // --- Global Tracking ---
 export const shipPositions = new Map<string, Vector3>();
@@ -76,6 +78,8 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   const respawnTimeRef = useRef(0);
   const pendingRespawnRef = useRef<[number, number, number] | null>(null);
   const RESPAWN_DELAY = 2.0; // Seconds to wait before respawning
+  const engineIdleSoundIdRef = useRef<number | null>(null);
+  const engineThrustSoundIdRef = useRef<number | null>(null);
   const [explosionPosition, setExplosionPosition] = useState<
     [number, number, number] | null
   >(null);
@@ -86,6 +90,9 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   const playerStatsStore = usePlayerStatsStore.getState();
   const healthStore = useHealthStore.getState();
   const ctfStore = useCaptureTheFlagStore.getState();
+
+  // --- Audio ---
+  const audio = useAudio(SOUND_MANIFEST);
 
   // --- Input Hook (Zero re-renders, high-performance) ---
   const roomId = useConnectionStore((state) => state.roomId);
@@ -124,13 +131,23 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     if (!rigidBodyRef.current) return;
 
     const time = state.clock.elapsedTime;
-    
+
     // Check for death BEFORE accessing RigidBody to avoid conflicts
     const isDeadFrame = healthStore.getIsDead(controllerId);
     const justDied = healthStore.checkDeath(controllerId);
-    
+
     // If dead, only handle death/respawn logic, don't access physics
     if (isDeadFrame && !justDied) {
+      // Stop engine sounds while dead
+      if (engineIdleSoundIdRef.current !== null) {
+        audio.stop("engine_idle", engineIdleSoundIdRef.current);
+        engineIdleSoundIdRef.current = null;
+      }
+      if (engineThrustSoundIdRef.current !== null) {
+        audio.stop("engine_thrust", engineThrustSoundIdRef.current);
+        engineThrustSoundIdRef.current = null;
+      }
+
       // Handle respawn - schedule teleport for next frame
       if (time >= respawnTimeRef.current && respawnTimeRef.current > 0) {
         const playerTeam = ctfStore.getPlayerTeam(controllerId);
@@ -162,7 +179,10 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
         currentPitchAngularVelocityRef.current = 0;
         pendingRespawnRef.current = null;
       } catch (error) {
-        console.error(`[SHIP] Error applying respawn teleport for ${controllerId}:`, error);
+        console.error(
+          `[SHIP] Error applying respawn teleport for ${controllerId}:`,
+          error
+        );
         pendingRespawnRef.current = null;
       }
     }
@@ -174,7 +194,10 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       physicsVel = rigidBodyRef.current.linvel();
       shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
     } catch (error) {
-      console.error(`[SHIP] Error accessing RigidBody for ${controllerId}:`, error);
+      console.error(
+        `[SHIP] Error accessing RigidBody for ${controllerId}:`,
+        error
+      );
       return;
     }
 
@@ -191,6 +214,16 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     shipRotations.set(controllerId, currentRotationRef.current.clone());
 
     if (justDied) {
+      // Stop engine sounds on death
+      if (engineIdleSoundIdRef.current !== null) {
+        audio.stop("engine_idle", engineIdleSoundIdRef.current);
+        engineIdleSoundIdRef.current = null;
+      }
+      if (engineThrustSoundIdRef.current !== null) {
+        audio.stop("engine_thrust", engineThrustSoundIdRef.current);
+        engineThrustSoundIdRef.current = null;
+      }
+
       // Player just died - drop flag at death position and trigger explosion
       const deathPosition: [number, number, number] = [
         shipWorldPos.x,
@@ -201,9 +234,20 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
         ctfStore.dropFlagAtPosition(controllerId, deathPosition);
         respawnTimeRef.current = time + RESPAWN_DELAY;
         setExplosionPosition(deathPosition);
-        console.log(`[SHIP] ${controllerId} died at (${deathPosition[0].toFixed(1)}, ${deathPosition[1].toFixed(1)}, ${deathPosition[2].toFixed(1)})`);
+
+        // Play explosion sound on host
+        audio.play("explosion");
+
+        console.log(
+          `[SHIP] ${controllerId} died at (${deathPosition[0].toFixed(
+            1
+          )}, ${deathPosition[1].toFixed(1)}, ${deathPosition[2].toFixed(1)})`
+        );
       } catch (error) {
-        console.error(`[SHIP] Error handling death for ${controllerId}:`, error);
+        console.error(
+          `[SHIP] Error handling death for ${controllerId}:`,
+          error
+        );
       }
       // Return early after death - don't process physics
       return;
@@ -236,9 +280,44 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     thrustInputRef.current = thrustInput; // Store for ShipModel
     const turnInput = smoothedInputRef.current.x;
 
+    // Engine Sound Logic
+    const isThrusting = thrustInput > 0.1; // Small threshold to avoid noise
+
+    // Stop idle sound if thrusting
+    if (isThrusting && engineIdleSoundIdRef.current !== null) {
+      audio.stop("engine_idle", engineIdleSoundIdRef.current);
+      engineIdleSoundIdRef.current = null;
+    }
+
+    // Start/stop thrust sound
+    if (isThrusting && engineThrustSoundIdRef.current === null) {
+      engineThrustSoundIdRef.current = audio.play("engine_thrust");
+    } else if (!isThrusting && engineThrustSoundIdRef.current !== null) {
+      audio.stop("engine_thrust", engineThrustSoundIdRef.current);
+      engineThrustSoundIdRef.current = null;
+    }
+
+    // Start idle sound if not thrusting and not already playing
+    if (!isThrusting && engineIdleSoundIdRef.current === null && !isDeadFrame) {
+      engineIdleSoundIdRef.current = audio.play("engine_idle");
+    }
+
     // 2. LOGIC PHASE: ABILITIES
-    handleAbilities(input, abilitiesStore, controllerId, delta);
+    handleAbilities(input, abilitiesStore, controllerId, delta, audio);
     const speedMultiplier = playerStatsStore.getSpeedMultiplier(controllerId);
+
+    // 3. LOGIC PHASE: SHOOTING
+    handleShooting({
+      input,
+      time,
+      lastShootTimeRef,
+      lastActionRef,
+      controllerId,
+      shipWorldPos,
+      shipRotation: currentRotationRef.current,
+      addLaser,
+      audio,
+    });
 
     // 3. CALCULATION PHASE: VELOCITY
     const shipQuaternion = currentRotationRef.current.clone();
@@ -346,6 +425,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       shipWorldPos,
       shipRotation: currentRotationRef.current,
       addLaser,
+      audio,
     });
 
     // 7. VISUALS PHASE
@@ -586,7 +666,8 @@ function handleAbilities(
   input: { ability: boolean },
   store: ReturnType<typeof useAbilitiesStore.getState>,
   id: string,
-  delta: number
+  delta: number,
+  audio: ReturnType<typeof useAudio>
 ) {
   // The input hook already handled the latch pattern and consumption
   // We just need to check if ability button is pressed and we have a queued ability
@@ -598,6 +679,15 @@ function handleAbilities(
   if (input.ability && hasAbilityInSlot && currentAbility.startTime === null) {
     // Activate the ability!
     store.activateAbility(id, currentAbility.id);
+
+    // Play ability sound on host
+    if (currentAbility.id === "speed_boost") {
+      audio.play("speed_boost");
+    } else if (currentAbility.id === "health_pack") {
+      audio.play("health_pack");
+    } else if (currentAbility.id === "rocket") {
+      audio.play("rocket_launch");
+    }
 
     console.log(
       `[SHIP] Ability activated for ${id}, ability: ${currentAbility.id}`
@@ -623,6 +713,7 @@ interface HandleShootingParams {
     controllerId: string;
     timestamp: number;
   }) => void;
+  audio: ReturnType<typeof useAudio>;
 }
 
 function handleShooting({
@@ -634,6 +725,7 @@ function handleShooting({
   shipWorldPos,
   shipRotation,
   addLaser,
+  audio,
 }: HandleShootingParams) {
   const pressed = input.action && !lastActionRef.current;
   const held =
@@ -642,6 +734,8 @@ function handleShooting({
 
   if (pressed || held) {
     lastShootTimeRef.current = time;
+    // Play laser fire sound on host
+    audio.play("laser_fire");
     const forward = new Vector3(0, 0, -1).applyQuaternion(shipRotation);
     const up = new Vector3(0, 1, 0).applyQuaternion(shipRotation);
 

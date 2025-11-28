@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/refs */
 import type { JSX } from "react";
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
@@ -7,6 +6,8 @@ import {
   type ControllerInputEvent,
   type PlayerProfile,
 } from "@air-jam/sdk";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../game/sounds";
 import { GameScene } from "../game/components/GameScene";
 import { useGameStore } from "../game/game-store";
 import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
@@ -22,10 +23,11 @@ import { Button } from "../components/ui/button";
 import { Settings2, X } from "lucide-react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 
-export const HostView = (): JSX.Element => {
+const HostViewContent = (): JSX.Element => {
   const applyInput = useGameStore((state) => state.applyInput);
   const upsertPlayer = useGameStore((state) => state.upsertPlayer);
   const removePlayer = useGameStore((state) => state.removePlayer);
+  const audio = useAudio(SOUND_MANIFEST);
 
   const handleInput = useCallback(
     (event: ControllerInputEvent) => {
@@ -37,8 +39,10 @@ export const HostView = (): JSX.Element => {
   const handlePlayerJoin = useCallback(
     (player: PlayerProfile) => {
       upsertPlayer(player, player.id);
+      // Play player join sound on host
+      audio.play("player_join");
     },
-    [upsertPlayer]
+    [upsertPlayer, audio]
   );
 
   const handlePlayerLeave = useCallback(
@@ -152,7 +156,9 @@ export const HostView = (): JSX.Element => {
           <div className="w-1/2 h-full border-l border-border bg-background flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
               <h2 className="text-lg font-semibold">
-                Game Object Editor - {editorObjectType.charAt(0).toUpperCase() + editorObjectType.slice(1)}
+                Game Object Editor -{" "}
+                {editorObjectType.charAt(0).toUpperCase() +
+                  editorObjectType.slice(1)}
               </h2>
             </div>
             <div className="flex-1 min-h-0">
@@ -163,4 +169,8 @@ export const HostView = (): JSX.Element => {
       </div>
     </div>
   );
+};
+
+export const HostView = (): JSX.Element => {
+  return <HostViewContent />;
 };

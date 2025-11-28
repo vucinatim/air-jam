@@ -38,6 +38,7 @@ export interface AirJamControllerApi {
   setNickname: (value: string) => void;
   reconnect: () => void;
   players: PlayerProfile[];
+  socket: ReturnType<typeof getSocketClient>;
 }
 
 const getRoomFromLocation = (): string | null => {
@@ -227,6 +228,10 @@ export const useAirJamController = (
     [options.serverUrl, roomId]
   );
 
+  const socket = useMemo(() => {
+    return getSocketClient("controller", options.serverUrl);
+  }, [options.serverUrl]);
+
   return {
     roomId,
     controllerId: connectionState.controllerId,
@@ -237,5 +242,6 @@ export const useAirJamController = (
     setNickname,
     reconnect,
     players: connectionState.players,
+    socket,
   };
 };

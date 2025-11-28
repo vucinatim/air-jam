@@ -11,6 +11,8 @@ import {
 import * as THREE from "three";
 import { shipPositions } from "./Ship";
 import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../sounds";
 
 interface JumpPadProps {
   position: [number, number, number];
@@ -49,6 +51,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
   const activatedRef = useRef(false);
   const activationTimeRef = useRef(0);
   const COOLDOWN_TIME = 0.5; // Cooldown before can activate again (seconds)
+  const audio = useAudio(SOUND_MANIFEST);
 
   // Visual geometry and materials
   const gradientGeometry = useMemo(
@@ -268,6 +271,9 @@ export function JumpPad({ position, id }: JumpPadProps) {
         };
 
         payload.other.rigidBody.setLinvel(newVelocity, true);
+
+        // Play jump pad sound on host
+        audio.play("jump_pad");
 
         // Activate cooldown
         activatedRef.current = true;

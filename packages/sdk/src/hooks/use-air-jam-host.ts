@@ -43,6 +43,7 @@ export interface AirJamHostApi {
   gameState: GameState;
   toggleGameState: () => void;
   sendState: (state: ControllerStatePayload) => boolean;
+  socket: ReturnType<typeof getSocketClient>;
 }
 
 export const useAirJamHost = (
@@ -264,6 +265,10 @@ export const useAirJamHost = (
     }
   }, [options.serverUrl, parsedRoomId]);
 
+  const socket = useMemo(() => {
+    return getSocketClient("host", options.serverUrl);
+  }, [options.serverUrl]);
+
   return {
     roomId: parsedRoomId,
     joinUrl,
@@ -274,5 +279,6 @@ export const useAirJamHost = (
     gameState: connectionState.gameState,
     toggleGameState,
     sendState,
+    socket,
   };
 };

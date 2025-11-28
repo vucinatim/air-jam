@@ -16,6 +16,8 @@ import {
   RARITY_INFO,
 } from "../abilities-store";
 import * as THREE from "three";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../sounds";
 
 interface CollectibleProps {
   collectible: CollectibleData;
@@ -197,6 +199,7 @@ export function Collectible({ collectible }: CollectibleProps) {
     (state) => state.removeCollectible
   );
   const collectAbility = useAbilitiesStore((state) => state.collectAbility);
+  const audio = useAudio(SOUND_MANIFEST);
 
   // Light pillar geometry - cone shape, wide at base, point at top
   const pillarGeometry = useMemo(() => {
@@ -229,6 +232,8 @@ export function Collectible({ collectible }: CollectibleProps) {
 
       // Collect ability (all collectibles have abilities now)
       collectAbility(controllerId, collectible.abilityId);
+      audio.play("powerup");
+
       console.log(
         `Player ${controllerId} collected ability: ${collectible.abilityId}`
       );

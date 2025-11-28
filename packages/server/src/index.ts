@@ -293,6 +293,37 @@ io.on(
       socket.to(roomId).emit("server:state", parsed.data);
     });
 
+    socket.on("host:play_sound", (payload) => {
+      const { roomId, targetControllerId, soundId, volume, loop } = payload;
+      const session = rooms.get(roomId);
+      if (!session) return;
+
+      const message = { id: soundId, volume, loop };
+
+      if (targetControllerId) {
+        const controller = session.controllers.get(targetControllerId);
+        if (controller) {
+          io.to(controller.socketId).emit("server:play_sound", message);
+        }
+      } else {
+        // Broadcast to all controllers in the room
+        socket.to(roomId).emit("server:play_sound", message);
+      }
+    });
+
+    socket.on("controller:play_sound", (payload) => {
+      const { roomId, soundId, volume, loop } = payload;
+      const session = rooms.get(roomId);
+      if (!session) return;
+
+      // Forward to Host
+      io.to(session.hostSocketId).emit("server:play_sound", {
+        id: soundId,
+        volume,
+        loop,
+      });
+    });
+
     socket.on("disconnect", () => {
       const roomId = hostIndex.get(socket.id);
       if (roomId) {

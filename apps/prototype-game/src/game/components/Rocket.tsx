@@ -7,6 +7,8 @@ import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
 import { RocketModel } from "./RocketModel";
 import { RocketExplosion } from "./RocketExplosion";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../sounds";
 
 interface RocketProps {
   id: string;
@@ -28,6 +30,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
     () => new Vector3(...position)
   );
   const previousPositionRef = useRef(new Vector3(...position));
+  const audio = useAudio(SOUND_MANIFEST);
   const lifetimeRef = useRef(0);
   const [hasHit, setHasHit] = useState(false);
   const [explosionPosition, setExplosionPosition] = useState<
@@ -230,6 +233,9 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
             position: decalPosition,
             normal: worldNormal,
           });
+
+          // Play rocket explosion sound on host
+          audio.play("rocket_explosion");
 
           setHasHit(true);
           // Don't remove rocket immediately - let explosion play first

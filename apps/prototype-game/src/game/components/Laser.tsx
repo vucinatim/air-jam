@@ -12,6 +12,8 @@ import { useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { useLasersStore } from "../lasers-store";
 import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../sounds";
 import type { Mesh } from "three";
 
 interface LaserProps {
@@ -40,6 +42,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
   const reduceHealth = useHealthStore((state) => state.reduceHealth);
   const raycasterRef = useRef(new Raycaster());
   const meshRef = useRef<Mesh>(null);
+  const audio = useAudio(SOUND_MANIFEST);
 
   // Create elongated box geometry (width, height, length)
   // Similar to the example: BoxGeometry(0.2, 0.2, 4)
@@ -171,6 +174,8 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
           // Reduce health of the hit ship (only if it's not the shooter)
           if (hitControllerId && hitControllerId !== controllerId) {
             reduceHealth(hitControllerId, LASER_DAMAGE);
+            // Play hit sound on host
+            audio.play("hit");
           }
 
           // Apply knockback force to the ship

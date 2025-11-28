@@ -1,5 +1,6 @@
 export * from "./protocol";
 export * from "./hooks/use-air-jam-host";
+export * from "./audio";
 export * from "./hooks/use-air-jam-controller";
 export * from "./hooks/use-air-jam-input";
 export * from "./components/air-jam-overlay";
@@ -8,3 +9,4 @@ export * from "./components/ui/button";
 export * from "./utils/links";
 export * from "./utils/ids";
 export * from "./state/connection-store";
+export * from "./socket-client";

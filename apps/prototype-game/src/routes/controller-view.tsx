@@ -10,10 +10,15 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
-import { ControllerShell, useAirJamController } from "@air-jam/sdk";
-import { Button } from "@air-jam/sdk";
+import {
+  ControllerShell,
+  useAirJamController,
+  Button,
+  PlaySoundPayload,
+} from "@air-jam/sdk";
 import { createControllerStore } from "../game/controller-store";
-import { soundEngine } from "../game/sound-engine";
+import { useAudio } from "@air-jam/sdk";
+import { SOUND_MANIFEST } from "../game/sounds";
 
 // Helper to vibrate device if supported
 const vibrate = (pattern: number | number[]) => {
@@ -41,14 +46,15 @@ const DirectionControl = ({
 }: DirectionControlProps) => {
   // Only re-render when this specific axis value matches our target value
   const isActive = useStore(store, (state) => state.vector[axis] === value);
+  const audio = useAudio(SOUND_MANIFEST);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
 
     // Initialize audio context on first interaction
-    soundEngine.init();
-    soundEngine.playClick();
+    audio.init();
+    audio.play("click");
 
     const currentVector = store.getState().vector;
     store.getState().setVector({ ...currentVector, [axis]: value });
@@ -100,16 +106,19 @@ const ActionControl = ({
   activeRingClass,
 }: ActionControlProps) => {
   const isActive = useStore(store, (state) => state[action]);
+  const audio = useAudio(SOUND_MANIFEST);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
 
-    soundEngine.init();
-    soundEngine.playHighClick(); // Higher pitch for actions
+    audio.init();
 
-    if (action === "ability") store.getState().setAbility(true);
-    else store.getState().setAction(true);
+    if (action === "ability") {
+      store.getState().setAbility(true);
+    } else {
+      store.getState().setAction(true);
+    }
 
     vibrate(20);
   };
@@ -139,11 +148,12 @@ const ActionControl = ({
   );
 };
 
-// --- Main View ---
+// --- Main View Content ---
 
-export const ControllerView = (): JSX.Element => {
-  const { roomId, connectionStatus, sendInput, gameState, reconnect } =
+const ControllerContent = () => {
+  const { roomId, connectionStatus, sendInput, gameState, reconnect, socket } =
     useAirJamController();
+  const audio = useAudio(SOUND_MANIFEST);
 
   // Create a stable store instance
   const [store] = useState(() => createControllerStore());
@@ -164,11 +174,29 @@ export const ControllerView = (): JSX.Element => {
     return unsubscribe;
   }, [connectionStatus, sendInput, store]);
 
+  // Listen for server sound events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handlePlaySound = (payload: PlaySoundPayload) => {
+      // Type assertion needed since payload.id is string but audio.play expects SoundId
+      audio.play(payload.id as keyof typeof SOUND_MANIFEST);
+    };
+
+    socket.on("server:play_sound", handlePlaySound);
+
+    return () => {
+      socket.off("server:play_sound", handlePlaySound);
+    };
+  }, [socket, audio]);
+
+  // Engine sounds are now handled on host, removed from controller
+
   const handleTogglePlayPause = (): void => {
     if (connectionStatus !== "connected") return;
 
-    soundEngine.init();
-    soundEngine.playHighClick();
+    audio.init();
+    audio.play("click");
     vibrate([50, 50, 50]);
     const state = store.getState();
     sendInput({
@@ -260,4 +288,10 @@ export const ControllerView = (): JSX.Element => {
       </div>
     </ControllerShell>
   );
+};
+
+// --- Main View ---
+
+export const ControllerView = (): JSX.Element => {
+  return <ControllerContent />;
 };

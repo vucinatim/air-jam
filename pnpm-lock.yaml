@@ -120,6 +120,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      howler:
+        specifier: ^2.2.4
+        version: 2.2.4
       html5-qrcode:
         specifier: ^2.3.8
         version: 2.3.8
@@ -148,6 +151,9 @@ importers:
         specifier: ^5.0.3
         version: 5.0.8(@types/react@19.2.6)(react@19.2.0)(use-sync-external-store@1.6.0(react@19.2.0))
     devDependencies:
+      '@types/howler':
+        specifier: ^2.2.12
+        version: 2.2.12
       '@types/qrcode':
         specifier: ^1.5.5
         version: 1.5.6
@@ -1095,6 +1101,9 @@ packages:
   '@types/express@4.17.25':
     resolution: {integrity: sha512-dVd04UKsfpINUnK0yBoYHDF3xu7xVH4BuDotC/xGuycx4CgbP48X/KF/586bcObxT0HENHXEU8Nqtu6NR+eKhw==}
 
+  '@types/howler@2.2.12':
+    resolution: {integrity: sha512-hy769UICzOSdK0Kn1FBk4gN+lswcj1EKRkmiDtMkUGvFfYJzgaDXmVXkSShS2m89ERAatGIPnTUlp2HhfkVo5g==}
+
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
 
@@ -1740,6 +1749,9 @@ packages:
 
   hls.js@1.6.15:
     resolution: {integrity: sha512-E3a5VwgXimGHwpRGV+WxRTKeSp2DW5DI5MWv34ulL3t5UNmyJWCQ1KmLEHbYzcfThfXG8amBL+fCYPneGHC4VA==}
+
+  howler@2.2.4:
+    resolution: {integrity: sha512-iARIBPgcQrwtEr+tALF+rapJ8qSc+Set2GJQl7xT1MQzWaVkFebdJhR3alVlSiUf5U7nAANKuj3aWpwerocD5w==}
 
   html5-qrcode@2.3.8:
     resolution: {integrity: sha512-jsr4vafJhwoLVEDW3n1KvPnCCXWaQfRng0/EEYk1vNcQGcG/htAdhJX0be8YyqMoSz7+hZvOZSTAepsabiuhiQ==}
@@ -3393,6 +3405,8 @@ snapshots:
       '@types/qs': 6.14.0
       '@types/serve-static': 1.15.10
 
+  '@types/howler@2.2.12': {}
+
   '@types/http-errors@2.0.5': {}
 
   '@types/json-schema@7.0.15': {}
@@ -4133,6 +4147,8 @@ snapshots:
       hermes-estree: 0.25.1
 
   hls.js@1.6.15: {}
+
+  howler@2.2.4: {}
 
   html5-qrcode@2.3.8: {}
 

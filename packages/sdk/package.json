@@ -30,6 +30,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "howler": "^2.2.4",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.554.0",
     "qrcode": "^1.5.4",
@@ -43,6 +44,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@types/howler": "^2.2.12",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

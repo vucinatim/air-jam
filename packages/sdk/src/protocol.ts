@@ -140,6 +140,25 @@ export interface ClientToServerEvents {
   ) => void;
   "controller:leave": (payload: z.infer<typeof controllerLeaveSchema>) => void;
   "controller:input": (payload: z.infer<typeof controllerInputSchema>) => void;
+  "host:play_sound": (payload: {
+    roomId: string;
+    targetControllerId?: string; // If null, broadcast to all
+    soundId: string;
+    volume?: number;
+    loop?: boolean;
+  }) => void;
+  "controller:play_sound": (payload: {
+    roomId: string;
+    soundId: string;
+    volume?: number;
+    loop?: boolean;
+  }) => void;
+}
+
+export interface PlaySoundPayload {
+  id: string;
+  volume?: number;
+  loop?: boolean;
 }
 
 export interface ServerToClientEvents {
@@ -151,6 +170,7 @@ export interface ServerToClientEvents {
   "server:state": (payload: z.infer<typeof controllerStateSchema>) => void;
   "server:welcome": (payload: ControllerWelcomePayload) => void;
   "server:host_left": (payload: HostLeftNotice) => void;
+  "server:play_sound": (payload: PlaySoundPayload) => void;
 }
 
 export interface InterServerEvents {
