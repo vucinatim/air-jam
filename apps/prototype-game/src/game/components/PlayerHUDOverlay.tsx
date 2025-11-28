@@ -1,7 +1,7 @@
 import { useEffect, useRef, memo } from "react";
 import { useHealthStore } from "../health-store";
 import { useGameStore } from "../game-store";
-import { useAbilitiesStore } from "../abilities-store";
+import { useAbilitiesStore, getAbilityIconPath } from "../abilities-store";
 import { shipPositions } from "./Ship";
 import { Vector3, PerspectiveCamera } from "three";
 import { cn } from "../../lib/utils";
@@ -21,7 +21,7 @@ const HUD_CONFIG = {
 interface HUDVisualsProps {
   health: number;
   maxHealth: number;
-  abilityIcon?: string;
+  abilityId?: string;
   isAbilityActive: boolean;
   // Refs for direct DOM manipulation (no re-renders)
   countdownCircleRef?: React.RefObject<SVGCircleElement | null>;
@@ -43,7 +43,7 @@ const HUDVisuals = memo(
   ({
     health,
     maxHealth,
-    abilityIcon,
+    abilityId,
     isAbilityActive,
     countdownCircleRef,
     durationTextRef,
@@ -84,15 +84,21 @@ const HUDVisuals = memo(
         <div className="relative flex items-center justify-center">
           <div className="relative w-10 h-10">
             {/* Ability Icon */}
-            <div
-              className={cn(
-                "absolute inset-0 w-full h-full rounded-full border-2 flex items-center justify-center text-sm transition-all z-10",
-                isAbilityActive ? "border-transparent" : "border-white/30",
-                abilityIcon ? "bg-white/20" : "transparent"
-              )}
-            >
-              <span className="translate-y-px">{abilityIcon}</span>
-            </div>
+            {abilityId && (
+              <div
+                className={cn(
+                  "absolute inset-0 w-full h-full rounded-full border flex items-center justify-center text-sm transition-all z-10",
+                  isAbilityActive ? "border-transparent" : "border-white/20",
+                  "bg-white/20"
+                )}
+              >
+                <img
+                  src={getAbilityIconPath(abilityId)}
+                  alt=""
+                  className="w-full h-full object-cover rounded-full"
+                />
+              </div>
+            )}
 
             {/* Circular Countdown Timer (WoW-style) - Always rendered, visibility controlled via DOM */}
             <svg
@@ -325,7 +331,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
       <HUDVisuals
         health={health}
         maxHealth={maxHealth}
-        abilityIcon={ability?.icon}
+        abilityId={ability?.id}
         isAbilityActive={isAbilityActive}
         countdownCircleRef={countdownCircleRef}
         durationTextRef={durationTextRef}

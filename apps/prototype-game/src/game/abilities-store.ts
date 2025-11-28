@@ -373,6 +373,13 @@ export function getAllAbilityDefinitions(): AbilityDefinition[] {
 }
 
 /**
+ * Get the image path for an ability icon
+ */
+export function getAbilityIconPath(abilityId: AbilityId): string {
+  return `/images/ability-icons/${abilityId}.png`;
+}
+
+/**
  * Get ability by rarity for weighted random selection
  */
 export function getAbilitiesByRarity(): Record<Rarity, AbilityDefinition[]> {

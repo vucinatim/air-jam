@@ -2,7 +2,8 @@ import type { GameLoopInput } from "@air-jam/sdk";
 import { Vector3, Quaternion } from "three";
 import { GameContext } from "./GameContext";
 import { useAbilitiesStore } from "../abilities-store";
-import { ARENA_RADIUS } from "../constants";
+import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
+import { ReachabilityChecker, type JumpPadInfo } from "./ReachabilityChecker";
 
 /**
  * Bot States - The Brain's decision states
@@ -28,6 +29,16 @@ class BotBrain {
   private stateChangeCooldown = 0.5; // Minimum time between state changes (seconds)
   private lastLogTime = 0;
   private logInterval = 1.0; // Log every 1 second
+  
+  // Jump pad navigation state
+  private usingJumpPad: boolean = false;
+  private jumpPadTarget: Vector3 | null = null;
+  private originalTarget: Vector3 | null = null; // Target we're trying to reach after jump
+  private reachabilityChecker: ReachabilityChecker;
+  
+  constructor() {
+    this.reachabilityChecker = new ReachabilityChecker();
+  }
 
   /**
    * Update the brain's state and target based on priority system
@@ -40,6 +51,19 @@ class BotBrain {
     const self = context.getSelf(botId);
     if (!self) {
       return { state: BotState.SEARCH, target: null, targetPlayerId: null };
+    }
+
+    // Check if we've completed jump pad usage (we're now in air and moving toward original target)
+    if (this.usingJumpPad && this.originalTarget) {
+      const isInAir = self.position.y > 5.5;
+      const distanceToOriginal = self.position.distanceTo(this.originalTarget);
+      
+      // If we're in air and close to original target, or if we've passed it vertically, clear jump pad state
+      if (isInAir && (distanceToOriginal < 20 || self.position.y >= this.originalTarget.y - 5)) {
+        this.usingJumpPad = false;
+        this.jumpPadTarget = null;
+        this.originalTarget = null;
+      }
     }
 
     // Logging
@@ -71,10 +95,15 @@ class BotBrain {
       const healthPack = collectibles.find((c) => c.abilityId === "health_pack");
       if (healthPack) {
         this.setState(BotState.GATHER, time);
-        this.targetPosition = new Vector3(...healthPack.position);
+        const healthPackPos = new Vector3(...healthPack.position);
+        const target = this.checkReachabilityAndPlanPath(self.position, healthPackPos, context);
+        this.targetPosition = target;
         this.targetPlayerId = null;
         if (time - this.lastLogTime > this.logInterval) {
-          console.log(`  → GATHER: Health pack at (${this.targetPosition.x.toFixed(1)}, ${this.targetPosition.y.toFixed(1)}, ${this.targetPosition.z.toFixed(1)})`);
+          console.log(`  → GATHER: Health pack at (${healthPackPos.x.toFixed(1)}, ${healthPackPos.y.toFixed(1)}, ${healthPackPos.z.toFixed(1)})`);
+          if (this.usingJumpPad) {
+            console.log(`    Using jump pad to reach health pack`);
+          }
         }
         return {
           state: this.state,
@@ -116,8 +145,13 @@ class BotBrain {
     // Priority 4: Objective - Recovery - Our Flag Dropped -> Go to Flag
     if (ownFlag?.status === "dropped") {
       this.setState(BotState.RETRIEVE, time);
-      this.targetPosition = new Vector3(...ownFlag.position);
+      const flagPos = new Vector3(...ownFlag.position);
+      const target = this.checkReachabilityAndPlanPath(self.position, flagPos, context);
+      this.targetPosition = target;
       this.targetPlayerId = null;
+      if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
+        console.log(`  → RETRIEVE: Using jump pad to reach dropped flag`);
+      }
       return {
         state: this.state,
         target: this.targetPosition,
@@ -128,8 +162,13 @@ class BotBrain {
     // Priority 5: Objective - Offense - Enemy Flag at Base -> Go to Enemy Flag
     if (enemyFlag?.status === "atBase") {
       this.setState(BotState.CAPTURE, time);
-      this.targetPosition = new Vector3(...enemyFlag.position);
+      const flagPos = new Vector3(...enemyFlag.position);
+      const target = this.checkReachabilityAndPlanPath(self.position, flagPos, context);
+      this.targetPosition = target;
       this.targetPlayerId = null;
+      if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
+        console.log(`  → CAPTURE: Using jump pad to reach enemy flag`);
+      }
       return {
         state: this.state,
         target: this.targetPosition,
@@ -158,8 +197,13 @@ class BotBrain {
     );
     if (nearbyCollectible) {
       this.setState(BotState.GATHER, time);
-      this.targetPosition = new Vector3(...nearbyCollectible.position);
+      const collectiblePos = new Vector3(...nearbyCollectible.position);
+      const target = this.checkReachabilityAndPlanPath(self.position, collectiblePos, context);
+      this.targetPosition = target;
       this.targetPlayerId = null;
+      if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
+        console.log(`  → GATHER: Using jump pad to reach collectible`);
+      }
       return {
         state: this.state,
         target: this.targetPosition,
@@ -264,6 +308,57 @@ class BotBrain {
 
     return new Vector3(clampedX, targetY, clampedZ);
   }
+
+  /**
+   * Check if target is reachable and plan path (including jump pad if needed)
+   */
+  private checkReachabilityAndPlanPath(
+    from: Vector3,
+    to: Vector3,
+    context: GameContext
+  ): Vector3 {
+    // If already using a jump pad, continue to jump pad target
+    if (this.usingJumpPad && this.jumpPadTarget) {
+      // Check if we've reached the jump pad (within radius)
+      const distanceToJumpPad = from.distanceTo(this.jumpPadTarget);
+      if (distanceToJumpPad < 6) {
+        // We're on the jump pad, return jump pad position to maintain alignment
+        return this.jumpPadTarget;
+      }
+      // Still approaching jump pad
+      return this.jumpPadTarget;
+    }
+
+    // Check if target is reachable
+    if (this.reachabilityChecker.isReachable(from, to)) {
+      // Target is reachable, clear any jump pad state
+      this.usingJumpPad = false;
+      this.jumpPadTarget = null;
+      this.originalTarget = null;
+      return to;
+    }
+
+    // Target is not reachable, find a jump pad
+    const jumpPad = this.reachabilityChecker.findJumpPadForTarget(
+      from,
+      to,
+      context
+    );
+
+    if (jumpPad) {
+      // Set up jump pad navigation
+      this.usingJumpPad = true;
+      this.jumpPadTarget = jumpPad.position.clone();
+      this.originalTarget = to.clone();
+      return this.jumpPadTarget;
+    }
+
+    // No jump pad available, try to get as close as possible
+    this.usingJumpPad = false;
+    this.jumpPadTarget = null;
+    this.originalTarget = null;
+    return to;
+  }
 }
 
 /**
@@ -303,15 +398,26 @@ class BotBody {
 
     const isInAir = position.y > 5.5; // HOVER_HEIGHT + AIR_MODE_THRESHOLD
 
+    // Check if target is a jump pad
+    const jumpPadInfo = this.findJumpPadAtTarget(target, context);
+    const isJumpPadTarget = jumpPadInfo !== null;
+
     // Adjust target height if bot is in the air - don't force it to dive down
     const adjustedTarget = target.clone();
-    if (isInAir && adjustedTarget.y < position.y - 5) {
+    if (isInAir && adjustedTarget.y < position.y - 5 && !isJumpPadTarget) {
       // If target is much lower and we're in air, aim for similar height
+      // But don't adjust if it's a jump pad (we want to land on it)
       adjustedTarget.y = Math.max(position.y - 5, adjustedTarget.y);
     }
 
-    // Force 1: Seek - Vector towards target
-    const seekForce = this.calculateSeek(position, adjustedTarget);
+    // If approaching jump pad, use special alignment steering
+    let seekForce: Vector3;
+    if (isJumpPadTarget && jumpPadInfo) {
+      seekForce = this.calculateJumpPadAlignment(position, jumpPadInfo.position, jumpPadInfo.radius);
+    } else {
+      // Force 1: Seek - Vector towards target
+      seekForce = this.calculateSeek(position, adjustedTarget);
+    }
 
     // Force 2: Avoid - Raycast/Sphere check against obstacles (only check obstacles at similar height)
     const avoidForce = this.calculateAvoid(position, rotation, context, isInAir);
@@ -541,7 +647,7 @@ class BotBody {
     // Thrust logic:
     // - If in air, ship automatically uses full thrust, so we just need to control direction
     // - If force is forward (negative Z), use full thrust
-    // - If force is backward, use less thrust (but still some to turn around)
+    // - If force is backward, on ground: stop moving forward to allow turning in place
     const isInAir = position.y > 5.5;
     let thrustInput = 0;
     
@@ -551,7 +657,21 @@ class BotBody {
       thrustInput = localForce.z < 0 ? 1.0 : 0.3; // Less thrust when turning around
     } else {
       // On ground, normal thrust control
-      thrustInput = localForce.z < 0 ? 1.0 : 0.5;
+      if (localForce.z < 0) {
+        // Force is forward, use full thrust
+        thrustInput = 1.0;
+      } else {
+        // Force is backward (target is behind us)
+        // Stop moving forward to allow turning in place when we need to turn
+        const needsSignificantTurn = Math.abs(turnInput) > 0.3;
+        if (needsSignificantTurn) {
+          // Stop moving forward so we can turn in place
+          thrustInput = 0;
+        } else {
+          // Small adjustment, can move forward slightly
+          thrustInput = 0.5;
+        }
+      }
     }
 
     // Prevent extreme turning that could cause loops
@@ -575,6 +695,67 @@ class BotBody {
     
     const angle = toTarget.normalize().dot(forward);
     return angle > 1.0 - this.SHOOT_ANGLE_THRESHOLD;
+  }
+
+  /**
+   * Check if target position is near a jump pad
+   */
+  private findJumpPadAtTarget(
+    target: Vector3,
+    context: GameContext
+  ): JumpPadInfo | null {
+    const jumpPads = context.getJumpPads();
+    const JUMP_PAD_DETECTION_RADIUS = JUMP_PAD_RADIUS * 1.5; // Slightly larger than actual radius
+
+    for (const pad of jumpPads) {
+      const distance = target.distanceTo(pad.position);
+      if (distance < JUMP_PAD_DETECTION_RADIUS) {
+        return pad;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Calculate steering force for jump pad alignment
+   * Provides precision landing behavior when approaching jump pads
+   */
+  private calculateJumpPadAlignment(
+    position: Vector3,
+    jumpPadPos: Vector3,
+    jumpPadRadius: number
+  ): Vector3 {
+    const toJumpPad = jumpPadPos.clone().sub(position);
+    const distance = toJumpPad.length();
+    const horizontalDistance = Math.sqrt(
+      Math.pow(position.x - jumpPadPos.x, 2) +
+      Math.pow(position.z - jumpPadPos.z, 2)
+    );
+
+    // Strong centering force when close to jump pad
+    if (distance < jumpPadRadius * 1.5) {
+      // Calculate horizontal centering force
+      const horizontalForce = new Vector3(
+        jumpPadPos.x - position.x,
+        0,
+        jumpPadPos.z - position.z
+      ).normalize();
+
+      // Vertical alignment - aim for hover height (~5m) when approaching
+      const targetHeight = 5; // HOVER_HEIGHT
+      const heightDiff = targetHeight - position.y;
+      const verticalForce = new Vector3(0, Math.sign(heightDiff) * Math.min(Math.abs(heightDiff) / 2, 1), 0);
+
+      // Combine forces with stronger weight when very close
+      const proximityFactor = 1.0 - (horizontalDistance / (jumpPadRadius * 1.5));
+      const centeringWeight = 2.0 + proximityFactor * 3.0; // Stronger when closer
+
+      return horizontalForce.multiplyScalar(centeringWeight).add(verticalForce);
+    }
+
+    // Normal seek when far away
+    return toJumpPad.normalize();
   }
 }
 

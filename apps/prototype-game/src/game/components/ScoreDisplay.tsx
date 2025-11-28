@@ -5,6 +5,7 @@ import {
   useCaptureTheFlagStore,
 } from "../capture-the-flag-store";
 import { useGameStore } from "../game-store";
+import { Fragment } from "react/jsx-runtime";
 
 export const ScoreDisplay = memo(function ScoreDisplay() {
   const scores = useCaptureTheFlagStore((state) => state.scores);
@@ -27,7 +28,7 @@ export const ScoreDisplay = memo(function ScoreDisplay() {
     >
       <div className="flex items-center gap-4 px-4 py-2 bg-background/20 backdrop-blur-sm border border-border rounded-lg shadow-lg">
         {teams.map((team, index) => (
-          <>
+          <Fragment key={team.id}>
             <div key={team.id} className="flex items-center w-20">
               {/* Team Score */}
               <div className="flex flex-col items-center w-full">
@@ -45,7 +46,7 @@ export const ScoreDisplay = memo(function ScoreDisplay() {
             {index < teams.length - 1 && (
               <div className="h-10 w-px bg-border" />
             )}
-          </>
+          </Fragment>
         ))}
       </div>
     </div>

@@ -10,14 +10,12 @@ import {
 } from "three";
 import * as THREE from "three";
 import { shipPositions } from "./Ship";
+import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
 
 interface JumpPadProps {
   position: [number, number, number];
   id: string;
 }
-
-const JUMP_FORCE = 25; // Upward velocity to apply
-const JUMP_PAD_RADIUS = 4; // Radius of the barrel (wider)
 const JUMP_PAD_HEIGHT = 6; // Height of the barrel (much taller)
 const COLLISION_HEIGHT = 8; // Height of the collision cylinder (must be taller than ship hover height of 5)
 const BARREL_BAND_COUNT = 3; // Number of metal bands around the barrel

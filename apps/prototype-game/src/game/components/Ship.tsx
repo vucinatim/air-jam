@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { useFrame } from "@react-three/fiber";
-import { useRef, memo, useEffect } from "react";
+import { useRef, memo, useEffect, useState } from "react";
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { Euler, MathUtils, Quaternion, Vector3 } from "three";
@@ -23,6 +23,9 @@ import { usePlayerStatsStore } from "../player-stats-store";
 import { ShipModel } from "./ShipModel";
 import { useGameInput } from "../hooks/useGameInput";
 import { useConnectionStore } from "@air-jam/sdk";
+import { useHealthStore } from "../health-store";
+import { useCaptureTheFlagStore, TEAM_CONFIG } from "../capture-the-flag-store";
+import { ShipExplosion } from "./ShipExplosion";
 
 // --- Global Tracking ---
 export const shipPositions = new Map<string, Vector3>();
@@ -70,11 +73,19 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   // Gameplay Refs
   const lastActionRef = useRef(false);
   const lastShootTimeRef = useRef(0);
+  const respawnTimeRef = useRef(0);
+  const pendingRespawnRef = useRef<[number, number, number] | null>(null);
+  const RESPAWN_DELAY = 2.0; // Seconds to wait before respawning
+  const [explosionPosition, setExplosionPosition] = useState<
+    [number, number, number] | null
+  >(null);
 
   // --- Store Access ---
   const addLaser = useLasersStore((state) => state.addLaser);
   const abilitiesStore = useAbilitiesStore.getState();
   const playerStatsStore = usePlayerStatsStore.getState();
+  const healthStore = useHealthStore.getState();
+  const ctfStore = useCaptureTheFlagStore.getState();
 
   // --- Input Hook (Zero re-renders, high-performance) ---
   const roomId = useConnectionStore((state) => state.roomId);
@@ -98,6 +109,9 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
         state.players.find((p) => p.controllerId === controllerId)?.color
     ) || "#ff4444";
 
+  // Get death state for render (needed outside useFrame)
+  const isDead = useHealthStore((state) => state.getIsDead(controllerId));
+
   // Init Stats
   useEffect(() => {
     playerStatsStore.initializeStats(controllerId);
@@ -110,9 +124,59 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     if (!rigidBodyRef.current) return;
 
     const time = state.clock.elapsedTime;
-    const physicsPos = rigidBodyRef.current.translation();
-    const physicsVel = rigidBodyRef.current.linvel();
-    const shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
+    
+    // Check for death BEFORE accessing RigidBody to avoid conflicts
+    const isDeadFrame = healthStore.getIsDead(controllerId);
+    const justDied = healthStore.checkDeath(controllerId);
+    
+    // If dead, only handle death/respawn logic, don't access physics
+    if (isDeadFrame && !justDied) {
+      // Handle respawn - schedule teleport for next frame
+      if (time >= respawnTimeRef.current && respawnTimeRef.current > 0) {
+        const playerTeam = ctfStore.getPlayerTeam(controllerId);
+        if (playerTeam) {
+          const basePos = TEAM_CONFIG[playerTeam].basePosition;
+          // Store respawn position to apply at start of next frame
+          pendingRespawnRef.current = [basePos[0], basePos[1] + 5, basePos[2]];
+          // Respawn player
+          healthStore.respawn(controllerId);
+          respawnTimeRef.current = 0;
+          setExplosionPosition(null); // Clear explosion on respawn
+          console.log(`[SHIP] ${controllerId} respawned at base`);
+        }
+      }
+      return;
+    }
+
+    // Apply pending respawn teleport at the start of frame (before physics updates)
+    if (pendingRespawnRef.current && rigidBodyRef.current) {
+      try {
+        const [x, y, z] = pendingRespawnRef.current;
+        rigidBodyRef.current.setTranslation({ x, y, z }, true);
+        rigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        // Reset rotation
+        currentRotationRef.current.setFromEuler(new Euler(0, 0, 0));
+        currentVelocityRef.current.set(0, 0, 0);
+        currentAngularVelocityRef.current = 0;
+        currentPitchAngularVelocityRef.current = 0;
+        pendingRespawnRef.current = null;
+      } catch (error) {
+        console.error(`[SHIP] Error applying respawn teleport for ${controllerId}:`, error);
+        pendingRespawnRef.current = null;
+      }
+    }
+
+    // Now safe to access RigidBody physics
+    let physicsPos, physicsVel, shipWorldPos;
+    try {
+      physicsPos = rigidBodyRef.current.translation();
+      physicsVel = rigidBodyRef.current.linvel();
+      shipWorldPos = new Vector3(physicsPos.x, physicsPos.y, physicsPos.z);
+    } catch (error) {
+      console.error(`[SHIP] Error accessing RigidBody for ${controllerId}:`, error);
+      return;
+    }
 
     // 1. INPUT PHASE
     // Use the dedicated input hook for high-performance, zero-render input processing
@@ -125,6 +189,25 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     // so it will have valid data even when there's no input
     shipPositions.set(controllerId, shipWorldPos);
     shipRotations.set(controllerId, currentRotationRef.current.clone());
+
+    if (justDied) {
+      // Player just died - drop flag at death position and trigger explosion
+      const deathPosition: [number, number, number] = [
+        shipWorldPos.x,
+        shipWorldPos.y,
+        shipWorldPos.z,
+      ];
+      try {
+        ctfStore.dropFlagAtPosition(controllerId, deathPosition);
+        respawnTimeRef.current = time + RESPAWN_DELAY;
+        setExplosionPosition(deathPosition);
+        console.log(`[SHIP] ${controllerId} died at (${deathPosition[0].toFixed(1)}, ${deathPosition[1].toFixed(1)}, ${deathPosition[2].toFixed(1)})`);
+      } catch (error) {
+        console.error(`[SHIP] Error handling death for ${controllerId}:`, error);
+      }
+      // Return early after death - don't process physics
+      return;
+    }
 
     // If no input yet, skip input-dependent logic but continue with basic physics
     if (!input) {
@@ -237,10 +320,17 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     );
     finalVelocity.y += verticalForce; // Add the calculated Y change
 
-    // Apply to Body
-    rigidBodyRef.current.setLinvel(finalVelocity, true);
-    rigidBodyRef.current.setRotation(currentRotationRef.current, true);
-    rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true); // Kill physics rotation, we control it manually
+    // Apply to Body - wrap in try-catch to catch physics conflicts
+    try {
+      rigidBodyRef.current.setLinvel(finalVelocity, true);
+      rigidBodyRef.current.setRotation(currentRotationRef.current, true);
+      rigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true); // Kill physics rotation, we control it manually
+    } catch (error) {
+      console.error(`[SHIP] Error applying physics to ${controllerId}:`, error);
+      // If we get an error, the RigidBody might be in an invalid state
+      // Don't crash, just skip this frame
+      return;
+    }
 
     // Update position/rotation tracking again after physics update
     shipPositions.set(controllerId, shipWorldPos);
@@ -280,23 +370,35 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   });
 
   return (
-    <RigidBody
-      ref={rigidBodyRef}
-      type="dynamic"
-      position={initialPosition}
-      lockRotations
-      linearDamping={0.5}
-      colliders="cuboid"
-      userData={{ controllerId }}
-    >
-      <ShipModel
-        playerColor={playerColor}
-        thrustRef={currentThrustRef}
-        thrustInputRef={thrustInputRef}
-        abilityVisual={abilityVisual}
-        planeGroupRef={planeGroupRef}
-      />
-    </RigidBody>
+    <>
+      {!isDead && (
+        <RigidBody
+          ref={rigidBodyRef}
+          type="dynamic"
+          position={initialPosition}
+          lockRotations
+          linearDamping={0.5}
+          colliders="cuboid"
+          userData={{ controllerId }}
+        >
+          <ShipModel
+            playerColor={playerColor}
+            thrustRef={currentThrustRef}
+            thrustInputRef={thrustInputRef}
+            abilityVisual={abilityVisual}
+            planeGroupRef={planeGroupRef}
+          />
+        </RigidBody>
+      )}
+      {explosionPosition && (
+        <ShipExplosion
+          position={explosionPosition}
+          onComplete={() => {
+            setExplosionPosition(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import { useDecalsStore } from "../decals-store";
 import {
   useAbilitiesStore,
   getAllAbilityDefinitions,
+  getAbilityIconPath,
 } from "../abilities-store";
 import { useDebugStore } from "../debug-store";
 import { DebugSection } from "./DebugOverlay";
@@ -25,15 +26,18 @@ export function BotsSection() {
         <Button onClick={addBot} className="w-full" size="sm">
           Add Bot
         </Button>
-        
+
         {bots.size > 0 && (
           <div className="space-y-2">
             {Array.from(bots.keys()).map((botId) => (
-              <div key={botId} className="flex items-center justify-between p-2 rounded-md bg-muted/20">
+              <div
+                key={botId}
+                className="flex items-center justify-between p-2 rounded-md bg-muted/20"
+              >
                 <span className="text-sm font-medium">{botId}</span>
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
+                <Button
+                  variant="destructive"
+                  size="sm"
                   className="h-6 px-2 text-xs"
                   onClick={() => removeBot(botId)}
                 >
@@ -100,7 +104,8 @@ export function PlayersSection() {
                     style={{ backgroundColor: player.color }}
                   />
                   <span className="text-sm font-medium text-foreground">
-                    {player.profile.label || `Player ${player.controllerId.slice(0, 8)}`}
+                    {player.profile.label ||
+                      `Player ${player.controllerId.slice(0, 8)}`}
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground font-mono">
@@ -121,7 +126,9 @@ export function PlayersSection() {
                     className={cn(
                       "h-full transition-all duration-200",
                       healthPercentage > 60 && "bg-green-500",
-                      healthPercentage > 30 && healthPercentage <= 60 && "bg-yellow-500",
+                      healthPercentage > 30 &&
+                        healthPercentage <= 60 &&
+                        "bg-yellow-500",
                       healthPercentage <= 30 && "bg-red-500"
                     )}
                     style={{ width: `${healthPercentage}%` }}
@@ -172,7 +179,11 @@ export function PlayersSection() {
                   <div className="mb-3 p-2 rounded-md bg-background/50">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{currentAbility.icon}</span>
+                        <img
+                          src={getAbilityIconPath(currentAbility.id)}
+                          alt=""
+                          className="w-5 h-5 object-cover rounded-full"
+                        />
                         <span className="text-sm font-medium text-foreground">
                           {currentAbility.name}
                         </span>
@@ -219,13 +230,19 @@ export function PlayersSection() {
                       key={ability.id}
                       variant="outline"
                       size="sm"
-                      onClick={() => collectAbility(player.controllerId, ability.id)}
-                      className="h-10 flex flex-col items-center justify-center gap-1 text-xs"
+                      onClick={() =>
+                        collectAbility(player.controllerId, ability.id)
+                      }
+                      className="h-10 flex items-center justify-center gap-1 text-xs"
                       disabled={
                         currentAbility?.id === ability.id && !abilityActive
                       }
                     >
-                      <span className="text-base">{ability.icon}</span>
+                      <img
+                        src={getAbilityIconPath(ability.id)}
+                        alt=""
+                        className="w-6 h-6 object-cover rounded-full"
+                      />
                       <span className="text-[10px] leading-tight">
                         {ability.name}
                       </span>
@@ -289,5 +306,3 @@ export function SceneInfoSection() {
     </DebugSection>
   );
 }
-
-

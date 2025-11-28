@@ -4,7 +4,8 @@ import { useGameStore } from "../game-store";
 import { useCaptureTheFlagStore, TEAM_CONFIG, type TeamId } from "../capture-the-flag-store";
 import { useCollectiblesStore, type CollectibleData } from "../collectibles-store";
 import { useHealthStore } from "../health-store";
-import { OBSTACLES, type ObstacleData } from "../constants";
+import { OBSTACLES, type ObstacleData, JUMP_PADS, JUMP_PAD_RADIUS, JUMP_FORCE } from "../constants";
+import type { JumpPadInfo } from "./ReachabilityChecker";
 
 export interface BotSelf {
   controllerId: string;
@@ -170,6 +171,40 @@ export class GameContext {
     
     const teams = Object.keys(TEAM_CONFIG) as TeamId[];
     return teams.find((team) => team !== self.teamId) ?? null;
+  }
+
+  /**
+   * Get all jump pads in the game world
+   */
+  getJumpPads(): JumpPadInfo[] {
+    return JUMP_PADS.map((pad) => ({
+      id: pad.id,
+      position: new Vector3(...pad.position),
+      radius: JUMP_PAD_RADIUS,
+      jumpForce: JUMP_FORCE,
+    }));
+  }
+
+  /**
+   * Find the nearest jump pad to a position
+   */
+  findNearestJumpPad(
+    position: Vector3,
+    maxDistance?: number
+  ): JumpPadInfo | null {
+    const jumpPads = this.getJumpPads();
+    let nearest: JumpPadInfo | null = null;
+    let nearestDist = maxDistance ?? Infinity;
+
+    for (const pad of jumpPads) {
+      const dist = position.distanceTo(pad.position);
+      if (dist < nearestDist) {
+        nearest = pad;
+        nearestDist = dist;
+      }
+    }
+
+    return nearest;
   }
 }
 

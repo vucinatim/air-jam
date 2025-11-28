@@ -178,23 +178,42 @@ export const useCaptureTheFlagStore = create<CaptureTheFlagState>(
     },
     tryPickupFlag: (controllerId: string, flagTeam: TeamId) => {
       const playerTeam = get().playerTeams[controllerId];
-      if (!playerTeam || playerTeam === flagTeam) return;
+      if (!playerTeam) return;
 
       set((state) => {
         const flag = state.flags[flagTeam];
+
+        // If flag is already carried, can't pick it up
         if (flag.status === "carried") return state;
 
-        return {
-          ...state,
-          flags: {
-            ...state.flags,
-            [flagTeam]: {
-              ...flag,
-              status: "carried",
-              carrierId: controllerId,
+        // If player is on the same team as the flag, they can return it to base
+        if (playerTeam === flagTeam) {
+          // Same team - return flag to base
+          return {
+            ...state,
+            flags: {
+              ...state.flags,
+              [flagTeam]: {
+                ...flag,
+                status: "atBase",
+                position: [...TEAM_CONFIG[flagTeam].basePosition],
+              },
             },
-          },
-        };
+          };
+        } else {
+          // Enemy team - pick up the flag
+          return {
+            ...state,
+            flags: {
+              ...state.flags,
+              [flagTeam]: {
+                ...flag,
+                status: "carried",
+                carrierId: controllerId,
+              },
+            },
+          };
+        }
       });
     },
     dropFlagAtPosition: (controllerId: string, position) => {
