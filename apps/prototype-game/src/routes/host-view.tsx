@@ -17,6 +17,7 @@ import {
   PlayersSection,
   SceneInfoSection,
   BotsSection,
+  CTFDebugSection,
 } from "../game/components/DebugSections";
 import { GameObjectEditor } from "../game/components/GameObjectEditor";
 import { ScoreDisplay } from "../game/components/ScoreDisplay";
@@ -123,6 +124,7 @@ const HostViewContent = (): JSX.Element => {
       <DebugOverlay>
         <PlayersSection />
         <BotsSection />
+        <CTFDebugSection />
         <SceneInfoSection />
       </DebugOverlay>
       {/* Editor Button */}

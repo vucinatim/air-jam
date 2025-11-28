@@ -144,8 +144,8 @@ export class GameContext {
    * Get the base position for a team
    */
   getBasePosition(teamId: TeamId): Vector3 {
-    const config = TEAM_CONFIG[teamId];
-    return new Vector3(...config.basePosition);
+    const ctfStore = useCaptureTheFlagStore.getState();
+    return new Vector3(...ctfStore.basePositions[teamId]);
   }
 
   /**

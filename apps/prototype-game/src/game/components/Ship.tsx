@@ -24,7 +24,7 @@ import { ShipModel } from "./ShipModel";
 import { useGameInput } from "../hooks/useGameInput";
 import { useConnectionStore } from "@air-jam/sdk";
 import { useHealthStore } from "../health-store";
-import { useCaptureTheFlagStore, TEAM_CONFIG } from "../capture-the-flag-store";
+import { useCaptureTheFlagStore } from "../capture-the-flag-store";
 import { ShipExplosion } from "./ShipExplosion";
 import { useAudio } from "@air-jam/sdk";
 import { SOUND_MANIFEST } from "../sounds";
@@ -152,7 +152,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       if (time >= respawnTimeRef.current && respawnTimeRef.current > 0) {
         const playerTeam = ctfStore.getPlayerTeam(controllerId);
         if (playerTeam) {
-          const basePos = TEAM_CONFIG[playerTeam].basePosition;
+          const basePos = ctfStore.basePositions[playerTeam];
           // Store respawn position to apply at start of next frame
           pendingRespawnRef.current = [basePos[0], basePos[1] + 5, basePos[2]];
           // Respawn player

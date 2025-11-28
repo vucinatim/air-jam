@@ -12,6 +12,11 @@ import { DebugSection } from "./DebugOverlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useBotManager } from "../bot-system/BotManager";
+import {
+  useCaptureTheFlagStore,
+  TEAM_CONFIG,
+  type TeamId,
+} from "../capture-the-flag-store";
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 
@@ -301,6 +306,96 @@ export function SceneInfoSection() {
               Press ESC to unlock.
             </p>
           )}
+        </div>
+      </div>
+    </DebugSection>
+  );
+}
+
+export function CTFDebugSection() {
+  const scores = useCaptureTheFlagStore((state) => state.scores);
+  const basePositions = useCaptureTheFlagStore((state) => state.basePositions);
+  const manualScore = useCaptureTheFlagStore((state) => state.manualScore);
+
+  return (
+    <DebugSection title="Capture The Flag">
+      <div className="space-y-3">
+        {/* Scores */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-foreground">Scores</h4>
+          {(Object.keys(TEAM_CONFIG) as TeamId[]).map((teamId) => {
+            const team = TEAM_CONFIG[teamId];
+            return (
+              <div
+                key={teamId}
+                className="flex items-center justify-between p-2 rounded-md bg-muted/20"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="size-3 rounded-full"
+                    style={{ backgroundColor: team.color }}
+                  />
+                  <span className="text-sm text-foreground">{team.label}</span>
+                </div>
+                <span className="text-sm font-mono font-semibold text-foreground">
+                  {scores[teamId] ?? 0}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Base Positions */}
+        <div className="space-y-2 pt-2 border-t border-border">
+          <h4 className="text-sm font-semibold text-foreground">Base Positions</h4>
+          {(Object.keys(TEAM_CONFIG) as TeamId[]).map((teamId) => {
+            const team = TEAM_CONFIG[teamId];
+            const pos = basePositions[teamId];
+            return (
+              <div
+                key={teamId}
+                className="p-2 rounded-md bg-muted/20"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div
+                    className="size-3 rounded-full"
+                    style={{ backgroundColor: team.color }}
+                  />
+                  <span className="text-sm text-foreground">{team.label}</span>
+                </div>
+                <div className="text-xs font-mono text-muted-foreground">
+                  ({pos[0].toFixed(1)}, {pos[1].toFixed(1)}, {pos[2].toFixed(1)})
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Manual Scoring */}
+        <div className="pt-2 border-t border-border">
+          <h4 className="text-sm font-semibold text-foreground mb-2">
+            Manual Scoring
+          </h4>
+          <div className="space-y-2">
+            {(Object.keys(TEAM_CONFIG) as TeamId[]).map((teamId) => {
+              const team = TEAM_CONFIG[teamId];
+              return (
+                <Button
+                  key={teamId}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => manualScore(teamId)}
+                  className="w-full"
+                  style={{ borderColor: team.color }}
+                >
+                  Score Point: {team.label}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Click to manually score a point for a team. This will move bases to new random positions.
+          </p>
         </div>
       </div>
     </DebugSection>
