@@ -1,6 +1,10 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, type CollisionPayload } from "@react-three/rapier";
+import {
+  RigidBody,
+  type CollisionPayload,
+  type RapierRigidBody,
+} from "@react-three/rapier";
 import * as THREE from "three";
 import {
   TEAM_CONFIG,
@@ -56,6 +60,9 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
   const color = TEAM_CONFIG[teamId].color;
   const pulseRef = useRef(0);
   const audio = useAudio(SOUND_MANIFEST);
+  const rigidBodyRef = useRef<RapierRigidBody>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const prevPositionRef = useRef<[number, number, number] | null>(null);
 
   const pickupGeometry = useMemo(
     () => new THREE.CylinderGeometry(4.5, 4.5, 6, 16),
@@ -87,11 +94,39 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
     if (pulseRef.current > 0) {
       pulseRef.current = Math.max(0, pulseRef.current - delta * 3);
     }
+
+    // Update group position when flag position changes
+    // Also explicitly update RigidBody translation to ensure Rapier detects the position change
+    // This is critical for collision detection when flags are dropped
+    if (rigidBodyRef.current && groupRef.current) {
+      const [x, y, z] = flagState.position;
+      const currentPos: [number, number, number] = [x, y, z];
+
+      // Check if position actually changed
+      const positionChanged =
+        !prevPositionRef.current ||
+        prevPositionRef.current[0] !== x ||
+        prevPositionRef.current[1] !== y ||
+        prevPositionRef.current[2] !== z;
+
+      if (positionChanged) {
+        // Update visual position
+        groupRef.current.position.set(x, y, z);
+
+        // Explicitly update RigidBody translation in world space
+        // Since RigidBody is at [0, 3, 0] relative to group, its world position is [x, y+3, z]
+        // This ensures Rapier's collision detection works correctly when flag position changes
+        rigidBodyRef.current.setTranslation({ x, y: y + 3, z }, true);
+
+        prevPositionRef.current = currentPos;
+      }
+    }
   });
 
   return (
-    <group position={flagState.position}>
+    <group ref={groupRef}>
       <RigidBody
+        ref={rigidBodyRef}
         type="fixed"
         position={[0, 3, 0]}
         colliders="hull"

@@ -8,6 +8,7 @@ import {
 } from "@air-jam/sdk";
 import { useAudio } from "@air-jam/sdk";
 import { SOUND_MANIFEST } from "../game/sounds";
+import { useBackgroundMusic } from "../game/hooks/useBackgroundMusic";
 import { GameScene } from "../game/components/GameScene";
 import { useGameStore } from "../game/game-store";
 import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
@@ -28,6 +29,9 @@ const HostViewContent = (): JSX.Element => {
   const upsertPlayer = useGameStore((state) => state.upsertPlayer);
   const removePlayer = useGameStore((state) => state.removePlayer);
   const audio = useAudio(SOUND_MANIFEST);
+
+  // Start background music
+  useBackgroundMusic(true);
 
   const handleInput = useCallback(
     (event: ControllerInputEvent) => {

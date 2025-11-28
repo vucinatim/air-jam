@@ -27,7 +27,8 @@ export class AudioManager<T extends string = string> {
   private sounds: Map<string, Howl> = new Map();
   private manifest: SoundManifest = {};
   private _muted: boolean = false;
-  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null =
+    null;
   private roomId: string | null = null;
 
   constructor(manifest?: SoundManifest) {
@@ -36,7 +37,10 @@ export class AudioManager<T extends string = string> {
     }
   }
 
-  public setSocket(socket: Socket<ServerToClientEvents, ClientToServerEvents> | null, roomId?: string) {
+  public setSocket(
+    socket: Socket<ServerToClientEvents, ClientToServerEvents> | null,
+    roomId?: string
+  ) {
     this.socket = socket;
     if (roomId) this.roomId = roomId;
   }
@@ -50,9 +54,16 @@ export class AudioManager<T extends string = string> {
     }
   }
 
+  /**
+   * Check if audio context is ready to play sounds
+   */
+  public isReady(): boolean {
+    return Howler.ctx !== null && Howler.ctx.state === "running";
+  }
+
   public load(manifest: SoundManifest) {
     this.manifest = { ...this.manifest, ...manifest };
-    
+
     Object.entries(manifest).forEach(([key, config]) => {
       if (this.sounds.has(key)) return;
 
@@ -70,7 +81,14 @@ export class AudioManager<T extends string = string> {
   }
 
   public play(id: T, options?: PlayOptions): number | null {
-    const { remote = false, target, volume, loop, sprite, pitch } = options || {};
+    const {
+      remote = false,
+      target,
+      volume,
+      loop,
+      sprite,
+      pitch,
+    } = options || {};
 
     if (remote) {
       this.playRemote(id, target, volume, loop);
@@ -80,55 +98,73 @@ export class AudioManager<T extends string = string> {
     }
   }
 
-  private playLocal(id: string, volume?: number, loop?: boolean, sprite?: string, pitch?: number): number | null {
+  private playLocal(
+    id: string,
+    volume?: number,
+    loop?: boolean,
+    sprite?: string,
+    pitch?: number
+  ): number | null {
     const sound = this.sounds.get(id);
     if (!sound) {
       console.warn(`Sound "${id}" not found`);
       return null;
     }
-    
+
     const soundId = sound.play(sprite);
-    
+
     if (volume !== undefined) sound.volume(volume, soundId);
     if (loop !== undefined) sound.loop(loop, soundId);
     if (pitch !== undefined) sound.rate(pitch, soundId);
-    
+
     return soundId;
   }
 
-  private playRemote(id: string, target?: string, volume?: number, loop?: boolean) {
+  private playRemote(
+    id: string,
+    target?: string,
+    volume?: number,
+    loop?: boolean
+  ) {
     if (!this.socket || !this.roomId) return;
 
     if (this.isHost()) {
-        // Host -> Controller(s)
-        this.socket.emit("host:play_sound", {
-             roomId: this.roomId,
-             targetControllerId: target, // If undefined, broadcasts to all
-             soundId: id,
-             volume,
-             loop
-        });
+      // Host -> Controller(s)
+      this.socket.emit("host:play_sound", {
+        roomId: this.roomId,
+        targetControllerId: target, // If undefined, broadcasts to all
+        soundId: id,
+        volume,
+        loop,
+      });
     } else {
-        // Controller -> Host
-        this.socket.emit("controller:play_sound", {
-            roomId: this.roomId,
-            soundId: id,
-            volume,
-            loop
-        });
+      // Controller -> Host
+      this.socket.emit("controller:play_sound", {
+        roomId: this.roomId,
+        soundId: id,
+        volume,
+        loop,
+      });
     }
   }
 
   private isHost(): boolean {
-      // Heuristic: If we have a socket and it's connected as host... 
-      // Or we can just check if we are running in a browser environment that looks like host?
-      // Better: The socket instance usually has query params or we can pass a flag.
-      // For now, let's assume if we are calling playRemote with a target, we are likely host.
-      // Actually, we can just rely on the fact that `host:play_sound` is only available on Host socket type?
-      // No, both share types.
-      
-      // Let's add a role property to AudioManager or infer from socket.
-      return (this.socket?.io?.opts?.query && (this.socket.io.opts.query as any).role === 'host') || false;
+    // Heuristic: If we have a socket and it's connected as host...
+    // Or we can just check if we are running in a browser environment that looks like host?
+    // Better: The socket instance usually has query params or we can pass a flag.
+    // For now, let's assume if we are calling playRemote with a target, we are likely host.
+    // Actually, we can just rely on the fact that `host:play_sound` is only available on Host socket type?
+    // No, both share types.
+
+    // Let's add a role property to AudioManager or infer from socket.
+    const query = this.socket?.io?.opts?.query;
+    return (
+      (query &&
+        typeof query === "object" &&
+        "role" in query &&
+        query.role === "host") ||
+      false
+    );
   }
 
   /**
@@ -219,5 +255,6 @@ export class AudioManager<T extends string = string> {
   }
 }
 
-export const createAudioManager = <T extends string = string>(manifest?: SoundManifest) =>
-  new AudioManager<T>(manifest);
+export const createAudioManager = <T extends string = string>(
+  manifest?: SoundManifest
+) => new AudioManager<T>(manifest);

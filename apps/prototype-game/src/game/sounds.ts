@@ -93,6 +93,32 @@ export const SOUND_MANIFEST = {
     src: ["/sounds/laser_blast.wav"],
     volume: 0.3,
   },
+
+  // Background Music
+  bgm_track_1: {
+    src: ["/music/track_1.mp3"],
+    volume: 0.4,
+    loop: true,
+    html5: true, // Use HTML5 audio for better music playback
+  },
+  bgm_track_2: {
+    src: ["/music/track_2.mp3"],
+    volume: 0.4,
+    loop: true,
+    html5: true,
+  },
+  bgm_track_3: {
+    src: ["/music/track_3.mp3"],
+    volume: 0.4,
+    loop: true,
+    html5: true,
+  },
+  bgm_track_4: {
+    src: ["/music/track_4.mp3"],
+    volume: 0.4,
+    loop: true,
+    html5: true,
+  },
 } satisfies SoundManifest;
 
 export type SoundId = keyof typeof SOUND_MANIFEST;

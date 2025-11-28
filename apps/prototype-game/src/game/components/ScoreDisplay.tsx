@@ -5,11 +5,13 @@ import {
   useCaptureTheFlagStore,
 } from "../capture-the-flag-store";
 import { useGameStore } from "../game-store";
+import { useDebugStore } from "../debug-store";
 import { Fragment } from "react/jsx-runtime";
 
 export const ScoreDisplay = memo(function ScoreDisplay() {
   const scores = useCaptureTheFlagStore((state) => state.scores);
   const players = useGameStore((state) => state.players);
+  const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
 
   const teams = (Object.keys(TEAM_CONFIG) as TeamId[]).map((teamId) => ({
     id: teamId,
@@ -17,8 +19,9 @@ export const ScoreDisplay = memo(function ScoreDisplay() {
     score: scores[teamId] ?? 0,
   }));
 
-  // Center vertically when 2+ players, top when 1 or 0 players
-  const isCentered = players.length >= 2;
+  // In free fly mode, always position at top
+  // Otherwise, center vertically when 2+ players, top when 1 or 0 players
+  const isCentered = !freeFlyMode && players.length >= 2;
 
   return (
     <div
