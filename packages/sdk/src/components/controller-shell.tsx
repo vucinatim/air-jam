@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { QRScannerDialog } from "./qr-scanner-dialog";
+import { VolumeControls } from "./volume-controls";
 
 type OrientationRequirement = "portrait" | "landscape" | "any";
 
@@ -233,6 +234,13 @@ export const ControllerShell = ({
           </Button>
         </div>
       </header>
+      
+      {/* Volume Controls - positioned absolutely for mobile */}
+      <div className="pointer-events-none fixed bottom-4 right-4 z-50">
+        <div className="pointer-events-auto">
+          <VolumeControls compact={true} />
+        </div>
+      </div>
 
       <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 select-none">
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 backdrop-blur-sm p-6 text-center shadow-lg">

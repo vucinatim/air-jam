@@ -13,7 +13,9 @@ import {
 import { Alert, AlertDescription } from "./ui/alert";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { Play, Pause } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
+import { Play, Pause, Settings, QrCode } from "lucide-react";
+import { VolumeControls } from "./volume-controls";
 
 interface AirJamOverlayProps {
   roomId: string;
@@ -168,97 +170,189 @@ export const AirJamOverlay = ({
   return (
     <div className="pointer-events-none fixed inset-0 z-99999 flex items-center justify-center p-4">
       <div className="pointer-events-auto w-full max-w-2xl">
-        <Card className="border shadow-lg bg-card/20 backdrop-blur-sm">
-          <CardHeader className="text-center">
-            <CardDescription className="text-xs uppercase tracking-[0.18em]">
-              Room Code
-            </CardDescription>
-            <CardTitle className="text-4xl font-bold tracking-wider mt-2">
-              {roomId}
-            </CardTitle>
-            <Badge variant={connectionVariant} className="mt-3 mx-auto">
-              {statusCopy[connectionStatus]}
-            </Badge>
-            <p className="font-mono text-xs text-muted-foreground mt-4 break-all">
-              {joinUrl}
-            </p>
-          </CardHeader>
+        <Card className="border shadow-lg bg-card/20 backdrop-blur-sm overflow-hidden py-0 flex flex-col h-[80vh]">
+          <Tabs
+            defaultValue="room-code"
+            className="w-full flex flex-col h-full gap-0"
+          >
+            <TabsList className="grid w-full grid-cols-2 rounded-none border-b border-border bg-transparent shrink-0 p-0">
+              <TabsTrigger
+                value="room-code"
+                className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
+              >
+                <QrCode className="h-4 w-4" />
+                Room Code
+              </TabsTrigger>
+              <TabsTrigger
+                value="settings"
+                className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </TabsTrigger>
+            </TabsList>
 
-          <CardContent className="space-y-6 flex flex-col items-center">
-            <div className="overflow-hidden w-48 border-2 border-border bg-card rounded-lg shadow-md">
-              {qrUrl ? (
-                <img
-                  src={qrUrl}
-                  alt={`Join room ${roomId}`}
-                  className="w-full bg-white rounded"
-                />
-              ) : (
-                <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                  {qrError ? `QR failed: ${qrError}` : "Generating QR code…"}
-                </div>
-              )}
-            </div>
+            <TabsContent
+              value="room-code"
+              className="mt-0 overflow-y-auto flex-1 min-h-0"
+            >
+              <div className="space-y-6 pb-6">
+                <CardHeader className="text-center pt-6">
+                  <CardTitle className="text-4xl font-bold tracking-wider">
+                    {roomId}
+                  </CardTitle>
+                  <Badge variant={connectionVariant} className="mt-3 mx-auto">
+                    {statusCopy[connectionStatus]}
+                  </Badge>
+                </CardHeader>
 
-            <div className="w-full">
-              {players.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Waiting for controllers to join…
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-foreground text-center">
-                    Connected Players ({players.length})
-                  </p>
-                  <ul className="flex flex-wrap items-center justify-center gap-4">
-                    {players.map((player) => (
-                      <li
-                        key={player.id}
-                        className="flex flex-col items-center gap-2"
-                      >
+                <CardContent className="space-y-6">
+                  <div className="flex flex-col items-center space-y-4">
+                    <CardDescription className="text-xs uppercase tracking-[0.18em]">
+                      Join URL
+                    </CardDescription>
+                    <p className="font-mono text-xs text-muted-foreground break-all text-center">
+                      {joinUrl}
+                    </p>
+
+                    <div className="overflow-hidden w-48 border-2 border-border bg-card rounded-lg shadow-md">
+                      {qrUrl ? (
                         <img
-                          src={getPlayerAvatarUrl(player.id)}
-                          alt={player.label}
-                          className="w-16 h-16 rounded-full border-4 shadow-md bg-secondary/30"
-                          style={{
-                            borderColor: player.color || "hsl(var(--border))",
-                          }}
+                          src={qrUrl}
+                          alt={`Join room ${roomId}`}
+                          className="w-full bg-white rounded"
                         />
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-sm font-medium text-card-foreground text-center max-w-[100px] truncate">
-                            {player.label}
-                          </span>
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {player.id.slice(0, 8)}
-                          </span>
+                      ) : (
+                        <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                          {qrError
+                            ? `QR failed: ${qrError}`
+                            : "Generating QR code…"}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+                      )}
+                    </div>
 
-            {lastError && (
-              <Alert variant="destructive" className="w-full">
-                <AlertDescription>{lastError}</AlertDescription>
-              </Alert>
-            )}
+                    <div className="w-full">
+                      {players.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Waiting for controllers to join…
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium text-foreground text-center">
+                            Connected Players ({players.length})
+                          </p>
+                          <ul className="flex flex-wrap items-center justify-center gap-4">
+                            {players.map((player) => (
+                              <li
+                                key={player.id}
+                                className="flex flex-col items-center gap-2"
+                              >
+                                <img
+                                  src={getPlayerAvatarUrl(player.id)}
+                                  alt={player.label}
+                                  className="w-16 h-16 rounded-full border-4 shadow-md bg-secondary/30"
+                                  style={{
+                                    borderColor:
+                                      player.color || "hsl(var(--border))",
+                                  }}
+                                />
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <span className="text-sm font-medium text-card-foreground text-center max-w-[100px] truncate">
+                                    {player.label}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground font-mono">
+                                    {player.id.slice(0, 8)}
+                                  </span>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
 
-            {/* Play button in paused state */}
-            {onTogglePlayPause && (
-              <div className="pt-2">
-                <Button
-                  type="button"
-                  onClick={onTogglePlayPause}
-                  className=""
-                  size="lg"
-                >
-                  <Play className="mr-2 h-5 w-5" />
-                  Start Game
-                </Button>
+                    {lastError && (
+                      <Alert variant="destructive" className="w-full">
+                        <AlertDescription>{lastError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Play button in paused state */}
+                    {onTogglePlayPause && (
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          onClick={onTogglePlayPause}
+                          size="lg"
+                        >
+                          <Play className="mr-2 h-5 w-5" />
+                          Start Game
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
               </div>
-            )}
-          </CardContent>
+            </TabsContent>
+
+            <TabsContent
+              value="settings"
+              className="mt-0 overflow-y-auto flex-1 min-h-0"
+            >
+              <CardContent className="pt-6 pb-6">
+                <div className="space-y-6">
+                  {/* Audio Controls Section */}
+                  <div className="space-y-4">
+                    <VolumeControls />
+                  </div>
+
+                  {/* Connection Settings Section */}
+                  <div className="space-y-4 border-t pt-4">
+                    <h3 className="text-sm font-semibold">Connection</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Status
+                        </span>
+                        <Badge variant={connectionVariant}>
+                          {statusCopy[connectionStatus]}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Room ID
+                        </span>
+                        <span className="text-sm font-mono">{roomId}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Players
+                        </span>
+                        <span className="text-sm font-medium">
+                          {players.length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Display Settings Section */}
+                  <div className="space-y-4 border-t pt-4">
+                    <h3 className="text-sm font-semibold">Display</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Game State
+                        </span>
+                        <Badge variant="outline" className="capitalize">
+                          {gameState}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
     </div>
