@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+# Tooling
+- Use pnpm for package manager
+- Use Tailwind CSS for styling
+- Use Shadcn UI for components
+- Use React for the frontend
+- Use TypeScript for everything
+- Use Vite or Next.js for the build
+- Use ESLint for linting
+- Use Prettier for formatting
+- Use zustand for state management
+- Use zod for validation
+- Use react-hook-form for form handling
+- Use tanstack-query for data fetching
+# Conventions
+- Use camelCase for variables
+- Use PascalCase for components
+- Use kebab-case for files
+- Use "const ComponentName = (props: Props) => {}" for components (not React.FC or function component)
+- Do NOT use index.ts files for aggregating multiple exports
+- Do NOT pass props when they can be accessed through a zustand store or a provider context
+# Refactoring
+- When extracting components:
+    - Create a new file in the components folder if the component is reused across multiple files
+    - Write the component in the same file if the component is only used in one file
+# Tips
+- When writing tool / util functions use JSDoc to add a description and maybe example if needed (without @param and @returns)
+- Use tsc for typechecking.
+# Notes
+- We are using a monorepo with pnpm and vite and next.js
+- Shared package is used to share schemas and types between the packages
+- We are using R2 for cloud storage
+- We are using postgres with drizzle for the database
+# Instructions
+- Always use the latest version of the libraries and tools - by installing them with pnpm
+- Write clean, readable, logical, structured, extensible and maintainable codebase.
