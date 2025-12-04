@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
     "dev:prototype-game": "pnpm --filter prototype-game dev -- --host",
+    "dev:server": "pnpm --filter server dev",
+    "dev:platform": "pnpm --filter platform dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm --filter sdk build && pnpm -r --filter \"!sdk\" typecheck"
