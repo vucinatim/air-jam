@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
-import { Play, Pause, Settings, QrCode } from "lucide-react";
+import { Play, Pause, Settings, QrCode, MonitorSmartphone } from "lucide-react";
 import { VolumeControls } from "./volume-controls";
 
 interface AirJamOverlayProps {
@@ -25,6 +25,7 @@ interface AirJamOverlayProps {
   lastError?: string;
   gameState: GameState;
   onTogglePlayPause?: () => void;
+  isChildMode?: boolean;
 }
 
 const statusCopy: Record<ConnectionStatus, string> = {
@@ -52,11 +53,15 @@ export const AirJamOverlay = ({
   lastError,
   gameState,
   onTogglePlayPause,
+  isChildMode = false,
 }: AirJamOverlayProps): JSX.Element => {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
 
   useEffect(() => {
+    // No need to generate QR in child mode
+    if (isChildMode) return;
+
     let mounted = true;
     QRCode.toDataURL(joinUrl, {
       margin: 1,
@@ -81,7 +86,7 @@ export const AirJamOverlay = ({
     return () => {
       mounted = false;
     };
-  }, [joinUrl]);
+  }, [joinUrl, isChildMode]);
 
   const connectionVariant = useMemo<
     "default" | "secondary" | "destructive" | "outline"
@@ -111,6 +116,11 @@ export const AirJamOverlay = ({
                 </p>
                 <p className="text-lg font-semibold text-foreground">
                   {roomId}
+                  {isChildMode && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      Platform
+                    </Badge>
+                  )}
                 </p>
               </div>
             </div>
@@ -172,17 +182,28 @@ export const AirJamOverlay = ({
       <div className="pointer-events-auto w-full max-w-2xl">
         <Card className="border shadow-lg bg-card/20 backdrop-blur-sm overflow-hidden py-0 flex flex-col h-[80vh]">
           <Tabs
-            defaultValue="room-code"
+            defaultValue={isChildMode ? "settings" : "room-code"}
             className="w-full flex flex-col h-full gap-0"
           >
             <TabsList className="grid w-full grid-cols-2 rounded-none border-b border-border bg-transparent shrink-0 p-0">
-              <TabsTrigger
-                value="room-code"
-                className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
-              >
-                <QrCode className="h-4 w-4" />
-                Room Code
-              </TabsTrigger>
+              {!isChildMode && (
+                <TabsTrigger
+                  value="room-code"
+                  className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
+                >
+                  <QrCode className="h-4 w-4" />
+                  Room Code
+                </TabsTrigger>
+              )}
+              {isChildMode && (
+                <TabsTrigger
+                  value="info"
+                  className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
+                >
+                  <MonitorSmartphone className="h-4 w-4" />
+                  Platform
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="settings"
                 className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
@@ -192,51 +213,129 @@ export const AirJamOverlay = ({
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent
-              value="room-code"
-              className="mt-0 overflow-y-auto flex-1 min-h-0"
-            >
-              <div className="space-y-6 pb-6">
-                <CardHeader className="text-center pt-6">
-                  <CardTitle className="text-4xl font-bold tracking-wider">
-                    {roomId}
-                  </CardTitle>
-                  <Badge variant={connectionVariant} className="mt-3 mx-auto">
-                    {statusCopy[connectionStatus]}
-                  </Badge>
-                </CardHeader>
+            {!isChildMode && (
+              <TabsContent
+                value="room-code"
+                className="mt-0 overflow-y-auto flex-1 min-h-0"
+              >
+                <div className="space-y-6 pb-6">
+                  <CardHeader className="text-center pt-6">
+                    <CardTitle className="text-4xl font-bold tracking-wider">
+                      {roomId}
+                    </CardTitle>
+                    <Badge variant={connectionVariant} className="mt-3 mx-auto">
+                      {statusCopy[connectionStatus]}
+                    </Badge>
+                  </CardHeader>
 
-                <CardContent className="space-y-6">
-                  <div className="flex flex-col items-center space-y-4">
-                    <CardDescription className="text-xs uppercase tracking-[0.18em]">
-                      Join URL
-                    </CardDescription>
-                    <p className="font-mono text-xs text-muted-foreground break-all text-center">
-                      {joinUrl}
-                    </p>
+                  <CardContent className="space-y-6">
+                    <div className="flex flex-col items-center space-y-4">
+                      <CardDescription className="text-xs uppercase tracking-[0.18em]">
+                        Join URL
+                      </CardDescription>
+                      <p className="font-mono text-xs text-muted-foreground break-all text-center">
+                        {joinUrl}
+                      </p>
 
-                    <div className="overflow-hidden w-48 border-2 border-border bg-card rounded-lg shadow-md">
-                      {qrUrl ? (
-                        <img
-                          src={qrUrl}
-                          alt={`Join room ${roomId}`}
-                          className="w-full bg-white rounded"
-                        />
-                      ) : (
-                        <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                          {qrError
-                            ? `QR failed: ${qrError}`
-                            : "Generating QR code…"}
+                      <div className="overflow-hidden w-48 border-2 border-border bg-card rounded-lg shadow-md">
+                        {qrUrl ? (
+                          <img
+                            src={qrUrl}
+                            alt={`Join room ${roomId}`}
+                            className="w-full bg-white rounded"
+                          />
+                        ) : (
+                          <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                            {qrError
+                              ? `QR failed: ${qrError}`
+                              : "Generating QR code…"}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="w-full">
+                        {players.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Waiting for controllers to join…
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium text-foreground text-center">
+                              Connected Players ({players.length})
+                            </p>
+                            <ul className="flex flex-wrap items-center justify-center gap-4">
+                              {players.map((player) => (
+                                <li
+                                  key={player.id}
+                                  className="flex flex-col items-center gap-2"
+                                >
+                                  <img
+                                    src={getPlayerAvatarUrl(player.id)}
+                                    alt={player.label}
+                                    className="w-16 h-16 rounded-full border-4 shadow-md bg-secondary/30"
+                                    style={{
+                                      borderColor:
+                                        player.color || "hsl(var(--border))",
+                                    }}
+                                  />
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    <span className="text-sm font-medium text-card-foreground text-center max-w-[100px] truncate">
+                                      {player.label}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground font-mono">
+                                      {player.id.slice(0, 8)}
+                                    </span>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      {lastError && (
+                        <Alert variant="destructive" className="w-full">
+                          <AlertDescription>{lastError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Play button in paused state */}
+                      {onTogglePlayPause && (
+                        <div className="pt-2">
+                          <Button
+                            type="button"
+                            onClick={onTogglePlayPause}
+                            size="lg"
+                          >
+                            <Play className="mr-2 h-5 w-5" />
+                            Start Game
+                          </Button>
                         </div>
                       )}
                     </div>
+                  </CardContent>
+                </div>
+              </TabsContent>
+            )}
 
-                    <div className="w-full">
-                      {players.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          Waiting for controllers to join…
-                        </p>
-                      ) : (
+            {isChildMode && (
+              <TabsContent
+                value="info"
+                className="mt-0 overflow-y-auto flex-1 min-h-0"
+              >
+                <div className="space-y-6 pb-6">
+                  <CardHeader className="text-center pt-6">
+                    <CardTitle className="text-2xl font-bold tracking-wider">
+                      Connected to Platform
+                    </CardTitle>
+                    <CardDescription className="mt-2">
+                      This game is running inside the Air Jam Platform.
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="space-y-6">
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="w-full">
                         <div className="space-y-3">
                           <p className="text-sm font-medium text-foreground text-center">
                             Connected Players ({players.length})
@@ -260,40 +359,31 @@ export const AirJamOverlay = ({
                                   <span className="text-sm font-medium text-card-foreground text-center max-w-[100px] truncate">
                                     {player.label}
                                   </span>
-                                  <span className="text-xs text-muted-foreground font-mono">
-                                    {player.id.slice(0, 8)}
-                                  </span>
                                 </div>
                               </li>
                             ))}
                           </ul>
                         </div>
+                      </div>
+
+                      {/* Play button in paused state */}
+                      {onTogglePlayPause && (
+                        <div className="pt-2">
+                          <Button
+                            type="button"
+                            onClick={onTogglePlayPause}
+                            size="lg"
+                          >
+                            <Play className="mr-2 h-5 w-5" />
+                            Resume Game
+                          </Button>
+                        </div>
                       )}
                     </div>
-
-                    {lastError && (
-                      <Alert variant="destructive" className="w-full">
-                        <AlertDescription>{lastError}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Play button in paused state */}
-                    {onTogglePlayPause && (
-                      <div className="pt-2">
-                        <Button
-                          type="button"
-                          onClick={onTogglePlayPause}
-                          size="lg"
-                        >
-                          <Play className="mr-2 h-5 w-5" />
-                          Start Game
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </div>
-            </TabsContent>
+                  </CardContent>
+                </div>
+              </TabsContent>
+            )}
 
             <TabsContent
               value="settings"

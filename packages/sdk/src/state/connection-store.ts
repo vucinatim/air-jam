@@ -15,6 +15,7 @@ interface AirJamStore {
   connectionStatus: ConnectionStatus;
   mode: RunMode;
   gameState: GameState;
+  stateMessage?: string;
   players: PlayerProfile[];
   lastError?: string;
   setRole: (role: ConnectionRole | null) => void;
@@ -23,6 +24,7 @@ interface AirJamStore {
   setStatus: (status: ConnectionStatus) => void;
   setMode: (mode: RunMode) => void;
   setGameState: (state: GameState) => void;
+  setStateMessage: (message?: string) => void;
   toggleGameState: () => void;
   setError: (message?: string) => void;
   upsertPlayer: (player: PlayerProfile) => void;
@@ -37,6 +39,7 @@ export const useConnectionStore = create<AirJamStore>((set) => ({
   connectionStatus: "idle",
   mode: "standalone",
   gameState: "paused",
+  stateMessage: undefined,
   players: [],
   lastError: undefined,
   setRole: (role) => set({ role }),
@@ -45,6 +48,7 @@ export const useConnectionStore = create<AirJamStore>((set) => ({
   setStatus: (connectionStatus) => set({ connectionStatus }),
   setMode: (mode) => set({ mode }),
   setGameState: (gameState) => set({ gameState }),
+  setStateMessage: (stateMessage) => set({ stateMessage }),
   toggleGameState: () =>
     set((state) => ({
       gameState: state.gameState === "paused" ? "playing" : "paused",

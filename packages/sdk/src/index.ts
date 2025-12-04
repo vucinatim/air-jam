@@ -1,5 +1,6 @@
 export * from "./protocol";
 export * from "./hooks/use-air-jam-host";
+export * from "./hooks/use-air-jam-proxy";
 export * from "./audio";
 export * from "./hooks/use-air-jam-controller";
 export * from "./hooks/use-air-jam-input";

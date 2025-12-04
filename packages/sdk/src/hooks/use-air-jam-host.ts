@@ -7,11 +7,13 @@ import type {
   PlayerProfile,
   RoomCode,
   RunMode,
+  AirJamProxyMessage,
 } from "../protocol";
 import {
   controllerStateSchema,
   hostRegistrationSchema,
   roomCodeSchema,
+  AIRJAM_PROXY_PREFIX,
 } from "../protocol";
 import { detectRunMode } from "../utils/mode";
 import { generateRoomCode } from "../utils/ids";
@@ -45,12 +47,32 @@ export interface AirJamHostApi {
   toggleGameState: () => void;
   sendState: (state: ControllerStatePayload) => boolean;
   socket: ReturnType<typeof getSocketClient>;
+  isChildMode: boolean;
 }
 
 export const useAirJamHost = (
   options: AirJamHostOptions = {}
 ): AirJamHostApi => {
+  // Detect if running as a child process (in iframe under Platform)
+  const isChildMode = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("airjam_mode") === "child";
+  }, []);
+
   const parsedRoomId = useMemo<RoomCode>(() => {
+    // In child mode, we might inherit the room ID from the URL query params
+    // But for now, let's respect the options or fall back to generate
+    // If the parent passes room in URL, we should probably prefer it.
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const paramRoom = params.get("room");
+      if (paramRoom) {
+        const result = roomCodeSchema.safeParse(paramRoom.toUpperCase());
+        if (result.success) return result.data;
+      }
+    }
+
     if (options.roomId) {
       return roomCodeSchema.parse(options.roomId.toUpperCase());
     }
@@ -87,18 +109,94 @@ export const useAirJamHost = (
 
   useEffect(() => {
     const storeApi = useConnectionStore;
-    const socket = getSocketClient("host", options.serverUrl);
+    const store = storeApi.getState();
     let lastToggleTime = 0;
     const TOGGLE_DEBOUNCE_MS = 300;
 
-    const seedState = storeApi.getState();
-    seedState.setMode(detectRunMode());
-    seedState.setRole("host");
-    seedState.setRoomId(parsedRoomId);
-    seedState.setStatus("connecting");
-    seedState.setError(undefined);
-    seedState.resetPlayers();
+    store.setMode(detectRunMode());
+    store.setRole("host");
+    store.setRoomId(parsedRoomId);
+    store.setStatus("connecting");
+    store.setError(undefined);
+    store.resetPlayers();
 
+    // --- PROXY / CHILD MODE ---
+    if (isChildMode) {
+      // In child mode, we don't connect to the socket.
+      // We listen for messages from the parent window.
+
+      const handleMessage = (event: MessageEvent) => {
+        // Basic security check: ensure it's from parent
+        if (event.source !== window.parent) return;
+
+        const data = event.data as AirJamProxyMessage;
+        if (!data || typeof data.type !== "string") return;
+
+        if (data.type === "AIRJAM_INIT") {
+          storeApi.getState().setStatus("connected");
+          data.payload.players.forEach((p) => {
+            storeApi.getState().upsertPlayer(p);
+            onPlayerJoinRef.current?.(p);
+          });
+        }
+
+        if (data.type === "AIRJAM_INPUT") {
+          const payload = data.payload;
+          if (payload.roomId !== parsedRoomId) return; // Should match? Or just ignore room ID in child mode?
+          // Actually, in child mode, we trust the parent.
+
+          if (payload.input.togglePlayPause) {
+            const now = Date.now();
+            if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) return;
+            lastToggleTime = now;
+            const currentState = storeApi.getState().gameState;
+            const newGameState =
+              currentState === "paused" ? "playing" : "paused";
+            storeApi.getState().setGameState(newGameState);
+
+            // Tell parent
+            window.parent.postMessage(
+              {
+                type: "AIRJAM_STATE",
+                payload: { gameState: newGameState, roomId: parsedRoomId },
+              } as AirJamProxyMessage,
+              "*"
+            );
+          }
+
+          onInputRef.current?.(payload);
+        }
+
+        if (data.type === "AIRJAM_PLAYER_JOIN") {
+          const p = data.payload.player;
+          if (p) {
+            storeApi.getState().upsertPlayer(p);
+            onPlayerJoinRef.current?.(p);
+          }
+        }
+
+        if (data.type === "AIRJAM_PLAYER_LEAVE") {
+          storeApi.getState().removePlayer(data.payload.controllerId);
+          onPlayerLeaveRef.current?.(data.payload.controllerId);
+        }
+      };
+
+      window.addEventListener("message", handleMessage);
+
+      // Signal readiness
+      window.parent.postMessage(
+        { type: "AIRJAM_READY" } as AirJamProxyMessage,
+        "*"
+      );
+
+      return () => {
+        window.removeEventListener("message", handleMessage);
+        storeApi.getState().setStatus("disconnected");
+      };
+    }
+
+    // --- NORMAL SOCKET MODE ---
+    const socket = getSocketClient("host", options.serverUrl);
     const maxPlayers = options.maxPlayers ?? 8;
 
     const registerHost = (): void => {
@@ -109,23 +207,21 @@ export const useAirJamHost = (
       });
       socket.emit("host:register", payload, (ack) => {
         if (!ack.ok) {
-          storeApi
-            .getState()
-            .setError(ack.message ?? "Failed to register host");
-          storeApi.getState().setStatus("disconnected");
+          store.setError(ack.message ?? "Failed to register host");
+          store.setStatus("disconnected");
           return;
         }
-        storeApi.getState().setStatus("connected");
+        store.setStatus("connected");
       });
     };
 
     const handleConnect = (): void => {
-      storeApi.getState().setStatus("connected");
+      store.setStatus("connected");
       registerHost();
     };
 
     const handleDisconnect = (): void => {
-      storeApi.getState().setStatus("disconnected");
+      store.setStatus("disconnected");
     };
 
     const handleJoin = (payload: {
@@ -133,39 +229,32 @@ export const useAirJamHost = (
       nickname?: string;
       player?: PlayerProfile;
     }): void => {
-      // Server is the single source of truth for colors - use the player profile from server
       if (!payload.player) {
         const error = `Server did not send player profile for controllerId: ${payload.controllerId}. This indicates a server version mismatch or bug.`;
-        storeApi.getState().setError(error);
+        store.setError(error);
         console.error(`[useAirJamHost] ${error}`);
         return;
       }
-      storeApi.getState().upsertPlayer(payload.player);
+      store.upsertPlayer(payload.player);
       onPlayerJoinRef.current?.(payload.player);
     };
 
     const handleLeave = (payload: { controllerId: string }): void => {
-      storeApi.getState().removePlayer(payload.controllerId);
+      store.removePlayer(payload.controllerId);
       onPlayerLeaveRef.current?.(payload.controllerId);
     };
 
     const handleInput = (payload: ControllerInputEvent): void => {
-      if (payload.roomId !== parsedRoomId) {
-        return;
-      }
-      // Handle play/pause toggle with debouncing
+      if (payload.roomId !== parsedRoomId) return;
+
       if (payload.input.togglePlayPause) {
         const now = Date.now();
-        if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
-          // Ignore rapid toggles
-          return;
-        }
+        if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) return;
         lastToggleTime = now;
-        const store = useConnectionStore.getState();
-        const currentState = store.gameState;
+        const currentState = storeApi.getState().gameState;
         const newGameState = currentState === "paused" ? "playing" : "paused";
-        store.setGameState(newGameState);
-        // Broadcast game state change to all controllers
+        storeApi.getState().setGameState(newGameState);
+
         socket.emit("host:state", {
           roomId: parsedRoomId,
           state: { gameState: newGameState },
@@ -175,7 +264,7 @@ export const useAirJamHost = (
     };
 
     const handleError = (payload: { message: string }): void => {
-      storeApi.getState().setError(payload.message);
+      store.setError(payload.message);
     };
 
     socket.on("connect", handleConnect);
@@ -185,7 +274,7 @@ export const useAirJamHost = (
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
     socket.on("connect_error", (err) => {
-      storeApi.getState().setError(err.message);
+      store.setError(err.message);
     });
 
     socket.connect();
@@ -199,7 +288,13 @@ export const useAirJamHost = (
       socket.off("server:error", handleError);
       disconnectSocket("host");
     };
-  }, [options.maxPlayers, options.serverUrl, parsedRoomId]);
+  }, [
+    options.maxPlayers,
+    options.serverUrl,
+    parsedRoomId,
+    isChildMode,
+    options.apiKey,
+  ]);
 
   const [joinUrl, setJoinUrl] = useState<string>("");
 
@@ -212,7 +307,6 @@ export const useAirJamHost = (
         }
       })
       .catch(() => {
-        // Fallback to a basic URL if building fails
         if (mounted) {
           const fallback =
             typeof window !== "undefined"
@@ -242,6 +336,17 @@ export const useAirJamHost = (
         return false;
       }
 
+      if (isChildMode) {
+        window.parent.postMessage(
+          {
+            type: "AIRJAM_STATE",
+            payload: payload.data.state, // Wait, payload.data is {roomId, state}. Correcting this.
+          } as AirJamProxyMessage,
+          "*"
+        );
+        return true;
+      }
+
       const socket = getSocketClient("host", options.serverUrl);
       if (!socket.connected) {
         return false;
@@ -249,7 +354,7 @@ export const useAirJamHost = (
       socket.emit("host:state", payload.data);
       return true;
     },
-    [options.serverUrl, parsedRoomId]
+    [options.serverUrl, parsedRoomId, isChildMode]
   );
 
   const toggleGameState = useCallback(() => {
@@ -257,7 +362,18 @@ export const useAirJamHost = (
     const currentState = store.gameState;
     const newGameState = currentState === "paused" ? "playing" : "paused";
     store.setGameState(newGameState);
-    // Broadcast game state change to all controllers
+
+    if (isChildMode) {
+      window.parent.postMessage(
+        {
+          type: "AIRJAM_STATE",
+          payload: { gameState: newGameState },
+        } as AirJamProxyMessage,
+        "*"
+      );
+      return;
+    }
+
     const socket = getSocketClient("host", options.serverUrl);
     if (socket.connected) {
       socket.emit("host:state", {
@@ -265,7 +381,7 @@ export const useAirJamHost = (
         state: { gameState: newGameState },
       });
     }
-  }, [options.serverUrl, parsedRoomId]);
+  }, [options.serverUrl, parsedRoomId, isChildMode]);
 
   const socket = useMemo(() => {
     return getSocketClient("host", options.serverUrl);
@@ -282,5 +398,6 @@ export const useAirJamHost = (
     toggleGameState,
     sendState,
     socket,
+    isChildMode,
   };
 };

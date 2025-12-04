@@ -34,6 +34,7 @@ export interface AirJamControllerApi {
   connectionStatus: ConnectionStatus;
   lastError?: string;
   gameState: GameState;
+  stateMessage?: string;
   sendInput: (input: ControllerInputPayload) => boolean;
   setNickname: (value: string) => void;
   reconnect: () => void;
@@ -75,6 +76,7 @@ export const useAirJamController = (
     controllerId: state.controllerId,
     players: state.players,
     gameState: state.gameState,
+    stateMessage: state.stateMessage,
   }));
 
   // Use a key to force reconnection when needed
@@ -164,7 +166,10 @@ export const useAirJamController = (
       }
       // Update game state if provided
       if (payload.state.gameState) {
-        useConnectionStore.getState().setGameState(payload.state.gameState);
+        store.setGameState(payload.state.gameState);
+      }
+      if (payload.state.message !== undefined) {
+        store.setStateMessage(payload.state.message);
       }
       onStateRef.current?.(payload.state);
     };
@@ -238,6 +243,7 @@ export const useAirJamController = (
     connectionStatus: connectionState.connectionStatus,
     lastError: connectionState.lastError,
     gameState: connectionState.gameState,
+    stateMessage: connectionState.stateMessage,
     sendInput,
     setNickname,
     reconnect,

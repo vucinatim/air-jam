@@ -91,14 +91,14 @@ export const ControllerShell = ({
   const currentPlayer = useMemo(() => {
     if (!controllerId) return null;
     const found = players.find((p) => p.id === controllerId);
-    if (!found) {
-      console.error(
-        `[ControllerShell] Player profile not found for controllerId: ${controllerId}. ` +
-          `This indicates the server did not send the player profile.`
-      );
+
+    // Only warn if we are fully connected and still can't find the player
+    // This avoids race conditions during the initial connection handshake
+    if (!found && connectionStatus === "connected" && players.length > 0) {
+      // Optional: Debug log here if needed
     }
     return found || null;
-  }, [controllerId, players]);
+  }, [controllerId, players, connectionStatus]);
 
   useEffect(() => {
     if (requiredOrientation === "any") {
@@ -132,7 +132,7 @@ export const ControllerShell = ({
     <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-background text-foreground select-none touch-none">
       <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between px-6 py-2 border-b">
         <div className="pointer-events-auto flex items-center gap-3">
-          {(currentPlayer || controllerId) && (
+          {typeof window !== "undefined" && (currentPlayer || controllerId) && (
             <Avatar
               className="h-8 w-8 border-2"
               style={{
@@ -152,7 +152,7 @@ export const ControllerShell = ({
               Room
             </p>
             <p className="text-lg font-semibold text-foreground">
-              {roomId ?? "N/A"}
+              {typeof window !== "undefined" ? roomId ?? "N/A" : "N/A"}
             </p>
           </div>
         </div>
@@ -165,7 +165,11 @@ export const ControllerShell = ({
             title={describeStatus(connectionStatus)}
             aria-label={describeStatus(connectionStatus)}
           >
-            {statusIcon}
+            {typeof window !== "undefined" ? (
+              statusIcon
+            ) : (
+              <AlertCircle className="h-5 w-5 text-destructive" />
+            )}
           </Button>
           {onRefresh && roomId && (
             <Button
@@ -234,7 +238,7 @@ export const ControllerShell = ({
           </Button>
         </div>
       </header>
-      
+
       {/* Volume Controls - positioned absolutely for mobile */}
       <div className="pointer-events-none fixed bottom-4 right-4 z-50">
         <div className="pointer-events-auto">
