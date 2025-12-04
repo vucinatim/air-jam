@@ -25,6 +25,17 @@ export const gameRouter = createTRPCRouter({
     return await db.select().from(games).where(eq(games.userId, ctx.user.id));
   }),
 
+  get: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const game = await db.query.games.findFirst({
+        where: (games, { eq, and }) =>
+          and(eq(games.id, input.id), eq(games.userId, ctx.user.id)),
+      });
+      if (!game) throw new Error("Game not found");
+      return game;
+    }),
+
   createApiKey: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ input, ctx }) => {

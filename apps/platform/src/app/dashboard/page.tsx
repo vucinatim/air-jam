@@ -4,10 +4,20 @@ import { api } from "@/trpc/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import Link from "next/link";
+import { Play, LogOut, Plus, Key, Gamepad2, Loader2, Copy, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 
 export default function Dashboard() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const router = useRouter();
   
   const utils = api.useUtils();
@@ -19,11 +29,12 @@ export default function Dashboard() {
       setUrl("");
       utils.game.list.invalidate();
     },
-    onError: (err) => alert(err.message),
+    onError: (err) => alert(err.message), // Could use toast here later
   });
 
   const createKey = api.game.createApiKey.useMutation({
       onSuccess: (data) => {
+          // In a real app, maybe show a dialog or toast with the key
           alert(`API Key Created: ${data.key}`);
       },
       onError: (err) => alert(err.message),
@@ -33,73 +44,129 @@ export default function Dashboard() {
       await authClient.signOut();
       router.push("/");
   };
-
-  if (isLoading) return <div className="p-8">Loading...</div>;
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(text);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
 
   return (
-    <div className="p-8">
-        <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold">Developer Dashboard</h1>
-            <button onClick={handleSignOut} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Sign Out</button>
-        </div>
-      
-      <div className="mb-8 p-4 border rounded shadow-sm">
-        <h2 className="text-xl font-bold mb-4">Register New Game</h2>
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Name</label>
-              <input 
-                className="border p-2 rounded text-black bg-white w-64" 
-                placeholder="My Awesome Game" 
-                value={name} 
-                onChange={e => setName(e.target.value)} 
-              />
+    <div className="min-h-screen bg-background">
+      <header className="bg-background border-b sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Gamepad2 className="h-6 w-6 text-foreground" />
+            <h1 className="text-xl font-bold text-foreground">Air Jam Developer Console</h1>
           </div>
-          <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">URL</label>
-              <input 
-                className="border p-2 rounded text-black bg-white w-64" 
-                placeholder="https://my-game.com" 
-                value={url} 
-                onChange={e => setUrl(e.target.value)} 
-              />
-          </div>
-          <button 
-            onClick={() => createGame.mutate({ name, url })} 
-            disabled={createGame.isPending}
-            className="bg-black text-white px-6 py-2 rounded hover:bg-gray-800 disabled:opacity-50 h-10"
-          >
-            {createGame.isPending ? "Saving..." : "Register Game"}
-          </button>
+          <Button variant="outline" onClick={handleSignOut} size="sm">
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {games?.map((game) => (
-          <div key={game.id} className="border p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="mb-4">
-                <h3 className="text-xl font-bold">{game.name}</h3>
-                <a href={game.url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline text-sm break-all">{game.url}</a>
-            </div>
-            <div className="pt-4 border-t">
-                <button 
-                    onClick={() => createKey.mutate({ gameId: game.id })}
-                    disabled={createKey.isPending}
-                    className="bg-blue-600 text-white px-3 py-2 rounded text-sm w-full hover:bg-blue-700 disabled:opacity-50"
+      <main className="container mx-auto px-4 py-8 max-w-5xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Sidebar / Create Game Section */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Register Game</CardTitle>
+                <CardDescription>Add a new game to your portfolio.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label>Game Name</Label>
+                    <Input 
+                      placeholder="My Awesome Game" 
+                      value={name} 
+                      onChange={e => setName(e.target.value)} 
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Game URL</Label>
+                    <Input 
+                      placeholder="https://my-game.com" 
+                      value={url} 
+                      onChange={e => setUrl(e.target.value)} 
+                    />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className="w-full"
+                  onClick={() => createGame.mutate({ name, url })} 
+                  disabled={createGame.isPending || !name || !url}
                 >
-                    {createKey.isPending ? "Generating..." : "Generate API Key"}
-                </button>
-            </div>
+                  {createGame.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                  Register Game
+                </Button>
+              </CardFooter>
+            </Card>
           </div>
-        ))}
-        {games?.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-500">
-                No games registered yet. Create one above!
-            </div>
-        )}
-      </div>
+
+          {/* Main Content / Games List */}
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold mb-6">Your Games</h2>
+            
+            {isLoading ? (
+              <div className="grid gap-4">
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+              </div>
+            ) : games?.length === 0 ? (
+               <Card className="border-dashed">
+                 <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                   <Gamepad2 className="h-12 w-12 mb-4 opacity-20" />
+                   <p className="text-lg font-medium">No games yet</p>
+                   <p className="text-sm">Register your first game to get started.</p>
+                 </CardContent>
+               </Card>
+            ) : (
+              <div className="grid gap-6">
+                {games?.map((game) => (
+                  <Card key={game.id} className="overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle>{game.name}</CardTitle>
+                          <CardDescription className="mt-1 break-all">{game.url}</CardDescription>
+                        </div>
+                        <Link href={`/play/${game.id}`}>
+                           <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                             <Play className="h-4 w-4 mr-2" />
+                             Play
+                           </Button>
+                        </Link>
+                      </div>
+                    </CardHeader>
+                    <Separator />
+                    <CardContent className="pt-4">
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">API Keys</Label>
+                            <div className="flex items-center gap-2">
+                                <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => createKey.mutate({ gameId: game.id })}
+                                    disabled={createKey.isPending}
+                                >
+                                    {createKey.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Key className="h-3 w-3 mr-2" />}
+                                    Generate New Key
+                                </Button>
+                                {/* We could list existing keys here if we fetched them */}
+                            </div>
+                        </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
-
-
