@@ -70,6 +70,8 @@ const HostViewContent = (): JSX.Element => {
     onPlayerJoin: handlePlayerJoin,
     onPlayerLeave: handlePlayerLeave,
     controllerPath: "/joypad",
+    apiKey: import.meta.env.VITE_AIR_JAM_API_KEY,
+    serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
   });
 
   useEffect(() => {

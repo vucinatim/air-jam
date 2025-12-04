@@ -3,6 +3,8 @@ import cors from "cors";
 import { createServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import Color from "color";
+import { db, apiKeys } from "./db";
+import { eq, and } from "drizzle-orm";
 import {
   controllerInputSchema,
   controllerJoinSchema,
@@ -95,7 +97,7 @@ io.on(
       SocketData
     >
   ) => {
-    socket.on("host:register", (payload, callback) => {
+    socket.on("host:register", async (payload, callback) => {
       const parsed = hostRegistrationSchema.safeParse(payload);
       if (!parsed.success) {
         callback({ ok: false, message: parsed.error.message });
@@ -105,14 +107,44 @@ io.on(
       const { roomId, maxPlayers, apiKey } = parsed.data;
 
       // API Key Validation
+      let isVerified = false;
       const MASTER_KEY = process.env.AIR_JAM_MASTER_KEY;
-      if (MASTER_KEY) {
-        if (!apiKey || apiKey !== MASTER_KEY) {
-          console.warn(`[server] Unauthorized host registration attempt for room ${roomId}`);
-          callback({ ok: false, message: "Unauthorized: Invalid API Key" });
+
+      if (MASTER_KEY && apiKey === MASTER_KEY) {
+        isVerified = true;
+      } else if (apiKey) {
+        try {
+          const [keyRecord] = await db
+            .select()
+            .from(apiKeys)
+            .where(and(eq(apiKeys.key, apiKey), eq(apiKeys.isActive, true)))
+            .limit(1);
+
+          if (keyRecord) {
+            isVerified = true;
+            // Optional: Update lastUsedAt asynchronously
+            db.update(apiKeys)
+              .set({ lastUsedAt: new Date() })
+              .where(eq(apiKeys.id, keyRecord.id))
+              .catch((err) =>
+                console.error("[server] Failed to update lastUsedAt", err)
+              );
+          }
+        } catch (error) {
+          console.error("[server] Database error during key verification", error);
+          callback({ ok: false, message: "Internal Server Error" });
           return;
         }
       }
+
+      if (!isVerified) {
+        console.warn(
+          `[server] Unauthorized host registration attempt for room ${roomId}`
+        );
+        callback({ ok: false, message: "Unauthorized: Invalid or Missing API Key" });
+        return;
+      }
+
       const nextSession: RoomSession = {
         roomId,
         hostSocketId: socket.id,

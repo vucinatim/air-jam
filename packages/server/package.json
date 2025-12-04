@@ -14,7 +14,10 @@
     "@air-jam/sdk": "workspace:^",
     "color": "^5.0.3",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.0",
     "express": "^4.21.2",
+    "postgres": "^3.4.7",
     "socket.io": "^4.8.1",
     "zod": "^3.24.1"
   },
