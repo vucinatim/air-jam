@@ -5,9 +5,10 @@ import { cn } from "../utils/cn";
 
 interface VolumeControlsProps {
   className?: string;
+  compact?: boolean;
 }
 
-export function VolumeControls({ className }: VolumeControlsProps) {
+export function VolumeControls({ className, compact }: VolumeControlsProps) {
   const {
     masterVolume,
     musicVolume,
@@ -18,7 +19,7 @@ export function VolumeControls({ className }: VolumeControlsProps) {
   } = useVolumeStore();
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div className={cn("flex flex-col gap-3", compact && "gap-1", className)}>
       {/* Header */}
       <div className="flex items-center gap-2">
         <Volume2 className="h-4 w-4 text-muted-foreground" />

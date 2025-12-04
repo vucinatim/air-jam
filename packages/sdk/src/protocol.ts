@@ -66,6 +66,7 @@ export type ControllerStatePayload = z.infer<
 export const hostRegistrationSchema = z.object({
   roomId: roomCodeSchema,
   maxPlayers: z.number().int().min(1).max(16).default(8),
+  apiKey: z.string().optional(),
 });
 
 export const controllerJoinSchema = z.object({

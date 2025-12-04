@@ -102,7 +102,17 @@ io.on(
         return;
       }
 
-      const { roomId, maxPlayers } = parsed.data;
+      const { roomId, maxPlayers, apiKey } = parsed.data;
+
+      // API Key Validation
+      const MASTER_KEY = process.env.AIR_JAM_MASTER_KEY;
+      if (MASTER_KEY) {
+        if (!apiKey || apiKey !== MASTER_KEY) {
+          console.warn(`[server] Unauthorized host registration attempt for room ${roomId}`);
+          callback({ ok: false, message: "Unauthorized: Invalid API Key" });
+          return;
+        }
+      }
       const nextSession: RoomSession = {
         roomId,
         hostSocketId: socket.id,

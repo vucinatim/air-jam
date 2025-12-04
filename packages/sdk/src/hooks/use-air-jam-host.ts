@@ -31,6 +31,7 @@ interface AirJamHostOptions {
   onInput?: (event: ControllerInputEvent) => void;
   onPlayerJoin?: (player: PlayerProfile) => void;
   onPlayerLeave?: (controllerId: string) => void;
+  apiKey?: string;
 }
 
 export interface AirJamHostApi {
@@ -104,6 +105,7 @@ export const useAirJamHost = (
       const payload = hostRegistrationSchema.parse({
         roomId: parsedRoomId,
         maxPlayers,
+        apiKey: options.apiKey,
       });
       socket.emit("host:register", payload, (ack) => {
         if (!ack.ok) {
