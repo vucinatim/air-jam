@@ -226,6 +226,11 @@ export const useAirJamController = (
     socket.on("server:error", handleError);
     socket.connect();
 
+    // Notify parent that we are ready (for Platform Arcade)
+    if (isChildMode && typeof window !== "undefined") {
+      window.parent.postMessage({ type: "AIRJAM_READY" }, "*");
+    }
+
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
@@ -244,11 +249,6 @@ export const useAirJamController = (
   const sendInput = useCallback(
     (input: ControllerInputPayload): boolean => {
       const store = useConnectionStore.getState();
-
-      if (isChildMode && !shouldConnect) {
-        // No-op - we don't proxy anymore
-        return false;
-      }
 
       if (!roomId || !store.controllerId) {
         store.setError("Not connected to a room");
@@ -271,7 +271,7 @@ export const useAirJamController = (
       socket.emit("controller:input", payload.data);
       return true;
     },
-    [options.serverUrl, roomId, isChildMode, shouldConnect]
+    [options.serverUrl, roomId]
   );
 
   const socket = useMemo(() => {

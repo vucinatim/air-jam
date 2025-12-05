@@ -121,6 +121,7 @@ const HostViewContent = (): JSX.Element => {
         lastError={host.lastError}
         gameState={host.gameState}
         onTogglePlayPause={host.toggleGameState}
+        isChildMode={host.isChildMode}
       />
       <ScoreDisplay />
       <DebugOverlay>

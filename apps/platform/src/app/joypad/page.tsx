@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -191,8 +192,7 @@ function JoypadContentInner() {
   }, [controller.connectionStatus, vector, action, ability, controller]); // Check dependencies carefully. controller object is stable-ish.
 
   // Handle Nickname
-  const [hasSetNickname, setHasSetNickname] = useState(false);
-  const nicknameInputRef = useRef<HTMLInputElement>(null);
+  const [hasSetNickname] = useState(false);
 
   if (
     controller.connectionStatus === "connected" &&
@@ -250,7 +250,7 @@ function JoypadContentInner() {
       }
       return url;
     } catch (error) {
-      console.error("[Platform Joypad] Failed to normalize URL:", url);
+      console.error("[Platform Joypad] Failed to normalize URL:", url, error);
       return url;
     }
   };
@@ -265,11 +265,26 @@ function JoypadContentInner() {
 
   // Normalize the URL - the Arcade already sends the full URL with /joypad appended
   // So we just need to normalize it (replace localhost) and clean up any double slashes
-  const gameControllerUrl = rawControllerUrl
-    ? normalizeUrlForMobile(
-        rawControllerUrl.replace(/\/+/g, "/").replace(/\/$/, "")
-      )
-    : null;
+  const [gameControllerUrl, setGameControllerUrl] = useState<string | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (rawControllerUrl) {
+      // Add a small delay to ensure the Game Host has initialized and taken over the room
+      // before we load the controller and try to join. This prevents race conditions.
+      const timer = setTimeout(() => {
+        setGameControllerUrl(
+          normalizeUrlForMobile(
+            rawControllerUrl.replace(/([^:]\/)\/+/g, "$1").replace(/\/$/, "")
+          )
+        );
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setGameControllerUrl(null);
+    }
+  }, [rawControllerUrl]);
 
   // Log when game controller URL changes
   useEffect(() => {

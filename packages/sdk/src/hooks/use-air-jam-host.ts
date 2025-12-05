@@ -7,13 +7,11 @@ import type {
   PlayerProfile,
   RoomCode,
   RunMode,
-  AirJamProxyMessage,
 } from "../protocol";
 import {
   controllerStateSchema,
   hostRegistrationSchema,
   roomCodeSchema,
-  AIRJAM_PROXY_PREFIX,
 } from "../protocol";
 import { detectRunMode } from "../utils/mode";
 import { generateRoomCode } from "../utils/ids";
@@ -71,10 +69,9 @@ export const useAirJamHost = (
     return false;
   }, [options.forceConnect]);
 
+  const [fallbackRoomId] = useState(() => generateRoomCode());
+
   const parsedRoomId = useMemo<RoomCode>(() => {
-    // In child mode, we might inherit the room ID from the URL query params
-    // But for now, let's respect the options or fall back to generate
-    // If the parent passes room in URL, we should probably prefer it.
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const paramRoom = params.get("room");
@@ -87,8 +84,8 @@ export const useAirJamHost = (
     if (options.roomId) {
       return roomCodeSchema.parse(options.roomId.toUpperCase());
     }
-    return generateRoomCode();
-  }, [options.roomId]);
+    return fallbackRoomId;
+  }, [options.roomId, fallbackRoomId]);
 
   const onInputRef = useRef<AirJamHostOptions["onInput"]>(options.onInput);
   const onPlayerJoinRef = useRef<AirJamHostOptions["onPlayerJoin"]>(
@@ -145,7 +142,6 @@ export const useAirJamHost = (
 
     if (!canConnect) {
       // If we are in child mode but NOT forced to connect, we are likely in a legacy state or waiting.
-      // We do NOT use postMessage proxies anymore.
       store.setStatus("idle");
       return;
     }
@@ -292,11 +288,6 @@ export const useAirJamHost = (
         return false;
       }
 
-      if (isChildMode && !shouldConnect) {
-        // No-op or throw error - we don't proxy anymore
-        return false;
-      }
-
       const socket = getSocketClient("host", options.serverUrl);
       if (!socket.connected) {
         return false;
@@ -304,7 +295,7 @@ export const useAirJamHost = (
       socket.emit("host:state", payload.data);
       return true;
     },
-    [options.serverUrl, parsedRoomId, isChildMode, shouldConnect]
+    [options.serverUrl, parsedRoomId]
   );
 
   const toggleGameState = useCallback(() => {
@@ -313,10 +304,6 @@ export const useAirJamHost = (
     const newGameState = currentState === "paused" ? "playing" : "paused";
     store.setGameState(newGameState);
 
-    if (isChildMode && !shouldConnect) {
-      return;
-    }
-
     const socket = getSocketClient("host", options.serverUrl);
     if (socket.connected) {
       socket.emit("host:state", {
@@ -324,7 +311,7 @@ export const useAirJamHost = (
         state: { gameState: newGameState },
       });
     }
-  }, [options.serverUrl, parsedRoomId, isChildMode, shouldConnect]);
+  }, [options.serverUrl, parsedRoomId]);
 
   const socket = useMemo(() => {
     return getSocketClient("host", options.serverUrl);
