@@ -3,7 +3,7 @@ import cors from "cors";
 import { createServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import Color from "color";
-import { db, apiKeys } from "./db";
+import { db, apiKeys } from "./db.js";
 import { eq, and } from "drizzle-orm";
 import {
   controllerInputSchema,
@@ -127,7 +127,7 @@ io.on(
             db.update(apiKeys)
               .set({ lastUsedAt: new Date() })
               .where(eq(apiKeys.id, keyRecord.id))
-              .catch((err) =>
+              .catch((err: unknown) =>
                 console.error("[server] Failed to update lastUsedAt", err)
               );
           }
@@ -273,6 +273,13 @@ io.on(
         color = Color("#38bdf8").hex(); // Fallback to first color
       }
 
+      // Create player profile with color (single source of truth)
+      const playerProfile: PlayerProfile = {
+        id: controllerId,
+        label: nickname ?? `Player ${session.controllers.size}`,
+        color, // Validated and normalized hex color
+      };
+
       const controllerSession: ControllerSession = {
         controllerId,
         nickname,
@@ -283,13 +290,6 @@ io.on(
       session.controllers.set(controllerId, controllerSession);
       controllerIndex.set(socket.id, { roomId, controllerId });
       socket.join(roomId);
-
-      // Create player profile with color (single source of truth)
-      const playerProfile: PlayerProfile = {
-        id: controllerId,
-        label: nickname ?? `Player ${session.controllers.size}`,
-        color, // Validated and normalized hex color
-      };
 
       const notice: ControllerJoinedNotice = {
         controllerId,
