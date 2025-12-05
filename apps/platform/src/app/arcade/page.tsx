@@ -6,7 +6,7 @@ import {
   useAirJamHost,
   AirJamOverlay,
   type ControllerInputEvent,
-  getLocalNetworkIp,
+  urlBuilder,
 } from "@air-jam/sdk";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -63,31 +63,6 @@ export default function ArcadePage() {
 
   // Fetch games (assuming you have games in your DB)
   const { data: games } = api.game.list.useQuery();
-
-  // Helper to normalize URLs - replace localhost with local network IP for mobile devices
-  const normalizeUrlForMobile = async (url: string): Promise<string> => {
-    if (typeof window === "undefined") return url;
-
-    try {
-      const urlObj = new URL(url);
-      // If URL uses localhost, replace with local network IP
-      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
-        const localIp = await getLocalNetworkIp();
-        if (localIp) {
-          console.log("[Arcade] Replacing localhost with detected IP:", localIp);
-          urlObj.hostname = localIp;
-          return urlObj.toString();
-        }
-        // Fallback to current hostname if IP detection fails
-        console.warn("[Arcade] Failed to detect local IP, using window.location.hostname");
-        urlObj.hostname = window.location.hostname;
-        return urlObj.toString();
-      }
-      return url;
-    } catch {
-      return url;
-    }
-  };
 
   // Helper to sync state to controllers
   const broadcastCurrentState = () => {
@@ -167,7 +142,7 @@ export default function ArcadePage() {
       if (!host.socket.connected) return;
 
       console.log("[Arcade] Original game URL:", game.url);
-      const baseUrl = await normalizeUrlForMobile(game.url);
+      const baseUrl = await urlBuilder.normalizeForMobile(game.url);
       console.log("[Arcade] Normalized game URL:", baseUrl);
       const controllerUrl = `${baseUrl.replace(/\/$/, "")}/joypad`;
       console.log("[Arcade] Controller URL to send:", controllerUrl);

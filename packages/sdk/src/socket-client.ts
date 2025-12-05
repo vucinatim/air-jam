@@ -1,6 +1,6 @@
 import { io, type Socket } from 'socket.io-client'
 import type { ClientToServerEvents, ConnectionRole, ServerToClientEvents } from './protocol'
-import { resolveServerUrl } from './utils/links'
+import { urlBuilder } from './utils/url-builder'
 
 const sockets: Partial<Record<ConnectionRole, Socket<ServerToClientEvents, ClientToServerEvents>>> = {}
 
@@ -13,7 +13,7 @@ export const getSocketClient = (
     return existing
   }
 
-  const url = resolveServerUrl(serverUrl)
+  const url = urlBuilder.resolveServerUrl(serverUrl)
   const socket = io(url, {
     autoConnect: false,
     transports: ['websocket'],

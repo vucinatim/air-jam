@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "./ui/button";
 import { roomCodeSchema } from "../protocol";
-import { buildControllerUrl } from "../utils/links";
+import { urlBuilder } from "../utils/url-builder";
 
 interface QRScannerDialogProps {
   isOpen: boolean;
@@ -79,7 +79,7 @@ export const QRScannerDialog = ({
       const parsed = roomCodeSchema.safeParse(trimmed);
       if (parsed.success) {
         try {
-          const url = await buildControllerUrl(parsed.data);
+          const url = await urlBuilder.buildControllerUrl(parsed.data);
           setJoinUrl(url);
         } catch {
           setJoinUrl("");

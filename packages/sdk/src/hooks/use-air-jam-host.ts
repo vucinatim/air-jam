@@ -15,7 +15,7 @@ import {
 } from "../protocol";
 import { detectRunMode } from "../utils/mode";
 import { generateRoomCode } from "../utils/ids";
-import { buildControllerUrl } from "../utils/links";
+import { urlBuilder } from "../utils/url-builder";
 import { disconnectSocket, getSocketClient } from "../socket-client";
 import {
   useConnectionState,
@@ -187,17 +187,16 @@ export const useAirJamHost = (
           
           let controllerUrl = options.controllerUrl;
           if (!controllerUrl) {
-              // Use buildControllerUrl to get the proper local IP-based URL
+              // Use urlBuilder to get the proper local IP-based URL
               const path = options.controllerPath || "/joypad";
               try {
-                  controllerUrl = await buildControllerUrl(
-                      parsedRoomId,
+                  const fullUrl = await urlBuilder.buildControllerUrl(parsedRoomId, {
                       path,
-                      options.publicHost
-                  );
-                  console.log("[useAirJamHost] buildControllerUrl returned:", controllerUrl);
+                      host: options.publicHost,
+                  });
+                  console.log("[useAirJamHost] buildControllerUrl returned:", fullUrl);
                   // Remove the room query param since the server will add it
-                  const url = new URL(controllerUrl);
+                  const url = new URL(fullUrl);
                   url.searchParams.delete("room");
                   controllerUrl = url.toString();
                   console.log("[useAirJamHost] Final controllerUrl (after removing room param):", controllerUrl);
@@ -326,8 +325,11 @@ export const useAirJamHost = (
 
   useEffect(() => {
     let mounted = true;
-    buildControllerUrl(parsedRoomId, options.controllerPath, options.publicHost)
-      .then((url) => {
+    urlBuilder.buildControllerUrl(parsedRoomId, {
+      path: options.controllerPath,
+      host: options.publicHost,
+    })
+      .then((url: string) => {
         if (mounted) {
           setJoinUrl(url);
         }
