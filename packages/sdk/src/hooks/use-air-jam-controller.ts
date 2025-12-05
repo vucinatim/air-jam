@@ -25,6 +25,8 @@ interface AirJamControllerOptions {
   roomId?: string;
   serverUrl?: string;
   nickname?: string;
+  controllerId?: string;
+  forceConnect?: boolean;
   onState?: (state: ControllerStatePayload) => void;
 }
 
@@ -90,6 +92,21 @@ export const useAirJamController = (
     setReconnectKey((prev) => prev + 1);
   }, [roomId]);
 
+  const isChildMode = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("airjam_mode") === "child";
+  }, []);
+
+  const shouldConnect = useMemo(() => {
+    if (options.forceConnect) return true;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("airjam_force_connect") === "true";
+    }
+    return false;
+  }, [options.forceConnect]);
+
   useEffect(() => {
     const store = useConnectionStore.getState();
     store.setMode(detectRunMode());
@@ -98,12 +115,30 @@ export const useAirJamController = (
     store.setStatus(roomId ? "connecting" : "idle");
     store.setError(undefined);
 
+    // If in child mode (iframe) but connection is not forced, we don't connect
+    // However, with the new architecture, we basically ALWAYS want to connect directly.
+    // The only reason to not connect is if we are in some passive mode, but for now
+    // let's stick to the logic: if child mode, MUST have forceConnect to be active.
+    // Otherwise we assume legacy or passive.
+    const canConnect = !isChildMode || shouldConnect;
+
+    if (!canConnect) {
+      store.setStatus("idle");
+      return;
+    }
+
+    // --- NORMAL MODE (Direct Socket Connection) ---
     if (!roomId) {
       store.setError("No room code provided");
       return;
     }
 
-    const controllerId = generateControllerId();
+    const controllerId =
+      options.controllerId ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("controllerId")
+        : null) ||
+      generateControllerId();
     store.setControllerId(controllerId);
 
     const socket = getSocketClient("controller", options.serverUrl);
@@ -200,7 +235,7 @@ export const useAirJamController = (
       socket.off("server:error", handleError);
       disconnectSocket("controller");
     };
-  }, [options.serverUrl, roomId, reconnectKey]);
+  }, [options.serverUrl, roomId, reconnectKey, isChildMode, shouldConnect]);
 
   const setNickname = useCallback((value: string) => {
     nicknameRef.current = value;
@@ -209,6 +244,12 @@ export const useAirJamController = (
   const sendInput = useCallback(
     (input: ControllerInputPayload): boolean => {
       const store = useConnectionStore.getState();
+
+      if (isChildMode && !shouldConnect) {
+        // No-op - we don't proxy anymore
+        return false;
+      }
+
       if (!roomId || !store.controllerId) {
         store.setError("Not connected to a room");
         return false;
@@ -230,7 +271,7 @@ export const useAirJamController = (
       socket.emit("controller:input", payload.data);
       return true;
     },
-    [options.serverUrl, roomId]
+    [options.serverUrl, roomId, isChildMode, shouldConnect]
   );
 
   const socket = useMemo(() => {

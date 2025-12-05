@@ -218,6 +218,124 @@ function JoypadContentInner() {
     });
   };
 
+  // --- CHILD CONTROLLER IFRAME LOGIC ---
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeError, setIframeError] = useState<string | null>(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [childControllerReady, setChildControllerReady] = useState(false);
+
+  // Helper to normalize URLs - replace localhost with current hostname for mobile devices
+  const normalizeUrlForMobile = (url: string): string => {
+    if (typeof window === "undefined") return url;
+
+    try {
+      const urlObj = new URL(url);
+      /*
+      console.log(
+        "[Platform Joypad] Normalizing URL:",
+        url,
+        "hostname:",
+        urlObj.hostname,
+        "current hostname:",
+        window.location.hostname
+      );
+      */
+
+      // If URL uses localhost, replace with current hostname
+      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+        urlObj.hostname = window.location.hostname;
+        const normalized = urlObj.toString();
+        // console.log("[Platform Joypad] Normalizing URL:", normalized);
+        return normalized;
+      }
+      return url;
+    } catch (error) {
+      console.error("[Platform Joypad] Failed to normalize URL:", url);
+      return url;
+    }
+  };
+
+  // Check if we should be showing a game controller
+  const rawControllerUrl =
+    controller.gameState === "playing" &&
+    controller.stateMessage &&
+    controller.stateMessage.startsWith("http")
+      ? controller.stateMessage
+      : null;
+
+  // Normalize the URL - the Arcade already sends the full URL with /joypad appended
+  // So we just need to normalize it (replace localhost) and clean up any double slashes
+  const gameControllerUrl = rawControllerUrl
+    ? normalizeUrlForMobile(
+        rawControllerUrl.replace(/\/+/g, "/").replace(/\/$/, "")
+      )
+    : null;
+
+  // Log when game controller URL changes
+  useEffect(() => {
+    if (gameControllerUrl) {
+      // console.log("[Platform Joypad] Loading game controller:", gameControllerUrl);
+      setIframeError(null);
+      setIframeLoaded(false);
+    } else {
+      // console.log("[Platform Joypad] No game controller URL");
+      setIframeError(null);
+      setIframeLoaded(false);
+    }
+  }, [gameControllerUrl, controller.stateMessage, controller.gameState]);
+
+  // Handle iframe load
+  const handleIframeLoad = () => {
+    // console.log("[Platform Joypad] Iframe loaded successfully");
+    setIframeLoaded(true);
+    setIframeError(null);
+  };
+
+  // Timeout check for iframe loading - check both iframe load AND child ready message
+  useEffect(() => {
+    if (!gameControllerUrl) return;
+
+    // console.log("[Platform Joypad] Setting up timeout check for:", gameControllerUrl);
+
+    const timeout = setTimeout(() => {
+      // Iframe element loaded but child didn't send AIRJAM_READY, it might still be loading or have an error
+      if (iframeLoaded && !childControllerReady && !iframeError) {
+        const errorMsg = `Iframe loaded but game controller didn't initialize. Check if game server allows iframe embedding (CSP: frame-ancestors *). URL: ${gameControllerUrl}`;
+        console.warn("[Platform Joypad]", errorMsg);
+        setIframeError(errorMsg);
+      } else if (!iframeLoaded && !iframeError) {
+        const errorMsg = `Timeout: Game controller failed to load after 10 seconds. URL: ${gameControllerUrl}`;
+        console.error("[Platform Joypad]", errorMsg, {
+          iframeRef: iframeRef.current ? "exists" : "null",
+          iframeSrc: iframeRef.current?.src,
+        });
+        setIframeError(errorMsg);
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [gameControllerUrl, iframeLoaded, childControllerReady, iframeError]);
+
+  // Listen for AIRJAM_READY from child iframe
+  useEffect(() => {
+    if (!gameControllerUrl) {
+      setChildControllerReady(false);
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data?.type === "AIRJAM_READY") {
+        // console.log("[Platform Joypad] Child controller sent AIRJAM_READY");
+        setChildControllerReady(true);
+        setIframeError(null);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [gameControllerUrl]);
+
   return (
     <ControllerShell
       connectionStatus={controller.connectionStatus}
@@ -225,8 +343,75 @@ function JoypadContentInner() {
       gameState={controller.gameState}
       onReconnect={handleReconnect}
       onTogglePlayPause={handleTogglePlayPause}
+      onRefresh={controller.reconnect}
       requiredOrientation="landscape" // Arcade feel
     >
+      {/* --- CHILD GAME CONTROLLER --- */}
+      {gameControllerUrl && (
+        <div className="absolute inset-0 z-50 bg-background">
+          {iframeError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-red-900/20 p-4 z-50">
+              <div className="text-center text-red-400 max-w-md">
+                <p className="font-bold text-lg">Controller Load Error</p>
+                <p className="text-sm mt-2">{iframeError}</p>
+                <p className="text-xs mt-4 text-muted-foreground">
+                  Possible causes:
+                </p>
+                <ul className="text-xs mt-2 text-left text-muted-foreground list-disc list-inside">
+                  <li>Game server not running</li>
+                  <li>
+                    Game server blocking iframe embedding (check CSP headers)
+                  </li>
+                  <li>Network/CORS issue</li>
+                  <li>Invalid URL</li>
+                </ul>
+                <p className="text-xs mt-4 text-muted-foreground">
+                  Check browser console for details
+                </p>
+              </div>
+            </div>
+          )}
+          <iframe
+            ref={iframeRef}
+            src={`${gameControllerUrl}${
+              gameControllerUrl.includes("?") ? "&" : "?"
+            }airjam_mode=child&airjam_force_connect=true&controllerId=${
+              controller.controllerId
+            }&room=${controller.roomId}`}
+            className="w-full h-full border-none"
+            allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
+            // Note: sandbox attribute can be restrictive. We allow what's needed for games to work.
+            // For production, games should set proper headers instead of relying on sandbox.
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+            onLoad={handleIframeLoad}
+            onError={(e) => {
+              console.error("[Platform Joypad] Iframe error event:", e);
+              setIframeError(
+                "Iframe failed to load - check console for details"
+              );
+            }}
+            style={{ display: iframeError ? "none" : "block" }}
+          />
+          {/* Debug info */}
+          {process.env.NODE_ENV === "development" && gameControllerUrl && (
+            <div className="absolute top-0 left-0 bg-black/80 text-white text-xs p-2 z-50 pointer-events-none max-w-xs">
+              <div>URL: {gameControllerUrl}</div>
+              <div>Iframe Loaded: {iframeLoaded ? "Yes" : "No"}</div>
+              <div>Child Ready: {childControllerReady ? "Yes" : "No"}</div>
+              <div>Error: {iframeError || "None"}</div>
+            </div>
+          )}
+          {!iframeLoaded && !iframeError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+              <div className="text-center text-muted-foreground">
+                <p>Loading game controller...</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- DEFAULT ARCADE CONTROLLER --- */}
       {/* Branding */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 opacity-20 pointer-events-none">
         <h1 className="text-3xl font-black uppercase italic tracking-tighter select-none">

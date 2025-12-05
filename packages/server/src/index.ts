@@ -27,6 +27,7 @@ interface ControllerSession {
   controllerId: string;
   nickname?: string;
   socketId: string;
+  playerProfile: PlayerProfile;
 }
 
 interface RoomSession {
@@ -131,7 +132,10 @@ io.on(
               );
           }
         } catch (error) {
-          console.error("[server] Database error during key verification", error);
+          console.error(
+            "[server] Database error during key verification",
+            error
+          );
           callback({ ok: false, message: "Internal Server Error" });
           return;
         }
@@ -141,23 +145,65 @@ io.on(
         console.warn(
           `[server] Unauthorized host registration attempt for room ${roomId}`
         );
-        callback({ ok: false, message: "Unauthorized: Invalid or Missing API Key" });
+        callback({
+          ok: false,
+          message: "Unauthorized: Invalid or Missing API Key",
+        });
         return;
       }
 
-      const nextSession: RoomSession = {
-        roomId,
-        hostSocketId: socket.id,
-        controllers: new Map(),
-        maxPlayers,
-      };
+      // Check if room exists for takeover logic
+      const existingSession = rooms.get(roomId);
+      let nextSession: RoomSession;
 
-      rooms.set(roomId, nextSession);
-      hostIndex.set(socket.id, roomId);
+      if (existingSession) {
+        // --- TAKEOVER MODE ---
+        console.log(
+          `[server] Host takeover for room ${roomId} by socket ${socket.id}`
+        );
+
+        // Update host index to point to new socket
+        // Note: We don't remove the old host from hostIndex here immediately,
+        // because it might be the one initiating the takeover (unlikely)
+        // or it might disconnect later.
+        // Actually, if we just overwrite hostIndex for the new socket, that's fine.
+        // But we need to make sure the OLD socket doesn't kill the room when it disconnects.
+        // We handle that in the disconnect handler by checking session.hostSocketId.
+
+        existingSession.hostSocketId = socket.id;
+        existingSession.maxPlayers = maxPlayers;
+        nextSession = existingSession;
+
+        hostIndex.set(socket.id, roomId);
+      } else {
+        // --- NEW ROOM MODE ---
+        nextSession = {
+          roomId,
+          hostSocketId: socket.id,
+          controllers: new Map(),
+          maxPlayers,
+        };
+        rooms.set(roomId, nextSession);
+        hostIndex.set(socket.id, roomId);
+      }
+
       socket.join(roomId);
 
       callback({ ok: true, roomId });
       io.to(roomId).emit("server:room_ready", { roomId });
+
+      // If takeover, emit existing controllers to the new host
+      if (existingSession) {
+        existingSession.controllers.forEach((c) => {
+          const notice: ControllerJoinedNotice = {
+            controllerId: c.controllerId,
+            nickname: c.nickname,
+            player: c.playerProfile,
+          };
+          // Emit only to the new host
+          io.to(socket.id).emit("server:controller_joined", notice);
+        });
+      }
     });
 
     socket.on("controller:join", (payload, callback) => {
@@ -231,6 +277,7 @@ io.on(
         controllerId,
         nickname,
         socketId: socket.id,
+        playerProfile,
       };
 
       session.controllers.set(controllerId, controllerSession);
@@ -369,7 +416,43 @@ io.on(
     socket.on("disconnect", () => {
       const roomId = hostIndex.get(socket.id);
       if (roomId) {
-        removeRoom(roomId, "Host disconnected");
+        // Only remove room if the disconnecting socket is the CURRENT host
+        // This handles the takeover case where the old host disconnects after the new one takes over
+        const session = rooms.get(roomId);
+        if (session && session.hostSocketId === socket.id) {
+          // Add a small grace period?
+          // For now, let's just remove it.
+          // If we want "seamless" Arcade -> Game -> Arcade, the Arcade should reconnect FAST.
+          // Or we rely on the fact that Arcade reconnects *after* Game disconnects?
+          // If Game disconnects, room dies. Arcade reconnects -> New Room.
+          // Controllers get disconnected.
+          // We need a "Grace Period".
+
+          console.log(
+            `[server] Host ${socket.id} disconnected from room ${roomId}. Starting grace period.`
+          );
+
+          // Use a timeout to allow a new host to reconnect
+          setTimeout(() => {
+            const currentSession = rooms.get(roomId);
+            if (currentSession && currentSession.hostSocketId === socket.id) {
+              console.log(
+                `[server] Grace period expired. Removing room ${roomId}.`
+              );
+              removeRoom(roomId, "Host disconnected");
+            } else {
+              console.log(
+                `[server] Room ${roomId} survived (Host updated to ${currentSession?.hostSocketId}).`
+              );
+            }
+          }, 3000); // 3 seconds grace period
+        } else {
+          console.log(
+            `[server] Old host ${socket.id} disconnected from room ${roomId} (Current host: ${session?.hostSocketId}). Ignoring.`
+          );
+        }
+
+        hostIndex.delete(socket.id);
         return;
       }
 

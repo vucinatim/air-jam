@@ -181,6 +181,8 @@ export interface InterServerEvents {
 export type SocketData = Record<string, unknown>;
 
 // --- Proxy Protocol (iframe <-> parent) ---
+// Note: Proxy protocol is largely deprecated in favor of Direct Connect (airjam_force_connect=true),
+// but might still be used for UI coordination (e.g. hiding headers).
 
 export const AIRJAM_PROXY_PREFIX = "AIRJAM_";
 
@@ -188,42 +190,8 @@ export interface ProxyMessageBase {
   type: string;
 }
 
-export interface ProxyInputMessage extends ProxyMessageBase {
-  type: "AIRJAM_INPUT";
-  payload: ControllerInputEvent;
-}
-
-export interface ProxyPlayerJoinMessage extends ProxyMessageBase {
-  type: "AIRJAM_PLAYER_JOIN";
-  payload: ControllerJoinedNotice;
-}
-
-export interface ProxyPlayerLeaveMessage extends ProxyMessageBase {
-  type: "AIRJAM_PLAYER_LEAVE";
-  payload: ControllerLeftNotice;
-}
-
-export interface ProxyStateMessage extends ProxyMessageBase {
-  type: "AIRJAM_STATE";
-  payload: ControllerStatePayload; // Used for Game -> Parent (sendState)
-}
-
-export interface ProxyInitMessage extends ProxyMessageBase {
-  type: "AIRJAM_INIT";
-  payload: {
-    players: PlayerProfile[];
-    roomId: RoomCode;
-  };
-}
-
 export interface ProxyReadyMessage extends ProxyMessageBase {
   type: "AIRJAM_READY";
 }
 
-export type AirJamProxyMessage =
-  | ProxyInputMessage
-  | ProxyPlayerJoinMessage
-  | ProxyPlayerLeaveMessage
-  | ProxyStateMessage
-  | ProxyInitMessage
-  | ProxyReadyMessage;
+export type AirJamProxyMessage = ProxyReadyMessage;

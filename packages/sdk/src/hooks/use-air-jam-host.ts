@@ -34,6 +34,7 @@ interface AirJamHostOptions {
   onPlayerJoin?: (player: PlayerProfile) => void;
   onPlayerLeave?: (controllerId: string) => void;
   apiKey?: string;
+  forceConnect?: boolean;
 }
 
 export interface AirJamHostApi {
@@ -46,6 +47,7 @@ export interface AirJamHostApi {
   gameState: GameState;
   toggleGameState: () => void;
   sendState: (state: ControllerStatePayload) => boolean;
+  reconnect: () => void;
   socket: ReturnType<typeof getSocketClient>;
   isChildMode: boolean;
 }
@@ -59,6 +61,15 @@ export const useAirJamHost = (
     const params = new URLSearchParams(window.location.search);
     return params.get("airjam_mode") === "child";
   }, []);
+
+  const shouldConnect = useMemo(() => {
+    if (options.forceConnect) return true;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("airjam_force_connect") === "true";
+    }
+    return false;
+  }, [options.forceConnect]);
 
   const parsedRoomId = useMemo<RoomCode>(() => {
     // In child mode, we might inherit the room ID from the URL query params
@@ -107,6 +118,13 @@ export const useAirJamHost = (
     onPlayerLeaveRef.current = options.onPlayerLeave;
   }, [options.onPlayerLeave]);
 
+  const [reconnectKey, setReconnectKey] = useState(0);
+
+  const reconnect = useCallback(() => {
+    disconnectSocket("host");
+    setReconnectKey((prev) => prev + 1);
+  }, []);
+
   useEffect(() => {
     const storeApi = useConnectionStore;
     const store = storeApi.getState();
@@ -120,82 +138,18 @@ export const useAirJamHost = (
     store.setError(undefined);
     store.resetPlayers();
 
-    // --- PROXY / CHILD MODE ---
-    if (isChildMode) {
-      // In child mode, we don't connect to the socket.
-      // We listen for messages from the parent window.
+    // --- SOCKET CONNECTION ---
+    // If we are in child mode, we only connect if forceConnect is true (which it should be now for iframe games)
+    // If we are NOT in child mode, we always connect.
+    const canConnect = !isChildMode || shouldConnect;
 
-      const handleMessage = (event: MessageEvent) => {
-        // Basic security check: ensure it's from parent
-        if (event.source !== window.parent) return;
-
-        const data = event.data as AirJamProxyMessage;
-        if (!data || typeof data.type !== "string") return;
-
-        if (data.type === "AIRJAM_INIT") {
-          storeApi.getState().setStatus("connected");
-          data.payload.players.forEach((p) => {
-            storeApi.getState().upsertPlayer(p);
-            onPlayerJoinRef.current?.(p);
-          });
-        }
-
-        if (data.type === "AIRJAM_INPUT") {
-          const payload = data.payload;
-          if (payload.roomId !== parsedRoomId) return; // Should match? Or just ignore room ID in child mode?
-          // Actually, in child mode, we trust the parent.
-
-          if (payload.input.togglePlayPause) {
-            const now = Date.now();
-            if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) return;
-            lastToggleTime = now;
-            const currentState = storeApi.getState().gameState;
-            const newGameState =
-              currentState === "paused" ? "playing" : "paused";
-            storeApi.getState().setGameState(newGameState);
-
-            // Tell parent
-            window.parent.postMessage(
-              {
-                type: "AIRJAM_STATE",
-                payload: { gameState: newGameState, roomId: parsedRoomId },
-              } as AirJamProxyMessage,
-              "*"
-            );
-          }
-
-          onInputRef.current?.(payload);
-        }
-
-        if (data.type === "AIRJAM_PLAYER_JOIN") {
-          const p = data.payload.player;
-          if (p) {
-            storeApi.getState().upsertPlayer(p);
-            onPlayerJoinRef.current?.(p);
-          }
-        }
-
-        if (data.type === "AIRJAM_PLAYER_LEAVE") {
-          storeApi.getState().removePlayer(data.payload.controllerId);
-          onPlayerLeaveRef.current?.(data.payload.controllerId);
-        }
-      };
-
-      window.addEventListener("message", handleMessage);
-
-      // Signal readiness
-      window.parent.postMessage(
-        { type: "AIRJAM_READY" } as AirJamProxyMessage,
-        "*"
-      );
-
-      return () => {
-        window.removeEventListener("message", handleMessage);
-        storeApi.getState().setStatus("disconnected");
-      };
+    if (!canConnect) {
+      // If we are in child mode but NOT forced to connect, we are likely in a legacy state or waiting.
+      // We do NOT use postMessage proxies anymore.
+      store.setStatus("idle");
+      return;
     }
 
-    // --- NORMAL SOCKET MODE ---
     const socket = getSocketClient("host", options.serverUrl);
     const maxPlayers = options.maxPlayers ?? 8;
 
@@ -294,6 +248,8 @@ export const useAirJamHost = (
     parsedRoomId,
     isChildMode,
     options.apiKey,
+    reconnectKey,
+    shouldConnect,
   ]);
 
   const [joinUrl, setJoinUrl] = useState<string>("");
@@ -336,15 +292,9 @@ export const useAirJamHost = (
         return false;
       }
 
-      if (isChildMode) {
-        window.parent.postMessage(
-          {
-            type: "AIRJAM_STATE",
-            payload: payload.data.state, // Wait, payload.data is {roomId, state}. Correcting this.
-          } as AirJamProxyMessage,
-          "*"
-        );
-        return true;
+      if (isChildMode && !shouldConnect) {
+        // No-op or throw error - we don't proxy anymore
+        return false;
       }
 
       const socket = getSocketClient("host", options.serverUrl);
@@ -354,7 +304,7 @@ export const useAirJamHost = (
       socket.emit("host:state", payload.data);
       return true;
     },
-    [options.serverUrl, parsedRoomId, isChildMode]
+    [options.serverUrl, parsedRoomId, isChildMode, shouldConnect]
   );
 
   const toggleGameState = useCallback(() => {
@@ -363,14 +313,7 @@ export const useAirJamHost = (
     const newGameState = currentState === "paused" ? "playing" : "paused";
     store.setGameState(newGameState);
 
-    if (isChildMode) {
-      window.parent.postMessage(
-        {
-          type: "AIRJAM_STATE",
-          payload: { gameState: newGameState },
-        } as AirJamProxyMessage,
-        "*"
-      );
+    if (isChildMode && !shouldConnect) {
       return;
     }
 
@@ -381,7 +324,7 @@ export const useAirJamHost = (
         state: { gameState: newGameState },
       });
     }
-  }, [options.serverUrl, parsedRoomId, isChildMode]);
+  }, [options.serverUrl, parsedRoomId, isChildMode, shouldConnect]);
 
   const socket = useMemo(() => {
     return getSocketClient("host", options.serverUrl);
@@ -397,6 +340,7 @@ export const useAirJamHost = (
     gameState: connectionState.gameState,
     toggleGameState,
     sendState,
+    reconnect,
     socket,
     isChildMode,
   };

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { QRScannerDialog } from "./qr-scanner-dialog";
 import { VolumeControls } from "./volume-controls";
+import { detectRunMode } from "../utils/mode";
 
 type OrientationRequirement = "portrait" | "landscape" | "any";
 
@@ -75,6 +76,7 @@ export const ControllerShell = ({
   onReconnect,
   onRefresh,
 }: ControllerShellProps): JSX.Element => {
+  const isChildMode = useMemo(() => detectRunMode() === "platform", []);
   const [isOrientationOk, setOrientationOk] = useState(() =>
     orientationMatches(requiredOrientation)
   );
@@ -127,6 +129,36 @@ export const ControllerShell = ({
         return <AlertCircle className="h-5 w-5 text-destructive" />;
     }
   }, [connectionStatus]);
+
+  // In child mode, we only render the content and maybe orientation check.
+  // The parent frame provides the shell (header, volume, etc).
+  if (isChildMode) {
+    return (
+      <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-transparent text-foreground select-none touch-none">
+        <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 select-none">
+          {!orientationOk && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-6 text-center shadow-lg">
+              <p className="text-xl font-semibold text-card-foreground">
+                Rotate your device
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This game is best experienced in {requiredOrientation}{" "}
+                orientation.
+              </p>
+            </div>
+          )}
+          <div
+            className={cn(
+              "h-full w-full select-none",
+              !orientationOk && "pointer-events-none opacity-30"
+            )}
+          >
+            {children}
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-background text-foreground select-none touch-none">

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
@@ -8,6 +9,7 @@ import {
   type Mesh,
   AdditiveBlending,
 } from "three";
+import * as THREE from "three";
 
 interface Particle {
   position: Vector3;
@@ -97,7 +99,6 @@ export function RocketExplosion({
     });
   }
 
-
   useFrame((_state, delta) => {
     if (!particlesRef.current) return;
 
@@ -116,7 +117,9 @@ export function RocketExplosion({
       const flashFade = Math.max(0, 1 - flashProgress); // Fade from 1 to 0 over flash lifetime
       const maxScale = 5; // More expansion
       // Scale based on flash's own progress
-      flashRef.current.scale.setScalar(Math.min(maxScale, 1 + flashProgress * 4));
+      flashRef.current.scale.setScalar(
+        Math.min(maxScale, 1 + flashProgress * 4)
+      );
       const material = flashRef.current.material as MeshStandardMaterial;
       // Ensure opacity is properly set and material stays transparent
       material.opacity = flashFade;
@@ -177,7 +180,7 @@ export function RocketExplosion({
     <group position={position}>
       {/* Initial flash burst */}
       <mesh ref={flashRef} geometry={flashGeometry} material={flashMaterial} />
-      
+
       {/* Point light for dramatic effect */}
       <pointLight
         ref={lightRef}
@@ -186,7 +189,7 @@ export function RocketExplosion({
         distance={25}
         decay={1.5}
       />
-      
+
       {/* Particle explosion */}
       <group ref={particlesRef}>
         {Array.from({ length: PARTICLE_COUNT }, (_, index) => (
@@ -200,4 +203,3 @@ export function RocketExplosion({
     </group>
   );
 }
-

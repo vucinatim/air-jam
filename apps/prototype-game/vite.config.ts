@@ -16,5 +16,19 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    headers: {
+      // Allow this app to be embedded in iframes from any origin
+      // Note: X-Frame-Options doesn't support wildcards, so we use CSP instead
+      "Content-Security-Policy": "frame-ancestors *;",
+    },
+    cors: true,
+  },
+  preview: {
+    host: true,
+    port: 5173,
+    headers: {
+      "Content-Security-Policy": "frame-ancestors *;",
+    },
+    cors: true,
   },
 });

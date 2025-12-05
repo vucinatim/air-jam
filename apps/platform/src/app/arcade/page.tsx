@@ -4,7 +4,6 @@ import { useRef, useState, useEffect } from "react";
 import { api } from "@/trpc/react";
 import {
   useAirJamHost,
-  useAirJamProxy,
   AirJamOverlay,
   type ControllerInputEvent,
 } from "@air-jam/sdk";
@@ -16,9 +15,18 @@ import { Loader2, Gamepad2 } from "lucide-react";
 // In a real app, you might fetch this or use a specific "Platform" key.
 const PLATFORM_API_KEY = process.env.NEXT_PUBLIC_PLATFORM_API_KEY;
 
-export default function TVConsolePage() {
+export default function ArcadePage() {
+  // 0. Persist Room ID for Development convenience
+  const [persistedRoomId] = useState(() => {
+    if (typeof sessionStorage !== "undefined") {
+      return sessionStorage.getItem("airjam_platform_room_id") || undefined;
+    }
+    return undefined;
+  });
+
   // 1. Initialize the Host (The Platform is the Host)
   const host = useAirJamHost({
+    roomId: persistedRoomId,
     apiKey: PLATFORM_API_KEY,
     onInput: (event) => handleInput(event),
     onPlayerJoin: () => {
@@ -26,6 +34,13 @@ export default function TVConsolePage() {
       broadcastCurrentState();
     },
   });
+
+  // Save room ID when it changes
+  useEffect(() => {
+    if (host.roomId && typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("airjam_platform_room_id", host.roomId);
+    }
+  }, [host.roomId]);
 
   // 2. State for Navigation & Game Launching
   const [view, setView] = useState<"browser" | "game">("browser");
@@ -39,22 +54,50 @@ export default function TVConsolePage() {
   // Fetch games (assuming you have games in your DB)
   const { data: games } = api.game.list.useQuery();
 
+  // Helper to normalize URLs - replace localhost with current hostname for mobile devices
+  const normalizeUrlForMobile = (url: string): string => {
+    if (typeof window === "undefined") return url;
+
+    try {
+      const urlObj = new URL(url);
+      // If URL uses localhost, replace with current hostname
+      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+        urlObj.hostname = window.location.hostname;
+        return urlObj.toString();
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  };
+
   // Helper to sync state to controllers
   const broadcastCurrentState = () => {
     if (!games) return;
     const currentGame = games[selectedIndex];
 
     // Determine the state based on View + Selected Game
+    const controllerUrl =
+      view === "game" && activeGame
+        ? `${normalizeUrlForMobile(activeGame.url.replace(/\/$/, ""))}/joypad`
+        : undefined;
+
+    if (controllerUrl) {
+      // console.log("[Arcade] Broadcasting controller URL:", controllerUrl);
+    }
+
     host.sendState({
       gameState: view === "game" ? "playing" : "paused",
-      message: view === "browser" && currentGame ? currentGame.name : undefined,
+      message:
+        view === "browser" && currentGame ? currentGame.name : controllerUrl,
     });
   };
 
   // Broadcast state whenever relevant things change
   useEffect(() => {
     broadcastCurrentState();
-  }, [view, selectedIndex, games, host.connectionStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, selectedIndex, games, host.connectionStatus, activeGame]);
 
   // 3. Navigation Logic
   const lastInputTime = useRef<number>(0);
@@ -62,7 +105,9 @@ export default function TVConsolePage() {
 
   const handleInput = (event: ControllerInputEvent) => {
     // Only handle navigation if we are in the browser view
-    if (view !== "browser" || !games || games.length === 0) return;
+    if (view !== "browser" || !games || games.length === 0) {
+      return;
+    }
 
     const { input } = event;
     const now = Date.now();
@@ -109,20 +154,17 @@ export default function TVConsolePage() {
     }
   };
 
-  // 4. The Proxy System (Pipes data to iframe when view === 'game')
+  // 4. The Proxy System (Removed in favor of Direct Connect)
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  useAirJamProxy({
-    socket: host.socket,
-    iframeRef,
-    players: host.players,
-    roomId: host.roomId,
-    isEnabled: view === "game",
-  });
 
   // Helper to exit game (e.g., via a specific button combo or UI overlay)
   const exitGame = () => {
     setView("browser");
     setActiveGame(null);
+    // Reconnect the Arcade Host to reclaim the room (since the Game Host destroyed it)
+    setTimeout(() => {
+      host.reconnect();
+    }, 500);
   };
 
   if (!games) {
@@ -150,7 +192,7 @@ export default function TVConsolePage() {
         <header className="mb-12 flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold tracking-tighter text-white">
-              Air Jam <span className="text-blue-500">Console</span>
+              Air Jam <span className="text-blue-500">Arcade</span>
             </h1>
             <p className="text-slate-400">Select a game using your phone</p>
           </div>
@@ -212,7 +254,9 @@ export default function TVConsolePage() {
           <>
             <iframe
               ref={iframeRef}
-              src={`${activeGame.url}?airjam_mode=child`}
+              src={`${normalizeUrlForMobile(activeGame.url)}${
+                activeGame.url.includes("?") ? "&" : "?"
+              }airjam_mode=child&room=${host.roomId}&airjam_force_connect=true`}
               className="w-full h-full border-none"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
             />
