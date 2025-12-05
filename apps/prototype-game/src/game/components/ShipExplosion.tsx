@@ -7,6 +7,8 @@ import {
   SphereGeometry,
   type Mesh,
   AdditiveBlending,
+  type Group,
+  type PointLight,
 } from "three";
 
 interface Particle {
@@ -30,13 +32,10 @@ interface ShipExplosionProps {
   onComplete?: () => void;
 }
 
-export function ShipExplosion({
-  position,
-  onComplete,
-}: ShipExplosionProps) {
-  const particlesRef = useRef<THREE.Group>(null);
-  const flashRef = useRef<THREE.Mesh>(null);
-  const lightRef = useRef<THREE.PointLight>(null);
+export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
+  const particlesRef = useRef<Group>(null);
+  const flashRef = useRef<Mesh>(null);
+  const lightRef = useRef<PointLight>(null);
   const particles = useRef<Particle[]>([]);
   const ageRef = useRef(0);
 
@@ -116,7 +115,9 @@ export function ShipExplosion({
       const flashFade = Math.max(0, 1 - flashProgress); // Fade from 1 to 0 over flash lifetime
       const maxScale = 7; // More expansion (was 5)
       // Scale based on flash's own progress
-      flashRef.current.scale.setScalar(Math.min(maxScale, 1 + flashProgress * 6));
+      flashRef.current.scale.setScalar(
+        Math.min(maxScale, 1 + flashProgress * 6)
+      );
       const material = flashRef.current.material as MeshStandardMaterial;
       // Ensure opacity is properly set and material stays transparent
       material.opacity = flashFade;
@@ -177,7 +178,7 @@ export function ShipExplosion({
     <group position={position}>
       {/* Initial flash burst - larger and brighter */}
       <mesh ref={flashRef} geometry={flashGeometry} material={flashMaterial} />
-      
+
       {/* Point light for dramatic effect - brighter and larger */}
       <pointLight
         ref={lightRef}
@@ -186,7 +187,7 @@ export function ShipExplosion({
         distance={35}
         decay={1.5}
       />
-      
+
       {/* Particle explosion - more particles for more power */}
       <group ref={particlesRef}>
         {Array.from({ length: PARTICLE_COUNT }, (_, index) => (
@@ -200,7 +201,3 @@ export function ShipExplosion({
     </group>
   );
 }
-
-
-
-

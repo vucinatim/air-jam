@@ -3,13 +3,36 @@
 import { api } from "@/trpc/react";
 import { use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAirJamHost, AirJamOverlay } from "@air-jam/sdk";
 
 export default function PlayGamePage({ params }: { params: Promise<{ gameId: string }> }) {
   const resolvedParams = use(params);
+  const router = useRouter();
   const { data: game, isLoading, error } = api.game.get.useQuery({ id: resolvedParams.gameId });
+
+  const host = useAirJamHost({
+      onChildClose: () => {
+          router.push("/dashboard");
+      }
+  });
+
+  const normalizeUrlForMobile = (url: string): string => {
+    if (typeof window === "undefined") return url;
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+        urlObj.hostname = window.location.hostname;
+        return urlObj.toString();
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  };
 
   if (isLoading) {
       return (
@@ -38,7 +61,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ gameId: str
   );
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background relative">
       <div className="bg-background border-b px-4 py-2 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center gap-4">
              <Link href="/dashboard">
@@ -65,13 +88,14 @@ export default function PlayGamePage({ params }: { params: Promise<{ gameId: str
       </div>
       <div className="flex-1 w-full bg-black relative overflow-hidden">
         <iframe
-            src={game.url}
+            src={`${normalizeUrlForMobile(game.url)}${game.url.includes("?") ? "&" : "?"}airjam_mode=child&room=${host.roomId}&airjam_force_connect=true`}
             className="w-full h-full border-0 absolute inset-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
             allowFullScreen
             title={game.name}
         />
       </div>
+      <AirJamOverlay {...host} />
     </div>
   );
 }

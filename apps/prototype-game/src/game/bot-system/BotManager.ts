@@ -7,17 +7,21 @@ import { nanoid } from "nanoid";
 interface BotManagerState {
   bots: Map<string, BotController>;
   addBot: () => void;
-  getBotInput: (controllerId: string, delta: number, time: number) => GameLoopInput | undefined;
+  getBotInput: (
+    controllerId: string,
+    _delta: number,
+    time: number
+  ) => GameLoopInput | undefined;
   removeBot: (controllerId: string) => void;
 }
 
 export const useBotManager = create<BotManagerState>((set, get) => ({
   bots: new Map(),
-  
+
   addBot: () => {
     const controllerId = `bot-${nanoid(6)}`;
     const bot = new BotController(controllerId);
-    
+
     set((state) => {
       const newBots = new Map(state.bots);
       newBots.set(controllerId, bot);
@@ -34,14 +38,14 @@ export const useBotManager = create<BotManagerState>((set, get) => ({
       },
       controllerId
     );
-    
+
     console.log(`[BotManager] Added bot: ${controllerId}`);
   },
 
-  getBotInput: (controllerId, delta, time) => {
+  getBotInput: (controllerId, _delta, time) => {
     const bot = get().bots.get(controllerId);
     if (!bot) return undefined;
-    return bot.update(delta, time);
+    return bot.update(time);
   },
 
   removeBot: (controllerId) => {

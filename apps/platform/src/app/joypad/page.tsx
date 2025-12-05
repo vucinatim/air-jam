@@ -4,8 +4,9 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useAirJamController, ControllerShell } from "@air-jam/sdk";
+import { useAirJamShell, ControllerShell } from "@air-jam/sdk";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
 // --- Components ---
 
@@ -161,27 +162,28 @@ const JoypadContent = dynamic(() => Promise.resolve(JoypadContentInner), {
 export default function JoypadPage() {
   return <JoypadContent />;
 }
-
 function JoypadContentInner() {
   const router = useRouter();
-  const controller = useAirJamController();
+  const shell = useAirJamShell();
   const [vector, setVector] = useState({ x: 0, y: 0 });
   const [action, setAction] = useState(false);
   const [ability, setAbility] = useState(false);
 
-  // Send input loop (approx 60fps)
+  // Send input loop for Arcade Controller (approx 60fps)
   useEffect(() => {
-    if (controller.connectionStatus !== "connected") return;
+    if (shell.connectionStatus !== "connected") return;
+    // If we are in game mode (activeUrl is set), we don't send inputs from the shell d-pad
+    if (shell.activeUrl) return;
 
     let animationFrameId: number;
 
     const loop = () => {
-      controller.sendInput({
+      shell.sendInput({
         vector,
         action,
         ability,
         timestamp: Date.now(),
-        togglePlayPause: false, // Handled by header button
+        togglePlayPause: false, 
       });
       animationFrameId = requestAnimationFrame(loop);
     };
@@ -189,285 +191,97 @@ function JoypadContentInner() {
     loop();
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [controller.connectionStatus, vector, action, ability, controller]); // Check dependencies carefully. controller object is stable-ish.
-
-  // Handle Nickname
-  const [hasSetNickname] = useState(false);
-
-  if (
-    controller.connectionStatus === "connected" &&
-    !hasSetNickname &&
-    !controller.lastError
-  ) {
-    // Optional: Prompt for nickname if not set via URL or storage
-    // For now, let's just auto-confirm or show a simple overlay
-  }
+  }, [shell.connectionStatus, vector, action, ability, shell, shell.activeUrl]);
 
   const handleReconnect = (roomCode: string) => {
     router.push(`?room=${roomCode}`);
   };
 
-  const handleTogglePlayPause = () => {
-    // Send a one-off input with togglePlayPause
-    controller.sendInput({
-      vector: { x: 0, y: 0 },
-      action: false,
-      ability: false,
-      timestamp: Date.now(),
-      togglePlayPause: true,
-    });
-  };
-
-  // --- CHILD CONTROLLER IFRAME LOGIC ---
+  // --- IFRAME LOGIC ---
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [iframeError, setIframeError] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [childControllerReady, setChildControllerReady] = useState(false);
 
-  // Helper to normalize URLs - replace localhost with current hostname for mobile devices
-  const normalizeUrlForMobile = (url: string): string => {
-    if (typeof window === "undefined") return url;
-
-    try {
-      const urlObj = new URL(url);
-      /*
-      console.log(
-        "[Platform Joypad] Normalizing URL:",
-        url,
-        "hostname:",
-        urlObj.hostname,
-        "current hostname:",
-        window.location.hostname
-      );
-      */
-
-      // If URL uses localhost, replace with current hostname
-      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
-        urlObj.hostname = window.location.hostname;
-        const normalized = urlObj.toString();
-        // console.log("[Platform Joypad] Normalizing URL:", normalized);
-        return normalized;
-      }
-      return url;
-    } catch (error) {
-      console.error("[Platform Joypad] Failed to normalize URL:", url, error);
-      return url;
-    }
-  };
-
-  // Check if we should be showing a game controller
-  const rawControllerUrl =
-    controller.gameState === "playing" &&
-    controller.stateMessage &&
-    controller.stateMessage.startsWith("http")
-      ? controller.stateMessage
-      : null;
-
-  // Normalize the URL - the Arcade already sends the full URL with /joypad appended
-  // So we just need to normalize it (replace localhost) and clean up any double slashes
-  const [gameControllerUrl, setGameControllerUrl] = useState<string | null>(
-    null
-  );
-
+  // Reset state when activeUrl changes
   useEffect(() => {
-    if (rawControllerUrl) {
-      // Add a small delay to ensure the Game Host has initialized and taken over the room
-      // before we load the controller and try to join. This prevents race conditions.
-      const timer = setTimeout(() => {
-        setGameControllerUrl(
-          normalizeUrlForMobile(
-            rawControllerUrl.replace(/([^:]\/)\/+/g, "$1").replace(/\/$/, "")
-          )
-        );
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setGameControllerUrl(null);
-    }
-  }, [rawControllerUrl]);
-
-  // Log when game controller URL changes
-  useEffect(() => {
-    if (gameControllerUrl) {
-      // console.log("[Platform Joypad] Loading game controller:", gameControllerUrl);
-      setIframeError(null);
-      setIframeLoaded(false);
-    } else {
-      // console.log("[Platform Joypad] No game controller URL");
-      setIframeError(null);
-      setIframeLoaded(false);
-    }
-  }, [gameControllerUrl, controller.stateMessage, controller.gameState]);
-
-  // Handle iframe load
-  const handleIframeLoad = () => {
-    // console.log("[Platform Joypad] Iframe loaded successfully");
-    setIframeLoaded(true);
-    setIframeError(null);
-  };
-
-  // Timeout check for iframe loading - check both iframe load AND child ready message
-  useEffect(() => {
-    if (!gameControllerUrl) return;
-
-    // console.log("[Platform Joypad] Setting up timeout check for:", gameControllerUrl);
-
-    const timeout = setTimeout(() => {
-      // Iframe element loaded but child didn't send AIRJAM_READY, it might still be loading or have an error
-      if (iframeLoaded && !childControllerReady && !iframeError) {
-        const errorMsg = `Iframe loaded but game controller didn't initialize. Check if game server allows iframe embedding (CSP: frame-ancestors *). URL: ${gameControllerUrl}`;
-        console.warn("[Platform Joypad]", errorMsg);
-        setIframeError(errorMsg);
-      } else if (!iframeLoaded && !iframeError) {
-        const errorMsg = `Timeout: Game controller failed to load after 10 seconds. URL: ${gameControllerUrl}`;
-        console.error("[Platform Joypad]", errorMsg, {
-          iframeRef: iframeRef.current ? "exists" : "null",
-          iframeSrc: iframeRef.current?.src,
-        });
-        setIframeError(errorMsg);
-      }
-    }, 10000); // 10 second timeout
-
-    return () => clearTimeout(timeout);
-  }, [gameControllerUrl, iframeLoaded, childControllerReady, iframeError]);
-
-  // Listen for AIRJAM_READY from child iframe
-  useEffect(() => {
-    if (!gameControllerUrl) {
-      setChildControllerReady(false);
-      return;
-    }
-
-    const handleMessage = (event: MessageEvent) => {
-      const data = event.data;
-      if (data?.type === "AIRJAM_READY") {
-        // console.log("[Platform Joypad] Child controller sent AIRJAM_READY");
-        setChildControllerReady(true);
-        setIframeError(null);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [gameControllerUrl]);
+    setIframeLoaded(false);
+  }, [shell.activeUrl]);
 
   return (
     <ControllerShell
-      connectionStatus={controller.connectionStatus}
-      roomId={controller.roomId}
-      gameState={controller.gameState}
+      connectionStatus={shell.connectionStatus}
+      roomId={shell.roomId}
+      gameState="playing" // Shell is always playing
       onReconnect={handleReconnect}
-      onTogglePlayPause={handleTogglePlayPause}
-      onRefresh={controller.reconnect}
-      requiredOrientation="landscape" // Arcade feel
+      onTogglePlayPause={() => {}} // Disable play/pause for now
+      onRefresh={() => window.location.reload()}
+      requiredOrientation="landscape"
     >
       {/* --- CHILD GAME CONTROLLER --- */}
-      {gameControllerUrl && (
+      {shell.activeUrl && (
         <div className="absolute inset-0 z-50 bg-background">
-          {iframeError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-red-900/20 p-4 z-50">
-              <div className="text-center text-red-400 max-w-md">
-                <p className="font-bold text-lg">Controller Load Error</p>
-                <p className="text-sm mt-2">{iframeError}</p>
-                <p className="text-xs mt-4 text-muted-foreground">
-                  Possible causes:
-                </p>
-                <ul className="text-xs mt-2 text-left text-muted-foreground list-disc list-inside">
-                  <li>Game server not running</li>
-                  <li>
-                    Game server blocking iframe embedding (check CSP headers)
-                  </li>
-                  <li>Network/CORS issue</li>
-                  <li>Invalid URL</li>
-                </ul>
-                <p className="text-xs mt-4 text-muted-foreground">
-                  Check browser console for details
-                </p>
-              </div>
-            </div>
-          )}
+            {/* Exit Button Overlay */}
+            <button 
+                className="absolute top-2 right-2 z-[60] p-2 bg-black/50 text-white rounded-full hover:bg-red-600 transition-colors"
+                onClick={() => {
+                    if (confirm("Exit Game?")) {
+                        shell.sendSystemCommand("EXIT_GAME");
+                    }
+                }}
+            >
+                <X size={24} />
+            </button>
+            
           <iframe
             ref={iframeRef}
-            src={`${gameControllerUrl}${
-              gameControllerUrl.includes("?") ? "&" : "?"
-            }airjam_mode=child&airjam_force_connect=true&controllerId=${
-              controller.controllerId
-            }&room=${controller.roomId}`}
+            src={`${shell.activeUrl}${
+              shell.activeUrl.includes("?") ? "&" : "?"
+            }airjam_mode=child&airjam_force_connect=true&aj_controller_id=${
+              shell.controllerId
+            }&aj_room=${shell.roomId}`}
             className="w-full h-full border-none"
             allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
-            // Note: sandbox attribute can be restrictive. We allow what's needed for games to work.
-            // For production, games should set proper headers instead of relying on sandbox.
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-            onLoad={handleIframeLoad}
-            onError={(e) => {
-              console.error("[Platform Joypad] Iframe error event:", e);
-              setIframeError(
-                "Iframe failed to load - check console for details"
-              );
-            }}
-            style={{ display: iframeError ? "none" : "block" }}
+            onLoad={() => setIframeLoaded(true)}
           />
-          {/* Debug info */}
-          {process.env.NODE_ENV === "development" && gameControllerUrl && (
-            <div className="absolute top-0 left-0 bg-black/80 text-white text-xs p-2 z-50 pointer-events-none max-w-xs">
-              <div>URL: {gameControllerUrl}</div>
-              <div>Iframe Loaded: {iframeLoaded ? "Yes" : "No"}</div>
-              <div>Child Ready: {childControllerReady ? "Yes" : "No"}</div>
-              <div>Error: {iframeError || "None"}</div>
-            </div>
-          )}
-          {!iframeLoaded && !iframeError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-              <div className="text-center text-muted-foreground">
-                <p>Loading game controller...</p>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       {/* --- DEFAULT ARCADE CONTROLLER --- */}
-      {/* Branding */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 opacity-20 pointer-events-none">
-        <h1 className="text-3xl font-black uppercase italic tracking-tighter select-none">
-          Air Jam <span className="text-primary">Arcade</span>
-        </h1>
-      </div>
+      {!shell.activeUrl && (
+        <>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 opacity-20 pointer-events-none">
+                <h1 className="text-3xl font-black uppercase italic tracking-tighter select-none">
+                Air Jam <span className="text-primary">Arcade</span>
+                </h1>
+            </div>
 
-      <div className="flex w-full h-full items-center justify-between px-12 pb-8">
-        {/* Left Side: D-Pad */}
-        <div className="flex items-end justify-start w-1/3">
-          <DPad onMove={setVector} />
-        </div>
-
-        {/* Center: Status / Start (Optional) */}
-        <div className="flex flex-col items-center justify-end w-1/3 pb-8 gap-4">
-          {/* Start / Select buttons could go here */}
-        </div>
-
-        {/* Right Side: Action Buttons */}
-        <div className="flex items-center justify-end w-1/3 gap-6 transform rotate-6 translate-y-4">
-          {/* B Button (Ability) */}
-          <div className="translate-y-8">
-            <ActionButton
-              label="B"
-              color="yellow"
-              onPress={() => setAbility(true)}
-              onRelease={() => setAbility(false)}
-            />
-          </div>
-
-          {/* A Button (Action) */}
-          <div className="-translate-y-8">
-            <ActionButton
-              label="A"
-              color="red"
-              onPress={() => setAction(true)}
-              onRelease={() => setAction(false)}
-            />
-          </div>
-        </div>
-      </div>
+            <div className="flex w-full h-full items-center justify-between px-12 pb-8">
+                <div className="flex items-end justify-start w-1/3">
+                <DPad onMove={setVector} />
+                </div>
+                <div className="flex flex-col items-center justify-end w-1/3 pb-8 gap-4">
+                </div>
+                <div className="flex items-center justify-end w-1/3 gap-6 transform rotate-6 translate-y-4">
+                <div className="translate-y-8">
+                    <ActionButton
+                    label="B"
+                    color="yellow"
+                    onPress={() => setAbility(true)}
+                    onRelease={() => setAbility(false)}
+                    />
+                </div>
+                <div className="-translate-y-8">
+                    <ActionButton
+                    label="A"
+                    color="red"
+                    onPress={() => setAction(true)}
+                    onRelease={() => setAction(false)}
+                    />
+                </div>
+                </div>
+            </div>
+        </>
+      )}
     </ControllerShell>
   );
 }

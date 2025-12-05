@@ -67,7 +67,11 @@ export const hostRegistrationSchema = z.object({
   roomId: roomCodeSchema,
   maxPlayers: z.number().int().min(1).max(16).default(8),
   apiKey: z.string().optional(),
+  mode: z.enum(["master", "child"]).default("child"),
+  controllerUrl: z.string().url().optional(),
 });
+
+export type HostRegistrationPayload = z.infer<typeof hostRegistrationSchema>;
 
 export const controllerJoinSchema = z.object({
   roomId: roomCodeSchema,
@@ -75,10 +79,14 @@ export const controllerJoinSchema = z.object({
   nickname: z.string().trim().min(1).max(24).optional(),
 });
 
+export type ControllerJoinPayload = z.infer<typeof controllerJoinSchema>;
+
 export const controllerLeaveSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),
 });
+
+export type ControllerLeavePayload = z.infer<typeof controllerLeaveSchema>;
 
 export interface PlayerProfile {
   id: string;
@@ -104,6 +112,14 @@ export interface ServerErrorPayload {
   message: string;
 }
 
+export const controllerSystemSchema = z.object({
+  roomId: roomCodeSchema,
+  controllerId: z.string(),
+  type: z.enum(["EXIT_GAME"]),
+});
+
+export type ControllerSystemPayload = z.infer<typeof controllerSystemSchema>;
+
 export interface ControllerWelcomePayload {
   controllerId: string;
   roomId: RoomCode;
@@ -118,7 +134,7 @@ export interface ControllerJoinedNotice {
 
 export interface ControllerLeftNotice {
   controllerId: string;
-}
+  }
 
 export interface RoomReadyNotice {
   roomId: RoomCode;
@@ -129,11 +145,66 @@ export interface HostLeftNotice {
   reason: string;
 }
 
+export interface PlaySoundEventPayload {
+  roomId: string;
+  targetControllerId?: string; // If null, broadcast to all
+  soundId: string;
+  volume?: number;
+  loop?: boolean;
+}
+
+export const hostRegisterSystemSchema = z.object({
+  roomId: roomCodeSchema,
+  apiKey: z.string().optional(),
+});
+
+export type HostRegisterSystemPayload = z.infer<
+  typeof hostRegisterSystemSchema
+>;
+
+export const systemLaunchGameSchema = z.object({
+  roomId: roomCodeSchema,
+  gameId: z.string(),
+  gameUrl: z.string().url(),
+});
+
+export type SystemLaunchGamePayload = z.infer<typeof systemLaunchGameSchema>;
+
+export const hostJoinAsChildSchema = z.object({
+  roomId: roomCodeSchema,
+  joinToken: z.string(),
+});
+
+export type HostJoinAsChildPayload = z.infer<typeof hostJoinAsChildSchema>;
+
+export interface SystemLaunchGameAck {
+  ok: boolean;
+  joinToken?: string;
+  message?: string;
+}
+
+export interface ClientLoadUiPayload {
+  url: string;
+}
+
 export interface ClientToServerEvents {
   "host:register": (
     payload: z.infer<typeof hostRegistrationSchema>,
     callback: (ack: HostRegistrationAck) => void
   ) => void;
+  "host:register_system": (
+    payload: HostRegisterSystemPayload,
+    callback: (ack: HostRegistrationAck) => void
+  ) => void;
+  "system:launch_game": (
+    payload: SystemLaunchGamePayload,
+    callback: (ack: SystemLaunchGameAck) => void
+  ) => void;
+  "host:join_as_child": (
+    payload: HostJoinAsChildPayload,
+    callback: (ack: HostRegistrationAck) => void
+  ) => void;
+  "system:close_game": (payload: { roomId: string }) => void;
   "host:state": (payload: z.infer<typeof controllerStateSchema>) => void;
   "controller:join": (
     payload: z.infer<typeof controllerJoinSchema>,
@@ -141,19 +212,9 @@ export interface ClientToServerEvents {
   ) => void;
   "controller:leave": (payload: z.infer<typeof controllerLeaveSchema>) => void;
   "controller:input": (payload: z.infer<typeof controllerInputSchema>) => void;
-  "host:play_sound": (payload: {
-    roomId: string;
-    targetControllerId?: string; // If null, broadcast to all
-    soundId: string;
-    volume?: number;
-    loop?: boolean;
-  }) => void;
-  "controller:play_sound": (payload: {
-    roomId: string;
-    soundId: string;
-    volume?: number;
-    loop?: boolean;
-  }) => void;
+  "controller:system": (payload: z.infer<typeof controllerSystemSchema>) => void;
+  "host:play_sound": (payload: PlaySoundEventPayload) => void;
+  "controller:play_sound": (payload: PlaySoundEventPayload) => void;
 }
 
 export interface PlaySoundPayload {
@@ -172,6 +233,10 @@ export interface ServerToClientEvents {
   "server:welcome": (payload: ControllerWelcomePayload) => void;
   "server:host_left": (payload: HostLeftNotice) => void;
   "server:play_sound": (payload: PlaySoundPayload) => void;
+  "server:redirect": (url: string) => void;
+  "server:close_child": () => void;
+  "client:load_ui": (payload: ClientLoadUiPayload) => void;
+  "client:unload_ui": () => void;
 }
 
 export interface InterServerEvents {
@@ -194,4 +259,17 @@ export interface ProxyReadyMessage extends ProxyMessageBase {
   type: "AIRJAM_READY";
 }
 
-export type AirJamProxyMessage = ProxyReadyMessage;
+export interface ProxyInputMessage extends ProxyMessageBase {
+  type: "AIRJAM_INPUT";
+  payload: ControllerInputPayload;
+}
+
+export interface ProxyStateMessage extends ProxyMessageBase {
+  type: "AIRJAM_STATE";
+  payload: ControllerStatePayload;
+}
+
+export type AirJamProxyMessage =
+  | ProxyReadyMessage
+  | ProxyInputMessage
+  | ProxyStateMessage;

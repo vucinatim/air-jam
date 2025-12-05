@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { computeViewports } from "../utils/camera-utils";
@@ -60,8 +60,3 @@ export function useMultiViewportRenderer(
     };
   }, [gl, size.width, size.height, activeCamerasRef, freeFlyMode]);
 }
-
-
-
-
-

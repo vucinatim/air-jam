@@ -17,126 +17,81 @@ The system is built as a **monorepo** (using pnpm workspaces) consisting of four
 
 ### A. The Platform (`apps/platform`)
 *   **Role**: The "Brain". Handles user accounts, game registration, and API key generation.
-*   **Tech Stack**:
-    *   **Framework**: Next.js 15 (App Router)
-    *   **Language**: TypeScript
-    *   **API**: tRPC (for end-to-end type safety)
-    *   **Auth**: BetterAuth (Email/Password, Socials)
-    *   **Database**: Postgres (via Drizzle ORM)
-    *   **UI**: Shadcn UI + Tailwind CSS (Dark Mode enabled)
+*   **Tech Stack**: Next.js 15 (App Router), TypeScript, tRPC, BetterAuth, Postgres (Drizzle ORM), Shadcn UI.
 *   **Key Features**:
     *   **Developer Dashboard** (`/dashboard`): Register games, generate `aj_live_` API keys.
-    *   **Air Jam Arcade** (`/arcade`): Game launcher and controller hub. Acts as a meta-host that can launch games.
-    *   **Game Launcher** (`/play/[gameId]`): Plays registered games in a secure `iframe`.
-    *   **Controller Interface** (`/joypad`): Mobile controller interface that can display either the default Arcade controller or a game-specific controller in an iframe.
+    *   **Air Jam Arcade** (`/arcade`): The primary "System Host". It maintains a persistent connection to the server and launches games as "Child Hosts".
+    *   **Controller Shell** (`/joypad`): A persistent mobile controller shell that dynamically loads game UIs via iframes.
     *   **Database Management**: Owns the schema for Users, Games, and API Keys.
 
 ### B. The Game Server (`@air-jam/server`)
-*   **Role**: The "Nervous System". Handles low-latency communication between devices.
+*   **Role**: The "Nervous System". Handles low-latency communication and input routing.
 *   **Tech Stack**: Node.js, Express, Socket.io, Drizzle ORM.
 *   **Key Features**:
-    *   **WebSocket Signaling**: Manages rooms, connects controllers to hosts.
-    *   **Host Takeover**: Allows seamless handoff of rooms between the Arcade and embedded Games.
-    *   **Security**: Verifies `apiKey` against the shared Postgres database during `host:register`.
-    *   **Input Forwarding**: Relays controller inputs (joystick, buttons, gestures) to the host game loop.
+    *   **Server-Authoritative Focus**: Manages the "Focus" state of a room (`SYSTEM` or `GAME`).
+    *   **Input Routing**: Routes controller inputs to the active host based on the current focus.
+    *   **Dual Host Support**: Supports a "Master Host" (Arcade) and a "Child Host" (Game) co-existing in the same room.
+    *   **Security**: Verifies API keys and uses `joinToken` for secure Child Host registration.
 
 ### C. The SDK (`@air-jam/sdk`)
 *   **Role**: The "Bridge". Connects games to the server.
 *   **Key Exports**:
-    *   `useAirJamHost`: Hook for the main game screen. Handles room creation and receiving inputs. Supports "Direct Connect" for embedded games.
-    *   `useAirJamController`: Hook for the mobile controller view. Handles sending inputs. Supports "Direct Connect" for embedded controllers.
-    *   `AirJamOverlay`: A pre-built UI component displaying the connection QR code and status.
-    *   `ControllerShell`: UI shell for controllers. Automatically hides header/controls in child mode.
-    *   `AudioManager`: Synced audio playback utilities.
+    *   `useAirJamHost`: Hook for the main game screen. Automatically detects "Arcade Mode" vs "Standalone Mode".
+    *   `useAirJamController`: Hook for the mobile controller view. Automatically detects "Sub-Controller Mode".
+    *   `useAirJamShell`: Hook for the Controller Shell, handling `client:load_ui` events.
+    *   `AirJamOverlay`: A pre-built UI component. Automatically hides itself when running in Arcade Mode.
 
-### D. Prototype Game (`apps/prototype-game`)
-*   **Role**: The "Proof of Concept".
-*   **Tech Stack**: Vite, React, Three.js (React Three Fiber), Rapier (Physics).
-*   **Architecture**:
-    *   `/`: The Host View (3D Game).
-    *   `/joypad`: The Controller View (Mobile Interface).
+## 3. Architecture: Server-Authoritative Focus
 
-## 3. Data & Connection Flow
+Air Jam uses a **Server-Authoritative Focus** model to manage the relationship between the Arcade (System) and the Games (Child).
 
-How it all works together when a user plays a game:
+### Core Concepts
 
-1.  **Game Launch**:
-    *   User clicks "Play" on the **Platform**.
-    *   Platform loads the **Game URL** (e.g., `https://my-game.com`) in an iframe.
+1.  **Master Host (System)**: The Arcade running on the TV. It owns the room and the persistent connection.
+2.  **Child Host (Game)**: The Game running in an iframe. It joins the existing room using a secure token.
+3.  **Focus**: The Server maintains a `focus` state for each room:
+    *   `SYSTEM`: Inputs go to the Master Host (Arcade).
+    *   `GAME`: Inputs go to the Child Host (Game).
+4.  **Controller Shell**: The phone runs a persistent shell that loads game-specific controllers in an iframe.
 
-2.  **Host Registration**:
-    *   The Game (inside iframe) calls `useAirJamHost({ apiKey: "..." })`.
-    *   **SDK** connects to **Game Server** via WebSocket (`host:register`).
-    *   **Game Server** checks the DB: "Is this API key valid and active?".
-    *   If valid, Server creates a Room (e.g., `ABCD`) and confirms connection.
+### Connection Flow: Launching a Game
 
-3.  **Controller Connection**:
-    *   Game displays the **AirJamOverlay** with a QR Code for the room `ABCD`.
-    *   Player scans QR code with phone.
-    *   Phone opens the Game URL (`https://my-game.com/joypad?room=ABCD`).
-    *   Phone calls `useAirJamController()`.
-    *   **SDK** connects to **Game Server** via WebSocket (`controller:join`).
+1.  **Arcade Launch**:
+    *   Arcade calls `host:register_system`.
+    *   Server creates room, sets focus to `SYSTEM`.
+    *   User connects phone (Controller Shell).
+
+2.  **Game Selection**:
+    *   User selects a game on the Arcade.
+    *   Arcade emits `system:launch_game` with the Game ID and URL.
+    *   Server generates a `joinToken` and returns it to the Arcade.
+    *   Server emits `client:load_ui` to all connected Controllers with the Game's Controller URL.
+
+3.  **Game Start**:
+    *   Arcade loads the Game in an iframe, passing `aj_room` and `aj_token` in the URL.
+    *   Game (Child Host) initializes `useAirJamHost`.
+    *   SDK detects `aj_token` and emits `host:join_as_child`.
+    *   Server validates token, registers Child Host, and switches focus to `GAME`.
+    *   Server sends existing players to the Child Host via `server:controller_joined`.
 
 4.  **Gameplay**:
-    *   Player presses a button on Phone.
-    *   **SDK** sends `controller:input` event to **Game Server**.
-    *   **Game Server** forwards event to the **Host** in Room `ABCD`.
-    *   **Host** receives input via `onInput` callback and updates game state.
+    *   Controller Shell (iframe) sends inputs.
+    *   Server receives inputs and routes them to the **Child Host** (because focus is `GAME`).
 
-## 3.5. Air Jam Arcade & Direct Connect Architecture
+5.  **Game Exit**:
+    *   User presses "Exit" on Controller or Arcade.
+    *   Arcade emits `system:close_game`.
+    *   Server switches focus back to `SYSTEM`.
+    *   Server emits `client:unload_ui` to Controllers.
+    *   Arcade destroys the Game iframe.
 
-The Platform includes an **Arcade** feature (`/arcade`) that acts as a game launcher. To provide a seamless experience, we use a **"Host Takeover"** architecture.
+### Standalone Mode (Legacy/Dev)
 
-### The Core Concept: "Host Takeover"
-
-We are **not** using events or proxies to pass data from the Arcade to the Game. Instead, we are handing off the **Server Connection** itself.
-
-*   **No Proxies**: The Arcade does *not* receive inputs and pass them to the iframe via `postMessage`.
-*   **Direct Connection**: The Game (inside the iframe) connects **directly** to the WebSocket server.
-*   **Shared Room ID**: The key to this mechanism is that both the Arcade and the Game share the same `roomId`.
-
-### Transition: Arcade -> Game
-
-When a user launches a game from the Arcade:
-
-1.  **Arcade (Parent)** is currently the Host of Room `ABCD`.
-2.  **Arcade** spawns an `<iframe>` for the Game.
-    *   It passes the room ID in the URL: `?room=ABCD&airjam_force_connect=true`.
-3.  **Game (Child)** initializes the SDK (`useAirJamHost`).
-    *   It sees `airjam_force_connect=true` and immediately connects to the server with Room `ABCD`.
-4.  **Server** detects a new Host registering for an *existing* room.
-    *   It performs a **Takeover**: The Game's socket becomes the new "Host Socket".
-    *   It **transfers** all connected controllers to this new Host.
-    *   It sends a `server:controller_joined` event to the Game for every existing player.
-5.  **Result**: The Game starts with all players already connected and receives inputs directly. The Arcade is now effectively "dormant" in the background.
-
-### Transition: Game -> Arcade
-
-When the user exits the game:
-
-1.  **Arcade** destroys the Game `<iframe>`.
-2.  **Game** disconnects from the server.
-3.  **Server** starts a **3-second Grace Period**.
-    *   It keeps the room alive and the controllers connected, waiting for a host to return.
-4.  **Arcade** calls `host.reconnect()`.
-    *   It reconnects to the server with Room `ABCD`.
-5.  **Server** accepts the Arcade as the new Host (another Takeover).
-    *   Controllers are now talking to the Arcade again.
-
-### SDK Design (`useAirJamHost`)
-
-The SDK is designed to handle this transparently:
-
-*   **`useAirJamHost` Hook**:
-    *   Automatically parses `?room=` from the URL.
-    *   Checks for `airjam_mode=child` (running in iframe).
-    *   If `airjam_force_connect=true`, it bypasses any "start game" screens and connects immediately.
-*   **State Management**: It manages the players list and connection status, populating itself with existing players immediately upon connection if it's a takeover.
-
-### Key Benefits
--   **Zero Latency Overhead**: Inputs go straight to the game.
--   **Simplicity**: Games don't need to know they are in an arcade. They just work as if they were standalone.
--   **Robustness**: If the Arcade UI crashes or freezes, the game keeps running because it has its own connection.
+For development or standalone usage, the SDK falls back to the classic behavior:
+*   Game calls `host:register`.
+*   Server treats it as a Master Host.
+*   Controllers connect directly.
+*   No shell/iframe logic is involved.
 
 ## 4. Database Schema
 
@@ -175,7 +130,5 @@ To run the entire stack locally:
 
 ### Iframe Embedding Configuration
 
-For games to work when embedded in the Platform Arcade, they must allow iframe embedding. See `IFRAME_EMBEDDING.md` for configuration details.
-
-**Development**: The Vite config already includes headers to allow iframe embedding.  
+For games to work when embedded in the Platform Arcade, they must allow iframe embedding.
 **Production**: Games must set `Content-Security-Policy: frame-ancestors *;` header (or restrict to specific domains).

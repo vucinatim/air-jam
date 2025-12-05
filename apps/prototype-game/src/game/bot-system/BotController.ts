@@ -29,13 +29,13 @@ class BotBrain {
   private stateChangeCooldown = 0.5; // Minimum time between state changes (seconds)
   private lastLogTime = 0;
   private logInterval = 1.0; // Log every 1 second
-  
+
   // Jump pad navigation state
   private usingJumpPad: boolean = false;
   private jumpPadTarget: Vector3 | null = null;
   private originalTarget: Vector3 | null = null; // Target we're trying to reach after jump
   private reachabilityChecker: ReachabilityChecker;
-  
+
   constructor() {
     this.reachabilityChecker = new ReachabilityChecker();
   }
@@ -47,7 +47,11 @@ class BotBrain {
     botId: string,
     context: GameContext,
     time: number
-  ): { state: BotState; target: Vector3 | null; targetPlayerId: string | null } {
+  ): {
+    state: BotState;
+    target: Vector3 | null;
+    targetPlayerId: string | null;
+  } {
     const self = context.getSelf(botId);
     if (!self) {
       return { state: BotState.SEARCH, target: null, targetPlayerId: null };
@@ -57,9 +61,13 @@ class BotBrain {
     if (this.usingJumpPad && this.originalTarget) {
       const isInAir = self.position.y > 5.5;
       const distanceToOriginal = self.position.distanceTo(this.originalTarget);
-      
+
       // If we're in air and close to original target, or if we've passed it vertically, clear jump pad state
-      if (isInAir && (distanceToOriginal < 20 || self.position.y >= this.originalTarget.y - 5)) {
+      if (
+        isInAir &&
+        (distanceToOriginal < 20 ||
+          self.position.y >= this.originalTarget.y - 5)
+      ) {
         this.usingJumpPad = false;
         this.jumpPadTarget = null;
         this.originalTarget = null;
@@ -69,10 +77,24 @@ class BotBrain {
     // Logging
     if (time - this.lastLogTime > this.logInterval) {
       this.lastLogTime = time;
-      console.log(`[BOT ${botId.slice(4)}] State: ${this.state}, Pos: (${self.position.x.toFixed(1)}, ${self.position.y.toFixed(1)}, ${self.position.z.toFixed(1)}), Health: ${self.health.toFixed(0)}`);
+      console.log(
+        `[BOT ${botId.slice(4)}] State: ${
+          this.state
+        }, Pos: (${self.position.x.toFixed(1)}, ${self.position.y.toFixed(
+          1
+        )}, ${self.position.z.toFixed(1)}), Health: ${self.health.toFixed(0)}`
+      );
       if (this.targetPosition) {
         const dist = self.position.distanceTo(this.targetPosition);
-        console.log(`  Target: (${this.targetPosition.x.toFixed(1)}, ${this.targetPosition.y.toFixed(1)}, ${this.targetPosition.z.toFixed(1)}), Distance: ${dist.toFixed(1)}`);
+        console.log(
+          `  Target: (${this.targetPosition.x.toFixed(
+            1
+          )}, ${this.targetPosition.y.toFixed(
+            1
+          )}, ${this.targetPosition.z.toFixed(1)}), Distance: ${dist.toFixed(
+            1
+          )}`
+        );
       }
     }
 
@@ -92,15 +114,25 @@ class BotBrain {
 
     // Priority 1: Self Preservation - Health < 30% -> Find Health Pack
     if (self.health < 30) {
-      const healthPack = collectibles.find((c) => c.abilityId === "health_pack");
+      const healthPack = collectibles.find(
+        (c) => c.abilityId === "health_pack"
+      );
       if (healthPack) {
         this.setState(BotState.GATHER, time);
         const healthPackPos = new Vector3(...healthPack.position);
-        const target = this.checkReachabilityAndPlanPath(self.position, healthPackPos, context);
+        const target = this.checkReachabilityAndPlanPath(
+          self.position,
+          healthPackPos,
+          context
+        );
         this.targetPosition = target;
         this.targetPlayerId = null;
         if (time - this.lastLogTime > this.logInterval) {
-          console.log(`  → GATHER: Health pack at (${healthPackPos.x.toFixed(1)}, ${healthPackPos.y.toFixed(1)}, ${healthPackPos.z.toFixed(1)})`);
+          console.log(
+            `  → GATHER: Health pack at (${healthPackPos.x.toFixed(
+              1
+            )}, ${healthPackPos.y.toFixed(1)}, ${healthPackPos.z.toFixed(1)})`
+          );
           if (this.usingJumpPad) {
             console.log(`    Using jump pad to reach health pack`);
           }
@@ -146,7 +178,11 @@ class BotBrain {
     if (ownFlag?.status === "dropped") {
       this.setState(BotState.RETRIEVE, time);
       const flagPos = new Vector3(...ownFlag.position);
-      const target = this.checkReachabilityAndPlanPath(self.position, flagPos, context);
+      const target = this.checkReachabilityAndPlanPath(
+        self.position,
+        flagPos,
+        context
+      );
       this.targetPosition = target;
       this.targetPlayerId = null;
       if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
@@ -160,15 +196,26 @@ class BotBrain {
     }
 
     // Priority 5: Objective - Offense - Enemy Flag at Base or Dropped -> Go to Enemy Flag
-    if (enemyFlag && (enemyFlag.status === "atBase" || enemyFlag.status === "dropped")) {
+    if (
+      enemyFlag &&
+      (enemyFlag.status === "atBase" || enemyFlag.status === "dropped")
+    ) {
       this.setState(BotState.CAPTURE, time);
       const flagPos = new Vector3(...enemyFlag.position);
-      const target = this.checkReachabilityAndPlanPath(self.position, flagPos, context);
+      const target = this.checkReachabilityAndPlanPath(
+        self.position,
+        flagPos,
+        context
+      );
       this.targetPosition = target;
       this.targetPlayerId = null;
       if (time - this.lastLogTime > this.logInterval) {
         const status = enemyFlag.status === "dropped" ? "dropped" : "at base";
-        console.log(`  → CAPTURE: Enemy flag ${status} at (${flagPos.x.toFixed(1)}, ${flagPos.y.toFixed(1)}, ${flagPos.z.toFixed(1)})`);
+        console.log(
+          `  → CAPTURE: Enemy flag ${status} at (${flagPos.x.toFixed(
+            1
+          )}, ${flagPos.y.toFixed(1)}, ${flagPos.z.toFixed(1)})`
+        );
         if (this.usingJumpPad) {
           console.log(`    Using jump pad to reach enemy flag`);
         }
@@ -202,7 +249,11 @@ class BotBrain {
     if (nearbyCollectible) {
       this.setState(BotState.GATHER, time);
       const collectiblePos = new Vector3(...nearbyCollectible.position);
-      const target = this.checkReachabilityAndPlanPath(self.position, collectiblePos, context);
+      const target = this.checkReachabilityAndPlanPath(
+        self.position,
+        collectiblePos,
+        context
+      );
       this.targetPosition = target;
       this.targetPlayerId = null;
       if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
@@ -225,7 +276,10 @@ class BotBrain {
     }
 
     // Check if we've reached the target (within 5 units) and need a new one
-    if (this.targetPosition && self.position.distanceTo(this.targetPosition) < 5) {
+    if (
+      this.targetPosition &&
+      self.position.distanceTo(this.targetPosition) < 5
+    ) {
       this.targetPosition = this.generateWanderTarget(self.position);
       if (time - this.lastLogTime > this.logInterval) {
         console.log(`  → Target reached, generating new wander target`);
@@ -297,7 +351,7 @@ class BotBrain {
     // Generate a random point within arena bounds
     // If bot is in the air, keep target at similar height
     const isInAir = currentPos.y > 5.5; // HOVER_HEIGHT + AIR_MODE_THRESHOLD
-    const targetY = isInAir 
+    const targetY = isInAir
       ? Math.max(5, Math.min(30, currentPos.y + (Math.random() - 0.5) * 10)) // Stay near current height when in air
       : 10 + Math.random() * 20; // Normal height when on ground
 
@@ -384,8 +438,7 @@ class BotBody {
   calculateSteering(
     botId: string,
     context: GameContext,
-    target: Vector3 | null,
-    state: BotState
+    target: Vector3 | null
   ): { vector: { x: number; y: number }; shouldShoot: boolean } {
     const self = context.getSelf(botId);
     if (!self || !target) {
@@ -417,14 +470,18 @@ class BotBody {
     // If approaching jump pad, use special alignment steering
     let seekForce: Vector3;
     if (isJumpPadTarget && jumpPadInfo) {
-      seekForce = this.calculateJumpPadAlignment(position, jumpPadInfo.position, jumpPadInfo.radius);
+      seekForce = this.calculateJumpPadAlignment(
+        position,
+        jumpPadInfo.position,
+        jumpPadInfo.radius
+      );
     } else {
       // Force 1: Seek - Vector towards target
       seekForce = this.calculateSeek(position, adjustedTarget);
     }
 
     // Force 2: Avoid - Raycast/Sphere check against obstacles (only check obstacles at similar height)
-    const avoidForce = this.calculateAvoid(position, rotation, context, isInAir);
+    const avoidForce = this.calculateAvoid(position, context, isInAir);
 
     // Force 3: Separation - Avoid crashing into other ships
     const separationForce = this.calculateSeparation(
@@ -438,7 +495,7 @@ class BotBody {
       .add(separationForce.multiplyScalar(this.SEPARATION_WEIGHT));
 
     // Normalize and convert to input
-    const inputVector = this.forceToInput(finalForce, position, rotation, adjustedTarget);
+    const inputVector = this.forceToInput(finalForce, position, rotation);
 
     // Logging
     this.logFrameCount++;
@@ -447,8 +504,19 @@ class BotBody {
       const toTarget = adjustedTarget.clone().sub(position);
       const forward = new Vector3(0, 0, -1).applyQuaternion(rotation);
       const angle = toTarget.normalize().dot(forward);
-      console.log(`  Body: Input (${inputVector.x.toFixed(2)}, ${inputVector.y.toFixed(2)}), InAir: ${isInAir}, AngleToTarget: ${(Math.acos(angle) * 180 / Math.PI).toFixed(1)}°`);
-      console.log(`    Forces: Seek(${seekForce.length().toFixed(2)}), Avoid(${avoidForce.length().toFixed(2)}), Sep(${separationForce.length().toFixed(2)})`);
+      console.log(
+        `  Body: Input (${inputVector.x.toFixed(2)}, ${inputVector.y.toFixed(
+          2
+        )}), InAir: ${isInAir}, AngleToTarget: ${(
+          (Math.acos(angle) * 180) /
+          Math.PI
+        ).toFixed(1)}°`
+      );
+      console.log(
+        `    Forces: Seek(${seekForce.length().toFixed(2)}), Avoid(${avoidForce
+          .length()
+          .toFixed(2)}), Sep(${separationForce.length().toFixed(2)})`
+      );
     }
 
     // Determine if we should shoot - check for any enemy in line of sight
@@ -456,8 +524,7 @@ class BotBody {
       position,
       rotation,
       context,
-      botId,
-      state
+      botId
     );
 
     return {
@@ -473,8 +540,7 @@ class BotBody {
     position: Vector3,
     rotation: Quaternion,
     context: GameContext,
-    botId: string,
-    state: BotState
+    botId: string
   ): boolean {
     const enemies = context.getEnemies(botId);
     const forward = new Vector3(0, 0, -1).applyQuaternion(rotation);
@@ -505,7 +571,14 @@ class BotBody {
         if (!isBlocked) {
           // Log when we start shooting
           if (this.logFrameCount === 0) {
-            console.log(`  → SHOOTING at enemy ${enemy.controllerId.slice(4)} (dist: ${distance.toFixed(1)}, angle: ${(Math.acos(angle) * 180 / Math.PI).toFixed(1)}°)`);
+            console.log(
+              `  → SHOOTING at enemy ${enemy.controllerId.slice(
+                4
+              )} (dist: ${distance.toFixed(1)}, angle: ${(
+                (Math.acos(angle) * 180) /
+                Math.PI
+              ).toFixed(1)}°)`
+            );
           }
           return true;
         }
@@ -532,18 +605,18 @@ class BotBody {
     for (const obstacle of obstacles) {
       const obstaclePos = new Vector3(...obstacle.position);
       const toObstacle = obstaclePos.clone().sub(from);
-      
+
       // Project obstacle position onto the line
       const projectionLength = toObstacle.dot(directionNormalized);
-      
+
       // If projection is within the line segment
       if (projectionLength > 0 && projectionLength < distance) {
-        const closestPoint = from.clone().add(
-          directionNormalized.clone().multiplyScalar(projectionLength)
-        );
+        const closestPoint = from
+          .clone()
+          .add(directionNormalized.clone().multiplyScalar(projectionLength));
         const distToLine = closestPoint.distanceTo(obstaclePos);
         const obstacleRadius = Math.max(...obstacle.size) / 2;
-        
+
         // If obstacle is close to the line, it's blocking
         if (distToLine < obstacleRadius + 2) {
           return true;
@@ -565,7 +638,6 @@ class BotBody {
 
   private calculateAvoid(
     position: Vector3,
-    rotation: Quaternion,
     context: GameContext,
     isInAir: boolean
   ): Vector3 {
@@ -576,7 +648,6 @@ class BotBody {
       const obstaclePos = new Vector3(...obstacle.position);
       const obstacleHeight = obstacle.size[1] / 2; // Half height
       const obstacleTop = obstaclePos.y + obstacleHeight;
-      const obstacleBottom = obstaclePos.y - obstacleHeight;
 
       // If in air and obstacle is below us, ignore it (we can fly over)
       if (isInAir && obstacleTop < position.y - 2) {
@@ -586,7 +657,7 @@ class BotBody {
       // Calculate horizontal distance (ignore Y for horizontal avoidance)
       const horizontalDist = Math.sqrt(
         Math.pow(position.x - obstaclePos.x, 2) +
-        Math.pow(position.z - obstaclePos.z, 2)
+          Math.pow(position.z - obstaclePos.z, 2)
       );
 
       // Check if we're at a similar height level
@@ -632,8 +703,7 @@ class BotBody {
   private forceToInput(
     force: Vector3,
     position: Vector3,
-    rotation: Quaternion,
-    target: Vector3
+    rotation: Quaternion
   ): { x: number; y: number } {
     if (force.length() < 0.01) {
       return { x: 0, y: 0 };
@@ -644,17 +714,17 @@ class BotBody {
 
     // x > 0 means force is to the right, x < 0 means left
     // z < 0 means force is forward, z > 0 means backward
-    
+
     // Calculate turn input with smoothing to prevent oscillation
     const turnInput = Math.max(-1, Math.min(1, localForce.x * 3)); // Reduced multiplier from 5 to 3 for smoother turning
-    
+
     // Thrust logic:
     // - If in air, ship automatically uses full thrust, so we just need to control direction
     // - If force is forward (negative Z), use full thrust
     // - If force is backward, on ground: stop moving forward to allow turning in place
     const isInAir = position.y > 5.5;
     let thrustInput = 0;
-    
+
     if (isInAir) {
       // In air mode, ship uses full thrust automatically
       // We still want to provide some input to maintain control
@@ -685,20 +755,6 @@ class BotBody {
     }
 
     return { x: turnInput, y: thrustInput };
-  }
-
-  private isTargetInSights(
-    position: Vector3,
-    rotation: Quaternion,
-    target: Vector3,
-    context: GameContext,
-    botId: string
-  ): boolean {
-    const toTarget = target.clone().sub(position);
-    const forward = new Vector3(0, 0, -1).applyQuaternion(rotation);
-    
-    const angle = toTarget.normalize().dot(forward);
-    return angle > 1.0 - this.SHOOT_ANGLE_THRESHOLD;
   }
 
   /**
@@ -734,7 +790,7 @@ class BotBody {
     const distance = toJumpPad.length();
     const horizontalDistance = Math.sqrt(
       Math.pow(position.x - jumpPadPos.x, 2) +
-      Math.pow(position.z - jumpPadPos.z, 2)
+        Math.pow(position.z - jumpPadPos.z, 2)
     );
 
     // Strong centering force when close to jump pad
@@ -749,10 +805,14 @@ class BotBody {
       // Vertical alignment - aim for hover height (~5m) when approaching
       const targetHeight = 5; // HOVER_HEIGHT
       const heightDiff = targetHeight - position.y;
-      const verticalForce = new Vector3(0, Math.sign(heightDiff) * Math.min(Math.abs(heightDiff) / 2, 1), 0);
+      const verticalForce = new Vector3(
+        0,
+        Math.sign(heightDiff) * Math.min(Math.abs(heightDiff) / 2, 1),
+        0
+      );
 
       // Combine forces with stronger weight when very close
-      const proximityFactor = 1.0 - (horizontalDistance / (jumpPadRadius * 1.5));
+      const proximityFactor = 1.0 - horizontalDistance / (jumpPadRadius * 1.5);
       const centeringWeight = 2.0 + proximityFactor * 3.0; // Stronger when closer
 
       return horizontalForce.multiplyScalar(centeringWeight).add(verticalForce);
@@ -782,20 +842,19 @@ export class BotController {
     this.context = new GameContext();
   }
 
-  update(delta: number, time: number): GameLoopInput {
+  update(time: number): GameLoopInput {
     // Update brain (decision making)
-    const { state, target, targetPlayerId } = this.brain.update(
+    const { state, target } = this.brain.update(
       this.controllerId,
       this.context,
       time
     );
 
     // Update body (movement)
-    let { vector, shouldShoot } = this.body.calculateSteering(
+    const { vector, shouldShoot } = this.body.calculateSteering(
       this.controllerId,
       this.context,
-      target,
-      state
+      target
     );
 
     // Detect if bot is stuck in a turning loop
@@ -809,13 +868,18 @@ export class BotController {
     if (this.lastInputHistory.length > 30) {
       // Check if all recent inputs are turning in same direction
       const allSameDirection = this.lastInputHistory.every(
-        (entry) => Math.sign(entry.x) === Math.sign(vector.x) && Math.abs(entry.x) > 0.3
+        (entry) =>
+          Math.sign(entry.x) === Math.sign(vector.x) && Math.abs(entry.x) > 0.3
       );
 
       if (allSameDirection && Math.abs(vector.x) > 0.5) {
         // We're stuck turning! Reset target
         if (time - this.stuckTurnDetectionTime > 1.0) {
-          console.log(`[BOT ${this.controllerId.slice(4)}] Detected stuck turning loop! Resetting target.`);
+          console.log(
+            `[BOT ${this.controllerId.slice(
+              4
+            )}] Detected stuck turning loop! Resetting target.`
+          );
           this.stuckTurnDetectionTime = time;
           // Force brain to generate new target
           const self = this.context.getSelf(this.controllerId);
@@ -849,7 +913,7 @@ export class BotController {
   private shouldUseAbility(state: BotState, time: number): boolean {
     const abilitiesStore = useAbilitiesStore.getState();
     const queuedAbility = abilitiesStore.getQueuedAbility(this.controllerId);
-    
+
     if (!queuedAbility) {
       return false;
     }

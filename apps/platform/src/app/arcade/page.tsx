@@ -6,6 +6,7 @@ import {
   useAirJamHost,
   AirJamOverlay,
   type ControllerInputEvent,
+  getLocalNetworkIp,
 } from "@air-jam/sdk";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,8 @@ export default function ArcadePage() {
   });
 
   // 1. Initialize the Host (The Platform is the Host)
+  const exitGameRef = useRef<() => void>(() => {});
+
   const host = useAirJamHost({
     roomId: persistedRoomId,
     apiKey: PLATFORM_API_KEY,
@@ -33,6 +36,11 @@ export default function ArcadePage() {
       // Re-broadcast state when new player joins
       broadcastCurrentState();
     },
+    onChildClose: () => {
+        console.log("[Arcade] Received close_child request");
+        exitGameRef.current();
+    },
+    forceConnect: true,
   });
 
   // Save room ID when it changes
@@ -50,18 +58,28 @@ export default function ArcadePage() {
     name: string;
     url: string;
   } | null>(null);
+  const [normalizedGameUrl, setNormalizedGameUrl] = useState<string>("");
+  const [joinToken, setJoinToken] = useState<string | null>(null);
 
   // Fetch games (assuming you have games in your DB)
   const { data: games } = api.game.list.useQuery();
 
-  // Helper to normalize URLs - replace localhost with current hostname for mobile devices
-  const normalizeUrlForMobile = (url: string): string => {
+  // Helper to normalize URLs - replace localhost with local network IP for mobile devices
+  const normalizeUrlForMobile = async (url: string): Promise<string> => {
     if (typeof window === "undefined") return url;
 
     try {
       const urlObj = new URL(url);
-      // If URL uses localhost, replace with current hostname
+      // If URL uses localhost, replace with local network IP
       if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+        const localIp = await getLocalNetworkIp();
+        if (localIp) {
+          console.log("[Arcade] Replacing localhost with detected IP:", localIp);
+          urlObj.hostname = localIp;
+          return urlObj.toString();
+        }
+        // Fallback to current hostname if IP detection fails
+        console.warn("[Arcade] Failed to detect local IP, using window.location.hostname");
         urlObj.hostname = window.location.hostname;
         return urlObj.toString();
       }
@@ -76,28 +94,20 @@ export default function ArcadePage() {
     if (!games) return;
     const currentGame = games[selectedIndex];
 
-    // Determine the state based on View + Selected Game
-    const controllerUrl =
-      view === "game" && activeGame
-        ? `${normalizeUrlForMobile(activeGame.url.replace(/\/$/, ""))}/joypad`
-        : undefined;
-
-    if (controllerUrl) {
-      // console.log("[Arcade] Broadcasting controller URL:", controllerUrl);
+    // We only broadcast "browser" state. When game launches, Server handles UI switching.
+    if (view === "browser") {
+        host.sendState({
+            gameState: "paused",
+            message: currentGame ? currentGame.name : undefined,
+        });
     }
-
-    host.sendState({
-      gameState: view === "game" ? "playing" : "paused",
-      message:
-        view === "browser" && currentGame ? currentGame.name : controllerUrl,
-    });
   };
 
   // Broadcast state whenever relevant things change
   useEffect(() => {
     broadcastCurrentState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, selectedIndex, games, host.connectionStatus, activeGame]);
+  }, [view, selectedIndex, games, host.connectionStatus]);
 
   // 3. Navigation Logic
   const lastInputTime = useRef<number>(0);
@@ -148,24 +158,58 @@ export default function ArcadePage() {
       // Select Game
       const game = games[selectedIndex];
       if (game) {
-        setActiveGame(game);
-        setView("game");
+        launchGame(game);
       }
     }
+  };
+
+  const launchGame = async (game: { id: string; name: string; url: string }) => {
+      if (!host.socket.connected) return;
+
+      console.log("[Arcade] Original game URL:", game.url);
+      const baseUrl = await normalizeUrlForMobile(game.url);
+      console.log("[Arcade] Normalized game URL:", baseUrl);
+      const controllerUrl = `${baseUrl.replace(/\/$/, "")}/joypad`;
+      console.log("[Arcade] Controller URL to send:", controllerUrl);
+      
+      // Request launch from server
+      host.socket.emit("system:launch_game", {
+          roomId: host.roomId,
+          gameId: game.id,
+          gameUrl: controllerUrl
+      }, (ack: any) => {
+          if (ack.ok && ack.joinToken) {
+              console.log("[Arcade] Game launch successful, joinToken:", ack.joinToken);
+              setJoinToken(ack.joinToken);
+              setActiveGame(game);
+              setNormalizedGameUrl(baseUrl);
+              setView("game");
+          } else {
+              console.error("Failed to launch game:", ack.message);
+          }
+      });
   };
 
   // 4. The Proxy System (Removed in favor of Direct Connect)
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Helper to exit game (e.g., via a specific button combo or UI overlay)
+  // Helper to exit game
   const exitGame = () => {
+    // Tell server to close the game
+    if (host.socket.connected) {
+        host.socket.emit("system:close_game", { roomId: host.roomId });
+    }
+    
+    // Local cleanup
     setView("browser");
     setActiveGame(null);
-    // Reconnect the Arcade Host to reclaim the room (since the Game Host destroyed it)
-    setTimeout(() => {
-      host.reconnect();
-    }, 500);
+    setNormalizedGameUrl("");
+    setJoinToken(null);
   };
+
+  useEffect(() => {
+    exitGameRef.current = exitGame;
+  }, [exitGame]);
 
   if (!games) {
     return (
@@ -219,8 +263,7 @@ export default function ArcadePage() {
                 )}
                 onClick={() => {
                   setSelectedIndex(idx);
-                  setActiveGame(game);
-                  setView("game");
+                  launchGame(game);
                 }}
               >
                 <CardContent className="flex flex-col items-center justify-center p-8 text-center aspect-video">
@@ -250,13 +293,13 @@ export default function ArcadePage() {
           view === "game" ? "translate-y-0" : "translate-y-full"
         )}
       >
-        {activeGame && (
+        {activeGame && joinToken && (
           <>
             <iframe
               ref={iframeRef}
-              src={`${normalizeUrlForMobile(activeGame.url)}${
+              src={`${normalizedGameUrl}${
                 activeGame.url.includes("?") ? "&" : "?"
-              }airjam_mode=child&room=${host.roomId}&airjam_force_connect=true`}
+              }aj_room=${host.roomId}&aj_token=${joinToken}`}
               className="w-full h-full border-none"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
             />

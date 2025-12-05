@@ -1,6 +1,5 @@
 import { Vector3 } from "three";
 import { GameContext } from "./GameContext";
-import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
 
 export interface JumpPadInfo {
   id: string;
@@ -23,7 +22,7 @@ export class ReachabilityChecker {
    */
   isReachable(from: Vector3, to: Vector3): boolean {
     const heightDiff = to.y - from.y;
-    
+
     // If target is below or at similar height, it's reachable
     if (heightDiff <= this.REACHABILITY_THRESHOLD) {
       return true;
@@ -47,7 +46,7 @@ export class ReachabilityChecker {
     context: GameContext
   ): JumpPadInfo | null {
     const jumpPads = context.getJumpPads();
-    
+
     if (jumpPads.length === 0) {
       return null;
     }
@@ -116,7 +115,3 @@ export class ReachabilityChecker {
     return this.REACHABILITY_THRESHOLD;
   }
 }
-
-
-
-

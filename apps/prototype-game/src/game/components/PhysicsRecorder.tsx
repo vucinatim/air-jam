@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import type { RapierRigidBody } from "@react-three/rapier";
 import { type MutableRefObject, type RefObject } from "react";
-import type { InputState } from "../game-store";
+import type { InputState } from "../input-store";
 import { usePhysicsStore } from "../physics-store";
 
 export interface PhysicsFrame {

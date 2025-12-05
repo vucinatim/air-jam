@@ -26,11 +26,13 @@ interface AirJamHostOptions {
   roomId?: string;
   serverUrl?: string;
   controllerPath?: string;
+  controllerUrl?: string;
   publicHost?: string;
   maxPlayers?: number;
   onInput?: (event: ControllerInputEvent) => void;
   onPlayerJoin?: (player: PlayerProfile) => void;
   onPlayerLeave?: (controllerId: string) => void;
+  onChildClose?: () => void;
   apiKey?: string;
   forceConnect?: boolean;
 }
@@ -53,25 +55,38 @@ export interface AirJamHostApi {
 export const useAirJamHost = (
   options: AirJamHostOptions = {}
 ): AirJamHostApi => {
-  // Detect if running as a child process (in iframe under Platform)
-  const isChildMode = useMemo(() => {
-    if (typeof window === "undefined") return false;
+  // Detect if running in Arcade Mode (via URL params)
+  const arcadeParams = useMemo(() => {
+    if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
-    return params.get("airjam_mode") === "child";
+    const room = params.get("aj_room");
+    const token = params.get("aj_token");
+    if (room && token) {
+      return { room, token };
+    }
+    return null;
   }, []);
+
+  const isChildMode = !!arcadeParams;
 
   const shouldConnect = useMemo(() => {
     if (options.forceConnect) return true;
+    if (isChildMode) return true; // Always connect in Arcade Mode
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      return params.get("airjam_force_connect") === "true";
+      if (params.get("airjam_force_connect") === "true") return true;
     }
-    return false;
-  }, [options.forceConnect]);
+    // Default to true for Standalone Mode (normal usage)
+    return true;
+  }, [options.forceConnect, isChildMode]);
 
   const [fallbackRoomId] = useState(() => generateRoomCode());
 
   const parsedRoomId = useMemo<RoomCode>(() => {
+    if (arcadeParams) {
+        return roomCodeSchema.parse(arcadeParams.room.toUpperCase());
+    }
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const paramRoom = params.get("room");
@@ -85,7 +100,7 @@ export const useAirJamHost = (
       return roomCodeSchema.parse(options.roomId.toUpperCase());
     }
     return fallbackRoomId;
-  }, [options.roomId, fallbackRoomId]);
+  }, [options.roomId, fallbackRoomId, arcadeParams]);
 
   const onInputRef = useRef<AirJamHostOptions["onInput"]>(options.onInput);
   const onPlayerJoinRef = useRef<AirJamHostOptions["onPlayerJoin"]>(
@@ -93,6 +108,9 @@ export const useAirJamHost = (
   );
   const onPlayerLeaveRef = useRef<AirJamHostOptions["onPlayerLeave"]>(
     options.onPlayerLeave
+  );
+  const onChildCloseRef = useRef<AirJamHostOptions["onChildClose"]>(
+    options.onChildClose
   );
 
   const connectionState = useConnectionState((state) => ({
@@ -115,6 +133,10 @@ export const useAirJamHost = (
     onPlayerLeaveRef.current = options.onPlayerLeave;
   }, [options.onPlayerLeave]);
 
+  useEffect(() => {
+    onChildCloseRef.current = options.onChildClose;
+  }, [options.onChildClose]);
+
   const [reconnectKey, setReconnectKey] = useState(0);
 
   const reconnect = useCallback(() => {
@@ -136,12 +158,7 @@ export const useAirJamHost = (
     store.resetPlayers();
 
     // --- SOCKET CONNECTION ---
-    // If we are in child mode, we only connect if forceConnect is true (which it should be now for iframe games)
-    // If we are NOT in child mode, we always connect.
-    const canConnect = !isChildMode || shouldConnect;
-
-    if (!canConnect) {
-      // If we are in child mode but NOT forced to connect, we are likely in a legacy state or waiting.
+    if (!shouldConnect) {
       store.setStatus("idle");
       return;
     }
@@ -149,20 +166,71 @@ export const useAirJamHost = (
     const socket = getSocketClient("host", options.serverUrl);
     const maxPlayers = options.maxPlayers ?? 8;
 
-    const registerHost = (): void => {
-      const payload = hostRegistrationSchema.parse({
-        roomId: parsedRoomId,
-        maxPlayers,
-        apiKey: options.apiKey,
-      });
-      socket.emit("host:register", payload, (ack) => {
-        if (!ack.ok) {
-          store.setError(ack.message ?? "Failed to register host");
-          store.setStatus("disconnected");
-          return;
-        }
-        store.setStatus("connected");
-      });
+    const registerHost = async (): Promise<void> => {
+      if (arcadeParams) {
+          // --- ARCADE MODE: JOIN AS CHILD ---
+          const payload = {
+              roomId: parsedRoomId,
+              joinToken: arcadeParams.token
+          };
+          socket.emit("host:join_as_child", payload, (ack) => {
+              if (!ack.ok) {
+                  store.setError(ack.message ?? "Failed to join as child");
+                  store.setStatus("disconnected");
+                  return;
+              }
+              store.setStatus("connected");
+          });
+      } else {
+          // --- STANDALONE MODE: REGISTER ---
+          const mode = "master"; // Standalone is always master of its own room
+          
+          let controllerUrl = options.controllerUrl;
+          if (!controllerUrl) {
+              // Use buildControllerUrl to get the proper local IP-based URL
+              const path = options.controllerPath || "/joypad";
+              try {
+                  controllerUrl = await buildControllerUrl(
+                      parsedRoomId,
+                      path,
+                      options.publicHost
+                  );
+                  console.log("[useAirJamHost] buildControllerUrl returned:", controllerUrl);
+                  // Remove the room query param since the server will add it
+                  const url = new URL(controllerUrl);
+                  url.searchParams.delete("room");
+                  controllerUrl = url.toString();
+                  console.log("[useAirJamHost] Final controllerUrl (after removing room param):", controllerUrl);
+              } catch (error) {
+                  console.warn("[useAirJamHost] Failed to build controller URL:", error);
+                  // Fallback to origin-based URL if buildControllerUrl fails
+                  if (typeof window !== "undefined") {
+                      controllerUrl = `${window.location.origin}${path}`;
+                      console.log("[useAirJamHost] Fallback controllerUrl:", controllerUrl);
+                  }
+              }
+          } else {
+              console.log("[useAirJamHost] Using provided controllerUrl:", controllerUrl);
+          }
+
+          const payload = hostRegistrationSchema.parse({
+            roomId: parsedRoomId,
+            maxPlayers,
+            apiKey: options.apiKey,
+            mode,
+            controllerUrl,
+          });
+          console.log("[useAirJamHost] Registering with server. Payload:", payload);
+          socket.emit("host:register", payload, (ack) => {
+            if (!ack.ok) {
+              store.setError(ack.message ?? "Failed to register host");
+              store.setStatus("disconnected");
+              return;
+            }
+            console.log("[useAirJamHost] Successfully registered with server");
+            store.setStatus("connected");
+          });
+      }
     };
 
     const handleConnect = (): void => {
@@ -217,12 +285,17 @@ export const useAirJamHost = (
       store.setError(payload.message);
     };
 
+    const handleChildClose = (): void => {
+        onChildCloseRef.current?.();
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("server:controller_joined", handleJoin);
     socket.on("server:controller_left", handleLeave);
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
+    socket.on("server:close_child", handleChildClose);
     socket.on("connect_error", (err) => {
       store.setError(err.message);
     });
@@ -236,6 +309,7 @@ export const useAirJamHost = (
       socket.off("server:controller_left", handleLeave);
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);
+      socket.off("server:close_child", handleChildClose);
       disconnectSocket("host");
     };
   }, [

@@ -12,7 +12,8 @@
       "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
     },
     "composite": true,
-    "incremental": true
+    "incremental": true,
+    "skipLibCheck": true
   },
   "include": [
     "src",

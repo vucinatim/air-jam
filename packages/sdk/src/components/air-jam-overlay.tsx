@@ -54,7 +54,7 @@ export const AirJamOverlay = ({
   gameState,
   onTogglePlayPause,
   isChildMode = false,
-}: AirJamOverlayProps): JSX.Element => {
+}: AirJamOverlayProps): JSX.Element | null => {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
 
@@ -104,6 +104,10 @@ export const AirJamOverlay = ({
 
   // Playing mode: thin navbar at top
   if (gameState === "playing") {
+    // In Child Mode (Platform), we hide the overlay completely during gameplay
+    // because the Platform handles the UI/Header.
+    if (isChildMode) return null;
+
     return (
       <div className="pointer-events-none fixed inset-x-0 top-0 z-99999">
         <div className="mx-auto w-full">
@@ -116,11 +120,6 @@ export const AirJamOverlay = ({
                 </p>
                 <p className="text-lg font-semibold text-foreground">
                   {roomId}
-                  {isChildMode && (
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      Platform
-                    </Badge>
-                  )}
                 </p>
               </div>
             </div>
