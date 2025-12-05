@@ -30,6 +30,7 @@ interface AirJamStore {
   upsertPlayer: (player: PlayerProfile) => void;
   removePlayer: (playerId: string) => void;
   resetPlayers: () => void;
+  resetGameState: () => void;
 }
 
 export const useConnectionStore = create<AirJamStore>((set) => ({
@@ -71,6 +72,7 @@ export const useConnectionStore = create<AirJamStore>((set) => ({
       players: state.players.filter((player) => player.id !== playerId),
     })),
   resetPlayers: () => set({ players: [] }),
+  resetGameState: () => set({ gameState: "paused", stateMessage: undefined }),
 }));
 
 export const useConnectionState = <T extends Record<string, unknown>>(

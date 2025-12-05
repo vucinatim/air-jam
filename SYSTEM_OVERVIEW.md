@@ -85,44 +85,58 @@ How it all works together when a user plays a game:
 
 ## 3.5. Air Jam Arcade & Direct Connect Architecture
 
-The Platform includes an **Arcade** feature (`/arcade`) that acts as a game launcher. To provide a seamless experience, we use a **"Direct Connect / Handoff"** architecture.
+The Platform includes an **Arcade** feature (`/arcade`) that acts as a game launcher. To provide a seamless experience, we use a **"Host Takeover"** architecture.
 
-### Seamless Handoff Strategy
+### The Core Concept: "Host Takeover"
 
-Instead of complex proxying, we allow embedded iframes to connect **directly** to the game server, "taking over" the session.
+We are **not** using events or proxies to pass data from the Arcade to the Game. Instead, we are handing off the **Server Connection** itself.
 
-1.  **Arcade Host (Parent)**:
-    *   The Arcade page acts as a Host and maintains a room (e.g., `ABCD`).
-    *   Controllers connect to this room and use the generic Arcade controls.
+*   **No Proxies**: The Arcade does *not* receive inputs and pass them to the iframe via `postMessage`.
+*   **Direct Connection**: The Game (inside the iframe) connects **directly** to the WebSocket server.
+*   **Shared Room ID**: The key to this mechanism is that both the Arcade and the Game share the same `roomId`.
 
-2.  **Launching a Game**:
-    *   Arcade loads the Game Host in an iframe with `?room=ABCD&airjam_force_connect=true`.
-    *   **Game Host (Child)**: Connects to the Server with the same Room Code `ABCD`.
-    *   **Server**: Detects a new Host for an existing room. Triggers **Host Takeover**:
-        *   Updates the Host Socket ID to the new Game connection.
-        *   Preserves all connected Controllers.
-        *   Sends `server:controller_joined` events to the new Game for all existing players.
-    *   **Result**: The Game starts immediately with all players already connected.
+### Transition: Arcade -> Game
 
-3.  **Switching Controllers**:
-    *   The Arcade sends a state update telling controllers to load the Game's controller URL.
-    *   **Joypad (Parent)**: Loads the Game Controller in an iframe with `?room=ABCD&controllerId=...&airjam_force_connect=true`.
-    *   **Game Controller (Child)**: Connects to the Server directly.
-    *   **Server**: Updates the socket ID for that Controller ID, keeping the player in the room.
+When a user launches a game from the Arcade:
 
-4.  **Exiting a Game**:
-    *   User clicks "Exit" (handled by Arcade UI).
-    *   Arcade destroys the Game iframe (Host disconnects).
-    *   **Server**: Starts a short **Grace Period** (3s) to keep the room alive.
-    *   Arcade immediately calls `host.reconnect()` to reclaim the room.
-    *   **Server**: Accepts Arcade as the new Host (Takeover).
-    *   Controllers revert to the Arcade interface.
+1.  **Arcade (Parent)** is currently the Host of Room `ABCD`.
+2.  **Arcade** spawns an `<iframe>` for the Game.
+    *   It passes the room ID in the URL: `?room=ABCD&airjam_force_connect=true`.
+3.  **Game (Child)** initializes the SDK (`useAirJamHost`).
+    *   It sees `airjam_force_connect=true` and immediately connects to the server with Room `ABCD`.
+4.  **Server** detects a new Host registering for an *existing* room.
+    *   It performs a **Takeover**: The Game's socket becomes the new "Host Socket".
+    *   It **transfers** all connected controllers to this new Host.
+    *   It sends a `server:controller_joined` event to the Game for every existing player.
+5.  **Result**: The Game starts with all players already connected and receives inputs directly. The Arcade is now effectively "dormant" in the background.
+
+### Transition: Game -> Arcade
+
+When the user exits the game:
+
+1.  **Arcade** destroys the Game `<iframe>`.
+2.  **Game** disconnects from the server.
+3.  **Server** starts a **3-second Grace Period**.
+    *   It keeps the room alive and the controllers connected, waiting for a host to return.
+4.  **Arcade** calls `host.reconnect()`.
+    *   It reconnects to the server with Room `ABCD`.
+5.  **Server** accepts the Arcade as the new Host (another Takeover).
+    *   Controllers are now talking to the Arcade again.
+
+### SDK Design (`useAirJamHost`)
+
+The SDK is designed to handle this transparently:
+
+*   **`useAirJamHost` Hook**:
+    *   Automatically parses `?room=` from the URL.
+    *   Checks for `airjam_mode=child` (running in iframe).
+    *   If `airjam_force_connect=true`, it bypasses any "start game" screens and connects immediately.
+*   **State Management**: It manages the players list and connection status, populating itself with existing players immediately upon connection if it's a takeover.
 
 ### Key Benefits
--   **Simplicity**: No complex `postMessage` proxy chains for inputs.
--   **Latency**: Direct WebSocket connection ensures lowest possible latency.
--   **Robustness**: Games run as if they were standalone, just with a pre-assigned Room ID.
--   **Flexibility**: Games can implement any feature (Audio, Gyro, etc.) without Platform support.
+-   **Zero Latency Overhead**: Inputs go straight to the game.
+-   **Simplicity**: Games don't need to know they are in an arcade. They just work as if they were standalone.
+-   **Robustness**: If the Arcade UI crashes or freezes, the game keeps running because it has its own connection.
 
 ## 4. Database Schema
 

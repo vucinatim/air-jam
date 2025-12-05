@@ -212,6 +212,13 @@ export const useAirJamController = (
     const handleHostLeft = (payload: { reason: string }): void => {
       store.setError(payload.reason);
       store.setStatus("disconnected");
+      store.resetGameState();
+
+      // Auto-reconnect after a short delay to see if Host returns (Arcade takeover)
+      setTimeout(() => {
+        disconnectSocket("controller");
+        setReconnectKey((prev) => prev + 1);
+      }, 1000);
     };
 
     const handleError = (payload: { message: string }): void => {
