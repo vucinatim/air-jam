@@ -1,4 +1,6 @@
+import { Stars } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { RigidBody } from "@react-three/rapier";
 import { useRef } from "react";
 import {
   AdditiveBlending,
@@ -6,8 +8,6 @@ import {
   ShaderMaterial,
   type DirectionalLight,
 } from "three";
-import { RigidBody } from "@react-three/rapier";
-import { Stars } from "@react-three/drei";
 import { ARENA_RADIUS } from "../constants";
 
 function Forcefield() {

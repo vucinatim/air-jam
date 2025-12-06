@@ -1,10 +1,23 @@
 import { Vector3 } from "three";
+import {
+  TEAM_CONFIG,
+  useCaptureTheFlagStore,
+  type TeamId,
+} from "../capture-the-flag-store";
+import {
+  useCollectiblesStore,
+  type CollectibleData,
+} from "../collectibles-store";
 import { shipPositions, shipRotations } from "../components/Ship";
+import {
+  JUMP_FORCE,
+  JUMP_PADS,
+  JUMP_PAD_RADIUS,
+  OBSTACLES,
+  type ObstacleData,
+} from "../constants";
 import { useGameStore } from "../game-store";
-import { useCaptureTheFlagStore, TEAM_CONFIG, type TeamId } from "../capture-the-flag-store";
-import { useCollectiblesStore, type CollectibleData } from "../collectibles-store";
 import { useHealthStore } from "../health-store";
-import { OBSTACLES, type ObstacleData, JUMP_PADS, JUMP_PAD_RADIUS, JUMP_FORCE } from "../constants";
 import type { JumpPadInfo } from "./ReachabilityChecker";
 
 export interface BotSelf {
@@ -42,7 +55,7 @@ export class GameContext {
   getSelf(botId: string): BotSelf | null {
     const position = shipPositions.get(botId);
     const rotation = shipRotations.get(botId);
-    
+
     if (!position || !rotation) {
       return null;
     }
@@ -92,7 +105,7 @@ export class GameContext {
     const gameStore = useGameStore.getState();
     const ctfStore = useCaptureTheFlagStore.getState();
     const healthStore = useHealthStore.getState();
-    
+
     const botTeam = ctfStore.getPlayerTeam(botId);
     if (!botTeam) {
       return [];
@@ -103,7 +116,8 @@ export class GameContext {
       .map((player) => {
         const position = shipPositions.get(player.controllerId);
         const rotation = shipRotations.get(player.controllerId);
-        const playerTeam = ctfStore.getPlayerTeam(player.controllerId) ?? player.teamId;
+        const playerTeam =
+          ctfStore.getPlayerTeam(player.controllerId) ?? player.teamId;
         const health = healthStore.getHealth(player.controllerId);
 
         if (!position || !rotation) {
@@ -168,7 +182,7 @@ export class GameContext {
   getEnemyTeam(botId: string): TeamId | null {
     const self = this.getSelf(botId);
     if (!self) return null;
-    
+
     const teams = Object.keys(TEAM_CONFIG) as TeamId[];
     return teams.find((team) => team !== self.teamId) ?? null;
   }
@@ -190,7 +204,7 @@ export class GameContext {
    */
   findNearestJumpPad(
     position: Vector3,
-    maxDistance?: number
+    maxDistance?: number,
   ): JumpPadInfo | null {
     const jumpPads = this.getJumpPads();
     let nearest: JumpPadInfo | null = null;
@@ -207,4 +221,3 @@ export class GameContext {
     return nearest;
   }
 }
-

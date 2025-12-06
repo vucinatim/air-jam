@@ -1,7 +1,7 @@
-import { useRef, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { PerspectiveCamera as ThreePerspectiveCamera, Vector3 } from "three";
+import { useEffect, useRef } from "react";
 import type { PerspectiveCamera } from "three";
+import { PerspectiveCamera as ThreePerspectiveCamera, Vector3 } from "three";
 
 interface FreeFlyCameraProps {
   onCameraReady?: (camera: PerspectiveCamera) => void;
@@ -49,7 +49,7 @@ export function FreeFlyCamera({ onCameraReady }: FreeFlyCameraProps) {
         euler.current.x -= e.movementY * sensitivity;
         euler.current.x = Math.max(
           -Math.PI / 2,
-          Math.min(Math.PI / 2, euler.current.x)
+          Math.min(Math.PI / 2, euler.current.x),
         );
       }
     };
@@ -78,7 +78,10 @@ export function FreeFlyCamera({ onCameraReady }: FreeFlyCameraProps) {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("pointerlockchange", handlePointerLockChange);
+      document.removeEventListener(
+        "pointerlockchange",
+        handlePointerLockChange,
+      );
       gl.domElement.removeEventListener("click", handleClick);
       if (document.pointerLockElement === gl.domElement) {
         document.exitPointerLock();
@@ -134,4 +137,3 @@ export function FreeFlyCamera({ onCameraReady }: FreeFlyCameraProps) {
 
   return null;
 }
-

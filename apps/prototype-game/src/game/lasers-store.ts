@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { Vector3 } from "three";
+import { create } from "zustand";
 
 export interface LaserData {
   id: string;
@@ -28,13 +28,3 @@ export const useLasersStore = create<LasersState>((set) => ({
     })),
   clearLasers: () => set({ lasers: [] }),
 }));
-
-
-
-
-
-
-
-
-
-

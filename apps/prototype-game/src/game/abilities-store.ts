@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import type React from "react";
+import { create } from "zustand";
 
 export type AbilityId = "speed_boost" | "rocket" | "health_pack" | string; // Extensible for future abilities
 
@@ -226,7 +226,7 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
     // Call ability's onDeactivate hook if it exists (only for active ability)
     if (currentState.activeAbility) {
       const abilityImpl = getAbilityImplementation(
-        currentState.activeAbility.id
+        currentState.activeAbility.id,
       );
       if (abilityImpl?.onDeactivate) {
         abilityImpl.onDeactivate(controllerId);
@@ -363,7 +363,7 @@ const ABILITY_DEFINITIONS: Record<AbilityId, AbilityDefinition> = {
 };
 
 export function getAbilityDefinition(
-  abilityId: AbilityId
+  abilityId: AbilityId,
 ): AbilityDefinition | null {
   return ABILITY_DEFINITIONS[abilityId] ?? null;
 }
@@ -468,7 +468,7 @@ export function registerAbilityImplementation(impl: AbilityImplementation) {
 }
 
 export function getAbilityImplementation(
-  abilityId: AbilityId
+  abilityId: AbilityId,
 ): AbilityImplementation | undefined {
   return ABILITY_IMPLEMENTATIONS.get(abilityId);
 }
@@ -478,7 +478,7 @@ export function getAbilityImplementation(
  */
 export function getAbilityVisual(
   abilityId: AbilityId,
-  controllerId: string
+  controllerId: string,
 ): React.ReactNode | null {
   const impl = getAbilityImplementation(abilityId);
   return impl?.renderVisual ? impl.renderVisual(controllerId) : null;

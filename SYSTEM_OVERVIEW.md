@@ -13,7 +13,7 @@ Air Jam is a platform for building "AirConsole-style" multiplayer games where a 
 Air Jam consists of four main components in a monorepo structure:
 
 1. **Platform** (`apps/platform`) - Central web portal and game launcher
-2. **Server** (`packages/server`) - Real-time WebSocket server  
+2. **Server** (`packages/server`) - Real-time WebSocket server
 3. **SDK** (`packages/sdk`) - Developer toolkit for building games
 4. **Prototype Game** (`apps/prototype-game`) - Reference implementation
 
@@ -28,12 +28,14 @@ Air Jam consists of four main components in a monorepo structure:
 **Technology:** Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
 
 **Key Features:**
+
 - **Developer Dashboard** - Game registration and API key management
 - **Air Jam Arcade** - System host that launches games in child mode
 - **Controller Shell** - Persistent mobile controller with dynamic UI loading
 - **User Management** - Authentication and game ownership
 
 **Responsibilities:**
+
 - Manage developer accounts and game catalog
 - Generate and validate API keys
 - Host the arcade launcher interface
@@ -50,11 +52,13 @@ Air Jam consists of four main components in a monorepo structure:
 **Architecture:** Server-authoritative focus model with dual-host support
 
 **Core Services:**
+
 - **Room Manager** - Centralized room state management
 - **Auth Service** - API key verification with database integration
 - **Focus System** - Controls input routing between system and game
 
 **Key Features:**
+
 - Supports Master Host (Arcade) and Child Host (Game) simultaneously
 - Server-controlled focus switching (SYSTEM ↔ GAME)
 - Secure token-based child host registration
@@ -70,22 +74,26 @@ Air Jam consists of four main components in a monorepo structure:
 **Technology:** React, TypeScript, Socket.IO Client, Zustand
 
 **Core Hooks:**
+
 - `useAirJamHost` - Game host connection (auto-detects arcade vs standalone)
 - `useAirJamController` - Mobile controller connection
 - `useAirJamShell` - Controller shell for dynamic UI loading
 
 **Internal Utilities:**
+
 - Socket lifecycle management
 - Connection state handling
 - Room setup and validation
 - URL building and normalization
 
 **Components:**
+
 - `AirJamOverlay` - Connection UI (auto-hides in arcade mode)
 - `ControllerShell` - Mobile controller wrapper
 - `QRScannerDialog` - QR code scanning for room joins
 
 **Features:**
+
 - Automatic mode detection (arcade vs standalone vs bridge)
 - Type-safe event protocol
 - Centralized constants and events
@@ -101,6 +109,7 @@ Air Jam consists of four main components in a monorepo structure:
 **Technology:** React, Three.js, React Three Fiber, Rapier Physics
 
 **Purpose:**
+
 - Demonstrates SDK integration patterns
 - Tests dual-host functionality
 - Validates arcade mode behavior
@@ -120,11 +129,13 @@ The server maintains authoritative control over which host receives controller i
 ### Two-Host Model
 
 **Master Host (System):**
+
 - The Arcade running on the TV
 - Owns the room and persistent connection
 - Handles game selection and lifecycle
 
 **Child Host (Game):**
+
 - Game running in an iframe
 - Joins via secure token
 - Receives inputs when focus is GAME
@@ -132,11 +143,13 @@ The server maintains authoritative control over which host receives controller i
 ### Connection Flow
 
 **1. Arcade Launch**
+
 - Arcade registers as system host
 - Server creates room with SYSTEM focus
 - Controllers join via QR code
 
 **2. Game Launch**
+
 - User selects game in arcade
 - Server generates secure join token
 - Controllers receive game UI URL
@@ -145,11 +158,13 @@ The server maintains authoritative control over which host receives controller i
 - Existing players synced to game
 
 **3. Active Gameplay**
+
 - Controllers send inputs to server
 - Server routes to child host (focus = GAME)
 - Game processes inputs and updates display
 
 **4. Game Exit**
+
 - Exit command received
 - Server switches focus back to SYSTEM
 - Controllers unload game UI
@@ -158,6 +173,7 @@ The server maintains authoritative control over which host receives controller i
 ### Standalone Mode
 
 For development or simple deployments:
+
 - Game registers as master host
 - No arcade or shell involved
 - Direct controller-to-game connection
@@ -170,16 +186,19 @@ For development or simple deployments:
 ### API Key System
 
 **Production:**
+
 - Developers register games on platform
 - Platform issues `aj_live_*` API keys
 - Games include key in connection request
 - Server verifies against database
 
 **Development:**
+
 - Local server runs without authentication
 - No keys required for testing
 
 **Benefits:**
+
 - Prevents unauthorized server usage
 - Enables usage tracking per game
 - Provides abuse prevention
@@ -190,6 +209,7 @@ For development or simple deployments:
 **Purpose:** Secure child host registration
 
 **Flow:**
+
 1. Arcade requests game launch
 2. Server generates one-time token
 3. Token passed to game via URL
@@ -203,6 +223,7 @@ For development or simple deployments:
 ### Structured Errors
 
 **ErrorCode Enum:** 13 standardized error types
+
 - Room errors (NOT_FOUND, FULL)
 - Auth errors (INVALID_API_KEY, UNAUTHORIZED)
 - Token errors (INVALID_TOKEN, EXPIRED)
@@ -233,6 +254,7 @@ All events use camelCase: `host:registerSystem`, `controller:input`, `server:pla
 ## Development Setup
 
 ### Requirements
+
 - Node.js 18+
 - PostgreSQL database
 - pnpm package manager
@@ -240,18 +262,21 @@ All events use camelCase: `host:registerSystem`, `controller:input`, `server:pla
 ### Local Stack
 
 **1. Platform**
+
 ```
 cd apps/platform && pnpm dev
 → http://localhost:3000
 ```
 
 **2. Server**
+
 ```
 cd packages/server && pnpm dev
 → WebSocket on port 4000
 ```
 
 **3. Game**
+
 ```
 cd apps/prototype-game && pnpm dev
 → http://localhost:5173
@@ -288,11 +313,13 @@ cd apps/prototype-game && pnpm dev
 ### Modular Architecture
 
 **Server:**
+
 - `services/room-manager.ts` - Room state
 - `services/auth-service.ts` - Authentication
 - Clean separation of concerns
 
 **SDK:**
+
 - `hooks/internal/` - Reusable utilities
 - Consolidated patterns across hooks
 - Single source of truth for constants/events
@@ -318,6 +345,7 @@ cd apps/prototype-game && pnpm dev
 ### Requirements
 
 **Games Must:**
+
 - Allow iframe embedding (`Content-Security-Policy: frame-ancestors`)
 - Use HTTPS in production
 - Include valid API key
@@ -341,6 +369,7 @@ cd apps/prototype-game && pnpm dev
 ## Summary
 
 Air Jam provides a complete platform for building smartphone-controlled games with:
+
 - **Clean architecture** - Modular, maintainable codebase
 - **Type safety** - Full TypeScript with zero compromises
 - **Security** - API keys and token-based authentication

@@ -18,11 +18,3 @@ export function Rockets() {
     </>
   );
 }
-
-
-
-
-
-
-
-

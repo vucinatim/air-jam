@@ -20,19 +20,14 @@ Use `useAirJamHost` to register your game session and listen for input.
 import { useAirJamHost } from "@air-jam/sdk";
 
 function MyGame() {
-  const { 
-    roomId, 
-    joinUrl, 
-    connectionStatus, 
-    players 
-  } = useAirJamHost({
+  const { roomId, joinUrl, connectionStatus, players } = useAirJamHost({
     roomId: "MYROOM", // Optional: Custom room ID
     maxPlayers: 4,
     apiKey: process.env.AIR_JAM_API_KEY, // Required for production
     onPlayerJoin: (player) => console.log("Player joined:", player),
     onInput: (event) => {
       console.log("Input from", event.controllerId, event.input);
-    }
+    },
   });
 
   if (connectionStatus === "connecting") return <div>Connecting...</div>;
@@ -55,11 +50,7 @@ Use `useAirJamController` to connect a phone to a game session.
 import { useAirJamController } from "@air-jam/sdk";
 
 function MyController() {
-  const { 
-    joinRoom, 
-    sendInput, 
-    connectionStatus 
-  } = useAirJamController();
+  const { joinRoom, sendInput, connectionStatus } = useAirJamController();
 
   // Join a room (usually from URL query param)
   useEffect(() => {
@@ -70,13 +61,11 @@ function MyController() {
     sendInput({
       action: true,
       vector: { x: 0, y: 0 },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   };
 
-  return (
-    <button onPointerDown={handlePress}>Fire!</button>
-  );
+  return <button onPointerDown={handlePress}>Fire!</button>;
 }
 ```
 

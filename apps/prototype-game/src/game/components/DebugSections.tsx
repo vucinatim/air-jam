@@ -1,22 +1,22 @@
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  getAbilityIconPath,
+  getAllAbilityDefinitions,
+  useAbilitiesStore,
+} from "../abilities-store";
+import { useBotManager } from "../bot-system/BotManager";
+import {
+  TEAM_CONFIG,
+  useCaptureTheFlagStore,
+  type TeamId,
+} from "../capture-the-flag-store";
+import { useDebugStore } from "../debug-store";
+import { useDecalsStore } from "../decals-store";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
 import { useLasersStore } from "../lasers-store";
-import { useDecalsStore } from "../decals-store";
-import {
-  useAbilitiesStore,
-  getAllAbilityDefinitions,
-  getAbilityIconPath,
-} from "../abilities-store";
-import { useDebugStore } from "../debug-store";
 import { DebugSection } from "./DebugOverlay";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { useBotManager } from "../bot-system/BotManager";
-import {
-  useCaptureTheFlagStore,
-  TEAM_CONFIG,
-  type TeamId,
-} from "../capture-the-flag-store";
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 
@@ -37,7 +37,7 @@ export function BotsSection() {
             {Array.from(bots.keys()).map((botId) => (
               <div
                 key={botId}
-                className="flex items-center justify-between p-2 rounded-md bg-muted/20"
+                className="bg-muted/20 flex items-center justify-between rounded-md p-2"
               >
                 <span className="text-sm font-medium">{botId}</span>
                 <Button
@@ -66,7 +66,7 @@ export function PlayersSection() {
   const getAbility = useAbilitiesStore((state) => state.getAbility);
   const isAbilityActive = useAbilitiesStore((state) => state.isAbilityActive);
   const getRemainingDuration = useAbilitiesStore(
-    (state) => state.getRemainingDuration
+    (state) => state.getRemainingDuration,
   );
 
   const allAbilities = getAllAbilityDefinitions();
@@ -80,7 +80,7 @@ export function PlayersSection() {
   if (players.length === 0) {
     return (
       <DebugSection title="Players">
-        <p className="text-sm text-muted-foreground">No players connected</p>
+        <p className="text-muted-foreground text-sm">No players connected</p>
       </DebugSection>
     );
   }
@@ -100,33 +100,33 @@ export function PlayersSection() {
           return (
             <div
               key={player.controllerId}
-              className="p-3 rounded-md border border-border bg-muted/20"
+              className="border-border bg-muted/20 rounded-md border p-3"
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div
                     className="size-3 rounded-full"
                     style={{ backgroundColor: player.color }}
                   />
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-foreground text-sm font-medium">
                     {player.profile.label ||
                       `Player ${player.controllerId.slice(0, 8)}`}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground font-mono">
+                <span className="text-muted-foreground font-mono text-xs">
                   {player.controllerId.slice(0, 8)}
                 </span>
               </div>
 
               {/* Health Bar */}
               <div className="mb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-muted-foreground">Health</span>
-                  <span className="text-xs font-mono font-semibold text-foreground">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs">Health</span>
+                  <span className="text-foreground font-mono text-xs font-semibold">
                     {Math.round(playerHealth)}/100
                   </span>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="bg-muted h-2 overflow-hidden rounded-full">
                   <div
                     className={cn(
                       "h-full transition-all duration-200",
@@ -134,7 +134,7 @@ export function PlayersSection() {
                       healthPercentage > 30 &&
                         healthPercentage <= 60 &&
                         "bg-yellow-500",
-                      healthPercentage <= 30 && "bg-red-500"
+                      healthPercentage <= 30 && "bg-red-500",
                     )}
                     style={{ width: `${healthPercentage}%` }}
                   />
@@ -142,12 +142,12 @@ export function PlayersSection() {
               </div>
 
               {/* Health Controls */}
-              <div className="flex items-center gap-2 mb-3">
+              <div className="mb-3 flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => adjustHealth(player.controllerId, -10)}
-                  className="flex-1 h-8 text-xs"
+                  className="h-8 flex-1 text-xs"
                 >
                   -10
                 </Button>
@@ -155,7 +155,7 @@ export function PlayersSection() {
                   variant="outline"
                   size="sm"
                   onClick={() => adjustHealth(player.controllerId, -1)}
-                  className="flex-1 h-8 text-xs"
+                  className="h-8 flex-1 text-xs"
                 >
                   -1
                 </Button>
@@ -163,7 +163,7 @@ export function PlayersSection() {
                   variant="outline"
                   size="sm"
                   onClick={() => adjustHealth(player.controllerId, 1)}
-                  className="flex-1 h-8 text-xs"
+                  className="h-8 flex-1 text-xs"
                 >
                   +1
                 </Button>
@@ -171,30 +171,30 @@ export function PlayersSection() {
                   variant="outline"
                   size="sm"
                   onClick={() => adjustHealth(player.controllerId, 10)}
-                  className="flex-1 h-8 text-xs"
+                  className="h-8 flex-1 text-xs"
                 >
                   +10
                 </Button>
               </div>
 
               {/* Ability Section */}
-              <div className="border-t border-border pt-3">
+              <div className="border-border border-t pt-3">
                 {/* Current Ability Status */}
                 {currentAbility ? (
-                  <div className="mb-3 p-2 rounded-md bg-background/50">
-                    <div className="flex items-center justify-between mb-1">
+                  <div className="bg-background/50 mb-3 rounded-md p-2">
+                    <div className="mb-1 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <img
                           src={getAbilityIconPath(currentAbility.id)}
                           alt=""
-                          className="w-5 h-5 object-cover rounded-full"
+                          className="h-5 w-5 rounded-full object-cover"
                         />
-                        <span className="text-sm font-medium text-foreground">
+                        <span className="text-foreground text-sm font-medium">
                           {currentAbility.name}
                         </span>
                       </div>
                       {abilityActive && (
-                        <span className="text-xs text-muted-foreground font-mono">
+                        <span className="text-muted-foreground font-mono text-xs">
                           {remainingDuration.toFixed(1)}s
                         </span>
                       )}
@@ -202,10 +202,10 @@ export function PlayersSection() {
                     <div className="flex items-center gap-1">
                       <span
                         className={cn(
-                          "text-xs px-2 py-0.5 rounded",
+                          "rounded px-2 py-0.5 text-xs",
                           abilityActive
                             ? "bg-green-500/20 text-green-400"
-                            : "bg-gray-500/20 text-gray-400"
+                            : "bg-gray-500/20 text-gray-400",
                         )}
                       >
                         {abilityActive ? "Active" : "Ready"}
@@ -214,15 +214,15 @@ export function PlayersSection() {
                         variant="outline"
                         size="sm"
                         onClick={() => clearAbility(player.controllerId)}
-                        className="h-6 text-xs ml-auto"
+                        className="ml-auto h-6 text-xs"
                       >
                         Clear
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="mb-3 p-2 rounded-md bg-background/50">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="bg-background/50 mb-3 rounded-md p-2">
+                    <span className="text-muted-foreground text-xs">
                       No ability equipped
                     </span>
                   </div>
@@ -238,7 +238,7 @@ export function PlayersSection() {
                       onClick={() =>
                         collectAbility(player.controllerId, ability.id)
                       }
-                      className="h-10 flex items-center justify-center gap-1 text-xs"
+                      className="flex h-10 items-center justify-center gap-1 text-xs"
                       disabled={
                         currentAbility?.id === ability.id && !abilityActive
                       }
@@ -246,7 +246,7 @@ export function PlayersSection() {
                       <img
                         src={getAbilityIconPath(ability.id)}
                         alt=""
-                        className="w-6 h-6 object-cover rounded-full"
+                        className="h-6 w-6 rounded-full object-cover"
                       />
                       <span className="text-[10px] leading-tight">
                         {ability.name}
@@ -283,15 +283,15 @@ export function SceneInfoSection() {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="flex items-center justify-between p-2 rounded-md bg-muted/20"
+            className="bg-muted/20 flex items-center justify-between rounded-md p-2"
           >
-            <span className="text-sm text-muted-foreground">{stat.label}</span>
-            <span className={cn("text-sm font-mono font-semibold", stat.color)}>
+            <span className="text-muted-foreground text-sm">{stat.label}</span>
+            <span className={cn("font-mono text-sm font-semibold", stat.color)}>
               {stat.value}
             </span>
           </div>
         ))}
-        <div className="pt-2 border-t border-border">
+        <div className="border-border border-t pt-2">
           <Button
             variant={freeFlyMode ? "default" : "outline"}
             size="sm"
@@ -301,7 +301,7 @@ export function SceneInfoSection() {
             {freeFlyMode ? "Disable" : "Enable"} Free Fly Mode
           </Button>
           {freeFlyMode && (
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-muted-foreground mt-2 text-xs">
               Click canvas to lock mouse. WASD to move, Space/Shift for up/down.
               Press ESC to unlock.
             </p>
@@ -322,22 +322,22 @@ export function CTFDebugSection() {
       <div className="space-y-3">
         {/* Scores */}
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Scores</h4>
+          <h4 className="text-foreground text-sm font-semibold">Scores</h4>
           {(Object.keys(TEAM_CONFIG) as TeamId[]).map((teamId) => {
             const team = TEAM_CONFIG[teamId];
             return (
               <div
                 key={teamId}
-                className="flex items-center justify-between p-2 rounded-md bg-muted/20"
+                className="bg-muted/20 flex items-center justify-between rounded-md p-2"
               >
                 <div className="flex items-center gap-2">
                   <div
                     className="size-3 rounded-full"
                     style={{ backgroundColor: team.color }}
                   />
-                  <span className="text-sm text-foreground">{team.label}</span>
+                  <span className="text-foreground text-sm">{team.label}</span>
                 </div>
-                <span className="text-sm font-mono font-semibold text-foreground">
+                <span className="text-foreground font-mono text-sm font-semibold">
                   {scores[teamId] ?? 0}
                 </span>
               </div>
@@ -346,25 +346,25 @@ export function CTFDebugSection() {
         </div>
 
         {/* Base Positions */}
-        <div className="space-y-2 pt-2 border-t border-border">
-          <h4 className="text-sm font-semibold text-foreground">Base Positions</h4>
+        <div className="border-border space-y-2 border-t pt-2">
+          <h4 className="text-foreground text-sm font-semibold">
+            Base Positions
+          </h4>
           {(Object.keys(TEAM_CONFIG) as TeamId[]).map((teamId) => {
             const team = TEAM_CONFIG[teamId];
             const pos = basePositions[teamId];
             return (
-              <div
-                key={teamId}
-                className="p-2 rounded-md bg-muted/20"
-              >
-                <div className="flex items-center gap-2 mb-1">
+              <div key={teamId} className="bg-muted/20 rounded-md p-2">
+                <div className="mb-1 flex items-center gap-2">
                   <div
                     className="size-3 rounded-full"
                     style={{ backgroundColor: team.color }}
                   />
-                  <span className="text-sm text-foreground">{team.label}</span>
+                  <span className="text-foreground text-sm">{team.label}</span>
                 </div>
-                <div className="text-xs font-mono text-muted-foreground">
-                  ({pos[0].toFixed(1)}, {pos[1].toFixed(1)}, {pos[2].toFixed(1)})
+                <div className="text-muted-foreground font-mono text-xs">
+                  ({pos[0].toFixed(1)}, {pos[1].toFixed(1)}, {pos[2].toFixed(1)}
+                  )
                 </div>
               </div>
             );
@@ -372,8 +372,8 @@ export function CTFDebugSection() {
         </div>
 
         {/* Manual Scoring */}
-        <div className="pt-2 border-t border-border">
-          <h4 className="text-sm font-semibold text-foreground mb-2">
+        <div className="border-border border-t pt-2">
+          <h4 className="text-foreground mb-2 text-sm font-semibold">
             Manual Scoring
           </h4>
           <div className="space-y-2">
@@ -393,8 +393,9 @@ export function CTFDebugSection() {
               );
             })}
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Click to manually score a point for a team. This will move bases to new random positions.
+          <p className="text-muted-foreground mt-2 text-xs">
+            Click to manually score a point for a team. This will move bases to
+            new random positions.
           </p>
         </div>
       </div>

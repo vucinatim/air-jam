@@ -1,21 +1,21 @@
-import { useRef } from "react";
+import { useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import {
-  RigidBody,
   CylinderCollider,
+  RigidBody,
   type CollisionPayload,
   type RapierRigidBody,
 } from "@react-three/rapier";
+import { useRef } from "react";
 import * as THREE from "three";
 import {
   TEAM_CONFIG,
-  type TeamId,
   useCaptureTheFlagStore,
+  type TeamId,
 } from "../capture-the-flag-store";
-import { shipPositions } from "./Ship";
-import { FlagModel } from "./FlagModel";
-import { useAudio } from "@air-jam/sdk";
 import { SOUND_MANIFEST } from "../sounds";
+import { FlagModel } from "./FlagModel";
+import { shipPositions } from "./Ship";
 
 function FlagCarrierTrail({
   teamId,

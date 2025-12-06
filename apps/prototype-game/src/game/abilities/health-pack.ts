@@ -20,12 +20,3 @@ const healthPackAbility: AbilityImplementation = {
 
 // Register the ability
 registerAbilityImplementation(healthPackAbility);
-
-
-
-
-
-
-
-
-

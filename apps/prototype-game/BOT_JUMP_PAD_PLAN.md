@@ -14,6 +14,7 @@ Bots currently cannot reach flags or targets that are dropped in the air (above 
 ## Architecture Overview
 
 ### Current System
+
 - **Brain (FSM)**: High-level decision making (SEARCH, GATHER, ATTACK, etc.)
 - **Body (Steering)**: Low-level movement (Seek, Avoid, Separation)
 - **GameContext**: Read-only access to game state
@@ -21,9 +22,11 @@ Bots currently cannot reach flags or targets that are dropped in the air (above 
 ### Proposed Extensions
 
 #### 1. GameContext Enhancement
+
 **Location**: `src/game/bot-system/GameContext.ts`
 
 **New Methods**:
+
 ```typescript
 getJumpPads(): JumpPadInfo[]  // Returns all jump pad positions
 findNearestJumpPad(position: Vector3, maxDistance?: number): JumpPadInfo | null
@@ -32,31 +35,36 @@ findPathWithJumpPad(from: Vector3, to: Vector3): Path | null  // Returns path in
 ```
 
 **JumpPadInfo Interface**:
+
 ```typescript
 interface JumpPadInfo {
   id: string;
   position: [number, number, number];
-  radius: number;  // JUMP_PAD_RADIUS (4)
-  jumpForce: number;  // JUMP_FORCE (25)
+  radius: number; // JUMP_PAD_RADIUS (4)
+  jumpForce: number; // JUMP_FORCE (25)
 }
 ```
 
-**Rationale**: 
+**Rationale**:
+
 - Centralizes jump pad data access
 - Provides utility methods for pathfinding
 - Maintains separation of concerns
 
 #### 2. Jump Pad Data in Constants
+
 **Location**: `src/game/constants.ts`
 
 **Action**: Move jump pad definitions from `JumpPads.tsx` to `constants.ts` (similar to obstacles)
 
 **Benefits**:
+
 - Single source of truth
 - Accessible to both rendering and AI
 - Easy to modify/test
 
 **Structure**:
+
 ```typescript
 export interface JumpPadData {
   id: string;
@@ -69,57 +77,64 @@ export const JUMP_PADS: JumpPadData[] = [
 ```
 
 #### 3. Reachability System
+
 **Location**: `src/game/bot-system/ReachabilityChecker.ts` (new file)
 
 **Purpose**: Determines if a target is reachable and how to reach it
 
 **Key Concepts**:
+
 - **Vertical Reachability**: Can the bot reach the target's Y coordinate?
 - **Jump Pad Trajectory**: Calculate if a jump pad can launch bot to target height
 - **Path Validation**: Verify the path is actually traversable
 
 **Methods**:
+
 ```typescript
 class ReachabilityChecker {
   // Check if target is reachable from current position
-  isReachable(from: Vector3, to: Vector3, context: GameContext): boolean
-  
+  isReachable(from: Vector3, to: Vector3, context: GameContext): boolean;
+
   // Find jump pad that can help reach target
   findJumpPadForTarget(
-    from: Vector3, 
-    to: Vector3, 
-    context: GameContext
-  ): JumpPadInfo | null
-  
+    from: Vector3,
+    to: Vector3,
+    context: GameContext,
+  ): JumpPadInfo | null;
+
   // Calculate if jump pad can launch to target height
   canJumpPadReachHeight(
     jumpPadPos: Vector3,
     targetHeight: number,
-    jumpForce: number
-  ): boolean
-  
+    jumpForce: number,
+  ): boolean;
+
   // Estimate trajectory height from jump pad
-  estimateJumpHeight(jumpForce: number, initialHeight: number): number
+  estimateJumpHeight(jumpForce: number, initialHeight: number): number;
 }
 ```
 
 **Physics Considerations**:
+
 - Jump pad applies upward velocity of 25 m/s
 - Need to account for gravity (-5 m/s² base, up to -15 m/s² when diving)
 - Calculate maximum height: `h = v₀² / (2g)` where v₀ = 25, g ≈ 5-15
 - With air mode, ships can maintain altitude better
 
 **Implementation Notes**:
+
 - Use conservative estimates (assume worst-case gravity)
 - Add safety margin (e.g., if target is at 30m, require jump pad to reach 35m)
 - Consider horizontal distance - jump pad must be reasonably close to target
 
 #### 4. Brain State Extensions
+
 **Location**: `src/game/bot-system/BotController.ts` (BotBrain class)
 
 **New State** (Optional):
+
 ```typescript
-JUMP_TO_TARGET = "JUMP_TO_TARGET"  // Moving to jump pad to reach high target
+JUMP_TO_TARGET = "JUMP_TO_TARGET"; // Moving to jump pad to reach high target
 ```
 
 **Alternative Approach** (Recommended):
@@ -130,12 +145,14 @@ Instead of a new state, enhance existing states to be "jump pad aware":
 - **CAPTURE**: If flag is in air → find jump pad → go to jump pad → capture flag
 
 **State Flow Enhancement**:
+
 ```
 Current: GATHER → Move directly to collectible
 Enhanced: GATHER → Check reachability → If unreachable → Find jump pad → Go to jump pad → Wait for launch → Continue to collectible
 ```
 
 **Implementation Strategy**:
+
 1. Before setting target in Brain, check if target is reachable
 2. If not reachable and target is above ground:
    - Find nearest jump pad that can reach target
@@ -145,9 +162,11 @@ Enhanced: GATHER → Check reachability → If unreachable → Find jump pad →
 4. After launch, continue to original target
 
 #### 5. Jump Pad Navigation
+
 **Location**: `src/game/bot-system/BotController.ts` (BotBrain class)
 
 **New Fields**:
+
 ```typescript
 private usingJumpPad: boolean = false;
 private jumpPadTarget: Vector3 | null = null;
@@ -155,6 +174,7 @@ private originalTarget: Vector3 | null = null;  // Target we're trying to reach 
 ```
 
 **Logic Flow**:
+
 1. **Target Selection**: When selecting a target (flag, collectible, etc.)
    - Check if target Y > current Y + reachability threshold
    - If yes, find appropriate jump pad
@@ -170,20 +190,24 @@ private originalTarget: Vector3 | null = null;  // Target we're trying to reach 
    - Continue normal navigation
 
 **Edge Cases**:
+
 - What if jump pad is on cooldown? → Find next nearest jump pad
 - What if multiple jump pads available? → Choose closest to both bot and target
 - What if jump pad doesn't reach target? → Try to get as close as possible, then use air mode
 
 #### 6. Body Steering Enhancements
+
 **Location**: `src/game/bot-system/BotController.ts` (BotBody class)
 
 **Jump Pad Alignment**:
 When target is a jump pad, add special steering behavior:
+
 - **Precision Landing**: More aggressive seek force when close to jump pad
 - **Vertical Alignment**: Ensure ship is at correct height (hover height ~5m)
 - **Centering**: Strong attraction to jump pad center when within radius
 
 **New Steering Force** (when using jump pad):
+
 ```typescript
 calculateJumpPadAlignment(
   position: Vector3,
@@ -193,32 +217,38 @@ calculateJumpPadAlignment(
 ```
 
 **Behavior**:
-- When distance < jumpPadRadius * 1.5: Strong centering force
+
+- When distance < jumpPadRadius \* 1.5: Strong centering force
 - When distance < jumpPadRadius: Very strong centering, reduce forward velocity
 - When on jump pad: Minimal movement, wait for launch
 
 #### 7. Integration Points
 
 **Step 1: Extend GameContext**
+
 - Add `getJumpPads()` method
 - Add `findNearestJumpPad()` utility
 - Move jump pad data to constants
 
 **Step 2: Create ReachabilityChecker**
+
 - Implement reachability detection
 - Implement jump pad selection logic
 - Add trajectory calculations
 
 **Step 3: Enhance BotBrain**
+
 - Add jump pad awareness to target selection
 - Add intermediate target logic (jump pad → final target)
 - Track jump pad usage state
 
 **Step 4: Enhance BotBody**
+
 - Add jump pad alignment steering
 - Improve precision when approaching jump pads
 
 **Step 5: Testing**
+
 - Test with flags dropped at various heights
 - Test with collectibles in air
 - Test jump pad selection when multiple options available
@@ -227,68 +257,74 @@ calculateJumpPadAlignment(
 ## Implementation Details
 
 ### Reachability Threshold
+
 ```typescript
 const REACHABILITY_THRESHOLD = 8; // meters above current position
 // If target is more than 8m above bot, consider using jump pad
 ```
 
 ### Jump Pad Selection Algorithm
+
 ```typescript
 function findBestJumpPad(
   botPos: Vector3,
   targetPos: Vector3,
-  jumpPads: JumpPadInfo[]
+  jumpPads: JumpPadInfo[],
 ): JumpPadInfo | null {
   // Filter jump pads that can reach target height
-  const viablePads = jumpPads.filter(pad => 
-    canJumpPadReachHeight(pad.position, targetPos.y, JUMP_FORCE)
+  const viablePads = jumpPads.filter((pad) =>
+    canJumpPadReachHeight(pad.position, targetPos.y, JUMP_FORCE),
   );
-  
+
   if (viablePads.length === 0) return null;
-  
+
   // Score each jump pad:
   // - Distance from bot (closer = better)
   // - Distance from target (closer = better)
   // - Combined score: (botDist + targetDist) / 2
-  
+
   return viablePads.reduce((best, pad) => {
     const botDist = botPos.distanceTo(pad.position);
     const targetDist = targetPos.distanceTo(pad.position);
     const score = (botDist + targetDist) / 2;
-    
+
     const bestBotDist = botPos.distanceTo(best.position);
     const bestTargetDist = targetPos.distanceTo(best.position);
     const bestScore = (bestBotDist + bestTargetDist) / 2;
-    
+
     return score < bestScore ? pad : best;
   });
 }
 ```
 
 ### Jump Pad Approach State Machine
+
 ```typescript
 enum JumpPadApproachState {
-  APPROACHING,    // Moving toward jump pad
-  ALIGNING,       // Centering over jump pad
-  WAITING,        // On jump pad, waiting for launch
-  LAUNCHED,       // In air, moving toward original target
+  APPROACHING, // Moving toward jump pad
+  ALIGNING, // Centering over jump pad
+  WAITING, // On jump pad, waiting for launch
+  LAUNCHED, // In air, moving toward original target
 }
 ```
 
 ## Testing Strategy
 
 ### Unit Tests
+
 - ReachabilityChecker: Test height calculations
 - Jump pad selection: Test with various bot/target positions
 - Trajectory calculations: Verify physics math
 
 ### Integration Tests
+
 - Bot successfully uses jump pad to reach high flag
 - Bot selects best jump pad when multiple available
 - Bot handles jump pad cooldown gracefully
 - Bot continues to target after jump
 
 ### Edge Cases
+
 - Target is exactly at reachable height (should not use jump pad)
 - All jump pads on cooldown
 - Target is above maximum jump height
@@ -310,6 +346,7 @@ enum JumpPadApproachState {
 ## Summary
 
 This plan provides a clean, extensible solution that:
+
 - ✅ Integrates seamlessly with existing Brain & Body architecture
 - ✅ Maintains separation of concerns (GameContext, ReachabilityChecker)
 - ✅ Handles edge cases gracefully
@@ -318,7 +355,3 @@ This plan provides a clean, extensible solution that:
 - ✅ Can be implemented incrementally
 
 The key insight is to treat jump pads as **intermediate waypoints** in path planning, rather than special cases. This makes the system more general and easier to extend.
-
-
-
-

@@ -1,6 +1,6 @@
 import { RigidBody } from "@react-three/rapier";
-import { BoxGeometry, MeshStandardMaterial } from "three";
 import { useMemo } from "react";
+import { BoxGeometry, MeshStandardMaterial } from "three";
 import { OBSTACLES } from "../constants";
 
 interface ObstacleProps {
@@ -12,7 +12,7 @@ interface ObstacleProps {
 function Obstacle({ position, rotationY, size }: ObstacleProps) {
   const geometry = useMemo(
     () => new BoxGeometry(size[0], size[1], size[2]),
-    [size]
+    [size],
   );
   const material = useMemo(
     () =>
@@ -21,7 +21,7 @@ function Obstacle({ position, rotationY, size }: ObstacleProps) {
         roughness: 0.7,
         metalness: 0.3,
       }),
-    []
+    [],
   );
 
   return (

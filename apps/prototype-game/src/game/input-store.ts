@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import type { ControllerInputEvent } from "@air-jam/sdk";
+import { create } from "zustand";
 
 export interface InputState {
   vector: { x: number; y: number };

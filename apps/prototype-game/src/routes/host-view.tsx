@@ -1,29 +1,29 @@
-import type { JSX } from "react";
-import { useCallback, useEffect, useState, useRef } from "react";
 import {
   AirJamOverlay,
   useAirJamHost,
+  useAudio,
   type ControllerInputEvent,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import { useAudio } from "@air-jam/sdk";
-import { SOUND_MANIFEST } from "../game/sounds";
-import { useBackgroundMusic } from "../game/hooks/useBackgroundMusic";
-import { GameScene } from "../game/components/GameScene";
-import { useGameStore } from "../game/game-store";
-import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
+import { Settings2, X } from "lucide-react";
+import type { JSX } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
+import { Button } from "../components/ui/button";
 import { DebugOverlay } from "../game/components/DebugOverlay";
 import {
-  PlayersSection,
-  SceneInfoSection,
   BotsSection,
   CTFDebugSection,
+  PlayersSection,
+  SceneInfoSection,
 } from "../game/components/DebugSections";
 import { GameObjectEditor } from "../game/components/GameObjectEditor";
+import { GameScene } from "../game/components/GameScene";
+import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
 import { ScoreDisplay } from "../game/components/ScoreDisplay";
-import { Button } from "../components/ui/button";
-import { Settings2, X } from "lucide-react";
-import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
+import { useGameStore } from "../game/game-store";
+import { useBackgroundMusic } from "../game/hooks/useBackgroundMusic";
+import { SOUND_MANIFEST } from "../game/sounds";
 
 const HostViewContent = (): JSX.Element => {
   const applyInput = useGameStore((state) => state.applyInput);
@@ -38,7 +38,7 @@ const HostViewContent = (): JSX.Element => {
     (event: ControllerInputEvent) => {
       applyInput(event);
     },
-    [applyInput]
+    [applyInput],
   );
 
   const handlePlayerJoin = useCallback(
@@ -47,14 +47,14 @@ const HostViewContent = (): JSX.Element => {
       // Play player join sound on host
       audio.play("player_join");
     },
-    [upsertPlayer, audio]
+    [upsertPlayer, audio],
   );
 
   const handlePlayerLeave = useCallback(
     (controllerId: string) => {
       removePlayer(controllerId);
     },
-    [removePlayer]
+    [removePlayer],
   );
 
   const [persistedRoomId] = useState(() => {
@@ -112,7 +112,7 @@ const HostViewContent = (): JSX.Element => {
   }, []);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background ">
+    <div className="bg-background relative h-screen w-screen overflow-hidden">
       <AirJamOverlay
         roomId={host.roomId}
         joinUrl={host.joinUrl}
@@ -145,10 +145,10 @@ const HostViewContent = (): JSX.Element => {
           )}
         </Button>
       </div>
-      <div className="flex h-full w-full relative">
+      <div className="relative flex h-full w-full">
         {/* Game View */}
         <div
-          className={`h-full relative transition-all duration-300 ${
+          className={`relative h-full transition-all duration-300 ${
             isEditorOpen ? "w-1/2" : "w-full"
           }`}
         >
@@ -162,15 +162,15 @@ const HostViewContent = (): JSX.Element => {
         </div>
         {/* Editor View */}
         {isEditorOpen && (
-          <div className="w-1/2 h-full border-l border-border bg-background flex flex-col">
-            <div className="px-6 py-4 border-b border-border shrink-0">
+          <div className="border-border bg-background flex h-full w-1/2 flex-col border-l">
+            <div className="border-border shrink-0 border-b px-6 py-4">
               <h2 className="text-lg font-semibold">
                 Game Object Editor -{" "}
                 {editorObjectType.charAt(0).toUpperCase() +
                   editorObjectType.slice(1)}
               </h2>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="min-h-0 flex-1">
               <GameObjectEditor objectType={editorObjectType} />
             </div>
           </div>

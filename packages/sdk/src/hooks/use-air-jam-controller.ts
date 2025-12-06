@@ -12,14 +12,14 @@ import {
   controllerJoinSchema,
   type ControllerStatePayload,
 } from "../protocol";
-import { detectRunMode } from "../utils/mode";
 import { disconnectSocket } from "../socket-client";
 import {
   useConnectionState,
   useConnectionStore,
 } from "../state/connection-store";
-import { useRoomSetup } from "./internal/use-room-setup";
+import { detectRunMode } from "../utils/mode";
 import { useConnectionHandlers } from "./internal/use-connection-handlers";
+import { useRoomSetup } from "./internal/use-room-setup";
 import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
 
 interface AirJamControllerOptions {
@@ -55,10 +55,10 @@ const getRoomFromLocation = (): string | null => {
 };
 
 export const useAirJamController = (
-  options: AirJamControllerOptions = {}
+  options: AirJamControllerOptions = {},
 ): AirJamControllerApi => {
   const nicknameRef = useRef(options.nickname ?? "");
-  
+
   // Detect Sub-Controller Mode (via URL params)
   const subControllerParams = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -88,7 +88,7 @@ export const useAirJamController = (
   });
 
   const onStateRef = useRef<AirJamControllerOptions["onState"]>(
-    options.onState
+    options.onState,
   );
   useEffect(() => {
     onStateRef.current = options.onState;
@@ -128,13 +128,24 @@ export const useAirJamController = (
     return false;
   }, [options.forceConnect, subControllerParams]);
 
-  const canConnect = useMemo(() => !isChildMode || shouldConnect, [isChildMode, shouldConnect]);
+  const canConnect = useMemo(
+    () => !isChildMode || shouldConnect,
+    [isChildMode, shouldConnect],
+  );
 
   // Use socket lifecycle utility (only if canConnect)
-  const { socket } = useSocketLifecycle("controller", options.serverUrl, canConnect && !!parsedRoomId);
+  const { socket } = useSocketLifecycle(
+    "controller",
+    options.serverUrl,
+    canConnect && !!parsedRoomId,
+  );
 
   // Use connection handlers utility
-  const { handleConnect: baseHandleConnect, handleDisconnect, handleError } = useConnectionHandlers();
+  const {
+    handleConnect: baseHandleConnect,
+    handleDisconnect,
+    handleError,
+  } = useConnectionHandlers();
 
   useEffect(() => {
     const store = useConnectionStore.getState();
@@ -150,13 +161,14 @@ export const useAirJamController = (
 
       const handleMessage = (event: MessageEvent) => {
         if (event.source !== window.parent) return;
-        
+
         const data = event.data;
         if (data?.type === "AIRJAM_STATE") {
-           const payload = data.payload as ControllerStatePayload;
-           if (payload.gameState) store.setGameState(payload.gameState);
-           if (payload.message !== undefined) store.setStateMessage(payload.message);
-           onStateRef.current?.(payload);
+          const payload = data.payload as ControllerStatePayload;
+          if (payload.gameState) store.setGameState(payload.gameState);
+          if (payload.message !== undefined)
+            store.setStateMessage(payload.message);
+          onStateRef.current?.(payload);
         }
       };
 
@@ -179,10 +191,12 @@ export const useAirJamController = (
 
     const handleConnect = (): void => {
       baseHandleConnect();
-      
+
       if (subControllerParams) {
-          console.log("[useAirJamController] Sub-Controller Mode active. Skipping join.");
-          return;
+        console.log(
+          "[useAirJamController] Sub-Controller Mode active. Skipping join.",
+        );
+        return;
       }
 
       const payload = controllerJoinSchema.parse({
@@ -266,7 +280,18 @@ export const useAirJamController = (
       socket.off("server:hostLeft", handleHostLeft);
       socket.off("server:error", handleError);
     };
-  }, [options.serverUrl, parsedRoomId, reconnectKey, canConnect, socket, controllerId, subControllerParams, baseHandleConnect, handleDisconnect, handleError]);
+  }, [
+    options.serverUrl,
+    parsedRoomId,
+    reconnectKey,
+    canConnect,
+    socket,
+    controllerId,
+    subControllerParams,
+    baseHandleConnect,
+    handleDisconnect,
+    handleError,
+  ]);
 
   const setNickname = useCallback((value: string) => {
     nicknameRef.current = value;
@@ -279,10 +304,13 @@ export const useAirJamController = (
       if (!canConnect) {
         // Bridge Mode
         if (typeof window !== "undefined") {
-            window.parent.postMessage({
-                type: "AIRJAM_INPUT",
-                payload: input
-            }, "*");
+          window.parent.postMessage(
+            {
+              type: "AIRJAM_INPUT",
+              payload: input,
+            },
+            "*",
+          );
         }
         return true;
       }
@@ -307,7 +335,7 @@ export const useAirJamController = (
       socket.emit("controller:input", payload.data);
       return true;
     },
-    [parsedRoomId, canConnect, socket]
+    [parsedRoomId, canConnect, socket],
   );
 
   return {

@@ -1,10 +1,10 @@
-import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { useState, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { useRef, useState } from "react";
 import * as THREE from "three";
+import { FlagModel } from "./FlagModel";
 import { RocketModel } from "./RocketModel";
 import { ShipModel } from "./ShipModel";
-import { FlagModel } from "./FlagModel";
 
 interface GameObjectEditorProps {
   objectType: "rocket" | "laser" | "ship" | "collectible" | "flag";
@@ -111,18 +111,18 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
   const [modelType, setModelType] = useState<ModelType>("rocket");
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="flex h-full w-full flex-col">
       {/* Controls panel */}
-      <div className="p-4 bg-gray-800 border-b border-gray-700">
-        <div className="flex gap-4 items-center flex-wrap">
+      <div className="border-b border-gray-700 bg-gray-800 p-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Model Type Dropdown */}
           {objectType === "rocket" && (
-            <div className="flex gap-2 items-center">
-              <label className="text-white text-sm font-medium">Model:</label>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-white">Model:</label>
               <select
                 value={modelType}
                 onChange={(e) => setModelType(e.target.value as ModelType)}
-                className="px-3 py-1 bg-gray-700 text-white rounded text-sm border border-gray-600 focus:outline-none focus:border-blue-500"
+                className="rounded border border-gray-600 bg-gray-700 px-3 py-1 text-sm text-white focus:border-blue-500 focus:outline-none"
               >
                 <option value="rocket">Rocket</option>
                 <option value="ship">Ship</option>
@@ -130,21 +130,21 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
             </div>
           )}
           {objectType === "flag" && (
-            <div className="flex gap-2 items-center">
-              <label className="text-white text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-white">
                 Flag Color:
               </label>
               <input
                 type="color"
                 defaultValue="#f97316"
                 readOnly
-                className="w-12 h-8 bg-gray-700 rounded border border-gray-600 cursor-default"
+                className="h-8 w-12 cursor-default rounded border border-gray-600 bg-gray-700"
               />
             </div>
           )}
-          <label className="text-white text-sm font-medium">Offset:</label>
-          <div className="flex gap-2 items-center">
-            <label className="text-gray-300 text-xs">X:</label>
+          <label className="text-sm font-medium text-white">Offset:</label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-300">X:</label>
             <input
               type="number"
               value={offset[0]}
@@ -156,11 +156,11 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
                 ])
               }
               step="0.1"
-              className="w-20 px-2 py-1 bg-gray-700 text-white rounded text-sm"
+              className="w-20 rounded bg-gray-700 px-2 py-1 text-sm text-white"
             />
           </div>
-          <div className="flex gap-2 items-center">
-            <label className="text-gray-300 text-xs">Y:</label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-300">Y:</label>
             <input
               type="number"
               value={offset[1]}
@@ -172,11 +172,11 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
                 ])
               }
               step="0.1"
-              className="w-20 px-2 py-1 bg-gray-700 text-white rounded text-sm"
+              className="w-20 rounded bg-gray-700 px-2 py-1 text-sm text-white"
             />
           </div>
-          <div className="flex gap-2 items-center">
-            <label className="text-gray-300 text-xs">Z:</label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-300">Z:</label>
             <input
               type="number"
               value={offset[2]}
@@ -188,7 +188,7 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
                 ])
               }
               step="0.1"
-              className="w-20 px-2 py-1 bg-gray-700 text-white rounded text-sm"
+              className="w-20 rounded bg-gray-700 px-2 py-1 text-sm text-white"
             />
           </div>
         </div>

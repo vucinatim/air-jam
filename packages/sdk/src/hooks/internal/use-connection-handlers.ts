@@ -11,7 +11,7 @@ export interface ConnectionHandlerOptions {
 /**
  * Provides reusable connection event handlers
  * Handles common patterns for connect, disconnect, and error events
- * 
+ *
  * @param options - Optional callbacks for customization
  * @returns Event handler functions
  */
@@ -28,11 +28,14 @@ export function useConnectionHandlers(options: ConnectionHandlerOptions = {}) {
     options.onDisconnect?.();
   }, [options.onDisconnect]);
 
-  const handleError = useCallback((payload: ServerErrorPayload) => {
-    const store = useConnectionStore.getState();
-    store.setError(payload.message);
-    options.onError?.(payload.message);
-  }, [options.onError]);
+  const handleError = useCallback(
+    (payload: ServerErrorPayload) => {
+      const store = useConnectionStore.getState();
+      store.setError(payload.message);
+      options.onError?.(payload.message);
+    },
+    [options.onError],
+  );
 
   return {
     handleConnect,

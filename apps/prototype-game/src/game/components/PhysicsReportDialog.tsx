@@ -1,5 +1,4 @@
-import { useState } from "react";
-import type { PhysicsFrame } from "./PhysicsRecorder";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,8 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useState } from "react";
+import type { PhysicsFrame } from "./PhysicsRecorder";
 
 interface PhysicsReportDialogProps {
   frames: PhysicsFrame[];
@@ -31,7 +31,7 @@ export function PhysicsReportDialog({
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col">
         <DialogHeader>
           <DialogTitle>Physics Report</DialogTitle>
           <DialogDescription>
@@ -43,7 +43,7 @@ export function PhysicsReportDialog({
         <Textarea
           readOnly
           value={JSON.stringify(frames, null, 2)}
-          className="flex-1 min-h-[400px] font-mono text-xs resize-none"
+          className="min-h-[400px] flex-1 resize-none font-mono text-xs"
         />
 
         <DialogFooter>

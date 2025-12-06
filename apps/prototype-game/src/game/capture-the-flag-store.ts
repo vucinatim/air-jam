@@ -44,29 +44,35 @@ interface CaptureTheFlagState {
   tryPickupFlag: (controllerId: string, flagTeam: TeamId) => void;
   dropFlagAtPosition: (
     controllerId: string,
-    position?: [number, number, number]
+    position?: [number, number, number],
   ) => void;
   manualScore: (teamId: TeamId) => void;
 }
 
 const createInitialFlags = (
-  basePositions: Record<TeamId, [number, number, number]>
+  basePositions: Record<TeamId, [number, number, number]>,
 ): Record<TeamId, FlagState> => {
-  return TEAM_IDS.reduce((acc, teamId) => {
-    acc[teamId] = {
-      teamId,
-      status: "atBase",
-      position: [...basePositions[teamId]],
-    };
-    return acc;
-  }, {} as Record<TeamId, FlagState>);
+  return TEAM_IDS.reduce(
+    (acc, teamId) => {
+      acc[teamId] = {
+        teamId,
+        status: "atBase",
+        position: [...basePositions[teamId]],
+      };
+      return acc;
+    },
+    {} as Record<TeamId, FlagState>,
+  );
 };
 
 const createInitialScores = (): Record<TeamId, number> =>
-  TEAM_IDS.reduce((acc, teamId) => {
-    acc[teamId] = 0;
-    return acc;
-  }, {} as Record<TeamId, number>);
+  TEAM_IDS.reduce(
+    (acc, teamId) => {
+      acc[teamId] = 0;
+      return acc;
+    },
+    {} as Record<TeamId, number>,
+  );
 
 const getEnemyTeam = (team: TeamId): TeamId => {
   return TEAM_IDS.find((id) => id !== team) || team;
@@ -130,7 +136,7 @@ const generateRandomBasePositions = (): Record<
   if (finalDist1 > ARENA_RADIUS || finalDist2 > ARENA_RADIUS) {
     // Fallback: use safe positions if something went wrong
     console.warn(
-      "Base position generation produced out-of-bounds positions, using fallback"
+      "Base position generation produced out-of-bounds positions, using fallback",
     );
     return {
       solaris: [ARENA_RADIUS * 0.7, 0, 0] as [number, number, number],
@@ -172,10 +178,13 @@ export const useCaptureTheFlagStore = create<CaptureTheFlagState>(
         return get().basePositions[teamId];
       },
       assignPlayerToTeam: (controllerId: string) => {
-        const teams = TEAM_IDS.reduce((counts, teamId) => {
-          counts[teamId] = 0;
-          return counts;
-        }, {} as Record<TeamId, number>);
+        const teams = TEAM_IDS.reduce(
+          (counts, teamId) => {
+            counts[teamId] = 0;
+            return counts;
+          },
+          {} as Record<TeamId, number>,
+        );
 
         Object.values(get().playerTeams).forEach((teamId) => {
           teams[teamId] += 1;
@@ -414,5 +423,5 @@ export const useCaptureTheFlagStore = create<CaptureTheFlagState>(
         });
       },
     };
-  }
+  },
 );

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -12,7 +12,9 @@ export const users = pgTable("users", {
 
 export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
-  userId: text("user_id").references(() => users.id).notNull(),
+  userId: text("user_id")
+    .references(() => users.id)
+    .notNull(),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   ipAddress: text("ip_address"),
@@ -23,7 +25,9 @@ export const sessions = pgTable("sessions", {
 
 export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
-  userId: text("user_id").references(() => users.id).notNull(),
+  userId: text("user_id")
+    .references(() => users.id)
+    .notNull(),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
   accessToken: text("access_token"),
@@ -48,7 +52,9 @@ export const verificationTokens = pgTable("verification_tokens", {
 
 export const games = pgTable("games", {
   id: text("id").primaryKey(), // Changed to text to match user ID style or keep UUID if preferred, but text is easier with BetterAuth user IDs
-  userId: text("user_id").references(() => users.id).notNull(),
+  userId: text("user_id")
+    .references(() => users.id)
+    .notNull(),
   name: text("name").notNull(),
   description: text("description"),
   url: text("url").notNull(), // The URL where the game is hosted
@@ -57,7 +63,9 @@ export const games = pgTable("games", {
 
 export const apiKeys = pgTable("api_keys", {
   id: text("id").primaryKey(),
-  gameId: text("game_id").references(() => games.id).notNull(),
+  gameId: text("game_id")
+    .references(() => games.id)
+    .notNull(),
   key: text("key").notNull().unique(), // The actual API key string (e.g. aj_live_...)
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

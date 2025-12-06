@@ -1,23 +1,23 @@
+import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { useFrame, createPortal, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { Trail } from "./Trail";
 import {
   AdditiveBlending,
   BoxGeometry,
+  Color,
   CylinderGeometry,
   ExtrudeGeometry,
-  MeshStandardMaterial,
-  Shape,
-  type Group,
-  Vector3,
-  Color,
   Float32BufferAttribute,
   Mesh,
+  MeshStandardMaterial,
+  Object3D,
   Points,
   ShaderMaterial,
-  Object3D,
+  Shape,
+  Vector3,
+  type Group,
 } from "three";
+import { Trail } from "./Trail";
 
 // ==========================================
 // 1. DESIGN CONFIGURATION (TWEAK VISUALS HERE)
@@ -174,7 +174,7 @@ const ParticleShaderMaterial = new ShaderMaterial({
 function initializeParticleBuffers(
   maxParticles: number,
   size: number,
-  sizeVariance: number
+  sizeVariance: number,
 ) {
   const pos = new Float32Array(maxParticles * 3);
   const vel = [];
@@ -222,9 +222,9 @@ function EngineParticles({
       initializeParticleBuffers(
         config.maxParticles,
         config.size,
-        config.sizeVariance
+        config.sizeVariance,
       ),
-    [config.maxParticles, config.size, config.sizeVariance]
+    [config.maxParticles, config.size, config.sizeVariance],
   );
 
   useFrame((state, delta) => {
@@ -344,7 +344,7 @@ function EngineParticles({
       </bufferGeometry>
       <primitive attach="material" object={shaderRef.current} />
     </points>,
-    scene
+    scene,
   );
 }
 
@@ -430,7 +430,7 @@ export function ShipModel({
       nozzle: new CylinderGeometry(...SHIP_DESIGN.ENGINE.nozzleSize),
       gun: new CylinderGeometry(...SHIP_DESIGN.GUNS.size),
     }),
-    []
+    [],
   );
 
   // --- Materials ---

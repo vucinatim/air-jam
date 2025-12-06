@@ -12,11 +12,3 @@ export function Collectibles() {
     </>
   );
 }
-
-
-
-
-
-
-
-

@@ -14,7 +14,7 @@ export interface CollectibleData {
 interface CollectiblesState {
   collectibles: CollectibleData[];
   addCollectible: (
-    collectible: Omit<CollectibleData, "id" | "timestamp">
+    collectible: Omit<CollectibleData, "id" | "timestamp">,
   ) => string;
   removeCollectible: (id: string) => void;
   clearCollectibles: () => void;

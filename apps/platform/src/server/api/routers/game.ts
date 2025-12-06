@@ -1,8 +1,8 @@
+import { db } from "@/db";
+import { apiKeys, games } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { games, apiKeys } from "@/db/schema";
-import { db } from "@/db";
-import { eq } from "drizzle-orm";
 
 export const gameRouter = createTRPCRouter({
   create: protectedProcedure

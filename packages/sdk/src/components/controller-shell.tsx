@@ -1,25 +1,25 @@
-import type { JSX } from "react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { ConnectionStatus } from "../protocol";
-import { useFullscreen } from "../hooks/use-fullscreen";
-import { useConnectionState } from "../state/connection-store";
-import { cn } from "../utils/cn";
-import { Button } from "./ui/button";
-import { Avatar, AvatarImage } from "./ui/avatar";
 import {
+  AlertCircle,
   CheckCircle2,
   Loader2,
-  AlertCircle,
   Maximize,
   Minimize,
-  Play,
   Pause,
+  Play,
   QrCode,
   RefreshCw,
 } from "lucide-react";
-import { QRScannerDialog } from "./qr-scanner-dialog";
-import { VolumeControls } from "./volume-controls";
+import type { JSX } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useFullscreen } from "../hooks/use-fullscreen";
+import type { ConnectionStatus } from "../protocol";
+import { useConnectionState } from "../state/connection-store";
+import { cn } from "../utils/cn";
 import { detectRunMode } from "../utils/mode";
+import { QRScannerDialog } from "./qr-scanner-dialog";
+import { Avatar, AvatarImage } from "./ui/avatar";
+import { Button } from "./ui/button";
+import { VolumeControls } from "./volume-controls";
 
 type OrientationRequirement = "portrait" | "landscape" | "any";
 
@@ -28,7 +28,7 @@ const getPlayerAvatarUrl = (playerId: string): string => {
   // Use DiceBear API with identicon style for GitHub-like avatars
   // The seed ensures the same player ID always gets the same avatar
   return `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
-    playerId
+    playerId,
   )}`;
 };
 
@@ -78,7 +78,7 @@ export const ControllerShell = ({
 }: ControllerShellProps): JSX.Element => {
   const isChildMode = useMemo(() => detectRunMode() === "platform", []);
   const [isOrientationOk, setOrientationOk] = useState(() =>
-    orientationMatches(requiredOrientation)
+    orientationMatches(requiredOrientation),
   );
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { isFullscreen, toggleFullscreen } = useFullscreen();
@@ -119,14 +119,14 @@ export const ControllerShell = ({
   const statusIcon = useMemo(() => {
     switch (connectionStatus) {
       case "connected":
-        return <CheckCircle2 className="h-5 w-5 text-primary" />;
+        return <CheckCircle2 className="text-primary h-5 w-5" />;
       case "connecting":
       case "reconnecting":
         return (
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
         );
       default:
-        return <AlertCircle className="h-5 w-5 text-destructive" />;
+        return <AlertCircle className="text-destructive h-5 w-5" />;
     }
   }, [connectionStatus]);
 
@@ -134,14 +134,14 @@ export const ControllerShell = ({
   // The parent frame provides the shell (header, volume, etc).
   if (isChildMode) {
     return (
-      <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-transparent text-foreground select-none touch-none">
-        <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 select-none">
+      <div className="text-foreground relative flex h-dvh w-dvw touch-none flex-col overflow-hidden bg-transparent select-none">
+        <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 select-none sm:p-4">
           {!orientationOk && (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-6 text-center shadow-lg">
-              <p className="text-xl font-semibold text-card-foreground">
+            <div className="bg-background/95 absolute inset-0 z-50 flex flex-col items-center justify-center p-6 text-center shadow-lg backdrop-blur-sm">
+              <p className="text-card-foreground text-xl font-semibold">
                 Rotate your device
               </p>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="text-muted-foreground mt-2 text-sm">
                 This game is best experienced in {requiredOrientation}{" "}
                 orientation.
               </p>
@@ -150,7 +150,7 @@ export const ControllerShell = ({
           <div
             className={cn(
               "h-full w-full select-none",
-              !orientationOk && "pointer-events-none opacity-30"
+              !orientationOk && "pointer-events-none opacity-30",
             )}
           >
             {children}
@@ -161,8 +161,8 @@ export const ControllerShell = ({
   }
 
   return (
-    <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-background text-foreground select-none touch-none">
-      <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between px-6 py-2 border-b">
+    <div className="bg-background text-foreground relative flex h-dvh w-dvw touch-none flex-col overflow-hidden select-none">
+      <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between border-b px-6 py-2">
         <div className="pointer-events-auto flex items-center gap-3">
           {typeof window !== "undefined" && (currentPlayer || controllerId) && (
             <Avatar
@@ -173,18 +173,18 @@ export const ControllerShell = ({
             >
               <AvatarImage
                 src={getPlayerAvatarUrl(
-                  currentPlayer?.id || controllerId || ""
+                  currentPlayer?.id || controllerId || "",
                 )}
                 alt={currentPlayer?.label || "Player"}
               />
             </Avatar>
           )}
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-muted-foreground text-xs tracking-[0.24em] uppercase">
               Room
             </p>
-            <p className="text-lg font-semibold text-foreground">
-              {typeof window !== "undefined" ? roomId ?? "N/A" : "N/A"}
+            <p className="text-foreground text-lg font-semibold">
+              {typeof window !== "undefined" ? (roomId ?? "N/A") : "N/A"}
             </p>
           </div>
         </div>
@@ -200,7 +200,7 @@ export const ControllerShell = ({
             {typeof window !== "undefined" ? (
               statusIcon
             ) : (
-              <AlertCircle className="h-5 w-5 text-destructive" />
+              <AlertCircle className="text-destructive h-5 w-5" />
             )}
           </Button>
           {onRefresh && roomId && (
@@ -221,7 +221,7 @@ export const ControllerShell = ({
                   "h-5 w-5",
                   (connectionStatus === "connecting" ||
                     connectionStatus === "reconnecting") &&
-                    "animate-spin"
+                    "animate-spin",
                 )}
               />
             </Button>
@@ -272,20 +272,20 @@ export const ControllerShell = ({
       </header>
 
       {/* Volume Controls - positioned absolutely for mobile */}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-50">
+      <div className="pointer-events-none fixed right-4 bottom-4 z-50">
         <div className="pointer-events-auto">
           <VolumeControls compact={true} />
         </div>
       </div>
 
-      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 select-none">
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 backdrop-blur-sm p-6 text-center shadow-lg">
+      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 select-none sm:p-4">
+        <div className="bg-card/95 absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center shadow-lg backdrop-blur-sm">
           {!orientationOk && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-6 text-center shadow-lg">
-              <p className="text-xl font-semibold text-card-foreground">
+            <div className="bg-background/95 absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center shadow-lg backdrop-blur-sm">
+              <p className="text-card-foreground text-xl font-semibold">
                 Rotate your device
               </p>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="text-muted-foreground mt-2 text-sm">
                 This game is best experienced in {requiredOrientation}{" "}
                 orientation.
               </p>
@@ -294,7 +294,7 @@ export const ControllerShell = ({
           <div
             className={cn(
               "h-full w-full select-none",
-              !orientationOk && "pointer-events-none opacity-30"
+              !orientationOk && "pointer-events-none opacity-30",
             )}
           >
             {children}

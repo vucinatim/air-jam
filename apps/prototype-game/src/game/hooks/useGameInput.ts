@@ -1,15 +1,16 @@
 import { useAirJamInput, type GameLoopInput } from "@air-jam/sdk";
-import { useBotManager } from "../bot-system/BotManager";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
+import { useBotManager } from "../bot-system/BotManager";
 
 export const useGameInput = (options: { roomId?: string } = {}) => {
-  const { popInput: popRealInput, clearInput: clearRealInput } = useAirJamInput(options);
+  const { popInput: popRealInput, clearInput: clearRealInput } =
+    useAirJamInput(options);
   const botManager = useBotManager.getState();
-  
+
   // We need time for bot updates
   const timeRef = useRef(0);
-  
+
   useFrame((state) => {
     timeRef.current = state.clock.elapsedTime;
   });
@@ -25,13 +26,13 @@ export const useGameInput = (options: { roomId?: string } = {}) => {
       // Wait, BotController.update needs delta.
       // Let's assume 1/60 for now or fetch from Three.js clock if possible?
       // We can use the ref updated by useFrame above.
-      
+
       // Actually, better design: BotManager should have its own useFrame to update all bots?
       // Or we just pass a rough delta here.
-      const delta = 1/60; 
+      const delta = 1 / 60;
       return botManager.getBotInput(controllerId, delta, timeRef.current);
     }
-    
+
     return popRealInput(controllerId);
   };
 

@@ -1,9 +1,9 @@
+import { Html5Qrcode } from "html5-qrcode";
 import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
-import { Button } from "./ui/button";
 import { roomCodeSchema } from "../protocol";
 import { urlBuilder } from "../utils/url-builder";
+import { Button } from "./ui/button";
 
 interface QRScannerDialogProps {
   isOpen: boolean;
@@ -150,7 +150,7 @@ export const QRScannerDialog = ({
             const backCamera = devices.find(
               (d) =>
                 d.label.toLowerCase().includes("back") ||
-                d.label.toLowerCase().includes("rear")
+                d.label.toLowerCase().includes("rear"),
             );
             const envCamera = devices.find((d) => {
               const label = d.label.toLowerCase();
@@ -201,7 +201,7 @@ export const QRScannerDialog = ({
           },
           () => {
             // Ignore scanning errors
-          }
+          },
         );
         scannerRunning = true;
         if (mounted) {
@@ -304,14 +304,14 @@ export const QRScannerDialog = ({
   const isValid = code.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+    <div className="bg-background fixed inset-0 z-50 flex flex-col items-center justify-center">
       {/* Camera view (if available) */}
-      <div className="flex-1 flex flex-col items-center justify-center">
+      <div className="flex flex-1 flex-col items-center justify-center">
         {isCameraAvailable && (
-          <div className="relative w-full aspect-square p-6 flex items-center justify-center overflow-hidden">
+          <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden p-6">
             <div
               id="qr-reader"
-              className="w-full h-full rounded-lg overflow-hidden bg-black"
+              className="h-full w-full overflow-hidden rounded-lg bg-black"
             />
           </div>
         )}
@@ -330,18 +330,18 @@ export const QRScannerDialog = ({
               }
             }}
             placeholder="Enter room code"
-            className="w-full px-6 py-4 text-2xl font-mono text-center border-2 border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            className="border-border bg-background focus:ring-primary focus:border-primary w-full rounded-lg border-2 px-6 py-4 text-center font-mono text-2xl focus:ring-2 focus:outline-none"
             autoComplete="off"
             autoCapitalize="characters"
           />
         </div>
         {/* URL Display */}
         {joinUrl && (
-          <div className="w-full max-w-md px-6 pb-2 mt-4">
+          <div className="mt-4 w-full max-w-md px-6 pb-2">
             <button
               type="button"
               onClick={handleCopyUrl}
-              className="w-full px-4 py-3 text-xs font-mono text-center text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-lg transition-colors break-all"
+              className="text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted w-full rounded-lg px-4 py-3 text-center font-mono text-xs break-all transition-colors"
             >
               {copied ? "✓ Copied!" : joinUrl}
             </button>
@@ -350,7 +350,7 @@ export const QRScannerDialog = ({
       </div>
 
       {/* Buttons */}
-      <div className="w-full max-w-md px-6 pb-6 flex gap-4">
+      <div className="flex w-full max-w-md gap-4 px-6 pb-6">
         <Button
           type="button"
           variant="outline"

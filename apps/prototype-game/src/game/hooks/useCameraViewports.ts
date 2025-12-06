@@ -1,26 +1,37 @@
-import { useEffect, useState, useMemo, useRef } from "react";
 import { useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { computeViewports } from "../utils/camera-utils";
 
 export function useCameraViewports(
-  activeCamerasRef: React.MutableRefObject<Array<ThreePerspectiveCamera | null>>
+  activeCamerasRef: React.MutableRefObject<
+    Array<ThreePerspectiveCamera | null>
+  >,
 ) {
   const { size } = useThree();
   const [camerasWithViewports, setCamerasWithViewports] = useState<
-    Array<{ camera: ThreePerspectiveCamera; viewport: { x: number; y: number; width: number; height: number } }>
+    Array<{
+      camera: ThreePerspectiveCamera;
+      viewport: { x: number; y: number; width: number; height: number };
+    }>
   >([]);
   const prevSizeRef = useRef({ width: size.width, height: size.height });
 
   useEffect(() => {
     const update = () => {
-      const cameras = activeCamerasRef.current.filter(Boolean) as ThreePerspectiveCamera[];
+      const cameras = activeCamerasRef.current.filter(
+        Boolean,
+      ) as ThreePerspectiveCamera[];
       if (cameras.length === 0) {
         setCamerasWithViewports([]);
         return;
       }
 
-      const viewports = computeViewports(cameras.length, size.width, size.height);
+      const viewports = computeViewports(
+        cameras.length,
+        size.width,
+        size.height,
+      );
       const camerasWithVp = cameras.map((cam, index) => ({
         camera: cam,
         viewport: viewports[index],
@@ -29,7 +40,7 @@ export function useCameraViewports(
       // Only update if cameras or viewports actually changed
       setCamerasWithViewports((prev) => {
         if (prev.length !== camerasWithVp.length) return camerasWithVp;
-        
+
         // Check if cameras or viewports changed
         const changed = prev.some((p, i) => {
           const current = camerasWithVp[i];
@@ -42,7 +53,7 @@ export function useCameraViewports(
             p.viewport.height !== current.viewport.height
           );
         });
-        
+
         return changed ? camerasWithVp : prev;
       });
     };
@@ -64,4 +75,3 @@ export function useCameraViewports(
   // Memoize to prevent reference changes
   return useMemo(() => camerasWithViewports, [camerasWithViewports]);
 }
-

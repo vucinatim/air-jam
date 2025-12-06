@@ -123,27 +123,27 @@ export enum ErrorCode {
   // Room errors
   ROOM_NOT_FOUND = "ROOM_NOT_FOUND",
   ROOM_FULL = "ROOM_FULL",
-  
+
   // Auth errors
   INVALID_API_KEY = "INVALID_API_KEY",
   UNAUTHORIZED = "UNAUTHORIZED",
-  
+
   // Token errors
   INVALID_TOKEN = "INVALID_TOKEN",
   TOKEN_EXPIRED = "TOKEN_EXPIRED",
-  
+
   // Connection errors
   CONNECTION_FAILED = "CONNECTION_FAILED",
   ALREADY_CONNECTED = "ALREADY_CONNECTED",
-  
+
   // Validation errors
   INVALID_PAYLOAD = "INVALID_PAYLOAD",
   INVALID_ROOM_CODE = "INVALID_ROOM_CODE",
-  
+
   // Server errors
   INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
   SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE",
-  
+
   // Generic
   UNKNOWN_ERROR = "UNKNOWN_ERROR",
 }
@@ -156,7 +156,6 @@ export interface ServerErrorPayload {
   message: string;
   details?: unknown;
 }
-
 
 export interface ControllerWelcomePayload {
   controllerId: string;
@@ -172,7 +171,7 @@ export interface ControllerJoinedNotice {
 
 export interface ControllerLeftNotice {
   controllerId: string;
-  }
+}
 
 export interface RoomReadyNotice {
   roomId: RoomCode;
@@ -229,29 +228,31 @@ export interface ClientLoadUiPayload {
 export interface ClientToServerEvents {
   "host:register": (
     payload: z.infer<typeof hostRegistrationSchema>,
-    callback: (ack: HostRegistrationAck) => void
+    callback: (ack: HostRegistrationAck) => void,
   ) => void;
   "host:registerSystem": (
     payload: HostRegisterSystemPayload,
-    callback: (ack: HostRegistrationAck) => void
+    callback: (ack: HostRegistrationAck) => void,
   ) => void;
   "system:launchGame": (
     payload: SystemLaunchGamePayload,
-    callback: (ack: SystemLaunchGameAck) => void
+    callback: (ack: SystemLaunchGameAck) => void,
   ) => void;
   "host:joinAsChild": (
     payload: HostJoinAsChildPayload,
-    callback: (ack: HostRegistrationAck) => void
+    callback: (ack: HostRegistrationAck) => void,
   ) => void;
   "system:closeGame": (payload: { roomId: string }) => void;
   "host:state": (payload: z.infer<typeof controllerStateSchema>) => void;
   "controller:join": (
     payload: z.infer<typeof controllerJoinSchema>,
-    callback: (ack: ControllerJoinAck) => void
+    callback: (ack: ControllerJoinAck) => void,
   ) => void;
   "controller:leave": (payload: z.infer<typeof controllerLeaveSchema>) => void;
   "controller:input": (payload: z.infer<typeof controllerInputSchema>) => void;
-  "controller:system": (payload: z.infer<typeof controllerSystemSchema>) => void;
+  "controller:system": (
+    payload: z.infer<typeof controllerSystemSchema>,
+  ) => void;
   "host:play_sound": (payload: PlaySoundEventPayload) => void;
   "controller:play_sound": (payload: PlaySoundEventPayload) => void;
 }

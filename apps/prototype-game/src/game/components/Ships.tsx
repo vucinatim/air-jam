@@ -1,10 +1,10 @@
-import { useGameStore } from "../game-store";
-import { Ship } from "./Ship";
 import {
   TEAM_CONFIG,
   type TeamId,
   useCaptureTheFlagStore,
 } from "../capture-the-flag-store";
+import { useGameStore } from "../game-store";
+import { Ship } from "./Ship";
 
 export function Ships() {
   const players = useGameStore((state) => state.players);
@@ -12,11 +12,14 @@ export function Ships() {
   const basePositions = useCaptureTheFlagStore((state) => state.basePositions);
 
   const teamSpawnCounters: Record<TeamId, number> = Object.keys(
-    TEAM_CONFIG
-  ).reduce((acc, key) => {
-    acc[key as TeamId] = 0;
-    return acc;
-  }, {} as Record<TeamId, number>);
+    TEAM_CONFIG,
+  ).reduce(
+    (acc, key) => {
+      acc[key as TeamId] = 0;
+      return acc;
+    },
+    {} as Record<TeamId, number>,
+  );
 
   return (
     <>

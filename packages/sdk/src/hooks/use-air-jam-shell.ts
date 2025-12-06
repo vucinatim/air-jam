@@ -10,13 +10,13 @@ import {
   controllerJoinSchema,
   controllerSystemSchema,
 } from "../protocol";
-import { detectRunMode } from "../utils/mode";
 import {
   useConnectionState,
   useConnectionStore,
 } from "../state/connection-store";
-import { useRoomSetup } from "./internal/use-room-setup";
+import { detectRunMode } from "../utils/mode";
 import { useConnectionHandlers } from "./internal/use-connection-handlers";
+import { useRoomSetup } from "./internal/use-room-setup";
 import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
 
 interface AirJamShellOptions {
@@ -47,10 +47,10 @@ const getRoomFromLocation = (): string | null => {
 };
 
 export const useAirJamShell = (
-  options: AirJamShellOptions = {}
+  options: AirJamShellOptions = {},
 ): AirJamShellApi => {
   const nicknameRef = useRef(options.nickname ?? "Arcade Shell");
-  
+
   // Use internal utilities for setup
   const { parsedRoomId, controllerId } = useRoomSetup({
     roomId: options.roomId,
@@ -69,10 +69,18 @@ export const useAirJamShell = (
   }));
 
   // Use socket lifecycle utility
-  const { socket } = useSocketLifecycle("controller", options.serverUrl, !!parsedRoomId);
+  const { socket } = useSocketLifecycle(
+    "controller",
+    options.serverUrl,
+    !!parsedRoomId,
+  );
 
-  // Use connection handlers utility  
-  const { handleConnect: baseHandleConnect, handleDisconnect, handleError } = useConnectionHandlers();
+  // Use connection handlers utility
+  const {
+    handleConnect: baseHandleConnect,
+    handleDisconnect,
+    handleError,
+  } = useConnectionHandlers();
 
   useEffect(() => {
     const store = useConnectionStore.getState();
@@ -110,14 +118,20 @@ export const useAirJamShell = (
     };
 
     const handleLoadUi = (payload: { url: string }): void => {
-        console.log("[useAirJamShell] Received client:loadUi event with URL:", payload.url);
-        console.log("[useAirJamShell] Current window location:", typeof window !== "undefined" ? window.location.href : "SSR");
-        setActiveUrl(payload.url);
+      console.log(
+        "[useAirJamShell] Received client:loadUi event with URL:",
+        payload.url,
+      );
+      console.log(
+        "[useAirJamShell] Current window location:",
+        typeof window !== "undefined" ? window.location.href : "SSR",
+      );
+      setActiveUrl(payload.url);
     };
 
     const handleUnloadUi = (): void => {
-        console.log("[useAirJamShell] Unloading UI");
-        setActiveUrl(null);
+      console.log("[useAirJamShell] Unloading UI");
+      setActiveUrl(null);
     };
 
     const handleWelcome = (payload: {
@@ -149,20 +163,20 @@ export const useAirJamShell = (
 
     // --- BRIDGE LOGIC ---
     const handleMessage = (event: MessageEvent) => {
-        const data = event.data;
-        if (data?.type === "AIRJAM_INPUT") {
-            const input = data.payload as ControllerInputPayload;
-            const payload = controllerInputSchema.safeParse({
-                roomId: parsedRoomId,
-                controllerId: store.controllerId,
-                input,
-            });
-            if (payload.success) {
-                socket.emit("controller:input", payload.data);
-            }
-        } else if (data?.type === "AIRJAM_READY") {
-            // Child is ready
+      const data = event.data;
+      if (data?.type === "AIRJAM_INPUT") {
+        const input = data.payload as ControllerInputPayload;
+        const payload = controllerInputSchema.safeParse({
+          roomId: parsedRoomId,
+          controllerId: store.controllerId,
+          input,
+        });
+        if (payload.success) {
+          socket.emit("controller:input", payload.data);
         }
+      } else if (data?.type === "AIRJAM_READY") {
+        // Child is ready
+      }
     };
     window.addEventListener("message", handleMessage);
 
@@ -175,7 +189,15 @@ export const useAirJamShell = (
       socket.off("server:error", handleError);
       window.removeEventListener("message", handleMessage);
     };
-  }, [options.serverUrl, parsedRoomId, socket, controllerId, baseHandleConnect, handleDisconnect, handleError]);
+  }, [
+    options.serverUrl,
+    parsedRoomId,
+    socket,
+    controllerId,
+    baseHandleConnect,
+    handleDisconnect,
+    handleError,
+  ]);
 
   const sendInput = useCallback(
     (input: ControllerInputPayload): boolean => {
@@ -201,14 +223,14 @@ export const useAirJamShell = (
       socket.emit("controller:input", payload.data);
       return true;
     },
-    [options.serverUrl, parsedRoomId, socket]
+    [options.serverUrl, parsedRoomId, socket],
   );
 
   const sendSystemCommand = useCallback(
     (type: "EXIT_GAME") => {
       const store = useConnectionStore.getState();
       if (!parsedRoomId || !store.controllerId || !socket) return;
-      
+
       if (!socket.connected) return;
 
       const payload = controllerSystemSchema.safeParse({
@@ -221,7 +243,7 @@ export const useAirJamShell = (
         socket.emit("controller:system", payload.data);
       }
     },
-    [options.serverUrl, parsedRoomId, socket]
+    [options.serverUrl, parsedRoomId, socket],
   );
 
   return {

@@ -1,6 +1,6 @@
+import { DEFAULT_CONTROLLER_PATH, DEFAULT_SERVER_PORT } from "../constants";
 import type { RoomCode } from "../protocol";
 import { getLocalNetworkIp } from "./network-ip";
-import { DEFAULT_SERVER_PORT, DEFAULT_CONTROLLER_PATH } from "../constants";
 
 /**
  * Centralized URL builder service for Air Jam.
@@ -53,21 +53,21 @@ class UrlBuilder {
 
     try {
       const urlObj = new URL(url);
-      
+
       // If URL uses localhost, replace with local network IP
       if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
         const localIp = await this.getLocalIp();
-        
+
         if (localIp) {
           urlObj.hostname = localIp;
           return urlObj.toString();
         }
-        
+
         // Fallback to current hostname if IP detection fails
         urlObj.hostname = window.location.hostname;
         return urlObj.toString();
       }
-      
+
       return url;
     } catch {
       return url;
@@ -83,10 +83,10 @@ class UrlBuilder {
     options?: {
       path?: string;
       host?: string;
-    }
+    },
   ): Promise<string> {
     const path = options?.path || DEFAULT_CONTROLLER_PATH;
-    
+
     // If explicit host is provided, use it
     if (options?.host) {
       const url = new URL(path, this.normalizeOrigin(options.host));
@@ -100,7 +100,7 @@ class UrlBuilder {
       base = `http://localhost:${DEFAULT_SERVER_PORT}`;
     } else {
       const currentUrl = new URL(window.location.href);
-      
+
       // If not localhost, use the current origin
       if (!this.isLocalhost(currentUrl.hostname)) {
         base = currentUrl.origin;

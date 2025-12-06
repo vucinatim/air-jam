@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_MAX_PLAYERS, TOGGLE_DEBOUNCE_MS } from "../constants";
 import type {
   ConnectionStatus,
   ControllerInputEvent,
@@ -13,17 +14,16 @@ import {
   hostRegistrationSchema,
   roomCodeSchema,
 } from "../protocol";
-import { detectRunMode } from "../utils/mode";
-import { generateRoomCode } from "../utils/ids";
-import { urlBuilder } from "../utils/url-builder";
 import { disconnectSocket } from "../socket-client";
 import {
   useConnectionState,
   useConnectionStore,
 } from "../state/connection-store";
-import { TOGGLE_DEBOUNCE_MS, DEFAULT_MAX_PLAYERS } from "../constants";
-import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
+import { generateRoomCode } from "../utils/ids";
+import { detectRunMode } from "../utils/mode";
+import { urlBuilder } from "../utils/url-builder";
 import { useConnectionHandlers } from "./internal/use-connection-handlers";
+import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
 
 interface AirJamHostOptions {
   roomId?: string;
@@ -56,7 +56,7 @@ export interface AirJamHostApi {
 }
 
 export const useAirJamHost = (
-  options: AirJamHostOptions = {}
+  options: AirJamHostOptions = {},
 ): AirJamHostApi => {
   // Detect if running in Arcade Mode (via URL params)
   const arcadeParams = useMemo(() => {
@@ -86,7 +86,7 @@ export const useAirJamHost = (
 
   const parsedRoomId = useMemo<RoomCode>(() => {
     if (arcadeParams) {
-        return roomCodeSchema.parse(arcadeParams.room.toUpperCase());
+      return roomCodeSchema.parse(arcadeParams.room.toUpperCase());
     }
 
     if (typeof window !== "undefined") {
@@ -116,7 +116,12 @@ export const useAirJamHost = (
     onPlayerJoinRef.current = options.onPlayerJoin;
     onPlayerLeaveRef.current = options.onPlayerLeave;
     onChildCloseRef.current = options.onChildClose;
-  }, [options.onInput, options.onPlayerJoin, options.onPlayerLeave, options.onChildClose]);
+  }, [
+    options.onInput,
+    options.onPlayerJoin,
+    options.onPlayerLeave,
+    options.onChildClose,
+  ]);
 
   const connectionState = useConnectionState((state) => ({
     connectionStatus: state.connectionStatus,
@@ -127,10 +132,18 @@ export const useAirJamHost = (
   }));
 
   // Use socket lifecycle utility
-  const { socket } = useSocketLifecycle("host", options.serverUrl, shouldConnect);
+  const { socket } = useSocketLifecycle(
+    "host",
+    options.serverUrl,
+    shouldConnect,
+  );
 
   // Use connection handlers utility
-  const { handleConnect: baseHandleConnect, handleDisconnect, handleError } = useConnectionHandlers();
+  const {
+    handleConnect: baseHandleConnect,
+    handleDisconnect,
+    handleError,
+  } = useConnectionHandlers();
 
   const [lastToggle, setLastToggle] = useState(0);
 
@@ -142,7 +155,8 @@ export const useAirJamHost = (
     setLastToggle(now);
 
     const store = useConnectionStore.getState();
-    const newState: GameState = store.gameState === "paused" ? "playing" : "paused";
+    const newState: GameState =
+      store.gameState === "paused" ? "playing" : "paused";
     store.setGameState(newState);
 
     if (!socket || !socket.connected) return;
@@ -171,7 +185,7 @@ export const useAirJamHost = (
       socket.emit("host:state", payload.data);
       return true;
     },
-    [socket, parsedRoomId]
+    [socket, parsedRoomId],
   );
 
   const reconnect = useCallback(() => {
@@ -189,7 +203,12 @@ export const useAirJamHost = (
       });
       setJoinUrl(url);
     })();
-  }, [parsedRoomId, options.controllerPath, options.publicHost, options.controllerUrl]);
+  }, [
+    parsedRoomId,
+    options.controllerPath,
+    options.publicHost,
+    options.controllerUrl,
+  ]);
 
   useEffect(() => {
     const store = useConnectionStore.getState();
@@ -207,10 +226,12 @@ export const useAirJamHost = (
     const registerHost = async () => {
       if (arcadeParams) {
         // Child Mode - join as child
-        const parsedRoomId = roomCodeSchema.parse(arcadeParams.room.toUpperCase());
+        const parsedRoomId = roomCodeSchema.parse(
+          arcadeParams.room.toUpperCase(),
+        );
         const payload = {
           roomId: parsedRoomId,
-          joinToken: arcadeParams.token
+          joinToken: arcadeParams.token,
         };
         socket.emit("host:joinAsChild", payload, (ack) => {
           if (!ack.ok) {

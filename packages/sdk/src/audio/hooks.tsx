@@ -2,8 +2,8 @@
 import { createContext, useContext, useEffect, useRef } from "react";
 import { AudioManager, SoundManifest } from "./audio-manager";
 
-import { useConnectionStore } from "../state/connection-store";
 import { getSocketClient } from "../socket-client";
+import { useConnectionStore } from "../state/connection-store";
 
 // Module-level singleton manager cache
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,7 +17,7 @@ let globalInitialized = false;
  * @returns The AudioManager instance with type-safe sound IDs
  */
 export function useAudio<M extends SoundManifest>(
-  manifest: M
+  manifest: M,
 ): AudioManager<keyof M & string> {
   const roomId = useConnectionStore((state) => state.roomId);
   const role = useConnectionStore((state) => state.role);
@@ -127,7 +127,7 @@ export const useAudioLegacy = <T extends string = string>() => {
  * Hook to create a stable AudioManager instance
  */
 export const useAudioManager = <T extends string = string>(
-  manifest: SoundManifest
+  manifest: SoundManifest,
 ) => {
   const managerRef = useRef<AudioManager<T> | null>(null);
 

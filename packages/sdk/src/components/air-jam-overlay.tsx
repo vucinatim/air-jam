@@ -1,8 +1,12 @@
+import { MonitorSmartphone, Pause, Play, QrCode, Settings } from "lucide-react";
+import QRCode from "qrcode";
 import type { JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
 import type { ConnectionStatus, GameState, PlayerProfile } from "../protocol";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Avatar, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import {
   Card,
   CardContent,
@@ -10,11 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Alert, AlertDescription } from "./ui/alert";
-import { Avatar, AvatarImage } from "./ui/avatar";
-import { Button } from "./ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
-import { Play, Pause, Settings, QrCode, MonitorSmartphone } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { VolumeControls } from "./volume-controls";
 
 interface AirJamOverlayProps {
@@ -41,7 +41,7 @@ const getPlayerAvatarUrl = (playerId: string): string => {
   // Use DiceBear API with identicon style for GitHub-like avatars
   // The seed ensures the same player ID always gets the same avatar
   return `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
-    playerId
+    playerId,
   )}`;
 };
 
@@ -115,17 +115,17 @@ export const AirJamOverlay = ({
             {/* Left: Room name */}
             <div className="flex items-center gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
                   Room
                 </p>
-                <p className="text-lg font-semibold text-foreground">
+                <p className="text-foreground text-lg font-semibold">
                   {roomId}
                 </p>
               </div>
             </div>
 
             {/* Right: Avatar stack and play/pause */}
-            <div className="flex items-center pointer-events-auto gap-3">
+            <div className="pointer-events-auto flex items-center gap-3">
               {/* Avatar stack */}
               {players.length > 0 && (
                 <div className="flex items-center -space-x-2">
@@ -144,7 +144,7 @@ export const AirJamOverlay = ({
                     </Avatar>
                   ))}
                   {players.length > 4 && (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium">
+                    <div className="border-background bg-muted flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-medium">
                       +{players.length - 4}
                     </div>
                   )}
@@ -179,16 +179,16 @@ export const AirJamOverlay = ({
   return (
     <div className="pointer-events-none fixed inset-0 z-99999 flex items-center justify-center p-4">
       <div className="pointer-events-auto w-full max-w-2xl">
-        <Card className="border shadow-lg bg-card/20 backdrop-blur-sm overflow-hidden py-0 flex flex-col h-[80vh]">
+        <Card className="bg-card/20 flex h-[80vh] flex-col overflow-hidden border py-0 shadow-lg backdrop-blur-sm">
           <Tabs
             defaultValue={isChildMode ? "settings" : "room-code"}
-            className="w-full flex flex-col h-full gap-0"
+            className="flex h-full w-full flex-col gap-0"
           >
-            <TabsList className="grid w-full grid-cols-2 rounded-none border-b border-border bg-transparent shrink-0 p-0">
+            <TabsList className="border-border grid w-full shrink-0 grid-cols-2 rounded-none border-b bg-transparent p-0">
               {!isChildMode && (
                 <TabsTrigger
                   value="room-code"
-                  className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
+                  className="hover:bg-background/50 data-[state=active]:bg-background/50 flex items-center gap-2 rounded-none border-none bg-transparent"
                 >
                   <QrCode className="h-4 w-4" />
                   Room Code
@@ -197,7 +197,7 @@ export const AirJamOverlay = ({
               {isChildMode && (
                 <TabsTrigger
                   value="info"
-                  className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
+                  className="hover:bg-background/50 data-[state=active]:bg-background/50 flex items-center gap-2 rounded-none border-none bg-transparent"
                 >
                   <MonitorSmartphone className="h-4 w-4" />
                   Platform
@@ -205,7 +205,7 @@ export const AirJamOverlay = ({
               )}
               <TabsTrigger
                 value="settings"
-                className="flex items-center gap-2 rounded-none bg-transparent border-none hover:bg-background/50 data-[state=active]:bg-background/50"
+                className="hover:bg-background/50 data-[state=active]:bg-background/50 flex items-center gap-2 rounded-none border-none bg-transparent"
               >
                 <Settings className="h-4 w-4" />
                 Settings
@@ -215,36 +215,36 @@ export const AirJamOverlay = ({
             {!isChildMode && (
               <TabsContent
                 value="room-code"
-                className="mt-0 overflow-y-auto flex-1 min-h-0"
+                className="mt-0 min-h-0 flex-1 overflow-y-auto"
               >
                 <div className="space-y-6 pb-6">
-                  <CardHeader className="text-center pt-6">
+                  <CardHeader className="pt-6 text-center">
                     <CardTitle className="text-4xl font-bold tracking-wider">
                       {roomId}
                     </CardTitle>
-                    <Badge variant={connectionVariant} className="mt-3 mx-auto">
+                    <Badge variant={connectionVariant} className="mx-auto mt-3">
                       {statusCopy[connectionStatus]}
                     </Badge>
                   </CardHeader>
 
                   <CardContent className="space-y-6">
                     <div className="flex flex-col items-center space-y-4">
-                      <CardDescription className="text-xs uppercase tracking-[0.18em]">
+                      <CardDescription className="text-xs tracking-[0.18em] uppercase">
                         Join URL
                       </CardDescription>
-                      <p className="font-mono text-xs text-muted-foreground break-all text-center">
+                      <p className="text-muted-foreground text-center font-mono text-xs break-all">
                         {joinUrl}
                       </p>
 
-                      <div className="overflow-hidden w-48 border-2 border-border bg-card rounded-lg shadow-md">
+                      <div className="border-border bg-card w-48 overflow-hidden rounded-lg border-2 shadow-md">
                         {qrUrl ? (
                           <img
                             src={qrUrl}
                             alt={`Join room ${roomId}`}
-                            className="w-full bg-white rounded"
+                            className="w-full rounded bg-white"
                           />
                         ) : (
-                          <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                          <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
                             {qrError
                               ? `QR failed: ${qrError}`
                               : "Generating QR code…"}
@@ -254,12 +254,12 @@ export const AirJamOverlay = ({
 
                       <div className="w-full">
                         {players.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-4">
+                          <p className="text-muted-foreground py-4 text-center text-sm">
                             Waiting for controllers to join…
                           </p>
                         ) : (
                           <div className="space-y-3">
-                            <p className="text-sm font-medium text-foreground text-center">
+                            <p className="text-foreground text-center text-sm font-medium">
                               Connected Players ({players.length})
                             </p>
                             <ul className="flex flex-wrap items-center justify-center gap-4">
@@ -271,17 +271,17 @@ export const AirJamOverlay = ({
                                   <img
                                     src={getPlayerAvatarUrl(player.id)}
                                     alt={player.label}
-                                    className="w-16 h-16 rounded-full border-4 shadow-md bg-secondary/30"
+                                    className="bg-secondary/30 h-16 w-16 rounded-full border-4 shadow-md"
                                     style={{
                                       borderColor:
                                         player.color || "hsl(var(--border))",
                                     }}
                                   />
                                   <div className="flex flex-col items-center gap-0.5">
-                                    <span className="text-sm font-medium text-card-foreground text-center max-w-[100px] truncate">
+                                    <span className="text-card-foreground max-w-[100px] truncate text-center text-sm font-medium">
                                       {player.label}
                                     </span>
-                                    <span className="text-xs text-muted-foreground font-mono">
+                                    <span className="text-muted-foreground font-mono text-xs">
                                       {player.id.slice(0, 8)}
                                     </span>
                                   </div>
@@ -320,10 +320,10 @@ export const AirJamOverlay = ({
             {isChildMode && (
               <TabsContent
                 value="info"
-                className="mt-0 overflow-y-auto flex-1 min-h-0"
+                className="mt-0 min-h-0 flex-1 overflow-y-auto"
               >
                 <div className="space-y-6 pb-6">
-                  <CardHeader className="text-center pt-6">
+                  <CardHeader className="pt-6 text-center">
                     <CardTitle className="text-2xl font-bold tracking-wider">
                       Connected to Platform
                     </CardTitle>
@@ -336,7 +336,7 @@ export const AirJamOverlay = ({
                     <div className="flex flex-col items-center space-y-4">
                       <div className="w-full">
                         <div className="space-y-3">
-                          <p className="text-sm font-medium text-foreground text-center">
+                          <p className="text-foreground text-center text-sm font-medium">
                             Connected Players ({players.length})
                           </p>
                           <ul className="flex flex-wrap items-center justify-center gap-4">
@@ -348,14 +348,14 @@ export const AirJamOverlay = ({
                                 <img
                                   src={getPlayerAvatarUrl(player.id)}
                                   alt={player.label}
-                                  className="w-16 h-16 rounded-full border-4 shadow-md bg-secondary/30"
+                                  className="bg-secondary/30 h-16 w-16 rounded-full border-4 shadow-md"
                                   style={{
                                     borderColor:
                                       player.color || "hsl(var(--border))",
                                   }}
                                 />
                                 <div className="flex flex-col items-center gap-0.5">
-                                  <span className="text-sm font-medium text-card-foreground text-center max-w-[100px] truncate">
+                                  <span className="text-card-foreground max-w-[100px] truncate text-center text-sm font-medium">
                                     {player.label}
                                   </span>
                                 </div>
@@ -386,7 +386,7 @@ export const AirJamOverlay = ({
 
             <TabsContent
               value="settings"
-              className="mt-0 overflow-y-auto flex-1 min-h-0"
+              className="mt-0 min-h-0 flex-1 overflow-y-auto"
             >
               <CardContent className="pt-6 pb-6">
                 <div className="space-y-6">
@@ -400,7 +400,7 @@ export const AirJamOverlay = ({
                     <h3 className="text-sm font-semibold">Connection</h3>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground text-sm">
                           Status
                         </span>
                         <Badge variant={connectionVariant}>
@@ -408,13 +408,13 @@ export const AirJamOverlay = ({
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground text-sm">
                           Room ID
                         </span>
-                        <span className="text-sm font-mono">{roomId}</span>
+                        <span className="font-mono text-sm">{roomId}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground text-sm">
                           Players
                         </span>
                         <span className="text-sm font-medium">
@@ -429,7 +429,7 @@ export const AirJamOverlay = ({
                     <h3 className="text-sm font-semibold">Display</h3>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground text-sm">
                           Game State
                         </span>
                         <Badge variant="outline" className="capitalize">

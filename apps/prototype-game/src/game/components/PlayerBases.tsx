@@ -1,18 +1,18 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import {
   RigidBody,
   type CollisionPayload,
   type RapierRigidBody,
 } from "@react-three/rapier";
-import { CylinderGeometry, AdditiveBlending } from "three";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { AdditiveBlending, CylinderGeometry } from "three";
 import {
   TEAM_CONFIG,
-  type TeamId,
   useCaptureTheFlagStore,
+  type TeamId,
 } from "../capture-the-flag-store";
-import { useAudio } from "@air-jam/sdk";
 import { SOUND_MANIFEST } from "../sounds";
 
 const BASE_RADIUS = 10;
@@ -46,10 +46,10 @@ interface TeamBaseProps {
 
 function TeamBase({ teamId }: TeamBaseProps) {
   const handleBaseEntry = useCaptureTheFlagStore(
-    (state) => state.handleBaseEntry
+    (state) => state.handleBaseEntry,
   );
   const basePosition = useCaptureTheFlagStore(
-    (state) => state.basePositions[teamId]
+    (state) => state.basePositions[teamId],
   );
   const team = TEAM_CONFIG[teamId];
   const audio = useAudio(SOUND_MANIFEST);
@@ -70,14 +70,14 @@ function TeamBase({ teamId }: TeamBaseProps) {
         BASE_HEIGHT + GRADIENT_EXTEND_BELOW,
         32,
         1, // heightSegments
-        true // openEnded - remove top and bottom caps
+        true, // openEnded - remove top and bottom caps
       ),
-    []
+    [],
   );
 
   const collisionGeometry = useMemo(
     () => new CylinderGeometry(BASE_RADIUS, BASE_RADIUS, COLLISION_HEIGHT, 32),
-    []
+    [],
   );
 
   // Sync Physics Position
@@ -88,7 +88,7 @@ function TeamBase({ teamId }: TeamBaseProps) {
       // By keeping the parent group at [0,0,0], this sets the absolute position correctly.
       rigidBodyRef.current.setTranslation(
         { x, y: COLLISION_HEIGHT / 2, z },
-        true
+        true,
       );
     }
   }, [basePosition]);
@@ -117,7 +117,7 @@ function TeamBase({ teamId }: TeamBaseProps) {
     if (playerTeam) {
       if (playerTeam === teamId) {
         const enemyTeam = Object.keys(TEAM_CONFIG).find(
-          (id) => id !== playerTeam
+          (id) => id !== playerTeam,
         ) as TeamId;
         const enemyFlag = store.flags[enemyTeam];
 

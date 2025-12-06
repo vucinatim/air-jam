@@ -1,7 +1,7 @@
-import { Volume2, Music, Headphones } from "lucide-react";
+import { Headphones, Music, Volume2 } from "lucide-react";
 import { useVolumeStore } from "../audio/volume-store";
-import { Slider } from "./ui/slider";
 import { cn } from "../utils/cn";
+import { Slider } from "./ui/slider";
 
 interface VolumeControlsProps {
   className?: string;
@@ -22,15 +22,15 @@ export function VolumeControls({ className, compact }: VolumeControlsProps) {
     <div className={cn("flex flex-col gap-3", compact && "gap-1", className)}>
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Volume2 className="h-4 w-4 text-muted-foreground" />
+        <Volume2 className="text-muted-foreground h-4 w-4" />
         <span className="text-sm font-medium">Volume</span>
       </div>
 
       {/* Master Volume */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs text-muted-foreground">Master</label>
-          <span className="text-xs font-mono text-muted-foreground">
+          <label className="text-muted-foreground text-xs">Master</label>
+          <span className="text-muted-foreground font-mono text-xs">
             {Math.round(masterVolume * 100)}%
           </span>
         </div>
@@ -49,10 +49,10 @@ export function VolumeControls({ className, compact }: VolumeControlsProps) {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Music className="h-3 w-3 text-muted-foreground" />
-            <label className="text-xs text-muted-foreground">Music</label>
+            <Music className="text-muted-foreground h-3 w-3" />
+            <label className="text-muted-foreground text-xs">Music</label>
           </div>
-          <span className="text-xs font-mono text-muted-foreground">
+          <span className="text-muted-foreground font-mono text-xs">
             {Math.round(musicVolume * 100)}%
           </span>
         </div>
@@ -71,10 +71,10 @@ export function VolumeControls({ className, compact }: VolumeControlsProps) {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Headphones className="h-3 w-3 text-muted-foreground" />
-            <label className="text-xs text-muted-foreground">SFX</label>
+            <Headphones className="text-muted-foreground h-3 w-3" />
+            <label className="text-muted-foreground text-xs">SFX</label>
           </div>
-          <span className="text-xs font-mono text-muted-foreground">
+          <span className="text-muted-foreground font-mono text-xs">
             {Math.round(sfxVolume * 100)}%
           </span>
         </div>

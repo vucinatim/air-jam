@@ -1,5 +1,5 @@
-import { JumpPad } from "./JumpPad";
 import { JUMP_PADS } from "../constants";
+import { JumpPad } from "./JumpPad";
 
 export function JumpPads() {
   return (
@@ -10,4 +10,3 @@ export function JumpPads() {
     </>
   );
 }
-

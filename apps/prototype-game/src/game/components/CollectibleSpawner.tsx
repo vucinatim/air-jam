@@ -1,7 +1,7 @@
-import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useCollectiblesStore } from "../collectibles-store";
+import { useRef } from "react";
 import { getRandomAbilityByRarity } from "../abilities-store";
+import { useCollectiblesStore } from "../collectibles-store";
 import { ARENA_RADIUS } from "../constants";
 
 const SPAWN_INTERVAL = 3; // Spawn a new collectible every 3 seconds

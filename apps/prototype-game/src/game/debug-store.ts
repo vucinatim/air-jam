@@ -17,7 +17,3 @@ export const useDebugStore = create<DebugState>((set) => ({
   close: () => set({ isOpen: false }),
   toggleFreeFly: () => set((state) => ({ freeFlyMode: !state.freeFlyMode })),
 }));
-
-
-
-

@@ -1,7 +1,7 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
-import postgres from 'postgres';
 import * as dotenv from "dotenv";
+import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
 dotenv.config();
 
@@ -18,10 +18,10 @@ export const apiKeys = pgTable("api_keys", {
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.warn("[server] DATABASE_URL not found. API Key verification will fail unless using master key.");
+  console.warn(
+    "[server] DATABASE_URL not found. API Key verification will fail unless using master key.",
+  );
 }
 
 const client = postgres(connectionString || "");
 export const db = drizzle(client);
-
-

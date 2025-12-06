@@ -1,17 +1,17 @@
-import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
 import {
-  CylinderGeometry,
-  ConeGeometry,
-  MeshStandardMaterial,
-  Shape,
-  ExtrudeGeometry,
-  Vector3,
-  BufferGeometry,
+  AdditiveBlending,
   BufferAttribute,
+  BufferGeometry,
+  ConeGeometry,
+  CylinderGeometry,
+  ExtrudeGeometry,
+  MeshStandardMaterial,
   Points,
   PointsMaterial,
-  AdditiveBlending,
+  Shape,
+  Vector3,
 } from "three";
 
 /**
@@ -69,7 +69,7 @@ export function RocketModel({
         metalness: 0.2,
         roughness: 0.7,
       }),
-    []
+    [],
   );
 
   // Rocket nose (cone) - height 1, base at y=0, tip at y=1
@@ -81,7 +81,7 @@ export function RocketModel({
         metalness: 0.3,
         roughness: 0.6,
       }),
-    []
+    [],
   );
 
   // Rocket fins (triangular shapes)
@@ -108,13 +108,13 @@ export function RocketModel({
         metalness: 0.2,
         roughness: 0.8,
       }),
-    []
+    [],
   );
 
   // Flame exhaust effect
   const flameGeometry = useMemo(
     () => new ConeGeometry(0.15, 0.8, 8, 1, true),
-    []
+    [],
   );
   const flameMaterial = useMemo(
     () =>
@@ -126,7 +126,7 @@ export function RocketModel({
         opacity: 0.8,
         side: 2, // DoubleSide
       }),
-    []
+    [],
   );
 
   // Exhaust particles
@@ -155,7 +155,7 @@ export function RocketModel({
         blending: AdditiveBlending,
         depthWrite: false,
       }),
-    []
+    [],
   );
 
   // Animate particles

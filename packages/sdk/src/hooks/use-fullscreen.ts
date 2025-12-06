@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DocumentWithFullscreen, ElementWithFullscreen } from "../types/browser";
+import type {
+  DocumentWithFullscreen,
+  ElementWithFullscreen,
+} from "../types/browser";
 
 /**
  * Hook to manage fullscreen state and transitions
@@ -17,7 +20,7 @@ export const useFullscreen = () => {
           doc.webkitFullscreenElement ||
           doc.mozFullScreenElement ||
           doc.msFullscreenElement
-        )
+        ),
       );
     };
 
@@ -30,15 +33,15 @@ export const useFullscreen = () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener(
         "webkitfullscreenchange",
-        handleFullscreenChange
+        handleFullscreenChange,
       );
       document.removeEventListener(
         "mozfullscreenchange",
-        handleFullscreenChange
+        handleFullscreenChange,
       );
       document.removeEventListener(
         "msfullscreenchange",
-        handleFullscreenChange
+        handleFullscreenChange,
       );
     };
   }, []);
@@ -69,7 +72,8 @@ export const useFullscreen = () => {
 
   const enterFullscreen = useCallback(async (element?: HTMLElement) => {
     try {
-      const elem = (element || document.documentElement) as ElementWithFullscreen;
+      const elem = (element ||
+        document.documentElement) as ElementWithFullscreen;
       if (elem.requestFullscreen) {
         await elem.requestFullscreen();
       } else if (elem.webkitRequestFullscreen) {
@@ -92,7 +96,7 @@ export const useFullscreen = () => {
         await enterFullscreen(element);
       }
     },
-    [isFullscreen, exitFullscreen, enterFullscreen]
+    [isFullscreen, exitFullscreen, enterFullscreen],
   );
 
   return {

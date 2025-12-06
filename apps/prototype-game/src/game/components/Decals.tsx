@@ -1,12 +1,12 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
-  Mesh,
-  SphereGeometry,
-  MeshStandardMaterial,
-  Vector3,
   Euler,
+  Mesh,
+  MeshStandardMaterial,
   Quaternion,
+  SphereGeometry,
+  Vector3,
 } from "three";
 import { useDecalsStore } from "../decals-store";
 
@@ -37,7 +37,7 @@ function Decal({ id, position, normal }: DecalProps) {
         transparent: true,
         opacity: 1,
       }),
-    []
+    [],
   );
 
   useEffect(() => {
@@ -78,7 +78,7 @@ function Decal({ id, position, normal }: DecalProps) {
     // Calculate rotation to align sphere's up (Y) with surface normal
     const quaternion = new Quaternion().setFromUnitVectors(
       up,
-      normalizedNormal
+      normalizedNormal,
     );
     const euler = new Euler().setFromQuaternion(quaternion);
     return [euler.x, euler.y, euler.z] as [number, number, number];

@@ -1,8 +1,8 @@
-import { create } from "zustand";
 import type { GameLoopInput } from "@air-jam/sdk";
-import { BotController } from "./BotController";
-import { useGameStore } from "../game-store";
 import { nanoid } from "nanoid";
+import { create } from "zustand";
+import { useGameStore } from "../game-store";
+import { BotController } from "./BotController";
 
 interface BotManagerState {
   bots: Map<string, BotController>;
@@ -10,7 +10,7 @@ interface BotManagerState {
   getBotInput: (
     controllerId: string,
     _delta: number,
-    time: number
+    time: number,
   ) => GameLoopInput | undefined;
   removeBot: (controllerId: string) => void;
 }
@@ -36,7 +36,7 @@ export const useBotManager = create<BotManagerState>((set, get) => ({
         // Bots don't have avatars yet, maybe use a default or random one if needed
         // For now, the profile just needs a label
       },
-      controllerId
+      controllerId,
     );
 
     console.log(`[BotManager] Added bot: ${controllerId}`);

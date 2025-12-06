@@ -1,13 +1,13 @@
-import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
 import {
+  AdditiveBlending,
   BoxGeometry,
   MeshStandardMaterial,
-  Vector3,
   SphereGeometry,
-  type Mesh,
-  AdditiveBlending,
+  Vector3,
   type Group,
+  type Mesh,
   type PointLight,
 } from "three";
 
@@ -53,7 +53,7 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
         blending: AdditiveBlending, // Additive blending for glow effect
         depthWrite: false,
       }),
-    []
+    [],
   );
 
   // Flash sphere for initial explosion burst (larger and brighter)
@@ -70,7 +70,7 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
         depthWrite: false, // Prevent black artifacts when fading
         side: 2, // DoubleSide for better visibility
       }),
-    []
+    [],
   );
 
   const hasCompletedRef = useRef(false);
@@ -88,7 +88,7 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
         velocity: new Vector3(
           Math.sin(phi) * Math.cos(theta) * speed,
           Math.sin(phi) * Math.sin(theta) * speed,
-          Math.cos(phi) * speed
+          Math.cos(phi) * speed,
         ),
         age: 0,
         lifetime: EXPLOSION_LIFETIME * (0.8 + Math.random() * 0.7), // Longer lifetime variation
@@ -104,7 +104,7 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
     const progress = ageRef.current / EXPLOSION_LIFETIME;
     const fadeOutProgress = Math.max(
       0,
-      (ageRef.current - EXPLOSION_LIFETIME) / FADE_OUT_DURATION
+      (ageRef.current - EXPLOSION_LIFETIME) / FADE_OUT_DURATION,
     );
     const overallFade = 1 - fadeOutProgress; // Fade out multiplier for all effects
 
@@ -116,7 +116,7 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
       const maxScale = 7; // More expansion (was 5)
       // Scale based on flash's own progress
       flashRef.current.scale.setScalar(
-        Math.min(maxScale, 1 + flashProgress * 6)
+        Math.min(maxScale, 1 + flashProgress * 6),
       );
       const material = flashRef.current.material as MeshStandardMaterial;
       // Ensure opacity is properly set and material stays transparent

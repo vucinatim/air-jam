@@ -70,7 +70,7 @@ export const useHealthStore = create<HealthState>((set, get) => ({
   checkDeath: (controllerId: string) => {
     const currentHealth = get().health[controllerId] ?? MAX_HEALTH;
     const wasDead = get().isDead[controllerId] ?? false;
-    
+
     if (currentHealth <= 0 && !wasDead) {
       // Just died
       set((state) => ({
@@ -99,9 +99,3 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     return get().isDead[controllerId] ?? false;
   },
 }));
-
-
-
-
-
-

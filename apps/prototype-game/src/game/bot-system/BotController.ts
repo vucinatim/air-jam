@@ -1,8 +1,8 @@
 import type { GameLoopInput } from "@air-jam/sdk";
-import { Vector3, Quaternion } from "three";
-import { GameContext } from "./GameContext";
+import { Quaternion, Vector3 } from "three";
 import { useAbilitiesStore } from "../abilities-store";
 import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
+import { GameContext } from "./GameContext";
 import { ReachabilityChecker, type JumpPadInfo } from "./ReachabilityChecker";
 
 /**
@@ -46,7 +46,7 @@ class BotBrain {
   update(
     botId: string,
     context: GameContext,
-    time: number
+    time: number,
   ): {
     state: BotState;
     target: Vector3 | null;
@@ -81,19 +81,19 @@ class BotBrain {
         `[BOT ${botId.slice(4)}] State: ${
           this.state
         }, Pos: (${self.position.x.toFixed(1)}, ${self.position.y.toFixed(
-          1
-        )}, ${self.position.z.toFixed(1)}), Health: ${self.health.toFixed(0)}`
+          1,
+        )}, ${self.position.z.toFixed(1)}), Health: ${self.health.toFixed(0)}`,
       );
       if (this.targetPosition) {
         const dist = self.position.distanceTo(this.targetPosition);
         console.log(
           `  Target: (${this.targetPosition.x.toFixed(
-            1
+            1,
           )}, ${this.targetPosition.y.toFixed(
-            1
+            1,
           )}, ${this.targetPosition.z.toFixed(1)}), Distance: ${dist.toFixed(
-            1
-          )}`
+            1,
+          )}`,
         );
       }
     }
@@ -115,7 +115,7 @@ class BotBrain {
     // Priority 1: Self Preservation - Health < 30% -> Find Health Pack
     if (self.health < 30) {
       const healthPack = collectibles.find(
-        (c) => c.abilityId === "health_pack"
+        (c) => c.abilityId === "health_pack",
       );
       if (healthPack) {
         this.setState(BotState.GATHER, time);
@@ -123,15 +123,15 @@ class BotBrain {
         const target = this.checkReachabilityAndPlanPath(
           self.position,
           healthPackPos,
-          context
+          context,
         );
         this.targetPosition = target;
         this.targetPlayerId = null;
         if (time - this.lastLogTime > this.logInterval) {
           console.log(
             `  → GATHER: Health pack at (${healthPackPos.x.toFixed(
-              1
-            )}, ${healthPackPos.y.toFixed(1)}, ${healthPackPos.z.toFixed(1)})`
+              1,
+            )}, ${healthPackPos.y.toFixed(1)}, ${healthPackPos.z.toFixed(1)})`,
           );
           if (this.usingJumpPad) {
             console.log(`    Using jump pad to reach health pack`);
@@ -181,7 +181,7 @@ class BotBrain {
       const target = this.checkReachabilityAndPlanPath(
         self.position,
         flagPos,
-        context
+        context,
       );
       this.targetPosition = target;
       this.targetPlayerId = null;
@@ -205,7 +205,7 @@ class BotBrain {
       const target = this.checkReachabilityAndPlanPath(
         self.position,
         flagPos,
-        context
+        context,
       );
       this.targetPosition = target;
       this.targetPlayerId = null;
@@ -213,8 +213,8 @@ class BotBrain {
         const status = enemyFlag.status === "dropped" ? "dropped" : "at base";
         console.log(
           `  → CAPTURE: Enemy flag ${status} at (${flagPos.x.toFixed(
-            1
-          )}, ${flagPos.y.toFixed(1)}, ${flagPos.z.toFixed(1)})`
+            1,
+          )}, ${flagPos.y.toFixed(1)}, ${flagPos.z.toFixed(1)})`,
         );
         if (this.usingJumpPad) {
           console.log(`    Using jump pad to reach enemy flag`);
@@ -244,7 +244,7 @@ class BotBrain {
     const nearbyCollectible = this.findNearestCollectible(
       self.position,
       collectibles,
-      30
+      30,
     );
     if (nearbyCollectible) {
       this.setState(BotState.GATHER, time);
@@ -252,7 +252,7 @@ class BotBrain {
       const target = this.checkReachabilityAndPlanPath(
         self.position,
         collectiblePos,
-        context
+        context,
       );
       this.targetPosition = target;
       this.targetPlayerId = null;
@@ -312,7 +312,7 @@ class BotBrain {
   private findNearestEnemy(
     position: Vector3,
     enemies: ReturnType<GameContext["getEnemies"]>,
-    maxDistance: number
+    maxDistance: number,
   ) {
     let nearest: ReturnType<GameContext["getEnemies"]>[0] | null = null;
     let nearestDist = maxDistance;
@@ -331,7 +331,7 @@ class BotBrain {
   private findNearestCollectible(
     position: Vector3,
     collectibles: ReturnType<GameContext["getCollectibles"]>,
-    maxDistance: number
+    maxDistance: number,
   ) {
     let nearest: ReturnType<GameContext["getCollectibles"]>[0] | null = null;
     let nearestDist = maxDistance;
@@ -373,7 +373,7 @@ class BotBrain {
   private checkReachabilityAndPlanPath(
     from: Vector3,
     to: Vector3,
-    context: GameContext
+    context: GameContext,
   ): Vector3 {
     // If already using a jump pad, continue to jump pad target
     if (this.usingJumpPad && this.jumpPadTarget) {
@@ -400,7 +400,7 @@ class BotBrain {
     const jumpPad = this.reachabilityChecker.findJumpPadForTarget(
       from,
       to,
-      context
+      context,
     );
 
     if (jumpPad) {
@@ -438,7 +438,7 @@ class BotBody {
   calculateSteering(
     botId: string,
     context: GameContext,
-    target: Vector3 | null
+    target: Vector3 | null,
   ): { vector: { x: number; y: number }; shouldShoot: boolean } {
     const self = context.getSelf(botId);
     if (!self || !target) {
@@ -450,7 +450,7 @@ class BotBody {
       self.rotation.x,
       self.rotation.y,
       self.rotation.z,
-      self.rotation.w
+      self.rotation.w,
     );
 
     const isInAir = position.y > 5.5; // HOVER_HEIGHT + AIR_MODE_THRESHOLD
@@ -473,7 +473,7 @@ class BotBody {
       seekForce = this.calculateJumpPadAlignment(
         position,
         jumpPadInfo.position,
-        jumpPadInfo.radius
+        jumpPadInfo.radius,
       );
     } else {
       // Force 1: Seek - Vector towards target
@@ -486,7 +486,7 @@ class BotBody {
     // Force 3: Separation - Avoid crashing into other ships
     const separationForce = this.calculateSeparation(
       position,
-      context.getPlayers(botId)
+      context.getPlayers(botId),
     );
 
     // Combine forces
@@ -506,16 +506,16 @@ class BotBody {
       const angle = toTarget.normalize().dot(forward);
       console.log(
         `  Body: Input (${inputVector.x.toFixed(2)}, ${inputVector.y.toFixed(
-          2
+          2,
         )}), InAir: ${isInAir}, AngleToTarget: ${(
           (Math.acos(angle) * 180) /
           Math.PI
-        ).toFixed(1)}°`
+        ).toFixed(1)}°`,
       );
       console.log(
         `    Forces: Seek(${seekForce.length().toFixed(2)}), Avoid(${avoidForce
           .length()
-          .toFixed(2)}), Sep(${separationForce.length().toFixed(2)})`
+          .toFixed(2)}), Sep(${separationForce.length().toFixed(2)})`,
       );
     }
 
@@ -524,7 +524,7 @@ class BotBody {
       position,
       rotation,
       context,
-      botId
+      botId,
     );
 
     return {
@@ -540,7 +540,7 @@ class BotBody {
     position: Vector3,
     rotation: Quaternion,
     context: GameContext,
-    botId: string
+    botId: string,
   ): boolean {
     const enemies = context.getEnemies(botId);
     const forward = new Vector3(0, 0, -1).applyQuaternion(rotation);
@@ -565,7 +565,7 @@ class BotBody {
         const isBlocked = this.isLineOfSightBlocked(
           position,
           enemy.position,
-          context
+          context,
         );
 
         if (!isBlocked) {
@@ -573,11 +573,11 @@ class BotBody {
           if (this.logFrameCount === 0) {
             console.log(
               `  → SHOOTING at enemy ${enemy.controllerId.slice(
-                4
+                4,
               )} (dist: ${distance.toFixed(1)}, angle: ${(
                 (Math.acos(angle) * 180) /
                 Math.PI
-              ).toFixed(1)}°)`
+              ).toFixed(1)}°)`,
             );
           }
           return true;
@@ -594,7 +594,7 @@ class BotBody {
   private isLineOfSightBlocked(
     from: Vector3,
     to: Vector3,
-    context: GameContext
+    context: GameContext,
   ): boolean {
     const obstacles = context.getObstacles();
     const direction = to.clone().sub(from);
@@ -639,7 +639,7 @@ class BotBody {
   private calculateAvoid(
     position: Vector3,
     context: GameContext,
-    isInAir: boolean
+    isInAir: boolean,
   ): Vector3 {
     const obstacles = context.getObstacles();
     const avoidForce = new Vector3(0, 0, 0);
@@ -657,7 +657,7 @@ class BotBody {
       // Calculate horizontal distance (ignore Y for horizontal avoidance)
       const horizontalDist = Math.sqrt(
         Math.pow(position.x - obstaclePos.x, 2) +
-          Math.pow(position.z - obstaclePos.z, 2)
+          Math.pow(position.z - obstaclePos.z, 2),
       );
 
       // Check if we're at a similar height level
@@ -669,7 +669,7 @@ class BotBody {
         const away = new Vector3(
           position.x - obstaclePos.x,
           0, // Don't push up/down, just horizontally
-          position.z - obstaclePos.z
+          position.z - obstaclePos.z,
         );
         const distance = away.length();
         if (distance > 0) {
@@ -684,7 +684,7 @@ class BotBody {
 
   private calculateSeparation(
     position: Vector3,
-    players: ReturnType<GameContext["getPlayers"]>
+    players: ReturnType<GameContext["getPlayers"]>,
   ): Vector3 {
     const separationForce = new Vector3(0, 0, 0);
 
@@ -703,7 +703,7 @@ class BotBody {
   private forceToInput(
     force: Vector3,
     position: Vector3,
-    rotation: Quaternion
+    rotation: Quaternion,
   ): { x: number; y: number } {
     if (force.length() < 0.01) {
       return { x: 0, y: 0 };
@@ -762,7 +762,7 @@ class BotBody {
    */
   private findJumpPadAtTarget(
     target: Vector3,
-    context: GameContext
+    context: GameContext,
   ): JumpPadInfo | null {
     const jumpPads = context.getJumpPads();
     const JUMP_PAD_DETECTION_RADIUS = JUMP_PAD_RADIUS * 1.5; // Slightly larger than actual radius
@@ -784,13 +784,13 @@ class BotBody {
   private calculateJumpPadAlignment(
     position: Vector3,
     jumpPadPos: Vector3,
-    jumpPadRadius: number
+    jumpPadRadius: number,
   ): Vector3 {
     const toJumpPad = jumpPadPos.clone().sub(position);
     const distance = toJumpPad.length();
     const horizontalDistance = Math.sqrt(
       Math.pow(position.x - jumpPadPos.x, 2) +
-        Math.pow(position.z - jumpPadPos.z, 2)
+        Math.pow(position.z - jumpPadPos.z, 2),
     );
 
     // Strong centering force when close to jump pad
@@ -799,7 +799,7 @@ class BotBody {
       const horizontalForce = new Vector3(
         jumpPadPos.x - position.x,
         0,
-        jumpPadPos.z - position.z
+        jumpPadPos.z - position.z,
       ).normalize();
 
       // Vertical alignment - aim for hover height (~5m) when approaching
@@ -808,7 +808,7 @@ class BotBody {
       const verticalForce = new Vector3(
         0,
         Math.sign(heightDiff) * Math.min(Math.abs(heightDiff) / 2, 1),
-        0
+        0,
       );
 
       // Combine forces with stronger weight when very close
@@ -847,21 +847,21 @@ export class BotController {
     const { state, target } = this.brain.update(
       this.controllerId,
       this.context,
-      time
+      time,
     );
 
     // Update body (movement)
     const { vector, shouldShoot } = this.body.calculateSteering(
       this.controllerId,
       this.context,
-      target
+      target,
     );
 
     // Detect if bot is stuck in a turning loop
     this.lastInputHistory.push({ x: vector.x, time });
     // Keep only last 2 seconds of history
     this.lastInputHistory = this.lastInputHistory.filter(
-      (entry) => time - entry.time < 2.0
+      (entry) => time - entry.time < 2.0,
     );
 
     // Check if we've been turning in the same direction for too long
@@ -869,7 +869,7 @@ export class BotController {
       // Check if all recent inputs are turning in same direction
       const allSameDirection = this.lastInputHistory.every(
         (entry) =>
-          Math.sign(entry.x) === Math.sign(vector.x) && Math.abs(entry.x) > 0.3
+          Math.sign(entry.x) === Math.sign(vector.x) && Math.abs(entry.x) > 0.3,
       );
 
       if (allSameDirection && Math.abs(vector.x) > 0.5) {
@@ -877,8 +877,8 @@ export class BotController {
         if (time - this.stuckTurnDetectionTime > 1.0) {
           console.log(
             `[BOT ${this.controllerId.slice(
-              4
-            )}] Detected stuck turning loop! Resetting target.`
+              4,
+            )}] Detected stuck turning loop! Resetting target.`,
           );
           this.stuckTurnDetectionTime = time;
           // Force brain to generate new target

@@ -1,7 +1,7 @@
 import type { JSX } from "react";
-import { Routes, Route } from "react-router-dom";
-import { HostView } from "./routes/host-view";
+import { Route, Routes } from "react-router-dom";
 import { ControllerView } from "./routes/controller-view";
+import { HostView } from "./routes/host-view";
 
 export const App = (): JSX.Element => (
   <Routes>

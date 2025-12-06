@@ -1,13 +1,13 @@
-import { create } from "zustand";
 import type { ControllerInputEvent, PlayerProfile } from "@air-jam/sdk";
-import { useHealthStore } from "./health-store";
-import { usePlayerStatsStore } from "./player-stats-store";
-import { useInputStore } from "./input-store";
+import { create } from "zustand";
 import {
   TEAM_CONFIG,
   type TeamId,
   useCaptureTheFlagStore,
 } from "./capture-the-flag-store";
+import { useHealthStore } from "./health-store";
+import { useInputStore } from "./input-store";
+import { usePlayerStatsStore } from "./player-stats-store";
 
 export interface PlayerSlot {
   controllerId: string;
@@ -35,7 +35,7 @@ export const useGameStore = create<GameState>((set) => ({
   upsertPlayer: (profile, controllerId) => {
     set((state) => {
       const existing = state.players.find(
-        (player) => player.controllerId === controllerId
+        (player) => player.controllerId === controllerId,
       );
       if (existing) {
         const ctfStore = useCaptureTheFlagStore.getState();
@@ -51,7 +51,7 @@ export const useGameStore = create<GameState>((set) => ({
                     teamId,
                     color: TEAM_CONFIG[teamId].color,
                   }
-                : player
+                : player,
           ),
         };
       }
@@ -88,7 +88,7 @@ export const useGameStore = create<GameState>((set) => ({
   removePlayer: (controllerId) => {
     set((state) => ({
       players: state.players.filter(
-        (player) => player.controllerId !== controllerId
+        (player) => player.controllerId !== controllerId,
       ),
     }));
     // Clean up health and stats when player is removed

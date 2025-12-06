@@ -3,7 +3,7 @@ export type Viewport = { x: number; y: number; width: number; height: number };
 export function computeViewports(
   count: number,
   width: number,
-  height: number
+  height: number,
 ): Viewport[] {
   if (count <= 1) {
     return [{ x: 0, y: 0, width, height }];
@@ -24,13 +24,3 @@ export function computeViewports(
     { x: halfW, y: 0, width: halfW, height: halfH }, // bottom-right
   ].slice(0, count);
 }
-
-
-
-
-
-
-
-
-
-

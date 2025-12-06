@@ -11,12 +11,12 @@ export const HostEvents = {
    * Register as a master host (standalone mode)
    */
   REGISTER: "host:register",
-  
+
   /**
    * Register as the system/arcade master host
    */
   REGISTER_SYSTEM: "host:registerSystem",
-  
+
   /**
    * Join as a child host (game launched from arcade)
    */
@@ -31,22 +31,22 @@ export const ControllerEvents = {
    * Controller joins a room
    */
   JOIN: "controller:join",
-  
+
   /**
    * Controller sends input
    */
   INPUT: "controller:input",
-  
+
   /**
    * Controller leaves a room
    */
   LEAVE: "controller:leave",
-  
+
   /**
    * Controller sends game state update
    */
   STATE: "controller:state",
-  
+
   /**
    * Controller sends system command
    */
@@ -61,7 +61,7 @@ export const SystemEvents = {
    * Arcade launches a game
    */
   LAUNCH_GAME: "system:launchGame",
-  
+
   /**
    * Arcade closes a game
    */
@@ -76,32 +76,32 @@ export const ServerEvents = {
    * Welcome message with room/controller info
    */
   WELCOME: "server:welcome",
-  
+
   /**
    * Room is ready
    */
   ROOM_READY: "server:roomReady",
-  
+
   /**
    * Controller joined notification
    */
   CONTROLLER_JOINED: "server:controllerJoined",
-  
+
   /**
    * Controller left notification
    */
   CONTROLLER_LEFT: "server:controllerLeft",
-  
+
   /**
    * Host left notification
    */
   HOST_LEFT: "server:hostLeft",
-  
+
   /**
    * Server error
    */
   ERROR: "server:error",
-  
+
   /**
    * Play sound on client
    */
@@ -116,12 +116,12 @@ export const ClientEvents = {
    * Load a game UI in the controller iframe
    */
   LOAD_UI: "client:loadUi",
-  
+
   /**
    * Unload the game UI from the controller iframe
    */
   UNLOAD_UI: "client:unloadUi",
-  
+
   /**
    * Update game state display
    */

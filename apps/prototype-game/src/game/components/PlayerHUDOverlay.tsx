@@ -1,10 +1,10 @@
-import { useEffect, useRef, memo } from "react";
-import { useHealthStore } from "../health-store";
-import { useGameStore } from "../game-store";
-import { useAbilitiesStore, getAbilityIconPath } from "../abilities-store";
-import { shipPositions } from "./Ship";
-import { Vector3, PerspectiveCamera } from "three";
+import { memo, useEffect, useRef } from "react";
+import { PerspectiveCamera, Vector3 } from "three";
 import { cn } from "../../lib/utils";
+import { getAbilityIconPath, useAbilitiesStore } from "../abilities-store";
+import { useGameStore } from "../game-store";
+import { useHealthStore } from "../health-store";
+import { shipPositions } from "./Ship";
 
 // --- CONFIGURATION ---
 const HUD_CONFIG = {
@@ -55,8 +55,8 @@ const HUDVisuals = memo(
       healthPercentage > 60
         ? HUD_CONFIG.COLORS.HIGH
         : healthPercentage > 30
-        ? HUD_CONFIG.COLORS.MID
-        : HUD_CONFIG.COLORS.LOW;
+          ? HUD_CONFIG.COLORS.MID
+          : HUD_CONFIG.COLORS.LOW;
 
     // SVG circle parameters for countdown
     const size = 40; // 10 * 4 (w-10 = 40px)
@@ -64,45 +64,45 @@ const HUDVisuals = memo(
     const circumference = 2 * Math.PI * radius;
 
     return (
-      <div className="w-full pointer-events-none select-none">
+      <div className="pointer-events-none w-full select-none">
         {/* Health Bar */}
-        <div className="relative w-full h-5 bg-white/20 rounded overflow-hidden mb-1.5 backdrop-blur-sm">
+        <div className="relative mb-1.5 h-5 w-full overflow-hidden rounded bg-white/20 backdrop-blur-sm">
           <div
-            className="absolute inset-y-0 left-0 transition-all duration-200 ease-out opacity-80"
+            className="absolute inset-y-0 left-0 opacity-80 transition-all duration-200 ease-out"
             style={{
               width: `${healthPercentage}%`,
               backgroundColor: color,
               boxShadow: `0 0 10px ${color}`,
             }}
           />
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white font-mono font-bold drop-shadow-md">
+          <div className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-bold text-white drop-shadow-md">
             {Math.round(health)}/{maxHealth}
           </div>
         </div>
 
         {/* Ability Icon with Circular Countdown */}
         <div className="relative flex items-center justify-center">
-          <div className="relative w-10 h-10">
+          <div className="relative h-10 w-10">
             {/* Ability Icon */}
             {abilityId && (
               <div
                 className={cn(
-                  "absolute inset-0 w-full h-full rounded-full border flex items-center justify-center text-sm transition-all z-10",
+                  "absolute inset-0 z-10 flex h-full w-full items-center justify-center rounded-full border text-sm transition-all",
                   isAbilityActive ? "border-transparent" : "border-white/20",
-                  "bg-white/20"
+                  "bg-white/20",
                 )}
               >
                 <img
                   src={getAbilityIconPath(abilityId)}
                   alt=""
-                  className="w-full h-full object-cover rounded-full"
+                  className="h-full w-full rounded-full object-cover"
                 />
               </div>
             )}
 
             {/* Circular Countdown Timer (WoW-style) - Always rendered, visibility controlled via DOM */}
             <svg
-              className="absolute inset-0 w-full h-full transform -rotate-90"
+              className="absolute inset-0 h-full w-full -rotate-90 transform"
               style={{ zIndex: 5, display: isAbilityActive ? "block" : "none" }}
             >
               {/* Background circle (full circle, semi-transparent) */}
@@ -137,13 +137,13 @@ const HUDVisuals = memo(
           {/* Duration Text - Updated via ref */}
           <div
             ref={durationTextRef}
-            className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-white font-mono font-bold drop-shadow-md"
+            className="absolute -bottom-4 left-1/2 -translate-x-1/2 font-mono text-[10px] font-bold text-white drop-shadow-md"
             style={{ display: "none" }}
           />
         </div>
       </div>
     );
-  }
+  },
 );
 
 HUDVisuals.displayName = "HUDVisuals";
@@ -172,7 +172,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   const maxHealth = 100;
   const ability = useAbilitiesStore((state) => state.getAbility(controllerId));
   const isAbilityActive = useAbilitiesStore((state) =>
-    state.isAbilityActive(controllerId)
+    state.isAbilityActive(controllerId),
   );
 
   // Update countdown circle and duration text via direct DOM manipulation (no re-renders)
@@ -283,7 +283,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
       const worldPos = new Vector3(
         shipPos.x,
         shipPos.y - HUD_CONFIG.OFFSET_Y,
-        shipPos.z
+        shipPos.z,
       );
 
       // 2. Project to Normalized Device Coordinates (NDC)
@@ -323,7 +323,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   return (
     <div
       ref={containerRef}
-      className="absolute w-[80px] pointer-events-none select-none z-10"
+      className="pointer-events-none absolute z-10 w-[80px] select-none"
       style={{
         display: "none", // Hidden by default, shown when visible
       }}
@@ -373,7 +373,7 @@ export const PlayerHUDOverlay = memo(function PlayerHUDOverlay({
         return (
           <div
             key={player.controllerId}
-            className="absolute pointer-events-none z-10"
+            className="pointer-events-none absolute z-10"
             style={{
               left: `${viewport.x}px`,
               top: `${htmlY}px`,

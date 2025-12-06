@@ -1,5 +1,5 @@
-import { db, apiKeys } from "../db.js";
-import { eq, and } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { apiKeys, db } from "../db.js";
 
 /**
  * API key verification result
@@ -51,7 +51,7 @@ export class AuthService {
           .set({ lastUsedAt: new Date() })
           .where(eq(apiKeys.id, keyRecord.id))
           .catch((err: unknown) =>
-            console.error("[server] Failed to update lastUsedAt", err)
+            console.error("[server] Failed to update lastUsedAt", err),
           );
 
         return { isVerified: true };

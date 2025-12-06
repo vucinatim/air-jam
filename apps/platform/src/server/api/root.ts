@@ -1,5 +1,5 @@
-import { createTRPCRouter } from "./trpc";
 import { gameRouter } from "./routers/game";
+import { createTRPCRouter } from "./trpc";
 
 export const appRouter = createTRPCRouter({
   game: gameRouter,

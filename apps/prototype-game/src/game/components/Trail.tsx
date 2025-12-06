@@ -1,5 +1,5 @@
-import { useRef, useMemo, useEffect } from "react";
-import { useFrame, createPortal, useThree } from "@react-three/fiber";
+import { createPortal, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 const trailVertexShader = `
@@ -139,7 +139,7 @@ export function Trail({
       uColor: { value: new THREE.Color(color) },
       uOpacity: { value: 1.0 },
     }),
-    [color]
+    [color],
   );
 
   useFrame((state) => {
@@ -243,6 +243,6 @@ export function Trail({
         side={THREE.DoubleSide}
       />
     </mesh>,
-    scene
+    scene,
   );
 }

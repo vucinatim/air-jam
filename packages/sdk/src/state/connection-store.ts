@@ -58,7 +58,7 @@ export const useConnectionStore = create<AirJamStore>((set) => ({
   upsertPlayer: (player) =>
     set((state) => {
       const existingIndex = state.players.findIndex(
-        (entry) => entry.id === player.id
+        (entry) => entry.id === player.id,
       );
       if (existingIndex >= 0) {
         const nextPlayers = [...state.players];
@@ -76,7 +76,7 @@ export const useConnectionStore = create<AirJamStore>((set) => ({
 }));
 
 export const useConnectionState = <T extends Record<string, unknown>>(
-  selector: (state: AirJamStore) => T
+  selector: (state: AirJamStore) => T,
 ): T => {
   return useConnectionStore(useShallow(selector));
 };

@@ -1,22 +1,22 @@
+import { useAudio } from "@air-jam/sdk";
+import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 import {
-  OctahedronGeometry,
-  MeshStandardMaterial,
-  ConeGeometry,
   AdditiveBlending,
   BoxGeometry,
+  ConeGeometry,
+  MeshStandardMaterial,
+  OctahedronGeometry,
   Vector3,
 } from "three";
-import { useMemo, useRef, useState, useEffect } from "react";
-import { useFrame } from "@react-three/fiber";
-import { CollectibleData, useCollectiblesStore } from "../collectibles-store";
 import {
-  useAbilitiesStore,
   getAbilityDefinition,
   RARITY_INFO,
+  useAbilitiesStore,
 } from "../abilities-store";
-import * as THREE from "three";
-import { useAudio } from "@air-jam/sdk";
+import { CollectibleData, useCollectiblesStore } from "../collectibles-store";
 import { SOUND_MANIFEST } from "../sounds";
 
 interface CollectibleProps {
@@ -57,7 +57,7 @@ function ExplosionParticles({
         transparent: true,
         opacity: 1,
       }),
-    [color]
+    [color],
   );
 
   // Initialize particles once on mount
@@ -74,7 +74,7 @@ function ExplosionParticles({
           velocity: new Vector3(
             Math.sin(phi) * Math.cos(theta) * speed,
             Math.sin(phi) * Math.sin(theta) * speed,
-            Math.cos(phi) * speed
+            Math.cos(phi) * speed,
           ),
           age: 0,
           lifetime: EXPLOSION_LIFETIME * (0.8 + Math.random() * 0.4),
@@ -178,13 +178,13 @@ export function Collectible({ collectible }: CollectibleProps) {
         emissive: rarityColor, // Same color as base for strong glow
         emissiveIntensity: 1.2, // High intensity for visible glow
       }),
-    [rarityColor]
+    [rarityColor],
   );
 
   // Light pillar shader with rarity color
   const lightPillarFragment = useMemo(
     () => createLightPillarFragment(rarityColor),
-    [rarityColor]
+    [rarityColor],
   );
 
   const meshRef = useRef<THREE.Mesh>(null);
@@ -196,7 +196,7 @@ export function Collectible({ collectible }: CollectibleProps) {
     [number, number, number]
   >([0, 0, 0]);
   const removeCollectible = useCollectiblesStore(
-    (state) => state.removeCollectible
+    (state) => state.removeCollectible,
   );
   const collectAbility = useAbilitiesStore((state) => state.collectAbility);
   const audio = useAudio(SOUND_MANIFEST);
@@ -226,7 +226,7 @@ export function Collectible({ collectible }: CollectibleProps) {
     if (userData?.controllerId) {
       const controllerId = userData.controllerId;
       console.log(
-        `Collision detected! Player ${controllerId} collected ${collectible.id}`
+        `Collision detected! Player ${controllerId} collected ${collectible.id}`,
       );
       collectedRef.current = true;
 
@@ -235,7 +235,7 @@ export function Collectible({ collectible }: CollectibleProps) {
       audio.play("powerup");
 
       console.log(
-        `Player ${controllerId} collected ability: ${collectible.abilityId}`
+        `Player ${controllerId} collected ability: ${collectible.abilityId}`,
       );
 
       // Store position for explosion

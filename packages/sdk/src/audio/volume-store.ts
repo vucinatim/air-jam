@@ -41,7 +41,7 @@ const saveToStorage = (state: VolumeSettings) => {
         masterVolume: state.masterVolume,
         musicVolume: state.musicVolume,
         sfxVolume: state.sfxVolume,
-      })
+      }),
     );
   } catch {
     // Ignore storage errors (e.g., quota exceeded)
@@ -75,4 +75,3 @@ export const useVolumeStore = create<VolumeSettings>((set, get) => ({
     return masterVolume * categoryVolume;
   },
 }));
-

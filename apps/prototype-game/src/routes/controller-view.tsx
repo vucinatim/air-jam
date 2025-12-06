@@ -1,23 +1,23 @@
-import type { JSX } from "react";
-import { useEffect, useState } from "react";
-import { useStore } from "zustand";
 import {
+  Button,
+  ControllerShell,
+  PlaySoundPayload,
+  useAirJamController,
+  useAudio,
+} from "@air-jam/sdk";
+import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  ArrowDown,
-  Zap,
   Target,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
-import {
-  ControllerShell,
-  useAirJamController,
-  Button,
-  PlaySoundPayload,
-} from "@air-jam/sdk";
+import type { JSX } from "react";
+import { useEffect, useState } from "react";
+import { useStore } from "zustand";
 import { createControllerStore } from "../game/controller-store";
-import { useAudio } from "@air-jam/sdk";
 import { SOUND_MANIFEST } from "../game/sounds";
 
 // Helper to vibrate device if supported
@@ -74,7 +74,7 @@ const DirectionControl = ({
     <Button
       type="button"
       variant="secondary"
-      className={`h-full flex-1 rounded-xl text-4xl sm:text-5xl md:text-6xl font-semibold shadow-lg transition-transform bg-slate-800 hover:bg-slate-700 text-slate-100 touch-none ${
+      className={`h-full flex-1 touch-none rounded-xl bg-slate-800 text-4xl font-semibold text-slate-100 shadow-lg transition-transform hover:bg-slate-700 sm:text-5xl md:text-6xl ${
         isActive ? "scale-95 bg-slate-700 ring-2 ring-slate-500" : ""
       }`}
       onPointerDown={handlePointerDown}
@@ -133,8 +133,8 @@ const ActionControl = ({
   return (
     <Button
       type="button"
-      className={`h-full flex-1 rounded-xl font-bold text-lg sm:text-xl md:text-2xl shadow-lg transition-transform text-white border-0 touch-none ${colorClass} ${
-        isActive ? `scale-95 brightness-110 ring-2 ${activeRingClass}` : ""
+      className={`h-full flex-1 touch-none rounded-xl border-0 text-lg font-bold text-white shadow-lg transition-transform sm:text-xl md:text-2xl ${colorClass} ${
+        isActive ? `scale-95 ring-2 brightness-110 ${activeRingClass}` : ""
       }`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerEnd}
@@ -236,7 +236,7 @@ const ControllerContent = () => {
       onReconnect={handleReconnect}
       onRefresh={handleRefresh}
     >
-      <div className="flex h-full w-full items-stretch gap-2 select-none touch-none">
+      <div className="flex h-full w-full touch-none items-stretch gap-2 select-none">
         {/* Left Side - Left/Right Controls */}
         <div className="flex flex-1 items-center justify-center gap-2">
           <DirectionControl
@@ -256,7 +256,7 @@ const ControllerContent = () => {
         </div>
 
         {/* Middle - Ability and Shoot Buttons */}
-        <div className="flex flex-col flex-1 gap-2">
+        <div className="flex flex-1 flex-col gap-2">
           <ActionControl
             store={store}
             action="ability"

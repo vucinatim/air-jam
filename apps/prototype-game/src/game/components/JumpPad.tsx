@@ -1,18 +1,18 @@
-import { useRef, useMemo } from "react";
+import { useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
 import {
+  AdditiveBlending,
   CylinderGeometry,
   MeshStandardMaterial,
   RingGeometry,
-  AdditiveBlending,
   type Mesh,
 } from "three";
-import * as THREE from "three";
-import { shipPositions } from "./Ship";
 import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
-import { useAudio } from "@air-jam/sdk";
 import { SOUND_MANIFEST } from "../sounds";
+import { shipPositions } from "./Ship";
 
 interface JumpPadProps {
   position: [number, number, number];
@@ -62,9 +62,9 @@ export function JumpPad({ position, id }: JumpPadProps) {
         JUMP_PAD_HEIGHT + GRADIENT_EXTEND_BELOW,
         32,
         1, // heightSegments
-        true // openEnded - remove top and bottom caps
+        true, // openEnded - remove top and bottom caps
       ),
-    []
+    [],
   );
 
   const baseGeometry = useMemo(
@@ -73,9 +73,9 @@ export function JumpPad({ position, id }: JumpPadProps) {
         JUMP_PAD_RADIUS,
         JUMP_PAD_RADIUS,
         JUMP_PAD_HEIGHT,
-        32
+        32,
       ),
-    []
+    [],
   );
   const baseMaterial = useMemo(
     () =>
@@ -86,7 +86,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
         metalness: 0.3,
         roughness: 0.7,
       }),
-    []
+    [],
   );
 
   // Barrel band geometry and material (metal rings around barrel)
@@ -96,9 +96,9 @@ export function JumpPad({ position, id }: JumpPadProps) {
         JUMP_PAD_RADIUS * 1.01, // Slightly larger than barrel
         JUMP_PAD_RADIUS * 1.01,
         0.15, // Band thickness
-        32
+        32,
       ),
-    []
+    [],
   );
   const bandMaterial = useMemo(
     () =>
@@ -109,13 +109,13 @@ export function JumpPad({ position, id }: JumpPadProps) {
         emissive: 0x222222,
         emissiveIntensity: 0.1,
       }),
-    []
+    [],
   );
 
   // Top ring/glow effect
   const ringGeometry = useMemo(
     () => new RingGeometry(JUMP_PAD_RADIUS * 0.7, JUMP_PAD_RADIUS, 32),
-    []
+    [],
   );
   const ringMaterial = useMemo(
     () =>
@@ -127,14 +127,14 @@ export function JumpPad({ position, id }: JumpPadProps) {
         opacity: 0.8,
         side: 2, // DoubleSide
       }),
-    []
+    [],
   );
 
   const baseRef = useRef<Mesh>(null);
   const ringRef = useRef<Mesh>(null);
   const flashTimeoutRef = useRef<number | null>(null);
   const bandRefs = useRef<Array<Mesh | null>>(
-    Array(BARREL_BAND_COUNT).fill(null)
+    Array(BARREL_BAND_COUNT).fill(null),
   );
 
   // Animated rings constants
@@ -145,7 +145,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
   // Animated rings state
   // Animated rings state
   const animatedRingMeshRefs = useRef<Array<Mesh | null>>(
-    Array(RING_COUNT).fill(null)
+    Array(RING_COUNT).fill(null),
   );
 
   // Initialize animated rings - start with staggered positions for continuous animation
@@ -154,7 +154,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
   // Animated ring geometry and material
   const animatedRingGeometry = useMemo(
     () => new RingGeometry(JUMP_PAD_RADIUS * 0.8, JUMP_PAD_RADIUS * 1.1, 32),
-    []
+    [],
   );
   const animatedRingMaterialBase = useMemo(
     () =>
@@ -166,7 +166,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
         opacity: 0,
         side: 2, // DoubleSide
       }),
-    []
+    [],
   );
 
   // Create materials for each ring once using useMemo
@@ -180,7 +180,6 @@ export function JumpPad({ position, id }: JumpPadProps) {
   }, [animatedRingMaterialBase]);
 
   // Initialize animated rings state
-
 
   // Animate the glow effect and animated rings
   useFrame((state) => {
@@ -216,7 +215,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
 
       // Calculate position and opacity
       const y = progress * MAX_HEIGHT;
-      
+
       // Fade in at bottom, fade out at top
       // Fade in quickly (first 10%), fade out slowly (last 40%)
       let opacity = 1;
@@ -225,7 +224,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
       } else if (progress > 0.6) {
         opacity = 1 - (progress - 0.6) / 0.4;
       }
-      
+
       mesh.position.setY(y);
       material.opacity = opacity;
       material.emissiveIntensity = 2 * opacity;
@@ -320,9 +319,9 @@ export function JumpPad({ position, id }: JumpPadProps) {
         JUMP_PAD_RADIUS,
         JUMP_PAD_RADIUS,
         COLLISION_HEIGHT,
-        32
+        32,
       ),
-    []
+    [],
   );
 
   return (

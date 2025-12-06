@@ -32,7 +32,7 @@ export const SOCKET_CONFIG = {
    * Ping interval in milliseconds
    */
   PING_INTERVAL: 2000,
-  
+
   /**
    * Ping timeout in milliseconds
    */

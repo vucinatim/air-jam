@@ -1,33 +1,32 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { useFrame } from "@react-three/fiber";
-import { useRef, memo, useEffect, useState } from "react";
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
+import { memo, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 
+import { useAudio, useConnectionStore } from "@air-jam/sdk";
+import { getAbilityVisual, useAbilitiesStore } from "../abilities-store";
+import { useCaptureTheFlagStore } from "../capture-the-flag-store";
 import {
-  PLAYER_MAX_SPEED,
-  PLAYER_ACCELERATION,
-  PLAYER_DECELERATION,
-  MAX_VELOCITY_CHANGE_PER_FRAME,
-  PLAYER_MAX_ANGULAR_VELOCITY,
-  PLAYER_ANGULAR_ACCELERATION,
   MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME,
+  MAX_VELOCITY_CHANGE_PER_FRAME,
+  PLAYER_ACCELERATION,
+  PLAYER_ANGULAR_ACCELERATION,
+  PLAYER_DECELERATION,
   PLAYER_INPUT_SMOOTH_TIME,
+  PLAYER_MAX_ANGULAR_VELOCITY,
+  PLAYER_MAX_SPEED,
 } from "../constants";
 import { useGameStore } from "../game-store";
-import { useLasersStore } from "../lasers-store";
-import { useAbilitiesStore, getAbilityVisual } from "../abilities-store";
-import { usePlayerStatsStore } from "../player-stats-store";
-import { ShipModel } from "./ShipModel";
-import { useGameInput } from "../hooks/useGameInput";
-import { useConnectionStore } from "@air-jam/sdk";
 import { useHealthStore } from "../health-store";
-import { useCaptureTheFlagStore } from "../capture-the-flag-store";
-import { ShipExplosion } from "./ShipExplosion";
-import { useAudio } from "@air-jam/sdk";
+import { useGameInput } from "../hooks/useGameInput";
+import { useLasersStore } from "../lasers-store";
+import { usePlayerStatsStore } from "../player-stats-store";
 import { SOUND_MANIFEST } from "../sounds";
+import { ShipExplosion } from "./ShipExplosion";
+import { ShipModel } from "./ShipModel";
 
 // --- Global Tracking ---
 export const shipPositions = new Map<string, Vector3>();
@@ -100,10 +99,10 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
   // Visuals & Stats
   const currentAbility = useAbilitiesStore((state) =>
-    state.getAbility(controllerId)
+    state.getAbility(controllerId),
   );
   const isAbilityActive = useAbilitiesStore((state) =>
-    state.isAbilityActive(controllerId)
+    state.isAbilityActive(controllerId),
   );
   const abilityVisual =
     currentAbility && !isAbilityActive
@@ -113,7 +112,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   const playerColor =
     useGameStore(
       (state) =>
-        state.players.find((p) => p.controllerId === controllerId)?.color
+        state.players.find((p) => p.controllerId === controllerId)?.color,
     ) || "#ff4444";
 
   // Get death state for render (needed outside useFrame)
@@ -181,7 +180,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       } catch (error) {
         console.error(
           `[SHIP] Error applying respawn teleport for ${controllerId}:`,
-          error
+          error,
         );
         pendingRespawnRef.current = null;
       }
@@ -196,7 +195,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     } catch (error) {
       console.error(
         `[SHIP] Error accessing RigidBody for ${controllerId}:`,
-        error
+        error,
       );
       return;
     }
@@ -241,13 +240,13 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
         console.log(
           `[SHIP] ${controllerId} died at (${deathPosition[0].toFixed(
-            1
-          )}, ${deathPosition[1].toFixed(1)}, ${deathPosition[2].toFixed(1)})`
+            1,
+          )}, ${deathPosition[1].toFixed(1)}, ${deathPosition[2].toFixed(1)})`,
         );
       } catch (error) {
         console.error(
           `[SHIP] Error handling death for ${controllerId}:`,
-          error
+          error,
         );
       }
       // Return early after death - don't process physics
@@ -264,12 +263,12 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     smoothedInputRef.current.x = MathUtils.lerp(
       smoothedInputRef.current.x,
       input.vector.x,
-      smoothAlpha
+      smoothAlpha,
     );
     smoothedInputRef.current.y = MathUtils.lerp(
       smoothedInputRef.current.y,
       input.vector.y,
-      smoothAlpha
+      smoothAlpha,
     );
 
     // Determine Mode
@@ -329,7 +328,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       forward,
       thrustInput,
       speedMultiplier,
-      delta
+      delta,
     );
     currentVelocityRef.current.copy(newVelocity);
 
@@ -341,7 +340,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     const newYawVel = calculateYaw(
       currentAngularVelocityRef.current,
       turnInput,
-      delta
+      delta,
     );
     currentAngularVelocityRef.current = newYawVel;
 
@@ -353,14 +352,14 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       currentForwardSpeed,
       currentRotationRef.current,
       currentPitchAngularVelocityRef.current,
-      delta
+      delta,
     );
     currentPitchAngularVelocityRef.current = newPitchVel;
 
     // Apply Rotations to internal Quaternion
     const euler = new Euler().setFromQuaternion(
       currentRotationRef.current,
-      "YXZ"
+      "YXZ",
     );
     euler.y += newYawVel * delta;
 
@@ -369,7 +368,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       euler.x = MathUtils.clamp(
         euler.x,
         -SHIP_CONFIG.MAX_PITCH,
-        SHIP_CONFIG.MAX_PITCH
+        SHIP_CONFIG.MAX_PITCH,
       );
     } else {
       // Ground reset
@@ -387,7 +386,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     const finalVelocity = new Vector3(
       newVelocity.x,
       physicsVel.y,
-      newVelocity.z
+      newVelocity.z,
     ); // Start with X/Z calculated, Y from physics
 
     // Apply Custom Gravity / Hover Physics
@@ -396,7 +395,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       physicsPos.y,
       physicsVel.y,
       euler.x,
-      delta
+      delta,
     );
     finalVelocity.y += verticalForce; // Add the calculated Y change
 
@@ -435,7 +434,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     currentWingRollRef.current = MathUtils.lerp(
       currentWingRollRef.current,
       targetRoll,
-      Math.min(1, delta * 8)
+      Math.min(1, delta * 8),
     );
     if (planeGroupRef.current) {
       planeGroupRef.current.rotation.z = currentWingRollRef.current;
@@ -446,7 +445,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     currentThrustRef.current = MathUtils.lerp(
       currentThrustRef.current,
       targetThrustVis,
-      0.15
+      0.15,
     );
   });
 
@@ -492,7 +491,7 @@ function calculateVelocity(
   forward: Vector3,
   thrust: number,
   multiplier: number,
-  delta: number
+  delta: number,
 ): Vector3 {
   const targetSpeed = thrust * PLAYER_MAX_SPEED * multiplier;
   const currentSpeed = currentVel.dot(forward);
@@ -514,13 +513,13 @@ function calculateVelocity(
 function calculateYaw(
   currentYawVel: number,
   input: number,
-  delta: number
+  delta: number,
 ): number {
   const target = -input * PLAYER_MAX_ANGULAR_VELOCITY;
   const diff = target - currentYawVel;
   const maxChange = Math.min(
     PLAYER_ANGULAR_ACCELERATION * delta,
-    MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME
+    MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME,
   );
 
   if (Math.abs(diff) <= maxChange) return target;
@@ -535,12 +534,12 @@ function calculatePitchVelocity(
   currentForwardSpeed: number,
   rotation: Quaternion,
   currentPitchVel: number,
-  delta: number
+  delta: number,
 ): number {
   let targetPitchAngVel = 0;
   const maxChange = Math.min(
     PLAYER_ANGULAR_ACCELERATION * delta,
-    MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME
+    MAX_ANGULAR_VELOCITY_CHANGE_PER_FRAME,
   );
 
   if (isInAir) {
@@ -566,7 +565,7 @@ function calculatePitchVelocity(
     targetAngle = MathUtils.clamp(
       targetAngle,
       -SHIP_CONFIG.MAX_PITCH,
-      SHIP_CONFIG.MAX_PITCH
+      SHIP_CONFIG.MAX_PITCH,
     );
 
     // --- 3. LEVELING OUT LOGIC (Landing Assist) ---
@@ -598,7 +597,7 @@ function calculatePitchVelocity(
     targetPitchAngVel = MathUtils.clamp(
       diff * SHIP_CONFIG.PITCH_RESPONSIVENESS,
       -PLAYER_MAX_ANGULAR_VELOCITY,
-      PLAYER_MAX_ANGULAR_VELOCITY
+      PLAYER_MAX_ANGULAR_VELOCITY,
     );
   }
 
@@ -612,7 +611,7 @@ function calculateVerticalPhysics(
   posY: number,
   velY: number,
   pitchAngle: number,
-  delta: number
+  delta: number,
 ): number {
   // Check if being launched by jump pad
   if (velY > SHIP_CONFIG.UPWARD_VELOCITY_THRESHOLD) return 0; // Let physics engine handle the launch
@@ -668,7 +667,7 @@ function handleAbilities(
   store: ReturnType<typeof useAbilitiesStore.getState>,
   id: string,
   delta: number,
-  audio: ReturnType<typeof useAudio>
+  audio: ReturnType<typeof useAudio>,
 ) {
   // The input hook already handled the latch pattern and consumption
   // We just need to check if ability button is pressed and we have a queued ability
@@ -691,7 +690,7 @@ function handleAbilities(
     }
 
     console.log(
-      `[SHIP] Ability activated for ${id}, ability: ${currentAbility.id}`
+      `[SHIP] Ability activated for ${id}, ability: ${currentAbility.id}`,
     );
   }
 

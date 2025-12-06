@@ -1,9 +1,9 @@
+import "@air-jam/sdk/styles.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import "./index.css";
-import "@air-jam/sdk/styles.css";
 
 // Detect and apply dark mode based on system preference
 const applyDarkMode = (): void => {
@@ -43,5 +43,5 @@ ReactDOM.createRoot(rootElement).render(
     >
       <App />
     </BrowserRouter>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

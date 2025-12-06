@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { Vector3 } from "three";
+import { create } from "zustand";
 
 export interface RocketData {
   id: string;
@@ -28,11 +28,3 @@ export const useRocketsStore = create<RocketsState>((set) => ({
     })),
   clearRockets: () => set({ rockets: [] }),
 }));
-
-
-
-
-
-
-
-

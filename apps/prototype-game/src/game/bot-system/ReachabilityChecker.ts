@@ -43,7 +43,7 @@ export class ReachabilityChecker {
   findJumpPadForTarget(
     from: Vector3,
     to: Vector3,
-    context: GameContext
+    context: GameContext,
   ): JumpPadInfo | null {
     const jumpPads = context.getJumpPads();
 
@@ -53,7 +53,7 @@ export class ReachabilityChecker {
 
     // Filter jump pads that can reach target height
     const viablePads = jumpPads.filter((pad) =>
-      this.canJumpPadReachHeight(pad.position, to.y, pad.jumpForce)
+      this.canJumpPadReachHeight(pad.position, to.y, pad.jumpForce),
     );
 
     if (viablePads.length === 0) {
@@ -70,7 +70,7 @@ export class ReachabilityChecker {
   canJumpPadReachHeight(
     jumpPadPos: Vector3,
     targetHeight: number,
-    jumpForce: number
+    jumpForce: number,
   ): boolean {
     const maxHeight = this.estimateJumpHeight(jumpForce, jumpPadPos.y);
     // Add safety margin to ensure we can actually reach the target
@@ -93,7 +93,7 @@ export class ReachabilityChecker {
   private findBestJumpPad(
     botPos: Vector3,
     targetPos: Vector3,
-    viablePads: JumpPadInfo[]
+    viablePads: JumpPadInfo[],
   ): JumpPadInfo {
     return viablePads.reduce((best, pad) => {
       const botDist = botPos.distanceTo(pad.position);

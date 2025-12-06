@@ -1,12 +1,12 @@
 import { memo } from "react";
+import { Fragment } from "react/jsx-runtime";
 import {
   TEAM_CONFIG,
   type TeamId,
   useCaptureTheFlagStore,
 } from "../capture-the-flag-store";
-import { useGameStore } from "../game-store";
 import { useDebugStore } from "../debug-store";
-import { Fragment } from "react/jsx-runtime";
+import { useGameStore } from "../game-store";
 
 export const ScoreDisplay = memo(function ScoreDisplay() {
   const scores = useCaptureTheFlagStore((state) => state.scores);
@@ -25,29 +25,29 @@ export const ScoreDisplay = memo(function ScoreDisplay() {
 
   return (
     <div
-      className={`fixed left-1/2 -translate-x-1/2 z-50 pointer-events-none ${
+      className={`pointer-events-none fixed left-1/2 z-50 -translate-x-1/2 ${
         isCentered ? "top-1/2 -translate-y-1/2" : "top-4"
       }`}
     >
-      <div className="flex items-center gap-4 px-4 py-2 bg-background/20 backdrop-blur-sm border border-border rounded-lg shadow-lg">
+      <div className="bg-background/20 border-border flex items-center gap-4 rounded-lg border px-4 py-2 shadow-lg backdrop-blur-sm">
         {teams.map((team, index) => (
           <Fragment key={team.id}>
-            <div key={team.id} className="flex items-center w-20">
+            <div key={team.id} className="flex w-20 items-center">
               {/* Team Score */}
-              <div className="flex flex-col items-center w-full">
+              <div className="flex w-full flex-col items-center">
                 <div
                   className="text-xl font-bold"
                   style={{ color: team.config.color }}
                 >
                   {team.score}
                 </div>
-                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
+                <div className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                   {team.config.label}
                 </div>
               </div>
             </div>
             {index < teams.length - 1 && (
-              <div className="h-10 w-px bg-border" />
+              <div className="bg-border h-10 w-px" />
             )}
           </Fragment>
         ))}

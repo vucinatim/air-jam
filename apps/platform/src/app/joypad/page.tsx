@@ -1,12 +1,12 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+import { ControllerShell, useAirJamShell } from "@air-jam/sdk";
+import { X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useAirJamShell, ControllerShell } from "@air-jam/sdk";
-import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 // --- Components ---
 
@@ -20,7 +20,7 @@ const DPad = ({
 }) => {
   // Simple 4-way D-Pad Logic
   const handleTouch = (
-    direction: "up" | "down" | "left" | "right" | "none"
+    direction: "up" | "down" | "left" | "right" | "none",
   ) => {
     switch (direction) {
       case "up":
@@ -42,10 +42,10 @@ const DPad = ({
   };
 
   return (
-    <div className="relative w-48 h-48 bg-slate-800 rounded-full shadow-inner border-4 border-slate-700 flex items-center justify-center select-none">
+    <div className="relative flex h-48 w-48 items-center justify-center rounded-full border-4 border-slate-700 bg-slate-800 shadow-inner select-none">
       {/* Up */}
       <div
-        className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-16 bg-slate-700 hover:bg-slate-600 active:bg-blue-500 rounded-t-lg cursor-pointer transition-colors"
+        className="absolute top-2 left-1/2 h-16 w-12 -translate-x-1/2 cursor-pointer rounded-t-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
         onTouchStart={(e) => {
           e.preventDefault();
           handleTouch("up");
@@ -60,7 +60,7 @@ const DPad = ({
       />
       {/* Down */}
       <div
-        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-12 h-16 bg-slate-700 hover:bg-slate-600 active:bg-blue-500 rounded-b-lg cursor-pointer transition-colors"
+        className="absolute bottom-2 left-1/2 h-16 w-12 -translate-x-1/2 cursor-pointer rounded-b-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
         onTouchStart={(e) => {
           e.preventDefault();
           handleTouch("down");
@@ -75,7 +75,7 @@ const DPad = ({
       />
       {/* Left */}
       <div
-        className="absolute left-2 top-1/2 -translate-y-1/2 h-12 w-16 bg-slate-700 hover:bg-slate-600 active:bg-blue-500 rounded-l-lg cursor-pointer transition-colors"
+        className="absolute top-1/2 left-2 h-12 w-16 -translate-y-1/2 cursor-pointer rounded-l-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
         onTouchStart={(e) => {
           e.preventDefault();
           handleTouch("left");
@@ -90,7 +90,7 @@ const DPad = ({
       />
       {/* Right */}
       <div
-        className="absolute right-2 top-1/2 -translate-y-1/2 h-12 w-16 bg-slate-700 hover:bg-slate-600 active:bg-blue-500 rounded-r-lg cursor-pointer transition-colors"
+        className="absolute top-1/2 right-2 h-12 w-16 -translate-y-1/2 cursor-pointer rounded-r-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
         onTouchStart={(e) => {
           e.preventDefault();
           handleTouch("right");
@@ -104,7 +104,7 @@ const DPad = ({
         onMouseLeave={() => handleTouch("none")}
       />
       {/* Center Pivot */}
-      <div className="w-12 h-12 bg-slate-900 rounded-full shadow-inner" />
+      <div className="h-12 w-12 rounded-full bg-slate-900 shadow-inner" />
     </div>
   );
 };
@@ -133,8 +133,8 @@ const ActionButton = ({
   return (
     <button
       className={cn(
-        "w-24 h-24 rounded-full shadow-[0_4px_0_0] active:shadow-none active:translate-y-1 transition-all flex items-center justify-center border-4 border-black/20",
-        colorStyles[color]
+        "flex h-24 w-24 items-center justify-center rounded-full border-4 border-black/20 shadow-[0_4px_0_0] transition-all active:translate-y-1 active:shadow-none",
+        colorStyles[color],
       )}
       onTouchStart={(e) => {
         e.preventDefault();
@@ -183,7 +183,7 @@ function JoypadContentInner() {
         action,
         ability,
         timestamp: Date.now(),
-        togglePlayPause: false, 
+        togglePlayPause: false,
       });
       animationFrameId = requestAnimationFrame(loop);
     };
@@ -218,19 +218,19 @@ function JoypadContentInner() {
     >
       {/* --- CHILD GAME CONTROLLER --- */}
       {shell.activeUrl && (
-        <div className="absolute inset-0 z-50 bg-background">
-            {/* Exit Button Overlay */}
-            <button 
-                className="absolute top-2 right-2 z-[60] p-2 bg-black/50 text-white rounded-full hover:bg-red-600 transition-colors"
-                onClick={() => {
-                    if (confirm("Exit Game?")) {
-                        shell.sendSystemCommand("EXIT_GAME");
-                    }
-                }}
-            >
-                <X size={24} />
-            </button>
-            
+        <div className="bg-background absolute inset-0 z-50">
+          {/* Exit Button Overlay */}
+          <button
+            className="absolute top-2 right-2 z-[60] rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-red-600"
+            onClick={() => {
+              if (confirm("Exit Game?")) {
+                shell.sendSystemCommand("EXIT_GAME");
+              }
+            }}
+          >
+            <X size={24} />
+          </button>
+
           <iframe
             ref={iframeRef}
             src={`${shell.activeUrl}${
@@ -238,7 +238,7 @@ function JoypadContentInner() {
             }airjam_mode=child&airjam_force_connect=true&aj_controller_id=${
               shell.controllerId
             }&aj_room=${shell.roomId}`}
-            className="w-full h-full border-none"
+            className="h-full w-full border-none"
             allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
             onLoad={() => setIframeLoaded(true)}
@@ -249,37 +249,36 @@ function JoypadContentInner() {
       {/* --- DEFAULT ARCADE CONTROLLER --- */}
       {!shell.activeUrl && (
         <>
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 opacity-20 pointer-events-none">
-                <h1 className="text-3xl font-black uppercase italic tracking-tighter select-none">
-                Air Jam <span className="text-primary">Arcade</span>
-                </h1>
-            </div>
+          <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 opacity-20">
+            <h1 className="text-3xl font-black tracking-tighter uppercase italic select-none">
+              Air Jam <span className="text-primary">Arcade</span>
+            </h1>
+          </div>
 
-            <div className="flex w-full h-full items-center justify-between px-12 pb-8">
-                <div className="flex items-end justify-start w-1/3">
-                <DPad onMove={setVector} />
-                </div>
-                <div className="flex flex-col items-center justify-end w-1/3 pb-8 gap-4">
-                </div>
-                <div className="flex items-center justify-end w-1/3 gap-6 transform rotate-6 translate-y-4">
-                <div className="translate-y-8">
-                    <ActionButton
-                    label="B"
-                    color="yellow"
-                    onPress={() => setAbility(true)}
-                    onRelease={() => setAbility(false)}
-                    />
-                </div>
-                <div className="-translate-y-8">
-                    <ActionButton
-                    label="A"
-                    color="red"
-                    onPress={() => setAction(true)}
-                    onRelease={() => setAction(false)}
-                    />
-                </div>
-                </div>
+          <div className="flex h-full w-full items-center justify-between px-12 pb-8">
+            <div className="flex w-1/3 items-end justify-start">
+              <DPad onMove={setVector} />
             </div>
+            <div className="flex w-1/3 flex-col items-center justify-end gap-4 pb-8"></div>
+            <div className="flex w-1/3 translate-y-4 rotate-6 transform items-center justify-end gap-6">
+              <div className="translate-y-8">
+                <ActionButton
+                  label="B"
+                  color="yellow"
+                  onPress={() => setAbility(true)}
+                  onRelease={() => setAbility(false)}
+                />
+              </div>
+              <div className="-translate-y-8">
+                <ActionButton
+                  label="A"
+                  color="red"
+                  onPress={() => setAction(true)}
+                  onRelease={() => setAction(false)}
+                />
+              </div>
+            </div>
+          </div>
         </>
       )}
     </ControllerShell>

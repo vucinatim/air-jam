@@ -1,20 +1,20 @@
+import { useAudio } from "@air-jam/sdk";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef, useMemo, useState } from "react";
+import { useRapier, type RapierRigidBody } from "@react-three/rapier";
+import { useMemo, useRef, useState } from "react";
+import type { Mesh } from "three";
 import {
   BoxGeometry,
   MeshStandardMaterial,
-  Vector3,
-  Raycaster,
   Object3D,
   Quaternion,
+  Raycaster,
+  Vector3,
 } from "three";
-import { useRapier, type RapierRigidBody } from "@react-three/rapier";
-import { useLasersStore } from "../lasers-store";
 import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
-import { useAudio } from "@air-jam/sdk";
+import { useLasersStore } from "../lasers-store";
 import { SOUND_MANIFEST } from "../sounds";
-import type { Mesh } from "three";
 
 interface LaserProps {
   id: string;
@@ -32,7 +32,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
   const { scene } = useThree();
   const { world } = useRapier();
   const [currentPosition, setCurrentPosition] = useState(
-    () => new Vector3(...position)
+    () => new Vector3(...position),
   );
   const previousPositionRef = useRef(new Vector3(...position));
   const lifetimeRef = useRef(0);
@@ -55,7 +55,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
         emissiveIntensity: 5,
         toneMapped: false,
       }),
-    []
+    [],
   );
 
   // Calculate rotation quaternion to align box with direction
@@ -190,7 +190,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
               shipRigidBody as unknown as {
                 applyImpulse(
                   impulse: { x: number; y: number; z: number },
-                  wakeUp: boolean
+                  wakeUp: boolean,
                 ): void;
               }
             ).applyImpulse(
@@ -199,7 +199,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
                 y: knockbackDirection.y,
                 z: knockbackDirection.z,
               },
-              true
+              true,
             );
           }
 
@@ -229,7 +229,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
       // Check for obstacle/ground hits (both handled the same way)
       const obstacleIntersects = raycasterRef.current.intersectObjects(
         obstacles,
-        true
+        true,
       );
 
       if (obstacleIntersects.length > 0) {

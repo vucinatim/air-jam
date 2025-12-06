@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { useAudio } from "@air-jam/sdk";
+import { useEffect, useRef, useState } from "react";
 import { SOUND_MANIFEST } from "../sounds";
 
 const MUSIC_TRACKS: Array<keyof typeof SOUND_MANIFEST> = [

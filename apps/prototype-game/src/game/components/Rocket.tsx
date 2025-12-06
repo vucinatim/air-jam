@@ -1,14 +1,14 @@
+import { useAudio } from "@air-jam/sdk";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef, useMemo, useState } from "react";
-import { Vector3, Raycaster, Quaternion, Group, Object3D } from "three";
 import { useRapier } from "@react-three/rapier";
-import { useRocketsStore } from "../rockets-store";
+import { useMemo, useRef, useState } from "react";
+import { Group, Object3D, Quaternion, Raycaster, Vector3 } from "three";
 import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
-import { RocketModel } from "./RocketModel";
-import { RocketExplosion } from "./RocketExplosion";
-import { useAudio } from "@air-jam/sdk";
+import { useRocketsStore } from "../rockets-store";
 import { SOUND_MANIFEST } from "../sounds";
+import { RocketExplosion } from "./RocketExplosion";
+import { RocketModel } from "./RocketModel";
 
 interface RocketProps {
   id: string;
@@ -27,7 +27,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
   const { scene } = useThree();
   const { world } = useRapier();
   const [currentPosition, setCurrentPosition] = useState(
-    () => new Vector3(...position)
+    () => new Vector3(...position),
   );
   const previousPositionRef = useRef(new Vector3(...position));
   const audio = useAudio(SOUND_MANIFEST);
@@ -129,7 +129,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
                 const shipWorldPos = new Vector3(
                   shipPos.x,
                   shipPos.y,
-                  shipPos.z
+                  shipPos.z,
                 );
                 const distance = hitPos.distanceTo(shipWorldPos);
 
@@ -145,7 +145,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
                     .sub(hitPos)
                     .normalize();
                   const knockbackForce = knockbackDir.multiplyScalar(
-                    ROCKET_KNOCKBACK * damageMultiplier
+                    ROCKET_KNOCKBACK * damageMultiplier,
                   );
                   body.applyImpulse(
                     {
@@ -153,7 +153,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
                       y: knockbackForce.y,
                       z: knockbackForce.z,
                     },
-                    true
+                    true,
                   );
                 }
               }
@@ -203,7 +203,7 @@ export function Rocket({ id, position, direction, controllerId }: RocketProps) {
 
       const obstacleIntersects = raycasterRef.current.intersectObjects(
         obstacles,
-        true
+        true,
       );
 
       if (obstacleIntersects.length > 0) {

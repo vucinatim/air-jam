@@ -67,7 +67,7 @@ export class AudioManager<T extends string = string> {
 
     // Set up volume change subscription
     const updateAllSounds = (
-      state: ReturnType<typeof useVolumeStore.getState>
+      state: ReturnType<typeof useVolumeStore.getState>,
     ) => {
       // Update all currently playing sounds
       this.activeSoundIds.forEach((info, howlSoundId) => {
@@ -123,7 +123,7 @@ export class AudioManager<T extends string = string> {
 
   public setSocket(
     socket: Socket<ServerToClientEvents, ClientToServerEvents> | null,
-    roomId?: string
+    roomId?: string,
   ) {
     this.socket = socket;
     if (roomId) this.roomId = roomId;
@@ -199,7 +199,7 @@ export class AudioManager<T extends string = string> {
     volume?: number,
     loop?: boolean,
     sprite?: string,
-    pitch?: number
+    pitch?: number,
   ): number | null {
     const sound = this.sounds.get(id);
     if (!sound) {
@@ -245,7 +245,7 @@ export class AudioManager<T extends string = string> {
     id: string,
     target?: string,
     volume?: number,
-    loop?: boolean
+    loop?: boolean,
   ) {
     if (!this.socket || !this.roomId) return;
 
@@ -294,7 +294,7 @@ export class AudioManager<T extends string = string> {
   public playSpatial(
     id: T,
     pos: { x: number; y: number; z: number },
-    sprite?: string
+    sprite?: string,
   ): number | null {
     const soundId = this.playLocal(id, undefined, undefined, sprite);
     if (soundId !== null) {
@@ -310,7 +310,7 @@ export class AudioManager<T extends string = string> {
             rolloffFactor: 1,
             distanceModel: "inverse",
           },
-          soundId
+          soundId,
         );
       }
     }
@@ -384,12 +384,12 @@ export class AudioManager<T extends string = string> {
     z: number,
     xUp: number,
     yUp: number,
-    zUp: number
+    zUp: number,
   ) {
     Howler.orientation(x, y, z, xUp, yUp, zUp);
   }
 }
 
 export const createAudioManager = <T extends string = string>(
-  manifest?: SoundManifest
+  manifest?: SoundManifest,
 ) => new AudioManager<T>(manifest);

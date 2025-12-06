@@ -1,8 +1,8 @@
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { PhysicsReportDialog } from "../game/components/PhysicsReportDialog";
-import { usePhysicsStore } from "../game/physics-store";
 import { useGameStore } from "../game/game-store";
-import { Button } from "@/components/ui/button";
+import { usePhysicsStore } from "../game/physics-store";
 
 export function PhysicsRecorderUI() {
   const isRecording = usePhysicsStore((state) => state.isRecording);
@@ -20,7 +20,7 @@ export function PhysicsRecorderUI() {
           <>
             <Button
               onClick={startRecording}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold"
+              className="bg-green-500 font-bold text-white hover:bg-green-600"
             >
               REC
             </Button>
@@ -30,8 +30,8 @@ export function PhysicsRecorderUI() {
               }
               className={
                 cameraMode === "topdown"
-                  ? "bg-purple-500 hover:bg-purple-600 text-white font-bold"
-                  : "bg-gray-500 hover:bg-gray-600 text-white font-bold"
+                  ? "bg-purple-500 font-bold text-white hover:bg-purple-600"
+                  : "bg-gray-500 font-bold text-white hover:bg-gray-600"
               }
             >
               {cameraMode === "topdown" ? "FOLLOW" : "ARENA"}
@@ -43,7 +43,7 @@ export function PhysicsRecorderUI() {
           <>
             <Button
               onClick={stopRecording}
-              className="bg-red-500 hover:bg-red-600 text-white font-bold animate-pulse"
+              className="animate-pulse bg-red-500 font-bold text-white hover:bg-red-600"
             >
               STOP
             </Button>
@@ -53,8 +53,8 @@ export function PhysicsRecorderUI() {
               }
               className={
                 cameraMode === "topdown"
-                  ? "bg-purple-500 hover:bg-purple-600 text-white font-bold"
-                  : "bg-gray-500 hover:bg-gray-600 text-white font-bold"
+                  ? "bg-purple-500 font-bold text-white hover:bg-purple-600"
+                  : "bg-gray-500 font-bold text-white hover:bg-gray-600"
               }
             >
               {cameraMode === "topdown" ? "FOLLOW" : "ARENA"}
@@ -66,13 +66,13 @@ export function PhysicsRecorderUI() {
           <>
             <Button
               onClick={startRecording}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold"
+              className="bg-green-500 font-bold text-white hover:bg-green-600"
             >
               REC
             </Button>
             <Button
               onClick={() => setShowReport(true)}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold"
+              className="bg-blue-500 font-bold text-white hover:bg-blue-600"
             >
               DATA
             </Button>
@@ -82,8 +82,8 @@ export function PhysicsRecorderUI() {
               }
               className={
                 cameraMode === "topdown"
-                  ? "bg-purple-500 hover:bg-purple-600 text-white font-bold"
-                  : "bg-gray-500 hover:bg-gray-600 text-white font-bold"
+                  ? "bg-purple-500 font-bold text-white hover:bg-purple-600"
+                  : "bg-gray-500 font-bold text-white hover:bg-gray-600"
               }
             >
               {cameraMode === "topdown" ? "FOLLOW" : "ARENA"}

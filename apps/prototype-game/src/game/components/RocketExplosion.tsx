@@ -1,15 +1,15 @@
 /* eslint-disable react-hooks/purity */
-import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
 import {
+  AdditiveBlending,
   BoxGeometry,
   MeshStandardMaterial,
-  Vector3,
   SphereGeometry,
+  Vector3,
   type Mesh,
-  AdditiveBlending,
 } from "three";
-import * as THREE from "three";
 
 interface Particle {
   position: Vector3;
@@ -55,7 +55,7 @@ export function RocketExplosion({
         blending: AdditiveBlending, // Additive blending for glow effect
         depthWrite: false,
       }),
-    []
+    [],
   );
 
   // Flash sphere for initial explosion burst (brighter)
@@ -72,7 +72,7 @@ export function RocketExplosion({
         depthWrite: false, // Prevent black artifacts when fading
         side: 2, // DoubleSide for better visibility
       }),
-    []
+    [],
   );
 
   const hasCompletedRef = useRef(false);
@@ -90,7 +90,7 @@ export function RocketExplosion({
         velocity: new Vector3(
           Math.sin(phi) * Math.cos(theta) * speed,
           Math.sin(phi) * Math.sin(theta) * speed,
-          Math.cos(phi) * speed
+          Math.cos(phi) * speed,
         ),
         age: 0,
         lifetime: EXPLOSION_LIFETIME * (0.7 + Math.random() * 0.6),
@@ -106,7 +106,7 @@ export function RocketExplosion({
     const progress = ageRef.current / EXPLOSION_LIFETIME;
     const fadeOutProgress = Math.max(
       0,
-      (ageRef.current - EXPLOSION_LIFETIME) / FADE_OUT_DURATION
+      (ageRef.current - EXPLOSION_LIFETIME) / FADE_OUT_DURATION,
     );
     const overallFade = 1 - fadeOutProgress; // Fade out multiplier for all effects
 
@@ -118,7 +118,7 @@ export function RocketExplosion({
       const maxScale = 5; // More expansion
       // Scale based on flash's own progress
       flashRef.current.scale.setScalar(
-        Math.min(maxScale, 1 + flashProgress * 4)
+        Math.min(maxScale, 1 + flashProgress * 4),
       );
       const material = flashRef.current.material as MeshStandardMaterial;
       // Ensure opacity is properly set and material stays transparent

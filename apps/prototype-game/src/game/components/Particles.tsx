@@ -96,7 +96,7 @@ const Particles = ({ visible = true, objectRef, config }: ParticlesProps) => {
       config.initialVelocity,
       config.emissionRate,
       config.size,
-      config.sizeVariance
+      config.sizeVariance,
     );
   }, [getObjectPosition, config]);
 
@@ -174,7 +174,7 @@ function initializeParticles(
   velocity: number,
   emissionRate: number,
   size: number,
-  sizeVariance: number
+  sizeVariance: number,
 ) {
   const positions = [];
   const velocities = [];
@@ -188,8 +188,8 @@ function initializeParticles(
       new Vector3(
         (Math.random() - 0.5) * velocity,
         (Math.random() - 0.5) * velocity,
-        (Math.random() - 0.5) * velocity
-      )
+        (Math.random() - 0.5) * velocity,
+      ),
     );
 
     ages.push(-i / emissionRate);
@@ -237,8 +237,8 @@ function updateParticle({
     new Vector3(
       (Math.random() - 0.5) * config.turbulence,
       (Math.random() - 0.5) * config.turbulence,
-      (Math.random() - 0.5) * config.turbulence
-    )
+      (Math.random() - 0.5) * config.turbulence,
+    ),
   );
 
   // Calculate new position
@@ -282,7 +282,7 @@ function resetParticle({
     ? new Vector3(
         (Math.random() - 0.5) * config.boxSize.x,
         (Math.random() - 0.5) * config.boxSize.y,
-        (Math.random() - 0.5) * config.boxSize.z
+        (Math.random() - 0.5) * config.boxSize.z,
       )
     : new Vector3(0, 0, 0);
 
@@ -295,7 +295,7 @@ function resetParticle({
   velocities[index] = new Vector3(
     (Math.random() - 0.5) * config.initialVelocity,
     (Math.random() - 0.5) * config.initialVelocity,
-    (Math.random() - 0.5) * config.initialVelocity
+    (Math.random() - 0.5) * config.initialVelocity,
   );
 
   ages[index] = 0;

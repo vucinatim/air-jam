@@ -1,6 +1,6 @@
 import type { RoomCode } from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
-import type { RoomSession, ControllerIndexEntry } from "../types.js";
+import type { ControllerIndexEntry, RoomSession } from "../types.js";
 
 /**
  * Room manager service

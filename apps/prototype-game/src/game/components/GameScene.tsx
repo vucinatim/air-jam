@@ -1,30 +1,30 @@
+import { PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
-import { PerspectiveCamera } from "@react-three/drei";
-import { useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
-import { useGameStore } from "../game-store";
 import { useDebugStore } from "../debug-store";
-import { Ships } from "./Ships";
-import { SpaceEnvironment } from "./SpaceEnvironment";
-import { Obstacles } from "./Obstacles";
-import { Lasers } from "./Lasers";
-import { Rockets } from "./Rockets";
-import { Decals } from "./Decals";
+import { useGameStore } from "../game-store";
+import { useCameraFollow } from "../hooks/useCameraFollow";
+import { useCameraViewports } from "../hooks/useCameraViewports";
+import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
 import { ArenaBounds } from "./ArenaBounds";
 import { Collectibles } from "./Collectibles";
 import { CollectibleSpawner } from "./CollectibleSpawner";
-import { JumpPads } from "./JumpPads";
-import { PlayerBases } from "./PlayerBases";
+import { Decals } from "./Decals";
 import { Flags } from "./Flags";
 import { FreeFlyCamera } from "./FreeFlyCamera";
-import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
-import { useCameraFollow } from "../hooks/useCameraFollow";
-import { useCameraViewports } from "../hooks/useCameraViewports";
+import { JumpPads } from "./JumpPads";
+import { Lasers } from "./Lasers";
+import { Obstacles } from "./Obstacles";
+import { PlayerBases } from "./PlayerBases";
+import { Rockets } from "./Rockets";
+import { Ships } from "./Ships";
+import { SpaceEnvironment } from "./SpaceEnvironment";
 // Import abilities to register them
 import "../abilities/health-pack";
-import "../abilities/speed-boost";
 import "../abilities/rocket";
+import "../abilities/speed-boost";
 
 function MultiCameraController({
   onCamerasReady,
@@ -33,7 +33,7 @@ function MultiCameraController({
     cameras: Array<{
       camera: ThreePerspectiveCamera;
       viewport: { x: number; y: number; width: number; height: number };
-    }>
+    }>,
   ) => void;
 }) {
   const cameraMode = useGameStore((state) => state.cameraMode);
@@ -112,7 +112,7 @@ export function GameScene({
     cameras: Array<{
       camera: ThreePerspectiveCamera;
       viewport: { x: number; y: number; width: number; height: number };
-    }>
+    }>,
   ) => void;
 }) {
   const isDebugPanelOpen = useDebugStore((state) => state.isOpen);

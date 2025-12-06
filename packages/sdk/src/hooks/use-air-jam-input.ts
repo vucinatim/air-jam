@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import { getSocketClient } from "../socket-client";
 import type { ControllerInputEvent } from "../protocol";
+import { getSocketClient } from "../socket-client";
 
 /**
  * The shape of the input the game loop will consume.
@@ -54,7 +54,7 @@ interface UseAirJamInputOptions {
  * ```
  */
 export const useAirJamInput = (
-  options: UseAirJamInputOptions = {}
+  options: UseAirJamInputOptions = {},
 ): {
   /**
    * Reads and consumes the input for a specific controller.
@@ -173,7 +173,7 @@ export const useAirJamInput = (
 
       return result;
     },
-    []
+    [],
   );
 
   /**

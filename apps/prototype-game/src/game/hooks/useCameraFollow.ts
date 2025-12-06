@@ -1,10 +1,13 @@
-import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Vector3, type PerspectiveCamera as ThreePerspectiveCamera } from "three";
-import { PLAYER_CAMERA_OFFSET, TOPDOWN_CAMERA_HEIGHT } from "../constants";
-import { useGameStore } from "../game-store";
-import { useDebugStore } from "../debug-store";
+import { useRef } from "react";
+import {
+  Vector3,
+  type PerspectiveCamera as ThreePerspectiveCamera,
+} from "three";
 import { shipPositions, shipRotations } from "../components/Ship";
+import { PLAYER_CAMERA_OFFSET, TOPDOWN_CAMERA_HEIGHT } from "../constants";
+import { useDebugStore } from "../debug-store";
+import { useGameStore } from "../game-store";
 
 interface CameraFollowState {
   targetPosition: Vector3;
@@ -14,15 +17,17 @@ interface CameraFollowState {
 
 export function useCameraFollow(
   cameraRefs: Array<React.RefObject<ThreePerspectiveCamera | null>>,
-  activeCamerasRef: React.MutableRefObject<Array<ThreePerspectiveCamera | null>>,
-  cameraMode: "follow" | "topdown"
+  activeCamerasRef: React.MutableRefObject<
+    Array<ThreePerspectiveCamera | null>
+  >,
+  cameraMode: "follow" | "topdown",
 ) {
   const followStateRef = useRef<CameraFollowState[]>(
     Array.from({ length: 4 }, () => ({
       targetPosition: new Vector3(),
       currentPosition: new Vector3(),
       lookTarget: new Vector3(),
-    }))
+    })),
   );
   const topTargetRef = useRef(new Vector3(0, 0, 0));
   const players = useGameStore((state) => state.players);
@@ -32,7 +37,7 @@ export function useCameraFollow(
   useFrame((_state, delta) => {
     // Skip camera follow updates when in free-fly mode
     if (freeFlyMode) return;
-    
+
     cameraModeRef.current = cameraMode;
 
     const maxCams = 4;
@@ -71,7 +76,7 @@ export function useCameraFollow(
       const offset = new Vector3(
         PLAYER_CAMERA_OFFSET.x,
         PLAYER_CAMERA_OFFSET.y,
-        PLAYER_CAMERA_OFFSET.z
+        PLAYER_CAMERA_OFFSET.z,
       ).applyQuaternion(shipRot);
 
       viewState.targetPosition.copy(shipPos).add(offset);
@@ -105,4 +110,3 @@ export function useCameraFollow(
     }
   });
 }
-

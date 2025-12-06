@@ -1,5 +1,5 @@
-import { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 const FLAG_HEIGHT = 8;
@@ -24,11 +24,11 @@ export function FlagModel({
 }: FlagModelProps) {
   const poleGeometry = useMemo(
     () => new THREE.CylinderGeometry(0.25, 0.25, FLAG_HEIGHT, 8),
-    []
+    [],
   );
   const bannerGeometry = useMemo(
     () => new THREE.PlaneGeometry(3.5, 2.5, 8, 6),
-    []
+    [],
   );
 
   const bannerRef = useRef<THREE.Mesh | null>(null);
@@ -64,7 +64,7 @@ export function FlagModel({
       // localX ranges from -1.75 (left edge, attached to pole) to 1.75 (right edge, free)
       // Normalize to 0-1 where 0 is at the pole (left edge)
       const distanceFromPole = (localX + 1.75) / 3.5;
-      
+
       // Only apply wave to vertices away from the pole (left edge stays fixed)
       // More wave at the right edge (farthest from pole)
       const waveAmount = distanceFromPole * 0.3;
@@ -115,4 +115,3 @@ export function FlagModel({
     </group>
   );
 }
-
