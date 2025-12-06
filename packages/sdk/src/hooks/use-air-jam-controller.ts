@@ -269,7 +269,7 @@ export const useAirJamController = (
     socket.on("disconnect", handleDisconnect);
     socket.on("server:welcome", handleWelcome);
     socket.on("server:state", handleState);
-    socket.on("server:host_left", handleHostLeft);
+    socket.on("server:hostLeft", handleHostLeft);
     socket.on("server:error", handleError);
     socket.connect();
 
@@ -278,7 +278,7 @@ export const useAirJamController = (
       socket.off("disconnect", handleDisconnect);
       socket.off("server:welcome", handleWelcome);
       socket.off("server:state", handleState);
-      socket.off("server:host_left", handleHostLeft);
+      socket.off("server:hostLeft", handleHostLeft);
       socket.off("server:error", handleError);
       disconnectSocket("controller");
     };

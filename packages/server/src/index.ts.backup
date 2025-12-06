@@ -21,18 +21,19 @@ import {
   type ControllerLeavePayload,
   type ControllerLeftNotice,
   type ControllerStateMessage,
+  type HostLeftNotice,
   type HostRegistrationPayload,
   type HostRegisterSystemPayload,
   type SystemLaunchGamePayload,
   type HostJoinAsChildPayload,
   type InterServerEvents,
   type PlayerProfile,
+  type RoomCode,
   type ServerErrorPayload,
   type ServerToClientEvents,
   type SocketData,
-  ErrorCode,
 } from "@air-jam/sdk/protocol";
-import type { ControllerSession } from "./types.js";
+import type { RoomSession } from "./types.js";
 import { roomManager } from "./services/room-manager.js";
 import { authService } from "./services/auth-service.js";
 
@@ -77,11 +78,11 @@ io.on(
   ) => {
     // --- SYSTEM HOST REGISTRATION (Arcade) ---
     socket.on(
-      "host:registerSystem",
+      "host:register_system",
       async (payload: HostRegisterSystemPayload, callback) => {
         const parsed = hostRegisterSystemSchema.safeParse(payload);
         if (!parsed.success) {
-          callback({ ok: false, message: parsed.error.message, code: ErrorCode.INVALID_PAYLOAD });
+          callback({ ok: false, message: parsed.error.message });
           return;
         }
 
@@ -93,7 +94,7 @@ io.on(
           console.warn(
             `[server] Unauthorized host registration attempt for room ${roomId}`
           );
-          callback({ ok: false, message: verification.error, code: ErrorCode.INVALID_API_KEY });
+          callback({ ok: false, message: verification.error });
           return;
         }
 
@@ -125,30 +126,30 @@ io.on(
         socket.join(roomId);
 
         callback({ ok: true, roomId });
-        io.to(roomId).emit("server:roomReady", { roomId });
+        io.to(roomId).emit("server:room_ready", { roomId });
       }
     );
 
     // --- LAUNCH GAME (System -> Server) ---
     socket.on(
-      "system:launchGame",
+      "system:launch_game",
       (payload: SystemLaunchGamePayload, callback) => {
         const parsed = systemLaunchGameSchema.safeParse(payload);
         if (!parsed.success) {
-          callback({ ok: false, message: parsed.error.message, code: ErrorCode.INVALID_PAYLOAD });
+          callback({ ok: false, message: parsed.error.message });
           return;
         }
 
         const { roomId, gameUrl } = parsed.data;
-        const session = roomManager.getRoom(roomId);
+        const session = rooms.get(roomId);
 
         if (!session) {
-          callback({ ok: false, message: "Room not found", code: ErrorCode.ROOM_NOT_FOUND });
+          callback({ ok: false, message: "Room not found" });
           return;
         }
 
         if (session.masterHostSocketId !== socket.id) {
-          callback({ ok: false, message: "Unauthorized: Not System Host", code: ErrorCode.UNAUTHORIZED });
+          callback({ ok: false, message: "Unauthorized: Not System Host" });
           return;
         }
 
@@ -166,7 +167,7 @@ io.on(
         // For now, we assume the game handles the controller logic or we pass the game URL.
         // Ideally, the game manifest should provide the controller URL.
         // We will send the gameUrl for now.
-        io.to(roomId).emit("client:loadUi", { url: gameUrl });
+        io.to(roomId).emit("client:load_ui", { url: gameUrl });
 
         callback({ ok: true, joinToken });
       }
@@ -174,19 +175,19 @@ io.on(
 
     // --- JOIN AS CHILD (Game -> Server) ---
     socket.on(
-      "host:joinAsChild",
+      "host:join_as_child",
       (payload: HostJoinAsChildPayload, callback) => {
         const parsed = hostJoinAsChildSchema.safeParse(payload);
         if (!parsed.success) {
-          callback({ ok: false, message: parsed.error.message, code: ErrorCode.INVALID_PAYLOAD });
+          callback({ ok: false, message: parsed.error.message });
           return;
         }
 
         const { roomId, joinToken } = parsed.data;
-        const session = roomManager.getRoom(roomId);
+        const session = rooms.get(roomId);
 
         if (!session) {
-          callback({ ok: false, message: "Room not found", code: ErrorCode.ROOM_NOT_FOUND });
+          callback({ ok: false, message: "Room not found" });
           return;
         }
 
@@ -194,7 +195,7 @@ io.on(
           console.warn(
             `[server] Invalid join token for room ${roomId}. Expected ${session.joinToken}, got ${joinToken}`
           );
-          callback({ ok: false, message: "Invalid Join Token", code: ErrorCode.INVALID_TOKEN });
+          callback({ ok: false, message: "Invalid Join Token" });
           return;
         }
 
@@ -204,7 +205,7 @@ io.on(
         session.childHostSocketId = socket.id;
         session.focus = "GAME"; // Auto-focus on join
 
-        roomManager.setHostRoom(socket.id, roomId);
+        hostIndex.set(socket.id, roomId);
         socket.join(roomId);
 
         // Send initial state to the game
@@ -218,7 +219,7 @@ io.on(
                 nickname: c.nickname,
                 player: c.playerProfile,
               };
-              socket.emit("server:controllerJoined", notice);
+              socket.emit("server:controller_joined", notice);
             });
         }, 100);
 
@@ -227,9 +228,9 @@ io.on(
     );
 
     // --- CLOSE GAME (System -> Server) ---
-    socket.on("system:closeGame", (payload: { roomId: string }) => {
+    socket.on("system:close_game", (payload: { roomId: string }) => {
       const { roomId } = payload;
-      const session = roomManager.getRoom(roomId);
+      const session = rooms.get(roomId);
       if (!session) return;
 
       if (session.masterHostSocketId !== socket.id) return;
@@ -241,7 +242,7 @@ io.on(
       session.activeControllerUrl = undefined;
 
       // Tell controllers to unload UI
-      io.to(roomId).emit("client:unloadUi");
+      io.to(roomId).emit("client:unload_ui");
       
       // Tell child to close (if connected) - though usually this is called AFTER child disconnects or to force it.
       // If we have a child socket, we could disconnect it.
@@ -254,7 +255,7 @@ io.on(
       async (payload: HostRegistrationPayload, callback) => {
         const parsed = hostRegistrationSchema.safeParse(payload);
         if (!parsed.success) {
-          callback({ ok: false, message: parsed.error.message, code: ErrorCode.INVALID_PAYLOAD });
+          callback({ ok: false, message: parsed.error.message });
           return;
         }
         const { roomId, maxPlayers } = parsed.data;
@@ -263,7 +264,7 @@ io.on(
         // but for standalone dev, they might use this.
         // For now, we treat 'host:register' as creating a STANDALONE room or joining as master.
         
-        let session = roomManager.getRoom(roomId);
+        let session = rooms.get(roomId);
         if (session) {
              // If room exists, we assume they are taking over or reconnecting as Master
              session.masterHostSocketId = socket.id;
@@ -276,42 +277,42 @@ io.on(
                 controllers: new Map(),
                 maxPlayers,
             };
-            roomManager.setRoom(roomId, session);
+            rooms.set(roomId, session);
         }
         
-        roomManager.setHostRoom(socket.id, roomId);
+        hostIndex.set(socket.id, roomId);
         socket.join(roomId);
         callback({ ok: true, roomId });
-        io.to(roomId).emit("server:roomReady", { roomId });
+        io.to(roomId).emit("server:room_ready", { roomId });
       }
     );
 
     socket.on("controller:join", (payload: ControllerJoinPayload, callback) => {
       const parsed = controllerJoinSchema.safeParse(payload);
       if (!parsed.success) {
-        callback({ ok: false, message: parsed.error.message, code: ErrorCode.INVALID_PAYLOAD });
+        callback({ ok: false, message: parsed.error.message });
         return;
       }
       const { roomId, controllerId, nickname } = parsed.data;
-      const session = roomManager.getRoom(roomId);
+      const session = rooms.get(roomId);
       if (!session) {
-        callback({ ok: false, message: "Room not found", code: ErrorCode.ROOM_NOT_FOUND });
+        callback({ ok: false, message: "Room not found" });
         emitError(socket.id, {
-          code: ErrorCode.ROOM_NOT_FOUND,
+          code: "ROOM_NOT_FOUND",
           message: "Room not found",
         });
         return;
       }
 
       if (session.controllers.size >= session.maxPlayers) {
-        callback({ ok: false, message: "Room full", code: ErrorCode.ROOM_FULL });
-        emitError(socket.id, { code: ErrorCode.ROOM_FULL, message: "Room is full" });
+        callback({ ok: false, message: "Room full" });
+        emitError(socket.id, { code: "ROOM_FULL", message: "Room is full" });
         return;
       }
 
       const existing = session.controllers.get(controllerId);
       if (existing) {
-        roomManager.deleteController(existing.socketId);
+        controllerIndex.delete(existing.socketId);
       }
 
       const PLAYER_COLORS = [
@@ -344,7 +345,7 @@ io.on(
       };
 
       session.controllers.set(controllerId, controllerSession);
-      roomManager.setController(socket.id, { roomId, controllerId });
+      controllerIndex.set(socket.id, { roomId, controllerId });
       socket.join(roomId);
 
       const notice: ControllerJoinedNotice = {
@@ -354,7 +355,7 @@ io.on(
       };
 
       // Emit to Active Host based on Focus
-      io.to(roomManager.getActiveHostId(session)).emit("server:controllerJoined", notice);
+      io.to(getActiveHostId(session)).emit("server:controller_joined", notice);
 
       callback({ ok: true, controllerId, roomId });
 
@@ -373,14 +374,14 @@ io.on(
         return;
       }
       const { roomId, controllerId } = parsed.data;
-      const session = roomManager.getRoom(roomId);
+      const session = rooms.get(roomId);
       if (!session) {
         return;
       }
       session.controllers.delete(controllerId);
-      roomManager.deleteController(socket.id);
+      controllerIndex.delete(socket.id);
       const notice: ControllerLeftNotice = { controllerId };
-      io.to(roomManager.getActiveHostId(session)).emit("server:controllerLeft", notice);
+      io.to(getActiveHostId(session)).emit("server:controller_left", notice);
       socket.leave(roomId);
     });
 
@@ -389,13 +390,13 @@ io.on(
       if (!result.success) return;
       
       const { roomId } = result.data;
-      const session = roomManager.getRoom(roomId);
+      const session = rooms.get(roomId);
       if (!session) {
         return;
       }
 
       // Route based on FOCUS
-      const targetHostId = roomManager.getActiveHostId(session);
+      const targetHostId = getActiveHostId(session);
       if (targetHostId) {
         io.to(targetHostId).emit("server:input", result.data);
       }
@@ -406,7 +407,7 @@ io.on(
       if (!result.success) return;
       
       const { roomId } = result.data;
-      const session = roomManager.getRoom(roomId);
+      const session = rooms.get(roomId);
       if (session) {
         session.controllers.forEach((c) => {
           io.to(c.socketId).emit("server:state", result.data);
@@ -416,7 +417,7 @@ io.on(
 
     socket.on("host:play_sound", (payload: PlaySoundEventPayload) => {
       const { roomId, targetControllerId, soundId, volume, loop } = payload;
-      const session = roomManager.getRoom(roomId);
+      const session = rooms.get(roomId);
       if (!session) return;
 
       const message = { id: soundId, volume, loop };
@@ -424,19 +425,19 @@ io.on(
       if (targetControllerId) {
         const controller = session.controllers.get(targetControllerId);
         if (controller) {
-          io.to(controller.socketId).emit("server:playSound", message);
+          io.to(controller.socketId).emit("server:play_sound", message);
         }
       } else {
-        socket.to(roomId).emit("server:playSound", message);
+        socket.to(roomId).emit("server:play_sound", message);
       }
     });
 
     socket.on("controller:play_sound", (payload: PlaySoundEventPayload) => {
       const { roomId, soundId, volume, loop } = payload;
-      const session = roomManager.getRoom(roomId);
+      const session = rooms.get(roomId);
       if (!session) return;
 
-      io.to(roomManager.getActiveHostId(session)).emit("server:playSound", {
+      io.to(getActiveHostId(session)).emit("server:play_sound", {
         id: soundId,
         volume,
         loop,
@@ -444,11 +445,11 @@ io.on(
     });
 
     socket.on("disconnect", () => {
-      const roomId = roomManager.getRoomByHostId(socket.id);
+      const roomId = hostIndex.get(socket.id);
       if (roomId) {
-        const session = roomManager.getRoom(roomId);
+        const session = rooms.get(roomId);
         if (!session) {
-          roomManager.deleteHost(socket.id);
+          hostIndex.delete(socket.id);
           return;
         }
 
@@ -462,7 +463,7 @@ io.on(
           session.joinToken = undefined;
           
           // Tell controllers to unload UI
-          io.to(roomId).emit("client:unloadUi");
+          io.to(roomId).emit("client:unload_ui");
 
         } else if (socket.id === session.masterHostSocketId) {
           // Master disconnected
@@ -471,7 +472,7 @@ io.on(
           );
           
           setTimeout(() => {
-            const currentSession = roomManager.getRoom(roomId);
+            const currentSession = rooms.get(roomId);
             if (
               currentSession &&
               currentSession.masterHostSocketId === socket.id
@@ -479,29 +480,29 @@ io.on(
               console.log(
                 `[server] Grace period expired. Removing room ${roomId}.`
               );
-              roomManager.removeRoom(roomId, io, "Host disconnected");
+              removeRoom(roomId, "Host disconnected");
             }
           }, 3000);
         }
 
-        roomManager.deleteHost(socket.id);
+        hostIndex.delete(socket.id);
         return;
       }
 
-      const controller = roomManager.getControllerInfo(socket.id);
+      const controller = controllerIndex.get(socket.id);
       if (controller) {
-        const session = roomManager.getRoom(controller.roomId);
+        const session = rooms.get(controller.roomId);
         if (session) {
           session.controllers.delete(controller.controllerId);
           const notice: ControllerLeftNotice = {
             controllerId: controller.controllerId,
           };
-          io.to(roomManager.getActiveHostId(session)).emit(
-            "server:controllerLeft",
+          io.to(getActiveHostId(session)).emit(
+            "server:controller_left",
             notice
           );
         }
-        roomManager.deleteController(socket.id);
+        controllerIndex.delete(socket.id);
       }
     });
   }

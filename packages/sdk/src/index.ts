@@ -12,5 +12,7 @@ export * from "./components/ui/slider";
 export * from "./utils/ids";
 export * from "./utils/network-ip";
 export * from "./utils/url-builder";
+export * from "./constants";
+export * from "./events";
 export * from "./state/connection-store";
 export * from "./socket-client";

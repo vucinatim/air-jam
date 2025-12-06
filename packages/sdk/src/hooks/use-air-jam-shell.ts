@@ -152,8 +152,8 @@ export const useAirJamShell = (
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("server:welcome", handleWelcome);
-    socket.on("client:load_ui", handleLoadUi);
-    socket.on("client:unload_ui", handleUnloadUi);
+    socket.on("client:loadUi", handleLoadUi);
+    socket.on("client:unloadUi", handleUnloadUi);
     socket.on("server:error", handleError);
     socket.connect();
 
@@ -185,8 +185,8 @@ export const useAirJamShell = (
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
       socket.off("server:welcome", handleWelcome);
-      socket.off("client:load_ui", handleLoadUi);
-      socket.off("client:unload_ui", handleUnloadUi);
+      socket.off("client:loadUi", handleLoadUi);
+      socket.off("client:unloadUi", handleUnloadUi);
       socket.off("server:error", handleError);
       window.removeEventListener("message", handleMessage);
       disconnectSocket("controller");

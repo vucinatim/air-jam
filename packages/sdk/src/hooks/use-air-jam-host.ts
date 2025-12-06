@@ -21,6 +21,7 @@ import {
   useConnectionState,
   useConnectionStore,
 } from "../state/connection-store";
+import { TOGGLE_DEBOUNCE_MS, DEFAULT_MAX_PLAYERS } from "../constants";
 
 interface AirJamHostOptions {
   roomId?: string;
@@ -148,7 +149,6 @@ export const useAirJamHost = (
     const storeApi = useConnectionStore;
     const store = storeApi.getState();
     let lastToggleTime = 0;
-    const TOGGLE_DEBOUNCE_MS = 300;
 
     store.setMode(detectRunMode());
     store.setRole("host");
@@ -164,7 +164,7 @@ export const useAirJamHost = (
     }
 
     const socket = getSocketClient("host", options.serverUrl);
-    const maxPlayers = options.maxPlayers ?? 8;
+    const maxPlayers = options.maxPlayers ?? DEFAULT_MAX_PLAYERS;
 
     const registerHost = async (): Promise<void> => {
       if (arcadeParams) {
@@ -173,7 +173,7 @@ export const useAirJamHost = (
               roomId: parsedRoomId,
               joinToken: arcadeParams.token
           };
-          socket.emit("host:join_as_child", payload, (ack) => {
+          socket.emit("host:joinAsChild", payload, (ack) => {
               if (!ack.ok) {
                   store.setError(ack.message ?? "Failed to join as child");
                   store.setStatus("disconnected");
@@ -290,11 +290,11 @@ export const useAirJamHost = (
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
-    socket.on("server:controller_joined", handleJoin);
-    socket.on("server:controller_left", handleLeave);
+    socket.on("server:controllerJoined", handleJoin);
+    socket.on("server:controllerLeft", handleLeave);
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
-    socket.on("server:close_child", handleChildClose);
+    socket.on("server:closeChild", handleChildClose);
     socket.on("connect_error", (err) => {
       store.setError(err.message);
     });
@@ -304,11 +304,11 @@ export const useAirJamHost = (
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
-      socket.off("server:controller_joined", handleJoin);
-      socket.off("server:controller_left", handleLeave);
+      socket.off("server:controllerJoined", handleJoin);
+      socket.off("server:controllerLeft", handleLeave);
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);
-      socket.off("server:close_child", handleChildClose);
+      socket.off("server:closeChild", handleChildClose);
       disconnectSocket("host");
     };
   }, [

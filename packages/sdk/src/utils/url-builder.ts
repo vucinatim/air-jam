@@ -1,8 +1,6 @@
 import type { RoomCode } from "../protocol";
 import { getLocalNetworkIp } from "./network-ip";
-
-const DEFAULT_CONTROLLER_PATH = "/joypad";
-const DEFAULT_SERVER_PORT = "4000";
+import { DEFAULT_SERVER_PORT, DEFAULT_CONTROLLER_PATH } from "../constants";
 
 /**
  * Centralized URL builder service for Air Jam.
@@ -136,7 +134,7 @@ class UrlBuilder {
 
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.port = DEFAULT_SERVER_PORT;
+      url.port = String(DEFAULT_SERVER_PORT);
       return url.origin;
     }
 

@@ -98,6 +98,7 @@ export interface HostRegistrationAck {
   ok: boolean;
   roomId?: RoomCode;
   message?: string;
+  code?: ErrorCode | string;
 }
 
 export interface ControllerJoinAck {
@@ -105,20 +106,57 @@ export interface ControllerJoinAck {
   controllerId?: string;
   roomId?: RoomCode;
   message?: string;
-}
-
-export interface ServerErrorPayload {
-  code: "ROOM_NOT_FOUND" | "ROOM_FULL" | "INVALID_PAYLOAD" | "SERVER_ERROR";
-  message: string;
+  code?: ErrorCode | string;
 }
 
 export const controllerSystemSchema = z.object({
   roomId: roomCodeSchema,
-  controllerId: z.string(),
-  type: z.enum(["EXIT_GAME"]),
+  command: z.enum(["exit", "ready"]),
 });
 
 export type ControllerSystemPayload = z.infer<typeof controllerSystemSchema>;
+
+/**
+ * Standard error codes for Air Jam
+ */
+export enum ErrorCode {
+  // Room errors
+  ROOM_NOT_FOUND = "ROOM_NOT_FOUND",
+  ROOM_FULL = "ROOM_FULL",
+  
+  // Auth errors
+  INVALID_API_KEY = "INVALID_API_KEY",
+  UNAUTHORIZED = "UNAUTHORIZED",
+  
+  // Token errors
+  INVALID_TOKEN = "INVALID_TOKEN",
+  TOKEN_EXPIRED = "TOKEN_EXPIRED",
+  
+  // Connection errors
+  CONNECTION_FAILED = "CONNECTION_FAILED",
+  ALREADY_CONNECTED = "ALREADY_CONNECTED",
+  
+  // Validation errors
+  INVALID_PAYLOAD = "INVALID_PAYLOAD",
+  INVALID_ROOM_CODE = "INVALID_ROOM_CODE",
+  
+  // Server errors
+  INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
+  SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE",
+  
+  // Generic
+  UNKNOWN_ERROR = "UNKNOWN_ERROR",
+}
+
+/**
+ * Standardized error payload
+ */
+export interface ServerErrorPayload {
+  code: ErrorCode | string; // Allow custom codes
+  message: string;
+  details?: unknown;
+}
+
 
 export interface ControllerWelcomePayload {
   controllerId: string;
@@ -181,6 +219,7 @@ export interface SystemLaunchGameAck {
   ok: boolean;
   joinToken?: string;
   message?: string;
+  code?: ErrorCode | string;
 }
 
 export interface ClientLoadUiPayload {
@@ -192,19 +231,19 @@ export interface ClientToServerEvents {
     payload: z.infer<typeof hostRegistrationSchema>,
     callback: (ack: HostRegistrationAck) => void
   ) => void;
-  "host:register_system": (
+  "host:registerSystem": (
     payload: HostRegisterSystemPayload,
     callback: (ack: HostRegistrationAck) => void
   ) => void;
-  "system:launch_game": (
+  "system:launchGame": (
     payload: SystemLaunchGamePayload,
     callback: (ack: SystemLaunchGameAck) => void
   ) => void;
-  "host:join_as_child": (
+  "host:joinAsChild": (
     payload: HostJoinAsChildPayload,
     callback: (ack: HostRegistrationAck) => void
   ) => void;
-  "system:close_game": (payload: { roomId: string }) => void;
+  "system:closeGame": (payload: { roomId: string }) => void;
   "host:state": (payload: z.infer<typeof controllerStateSchema>) => void;
   "controller:join": (
     payload: z.infer<typeof controllerJoinSchema>,
@@ -224,19 +263,19 @@ export interface PlaySoundPayload {
 }
 
 export interface ServerToClientEvents {
-  "server:room_ready": (payload: RoomReadyNotice) => void;
-  "server:controller_joined": (payload: ControllerJoinedNotice) => void;
-  "server:controller_left": (payload: ControllerLeftNotice) => void;
+  "server:roomReady": (payload: RoomReadyNotice) => void;
+  "server:controllerJoined": (payload: ControllerJoinedNotice) => void;
+  "server:controllerLeft": (payload: ControllerLeftNotice) => void;
   "server:input": (payload: ControllerInputEvent) => void;
   "server:error": (payload: ServerErrorPayload) => void;
   "server:state": (payload: z.infer<typeof controllerStateSchema>) => void;
   "server:welcome": (payload: ControllerWelcomePayload) => void;
-  "server:host_left": (payload: HostLeftNotice) => void;
-  "server:play_sound": (payload: PlaySoundPayload) => void;
+  "server:hostLeft": (payload: HostLeftNotice) => void;
+  "server:playSound": (payload: PlaySoundPayload) => void;
   "server:redirect": (url: string) => void;
-  "server:close_child": () => void;
-  "client:load_ui": (payload: ClientLoadUiPayload) => void;
-  "client:unload_ui": () => void;
+  "server:closeChild": () => void;
+  "client:loadUi": (payload: ClientLoadUiPayload) => void;
+  "client:unloadUi": () => void;
 }
 
 export interface InterServerEvents {

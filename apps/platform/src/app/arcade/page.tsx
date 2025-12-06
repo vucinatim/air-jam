@@ -148,7 +148,7 @@ export default function ArcadePage() {
       console.log("[Arcade] Controller URL to send:", controllerUrl);
       
       // Request launch from server
-      host.socket.emit("system:launch_game", {
+      host.socket.emit("system:launchGame", {
           roomId: host.roomId,
           gameId: game.id,
           gameUrl: controllerUrl
@@ -172,7 +172,7 @@ export default function ArcadePage() {
   const exitGame = () => {
     // Tell server to close the game
     if (host.socket.connected) {
-        host.socket.emit("system:close_game", { roomId: host.roomId });
+        host.socket.emit("system:closeGame", { roomId: host.roomId });
     }
     
     // Local cleanup
