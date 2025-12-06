@@ -258,7 +258,7 @@ export const ControllerShell = ({
             type="button"
             variant="outline"
             size="icon"
-            onClick={toggleFullscreen}
+            onClick={() => toggleFullscreen()}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
             title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >

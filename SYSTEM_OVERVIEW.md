@@ -1,134 +1,348 @@
 # Air Jam System Overview
 
-This document provides a comprehensive overview of the Air Jam project architecture, current setup, and how the different components interact.
+## Overview
 
-## 1. High-Level Architecture
+Air Jam is a platform for building "AirConsole-style" multiplayer games where a computer/TV acts as the host display and smartphones become game controllers. The platform enables developers to create interactive games with minimal setup while providing players with an intuitive, scan-and-play experience.
 
-Air Jam is a platform for building and playing "Air Console" style games where a computer acts as the host screen and smartphones act as controllers.
+---
 
-The system is built as a **monorepo** (using pnpm workspaces) consisting of four main parts:
+## Architecture
 
-1.  **Platform (`apps/platform`)**: The central web portal for developers to register games and players to find/play them.
-2.  **Game Server (`packages/server`)**: The real-time signaling server that connects Hosts (games) and Controllers (phones).
-3.  **SDK (`packages/sdk`)**: A TypeScript library providing React hooks and utilities to easily build Air Jam compatible games.
-4.  **Prototype Game (`apps/prototype-game`)**: A reference implementation of a game using the SDK.
+### High-Level Components
 
-## 2. Component Breakdown
+Air Jam consists of four main components in a monorepo structure:
 
-### A. The Platform (`apps/platform`)
-*   **Role**: The "Brain". Handles user accounts, game registration, and API key generation.
-*   **Tech Stack**: Next.js 15 (App Router), TypeScript, tRPC, BetterAuth, Postgres (Drizzle ORM), Shadcn UI.
-*   **Key Features**:
-    *   **Developer Dashboard** (`/dashboard`): Register games, generate `aj_live_` API keys.
-    *   **Air Jam Arcade** (`/arcade`): The primary "System Host". It maintains a persistent connection to the server and launches games as "Child Hosts".
-    *   **Controller Shell** (`/joypad`): A persistent mobile controller shell that dynamically loads game UIs via iframes.
-    *   **Database Management**: Owns the schema for Users, Games, and API Keys.
+1. **Platform** (`apps/platform`) - Central web portal and game launcher
+2. **Server** (`packages/server`) - Real-time WebSocket server  
+3. **SDK** (`packages/sdk`) - Developer toolkit for building games
+4. **Prototype Game** (`apps/prototype-game`) - Reference implementation
 
-### B. The Game Server (`@air-jam/server`)
-*   **Role**: The "Nervous System". Handles low-latency communication and input routing.
-*   **Tech Stack**: Node.js, Express, Socket.io, Drizzle ORM.
-*   **Key Features**:
-    *   **Server-Authoritative Focus**: Manages the "Focus" state of a room (`SYSTEM` or `GAME`).
-    *   **Input Routing**: Routes controller inputs to the active host based on the current focus.
-    *   **Dual Host Support**: Supports a "Master Host" (Arcade) and a "Child Host" (Game) co-existing in the same room.
-    *   **Security**: Verifies API keys and uses `joinToken` for secure Child Host registration.
+---
 
-### C. The SDK (`@air-jam/sdk`)
-*   **Role**: The "Bridge". Connects games to the server.
-*   **Key Exports**:
-    *   `useAirJamHost`: Hook for the main game screen. Automatically detects "Arcade Mode" vs "Standalone Mode".
-    *   `useAirJamController`: Hook for the mobile controller view. Automatically detects "Sub-Controller Mode".
-    *   `useAirJamShell`: Hook for the Controller Shell, handling `client:load_ui` events.
-    *   `AirJamOverlay`: A pre-built UI component. Automatically hides itself when running in Arcade Mode.
+## Component Details
 
-## 3. Architecture: Server-Authoritative Focus
+### 1. Platform (`apps/platform`)
 
-Air Jam uses a **Server-Authoritative Focus** model to manage the relationship between the Arcade (System) and the Games (Child).
+**Role:** The central hub for the Air Jam ecosystem
 
-### Core Concepts
+**Technology:** Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
 
-1.  **Master Host (System)**: The Arcade running on the TV. It owns the room and the persistent connection.
-2.  **Child Host (Game)**: The Game running in an iframe. It joins the existing room using a secure token.
-3.  **Focus**: The Server maintains a `focus` state for each room:
-    *   `SYSTEM`: Inputs go to the Master Host (Arcade).
-    *   `GAME`: Inputs go to the Child Host (Game).
-4.  **Controller Shell**: The phone runs a persistent shell that loads game-specific controllers in an iframe.
+**Key Features:**
+- **Developer Dashboard** - Game registration and API key management
+- **Air Jam Arcade** - System host that launches games in child mode
+- **Controller Shell** - Persistent mobile controller with dynamic UI loading
+- **User Management** - Authentication and game ownership
 
-### Connection Flow: Launching a Game
+**Responsibilities:**
+- Manage developer accounts and game catalog
+- Generate and validate API keys
+- Host the arcade launcher interface
+- Provide persistent controller shell for mobile devices
 
-1.  **Arcade Launch**:
-    *   Arcade calls `host:register_system`.
-    *   Server creates room, sets focus to `SYSTEM`.
-    *   User connects phone (Controller Shell).
+---
 
-2.  **Game Selection**:
-    *   User selects a game on the Arcade.
-    *   Arcade emits `system:launch_game` with the Game ID and URL.
-    *   Server generates a `joinToken` and returns it to the Arcade.
-    *   Server emits `client:load_ui` to all connected Controllers with the Game's Controller URL.
+### 2. Server (`packages/server`)
 
-3.  **Game Start**:
-    *   Arcade loads the Game in an iframe, passing `aj_room` and `aj_token` in the URL.
-    *   Game (Child Host) initializes `useAirJamHost`.
-    *   SDK detects `aj_token` and emits `host:join_as_child`.
-    *   Server validates token, registers Child Host, and switches focus to `GAME`.
-    *   Server sends existing players to the Child Host via `server:controller_joined`.
+**Role:** Real-time communication backbone
 
-4.  **Gameplay**:
-    *   Controller Shell (iframe) sends inputs.
-    *   Server receives inputs and routes them to the **Child Host** (because focus is `GAME`).
+**Technology:** Node.js, Express, Socket.IO, PostgreSQL
 
-5.  **Game Exit**:
-    *   User presses "Exit" on Controller or Arcade.
-    *   Arcade emits `system:close_game`.
-    *   Server switches focus back to `SYSTEM`.
-    *   Server emits `client:unload_ui` to Controllers.
-    *   Arcade destroys the Game iframe.
+**Architecture:** Server-authoritative focus model with dual-host support
 
-### Standalone Mode (Legacy/Dev)
+**Core Services:**
+- **Room Manager** - Centralized room state management
+- **Auth Service** - API key verification with database integration
+- **Focus System** - Controls input routing between system and game
 
-For development or standalone usage, the SDK falls back to the classic behavior:
-*   Game calls `host:register`.
-*   Server treats it as a Master Host.
-*   Controllers connect directly.
-*   No shell/iframe logic is involved.
+**Key Features:**
+- Supports Master Host (Arcade) and Child Host (Game) simultaneously
+- Server-controlled focus switching (SYSTEM ↔ GAME)
+- Secure token-based child host registration
+- Low-latency input routing
+- Player sync across host transitions
 
-## 4. Database Schema
+---
 
-We use a shared Postgres database managed by Drizzle ORM in `apps/platform`.
+### 3. SDK (`packages/sdk`)
 
-*   `users`: Registered developers/players.
-*   `sessions`: Auth sessions for BetterAuth.
-*   `games`: Registered games (Name, URL, Owner).
-*   `api_keys`: Secure keys linked to Games (used for Server verification).
+**Role:** Developer toolkit for building Air Jam compatible games
 
-## 5. Local Development Setup
+**Technology:** React, TypeScript, Socket.IO Client, Zustand
 
-To run the entire stack locally:
+**Core Hooks:**
+- `useAirJamHost` - Game host connection (auto-detects arcade vs standalone)
+- `useAirJamController` - Mobile controller connection
+- `useAirJamShell` - Controller shell for dynamic UI loading
 
-1.  **Database**: Ensure `DATABASE_URL` is set in `apps/platform/.env.local` and `packages/server/.env`.
-2.  **Start Platform**:
-    ```bash
-    cd apps/platform
-    pnpm dev
-    # Runs on http://localhost:3000
-    ```
-3.  **Start Server**:
-    ```bash
-    cd packages/server
-    pnpm dev
-    # Runs on http://localhost:4000
-    ```
-4.  **Start Game**:
-    ```bash
-    cd apps/prototype-game
-    pnpm dev
-    # Runs on http://localhost:5173
-    ```
+**Internal Utilities:**
+- Socket lifecycle management
+- Connection state handling
+- Room setup and validation
+- URL building and normalization
 
-**Note**: You must create a Game and API Key in the Platform (localhost:3000) and add it to the Game's `.env.local` for the connection to succeed.
+**Components:**
+- `AirJamOverlay` - Connection UI (auto-hides in arcade mode)
+- `ControllerShell` - Mobile controller wrapper
+- `QRScannerDialog` - QR code scanning for room joins
 
-### Iframe Embedding Configuration
+**Features:**
+- Automatic mode detection (arcade vs standalone vs bridge)
+- Type-safe event protocol
+- Centralized constants and events
+- Audio manager with hybrid playback
+- Browser compatibility utilities
 
-For games to work when embedded in the Platform Arcade, they must allow iframe embedding.
-**Production**: Games must set `Content-Security-Policy: frame-ancestors *;` header (or restrict to specific domains).
+---
+
+### 4. Prototype Game (`apps/prototype-game`)
+
+**Role:** Reference implementation and development testbed
+
+**Technology:** React, Three.js, React Three Fiber, Rapier Physics
+
+**Purpose:**
+- Demonstrates SDK integration patterns
+- Tests dual-host functionality
+- Validates arcade mode behavior
+- Showcases best practices
+
+---
+
+## Server-Authoritative Focus System
+
+### Concept
+
+The server maintains authoritative control over which host receives controller inputs through a **focus** state:
+
+- **SYSTEM Focus** - Inputs route to Master Host (Arcade)
+- **GAME Focus** - Inputs route to Child Host (Game)
+
+### Two-Host Model
+
+**Master Host (System):**
+- The Arcade running on the TV
+- Owns the room and persistent connection
+- Handles game selection and lifecycle
+
+**Child Host (Game):**
+- Game running in an iframe
+- Joins via secure token
+- Receives inputs when focus is GAME
+
+### Connection Flow
+
+**1. Arcade Launch**
+- Arcade registers as system host
+- Server creates room with SYSTEM focus
+- Controllers join via QR code
+
+**2. Game Launch**
+- User selects game in arcade
+- Server generates secure join token
+- Controllers receive game UI URL
+- Game joins as child host using token
+- Server validates and switches focus to GAME
+- Existing players synced to game
+
+**3. Active Gameplay**
+- Controllers send inputs to server
+- Server routes to child host (focus = GAME)
+- Game processes inputs and updates display
+
+**4. Game Exit**
+- Exit command received
+- Server switches focus back to SYSTEM
+- Controllers unload game UI
+- Arcade destroys game iframe
+
+### Standalone Mode
+
+For development or simple deployments:
+- Game registers as master host
+- No arcade or shell involved
+- Direct controller-to-game connection
+- Traditional single-host model
+
+---
+
+## Security Model
+
+### API Key System
+
+**Production:**
+- Developers register games on platform
+- Platform issues `aj_live_*` API keys
+- Games include key in connection request
+- Server verifies against database
+
+**Development:**
+- Local server runs without authentication
+- No keys required for testing
+
+**Benefits:**
+- Prevents unauthorized server usage
+- Enables usage tracking per game
+- Provides abuse prevention
+- Allows individual game control
+
+### Join Tokens
+
+**Purpose:** Secure child host registration
+
+**Flow:**
+1. Arcade requests game launch
+2. Server generates one-time token
+3. Token passed to game via URL
+4. Game presents token when joining
+5. Server validates and allows connection
+
+---
+
+## Error Handling
+
+### Structured Errors
+
+**ErrorCode Enum:** 13 standardized error types
+- Room errors (NOT_FOUND, FULL)
+- Auth errors (INVALID_API_KEY, UNAUTHORIZED)
+- Token errors (INVALID_TOKEN, EXPIRED)
+- Connection errors (FAILED, ALREADY_CONNECTED)
+- Validation errors (INVALID_PAYLOAD, INVALID_ROOM_CODE)
+- Server errors (INTERNAL, UNAVAILABLE)
+
+**Error Format:** Consistent ServerErrorPayload across all responses
+
+---
+
+## Event Protocol
+
+### Naming Convention
+
+All events use camelCase: `host:registerSystem`, `controller:input`, `server:playSound`
+
+### Event Categories
+
+**Host Events:** Registration, state updates, game launch/close  
+**Controller Events:** Join, input, system commands  
+**System Events:** Arcade-specific launch/close  
+**Server Events:** Acknowledge, sync, notifications  
+**Client Events:** Shell UI load/unload
+
+---
+
+## Development Setup
+
+### Requirements
+- Node.js 18+
+- PostgreSQL database
+- pnpm package manager
+
+### Local Stack
+
+**1. Platform**
+```
+cd apps/platform && pnpm dev
+→ http://localhost:3000
+```
+
+**2. Server**
+```
+cd packages/server && pnpm dev
+→ WebSocket on port 4000
+```
+
+**3. Game**
+```
+cd apps/prototype-game && pnpm dev
+→ http://localhost:5173
+```
+
+### Configuration
+
+**Database:** Set `DATABASE_URL` in platform and server `.env`  
+**API Keys:** Create game and key via platform dashboard  
+**Environment:** Configure game with generated API key
+
+---
+
+## Type Safety
+
+### Approach
+
+- Zero `any` types in codebase
+- Browser compatibility types for vendor prefixes
+- Type-safe event protocol
+- Structured error handling
+- Full TypeScript strictness
+
+### Custom Types
+
+- `types/browser.ts` - Vendor-prefixed DOM APIs
+- Protocol schemas with Zod validation
+- Strongly-typed socket events
+
+---
+
+## Code Organization
+
+### Modular Architecture
+
+**Server:**
+- `services/room-manager.ts` - Room state
+- `services/auth-service.ts` - Authentication
+- Clean separation of concerns
+
+**SDK:**
+- `hooks/internal/` - Reusable utilities
+- Consolidated patterns across hooks
+- Single source of truth for constants/events
+
+### Principles
+
+- DRY (Don't Repeat Yourself)
+- Single Responsibility
+- Type Safety First
+- Reusable Components
+
+---
+
+## Deployment
+
+### Recommended Stack
+
+**Platform:** Vercel (Next.js native)  
+**Server:** Railway, Render, or any WebSocket-compatible host  
+**Database:** Vercel Postgres, Supabase, or managed PostgreSQL  
+**Games:** Developer's choice (Vercel, Netlify, etc.)
+
+### Requirements
+
+**Games Must:**
+- Allow iframe embedding (`Content-Security-Policy: frame-ancestors`)
+- Use HTTPS in production
+- Include valid API key
+
+---
+
+## Future Considerations
+
+### Potential Enhancements
+
+- Stricter TypeScript settings exploration
+- JSDoc documentation for public APIs
+- Advanced usage examples
+- Performance monitoring
+- Analytics integration
+- Rate limiting
+- WebRTC for peer-to-peer data channels
+
+---
+
+## Summary
+
+Air Jam provides a complete platform for building smartphone-controlled games with:
+- **Clean architecture** - Modular, maintainable codebase
+- **Type safety** - Full TypeScript with zero compromises
+- **Security** - API keys and token-based authentication
+- **Flexibility** - Arcade mode or standalone deployment
+- **Developer experience** - Simple SDK with powerful features

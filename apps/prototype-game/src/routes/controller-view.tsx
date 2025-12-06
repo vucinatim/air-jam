@@ -185,10 +185,15 @@ const ControllerContent = () => {
       audio.play(payload.id as keyof typeof SOUND_MANIFEST);
     };
 
-    socket.on("server:play_sound", handlePlaySound);
+    socket.on("server:playSound", (payload) => {
+      console.log("[Controller] Received server:playSound event:", payload);
+      if (payload.id) {
+        audio.play(payload.id as keyof typeof SOUND_MANIFEST);
+      }
+    });
 
     return () => {
-      socket.off("server:play_sound", handlePlaySound);
+      socket.off("server:playSound", handlePlaySound);
     };
   }, [socket, audio]);
 

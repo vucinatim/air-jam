@@ -6,6 +6,7 @@ import {
   useAirJamHost,
   AirJamOverlay,
   type ControllerInputEvent,
+  type SystemLaunchGameAck,
   urlBuilder,
 } from "@air-jam/sdk";
 import { Card, CardContent } from "@/components/ui/card";
@@ -152,7 +153,7 @@ export default function ArcadePage() {
           roomId: host.roomId,
           gameId: game.id,
           gameUrl: controllerUrl
-      }, (ack: any) => {
+      }, (ack: SystemLaunchGameAck) => {
           if (ack.ok && ack.joinToken) {
               console.log("[Arcade] Game launch successful, joinToken:", ack.joinToken);
               setJoinToken(ack.joinToken);
