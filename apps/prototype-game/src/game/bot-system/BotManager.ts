@@ -1,7 +1,7 @@
-import type { GameLoopInput } from "@air-jam/sdk";
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { useGameStore } from "../game-store";
+import type { GameLoopInput } from "../types";
 import { BotController } from "./BotController";
 
 interface BotManagerState {

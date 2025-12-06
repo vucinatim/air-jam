@@ -11,7 +11,7 @@ import {
   useAirJamHost,
 } from "@air-jam/sdk";
 import { Gamepad2, Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Placeholder for the Platform's own API Key.
 // In a real app, you might fetch this or use a specific "Platform" key.
@@ -98,29 +98,50 @@ export default function ArcadePage() {
     const { input } = event;
     const now = Date.now();
 
-    if (now - lastInputTime.current > INPUT_DEBOUNCE) {
-      if (input.vector.y < -0.5) {
+    // Type guards for safe extraction
+    // Arcade expects gamepad pattern: { vector: {x, y}, action: boolean }
+    const getVector = (): { x: number; y: number } | null => {
+      if (
+        input.vector &&
+        typeof input.vector === "object" &&
+        !Array.isArray(input.vector) &&
+        typeof (input.vector as { x?: unknown }).x === "number" &&
+        typeof (input.vector as { y?: unknown }).y === "number"
+      ) {
+        return input.vector as { x: number; y: number };
+      }
+      return null;
+    };
+
+    const getAction = (): boolean => {
+      return typeof input.action === "boolean" ? input.action : false;
+    };
+
+    const vector = getVector();
+
+    if (now - lastInputTime.current > INPUT_DEBOUNCE && vector) {
+      if (vector.y < -0.5) {
         // Up (Previous)
         setSelectedIndex((prev) => {
           const next = prev - 1;
           return next < 0 ? games.length - 1 : next;
         });
         lastInputTime.current = now;
-      } else if (input.vector.y > 0.5) {
+      } else if (vector.y > 0.5) {
         // Down (Next)
         setSelectedIndex((prev) => {
           const next = prev + 1;
           return next >= games.length ? 0 : next;
         });
         lastInputTime.current = now;
-      } else if (input.vector.x < -0.5) {
+      } else if (vector.x < -0.5) {
         // Left (Previous)
         setSelectedIndex((prev) => {
           const next = prev - 1;
           return next < 0 ? games.length - 1 : next;
         });
         lastInputTime.current = now;
-      } else if (input.vector.x > 0.5) {
+      } else if (vector.x > 0.5) {
         // Right (Next)
         setSelectedIndex((prev) => {
           const next = prev + 1;
@@ -130,7 +151,7 @@ export default function ArcadePage() {
       }
     }
 
-    if (input.action) {
+    if (getAction()) {
       // Select Game
       const game = games[selectedIndex];
       if (game) {
@@ -144,7 +165,7 @@ export default function ArcadePage() {
     name: string;
     url: string;
   }) => {
-    if (!host.socket.connected) return;
+    if (!host.socket || !host.socket.connected) return;
 
     console.log("[Arcade] Original game URL:", game.url);
     const baseUrl = await urlBuilder.normalizeForMobile(game.url);
@@ -181,9 +202,9 @@ export default function ArcadePage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Helper to exit game
-  const exitGame = () => {
+  const exitGame = useCallback(() => {
     // Tell server to close the game
-    if (host.socket.connected) {
+    if (host.socket?.connected) {
       host.socket.emit("system:closeGame", { roomId: host.roomId });
     }
 
@@ -192,7 +213,7 @@ export default function ArcadePage() {
     setActiveGame(null);
     setNormalizedGameUrl("");
     setJoinToken(null);
-  };
+  }, [host.socket, host.roomId]);
 
   useEffect(() => {
     exitGameRef.current = exitGame;

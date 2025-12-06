@@ -1,7 +1,7 @@
-import type { GameLoopInput } from "@air-jam/sdk";
 import { Quaternion, Vector3 } from "three";
 import { useAbilitiesStore } from "../abilities-store";
 import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
+import type { GameLoopInput } from "../types";
 import { GameContext } from "./GameContext";
 import { ReachabilityChecker, type JumpPadInfo } from "./ReachabilityChecker";
 

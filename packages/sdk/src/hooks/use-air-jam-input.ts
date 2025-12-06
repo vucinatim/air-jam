@@ -1,75 +1,75 @@
 import { useCallback, useEffect, useRef } from "react";
+import type { z } from "zod";
 import type { ControllerInputEvent } from "../protocol";
 import { getSocketClient } from "../socket-client";
 
-/**
- * The shape of the input the game loop will consume.
- * This is a clean, simple interface for game logic.
- */
-export interface GameLoopInput {
-  vector: { x: number; y: number };
-  action: boolean;
-  ability: boolean;
-  timestamp: number;
-}
-
-/**
- * Internal state that tracks both latched (consumable) and raw (physical) input.
- * The latch ensures rapid taps are never missed.
- */
-interface InternalInputState extends GameLoopInput {
-  // We strictly track the physical truth separately from the game truth
-  _rawVector: { x: number; y: number };
-  _rawAction: boolean;
-  _rawAbility: boolean;
-}
-
-interface UseAirJamInputOptions {
+interface UseAirJamInputOptions<TInput = Record<string, unknown>> {
   /**
    * Optional: Only listen to inputs from this room.
    * If not provided, listens to all rooms (useful for testing).
    */
   roomId?: string;
+  /**
+   * Optional: Zod schema for input validation and type inference.
+   * If provided, inputs will be validated and returned as the inferred type.
+   * If not provided, inputs are returned as Record<string, unknown>.
+   */
+  schema?: z.ZodSchema<TInput>;
 }
 
 /**
- * A specialized hook for high-frequency input processing in game loops.
+ * Type-safe input buffer for high-frequency input processing in game loops.
  *
  * Key features:
  * - Zero React re-renders (uses refs only)
- * - Latch pattern ensures rapid taps are never missed
  * - Pop-based consumption model (read once per frame)
+ * - Type-safe with Zod schema validation and inference
  * - Completely decoupled from UI/lobby logic
+ *
+ * For latching behavior (catching rapid taps), use `useAirJamInputLatch` utility hook.
  *
  * @example
  * ```tsx
- * const { popInput, clearInput } = useAirJamInput({ roomId: "ABCD" });
+ * // With Zod schema (recommended - type-safe + validated)
+ * const inputSchema = z.object({
+ *   vector: z.object({ x: z.number(), y: z.number() }),
+ *   action: z.boolean(),
+ *   ability: z.boolean(),
+ * });
+ * const { popInput } = useAirJamInput({ roomId: "ABCD", schema: inputSchema });
  *
  * useFrame(() => {
  *   const input = popInput(controllerId);
- *   if (input?.ability) {
- *     // Fire ability - guaranteed to catch rapid taps
+ *   if (input) {
+ *     // input is fully typed! No manual type guards needed
+ *     input.vector.x; // number
+ *     input.action; // boolean
  *   }
  * });
  * ```
  */
-export const useAirJamInput = (
-  options: UseAirJamInputOptions = {},
+export const useAirJamInput = <TInput = Record<string, unknown>>(
+  options: UseAirJamInputOptions<TInput> = {},
 ): {
   /**
-   * Reads and consumes the input for a specific controller.
-   * Call this ONCE per frame per controller.
-   * Returns undefined if no input exists for that controller.
+   * Reads the raw input for a specific controller.
+   * Does NOT remove from buffer - input persists until new input arrives.
+   * Returns validated and typed input if schema is provided, otherwise raw Record.
    */
-  popInput: (controllerId: string) => GameLoopInput | undefined;
+  popInput: (
+    controllerId: string,
+  ) => TInput extends Record<string, unknown>
+    ? TInput | undefined
+    : Record<string, unknown> | undefined;
   /**
    * Clears input state for a controller (e.g., when player leaves).
    */
   clearInput: (controllerId: string) => void;
 } => {
-  // Use a Map to store input state for all controllers
+  const { schema } = options;
+  // Use a Map to store raw input for all controllers
   // Refs ensure this never triggers a React re-render (CRITICAL for game loops)
-  const inputBuffer = useRef<Map<string, InternalInputState>>(new Map());
+  const inputBuffer = useRef<Map<string, Record<string, unknown>>>(new Map());
 
   useEffect(() => {
     // 1. Get the SAME socket instance used by useAirJamHost
@@ -83,76 +83,8 @@ export const useAirJamInput = (
         return;
       }
 
-      const buffer = inputBuffer.current;
-      const prev = buffer.get(payload.controllerId);
-      const input = payload.input;
-
-      // Type guards for safe extraction
-      // This hook expects: { vector: {x, y}, action: boolean, ability?: boolean, timestamp?: number }
-      const getVector = (): { x: number; y: number } => {
-        if (
-          input.vector &&
-          typeof input.vector === "object" &&
-          !Array.isArray(input.vector) &&
-          typeof (input.vector as { x?: unknown }).x === "number" &&
-          typeof (input.vector as { y?: unknown }).y === "number"
-        ) {
-          return input.vector as { x: number; y: number };
-        }
-        return prev?._rawVector ?? { x: 0, y: 0 };
-      };
-
-      const getAction = (): boolean => {
-        return typeof input.action === "boolean" ? input.action : false;
-      };
-
-      const getAbility = (): boolean => {
-        return typeof input.ability === "boolean" ? input.ability : false;
-      };
-
-      const getTimestamp = (): number => {
-        return typeof input.timestamp === "number"
-          ? input.timestamp
-          : Date.now();
-      };
-
-      // 1. Get Physical Truth (Raw)
-      const rawVector = getVector();
-      const rawAction = getAction();
-      const rawAbility = getAbility();
-
-      // 2. Calculate Latched Truth (Game)
-      // Rule: If it's physically true NOW, or was true since last frame, it's true.
-      const latchedAction = rawAction || (prev?.action ?? false);
-      const latchedAbility = rawAbility || (prev?.ability ?? false);
-
-      // Vector Latch Rule:
-      // If we are moving NOW, use current vector.
-      // If we stopped moving (raw=0) but moved since last frame (prev=nonzero), keep the prev vector.
-      const isRawVectorActive = rawVector.x !== 0 || rawVector.y !== 0;
-
-      let latchedVector = rawVector;
-
-      if (!isRawVectorActive && prev) {
-        // User released stick. Did they have a latched value waiting?
-        const isPrevVectorActive = prev.vector.x !== 0 || prev.vector.y !== 0;
-        if (isPrevVectorActive) {
-          latchedVector = prev.vector; // Keep the flick alive
-        }
-      }
-
-      buffer.set(payload.controllerId, {
-        // Public Game State
-        vector: latchedVector,
-        action: latchedAction,
-        ability: latchedAbility,
-        timestamp: getTimestamp(),
-
-        // Private Physical State (Stored for the reset phase)
-        _rawVector: rawVector,
-        _rawAction: rawAction,
-        _rawAbility: rawAbility,
-      });
+      // Store raw input as-is (arbitrary structure)
+      inputBuffer.current.set(payload.controllerId, payload.input);
     };
 
     socket.on("server:input", handleInput);
@@ -163,47 +95,50 @@ export const useAirJamInput = (
   }, [options.roomId]);
 
   /**
-   * Reads and Consumes the input for a specific controller.
-   * Call this ONCE per frame per controller.
-   *
-   * The latch is consumed by resetting the public state to match
-   * the raw physical state. This ensures:
-   * - A tap (true -> false) triggers exactly once when consumed
-   * - Holding the button keeps it true every frame until released
+   * Reads the raw input for a specific controller.
+   * Does NOT remove from buffer - input persists until new input arrives.
+   * This allows latching utilities to maintain state between frames.
+   * If schema is provided, validates and returns typed result.
    */
   const popInput = useCallback(
-    (controllerId: string): GameLoopInput | undefined => {
+    (
+      controllerId: string,
+    ): TInput extends Record<string, unknown>
+      ? TInput | undefined
+      : Record<string, unknown> | undefined => {
       const buffer = inputBuffer.current;
-      const state = buffer.get(controllerId);
+      const rawInput = buffer.get(controllerId);
 
-      if (!state) {
-        return undefined;
+      if (!rawInput) {
+        return undefined as TInput extends Record<string, unknown>
+          ? TInput | undefined
+          : Record<string, unknown> | undefined;
       }
 
-      // 1. Return the public "Latched" state
-      const result: GameLoopInput = {
-        vector: state.vector,
-        action: state.action,
-        ability: state.ability,
-        timestamp: state.timestamp,
-      };
+      // If schema provided, validate and return typed result
+      if (schema) {
+        const result = schema.safeParse(rawInput);
+        if (result.success) {
+          return result.data as TInput extends Record<string, unknown>
+            ? TInput | undefined
+            : Record<string, unknown> | undefined;
+        }
+        // Validation failed - log error and return undefined
+        console.warn(
+          `[useAirJamInput] Invalid input for controller ${controllerId}:`,
+          result.error.errors,
+        );
+        return undefined as TInput extends Record<string, unknown>
+          ? TInput | undefined
+          : Record<string, unknown> | undefined;
+      }
 
-      // 2. RESET PHASE
-      // We do NOT reset to false/zero. We reset to the RAW physical state.
-      // - If user held button: Latched was TRUE. Raw is TRUE. Reset to TRUE. (Hold works)
-      // - If user tapped button: Latched was TRUE. Raw is FALSE. Reset to FALSE. (Tap works)
-      // - If user held stick: Latched was non-zero. Raw is non-zero. Reset to non-zero. (Hold works)
-      // - If user flicked stick: Latched was non-zero. Raw is zero. Reset to zero. (Flick consumed)
-      buffer.set(controllerId, {
-        ...state,
-        vector: state._rawVector, // Reset to physical stick position
-        action: state._rawAction, // Reset to physical button state
-        ability: state._rawAbility, // Reset to physical button state
-      });
-
-      return result;
+      // No schema - return raw input
+      return rawInput as TInput extends Record<string, unknown>
+        ? TInput | undefined
+        : Record<string, unknown> | undefined;
     },
-    [],
+    [schema],
   );
 
   /**

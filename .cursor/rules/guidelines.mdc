@@ -36,3 +36,4 @@ alwaysApply: true
 # Instructions
 - Always use the latest version of the libraries and tools - by installing them with pnpm
 - Write clean, readable, logical, structured, extensible and maintainable codebase.
+- NEVER think or design for backwards compatibility! Always rewrite and change all usages in code to the new system.
