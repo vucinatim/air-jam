@@ -199,7 +199,7 @@ function JoypadContentInner() {
 
   // --- IFRAME LOGIC ---
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [, setIframeLoaded] = useState(false);
 
   // Reset state when activeUrl changes
   useEffect(() => {
@@ -221,7 +221,7 @@ function JoypadContentInner() {
         <div className="bg-background absolute inset-0 z-50">
           {/* Exit Button Overlay */}
           <button
-            className="absolute top-2 right-2 z-[60] rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-red-600"
+            className="absolute top-2 right-2 z-60 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-red-600"
             onClick={() => {
               if (confirm("Exit Game?")) {
                 shell.sendSystemCommand("EXIT_GAME");
