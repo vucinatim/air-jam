@@ -78,7 +78,7 @@ const createMountainStrip = (
     color: WORLD_CONFIG.MOUNTAIN_COLOR,
     wireframe: true,
     transparent: true,
-    opacity: 0.5,
+    opacity: 1,
   });
   const wireMesh = new THREE.Mesh(geo, wireMat);
   wireMesh.position.z = 0.05;

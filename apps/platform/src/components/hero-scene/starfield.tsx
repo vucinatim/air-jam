@@ -27,6 +27,7 @@ export const Starfield = () => {
     const starsMat = new THREE.PointsMaterial({
       color: 0xffffff,
       size: 0.2,
+      depthWrite: false,
     });
 
     return {
@@ -46,7 +47,7 @@ export const Starfield = () => {
         positions[i * 3 + 2] += WORLD_CONFIG.SPEED * 0.5 * delta;
 
         // Check boundary (Camera is at ~12)
-        if (positions[i * 3 + 2] > 20) {
+        if (positions[i * 3 + 2] > 10) {
           // Reset to far distance
           positions[i * 3 + 2] -= 220;
         }
@@ -57,6 +58,11 @@ export const Starfield = () => {
   });
 
   return (
-    <points ref={starsRef} geometry={geometry} material={material}></points>
+    <points
+      ref={starsRef}
+      geometry={geometry}
+      material={material}
+      renderOrder={-1}
+    ></points>
   );
 };
