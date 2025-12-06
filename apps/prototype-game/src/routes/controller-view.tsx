@@ -81,6 +81,7 @@ const DirectionControl = ({
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
+      onContextMenu={(e) => e.preventDefault()}
       aria-label={label}
     >
       <Icon className="h-8 w-8 sm:h-12 sm:w-12 md:h-16 md:w-16" />
@@ -140,6 +141,7 @@ const ActionControl = ({
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
+      onContextMenu={(e) => e.preventDefault()}
       aria-label={label}
     >
       <Icon className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10" />

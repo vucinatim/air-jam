@@ -12,6 +12,7 @@ import type {
 } from "../protocol";
 import {
   controllerStateSchema,
+  controllerSystemSchema,
   hostRegistrationSchema,
   roomCodeSchema,
 } from "../protocol";
@@ -155,19 +156,21 @@ export const useAirJamHost = (
     }
     setLastToggle(now);
 
-    const store = useConnectionStore.getState();
-    const newState: GameState =
-      store.gameState === "paused" ? "playing" : "paused";
-    store.setGameState(newState);
+    if (!socket || !socket.connected) {
+      return;
+    }
 
-    if (!socket || !socket.connected) return;
+    if (!parsedRoomId) {
+      return;
+    }
 
-    const payload = controllerStateSchema.safeParse({
+    // Use system command - server is source of truth for toggling
+    const payload = controllerSystemSchema.safeParse({
       roomId: parsedRoomId,
-      state: { gameState: newState },
+      command: "toggle_pause",
     });
     if (payload.success) {
-      socket.emit("host:state", payload.data);
+      socket.emit("host:system", payload.data);
     }
   }, [socket, parsedRoomId, lastToggle]);
 
@@ -277,7 +280,11 @@ export const useAirJamHost = (
     }): void => {
       if (payload.player) {
         store.upsertPlayer(payload.player);
-        onPlayerJoinRef.current?.(payload.player);
+        // Use a timeout to ensure state updates don't conflict with rendering
+        // or other immediate side effects, and to allow refs to be up to date
+        setTimeout(() => {
+          onPlayerJoinRef.current?.(payload.player!);
+        }, 0);
       }
     };
 

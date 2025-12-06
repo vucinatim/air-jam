@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ConnectionStatus,
   ControllerInputPayload,
+  ControllerStateMessage,
+  GameState,
   PlayerProfile,
   RoomCode,
 } from "../protocol";
@@ -33,6 +35,7 @@ export interface AirJamShellApi {
   lastError?: string;
   activeUrl: string | null;
   players: PlayerProfile[];
+  gameState: GameState;
   sendInput: (input: ControllerInputPayload) => boolean;
   sendSystemCommand: (command: "exit" | "ready" | "toggle_pause") => void;
 }
@@ -66,6 +69,7 @@ export const useAirJamShell = (
     lastError: state.lastError,
     controllerId: state.controllerId,
     players: state.players,
+    gameState: state.gameState,
   }));
 
   // Use socket lifecycle utility
@@ -145,9 +149,22 @@ export const useAirJamShell = (
       }
     };
 
+    const handleState = (payload: ControllerStateMessage): void => {
+      if (payload.roomId !== parsedRoomId) {
+        return;
+      }
+      if (payload.state.gameState) {
+        store.setGameState(payload.state.gameState);
+      }
+      if (payload.state.message !== undefined) {
+        store.setStateMessage(payload.state.message);
+      }
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("server:welcome", handleWelcome);
+    socket.on("server:state", handleState);
     socket.on("client:loadUi", handleLoadUi);
     socket.on("client:unloadUi", handleUnloadUi);
     socket.on("server:error", handleError);
@@ -175,6 +192,7 @@ export const useAirJamShell = (
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
       socket.off("server:welcome", handleWelcome);
+      socket.off("server:state", handleState);
       socket.off("client:loadUi", handleLoadUi);
       socket.off("client:unloadUi", handleUnloadUi);
       socket.off("server:error", handleError);
@@ -251,6 +269,7 @@ export const useAirJamShell = (
     lastError: connectionState.lastError,
     activeUrl,
     players: connectionState.players,
+    gameState: connectionState.gameState,
     sendInput,
     sendSystemCommand,
   };

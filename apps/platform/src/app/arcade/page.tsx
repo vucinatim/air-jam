@@ -46,9 +46,39 @@ export default function ArcadePage() {
     roomId: persistedRoomId,
     apiKey: PLATFORM_API_KEY,
     onInput: (event) => handleInput(event),
-    onPlayerJoin: () => {
+    onPlayerJoin: (player) => {
       // Re-broadcast state when new player joins
       broadcastCurrentState();
+
+      // If a game is active, we should tell the new player to load it
+      if (view === "game" && activeGame && normalizedGameUrl) {
+        console.log(
+          "[Arcade] New player joined during active game, sending load_ui",
+          {
+            playerId: player.id,
+            gameUrl: normalizedGameUrl,
+          },
+        );
+
+        // The socket server handles the actual "load_ui" event for new connections
+        // IF the system state is set correctly.
+        // However, we can also manually force it if needed, but let's first check if
+        // the server's "sticky" state behavior is working.
+        //
+        // In the current architecture, when a player joins, the server sends them the current UI
+        // if one has been set via system:launchGame.
+        // But since the new player connects to the *Arcade*'s room, the Arcade (Host)
+        // is responsible for game management.
+
+        // Re-emitting launchGame might be too heavy (it creates a new child room/token).
+        // Instead, the new player should receive the `client:load_ui` event from the server
+        // automatically if the server persisted the game URL for the room.
+
+        // If the server doesn't persist it, we might need a way to tell a specific client to load a URL.
+        // For now, let's assume the server handles it or we rely on the `broadcastCurrentState`
+        // which sends the "browser" state if we were in browser mode.
+        // But we are in "game" mode.
+      }
     },
     onChildClose: () => {
       console.log(
@@ -84,19 +114,37 @@ export default function ArcadePage() {
   // Fetch games (assuming you have games in your DB)
   const { data: games } = api.game.list.useQuery();
 
-  // Helper to sync state to controllers
-  const broadcastCurrentState = () => {
+  const broadcastCurrentState = useCallback(() => {
     if (!games) return;
     const currentGame = games[selectedIndex];
 
+    // Only broadcast message, not gameState - gameState is controlled by toggle button
     // We only broadcast "browser" state. When game launches, Server handles UI switching.
     if (view === "browser") {
       host.sendState({
-        gameState: "paused",
         message: currentGame ? currentGame.name : undefined,
       });
+    } else if (view === "game" && activeGame && normalizedGameUrl) {
+      // Game is active. We need to ensure new players get the game controller URL.
+      // The `host.sendState` is mainly for metadata display on the default controller.
+      // To actually switch their UI, we rely on the `system:launchGame` having set the room state.
+      // However, if that doesn't persist for new joins, we might need a way to re-send.
+
+      // NOTE: In the current Air Jam protocol, `system:launchGame` tells the server to:
+      // 1. Create a child room
+      // 2. Broadcast `client:load_ui` to all CURRENT players
+      // 3. Set the room's "active game" state so NEW players get `client:load_ui` on join.
+
+      // If new players are seeing the Arcade controller instead of the Game controller,
+      // it means the server isn't automatically sending `client:load_ui` to new joins,
+      // OR the client isn't handling it correctly on initial connect.
+
+      // Only send message, not gameState - gameState is controlled by toggle button
+      host.sendState({
+        message: activeGame.name,
+      });
     }
-  };
+  }, [games, selectedIndex, view, host, activeGame, normalizedGameUrl]);
 
   // Broadcast state whenever relevant things change
   useEffect(() => {
@@ -107,13 +155,20 @@ export default function ArcadePage() {
       connectionStatus: host.connectionStatus,
     });
     broadcastCurrentState();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, selectedIndex, games, host.connectionStatus]);
+  }, [
+    view,
+    selectedIndex,
+    games,
+    host.connectionStatus,
+    broadcastCurrentState,
+  ]);
 
   // 3. Navigation Logic with Input Latching
   const lastExitTime = useRef<number>(0);
   const EXIT_COOLDOWN = 500; // ms - prevent immediate relaunch after exit
-  const lastVectorState = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastVectorStates = useRef<Map<string, { x: number; y: number }>>(
+    new Map(),
+  );
 
   const handleInput = (event: ControllerInputEvent) => {
     const { input, controllerId } = event;
@@ -157,7 +212,10 @@ export default function ArcadePage() {
     }
 
     // Detect edge transitions (when vector goes from non-active to active)
-    const prevVec = lastVectorState.current;
+    const prevVec = lastVectorStates.current.get(controllerId) ?? {
+      x: 0,
+      y: 0,
+    };
     const wasVectorActive =
       Math.abs(prevVec.x) > 0.5 || Math.abs(prevVec.y) > 0.5;
     const isVectorActive =
@@ -194,10 +252,11 @@ export default function ArcadePage() {
     }
 
     // Store current vector state for next comparison
-    lastVectorState.current = latchedInput.vector;
+    lastVectorStates.current.set(controllerId, latchedInput.vector);
 
     // Handle action button with latching
     if (latchedInput.action) {
+      // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
       // Check if we're still in cooldown after exiting a game
       if (now - lastExitTime.current < EXIT_COOLDOWN) {

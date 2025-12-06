@@ -1,160 +1,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
+import { RemoteDPad } from "@/components/remote-d-pad";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { ControllerShell, useAirJamShell } from "@air-jam/sdk";
 import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-
-// --- Components ---
-
-/**
- * A D-Pad component that emits normalized vector inputs
- */
-const DPad = ({
-  onMove,
-}: {
-  onMove: (vector: { x: number; y: number }) => void;
-}) => {
-  // Simple 4-way D-Pad Logic
-  const handleTouch = (
-    direction: "up" | "down" | "left" | "right" | "none",
-  ) => {
-    switch (direction) {
-      case "up":
-        onMove({ x: 0, y: -1 });
-        break;
-      case "down":
-        onMove({ x: 0, y: 1 });
-        break;
-      case "left":
-        onMove({ x: -1, y: 0 });
-        break;
-      case "right":
-        onMove({ x: 1, y: 0 });
-        break;
-      case "none":
-        onMove({ x: 0, y: 0 });
-        break;
-    }
-  };
-
-  return (
-    <div className="relative flex h-48 w-48 items-center justify-center rounded-full border-4 border-slate-700 bg-slate-800 shadow-inner select-none">
-      {/* Up */}
-      <div
-        className="absolute top-2 left-1/2 h-16 w-12 -translate-x-1/2 cursor-pointer rounded-t-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
-        onTouchStart={(e) => {
-          e.preventDefault();
-          handleTouch("up");
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleTouch("none");
-        }}
-        onMouseDown={() => handleTouch("up")}
-        onMouseUp={() => handleTouch("none")}
-        onMouseLeave={() => handleTouch("none")}
-      />
-      {/* Down */}
-      <div
-        className="absolute bottom-2 left-1/2 h-16 w-12 -translate-x-1/2 cursor-pointer rounded-b-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
-        onTouchStart={(e) => {
-          e.preventDefault();
-          handleTouch("down");
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleTouch("none");
-        }}
-        onMouseDown={() => handleTouch("down")}
-        onMouseUp={() => handleTouch("none")}
-        onMouseLeave={() => handleTouch("none")}
-      />
-      {/* Left */}
-      <div
-        className="absolute top-1/2 left-2 h-12 w-16 -translate-y-1/2 cursor-pointer rounded-l-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
-        onTouchStart={(e) => {
-          e.preventDefault();
-          handleTouch("left");
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleTouch("none");
-        }}
-        onMouseDown={() => handleTouch("left")}
-        onMouseUp={() => handleTouch("none")}
-        onMouseLeave={() => handleTouch("none")}
-      />
-      {/* Right */}
-      <div
-        className="absolute top-1/2 right-2 h-12 w-16 -translate-y-1/2 cursor-pointer rounded-r-lg bg-slate-700 transition-colors hover:bg-slate-600 active:bg-blue-500"
-        onTouchStart={(e) => {
-          e.preventDefault();
-          handleTouch("right");
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleTouch("none");
-        }}
-        onMouseDown={() => handleTouch("right")}
-        onMouseUp={() => handleTouch("none")}
-        onMouseLeave={() => handleTouch("none")}
-      />
-      {/* Center Pivot */}
-      <div className="h-12 w-12 rounded-full bg-slate-900 shadow-inner" />
-    </div>
-  );
-};
-
-/**
- * A big action button
- */
-const ActionButton = ({
-  label,
-  color = "red",
-  onPress,
-  onRelease,
-}: {
-  label: string;
-  color?: "red" | "blue" | "green" | "yellow";
-  onPress: () => void;
-  onRelease: () => void;
-}) => {
-  const colorStyles = {
-    red: "bg-red-500 active:bg-red-600 shadow-red-900",
-    blue: "bg-blue-500 active:bg-blue-600 shadow-blue-900",
-    green: "bg-green-500 active:bg-green-600 shadow-green-900",
-    yellow: "bg-yellow-500 active:bg-yellow-600 shadow-yellow-900",
-  };
-
-  return (
-    <button
-      className={cn(
-        "flex h-24 w-24 items-center justify-center rounded-full border-4 border-black/20 shadow-[0_4px_0_0] transition-all active:translate-y-1 active:shadow-none",
-        colorStyles[color],
-      )}
-      onTouchStart={(e) => {
-        e.preventDefault();
-        onPress();
-      }}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        onRelease();
-      }}
-      onMouseDown={onPress}
-      onMouseUp={onRelease}
-      onMouseLeave={onRelease}
-    >
-      <span className="text-2xl font-bold text-white/90 drop-shadow-md">
-        {label}
-      </span>
-    </button>
-  );
-};
 
 const JoypadContent = dynamic(() => Promise.resolve(JoypadContentInner), {
   ssr: false,
@@ -168,11 +21,13 @@ function JoypadContentInner() {
   const shell = useAirJamShell({
     serverUrl: process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL,
   });
-  const [vector, setVector] = useState({ x: 0, y: 0 });
-  const [action, setAction] = useState(false);
-  const [ability, setAbility] = useState(false);
+
+  // Use refs to store input state - avoids re-renders and keeps loop stable
+  const vectorRef = useRef({ x: 0, y: 0 });
+  const actionRef = useRef(false);
 
   // Send input loop for Arcade Controller (approx 60fps)
+  // Using refs means this effect only runs once when connection status changes
   useEffect(() => {
     if (shell.connectionStatus !== "connected") return;
     // If we are in game mode (activeUrl is set), we don't send inputs from the shell d-pad
@@ -181,12 +36,10 @@ function JoypadContentInner() {
     let animationFrameId: number;
 
     const loop = () => {
-      // Send arbitrary input structure - this arcade controller uses vector/action/ability
-      // Other games can define their own structure
+      // Read from refs - always gets latest values without causing re-renders
       shell.sendInput({
-        vector,
-        action,
-        ability,
+        vector: vectorRef.current,
+        action: actionRef.current,
         timestamp: Date.now(),
       });
       animationFrameId = requestAnimationFrame(loop);
@@ -195,7 +48,7 @@ function JoypadContentInner() {
     loop();
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [shell.connectionStatus, vector, action, ability, shell, shell.activeUrl]);
+  }, [shell.connectionStatus, shell, shell.activeUrl]);
 
   const handleReconnect = (roomCode: string) => {
     router.push(`?room=${roomCode}`);
@@ -214,27 +67,29 @@ function JoypadContentInner() {
   // Reset ALL state when activeUrl changes (prevents stale input causing game relaunch)
   useEffect(() => {
     setIframeLoaded(false);
-    // Reset input state to prevent ghost inputs when switching between arcade and game
-    setVector({ x: 0, y: 0 });
-    setAction(false);
-    setAbility(false);
+    // Reset input refs to prevent ghost inputs when switching between arcade and game
+    vectorRef.current = { x: 0, y: 0 };
+    actionRef.current = false;
   }, [shell.activeUrl]);
+
+  console.log("shell.gameState", shell.gameState);
 
   return (
     <ControllerShell
       connectionStatus={shell.connectionStatus}
       roomId={shell.roomId}
-      gameState="playing" // Always show as playing for arcade shell
+      gameState={shell.gameState}
       onReconnect={handleReconnect}
       onTogglePlayPause={handleTogglePlayPause}
       onRefresh={() => window.location.reload()}
-      requiredOrientation="landscape"
+      requiredOrientation={shell.activeUrl ? "any" : "portrait"}
       customActions={
         shell.activeUrl ? (
           <Button
             type="button"
-            variant="destructive"
+            variant="outline"
             size="icon"
+            className="border-red-500 hover:border-red-600"
             onClick={() => {
               if (confirm("Exit game and return to arcade?")) {
                 shell.sendSystemCommand("exit");
@@ -268,38 +123,35 @@ function JoypadContentInner() {
 
       {/* --- DEFAULT ARCADE CONTROLLER --- */}
       {!shell.activeUrl && (
-        <>
-          <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 opacity-20">
-            <h1 className="text-3xl font-black tracking-tighter uppercase italic select-none">
-              Air Jam <span className="text-primary">Arcade</span>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-8 px-6 py-12">
+          <div className="text-center opacity-30">
+            <h1 className="text-4xl font-black tracking-tighter uppercase select-none">
+              Air Jam
             </h1>
+            <p className="text-primary text-2xl font-black tracking-wider uppercase">
+              Arcade
+            </p>
           </div>
 
-          <div className="flex h-full w-full items-center justify-between px-12 pb-8">
-            <div className="flex w-1/3 items-end justify-start">
-              <DPad onMove={setVector} />
-            </div>
-            <div className="flex w-1/3 flex-col items-center justify-end gap-4 pb-8"></div>
-            <div className="flex w-1/3 translate-y-4 rotate-6 transform items-center justify-end gap-6">
-              <div className="translate-y-8">
-                <ActionButton
-                  label="B"
-                  color="yellow"
-                  onPress={() => setAbility(true)}
-                  onRelease={() => setAbility(false)}
-                />
-              </div>
-              <div className="-translate-y-8">
-                <ActionButton
-                  label="A"
-                  color="red"
-                  onPress={() => setAction(true)}
-                  onRelease={() => setAction(false)}
-                />
-              </div>
-            </div>
+          <div className="flex flex-1 items-center justify-center">
+            <RemoteDPad
+              onMove={(vector) => {
+                vectorRef.current = vector;
+              }}
+              onConfirm={() => {
+                actionRef.current = true;
+              }}
+              onConfirmRelease={() => {
+                actionRef.current = false;
+              }}
+            />
           </div>
-        </>
+
+          <div className="text-muted-foreground text-center text-sm opacity-50">
+            <p>Use the remote to navigate</p>
+            <p className="mt-1">Press OK to select</p>
+          </div>
+        </div>
       )}
     </ControllerShell>
   );

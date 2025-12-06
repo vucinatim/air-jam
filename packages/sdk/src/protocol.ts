@@ -242,6 +242,7 @@ export interface ClientToServerEvents {
   "controller:system": (
     payload: z.infer<typeof controllerSystemSchema>,
   ) => void;
+  "host:system": (payload: z.infer<typeof controllerSystemSchema>) => void;
   "host:play_sound": (payload: PlaySoundEventPayload) => void;
   "controller:play_sound": (payload: PlaySoundEventPayload) => void;
 }

@@ -1,7 +1,4 @@
 import {
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
   Maximize,
   Minimize,
   Pause,
@@ -118,17 +115,16 @@ export const ControllerShell = ({
 
   const orientationOk = requiredOrientation === "any" ? true : isOrientationOk;
 
-  const statusIcon = useMemo(() => {
+  const statusDotColor = useMemo(() => {
     switch (connectionStatus) {
       case "connected":
-        return <CheckCircle2 className="text-primary h-5 w-5" />;
+        return "bg-green-500";
       case "connecting":
       case "reconnecting":
-        return (
-          <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-        );
+        return "bg-yellow-500";
+      case "disconnected":
       default:
-        return <AlertCircle className="text-destructive h-5 w-5" />;
+        return "bg-red-500";
     }
   }, [connectionStatus]);
 
@@ -167,19 +163,35 @@ export const ControllerShell = ({
       <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between border-b px-6 py-2">
         <div className="pointer-events-auto flex items-center gap-3">
           {typeof window !== "undefined" && (currentPlayer || controllerId) && (
-            <Avatar
-              className="h-8 w-8 border-2"
-              style={{
-                borderColor: currentPlayer?.color || "hsl(var(--border))",
-              }}
-            >
-              <AvatarImage
-                src={getPlayerAvatarUrl(
-                  currentPlayer?.id || controllerId || "",
-                )}
-                alt={currentPlayer?.label || "Player"}
+            <div className="relative" title={describeStatus(connectionStatus)}>
+              <Avatar
+                className="h-8 w-8 border-2"
+                style={{
+                  borderColor: currentPlayer?.color || "hsl(var(--border))",
+                }}
+              >
+                <AvatarImage
+                  src={getPlayerAvatarUrl(
+                    currentPlayer?.id || controllerId || "",
+                  )}
+                  alt={currentPlayer?.label || "Player"}
+                />
+              </Avatar>
+              {/* Black border circle - always visible behind */}
+              <span
+                className="absolute right-0 bottom-0 h-3 w-3 rounded-full bg-black"
+                aria-hidden="true"
               />
-            </Avatar>
+              {/* Colored status dot - on top */}
+              <span
+                className={cn(
+                  "absolute right-0.5 bottom-0.5 h-2 w-2 rounded-full",
+                  statusDotColor,
+                  connectionStatus === "connected" && "animate-pulse",
+                )}
+                aria-label={describeStatus(connectionStatus)}
+              />
+            </div>
           )}
           <div>
             <p className="text-muted-foreground text-xs tracking-[0.24em] uppercase">
@@ -192,20 +204,6 @@ export const ControllerShell = ({
         </div>
         <div className="pointer-events-auto flex items-center gap-3">
           {customActions}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="flex items-center"
-            title={describeStatus(connectionStatus)}
-            aria-label={describeStatus(connectionStatus)}
-          >
-            {typeof window !== "undefined" ? (
-              statusIcon
-            ) : (
-              <AlertCircle className="text-destructive h-5 w-5" />
-            )}
-          </Button>
           {onRefresh && roomId && (
             <Button
               type="button"

@@ -125,7 +125,7 @@ io.on(
             masterHostSocketId: socket.id,
             focus: "SYSTEM",
             controllers: new Map(),
-            maxPlayers: 8, // Default
+            maxPlayers: 32, // Default increased to 32 to allow for observers/queue
             gameState: "paused",
           };
           roomManager.setRoom(roomId, session);
@@ -298,6 +298,15 @@ io.on(
             };
             socket.emit("server:controllerJoined", notice);
           });
+
+          // Send current game state to the child host
+          const statePayload = {
+            roomId,
+            state: {
+              gameState: session.gameState,
+            },
+          };
+          socket.emit("server:state", statePayload);
         }, 100);
 
         callback({ ok: true, roomId });
@@ -430,6 +439,14 @@ io.on(
         return;
       }
 
+      // When a controller joins, we usually check maxPlayers.
+      // However, for the ARCADE room, we want to allow MORE players than the game might support,
+      // so they can queue up or watch.
+      // But the current logic enforces `session.maxPlayers`.
+      // If we want to allow "observers" or "queue", we should increase maxPlayers for the Arcade room itself.
+      // The GAME itself (Child Host) might enforce its own player limit logic by ignoring inputs from extra players.
+
+      // For now, let's keep the hard limit on the Room but maybe bump the default.
       if (session.controllers.size >= session.maxPlayers) {
         callback({
           ok: false,
@@ -518,6 +535,38 @@ io.on(
       };
 
       socket.emit("server:welcome", welcomePayload);
+
+      // Send current game state to the new controller
+      const statePayload = {
+        roomId,
+        state: {
+          gameState: session.gameState,
+        },
+      };
+      socket.emit("server:state", statePayload);
+
+      // IMPORTANT: If a game is already active (activeControllerUrl set),
+      // we must tell the new controller to load the game UI immediately.
+      // We check activeControllerUrl instead of childHostSocketId because the game might be
+      // in the process of loading (launched but not yet connected) or momentarily disconnected.
+      if (session.activeControllerUrl) {
+        console.log(
+          `[server] Late joiner ${controllerId}: sending client:loadUi for existing game`,
+          {
+            url: session.activeControllerUrl,
+            hasChildHost: !!session.childHostSocketId,
+          },
+        );
+        socket.emit("client:loadUi", { url: session.activeControllerUrl });
+      } else {
+        console.log(
+          `[server] Controller ${controllerId} joined room ${roomId} (No active game)`,
+          {
+            activeControllerUrl: session.activeControllerUrl,
+            childHostSocketId: session.childHostSocketId,
+          },
+        );
+      }
     });
 
     socket.on("controller:leave", (payload: ControllerLeavePayload) => {
@@ -637,6 +686,38 @@ io.on(
       }
     });
 
+    socket.on("host:system", (payload) => {
+      const parsed = controllerSystemSchema.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+
+      const { roomId, command } = parsed.data;
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        return;
+      }
+
+      if (command === "toggle_pause") {
+        // Toggle game state - server is source of truth
+        session.gameState =
+          session.gameState === "playing" ? "paused" : "playing";
+        console.log(
+          `[server] Host toggled game state to ${session.gameState} in room ${roomId}`,
+        );
+
+        // Broadcast new state to Room (Host + Controllers)
+        const statePayload = {
+          roomId,
+          state: {
+            gameState: session.gameState,
+          },
+        };
+
+        io.to(roomId).emit("server:state", statePayload);
+      }
+    });
+
     socket.on("host:state", (payload: ControllerStateMessage) => {
       const result = controllerStateSchema.safeParse(payload);
       if (!result.success) return;
@@ -649,13 +730,18 @@ io.on(
           session.gameState = state.gameState;
         }
 
+        // Broadcast to all controllers
         session.controllers.forEach((c) => {
           io.to(c.socketId).emit("server:state", result.data);
         });
 
-        // Also reflect back to host(s) if needed, but usually host knows its state.
-        // However, if we have multiple hosts (system + child), maybe they need sync?
-        // For now, assume host is authoritative for its own state changes.
+        // Broadcast to all hosts (system + child) to keep them in sync
+        if (session.masterHostSocketId) {
+          io.to(session.masterHostSocketId).emit("server:state", result.data);
+        }
+        if (session.childHostSocketId) {
+          io.to(session.childHostSocketId).emit("server:state", result.data);
+        }
       }
     });
 
@@ -705,6 +791,7 @@ io.on(
           session.childHostSocketId = undefined;
           session.focus = "SYSTEM";
           session.joinToken = undefined;
+          session.activeControllerUrl = undefined; // Clear active game URL
 
           // Tell controllers to unload UI
           io.to(roomId).emit("client:unloadUi");
