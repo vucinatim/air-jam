@@ -1,20 +1,8 @@
 import { useAirJamInput, useAirJamInputLatch } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
-import { z } from "zod";
 import { useBotManager } from "../bot-system/BotManager";
-
-const gameInputSchema = z.object({
-  vector: z.object({
-    x: z.number(),
-    y: z.number(),
-  }),
-  action: z.boolean(),
-  ability: z.boolean(),
-  timestamp: z.number(),
-});
-
-type GameLoopInput = z.infer<typeof gameInputSchema>;
+import { gameInputSchema, GameLoopInput } from "../types";
 
 export const useGameInput = (options: { roomId?: string } = {}) => {
   // Type-safe input with Zod schema validation

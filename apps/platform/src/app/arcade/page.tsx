@@ -38,7 +38,13 @@ export default function ArcadePage() {
       broadcastCurrentState();
     },
     onChildClose: () => {
-      console.log("[Arcade] Received close_child request");
+      console.log(
+        "[Arcade] ========== onChildClose CALLBACK FIRED ==========",
+        {
+          currentView: view,
+          currentActiveGame: activeGame?.id,
+        },
+      );
       exitGameRef.current();
     },
     forceConnect: true,
@@ -81,21 +87,28 @@ export default function ArcadePage() {
 
   // Broadcast state whenever relevant things change
   useEffect(() => {
+    console.log("[Arcade] broadcastCurrentState useEffect triggered", {
+      view,
+      selectedIndex,
+      gamesLength: games?.length,
+      connectionStatus: host.connectionStatus,
+    });
     broadcastCurrentState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, selectedIndex, games, host.connectionStatus]);
 
   // 3. Navigation Logic
   const lastInputTime = useRef<number>(0);
+  const lastExitTime = useRef<number>(0);
   const INPUT_DEBOUNCE = 200; // ms
+  const EXIT_COOLDOWN = 500; // ms - prevent immediate relaunch after exit
 
   const handleInput = (event: ControllerInputEvent) => {
+    const { input } = event;
     // Only handle navigation if we are in the browser view
     if (view !== "browser" || !games || games.length === 0) {
       return;
     }
-
-    const { input } = event;
     const now = Date.now();
 
     // Type guards for safe extraction
@@ -152,9 +165,27 @@ export default function ArcadePage() {
     }
 
     if (getAction()) {
+      // Check if we're still in cooldown after exiting a game
+      if (now - lastExitTime.current < EXIT_COOLDOWN) {
+        console.log("[Arcade] Action button ignored - exit cooldown active", {
+          timeSinceExit: now - lastExitTime.current,
+          cooldown: EXIT_COOLDOWN,
+        });
+        return;
+      }
+
       // Select Game
+      console.log("[Arcade] Action button pressed in handleInput", {
+        selectedIndex,
+        view,
+        activeGame: activeGame?.id,
+      });
       const game = games[selectedIndex];
       if (game) {
+        console.log("[Arcade] Calling launchGame from handleInput", {
+          gameId: game.id,
+          stack: new Error().stack,
+        });
         launchGame(game);
       }
     }
@@ -165,7 +196,21 @@ export default function ArcadePage() {
     name: string;
     url: string;
   }) => {
-    if (!host.socket || !host.socket.connected) return;
+    console.log("[Arcade] ========== launchGame CALLED ==========", {
+      gameId: game.id,
+      gameName: game.name,
+      currentView: view,
+      currentActiveGame: activeGame?.id,
+      hasSocket: !!host.socket,
+      socketConnected: host.socket?.connected,
+      joinToken,
+      callStack: new Error().stack?.split("\n").slice(0, 5).join("\n"),
+    });
+
+    if (!host.socket || !host.socket.connected) {
+      console.log("[Arcade] launchGame aborted - no socket/not connected");
+      return;
+    }
 
     console.log("[Arcade] Original game URL:", game.url);
     const baseUrl = await urlBuilder.normalizeForMobile(game.url);
@@ -182,17 +227,25 @@ export default function ArcadePage() {
         gameUrl: controllerUrl,
       },
       (ack: SystemLaunchGameAck) => {
+        console.log("[Arcade] launchGame ACK received", {
+          ok: ack.ok,
+          joinToken: ack.joinToken,
+          message: ack.message,
+          currentView: view,
+          currentActiveGame: activeGame?.id,
+        });
         if (ack.ok && ack.joinToken) {
           console.log(
-            "[Arcade] Game launch successful, joinToken:",
+            "[Arcade] ========== Game launch successful, joinToken:",
             ack.joinToken,
+            "==========",
           );
           setJoinToken(ack.joinToken);
           setActiveGame(game);
           setNormalizedGameUrl(baseUrl);
           setView("game");
         } else {
-          console.error("Failed to launch game:", ack.message);
+          console.error("[Arcade] Failed to launch game:", ack.message);
         }
       },
     );
@@ -203,17 +256,40 @@ export default function ArcadePage() {
 
   // Helper to exit game
   const exitGame = useCallback(() => {
+    console.log("[Arcade] ========== exitGame CALLED ==========", {
+      currentView: view,
+      currentActiveGame: activeGame?.id,
+      joinToken,
+      hasSocket: !!host.socket,
+      socketConnected: host.socket?.connected,
+      roomId: host.roomId,
+      callStack: new Error().stack?.split("\n").slice(0, 5).join("\n"),
+    });
+
+    // Set exit cooldown to prevent immediate re-launch from stale input events
+    lastExitTime.current = Date.now();
+    console.log("[Arcade] Exit cooldown started", {
+      lastExitTime: lastExitTime.current,
+    });
+
     // Tell server to close the game
     if (host.socket?.connected) {
+      console.log("[Arcade] Emitting system:closeGame to server");
       host.socket.emit("system:closeGame", { roomId: host.roomId });
+    } else {
+      console.log(
+        "[Arcade] Cannot emit system:closeGame - socket not connected",
+      );
     }
 
     // Local cleanup
+    console.log("[Arcade] Setting state cleanup - view=browser, clearing game");
     setView("browser");
     setActiveGame(null);
     setNormalizedGameUrl("");
     setJoinToken(null);
-  }, [host.socket, host.roomId]);
+    console.log("[Arcade] ========== exitGame COMPLETE ==========");
+  }, [host.socket, host.roomId, view, activeGame, joinToken]);
 
   useEffect(() => {
     exitGameRef.current = exitGame;
@@ -270,6 +346,12 @@ export default function ArcadePage() {
                     : "border-white/10 opacity-70",
                 )}
                 onClick={() => {
+                  console.log("[Arcade] Card clicked", {
+                    gameId: game.id,
+                    idx,
+                    currentView: view,
+                    currentActiveGame: activeGame?.id,
+                  });
                   setSelectedIndex(idx);
                   launchGame(game);
                 }}
@@ -312,12 +394,28 @@ export default function ArcadePage() {
               }aj_room=${host.roomId}&aj_token=${joinToken}`}
               className="h-full w-full border-none"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
+              onLoad={() => {
+                console.log(
+                  "[Arcade] ========== IFRAME onLoad FIRED ==========",
+                  {
+                    gameId: activeGame.id,
+                    joinToken,
+                    src: iframeRef.current?.src,
+                  },
+                );
+              }}
+              onError={(e) => {
+                console.error("[Arcade] IFRAME onError", e);
+              }}
             />
 
             {/* Overlay Menu to Exit */}
             <div className="absolute top-4 right-4 z-50 opacity-0 transition-opacity hover:opacity-100">
               <button
-                onClick={exitGame}
+                onClick={() => {
+                  console.log("[Arcade] Exit Game button clicked");
+                  exitGame();
+                }}
                 className="rounded bg-red-600/80 px-4 py-2 text-white shadow-lg backdrop-blur hover:bg-red-600"
               >
                 Exit Game

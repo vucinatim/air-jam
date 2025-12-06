@@ -211,9 +211,13 @@ function JoypadContentInner() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [, setIframeLoaded] = useState(false);
 
-  // Reset state when activeUrl changes
+  // Reset ALL state when activeUrl changes (prevents stale input causing game relaunch)
   useEffect(() => {
     setIframeLoaded(false);
+    // Reset input state to prevent ghost inputs when switching between arcade and game
+    setVector({ x: 0, y: 0 });
+    setAction(false);
+    setAbility(false);
   }, [shell.activeUrl]);
 
   return (
