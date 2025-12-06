@@ -102,84 +102,85 @@ export const AirJamOverlay = ({
     }
   }, [connectionStatus]);
 
-  // Playing mode: thin navbar at top
-  if (gameState === "playing") {
-    // In Child Mode (Platform), we hide the overlay completely during gameplay
-    // because the Platform handles the UI/Header.
-    if (isChildMode) return null;
+  // In Child Mode (Platform), we hide the overlay completely
+  // because the Platform handles the UI/Header.
+  if (isChildMode) return null;
 
-    return (
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-99999">
-        <div className="mx-auto w-full">
-          <div className="flex items-center justify-between px-4 py-2">
-            {/* Left: Room name */}
-            <div className="flex items-center gap-3">
-              <div>
-                <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
-                  Room
-                </p>
-                <p className="text-foreground text-lg font-semibold">
-                  {roomId}
-                </p>
-              </div>
-            </div>
-
-            {/* Right: Avatar stack and play/pause */}
-            <div className="pointer-events-auto flex items-center gap-3">
-              {/* Avatar stack */}
-              {players.length > 0 && (
-                <div className="flex items-center -space-x-2">
-                  {players.slice(0, 4).map((player) => (
-                    <Avatar
-                      key={player.id}
-                      className="h-8 w-8 border-2"
-                      style={{
-                        borderColor: player.color || "hsl(var(--border))",
-                      }}
-                    >
-                      <AvatarImage
-                        src={getPlayerAvatarUrl(player.id)}
-                        alt={player.label}
-                      />
-                    </Avatar>
-                  ))}
-                  {players.length > 4 && (
-                    <div className="border-background bg-muted flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-medium">
-                      +{players.length - 4}
-                    </div>
-                  )}
+  // Always render the navbar (unless child mode + playing)
+  return (
+    <>
+      {/* Top Navbar - Always Visible */}
+      {!isChildMode && (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-99999">
+          <div className="mx-auto w-full">
+            <div className="flex items-center justify-between px-4 py-2">
+              {/* Left: Room name */}
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
+                    Room
+                  </p>
+                  <p className="text-foreground text-lg font-semibold">
+                    {roomId}
+                  </p>
                 </div>
-              )}
+              </div>
 
-              {/* Play/Pause button */}
-              {onTogglePlayPause && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={onTogglePlayPause}
-                  aria-label={gameState === "playing" ? "Pause" : "Play"}
-                  className="h-8 w-8"
-                >
-                  {gameState === "playing" ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
+              {/* Right: Avatar stack and play/pause */}
+              <div className="pointer-events-auto flex items-center gap-3">
+                {/* Avatar stack */}
+                {players.length > 0 && (
+                  <div className="flex items-center -space-x-2">
+                    {players.slice(0, 4).map((player) => (
+                      <Avatar
+                        key={player.id}
+                        className="h-8 w-8 border-2"
+                        style={{
+                          borderColor: player.color || "hsl(var(--border))",
+                        }}
+                      >
+                        <AvatarImage
+                          src={getPlayerAvatarUrl(player.id)}
+                          alt={player.label}
+                        />
+                      </Avatar>
+                    ))}
+                    {players.length > 4 && (
+                      <div className="border-background bg-muted flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-medium">
+                        +{players.length - 4}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Play/Pause button */}
+                {onTogglePlayPause && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onTogglePlayPause}
+                    aria-label={gameState === "playing" ? "Pause" : "Play"}
+                    className="h-8 w-8"
+                  >
+                    {gameState === "playing" ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  // Paused mode: full overlay
-  return (
-    <div className="pointer-events-none fixed inset-0 z-99999 flex items-center justify-center p-4">
-      <div className="pointer-events-auto w-full max-w-2xl">
-        <Card className="bg-card/20 flex h-[80vh] flex-col overflow-hidden border py-0 shadow-lg backdrop-blur-sm">
+      {/* Paused Overlay - Only visible when paused */}
+      {gameState === "paused" && (
+        <div className="pointer-events-none fixed inset-0 z-99998 flex items-center justify-center p-4">
+          <div className="pointer-events-auto w-full max-w-2xl">
+            <Card className="bg-card/20 flex h-[80vh] flex-col overflow-hidden border py-0 shadow-lg backdrop-blur-sm">
           <Tabs
             defaultValue={isChildMode ? "settings" : "room-code"}
             className="flex h-full w-full flex-col gap-0"
@@ -444,6 +445,8 @@ export const AirJamOverlay = ({
           </Tabs>
         </Card>
       </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };

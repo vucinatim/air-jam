@@ -9,6 +9,7 @@ import {
   type SystemLaunchGameAck,
   urlBuilder,
   useAirJamHost,
+  useAirJamInputLatch,
 } from "@air-jam/sdk";
 import { Gamepad2, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,6 +25,18 @@ export default function ArcadePage() {
       return sessionStorage.getItem("airjam_platform_room_id") || undefined;
     }
     return undefined;
+  });
+
+  // Define input type for arcade navigation
+  type ArcadeInput = {
+    vector: { x: number; y: number };
+    action: boolean;
+  };
+
+  // Set up input latching for responsive navigation
+  const { getLatched } = useAirJamInputLatch<ArcadeInput>({
+    booleanFields: ["action"],
+    vectorFields: ["vector"],
   });
 
   // 1. Initialize the Host (The Platform is the Host)
@@ -97,22 +110,19 @@ export default function ArcadePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, selectedIndex, games, host.connectionStatus]);
 
-  // 3. Navigation Logic
-  const lastInputTime = useRef<number>(0);
+  // 3. Navigation Logic with Input Latching
   const lastExitTime = useRef<number>(0);
-  const INPUT_DEBOUNCE = 200; // ms
   const EXIT_COOLDOWN = 500; // ms - prevent immediate relaunch after exit
+  const lastVectorState = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleInput = (event: ControllerInputEvent) => {
-    const { input } = event;
+    const { input, controllerId } = event;
     // Only handle navigation if we are in the browser view
     if (view !== "browser" || !games || games.length === 0) {
       return;
     }
-    const now = Date.now();
 
     // Type guards for safe extraction
-    // Arcade expects gamepad pattern: { vector: {x, y}, action: boolean }
     const getVector = (): { x: number; y: number } | null => {
       if (
         input.vector &&
@@ -131,40 +141,64 @@ export default function ArcadePage() {
     };
 
     const vector = getVector();
+    const action = getAction();
 
-    if (now - lastInputTime.current > INPUT_DEBOUNCE && vector) {
-      if (vector.y < -0.5) {
+    // Create input structure for latching
+    const rawInput: ArcadeInput = {
+      vector: vector ?? { x: 0, y: 0 },
+      action,
+    };
+
+    // Get latched input - ensures rapid taps and flicks are caught
+    const latchedInput = getLatched(controllerId, rawInput);
+
+    if (!latchedInput) {
+      return;
+    }
+
+    // Detect edge transitions (when vector goes from non-active to active)
+    const prevVec = lastVectorState.current;
+    const wasVectorActive =
+      Math.abs(prevVec.x) > 0.5 || Math.abs(prevVec.y) > 0.5;
+    const isVectorActive =
+      Math.abs(latchedInput.vector.x) > 0.5 ||
+      Math.abs(latchedInput.vector.y) > 0.5;
+
+    // Only navigate on rising edge (when vector becomes active)
+    if (isVectorActive && !wasVectorActive) {
+      if (latchedInput.vector.y < -0.5) {
         // Up (Previous)
         setSelectedIndex((prev) => {
           const next = prev - 1;
           return next < 0 ? games.length - 1 : next;
         });
-        lastInputTime.current = now;
-      } else if (vector.y > 0.5) {
+      } else if (latchedInput.vector.y > 0.5) {
         // Down (Next)
         setSelectedIndex((prev) => {
           const next = prev + 1;
           return next >= games.length ? 0 : next;
         });
-        lastInputTime.current = now;
-      } else if (vector.x < -0.5) {
+      } else if (latchedInput.vector.x < -0.5) {
         // Left (Previous)
         setSelectedIndex((prev) => {
           const next = prev - 1;
           return next < 0 ? games.length - 1 : next;
         });
-        lastInputTime.current = now;
-      } else if (vector.x > 0.5) {
+      } else if (latchedInput.vector.x > 0.5) {
         // Right (Next)
         setSelectedIndex((prev) => {
           const next = prev + 1;
           return next >= games.length ? 0 : next;
         });
-        lastInputTime.current = now;
       }
     }
 
-    if (getAction()) {
+    // Store current vector state for next comparison
+    lastVectorState.current = latchedInput.vector;
+
+    // Handle action button with latching
+    if (latchedInput.action) {
+      const now = Date.now();
       // Check if we're still in cooldown after exiting a game
       if (now - lastExitTime.current < EXIT_COOLDOWN) {
         console.log("[Arcade] Action button ignored - exit cooldown active", {
@@ -426,7 +460,7 @@ export default function ArcadePage() {
       </div>
 
       {/* --- AIR JAM OVERLAY (QR Code & Players) --- */}
-      {view === "browser" && <AirJamOverlay {...host} />}
+      <AirJamOverlay {...host} onTogglePlayPause={host.toggleGameState} />
     </div>
   );
 }
