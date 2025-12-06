@@ -1,6 +1,7 @@
-import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import prettierConfig from "eslint-config-prettier";
+import { defineConfig, globalIgnores } from "eslint/config";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -12,7 +13,16 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "**/*.json",
+    "**/*.css",
   ]),
+  // Disable ESLint rules that conflict with Prettier
+  {
+    files: ["**/*.{ts,tsx,js,jsx}"],
+    rules: {
+      ...prettierConfig.rules,
+    },
+  },
 ]);
 
 export default eslintConfig;

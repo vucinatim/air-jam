@@ -1,28 +1,29 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from "@eslint/js";
+import prettierConfig from "eslint-config-prettier";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import { defineConfig, globalIgnores } from "eslint/config";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules']),
+  globalIgnores(["dist", "node_modules", "**/*.json", "**/*.css"]),
   {
-    files: ['packages/server/**/*.{ts,tsx}'],
-    ignores: ['**/dist/**'],
+    files: ["packages/server/**/*.{ts,tsx}"],
+    ignores: ["**/dist/**"],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'module',
+      sourceType: "module",
       globals: globals.node,
     },
     extends: [js.configs.recommended, tseslint.configs.recommended],
   },
   {
-    files: ['apps/**/*.{ts,tsx}', 'packages/sdk/**/*.{ts,tsx}'],
-    ignores: ['**/dist/**'],
+    files: ["apps/**/*.{ts,tsx}", "packages/sdk/**/*.{ts,tsx}"],
+    ignores: ["**/dist/**"],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'module',
+      sourceType: "module",
       globals: globals.browser,
     },
     extends: [
@@ -32,7 +33,14 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     rules: {
-      'react-hooks/refs': 'off',
+      "react-hooks/refs": "off",
     },
   },
-])
+  // Disable ESLint rules that conflict with Prettier
+  {
+    files: ["**/*.{ts,tsx,js,jsx}"],
+    rules: {
+      ...prettierConfig.rules,
+    },
+  },
+]);
