@@ -10,6 +10,7 @@ import type {
 import {
   controllerInputSchema,
   controllerJoinSchema,
+  controllerSystemSchema,
   type ControllerStatePayload,
 } from "../protocol";
 import { disconnectSocket } from "../socket-client";
@@ -39,6 +40,7 @@ export interface AirJamControllerApi {
   gameState: GameState;
   stateMessage?: string;
   sendInput: (input: ControllerInputPayload) => boolean;
+  sendSystemCommand: (command: "exit" | "ready" | "toggle_pause") => void;
   setNickname: (value: string) => void;
   reconnect: () => void;
   players: PlayerProfile[];
@@ -322,6 +324,13 @@ export const useAirJamController = (
       if (!socket.connected) {
         return false;
       }
+
+      // Validate that input is an object (not null, not array, etc.)
+      if (typeof input !== "object" || input === null || Array.isArray(input)) {
+        store.setError("Input must be an object");
+        return false;
+      }
+
       const payload = controllerInputSchema.safeParse({
         roomId: parsedRoomId,
         controllerId: store.controllerId,
@@ -338,6 +347,33 @@ export const useAirJamController = (
     [parsedRoomId, canConnect, socket],
   );
 
+  const sendSystemCommand = useCallback(
+    (command: "exit" | "ready" | "toggle_pause") => {
+      const store = useConnectionStore.getState();
+
+      if (!canConnect) {
+        // Bridge Mode logic for system commands if needed?
+        // Currently bridge mode is mostly for inputs.
+        // We could post message for system commands too if parent handles them.
+        return;
+      }
+
+      if (!parsedRoomId || !store.controllerId || !socket) return;
+
+      if (!socket.connected) return;
+
+      const payload = controllerSystemSchema.safeParse({
+        roomId: parsedRoomId,
+        command,
+      });
+
+      if (payload.success) {
+        socket.emit("controller:system", payload.data);
+      }
+    },
+    [parsedRoomId, canConnect, socket],
+  );
+
   return {
     roomId: parsedRoomId,
     controllerId: connectionState.controllerId,
@@ -346,6 +382,7 @@ export const useAirJamController = (
     gameState: connectionState.gameState,
     stateMessage: connectionState.stateMessage,
     sendInput,
+    sendSystemCommand,
     setNickname,
     reconnect,
     players: connectionState.players,

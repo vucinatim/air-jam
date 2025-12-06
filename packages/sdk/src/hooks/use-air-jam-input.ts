@@ -85,11 +85,41 @@ export const useAirJamInput = (
 
       const buffer = inputBuffer.current;
       const prev = buffer.get(payload.controllerId);
+      const input = payload.input;
+
+      // Type guards for safe extraction
+      // This hook expects: { vector: {x, y}, action: boolean, ability?: boolean, timestamp?: number }
+      const getVector = (): { x: number; y: number } => {
+        if (
+          input.vector &&
+          typeof input.vector === "object" &&
+          !Array.isArray(input.vector) &&
+          typeof (input.vector as { x?: unknown }).x === "number" &&
+          typeof (input.vector as { y?: unknown }).y === "number"
+        ) {
+          return input.vector as { x: number; y: number };
+        }
+        return prev?._rawVector ?? { x: 0, y: 0 };
+      };
+
+      const getAction = (): boolean => {
+        return typeof input.action === "boolean" ? input.action : false;
+      };
+
+      const getAbility = (): boolean => {
+        return typeof input.ability === "boolean" ? input.ability : false;
+      };
+
+      const getTimestamp = (): number => {
+        return typeof input.timestamp === "number"
+          ? input.timestamp
+          : Date.now();
+      };
 
       // 1. Get Physical Truth (Raw)
-      const rawAction = payload.input.action;
-      const rawAbility = payload.input.ability ?? false;
-      const rawVector = payload.input.vector;
+      const rawVector = getVector();
+      const rawAction = getAction();
+      const rawAbility = getAbility();
 
       // 2. Calculate Latched Truth (Game)
       // Rule: If it's physically true NOW, or was true since last frame, it's true.
@@ -116,7 +146,7 @@ export const useAirJamInput = (
         vector: latchedVector,
         action: latchedAction,
         ability: latchedAbility,
-        timestamp: payload.input.timestamp ?? Date.now(),
+        timestamp: getTimestamp(),
 
         // Private Physical State (Stored for the reset phase)
         _rawVector: rawVector,

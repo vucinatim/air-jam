@@ -3,6 +3,7 @@ import { DEFAULT_MAX_PLAYERS, TOGGLE_DEBOUNCE_MS } from "../constants";
 import type {
   ConnectionStatus,
   ControllerInputEvent,
+  ControllerStateMessage,
   ControllerStatePayload,
   GameState,
   PlayerProfile,
@@ -293,6 +294,18 @@ export const useAirJamHost = (
       onChildCloseRef.current?.();
     };
 
+    const handleState = (payload: ControllerStateMessage): void => {
+      if (payload.roomId !== parsedRoomId) return;
+
+      const { state } = payload;
+      if (state.gameState) {
+        store.setGameState(state.gameState);
+      }
+      if (state.message !== undefined) {
+        store.setStateMessage(state.message);
+      }
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("server:controllerJoined", handleJoin);
@@ -300,6 +313,7 @@ export const useAirJamHost = (
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
     socket.on("server:closeChild", handleChildClose);
+    socket.on("server:state", handleState);
 
     return () => {
       socket.off("connect", handleConnect);
@@ -309,6 +323,7 @@ export const useAirJamHost = (
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);
       socket.off("server:closeChild", handleChildClose);
+      socket.off("server:state", handleState);
     };
   }, [
     options.serverUrl,

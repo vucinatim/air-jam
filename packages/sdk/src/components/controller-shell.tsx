@@ -41,6 +41,7 @@ interface ControllerShellProps {
   onTogglePlayPause?: () => void;
   onReconnect?: (roomCode: string) => void;
   onRefresh?: () => void;
+  customActions?: ReactNode;
 }
 
 const describeStatus = (status: ConnectionStatus): string => {
@@ -75,6 +76,7 @@ export const ControllerShell = ({
   onTogglePlayPause,
   onReconnect,
   onRefresh,
+  customActions,
 }: ControllerShellProps): JSX.Element => {
   const isChildMode = useMemo(() => detectRunMode() === "platform", []);
   const [isOrientationOk, setOrientationOk] = useState(() =>
@@ -189,6 +191,7 @@ export const ControllerShell = ({
           </div>
         </div>
         <div className="pointer-events-auto flex items-center gap-3">
+          {customActions}
           <Button
             type="button"
             variant="ghost"

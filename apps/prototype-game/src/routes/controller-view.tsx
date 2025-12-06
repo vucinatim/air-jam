@@ -151,10 +151,17 @@ const ActionControl = ({
 // --- Main View Content ---
 
 const ControllerContent = () => {
-  const { roomId, connectionStatus, sendInput, gameState, reconnect, socket } =
-    useAirJamController({
-      serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
-    });
+  const {
+    roomId,
+    connectionStatus,
+    sendInput,
+    sendSystemCommand,
+    gameState,
+    reconnect,
+    socket,
+  } = useAirJamController({
+    serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
+  });
   const audio = useAudio(SOUND_MANIFEST);
 
   // Create a stable store instance
@@ -165,6 +172,8 @@ const ControllerContent = () => {
     if (connectionStatus !== "connected") return;
 
     const unsubscribe = store.subscribe((state) => {
+      // Send arbitrary input structure - this game uses vector/action/ability
+      // Other games can define their own structure
       sendInput({
         vector: state.vector,
         action: state.action,
@@ -205,14 +214,9 @@ const ControllerContent = () => {
     audio.init();
     audio.play("click");
     vibrate([50, 50, 50]);
-    const state = store.getState();
-    sendInput({
-      vector: state.vector,
-      action: state.action,
-      ability: state.ability,
-      timestamp: Date.now(),
-      togglePlayPause: true,
-    });
+
+    // Use system command for pause toggle
+    sendSystemCommand("toggle_pause");
   };
 
   const handleReconnect = (roomCode: string): void => {

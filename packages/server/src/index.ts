@@ -3,6 +3,7 @@ import {
   controllerJoinSchema,
   controllerLeaveSchema,
   controllerStateSchema,
+  controllerSystemSchema,
   ErrorCode,
   hostJoinAsChildSchema,
   hostRegisterSystemSchema,
@@ -125,6 +126,7 @@ io.on(
             focus: "SYSTEM",
             controllers: new Map(),
             maxPlayers: 8, // Default
+            gameState: "paused",
           };
           roomManager.setRoom(roomId, session);
         }
@@ -313,6 +315,7 @@ io.on(
             focus: "SYSTEM",
             controllers: new Map(),
             maxPlayers,
+            gameState: "paused",
           };
           roomManager.setRoom(roomId, session);
         }
@@ -460,6 +463,7 @@ io.on(
     });
 
     socket.on("controller:input", (payload: ControllerInputEvent) => {
+      // Validate roomId and controllerId, but accept arbitrary input structure
       const result = controllerInputSchema.safeParse(payload);
       if (!result.success) return;
 
@@ -469,10 +473,60 @@ io.on(
         return;
       }
 
-      // Route based on FOCUS
+      // Route based on FOCUS - pass through arbitrary input to host
       const targetHostId = roomManager.getActiveHostId(session);
       if (targetHostId) {
         io.to(targetHostId).emit("server:input", result.data);
+      }
+    });
+
+    socket.on("controller:system", (payload) => {
+      const parsed = controllerSystemSchema.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+
+      const { roomId, command } = parsed.data;
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        return;
+      }
+
+      if (command === "exit") {
+        // Controller wants to exit the game - close the game on the server
+        console.log(`[server] Controller exit request in room ${roomId}`);
+
+        // Update session state
+        session.focus = "SYSTEM";
+        session.childHostSocketId = undefined;
+        session.joinToken = undefined;
+        session.activeControllerUrl = undefined;
+        session.gameState = "paused"; // Reset game state on exit
+
+        // Tell all controllers to unload UI
+        io.to(roomId).emit("client:unloadUi");
+
+        // Tell the system host (arcade) to return to browser view
+        if (session.masterHostSocketId) {
+          io.to(session.masterHostSocketId).emit("server:closeChild");
+        }
+      } else if (command === "toggle_pause") {
+        // Toggle game state
+        session.gameState =
+          session.gameState === "playing" ? "paused" : "playing";
+        console.log(
+          `[server] Toggled game state to ${session.gameState} in room ${roomId}`,
+        );
+
+        // Broadcast new state to Room (Host + Controllers)
+        const statePayload = {
+          roomId,
+          state: {
+            gameState: session.gameState,
+          },
+        };
+
+        io.to(roomId).emit("server:state", statePayload);
       }
     });
 
@@ -480,12 +534,21 @@ io.on(
       const result = controllerStateSchema.safeParse(payload);
       if (!result.success) return;
 
-      const { roomId } = result.data;
+      const { roomId, state } = result.data;
       const session = roomManager.getRoom(roomId);
       if (session) {
+        // Sync state if provided
+        if (state.gameState) {
+          session.gameState = state.gameState;
+        }
+
         session.controllers.forEach((c) => {
           io.to(c.socketId).emit("server:state", result.data);
         });
+
+        // Also reflect back to host(s) if needed, but usually host knows its state.
+        // However, if we have multiple hosts (system + child), maybe they need sync?
+        // For now, assume host is authoritative for its own state changes.
       }
     });
 

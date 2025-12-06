@@ -10,12 +10,7 @@ export interface InputState {
 
 interface InputUpdate {
   controllerId: string;
-  input: {
-    vector: { x: number; y: number };
-    action: boolean;
-    ability?: boolean;
-    timestamp?: number;
-  };
+  input: Record<string, unknown>; // Arbitrary input structure
 }
 
 interface InputStore {
@@ -44,16 +39,47 @@ export const useInputStore = create<InputStore>((set, get) => ({
       const newInputs = new Map(state.inputs);
       const previousInput = state.inputs.get(event.controllerId);
 
-      // Preserve current ability state if undefined, don't default to false
-      // This prevents losing state between updates
-      const newAbilityState =
-        event.input.ability ?? previousInput?.ability ?? false;
+      // Extract input fields with type safety
+      // This game expects: { vector: {x, y}, action: boolean, ability?: boolean, timestamp?: number }
+      const input = event.input;
+
+      // Type guards for safe extraction
+      const getVector = (): { x: number; y: number } => {
+        if (
+          input.vector &&
+          typeof input.vector === "object" &&
+          !Array.isArray(input.vector) &&
+          typeof (input.vector as { x?: unknown }).x === "number" &&
+          typeof (input.vector as { y?: unknown }).y === "number"
+        ) {
+          return input.vector as { x: number; y: number };
+        }
+        return previousInput?.vector ?? { x: 0, y: 0 };
+      };
+
+      const getAction = (): boolean => {
+        return typeof input.action === "boolean" ? input.action : false;
+      };
+
+      const getAbility = (): boolean => {
+        if (typeof input.ability === "boolean") {
+          return input.ability;
+        }
+        // Preserve current ability state if undefined
+        return previousInput?.ability ?? false;
+      };
+
+      const getTimestamp = (): number => {
+        return typeof input.timestamp === "number"
+          ? input.timestamp
+          : Date.now();
+      };
 
       newInputs.set(event.controllerId, {
-        vector: event.input.vector,
-        action: event.input.action,
-        ability: newAbilityState,
-        timestamp: event.input.timestamp ?? Date.now(),
+        vector: getVector(),
+        action: getAction(),
+        ability: getAbility(),
+        timestamp: getTimestamp(),
       });
       return { inputs: newInputs };
     });

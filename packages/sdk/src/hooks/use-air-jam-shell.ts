@@ -34,7 +34,7 @@ export interface AirJamShellApi {
   activeUrl: string | null;
   players: PlayerProfile[];
   sendInput: (input: ControllerInputPayload) => boolean;
-  sendSystemCommand: (type: "EXIT_GAME") => void;
+  sendSystemCommand: (command: "exit" | "ready" | "toggle_pause") => void;
 }
 
 const getRoomFromLocation = (): string | null => {
@@ -118,19 +118,10 @@ export const useAirJamShell = (
     };
 
     const handleLoadUi = (payload: { url: string }): void => {
-      console.log(
-        "[useAirJamShell] Received client:loadUi event with URL:",
-        payload.url,
-      );
-      console.log(
-        "[useAirJamShell] Current window location:",
-        typeof window !== "undefined" ? window.location.href : "SSR",
-      );
       setActiveUrl(payload.url);
     };
 
     const handleUnloadUi = (): void => {
-      console.log("[useAirJamShell] Unloading UI");
       setActiveUrl(null);
     };
 
@@ -210,6 +201,13 @@ export const useAirJamShell = (
       if (!socket.connected) {
         return false;
       }
+
+      // Validate that input is an object (not null, not array, etc.)
+      if (typeof input !== "object" || input === null || Array.isArray(input)) {
+        store.setError("Input must be an object");
+        return false;
+      }
+
       const payload = controllerInputSchema.safeParse({
         roomId: parsedRoomId,
         controllerId: store.controllerId,
@@ -223,27 +221,27 @@ export const useAirJamShell = (
       socket.emit("controller:input", payload.data);
       return true;
     },
-    [options.serverUrl, parsedRoomId, socket],
+    [parsedRoomId, socket],
   );
 
   const sendSystemCommand = useCallback(
-    (type: "EXIT_GAME") => {
+    (command: "exit" | "ready" | "toggle_pause") => {
       const store = useConnectionStore.getState();
+
       if (!parsedRoomId || !store.controllerId || !socket) return;
 
       if (!socket.connected) return;
 
       const payload = controllerSystemSchema.safeParse({
         roomId: parsedRoomId,
-        controllerId: store.controllerId,
-        type,
+        command,
       });
 
       if (payload.success) {
         socket.emit("controller:system", payload.data);
       }
     },
-    [options.serverUrl, parsedRoomId, socket],
+    [parsedRoomId, socket],
   );
 
   return {

@@ -25,21 +25,10 @@ export const roomCodeSchema = z
 export const controllerInputSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),
-  input: z.object({
-    vector: z.object({
-      x: z.number().finite(),
-      y: z.number().finite(),
-    }),
-    action: z.boolean(),
-    ability: z.boolean().optional(),
-    timestamp: z.number().int().nonnegative(),
-    togglePlayPause: z.boolean().optional(),
-  }),
+  input: z.record(z.unknown()), // Arbitrary JSON object - developers define their own structure
 });
 
-export type ControllerInputPayload = z.infer<
-  typeof controllerInputSchema
->["input"];
+export type ControllerInputPayload = Record<string, unknown>;
 
 export interface ControllerInputEvent {
   roomId: RoomCode;
@@ -111,7 +100,7 @@ export interface ControllerJoinAck {
 
 export const controllerSystemSchema = z.object({
   roomId: roomCodeSchema,
-  command: z.enum(["exit", "ready"]),
+  command: z.enum(["exit", "ready", "toggle_pause"]),
 });
 
 export type ControllerSystemPayload = z.infer<typeof controllerSystemSchema>;

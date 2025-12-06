@@ -1,4 +1,4 @@
-import type { PlayerProfile, RoomCode } from "@air-jam/sdk/protocol";
+import type { GameState, PlayerProfile, RoomCode } from "@air-jam/sdk/protocol";
 
 /**
  * Controller session information
@@ -27,6 +27,7 @@ export interface RoomSession {
   activeControllerUrl?: string;
   controllers: Map<string, ControllerSession>;
   maxPlayers: number;
+  gameState: GameState;
 }
 
 /**

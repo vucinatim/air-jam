@@ -1,9 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ControllerShell, useAirJamShell } from "@air-jam/sdk";
-import { X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -164,7 +165,9 @@ export default function JoypadPage() {
 }
 function JoypadContentInner() {
   const router = useRouter();
-  const shell = useAirJamShell();
+  const shell = useAirJamShell({
+    serverUrl: process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL,
+  });
   const [vector, setVector] = useState({ x: 0, y: 0 });
   const [action, setAction] = useState(false);
   const [ability, setAbility] = useState(false);
@@ -178,12 +181,13 @@ function JoypadContentInner() {
     let animationFrameId: number;
 
     const loop = () => {
+      // Send arbitrary input structure - this arcade controller uses vector/action/ability
+      // Other games can define their own structure
       shell.sendInput({
         vector,
         action,
         ability,
         timestamp: Date.now(),
-        togglePlayPause: false,
       });
       animationFrameId = requestAnimationFrame(loop);
     };
@@ -195,6 +199,12 @@ function JoypadContentInner() {
 
   const handleReconnect = (roomCode: string) => {
     router.push(`?room=${roomCode}`);
+  };
+
+  const handleTogglePlayPause = () => {
+    if (shell.connectionStatus !== "connected") return;
+
+    shell.sendSystemCommand("toggle_pause");
   };
 
   // --- IFRAME LOGIC ---
@@ -210,27 +220,33 @@ function JoypadContentInner() {
     <ControllerShell
       connectionStatus={shell.connectionStatus}
       roomId={shell.roomId}
-      gameState="playing" // Shell is always playing
+      gameState="playing" // Always show as playing for arcade shell
       onReconnect={handleReconnect}
-      onTogglePlayPause={() => {}} // Disable play/pause for now
+      onTogglePlayPause={handleTogglePlayPause}
       onRefresh={() => window.location.reload()}
       requiredOrientation="landscape"
+      customActions={
+        shell.activeUrl ? (
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon"
+            onClick={() => {
+              if (confirm("Exit game and return to arcade?")) {
+                shell.sendSystemCommand("exit");
+              }
+            }}
+            aria-label="Exit game"
+            title="Exit game"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        ) : null
+      }
     >
       {/* --- CHILD GAME CONTROLLER --- */}
       {shell.activeUrl && (
-        <div className="bg-background absolute inset-0 z-50">
-          {/* Exit Button Overlay */}
-          <button
-            className="absolute top-2 right-2 z-60 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-red-600"
-            onClick={() => {
-              if (confirm("Exit Game?")) {
-                shell.sendSystemCommand("EXIT_GAME");
-              }
-            }}
-          >
-            <X size={24} />
-          </button>
-
+        <div className="bg-background absolute inset-0 z-40">
           <iframe
             ref={iframeRef}
             src={`${shell.activeUrl}${

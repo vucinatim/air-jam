@@ -7,7 +7,7 @@ import {
 } from "@air-jam/sdk";
 import { Settings2, X } from "lucide-react";
 import type { JSX } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { Button } from "../components/ui/button";
 import { DebugOverlay } from "../game/components/DebugOverlay";
@@ -34,29 +34,6 @@ const HostViewContent = (): JSX.Element => {
   // Start background music
   useBackgroundMusic(true);
 
-  const handleInput = useCallback(
-    (event: ControllerInputEvent) => {
-      applyInput(event);
-    },
-    [applyInput],
-  );
-
-  const handlePlayerJoin = useCallback(
-    (player: PlayerProfile) => {
-      upsertPlayer(player, player.id);
-      // Play player join sound on host
-      audio.play("player_join");
-    },
-    [upsertPlayer, audio],
-  );
-
-  const handlePlayerLeave = useCallback(
-    (controllerId: string) => {
-      removePlayer(controllerId);
-    },
-    [removePlayer],
-  );
-
   const [persistedRoomId] = useState(() => {
     if (typeof sessionStorage !== "undefined") {
       return sessionStorage.getItem("airjam_room_id") || undefined;
@@ -66,9 +43,18 @@ const HostViewContent = (): JSX.Element => {
 
   const host = useAirJamHost({
     roomId: persistedRoomId,
-    onInput: handleInput,
-    onPlayerJoin: handlePlayerJoin,
-    onPlayerLeave: handlePlayerLeave,
+    onInput: (event: ControllerInputEvent) => {
+      // Apply normal input (movement, actions, etc.)
+      applyInput(event);
+    },
+    onPlayerJoin: (player: PlayerProfile) => {
+      upsertPlayer(player, player.id);
+      // Play player join sound on host
+      audio.play("player_join");
+    },
+    onPlayerLeave: (controllerId: string) => {
+      removePlayer(controllerId);
+    },
     controllerPath: "/joypad",
     apiKey: import.meta.env.VITE_AIR_JAM_API_KEY,
     serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
