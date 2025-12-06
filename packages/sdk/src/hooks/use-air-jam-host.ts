@@ -16,12 +16,14 @@ import {
 import { detectRunMode } from "../utils/mode";
 import { generateRoomCode } from "../utils/ids";
 import { urlBuilder } from "../utils/url-builder";
-import { disconnectSocket, getSocketClient } from "../socket-client";
+import { disconnectSocket } from "../socket-client";
 import {
   useConnectionState,
   useConnectionStore,
 } from "../state/connection-store";
 import { TOGGLE_DEBOUNCE_MS, DEFAULT_MAX_PLAYERS } from "../constants";
+import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
+import { useConnectionHandlers } from "./internal/use-connection-handlers";
 
 interface AirJamHostOptions {
   roomId?: string;
@@ -49,7 +51,7 @@ export interface AirJamHostApi {
   toggleGameState: () => void;
   sendState: (state: ControllerStatePayload) => boolean;
   reconnect: () => void;
-  socket: ReturnType<typeof getSocketClient>;
+  socket: ReturnType<typeof useSocketLifecycle>["socket"];
   isChildMode: boolean;
 }
 
@@ -72,13 +74,12 @@ export const useAirJamHost = (
 
   const shouldConnect = useMemo(() => {
     if (options.forceConnect) return true;
-    if (isChildMode) return true; // Always connect in Arcade Mode
+    if (isChildMode) return true;
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("airjam_force_connect") === "true") return true;
     }
-    // Default to true for Standalone Mode (normal usage)
-    return true;
+    return true; // Default to true for Standalone Mode
   }, [options.forceConnect, isChildMode]);
 
   const [fallbackRoomId] = useState(() => generateRoomCode());
@@ -100,145 +101,151 @@ export const useAirJamHost = (
     if (options.roomId) {
       return roomCodeSchema.parse(options.roomId.toUpperCase());
     }
+
     return fallbackRoomId;
   }, [options.roomId, fallbackRoomId, arcadeParams]);
 
-  const onInputRef = useRef<AirJamHostOptions["onInput"]>(options.onInput);
-  const onPlayerJoinRef = useRef<AirJamHostOptions["onPlayerJoin"]>(
-    options.onPlayerJoin
-  );
-  const onPlayerLeaveRef = useRef<AirJamHostOptions["onPlayerLeave"]>(
-    options.onPlayerLeave
-  );
-  const onChildCloseRef = useRef<AirJamHostOptions["onChildClose"]>(
-    options.onChildClose
-  );
-
-  const connectionState = useConnectionState((state) => ({
-    connectionStatus: state.connectionStatus,
-    players: state.players,
-    lastError: state.lastError,
-    mode: state.mode,
-    gameState: state.gameState,
-  }));
+  const [joinUrl, setJoinUrl] = useState<string>("");
+  const onInputRef = useRef(options.onInput);
+  const onPlayerJoinRef = useRef(options.onPlayerJoin);
+  const onPlayerLeaveRef = useRef(options.onPlayerLeave);
+  const onChildCloseRef = useRef(options.onChildClose);
 
   useEffect(() => {
     onInputRef.current = options.onInput;
-  }, [options.onInput]);
-
-  useEffect(() => {
     onPlayerJoinRef.current = options.onPlayerJoin;
-  }, [options.onPlayerJoin]);
-
-  useEffect(() => {
     onPlayerLeaveRef.current = options.onPlayerLeave;
-  }, [options.onPlayerLeave]);
-
-  useEffect(() => {
     onChildCloseRef.current = options.onChildClose;
-  }, [options.onChildClose]);
+  }, [options.onInput, options.onPlayerJoin, options.onPlayerLeave, options.onChildClose]);
 
-  const [reconnectKey, setReconnectKey] = useState(0);
+  const connectionState = useConnectionState((state) => ({
+    connectionStatus: state.connectionStatus,
+    lastError: state.lastError,
+    players: state.players,
+    gameState: state.gameState,
+    mode: state.mode,
+  }));
+
+  // Use socket lifecycle utility
+  const { socket } = useSocketLifecycle("host", options.serverUrl, shouldConnect);
+
+  // Use connection handlers utility
+  const { handleConnect: baseHandleConnect, handleDisconnect, handleError } = useConnectionHandlers();
+
+  const [lastToggle, setLastToggle] = useState(0);
+
+  const toggleGameState = useCallback(() => {
+    const now = Date.now();
+    if (now - lastToggle < TOGGLE_DEBOUNCE_MS) {
+      return;
+    }
+    setLastToggle(now);
+
+    const store = useConnectionStore.getState();
+    const newState: GameState = store.gameState === "paused" ? "playing" : "paused";
+    store.setGameState(newState);
+
+    if (!socket || !socket.connected) return;
+
+    const payload = controllerStateSchema.safeParse({
+      roomId: parsedRoomId,
+      state: { gameState: newState },
+    });
+    if (payload.success) {
+      socket.emit("host:state", payload.data);
+    }
+  }, [socket, parsedRoomId, lastToggle]);
+
+  const sendState = useCallback(
+    (state: ControllerStatePayload): boolean => {
+      if (!socket || !socket.connected) {
+        return false;
+      }
+      const payload = controllerStateSchema.safeParse({
+        roomId: parsedRoomId,
+        state,
+      });
+      if (!payload.success) {
+        return false;
+      }
+      socket.emit("host:state", payload.data);
+      return true;
+    },
+    [socket, parsedRoomId]
+  );
 
   const reconnect = useCallback(() => {
     disconnectSocket("host");
-    setReconnectKey((prev) => prev + 1);
-  }, []);
+    if (socket) {
+      socket.connect();
+    }
+  }, [socket]);
 
   useEffect(() => {
-    const storeApi = useConnectionStore;
-    const store = storeApi.getState();
-    let lastToggleTime = 0;
+    (async () => {
+      const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
+        path: options.controllerPath,
+        host: options.publicHost || options.controllerUrl,
+      });
+      setJoinUrl(url);
+    })();
+  }, [parsedRoomId, options.controllerPath, options.publicHost, options.controllerUrl]);
 
+  useEffect(() => {
+    const store = useConnectionStore.getState();
     store.setMode(detectRunMode());
     store.setRole("host");
     store.setRoomId(parsedRoomId);
     store.setStatus("connecting");
     store.setError(undefined);
-    store.resetPlayers();
 
-    // --- SOCKET CONNECTION ---
-    if (!shouldConnect) {
+    if (!shouldConnect || !socket) {
       store.setStatus("idle");
       return;
     }
 
-    const socket = getSocketClient("host", options.serverUrl);
-    const maxPlayers = options.maxPlayers ?? DEFAULT_MAX_PLAYERS;
-
-    const registerHost = async (): Promise<void> => {
+    const registerHost = async () => {
       if (arcadeParams) {
-          // --- ARCADE MODE: JOIN AS CHILD ---
-          const payload = {
-              roomId: parsedRoomId,
-              joinToken: arcadeParams.token
-          };
-          socket.emit("host:joinAsChild", payload, (ack) => {
-              if (!ack.ok) {
-                  store.setError(ack.message ?? "Failed to join as child");
-                  store.setStatus("disconnected");
-                  return;
-              }
-              store.setStatus("connected");
-          });
-      } else {
-          // --- STANDALONE MODE: REGISTER ---
-          const mode = "master"; // Standalone is always master of its own room
-          
-          let controllerUrl = options.controllerUrl;
-          if (!controllerUrl) {
-              // Use urlBuilder to get the proper local IP-based URL
-              const path = options.controllerPath || "/joypad";
-              try {
-                  const fullUrl = await urlBuilder.buildControllerUrl(parsedRoomId, {
-                      path,
-                      host: options.publicHost,
-                  });
-                  console.log("[useAirJamHost] buildControllerUrl returned:", fullUrl);
-                  // Remove the room query param since the server will add it
-                  const url = new URL(fullUrl);
-                  url.searchParams.delete("room");
-                  controllerUrl = url.toString();
-                  console.log("[useAirJamHost] Final controllerUrl (after removing room param):", controllerUrl);
-              } catch (error) {
-                  console.warn("[useAirJamHost] Failed to build controller URL:", error);
-                  // Fallback to origin-based URL if buildControllerUrl fails
-                  if (typeof window !== "undefined") {
-                      controllerUrl = `${window.location.origin}${path}`;
-                      console.log("[useAirJamHost] Fallback controllerUrl:", controllerUrl);
-                  }
-              }
-          } else {
-              console.log("[useAirJamHost] Using provided controllerUrl:", controllerUrl);
+        // Child Mode - join as child
+        const parsedRoomId = roomCodeSchema.parse(arcadeParams.room.toUpperCase());
+        const payload = {
+          roomId: parsedRoomId,
+          joinToken: arcadeParams.token
+        };
+        socket.emit("host:joinAsChild", payload, (ack) => {
+          if (!ack.ok) {
+            store.setError(ack.message ?? "Failed to join as child");
+            store.setStatus("disconnected");
+            return;
           }
+          store.setStatus("connected");
+          store.setRoomId(parsedRoomId);
+        });
+      } else {
+        // Standalone Mode - register as master host
+        const payload = hostRegistrationSchema.parse({
+          roomId: parsedRoomId,
+          maxPlayers: options.maxPlayers ?? DEFAULT_MAX_PLAYERS,
+          apiKey: options.apiKey,
+        });
 
-          const payload = hostRegistrationSchema.parse({
-            roomId: parsedRoomId,
-            maxPlayers,
-            apiKey: options.apiKey,
-            mode,
-            controllerUrl,
-          });
-          console.log("[useAirJamHost] Registering with server. Payload:", payload);
-          socket.emit("host:register", payload, (ack) => {
-            if (!ack.ok) {
-              store.setError(ack.message ?? "Failed to register host");
-              store.setStatus("disconnected");
-              return;
-            }
-            console.log("[useAirJamHost] Successfully registered with server");
-            store.setStatus("connected");
-          });
+        socket.emit("host:register", payload, (ack) => {
+          if (!ack.ok) {
+            store.setError(ack.message ?? "Failed to register host");
+            store.setStatus("disconnected");
+            return;
+          }
+          store.setStatus("connected");
+          if (ack.roomId) {
+            store.setRoomId(ack.roomId);
+          }
+        });
       }
     };
 
     const handleConnect = (): void => {
-      store.setStatus("connected");
+      baseHandleConnect();
       registerHost();
-    };
-
-    const handleDisconnect = (): void => {
-      store.setStatus("disconnected");
     };
 
     const handleJoin = (payload: {
@@ -246,14 +253,10 @@ export const useAirJamHost = (
       nickname?: string;
       player?: PlayerProfile;
     }): void => {
-      if (!payload.player) {
-        const error = `Server did not send player profile for controllerId: ${payload.controllerId}. This indicates a server version mismatch or bug.`;
-        store.setError(error);
-        console.error(`[useAirJamHost] ${error}`);
-        return;
+      if (payload.player) {
+        store.upsertPlayer(payload.player);
+        onPlayerJoinRef.current?.(payload.player);
       }
-      store.upsertPlayer(payload.player);
-      onPlayerJoinRef.current?.(payload.player);
     };
 
     const handleLeave = (payload: { controllerId: string }): void => {
@@ -262,30 +265,11 @@ export const useAirJamHost = (
     };
 
     const handleInput = (payload: ControllerInputEvent): void => {
-      if (payload.roomId !== parsedRoomId) return;
-
-      if (payload.input.togglePlayPause) {
-        const now = Date.now();
-        if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) return;
-        lastToggleTime = now;
-        const currentState = storeApi.getState().gameState;
-        const newGameState = currentState === "paused" ? "playing" : "paused";
-        storeApi.getState().setGameState(newGameState);
-
-        socket.emit("host:state", {
-          roomId: parsedRoomId,
-          state: { gameState: newGameState },
-        });
-      }
       onInputRef.current?.(payload);
     };
 
-    const handleError = (payload: { message: string }): void => {
-      store.setError(payload.message);
-    };
-
     const handleChildClose = (): void => {
-        onChildCloseRef.current?.();
+      onChildCloseRef.current?.();
     };
 
     socket.on("connect", handleConnect);
@@ -295,11 +279,6 @@ export const useAirJamHost = (
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
     socket.on("server:closeChild", handleChildClose);
-    socket.on("connect_error", (err) => {
-      store.setError(err.message);
-    });
-
-    socket.connect();
 
     return () => {
       socket.off("connect", handleConnect);
@@ -309,89 +288,19 @@ export const useAirJamHost = (
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);
       socket.off("server:closeChild", handleChildClose);
-      disconnectSocket("host");
     };
   }, [
-    options.maxPlayers,
     options.serverUrl,
-    parsedRoomId,
-    isChildMode,
+    options.maxPlayers,
     options.apiKey,
-    reconnectKey,
+    parsedRoomId,
+    arcadeParams,
     shouldConnect,
+    socket,
+    baseHandleConnect,
+    handleDisconnect,
+    handleError,
   ]);
-
-  const [joinUrl, setJoinUrl] = useState<string>("");
-
-  useEffect(() => {
-    let mounted = true;
-    urlBuilder.buildControllerUrl(parsedRoomId, {
-      path: options.controllerPath,
-      host: options.publicHost,
-    })
-      .then((url: string) => {
-        if (mounted) {
-          setJoinUrl(url);
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          const fallback =
-            typeof window !== "undefined"
-              ? `${window.location.origin}${
-                  options.controllerPath || "/joypad"
-                }?room=${parsedRoomId}`
-              : `http://localhost:5173${
-                  options.controllerPath || "/joypad"
-                }?room=${parsedRoomId}`;
-          setJoinUrl(fallback);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [options.controllerPath, options.publicHost, parsedRoomId]);
-
-  const sendState = useCallback(
-    (state: ControllerStatePayload): boolean => {
-      const payload = controllerStateSchema.safeParse({
-        roomId: parsedRoomId,
-        state,
-      });
-      if (!payload.success) {
-        useConnectionStore.getState().setError(payload.error.message);
-        return false;
-      }
-
-      const socket = getSocketClient("host", options.serverUrl);
-      if (!socket.connected) {
-        return false;
-      }
-      socket.emit("host:state", payload.data);
-      return true;
-    },
-    [options.serverUrl, parsedRoomId]
-  );
-
-  const toggleGameState = useCallback(() => {
-    const store = useConnectionStore.getState();
-    const currentState = store.gameState;
-    const newGameState = currentState === "paused" ? "playing" : "paused";
-    store.setGameState(newGameState);
-
-    const socket = getSocketClient("host", options.serverUrl);
-    if (socket.connected) {
-      socket.emit("host:state", {
-        roomId: parsedRoomId,
-        state: { gameState: newGameState },
-      });
-    }
-  }, [options.serverUrl, parsedRoomId]);
-
-  const socket = useMemo(() => {
-    return getSocketClient("host", options.serverUrl);
-  }, [options.serverUrl]);
 
   return {
     roomId: parsedRoomId,
