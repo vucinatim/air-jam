@@ -1,4 +1,11 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -56,9 +63,18 @@ export const games = pgTable("games", {
     .references(() => users.id)
     .notNull(),
   name: text("name").notNull(),
+  slug: text("slug").unique(), // For pretty URLs
   description: text("description"),
   url: text("url").notNull(), // The URL where the game is hosted
+  thumbnailUrl: text("thumbnail_url"),
+  coverUrl: text("cover_url"),
+  minPlayers: integer("min_players").default(1).notNull(),
+  maxPlayers: integer("max_players"), // Null means infinite
+  isPublished: boolean("is_published").default(false).notNull(),
+  orientation: text("orientation").default("landscape").notNull(), // 'landscape' | 'portrait' | 'any'
+  config: jsonb("config").default({}).notNull(), // Game specific configuration variables
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const apiKeys = pgTable("api_keys", {

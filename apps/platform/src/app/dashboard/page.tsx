@@ -1,181 +1,117 @@
+
 "use client";
 
-import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
-import { Gamepad2, Key, Loader2, Play, Plus } from "lucide-react";
+import { Gamepad2, Play, Plus, Search, Settings } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { Input } from "@/components/ui/input";
 
 export default function Dashboard() {
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-
-  const utils = api.useUtils();
   const { data: games, isLoading } = api.game.list.useQuery();
 
-  const createGame = api.game.create.useMutation({
-    onSuccess: () => {
-      setName("");
-      setUrl("");
-      utils.game.list.invalidate();
-    },
-    onError: (err) => alert(err.message), // Could use toast here later
-  });
-
-  const createKey = api.game.createApiKey.useMutation({
-    onSuccess: (data) => {
-      // In a real app, maybe show a dialog or toast with the key
-      alert(`API Key Created: ${data.key}`);
-    },
-    onError: (err) => alert(err.message),
-  });
-
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 lg:p-8">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Create Game Section */}
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Register Game</CardTitle>
-                  <CardDescription>
-                    Add a new game to your portfolio.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Game Name</Label>
-                    <Input
-                      placeholder="My Awesome Game"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Game URL</Label>
-                    <Input
-                      placeholder="https://my-game.com"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    className="w-full"
-                    onClick={() => createGame.mutate({ name, url })}
-                    disabled={createGame.isPending || !name || !url}
-                  >
-                    {createGame.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="mr-2 h-4 w-4" />
-                    )}
-                    Register Game
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Your Games</h1>
+          <p className="text-muted-foreground">
+            Manage and monitor your Air Jam projects.
+          </p>
+        </div>
+        <Link href="/dashboard/games/new">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            New Game
+          </Button>
+        </Link>
+      </div>
 
-            {/* Games List */}
-            <div className="lg:col-span-2">
-              <h2 className="mb-6 text-2xl font-bold">Your Games</h2>
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search games..."
+            className="pl-9"
+          />
+        </div>
+      </div>
 
-              {isLoading ? (
-                <div className="grid gap-4">
-                  <Skeleton className="h-40 w-full" />
-                  <Skeleton className="h-40 w-full" />
-                </div>
-              ) : games?.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="text-muted-foreground flex flex-col items-center justify-center py-12 text-center">
-                    <Gamepad2 className="mb-4 h-12 w-12 opacity-20" />
-                    <p className="text-lg font-medium">No games yet</p>
-                    <p className="text-sm">
-                      Register your first game to get started.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-6">
-                  {games?.map((game) => (
-                    <Card key={game.id} className="overflow-hidden">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle>{game.name}</CardTitle>
-                            <CardDescription className="mt-1 break-all">
-                              {game.url}
-                            </CardDescription>
-                          </div>
-                          <Link href={`/play/${game.id}`}>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Play className="mr-2 h-4 w-4" />
-                              Play
-                            </Button>
-                          </Link>
-                        </div>
-                      </CardHeader>
-                      <Separator />
-                      <CardContent className="pt-4">
-                        <div className="flex flex-col gap-2">
-                          <Label className="text-muted-foreground text-xs tracking-wider uppercase">
-                            API Keys
-                          </Label>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                createKey.mutate({ gameId: game.id })
-                              }
-                              disabled={createKey.isPending}
-                            >
-                              {createKey.isPending ? (
-                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                              ) : (
-                                <Key className="mr-2 h-3 w-3" />
-                              )}
-                              Generate New Key
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Skeleton className="h-[200px] rounded-xl" />
+          <Skeleton className="h-[200px] rounded-xl" />
+          <Skeleton className="h-[200px] rounded-xl" />
+        </div>
+      ) : games?.length === 0 ? (
+        <div className="flex h-[450px] shrink-0 items-center justify-center rounded-md border border-dashed">
+          <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-airjam/10">
+              <Gamepad2 className="h-10 w-10 text-airjam" />
             </div>
+            <h3 className="mt-4 text-lg font-semibold">No games created</h3>
+            <p className="mb-4 mt-2 text-sm text-muted-foreground">
+              You haven&apos;t created any games yet. Start building your first Air Jam experience.
+            </p>
+            <Link href="/dashboard/games/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Game
+              </Button>
+            </Link>
           </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {games?.map((game) => (
+            <Card key={game.id} className="group relative overflow-hidden transition-all hover:shadow-md">
+              <Link href={`/dashboard/games/${game.id}`} className="absolute inset-0 z-10">
+                <span className="sr-only">View {game.name}</span>
+              </Link>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-airjam/10 text-airjam">
+                    <Gamepad2 className="h-5 w-5" />
+                  </div>
+                  <div className="flex gap-2 relative z-20">
+                     {/* Actions that shouldn't trigger the card click */}
+                  </div>
+                </div>
+                <CardTitle className="mt-4 line-clamp-1">{game.name}</CardTitle>
+                <CardDescription className="line-clamp-1">
+                  {game.url}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Status</p>
+                    <p className="font-medium">
+                      {game.isPublished ? 'Live' : 'Development'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Updated</p>
+                    <p className="font-medium">
+                      {/* We'd want a real date here, falling back for now */}
+                      {new Date(game.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

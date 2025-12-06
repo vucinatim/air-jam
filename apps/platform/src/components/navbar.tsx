@@ -29,7 +29,7 @@ export const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/20 backdrop-blur-sm">
+    <nav className="border-border/40 bg-background/10 fixed top-0 right-0 left-0 z-50 border-b backdrop-blur-xs">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link
           href="/"
@@ -41,13 +41,13 @@ export const Navbar = () => {
           <Link
             href="/dashboard"
             onClick={handleDashboardClick}
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
           >
             Dashboard
           </Link>
           <Link
             href="/docs"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
           >
             Docs
           </Link>
@@ -56,4 +56,3 @@ export const Navbar = () => {
     </nav>
   );
 };
-

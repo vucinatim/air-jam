@@ -1,61 +1,178 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Gamepad2 } from "lucide-react"
+import {
+  BookOpen,
+  ChevronLeft,
+  Gamepad2,
+  Globe,
+  LayoutDashboard,
+  LineChart,
+  Settings,
+  Variable,
+} from "lucide-react";
+import Link from "next/link";
+import { useParams, usePathname } from "next/navigation";
+import * as React from "react";
 
-import { NavUser } from "@/components/nav-user"
+import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
-  SidebarRail,
-} from "@/components/ui/sidebar"
-import {
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+  SidebarRail,
+} from "@/components/ui/sidebar";
+import { api } from "@/trpc/react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname();
+  const params = useParams();
+  const gameId = params?.gameId as string | undefined;
+
+  // Fetch game data when in game context
+  const { data: game } = api.game.get.useQuery(
+    { id: gameId! },
+    { enabled: !!gameId },
+  );
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <div className="flex items-center gap-2">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Gamepad2 className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Air Jam</span>
-                  <span className="truncate text-xs">Developer Console</span>
-                </div>
-              </div>
-            </SidebarMenuButton>
+            {gameId ? (
+              <SidebarMenuButton size="lg" asChild>
+                <Link href="/dashboard">
+                  <div className="border-airjam/50 text-airjam flex aspect-square size-8 items-center justify-center rounded-lg border">
+                    <ChevronLeft className="size-4" />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="text-airjam truncate font-semibold">
+                      {game?.name || "Loading..."}
+                    </span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      Game Project
+                    </span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            ) : (
+              <SidebarMenuButton size="lg" asChild>
+                <Link href="/dashboard">
+                  <div className="border-airjam/50 text-airjam flex aspect-square size-8 items-center justify-center rounded-lg border">
+                    <Gamepad2 className="size-4" />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">Air Jam</span>
+                    <span className="truncate text-xs">Developer Console</span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Games" isActive>
-                <Gamepad2 />
-                <span>Games</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+        {gameId ? (
+          // GAME CONTEXT SIDEBAR
+          <>
+            <SidebarGroup>
+              <SidebarGroupLabel>Game Management</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === `/dashboard/games/${gameId}`}
+                  >
+                    <Link href={`/dashboard/games/${gameId}`}>
+                      <LayoutDashboard />
+                      <span>Overview</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.includes("/settings")}
+                  >
+                    <Link href={`/dashboard/games/${gameId}/settings`}>
+                      <Settings />
+                      <span>Configuration</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton disabled>
+                    <Variable />
+                    <span>Variables</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton disabled>
+                    <Globe />
+                    <span>Publishing</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton disabled>
+                    <LineChart />
+                    <span>Analytics</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+          </>
+        ) : (
+          // GLOBAL CONTEXT SIDEBAR
+          <>
+            <SidebarGroup>
+              <SidebarGroupLabel>Platform</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === "/dashboard"}
+                  >
+                    <Link href="/dashboard">
+                      <LayoutDashboard />
+                      <span>Games Overview</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton disabled>
+                    <LineChart />
+                    <span>Global Analytics</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Resources</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton disabled>
+                    <BookOpen />
+                    <span>Documentation</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
+
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
