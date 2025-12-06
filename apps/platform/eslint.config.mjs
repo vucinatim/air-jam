@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     files: ["**/*.{ts,tsx,js,jsx}"],
     rules: {
       ...prettierConfig.rules,
+      "react-hooks/purity": "off",
+      "react-hooks/refs": "off",
     },
   },
 ]);

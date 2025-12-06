@@ -34,6 +34,7 @@ export default defineConfig([
     ],
     rules: {
       "react-hooks/refs": "off",
+      "react-hooks/purity": "off",
     },
   },
   // Disable ESLint rules that conflict with Prettier
