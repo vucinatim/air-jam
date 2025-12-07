@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -32,13 +30,18 @@ export default function NewGamePage() {
   });
 
   return (
-    <div className="max-w-2xl mx-auto mt-8">
+    <div className="relative space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Create New Game</h1>
+        <p className="text-muted-foreground">
+          Register a new game to start integrating with Air Jam.
+        </p>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Create New Game</CardTitle>
-          <CardDescription>
-            Register a new game to start integrating with Air Jam.
-          </CardDescription>
+          <CardTitle>General</CardTitle>
+          <CardDescription>Basic information about your game.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -57,12 +60,15 @@ export default function NewGamePage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Where your game is hosted. You can change this later.
             </p>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-end gap-2">
+      </Card>
+
+      <div className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky bottom-0 -mx-4 border-t px-4 py-4 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => router.back()}>
             Cancel
           </Button>
@@ -77,9 +83,8 @@ export default function NewGamePage() {
             )}
             Create Game
           </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
-

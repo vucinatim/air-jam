@@ -1,8 +1,5 @@
 "use client";
 
-import * as React from "react";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,6 +9,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { api } from "@/trpc/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import * as React from "react";
 
 const routeLabels: Record<string, string> = {
   dashboard: "Dashboard",
@@ -29,20 +29,23 @@ export function DynamicBreadcrumbs() {
 
   // Extract gameId if we're in a game context
   const gameIndex = segments.indexOf("games");
-  const gameId = gameIndex !== -1 && segments[gameIndex + 1] && segments[gameIndex + 1] !== "new" 
-    ? segments[gameIndex + 1] 
-    : null;
+  const gameId =
+    gameIndex !== -1 &&
+    segments[gameIndex + 1] &&
+    segments[gameIndex + 1] !== "new"
+      ? segments[gameIndex + 1]
+      : null;
 
   // Fetch game name if we have a gameId
   const { data: game } = api.game.get.useQuery(
     { id: gameId! },
-    { enabled: !!gameId }
+    { enabled: !!gameId },
   );
 
   const breadcrumbs = segments.map((segment, index) => {
     const href = "/" + segments.slice(0, index + 1).join("/");
     const isLast = index === segments.length - 1;
-    
+
     // Special handling for game names
     let label = routeLabels[segment] || segment;
     if (segment === gameId && game) {
@@ -53,7 +56,8 @@ export function DynamicBreadcrumbs() {
 
     // Capitalize first letter if not in routeLabels
     if (!routeLabels[segment] && segment !== gameId) {
-      label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
+      label =
+        segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
     }
 
     return {
@@ -63,13 +67,19 @@ export function DynamicBreadcrumbs() {
     };
   });
 
-  // If we're at root dashboard, just show "Dashboard"
+  // If we're at root dashboard, redirect to games
   if (segments.length === 1 && segments[0] === "dashboard") {
     return (
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage>Dashboard</BreadcrumbPage>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard/games">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Games</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -83,7 +93,7 @@ export function DynamicBreadcrumbs() {
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        {breadcrumbs.map((crumb, index) => (
+        {breadcrumbs.map((crumb) => (
           <React.Fragment key={crumb.href}>
             <BreadcrumbItem>
               {crumb.isLast ? (
@@ -101,4 +111,3 @@ export function DynamicBreadcrumbs() {
     </Breadcrumb>
   );
 }
-

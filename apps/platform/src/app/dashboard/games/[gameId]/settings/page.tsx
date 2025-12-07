@@ -262,9 +262,7 @@ export default function GameSettingsPage() {
                           }}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Leave empty for infinite players
-                      </FormDescription>
+
                       <FormMessage />
                     </FormItem>
                   )}

@@ -111,7 +111,7 @@ export const AirJamOverlay = ({
     <>
       {/* Top Navbar - Always Visible */}
       {!isChildMode && (
-        <div className="pointer-events-none fixed inset-x-0 top-0 z-99999">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-99999">
           <div className="mx-auto w-full">
             <div className="flex items-center justify-between px-4 py-2">
               {/* Left: Room name */}

@@ -322,6 +322,12 @@ export const useAirJamHost = (
     socket.on("server:closeChild", handleChildClose);
     socket.on("server:state", handleState);
 
+    // If socket is already connected (e.g., reused singleton from previous mount),
+    // register the host immediately since the "connect" event won't fire again
+    if (socket.connected) {
+      registerHost();
+    }
+
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);

@@ -1,9 +1,9 @@
 "use client";
 
+import { ArcadeSystem } from "@/components/arcade";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
-import { AirJamOverlay, useAirJamHost } from "@air-jam/sdk";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,98 +22,119 @@ export default function PlayGamePage({
     error,
   } = api.game.get.useQuery({ id: resolvedParams.gameId });
 
-  const host = useAirJamHost({
-    onChildClose: () => {
-      router.push("/dashboard");
-    },
-  });
-
-  const normalizeUrlForMobile = (url: string): string => {
-    if (typeof window === "undefined") return url;
-    try {
-      const urlObj = new URL(url);
-      if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
-        urlObj.hostname = window.location.hostname;
-        return urlObj.toString();
-      }
-      return url;
-    } catch {
-      return url;
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="bg-background flex h-screen flex-col">
-        <div className="bg-background flex h-16 items-center justify-between border-b px-6 py-3 shadow-sm">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-4 w-48" />
+      <div className="flex h-screen flex-col bg-slate-950">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-4">
+          <Skeleton className="h-6 w-32 bg-slate-800" />
+          <Skeleton className="h-6 w-48 bg-slate-800" />
         </div>
-        <div className="bg-muted text-muted-foreground flex w-full flex-1 animate-pulse items-center justify-center">
+        <div className="flex flex-1 items-center justify-center text-slate-400">
           Loading Game Environment...
         </div>
       </div>
     );
   }
 
-  if (error || !game)
+  if (error || !game) {
     return (
-      <div className="bg-background flex h-screen flex-col items-center justify-center p-4">
+      <div className="flex h-screen flex-col items-center justify-center bg-slate-950 p-4">
         <div className="text-center">
-          <h2 className="text-destructive mb-2 text-2xl font-bold">
+          <h2 className="mb-2 text-2xl font-bold text-red-400">
             Error Loading Game
           </h2>
-          <p className="text-muted-foreground mb-6">
-            The game could not be found or you don't have permission to view it.
+          <p className="mb-6 text-slate-400">
+            The game could not be found or you don&apos;t have permission to
+            view it.
           </p>
-          <Link href="/dashboard">
+          <Link href="/dashboard/games">
             <Button>Return to Dashboard</Button>
           </Link>
         </div>
       </div>
     );
+  }
+
+  // Convert to ArcadeGame format
+  const arcadeGame = {
+    id: game.id,
+    name: game.name,
+    url: game.url,
+  };
 
   return (
-    <div className="bg-background relative flex h-screen flex-col">
-      <div className="bg-background z-10 flex items-center justify-between border-b px-4 py-2 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="icon" title="Back to Dashboard">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex flex-col">
-            <h1 className="text-sm leading-none font-bold">{game.name}</h1>
-            <span className="text-muted-foreground mt-1 text-xs">
-              Preview Mode
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-muted-foreground bg-muted/50 border-border mr-2 hidden items-center rounded border px-2 py-1 text-xs md:flex">
-            Source:{" "}
-            <span className="ml-1 max-w-[200px] truncate font-mono">
-              {game.url}
-            </span>
-          </div>
-          <a href={game.url} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="h-8 text-xs">
-              <ExternalLink className="mr-2 h-3 w-3" />
-              Open in New Tab
-            </Button>
-          </a>
-        </div>
-      </div>
-      <div className="relative w-full flex-1 overflow-hidden bg-black">
-        <iframe
-          src={`${normalizeUrlForMobile(game.url)}${game.url.includes("?") ? "&" : "?"}airjam_mode=child&room=${host.roomId}&airjam_force_connect=true`}
-          className="absolute inset-0 h-full w-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
-          allowFullScreen
-          title={game.name}
+    <div className="flex h-screen flex-col bg-slate-950">
+      {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
+      <div className="relative z-100">
+        <PreviewHeader
+          gameId={game.id}
+          gameName={game.name}
+          gameUrl={game.url}
         />
       </div>
-      <AirJamOverlay {...host} />
+      <div className="relative flex-1">
+        {/* Game Container - Takes remaining space */}
+        <ArcadeSystem
+          games={[arcadeGame]}
+          mode="preview"
+          initialGameId={game.id}
+          onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
+          showGameExitOverlay={false}
+          className="flex-1"
+        />
+      </div>
     </div>
   );
 }
+
+/** Preview header - block element above the game */
+const PreviewHeader = ({
+  gameId,
+  gameName,
+  gameUrl,
+}: {
+  gameId: string;
+  gameName: string;
+  gameUrl: string;
+}) => {
+  return (
+    <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-4">
+      <div className="flex items-center gap-4">
+        <Link href={`/dashboard/games/${gameId}`}>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Back to Game"
+            className="text-white hover:bg-white/10"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <div className="flex flex-col">
+          <h1 className="text-sm leading-none font-bold text-white">
+            {gameName}
+          </h1>
+          <span className="mt-1 text-xs text-blue-400">Preview Mode</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="mr-2 hidden items-center rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-400 md:flex">
+          Source:{" "}
+          <span className="ml-1 max-w-[200px] truncate font-mono">
+            {gameUrl}
+          </span>
+        </div>
+        <a href={gameUrl} target="_blank" rel="noopener noreferrer">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 border-white/20 text-xs text-white hover:bg-white/10"
+          >
+            <ExternalLink className="mr-2 h-3 w-3" />
+            Open in New Tab
+          </Button>
+        </a>
+      </div>
+    </div>
+  );
+};

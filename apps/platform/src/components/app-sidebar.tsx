@@ -47,7 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             {gameId ? (
               <SidebarMenuButton size="lg" asChild>
-                <Link href="/dashboard">
+                <Link href="/dashboard/games">
                   <div className="border-airjam/50 text-airjam flex aspect-square size-8 items-center justify-center rounded-lg border">
                     <ChevronLeft className="size-4" />
                   </div>
@@ -63,7 +63,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </SidebarMenuButton>
             ) : (
               <SidebarMenuButton size="lg" asChild>
-                <Link href="/dashboard">
+                <Link href="/dashboard/games">
                   <div className="border-airjam/50 text-airjam flex aspect-square size-8 items-center justify-center rounded-lg border">
                     <Gamepad2 className="size-4" />
                   </div>
@@ -137,9 +137,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === "/dashboard"}
+                    isActive={pathname === "/dashboard/games"}
                   >
-                    <Link href="/dashboard">
+                    <Link href="/dashboard/games">
                       <LayoutDashboard />
                       <span>Games Overview</span>
                     </Link>
