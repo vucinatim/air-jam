@@ -1,0 +1,48 @@
+# Architecture
+
+Air Jam consists of four main components in a monorepo structure:
+
+1. **Platform** (`apps/platform`) - Central web portal and game launcher
+2. **Server** (`packages/server`) - Real-time WebSocket server
+3. **SDK** (`packages/sdk`) - Developer toolkit for building games
+4. **Prototype Game** (`apps/prototype-game`) - Reference implementation
+
+## Component Details
+
+### 1. Platform (`apps/platform`)
+
+**Role:** The central hub for the Air Jam ecosystem
+
+**Technology:** Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
+
+**Responsibilities:**
+
+- Manage developer accounts and game catalog
+- Generate and validate API keys
+- Host the arcade launcher interface
+- Provide persistent controller shell for mobile devices
+
+### 2. Server (`packages/server`)
+
+**Role:** Real-time communication backbone
+
+**Technology:** Node.js, Express, Socket.IO, PostgreSQL
+
+**Core Services:**
+
+- **Room Manager** - Centralized room state management
+- **Auth Service** - API key verification with database integration
+- **Focus System** - Controls input routing between system and game
+
+### 3. SDK (`packages/sdk`)
+
+**Role:** Developer toolkit for building Air Jam compatible games
+
+**Technology:** React, TypeScript, Socket.IO Client, Zustand
+
+**Features:**
+
+- Automatic mode detection (arcade vs standalone vs bridge)
+- Type-safe event protocol
+- Type-safe input handling with Zod schema validation
+- Input latching for rapid tap detection

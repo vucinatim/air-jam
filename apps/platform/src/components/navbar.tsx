@@ -47,6 +47,7 @@ export const Navbar = () => {
           </Link>
           <Link
             href="/docs"
+            target="_blank"
             className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
           >
             Docs

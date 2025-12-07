@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 @source "../../../../packages/sdk/src/**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
@@ -122,5 +123,56 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* MDX Code Block Styling */
+  .prose pre {
+    @apply overflow-x-auto rounded-lg border bg-black px-4 py-4;
+  }
+
+  .prose code {
+    @apply bg-muted text-foreground rounded-md px-1.5 py-0.5 font-mono text-sm font-normal before:content-none after:content-none;
+  }
+
+  .prose pre code {
+    @apply bg-transparent p-0 text-white;
+  }
+
+  /* Syntax Highlighting */
+  figure[data-rehype-pretty-code-figure] {
+    @apply my-0;
+  }
+
+  figure[data-rehype-pretty-code-figure] pre {
+    @apply m-0 overflow-x-auto rounded-none border-0 px-4 py-4;
+    background-color: #111111 !important;
+  }
+
+  figure[data-rehype-pretty-code-figure] code {
+    @apply grid min-w-full rounded-none border-0 bg-transparent box-decoration-clone p-0 text-sm wrap-break-word;
+    counter-reset: line;
+    background-color: transparent !important;
+  }
+
+  figure[data-rehype-pretty-code-figure] [data-line] {
+    @apply border-l-2 border-l-transparent px-4 py-0.5;
+  }
+
+  figure[data-rehype-pretty-code-figure] [data-highlighted-line] {
+    @apply border-l-airjam/50 bg-zinc-900/50;
+  }
+
+  figure[data-rehype-pretty-code-figure] [data-line-numbers] [data-line] {
+    @apply px-2;
+  }
+
+  figure[data-rehype-pretty-code-figure]
+    [data-line-numbers]
+    [data-line]::before {
+    counter-increment: line;
+    content: counter(line);
+    @apply mr-4 inline-block w-4 text-right text-gray-500;
   }
 }

@@ -1,0 +1,61 @@
+# Input Handling
+
+Air Jam provides a flexible, type-safe input system that supports arbitrary input structures while maintaining type safety and developer experience.
+
+## Components
+
+### 1. `useAirJamInput` Hook
+
+Generic input buffer for high-frequency input processing in game loops:
+
+- **Zero React re-renders** - Uses refs only (critical for game loops)
+- **Zod schema validation** - Optional schema for runtime validation and type inference
+- **Type inference** - Automatically infers TypeScript types from Zod schemas
+- **Pop-based consumption** - Read once per frame per controller
+- **Persistent state** - Input persists until new input arrives (enables latching)
+
+### 2. `useAirJamInputLatch` Hook
+
+Utility hook for adding latching behavior to input structures:
+
+- **Rapid tap detection** - Ensures rapid button taps are never missed
+- **Vector flick support** - Keeps stick flicks alive for one frame after release
+- **Type preservation** - Maintains full type safety through latching process
+- **Configurable fields** - Specify which fields should be latched (boolean/vector)
+
+## Example
+
+```typescript filename="src/game/input.ts"
+import { z } from "zod";
+
+const gameInputSchema = z.object({
+  vector: z.object({ x: z.number(), y: z.number() }),
+  action: z.boolean(),
+  ability: z.boolean(),
+  timestamp: z.number(),
+});
+
+type GameInput = z.infer<typeof gameInputSchema>;
+
+// With schema - fully typed and validated
+const { popInput } = useAirJamInput<GameInput>({
+  roomId: "ABCD",
+  schema: gameInputSchema, // Optional: enables validation + type inference
+});
+
+// With latching - preserves types
+const { getLatched } = useAirJamInputLatch<GameInput>({
+  booleanFields: ["action", "ability"],
+  vectorFields: ["vector"],
+});
+
+useFrame(() => {
+  const raw = popInput(controllerId);
+  if (raw) {
+    const latched = getLatched(controllerId, raw);
+    // Fully typed! No manual type guards needed
+    latched.vector.x; // number
+    latched.action; // boolean
+  }
+});
+```

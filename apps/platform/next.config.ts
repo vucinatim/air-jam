@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   async headers() {
     return [
       {
@@ -18,6 +19,14 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+  },
+  turbopack: {
+    rules: {
+      "*.mdx": {
+        loaders: ["turbopack-mdx-loader"],
+        as: "*.tsx",
+      },
+    },
   },
 };
 

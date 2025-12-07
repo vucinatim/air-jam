@@ -158,9 +158,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarGroupLabel>Resources</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton disabled>
-                    <BookOpen />
-                    <span>Documentation</span>
+                  <SidebarMenuButton asChild>
+                    <Link href="/docs" target="_blank">
+                      <BookOpen />
+                      <span>Documentation</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

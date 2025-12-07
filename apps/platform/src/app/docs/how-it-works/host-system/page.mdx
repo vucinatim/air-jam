@@ -1,0 +1,50 @@
+# Server-Authoritative Focus System
+
+The server maintains authoritative control over which host receives controller inputs through a **focus** state:
+
+- **SYSTEM Focus** - Inputs route to Master Host (Arcade)
+- **GAME Focus** - Inputs route to Child Host (Game)
+
+## Two-Host Model
+
+### Master Host (System)
+
+- The Arcade running on the TV
+- Owns the room and persistent connection
+- Handles game selection and lifecycle
+
+### Child Host (Game)
+
+- Game running in an iframe
+- Joins via secure token
+- Receives inputs when focus is GAME
+
+## Connection Flow
+
+### 1. Arcade Launch
+
+- Arcade registers as system host
+- Server creates room with SYSTEM focus
+- Controllers join via QR code
+
+### 2. Game Launch
+
+- User selects game in arcade
+- Server generates secure join token
+- Controllers receive game UI URL
+- Game joins as child host using token
+- Server validates and switches focus to GAME
+- Existing players synced to game
+
+### 3. Active Gameplay
+
+- Controllers send inputs to server
+- Server routes to child host (focus = GAME)
+- Game processes inputs and updates display
+
+### 4. Game Exit
+
+- Exit command received
+- Server switches focus back to SYSTEM
+- Controllers unload game UI
+- Arcade destroys game iframe

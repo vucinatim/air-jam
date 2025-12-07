@@ -42,9 +42,17 @@ export function DynamicBreadcrumbs() {
     { enabled: !!gameId },
   );
 
+  // Check if we're in docs route
+  const isDocsRoute = segments[0] === "docs";
+
   const breadcrumbs = segments.map((segment, index) => {
     const href = "/" + segments.slice(0, index + 1).join("/");
     const isLast = index === segments.length - 1;
+
+    // For docs routes, section titles (middle segments) are not clickable
+    // Only "docs" itself and the final page should be clickable
+    const isDocsSectionTitle =
+      isDocsRoute && index > 0 && index < segments.length - 1;
 
     // Special handling for game names
     let label = routeLabels[segment] || segment;
@@ -64,6 +72,7 @@ export function DynamicBreadcrumbs() {
       href,
       label,
       isLast,
+      isDocsSectionTitle,
     };
   });
 
@@ -96,7 +105,7 @@ export function DynamicBreadcrumbs() {
         {breadcrumbs.map((crumb) => (
           <React.Fragment key={crumb.href}>
             <BreadcrumbItem>
-              {crumb.isLast ? (
+              {crumb.isLast || crumb.isDocsSectionTitle ? (
                 <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
