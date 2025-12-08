@@ -144,3 +144,4 @@ const WireframeOverlay = ({ radius }: { radius: number }) => {
   );
 };
 
+

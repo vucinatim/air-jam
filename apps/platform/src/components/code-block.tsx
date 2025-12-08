@@ -132,3 +132,4 @@ export const CodeBlock = ({ children, ...props }: CodeBlockProps) => {
     </figure>
   );
 };
+

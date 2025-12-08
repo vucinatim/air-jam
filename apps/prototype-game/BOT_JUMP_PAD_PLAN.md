@@ -355,3 +355,4 @@ This plan provides a clean, extensible solution that:
 - ✅ Can be implemented incrementally
 
 The key insight is to treat jump pads as **intermediate waypoints** in path planning, rather than special cases. This makes the system more general and easier to extend.
+

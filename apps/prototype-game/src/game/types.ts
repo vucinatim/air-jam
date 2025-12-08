@@ -18,3 +18,4 @@ export const gameInputSchema = z.object({
  * Game-specific input type inferred from schema
  */
 export type GameLoopInput = z.infer<typeof gameInputSchema>;
+
