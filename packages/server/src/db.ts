@@ -8,7 +8,7 @@ dotenv.config();
 // Define only the schema we need for verification
 export const apiKeys = pgTable("api_keys", {
   id: text("id").primaryKey(),
-  gameId: text("game_id").notNull(),
+  gameId: text("game_id").notNull().unique(), // One API key per game
   key: text("key").notNull().unique(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

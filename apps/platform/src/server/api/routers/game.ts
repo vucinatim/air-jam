@@ -8,15 +8,26 @@ export const gameRouter = createTRPCRouter({
   create: protectedProcedure
     .input(z.object({ name: z.string().min(1), url: z.string().url() }))
     .mutation(async ({ input, ctx }) => {
+      const gameId = crypto.randomUUID();
+
+      // Create game
       const [game] = await db
         .insert(games)
         .values({
-          id: crypto.randomUUID(),
+          id: gameId,
           name: input.name,
           url: input.url,
           userId: ctx.user.id,
         })
         .returning();
+
+      // Auto-generate API key for the game
+      const apiKey = `aj_live_${crypto.randomUUID().replace(/-/g, "")}`;
+      await db.insert(apiKeys).values({
+        id: crypto.randomUUID(),
+        gameId: gameId,
+        key: apiKey,
+      });
 
       return game;
     }),
@@ -83,32 +94,7 @@ export const gameRouter = createTRPCRouter({
       }
     }),
 
-  createApiKey: protectedProcedure
-    .input(z.object({ gameId: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      // Verify game belongs to user
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
-      });
-
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
-      }
-
-      const key = `aj_live_${crypto.randomUUID().replace(/-/g, "")}`;
-      const [apiKey] = await db
-        .insert(apiKeys)
-        .values({
-          id: crypto.randomUUID(),
-          gameId: input.gameId,
-          key: key,
-        })
-        .returning();
-      return apiKey;
-    }),
-
-  getApiKeys: protectedProcedure
+  getApiKey: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input, ctx }) => {
       // Verify game belongs to user
@@ -121,9 +107,40 @@ export const gameRouter = createTRPCRouter({
         throw new Error("Game not found or unauthorized");
       }
 
-      return await db
-        .select()
-        .from(apiKeys)
-        .where(eq(apiKeys.gameId, input.gameId));
+      const apiKey = await db.query.apiKeys.findFirst({
+        where: (apiKeys, { eq }) => eq(apiKeys.gameId, input.gameId),
+      });
+
+      return apiKey;
+    }),
+
+  regenerateApiKey: protectedProcedure
+    .input(z.object({ gameId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      // Verify game belongs to user
+      const game = await db.query.games.findFirst({
+        where: (games, { eq, and }) =>
+          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
+      });
+
+      if (!game) {
+        throw new Error("Game not found or unauthorized");
+      }
+
+      // Generate new API key
+      const newKey = `aj_live_${crypto.randomUUID().replace(/-/g, "")}`;
+
+      // Update existing API key record
+      const [updatedApiKey] = await db
+        .update(apiKeys)
+        .set({
+          key: newKey,
+          isActive: true,
+          lastUsedAt: null, // Reset last used timestamp
+        })
+        .where(eq(apiKeys.gameId, input.gameId))
+        .returning();
+
+      return updatedApiKey;
     }),
 });

@@ -81,7 +81,8 @@ export const apiKeys = pgTable("api_keys", {
   id: text("id").primaryKey(),
   gameId: text("game_id")
     .references(() => games.id)
-    .notNull(),
+    .notNull()
+    .unique(), // One API key per game
   key: text("key").notNull().unique(), // The actual API key string (e.g. aj_live_...)
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

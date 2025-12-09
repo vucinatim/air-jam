@@ -15,6 +15,13 @@
       "when": 1765058706385,
       "tag": "0001_familiar_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765283634813,
+      "tag": "0002_moaning_molecule_man",
+      "breakpoints": true
     }
   ]
 }
