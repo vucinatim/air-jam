@@ -170,17 +170,11 @@ export interface HostLeftNotice {
   reason: string;
 }
 
-export type SignalType = "HAPTIC" | "SOUND" | "TOAST";
+export type SignalType = "HAPTIC" | "TOAST";
 
 export interface HapticSignalPayload {
   pattern: "light" | "medium" | "heavy" | "success" | "failure" | "custom";
   sequence?: number | number[];
-}
-
-export interface SoundSignalPayload {
-  id: string;
-  volume?: number;
-  loop?: boolean;
 }
 
 export interface ToastSignalPayload {
@@ -194,11 +188,6 @@ export type SignalPayload =
       targetId?: string;
       type: "HAPTIC";
       payload: HapticSignalPayload;
-    }
-  | {
-      targetId?: string;
-      type: "SOUND";
-      payload: SoundSignalPayload;
     }
   | {
       targetId?: string;

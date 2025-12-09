@@ -12,7 +12,6 @@ import type {
   RunMode,
   SignalPayload,
   SignalType,
-  SoundSignalPayload,
   ToastSignalPayload,
 } from "../protocol";
 import {
@@ -59,7 +58,6 @@ export interface AirJamHostApi {
   sendState: (state: ControllerStatePayload) => boolean;
   sendSignal: {
     (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
-    (type: "SOUND", payload: SoundSignalPayload, targetId?: string): void;
     (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
   };
   reconnect: () => void;
@@ -205,7 +203,7 @@ export const useAirJamHost = (
   const sendSignal = useCallback(
     (
       type: SignalType,
-      payload: HapticSignalPayload | SoundSignalPayload | ToastSignalPayload,
+      payload: HapticSignalPayload | ToastSignalPayload,
       targetId?: string,
     ): void => {
       if (!socket || !socket.connected) {
