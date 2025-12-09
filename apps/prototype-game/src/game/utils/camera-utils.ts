@@ -24,4 +24,3 @@ export function computeViewports(
     { x: halfW, y: 0, width: halfW, height: halfH }, // bottom-right
   ].slice(0, count);
 }
-

@@ -89,7 +89,7 @@ export function Trail({
 
   const frameCount = useRef(0);
   const segments = 12; // Increased from 8 for more detailed trail
-  
+
   // Simulated velocity for stationary ships
   const simulatedPrevPos = useRef<THREE.Vector3 | null>(null);
   const simulatedVelocity = useRef(new THREE.Vector3(0, 0, -1)); // Default forward direction
@@ -166,15 +166,15 @@ export function Trail({
 
       // Get the actual previous position (from points or simulated)
       const lastP = points.current[0] || simulatedPrevPos.current;
-      
+
       // Check if we've moved enough
       const actualDistance = lastP ? lastP.distanceTo(worldPos) : Infinity;
       const hasRealMovement = actualDistance > 0.01;
-      
+
       // Always add points when thrusting, but use simulated movement if ship is stationary
       let pointToAdd: THREE.Vector3;
       let dir: THREE.Vector3;
-      
+
       if (hasRealMovement && lastP) {
         // Real movement - use actual position and direction
         pointToAdd = worldPos;
@@ -199,7 +199,7 @@ export function Trail({
         // Get the ship's forward direction from its rotation
         const shipForward = new THREE.Vector3(0, 0, -1);
         target.current.getWorldDirection(shipForward);
-        
+
         // Use ship's forward direction, or fall back to simulated velocity
         if (shipForward.length() > 0.1) {
           dir = shipForward.normalize();
@@ -214,7 +214,7 @@ export function Trail({
           }
           simulatedVelocity.current.copy(dir);
         }
-        
+
         // Calculate simulated position by moving forward from last point
         if (!simulatedPrevPos.current) {
           simulatedPrevPos.current = worldPos.clone();
@@ -224,7 +224,7 @@ export function Trail({
         simulatedPrevPos.current.addScaledVector(dir, simulatedStep);
         pointToAdd = simulatedPrevPos.current.clone();
       }
-      
+
       // Add the point (either real or simulated)
       points.current.unshift(pointToAdd);
       creationTimes.current.unshift(now);
@@ -306,4 +306,3 @@ export function Trail({
     scene,
   );
 }
-

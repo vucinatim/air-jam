@@ -143,5 +143,3 @@ const WireframeOverlay = ({ radius }: { radius: number }) => {
     </lineSegments>
   );
 };
-
-

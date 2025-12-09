@@ -61,4 +61,3 @@ const loader = async function (content) {
 };
 
 export default loader;
-

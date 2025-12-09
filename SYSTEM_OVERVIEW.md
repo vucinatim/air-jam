@@ -420,10 +420,10 @@ The primary way to send transient events (haptics, toasts, particle effects) is 
 const { sendSignal } = useAirJamHost();
 
 // Trigger haptic feedback
-sendSignal('HAPTIC', { pattern: 'heavy' });
+sendSignal("HAPTIC", { pattern: "heavy" });
 
 // Send toast message
-sendSignal('TOAST', { message: 'Shield Broken!', color: 'red' });
+sendSignal("TOAST", { message: "Shield Broken!", color: "red" });
 ```
 
 ### Sound Playback
