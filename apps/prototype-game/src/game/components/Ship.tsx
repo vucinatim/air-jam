@@ -6,7 +6,11 @@ import { memo, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 
-import { useAirJamHost, useAudio, useConnectionStore } from "@air-jam/sdk";
+import {
+  useAirJamHostSignal,
+  useAudio,
+  useConnectionStore,
+} from "@air-jam/sdk";
 import { getAbilityVisual, useAbilitiesStore } from "../abilities-store";
 import { useCaptureTheFlagStore } from "../capture-the-flag-store";
 import {
@@ -92,7 +96,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
   // --- Audio ---
   const audio = useAudio(SOUND_MANIFEST);
-  const { sendSignal } = useAirJamHost();
+  const { sendSignal } = useAirJamHostSignal();
 
   // --- Input Hook (Zero re-renders, high-performance) ---
   const roomId = useConnectionStore((state) => state.roomId);
@@ -678,7 +682,7 @@ function handleAbilities(
   id: string,
   delta: number,
   audio: ReturnType<typeof useAudio>,
-  sendSignal: ReturnType<typeof useAirJamHost>["sendSignal"],
+  sendSignal: ReturnType<typeof useAirJamHostSignal>["sendSignal"],
 ) {
   // The input hook already handled the latch pattern and consumption
   // We just need to check if ability button is pressed and we have a queued ability
@@ -728,7 +732,7 @@ interface HandleShootingParams {
     timestamp: number;
   }) => void;
   audio: ReturnType<typeof useAudio>;
-  sendSignal: ReturnType<typeof useAirJamHost>["sendSignal"];
+  sendSignal: ReturnType<typeof useAirJamHostSignal>["sendSignal"];
 }
 
 function handleShooting({

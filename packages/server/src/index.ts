@@ -394,9 +394,23 @@ io.on(
         let session = roomManager.getRoom(roomId);
         if (session) {
           // If room exists, we assume they are taking over or reconnecting as Master
+          console.log(
+            `[server] Standalone Host re-connected to room ${roomId} (Socket: ${socket.id})`,
+            {
+              previousMasterHostSocketId: session.masterHostSocketId,
+              childHostSocketId: session.childHostSocketId,
+              focus: session.focus,
+            },
+          );
           session.masterHostSocketId = socket.id;
           session.focus = "SYSTEM"; // Default to system/master focus
         } else {
+          console.log(
+            `[server] Creating standalone room ${roomId} (Socket: ${socket.id})`,
+            {
+              maxPlayers,
+            },
+          );
           session = {
             roomId,
             masterHostSocketId: socket.id,
@@ -410,6 +424,12 @@ io.on(
 
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
+        console.log(`[server] Standalone Host registered`, {
+          roomId,
+          socketId: socket.id,
+          focus: session.focus,
+          childHostSocketId: session.childHostSocketId,
+        });
         callback({ ok: true, roomId });
         io.to(roomId).emit("server:roomReady", { roomId });
       },
@@ -593,18 +613,40 @@ io.on(
     socket.on("controller:input", (payload: ControllerInputEvent) => {
       // Validate roomId and controllerId, but accept arbitrary input structure
       const result = controllerInputSchema.safeParse(payload);
-      if (!result.success) return;
+      if (!result.success) {
+        console.log(
+          `[server] controller:input - invalid payload:`,
+          result.error,
+        );
+        return;
+      }
 
-      const { roomId } = result.data;
+      const { roomId, controllerId } = result.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
+        console.log(`[server] controller:input - room not found: ${roomId}`);
         return;
       }
 
       // Route based on FOCUS - pass through arbitrary input to host
       const targetHostId = roomManager.getActiveHostId(session);
+      console.log(`[server] controller:input - routing input`, {
+        roomId,
+        controllerId,
+        focus: session.focus,
+        masterHostSocketId: session.masterHostSocketId,
+        childHostSocketId: session.childHostSocketId,
+        targetHostId,
+        input: result.data.input,
+      });
+
       if (targetHostId) {
         io.to(targetHostId).emit("server:input", result.data);
+        console.log(
+          `[server] controller:input - emitted to host ${targetHostId}`,
+        );
+      } else {
+        console.log(`[server] controller:input - no target host ID found!`);
       }
     });
 

@@ -68,6 +68,17 @@ export interface AirJamHostApi {
 export const useAirJamHost = (
   options: AirJamHostOptions = {},
 ): AirJamHostApi => {
+  // Debug: Track mount count
+  const mountCountRef = useRef(0);
+  mountCountRef.current += 1;
+  console.log(
+    `[host] useAirJamHost hook called (mount #${mountCountRef.current})`,
+    {
+      optionsRoomId: options.roomId,
+      stackTrace: new Error().stack?.split("\n").slice(1, 5).join("\n"),
+    },
+  );
+
   // Detect if running in Arcade Mode (via URL params)
   const arcadeParams = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -92,7 +103,11 @@ export const useAirJamHost = (
     return true; // Default to true for Standalone Mode
   }, [options.forceConnect, isChildMode]);
 
-  const [fallbackRoomId] = useState(() => generateRoomCode());
+  const [fallbackRoomId] = useState(() => {
+    const id = generateRoomCode();
+    console.log(`[host] Generated fallbackRoomId: ${id}`);
+    return id;
+  });
 
   const parsedRoomId = useMemo<RoomCode>(() => {
     if (arcadeParams) {
@@ -114,6 +129,16 @@ export const useAirJamHost = (
 
     return fallbackRoomId;
   }, [options.roomId, fallbackRoomId, arcadeParams]);
+
+  // Debug logging to track why parsedRoomId changes
+  useEffect(() => {
+    console.log(`[host] parsedRoomId changed`, {
+      parsedRoomId,
+      optionsRoomId: options.roomId,
+      fallbackRoomId,
+      hasArcadeParams: !!arcadeParams,
+    });
+  }, [parsedRoomId, options.roomId, fallbackRoomId, arcadeParams]);
 
   const [joinUrl, setJoinUrl] = useState<string>("");
   const onInputRef = useRef(options.onInput);
@@ -241,6 +266,9 @@ export const useAirJamHost = (
     options.controllerUrl,
   ]);
 
+  // Track if we've already registered to prevent duplicate registrations
+  const registeredRoomIdRef = useRef<RoomCode | null>(null);
+
   useEffect(() => {
     const store = useConnectionStore.getState();
     store.setMode(detectRunMode());
@@ -255,6 +283,14 @@ export const useAirJamHost = (
     }
 
     const registerHost = async () => {
+      // Prevent duplicate registration for the same room
+      if (registeredRoomIdRef.current === parsedRoomId && socket.connected) {
+        console.log(
+          `[host] Skipping duplicate registration for room ${parsedRoomId}`,
+        );
+        return;
+      }
+
       if (arcadeParams) {
         // Child Mode - join as child
         const parsedRoomId = roomCodeSchema.parse(
@@ -268,10 +304,12 @@ export const useAirJamHost = (
           if (!ack.ok) {
             store.setError(ack.message ?? "Failed to join as child");
             store.setStatus("disconnected");
+            registeredRoomIdRef.current = null;
             return;
           }
           store.setStatus("connected");
           store.setRoomId(parsedRoomId);
+          registeredRoomIdRef.current = parsedRoomId;
         });
       } else {
         // Standalone Mode - register as master host
@@ -281,15 +319,25 @@ export const useAirJamHost = (
           apiKey: options.apiKey,
         });
 
+        console.log(`[host] Registering host for room ${parsedRoomId}`, {
+          socketId: socket.id,
+          connected: socket.connected,
+          previouslyRegistered: registeredRoomIdRef.current,
+        });
+
         socket.emit("host:register", payload, (ack) => {
           if (!ack.ok) {
             store.setError(ack.message ?? "Failed to register host");
             store.setStatus("disconnected");
+            registeredRoomIdRef.current = null;
             return;
           }
           store.setStatus("connected");
           if (ack.roomId) {
             store.setRoomId(ack.roomId);
+            registeredRoomIdRef.current = ack.roomId;
+          } else {
+            registeredRoomIdRef.current = parsedRoomId;
           }
         });
       }
@@ -321,6 +369,11 @@ export const useAirJamHost = (
     };
 
     const handleInput = (payload: ControllerInputEvent): void => {
+      console.log(`[host] server:input received`, {
+        roomId: payload.roomId,
+        controllerId: payload.controllerId,
+        input: payload.input,
+      });
       onInputRef.current?.(payload);
     };
 
@@ -351,8 +404,17 @@ export const useAirJamHost = (
 
     // If socket is already connected (e.g., reused singleton from previous mount),
     // register the host immediately since the "connect" event won't fire again
-    if (socket.connected) {
+    // But only if we haven't already registered for this room
+    if (socket.connected && registeredRoomIdRef.current !== parsedRoomId) {
       registerHost();
+    }
+
+    // Reset registered room when parsedRoomId changes (but not if it's the same)
+    if (
+      registeredRoomIdRef.current &&
+      registeredRoomIdRef.current !== parsedRoomId
+    ) {
+      registeredRoomIdRef.current = null;
     }
 
     return () => {

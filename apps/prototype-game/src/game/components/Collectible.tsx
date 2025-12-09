@@ -1,4 +1,4 @@
-import { useAirJamHost, useAudio } from "@air-jam/sdk";
+import { useAirJamHostSignal, useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -200,7 +200,7 @@ export function Collectible({ collectible }: CollectibleProps) {
   );
   const collectAbility = useAbilitiesStore((state) => state.collectAbility);
   const audio = useAudio(SOUND_MANIFEST);
-  const { sendSignal } = useAirJamHost();
+  const { sendSignal } = useAirJamHostSignal();
 
   // Light pillar geometry - cone shape, wide at base, point at top
   const pillarGeometry = useMemo(() => {

@@ -36,14 +36,35 @@ const HostViewContent = (): JSX.Element => {
 
   const [persistedRoomId] = useState(() => {
     if (typeof sessionStorage !== "undefined") {
-      return sessionStorage.getItem("airjam_room_id") || undefined;
+      const stored = sessionStorage.getItem("airjam_room_id");
+      console.log(
+        `[host-view] Reading persistedRoomId from sessionStorage:`,
+        stored,
+      );
+      return stored || undefined;
     }
+    console.log(`[host-view] sessionStorage not available`);
     return undefined;
   });
+
+  // Debug: Log when component mounts/remounts
+  useEffect(() => {
+    console.log(`[host-view] HostViewContent mounted/remounted`, {
+      persistedRoomId,
+      timestamp: Date.now(),
+    });
+    return () => {
+      console.log(`[host-view] HostViewContent unmounting`);
+    };
+  }, [persistedRoomId]);
 
   const host = useAirJamHost({
     roomId: persistedRoomId,
     onInput: (event: ControllerInputEvent) => {
+      console.log(`[host-view] onInput callback called`, {
+        controllerId: event.controllerId,
+        input: event.input,
+      });
       // Apply normal input (movement, actions, etc.)
       applyInput(event);
     },

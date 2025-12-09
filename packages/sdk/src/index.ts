@@ -9,6 +9,7 @@ export * from "./events";
 export * from "./hooks/use-air-jam-controller";
 export * from "./hooks/use-air-jam-haptics";
 export * from "./hooks/use-air-jam-host";
+export * from "./hooks/use-air-jam-host-signal";
 export * from "./hooks/use-air-jam-input";
 export * from "./hooks/use-air-jam-input-latch";
 export * from "./hooks/use-air-jam-shell";
