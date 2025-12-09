@@ -1,13 +1,10 @@
-"use client"
+"use client";
 
-import { ChevronsUpDown, LogOut } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { ChevronsUpDown, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import {
-  Avatar,
-  AvatarFallback,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,76 +12,62 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { authClient } from "@/lib/auth-client"
+} from "@/components/ui/sidebar";
+import { authClient } from "@/lib/auth-client";
 
 export function NavUser() {
-  const { isMobile } = useSidebar()
-  const router = useRouter()
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
+  const { isMobile } = useSidebar();
+  const router = useRouter();
+  const [user, setUser] = useState<{ name: string; email: string } | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true)
+    setMounted(true);
     const fetchUser = async () => {
       try {
-        const session = await authClient.getSession()
-        console.log("Full session response:", JSON.stringify(session, null, 2))
-        
-        // better-auth client can return different structures
-        // Try multiple possible structures
-        let sessionUser = null
-        
-        if (session?.data?.session?.user) {
-          sessionUser = session.data.session.user
-        } else if (session?.data?.user) {
-          sessionUser = session.data.user
-        } else if (session?.session?.user) {
-          sessionUser = session.session.user
-        } else if (session?.user) {
-          sessionUser = session.user
-        } else if (session?.data?.session && typeof session.data.session === 'object') {
-          // Session might be the user object directly
-          const sessionData = session.data.session as any
-          if (sessionData.email || sessionData.name) {
-            sessionUser = sessionData
-          }
-        }
-        
+        const session = await authClient.getSession();
+        console.log("Full session response:", JSON.stringify(session, null, 2));
+
+        // better-auth client returns user at session.data.user
+        const sessionUser = session?.data?.user ?? null;
+
         if (sessionUser) {
-          console.log("Found user:", sessionUser)
+          console.log("Found user:", sessionUser);
           setUser({
-            name: sessionUser.name || sessionUser.email?.split("@")[0] || "User",
+            name:
+              sessionUser.name || sessionUser.email?.split("@")[0] || "User",
             email: sessionUser.email || "",
-          })
+          });
         } else {
-          console.warn("No user found in session:", session)
+          console.warn("No user found in session:", session);
         }
       } catch (error) {
-        console.error("Failed to fetch user:", error)
+        console.error("Failed to fetch user:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
-    fetchUser()
-  }, [])
+    };
+    fetchUser();
+  }, []);
 
   const handleSignOut = async () => {
-    await authClient.signOut()
-    router.push("/")
-  }
+    await authClient.signOut();
+    router.push("/");
+  };
 
   // Don't render anything on server to avoid hydration mismatch
   if (!mounted) {
-    return null
+    return null;
   }
 
   if (isLoading) {
@@ -94,11 +77,11 @@ export function NavUser() {
           <SidebarMenuSkeleton showIcon />
         </SidebarMenuItem>
       </SidebarMenu>
-    )
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
   const initials = user.name
@@ -106,7 +89,7 @@ export function NavUser() {
     .map((n) => n[0])
     .join("")
     .toUpperCase()
-    .slice(0, 2)
+    .slice(0, 2);
 
   return (
     <SidebarMenu>
@@ -118,7 +101,9 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -136,7 +121,9 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -153,5 +140,5 @@ export function NavUser() {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

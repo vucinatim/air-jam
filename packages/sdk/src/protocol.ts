@@ -172,11 +172,39 @@ export interface HostLeftNotice {
 
 export type SignalType = "HAPTIC" | "SOUND" | "TOAST";
 
-export interface SignalPayload {
-  targetId?: string; // specific controller or broadcast if undefined
-  type: SignalType;
-  payload: any;
+export interface HapticSignalPayload {
+  pattern: "light" | "medium" | "heavy" | "success" | "failure" | "custom";
+  sequence?: number | number[];
 }
+
+export interface SoundSignalPayload {
+  id: string;
+  volume?: number;
+  loop?: boolean;
+}
+
+export interface ToastSignalPayload {
+  message: string;
+  color?: string;
+  duration?: number;
+}
+
+export type SignalPayload =
+  | {
+      targetId?: string;
+      type: "HAPTIC";
+      payload: HapticSignalPayload;
+    }
+  | {
+      targetId?: string;
+      type: "SOUND";
+      payload: SoundSignalPayload;
+    }
+  | {
+      targetId?: string;
+      type: "TOAST";
+      payload: ToastSignalPayload;
+    };
 
 export interface PlaySoundEventPayload {
   roomId: string;

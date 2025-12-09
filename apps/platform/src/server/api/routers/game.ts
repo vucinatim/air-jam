@@ -50,11 +50,11 @@ export const gameRouter = createTRPCRouter({
         maxPlayers: z.number().int().min(1).nullable().optional(),
         isPublished: z.boolean().optional(),
         orientation: z.enum(["landscape", "portrait", "any"]).optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
-      
+
       const game = await db.query.games.findFirst({
         where: (games, { eq, and }) =>
           and(eq(games.id, id), eq(games.userId, ctx.user.id)),
@@ -74,8 +74,9 @@ export const gameRouter = createTRPCRouter({
           .where(eq(games.id, id))
           .returning();
         return updatedGame;
-      } catch (error: any) {
-        if (error?.code === "23505") { // Postgres unique violation code
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("23505")) {
+          // Postgres unique violation code
           throw new Error("Slug already taken. Please choose another one.");
         }
         throw error;

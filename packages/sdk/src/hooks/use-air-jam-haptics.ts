@@ -18,6 +18,7 @@ export const useAirJamHaptics = (socket: AirJamSocket | null) => {
       // Browser compatibility check
       if (typeof navigator === "undefined" || !navigator.vibrate) return;
 
+      // TypeScript now knows payload is HapticSignalPayload
       const payload = signal.payload;
 
       switch (payload.pattern) {

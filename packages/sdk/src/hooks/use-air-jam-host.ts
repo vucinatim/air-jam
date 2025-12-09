@@ -6,11 +6,14 @@ import type {
   ControllerStateMessage,
   ControllerStatePayload,
   GameState,
+  HapticSignalPayload,
   PlayerProfile,
   RoomCode,
   RunMode,
   SignalPayload,
   SignalType,
+  SoundSignalPayload,
+  ToastSignalPayload,
 } from "../protocol";
 import {
   controllerStateSchema,
@@ -54,7 +57,11 @@ export interface AirJamHostApi {
   gameState: GameState;
   toggleGameState: () => void;
   sendState: (state: ControllerStatePayload) => boolean;
-  sendSignal: (type: SignalType, payload: any, targetId?: string) => void;
+  sendSignal: {
+    (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
+    (type: "SOUND", payload: SoundSignalPayload, targetId?: string): void;
+    (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
+  };
   reconnect: () => void;
   socket: ReturnType<typeof useSocketLifecycle>["socket"];
   isChildMode: boolean;
@@ -196,7 +203,11 @@ export const useAirJamHost = (
   );
 
   const sendSignal = useCallback(
-    (type: SignalType, payload: any, targetId?: string): void => {
+    (
+      type: SignalType,
+      payload: HapticSignalPayload | SoundSignalPayload | ToastSignalPayload,
+      targetId?: string,
+    ): void => {
       if (!socket || !socket.connected) {
         return;
       }
@@ -204,11 +215,11 @@ export const useAirJamHost = (
         targetId,
         type,
         payload,
-      };
+      } as SignalPayload;
       socket.emit("host:signal", signal);
     },
     [socket],
-  );
+  ) as AirJamHostApi["sendSignal"];
 
   const reconnect = useCallback(() => {
     disconnectSocket("host");

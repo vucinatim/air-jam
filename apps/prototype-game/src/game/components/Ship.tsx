@@ -435,6 +435,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
       shipRotation: currentRotationRef.current,
       addLaser,
       audio,
+      sendSignal,
     });
 
     // 7. VISUALS PHASE

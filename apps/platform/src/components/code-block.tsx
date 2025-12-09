@@ -22,6 +22,7 @@ export const CodeBlock = ({ children, ...props }: CodeBlockProps) => {
         filename?: string;
         "data-meta"?: string;
         "data-language"?: string;
+        children?: React.ReactNode;
       }>
     | undefined;
 
@@ -132,4 +133,3 @@ export const CodeBlock = ({ children, ...props }: CodeBlockProps) => {
     </figure>
   );
 };
-

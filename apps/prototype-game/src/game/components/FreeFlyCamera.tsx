@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import type { PerspectiveCamera } from "three";
