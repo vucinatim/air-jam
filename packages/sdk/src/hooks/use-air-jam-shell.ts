@@ -20,6 +20,7 @@ import { detectRunMode } from "../utils/mode";
 import { useConnectionHandlers } from "./internal/use-connection-handlers";
 import { useRoomSetup } from "./internal/use-room-setup";
 import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
+import { useAirJamHaptics } from "./use-air-jam-haptics";
 
 interface AirJamShellOptions {
   roomId?: string;
@@ -78,6 +79,9 @@ export const useAirJamShell = (
     options.serverUrl,
     !!parsedRoomId,
   );
+
+  // Automatically listen for haptic signals
+  useAirJamHaptics(socket);
 
   // Use connection handlers utility
   const {

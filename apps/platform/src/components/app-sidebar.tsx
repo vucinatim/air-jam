@@ -48,11 +48,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {gameId ? (
               <SidebarMenuButton size="lg" asChild>
                 <Link href="/dashboard/games">
-                  <div className="border-airjam/50 text-airjam flex aspect-square size-8 items-center justify-center rounded-lg border">
+                  <div className="border-airjam-cyan/50 text-airjam-cyan flex aspect-square size-8 items-center justify-center rounded-lg border">
                     <ChevronLeft className="size-4" />
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="text-airjam truncate font-semibold">
+                    <span className="text-airjam-cyan truncate font-semibold">
                       {game?.name || "Loading..."}
                     </span>
                     <span className="text-muted-foreground truncate text-xs">
@@ -64,7 +64,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             ) : (
               <SidebarMenuButton size="lg" asChild>
                 <Link href="/dashboard/games">
-                  <div className="border-airjam/50 text-airjam flex aspect-square size-8 items-center justify-center rounded-lg border">
+                  <div className="border-airjam-cyan/50 text-airjam-cyan flex aspect-square size-8 items-center justify-center rounded-lg border">
                     <Gamepad2 className="size-4" />
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">

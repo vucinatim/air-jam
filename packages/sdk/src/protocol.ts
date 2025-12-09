@@ -41,7 +41,6 @@ export const controllerStateSchema = z.object({
   state: z.object({
     orientation: z.enum(["portrait", "landscape"]).optional(),
     message: z.string().optional(),
-    vibration: z.enum(["short", "long"]).optional(),
     gameState: z.enum(["paused", "playing"]).optional(),
   }),
 });
@@ -171,6 +170,14 @@ export interface HostLeftNotice {
   reason: string;
 }
 
+export type SignalType = "HAPTIC" | "SOUND" | "TOAST";
+
+export interface SignalPayload {
+  targetId?: string; // specific controller or broadcast if undefined
+  type: SignalType;
+  payload: any;
+}
+
 export interface PlaySoundEventPayload {
   roomId: string;
   targetControllerId?: string; // If null, broadcast to all
@@ -243,6 +250,7 @@ export interface ClientToServerEvents {
     payload: z.infer<typeof controllerSystemSchema>,
   ) => void;
   "host:system": (payload: z.infer<typeof controllerSystemSchema>) => void;
+  "host:signal": (payload: SignalPayload) => void;
   "host:play_sound": (payload: PlaySoundEventPayload) => void;
   "controller:play_sound": (payload: PlaySoundEventPayload) => void;
 }
@@ -262,6 +270,7 @@ export interface ServerToClientEvents {
   "server:state": (payload: z.infer<typeof controllerStateSchema>) => void;
   "server:welcome": (payload: ControllerWelcomePayload) => void;
   "server:hostLeft": (payload: HostLeftNotice) => void;
+  "server:signal": (payload: SignalPayload) => void;
   "server:playSound": (payload: PlaySoundPayload) => void;
   "server:redirect": (url: string) => void;
   "server:closeChild": () => void;

@@ -44,7 +44,7 @@ export default function GameOverviewPage() {
           <Link href={`/play/${game.id}`}>
             <Button
               variant="outline"
-              className="border-airjam text-airjam hover:bg-airjam/10"
+              className="border-airjam-cyan text-airjam-cyan hover:bg-airjam-cyan/10"
             >
               <Gamepad2 className="mr-2 h-4 w-4" />
               Test Play

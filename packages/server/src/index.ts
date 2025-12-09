@@ -9,6 +9,7 @@ import {
   hostRegisterSystemSchema,
   hostRegistrationSchema,
   PlaySoundEventPayload,
+  SignalPayload,
   systemLaunchGameSchema,
   type ClientToServerEvents,
   type ControllerInputEvent,
@@ -742,6 +743,23 @@ io.on(
         if (session.childHostSocketId) {
           io.to(session.childHostSocketId).emit("server:state", result.data);
         }
+      }
+    });
+
+    socket.on("host:signal", (payload: SignalPayload) => {
+      const roomId = roomManager.getRoomByHostId(socket.id);
+      if (!roomId) return;
+
+      const session = roomManager.getRoom(roomId);
+      if (!session) return;
+
+      if (payload.targetId) {
+        const controller = session.controllers.get(payload.targetId);
+        if (controller) {
+          io.to(controller.socketId).emit("server:signal", payload);
+        }
+      } else {
+        socket.to(roomId).emit("server:signal", payload);
       }
     });
 

@@ -8,11 +8,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 import { Gamepad2, Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
 
 export default function GamesPage() {
   const { data: games, isLoading } = api.game.list.useQuery();
@@ -35,13 +35,9 @@ export default function GamesPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search games..."
-            className="pl-9"
-          />
+        <div className="relative max-w-sm flex-1">
+          <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
+          <Input type="search" placeholder="Search games..." className="pl-9" />
         </div>
       </div>
 
@@ -54,12 +50,13 @@ export default function GamesPage() {
       ) : games?.length === 0 ? (
         <div className="flex h-[450px] shrink-0 items-center justify-center rounded-md border border-dashed">
           <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-airjam/10">
-              <Gamepad2 className="h-10 w-10 text-airjam" />
+            <div className="bg-airjam-cyan/10 flex h-20 w-20 items-center justify-center rounded-full">
+              <Gamepad2 className="text-airjam-cyan h-10 w-10" />
             </div>
             <h3 className="mt-4 text-lg font-semibold">No games created</h3>
-            <p className="mb-4 mt-2 text-sm text-muted-foreground">
-              You haven&apos;t created any games yet. Start building your first Air Jam experience.
+            <p className="text-muted-foreground mt-2 mb-4 text-sm">
+              You haven&apos;t created any games yet. Start building your first
+              Air Jam experience.
             </p>
             <Link href="/dashboard/games/new">
               <Button>
@@ -72,17 +69,23 @@ export default function GamesPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {games?.map((game) => (
-            <Card key={game.id} className="group relative overflow-hidden transition-all hover:shadow-md">
-              <Link href={`/dashboard/games/${game.id}`} className="absolute inset-0 z-10">
+            <Card
+              key={game.id}
+              className="group relative overflow-hidden transition-all hover:shadow-md"
+            >
+              <Link
+                href={`/dashboard/games/${game.id}`}
+                className="absolute inset-0 z-10"
+              >
                 <span className="sr-only">View {game.name}</span>
               </Link>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-airjam/10 text-airjam">
+                  <div className="bg-airjam-cyan/10 text-airjam-cyan flex h-10 w-10 items-center justify-center rounded-lg">
                     <Gamepad2 className="h-5 w-5" />
                   </div>
-                  <div className="flex gap-2 relative z-20">
-                     {/* Actions that shouldn't trigger the card click */}
+                  <div className="relative z-20 flex gap-2">
+                    {/* Actions that shouldn't trigger the card click */}
                   </div>
                 </div>
                 <CardTitle className="mt-4 line-clamp-1">{game.name}</CardTitle>
@@ -95,7 +98,7 @@ export default function GamesPage() {
                   <div>
                     <p className="text-muted-foreground">Status</p>
                     <p className="font-medium">
-                      {game.isPublished ? 'Live' : 'Development'}
+                      {game.isPublished ? "Live" : "Development"}
                     </p>
                   </div>
                   <div>
@@ -114,5 +117,3 @@ export default function GamesPage() {
     </div>
   );
 }
-
-

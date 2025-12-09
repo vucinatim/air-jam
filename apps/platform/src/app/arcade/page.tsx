@@ -1,7 +1,6 @@
 "use client";
 
-import { ArcadeSystem } from "@/components/arcade";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ArcadeLoader, ArcadeSystem } from "@/components/arcade";
 import { api } from "@/trpc/react";
 import { useState } from "react";
 
@@ -18,8 +17,8 @@ export default function ArcadePage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950">
-        <Skeleton className="h-32 w-32 rounded-lg" />
+      <div className="h-screen w-screen bg-black">
+        <ArcadeLoader />
       </div>
     );
   }

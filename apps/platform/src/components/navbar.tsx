@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -33,9 +34,16 @@ export const Navbar = () => {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link
           href="/"
-          className="text-xl font-bold transition-opacity hover:opacity-80"
+          className="flex items-center gap-4 transition-opacity hover:opacity-80"
         >
-          Air Jam
+          <Image
+            src="/images/air-jam-icon.png"
+            alt="Air Jam"
+            width={32}
+            height={32}
+            priority
+          />
+          <span className="text-xl font-bold">Air Jam</span>
         </Link>
         <div className="flex items-center gap-6">
           <Link

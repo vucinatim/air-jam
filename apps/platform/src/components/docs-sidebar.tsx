@@ -29,7 +29,7 @@ export function DocsSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
-                <div className="border-airjam/50 text-airjam flex aspect-square size-8 items-center justify-center rounded-lg border">
+                <div className="border-airjam-cyan/50 text-airjam-cyan flex aspect-square size-8 items-center justify-center rounded-lg border">
                   <Gamepad2 className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -121,4 +121,3 @@ export function DocsSidebar({
     </Sidebar>
   );
 }
-

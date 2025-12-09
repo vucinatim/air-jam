@@ -9,8 +9,8 @@ import {
   useAirJamHost,
   useAirJamInputLatch,
 } from "@air-jam/sdk";
-import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ArcadeLoader } from "./arcade-loader";
 import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
 
@@ -346,7 +346,7 @@ export const ArcadeSystem = ({
           className,
         )}
       >
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <ArcadeLoader />
       </div>
     );
   }
@@ -360,9 +360,13 @@ export const ArcadeSystem = ({
           className,
         )}
       >
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="text-slate-400">Connecting to Air Jam...</span>
+        <div className="absolute inset-0">
+          <ArcadeLoader />
+        </div>
+        <div className="z-10 flex flex-col items-center gap-4 pt-40">
+          <span className="text-airjam-cyan animate-pulse font-mono tracking-widest">
+            CONNECTING TO AIR JAM...
+          </span>
         </div>
         {/* Still show the overlay for QR code */}
         <AirJamOverlay {...host} onTogglePlayPause={host.toggleGameState} />

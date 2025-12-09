@@ -13,11 +13,9 @@ interface GameObjectEditorProps {
 type ModelType = "rocket" | "ship" | "flag";
 
 function EditorScene({
-  objectType,
   modelType,
   offset,
 }: {
-  objectType: GameObjectEditorProps["objectType"];
   modelType: ModelType;
   offset: [number, number, number];
 }) {
@@ -71,12 +69,12 @@ function EditorScene({
       <gridHelper args={[20, 20, 0x444444, 0x333333]} />
 
       {/* Object preview */}
-      {objectType === "rocket" && modelType === "rocket" && (
+      {modelType === "rocket" && (
         <group position={offset}>
           <RocketModel showParticles={true} horizontal={false} />
         </group>
       )}
-      {objectType === "rocket" && modelType === "ship" && (
+      {modelType === "ship" && (
         <group position={offset}>
           <ShipModel
             playerColor="#38bdf8"
@@ -87,7 +85,7 @@ function EditorScene({
           />
         </group>
       )}
-      {objectType === "flag" && (
+      {modelType === "flag" && (
         <group position={offset}>
           <FlagModel color="#f97316" animate={true} />
         </group>
@@ -108,7 +106,9 @@ function EditorScene({
 
 export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
   const [offset, setOffset] = useState<[number, number, number]>([0, 1.5, 0]);
-  const [modelType, setModelType] = useState<ModelType>("rocket");
+  const [modelType, setModelType] = useState<ModelType>(
+    objectType === "flag" ? "flag" : "rocket",
+  );
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -116,32 +116,18 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
       <div className="border-b border-gray-700 bg-gray-800 p-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* Model Type Dropdown */}
-          {objectType === "rocket" && (
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white">Model:</label>
-              <select
-                value={modelType}
-                onChange={(e) => setModelType(e.target.value as ModelType)}
-                className="rounded border border-gray-600 bg-gray-700 px-3 py-1 text-sm text-white focus:border-blue-500 focus:outline-none"
-              >
-                <option value="rocket">Rocket</option>
-                <option value="ship">Ship</option>
-              </select>
-            </div>
-          )}
-          {objectType === "flag" && (
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white">
-                Flag Color:
-              </label>
-              <input
-                type="color"
-                defaultValue="#f97316"
-                readOnly
-                className="h-8 w-12 cursor-default rounded border border-gray-600 bg-gray-700"
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-white">Model:</label>
+            <select
+              value={modelType}
+              onChange={(e) => setModelType(e.target.value as ModelType)}
+              className="rounded border border-gray-600 bg-gray-700 px-3 py-1 text-sm text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="rocket">Rocket</option>
+              <option value="ship">Ship</option>
+              <option value="flag">Flag</option>
+            </select>
+          </div>
           <label className="text-sm font-medium text-white">Offset:</label>
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-300">X:</label>
@@ -197,11 +183,7 @@ export function GameObjectEditor({ objectType }: GameObjectEditorProps) {
       {/* Canvas */}
       <div className="flex-1">
         <Canvas shadows gl={{ antialias: true }}>
-          <EditorScene
-            objectType={objectType}
-            modelType={modelType}
-            offset={offset}
-          />
+          <EditorScene modelType={modelType} offset={offset} />
         </Canvas>
       </div>
     </div>

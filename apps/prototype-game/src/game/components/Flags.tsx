@@ -1,4 +1,4 @@
-import { useAudio } from "@air-jam/sdk";
+import { useAirJamHost, useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import {
   CylinderCollider,
@@ -62,6 +62,7 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
   const color = TEAM_CONFIG[teamId].color;
   const pulseRef = useRef(0);
   const audio = useAudio(SOUND_MANIFEST);
+  const { sendSignal } = useAirJamHost();
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const groupRef = useRef<THREE.Group>(null);
   const prevPositionRef = useRef<[number, number, number] | null>(null);
@@ -94,6 +95,7 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
     ) {
       pulseRef.current = 1;
       audio.play("success");
+      sendSignal("HAPTIC", { pattern: "success" }, userData.controllerId);
     }
     // Check if flag was picked up by enemy (status changed to "carried")
     else if (
@@ -103,6 +105,7 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
     ) {
       pulseRef.current = 1;
       audio.play("pickup_flag");
+      sendSignal("HAPTIC", { pattern: "medium" }, userData.controllerId);
     }
   };
 

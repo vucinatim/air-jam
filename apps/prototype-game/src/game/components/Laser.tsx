@@ -1,4 +1,4 @@
-import { useAudio } from "@air-jam/sdk";
+import { useAirJamHost, useAudio } from "@air-jam/sdk";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { useMemo, useRef, useState } from "react";
@@ -43,6 +43,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
   const raycasterRef = useRef(new Raycaster());
   const meshRef = useRef<Mesh>(null);
   const audio = useAudio(SOUND_MANIFEST);
+  const { sendSignal } = useAirJamHost();
 
   // Create elongated box geometry (width, height, length)
   // Similar to the example: BoxGeometry(0.2, 0.2, 4)
@@ -176,6 +177,9 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
             reduceHealth(hitControllerId, LASER_DAMAGE);
             // Play hit sound on host
             audio.play("hit");
+            // Send haptics
+            sendSignal("HAPTIC", { pattern: "heavy" }, hitControllerId); // Victim gets hit hard
+            sendSignal("HAPTIC", { pattern: "success" }, controllerId); // Shooter gets hit marker
           }
 
           // Apply knockback force to the ship

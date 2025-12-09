@@ -9,6 +9,8 @@ import type {
   PlayerProfile,
   RoomCode,
   RunMode,
+  SignalPayload,
+  SignalType,
 } from "../protocol";
 import {
   controllerStateSchema,
@@ -52,6 +54,7 @@ export interface AirJamHostApi {
   gameState: GameState;
   toggleGameState: () => void;
   sendState: (state: ControllerStatePayload) => boolean;
+  sendSignal: (type: SignalType, payload: any, targetId?: string) => void;
   reconnect: () => void;
   socket: ReturnType<typeof useSocketLifecycle>["socket"];
   isChildMode: boolean;
@@ -190,6 +193,21 @@ export const useAirJamHost = (
       return true;
     },
     [socket, parsedRoomId],
+  );
+
+  const sendSignal = useCallback(
+    (type: SignalType, payload: any, targetId?: string): void => {
+      if (!socket || !socket.connected) {
+        return;
+      }
+      const signal: SignalPayload = {
+        targetId,
+        type,
+        payload,
+      };
+      socket.emit("host:signal", signal);
+    },
+    [socket],
   );
 
   const reconnect = useCallback(() => {
@@ -361,6 +379,7 @@ export const useAirJamHost = (
     gameState: connectionState.gameState,
     toggleGameState,
     sendState,
+    sendSignal,
     reconnect,
     socket,
     isChildMode,

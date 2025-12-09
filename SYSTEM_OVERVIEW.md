@@ -401,6 +401,59 @@ useFrame(() => {
 
 ---
 
+## Game → Controller Communication
+
+### Overview
+
+Games can send messages to controllers through three primary channels: **sound playback**, **state updates**, and **signals**. The server routes these messages from the game host to the appropriate controllers.
+
+### Signals (New)
+
+The primary way to send transient events (haptics, toasts, particle effects) is via **Signals**:
+
+- **Ephemeral** - "Fire and forget" events that don't need persistence
+- **Dedicated Channel** - `host:signal` -> `server:signal`
+- **Supported Types**: `HAPTIC`, `SOUND`, `TOAST`
+- **Automatic Handling** - The SDK automatically handles standard signals (like haptics) so developers don't need to write custom logic
+
+```typescript
+const { sendSignal } = useAirJamHost();
+
+// Trigger haptic feedback
+sendSignal('HAPTIC', { pattern: 'heavy' });
+
+// Send toast message
+sendSignal('TOAST', { message: 'Shield Broken!', color: 'red' });
+```
+
+### Sound Playback
+
+Games can trigger sounds on controllers using the `host:play_sound` event:
+
+- **Broadcast to all controllers** - Send sound to all players in the room
+- **Target specific controller** - Send sound to a single controller by ID
+- **Volume and loop control** - Optional volume and loop parameters
+
+The AudioManager's `playRemote()` method handles this automatically when used as a host, or games can emit `host:play_sound` directly via socket. Controllers receive these as `server:playSound` events and play them using their local audio manifest.
+
+### State Updates
+
+Games can send state updates to controllers using the `sendState()` method from `useAirJamHost`:
+
+- **Game state** - Pause/play status (`"paused" | "playing"`)
+- **Text messages** - Display messages on controller UI
+- **Orientation** - Request portrait/landscape mode (`"portrait" | "landscape"`)
+
+**Note:** State should be reserved for data that must persist if a player reconnects (e.g. scores, current screen). Use Signals for transient effects.
+
+State updates are broadcast to all controllers via `server:state` events. Controllers receive these and can access the state through the `onState` callback or by reading from the connection store.
+
+### Limitations
+
+- **No arbitrary data channel** - Communication is limited to defined protocols
+
+---
+
 ## Code Organization
 
 ### Modular Architecture
