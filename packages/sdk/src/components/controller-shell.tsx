@@ -10,7 +10,8 @@ import type { JSX } from "react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useFullscreen } from "../hooks/use-fullscreen";
 import type { ConnectionStatus } from "../protocol";
-import { useConnectionState } from "../state/connection-store";
+import { useShallow } from "zustand/react/shallow";
+import { useAirJamContext } from "../context/AirJamProvider";
 import { cn } from "../utils/cn";
 import { detectRunMode } from "../utils/mode";
 import { QRScannerDialog } from "./qr-scanner-dialog";
@@ -82,11 +83,14 @@ export const ControllerShell = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { isFullscreen, toggleFullscreen } = useFullscreen();
 
-  // Get current player info from connection store
-  const { controllerId, players } = useConnectionState((state) => ({
-    controllerId: state.controllerId,
-    players: state.players,
-  }));
+  // Get current player info from connection store (context-bound)
+  const { store } = useAirJamContext();
+  const { controllerId, players } = store(
+    useShallow((state) => ({
+      controllerId: state.controllerId,
+      players: state.players,
+    }))
+  );
 
   // Find current player profile - must exist from server (single source of truth)
   const currentPlayer = useMemo(() => {

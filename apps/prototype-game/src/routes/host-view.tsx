@@ -61,10 +61,6 @@ const HostViewContent = (): JSX.Element => {
   const host = useAirJamHost({
     roomId: persistedRoomId,
     onInput: (event: ControllerInputEvent) => {
-      console.log(`[host-view] onInput callback called`, {
-        controllerId: event.controllerId,
-        input: event.input,
-      });
       // Apply normal input (movement, actions, etc.)
       applyInput(event);
     },
@@ -77,8 +73,6 @@ const HostViewContent = (): JSX.Element => {
       removePlayer(controllerId);
     },
     controllerPath: "/joypad",
-    apiKey: import.meta.env.VITE_AIR_JAM_API_KEY,
-    serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
   });
 
   useEffect(() => {

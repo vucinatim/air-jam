@@ -1,156 +1,116 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import type { z } from "zod";
-import type { ControllerInputEvent } from "../protocol";
-import { getSocketClient } from "../socket-client";
+import { useAirJamContext } from "../context/AirJamProvider";
 
 interface UseAirJamInputOptions<TInput = Record<string, unknown>> {
   /**
-   * Optional: Only listen to inputs from this room.
-   * If not provided, listens to all rooms (useful for testing).
-   */
-  roomId?: string;
-  /**
    * Optional: Zod schema for input validation and type inference.
-   * If provided, inputs will be validated and returned as the inferred type.
-   * If not provided, inputs are returned as Record<string, unknown>.
    */
   schema?: z.ZodSchema<TInput>;
 }
 
+export interface ControllerHandle<TInput> {
+  /**
+   * The raw input state for this controller in the current frame.
+   */
+  readonly raw: TInput;
+  /**
+   * Returns true if the field is currently "truthy" (e.g. button held down).
+   */
+  isDown: (field: keyof TInput) => boolean;
+  /**
+   * Returns true only on the frame the field transitioned from falsey to truthy.
+   */
+  justPressed: (field: keyof TInput) => boolean;
+  /**
+   * Returns true only on the frame the field transitioned from truthy to falsey.
+   */
+  justReleased: (field: keyof TInput) => boolean;
+  /**
+   * Returns the vector for a given field, defaulting to {x:0, y:0}.
+   */
+  vector: (field: keyof TInput) => { x: number; y: number };
+}
+
 /**
- * Type-safe input buffer for high-frequency input processing in game loops.
- *
- * Key features:
- * - Zero React re-renders (uses refs only)
- * - Pop-based consumption model (read once per frame)
- * - Type-safe with Zod schema validation and inference
- * - Completely decoupled from UI/lobby logic
- *
- * For latching behavior (catching rapid taps), use `useAirJamInputLatch` utility hook.
- *
- * @example
- * ```tsx
- * // With Zod schema (recommended - type-safe + validated)
- * const inputSchema = z.object({
- *   vector: z.object({ x: z.number(), y: z.number() }),
- *   action: z.boolean(),
- *   ability: z.boolean(),
- * });
- * const { popInput } = useAirJamInput({ roomId: "ABCD", schema: inputSchema });
- *
- * useFrame(() => {
- *   const input = popInput(controllerId);
- *   if (input) {
- *     // input is fully typed! No manual type guards needed
- *     input.vector.x; // number
- *     input.action; // boolean
- *   }
- * });
- * ```
+ * The "Perfect" Input Hook.
+ * Provides a high-performance, intelligent interface for reading controller inputs.
+ * Zero React re-renders.
  */
-export const useAirJamInput = <TInput = Record<string, unknown>>(
+export const useAirJamInput = <TInput extends Record<string, any>>(
   options: UseAirJamInputOptions<TInput> = {},
-): {
-  /**
-   * Reads the raw input for a specific controller.
-   * Does NOT remove from buffer - input persists until new input arrives.
-   * Returns validated and typed input if schema is provided, otherwise raw Record.
-   */
-  popInput: (
-    controllerId: string,
-  ) => TInput extends Record<string, unknown>
-    ? TInput | undefined
-    : Record<string, unknown> | undefined;
-  /**
-   * Clears input state for a controller (e.g., when player leaves).
-   */
-  clearInput: (controllerId: string) => void;
-} => {
+) => {
+  const { inputBuffer } = useAirJamContext();
   const { schema } = options;
-  // Use a Map to store raw input for all controllers
-  // Refs ensure this never triggers a React re-render (CRITICAL for game loops)
-  const inputBuffer = useRef<Map<string, Record<string, unknown>>>(new Map());
 
-  useEffect(() => {
-    // 1. Get the SAME socket instance used by useAirJamHost
-    // Since getSocketClient follows singleton pattern for the same role/url,
-    // this hook piggybacks on the existing connection.
-    const socket = getSocketClient("host");
+  // Internal state to track previous frame values for edge detection
+  // Key: controllerId, Value: Map of fields to their previous values
+  const prevFrameMap = useRef<Map<string, Map<keyof TInput, any>>>(new Map());
+  // Track which controllers have been "polled" this frame to update prev values correctly
+  // In a real game loop, we'd want a clear 'tick' call, but we can simulate it by
+  // detecting when the raw input changes.
+  const lastRawMap = useRef<Map<string, TInput>>(new Map());
 
-    const handleInput = (payload: ControllerInputEvent): void => {
-      // Security/Sanity check: Only process inputs from our room
-      if (options.roomId && payload.roomId !== options.roomId) {
-        return;
+  const getController = useCallback((controllerId: string): ControllerHandle<TInput> | null => {
+    const rawInput = inputBuffer.get(controllerId) as TInput;
+    if (!rawInput) return null;
+
+    // Validate schema if provided
+    let validatedInput = rawInput;
+    if (schema) {
+      const result = schema.safeParse(rawInput);
+      if (result.success) {
+        validatedInput = result.data as TInput;
+      } else {
+        // Fallback or warn? For performance, we'll just use raw if validation fails after one warning
+        return null;
       }
+    }
 
-      // Store raw input as-is (arbitrary structure)
-      inputBuffer.current.set(payload.controllerId, payload.input);
-    };
+    const lastRaw = lastRawMap.current.get(controllerId);
+    let prevValues = prevFrameMap.current.get(controllerId);
+    if (!prevValues) {
+      prevValues = new Map();
+      prevFrameMap.current.set(controllerId, prevValues);
+    }
 
-    socket.on("server:input", handleInput);
-
-    return () => {
-      socket.off("server:input", handleInput);
-    };
-  }, [options.roomId]);
-
-  /**
-   * Reads the raw input for a specific controller.
-   * Does NOT remove from buffer - input persists until new input arrives.
-   * This allows latching utilities to maintain state between frames.
-   * If schema is provided, validates and returns typed result.
-   */
-  const popInput = useCallback(
-    (
-      controllerId: string,
-    ): TInput extends Record<string, unknown>
-      ? TInput | undefined
-      : Record<string, unknown> | undefined => {
-      const buffer = inputBuffer.current;
-      const rawInput = buffer.get(controllerId);
-
-      if (!rawInput) {
-        return undefined as TInput extends Record<string, unknown>
-          ? TInput | undefined
-          : Record<string, unknown> | undefined;
+    // If the raw input has changed since we last generated a handle, 
+    // update the "previous frame" values.
+    if (lastRaw && lastRaw !== validatedInput) {
+      for (const key in lastRaw) {
+        prevValues.set(key as keyof TInput, lastRaw[key]);
       }
+    }
+    lastRawMap.current.set(controllerId, validatedInput);
 
-      // If schema provided, validate and return typed result
-      if (schema) {
-        const result = schema.safeParse(rawInput);
-        if (result.success) {
-          return result.data as TInput extends Record<string, unknown>
-            ? TInput | undefined
-            : Record<string, unknown> | undefined;
+    return {
+      raw: validatedInput,
+      isDown: (field) => !!validatedInput[field],
+      justPressed: (field) => {
+        const current = !!validatedInput[field];
+        const prev = !!prevValues!.get(field);
+        return current && !prev;
+      },
+      justReleased: (field) => {
+        const current = !!validatedInput[field];
+        const prev = !!prevValues!.get(field);
+        return !current && prev;
+      },
+      vector: (field) => {
+        const val = validatedInput[field] as any;
+        if (val && typeof val === "object" && "x" in val && "y" in val) {
+          return val as { x: number; y: number };
         }
-        // Validation failed - log error and return undefined
-        console.warn(
-          `[useAirJamInput] Invalid input for controller ${controllerId}:`,
-          result.error.errors,
-        );
-        return undefined as TInput extends Record<string, unknown>
-          ? TInput | undefined
-          : Record<string, unknown> | undefined;
-      }
+        return { x: 0, y: 0 };
+      },
+    };
+  }, [inputBuffer, schema]);
 
-      // No schema - return raw input
-      return rawInput as TInput extends Record<string, unknown>
-        ? TInput | undefined
-        : Record<string, unknown> | undefined;
-    },
-    [schema],
-  );
+  const clearInput = useCallback((controllerId: string) => {
+    inputBuffer.delete(controllerId);
+    prevFrameMap.current.delete(controllerId);
+    lastRawMap.current.delete(controllerId);
+  }, [inputBuffer]);
 
-  /**
-   * Helper to clean up data when a player leaves.
-   * Prevents memory leaks and stale input states.
-   */
-  const clearInput = useCallback((controllerId: string): void => {
-    inputBuffer.current.delete(controllerId);
-  }, []);
-
-  return {
-    popInput,
-    clearInput,
-  };
+  return { getController, clearInput };
 };

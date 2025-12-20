@@ -1,46 +1,44 @@
 import { useCallback } from "react";
 import type {
   HapticSignalPayload,
-  SignalPayload,
+  SoundSignalPayload,
   SignalType,
   ToastSignalPayload,
 } from "../protocol";
-import { getSocketClient } from "../socket-client";
+import { useAirJamContext } from "../context/AirJamProvider";
 
 /**
  * Lightweight hook that provides sendSignal without initializing a connection
- * Use this when you only need to send signals and don't need the full host functionality
- * This prevents multiple host registrations and remounting issues
  */
 export const useAirJamHostSignal = (): {
-  sendSignal: {
-    (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
-    (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
-  };
+  sendSignal: (
+    type: SignalType,
+    payload: HapticSignalPayload | SoundSignalPayload | ToastSignalPayload,
+    targetId?: string,
+  ) => void;
 } => {
+  const { socket } = useAirJamContext();
+
   const sendSignal = useCallback(
     (
       type: SignalType,
-      payload: HapticSignalPayload | ToastSignalPayload,
+      payload: HapticSignalPayload | SoundSignalPayload | ToastSignalPayload,
       targetId?: string,
     ): void => {
-      // Get the singleton socket instance (doesn't create new connection)
-      const socket = getSocketClient("host");
       if (!socket || !socket.connected) {
         return;
       }
-      const signal: SignalPayload = {
-        targetId,
+
+      socket.emit("host:signal", {
         type,
         payload,
-      } as SignalPayload;
-      socket.emit("host:signal", signal);
+        targetId,
+      } as any);
     },
-    [],
-  ) as {
-    (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
-    (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
-  };
+    [socket],
+  );
 
-  return { sendSignal };
+  return {
+    sendSignal,
+  };
 };

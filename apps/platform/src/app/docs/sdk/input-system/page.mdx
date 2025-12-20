@@ -28,34 +28,23 @@ Utility hook for adding latching behavior to input structures:
 ```typescript filename="src/game/input.ts"
 import { z } from "zod";
 
-const gameInputSchema = z.object({
-  vector: z.object({ x: z.number(), y: z.number() }),
-  action: z.boolean(),
-  ability: z.boolean(),
-  timestamp: z.number(),
-});
-
-type GameInput = z.infer<typeof gameInputSchema>;
-
 // With schema - fully typed and validated
 const { popInput } = useAirJamInput<GameInput>({
-  roomId: "ABCD",
   schema: gameInputSchema, // Optional: enables validation + type inference
 });
 
 // With latching - preserves types
-const { getLatched } = useAirJamInputLatch<GameInput>({
-  booleanFields: ["action", "ability"],
-  vectorFields: ["vector"],
+const { checkLatch } = useAirJamInputLatch<GameInput>({
+  schema: gameInputSchema,
 });
 
 useFrame(() => {
   const raw = popInput(controllerId);
   if (raw) {
-    const latched = getLatched(controllerId, raw);
+    const actionLatched = checkLatch(controllerId, "action");
     // Fully typed! No manual type guards needed
-    latched.vector.x; // number
-    latched.action; // boolean
+    raw.vector.x; // number
+    actionLatched; // boolean
   }
 });
 ```

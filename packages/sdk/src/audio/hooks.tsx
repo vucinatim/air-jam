@@ -1,9 +1,7 @@
-/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useRef } from "react";
 import { AudioManager, SoundManifest } from "./audio-manager";
-
-import { getSocketClient } from "../socket-client";
-import { useConnectionStore } from "../state/connection-store";
+import { useShallow } from "zustand/react/shallow";
+import { useAirJamContext } from "../context/AirJamProvider";
 
 // Module-level singleton manager cache
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,15 +10,12 @@ let globalInitialized = false;
 
 /**
  * Hook to use audio with a sound manifest
- * Creates a singleton AudioManager for the manifest and handles socket injection
- * @param manifest The sound manifest configuration
- * @returns The AudioManager instance with type-safe sound IDs
  */
 export function useAudio<M extends SoundManifest>(
   manifest: M,
 ): AudioManager<keyof M & string> {
-  const roomId = useConnectionStore((state) => state.roomId);
-  const role = useConnectionStore((state) => state.role);
+  const { store, socket, role } = useAirJamContext();
+  const { roomId } = store(useShallow((state) => ({ roomId: state.roomId })));
   const initRef = useRef(false);
 
   // Get or create singleton manager for this manifest
@@ -33,13 +28,12 @@ export function useAudio<M extends SoundManifest>(
 
   // Inject socket into manager when connection is available
   useEffect(() => {
-    if (role && roomId) {
-      const socket = getSocketClient(role);
+    if (role && roomId && socket) {
       manager.setSocket(socket, roomId);
     }
-  }, [manager, role, roomId]);
+  }, [manager, role, roomId, socket]);
 
-  // Ensure audio context is resumed on first interaction (only once globally)
+  // Ensure audio context is resumed on first interaction
   useEffect(() => {
     if (initRef.current || globalInitialized) return;
 
@@ -77,16 +71,15 @@ export const AudioProvider = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   manager: AudioManager<any>;
 }) => {
-  const roomId = useConnectionStore((state) => state.roomId);
-  const role = useConnectionStore((state) => state.role);
+  const { store, socket, role } = useAirJamContext();
+  const { roomId } = store(useShallow((state) => ({ roomId: state.roomId })));
 
   // Inject socket into manager
   useEffect(() => {
-    if (role && roomId) {
-      const socket = getSocketClient(role);
+    if (role && roomId && socket) {
       manager.setSocket(socket, roomId);
     }
-  }, [manager, role, roomId]);
+  }, [manager, role, roomId, socket]);
 
   // Ensure audio context is resumed on first interaction
   useEffect(() => {

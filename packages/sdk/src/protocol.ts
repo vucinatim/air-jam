@@ -85,6 +85,8 @@ export interface PlayerProfile {
 export interface HostRegistrationAck {
   ok: boolean;
   roomId?: RoomCode;
+  players?: PlayerProfile[];
+  gameState?: GameState;
   message?: string;
   code?: ErrorCode | string;
 }
@@ -170,7 +172,7 @@ export interface HostLeftNotice {
   reason: string;
 }
 
-export type SignalType = "HAPTIC" | "TOAST";
+export type SignalType = "HAPTIC" | "TOAST" | "SOUND";
 
 export interface HapticSignalPayload {
   pattern: "light" | "medium" | "heavy" | "success" | "failure" | "custom";
@@ -183,6 +185,12 @@ export interface ToastSignalPayload {
   duration?: number;
 }
 
+export interface SoundSignalPayload {
+  soundId: string;
+  volume?: number;
+  loop?: boolean;
+}
+
 export type SignalPayload =
   | {
       targetId?: string;
@@ -193,6 +201,11 @@ export type SignalPayload =
       targetId?: string;
       type: "TOAST";
       payload: ToastSignalPayload;
+    }
+  | {
+      targetId?: string;
+      type: "SOUND";
+      payload: SoundSignalPayload;
     };
 
 export interface PlaySoundEventPayload {
@@ -329,3 +342,14 @@ export type AirJamProxyMessage =
   | ProxyReadyMessage
   | ProxyInputMessage
   | ProxyStateMessage;
+export interface AirJamShellApi {
+  roomId: RoomCode | null;
+  controllerId: string | null;
+  connectionStatus: ConnectionStatus;
+  lastError?: string;
+  activeUrl: string | null;
+  players: PlayerProfile[];
+  gameState: GameState;
+  sendInput: (input: ControllerInputPayload) => boolean;
+  sendSystemCommand: (command: "exit" | "ready" | "toggle_pause") => void;
+}

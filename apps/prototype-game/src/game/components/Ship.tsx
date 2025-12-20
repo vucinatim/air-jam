@@ -9,7 +9,6 @@ import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 import {
   useAirJamHostSignal,
   useAudio,
-  useConnectionStore,
 } from "@air-jam/sdk";
 import { getAbilityVisual, useAbilitiesStore } from "../abilities-store";
 import { useCaptureTheFlagStore } from "../capture-the-flag-store";
@@ -99,8 +98,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   const { sendSignal } = useAirJamHostSignal();
 
   // --- Input Hook (Zero re-renders, high-performance) ---
-  const roomId = useConnectionStore((state) => state.roomId);
-  const { popInput } = useGameInput({ roomId: roomId ?? undefined });
+  const { popInput } = useGameInput();
 
   // Visuals & Stats
   const currentAbility = useAbilitiesStore((state) =>

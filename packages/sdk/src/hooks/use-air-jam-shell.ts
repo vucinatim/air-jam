@@ -1,127 +1,92 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type {
-  ConnectionStatus,
+  AirJamShellApi,
   ControllerInputPayload,
-  ControllerStateMessage,
-  GameState,
-  PlayerProfile,
-  RoomCode,
 } from "../protocol";
 import {
   controllerInputSchema,
   controllerJoinSchema,
   controllerSystemSchema,
 } from "../protocol";
-import {
-  useConnectionState,
-  useConnectionStore,
-} from "../state/connection-store";
-import { detectRunMode } from "../utils/mode";
-import { useConnectionHandlers } from "./internal/use-connection-handlers";
-import { useRoomSetup } from "./internal/use-room-setup";
-import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
+import { useAirJamContext } from "../context/AirJamProvider";
 import { useAirJamHaptics } from "./use-air-jam-haptics";
+import { generateControllerId } from "../utils/ids";
 
 interface AirJamShellOptions {
-  roomId?: string;
-  serverUrl?: string;
   nickname?: string;
-  controllerId?: string;
 }
 
-export interface AirJamShellApi {
-  roomId: RoomCode | null;
-  controllerId: string | null;
-  connectionStatus: ConnectionStatus;
-  lastError?: string;
-  activeUrl: string | null;
-  players: PlayerProfile[];
-  gameState: GameState;
-  sendInput: (input: ControllerInputPayload) => boolean;
-  sendSystemCommand: (command: "exit" | "ready" | "toggle_pause") => void;
-}
-
-const getRoomFromLocation = (): string | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get("room");
-  return code ? code.toUpperCase() : null;
-};
-
+/**
+ * Specialized hook for the Air Jam Shell (Arcade Mode).
+ * Consumes the context-bound client.
+ */
 export const useAirJamShell = (
   options: AirJamShellOptions = {},
 ): AirJamShellApi => {
+  const { socket, store, role } = useAirJamContext();
   const nicknameRef = useRef(options.nickname ?? "Arcade Shell");
-
-  // Use internal utilities for setup
-  const { parsedRoomId, controllerId } = useRoomSetup({
-    roomId: options.roomId,
-    role: "controller",
-    controllerId: options.controllerId,
-    getRoomFromLocation,
-  });
-
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
 
-  const connectionState = useConnectionState((state) => ({
-    connectionStatus: state.connectionStatus,
-    lastError: state.lastError,
-    controllerId: state.controllerId,
-    players: state.players,
-    gameState: state.gameState,
-  }));
-
-  // Use socket lifecycle utility
-  const { socket } = useSocketLifecycle(
-    "controller",
-    options.serverUrl,
-    !!parsedRoomId,
+  const { connectionStatus, controllerId, players, gameState, roomId, lastError } = store(
+    useShallow((state) => ({
+      connectionStatus: state.connectionStatus,
+      controllerId: state.controllerId,
+      players: state.players,
+      gameState: state.gameState,
+      roomId: state.roomId,
+      lastError: state.lastError,
+    }))
   );
 
   // Automatically listen for haptic signals
   useAirJamHaptics(socket);
 
-  // Use connection handlers utility
-  const {
-    handleConnect: baseHandleConnect,
-    handleDisconnect,
-    handleError,
-  } = useConnectionHandlers();
-
+  // 2. Room & ID Resolution Logic (Ensure we have a room to join)
   useEffect(() => {
-    const store = useConnectionStore.getState();
-    store.setMode(detectRunMode());
-    store.setRole("controller");
-    store.setRoomId(parsedRoomId);
-    store.setStatus(parsedRoomId ? "connecting" : "idle");
-    store.setError(undefined);
-
-    if (!parsedRoomId || !socket || !controllerId) {
-      store.setStatus("idle");
-      return;
+    if (role !== "controller") return;
+    
+    // If we don't have a roomId, try to parse it from the URL
+    if (!roomId && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const paramRoom = params.get("room") || params.get("aj_room");
+      if (paramRoom) {
+        store.getState().setRoomId(paramRoom.toUpperCase());
+      }
     }
 
-    store.setControllerId(controllerId);
+    // Ensure we have a controllerId
+    if (!controllerId) {
+      store.getState().setControllerId(generateControllerId());
+    }
+  }, [role, roomId, controllerId, store]);
+
+  // 3. Connection Lifecycle & Join Logic
+  useEffect(() => {
+    if (role !== "controller") return;
+    // We don't exit early here anymore, we wait for roomId/controllerId to be set via the other effect or store
+    if (!roomId || !controllerId) return;
 
     const handleConnect = (): void => {
-      baseHandleConnect();
       const payload = controllerJoinSchema.parse({
-        roomId: parsedRoomId,
+        roomId,
         controllerId,
         nickname: nicknameRef.current || undefined,
       });
-      socket.emit("controller:join", payload, (ack) => {
+      
+      console.log(`[useAirJamShell] Joining room: ${roomId} as ${controllerId}`);
+      
+      socket.emit("controller:join", payload, (ack: { ok: boolean; message?: string; controllerId?: string }) => {
         if (!ack.ok) {
-          store.setError(ack.message ?? "Unable to join room");
-          store.setStatus("disconnected");
+          console.error(`[useAirJamShell] Join failed: ${ack.message}`);
+          store.getState().setError(ack.message ?? "Unable to join room");
+          store.getState().setStatus("disconnected");
           return;
         }
         if (ack.controllerId) {
-          store.setControllerId(ack.controllerId);
+          store.getState().setControllerId(ack.controllerId);
         }
-        store.setStatus("connected");
+        store.getState().setStatus("connected");
       });
     };
 
@@ -133,129 +98,42 @@ export const useAirJamShell = (
       setActiveUrl(null);
     };
 
-    const handleWelcome = (payload: {
-      controllerId: string;
-      roomId: RoomCode;
-      player?: PlayerProfile;
-    }): void => {
-      const storeRoomId = store.roomId;
-      if (
-        storeRoomId &&
-        payload.roomId.toUpperCase() !== storeRoomId.toUpperCase()
-      ) {
-        return;
-      }
-      if (!storeRoomId && payload.roomId) {
-        store.setRoomId(payload.roomId);
-      }
-      if (payload.player) {
-        store.upsertPlayer(payload.player);
-      }
-    };
-
-    const handleState = (payload: ControllerStateMessage): void => {
-      if (payload.roomId !== parsedRoomId) {
-        return;
-      }
-      if (payload.state.gameState) {
-        store.setGameState(payload.state.gameState);
-      }
-      if (payload.state.message !== undefined) {
-        store.setStateMessage(payload.state.message);
-      }
-    };
-
     socket.on("connect", handleConnect);
-    socket.on("disconnect", handleDisconnect);
-    socket.on("server:welcome", handleWelcome);
-    socket.on("server:state", handleState);
     socket.on("client:loadUi", handleLoadUi);
     socket.on("client:unloadUi", handleUnloadUi);
-    socket.on("server:error", handleError);
 
-    // --- BRIDGE LOGIC ---
-    const handleMessage = (event: MessageEvent) => {
-      const data = event.data;
-      if (data?.type === "AIRJAM_INPUT") {
-        const input = data.payload as ControllerInputPayload;
-        const payload = controllerInputSchema.safeParse({
-          roomId: parsedRoomId,
-          controllerId: store.controllerId,
-          input,
-        });
-        if (payload.success) {
-          socket.emit("controller:input", payload.data);
-        }
-      } else if (data?.type === "AIRJAM_READY") {
-        // Child is ready
-      }
-    };
-    window.addEventListener("message", handleMessage);
+    if (socket.connected) handleConnect();
 
     return () => {
       socket.off("connect", handleConnect);
-      socket.off("disconnect", handleDisconnect);
-      socket.off("server:welcome", handleWelcome);
-      socket.off("server:state", handleState);
       socket.off("client:loadUi", handleLoadUi);
       socket.off("client:unloadUi", handleUnloadUi);
-      socket.off("server:error", handleError);
-      window.removeEventListener("message", handleMessage);
     };
-  }, [
-    options.serverUrl,
-    parsedRoomId,
-    socket,
-    controllerId,
-    baseHandleConnect,
-    handleDisconnect,
-    handleError,
-  ]);
+  }, [socket, role, roomId, controllerId, store]);
 
   const sendInput = useCallback(
     (input: ControllerInputPayload): boolean => {
-      const store = useConnectionStore.getState();
-
-      if (!parsedRoomId || !store.controllerId || !socket) {
-        store.setError("Not connected to a room");
-        return false;
-      }
-      if (!socket.connected) {
-        return false;
-      }
-
-      // Validate that input is an object (not null, not array, etc.)
-      if (typeof input !== "object" || input === null || Array.isArray(input)) {
-        store.setError("Input must be an object");
-        return false;
-      }
+      if (!roomId || !controllerId || !socket.connected) return false;
 
       const payload = controllerInputSchema.safeParse({
-        roomId: parsedRoomId,
-        controllerId: store.controllerId,
+        roomId,
+        controllerId,
         input,
       });
-      if (!payload.success) {
-        store.setError(payload.error.message);
-        return false;
-      }
+      if (!payload.success) return false;
 
       socket.emit("controller:input", payload.data);
       return true;
     },
-    [parsedRoomId, socket],
+    [socket, roomId, controllerId],
   );
 
   const sendSystemCommand = useCallback(
     (command: "exit" | "ready" | "toggle_pause") => {
-      const store = useConnectionStore.getState();
-
-      if (!parsedRoomId || !store.controllerId || !socket) return;
-
-      if (!socket.connected) return;
+      if (!roomId || !socket.connected) return;
 
       const payload = controllerSystemSchema.safeParse({
-        roomId: parsedRoomId,
+        roomId,
         command,
       });
 
@@ -263,17 +141,17 @@ export const useAirJamShell = (
         socket.emit("controller:system", payload.data);
       }
     },
-    [parsedRoomId, socket],
+    [socket, roomId],
   );
 
   return {
-    roomId: parsedRoomId,
-    controllerId: connectionState.controllerId,
-    connectionStatus: connectionState.connectionStatus,
-    lastError: connectionState.lastError,
+    roomId,
+    controllerId,
+    connectionStatus,
+    lastError,
     activeUrl,
-    players: connectionState.players,
-    gameState: connectionState.gameState,
+    players,
+    gameState,
     sendInput,
     sendSystemCommand,
   };

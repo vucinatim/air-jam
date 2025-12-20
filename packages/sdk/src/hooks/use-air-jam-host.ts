@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { DEFAULT_MAX_PLAYERS, TOGGLE_DEBOUNCE_MS } from "../constants";
+import { useAirJamContext } from "../context/AirJamProvider";
 import type {
   ConnectionStatus,
   ControllerInputEvent,
-  ControllerStateMessage,
   ControllerStatePayload,
   GameState,
   HapticSignalPayload,
+  HostRegistrationAck,
   PlayerProfile,
   RoomCode,
   RunMode,
@@ -17,23 +19,13 @@ import type {
 import {
   controllerStateSchema,
   controllerSystemSchema,
-  hostRegistrationSchema,
   roomCodeSchema,
 } from "../protocol";
-import { disconnectSocket } from "../socket-client";
-import {
-  useConnectionState,
-  useConnectionStore,
-} from "../state/connection-store";
 import { generateRoomCode } from "../utils/ids";
-import { detectRunMode } from "../utils/mode";
 import { urlBuilder } from "../utils/url-builder";
-import { useConnectionHandlers } from "./internal/use-connection-handlers";
-import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
 
 interface AirJamHostOptions {
   roomId?: string;
-  serverUrl?: string;
   controllerPath?: string;
   controllerUrl?: string;
   publicHost?: string;
@@ -42,7 +34,6 @@ interface AirJamHostOptions {
   onPlayerJoin?: (player: PlayerProfile) => void;
   onPlayerLeave?: (controllerId: string) => void;
   onChildClose?: () => void;
-  apiKey?: string;
   forceConnect?: boolean;
 }
 
@@ -61,58 +52,123 @@ export interface AirJamHostApi {
     (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
   };
   reconnect: () => void;
-  socket: ReturnType<typeof useSocketLifecycle>["socket"];
+  socket: any; // ReturnType<typeof useAirJamContext>["socket"]
   isChildMode: boolean;
 }
 
 export const useAirJamHost = (
   options: AirJamHostOptions = {},
 ): AirJamHostApi => {
-  // Debug: Track mount count
-  const mountCountRef = useRef(0);
-  mountCountRef.current += 1;
-  console.log(
-    `[host] useAirJamHost hook called (mount #${mountCountRef.current})`,
-    {
-      optionsRoomId: options.roomId,
-      stackTrace: new Error().stack?.split("\n").slice(1, 5).join("\n"),
-    },
+  const client = useAirJamContext();
+  const { socket, store } = client;
+
+  // 1. Core State Subscription (Context-bound)
+  const connectionState = store(
+    useShallow((state) => {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:66",
+            message: "REACT: useShallow selector executing",
+            data: {
+              gameState: state.gameState,
+              playersCount: state.players.length,
+              players: state.players.map((p) => ({ id: p.id, label: p.label })),
+              connectionStatus: state.connectionStatus,
+              roomId: state.roomId,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "REACT_SELECTOR",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
+      const selected = {
+        connectionStatus: state.connectionStatus,
+        lastError: state.lastError,
+        players: state.players,
+        gameState: state.gameState,
+        mode: state.mode,
+        roomId: state.roomId,
+      };
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:85",
+            message: "REACT: useShallow selector returning",
+            data: {
+              selectedGameState: selected.gameState,
+              selectedPlayersCount: selected.players.length,
+              selectedPlayers: selected.players.map((p) => ({
+                id: p.id,
+                label: p.label,
+              })),
+              selectedConnectionStatus: selected.connectionStatus,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "REACT_SELECTOR",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
+      return selected;
+    }),
   );
 
-  // Detect if running in Arcade Mode (via URL params)
+  // #region agent log
+  useEffect(() => {
+    fetch("http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "use-air-jam-host.ts:75",
+        message: "useAirJamHost hook re-rendered",
+        data: {
+          gameState: connectionState.gameState,
+          playersCount: connectionState.players.length,
+          connectionStatus: connectionState.connectionStatus,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "D",
+      }),
+    }).catch(() => {});
+  }, [
+    connectionState.gameState,
+    connectionState.players,
+    connectionState.connectionStatus,
+  ]);
+  // #endregion
+
+  // 2. Room & Mode Logic
   const arcadeParams = useMemo(() => {
     if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
     const room = params.get("aj_room");
     const token = params.get("aj_token");
-    if (room && token) {
-      return { room, token };
-    }
-    return null;
+    return room && token ? { room, token } : null;
   }, []);
 
   const isChildMode = !!arcadeParams;
 
-  const shouldConnect = useMemo(() => {
-    if (options.forceConnect) return true;
-    if (isChildMode) return true;
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("airjam_force_connect") === "true") return true;
-    }
-    return true; // Default to true for Standalone Mode
-  }, [options.forceConnect, isChildMode]);
-
-  const [fallbackRoomId] = useState(() => {
-    const id = generateRoomCode();
-    console.log(`[host] Generated fallbackRoomId: ${id}`);
-    return id;
-  });
+  const [fallbackRoomId] = useState(() => generateRoomCode());
 
   const parsedRoomId = useMemo<RoomCode>(() => {
-    if (arcadeParams) {
+    if (arcadeParams)
       return roomCodeSchema.parse(arcadeParams.room.toUpperCase());
-    }
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -123,34 +179,28 @@ export const useAirJamHost = (
       }
     }
 
-    if (options.roomId) {
-      return roomCodeSchema.parse(options.roomId.toUpperCase());
-    }
-
-    return fallbackRoomId;
+    return options.roomId
+      ? roomCodeSchema.parse(options.roomId.toUpperCase())
+      : fallbackRoomId;
   }, [options.roomId, fallbackRoomId, arcadeParams]);
 
-  // Debug logging to track why parsedRoomId changes
-  useEffect(() => {
-    console.log(`[host] parsedRoomId changed`, {
-      parsedRoomId,
-      optionsRoomId: options.roomId,
-      fallbackRoomId,
-      hasArcadeParams: !!arcadeParams,
-    });
-  }, [parsedRoomId, options.roomId, fallbackRoomId, arcadeParams]);
-
   const [joinUrl, setJoinUrl] = useState<string>("");
-  const onInputRef = useRef(options.onInput);
-  const onPlayerJoinRef = useRef(options.onPlayerJoin);
-  const onPlayerLeaveRef = useRef(options.onPlayerLeave);
-  const onChildCloseRef = useRef(options.onChildClose);
+
+  // 3. Callback Refs for avoiding stale closures
+  const refs = useRef({
+    onInput: options.onInput,
+    onPlayerJoin: options.onPlayerJoin,
+    onPlayerLeave: options.onPlayerLeave,
+    onChildClose: options.onChildClose,
+  });
 
   useEffect(() => {
-    onInputRef.current = options.onInput;
-    onPlayerJoinRef.current = options.onPlayerJoin;
-    onPlayerLeaveRef.current = options.onPlayerLeave;
-    onChildCloseRef.current = options.onChildClose;
+    refs.current = {
+      onInput: options.onInput,
+      onPlayerJoin: options.onPlayerJoin,
+      onPlayerLeave: options.onPlayerLeave,
+      onChildClose: options.onChildClose,
+    };
   }, [
     options.onInput,
     options.onPlayerJoin,
@@ -158,67 +208,178 @@ export const useAirJamHost = (
     options.onChildClose,
   ]);
 
-  const connectionState = useConnectionState((state) => ({
-    connectionStatus: state.connectionStatus,
-    lastError: state.lastError,
-    players: state.players,
-    gameState: state.gameState,
-    mode: state.mode,
-  }));
-
-  // Use socket lifecycle utility
-  const { socket } = useSocketLifecycle(
-    "host",
-    options.serverUrl,
-    shouldConnect,
-  );
-
-  // Use connection handlers utility
-  const {
-    handleConnect: baseHandleConnect,
-    handleDisconnect,
-    handleError,
-  } = useConnectionHandlers();
-
+  // 4. Input & Control Logic
   const [lastToggle, setLastToggle] = useState(0);
 
   const toggleGameState = useCallback(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "use-air-jam-host.ts:126",
+        message: "toggleGameState called",
+        data: {
+          socketConnected: socket.connected,
+          parsedRoomId,
+          currentGameState: connectionState.gameState,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "F",
+      }),
+    }).catch(() => {});
+    // #endregion
     const now = Date.now();
     if (now - lastToggle < TOGGLE_DEBOUNCE_MS) {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:129",
+            message: "toggleGameState debounced",
+            data: { timeSinceLastToggle: now - lastToggle },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "F",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
       return;
     }
     setLastToggle(now);
 
-    if (!socket || !socket.connected) {
+    if (!socket.connected) {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:135",
+            message: "toggleGameState aborted - socket not connected",
+            data: {},
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "F",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
       return;
     }
 
-    if (!parsedRoomId) {
-      return;
-    }
-
-    // Use system command - server is source of truth for toggling
     const payload = controllerSystemSchema.safeParse({
       roomId: parsedRoomId,
       command: "toggle_pause",
     });
     if (payload.success) {
+      // #region agent log
+      const clientInstanceId =
+        (client as { _clientInstanceId?: string })._clientInstanceId ||
+        "unknown";
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:142",
+            message: "emitting host:system toggle_pause",
+            data: {
+              payload: payload.data,
+              socketId: socket.id,
+              socketConnected: socket.connected,
+              clientInstanceId: clientInstanceId,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "F",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:273",
+            message: "CLIENT: emitting host:system to server",
+            data: {
+              socketId: socket.id,
+              socketConnected: socket.connected,
+              payload: payload.data,
+              clientInstanceId: clientInstanceId,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "CLIENT_SEND",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
       socket.emit("host:system", payload.data);
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:276",
+            message: "CLIENT: host:system emit completed",
+            data: { socketId: socket.id },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "CLIENT_SEND",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
+    } else {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:145",
+            message: "toggleGameState payload parse failed",
+            data: { error: payload.error },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "F",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
     }
-  }, [socket, parsedRoomId, lastToggle]);
+  }, [socket, parsedRoomId, lastToggle, connectionState.gameState, client]);
 
   const sendState = useCallback(
     (state: ControllerStatePayload): boolean => {
-      if (!socket || !socket.connected) {
-        return false;
-      }
+      if (!socket.connected) return false;
       const payload = controllerStateSchema.safeParse({
         roomId: parsedRoomId,
         state,
       });
-      if (!payload.success) {
-        return false;
-      }
+      if (!payload.success) return false;
       socket.emit("host:state", payload.data);
       return true;
     },
@@ -231,26 +392,200 @@ export const useAirJamHost = (
       payload: HapticSignalPayload | ToastSignalPayload,
       targetId?: string,
     ): void => {
-      if (!socket || !socket.connected) {
-        return;
-      }
-      const signal: SignalPayload = {
-        targetId,
-        type,
-        payload,
-      } as SignalPayload;
-      socket.emit("host:signal", signal);
+      if (!socket.connected) return;
+      socket.emit("host:signal", { targetId, type, payload } as SignalPayload);
     },
     [socket],
   ) as AirJamHostApi["sendSignal"];
 
-  const reconnect = useCallback(() => {
-    disconnectSocket("host");
-    if (socket) {
-      socket.connect();
-    }
-  }, [socket]);
+  // 5. Connection Lifecycle & Registration
+  useEffect(() => {
+    if (client.role !== "host") return;
 
+    const handleInput = (payload: ControllerInputEvent) =>
+      refs.current.onInput?.(payload);
+    const handleJoin = (payload: { player?: PlayerProfile }) => {
+      if (payload.player) {
+        // Zustand already updated by Client engine, but we trigger callback
+        setTimeout(() => refs.current.onPlayerJoin?.(payload.player!), 0);
+      }
+    };
+    const handleLeave = (payload: { controllerId: string }) =>
+      refs.current.onPlayerLeave?.(payload.controllerId);
+    const handleChildClose = () => refs.current.onChildClose?.();
+
+    socket.on("server:input", handleInput);
+    socket.on("server:controllerJoined", handleJoin);
+    socket.on("server:controllerLeft", handleLeave);
+    socket.on("server:closeChild", handleChildClose);
+
+    // Initial Registration
+    const register = () => {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "use-air-jam-host.ts:423",
+            message: "CLIENT: register() called",
+            data: {
+              socketConnected: socket.connected,
+              socketId: socket.id,
+              parsedRoomId,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "REGISTER",
+          }),
+        },
+      ).catch(() => {});
+      console.log("[DEBUG] register() called", {
+        socketConnected: socket.connected,
+        socketId: socket.id,
+        parsedRoomId,
+      });
+      // #endregion
+      const handleAck = (ack: HostRegistrationAck) => {
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "use-air-jam-host.ts:425",
+              message: "CLIENT: handleAck received",
+              data: {
+                ok: ack.ok,
+                roomId: ack.roomId,
+                playersCount: ack.players?.length ?? 0,
+                players: ack.players?.map((p) => ({
+                  id: p.id,
+                  label: p.label,
+                })),
+                gameState: ack.gameState,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "REGISTER_ACK",
+            }),
+          },
+        ).catch(() => {});
+        console.log("[DEBUG] handleAck received", {
+          ok: ack.ok,
+          playersCount: ack.players?.length,
+          players: ack.players,
+          gameState: ack.gameState,
+        });
+        // #endregion
+        if (ack.ok) {
+          const storeState = store.getState();
+          storeState.setStatus("connected");
+
+          if (ack.roomId) {
+            storeState.setRoomId(ack.roomId);
+          }
+          if (ack.players) {
+            // #region agent log
+            console.log("[DEBUG] Processing ack.players", {
+              count: ack.players.length,
+              players: ack.players,
+            });
+            fetch(
+              "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  location: "use-air-jam-host.ts:435",
+                  message: "CLIENT: processing ack.players",
+                  data: {
+                    count: ack.players.length,
+                    players: ack.players.map((p) => ({
+                      id: p.id,
+                      label: p.label,
+                    })),
+                  },
+                  timestamp: Date.now(),
+                  sessionId: "debug-session",
+                  runId: "run1",
+                  hypothesisId: "REGISTER_ACK",
+                }),
+              },
+            ).catch(() => {});
+            // #endregion
+            ack.players.forEach((p: PlayerProfile) =>
+              storeState.upsertPlayer(p),
+            );
+            // #region agent log
+            console.log(
+              "[DEBUG] After upsertPlayer, store players count:",
+              storeState.players.length,
+            );
+            fetch(
+              "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  location: "use-air-jam-host.ts:440",
+                  message: "CLIENT: after processing ack.players",
+                  data: { storePlayersCount: store.getState().players.length },
+                  timestamp: Date.now(),
+                  sessionId: "debug-session",
+                  runId: "run1",
+                  hypothesisId: "REGISTER_ACK",
+                }),
+              },
+            ).catch(() => {});
+            // #endregion
+          }
+          if (ack.gameState) {
+            storeState.setGameState(ack.gameState);
+          }
+        } else {
+          store.getState().setError(ack.message);
+        }
+      };
+
+      if (arcadeParams) {
+        socket.emit(
+          "host:joinAsChild",
+          {
+            roomId: parsedRoomId,
+            joinToken: arcadeParams.token,
+          },
+          handleAck,
+        );
+      } else {
+        socket.emit(
+          "host:register",
+          {
+            roomId: parsedRoomId,
+            mode: "master",
+            maxPlayers: options.maxPlayers ?? DEFAULT_MAX_PLAYERS,
+          },
+          handleAck,
+        );
+      }
+    };
+
+    if (socket.connected) register();
+    else socket.once("connect", register);
+
+    return () => {
+      socket.off("server:input", handleInput);
+      socket.off("server:controllerJoined", handleJoin);
+      socket.off("server:controllerLeft", handleLeave);
+      socket.off("server:closeChild", handleChildClose);
+    };
+  }, [socket, parsedRoomId, arcadeParams, options.maxPlayers]);
+
+  // 6. URL Building
   useEffect(() => {
     (async () => {
       const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
@@ -266,180 +601,6 @@ export const useAirJamHost = (
     options.controllerUrl,
   ]);
 
-  // Track if we've already registered to prevent duplicate registrations
-  const registeredRoomIdRef = useRef<RoomCode | null>(null);
-
-  useEffect(() => {
-    const store = useConnectionStore.getState();
-    store.setMode(detectRunMode());
-    store.setRole("host");
-    store.setRoomId(parsedRoomId);
-    store.setStatus("connecting");
-    store.setError(undefined);
-
-    if (!shouldConnect || !socket) {
-      store.setStatus("idle");
-      return;
-    }
-
-    const registerHost = async () => {
-      // Prevent duplicate registration for the same room
-      if (registeredRoomIdRef.current === parsedRoomId && socket.connected) {
-        console.log(
-          `[host] Skipping duplicate registration for room ${parsedRoomId}`,
-        );
-        return;
-      }
-
-      if (arcadeParams) {
-        // Child Mode - join as child
-        const parsedRoomId = roomCodeSchema.parse(
-          arcadeParams.room.toUpperCase(),
-        );
-        const payload = {
-          roomId: parsedRoomId,
-          joinToken: arcadeParams.token,
-        };
-        socket.emit("host:joinAsChild", payload, (ack) => {
-          if (!ack.ok) {
-            store.setError(ack.message ?? "Failed to join as child");
-            store.setStatus("disconnected");
-            registeredRoomIdRef.current = null;
-            return;
-          }
-          store.setStatus("connected");
-          store.setRoomId(parsedRoomId);
-          registeredRoomIdRef.current = parsedRoomId;
-        });
-      } else {
-        // Standalone Mode - register as master host
-        const payload = hostRegistrationSchema.parse({
-          roomId: parsedRoomId,
-          maxPlayers: options.maxPlayers ?? DEFAULT_MAX_PLAYERS,
-          apiKey: options.apiKey,
-        });
-
-        console.log(`[host] Registering host for room ${parsedRoomId}`, {
-          socketId: socket.id,
-          connected: socket.connected,
-          previouslyRegistered: registeredRoomIdRef.current,
-        });
-
-        socket.emit("host:register", payload, (ack) => {
-          if (!ack.ok) {
-            store.setError(ack.message ?? "Failed to register host");
-            store.setStatus("disconnected");
-            registeredRoomIdRef.current = null;
-            return;
-          }
-          store.setStatus("connected");
-          if (ack.roomId) {
-            store.setRoomId(ack.roomId);
-            registeredRoomIdRef.current = ack.roomId;
-          } else {
-            registeredRoomIdRef.current = parsedRoomId;
-          }
-        });
-      }
-    };
-
-    const handleConnect = (): void => {
-      baseHandleConnect();
-      registerHost();
-    };
-
-    const handleJoin = (payload: {
-      controllerId: string;
-      nickname?: string;
-      player?: PlayerProfile;
-    }): void => {
-      if (payload.player) {
-        store.upsertPlayer(payload.player);
-        // Use a timeout to ensure state updates don't conflict with rendering
-        // or other immediate side effects, and to allow refs to be up to date
-        setTimeout(() => {
-          onPlayerJoinRef.current?.(payload.player!);
-        }, 0);
-      }
-    };
-
-    const handleLeave = (payload: { controllerId: string }): void => {
-      store.removePlayer(payload.controllerId);
-      onPlayerLeaveRef.current?.(payload.controllerId);
-    };
-
-    const handleInput = (payload: ControllerInputEvent): void => {
-      console.log(`[host] server:input received`, {
-        roomId: payload.roomId,
-        controllerId: payload.controllerId,
-        input: payload.input,
-      });
-      onInputRef.current?.(payload);
-    };
-
-    const handleChildClose = (): void => {
-      onChildCloseRef.current?.();
-    };
-
-    const handleState = (payload: ControllerStateMessage): void => {
-      if (payload.roomId !== parsedRoomId) return;
-
-      const { state } = payload;
-      if (state.gameState) {
-        store.setGameState(state.gameState);
-      }
-      if (state.message !== undefined) {
-        store.setStateMessage(state.message);
-      }
-    };
-
-    socket.on("connect", handleConnect);
-    socket.on("disconnect", handleDisconnect);
-    socket.on("server:controllerJoined", handleJoin);
-    socket.on("server:controllerLeft", handleLeave);
-    socket.on("server:input", handleInput);
-    socket.on("server:error", handleError);
-    socket.on("server:closeChild", handleChildClose);
-    socket.on("server:state", handleState);
-
-    // If socket is already connected (e.g., reused singleton from previous mount),
-    // register the host immediately since the "connect" event won't fire again
-    // But only if we haven't already registered for this room
-    if (socket.connected && registeredRoomIdRef.current !== parsedRoomId) {
-      registerHost();
-    }
-
-    // Reset registered room when parsedRoomId changes (but not if it's the same)
-    if (
-      registeredRoomIdRef.current &&
-      registeredRoomIdRef.current !== parsedRoomId
-    ) {
-      registeredRoomIdRef.current = null;
-    }
-
-    return () => {
-      socket.off("connect", handleConnect);
-      socket.off("disconnect", handleDisconnect);
-      socket.off("server:controllerJoined", handleJoin);
-      socket.off("server:controllerLeft", handleLeave);
-      socket.off("server:input", handleInput);
-      socket.off("server:error", handleError);
-      socket.off("server:closeChild", handleChildClose);
-      socket.off("server:state", handleState);
-    };
-  }, [
-    options.serverUrl,
-    options.maxPlayers,
-    options.apiKey,
-    parsedRoomId,
-    arcadeParams,
-    shouldConnect,
-    socket,
-    baseHandleConnect,
-    handleDisconnect,
-    handleError,
-  ]);
-
   return {
     roomId: parsedRoomId,
     joinUrl,
@@ -451,7 +612,7 @@ export const useAirJamHost = (
     toggleGameState,
     sendState,
     sendSignal,
-    reconnect,
+    reconnect: () => client.connect(),
     socket,
     isChildMode,
   };

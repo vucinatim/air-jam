@@ -135,7 +135,14 @@ io.on(
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
-        callback({ ok: true, roomId });
+        callback({
+          ok: true,
+          roomId,
+          players: Array.from(session.controllers.values()).map(
+            (c) => c.playerProfile,
+          ),
+          gameState: session.gameState,
+        });
         io.to(roomId).emit("server:roomReady", { roomId });
       },
     );
@@ -430,7 +437,14 @@ io.on(
           focus: session.focus,
           childHostSocketId: session.childHostSocketId,
         });
-        callback({ ok: true, roomId });
+        callback({
+          ok: true,
+          roomId,
+          players: Array.from(session.controllers.values()).map(
+            (c) => c.playerProfile,
+          ),
+          gameState: session.gameState,
+        });
         io.to(roomId).emit("server:roomReady", { roomId });
       },
     );
@@ -542,8 +556,44 @@ io.on(
       };
 
       // Emit to Active Host based on Focus
-      io.to(roomManager.getActiveHostId(session)).emit(
-        "server:controllerJoined",
+      const activeHostId = roomManager.getActiveHostId(session);
+      const targetSocket = io.sockets.sockets.get(activeHostId);
+      // #region agent log
+      const logData = {
+        location: "server/index.ts:559",
+        message: "SERVER: emitting server:controllerJoined to host",
+        data: {
+          roomId,
+          controllerId,
+          activeHostId,
+          masterHostSocketId: session.masterHostSocketId,
+          childHostSocketId: session.childHostSocketId,
+          focus: session.focus,
+          socketExists: !!targetSocket,
+          socketConnected: targetSocket?.connected,
+          socketRooms: targetSocket ? Array.from(targetSocket.rooms) : [],
+          notice: JSON.stringify(notice),
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "SERVER_CONTROLLER_JOINED",
+      };
+      console.log(`[DEBUG] ${logData.message}`, logData.data);
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(logData),
+        },
+      ).catch((err) => {
+        console.error("[DEBUG] Failed to send log:", err);
+      });
+      // #endregion
+      io.to(activeHostId).emit("server:controllerJoined", notice);
+      console.log(
+        `[DEBUG] Emitted server:controllerJoined to ${activeHostId}`,
         notice,
       );
 
@@ -732,21 +782,68 @@ io.on(
     socket.on("host:system", (payload) => {
       const parsed = controllerSystemSchema.safeParse(payload);
       if (!parsed.success) {
+        console.log(`[server] host:system parse failed:`, parsed.error);
         return;
       }
 
       const { roomId, command } = parsed.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
+        console.log(`[server] host:system - room not found: ${roomId}`);
         return;
+      }
+
+      console.log(`[server] host:system received:`, {
+        roomId,
+        command,
+        socketId: socket.id,
+      });
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "server/index.ts:760",
+            message: "SERVER: host:system received",
+            data: {
+              roomId,
+              command,
+              socketId: socket.id,
+              fullPayload: JSON.stringify({ roomId, command }),
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "SERVER_RECEIVE",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
+
+      // Update masterHostSocketId if the socket that sent this is different
+      // This handles the case where the socket reconnected and got a new ID
+      if (session.masterHostSocketId !== socket.id) {
+        console.log(
+          `[server] Updating masterHostSocketId from ${session.masterHostSocketId} to ${socket.id}`,
+        );
+        session.masterHostSocketId = socket.id;
+        roomManager.setHostRoom(socket.id, roomId);
       }
 
       if (command === "toggle_pause") {
         // Toggle game state - server is source of truth
+        const oldState = session.gameState;
         session.gameState =
           session.gameState === "playing" ? "paused" : "playing";
         console.log(
-          `[server] Host toggled game state to ${session.gameState} in room ${roomId}`,
+          `[server] Host toggled game state from ${oldState} to ${session.gameState} in room ${roomId}`,
+          {
+            masterHostSocketId: session.masterHostSocketId,
+            childHostSocketId: session.childHostSocketId,
+            currentSocketId: socket.id,
+          },
         );
 
         // Broadcast new state to Room (Host + Controllers)
@@ -757,15 +854,118 @@ io.on(
           },
         };
 
+        // Explicitly send to master host socket to ensure it receives the update
+        if (session.masterHostSocketId) {
+          console.log(
+            `[server] Explicitly sending server:state to master host ${session.masterHostSocketId}`,
+            JSON.stringify(statePayload),
+          );
+          // #region agent log
+          const masterSocket = io.sockets.sockets.get(
+            session.masterHostSocketId,
+          );
+          fetch(
+            "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                location: "server/index.ts:804",
+                message: "SERVER: emitting server:state to masterHostSocketId",
+                data: {
+                  targetSocketId: session.masterHostSocketId,
+                  payload: statePayload,
+                  roomId,
+                  socketExists: !!masterSocket,
+                  socketConnected: masterSocket?.connected,
+                  socketRooms: masterSocket
+                    ? Array.from(masterSocket.rooms)
+                    : [],
+                },
+                timestamp: Date.now(),
+                sessionId: "debug-session",
+                runId: "run1",
+                hypothesisId: "SERVER_SEND",
+              }),
+            },
+          ).catch(() => {});
+          // #endregion
+          io.to(session.masterHostSocketId).emit("server:state", statePayload);
+        }
+        // Also send to the socket that triggered the toggle (in case it's different from masterHostSocketId)
+        console.log(
+          `[server] Also sending server:state to triggering socket ${socket.id}`,
+          JSON.stringify(statePayload),
+        );
+        // #region agent log
+        const triggeringSocket = io.sockets.sockets.get(socket.id);
+        fetch(
+          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "server/index.ts:810",
+              message: "SERVER: emitting server:state to triggering socket",
+              data: {
+                targetSocketId: socket.id,
+                payload: statePayload,
+                roomId,
+                socketExists: !!triggeringSocket,
+                socketConnected: triggeringSocket?.connected,
+                socketRooms: triggeringSocket
+                  ? Array.from(triggeringSocket.rooms)
+                  : [],
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "SERVER_SEND",
+            }),
+          },
+        ).catch(() => {});
+        // #endregion
+        socket.emit("server:state", statePayload);
+        // Also broadcast to room for controllers and child host
+        console.log(
+          `[server] Broadcasting server:state to room ${roomId}`,
+          JSON.stringify(statePayload),
+        );
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "server/index.ts:816",
+              message: "SERVER: broadcasting server:state to room",
+              data: { roomId, payload: statePayload },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "SERVER_SEND",
+            }),
+          },
+        ).catch(() => {});
+        // #endregion
         io.to(roomId).emit("server:state", statePayload);
       }
     });
 
     socket.on("host:state", (payload: ControllerStateMessage) => {
       const result = controllerStateSchema.safeParse(payload);
-      if (!result.success) return;
+      if (!result.success) {
+        console.log(`[server] host:state parse failed:`, result.error);
+        return;
+      }
 
       const { roomId, state } = result.data;
+      console.log(`[server] host:state received:`, {
+        roomId,
+        state,
+        socketId: socket.id,
+      });
       const session = roomManager.getRoom(roomId);
       if (session) {
         // Sync state if provided
@@ -780,9 +980,17 @@ io.on(
 
         // Broadcast to all hosts (system + child) to keep them in sync
         if (session.masterHostSocketId) {
+          console.log(
+            `[server] host:state broadcasting to master host ${session.masterHostSocketId}:`,
+            JSON.stringify(result.data),
+          );
           io.to(session.masterHostSocketId).emit("server:state", result.data);
         }
         if (session.childHostSocketId) {
+          console.log(
+            `[server] host:state broadcasting to child host ${session.childHostSocketId}:`,
+            JSON.stringify(result.data),
+          );
           io.to(session.childHostSocketId).emit("server:state", result.data);
         }
       }

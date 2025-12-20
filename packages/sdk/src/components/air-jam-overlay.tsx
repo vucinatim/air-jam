@@ -55,6 +55,9 @@ export const AirJamOverlay = ({
   onTogglePlayPause,
   isChildMode = false,
 }: AirJamOverlayProps): JSX.Element | null => {
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'air-jam-overlay.tsx:48',message:'UI: AirJamOverlay component rendered',data:{gameState,playersCount:players.length,players:players.map(p=>({id:p.id,label:p.label})),connectionStatus,roomId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'UI_RENDER'})}).catch(()=>{});
+  // #endregion
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
 

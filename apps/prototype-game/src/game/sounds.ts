@@ -1,4 +1,4 @@
-import { SoundManifest } from "@air-jam/sdk";
+import type { SoundManifest } from "@air-jam/sdk";
 
 export const SOUND_MANIFEST = {
   // Game Sounds - Engines

@@ -18,9 +18,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient } from "@/lib/auth-client";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
-export default function Home() {
+function HomeContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -136,7 +136,7 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent value="signup">
-              <Card>
+              < Card>
                 <CardHeader>
                   <CardTitle>Create Account</CardTitle>
                   <CardDescription>
@@ -219,5 +219,13 @@ export default function Home() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <HomeContent />
+    </Suspense>
   );
 }

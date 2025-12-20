@@ -161,9 +161,7 @@ const ControllerContent = () => {
     gameState,
     reconnect,
     socket,
-  } = useAirJamController({
-    serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
-  });
+  } = useAirJamController();
   const audio = useAudio(SOUND_MANIFEST);
 
   // Create a stable store instance
@@ -196,10 +194,10 @@ const ControllerContent = () => {
       audio.play(payload.id as keyof typeof SOUND_MANIFEST);
     };
 
-    socket.on("server:playSound", (payload) => {
+    socket.on("server:playSound", (payload: any) => {
       console.log("[Controller] Received server:playSound event:", payload);
       if (payload.id) {
-        audio.play(payload.id as keyof typeof SOUND_MANIFEST);
+        audio.play(payload.id as any);
       }
     });
 

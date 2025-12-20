@@ -13,14 +13,21 @@ const JoypadContent = dynamic(() => Promise.resolve(JoypadContentInner), {
   ssr: false,
 });
 
+import { AirJamProvider } from "@air-jam/sdk";
+
 export default function JoypadPage() {
-  return <JoypadContent />;
+  return (
+    <AirJamProvider
+      role="controller"
+      serverUrl={process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL}
+    >
+      <JoypadContent />
+    </AirJamProvider>
+  );
 }
 function JoypadContentInner() {
   const router = useRouter();
-  const shell = useAirJamShell({
-    serverUrl: process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL,
-  });
+  const shell = useAirJamShell();
 
   // Use refs to store input state - avoids re-renders and keeps loop stable
   const vectorRef = useRef({ x: 0, y: 0 });

@@ -86,7 +86,9 @@ export function useBackgroundMusic(enabled: boolean = true) {
       const trackId = MUSIC_TRACKS[currentTrackIndexRef.current];
 
       // Play the track with looping
-      const soundId = audio.play(trackId, { loop: true });
+      const soundId = audio.play(trackId, {
+        loop: true,
+      });
       if (soundId !== null) {
         currentSoundIdRef.current = soundId;
         isPlayingRef.current = true;

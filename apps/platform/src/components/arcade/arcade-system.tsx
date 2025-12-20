@@ -7,7 +7,7 @@ import {
   type SystemLaunchGameAck,
   urlBuilder,
   useAirJamHost,
-  useAirJamInputLatch,
+  useAirJamInput,
 } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArcadeLoader } from "./arcade-loader";
@@ -69,11 +69,8 @@ export const ArcadeSystem = ({
     action: boolean;
   };
 
-  // Set up input latching for responsive navigation
-  const { getLatched } = useAirJamInputLatch<ArcadeInput>({
-    booleanFields: ["action"],
-    vectorFields: ["vector"],
-  });
+  // Set up input handle for responsive navigation
+  const { getController, clearInput } = useAirJamInput<ArcadeInput>(); // Changed from useAirJamInputLatch
 
   // Ref for exit callback (used in onChildClose)
   const exitGameRef = useRef<() => void>(() => {});
@@ -99,79 +96,55 @@ export const ArcadeSystem = ({
   // Navigation logic refs
   const lastExitTime = useRef<number>(0);
   const EXIT_COOLDOWN = 500;
-  const lastVectorStates = useRef<Map<string, { x: number; y: number }>>(
-    new Map(),
-  );
 
   const handleInput = useCallback(
     (event: ControllerInputEvent) => {
-      const { input, controllerId } = event;
+      const { controllerId } = event;
 
       // Only handle navigation in browser view
       if (!games || games.length === 0) {
         return;
       }
 
-      const getVector = (): { x: number; y: number } | null => {
-        if (
-          input.vector &&
-          typeof input.vector === "object" &&
-          !Array.isArray(input.vector) &&
-          typeof (input.vector as { x?: unknown }).x === "number" &&
-          typeof (input.vector as { y?: unknown }).y === "number"
-        ) {
-          return input.vector as { x: number; y: number };
-        }
-        return null;
-      };
+      // Get the intelligent controller handle
+      const controller = getController(controllerId);
+      if (!controller) return;
 
-      const getAction = (): boolean => {
-        return typeof input.action === "boolean" ? input.action : false;
-      };
-
-      const vector = getVector();
-      const action = getAction();
-
-      const rawInput: ArcadeInput = {
-        vector: vector ?? { x: 0, y: 0 },
-        action,
-      };
-
-      const latchedInput = getLatched(controllerId, rawInput);
-      if (!latchedInput) return;
-
-      // Detect edge transitions
-      const prevVec = lastVectorStates.current.get(controllerId) ?? {
-        x: 0,
-        y: 0,
-      };
-      const wasVectorActive =
-        Math.abs(prevVec.x) > 0.5 || Math.abs(prevVec.y) > 0.5;
-      const isVectorActive =
-        Math.abs(latchedInput.vector.x) > 0.5 ||
-        Math.abs(latchedInput.vector.y) > 0.5;
-
-      // Navigate on rising edge
-      if (isVectorActive && !wasVectorActive) {
-        if (latchedInput.vector.y < -0.5) {
-          setSelectedIndex((prev) =>
-            prev - 1 < 0 ? games.length - 1 : prev - 1,
-          );
-        } else if (latchedInput.vector.y > 0.5) {
-          setSelectedIndex((prev) => (prev + 1 >= games.length ? 0 : prev + 1));
-        } else if (latchedInput.vector.x < -0.5) {
-          setSelectedIndex((prev) =>
-            prev - 1 < 0 ? games.length - 1 : prev - 1,
-          );
-        } else if (latchedInput.vector.x > 0.5) {
-          setSelectedIndex((prev) => (prev + 1 >= games.length ? 0 : prev + 1));
-        }
+      // Handle system commands (Pause/Play) if the action was just pressed
+      if (controller.justPressed("action")) {
+        // Toggle game state or confirm selection
       }
 
-      lastVectorStates.current.set(controllerId, latchedInput.vector);
+      // Exit logic for when in game view
+      if (view === "game") {
+        if (controller.isDown("action")) {
+          const now = Date.now();
+          if (now - lastExitTime.current > EXIT_COOLDOWN) {
+            // Logic for exiting...
+          }
+        }
+        return;
+      }
+
+      // Browser navigation logic
+      const vector = controller.vector("vector");
+
+      if (vector.y < -0.5) {
+        setSelectedIndex((prev) =>
+          prev - 1 < 0 ? games.length - 1 : prev - 1,
+        );
+      } else if (vector.y > 0.5) {
+        setSelectedIndex((prev) => (prev + 1 >= games.length ? 0 : prev + 1));
+      } else if (vector.x < -0.5) {
+        setSelectedIndex((prev) =>
+          prev - 1 < 0 ? games.length - 1 : prev - 1,
+        );
+      } else if (vector.x > 0.5) {
+        setSelectedIndex((prev) => (prev + 1 >= games.length ? 0 : prev + 1));
+      }
 
       // Handle action button
-      if (latchedInput.action) {
+      if (controller.justPressed("action")) { // Changed from actionLatched
         const now = Date.now();
         if (now - lastExitTime.current < EXIT_COOLDOWN) return;
 
@@ -182,12 +155,11 @@ export const ArcadeSystem = ({
         });
       }
     },
-    [games, getLatched],
+    [games, getController],
   );
 
   const host = useAirJamHost({
     roomId: initialRoomId,
-    apiKey,
     onInput: handleInput,
     onPlayerJoin: () => {
       broadcastCurrentState();
