@@ -1,523 +1,196 @@
 # Air Jam System Overview
 
-## Overview
-
-Air Jam is a platform for building "AirConsole-style" multiplayer games where a computer/TV acts as the host display and smartphones become game controllers. The platform enables developers to create interactive games with minimal setup while providing players with an intuitive, scan-and-play experience.
+Air Jam is a high-performance platform for building smartphone-controlled multiplayer games. It enables a "Dual-Host" architecture where a computer or TV acts as the primary display while smartphones serve as low-latency game controllers.
 
 ---
 
-## Architecture
+## 🏗️ Architecture Matrix
 
-### High-Level Components
+Air Jam is organized as a monorepo containing four specialized core modules:
 
-Air Jam consists of four main components in a monorepo structure:
-
-1. **Platform** (`apps/platform`) - Central web portal and game launcher
-2. **Server** (`packages/server`) - Real-time WebSocket server
-3. **SDK** (`packages/sdk`) - Developer toolkit for building games
-4. **Prototype Game** (`apps/prototype-game`) - Reference implementation
-
----
-
-## Component Details
-
-### 1. Platform (`apps/platform`)
-
-**Role:** The central hub for the Air Jam ecosystem
-
-**Technology:** Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
-
-**Key Features:**
-
-- **Developer Dashboard** - Game registration and API key management
-- **Air Jam Arcade** - System host that launches games in child mode
-- **Controller Shell** - Persistent mobile controller with dynamic UI loading
-- **User Management** - Authentication and game ownership
-
-**Responsibilities:**
-
-- Manage developer accounts and game catalog
-- Generate and validate API keys
-- Host the arcade launcher interface
-- Provide persistent controller shell for mobile devices
+| Component | Path | Role | Tech Stack |
+| :--- | :--- | :--- | :--- |
+| **Platform** | `apps/platform` | Developer Portal & Arcade Hub | Next.js 15, tRPC, PostgreSQL |
+| **Server** | `packages/server` | Real-time Communication Backbone | Node.js, Socket.IO |
+| **SDK** | `packages/sdk` | Developer Toolkit | React, TypeScript, Zustand |
+| **Prototype** | `apps/prototype-game` | Reference Implementation | Three.js, Rapier Physics |
 
 ---
 
-### 2. Server (`packages/server`)
-
-**Role:** Real-time communication backbone
-
-**Technology:** Node.js, Express, Socket.IO, PostgreSQL
-
-**Architecture:** Server-authoritative focus model with dual-host support
-
-**Core Services:**
-
-- **Room Manager** - Centralized room state management
-- **Auth Service** - API key verification with database integration
-- **Focus System** - Controls input routing between system and game
-
-**Key Features:**
-
-- Supports Master Host (Arcade) and Child Host (Game) simultaneously
-- Server-controlled focus switching (SYSTEM ↔ GAME)
-- Secure token-based child host registration
-- Low-latency input routing
-- Player sync across host transitions
-
----
-
-### 3. SDK (`packages/sdk`)
-
-**Role:** Developer toolkit for building Air Jam compatible games
-
-**Technology:** React, TypeScript, Socket.IO Client, Zustand
-
-**Core Hooks:**
-
-- `useAirJamHost` - Game host connection (auto-detects arcade vs standalone)
-- `useAirJamController` - Mobile controller connection
-- `useAirJamShell` - Controller shell for dynamic UI loading
-- `useAirJamInput` - Type-safe input buffer with Zod schema validation
-- `useAirJamInputLatch` - Utility hook for input latching (catches rapid taps)
-
-**Internal Utilities:**
-
-- Socket lifecycle management
-- Connection state handling
-- Room setup and validation
-- URL building and normalization
-
-**Components:**
-
-- `AirJamOverlay` - Connection UI (auto-hides in arcade mode)
-- `ControllerShell` - Mobile controller wrapper
-- `QRScannerDialog` - QR code scanning for room joins
-
-**Features:**
-
-- Automatic mode detection (arcade vs standalone vs bridge)
-- Type-safe event protocol
-- Type-safe input handling with Zod schema validation
-- Input latching for rapid tap detection
-- Centralized constants and events
-- Audio manager with hybrid playback
-- Browser compatibility utilities
-
----
-
-### 4. Prototype Game (`apps/prototype-game`)
-
-**Role:** Reference implementation and development testbed
-
-**Technology:** React, Three.js, React Three Fiber, Rapier Physics
-
-**Purpose:**
-
-- Demonstrates SDK integration patterns
-- Tests dual-host functionality
-- Validates arcade mode behavior
-- Showcases best practices
-
----
-
-## Server-Authoritative Focus System
-
-### Concept
-
-The server maintains authoritative control over which host receives controller inputs through a **focus** state:
-
-- **SYSTEM Focus** - Inputs route to Master Host (Arcade)
-- **GAME Focus** - Inputs route to Child Host (Game)
-
-### Two-Host Model
-
-**Master Host (System):**
-
-- The Arcade running on the TV
-- Owns the room and persistent connection
-- Handles game selection and lifecycle
-
-**Child Host (Game):**
-
-- Game running in an iframe
-- Joins via secure token
-- Receives inputs when focus is GAME
-
-### Connection Flow
-
-**1. Arcade Launch**
-
-- Arcade registers as system host
-- Server creates room with SYSTEM focus
-- Controllers join via QR code
-
-**2. Game Launch**
-
-- User selects game in arcade
-- Server generates secure join token
-- Controllers receive game UI URL
-- Game joins as child host using token
-- Server validates and switches focus to GAME
-- Existing players synced to game
-
-**3. Active Gameplay**
-
-- Controllers send inputs to server
-- Server routes to child host (focus = GAME)
-- Game processes inputs and updates display
-
-**4. Game Exit**
-
-- Exit command received
-- Server switches focus back to SYSTEM
-- Controllers unload game UI
-- Arcade destroys game iframe
-
-### Standalone Mode
-
-For development or simple deployments:
-
-- Game registers as master host
-- No arcade or shell involved
-- Direct controller-to-game connection
-- Traditional single-host model
-
----
-
-## Security Model
-
-### API Key System
-
-**Production:**
-
-- Developers register games on platform
-- Platform issues `aj_live_*` API keys
-- Games include key in connection request
-- Server verifies against database
-
-**Development:**
-
-- Local server runs without authentication
-- No keys required for testing
-
-**Benefits:**
-
-- Prevents unauthorized server usage
-- Enables usage tracking per game
-- Provides abuse prevention
-- Allows individual game control
-
-### Join Tokens
-
-**Purpose:** Secure child host registration
-
-**Flow:**
-
-1. Arcade requests game launch
-2. Server generates one-time token
-3. Token passed to game via URL
-4. Game presents token when joining
-5. Server validates and allows connection
-
----
-
-## Error Handling
-
-### Structured Errors
-
-**ErrorCode Enum:** 13 standardized error types
-
-- Room errors (NOT_FOUND, FULL)
-- Auth errors (INVALID_API_KEY, UNAUTHORIZED)
-- Token errors (INVALID_TOKEN, EXPIRED)
-- Connection errors (FAILED, ALREADY_CONNECTED)
-- Validation errors (INVALID_PAYLOAD, INVALID_ROOM_CODE)
-- Server errors (INTERNAL, UNAVAILABLE)
-
-**Error Format:** Consistent ServerErrorPayload across all responses
-
----
-
-## Event Protocol
-
-### Naming Convention
-
-All events use camelCase: `host:registerSystem`, `controller:input`, `server:playSound`
-
-### Event Categories
-
-**Host Events:** Registration, state updates, game launch/close  
-**Controller Events:** Join, input, system commands  
-**System Events:** Arcade-specific launch/close  
-**Server Events:** Acknowledge, sync, notifications  
-**Client Events:** Shell UI load/unload
-
----
-
-## Development Setup
-
-### Requirements
-
-- Node.js 18+
-- PostgreSQL database
-- pnpm package manager
-
-### Local Stack
-
-**1. Platform**
-
-```
-cd apps/platform && pnpm dev
-→ http://localhost:3000
+## 🧠 The Focus System: Dual-Host Mechanics
+
+The core innovation of Air Jam is the **Server-Authoritative Focus System**. This allows the server to dynamically route controller inputs between the **System Host** (the Arcade launcher) and the **Child Host** (the active game).
+
+### Focus States
+- **`SYSTEM` Focus**: Default state. Inputs are routed to the Arcade (Master Host).
+- **`GAME` Focus**: Active gameplay state. Inputs are routed to the Game (Child Host).
+
+### Connection Flow Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant C as Controller (Phone)
+    participant S as Server
+    participant A as Arcade (System Host)
+    participant G as Game (Child Host)
+
+    Note over A,S: 1. Initialization
+    A->>S: host:registerSystem (apiKey)
+    S-->>A: server:roomReady
+    C->>S: controller:join (roomId)
+    S-->>C: server:welcome
+
+    Note over A,S: 2. Launch Sequence
+    A->>S: system:launchGame (gameUrl)
+    S-->>C: client:loadUi (gameUrl)
+    S-->>A: ack (joinToken)
+    A->>G: Load Game (iframe + token)
+    G->>S: host:joinAsChild (token)
+    S->>S: Switch focus to GAME
+    S-->>G: Sync Players & State
+
+    Note over C,G: 3. Gameplay
+    C->>S: controller:input (raw JSON)
+    S->>G: server:input (routed via focus)
+
+    Note over G,A: 4. Exit
+    G->>S: controller:system (exit)
+    S->>S: Switch focus to SYSTEM
+    S-->>C: client:unloadUi
+    S-->>A: server:closeChild
 ```
 
-**2. Server**
+---
 
-```
-cd packages/server && pnpm dev
-→ WebSocket on port 4000
-```
+## 🛠️ Developer Toolkit (SDK)
 
-**3. Game**
+The `@air-jam/sdk` provides a high-level API for both games and controllers, abstracting socket management into type-safe React hooks.
 
-```
-cd apps/prototype-game && pnpm dev
-→ http://localhost:5173
-```
-
-### Configuration
-
-**Database:** Set `DATABASE_URL` in platform and server `.env`  
-**API Keys:** Create game and key via platform dashboard  
-**Environment:** Configure game with generated API key
+### Core Hooks
+- `useAirJamHost`: Primary hook for games. Handles connection, player syncing, and state management.
+- `useAirJamController`: Primary hook for controller UIs. Handles joining rooms and sending inputs.
+- `useAirJamInput`: High-performance, **zero re-render** input buffer using refs. Essential for 60FPS game loops.
+- `useAirJamInputLatch`: Advanced input processing that prevents "missing" rapid taps (latches pulses to the next frame).
+- `useAirJamHostSignal`: "Fire and forget" communication for transient effects (Haptics, Toasts).
 
 ---
 
-## Type Safety
+## 💻 Local Development & Standalone Mode
 
-### Approach
+Air Jam is designed to be frictionless for local development. You do not need a production API key or the official platform to start building.
 
-- Zero `any` types in codebase
-- Browser compatibility types for vendor prefixes
-- Type-safe event protocol
-- Type-safe input handling with Zod schema inference
-- Structured error handling
-- Full TypeScript strictness
+### Standalone Mode (Zero Config)
+When the SDK detects it is **not** running in an iframe (Standalone Mode), it defaults to a simplified registration flow:
+- **API Key Bypass**: The server's `host:register` handler allows room creation without authentication. This is intended for rapid prototyping and testing.
+- **Direct Connect**: Bypasses the the requirement for the Platform. Developers can simply open the game URL in a browser. The SDK will automatically detect it's in `standalone` mode (not in an iframe).
 
-### Custom Types
-
-- `types/browser.ts` - Vendor-prefixed DOM APIs
-- Protocol schemas with Zod validation
-- Strongly-typed socket events
-- Game-specific input schemas with automatic type inference
-
-## Input Handling
-
-### Architecture
-
-Air Jam provides a flexible, type-safe input system that supports arbitrary input structures while maintaining type safety and developer experience.
-
-### Core Components
-
-**1. `useAirJamInput` Hook**
-
-Generic input buffer for high-frequency input processing in game loops:
-
-- **Zero React re-renders** - Uses refs only (critical for game loops)
-- **Zod schema validation** - Optional schema for runtime validation and type inference
-- **Type inference** - Automatically infers TypeScript types from Zod schemas
-- **Pop-based consumption** - Read once per frame per controller
-- **Persistent state** - Input persists until new input arrives (enables latching)
-
-**2. `useAirJamInputLatch` Hook**
-
-Utility hook for adding latching behavior to input structures:
-
-- **Rapid tap detection** - Ensures rapid button taps are never missed
-- **Vector flick support** - Keeps stick flicks alive for one frame after release
-- **Type preservation** - Maintains full type safety through latching process
-- **Configurable fields** - Specify which fields should be latched (boolean/vector)
-
-### Developer Experience
-
-**Defining Input Schema:**
-
-```typescript
-import { z } from "zod";
-
-const gameInputSchema = z.object({
-  vector: z.object({ x: z.number(), y: z.number() }),
-  action: z.boolean(),
-  ability: z.boolean(),
-  timestamp: z.number(),
-});
-
-type GameInput = z.infer<typeof gameInputSchema>;
-```
-
-**Using Type-Safe Input:**
-
-```typescript
-// With schema - fully typed and validated
-const { popInput } = useAirJamInput<GameInput>({
-  roomId: "ABCD",
-  schema: gameInputSchema, // Optional: enables validation + type inference
-});
-
-// With latching - preserves types
-const { getLatched } = useAirJamInputLatch<GameInput>({
-  booleanFields: ["action", "ability"],
-  vectorFields: ["vector"],
-});
-
-useFrame(() => {
-  const raw = popInput(controllerId);
-  if (raw) {
-    const latched = getLatched(controllerId, raw);
-    // Fully typed! No manual type guards needed
-    latched.vector.x; // number
-    latched.action; // boolean
-  }
-});
-```
-
-### Benefits
-
-- **Type Safety** - Full TypeScript inference from Zod schemas
-- **Runtime Validation** - Invalid inputs are caught and logged
-- **Clean API** - No manual type guards or unsafe casts
-- **Flexible** - Works with any input structure via Zod schemas
-- **Backward Compatible** - Still works without schemas (returns `Record<string, unknown>`)
-
-### Input Flow
-
-1. **Controller sends input** - Arbitrary JSON structure via `controller:input` event
-2. **Server routes input** - Based on focus state (SYSTEM or GAME)
-3. **Host receives input** - Via `server:input` event
-4. **`useAirJamInput` buffers** - Stores raw input, validates if schema provided
-5. **`useAirJamInputLatch` processes** - Applies latching logic, preserves types
-6. **Game loop consumes** - Fully typed input ready for game logic
+### Running Locally
+1. **Start Server**: `cd packages/server && pnpm dev` (Runs on port 4000).
+2. **Start Game**: `cd apps/prototype-game && pnpm dev` (Runs on port 5173).
+3. **Connect**: Open `localhost:5173` on your PC and the generated URL on your phone (see URL Mechanics below).
 
 ---
 
-## Game → Controller Communication
+## 🔗 URL Mechanics & Mobile Connectivity
 
-### Overview
+Connecting mobile devices to a local dev environment can be tricky due to network isolation. Air Jam's `UrlBuilder` manages this automatically.
 
-Games can send messages to controllers through three primary channels: **sound playback**, **state updates**, and **signals**. The server routes these messages from the game host to the appropriate controllers.
+### Local IP Detection
+- **Host Discovery**: When running on `localhost`, the SDK attempts to detect your machine's **Local Network IP** (e.g., `192.168.1.5`).
+- **Mobile URLs**: It replaces `localhost` with this IP in the generated QR code/Join URL so your phone can resolve the address over Wi-Fi.
 
-### Signals (New)
-
-The primary way to send transient events (haptics, toasts, particle effects) is via **Signals**:
-
-- **Ephemeral** - "Fire and forget" events that don't need persistence
-- **Dedicated Channel** - `host:signal` -> `server:signal`
-- **Supported Types**: `HAPTIC`, `SOUND`, `TOAST`
-- **Automatic Handling** - The SDK automatically handles standard signals (like haptics) so developers don't need to write custom logic
-
-```typescript
-const { sendSignal } = useAirJamHost();
-
-// Trigger haptic feedback
-sendSignal("HAPTIC", { pattern: "heavy" });
-
-// Send toast message
-sendSignal("TOAST", { message: "Shield Broken!", color: "red" });
-```
-
-### Sound Playback
-
-Games can trigger sounds on controllers using the `host:play_sound` event:
-
-- **Broadcast to all controllers** - Send sound to all players in the room
-- **Target specific controller** - Send sound to a single controller by ID
-- **Volume and loop control** - Optional volume and loop parameters
-
-The AudioManager's `playRemote()` method handles this automatically when used as a host, or games can emit `host:play_sound` directly via socket. Controllers receive these as `server:playSound` events and play them using their local audio manifest.
-
-### State Updates
-
-Games can send state updates to controllers using the `sendState()` method from `useAirJamHost`:
-
-- **Game state** - Pause/play status (`"paused" | "playing"`)
-- **Text messages** - Display messages on controller UI
-- **Orientation** - Request portrait/landscape mode (`"portrait" | "landscape"`)
-
-**Note:** State should be reserved for data that must persist if a player reconnects (e.g. scores, current screen). Use Signals for transient effects.
-
-State updates are broadcast to all controllers via `server:state` events. Controllers receive these and can access the state through the `onState` callback or by reading from the connection store.
-
-### Limitations
-
-- **No arbitrary data channel** - Communication is limited to defined protocols
+### Mode Detection via Query Params
+The SDK uses specific URL parameters to determine how it should behave:
+| Parameter | Purpose | Source |
+| :--- | :--- | :--- |
+| `aj_room` | The room code to join. | `GamePlayer` / SDK |
+| `aj_token` | One-time join token for child hosts. | `GamePlayer` / SDK |
+| `airjam_force_connect` | Forces SDK initialization regardless of nested state. | Developer Override |
 
 ---
 
-## Code Organization
+## 🚀 Deployment & Production Flow
 
-### Modular Architecture
+Air Jam supports a seamless transition from a "Project on your machine" to a "Game in the Arcade".
 
-**Server:**
+### 1. Standalone Deployment (The Dev Stage)
+Game creators deploy their game to any static host (Vercel, GitHub Pages). 
+- **Direct Play**: Anyone with the link can play by connecting controllers directly.
+- **Independence**: No dependence on the Air Jam Platform UI.
 
-- `services/room-manager.ts` - Room state
-- `services/auth-service.ts` - Authentication
-- Clean separation of concerns
-
-**SDK:**
-
-- `hooks/internal/` - Reusable utilities
-- Consolidated patterns across hooks
-- Single source of truth for constants/events
-
-### Principles
-
-- DRY (Don't Repeat Yourself)
-- Single Responsibility
-- Type Safety First
-- Reusable Components
+### 2. Arcade Integration (The Platform Stage)
+Once ready, the dev registers the game on the **Platform**:
+- **API Key**: Issued for production usage tracking and security.
+- **Meta-Data**: Icons, descriptions, and player limits are configured.
+- **Instant Availability**: The game appears in the **Air Jam Arcade**. When launched, it transitions into **Child Mode** automatically, receiving players and instructions from the system host.
 
 ---
 
-## Deployment
+---
 
-### Recommended Stack
+## 🏎️ Input & Communication
 
-**Platform:** Vercel (Next.js native)  
-**Server:** Railway, Render, or any WebSocket-compatible host  
-**Database:** Vercel Postgres, Supabase, or managed PostgreSQL  
-**Games:** Developer's choice (Vercel, Netlify, etc.)
+### Type-Safe Input Pipeline
+Air Jam uses **Zod** for runtime schema validation. This ensures that a game only receives inputs it expects, and that those inputs are fully typed in TypeScript.
+- **Unified Input API**: `useAirJamInput` combines raw buffer access with intelligent edge detection. It manages a centralized buffer in `AirJamClient` to ensure maximum performance across multiple game systems.
+- **Built-in Logic**: The API provides `justPressed(field)`, `isDown(field)`, and `vector(field)` helpers, eliminating the need for manual latching or state tracking in the game loop.
 
-### Requirements
-
-**Games Must:**
-
-- Allow iframe embedding (`Content-Security-Policy: frame-ancestors`)
-- Use HTTPS in production
-- Include valid API key
+### Communication Channels
+| Channel | Type | Usage |
+| :--- | :--- | :--- |
+| **State** | Persistent | `host.sendState({ score: 100 })`. Syncs to all controllers. |
+| **Signals** | Transient | `host.sendSignal({ type: 'haptic', level: 1 })`. For one-off events. |
+| **Audio** | Hybrid | Trigger localized sounds on phone or host speakers via a unified API. |
 
 ---
 
-## Future Considerations
+## 🔄 Core Event Life Cycle
 
-### Potential Enhancements
+The following simplified event sequence represents the typical lifecycle of an Air Jam session:
 
-- Stricter TypeScript settings exploration
-- JSDoc documentation for public APIs
-- Advanced usage examples
-- Performance monitoring
-- Analytics integration
-- Rate limiting
-- WebRTC for peer-to-peer data channels
+1.  **Init**: Host registers (`host:register` or `host:registerSystem`).
+2.  **Ready**: Server acknowledges and issues `roomId` (`server:roomReady`).
+3.  **Join**: Controllers connect using the `roomId` (`controller:join`).
+4.  **Sync**: Server transmits existing players and state to the new controller (`server:controllerJoined`).
+5.  **Focus Shift**: (Optional) System host launches a game, switching focus to "GAME".
+6.  **Loop**: Controllers send inputs (`controller:input`), Server routes to focused host.
+7.  **Exit**: Game finishes or host disconnects, focus returns to "SYSTEM".
 
 ---
 
-## Summary
+## 🧐 Technical Quirks & DevEx Recommendations
 
-Air Jam provides a complete platform for building smartphone-controlled games with:
+As the platform evolves, some architectural patterns and "refactor remains" should be noted for future development.
 
-- **Clean architecture** - Modular, maintainable codebase
-- **Type safety** - Full TypeScript with zero compromises, including type-safe input handling
-- **Security** - API keys and token-based authentication
-- **Flexibility** - Arcade mode or standalone deployment
-- **Developer experience** - Simple SDK with powerful features, Zod-based input validation, and automatic type inference
+### Multi-Instance Support (SDK)
+The SDK uses an `AirJamProvider` pattern that uses context-bound stores.
+- **Improved**: You can have independent Air Jam instances in the same application lifecycle.
+- **Status**: Migration from global singletons to Provider pattern is complete.
+
+### Monolithic Server Entry
+The server logic is primarily contained within a single `index.ts` (approx. 900 lines).
+- **Quirk**: Event handlers for System, Game, and Controllers are all co-located, making it harder to track specific logic branches.
+- **Recommendation**: Move Socket.io handlers into separate service-specific modules (e.g., `controller-service.ts`, `host-service.ts`).
+
+### Refactor Remains
+- **Cleaned**: Legacy `AIRJAM_PROXY_PREFIX` and `AIRJAM_STATE` protocols have been removed in favor of the unified Socket.io events.
+- **Action**: Developers should regularly check for backup files (e.g., `.backup`, `.bak`) which are occasionally left behind during large refactors.
+
+---
+
+## 🛡️ Security & Identity
+
+Air Jam provides a balance between ease of use and production security.
+
+- **API Keys**: Required for System Hosts (Arcade) to authenticate with the platform.
+- **Join Tokens**: Unique, short-lived UUIDs generated by the server for Child Hosts to join a room securely after a `system:launchGame` command.
+- **Player Profiles**: Persistent identifiers (`playerId`) and nicknames that follow a user across different games in the same session.
+
+---
+
+## �️ Future Roadmap
+
+- **Latency Optimization**: Exploring WebRTC DataChannels for sub-10ms input latency.
+- **Custom Controller Builders**: A drag-and-drop UI for designers to build controllers without code.
+- **Persistence Layer**: Cross-session player stats and leaderboards.
+- **Advanced JSDoc**: Comprehensive inline documentation for easier SDK adoption.
