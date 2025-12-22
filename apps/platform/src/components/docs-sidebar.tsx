@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { DocsSearch } from "@/components/docs/docs-search";
 
 export function DocsSidebar({
   ...props
@@ -46,6 +47,10 @@ export function DocsSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
+      <div className="px-3 py-2 group-data-[collapsible=icon]:hidden">
+        <DocsSearch />
+      </div>
 
       <SidebarContent>
         <SidebarGroup>

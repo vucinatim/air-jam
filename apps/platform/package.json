@@ -37,6 +37,7 @@
     "better-auth": "^1.4.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.0",
     "lucide-react": "^0.554.0",
