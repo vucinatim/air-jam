@@ -180,6 +180,12 @@ io.on(
           return;
         }
 
+        // Check if a launch is already in progress (joinToken exists but child hasn't joined yet)
+        if (session.joinToken && !session.childHostSocketId) {
+          callback({ ok: true, joinToken: session.joinToken });
+          return;
+        }
+
         // Generate Join Token
         const joinToken = uuidv4();
         session.joinToken = joinToken;

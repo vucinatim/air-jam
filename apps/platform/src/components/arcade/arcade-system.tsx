@@ -81,6 +81,7 @@ export const ArcadeSystem = ({
   const [normalizedGameUrl, setNormalizedGameUrl] = useState<string>("");
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
+  const isLaunchingRef = useRef(false);
 
   // Navigation logic refs
   const lastExitTime = useRef<number>(0);
@@ -118,8 +119,9 @@ export const ArcadeSystem = ({
   }, [games, selectedIndex, view, host, activeGame]);
 
   // Process input for navigation (polling pattern)
+  // Only process input when in browser view (not when game is active)
   useEffect(() => {
-    if (!host.getInput || !games || games.length === 0) {
+    if (!host.getInput || !games || games.length === 0 || view !== "browser" || activeGame) {
       return;
     }
 
@@ -178,15 +180,17 @@ export const ArcadeSystem = ({
     }, 16); // ~60fps polling
 
     return () => clearInterval(interval);
-  }, [host.getInput, host.players, games]);
+  }, [host.getInput, host.players, games, view, activeGame, joinToken]);
 
   const launchGame = useCallback(
     async (game: ArcadeGame) => {
-      if (!host.socket || !host.socket.connected || isLaunching) {
+      // Prevent launching if already launching, game is active, or joinToken exists
+      if (!host.socket || !host.socket.connected || isLaunchingRef.current || activeGame || joinToken) {
         return;
       }
 
       console.log("[Arcade] Launching game:", game.name);
+      isLaunchingRef.current = true;
       setIsLaunching(true);
 
       const baseUrl = await urlBuilder.normalizeForMobile(game.url);
@@ -200,6 +204,7 @@ export const ArcadeSystem = ({
           gameUrl: controllerUrl,
         },
         (ack: SystemLaunchGameAck) => {
+          isLaunchingRef.current = false;
           setIsLaunching(false);
           if (ack.ok && ack.joinToken) {
             console.log("[Arcade] Game launch successful");
@@ -232,6 +237,10 @@ export const ArcadeSystem = ({
     setActiveGame(null);
     setNormalizedGameUrl("");
     setJoinToken(null);
+    isLaunchingRef.current = false;
+    setIsLaunching(false);
+    // Reset auto-launch flag so game can be launched again if needed
+    hasAutoLaunched.current = false;
   }, [host.socket, host.roomId, mode, onExitGame]);
 
   // Keep refs updated
@@ -252,16 +261,25 @@ export const ArcadeSystem = ({
 
   // Auto-launch effect (for both arcade and preview modes)
   const hasAutoLaunched = useRef(false);
+  const launchGameRefForAutoLaunch = useRef(launchGame);
+  useEffect(() => {
+    launchGameRefForAutoLaunch.current = launchGame;
+  }, [launchGame]);
+
   useEffect(() => {
     const shouldAutoLaunch = mode === "preview" || autoLaunch;
+
+    // Early return if game is already active, launching, or has joinToken
+    if (activeGame || isLaunching || joinToken) {
+      return;
+    }
 
     if (
       shouldAutoLaunch &&
       !hasAutoLaunched.current &&
       host.socket?.connected &&
       host.roomId &&
-      games.length > 0 &&
-      !activeGame
+      games.length > 0
     ) {
       const gameToLaunch = initialGameId
         ? games.find((g) => g.id === initialGameId)
@@ -277,7 +295,7 @@ export const ArcadeSystem = ({
         hasAutoLaunched.current = true;
         // Use queueMicrotask to avoid synchronous setState in effect warning
         queueMicrotask(() => {
-          launchGame(gameToLaunch);
+          launchGameRefForAutoLaunch.current(gameToLaunch);
         });
       }
     }
@@ -289,7 +307,8 @@ export const ArcadeSystem = ({
     host.roomId,
     games,
     activeGame,
-    launchGame,
+    isLaunching,
+    joinToken,
   ]);
 
   // Broadcast state whenever relevant things change
