@@ -27,7 +27,7 @@ pnpm add @air-jam/sdk
 
 ### 2. Wrap Your App
 
-```tsx
+```tsx filename="src/App.tsx"
 import { AirJamProvider } from "@air-jam/sdk";
 import { z } from "zod";
 
@@ -59,7 +59,7 @@ export const App = () => (
 
 ### 3. Create Your Host View
 
-```tsx
+```tsx filename="src/components/HostView.tsx"
 import { useAirJamHost } from "@air-jam/sdk";
 import { QRCode } from "./QRCode";
 
@@ -90,7 +90,7 @@ const HostView = () => {
 
 ### 4. Create Your Controller View
 
-```tsx
+```tsx filename="src/components/ControllerView.tsx"
 import { useAirJamController } from "@air-jam/sdk";
 import { Joystick, Button } from "./ui";
 

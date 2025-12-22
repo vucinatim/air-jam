@@ -14,7 +14,7 @@ import { StandaloneHostDiagram } from "@/components/docs/figures/standalone-host
 
 **Usage:**
 
-```tsx
+```tsx filename="src/components/HostView.tsx"
 const host = useAirJamHost({
   onPlayerJoin: (player) => spawnPlayer(player),
   onPlayerLeave: (id) => removePlayer(id),

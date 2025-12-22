@@ -63,7 +63,7 @@ export function TableOfContents() {
 
   return (
     <div className="hidden xl:block">
-      <div className="sticky top-20">
+      <div className="sticky top-24 max-h-[calc(100vh-8rem)] w-full overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="space-y-2">
           <p className="font-medium">On This Page</p>
           <ul className="m-0 list-none space-y-2.5 text-sm">
