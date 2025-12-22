@@ -161,9 +161,7 @@ const ControllerContent = () => {
     gameState,
     reconnect,
     socket,
-  } = useAirJamController({
-    serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
-  });
+  } = useAirJamController();
   const audio = useAudio(SOUND_MANIFEST);
 
   // Create a stable store instance

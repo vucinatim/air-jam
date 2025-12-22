@@ -3,7 +3,7 @@
 
 import { RemoteDPad } from "@/components/remote-d-pad";
 import { Button } from "@/components/ui/button";
-import { ControllerShell, useAirJamShell } from "@air-jam/sdk";
+import { AirJamProvider, ControllerShell, useAirJamShell } from "@air-jam/sdk";
 import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -14,13 +14,15 @@ const JoypadContent = dynamic(() => Promise.resolve(JoypadContentInner), {
 });
 
 export default function JoypadPage() {
-  return <JoypadContent />;
+  return (
+    <AirJamProvider>
+      <JoypadContent />
+    </AirJamProvider>
+  );
 }
 function JoypadContentInner() {
   const router = useRouter();
-  const shell = useAirJamShell({
-    serverUrl: process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL,
-  });
+  const shell = useAirJamShell();
 
   // Use refs to store input state - avoids re-renders and keeps loop stable
   const vectorRef = useRef({ x: 0, y: 0 });

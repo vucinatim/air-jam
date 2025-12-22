@@ -2,6 +2,7 @@
 
 import { ArcadeLoader, ArcadeSystem } from "@/components/arcade";
 import { api } from "@/trpc/react";
+import { AirJamProvider } from "@air-jam/sdk";
 import { useState } from "react";
 
 export default function ArcadePage() {
@@ -31,16 +32,18 @@ export default function ArcadePage() {
   }));
 
   return (
-    <ArcadeSystem
-      games={arcadeGames}
-      mode="arcade"
-      initialRoomId={persistedRoomId}
-      onRoomIdChange={(roomId) => {
-        if (typeof sessionStorage !== "undefined") {
-          sessionStorage.setItem("airjam_platform_room_id", roomId);
-        }
-      }}
-      className="h-screen"
-    />
+    <AirJamProvider>
+      <ArcadeSystem
+        games={arcadeGames}
+        mode="arcade"
+        initialRoomId={persistedRoomId}
+        onRoomIdChange={(roomId) => {
+          if (typeof sessionStorage !== "undefined") {
+            sessionStorage.setItem("airjam_platform_room_id", roomId);
+          }
+        }}
+        className="h-screen"
+      />
+    </AirJamProvider>
   );
 }

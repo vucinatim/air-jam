@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { useAirJamContext } from "../context/air-jam-context";
+import type { AirJamSocket } from "../context/socket-manager";
 import type {
   ConnectionStatus,
   ControllerInputPayload,
@@ -11,21 +15,18 @@ import {
   controllerInputSchema,
   controllerJoinSchema,
   controllerSystemSchema,
+  roomCodeSchema,
 } from "../protocol";
-import {
-  useConnectionState,
-  useConnectionStore,
-} from "../state/connection-store";
+import { generateControllerId } from "../utils/ids";
 import { detectRunMode } from "../utils/mode";
-import { useConnectionHandlers } from "./internal/use-connection-handlers";
-import { useRoomSetup } from "./internal/use-room-setup";
-import { useSocketLifecycle } from "./internal/use-socket-lifecycle";
 import { useAirJamHaptics } from "./use-air-jam-haptics";
 
 interface AirJamShellOptions {
+  /** Room ID to join */
   roomId?: string;
-  serverUrl?: string;
+  /** Player nickname */
   nickname?: string;
+  /** Controller ID (auto-generated if not provided) */
   controllerId?: string;
 }
 
@@ -53,76 +54,96 @@ const getRoomFromLocation = (): string | null => {
 export const useAirJamShell = (
   options: AirJamShellOptions = {},
 ): AirJamShellApi => {
+  // Get context
+  const { store, getSocket } = useAirJamContext();
+
   const nicknameRef = useRef(options.nickname ?? "Arcade Shell");
 
-  // Use internal utilities for setup
-  const { parsedRoomId, controllerId } = useRoomSetup({
-    roomId: options.roomId,
-    role: "controller",
-    controllerId: options.controllerId,
-    getRoomFromLocation,
-  });
+  // Parse room ID
+  const parsedRoomId = useMemo<RoomCode | null>(() => {
+    const code = options.roomId ?? getRoomFromLocation();
+    if (!code) return null;
+    try {
+      return roomCodeSchema.parse(code.toUpperCase());
+    } catch {
+      return null;
+    }
+  }, [options.roomId]);
+
+  // Generate or use provided controller ID
+  const controllerId = useMemo<string>(() => {
+    if (options.controllerId) return options.controllerId;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlControllerId = params.get("controllerId");
+      if (urlControllerId) return urlControllerId;
+    }
+    return generateControllerId();
+  }, [options.controllerId]);
 
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
 
-  const connectionState = useConnectionState((state) => ({
-    connectionStatus: state.connectionStatus,
-    lastError: state.lastError,
-    controllerId: state.controllerId,
-    players: state.players,
-    gameState: state.gameState,
-  }));
+  // Subscribe to store state
+  const connectionState = useStore(
+    store,
+    useShallow((state) => ({
+      connectionStatus: state.connectionStatus,
+      lastError: state.lastError,
+      controllerId: state.controllerId,
+      players: state.players,
+      gameState: state.gameState,
+    })),
+  );
 
-  // Use socket lifecycle utility
-  const { socket } = useSocketLifecycle(
-    "controller",
-    options.serverUrl,
-    !!parsedRoomId,
+  // Get socket from context
+  const socket: AirJamSocket | null = useMemo(
+    () => (parsedRoomId ? getSocket("controller") : null),
+    [parsedRoomId, getSocket],
   );
 
   // Automatically listen for haptic signals
   useAirJamHaptics(socket);
 
-  // Use connection handlers utility
-  const {
-    handleConnect: baseHandleConnect,
-    handleDisconnect,
-    handleError,
-  } = useConnectionHandlers();
-
+  // Main connection effect
   useEffect(() => {
-    const store = useConnectionStore.getState();
-    store.setMode(detectRunMode());
-    store.setRole("controller");
-    store.setRoomId(parsedRoomId);
-    store.setStatus(parsedRoomId ? "connecting" : "idle");
-    store.setError(undefined);
+    const storeState = store.getState();
+    storeState.setMode(detectRunMode());
+    storeState.setRole("controller");
+    storeState.setRoomId(parsedRoomId);
+    storeState.setStatus(parsedRoomId ? "connecting" : "idle");
+    storeState.setError(undefined);
 
     if (!parsedRoomId || !socket || !controllerId) {
-      store.setStatus("idle");
+      storeState.setStatus("idle");
       return;
     }
 
-    store.setControllerId(controllerId);
+    storeState.setControllerId(controllerId);
 
     const handleConnect = (): void => {
-      baseHandleConnect();
+      store.getState().setStatus("connected");
+
       const payload = controllerJoinSchema.parse({
         roomId: parsedRoomId,
         controllerId,
         nickname: nicknameRef.current || undefined,
       });
       socket.emit("controller:join", payload, (ack) => {
+        const storeState = store.getState();
         if (!ack.ok) {
-          store.setError(ack.message ?? "Unable to join room");
-          store.setStatus("disconnected");
+          storeState.setError(ack.message ?? "Unable to join room");
+          storeState.setStatus("disconnected");
           return;
         }
         if (ack.controllerId) {
-          store.setControllerId(ack.controllerId);
+          storeState.setControllerId(ack.controllerId);
         }
-        store.setStatus("connected");
+        storeState.setStatus("connected");
       });
+    };
+
+    const handleDisconnect = (): void => {
+      store.getState().setStatus("disconnected");
     };
 
     const handleLoadUi = (payload: { url: string }): void => {
@@ -138,7 +159,8 @@ export const useAirJamShell = (
       roomId: RoomCode;
       player?: PlayerProfile;
     }): void => {
-      const storeRoomId = store.roomId;
+      const storeState = store.getState();
+      const storeRoomId = storeState.roomId;
       if (
         storeRoomId &&
         payload.roomId.toUpperCase() !== storeRoomId.toUpperCase()
@@ -146,22 +168,45 @@ export const useAirJamShell = (
         return;
       }
       if (!storeRoomId && payload.roomId) {
-        store.setRoomId(payload.roomId);
+        storeState.setRoomId(payload.roomId);
       }
       if (payload.player) {
-        store.upsertPlayer(payload.player);
+        storeState.upsertPlayer(payload.player);
       }
     };
 
     const handleState = (payload: ControllerStateMessage): void => {
-      if (payload.roomId !== parsedRoomId) {
-        return;
-      }
+      if (payload.roomId !== parsedRoomId) return;
+
+      const storeState = store.getState();
       if (payload.state.gameState) {
-        store.setGameState(payload.state.gameState);
+        storeState.setGameState(payload.state.gameState);
       }
       if (payload.state.message !== undefined) {
-        store.setStateMessage(payload.state.message);
+        storeState.setStateMessage(payload.state.message);
+      }
+    };
+
+    const handleError = (payload: { message: string }): void => {
+      store.getState().setError(payload.message);
+    };
+
+    // Bridge logic for iframe communication
+    const handleMessage = (event: MessageEvent) => {
+      const storeState = store.getState();
+      const data = event.data;
+      if (data?.type === "AIRJAM_INPUT") {
+        const input = data.payload as ControllerInputPayload;
+        const payload = controllerInputSchema.safeParse({
+          roomId: parsedRoomId,
+          controllerId: storeState.controllerId,
+          input,
+        });
+        if (payload.success) {
+          socket.emit("controller:input", payload.data);
+        }
+      } else if (data?.type === "AIRJAM_READY") {
+        // Child is ready
       }
     };
 
@@ -173,24 +218,10 @@ export const useAirJamShell = (
     socket.on("client:unloadUi", handleUnloadUi);
     socket.on("server:error", handleError);
 
-    // --- BRIDGE LOGIC ---
-    const handleMessage = (event: MessageEvent) => {
-      const data = event.data;
-      if (data?.type === "AIRJAM_INPUT") {
-        const input = data.payload as ControllerInputPayload;
-        const payload = controllerInputSchema.safeParse({
-          roomId: parsedRoomId,
-          controllerId: store.controllerId,
-          input,
-        });
-        if (payload.success) {
-          socket.emit("controller:input", payload.data);
-        }
-      } else if (data?.type === "AIRJAM_READY") {
-        // Child is ready
-      }
-    };
     window.addEventListener("message", handleMessage);
+
+    // Connect the socket
+    socket.connect();
 
     return () => {
       socket.off("connect", handleConnect);
@@ -202,56 +233,46 @@ export const useAirJamShell = (
       socket.off("server:error", handleError);
       window.removeEventListener("message", handleMessage);
     };
-  }, [
-    options.serverUrl,
-    parsedRoomId,
-    socket,
-    controllerId,
-    baseHandleConnect,
-    handleDisconnect,
-    handleError,
-  ]);
+  }, [parsedRoomId, socket, controllerId, store]);
 
   const sendInput = useCallback(
     (input: ControllerInputPayload): boolean => {
-      const store = useConnectionStore.getState();
+      const storeState = store.getState();
 
-      if (!parsedRoomId || !store.controllerId || !socket) {
-        store.setError("Not connected to a room");
+      if (!parsedRoomId || !storeState.controllerId || !socket) {
+        storeState.setError("Not connected to a room");
         return false;
       }
       if (!socket.connected) {
         return false;
       }
 
-      // Validate that input is an object (not null, not array, etc.)
       if (typeof input !== "object" || input === null || Array.isArray(input)) {
-        store.setError("Input must be an object");
+        storeState.setError("Input must be an object");
         return false;
       }
 
       const payload = controllerInputSchema.safeParse({
         roomId: parsedRoomId,
-        controllerId: store.controllerId,
+        controllerId: storeState.controllerId,
         input,
       });
       if (!payload.success) {
-        store.setError(payload.error.message);
+        storeState.setError(payload.error.message);
         return false;
       }
 
       socket.emit("controller:input", payload.data);
       return true;
     },
-    [parsedRoomId, socket],
+    [parsedRoomId, socket, store],
   );
 
   const sendSystemCommand = useCallback(
     (command: "exit" | "ready" | "toggle_pause") => {
-      const store = useConnectionStore.getState();
+      const storeState = store.getState();
 
-      if (!parsedRoomId || !store.controllerId || !socket) return;
-
+      if (!parsedRoomId || !storeState.controllerId || !socket) return;
       if (!socket.connected) return;
 
       const payload = controllerSystemSchema.safeParse({
@@ -263,7 +284,7 @@ export const useAirJamShell = (
         socket.emit("controller:system", payload.data);
       }
     },
-    [parsedRoomId, socket],
+    [parsedRoomId, socket, store],
   );
 
   return {

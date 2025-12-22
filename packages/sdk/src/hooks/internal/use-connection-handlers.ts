@@ -1,8 +1,11 @@
 import { useCallback } from "react";
+import type { StoreApi } from "zustand";
+import type { AirJamStore } from "../../state/connection-store";
 import type { ServerErrorPayload } from "../../protocol";
-import { useConnectionStore } from "../../state/connection-store";
 
 export interface ConnectionHandlerOptions {
+  /** Store instance to use (from context) */
+  store: StoreApi<AirJamStore>;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (message: string) => void;
@@ -11,30 +14,26 @@ export interface ConnectionHandlerOptions {
 /**
  * Provides reusable connection event handlers
  * Handles common patterns for connect, disconnect, and error events
- *
- * @param options - Optional callbacks for customization
- * @returns Event handler functions
  */
-export function useConnectionHandlers(options: ConnectionHandlerOptions = {}) {
+export function useConnectionHandlers(options: ConnectionHandlerOptions) {
+  const { store } = options;
+
   const handleConnect = useCallback(() => {
-    const store = useConnectionStore.getState();
-    store.setStatus("connected");
+    store.getState().setStatus("connected");
     options.onConnect?.();
-  }, [options.onConnect]);
+  }, [store, options.onConnect]);
 
   const handleDisconnect = useCallback(() => {
-    const store = useConnectionStore.getState();
-    store.setStatus("disconnected");
+    store.getState().setStatus("disconnected");
     options.onDisconnect?.();
-  }, [options.onDisconnect]);
+  }, [store, options.onDisconnect]);
 
   const handleError = useCallback(
     (payload: ServerErrorPayload) => {
-      const store = useConnectionStore.getState();
-      store.setError(payload.message);
+      store.getState().setError(payload.message);
       options.onError?.(payload.message);
     },
-    [options.onError],
+    [store, options.onError],
   );
 
   return {

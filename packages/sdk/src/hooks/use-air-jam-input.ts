@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { z } from "zod";
+import { useAirJamContext } from "../context/air-jam-context";
 import type { ControllerInputEvent } from "../protocol";
-import { getSocketClient } from "../socket-client";
 
 interface UseAirJamInputOptions<TInput = Record<string, unknown>> {
   /**
@@ -67,15 +67,15 @@ export const useAirJamInput = <TInput = Record<string, unknown>>(
   clearInput: (controllerId: string) => void;
 } => {
   const { schema } = options;
+  const { getSocket } = useAirJamContext();
+
   // Use a Map to store raw input for all controllers
   // Refs ensure this never triggers a React re-render (CRITICAL for game loops)
   const inputBuffer = useRef<Map<string, Record<string, unknown>>>(new Map());
 
   useEffect(() => {
-    // 1. Get the SAME socket instance used by useAirJamHost
-    // Since getSocketClient follows singleton pattern for the same role/url,
-    // this hook piggybacks on the existing connection.
-    const socket = getSocketClient("host");
+    // Get socket from context (same instance used by useAirJamHost)
+    const socket = getSocket("host");
 
     const handleInput = (payload: ControllerInputEvent): void => {
       // Security/Sanity check: Only process inputs from our room
@@ -92,7 +92,7 @@ export const useAirJamInput = <TInput = Record<string, unknown>>(
     return () => {
       socket.off("server:input", handleInput);
     };
-  }, [options.roomId]);
+  }, [options.roomId, getSocket]);
 
   /**
    * Reads the raw input for a specific controller.

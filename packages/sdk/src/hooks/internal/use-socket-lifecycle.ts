@@ -1,27 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ConnectionRole } from "../../protocol";
-import { getSocketClient } from "../../socket-client";
+import { useAirJamContext } from "../../context/air-jam-context";
+import type { AirJamSocket } from "../../context/socket-manager";
 
 /**
- * Manages socket connection lifecycle
+ * Manages socket connection lifecycle using context
  * Handles socket initialization, connection, and cleanup
  *
  * @param role - Connection role (host or controller)
- * @param serverUrl - Optional server URL override
  * @param shouldConnect - Whether to establish connection
  * @returns Socket instance and connection state
  */
 export function useSocketLifecycle(
   role: ConnectionRole,
-  serverUrl?: string,
   shouldConnect: boolean = true,
 ): {
-  socket: ReturnType<typeof getSocketClient> | null;
+  socket: AirJamSocket | null;
   isConnected: boolean;
 } {
+  const { getSocket } = useAirJamContext();
   const [isConnected, setIsConnected] = useState(false);
-  const [socket] = useState(() =>
-    shouldConnect ? getSocketClient(role, serverUrl) : null,
+
+  const socket = useMemo(
+    () => (shouldConnect ? getSocket(role) : null),
+    [shouldConnect, getSocket, role],
   );
 
   useEffect(() => {

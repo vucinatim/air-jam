@@ -76,9 +76,6 @@ const HostViewContent = (): JSX.Element => {
     onPlayerLeave: (controllerId: string) => {
       removePlayer(controllerId);
     },
-    controllerPath: "/joypad",
-    apiKey: import.meta.env.VITE_AIR_JAM_API_KEY,
-    serverUrl: import.meta.env.VITE_AIR_JAM_SERVER_URL,
   });
 
   useEffect(() => {
