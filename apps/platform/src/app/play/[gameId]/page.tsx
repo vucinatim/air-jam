@@ -4,10 +4,12 @@ import { ArcadeSystem } from "@/components/arcade";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
+import { AirJamProvider } from "@air-jam/sdk";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use } from "react";
+import { z } from "zod";
 
 export default function PlayGamePage({
   params,
@@ -25,7 +27,7 @@ export default function PlayGamePage({
   if (isLoading) {
     return (
       <div className="flex h-screen flex-col bg-slate-950">
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-4">
+        <div className="bg-airjam-cyan/10 flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
           <Skeleton className="h-6 w-32 bg-slate-800" />
           <Skeleton className="h-6 w-48 bg-slate-800" />
         </div>
@@ -62,28 +64,47 @@ export default function PlayGamePage({
     url: game.url,
   };
 
+  // Input schema for arcade navigation
+  const arcadeInputSchema = z.object({
+    vector: z.object({
+      x: z.number(),
+      y: z.number(),
+    }),
+    action: z.boolean(),
+  });
+
   return (
-    <div className="flex h-screen flex-col bg-slate-950">
-      {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
-      <div className="relative z-100">
-        <PreviewHeader
-          gameId={game.id}
-          gameName={game.name}
-          gameUrl={game.url}
-        />
+    <AirJamProvider
+      input={{
+        schema: arcadeInputSchema,
+        latch: {
+          booleanFields: ["action"],
+          vectorFields: ["vector"],
+        },
+      }}
+    >
+      <div className="flex h-screen flex-col bg-slate-950">
+        {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
+        <div className="relative z-100">
+          <PreviewHeader
+            gameId={game.id}
+            gameName={game.name}
+            gameUrl={game.url}
+          />
+        </div>
+        <div className="relative flex-1">
+          {/* Game Container - Takes remaining space */}
+          <ArcadeSystem
+            games={[arcadeGame]}
+            mode="preview"
+            initialGameId={game.id}
+            onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
+            showGameExitOverlay={false}
+            className="flex-1"
+          />
+        </div>
       </div>
-      <div className="relative flex-1">
-        {/* Game Container - Takes remaining space */}
-        <ArcadeSystem
-          games={[arcadeGame]}
-          mode="preview"
-          initialGameId={game.id}
-          onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
-          showGameExitOverlay={false}
-          className="flex-1"
-        />
-      </div>
-    </div>
+    </AirJamProvider>
   );
 }
 
@@ -98,7 +119,7 @@ const PreviewHeader = ({
   gameUrl: string;
 }) => {
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-4">
+    <div className="bg-airjam-cyan/10 flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
       <div className="flex items-center gap-4">
         <Link href={`/dashboard/games/${gameId}`}>
           <Button
@@ -114,7 +135,7 @@ const PreviewHeader = ({
           <h1 className="text-sm leading-none font-bold text-white">
             {gameName}
           </h1>
-          <span className="mt-1 text-xs text-blue-400">Preview Mode</span>
+          <span className="text-airjam-cyan mt-1 text-xs">Preview Mode</span>
         </div>
       </div>
       <div className="flex items-center gap-2">
