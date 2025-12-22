@@ -1,12 +1,12 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useGetInput } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { useBotManager } from "../bot-system/BotManager";
 import type { GameLoopInput } from "../types";
 
 export const useGameInput = () => {
-  // Get getInput from useAirJamHost (idempotent hook)
-  const { getInput: getInputFromHost } = useAirJamHost();
+  // Get getInput without subscribing to connection state
+  const getInputFromHost = useGetInput();
   const botManager = useBotManager.getState();
 
   // We need time for bot updates

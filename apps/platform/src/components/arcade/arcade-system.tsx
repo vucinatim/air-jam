@@ -7,7 +7,6 @@ import {
   urlBuilder,
   useAirJamHost,
 } from "@air-jam/sdk";
-import { z } from "zod";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArcadeLoader } from "./arcade-loader";
 import { GameBrowser } from "./game-browser";
@@ -62,15 +61,6 @@ export const ArcadeSystem = ({
   onExitGame,
   className,
 }: ArcadeSystemProps) => {
-  // Input schema for arcade navigation
-  const arcadeInputSchema = z.object({
-    vector: z.object({
-      x: z.number(),
-      y: z.number(),
-    }),
-    action: z.boolean(),
-  });
-
   // Ref for exit callback (used in onChildClose)
   const exitGameRef = useRef<() => void>(() => {});
   // Ref for launch callback (used in handleInput)
@@ -102,15 +92,8 @@ export const ArcadeSystem = ({
   const host = useAirJamHost({
     roomId: initialRoomId,
     apiKey,
-    input: {
-      schema: arcadeInputSchema,
-      latch: {
-        booleanFields: ["action"],
-        vectorFields: ["vector"],
-      },
-    },
     onPlayerJoin: () => {
-      broadcastCurrentState();
+      // Broadcast will be handled by effect below
     },
     onChildClose: () => {
       console.log("[Arcade] onChildClose callback fired");
@@ -118,6 +101,21 @@ export const ArcadeSystem = ({
     },
     forceConnect: true,
   });
+
+  const broadcastCurrentState = useCallback(() => {
+    if (!games || games.length === 0) return;
+    const currentGame = games[selectedIndex];
+
+    if (view === "browser") {
+      host.sendState({
+        message: currentGame ? currentGame.name : undefined,
+      });
+    } else if (view === "game" && activeGame) {
+      host.sendState({
+        message: activeGame.name,
+      });
+    }
+  }, [games, selectedIndex, view, host, activeGame]);
 
   // Process input for navigation (polling pattern)
   useEffect(() => {
@@ -177,21 +175,6 @@ export const ArcadeSystem = ({
 
     return () => clearInterval(interval);
   }, [host.getInput, host.players, games]);
-
-  const broadcastCurrentState = useCallback(() => {
-    if (!games || games.length === 0) return;
-    const currentGame = games[selectedIndex];
-
-    if (view === "browser") {
-      host.sendState({
-        message: currentGame ? currentGame.name : undefined,
-      });
-    } else if (view === "game" && activeGame) {
-      host.sendState({
-        message: activeGame.name,
-      });
-    }
-  }, [games, selectedIndex, view, host, activeGame]);
 
   const launchGame = useCallback(
     async (game: ArcadeGame) => {
@@ -315,6 +298,13 @@ export const ArcadeSystem = ({
     host.connectionStatus,
     broadcastCurrentState,
   ]);
+
+  // Broadcast when player joins
+  useEffect(() => {
+    if (host.players.length > 0) {
+      broadcastCurrentState();
+    }
+  }, [host.players.length, broadcastCurrentState]);
 
   // Loading state
   if (!games) {

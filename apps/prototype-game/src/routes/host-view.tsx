@@ -23,7 +23,6 @@ import { ScoreDisplay } from "../game/components/ScoreDisplay";
 import { useGameStore } from "../game/game-store";
 import { useBackgroundMusic } from "../game/hooks/useBackgroundMusic";
 import { SOUND_MANIFEST } from "../game/sounds";
-import { gameInputSchema } from "../game/types";
 
 const HostViewContent = (): JSX.Element => {
   const upsertPlayer = useGameStore((state) => state.upsertPlayer);
@@ -59,13 +58,6 @@ const HostViewContent = (): JSX.Element => {
 
   const host = useAirJamHost({
     roomId: persistedRoomId,
-    input: {
-      schema: gameInputSchema,
-      latch: {
-        booleanFields: ["action", "ability"],
-        vectorFields: ["vector"],
-      },
-    },
     onPlayerJoin: (player: PlayerProfile) => {
       upsertPlayer(player, player.id);
       // Play player join sound on host

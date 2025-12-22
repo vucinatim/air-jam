@@ -1,7 +1,4 @@
 import { create, type StoreApi } from "zustand";
-import { useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
-import type { InputManager } from "../internal/input-manager";
 import type {
   ConnectionRole,
   ConnectionStatus,
@@ -9,18 +6,6 @@ import type {
   PlayerProfile,
   RunMode,
 } from "../protocol";
-
-// Type for host options (avoiding circular dependency)
-export type HostOptions = {
-  roomId?: string;
-  input?: unknown;
-  onPlayerJoin?: (player: PlayerProfile) => void;
-  onPlayerLeave?: (controllerId: string) => void;
-  onChildClose?: () => void;
-  forceConnect?: boolean;
-  apiKey?: string;
-  maxPlayers?: number;
-};
 
 export interface AirJamStore {
   role: ConnectionRole | null;
@@ -32,6 +17,7 @@ export interface AirJamStore {
   stateMessage?: string;
   players: PlayerProfile[];
   lastError?: string;
+  registeredRoomId: string | null;
   setRole: (role: ConnectionRole | null) => void;
   setRoomId: (roomId: string | null) => void;
   setControllerId: (controllerId: string | null) => void;
@@ -45,13 +31,6 @@ export interface AirJamStore {
   removePlayer: (playerId: string) => void;
   resetPlayers: () => void;
   resetGameState: () => void;
-  // Host state (shared across all useAirJamHost calls)
-  hostInitialized: boolean;
-  inputManager: InputManager | null;
-  hostOptions: HostOptions | null;
-  registeredRoomId: string | null;
-  initializeHost: (options: HostOptions, inputManager: InputManager) => void;
-  getHostInputManager: () => InputManager | null;
   setRegisteredRoomId: (roomId: string | null) => void;
 }
 
@@ -60,7 +39,7 @@ export interface AirJamStore {
  * Each AirJamProvider creates its own store for multi-instance support.
  */
 export const createAirJamStore = (): StoreApi<AirJamStore> =>
-  create<AirJamStore>((set, get) => ({
+  create<AirJamStore>((set) => ({
     role: null,
     roomId: null,
     controllerId: null,
@@ -70,6 +49,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     stateMessage: undefined,
     players: [],
     lastError: undefined,
+    registeredRoomId: null,
     setRole: (role) => set({ role }),
     setRoomId: (roomId) => set({ roomId }),
     setControllerId: (controllerId) => set({ controllerId }),
@@ -100,33 +80,5 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
       })),
     resetPlayers: () => set({ players: [] }),
     resetGameState: () => set({ gameState: "paused", stateMessage: undefined }),
-    // Host state
-    hostInitialized: false,
-    inputManager: null,
-    hostOptions: null,
-    registeredRoomId: null,
-    initializeHost: (options, inputManager) => {
-      set({
-        hostInitialized: true,
-        inputManager,
-        hostOptions: options,
-      });
-    },
-    getHostInputManager: () => get().inputManager,
     setRegisteredRoomId: (roomId) => set({ registeredRoomId: roomId }),
   }));
-
-// ============================================================================
-// Legacy Global Store (deprecated - kept for backwards compatibility)
-// New code should use AirJamProvider and useAirJamContext instead
-// ============================================================================
-
-/** @deprecated Use AirJamProvider instead */
-export const useConnectionStore = createAirJamStore();
-
-/** @deprecated Use useAirJamState from context instead */
-export const useConnectionState = <T extends Record<string, unknown>>(
-  selector: (state: AirJamStore) => T,
-): T => {
-  return useStore(useConnectionStore, useShallow(selector));
-};

@@ -7,9 +7,11 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { DEFAULT_CONTROLLER_PATH, DEFAULT_MAX_PLAYERS } from "../constants";
+import { InputManager, type InputConfig } from "../internal/input-manager";
 import type { ConnectionRole } from "../protocol";
 import { createAirJamStore, type AirJamStore } from "../state/connection-store";
 import { SocketManager, type AirJamSocket } from "./socket-manager";
@@ -31,7 +33,9 @@ export interface AirJamConfig {
   publicHost?: string;
 }
 
-export interface AirJamProviderProps {
+export interface AirJamProviderProps<
+  TSchema extends z.ZodSchema = z.ZodSchema,
+> {
   children: ReactNode;
   /** WebSocket server URL. Falls back to VITE_AIR_JAM_SERVER_URL or NEXT_PUBLIC_AIR_JAM_SERVER_URL */
   serverUrl?: string;
@@ -43,6 +47,8 @@ export interface AirJamProviderProps {
   maxPlayers?: number;
   /** Public host for controller URLs */
   publicHost?: string;
+  /** Input handling configuration with optional validation and latching */
+  input?: InputConfig<TSchema>;
 }
 
 // ============================================================================
@@ -60,6 +66,8 @@ export interface AirJamContextValue {
   getSocket: (role: ConnectionRole) => AirJamSocket;
   /** Disconnect socket for a specific role */
   disconnectSocket: (role: ConnectionRole) => void;
+  /** InputManager instance (created from input config if provided) */
+  inputManager: InputManager | null;
 }
 
 const AirJamContext = createContext<AirJamContextValue | null>(null);
@@ -130,14 +138,15 @@ const getEnvApiKey = (): string | undefined => {
 // Provider Component
 // ============================================================================
 
-export const AirJamProvider = ({
+export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
   serverUrl,
   apiKey,
   controllerPath = DEFAULT_CONTROLLER_PATH,
   maxPlayers = DEFAULT_MAX_PLAYERS,
   publicHost,
-}: AirJamProviderProps) => {
+  input,
+}: AirJamProviderProps<TSchema>) => {
   // Resolve config with env fallbacks
   const config = useMemo<AirJamConfig>(
     () => ({
@@ -149,6 +158,14 @@ export const AirJamProvider = ({
     }),
     [serverUrl, apiKey, controllerPath, maxPlayers, publicHost],
   );
+
+  // Create InputManager from input config if provided
+  const inputManager = useMemo(() => {
+    if (!input) {
+      return null;
+    }
+    return new InputManager<TSchema>(input);
+  }, [input]);
 
   // Create context-bound store (once per provider)
   const store = useMemo(() => createAirJamStore(), []);
@@ -186,8 +203,9 @@ export const AirJamProvider = ({
       socketManager,
       getSocket,
       disconnectSocket,
+      inputManager,
     }),
-    [config, store, socketManager, getSocket, disconnectSocket],
+    [config, store, socketManager, getSocket, disconnectSocket, inputManager],
   );
 
   return (

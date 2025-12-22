@@ -8,9 +8,11 @@ import {
 } from "lucide-react";
 import type { JSX } from "react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { useAirJamContext } from "../context/air-jam-context";
 import { useFullscreen } from "../hooks/use-fullscreen";
-import type { ConnectionStatus } from "../protocol";
-import { useConnectionState } from "../state/connection-store";
+import type { ConnectionStatus, PlayerProfile } from "../protocol";
 import { cn } from "../utils/cn";
 import { detectRunMode } from "../utils/mode";
 import { QRScannerDialog } from "./qr-scanner-dialog";
@@ -82,16 +84,22 @@ export const ControllerShell = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const { isFullscreen, toggleFullscreen } = useFullscreen();
 
+  // Get store from context
+  const { store } = useAirJamContext();
+
   // Get current player info from connection store
-  const { controllerId, players } = useConnectionState((state) => ({
-    controllerId: state.controllerId,
-    players: state.players,
-  }));
+  const { controllerId, players } = useStore(
+    store,
+    useShallow((state: { controllerId: string | null; players: PlayerProfile[] }) => ({
+      controllerId: state.controllerId,
+      players: state.players,
+    })),
+  );
 
   // Find current player profile - must exist from server (single source of truth)
   const currentPlayer = useMemo(() => {
     if (!controllerId) return null;
-    const found = players.find((p) => p.id === controllerId);
+    const found = players.find((p: PlayerProfile) => p.id === controllerId);
 
     // Only warn if we are fully connected and still can't find the player
     // This avoids race conditions during the initial connection handshake

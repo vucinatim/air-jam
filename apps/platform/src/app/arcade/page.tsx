@@ -4,6 +4,7 @@ import { ArcadeLoader, ArcadeSystem } from "@/components/arcade";
 import { api } from "@/trpc/react";
 import { AirJamProvider } from "@air-jam/sdk";
 import { useState } from "react";
+import { z } from "zod";
 
 export default function ArcadePage() {
   // Persist Room ID for development convenience
@@ -31,8 +32,25 @@ export default function ArcadePage() {
     url: game.url,
   }));
 
+  // Input schema for arcade navigation
+  const arcadeInputSchema = z.object({
+    vector: z.object({
+      x: z.number(),
+      y: z.number(),
+    }),
+    action: z.boolean(),
+  });
+
   return (
-    <AirJamProvider>
+    <AirJamProvider
+      input={{
+        schema: arcadeInputSchema,
+        latch: {
+          booleanFields: ["action"],
+          vectorFields: ["vector"],
+        },
+      }}
+    >
       <ArcadeSystem
         games={arcadeGames}
         mode="arcade"
