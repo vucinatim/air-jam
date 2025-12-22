@@ -1,17 +1,13 @@
-import type { HapticSignalPayload, ToastSignalPayload } from "@air-jam/sdk";
 import { PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { useEffect, useRef } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
-import { InputProvider } from "../context/input-context";
-import { SignalProvider } from "../context/signal-context";
 import { useDebugStore } from "../debug-store";
 import { useGameStore } from "../game-store";
 import { useCameraFollow } from "../hooks/useCameraFollow";
 import { useCameraViewports } from "../hooks/useCameraViewports";
 import { useMultiViewportRenderer } from "../hooks/useMultiViewportRenderer";
-import type { GameLoopInput } from "../types";
 import { ArenaBounds } from "./ArenaBounds";
 import { Collectibles } from "./Collectibles";
 import { CollectibleSpawner } from "./CollectibleSpawner";
@@ -109,15 +105,8 @@ function MultiCameraController({
   );
 }
 
-type SendSignalFn = {
-  (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
-  (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
-};
-
 export function GameScene({
   onCamerasReady,
-  getInput,
-  sendSignal,
 }: {
   onCamerasReady?: (
     cameras: Array<{
@@ -125,12 +114,10 @@ export function GameScene({
       viewport: { x: number; y: number; width: number; height: number };
     }>,
   ) => void;
-  getInput?: (controllerId: string) => GameLoopInput | undefined;
-  sendSignal?: SendSignalFn;
 }) {
   const isDebugPanelOpen = useDebugStore((state) => state.isOpen);
 
-  const content = (
+  return (
     <Canvas shadows gl={{ antialias: true }}>
       <Physics
         gravity={[0, 0, 0]}
@@ -154,19 +141,4 @@ export function GameScene({
       </Physics>
     </Canvas>
   );
-
-  // Wrap with providers if available
-  let wrappedContent = content;
-  if (getInput) {
-    wrappedContent = (
-      <InputProvider getInput={getInput}>{wrappedContent}</InputProvider>
-    );
-  }
-  if (sendSignal) {
-    wrappedContent = (
-      <SignalProvider sendSignal={sendSignal}>{wrappedContent}</SignalProvider>
-    );
-  }
-
-  return wrappedContent;
 }

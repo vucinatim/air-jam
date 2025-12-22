@@ -1,6 +1,7 @@
 import { create, type StoreApi } from "zustand";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
+import type { InputManager } from "../internal/input-manager";
 import type {
   ConnectionRole,
   ConnectionStatus,
@@ -8,6 +9,18 @@ import type {
   PlayerProfile,
   RunMode,
 } from "../protocol";
+
+// Type for host options (avoiding circular dependency)
+export type HostOptions = {
+  roomId?: string;
+  input?: unknown;
+  onPlayerJoin?: (player: PlayerProfile) => void;
+  onPlayerLeave?: (controllerId: string) => void;
+  onChildClose?: () => void;
+  forceConnect?: boolean;
+  apiKey?: string;
+  maxPlayers?: number;
+};
 
 export interface AirJamStore {
   role: ConnectionRole | null;
@@ -32,6 +45,14 @@ export interface AirJamStore {
   removePlayer: (playerId: string) => void;
   resetPlayers: () => void;
   resetGameState: () => void;
+  // Host state (shared across all useAirJamHost calls)
+  hostInitialized: boolean;
+  inputManager: InputManager | null;
+  hostOptions: HostOptions | null;
+  registeredRoomId: string | null;
+  initializeHost: (options: HostOptions, inputManager: InputManager) => void;
+  getHostInputManager: () => InputManager | null;
+  setRegisteredRoomId: (roomId: string | null) => void;
 }
 
 /**
@@ -39,7 +60,7 @@ export interface AirJamStore {
  * Each AirJamProvider creates its own store for multi-instance support.
  */
 export const createAirJamStore = (): StoreApi<AirJamStore> =>
-  create<AirJamStore>((set) => ({
+  create<AirJamStore>((set, get) => ({
     role: null,
     roomId: null,
     controllerId: null,
@@ -79,6 +100,20 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
       })),
     resetPlayers: () => set({ players: [] }),
     resetGameState: () => set({ gameState: "paused", stateMessage: undefined }),
+    // Host state
+    hostInitialized: false,
+    inputManager: null,
+    hostOptions: null,
+    registeredRoomId: null,
+    initializeHost: (options, inputManager) => {
+      set({
+        hostInitialized: true,
+        inputManager,
+        hostOptions: options,
+      });
+    },
+    getHostInputManager: () => get().inputManager,
+    setRegisteredRoomId: (roomId) => set({ registeredRoomId: roomId }),
   }));
 
 // ============================================================================

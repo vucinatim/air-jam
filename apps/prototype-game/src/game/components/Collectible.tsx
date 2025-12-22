@@ -1,7 +1,7 @@
-import { useAudio } from "@air-jam/sdk";
+import { useAudio, useSendSignal } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
   AdditiveBlending,
@@ -17,7 +17,6 @@ import {
   useAbilitiesStore,
 } from "../abilities-store";
 import { CollectibleData, useCollectiblesStore } from "../collectibles-store";
-import { useSignalContext } from "../context/signal-context";
 import { SOUND_MANIFEST } from "../sounds";
 
 interface CollectibleProps {
@@ -162,7 +161,7 @@ const createLightPillarFragment = (colorHex: number) => {
   `;
 };
 
-export function Collectible({ collectible }: CollectibleProps) {
+const CollectibleComponent = ({ collectible }: CollectibleProps) => {
   // Get ability definition to determine rarity and color
   const abilityDef = getAbilityDefinition(collectible.abilityId);
   const rarity = abilityDef?.rarity ?? "common";
@@ -201,7 +200,7 @@ export function Collectible({ collectible }: CollectibleProps) {
   );
   const collectAbility = useAbilitiesStore((state) => state.collectAbility);
   const audio = useAudio(SOUND_MANIFEST);
-  const sendSignal = useSignalContext();
+  const sendSignal = useSendSignal();
 
   // Light pillar geometry - cone shape, wide at base, point at top
   const pillarGeometry = useMemo(() => {
@@ -306,4 +305,10 @@ export function Collectible({ collectible }: CollectibleProps) {
       )}
     </>
   );
-}
+};
+
+// Memoize to prevent re-renders when parent (Collectibles) re-renders due to store updates
+export const Collectible = memo(CollectibleComponent, (prev, next) => {
+  // Only re-render if collectible data actually changed
+  return prev.collectible.id === next.collectible.id;
+});

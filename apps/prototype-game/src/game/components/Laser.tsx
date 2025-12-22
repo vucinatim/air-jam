@@ -1,7 +1,7 @@
-import { useAudio } from "@air-jam/sdk";
+import { useSendSignal, useAudio } from "@air-jam/sdk";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRapier, type RapierRigidBody } from "@react-three/rapier";
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef } from "react";
 import type { Mesh } from "three";
 import {
   BoxGeometry,
@@ -11,7 +11,6 @@ import {
   Raycaster,
   Vector3,
 } from "three";
-import { useSignalContext } from "../context/signal-context";
 import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
 import { useLasersStore } from "../lasers-store";
@@ -29,12 +28,11 @@ const LASER_LIFETIME = 2; // seconds
 const KNOCKBACK_FORCE = 300; // Force applied when laser hits a ship
 const LASER_DAMAGE = 20; // Health damage when laser hits a ship
 
-export function Laser({ id, position, direction, controllerId }: LaserProps) {
+const LaserComponent = ({ id, position, direction, controllerId }: LaserProps) => {
   const { scene } = useThree();
   const { world } = useRapier();
-  const [currentPosition, setCurrentPosition] = useState(
-    () => new Vector3(...position),
-  );
+  // Use refs instead of state to avoid re-renders every frame
+  const currentPositionRef = useRef(new Vector3(...position));
   const previousPositionRef = useRef(new Vector3(...position));
   const lifetimeRef = useRef(0);
   const hasHitRef = useRef(false);
@@ -44,7 +42,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
   const raycasterRef = useRef(new Raycaster());
   const meshRef = useRef<Mesh>(null);
   const audio = useAudio(SOUND_MANIFEST);
-  const sendSignal = useSignalContext();
+  const sendSignal = useSendSignal();
 
   // Create elongated box geometry (width, height, length)
   // Similar to the example: BoxGeometry(0.2, 0.2, 4)
@@ -87,7 +85,7 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
     // Update position based on direction and speed
     const normalizedDir = direction.clone().normalize();
     const movement = normalizedDir.multiplyScalar(LASER_SPEED * delta);
-    const newPosition = currentPosition.clone().add(movement);
+    const newPosition = currentPositionRef.current.clone().add(movement);
 
     // Cast a ray from previous position to current position
     // This ensures we detect hits even for fast-moving lasers
@@ -275,9 +273,13 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
       }
     }
 
-    // Update position for next frame
-    setCurrentPosition(newPosition);
+    // Update position for next frame (mutate refs, no re-render)
+    currentPositionRef.current.copy(newPosition);
     previousPositionRef.current.copy(newPosition);
+    // Update mesh position directly
+    if (meshRef.current) {
+      meshRef.current.position.copy(newPosition);
+    }
 
     // Check lifetime
     lifetimeRef.current += delta;
@@ -289,11 +291,24 @@ export function Laser({ id, position, direction, controllerId }: LaserProps) {
   return (
     <mesh
       ref={meshRef}
-      position={currentPosition}
+      position={position}
       geometry={geometry}
       material={material}
       castShadow
       quaternion={rotationQuaternion}
     />
   );
-}
+};
+
+// Memoize to prevent re-renders when parent (Lasers) re-renders due to store updates
+export const Laser = memo(LaserComponent, (prev, next) => {
+  // Only re-render if props actually changed
+  return (
+    prev.id === next.id &&
+    prev.controllerId === next.controllerId &&
+    prev.position[0] === next.position[0] &&
+    prev.position[1] === next.position[1] &&
+    prev.position[2] === next.position[2] &&
+    prev.direction.equals(next.direction)
+  );
+});

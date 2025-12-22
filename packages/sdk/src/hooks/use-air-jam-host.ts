@@ -81,11 +81,54 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
   // Get context
   const { config, store, getSocket, disconnectSocket } = useAirJamContext();
 
-  // Create InputManager instance if input config is provided
+  // Check if already initialized
+  const hostInitialized = useStore(store, (s) => s.hostInitialized);
+  const storedInputManager = useStore(store, (s) => s.inputManager);
+  const storedOptions = useStore(store, (s) => s.hostOptions);
+
+  // Warn if trying to initialize with different options
+  useEffect(() => {
+    if (hostInitialized && Object.keys(options).length > 0) {
+      console.warn(
+        "[useAirJamHost] Host already initialized. Options from subsequent calls are ignored. " +
+          "Initialize once at the top level of your app.",
+      );
+    }
+  }, [hostInitialized, options]);
+
+  // Get or create InputManager
   const inputManager = useMemo(() => {
-    if (!options.input) return null;
-    return new InputManager<TSchema>(options.input);
-  }, [options.input]);
+    if (storedInputManager) {
+      // Already initialized - reuse existing
+      return storedInputManager;
+    }
+    if (!options.input) {
+      // No input config - no InputManager needed
+      return null;
+    }
+    // First call with input config - create and store
+    const manager = new InputManager<TSchema>(options.input);
+    return manager;
+  }, [storedInputManager, options.input]);
+
+  // Initialize on first call with options
+  useEffect(() => {
+    if (!hostInitialized && options && Object.keys(options).length > 0) {
+      if (inputManager) {
+        store.getState().initializeHost(options, inputManager);
+      } else if (Object.keys(options).length > 0) {
+        // Options provided but no input config - still initialize
+        store
+          .getState()
+          .initializeHost(options, null as unknown as InputManager);
+      }
+    }
+  }, [hostInitialized, options, inputManager, store]);
+
+  // Use stored options if available, otherwise use provided options
+  const effectiveOptions =
+    hostInitialized && storedOptions ? storedOptions : options;
+  const effectiveInputManager = storedInputManager || inputManager;
 
   // Detect if running in Arcade Mode (via URL params)
   const arcadeParams = useMemo(() => {
@@ -129,32 +172,49 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
       }
     }
 
-    if (options.roomId) {
-      return roomCodeSchema.parse(options.roomId.toUpperCase());
+    const roomIdOption = effectiveOptions?.roomId || options.roomId;
+    if (roomIdOption) {
+      return roomCodeSchema.parse(roomIdOption.toUpperCase());
     }
 
     return fallbackRoomId;
-  }, [options.roomId, fallbackRoomId, arcadeParams]);
+  }, [effectiveOptions?.roomId, options.roomId, fallbackRoomId, arcadeParams]);
 
   // Update InputManager room ID when parsedRoomId changes
   useEffect(() => {
-    if (inputManager) {
-      inputManager.setRoomId(parsedRoomId);
+    if (effectiveInputManager) {
+      effectiveInputManager.setRoomId(parsedRoomId);
     }
-  }, [inputManager, parsedRoomId]);
+  }, [effectiveInputManager, parsedRoomId]);
 
   const [joinUrl, setJoinUrl] = useState<string>("");
 
-  // Keep callback refs stable
-  const onPlayerJoinRef = useRef(options.onPlayerJoin);
-  const onPlayerLeaveRef = useRef(options.onPlayerLeave);
-  const onChildCloseRef = useRef(options.onChildClose);
+  // Keep callback refs stable (use effective options)
+  const onPlayerJoinRef = useRef(
+    effectiveOptions?.onPlayerJoin || options.onPlayerJoin,
+  );
+  const onPlayerLeaveRef = useRef(
+    effectiveOptions?.onPlayerLeave || options.onPlayerLeave,
+  );
+  const onChildCloseRef = useRef(
+    effectiveOptions?.onChildClose || options.onChildClose,
+  );
 
   useEffect(() => {
-    onPlayerJoinRef.current = options.onPlayerJoin;
-    onPlayerLeaveRef.current = options.onPlayerLeave;
-    onChildCloseRef.current = options.onChildClose;
-  }, [options.onPlayerJoin, options.onPlayerLeave, options.onChildClose]);
+    onPlayerJoinRef.current =
+      effectiveOptions?.onPlayerJoin || options.onPlayerJoin;
+    onPlayerLeaveRef.current =
+      effectiveOptions?.onPlayerLeave || options.onPlayerLeave;
+    onChildCloseRef.current =
+      effectiveOptions?.onChildClose || options.onChildClose;
+  }, [
+    effectiveOptions?.onPlayerJoin,
+    effectiveOptions?.onPlayerLeave,
+    effectiveOptions?.onChildClose,
+    options.onPlayerJoin,
+    options.onPlayerLeave,
+    options.onChildClose,
+  ]);
 
   // Subscribe to store state
   const connectionState = useStore(
@@ -251,8 +311,9 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     })();
   }, [parsedRoomId, config.controllerPath, config.publicHost]);
 
-  // Track if we've already registered to prevent duplicate registrations
-  const registeredRoomIdRef = useRef<RoomCode | null>(null);
+  // Get setRegisteredRoomId from store (shared across all useAirJamHost instances)
+  // Note: We use store.getState().registeredRoomId inside effects to get the freshest value
+  const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
 
   // Main connection effect
   useEffect(() => {
@@ -271,8 +332,9 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     const registerHost = async () => {
       const storeState = store.getState();
 
-      // Prevent duplicate registration for the same room
-      if (registeredRoomIdRef.current === parsedRoomId && socket.connected) {
+      // Prevent duplicate registration for the same room (use getState for freshest value)
+      const currentRegisteredRoomId = store.getState().registeredRoomId;
+      if (currentRegisteredRoomId === parsedRoomId && socket.connected) {
         return;
       }
 
@@ -289,34 +351,37 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
           if (!ack.ok) {
             storeState.setError(ack.message ?? "Failed to join as child");
             storeState.setStatus("disconnected");
-            registeredRoomIdRef.current = null;
+            setRegisteredRoomId(null);
             return;
           }
           storeState.setStatus("connected");
           storeState.setRoomId(childRoomId);
-          registeredRoomIdRef.current = childRoomId;
+          setRegisteredRoomId(childRoomId);
         });
       } else {
         // Standalone Mode - register as master host
         const payload = hostRegistrationSchema.parse({
           roomId: parsedRoomId,
-          maxPlayers: options.maxPlayers ?? config.maxPlayers,
-          apiKey: options.apiKey ?? config.apiKey,
+          maxPlayers:
+            effectiveOptions?.maxPlayers ??
+            options.maxPlayers ??
+            config.maxPlayers,
+          apiKey: effectiveOptions?.apiKey ?? options.apiKey ?? config.apiKey,
         });
 
         socket.emit("host:register", payload, (ack) => {
           if (!ack.ok) {
             storeState.setError(ack.message ?? "Failed to register host");
             storeState.setStatus("disconnected");
-            registeredRoomIdRef.current = null;
+            setRegisteredRoomId(null);
             return;
           }
           storeState.setStatus("connected");
           if (ack.roomId) {
             storeState.setRoomId(ack.roomId);
-            registeredRoomIdRef.current = ack.roomId;
+            setRegisteredRoomId(ack.roomId);
           } else {
-            registeredRoomIdRef.current = parsedRoomId;
+            setRegisteredRoomId(parsedRoomId);
           }
         });
       }
@@ -351,8 +416,8 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     const handleInput = (payload: ControllerInputEvent): void => {
       // Handle input via InputManager if configured
-      if (inputManager) {
-        inputManager.handleInput(payload);
+      if (effectiveInputManager) {
+        effectiveInputManager.handleInput(payload);
       }
     };
 
@@ -389,16 +454,14 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     socket.connect();
 
     // If socket is already connected, register immediately
-    if (socket.connected && registeredRoomIdRef.current !== parsedRoomId) {
+    const currentRegisteredRoomId = store.getState().registeredRoomId;
+    if (socket.connected && currentRegisteredRoomId !== parsedRoomId) {
       registerHost();
     }
 
     // Reset registered room when parsedRoomId changes
-    if (
-      registeredRoomIdRef.current &&
-      registeredRoomIdRef.current !== parsedRoomId
-    ) {
-      registeredRoomIdRef.current = null;
+    if (currentRegisteredRoomId && currentRegisteredRoomId !== parsedRoomId) {
+      setRegisteredRoomId(null);
     }
 
     return () => {
@@ -411,9 +474,12 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
       socket.off("server:closeChild", handleChildClose);
       socket.off("server:state", handleState);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     config.maxPlayers,
     config.apiKey,
+    effectiveOptions?.maxPlayers,
+    effectiveOptions?.apiKey,
     options.maxPlayers,
     options.apiKey,
     parsedRoomId,
@@ -421,7 +487,7 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     shouldConnect,
     socket,
     store,
-    inputManager,
+    effectiveInputManager,
   ]);
 
   // Ensure we return a valid socket (use a no-op socket if not connected)
@@ -430,10 +496,18 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
   // Create getInput function - always available, returns undefined if no input config
   const getInput = useCallback(
     (controllerId: string): z.infer<TSchema> | undefined => {
-      if (!inputManager) return undefined;
-      return inputManager.getInput(controllerId);
+      if (!effectiveInputManager) {
+        if (process.env.NODE_ENV === "development" && !hostInitialized) {
+          console.warn(
+            "[useAirJamHost] No host initialization found. " +
+              "Call useAirJamHost({ input: {...} }) in a parent component first.",
+          );
+        }
+        return undefined;
+      }
+      return effectiveInputManager.getInput(controllerId);
     },
-    [inputManager],
+    [effectiveInputManager, hostInitialized],
   );
 
   return {

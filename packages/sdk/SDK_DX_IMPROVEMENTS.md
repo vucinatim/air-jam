@@ -1,294 +1,442 @@
-# Air Jam SDK - DX Refactor Checklist
+# Air Jam SDK - Idempotent Host Hook Implementation Plan
 
-> **Goal**: Clean, minimal API with the best possible developer experience before public release.
-> 
-> **Approach**: Complete refactor. No deprecated code, no legacy exports, no backward compatibility baggage.
+> **Goal**: Make `useAirJamHost()` callable from any component inside `<AirJamProvider>`, enabling the simplest possible DX with zero prop drilling.
 
 ---
 
-## Target API
+## Target Developer Experience
 
-After refactor, the SDK exposes **3 primary hooks**:
+```tsx
+// App.tsx
+<AirJamProvider>
+  <Game />
+</AirJamProvider>
 
-```typescript
-// Host-side (game)
-const { 
-  roomId,
-  joinUrl,
-  players,
-  connectionStatus,
-  gameState,
-  getInput,      // Polling for game loops (with optional latching)
-  sendSignal,    // Haptics, toasts to controllers
-  toggleGameState,
-} = useAirJamHost({ 
-  roomId?: string,
-  input?: {
-    schema?: ZodSchema,
-    latch?: { booleanFields?: string[], vectorFields?: string[] }
-  }
+// HostView.tsx (top-level initialization)
+const host = useAirJamHost({
+  roomId: "ABCD",
+  input: { schema: gameInputSchema, latch: { booleanFields: ["action"] } },
+  onPlayerJoin: (player) => console.log("Joined:", player),
 });
 
-// Controller-side (joypad)
-const {
-  connectionStatus,
-  sendInput,
-  triggerHaptic,
-} = useAirJamController({ roomId });
+// Ship.tsx (deep in component tree)
+const { getInput, sendSignal } = useAirJamHost();  // Just works!
 
-// Arcade shell (embedding games)
-const {
-  launchGame,
-  closeGame,
-  // ...
-} = useAirJamShell();
+// Collectible.tsx (another deep component)  
+const { sendSignal } = useAirJamHost();  // Same shared instance!
+```
+
+**One hook. Use it anywhere. That's it.**
+
+---
+
+## Current Architecture (Problem)
+
+```
+AirJamProvider
+  └── store (zustand) - connection state
+  └── socketManager - socket instances
+  
+useAirJamHost (called once)
+  └── Creates InputManager instance locally
+  └── Sets up socket listeners
+  └── Returns { getInput, sendSignal, players, ... }
+  └── Must pass these as props to children
+```
+
+**Problems:**
+1. `InputManager` created inside hook - not shared
+2. Calling `useAirJamHost()` twice creates duplicate InputManagers
+3. Forces prop drilling or custom contexts in games
+
+---
+
+## Target Architecture (Solution)
+
+```
+AirJamProvider
+  └── store (zustand) - connection state + host state
+  └── socketManager - socket instances  
+  └── hostState (new) - shared host state including InputManager
+  
+useAirJamHost (callable anywhere)
+  └── First call with options → initializes hostState
+  └── Subsequent calls → reads from hostState
+  └── All callers get same { getInput, sendSignal, players, ... }
 ```
 
 ---
 
-## 🔴 Phase 1: Core Refactor
+## Implementation Steps
 
-### 1. Unify Input Handling in useAirJamHost
+### Phase 1: Extend SDK Context
 
-**Remove**: `useAirJamInput`, `useAirJamInputLatch` as standalone hooks  
-**Add**: Built-in input handling with optional latching in `useAirJamHost`
+#### 1.1 Add Host State to Connection Store
 
-#### Subtasks
+**File:** `packages/sdk/src/state/connection-store.ts`
 
-- [ ] **1.1** Create internal `InputManager` class
-  - Handles socket listener for `server:input`
-  - Manages input buffer (Map per controllerId)
-  - Applies Zod validation if schema provided
-  - Applies latching if configured
-  - Single file: `packages/sdk/src/internal/input-manager.ts`
+Add to store interface:
+```typescript
+interface AirJamStore {
+  // ... existing fields ...
+  
+  // Host state (shared across all useAirJamHost calls)
+  hostInitialized: boolean;
+  inputManager: InputManager | null;
+  hostOptions: AirJamHostOptions | null;
+  
+  // Actions
+  initializeHost: (options: AirJamHostOptions, inputManager: InputManager) => void;
+  getHostInputManager: () => InputManager | null;
+}
+```
 
-- [ ] **1.2** Design `InputConfig` interface
-  ```typescript
-  interface InputConfig<TSchema extends z.ZodSchema = z.ZodSchema> {
-    schema?: TSchema;
-    latch?: {
-      booleanFields?: string[];
-      vectorFields?: string[];
-    };
+#### 1.2 Update Store Implementation
+
+```typescript
+export const createAirJamStore = () => create<AirJamStore>((set, get) => ({
+  // ... existing fields ...
+  
+  hostInitialized: false,
+  inputManager: null,
+  hostOptions: null,
+  
+  initializeHost: (options, inputManager) => {
+    set({ 
+      hostInitialized: true, 
+      inputManager,
+      hostOptions: options,
+    });
+  },
+  
+  getHostInputManager: () => get().inputManager,
+}));
+```
+
+---
+
+### Phase 2: Make useAirJamHost Idempotent
+
+#### 2.1 Refactor useAirJamHost Logic
+
+**File:** `packages/sdk/src/hooks/use-air-jam-host.ts`
+
+```typescript
+export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
+  options?: AirJamHostOptions<TSchema>,
+): AirJamHostApi<TSchema> => {
+  const { config, store, getSocket, disconnectSocket } = useAirJamContext();
+  
+  // Check if already initialized
+  const hostInitialized = useStore(store, (s) => s.hostInitialized);
+  const storedInputManager = useStore(store, (s) => s.inputManager);
+  
+  // Get or create InputManager
+  const inputManager = useMemo(() => {
+    if (storedInputManager) {
+      // Already initialized - reuse existing
+      return storedInputManager;
+    }
+    if (!options?.input) {
+      // No input config - no InputManager needed
+      return null;
+    }
+    // First call with input config - create and store
+    const manager = new InputManager(options.input);
+    return manager;
+  }, [storedInputManager, options?.input]);
+  
+  // Initialize on first call with options
+  useEffect(() => {
+    if (!hostInitialized && options && inputManager) {
+      store.getState().initializeHost(options, inputManager);
+    }
+  }, [hostInitialized, options, inputManager, store]);
+  
+  // ... rest of hook logic uses inputManager from store ...
+  
+  const getInput = useCallback(
+    (controllerId: string) => inputManager?.getInput(controllerId),
+    [inputManager]
+  );
+  
+  // ... return API ...
+};
+```
+
+#### 2.2 Key Behavior Changes
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| First call with options | Creates InputManager locally | Creates InputManager, stores in context |
+| Second call with options | Creates ANOTHER InputManager (bug!) | Reuses stored InputManager, ignores duplicate options |
+| Call without options | Fails (required params missing) | Reads from stored state (works!) |
+| Call before initialization | N/A | Returns partial state with warnings |
+
+---
+
+### Phase 3: Update InputManager Storage
+
+#### 3.1 Move InputManager to Context
+
+**Current:** InputManager created in useAirJamHost, stored in local ref
+**New:** InputManager stored in zustand store, shared across components
+
+#### 3.2 Socket Listener Management
+
+The InputManager needs the socket to listen for `server:input` events.
+
+**Option A:** Pass socket to InputManager constructor
+```typescript
+const inputManager = new InputManager(options.input, socket);
+```
+
+**Option B:** InputManager uses context to get socket
+```typescript
+class InputManager {
+  constructor(config, getSocket: () => AirJamSocket) {
+    this.getSocket = getSocket;
   }
-  ```
-
-- [ ] **1.3** Update `useAirJamHost` to accept `input` option
-  - Create InputManager instance internally
-  - Expose `getInput(controllerId)` method
-  - Return type inferred from schema: `z.infer<TSchema> | undefined`
-
-- [ ] **1.4** Remove `onInput` callback from `useAirJamHost`
-  - Delete `onInputRef` and related code
-  - Update `AirJamHostOptions` interface
-
-- [ ] **1.5** Delete standalone input hooks
-  - Delete `hooks/use-air-jam-input.ts`
-  - Delete `hooks/use-air-jam-input-latch.ts`
-  - Remove from `index.ts` exports
-
----
-
-### 2. Merge useAirJamHostSignal into useAirJamHost
-
-**Remove**: `useAirJamHostSignal` standalone hook  
-**Keep**: `sendSignal` already exists in `useAirJamHost`
-
-#### Subtasks
-
-- [ ] **2.1** Delete `hooks/use-air-jam-host-signal.ts`
-
-- [ ] **2.2** Remove from `index.ts` exports
-
----
-
-### 3. Merge useAirJamHaptics into useAirJamController
-
-**Remove**: `useAirJamHaptics` standalone hook  
-**Add**: Haptic methods directly on controller hook
-
-#### Subtasks
-
-- [ ] **3.1** Review `useAirJamHaptics` implementation
-  - Understand what it provides
-
-- [ ] **3.2** Add haptic functionality to `useAirJamController`
-  - Expose as `triggerHaptic(pattern)` or similar
-
-- [ ] **3.3** Delete `hooks/use-air-jam-haptics.ts`
-
-- [ ] **3.4** Remove from `index.ts` exports
-
----
-
-## 🟡 Phase 2: Clean Up Exports
-
-### 4. Remove Legacy Code
-
-#### Subtasks
-
-- [ ] **4.1** Delete legacy socket client
-  - Delete `socket-client.ts`
-  - Remove from `index.ts`
-
-- [ ] **4.2** Audit `state/connection-store.ts`
-  - If only used internally by context, don't export
-  - If truly unused, delete entirely
-
-- [ ] **4.3** Delete unused internal hooks
-  - Check `hooks/internal/use-socket-lifecycle.ts` - still needed?
-  - Check `hooks/internal/use-connection-handlers.ts` - still needed?
-  - Delete if unused after refactor
-
-- [ ] **4.4** Clean up `index.ts` exports
-  - Only export what developers need
-  - Group logically: Provider, Hooks, Components, Types, Utilities
-
----
-
-### 5. Simplify Type Inference
-
-#### Subtasks
-
-- [ ] **5.1** Update `getInput` to infer type from schema automatically
-  ```typescript
-  // Developer writes:
-  const { getInput } = useAirJamHost({
-    input: { schema: gameInputSchema }
-  });
-  const input = getInput(id); 
-  // Type is automatically z.infer<typeof gameInputSchema>
-  ```
-
-- [ ] **5.2** Remove need for explicit generic parameters
-  - Use Zod's type inference everywhere
-  - No `<GameInput>` generics needed
-
----
-
-## 🟢 Phase 3: Update Consumers
-
-### 6. Refactor prototype-game
-
-#### Subtasks
-
-- [ ] **6.1** Update `host-view.tsx`
-  - Remove `onInput` callback
-  - Use `host.getInput(controllerId)` pattern
-
-- [ ] **6.2** Delete or simplify `useGameInput` hook
-  - If only wrapping SDK, delete entirely
-  - Ship.tsx should use `host.getInput()` directly
-
-- [ ] **6.3** Remove unused `input-store.ts` from game
-  - If input comes directly from SDK, game doesn't need its own store
-
-- [ ] **6.4** Update `game-store.ts`
-  - Remove `applyInput` if unused
-  - Remove `useInputStore` imports if unused
-
-- [ ] **6.5** Verify controller-view.tsx still works
-  - Uses `useAirJamController` - should be unaffected
-
----
-
-### 7. Update platform app (if applicable)
-
-#### Subtasks
-
-- [ ] **7.1** Check `apps/platform` for SDK usage
-  - Update any imports that changed
-  - Test joypad page still works
-
----
-
-## 🔵 Phase 4: Polish
-
-### 8. Final Cleanup
-
-#### Subtasks
-
-- [ ] **8.1** Run TypeScript compiler across all packages
-  - `pnpm -r build`
-  - Fix any type errors
-
-- [ ] **8.2** Run linter across all packages
-  - `pnpm -r lint`
-  - Fix any violations
-
-- [ ] **8.3** Delete this checklist file after completion
-  - Or move to docs if useful as architecture reference
-
----
-
-### 9. Documentation
-
-#### Subtasks
-
-- [ ] **9.1** Update SDK README.md
-  - New API examples
-  - Clear "getting started" section
-
-- [ ] **9.2** Add JSDoc to all public exports
-  - Every hook, every option, every return value
-  - Include `@example` blocks
-
-- [ ] **9.3** Update SYSTEM_OVERVIEW.md
-  - Reflect new simplified architecture
-
----
-
-## 📊 Implementation Order
-
-| Step | What | Files Changed |
-|------|------|---------------|
-| 1 | Create InputManager | New: `internal/input-manager.ts` |
-| 2 | Update useAirJamHost | `hooks/use-air-jam-host.ts` |
-| 3 | Delete standalone input hooks | Delete 2 files |
-| 4 | Delete useAirJamHostSignal | Delete 1 file |
-| 5 | Merge haptics into controller | `hooks/use-air-jam-controller.ts`, delete 1 file |
-| 6 | Clean up legacy exports | `index.ts`, delete files |
-| 7 | Update prototype-game | Multiple game files |
-| 8 | Update platform app | If needed |
-| 9 | Final build & lint | All packages |
-| 10 | Documentation | README, JSDoc |
-
----
-
-## ✅ Definition of Done
-
-- [ ] SDK exports exactly 3 primary hooks: `useAirJamHost`, `useAirJamController`, `useAirJamShell`
-- [ ] Input handling (with latching) is built into `useAirJamHost`
-- [ ] No standalone `useAirJamInput`, `useAirJamInputLatch`, `useAirJamHostSignal`, `useAirJamHaptics`
-- [ ] No legacy exports (`socket-client`, global store)
-- [ ] TypeScript infers input types from Zod schema without generics
-- [ ] prototype-game works with new API
-- [ ] platform app works with new API
-- [ ] All packages build without errors
-- [ ] All packages lint without errors
-- [ ] README documents the new API clearly
-
----
-
-## Files to Delete
-
-```
-packages/sdk/src/
-├── hooks/
-│   ├── use-air-jam-input.ts         ❌ DELETE
-│   ├── use-air-jam-input-latch.ts   ❌ DELETE  
-│   ├── use-air-jam-host-signal.ts   ❌ DELETE
-│   ├── use-air-jam-haptics.ts       ❌ DELETE (merge into controller)
-│   └── internal/
-│       ├── use-socket-lifecycle.ts  ❓ DELETE if unused
-│       └── use-connection-handlers.ts ❓ DELETE if unused
-├── socket-client.ts                  ❌ DELETE (legacy)
+}
 ```
 
-## Files to Create
+**Recommendation:** Option A is simpler and more explicit.
+
+---
+
+### Phase 4: Handle Edge Cases
+
+#### 4.1 Multiple Calls with Different Options
+
+```typescript
+// HostView.tsx
+useAirJamHost({ input: { schema: schemaA } });
+
+// SomeOtherComponent.tsx  
+useAirJamHost({ input: { schema: schemaB } });  // Different schema!
+```
+
+**Behavior:** Log warning, use first initialization's options.
+
+```typescript
+if (hostInitialized && options) {
+  console.warn(
+    '[useAirJamHost] Host already initialized. Options from subsequent calls are ignored. ' +
+    'Initialize once at the top level of your app.'
+  );
+}
+```
+
+#### 4.2 Call Without Prior Initialization
+
+```typescript
+// Ship.tsx (no parent called useAirJamHost with options yet)
+const { getInput } = useAirJamHost();  // What happens?
+```
+
+**Behavior:** Return safe defaults, log warning in dev.
+
+```typescript
+if (!hostInitialized) {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(
+      '[useAirJamHost] No host initialization found. ' +
+      'Call useAirJamHost({ input: {...} }) in a parent component first.'
+    );
+  }
+  // Return safe API with no-op functions
+  return {
+    getInput: () => undefined,
+    sendSignal: () => {},
+    // ... other safe defaults
+  };
+}
+```
+
+#### 4.3 Cleanup on Unmount
+
+When the initializing component unmounts, should we clean up?
+
+**Recommendation:** NO. Keep state alive for the lifetime of AirJamProvider.
+- Host state should persist even if the initializing component remounts
+- Only clean up when AirJamProvider unmounts
+
+---
+
+### Phase 5: Update Prototype Game
+
+#### 5.1 Files to Delete
 
 ```
-packages/sdk/src/
-├── internal/
-│   └── input-manager.ts              ✅ CREATE
+apps/prototype-game/src/game/
+├── context/
+│   ├── input-context.tsx    ❌ DELETE
+│   └── signal-context.tsx   ❌ DELETE
 ```
+
+#### 5.2 Files to Simplify
+
+**GameScene.tsx** - Remove provider wrapping:
+```tsx
+// Before
+<InputProvider getInput={getInput}>
+  <SignalProvider sendSignal={sendSignal}>
+    {content}
+  </SignalProvider>
+</InputProvider>
+
+// After
+{content}
+```
+
+Remove props from GameScene:
+```tsx
+// Before
+export function GameScene({ onCamerasReady, getInput, sendSignal }) { ... }
+
+// After  
+export function GameScene({ onCamerasReady }) { ... }
+```
+
+**host-view.tsx** - Remove prop passing:
+```tsx
+// Before
+<GameScene getInput={host.getInput} sendSignal={host.sendSignal} />
+
+// After
+<GameScene />
+```
+
+#### 5.3 Files to Update
+
+**Ship.tsx:**
+```tsx
+// Before
+import { useSignalContext } from "../context/signal-context";
+import { useGameInput } from "../hooks/useGameInput";
+
+const sendSignal = useSignalContext();
+const { popInput } = useGameInput();
+
+// After
+import { useAirJamHost } from "@air-jam/sdk";
+
+const { getInput, sendSignal } = useAirJamHost();
+```
+
+**useGameInput.ts** - Simplify to only handle bots:
+```tsx
+// Before: Reads from custom context, handles bots
+// After: Just handles bot input logic
+
+export const useGameInput = () => {
+  const { getInput } = useAirJamHost();
+  const botManager = useBotManager.getState();
+  
+  const popInput = (controllerId: string) => {
+    if (controllerId.startsWith("bot-")) {
+      return botManager.getBotInput(controllerId, ...);
+    }
+    return getInput(controllerId);
+  };
+  
+  return { popInput };
+};
+```
+
+---
+
+## Implementation Checklist
+
+### SDK Changes
+
+- [ ] **1.1** Add `hostInitialized`, `inputManager`, `hostOptions` to connection store
+- [ ] **1.2** Add `initializeHost()` action to store
+- [ ] **2.1** Refactor useAirJamHost to check for existing initialization
+- [ ] **2.2** Store InputManager in context on first call with options
+- [ ] **2.3** Reuse stored InputManager on subsequent calls
+- [ ] **2.4** Handle calls without options (read-only mode)
+- [ ] **3.1** Update InputManager to accept socket in constructor
+- [ ] **4.1** Add warning for duplicate initialization with different options
+- [ ] **4.2** Add warning for calls before initialization (dev only)
+- [ ] **4.3** Verify cleanup behavior on provider unmount
+
+### Prototype Game Changes
+
+- [ ] **5.1** Delete `context/input-context.tsx`
+- [ ] **5.2** Delete `context/signal-context.tsx`
+- [ ] **5.3** Remove props from GameScene component
+- [ ] **5.4** Remove provider wrapping in GameScene
+- [ ] **5.5** Update Ship.tsx to use `useAirJamHost()` directly
+- [ ] **5.6** Update any other components using contexts
+- [ ] **5.7** Simplify useGameInput.ts (bot logic only)
+- [ ] **5.8** Test full game flow works
+
+### Verification
+
+- [ ] Build SDK without errors
+- [ ] Build prototype-game without errors
+- [ ] Test: Input works in Ship component
+- [ ] Test: Signals work (haptics, toasts)
+- [ ] Test: Multiple components can call useAirJamHost()
+- [ ] Test: React Strict Mode double-mount works
+
+---
+
+## API Documentation (Post-Implementation)
+
+### useAirJamHost
+
+```typescript
+function useAirJamHost<TSchema extends z.ZodSchema>(
+  options?: AirJamHostOptions<TSchema>
+): AirJamHostApi<TSchema>;
+```
+
+**Usage Patterns:**
+
+```tsx
+// Pattern 1: Initialize with options (call once, typically in HostView)
+const host = useAirJamHost({
+  roomId: "ABCD",
+  input: {
+    schema: gameInputSchema,
+    latch: { booleanFields: ["action", "ability"] }
+  },
+  onPlayerJoin: (player) => { ... },
+});
+
+// Pattern 2: Read-only access (call anywhere after initialization)
+const { getInput, sendSignal, players } = useAirJamHost();
+
+// Pattern 3: Partial access (destructure only what you need)
+const { sendSignal } = useAirJamHost();  // Just need signals
+const { players } = useAirJamHost();     // Just need player list
+```
+
+**Returns:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `roomId` | `string` | Current room code |
+| `joinUrl` | `string` | URL for controllers to join |
+| `players` | `PlayerProfile[]` | Connected players |
+| `connectionStatus` | `ConnectionStatus` | Connection state |
+| `gameState` | `GameState` | Playing/paused state |
+| `getInput` | `(id: string) => Input` | Get input for controller |
+| `sendSignal` | `(type, payload, id?) => void` | Send signal to controller(s) |
+| `toggleGameState` | `() => void` | Toggle play/pause |
+
+---
+
+## Summary
+
+This refactor achieves:
+
+1. ✅ **One hook** - `useAirJamHost()` is the only host-side hook
+2. ✅ **Use anywhere** - Works in any component inside AirJamProvider
+3. ✅ **No prop drilling** - No passing getInput/sendSignal through props
+4. ✅ **No custom contexts** - Games don't need InputProvider/SignalProvider
+5. ✅ **Idempotent** - Safe to call multiple times
+6. ✅ **Type-safe** - Schema inference still works
+7. ✅ **Clean game code** - Ship.tsx just imports and uses the SDK hook

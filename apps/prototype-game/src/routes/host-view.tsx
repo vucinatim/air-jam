@@ -22,8 +22,8 @@ import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
 import { ScoreDisplay } from "../game/components/ScoreDisplay";
 import { useGameStore } from "../game/game-store";
 import { useBackgroundMusic } from "../game/hooks/useBackgroundMusic";
-import { gameInputSchema } from "../game/types";
 import { SOUND_MANIFEST } from "../game/sounds";
+import { gameInputSchema } from "../game/types";
 
 const HostViewContent = (): JSX.Element => {
   const upsertPlayer = useGameStore((state) => state.upsertPlayer);
@@ -154,11 +154,7 @@ const HostViewContent = (): JSX.Element => {
             isEditorOpen ? "w-1/2" : "w-full"
           }`}
         >
-          <GameScene
-            onCamerasReady={setCameras}
-            getInput={host.getInput}
-            sendSignal={host.sendSignal}
-          />
+          <GameScene onCamerasReady={setCameras} />
           {cameras.length > 0 && canvasRef.current && (
             <PlayerHUDOverlay
               canvasElement={canvasRef.current}

@@ -6,7 +6,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 
-import { useAudio } from "@air-jam/sdk";
+import { useAudio, useSendSignal, type SendSignalFn } from "@air-jam/sdk";
 import { getAbilityVisual, useAbilitiesStore } from "../abilities-store";
 import { useCaptureTheFlagStore } from "../capture-the-flag-store";
 import {
@@ -21,7 +21,6 @@ import {
 } from "../constants";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
-import { useSignalContext } from "../context/signal-context";
 import { useGameInput } from "../hooks/useGameInput";
 import { useLasersStore } from "../lasers-store";
 import { usePlayerStatsStore } from "../player-stats-store";
@@ -93,7 +92,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
   // --- Audio ---
   const audio = useAudio(SOUND_MANIFEST);
-  const sendSignal = useSignalContext();
+  const sendSignal = useSendSignal();
 
   // --- Input Hook (Zero re-renders, high-performance) ---
   const { popInput } = useGameInput();
@@ -678,7 +677,7 @@ function handleAbilities(
   id: string,
   delta: number,
   audio: ReturnType<typeof useAudio>,
-  sendSignal: ReturnType<typeof useSignalContext>,
+  sendSignal: SendSignalFn,
 ) {
   // The input hook already handled the latch pattern and consumption
   // We just need to check if ability button is pressed and we have a queued ability
@@ -728,7 +727,7 @@ interface HandleShootingParams {
     timestamp: number;
   }) => void;
   audio: ReturnType<typeof useAudio>;
-  sendSignal: ReturnType<typeof useSignalContext>;
+  sendSignal: SendSignalFn;
 }
 
 function handleShooting({
