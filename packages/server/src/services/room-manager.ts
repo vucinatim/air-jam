@@ -78,18 +78,9 @@ export class RoomManager {
    * Get the active host socket ID based on focus
    */
   getActiveHostId(session: RoomSession): string {
-    const result =
-      session.focus === "GAME" && session.childHostSocketId
-        ? session.childHostSocketId
-        : session.masterHostSocketId;
-    console.log(`[room-manager] getActiveHostId`, {
-      roomId: session.roomId,
-      focus: session.focus,
-      masterHostSocketId: session.masterHostSocketId,
-      childHostSocketId: session.childHostSocketId,
-      result,
-    });
-    return result;
+    return session.focus === "GAME" && session.childHostSocketId
+      ? session.childHostSocketId
+      : session.masterHostSocketId;
   }
 
   /**

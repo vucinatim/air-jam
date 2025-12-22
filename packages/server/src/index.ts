@@ -111,16 +111,11 @@ io.on(
 
         if (session) {
           // Reconnect logic for System Host
-          console.log(
-            `[server] System Host re-connected to room ${roomId} (Socket: ${socket.id})`,
-          );
           session.masterHostSocketId = socket.id;
           roomManager.setRoom(roomId, session);
         } else {
           // Create new room
-          console.log(
-            `[server] Creating new room ${roomId} (Socket: ${socket.id})`,
-          );
+          console.log(`[server] Creating room ${roomId}`);
           session = {
             roomId,
             masterHostSocketId: socket.id,
@@ -144,20 +139,8 @@ io.on(
     socket.on(
       "system:launchGame",
       (payload: SystemLaunchGamePayload, callback) => {
-        console.log(
-          `[server] ========== system:launchGame RECEIVED ==========`,
-          {
-            payload,
-            socketId: socket.id,
-          },
-        );
-
         const parsed = systemLaunchGameSchema.safeParse(payload);
         if (!parsed.success) {
-          console.log(
-            `[server] system:launchGame - invalid payload`,
-            parsed.error,
-          );
           callback({
             ok: false,
             message: parsed.error.message,
@@ -170,7 +153,6 @@ io.on(
         const session = roomManager.getRoom(roomId);
 
         if (!session) {
-          console.log(`[server] system:launchGame - room not found: ${roomId}`);
           callback({
             ok: false,
             message: "Room not found",
@@ -180,10 +162,6 @@ io.on(
         }
 
         if (session.masterHostSocketId !== socket.id) {
-          console.log(`[server] system:launchGame - unauthorized`, {
-            masterHostSocketId: session.masterHostSocketId,
-            currentSocketId: socket.id,
-          });
           callback({
             ok: false,
             message: "Unauthorized: Not System Host",
@@ -194,15 +172,6 @@ io.on(
 
         // Check if game is already active
         if (session.childHostSocketId) {
-          console.log(
-            `[server] ========== system:launchGame BLOCKED - game already active ==========`,
-            {
-              roomId,
-              existingChildHost: session.childHostSocketId,
-              existingJoinToken: session.joinToken,
-              existingFocus: session.focus,
-            },
-          );
           callback({
             ok: false,
             message: "Game already active",
@@ -216,24 +185,12 @@ io.on(
         session.joinToken = joinToken;
         session.activeControllerUrl = gameUrl;
 
-        console.log(
-          `[server] ========== Launching game in room ${roomId}. Token: ${joinToken} ==========`,
-          {
-            gameUrl,
-            focus: session.focus,
-          },
-        );
+        console.log(`[server] Launching game in room ${roomId}`);
 
         // Broadcast to controllers to load UI
-        console.log(`[server] Emitting client:loadUi to room ${roomId}`, {
-          url: gameUrl,
-        });
         io.to(roomId).emit("client:loadUi", { url: gameUrl });
 
         callback({ ok: true, joinToken });
-        console.log(
-          `[server] ========== system:launchGame ACK SENT ==========`,
-        );
       },
     );
 
@@ -275,9 +232,7 @@ io.on(
           return;
         }
 
-        console.log(
-          `[server] Child Host joined room ${roomId} (Socket: ${socket.id})`,
-        );
+        console.log(`[server] Game host joined room ${roomId}`);
         session.childHostSocketId = socket.id;
         session.focus = "GAME"; // Auto-focus on join
 
@@ -285,9 +240,6 @@ io.on(
         socket.join(roomId);
 
         // Send initial state to the game
-        console.log(
-          `[server] Syncing ${session.controllers.size} players to Child Host`,
-        );
 
         // Small delay to ensure client is ready to receive events after ack
         setTimeout(() => {
@@ -317,45 +269,22 @@ io.on(
     // --- CLOSE GAME (System -> Server) ---
     socket.on("system:closeGame", (payload: { roomId: string }) => {
       const { roomId } = payload;
-      console.log(`[server] ========== system:closeGame RECEIVED ==========`, {
-        roomId,
-        socketId: socket.id,
-      });
       const session = roomManager.getRoom(roomId);
       if (!session) {
-        console.log(`[server] system:closeGame - room not found: ${roomId}`);
         return;
       }
 
       if (session.masterHostSocketId !== socket.id) {
-        console.log(`[server] system:closeGame - unauthorized`, {
-          masterHostSocketId: session.masterHostSocketId,
-          currentSocketId: socket.id,
-        });
         return;
       }
 
-      console.log(
-        `[server] ========== System closing game in room ${roomId} ==========`,
-        {
-          childHostSocketId: session.childHostSocketId,
-          joinToken: session.joinToken,
-          focus: session.focus,
-        },
-      );
+      console.log(`[server] Closing game in room ${roomId}`);
 
       // Disconnect child host if still connected
       if (session.childHostSocketId) {
         const childSocket = io.sockets.sockets.get(session.childHostSocketId);
         if (childSocket) {
-          console.log(
-            `[server] Disconnecting child host socket ${session.childHostSocketId}`,
-          );
           childSocket.disconnect(true);
-        } else {
-          console.log(
-            `[server] Child host socket ${session.childHostSocketId} not found`,
-          );
         }
       }
 
@@ -365,10 +294,7 @@ io.on(
       session.activeControllerUrl = undefined;
 
       // Tell controllers to unload UI
-      console.log(`[server] Emitting client:unloadUi to room ${roomId}`);
       io.to(roomId).emit("client:unloadUi");
-
-      console.log(`[server] ========== system:closeGame COMPLETE ==========`);
     });
 
     // --- LEGACY/STANDALONE HOST REGISTER ---
@@ -394,23 +320,10 @@ io.on(
         let session = roomManager.getRoom(roomId);
         if (session) {
           // If room exists, we assume they are taking over or reconnecting as Master
-          console.log(
-            `[server] Standalone Host re-connected to room ${roomId} (Socket: ${socket.id})`,
-            {
-              previousMasterHostSocketId: session.masterHostSocketId,
-              childHostSocketId: session.childHostSocketId,
-              focus: session.focus,
-            },
-          );
           session.masterHostSocketId = socket.id;
           session.focus = "SYSTEM"; // Default to system/master focus
         } else {
-          console.log(
-            `[server] Creating standalone room ${roomId} (Socket: ${socket.id})`,
-            {
-              maxPlayers,
-            },
-          );
+          console.log(`[server] Creating standalone room ${roomId}`);
           session = {
             roomId,
             masterHostSocketId: socket.id,
@@ -424,12 +337,6 @@ io.on(
 
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
-        console.log(`[server] Standalone Host registered`, {
-          roomId,
-          socketId: socket.id,
-          focus: session.focus,
-          childHostSocketId: session.childHostSocketId,
-        });
         callback({ ok: true, roomId });
         io.to(roomId).emit("server:roomReady", { roomId });
       },
@@ -571,23 +478,12 @@ io.on(
       // We check activeControllerUrl instead of childHostSocketId because the game might be
       // in the process of loading (launched but not yet connected) or momentarily disconnected.
       if (session.activeControllerUrl) {
-        console.log(
-          `[server] Late joiner ${controllerId}: sending client:loadUi for existing game`,
-          {
-            url: session.activeControllerUrl,
-            hasChildHost: !!session.childHostSocketId,
-          },
-        );
         socket.emit("client:loadUi", { url: session.activeControllerUrl });
-      } else {
-        console.log(
-          `[server] Controller ${controllerId} joined room ${roomId} (No active game)`,
-          {
-            activeControllerUrl: session.activeControllerUrl,
-            childHostSocketId: session.childHostSocketId,
-          },
-        );
       }
+
+      console.log(
+        `[server] Controller joined room ${roomId} (${session.controllers.size}/${session.maxPlayers} players)`,
+      );
     });
 
     socket.on("controller:leave", (payload: ControllerLeavePayload) => {
@@ -614,39 +510,19 @@ io.on(
       // Validate roomId and controllerId, but accept arbitrary input structure
       const result = controllerInputSchema.safeParse(payload);
       if (!result.success) {
-        console.log(
-          `[server] controller:input - invalid payload:`,
-          result.error,
-        );
         return;
       }
 
-      const { roomId, controllerId } = result.data;
+      const { roomId } = result.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
-        console.log(`[server] controller:input - room not found: ${roomId}`);
         return;
       }
 
       // Route based on FOCUS - pass through arbitrary input to host
       const targetHostId = roomManager.getActiveHostId(session);
-      console.log(`[server] controller:input - routing input`, {
-        roomId,
-        controllerId,
-        focus: session.focus,
-        masterHostSocketId: session.masterHostSocketId,
-        childHostSocketId: session.childHostSocketId,
-        targetHostId,
-        input: result.data.input,
-      });
-
       if (targetHostId) {
         io.to(targetHostId).emit("server:input", result.data);
-        console.log(
-          `[server] controller:input - emitted to host ${targetHostId}`,
-        );
-      } else {
-        console.log(`[server] controller:input - no target host ID found!`);
       }
     });
 
@@ -664,23 +540,12 @@ io.on(
 
       if (command === "exit") {
         // Controller wants to exit the game - close the game on the server
-        console.log(
-          `[server] ========== Controller exit request in room ${roomId} ==========`,
-          {
-            childHostSocketId: session.childHostSocketId,
-            joinToken: session.joinToken,
-            focus: session.focus,
-            masterHostSocketId: session.masterHostSocketId,
-          },
-        );
+        console.log(`[server] Controller exit request in room ${roomId}`);
 
         // Disconnect child host if still connected
         if (session.childHostSocketId) {
           const childSocket = io.sockets.sockets.get(session.childHostSocketId);
           if (childSocket) {
-            console.log(
-              `[server] Disconnecting child host on controller exit: ${session.childHostSocketId}`,
-            );
             childSocket.disconnect(true);
           }
         }
@@ -693,29 +558,16 @@ io.on(
         session.gameState = "paused"; // Reset game state on exit
 
         // Tell all controllers to unload UI
-        console.log(
-          `[server] Emitting client:unloadUi to room ${roomId} (controller exit)`,
-        );
         io.to(roomId).emit("client:unloadUi");
 
         // Tell the system host (arcade) to return to browser view
         if (session.masterHostSocketId) {
-          console.log(
-            `[server] Emitting server:closeChild to master host ${session.masterHostSocketId}`,
-          );
           io.to(session.masterHostSocketId).emit("server:closeChild");
         }
-
-        console.log(
-          `[server] ========== Controller exit handling COMPLETE ==========`,
-        );
       } else if (command === "toggle_pause") {
         // Toggle game state
         session.gameState =
           session.gameState === "playing" ? "paused" : "playing";
-        console.log(
-          `[server] Toggled game state to ${session.gameState} in room ${roomId}`,
-        );
 
         // Broadcast new state to Room (Host + Controllers)
         const statePayload = {
@@ -745,9 +597,6 @@ io.on(
         // Toggle game state - server is source of truth
         session.gameState =
           session.gameState === "playing" ? "paused" : "playing";
-        console.log(
-          `[server] Host toggled game state to ${session.gameState} in room ${roomId}`,
-        );
 
         // Broadcast new state to Room (Host + Controllers)
         const statePayload = {
@@ -845,9 +694,7 @@ io.on(
 
         if (socket.id === session.childHostSocketId) {
           // Child disconnected
-          console.log(
-            `[server] Child Host disconnected from room ${roomId}. Reverting focus to SYSTEM.`,
-          );
+          console.log(`[server] Game host disconnected from room ${roomId}`);
           session.childHostSocketId = undefined;
           session.focus = "SYSTEM";
           session.joinToken = undefined;
@@ -857,9 +704,7 @@ io.on(
           io.to(roomId).emit("client:unloadUi");
         } else if (socket.id === session.masterHostSocketId) {
           // Master disconnected
-          console.log(
-            `[server] Master Host disconnected from room ${roomId}. Starting grace period.`,
-          );
+          console.log(`[server] Host disconnected from room ${roomId}`);
 
           setTimeout(() => {
             const currentSession = roomManager.getRoom(roomId);
@@ -867,9 +712,7 @@ io.on(
               currentSession &&
               currentSession.masterHostSocketId === socket.id
             ) {
-              console.log(
-                `[server] Grace period expired. Removing room ${roomId}.`,
-              );
+              console.log(`[server] Removing room ${roomId}`);
               roomManager.removeRoom(roomId, io, "Host disconnected");
             }
           }, 3000);
