@@ -1,6 +1,7 @@
 "use client";
 
 import { Code2, Cpu, Gamepad2, Info, Layers, Zap } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
@@ -29,9 +30,13 @@ export function DocsSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
-                <div className="border-airjam-cyan/50 text-airjam-cyan flex aspect-square size-8 items-center justify-center rounded-lg border">
-                  <Gamepad2 className="size-4" />
-                </div>
+                <Image
+                  src="/images/air-jam-icon-new.png"
+                  alt="Air Jam"
+                  width={32}
+                  height={32}
+                  className="size-8 shrink-0 object-contain transition-all group-data-[collapsible=icon]:size-4"
+                />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Air Jam</span>
                   <span className="truncate text-xs">Documentation</span>

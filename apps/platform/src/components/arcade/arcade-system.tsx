@@ -147,13 +147,17 @@ export const ArcadeSystem = ({
               prev - 1 < 0 ? games.length - 1 : prev - 1,
             );
           } else if (latchedInput.vector.y > 0.5) {
-            setSelectedIndex((prev) => (prev + 1 >= games.length ? 0 : prev + 1));
+            setSelectedIndex((prev) =>
+              prev + 1 >= games.length ? 0 : prev + 1,
+            );
           } else if (latchedInput.vector.x < -0.5) {
             setSelectedIndex((prev) =>
               prev - 1 < 0 ? games.length - 1 : prev - 1,
             );
           } else if (latchedInput.vector.x > 0.5) {
-            setSelectedIndex((prev) => (prev + 1 >= games.length ? 0 : prev + 1));
+            setSelectedIndex((prev) =>
+              prev + 1 >= games.length ? 0 : prev + 1,
+            );
           }
         }
 

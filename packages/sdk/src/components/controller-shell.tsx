@@ -90,10 +90,12 @@ export const ControllerShell = ({
   // Get current player info from connection store
   const { controllerId, players } = useStore(
     store,
-    useShallow((state: { controllerId: string | null; players: PlayerProfile[] }) => ({
-      controllerId: state.controllerId,
-      players: state.players,
-    })),
+    useShallow(
+      (state: { controllerId: string | null; players: PlayerProfile[] }) => ({
+        controllerId: state.controllerId,
+        players: state.players,
+      }),
+    ),
   );
 
   // Find current player profile - must exist from server (single source of truth)

@@ -1,4 +1,48 @@
 /* eslint-disable react-refresh/only-export-components */
+/**
+ * @module AirJamContext
+ * @description Core context and provider for the AirJam SDK.
+ *
+ * The AirJamProvider is the root component that must wrap your application
+ * to enable AirJam functionality. It manages:
+ * - WebSocket connections to the AirJam server
+ * - Global state via Zustand store
+ * - Input validation and latching configuration
+ * - Environment variable resolution for server URLs and API keys
+ *
+ * @example Basic Setup
+ * ```tsx
+ * import { AirJamProvider } from "@air-jam/sdk";
+ *
+ * const App = () => (
+ *   <AirJamProvider>
+ *     <YourGame />
+ *   </AirJamProvider>
+ * );
+ * ```
+ *
+ * @example With Input Configuration
+ * ```tsx
+ * import { AirJamProvider } from "@air-jam/sdk";
+ * import { z } from "zod";
+ *
+ * const inputSchema = z.object({
+ *   vector: z.object({ x: z.number(), y: z.number() }),
+ *   action: z.boolean(),
+ * });
+ *
+ * const App = () => (
+ *   <AirJamProvider
+ *     input={{
+ *       schema: inputSchema,
+ *       latch: { booleanFields: ["action"], vectorFields: ["vector"] },
+ *     }}
+ *   >
+ *     <YourGame />
+ *   </AirJamProvider>
+ * );
+ * ```
+ */
 import {
   createContext,
   useCallback,
@@ -20,6 +64,10 @@ import { SocketManager, type AirJamSocket } from "./socket-manager";
 // Configuration Types
 // ============================================================================
 
+/**
+ * Resolved configuration for the AirJam SDK.
+ * Created from AirJamProviderProps with environment variable fallbacks applied.
+ */
 export interface AirJamConfig {
   /** WebSocket server URL. Falls back to env vars or window location */
   serverUrl?: string;
@@ -33,21 +81,84 @@ export interface AirJamConfig {
   publicHost?: string;
 }
 
+/**
+ * Props for the AirJamProvider component.
+ *
+ * @template TSchema - Zod schema type for input validation (inferred from input.schema)
+ *
+ * @example Minimal configuration (uses environment variables)
+ * ```tsx
+ * <AirJamProvider>
+ *   <App />
+ * </AirJamProvider>
+ * ```
+ *
+ * @example Full configuration
+ * ```tsx
+ * <AirJamProvider
+ *   serverUrl="wss://your-server.com"
+ *   apiKey="your-api-key"
+ *   controllerPath="/controller"
+ *   maxPlayers={4}
+ *   input={{
+ *     schema: myInputSchema,
+ *     latch: { booleanFields: ["fire"], vectorFields: ["move"] },
+ *   }}
+ * >
+ *   <App />
+ * </AirJamProvider>
+ * ```
+ */
 export interface AirJamProviderProps<
   TSchema extends z.ZodSchema = z.ZodSchema,
 > {
+  /** React children to render within the provider */
   children: ReactNode;
-  /** WebSocket server URL. Falls back to VITE_AIR_JAM_SERVER_URL or NEXT_PUBLIC_AIR_JAM_SERVER_URL */
+  /**
+   * WebSocket server URL for AirJam connections.
+   * Falls back to VITE_AIR_JAM_SERVER_URL or NEXT_PUBLIC_AIR_JAM_SERVER_URL environment variables.
+   */
   serverUrl?: string;
-  /** API key for production. Falls back to VITE_AIR_JAM_API_KEY or NEXT_PUBLIC_AIR_JAM_API_KEY */
+  /**
+   * API key for production authentication.
+   * Falls back to VITE_AIR_JAM_API_KEY or NEXT_PUBLIC_AIR_JAM_API_KEY environment variables.
+   */
   apiKey?: string;
-  /** Path for controller page (default: /joypad) */
+  /**
+   * URL path for the controller page on your app.
+   * Controllers will be directed to this path with ?room=XXXX query parameter.
+   * @default "/joypad"
+   */
   controllerPath?: string;
-  /** Maximum players allowed in a room (default: 8) */
+  /**
+   * Maximum number of players allowed in a room.
+   * @default 8
+   */
   maxPlayers?: number;
-  /** Public host for controller URLs */
+  /**
+   * Public hostname for controller URLs.
+   * Useful when your app is behind a proxy or has a different public URL.
+   */
   publicHost?: string;
-  /** Input handling configuration with optional validation and latching */
+  /**
+   * Input handling configuration including Zod schema validation and latching.
+   * When provided, enables typed input with automatic validation and latch support.
+   *
+   * @example
+   * ```ts
+   * input={{
+   *   schema: z.object({
+   *     vector: z.object({ x: z.number(), y: z.number() }),
+   *     action: z.boolean(),
+   *     ability: z.boolean(),
+   *   }),
+   *   latch: {
+   *     booleanFields: ["action", "ability"],  // Latch button presses
+   *     vectorFields: ["vector"],               // Latch stick flicks
+   *   },
+   * }}
+   * ```
+   */
   input?: InputConfig<TSchema>;
 }
 
@@ -138,6 +249,62 @@ const getEnvApiKey = (): string | undefined => {
 // Provider Component
 // ============================================================================
 
+/**
+ * Root provider component for the AirJam SDK.
+ *
+ * Wrap your application (or game component tree) with this provider to enable
+ * AirJam functionality. The provider manages WebSocket connections, global state,
+ * and input processing.
+ *
+ * **Key responsibilities:**
+ * - Creates and manages WebSocket connections to the AirJam server
+ * - Provides a Zustand store for connection state (players, game state, etc.)
+ * - Creates an InputManager for typed input validation and latching
+ * - Resolves configuration from props and environment variables
+ *
+ * @template TSchema - Zod schema for input validation (inferred from props)
+ *
+ * @example Basic usage
+ * ```tsx
+ * import { AirJamProvider } from "@air-jam/sdk";
+ *
+ * export const App = () => (
+ *   <AirJamProvider>
+ *     <Routes>
+ *       <Route path="/" element={<HostView />} />
+ *       <Route path="/joypad" element={<ControllerView />} />
+ *     </Routes>
+ *   </AirJamProvider>
+ * );
+ * ```
+ *
+ * @example With typed input and latching
+ * ```tsx
+ * import { AirJamProvider } from "@air-jam/sdk";
+ * import { z } from "zod";
+ *
+ * const gameInputSchema = z.object({
+ *   vector: z.object({ x: z.number(), y: z.number() }),
+ *   action: z.boolean(),
+ *   ability: z.boolean(),
+ *   timestamp: z.number(),
+ * });
+ *
+ * export const App = () => (
+ *   <AirJamProvider
+ *     input={{
+ *       schema: gameInputSchema,
+ *       latch: {
+ *         booleanFields: ["action", "ability"],
+ *         vectorFields: ["vector"],
+ *       },
+ *     }}
+ *   >
+ *     <GameRoutes />
+ *   </AirJamProvider>
+ * );
+ * ```
+ */
 export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
   serverUrl,
@@ -220,7 +387,21 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
 // ============================================================================
 
 /**
- * Access the AirJam context. Must be used within an AirJamProvider.
+ * Access the raw AirJam context value.
+ *
+ * This is a low-level hook that provides direct access to the context.
+ * Most applications should use the higher-level hooks instead:
+ * - `useAirJamHost()` - For host/game functionality
+ * - `useAirJamController()` - For controller functionality
+ * - `useGetInput()` - For input access without re-renders
+ * - `useSendSignal()` - For sending signals without re-renders
+ *
+ * @throws Error if used outside of an AirJamProvider
+ *
+ * @example
+ * ```tsx
+ * const { config, store, inputManager } = useAirJamContext();
+ * ```
  */
 export const useAirJamContext = (): AirJamContextValue => {
   const context = useContext(AirJamContext);
@@ -234,14 +415,36 @@ export const useAirJamContext = (): AirJamContextValue => {
 };
 
 /**
- * Access AirJam configuration
+ * Access the resolved AirJam configuration.
+ *
+ * Returns the configuration with all environment variable fallbacks resolved.
+ *
+ * @example
+ * ```tsx
+ * const config = useAirJamConfig();
+ * console.log(config.serverUrl, config.maxPlayers);
+ * ```
  */
 export const useAirJamConfig = (): AirJamConfig => {
   return useAirJamContext().config;
 };
 
 /**
- * Access AirJam store state with a selector
+ * Access AirJam store state with a selector.
+ *
+ * Uses Zustand's useShallow for optimal re-render behavior.
+ * Only re-renders when the selected values actually change.
+ *
+ * @param selector - Function to select state from the store
+ * @returns The selected state value
+ *
+ * @example
+ * ```tsx
+ * const { players, gameState } = useAirJamState((state) => ({
+ *   players: state.players,
+ *   gameState: state.gameState,
+ * }));
+ * ```
  */
 export const useAirJamState = <T,>(selector: (state: AirJamStore) => T): T => {
   const { store } = useAirJamContext();
@@ -249,7 +452,19 @@ export const useAirJamState = <T,>(selector: (state: AirJamStore) => T): T => {
 };
 
 /**
- * Get a socket for the specified role
+ * Get a socket instance for the specified role.
+ *
+ * Returns the same socket instance across renders (stable reference).
+ * The socket is managed by the SocketManager and shared across hooks.
+ *
+ * @param role - Either "host" or "controller"
+ * @returns The Socket.IO socket instance
+ *
+ * @example
+ * ```tsx
+ * const socket = useAirJamSocket("host");
+ * socket.emit("custom:event", { data: "value" });
+ * ```
  */
 export const useAirJamSocket = (role: ConnectionRole): AirJamSocket => {
   const { getSocket } = useAirJamContext();

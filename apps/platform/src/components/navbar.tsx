@@ -37,7 +37,7 @@ export const Navbar = () => {
           className="flex items-center gap-4 transition-opacity hover:opacity-80"
         >
           <Image
-            src="/images/air-jam-icon.png"
+            src="/images/air-jam-icon-new.png"
             alt="Air Jam"
             width={32}
             height={32}

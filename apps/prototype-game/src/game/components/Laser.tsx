@@ -1,4 +1,4 @@
-import { useSendSignal, useAudio } from "@air-jam/sdk";
+import { useAudio, useSendSignal } from "@air-jam/sdk";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { memo, useMemo, useRef } from "react";
@@ -28,7 +28,12 @@ const LASER_LIFETIME = 2; // seconds
 const KNOCKBACK_FORCE = 300; // Force applied when laser hits a ship
 const LASER_DAMAGE = 20; // Health damage when laser hits a ship
 
-const LaserComponent = ({ id, position, direction, controllerId }: LaserProps) => {
+const LaserComponent = ({
+  id,
+  position,
+  direction,
+  controllerId,
+}: LaserProps) => {
   const { scene } = useThree();
   const { world } = useRapier();
   // Use refs instead of state to avoid re-renders every frame

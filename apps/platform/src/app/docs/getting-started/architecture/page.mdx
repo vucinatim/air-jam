@@ -1,26 +1,62 @@
 # Architecture
 
-Air Jam consists of four main components in a monorepo structure:
+Air Jam consists of four main components in a monorepo structure. This page explains how they work together to enable multiplayer gaming with smartphone controllers.
 
-1. **Platform** (`apps/platform`) - Central web portal and game launcher
-2. **Server** (`packages/server`) - Real-time WebSocket server
-3. **SDK** (`packages/sdk`) - Developer toolkit for building games
-4. **Prototype Game** (`apps/prototype-game`) - Reference implementation
+## System Overview
 
-## Component Details
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Air Jam Platform                                │
+│                           (apps/platform - Next.js)                          │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────────┐ │
+│  │   Game Catalog     │  │   Arcade Mode      │  │   Controller Shell     │ │
+│  │   Developer Portal │  │   Game Launcher    │  │   (Mobile Wrapper)     │ │
+│  └────────────────────┘  └────────────────────┘  └────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Air Jam Server                                  │
+│                           (packages/server - Node.js)                        │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────────┐ │
+│  │   Room Manager     │  │   Auth Service     │  │   Event Router         │ │
+│  │   (State + Rooms)  │  │   (API Keys)       │  │   (Socket.IO)          │ │
+│  └────────────────────┘  └────────────────────┘  └────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                    ▲                                       ▲
+                    │                                       │
+        ┌───────────┴───────────┐               ┌──────────┴──────────┐
+        │                       │               │                      │
+┌───────┴───────┐       ┌───────┴───────┐  ┌────┴────┐         ┌───────┴───────┐
+│  Your Game    │       │  Your Game    │  │ Phone 1 │         │    Phone N    │
+│  (Host)       │       │  (Host)       │  │ Ctrl    │   ...   │    Ctrl       │
+│               │       │               │  │         │         │               │
+│  @air-jam/sdk │       │  @air-jam/sdk │  │  SDK    │         │    SDK        │
+└───────────────┘       └───────────────┘  └─────────┘         └───────────────┘
+```
+
+## Components
 
 ### 1. Platform (`apps/platform`)
 
-**Role:** The central hub for the Air Jam ecosystem
+**Role:** Central hub for the Air Jam ecosystem
 
 **Technology:** Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
 
-**Responsibilities:**
+**Key Features:**
+- **Developer Portal** - Account management, API key generation, analytics
+- **Game Catalog** - Submit, manage, and discover Air Jam games
+- **Arcade Mode** - Browse and launch games from a unified interface
+- **Controller Shell** - Persistent mobile wrapper that loads game controllers
 
-- Manage developer accounts and game catalog
-- Generate and validate API keys
-- Host the arcade launcher interface
-- Provide persistent controller shell for mobile devices
+**Arcade Mode Flow:**
+```
+1. Player scans QR on arcade screen
+2. Platform loads controller shell on phone
+3. Player browses games using phone as remote
+4. Game launches → controller switches to game's joypad
+5. Game ends → returns to arcade browser
+```
 
 ### 2. Server (`packages/server`)
 
@@ -30,19 +66,169 @@ Air Jam consists of four main components in a monorepo structure:
 
 **Core Services:**
 
-- **Room Manager** - Centralized room state management
-- **Auth Service** - API key verification with database integration
-- **Focus System** - Controls input routing between system and game
+| Service | Responsibility |
+|---------|---------------|
+| **Room Manager** | Creates/destroys rooms, tracks connected players |
+| **Auth Service** | Validates API keys, enforces rate limits |
+| **Event Router** | Routes input/signals between hosts and controllers |
+| **Focus System** | Controls whether system or game receives input |
+
+**Socket Events:**
+
+| Event | Direction | Purpose |
+|-------|-----------|---------|
+| `host:register` | Host → Server | Create/join a room |
+| `controller:join` | Controller → Server | Join existing room |
+| `controller:input` | Controller → Server → Host | Send input to game |
+| `host:signal` | Host → Server → Controller | Send haptics/toasts |
+| `server:state` | Server → All | Broadcast game state |
 
 ### 3. SDK (`packages/sdk`)
 
-**Role:** Developer toolkit for building Air Jam compatible games
+**Role:** Developer toolkit for building Air Jam games
 
-**Technology:** React, TypeScript, Socket.IO Client, Zustand
+**Technology:** React, TypeScript, Socket.IO Client, Zustand, Zod
 
-**Features:**
+**Architecture:**
 
-- Automatic mode detection (arcade vs standalone vs bridge)
-- Type-safe event protocol
-- Type-safe input handling with Zod schema validation
-- Input latching for rapid tap detection
+```
+┌─────────────────────────────────────────────────────────┐
+│                    AirJamProvider                        │
+│  ┌─────────────────┐  ┌─────────────────────────────┐   │
+│  │  SocketManager  │  │  Zustand Store              │   │
+│  │  (WebSocket)    │  │  (Connection State)         │   │
+│  └─────────────────┘  └─────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────┐│
+│  │  InputManager                                       ││
+│  │  • Schema Validation (Zod)                          ││
+│  │  • Input Latching                                   ││
+│  │  • Per-Controller Buffering                         ││
+│  └─────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         ▼                 ▼                 ▼
+┌─────────────────┐ ┌─────────────┐ ┌───────────────────┐
+│ useAirJamHost   │ │ useGetInput │ │ useAirJamController│
+│ (Full API)      │ │ (Perf)      │ │ (Mobile)          │
+└─────────────────┘ └─────────────┘ └───────────────────┘
+```
+
+**Key Design Decisions:**
+
+1. **Provider Pattern** - Single provider for configuration, multiple hooks for access
+2. **Lightweight Hooks** - `useGetInput`, `useSendSignal` don't trigger re-renders
+3. **Input Latching** - Ensures rapid button taps are never missed
+4. **Schema Validation** - Type-safe input with runtime validation
+
+### 4. Prototype Game (`apps/prototype-game`)
+
+**Role:** Reference implementation showcasing SDK capabilities
+
+**Technology:** React, Vite, React Three Fiber, Rapier Physics
+
+**Demonstrates:**
+- Host-side game logic with physics
+- Controller UI with joystick and buttons
+- Player spawning/despawning on join/leave
+- Haptic feedback on collisions
+- Multiple game modes (CTF, survival)
+
+## Run Modes
+
+The SDK automatically detects and adapts to different deployment scenarios:
+
+### Standalone Mode
+
+Your game runs independently with direct WebSocket connection.
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Your Game   │◀───▶│  AirJam      │◀───▶│  Controller  │
+│  (Host)      │     │  Server      │     │  (Phone)     │
+└──────────────┘     └──────────────┘     └──────────────┘
+```
+
+**Use case:** Self-hosted games, development, custom deployments
+
+### Arcade Mode
+
+Game runs inside an iframe on the Air Jam Platform.
+
+```
+┌─────────────────────────────────────────┐
+│  Air Jam Platform (Parent)              │
+│  ┌───────────────────────────────────┐  │
+│  │  Your Game (iframe)               │  │
+│  │  • Receives join token            │  │
+│  │  • Controlled player routing      │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+**Use case:** Featured on Air Jam arcade, game discovery
+
+### Bridge Mode
+
+Controller runs inside platform's shell (iframe communication).
+
+```
+┌─────────────────────────────────────────┐
+│  Platform Controller Shell (Parent)     │
+│  ┌───────────────────────────────────┐  │
+│  │  Your Controller UI (iframe)      │  │
+│  │  • Input via postMessage          │  │
+│  │  • Seamless game switching        │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+**Use case:** Arcade mode controllers, persistent session
+
+## Data Flow
+
+### Input Path (Controller → Game)
+
+```
+1. Player moves joystick on phone
+2. Controller calls sendInput({ vector: {x, y}, action: false })
+3. SDK sends controller:input event to server
+4. Server routes to host socket
+5. Host SDK's InputManager receives input
+6. InputManager validates with Zod schema
+7. InputManager applies latching if configured
+8. Game calls getInput(playerId) in game loop
+9. Returns typed, validated, latched input
+```
+
+### Signal Path (Game → Controller)
+
+```
+1. Game detects collision
+2. Host calls sendSignal("HAPTIC", { pattern: "heavy" }, playerId)
+3. SDK sends host:signal event to server
+4. Server routes to target controller(s)
+5. Controller SDK receives signal
+6. SDK triggers navigator.vibrate() with pattern
+7. Player feels haptic feedback
+```
+
+## Security
+
+### API Key Authentication
+
+- Games must provide valid API key for production
+- Keys are validated against platform database
+- Rate limiting prevents abuse
+
+### Room Isolation
+
+- Each room has unique 4-character code
+- Controllers can only join with correct code
+- Input is only routed to the designated host
+
+### Input Validation
+
+- Zod schemas validate all incoming input
+- Invalid input is rejected with console warning
+- Protects game logic from malformed data

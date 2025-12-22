@@ -1,43 +1,165 @@
+/**
+ * @module InputManager
+ * @description Internal class for managing controller input with validation and latching.
+ *
+ * The InputManager is created internally by the AirJamProvider when input configuration
+ * is provided. It handles:
+ *
+ * 1. **Input Buffering** - Stores the latest input for each controller
+ * 2. **Validation** - Validates input against a Zod schema (optional)
+ * 3. **Latching** - Ensures rapid button presses and stick flicks are never missed
+ *
+ * ## What is Latching?
+ *
+ * Game loops typically run at 60fps, but network events may arrive between frames.
+ * Without latching, a quick button tap might be missed if it starts and ends between
+ * two consecutive `getInput()` calls.
+ *
+ * **Latching solves this by:**
+ * - Boolean fields: Keeping `true` values until consumed
+ * - Vector fields: Keeping non-zero values for one frame after release
+ *
+ * ## Example: Without Latching (Bug)
+ * ```
+ * Frame 1: getInput() → action: false
+ * [Network: action: true arrives, then action: false arrives]
+ * Frame 2: getInput() → action: false ← Tap missed!
+ * ```
+ *
+ * ## Example: With Latching (Fixed)
+ * ```
+ * Frame 1: getInput() → action: false
+ * [Network: action: true arrives, then action: false arrives]
+ * Frame 2: getInput() → action: true  ← Tap captured!
+ * Frame 3: getInput() → action: false ← Consumed, resets
+ * ```
+ *
+ * @internal This class is not exported publicly. Use hooks to access input.
+ */
 import type { z } from "zod";
 import type { ControllerInputEvent } from "../protocol";
 
 /**
  * Configuration for input handling with optional validation and latching.
+ *
+ * Provided to `AirJamProvider` to enable typed, validated, and latched input.
+ *
+ * @template TSchema - Zod schema type for input validation
+ *
+ * @example Basic schema validation
+ * ```ts
+ * const config: InputConfig = {
+ *   schema: z.object({
+ *     vector: z.object({ x: z.number(), y: z.number() }),
+ *     action: z.boolean(),
+ *   }),
+ * };
+ * ```
+ *
+ * @example With latching for button and stick
+ * ```ts
+ * const config: InputConfig = {
+ *   schema: gameInputSchema,
+ *   latch: {
+ *     booleanFields: ["action", "ability", "jump"],
+ *     vectorFields: ["vector", "aim"],
+ *   },
+ * };
+ * ```
  */
 export interface InputConfig<TSchema extends z.ZodSchema = z.ZodSchema> {
   /**
-   * Optional Zod schema for input validation and type inference.
-   * If provided, inputs will be validated and returned as the inferred type.
+   * Zod schema for input validation and type inference.
+   *
+   * When provided:
+   * - Incoming input is validated against the schema
+   * - Invalid input returns `undefined` (with console warning)
+   * - Return type is inferred from the schema
+   *
+   * @example
+   * ```ts
+   * schema: z.object({
+   *   vector: z.object({ x: z.number(), y: z.number() }),
+   *   action: z.boolean(),
+   *   ability: z.boolean(),
+   *   timestamp: z.number(),
+   * })
+   * ```
    */
   schema?: TSchema;
   /**
-   * Optional latching configuration to ensure rapid taps/actions are never missed.
+   * Latching configuration to ensure rapid taps and flicks are never missed.
+   *
+   * Latching "holds" boolean true values and non-zero vectors until the next
+   * `getInput()` call, preventing missed inputs between game frames.
    */
   latch?: {
     /**
-     * Field names that should be latched as booleans.
-     * Latching ensures rapid taps are never missed.
-     * Example: ['action', 'ability', 'jump']
+     * Boolean field names that should be latched.
+     *
+     * When a boolean field is latched:
+     * - If it becomes `true`, it stays `true` until consumed by `getInput()`
+     * - After consumption, it resets to the actual current value
+     *
+     * Use for: buttons, triggers, action inputs
+     *
+     * @example ["action", "ability", "jump", "fire"]
      */
     booleanFields?: string[];
     /**
-     * Field names that should be latched as vectors (with zero detection).
-     * Vector latching keeps flicks alive for one frame after release.
-     * Example: ['vector', 'direction', 'movement']
+     * Vector field names that should be latched.
+     *
+     * When a vector field is latched:
+     * - Non-zero vectors are kept for one frame after returning to zero
+     * - Ensures quick stick flicks register in the game loop
+     *
+     * Use for: joysticks, d-pads, directional inputs
+     *
+     * @example ["vector", "movement", "aim"]
      */
     vectorFields?: string[];
   };
 }
 
+/**
+ * Internal state for tracking latch values per controller.
+ * @internal
+ */
 interface LatchState<TInput = Record<string, unknown>> {
+  /** The most recent raw input from the controller */
   raw: TInput;
+  /** The latched input (with consumed values held) */
   latched: TInput;
-  lastRawHash?: string; // Track if raw input changed
+  /** Hash of raw input to detect changes */
+  lastRawHash?: string;
 }
 
 /**
  * Internal class that manages input buffering, validation, and latching.
- * Used internally by useAirJamHost to provide unified input handling.
+ *
+ * Created automatically by `AirJamProvider` when input configuration is provided.
+ * Access input via `useGetInput()` or `useAirJamHost().getInput()`.
+ *
+ * @template TSchema - Zod schema type for input validation
+ *
+ * @internal Not exported publicly. Use hooks to access input.
+ *
+ * @example How it's used internally
+ * ```ts
+ * // In AirJamProvider
+ * const inputManager = new InputManager({
+ *   schema: gameInputSchema,
+ *   latch: { booleanFields: ["action"] },
+ * });
+ *
+ * // In useAirJamHost (socket handler)
+ * socket.on("server:input", (payload) => {
+ *   inputManager.handleInput(payload);
+ * });
+ *
+ * // In game loop (via useGetInput)
+ * const input = inputManager.getInput(playerId);
+ * ```
  */
 export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
   private inputBuffer = new Map<string, Record<string, unknown>>();
@@ -235,4 +357,3 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
     return latched;
   }
 }
-
