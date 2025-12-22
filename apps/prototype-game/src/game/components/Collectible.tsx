@@ -1,4 +1,4 @@
-import { useAirJamHostSignal, useAudio } from "@air-jam/sdk";
+import { useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -17,6 +17,7 @@ import {
   useAbilitiesStore,
 } from "../abilities-store";
 import { CollectibleData, useCollectiblesStore } from "../collectibles-store";
+import { useSignalContext } from "../context/signal-context";
 import { SOUND_MANIFEST } from "../sounds";
 
 interface CollectibleProps {
@@ -200,7 +201,7 @@ export function Collectible({ collectible }: CollectibleProps) {
   );
   const collectAbility = useAbilitiesStore((state) => state.collectAbility);
   const audio = useAudio(SOUND_MANIFEST);
-  const { sendSignal } = useAirJamHostSignal();
+  const sendSignal = useSignalContext();
 
   // Light pillar geometry - cone shape, wide at base, point at top
   const pillarGeometry = useMemo(() => {
@@ -234,7 +235,7 @@ export function Collectible({ collectible }: CollectibleProps) {
       // Collect ability (all collectibles have abilities now)
       collectAbility(controllerId, collectible.abilityId);
       audio.play("powerup");
-      sendSignal("HAPTIC", { pattern: "success" }, controllerId);
+      sendSignal?.("HAPTIC", { pattern: "success" }, controllerId);
 
       console.log(
         `Player ${controllerId} collected ability: ${collectible.abilityId}`,

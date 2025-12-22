@@ -6,11 +6,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 
-import {
-  useAirJamHostSignal,
-  useAirJamState,
-  useAudio,
-} from "@air-jam/sdk";
+import { useAudio } from "@air-jam/sdk";
 import { getAbilityVisual, useAbilitiesStore } from "../abilities-store";
 import { useCaptureTheFlagStore } from "../capture-the-flag-store";
 import {
@@ -25,6 +21,7 @@ import {
 } from "../constants";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
+import { useSignalContext } from "../context/signal-context";
 import { useGameInput } from "../hooks/useGameInput";
 import { useLasersStore } from "../lasers-store";
 import { usePlayerStatsStore } from "../player-stats-store";
@@ -96,11 +93,10 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
   // --- Audio ---
   const audio = useAudio(SOUND_MANIFEST);
-  const { sendSignal } = useAirJamHostSignal();
+  const sendSignal = useSignalContext();
 
   // --- Input Hook (Zero re-renders, high-performance) ---
-  const { roomId } = useAirJamState((state) => ({ roomId: state.roomId }));
-  const { popInput } = useGameInput({ roomId: roomId ?? undefined });
+  const { popInput } = useGameInput();
 
   // Visuals & Stats
   const currentAbility = useAbilitiesStore((state) =>
@@ -682,7 +678,7 @@ function handleAbilities(
   id: string,
   delta: number,
   audio: ReturnType<typeof useAudio>,
-  sendSignal: ReturnType<typeof useAirJamHostSignal>["sendSignal"],
+  sendSignal: ReturnType<typeof useSignalContext>,
 ) {
   // The input hook already handled the latch pattern and consumption
   // We just need to check if ability button is pressed and we have a queued ability
@@ -698,13 +694,13 @@ function handleAbilities(
     // Play ability sound on host
     if (currentAbility.id === "speed_boost") {
       audio.play("speed_boost");
-      sendSignal("HAPTIC", { pattern: "medium" }, id);
+      sendSignal?.("HAPTIC", { pattern: "medium" }, id);
     } else if (currentAbility.id === "health_pack") {
       audio.play("health_pack");
-      sendSignal("HAPTIC", { pattern: "success" }, id);
+      sendSignal?.("HAPTIC", { pattern: "success" }, id);
     } else if (currentAbility.id === "rocket") {
       audio.play("rocket_launch");
-      sendSignal("HAPTIC", { pattern: "heavy" }, id);
+      sendSignal?.("HAPTIC", { pattern: "heavy" }, id);
     }
 
     console.log(
@@ -732,7 +728,7 @@ interface HandleShootingParams {
     timestamp: number;
   }) => void;
   audio: ReturnType<typeof useAudio>;
-  sendSignal: ReturnType<typeof useAirJamHostSignal>["sendSignal"];
+  sendSignal: ReturnType<typeof useSignalContext>;
 }
 
 function handleShooting({
@@ -757,7 +753,7 @@ function handleShooting({
     // Play laser fire sound on host
     audio.play("laser_fire");
     // Send light haptic feedback to controller
-    sendSignal("HAPTIC", { pattern: "light" }, controllerId);
+    sendSignal?.("HAPTIC", { pattern: "light" }, controllerId);
 
     const forward = new Vector3(0, 0, -1).applyQuaternion(shipRotation);
     const up = new Vector3(0, 1, 0).applyQuaternion(shipRotation);

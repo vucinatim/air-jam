@@ -2,7 +2,6 @@ import {
   AirJamOverlay,
   useAirJamHost,
   useAudio,
-  type ControllerInputEvent,
   type PlayerProfile,
 } from "@air-jam/sdk";
 import { Settings2, X } from "lucide-react";
@@ -23,10 +22,10 @@ import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
 import { ScoreDisplay } from "../game/components/ScoreDisplay";
 import { useGameStore } from "../game/game-store";
 import { useBackgroundMusic } from "../game/hooks/useBackgroundMusic";
+import { gameInputSchema } from "../game/types";
 import { SOUND_MANIFEST } from "../game/sounds";
 
 const HostViewContent = (): JSX.Element => {
-  const applyInput = useGameStore((state) => state.applyInput);
   const upsertPlayer = useGameStore((state) => state.upsertPlayer);
   const removePlayer = useGameStore((state) => state.removePlayer);
   const audio = useAudio(SOUND_MANIFEST);
@@ -60,13 +59,12 @@ const HostViewContent = (): JSX.Element => {
 
   const host = useAirJamHost({
     roomId: persistedRoomId,
-    onInput: (event: ControllerInputEvent) => {
-      console.log(`[host-view] onInput callback called`, {
-        controllerId: event.controllerId,
-        input: event.input,
-      });
-      // Apply normal input (movement, actions, etc.)
-      applyInput(event);
+    input: {
+      schema: gameInputSchema,
+      latch: {
+        booleanFields: ["action", "ability"],
+        vectorFields: ["vector"],
+      },
     },
     onPlayerJoin: (player: PlayerProfile) => {
       upsertPlayer(player, player.id);
@@ -156,7 +154,11 @@ const HostViewContent = (): JSX.Element => {
             isEditorOpen ? "w-1/2" : "w-full"
           }`}
         >
-          <GameScene onCamerasReady={setCameras} />
+          <GameScene
+            onCamerasReady={setCameras}
+            getInput={host.getInput}
+            sendSignal={host.sendSignal}
+          />
           {cameras.length > 0 && canvasRef.current && (
             <PlayerHUDOverlay
               canvasElement={canvasRef.current}

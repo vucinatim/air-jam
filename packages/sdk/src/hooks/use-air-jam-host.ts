@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { TOGGLE_DEBOUNCE_MS } from "../constants";
 import { useAirJamContext } from "../context/air-jam-context";
 import type { AirJamSocket } from "../context/socket-manager";
+import { InputManager, type InputConfig } from "../internal/input-manager";
 import type {
   ConnectionStatus,
   ControllerInputEvent,
@@ -28,11 +30,11 @@ import { generateRoomCode } from "../utils/ids";
 import { detectRunMode } from "../utils/mode";
 import { urlBuilder } from "../utils/url-builder";
 
-interface AirJamHostOptions {
+interface AirJamHostOptions<TSchema extends z.ZodSchema = z.ZodSchema> {
   /** Room ID to use (auto-generated if not provided) */
   roomId?: string;
-  /** Callback when input is received from a controller */
-  onInput?: (event: ControllerInputEvent) => void;
+  /** Input handling configuration with optional validation and latching */
+  input?: InputConfig<TSchema>;
   /** Callback when a player joins */
   onPlayerJoin?: (player: PlayerProfile) => void;
   /** Callback when a player leaves */
@@ -47,7 +49,7 @@ interface AirJamHostOptions {
   maxPlayers?: number;
 }
 
-export interface AirJamHostApi {
+export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   roomId: RoomCode;
   joinUrl: string;
   connectionStatus: ConnectionStatus;
@@ -64,13 +66,26 @@ export interface AirJamHostApi {
   reconnect: () => void;
   socket: AirJamSocket;
   isChildMode: boolean;
+  /**
+   * Gets input for a specific controller.
+   * Returns validated and typed input if schema is provided, otherwise raw Record.
+   * If latching is configured, applies latching logic.
+   * Only available when input config is provided.
+   */
+  getInput: (controllerId: string) => z.infer<TSchema> | undefined;
 }
 
-export const useAirJamHost = (
-  options: AirJamHostOptions = {},
-): AirJamHostApi => {
+export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
+  options: AirJamHostOptions<TSchema> = {},
+): AirJamHostApi<TSchema> => {
   // Get context
   const { config, store, getSocket, disconnectSocket } = useAirJamContext();
+
+  // Create InputManager instance if input config is provided
+  const inputManager = useMemo(() => {
+    if (!options.input) return null;
+    return new InputManager<TSchema>(options.input);
+  }, [options.input]);
 
   // Detect if running in Arcade Mode (via URL params)
   const arcadeParams = useMemo(() => {
@@ -121,25 +136,25 @@ export const useAirJamHost = (
     return fallbackRoomId;
   }, [options.roomId, fallbackRoomId, arcadeParams]);
 
+  // Update InputManager room ID when parsedRoomId changes
+  useEffect(() => {
+    if (inputManager) {
+      inputManager.setRoomId(parsedRoomId);
+    }
+  }, [inputManager, parsedRoomId]);
+
   const [joinUrl, setJoinUrl] = useState<string>("");
 
   // Keep callback refs stable
-  const onInputRef = useRef(options.onInput);
   const onPlayerJoinRef = useRef(options.onPlayerJoin);
   const onPlayerLeaveRef = useRef(options.onPlayerLeave);
   const onChildCloseRef = useRef(options.onChildClose);
 
   useEffect(() => {
-    onInputRef.current = options.onInput;
     onPlayerJoinRef.current = options.onPlayerJoin;
     onPlayerLeaveRef.current = options.onPlayerLeave;
     onChildCloseRef.current = options.onChildClose;
-  }, [
-    options.onInput,
-    options.onPlayerJoin,
-    options.onPlayerLeave,
-    options.onChildClose,
-  ]);
+  }, [options.onPlayerJoin, options.onPlayerLeave, options.onChildClose]);
 
   // Subscribe to store state
   const connectionState = useStore(
@@ -335,7 +350,10 @@ export const useAirJamHost = (
     };
 
     const handleInput = (payload: ControllerInputEvent): void => {
-      onInputRef.current?.(payload);
+      // Handle input via InputManager if configured
+      if (inputManager) {
+        inputManager.handleInput(payload);
+      }
     };
 
     const handleChildClose = (): void => {
@@ -403,10 +421,20 @@ export const useAirJamHost = (
     shouldConnect,
     socket,
     store,
+    inputManager,
   ]);
 
   // Ensure we return a valid socket (use a no-op socket if not connected)
   const returnSocket = socket ?? getSocket("host");
+
+  // Create getInput function - always available, returns undefined if no input config
+  const getInput = useCallback(
+    (controllerId: string): z.infer<TSchema> | undefined => {
+      if (!inputManager) return undefined;
+      return inputManager.getInput(controllerId);
+    },
+    [inputManager],
+  );
 
   return {
     roomId: parsedRoomId,
@@ -422,5 +450,6 @@ export const useAirJamHost = (
     reconnect,
     socket: returnSocket,
     isChildMode,
+    getInput,
   };
 };
