@@ -8,26 +8,12 @@ The Air Jam host system manages game sessions and input routing. This page expla
 
 The simplest mode—your game connects directly to the Air Jam server.
 
-```
-┌──────────────────┐                    ┌──────────────────┐
-│   Your Game      │◀──── WebSocket ───▶│  Air Jam Server  │
-│   (Host)         │                    │                  │
-│                  │                    │   Room: ABCD     │
-│  useAirJamHost() │                    │                  │
-└──────────────────┘                    └──────────────────┘
-         ▲                                       ▲
-         │                                       │
-         │              Input Events             │
-         │                                       │
-         │                    ┌──────────────────┘
-         │                    │
-┌────────┴────────┐    ┌──────┴──────┐
-│  Controller 1   │    │ Controller 2│
-│  (Phone)        │    │ (Phone)     │
-└─────────────────┘    └─────────────┘
-```
+import { StandaloneHostDiagram } from "@/components/docs/figures/standalone-host-diagram";
+
+<StandaloneHostDiagram />
 
 **Usage:**
+
 ```tsx
 const host = useAirJamHost({
   onPlayerJoin: (player) => spawnPlayer(player),
@@ -47,31 +33,17 @@ useFrame(() => {
 
 In arcade mode, the platform runs a "master" host and your game runs as a "child" host inside an iframe.
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│                     Air Jam Platform (TV)                      │
-│  ┌──────────────────────────────────────────────────────┐     │
-│  │  Arcade Browser (Master Host)                        │     │
-│  │  • Owns the room                                     │     │
-│  │  • Handles game selection                            │     │
-│  │  • Controls input focus                              │     │
-│  │  ┌─────────────────────────────────────────────┐     │     │
-│  │  │  Your Game (Child Host - iframe)            │     │     │
-│  │  │  • Joins via secure token                   │     │     │
-│  │  │  • Receives input when game has focus       │     │     │
-│  │  └─────────────────────────────────────────────┘     │     │
-│  └──────────────────────────────────────────────────────┘     │
-└───────────────────────────────────────────────────────────────┘
-```
+import { ArcadeModeDiagram } from "@/components/docs/figures/arcade-mode-diagram";
+
+<ArcadeModeDiagram />
 
 ## Server-Authoritative Focus System
 
 The server maintains authoritative control over which host receives controller inputs through a **focus** state:
 
-| Focus | Input Recipient | Use Case |
-|-------|-----------------|----------|
-| `SYSTEM` | Master Host (Arcade) | Browsing games, navigation |
-| `GAME` | Child Host (Your Game) | Active gameplay |
+import { FocusSystemDiagram } from "@/components/docs/figures/focus-system-diagram";
+
+<FocusSystemDiagram />
 
 ### Why Server-Authoritative?
 
@@ -95,13 +67,13 @@ The server maintains authoritative control over which host receives controller i
     │                             │                            │
     │  Display QR Code            │                            │
     │  with room code             │     Scan QR Code           │
-    │                             │ ◀───────────────────────────│
+    │                             │ ◀──────────────────────────│
     │                             │                            │
     │                             │     controller:join        │
-    │                             │ ◀───────────────────────────│
+    │                             │ ◀──────────────────────────│
     │                             │                            │
     │ server:controllerJoined     │     server:welcome         │
-    │ ◀───────────────────────────│ ───────────────────────────▶│
+    │ ◀───────────────────────────│ ──────────────────────────▶│
 ```
 
 ### 2. Game Launch
@@ -110,20 +82,20 @@ The server maintains authoritative control over which host receives controller i
 [Arcade]              [Server]               [Your Game]        [Controller]
     │                     │                       │                   │
     │ system:launchGame   │                       │                   │
-    │ ────────────────────▶                       │                   │
+    │ ───────────────────▶│                       │                   │
     │                     │                       │                   │
     │ ack: { joinToken }  │                       │                   │
-    │ ◀────────────────────                       │                   │
+    │ ◀────────────────── │                       │                   │
     │                     │                       │                   │
-    │ Load iframe ────────────────────────────────▶                   │
+    │ Load iframe ───────────────────────────────▶│                   │
     │                     │                       │                   │
     │                     │   host:joinAsChild    │                   │
-    │                     │ ◀─────────────────────│                   │
+    │                     │◀───────────────────── │                   │
     │                     │                       │                   │
     │                     │ Focus → GAME          │                   │
     │                     │                       │                   │
     │                     │ Redirect controller   │                   │
-    │                     │ ──────────────────────────────────────────▶
+    │                     │ ─────────────────────────────────────────▶│
     │                     │                       │                   │
     │                     │                       │   Load game UI    │
 ```
@@ -156,17 +128,17 @@ useFrame(() => {
 [Your Game]           [Server]               [Arcade]           [Controller]
     │                     │                       │                   │
     │ host:exit           │                       │                   │
-    │ ────────────────────▶                       │                   │
+    │ ───────────────────▶│                       │                   │
     │                     │                       │                   │
     │                     │ Focus → SYSTEM        │                   │
     │                     │                       │                   │
     │                     │ server:gameEnded      │                   │
-    │                     │ ──────────────────────▶                   │
+    │                     │ ─────────────────────▶│                   │
     │                     │                       │                   │
-    │              Destroy iframe ◀────────────────                   │
+    │              Destroy iframe ◀────────────── │                   │
     │                     │                       │                   │
     │                     │ Restore arcade UI     │                   │
-    │                     │ ──────────────────────────────────────────▶
+    │                     │ ─────────────────────────────────────────▶│
 ```
 
 ## Host Registration
@@ -176,8 +148,8 @@ useFrame(() => {
 ```tsx
 // Automatic registration when useAirJamHost is called
 const host = useAirJamHost({
-  roomId: "GAME",  // Optional custom room code
-  maxPlayers: 4,   // Optional limit
+  roomId: "GAME", // Optional custom room code
+  maxPlayers: 4, // Optional limit
 });
 
 // host.roomId contains the room code
@@ -214,13 +186,17 @@ const host = useAirJamHost({
     // player.label - Display name ("Player 1", etc.)
     // player.color - Assigned color ("#FF5733")
     // player.nickname - Optional custom name
-    
+
     spawnPlayerEntity(player);
-    host.sendSignal("TOAST", {
-      title: `Welcome ${player.label}!`,
-    }, player.id);
+    host.sendSignal(
+      "TOAST",
+      {
+        title: `Welcome ${player.label}!`,
+      },
+      player.id,
+    );
   },
-  
+
   onPlayerLeave: (controllerId) => {
     removePlayerEntity(controllerId);
   },
@@ -249,7 +225,7 @@ Send state updates to all controllers:
 ```tsx
 // Update game state display
 host.sendState({
-  gameState: "playing",  // "playing" | "paused"
+  gameState: "playing", // "playing" | "paused"
   message: "Round 3 - Fight!",
 });
 

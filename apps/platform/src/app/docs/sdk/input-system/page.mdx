@@ -4,16 +4,9 @@ The Air Jam input system provides type-safe, validated, and latched input handli
 
 ## Input Flow
 
-```
-┌────────────────────┐     ┌─────────────────┐     ┌──────────────────┐
-│  Controller Phone  │────▶│  AirJam Server  │────▶│   Your Game      │
-│                    │     │                 │     │                  │
-│  sendInput({       │     │  Validates      │     │  getInput(id)    │
-│    vector: {x,y},  │     │  Routes         │     │  Returns typed,  │
-│    action: true    │     │  Broadcasts     │     │  validated,      │
-│  })                │     │                 │     │  latched input   │
-└────────────────────┘     └─────────────────┘     └──────────────────┘
-```
+import { InputFlowDiagram } from "@/components/docs/figures/input-flow-diagram";
+
+<InputFlowDiagram />
 
 ## Configuration
 

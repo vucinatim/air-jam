@@ -13,34 +13,9 @@ Air Jam is a platform for building **"AirConsole-style" multiplayer games** wher
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         HOST (TV/Computer)                       │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Your Game                                                │   │
-│  │  • Renders game graphics                                  │   │
-│  │  • Processes player input                                 │   │
-│  │  • Manages game state                                     │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                              ▲                                   │
-│                              │ useAirJamHost()                   │
-└──────────────────────────────┼───────────────────────────────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    │   Air Jam Server    │
-                    │   (WebSocket)       │
-                    └──────────┬──────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          │                    │                    │
-          ▼                    ▼                    ▼
-┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-│   Controller 1   │ │   Controller 2   │ │   Controller 3   │
-│   (Phone)        │ │   (Phone)        │ │   (Phone)        │
-│                  │ │                  │ │                  │
-│  Joystick + Btns │ │  Joystick + Btns │ │  Joystick + Btns │
-└──────────────────┘ └──────────────────┘ └──────────────────┘
-```
+import { HowItWorksDiagram } from "@/components/docs/figures/how-it-works-diagram";
+
+<HowItWorksDiagram />
 
 ## Quick Start
 

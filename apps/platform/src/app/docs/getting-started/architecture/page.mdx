@@ -4,36 +4,9 @@ Air Jam consists of four main components in a monorepo structure. This page expl
 
 ## System Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Air Jam Platform                                │
-│                           (apps/platform - Next.js)                          │
-│  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────────┐ │
-│  │   Game Catalog     │  │   Arcade Mode      │  │   Controller Shell     │ │
-│  │   Developer Portal │  │   Game Launcher    │  │   (Mobile Wrapper)     │ │
-│  └────────────────────┘  └────────────────────┘  └────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Air Jam Server                                  │
-│                           (packages/server - Node.js)                        │
-│  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────────┐ │
-│  │   Room Manager     │  │   Auth Service     │  │   Event Router         │ │
-│  │   (State + Rooms)  │  │   (API Keys)       │  │   (Socket.IO)          │ │
-│  └────────────────────┘  └────────────────────┘  └────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-                    ▲                                       ▲
-                    │                                       │
-        ┌───────────┴───────────┐               ┌──────────┴──────────┐
-        │                       │               │                      │
-┌───────┴───────┐       ┌───────┴───────┐  ┌────┴────┐         ┌───────┴───────┐
-│  Your Game    │       │  Your Game    │  │ Phone 1 │         │    Phone N    │
-│  (Host)       │       │  (Host)       │  │ Ctrl    │   ...   │    Ctrl       │
-│               │       │               │  │         │         │               │
-│  @air-jam/sdk │       │  @air-jam/sdk │  │  SDK    │         │    SDK        │
-└───────────────┘       └───────────────┘  └─────────┘         └───────────────┘
-```
+import { SystemOverviewDiagram } from "@/components/docs/figures/system-overview-diagram";
+
+<SystemOverviewDiagram />
 
 ## Components
 
@@ -66,22 +39,15 @@ Air Jam consists of four main components in a monorepo structure. This page expl
 
 **Core Services:**
 
-| Service | Responsibility |
-|---------|---------------|
-| **Room Manager** | Creates/destroys rooms, tracks connected players |
-| **Auth Service** | Validates API keys, enforces rate limits |
-| **Event Router** | Routes input/signals between hosts and controllers |
-| **Focus System** | Controls whether system or game receives input |
+import { CoreServicesDiagram } from "@/components/docs/figures/core-services-diagram";
+
+<CoreServicesDiagram />
 
 **Socket Events:**
 
-| Event | Direction | Purpose |
-|-------|-----------|---------|
-| `host:register` | Host → Server | Create/join a room |
-| `controller:join` | Controller → Server | Join existing room |
-| `controller:input` | Controller → Server → Host | Send input to game |
-| `host:signal` | Host → Server → Controller | Send haptics/toasts |
-| `server:state` | Server → All | Broadcast game state |
+import { SocketEventsDiagram } from "@/components/docs/figures/socket-events-diagram";
+
+<SocketEventsDiagram />
 
 ### 3. SDK (`packages/sdk`)
 
@@ -91,28 +57,9 @@ Air Jam consists of four main components in a monorepo structure. This page expl
 
 **Architecture:**
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    AirJamProvider                        │
-│  ┌─────────────────┐  ┌─────────────────────────────┐   │
-│  │  SocketManager  │  │  Zustand Store              │   │
-│  │  (WebSocket)    │  │  (Connection State)         │   │
-│  └─────────────────┘  └─────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────────┐│
-│  │  InputManager                                       ││
-│  │  • Schema Validation (Zod)                          ││
-│  │  • Input Latching                                   ││
-│  │  • Per-Controller Buffering                         ││
-│  └─────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-┌─────────────────┐ ┌─────────────┐ ┌───────────────────┐
-│ useAirJamHost   │ │ useGetInput │ │ useAirJamController│
-│ (Full API)      │ │ (Perf)      │ │ (Mobile)          │
-└─────────────────┘ └─────────────┘ └───────────────────┘
-```
+import { SdkArchitectureDiagram } from "@/components/docs/figures/sdk-architecture-diagram";
+
+<SdkArchitectureDiagram />
 
 **Key Design Decisions:**
 
