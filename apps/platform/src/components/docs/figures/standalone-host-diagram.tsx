@@ -10,6 +10,7 @@ export const StandaloneHostDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
+      data-figure-description="Standalone host architecture diagram: Your Game (Host) connects directly to the AirJam Server via WebSocket. Controller phones join by scanning QR code and connect to the same server. The host registers a room, receives a room code, and generates a QR code for controllers to join."
     >
       <svg
         viewBox="0 0 700 400"

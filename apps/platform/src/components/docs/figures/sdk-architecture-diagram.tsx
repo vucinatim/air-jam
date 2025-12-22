@@ -10,6 +10,7 @@ export const SdkArchitectureDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
+      data-figure-description="SDK architecture diagram: AirJamProvider wraps the app and provides context. SocketClient manages WebSocket connections. InputManager handles input validation with Zod schemas and applies latching for boolean/vector fields. Zustand store maintains state. Hooks (useAirJamHost, useAirJamController, useGetInput, useSendSignal) provide access to functionality."
     >
       <svg
         viewBox="0 0 700 400"

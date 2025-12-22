@@ -10,6 +10,7 @@ export const InputFlowDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
+      data-figure-description="Diagram showing input flow: Controller Phone calls sendInput({vector: {x, y}}) → AirJam Server (validates, routes, broadcasts) → Your Game calls getInput(id) which returns typed, validated, latched input."
     >
       <svg
         viewBox="0 0 600 200"

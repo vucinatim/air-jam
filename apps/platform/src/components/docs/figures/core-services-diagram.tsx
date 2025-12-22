@@ -10,6 +10,7 @@ export const CoreServicesDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
+      data-figure-description="Core server services diagram: RoomManager handles room creation, player assignment, and cleanup. ConnectionManager tracks socket connections, handles reconnection logic, and manages timeouts. SignalRouter routes input from controllers to hosts and signals from hosts to controllers."
     >
       <svg
         viewBox="0 0 700 280"

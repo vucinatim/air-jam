@@ -399,7 +399,13 @@ type DocsSearchProps = {
 
 export const DocsSearch = ({ variant = "button" }: DocsSearchProps) => {
   const [open, setOpen] = useState(false);
+  const [isMac, setIsMac] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    // Detect OS for showing correct shortcut
+    setIsMac(navigator.platform.toLowerCase().includes("mac"));
+  }, []);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -443,7 +449,7 @@ export const DocsSearch = ({ variant = "button" }: DocsSearchProps) => {
         </span>
         <span className="flex-1 text-left lg:hidden">Search...</span>
         <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-          <span className="text-xs">⌘</span>K
+          <span className="text-xs">{isMac ? "⌘" : "Ctrl"}</span>K
         </kbd>
       </Button>
 

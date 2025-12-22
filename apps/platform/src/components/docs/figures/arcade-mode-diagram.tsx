@@ -10,6 +10,7 @@ export const ArcadeModeDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
+      data-figure-description="Arcade mode architecture diagram: The Air Jam Platform acts as a master host and loads your game inside an iframe as a child host. Controllers connect through the platform's controller shell. The platform manages game switching, and your game receives a join token to connect to the existing room."
     >
       <svg
         viewBox="0 0 700 400"

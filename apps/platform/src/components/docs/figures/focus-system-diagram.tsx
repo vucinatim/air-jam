@@ -4,7 +4,10 @@ import { diagramColors } from "./diagram-colors";
 
 export const FocusSystemDiagram = () => {
   return (
-    <div className="flex justify-center overflow-x-auto">
+    <div
+      className="flex justify-center overflow-x-auto"
+      data-figure-description="Focus system table: Shows how server-authoritative focus controls input routing. Focus can be SYSTEM (inputs go to platform/arcade), GAME (inputs go to your game), or CONTROLLER (direct controller-to-host). The server maintains authoritative control to prevent rogue games from stealing input."
+    >
       <svg
         viewBox="0 0 604 200"
         className="w-full max-w-3xl"

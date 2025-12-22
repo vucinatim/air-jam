@@ -10,6 +10,7 @@ export const HowItWorksDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
+      data-figure-description="How Air Jam works overview: 1) Your game displays a QR code with room ID. 2) Players scan QR on their phones - no app download required. 3) Phone becomes a game controller with joystick and buttons. 4) All input is routed through the AirJam Server to your game in real-time."
     >
       <svg
         viewBox="0 0 700 450"

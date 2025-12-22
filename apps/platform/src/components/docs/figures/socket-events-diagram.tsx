@@ -10,6 +10,7 @@ export const SocketEventsDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
+      data-figure-description="Socket events diagram showing all WebSocket events: Host events (host:register, host:signal, host:state, host:exit), Controller events (controller:join, controller:input, controller:systemCommand), and Server events (server:welcome, server:controllerJoined, server:controllerLeft, server:input, server:signal, server:state, server:error)."
     >
       <svg
         viewBox="0 0 800 500"
