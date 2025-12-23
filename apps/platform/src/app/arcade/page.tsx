@@ -43,6 +43,7 @@ export default function ArcadePage() {
 
   return (
     <AirJamProvider
+      serverUrl={process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL}
       input={{
         schema: arcadeInputSchema,
         latch: {
