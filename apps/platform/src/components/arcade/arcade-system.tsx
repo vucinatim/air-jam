@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArcadeLoader } from "./arcade-loader";
 import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
+import { arcadeInputSchema } from "@/app/arcade/page";
 
 const DEFAULT_PLATFORM_API_KEY = process.env.NEXT_PUBLIC_PLATFORM_API_KEY;
 
@@ -90,7 +91,7 @@ export const ArcadeSystem = ({
     new Map(),
   );
 
-  const host = useAirJamHost({
+  const host = useAirJamHost<typeof arcadeInputSchema>({
     roomId: initialRoomId,
     apiKey,
     onPlayerJoin: () => {

@@ -6,6 +6,15 @@ import { AirJamProvider } from "@air-jam/sdk";
 import { useState } from "react";
 import { z } from "zod";
 
+// Input schema for arcade navigation
+export const arcadeInputSchema = z.object({
+  vector: z.object({
+    x: z.number(),
+    y: z.number(),
+  }),
+  action: z.boolean(),
+});
+
 export default function ArcadePage() {
   // Persist Room ID for development convenience
   const [persistedRoomId] = useState(() => {
@@ -31,15 +40,6 @@ export default function ArcadePage() {
     name: game.name,
     url: game.url,
   }));
-
-  // Input schema for arcade navigation
-  const arcadeInputSchema = z.object({
-    vector: z.object({
-      x: z.number(),
-      y: z.number(),
-    }),
-    action: z.boolean(),
-  });
 
   return (
     <AirJamProvider

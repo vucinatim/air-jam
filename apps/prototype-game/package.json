@@ -27,7 +27,7 @@
     "react-router-dom": "^6.28.0",
     "tailwind-merge": "^2.5.5",
     "three": "^0.172.0",
-    "zod": "^3.24.1",
+    "zod": "^4.2.1",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

@@ -2,11 +2,11 @@ import { useGetInput } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { useBotManager } from "../bot-system/BotManager";
-import type { GameLoopInput } from "../types";
+import { type GameLoopInput, gameInputSchema } from "../types";
 
 export const useGameInput = () => {
   // Get getInput without subscribing to connection state
-  const getInputFromHost = useGetInput();
+  const getInputFromHost = useGetInput<typeof gameInputSchema>();
   const botManager = useBotManager.getState();
 
   // We need time for bot updates
@@ -24,7 +24,7 @@ export const useGameInput = () => {
     }
 
     // Get input from host (already validated, typed, and latched)
-    const input = getInputFromHost?.(controllerId);
+    const input = getInputFromHost(controllerId);
 
     if (!input) {
       return undefined;

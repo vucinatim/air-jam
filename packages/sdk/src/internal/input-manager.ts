@@ -206,7 +206,7 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
         // Validation failed - log error and return undefined
         console.warn(
           `[InputManager] Invalid input for controller ${controllerId}:`,
-          result.error.errors,
+          result.error,
         );
         return undefined;
       }
@@ -215,7 +215,10 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
 
     // Apply latching if configured
     if (this.config.latch) {
-      return this.getLatched(controllerId, validatedInput as z.infer<TSchema>);
+      return this.getLatched(
+        controllerId,
+        validatedInput as Record<string, unknown>,
+      ) as z.infer<TSchema>;
     }
 
     return validatedInput as z.infer<TSchema>;

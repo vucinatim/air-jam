@@ -25,7 +25,7 @@ export const roomCodeSchema = z
 export const controllerInputSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),
-  input: z.record(z.unknown()), // Arbitrary JSON object - developers define their own structure
+  input: z.record(z.string(), z.unknown()), // Arbitrary JSON object - developers define their own structure
 });
 
 export type ControllerInputPayload = Record<string, unknown>;
