@@ -35,6 +35,7 @@
     "howler": "^2.2.4",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.554.0",
+    "nanoid": "^5.1.6",
     "qrcode": "^1.5.4",
     "socket.io-client": "^4.8.1",
     "tailwind-merge": "^2.5.5",
