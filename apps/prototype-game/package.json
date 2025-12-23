@@ -19,11 +19,15 @@
     "@react-three/rapier": "^2.2.0",
     "@tailwindcss/vite": "^4.1.17",
     "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.554.0",
+    "nanoid": "^5.1.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^6.28.0",
+    "tailwind-merge": "^2.5.5",
     "three": "^0.172.0",
+    "zod": "^3.24.1",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
