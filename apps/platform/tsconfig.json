@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@air-jam/sdk": ["../../packages/sdk/src/index.ts"],
+      "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
     }
   },
   "include": [
