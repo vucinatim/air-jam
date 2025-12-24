@@ -24,7 +24,7 @@ export default function ArcadePage() {
     return undefined;
   });
 
-  const { data: games, isLoading } = api.game.list.useQuery();
+  const { data: games, isLoading } = api.game.getAllPublic.useQuery();
 
   if (isLoading) {
     return (

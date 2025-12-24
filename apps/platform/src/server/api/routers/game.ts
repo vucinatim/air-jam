@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { apiKeys, games } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 
 export const gameRouter = createTRPCRouter({
   create: protectedProcedure
@@ -34,6 +34,10 @@ export const gameRouter = createTRPCRouter({
 
   list: protectedProcedure.query(async ({ ctx }) => {
     return await db.select().from(games).where(eq(games.userId, ctx.user.id));
+  }),
+
+  getAllPublic: publicProcedure.query(async () => {
+    return await db.select().from(games).where(eq(games.isPublished, true));
   }),
 
   get: protectedProcedure
