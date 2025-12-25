@@ -11,6 +11,9 @@
     "directory": "packages/server"
   },
   "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "air-jam-server": "./dist/cli.js"
   },
