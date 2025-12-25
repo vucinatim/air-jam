@@ -1,0 +1,47 @@
+{
+  "name": "create-airjam",
+  "version": "0.1.0",
+  "description": "CLI to scaffold Air Jam game projects",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vucinatim/air-jam.git",
+    "directory": "packages/create-airjam"
+  },
+  "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "keywords": [
+    "air-jam",
+    "cli",
+    "scaffold",
+    "template",
+    "game",
+    "multiplayer",
+    "create-airjam",
+    "boilerplate",
+    "starter"
+  ],
+  "bin": {
+    "create-airjam": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "fs-extra": "^11.3.0",
+    "kleur": "^4.1.5",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/prompts": "^2.4.9",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.3"
+  }
+}
