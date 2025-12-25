@@ -1,0 +1,575 @@
+# Networked State
+
+The Air Jam SDK provides a powerful networked state system built on Zustand that automatically syncs game state between the host and all controllers. This page explains how it works and how to use it effectively.
+
+## Overview
+
+The networked state system enables:
+
+- **Shared State** - Game state (scores, phases, team assignments) synced across all clients
+- **Action RPCs** - Controllers can trigger actions on the host (source of truth)
+- **Automatic Sync** - State changes on host automatically broadcast to all controllers
+- **Type Safety** - Full TypeScript support with Zustand selectors
+
+## Creating a Networked Store
+
+Use `createAirJamStore` instead of Zustand's `create`:
+
+```tsx filename="src/store.ts"
+import { createAirJamStore } from "@air-jam/sdk";
+
+export interface GameState {
+  phase: "lobby" | "playing" | "gameover";
+  scores: { team1: number; team2: number };
+  teamAssignments: Record<string, "team1" | "team2">;
+
+  // Actions must be in an 'actions' object
+  actions: {
+    joinTeam: (team: "team1" | "team2", playerId?: string) => void;
+    setPhase: (phase: "lobby" | "playing" | "gameover") => void;
+    scorePoint: (team: "team1" | "team2") => void;
+    resetGame: () => void;
+  };
+}
+
+export const useGameStore = createAirJamStore<GameState>((set) => ({
+  phase: "lobby",
+  scores: { team1: 0, team2: 0 },
+  teamAssignments: {},
+
+  actions: {
+    // playerId is automatically injected by SDK on host side
+    joinTeam: (team, playerId) => {
+      if (!playerId) return;
+      set((state) => ({
+        teamAssignments: {
+          ...state.teamAssignments,
+          [playerId]: team,
+        },
+      }));
+    },
+
+    setPhase: (phase) => set({ phase }),
+
+    scorePoint: (team) =>
+      set((state) => ({
+        scores: {
+          ...state.scores,
+          [team]: state.scores[team] + 1,
+        },
+      })),
+
+    resetGame: () =>
+      set({
+        phase: "lobby",
+        scores: { team1: 0, team2: 0 },
+        teamAssignments: {},
+      }),
+  },
+}));
+```
+
+**Important Requirements:**
+
+1. **State must have an `actions` object** - All action functions must be nested under `actions`
+2. **Actions receive `controllerId` automatically** - The SDK injects the controller ID as the last argument on the host side
+3. **Use Zustand's `set` function** - Standard Zustand patterns work as expected
+
+## Using the Store
+
+### Reading State
+
+Use standard Zustand selectors to read state:
+
+```tsx filename="src/components/HostView.tsx"
+import { useGameStore } from "../store";
+
+const HostView = () => {
+  // Select specific fields (recommended - minimizes re-renders)
+  const phase = useGameStore((state) => state.phase);
+  const scores = useGameStore((state) => state.scores);
+  const teamAssignments = useGameStore((state) => state.teamAssignments);
+
+  // Or select the entire state
+  const state = useGameStore((state) => state);
+
+  return (
+    <div>
+      <p>Phase: {phase}</p>
+      <p>
+        Team 1: {scores.team1} | Team 2: {scores.team2}
+      </p>
+    </div>
+  );
+};
+```
+
+**On Controllers:**
+
+```tsx filename="src/components/ControllerView.tsx"
+import { useGameStore } from "../store";
+
+const ControllerView = () => {
+  const phase = useGameStore((state) => state.phase);
+  const teamAssignments = useGameStore((state) => state.teamAssignments);
+  const actions = useGameStore((state) => state.actions);
+
+  const myTeam = teamAssignments[controllerId];
+
+  return (
+    <div>
+      {phase === "lobby" && (
+        <button onClick={() => actions.joinTeam("team1")}>Join Team 1</button>
+      )}
+    </div>
+  );
+};
+```
+
+### Calling Actions
+
+**On Host:**
+
+Actions execute directly on the host:
+
+```tsx filename="src/components/HostView.tsx"
+const HostView = () => {
+  const actions = useGameStore((state) => state.actions);
+
+  const handleGameStart = () => {
+    // Executes immediately on host
+    actions.setPhase("playing");
+  };
+
+  const handleScore = (team: "team1" | "team2") => {
+    // Executes immediately on host
+    actions.scorePoint(team);
+  };
+};
+```
+
+**On Controllers:**
+
+Actions are automatically proxied to the host:
+
+```tsx filename="src/components/ControllerView.tsx"
+const ControllerView = () => {
+  const actions = useGameStore((state) => state.actions);
+
+  const handleJoinTeam = (team: "team1" | "team2") => {
+    // Sends RPC to host → host executes → state syncs back
+    actions.joinTeam(team);
+    // Note: controllerId is automatically injected by SDK
+  };
+};
+```
+
+**What Happens:**
+
+1. Controller calls `actions.joinTeam("team1")`
+2. SDK intercepts and sends `controller:action_rpc` to server
+3. Server forwards to host as `airjam:action_rpc`
+4. Host executes action: `joinTeam("team1", controllerId)`
+5. Host state updates
+6. Host broadcasts state change to all controllers
+7. All controllers receive updated state
+
+### Accessing Actions
+
+You can access actions in two ways:
+
+```tsx
+// Method 1: Select just actions
+const actions = useGameStore((state) => state.actions);
+actions.joinTeam("team1");
+
+// Method 2: Select full state
+const state = useGameStore((state) => state);
+state.actions.joinTeam("team1");
+```
+
+Both work identically - the SDK handles proxy creation for both selector patterns.
+
+## How It Works
+
+### Architecture
+
+```
+┌─────────────┐                    ┌──────────────┐
+│   Host      │                    │  Controller  │
+│             │                    │              │
+│  Store      │◀─── State Sync ────│  Store       │
+│  (Source)   │                    │  (Replica)   │
+│             │                    │              │
+│  Actions    │◀─── Action RPC ────│  Proxy       │
+│  Execute    │                    │  Actions     │
+└─────────────┘                    └──────────────┘
+```
+
+**Flow:**
+
+1. **Host** maintains the source of truth (Zustand store)
+2. **Controllers** receive state updates via WebSocket
+3. **Controllers** call actions → RPC to host → host executes → state syncs back
+4. All state changes automatically broadcast to all connected controllers
+
+### Key Concepts
+
+- **Host**: Owns the store, executes actions, broadcasts changes
+- **Controller**: Receives state, proxies actions to host via RPC
+- **Actions**: Functions that modify state (only execute on host)
+- **State**: Read-only data synced from host to controllers
+
+## Advanced Patterns
+
+### Passing Controller ID to Actions
+
+The SDK automatically injects `controllerId` as the last argument to actions on the host side. Your action signatures should include it:
+
+```tsx filename="src/store.ts"
+actions: {
+  // ✅ Correct: playerId is optional, SDK injects it
+  joinTeam: (team: "team1" | "team2", playerId?: string) => void;
+
+  // ✅ Also works: playerId required
+  assignRole: (role: string, playerId: string) => void;
+
+  // ❌ Wrong: Don't require controllerId in controller calls
+  // This won't work because controllers don't know their ID
+  // joinTeam: (playerId: string, team: string) => void;
+}
+```
+
+### State Updates Trigger Re-renders
+
+Standard Zustand behavior applies - components re-render when selected state changes:
+
+```tsx
+// This component re-renders when phase changes
+const PhaseDisplay = () => {
+  const phase = useGameStore((state) => state.phase);
+  return <div>Phase: {phase}</div>;
+};
+
+// This component re-renders when scores change
+const ScoreDisplay = () => {
+  const scores = useGameStore((state) => state.scores);
+  return (
+    <div>
+      {scores.team1} - {scores.team2}
+    </div>
+  );
+};
+
+// This component re-renders when ANY state changes
+const FullStateDisplay = () => {
+  const state = useGameStore((state) => state);
+  return <div>{JSON.stringify(state)}</div>;
+};
+```
+
+### Avoiding Re-renders
+
+For performance-critical components, use refs or select minimal state:
+
+```tsx
+// ✅ Good: Only re-renders when phase changes
+const GameLogic = () => {
+  const phase = useGameStore((state) => state.phase);
+  // ...
+};
+
+// ✅ Also good: Use refs for game loop state
+const GameLoop = () => {
+  const scoresRef = useRef(useGameStore.getState().scores);
+
+  useEffect(() => {
+    const unsubscribe = useGameStore.subscribe((state) => {
+      scoresRef.current = state.scores;
+    });
+    return unsubscribe;
+  }, []);
+
+  useFrame(() => {
+    // Access scoresRef.current without re-renders
+  });
+};
+```
+
+### Complex State Updates
+
+Use Zustand's functional updates for complex state:
+
+```tsx filename="src/store.ts"
+actions: {
+  updatePlayer: (playerId: string, updates: Partial<Player>) =>
+    set((state) => ({
+      players: {
+        ...state.players,
+        [playerId]: {
+          ...state.players[playerId],
+          ...updates,
+        },
+      },
+    })),
+
+  removePlayer: (playerId: string) =>
+    set((state) => {
+      const { [playerId]: removed, ...rest } = state.players;
+      return { players: rest };
+    }),
+}
+```
+
+## Best Practices
+
+### 1. Keep Actions Simple
+
+Actions should be pure state updates. Complex logic should live in your game code:
+
+```tsx
+// ✅ Good: Simple state update
+actions: {
+  setScore: (team: string, score: number) => set((state) => ({
+    scores: { ...state.scores, [team]: score },
+  })),
+}
+
+// ❌ Avoid: Complex logic in actions
+actions: {
+  processScore: (team: string) => {
+    // Don't do game logic here
+    const newScore = calculateComplexScore(team);
+    set((state) => ({ ... }));
+  },
+}
+```
+
+### 2. Use Selectors for Performance
+
+Always use selectors to minimize re-renders:
+
+```tsx
+// ✅ Good: Only re-renders when phase changes
+const phase = useGameStore((state) => state.phase);
+
+// ❌ Avoid: Re-renders on every state change
+const state = useGameStore((state) => state);
+const phase = state.phase;
+```
+
+### 3. Handle Missing State
+
+State may be empty when controllers first connect:
+
+```tsx
+const ControllerView = () => {
+  const teamAssignments = useGameStore((state) => state.teamAssignments);
+  const myTeam = teamAssignments[controllerId];
+
+  if (!myTeam) {
+    return <div>Select a team...</div>;
+  }
+
+  return <div>You're on {myTeam}</div>;
+};
+```
+
+### 4. Type Your State
+
+Always define TypeScript interfaces:
+
+```tsx
+export interface GameState {
+  // State fields
+  phase: "lobby" | "playing" | "gameover";
+  scores: Record<string, number>;
+
+  // Actions
+  actions: {
+    setPhase: (phase: GameState["phase"]) => void;
+    updateScore: (playerId: string, score: number) => void;
+  };
+}
+```
+
+### 5. Separate Game State from Networked State
+
+Not everything needs to be networked:
+
+```tsx
+// ✅ Networked: Shared across all clients
+const phase = useGameStore((state) => state.phase);
+const scores = useGameStore((state) => state.scores);
+
+// ✅ Local: Host-only game loop state
+const gameState = useRef({
+  ballX: 0,
+  ballY: 0,
+  ballVX: 1,
+  ballVY: 1,
+});
+```
+
+## Common Patterns
+
+### Team Assignment
+
+```tsx filename="src/store.ts"
+actions: {
+  joinTeam: (team: "team1" | "team2", playerId?: string) => {
+    if (!playerId) return;
+    set((state) => ({
+      teamAssignments: {
+        ...state.teamAssignments,
+        [playerId]: team,
+      },
+    }));
+  },
+}
+```
+
+### Score Tracking
+
+```tsx filename="src/store.ts"
+actions: {
+  scorePoint: (team: "team1" | "team2") =>
+    set((state) => ({
+      scores: {
+        ...state.scores,
+        [team]: state.scores[team] + 1,
+      },
+    })),
+}
+```
+
+### Game Phase Management
+
+```tsx filename="src/store.ts"
+actions: {
+  setPhase: (phase: "lobby" | "playing" | "gameover") =>
+    set({ phase }),
+
+  startGame: () => {
+    set({ phase: "playing" });
+    // Reset scores, etc.
+  },
+
+  endGame: (winner: string) => {
+    set({ phase: "gameover", winner });
+  },
+}
+```
+
+## Troubleshooting
+
+### Actions Not Executing
+
+1. **Check connection status:**
+
+   ```tsx
+   const { connectionStatus } = useAirJamController();
+   console.log(connectionStatus); // Should be "connected"
+   ```
+
+2. **Verify actions are in the `actions` object:**
+
+   ```tsx
+   // ✅ Correct
+   actions: {
+     joinTeam: (team) => { ... }
+   }
+
+   // ❌ Wrong
+   joinTeam: (team) => { ... } // Not in actions object
+   ```
+
+3. **Ensure you're calling actions, not state:**
+
+   ```tsx
+   // ✅ Correct
+   const actions = useGameStore((state) => state.actions);
+   actions.joinTeam("team1");
+
+   // ❌ Wrong
+   const state = useGameStore((state) => state);
+   state.joinTeam("team1"); // joinTeam is in actions, not state
+   ```
+
+### State Not Syncing
+
+1. **Check host is broadcasting:**
+   - Host must be connected and role must be "host"
+   - State changes must use Zustand's `set` function
+
+2. **Verify controller is receiving:**
+   - Controller must be connected to same room
+   - Check WebSocket connection in browser dev tools
+
+3. **Check selector usage:**
+
+   ```tsx
+   // ✅ This works
+   const phase = useGameStore((state) => state.phase);
+
+   // ✅ This also works
+   const actions = useGameStore((state) => state.actions);
+
+   // ❌ This won't sync (not using the hook)
+   const state = useGameStore.getState();
+   ```
+
+### Type Errors
+
+Ensure your state interface matches the store:
+
+```tsx
+// ✅ Correct
+interface GameState {
+  phase: string;
+  actions: {
+    setPhase: (phase: string) => void;
+  };
+}
+
+// ❌ Wrong: Missing actions
+interface GameState {
+  phase: string;
+  // Missing actions object!
+}
+```
+
+## API Reference
+
+### `createAirJamStore<T>(initializer)`
+
+Creates a networked Zustand store that automatically syncs between host and controllers.
+
+**Type Parameters:**
+
+- `T` - State interface that must include an `actions` object
+
+**Parameters:**
+
+- `initializer` - Zustand state creator function `(set, get, api) => T`
+
+**Returns:**
+
+- Hook function `useSyncedStore<U>(selector?) => U` - React hook for accessing store
+
+**Example:**
+
+```tsx
+const useGameStore = createAirJamStore<GameState>((set) => ({
+  phase: "lobby",
+  actions: {
+    setPhase: (phase) => set({ phase }),
+  },
+}));
+```
+
+## See Also
+
+- [SDK Hooks](/docs/sdk/hooks) - Other SDK hooks and utilities
+- [Input System](/docs/sdk/input-system) - Handling controller input
+- [Architecture](/docs/getting-started/architecture) - System overview

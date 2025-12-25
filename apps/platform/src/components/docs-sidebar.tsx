@@ -1,6 +1,6 @@
 "use client";
 
-import { Code2, Cpu, Gamepad2, Info, Layers, Zap } from "lucide-react";
+import { Code2, Cpu, Gamepad2, Info, Layers, Network, Zap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -120,6 +120,17 @@ export function DocsSidebar({
                 <Link href="/docs/sdk/input-system">
                   <Zap />
                   <span>Input System</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/docs/sdk/networked-state"}
+              >
+                <Link href="/docs/sdk/networked-state">
+                  <Network />
+                  <span>Networked State</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
