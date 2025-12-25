@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "air-jam-server",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -18,6 +19,7 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@air-jam/server": "^0.1.0",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",

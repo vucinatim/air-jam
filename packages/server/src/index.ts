@@ -748,5 +748,5 @@ io.on(
 );
 
 httpServer.listen(PORT, () => {
-  console.log(`[air-jam] server listening on ${PORT}`);
+  console.log(`[air-jam] server listening on http://localhost:${PORT}`);
 });

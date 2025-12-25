@@ -83,8 +83,11 @@ async function main() {
   console.log(kleur.green("✓ Project created successfully!\n"));
   console.log("Next steps:\n");
   console.log(kleur.cyan(`  cd ${projectName}`));
-  console.log(kleur.cyan("  npm install"));
-  console.log(kleur.cyan("  npm run dev"));
+  console.log(kleur.cyan("  pnpm install"));
+  console.log(kleur.cyan("  cp env.example .env"));
+  console.log(kleur.cyan("  # Edit .env and set AIR_JAM_MASTER_KEY"));
+  console.log(kleur.cyan("  pnpm run dev:server  # Terminal 1 - Start server"));
+  console.log(kleur.cyan("  pnpm run dev         # Terminal 2 - Start game"));
   console.log("");
   console.log(
     kleur.dim("Then open http://localhost:5173 and scan the QR code with your phone!")

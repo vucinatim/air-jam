@@ -17,11 +17,7 @@ export const apiKeys = pgTable("api_keys", {
 
 const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString) {
-  console.warn(
-    "[server] DATABASE_URL not found. API Key verification will fail unless using master key.",
-  );
-}
-
-const client = postgres(connectionString || "");
-export const db = drizzle(client);
+// Only create database client if DATABASE_URL is provided
+// In dev mode (no DATABASE_URL), the server runs without database
+const client = connectionString ? postgres(connectionString) : null;
+export const db = client ? drizzle(client) : null;
