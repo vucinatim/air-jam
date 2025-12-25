@@ -59,8 +59,18 @@ async function main() {
 
   console.log(kleur.cyan(`\nCreating project in ${targetDir}...\n`));
 
-  // Copy template
-  await fs.copy(templateDir, targetDir);
+  // Copy template, excluding development files
+  await fs.copy(templateDir, targetDir, {
+    filter: (src) => {
+      const relativePath = path.relative(templateDir, src);
+      // Exclude node_modules, lock files, and .npmrc (only needed for template development)
+      return (
+        !relativePath.includes("node_modules") &&
+        !relativePath.endsWith("pnpm-lock.yaml") &&
+        !relativePath.endsWith(".npmrc")
+      );
+    },
+  });
 
   // Update package.json name
   const pkgPath = path.join(targetDir, "package.json");

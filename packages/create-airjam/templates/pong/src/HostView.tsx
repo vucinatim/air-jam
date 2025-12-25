@@ -1,6 +1,6 @@
 import { useAirJamHost, useGetInput } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type GameInput, gameInputSchema } from "./types";
+import { GameInput, gameInputSchema } from "./types";
 
 const PADDLE_HEIGHT = 100;
 const PADDLE_WIDTH = 15;
@@ -43,7 +43,7 @@ export function HostView() {
 
     const gameLoop = () => {
       const state = gameState.current;
-      const controllers = host.controllers;
+      const controllers = host.players;
 
       // Get input from first two controllers
       const controllerIds = Object.keys(controllers);
@@ -53,11 +53,17 @@ export function HostView() {
       // Move paddles based on input
       if (player1Input) {
         state.paddle1Y += (player1Input as GameInput).direction * PADDLE_SPEED;
-        state.paddle1Y = Math.max(0, Math.min(600 - PADDLE_HEIGHT, state.paddle1Y));
+        state.paddle1Y = Math.max(
+          0,
+          Math.min(600 - PADDLE_HEIGHT, state.paddle1Y),
+        );
       }
       if (player2Input) {
         state.paddle2Y += (player2Input as GameInput).direction * PADDLE_SPEED;
-        state.paddle2Y = Math.max(0, Math.min(600 - PADDLE_HEIGHT, state.paddle2Y));
+        state.paddle2Y = Math.max(
+          0,
+          Math.min(600 - PADDLE_HEIGHT, state.paddle2Y),
+        );
       }
 
       // Move ball
@@ -106,7 +112,12 @@ export function HostView() {
       ctx.fillStyle = "#fff";
       // Paddles
       ctx.fillRect(30, state.paddle1Y, PADDLE_WIDTH, PADDLE_HEIGHT);
-      ctx.fillRect(800 - 30 - PADDLE_WIDTH, state.paddle2Y, PADDLE_WIDTH, PADDLE_HEIGHT);
+      ctx.fillRect(
+        800 - 30 - PADDLE_WIDTH,
+        state.paddle2Y,
+        PADDLE_WIDTH,
+        PADDLE_HEIGHT,
+      );
       // Ball
       ctx.fillRect(state.ballX, state.ballY, BALL_SIZE, BALL_SIZE);
       // Center line
@@ -122,7 +133,7 @@ export function HostView() {
 
     gameLoop();
     return () => cancelAnimationFrame(animationId);
-  }, [host.controllers, getInput, resetBall]);
+  }, [host.players, getInput, resetBall]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-900 p-4">
@@ -137,10 +148,10 @@ export function HostView() {
         className="rounded-lg border-2 border-white"
       />
       <div className="mt-4 text-gray-400">
-        {Object.keys(host.controllers).length === 0 ? (
+        {Object.keys(host.players).length === 0 ? (
           <p>Waiting for players to connect... Scan the QR code!</p>
         ) : (
-          <p>{Object.keys(host.controllers).length} player(s) connected</p>
+          <p>{Object.keys(host.players).length} player(s) connected</p>
         )}
       </div>
     </div>
