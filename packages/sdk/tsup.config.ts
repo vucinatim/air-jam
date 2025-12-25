@@ -8,4 +8,8 @@ export default defineConfig({
   sourcemap: true,
   external: ["react", "react-dom"],
   treeshake: true,
+  // Don't bundle CSS - let consumers handle it via the exported styles.css
+  loader: {
+    ".css": "copy",
+  },
 });

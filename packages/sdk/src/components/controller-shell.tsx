@@ -142,7 +142,8 @@ export const ControllerShell = ({
   // The parent frame provides the shell (header, volume, etc).
   if (isChildMode) {
     return (
-      <div className="text-foreground relative flex h-dvh w-dvw touch-none flex-col overflow-hidden bg-transparent select-none">
+      <div className="dark">
+        <div className="text-foreground relative flex h-dvh w-dvw touch-none flex-col overflow-hidden bg-transparent select-none">
         <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 select-none sm:p-4">
           {!orientationOk && (
             <div className="bg-background/95 absolute inset-0 z-50 flex flex-col items-center justify-center p-6 text-center shadow-lg backdrop-blur-sm">
@@ -165,11 +166,13 @@ export const ControllerShell = ({
           </div>
         </main>
       </div>
+      </div>
     );
   }
 
   return (
-    <div className="bg-background text-foreground relative flex h-dvh w-dvw touch-none flex-col overflow-hidden select-none">
+    <div className="dark">
+      <div className="bg-background text-foreground relative flex h-dvh w-dvw touch-none flex-col overflow-hidden select-none">
       <header className="pointer-events-none sticky top-0 z-50 flex items-center justify-between border-b px-6 py-2">
         <div className="pointer-events-auto flex items-center gap-3">
           {typeof window !== "undefined" && (currentPlayer || controllerId) && (
@@ -324,6 +327,7 @@ export const ControllerShell = ({
           currentRoomId={roomId}
         />
       )}
+      </div>
     </div>
   );
 };

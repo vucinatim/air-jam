@@ -28,6 +28,9 @@ export default defineConfig([
       ecmaVersion: 2022,
       sourceType: "module",
       globals: globals.browser,
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     extends: [
       js.configs.recommended,

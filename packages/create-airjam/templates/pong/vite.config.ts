@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@air-jam/sdk": path.resolve(__dirname, "../../../../packages/sdk/src"),
     },
   },
   server: {

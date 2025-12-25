@@ -108,7 +108,7 @@ export const AirJamOverlay = ({
 
   // Always render the navbar (unless child mode + playing)
   return (
-    <>
+    <div className="dark">
       {/* Top Navbar - Always Visible */}
       {!isChildMode && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-99999">
@@ -451,6 +451,6 @@ export const AirJamOverlay = ({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
