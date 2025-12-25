@@ -67,13 +67,15 @@ export function ControllerView() {
             {/* Up button - Select Team 1 */}
             <button
               type="button"
-              className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-95 ${
+              className={`flex-1 touch-none select-none rounded-xl text-4xl font-bold text-white shadow-lg hover:opacity-90 active:scale-95 ${
                 myTeam === "team1"
                   ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
                   : "opacity-70"
               }`}
               style={{
                 backgroundColor: myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
+                willChange: "transform",
+                transition: "none",
               }}
               onTouchStart={() => actions.joinTeam("team1")}
               onMouseDown={() => actions.joinTeam("team1")}
@@ -84,13 +86,15 @@ export function ControllerView() {
             {/* Down button - Select Team 2 */}
             <button
               type="button"
-              className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-95 ${
+              className={`flex-1 touch-none select-none rounded-xl text-4xl font-bold text-white shadow-lg hover:opacity-90 active:scale-95 ${
                 myTeam === "team2"
                   ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
                   : "opacity-70"
               }`}
               style={{
                 backgroundColor: myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
+                willChange: "transform",
+                transition: "none",
               }}
               onTouchStart={() => actions.joinTeam("team2")}
               onMouseDown={() => actions.joinTeam("team2")}
@@ -104,7 +108,11 @@ export function ControllerView() {
             {/* Up button */}
             <button
               type="button"
-              className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg transition-all hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+              className="flex-1 touch-none select-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+              style={{
+                willChange: "transform",
+                transition: "none",
+              }}
               onTouchStart={() => (directionRef.current = -1)}
               onTouchEnd={() => (directionRef.current = 0)}
               onMouseDown={() => (directionRef.current = -1)}
@@ -116,7 +124,11 @@ export function ControllerView() {
             {/* Down button */}
             <button
               type="button"
-              className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg transition-all hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+              className="flex-1 touch-none select-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+              style={{
+                willChange: "transform",
+                transition: "none",
+              }}
               onTouchStart={() => (directionRef.current = 1)}
               onTouchEnd={() => (directionRef.current = 0)}
               onMouseDown={() => (directionRef.current = 1)}
