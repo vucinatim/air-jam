@@ -9,7 +9,7 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores(["dist", "node_modules", "**/*.json", "**/*.css"]),
   {
-    files: ["packages/server/**/*.{ts,tsx}"],
+    files: ["packages/server/**/*.{ts,tsx}", "packages/create-airjam/**/*.{ts,tsx}"],
     ignores: ["**/dist/**"],
     languageOptions: {
       ecmaVersion: 2022,

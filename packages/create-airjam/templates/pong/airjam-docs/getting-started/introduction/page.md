@@ -1,0 +1,122 @@
+# Introduction
+
+Air Jam is a platform for building **"AirConsole-style" multiplayer games** where a computer/TV acts as the host display and smartphones become game controllers. The platform enables developers to create interactive games with minimal setup while providing players with an intuitive, scan-and-play experience.
+
+## Key Features
+
+- **Zero App Download**: Players join by scanning a QR code—no app store required
+- **Instant Multiplayer**: Seamlessly connect up to 8 smartphones as controllers
+- **Developer Friendly**: Built with modern web technologies (React, TypeScript)
+- **Type Safe**: End-to-end type safety with Zod schema validation
+- **Performance Optimized**: Latching system ensures no input is ever missed
+- **Haptic Feedback**: Send vibration patterns to controllers for game events
+
+## How It Works
+
+## Quick Start
+
+### 1. Install the SDK
+
+```bash
+pnpm add @air-jam/sdk
+```
+
+### 2. Wrap Your App
+
+```tsx filename="src/App.tsx"
+import { AirJamProvider } from "@air-jam/sdk";
+import { z } from "zod";
+
+// Define your input schema
+const gameInputSchema = z.object({
+  vector: z.object({ x: z.number(), y: z.number() }),
+  action: z.boolean(),
+  ability: z.boolean(),
+  timestamp: z.number(),
+});
+
+export const App = () => (
+  <AirJamProvider
+    input={{
+      schema: gameInputSchema,
+      latch: {
+        booleanFields: ["action", "ability"],
+        vectorFields: ["vector"],
+      },
+    }}
+  >
+    <Routes>
+      <Route path="/" element={<HostView />} />
+      <Route path="/joypad" element={<ControllerView />} />
+    </Routes>
+  </AirJamProvider>
+);
+```
+
+### 3. Create Your Host View
+
+```tsx filename="src/components/HostView.tsx"
+import { useAirJamHost } from "@air-jam/sdk";
+import { QRCode } from "./QRCode";
+
+const HostView = () => {
+  const host = useAirJamHost({
+    onPlayerJoin: (player) => {
+      console.log(`${player.label} joined!`);
+      spawnPlayer(player.id, player.color);
+    },
+    onPlayerLeave: (id) => {
+      console.log(`Player ${id} left`);
+      removePlayer(id);
+    },
+  });
+
+  return (
+    <div>
+      <h1>Room: {host.roomId}</h1>
+      <QRCode value={host.joinUrl} />
+      <p>Players: {host.players.length}</p>
+      
+      {/* Your game canvas */}
+      <GameCanvas players={host.players} getInput={host.getInput} />
+    </div>
+  );
+};
+```
+
+### 4. Create Your Controller View
+
+```tsx filename="src/components/ControllerView.tsx"
+import { useAirJamController } from "@air-jam/sdk";
+import { Joystick, Button } from "./ui";
+
+const ControllerView = () => {
+  const controller = useAirJamController();
+  
+  const handleInput = (vector: { x: number; y: number }, action: boolean) => {
+    controller.sendInput({
+      vector,
+      action,
+      ability: false,
+      timestamp: Date.now(),
+    });
+  };
+
+  if (controller.connectionStatus !== "connected") {
+    return <div>Connecting to room {controller.roomId}...</div>;
+  }
+
+  return (
+    <div>
+      <Joystick onMove={(x, y) => handleInput({ x, y }, false)} />
+      <Button onPress={() => handleInput({ x: 0, y: 0 }, true)}>Fire</Button>
+    </div>
+  );
+};
+```
+
+## Next Steps
+
+- [Architecture](/docs/getting-started/architecture) - Understand the system design
+- [Hooks Reference](/docs/sdk/hooks) - Complete API documentation
+- [Input System](/docs/sdk/input-system) - Learn about latching and validation
