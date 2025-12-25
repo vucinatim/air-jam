@@ -38,7 +38,7 @@ import type {
  */
 export function createAirJamStore<
   T extends {
-    actions: Record<string, (...args: unknown[]) => void>;
+    actions: Record<string, (...args: any[]) => any>;
   },
 >(initializer: StateCreator<T>) {
   // 1. Create the Vanilla Zustand Store with an internal sync action
