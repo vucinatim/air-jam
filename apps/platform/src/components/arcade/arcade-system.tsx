@@ -1,5 +1,6 @@
 "use client";
 
+import { arcadeInputSchema } from "@/app/arcade/page";
 import { cn } from "@/lib/utils";
 import {
   AirJamOverlay,
@@ -11,7 +12,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArcadeLoader } from "./arcade-loader";
 import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
-import { arcadeInputSchema } from "@/app/arcade/page";
 
 const DEFAULT_PLATFORM_API_KEY = process.env.NEXT_PUBLIC_PLATFORM_API_KEY;
 
@@ -122,7 +122,13 @@ export const ArcadeSystem = ({
   // Process input for navigation (polling pattern)
   // Only process input when in browser view (not when game is active)
   useEffect(() => {
-    if (!host.getInput || !games || games.length === 0 || view !== "browser" || activeGame) {
+    if (
+      !host.getInput ||
+      !games ||
+      games.length === 0 ||
+      view !== "browser" ||
+      activeGame
+    ) {
       return;
     }
 
@@ -181,12 +187,19 @@ export const ArcadeSystem = ({
     }, 16); // ~60fps polling
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host.getInput, host.players, games, view, activeGame, joinToken]);
 
   const launchGame = useCallback(
     async (game: ArcadeGame) => {
       // Prevent launching if already launching, game is active, or joinToken exists
-      if (!host.socket || !host.socket.connected || isLaunchingRef.current || activeGame || joinToken) {
+      if (
+        !host.socket ||
+        !host.socket.connected ||
+        isLaunchingRef.current ||
+        activeGame ||
+        joinToken
+      ) {
         return;
       }
 
@@ -219,6 +232,7 @@ export const ArcadeSystem = ({
         },
       );
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [host.socket, host.roomId, isLaunching],
   );
 
@@ -293,6 +307,7 @@ export const ArcadeSystem = ({
           "in room:",
           host.roomId,
         );
+
         hasAutoLaunched.current = true;
         // Use queueMicrotask to avoid synchronous setState in effect warning
         queueMicrotask(() => {

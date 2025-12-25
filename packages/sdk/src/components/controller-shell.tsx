@@ -16,20 +16,11 @@ import type { ConnectionStatus, PlayerProfile } from "../protocol";
 import { cn } from "../utils/cn";
 import { detectRunMode } from "../utils/mode";
 import { QRScannerDialog } from "./qr-scanner-dialog";
-import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
+import { PlayerAvatar } from "./player-avatar";
 import { VolumeControls } from "./volume-controls";
 
 type OrientationRequirement = "portrait" | "landscape" | "any";
-
-// Generate a consistent avatar URL for a player based on their ID
-const getPlayerAvatarUrl = (playerId: string): string => {
-  // Use DiceBear API with identicon style for GitHub-like avatars
-  // The seed ensures the same player ID always gets the same avatar
-  return `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
-    playerId,
-  )}`;
-};
 
 interface ControllerShellProps {
   roomId?: string | null;
@@ -177,19 +168,17 @@ export const ControllerShell = ({
         <div className="pointer-events-auto flex items-center gap-3">
           {typeof window !== "undefined" && (currentPlayer || controllerId) && (
             <div className="relative" title={describeStatus(connectionStatus)}>
-              <Avatar
-                className="h-8 w-8 border-2"
-                style={{
-                  borderColor: currentPlayer?.color || "hsl(var(--border))",
-                }}
-              >
-                <AvatarImage
-                  src={getPlayerAvatarUrl(
-                    currentPlayer?.id || controllerId || "",
-                  )}
-                  alt={currentPlayer?.label || "Player"}
+              {currentPlayer ? (
+                <PlayerAvatar player={currentPlayer} size="sm" />
+              ) : controllerId ? (
+                <PlayerAvatar
+                  player={{
+                    id: controllerId,
+                    label: "Player",
+                  }}
+                  size="sm"
                 />
-              </Avatar>
+              ) : null}
               {/* Black border circle - always visible behind */}
               <span
                 className="absolute right-0 bottom-0 h-3 w-3 rounded-full bg-black"

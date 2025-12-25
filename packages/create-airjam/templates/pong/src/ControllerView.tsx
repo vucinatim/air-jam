@@ -1,5 +1,10 @@
-import { ControllerShell, useAirJamController } from "@air-jam/sdk";
-import { useEffect, useRef, useState } from "react";
+import {
+  AirJamDebug,
+  ControllerShell,
+  useAirJamController,
+} from "@air-jam/sdk";
+import { useEffect, useRef } from "react";
+import { usePongStore, type PongState } from "./store";
 
 const TEAM1_COLOR = "#f97316"; // Solaris (Orange)
 const TEAM2_COLOR = "#38bdf8"; // Nebulon (Blue)
@@ -7,7 +12,17 @@ const TEAM2_COLOR = "#38bdf8"; // Nebulon (Blue)
 export function ControllerView() {
   const controller = useAirJamController();
   const directionRef = useRef(0);
-  const [selectedTeam, setSelectedTeam] = useState<"team1" | "team2">("team1");
+
+  // Use the networked store
+  const phase = usePongStore((state: PongState) => state.phase);
+  const teamAssignments = usePongStore(
+    (state: PongState) => state.teamAssignments,
+  );
+  const actions = usePongStore((state: PongState) => state.actions);
+
+  const myTeam = controller.controllerId
+    ? teamAssignments[controller.controllerId]
+    : null;
 
   // Send input loop (only when playing)
   useEffect(() => {
@@ -27,10 +42,16 @@ export function ControllerView() {
     return () => cancelAnimationFrame(animationId);
   }, [controller.connectionStatus, controller.gameState, controller]);
 
-  const isPaused = controller.gameState === "paused";
-
   return (
     <div className="dark">
+      {/* Debug State Component */}
+      <div className="fixed top-20 right-4 z-50">
+        <AirJamDebug
+          state={usePongStore((state: PongState) => state)}
+          title="Pong Game State"
+        />
+      </div>
+
       <ControllerShell
         connectionStatus={controller.connectionStatus}
         roomId={controller.roomId}
@@ -40,23 +61,22 @@ export function ControllerView() {
         onReconnect={() => controller.reconnect()}
         onRefresh={() => window.location.reload()}
       >
-        {isPaused ? (
+        {phase === "lobby" ? (
           // Team selection UI
           <div className="flex h-full w-full flex-col gap-2 p-2">
             {/* Up button - Select Team 1 */}
             <button
               type="button"
               className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-95 ${
-                selectedTeam === "team1"
+                myTeam === "team1"
                   ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
                   : "opacity-70"
               }`}
               style={{
-                backgroundColor:
-                  selectedTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
+                backgroundColor: myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
               }}
-              onTouchStart={() => setSelectedTeam("team1")}
-              onMouseDown={() => setSelectedTeam("team1")}
+              onTouchStart={() => actions.joinTeam("team1")}
+              onMouseDown={() => actions.joinTeam("team1")}
             >
               SOLARIS
             </button>
@@ -65,16 +85,15 @@ export function ControllerView() {
             <button
               type="button"
               className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-95 ${
-                selectedTeam === "team2"
+                myTeam === "team2"
                   ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
                   : "opacity-70"
               }`}
               style={{
-                backgroundColor:
-                  selectedTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
+                backgroundColor: myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
               }}
-              onTouchStart={() => setSelectedTeam("team2")}
-              onMouseDown={() => setSelectedTeam("team2")}
+              onTouchStart={() => actions.joinTeam("team2")}
+              onMouseDown={() => actions.joinTeam("team2")}
             >
               NEBULON
             </button>

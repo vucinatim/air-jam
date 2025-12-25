@@ -11,7 +11,10 @@ import {
   PlaySoundEventPayload,
   SignalPayload,
   systemLaunchGameSchema,
+  type AirJamActionRpcPayload,
+  type AirJamStateSyncPayload,
   type ClientToServerEvents,
+  type ControllerActionRpcPayload,
   type ControllerInputEvent,
   type ControllerJoinedNotice,
   type ControllerJoinPayload,
@@ -21,6 +24,7 @@ import {
   type HostJoinAsChildPayload,
   type HostRegisterSystemPayload,
   type HostRegistrationPayload,
+  type HostStateSyncPayload,
   type InterServerEvents,
   type PlayerProfile,
   type ServerErrorPayload,
@@ -688,6 +692,57 @@ io.on(
         loop,
       });
     });
+
+    // --- STORE SYNC (Host -> Server -> All) ---
+    socket.on("host:state_sync", (payload: HostStateSyncPayload) => {
+      const { roomId, data } = payload;
+      const session = roomManager.getRoom(roomId);
+
+      // Security: Validate socket.id is a host for this room
+      if (!session) {
+        return;
+      }
+      if (
+        session.masterHostSocketId !== socket.id &&
+        session.childHostSocketId !== socket.id
+      ) {
+        return;
+      }
+
+      // Broadcast to room (Controllers + Other Hosts)
+      const syncPayload: AirJamStateSyncPayload = {
+        roomId,
+        data,
+      };
+      socket.to(roomId).emit("airjam:state_sync", syncPayload);
+    });
+
+    // --- ACTION RPC (Controller -> Server -> Host) ---
+    socket.on(
+      "controller:action_rpc",
+      (payload: ControllerActionRpcPayload) => {
+        const { roomId, actionName, args } = payload;
+
+        // 1. Identify the controller
+        const controllerInfo = roomManager.getControllerInfo(socket.id);
+        if (!controllerInfo || controllerInfo.roomId !== roomId) return;
+
+        const session = roomManager.getRoom(roomId);
+        if (!session) return;
+
+        // 2. Find the Active Host
+        const hostId = roomManager.getActiveHostId(session);
+        if (hostId) {
+          // 3. Forward to Host (include controllerId so Host knows who sent it)
+          const rpcPayload: AirJamActionRpcPayload = {
+            actionName,
+            args,
+            controllerId: controllerInfo.controllerId,
+          };
+          io.to(hostId).emit("airjam:action_rpc", rpcPayload);
+        }
+      },
+    );
 
     socket.on("disconnect", () => {
       const roomId = roomManager.getRoomByHostId(socket.id);

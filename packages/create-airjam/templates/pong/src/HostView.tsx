@@ -1,5 +1,6 @@
-import { AirJamOverlay, useAirJamHost } from "@air-jam/sdk";
+import { AirJamDebug, AirJamOverlay, useAirJamHost } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePongStore } from "./store";
 import { gameInputSchema } from "./types";
 
 const FIELD_WIDTH = 1000;
@@ -16,8 +17,14 @@ const TEAM2_COLOR = "#38bdf8"; // (Nebulon)
 export function HostView() {
   const host = useAirJamHost<typeof gameInputSchema>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scores, setScores] = useState({ team1: 0, team2: 0 });
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  // 1. Read Game Logic State (UI & Rules)
+  // Shared networked state with zustand reducers to minimize re-renders
+  const phase = usePongStore((state) => state.phase);
+  const scores = usePongStore((state) => state.scores);
+  const teamAssignments = usePongStore((state) => state.teamAssignments);
+  const actions = usePongStore((state) => state.actions);
 
   // Game state refs (to avoid re-renders in game loop)
   const gameState = useRef({
@@ -83,28 +90,33 @@ export function HostView() {
       const isPlaying = host.gameState === "playing";
 
       // Only process game logic when playing (not paused)
-      if (isPlaying) {
-        // Get input from first two controllers using their actual IDs
-        const player1Id = players[0]?.id;
-        const player2Id = players[1]?.id;
-        const player1Input = player1Id ? host.getInput(player1Id) : null;
-        const player2Input = player2Id ? host.getInput(player2Id) : null;
+      if (isPlaying && phase === "playing") {
+        // Loop through players and apply input based on team
+        players.forEach((p) => {
+          // Get Raw Input (High Frequency)
+          const input = host.getInput(p.id);
 
-        // Move paddles based on input
-        if (player1Input) {
-          state.paddle1Y += player1Input.direction * PADDLE_SPEED;
-          state.paddle1Y = Math.max(
-            0,
-            Math.min(FIELD_HEIGHT - PADDLE_HEIGHT, state.paddle1Y),
-          );
-        }
-        if (player2Input) {
-          state.paddle2Y += player2Input.direction * PADDLE_SPEED;
-          state.paddle2Y = Math.max(
-            0,
-            Math.min(FIELD_HEIGHT - PADDLE_HEIGHT, state.paddle2Y),
-          );
-        }
+          // Get Logic State (Low Frequency)
+          const team = teamAssignments[p.id];
+
+          if (input && team) {
+            // Apply physics based on team!
+            if (team === "team1") {
+              state.paddle1Y += input.direction * PADDLE_SPEED;
+              state.paddle1Y = Math.max(
+                0,
+                Math.min(FIELD_HEIGHT - PADDLE_HEIGHT, state.paddle1Y),
+              );
+            }
+            if (team === "team2") {
+              state.paddle2Y += input.direction * PADDLE_SPEED;
+              state.paddle2Y = Math.max(
+                0,
+                Math.min(FIELD_HEIGHT - PADDLE_HEIGHT, state.paddle2Y),
+              );
+            }
+          }
+        });
 
         // Move ball (only if not in countdown)
         if (countdown === null) {
@@ -143,11 +155,11 @@ export function HostView() {
         // Scoring
         if (countdown === null) {
           if (state.ballX <= 0) {
-            setScores((s) => ({ ...s, team2: s.team2 + 1 }));
+            actions.scorePoint("team2");
             setCountdown(3);
           }
           if (state.ballX >= FIELD_WIDTH - BALL_SIZE) {
-            setScores((s) => ({ ...s, team1: s.team1 + 1 }));
+            actions.scorePoint("team1");
             setCountdown(3);
           }
         }
@@ -205,7 +217,7 @@ export function HostView() {
 
     gameLoop();
     return () => cancelAnimationFrame(animationId);
-  }, [host, resetBall, countdown]);
+  }, [host, resetBall, countdown, phase, teamAssignments, actions]);
 
   return (
     <>
@@ -220,12 +232,37 @@ export function HostView() {
         isChildMode={host.isChildMode}
       />
 
-      <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-900 p-4">
+      {/* Debug State Component */}
+      <div className="fixed top-20 right-4 z-50">
+        <AirJamDebug
+          state={usePongStore((state) => state)}
+          title="Pong Game State"
+        />
+      </div>
+
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-zinc-900 p-4">
+        {/* UI Layer using Store Data */}
         <div className="mb-4 flex items-center gap-2 text-2xl font-bold">
           <span style={{ color: TEAM1_COLOR }}>{scores.team1}</span>
           <span className="text-white">-</span>
           <span style={{ color: TEAM2_COLOR }}>{scores.team2}</span>
         </div>
+
+        {phase === "lobby" && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80">
+            <h2 className="mb-4 text-4xl font-bold text-white">
+              Waiting for players...
+            </h2>
+            {/* Start button dispatches to store */}
+            <button
+              onClick={() => actions.setPhase("playing")}
+              className="rounded-lg bg-blue-500 px-8 py-4 text-2xl font-bold text-white hover:bg-blue-600"
+            >
+              START GAME
+            </button>
+          </div>
+        )}
+
         <canvas ref={canvasRef} className="rounded-lg border-2 border-white" />
       </div>
     </>

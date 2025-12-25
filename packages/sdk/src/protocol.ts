@@ -238,6 +238,28 @@ export interface ClientLoadUiPayload {
   url: string;
 }
 
+export interface HostStateSyncPayload {
+  roomId: string;
+  data: Record<string, unknown>;
+}
+
+export interface ControllerActionRpcPayload {
+  roomId: string;
+  actionName: string;
+  args: unknown[];
+}
+
+export interface AirJamStateSyncPayload {
+  roomId: string;
+  data: Record<string, unknown>;
+}
+
+export interface AirJamActionRpcPayload {
+  actionName: string;
+  args: unknown[];
+  controllerId: string;
+}
+
 export interface ClientToServerEvents {
   "host:register": (
     payload: z.infer<typeof hostRegistrationSchema>,
@@ -270,6 +292,8 @@ export interface ClientToServerEvents {
   "host:signal": (payload: SignalPayload) => void;
   "host:play_sound": (payload: PlaySoundEventPayload) => void;
   "controller:play_sound": (payload: PlaySoundEventPayload) => void;
+  "host:state_sync": (payload: HostStateSyncPayload) => void;
+  "controller:action_rpc": (payload: ControllerActionRpcPayload) => void;
 }
 
 export interface PlaySoundPayload {
@@ -293,6 +317,8 @@ export interface ServerToClientEvents {
   "server:closeChild": () => void;
   "client:loadUi": (payload: ClientLoadUiPayload) => void;
   "client:unloadUi": () => void;
+  "airjam:state_sync": (payload: AirJamStateSyncPayload) => void;
+  "airjam:action_rpc": (payload: AirJamActionRpcPayload) => void;
 }
 
 export interface InterServerEvents {

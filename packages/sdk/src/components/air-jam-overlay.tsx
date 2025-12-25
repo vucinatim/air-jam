@@ -1,19 +1,22 @@
-import { MonitorSmartphone, Pause, Play, QrCode, Settings } from "lucide-react";
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  MonitorSmartphone,
+  Pause,
+  Play,
+  QrCode,
+  Settings,
+} from "lucide-react";
 import QRCode from "qrcode";
 import type { JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { ConnectionStatus, GameState, PlayerProfile } from "../protocol";
+import { PlayerAvatar } from "./player-avatar";
 import { Alert, AlertDescription } from "./ui/alert";
-import { Avatar, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { VolumeControls } from "./volume-controls";
 
@@ -36,15 +39,6 @@ const statusCopy: Record<ConnectionStatus, string> = {
   reconnecting: "Reconnecting…",
 };
 
-// Generate a consistent avatar URL for a player based on their ID
-const getPlayerAvatarUrl = (playerId: string): string => {
-  // Use DiceBear API with identicon style for GitHub-like avatars
-  // The seed ensures the same player ID always gets the same avatar
-  return `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
-    playerId,
-  )}`;
-};
-
 export const AirJamOverlay = ({
   roomId,
   joinUrl,
@@ -57,6 +51,8 @@ export const AirJamOverlay = ({
 }: AirJamOverlayProps): JSX.Element | null => {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     // No need to generate QR in child mode
@@ -87,6 +83,63 @@ export const AirJamOverlay = ({
       mounted = false;
     };
   }, [joinUrl, isChildMode]);
+
+  const handleCopyUrl = async (): Promise<void> => {
+    if (!joinUrl) return;
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = joinUrl;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Ignore
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const handleOpenInNewTab = (): void => {
+    if (joinUrl) {
+      window.open(joinUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleCopyPlayerId = async (playerId: string): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(playerId);
+      console.log(`Copied player ID: ${playerId}`);
+      setCopiedPlayerId(playerId);
+      setTimeout(() => setCopiedPlayerId(null), 1000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = playerId;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        console.log(`Copied player ID: ${playerId}`);
+        setCopiedPlayerId(playerId);
+        setTimeout(() => setCopiedPlayerId(null), 1000);
+      } catch {
+        // Ignore
+      }
+      document.body.removeChild(textArea);
+    }
+  };
 
   const connectionVariant = useMemo<
     "default" | "secondary" | "destructive" | "outline"
@@ -132,18 +185,7 @@ export const AirJamOverlay = ({
                 {players.length > 0 && (
                   <div className="flex items-center -space-x-2">
                     {players.slice(0, 4).map((player) => (
-                      <Avatar
-                        key={player.id}
-                        className="h-8 w-8 border-2"
-                        style={{
-                          borderColor: player.color || "hsl(var(--border))",
-                        }}
-                      >
-                        <AvatarImage
-                          src={getPlayerAvatarUrl(player.id)}
-                          alt={player.label}
-                        />
-                      </Avatar>
+                      <PlayerAvatar key={player.id} player={player} size="sm" />
                     ))}
                     {players.length > 4 && (
                       <div className="border-background bg-muted flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-medium">
@@ -180,7 +222,7 @@ export const AirJamOverlay = ({
       {gameState === "paused" && (
         <div className="pointer-events-none fixed inset-0 z-99998 flex items-center justify-center p-4">
           <div className="pointer-events-auto w-full max-w-2xl">
-            <Card className="bg-card/20 flex h-[80vh] flex-col overflow-hidden border py-0 shadow-lg backdrop-blur-sm">
+            <Card className="bg-card/20 flex max-h-[85vh] flex-col overflow-hidden border py-0 shadow-lg backdrop-blur-sm">
               <Tabs
                 defaultValue={isChildMode ? "settings" : "room-code"}
                 className="flex h-full w-full flex-col gap-0"
@@ -218,29 +260,23 @@ export const AirJamOverlay = ({
                     value="room-code"
                     className="mt-0 min-h-0 flex-1 overflow-y-auto"
                   >
-                    <div className="space-y-6 pb-6">
-                      <CardHeader className="pt-6 text-center">
-                        <CardTitle className="text-4xl font-bold tracking-wider">
-                          {roomId}
-                        </CardTitle>
-                        <Badge
-                          variant={connectionVariant}
-                          className="mx-auto mt-3"
-                        >
-                          {statusCopy[connectionStatus]}
-                        </Badge>
-                      </CardHeader>
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_1fr]">
+                        {/* Left: QR Code Section */}
+                        <div className="flex flex-col items-start gap-4">
+                          <div className="space-y-2">
+                            <CardTitle className="text-3xl font-bold tracking-wider">
+                              {roomId}
+                            </CardTitle>
+                            <Badge
+                              variant={connectionVariant}
+                              className="w-fit"
+                            >
+                              {statusCopy[connectionStatus]}
+                            </Badge>
+                          </div>
 
-                      <CardContent className="space-y-6">
-                        <div className="flex flex-col items-center space-y-4">
-                          <CardDescription className="text-xs tracking-[0.18em] uppercase">
-                            Join URL
-                          </CardDescription>
-                          <p className="text-muted-foreground text-center font-mono text-xs break-all">
-                            {joinUrl}
-                          </p>
-
-                          <div className="border-border bg-card w-48 overflow-hidden rounded-lg border-2 shadow-md">
+                          <div className="border-border bg-card w-48 shrink-0 overflow-hidden rounded-lg border-2 shadow-md">
                             {qrUrl ? (
                               <img
                                 src={qrUrl}
@@ -255,45 +291,90 @@ export const AirJamOverlay = ({
                               </div>
                             )}
                           </div>
+                        </div>
 
-                          <div className="w-full">
+                        {/* Right: Info Section */}
+                        <div className="flex flex-col gap-6">
+                          <div className="space-y-3">
+                            <CardDescription className="text-xs tracking-[0.18em] uppercase">
+                              Join URL
+                            </CardDescription>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                readOnly
+                                value={joinUrl}
+                                className="bg-background border-input text-foreground focus:ring-ring flex h-10 w-full rounded-md border px-3 py-2 font-mono text-xs focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={handleCopyUrl}
+                                className="h-10 shrink-0"
+                                aria-label="Copy join URL"
+                              >
+                                {copied ? (
+                                  <Check className="h-4 w-4" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={handleOpenInNewTab}
+                                className="h-10 shrink-0"
+                                aria-label="Open join URL in new tab"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
                             {players.length === 0 ? (
-                              <p className="text-muted-foreground py-4 text-center text-sm">
+                              <p className="text-sm text-white">
                                 Waiting for controllers to join…
                               </p>
                             ) : (
-                              <div className="space-y-3">
-                                <p className="text-foreground text-center text-sm font-medium">
+                              <>
+                                <p className="text-foreground text-sm font-medium">
                                   Connected Players ({players.length})
                                 </p>
-                                <ul className="flex flex-wrap items-center justify-center gap-4">
+                                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                   {players.map((player) => (
                                     <li
                                       key={player.id}
-                                      className="flex flex-col items-center gap-2"
+                                      className="flex min-w-0 flex-col items-start gap-2"
                                     >
-                                      <img
-                                        src={getPlayerAvatarUrl(player.id)}
-                                        alt={player.label}
-                                        className="bg-secondary/30 h-16 w-16 rounded-full border-4 shadow-md"
-                                        style={{
-                                          borderColor:
-                                            player.color ||
-                                            "hsl(var(--border))",
-                                        }}
-                                      />
-                                      <div className="flex flex-col items-center gap-0.5">
-                                        <span className="text-card-foreground max-w-[100px] truncate text-center text-sm font-medium">
-                                          {player.label}
-                                        </span>
-                                        <span className="text-muted-foreground font-mono text-xs">
-                                          {player.id.slice(0, 8)}
-                                        </span>
+                                      <div className="flex w-full min-w-0 items-center gap-2">
+                                        <PlayerAvatar
+                                          player={player}
+                                          size="md"
+                                        />
+                                        <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                                          <span className="text-card-foreground truncate text-sm font-medium">
+                                            {player.label}
+                                          </span>
+                                          <div
+                                            onClick={() =>
+                                              handleCopyPlayerId(player.id)
+                                            }
+                                            className="text-muted-foreground m-0 inline min-w-0 cursor-pointer truncate border-0 font-mono text-xs transition-colors hover:text-white"
+                                            title="Click to copy player ID"
+                                          >
+                                            {copiedPlayerId === player.id
+                                              ? "Copied!"
+                                              : player.id.slice(0, 8)}
+                                          </div>
+                                        </div>
                                       </div>
                                     </li>
                                   ))}
                                 </ul>
-                              </div>
+                              </>
                             )}
                           </div>
 
@@ -303,9 +384,9 @@ export const AirJamOverlay = ({
                             </Alert>
                           )}
 
-                          {/* Play button in paused state */}
+                          {/* Play button - bottom right */}
                           {onTogglePlayPause && (
-                            <div className="pt-2">
+                            <div className="mt-auto flex justify-end">
                               <Button
                                 type="button"
                                 onClick={onTogglePlayPause}
@@ -317,7 +398,7 @@ export const AirJamOverlay = ({
                             </div>
                           )}
                         </div>
-                      </CardContent>
+                      </div>
                     </div>
                   </TabsContent>
                 )}
@@ -327,64 +408,54 @@ export const AirJamOverlay = ({
                     value="info"
                     className="mt-0 min-h-0 flex-1 overflow-y-auto"
                   >
-                    <div className="space-y-6 pb-6">
-                      <CardHeader className="pt-6 text-center">
-                        <CardTitle className="text-2xl font-bold tracking-wider">
-                          Connected to Platform
-                        </CardTitle>
-                        <CardDescription className="mt-2">
-                          This game is running inside the Air Jam Platform.
-                        </CardDescription>
-                      </CardHeader>
-
-                      <CardContent className="space-y-6">
-                        <div className="flex flex-col items-center space-y-4">
-                          <div className="w-full">
-                            <div className="space-y-3">
-                              <p className="text-foreground text-center text-sm font-medium">
-                                Connected Players ({players.length})
-                              </p>
-                              <ul className="flex flex-wrap items-center justify-center gap-4">
-                                {players.map((player) => (
-                                  <li
-                                    key={player.id}
-                                    className="flex flex-col items-center gap-2"
-                                  >
-                                    <img
-                                      src={getPlayerAvatarUrl(player.id)}
-                                      alt={player.label}
-                                      className="bg-secondary/30 h-16 w-16 rounded-full border-4 shadow-md"
-                                      style={{
-                                        borderColor:
-                                          player.color || "hsl(var(--border))",
-                                      }}
-                                    />
-                                    <div className="flex flex-col items-center gap-0.5">
-                                      <span className="text-card-foreground max-w-[100px] truncate text-center text-sm font-medium">
-                                        {player.label}
-                                      </span>
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-
-                          {/* Play button in paused state */}
-                          {onTogglePlayPause && (
-                            <div className="pt-2">
-                              <Button
-                                type="button"
-                                onClick={onTogglePlayPause}
-                                size="lg"
-                              >
-                                <Play className="mr-2 h-5 w-5" />
-                                Resume Game
-                              </Button>
-                            </div>
-                          )}
+                    <div className="p-6">
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <CardTitle className="text-2xl font-bold tracking-wider">
+                            Connected to Platform
+                          </CardTitle>
+                          <CardDescription>
+                            This game is running inside the Air Jam Platform.
+                          </CardDescription>
                         </div>
-                      </CardContent>
+
+                        <div className="space-y-3">
+                          <p className="text-foreground text-sm font-medium">
+                            Connected Players ({players.length})
+                          </p>
+                          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            {players.map((player) => (
+                              <li
+                                key={player.id}
+                                className="flex min-w-0 flex-col items-start gap-2"
+                              >
+                                <div className="flex w-full min-w-0 items-center gap-2">
+                                  <PlayerAvatar player={player} size="md" />
+                                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                                    <span className="text-card-foreground truncate text-sm font-medium">
+                                      {player.label}
+                                    </span>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* Play button in paused state */}
+                        {onTogglePlayPause && (
+                          <div className="pt-2">
+                            <Button
+                              type="button"
+                              onClick={onTogglePlayPause}
+                              size="lg"
+                            >
+                              <Play className="mr-2 h-5 w-5" />
+                              Resume Game
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </TabsContent>
                 )}
