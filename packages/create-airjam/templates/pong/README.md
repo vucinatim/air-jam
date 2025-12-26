@@ -4,11 +4,6 @@ A starter template for building multiplayer games with Air Jam. This template in
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+ and pnpm (or npm/yarn)
-- A mobile device for testing controllers
-
 ### Installation
 
 1. Install dependencies:
@@ -59,7 +54,7 @@ If you prefer to use the official Air Jam server instead of running locally:
 ## Playing the Game
 
 1. Open the game URL in your browser (host view)
-2. Scan the QR code with your phone to open the controller
+2. Scan the QR code with your phone to open the controller / open the controller view in your browser
 3. Use the controller to play Pong!
 
 ## Project Structure
@@ -108,7 +103,7 @@ The built files will be in the `dist/` directory.
 
 - [Air Jam Documentation](https://air-jam.app/docs)
 - [Platform](https://air-jam.app)
-- [Examples](https://github.com/vucinatim/air-jam/tree/main/examples)
+- [Examples](https://github.com/vucinatim/air-jam/tree/main/apps)
 
 ## License
 
