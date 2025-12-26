@@ -45,10 +45,10 @@ The game will be available at `http://localhost:5173` (or the port Vite assigns)
 
 If you prefer to use the official Air Jam server instead of running locally:
 
-1. Get your API key from the [Air Jam Platform](https://air-jam.com)
+1. Get your API key from the [Air Jam Platform](https://air-jam.app)
 2. Set in `.env.local`:
    ```bash
-   VITE_AIR_JAM_SERVER_URL=https://your-server-url.com
+   VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
    VITE_AIR_JAM_API_KEY=your-api-key-here
    ```
 3. Run only the game:
@@ -106,8 +106,8 @@ The built files will be in the `dist/` directory.
 
 ## Learn More
 
-- [Air Jam Documentation](https://docs.air-jam.com)
-- [SDK Reference](https://docs.air-jam.com/sdk)
+- [Air Jam Documentation](https://air-jam.app/docs)
+- [Platform](https://air-jam.app)
 - [Examples](https://github.com/vucinatim/air-jam/tree/main/examples)
 
 ## License

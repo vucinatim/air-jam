@@ -36,10 +36,18 @@ description: How to deploy the Air Jam server to Railway
 6.  **Start Command**
     *   **Start Command**: `pnpm start` (This runs `node dist/index.js` as we configured).
 
-7.  **Generate Domain**
+7.  **Configure Custom Domain (Recommended)**
     *   Go to **Settings** -> **Networking**.
-    *   Click "Generate Domain" (you will get something like `server-production.up.railway.app`).
-    *   This is the URL you will put in your Platform's `.env` as `NEXT_PUBLIC_SERVER_URL` (with `https://`).
+    *   Click **Custom Domain** and enter: `api.air-jam.app`
+    *   Railway will show you DNS verification details (usually a CNAME record pointing to the Railway domain).
+    *   Add the CNAME record in your DNS provider (Namecheap, Cloudflare, etc.).
+    *   Once verified, your server will be accessible at `https://api.air-jam.app`.
+    *   
+    *   **Alternative:** If you don't want to use a custom domain, click "Generate Domain" to get a Railway domain like `server-production-xxxx.up.railway.app`.
 
-8.  **Deploy**
+8.  **Configure Platform Environment Variables**
+    *   In your Platform's environment variables (Vercel or wherever it's deployed), set:
+    *   `NEXT_PUBLIC_AIR_JAM_SERVER_URL=https://api.air-jam.app` (or your Railway domain if not using custom domain)
+
+9.  **Deploy**
     *   The first deploy usually happens automatically. If it failed due to missing vars, click "Redeploy".
