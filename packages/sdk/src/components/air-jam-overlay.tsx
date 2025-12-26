@@ -11,7 +11,8 @@ import {
 import QRCode from "qrcode";
 import type { JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
-import type { ConnectionStatus, GameState, PlayerProfile } from "../protocol";
+import type { ConnectionStatus } from "../protocol";
+import { useAirJamHost } from "../hooks/use-air-jam-host";
 import { PlayerAvatar } from "./player-avatar";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Badge } from "./ui/badge";
@@ -19,17 +20,6 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { VolumeControls } from "./volume-controls";
-
-interface AirJamOverlayProps {
-  roomId: string;
-  joinUrl: string;
-  connectionStatus: ConnectionStatus;
-  players: PlayerProfile[];
-  lastError?: string;
-  gameState: GameState;
-  onTogglePlayPause?: () => void;
-  isChildMode?: boolean;
-}
 
 const statusCopy: Record<ConnectionStatus, string> = {
   idle: "Idle",
@@ -39,16 +29,18 @@ const statusCopy: Record<ConnectionStatus, string> = {
   reconnecting: "Reconnecting…",
 };
 
-export const AirJamOverlay = ({
-  roomId,
-  joinUrl,
-  connectionStatus,
-  players,
-  lastError,
-  gameState,
-  onTogglePlayPause,
-  isChildMode = false,
-}: AirJamOverlayProps): JSX.Element | null => {
+export const AirJamOverlay = (): JSX.Element | null => {
+  const host = useAirJamHost();
+  const {
+    roomId,
+    joinUrl,
+    connectionStatus,
+    players,
+    lastError,
+    gameState,
+    toggleGameState,
+    isChildMode,
+  } = host;
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -196,22 +188,20 @@ export const AirJamOverlay = ({
                 )}
 
                 {/* Play/Pause button */}
-                {onTogglePlayPause && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={onTogglePlayPause}
-                    aria-label={gameState === "playing" ? "Pause" : "Play"}
-                    className="h-8 w-8"
-                  >
-                    {gameState === "playing" ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleGameState}
+                  aria-label={gameState === "playing" ? "Pause" : "Play"}
+                  className="h-8 w-8"
+                >
+                  {gameState === "playing" ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
             </div>
           </div>
@@ -385,18 +375,16 @@ export const AirJamOverlay = ({
                           )}
 
                           {/* Play button - bottom right */}
-                          {onTogglePlayPause && (
-                            <div className="mt-auto flex justify-end">
-                              <Button
-                                type="button"
-                                onClick={onTogglePlayPause}
-                                size="lg"
-                              >
-                                <Play className="mr-2 h-5 w-5" />
-                                Start Game
-                              </Button>
-                            </div>
-                          )}
+                          <div className="mt-auto flex justify-end">
+                            <Button
+                              type="button"
+                              onClick={toggleGameState}
+                              size="lg"
+                            >
+                              <Play className="mr-2 h-5 w-5" />
+                              Start Game
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -443,18 +431,16 @@ export const AirJamOverlay = ({
                         </div>
 
                         {/* Play button in paused state */}
-                        {onTogglePlayPause && (
-                          <div className="pt-2">
-                            <Button
-                              type="button"
-                              onClick={onTogglePlayPause}
-                              size="lg"
-                            >
-                              <Play className="mr-2 h-5 w-5" />
-                              Resume Game
-                            </Button>
-                          </div>
-                        )}
+                        <div className="pt-2">
+                          <Button
+                            type="button"
+                            onClick={toggleGameState}
+                            size="lg"
+                          >
+                            <Play className="mr-2 h-5 w-5" />
+                            Resume Game
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </TabsContent>

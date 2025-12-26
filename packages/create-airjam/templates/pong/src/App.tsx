@@ -1,7 +1,7 @@
 import { AirJamProvider } from "@air-jam/sdk";
 import { Route, Routes } from "react-router-dom";
-import { ControllerView } from "./ControllerView";
-import { HostView } from "./HostView";
+import { ControllerView } from "./controller-view";
+import { HostView } from "./host-view";
 import { gameInputSchema } from "./types";
 
 export function App() {

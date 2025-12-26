@@ -377,7 +377,7 @@ export const ArcadeSystem = ({
           </span>
         </div>
         {/* Still show the overlay for QR code */}
-        <AirJamOverlay {...host} onTogglePlayPause={host.toggleGameState} />
+        <AirJamOverlay />
       </div>
     );
   }
@@ -425,7 +425,7 @@ export const ArcadeSystem = ({
       )}
 
       {/* Air Jam Overlay */}
-      <AirJamOverlay {...host} onTogglePlayPause={host.toggleGameState} />
+      <AirJamOverlay />
     </div>
   );
 };

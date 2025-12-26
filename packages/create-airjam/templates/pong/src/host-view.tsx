@@ -349,16 +349,7 @@ export function HostView() {
 
   return (
     <>
-      <AirJamOverlay
-        roomId={host.roomId}
-        joinUrl={host.joinUrl}
-        connectionStatus={host.connectionStatus}
-        players={host.players}
-        lastError={host.lastError}
-        gameState={host.gameState}
-        onTogglePlayPause={host.toggleGameState}
-        isChildMode={host.isChildMode}
-      />
+      <AirJamOverlay />
 
       {/* Debug State Component */}
       <div className="fixed top-20 right-4 z-50">

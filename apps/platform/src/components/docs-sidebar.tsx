@@ -1,11 +1,20 @@
 "use client";
 
-import { Code2, Cpu, Gamepad2, Info, Layers, Network, Zap } from "lucide-react";
+import {
+  Code2,
+  Cpu,
+  Info,
+  Layers,
+  Lightbulb,
+  Network,
+  Zap,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
+import { DocsSearch } from "@/components/docs/docs-search";
 import {
   Sidebar,
   SidebarContent,
@@ -17,7 +26,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { DocsSearch } from "@/components/docs/docs-search";
 
 export function DocsSidebar({
   ...props
@@ -75,6 +83,17 @@ export function DocsSidebar({
                 <Link href="/docs/getting-started/architecture">
                   <Layers />
                   <span>Architecture</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/docs/getting-started/game-ideas"}
+              >
+                <Link href="/docs/getting-started/game-ideas">
+                  <Lightbulb />
+                  <span>Game Ideas</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

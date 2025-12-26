@@ -107,16 +107,7 @@ const HostViewContent = (): JSX.Element => {
 
   return (
     <div className="bg-background relative h-screen w-screen overflow-hidden">
-      <AirJamOverlay
-        roomId={host.roomId}
-        joinUrl={host.joinUrl}
-        connectionStatus={host.connectionStatus}
-        players={host.players}
-        lastError={host.lastError}
-        gameState={host.gameState}
-        onTogglePlayPause={host.toggleGameState}
-        isChildMode={host.isChildMode}
-      />
+      <AirJamOverlay />
       <ScoreDisplay />
       <DebugOverlay>
         <PlayersSection />
