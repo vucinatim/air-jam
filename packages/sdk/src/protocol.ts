@@ -247,6 +247,7 @@ export interface ControllerActionRpcPayload {
   roomId: string;
   actionName: string;
   args: unknown[];
+  controllerId: string;
 }
 
 export interface AirJamStateSyncPayload {

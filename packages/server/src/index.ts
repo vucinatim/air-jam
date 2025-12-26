@@ -714,21 +714,36 @@ io.on(
         roomId,
         data,
       };
-      socket.to(roomId).emit("airjam:state_sync", syncPayload);
+      // Use io.to() instead of socket.to() to ensure all sockets in the room receive the broadcast
+      io.to(roomId).emit("airjam:state_sync", syncPayload);
     });
 
     // --- ACTION RPC (Controller -> Server -> Host) ---
     socket.on(
       "controller:action_rpc",
       (payload: ControllerActionRpcPayload) => {
-        const { roomId, actionName, args } = payload;
-
-        // 1. Identify the controller
-        const controllerInfo = roomManager.getControllerInfo(socket.id);
-        if (!controllerInfo || controllerInfo.roomId !== roomId) return;
+        const { roomId, actionName, args, controllerId } = payload;
 
         const session = roomManager.getRoom(roomId);
         if (!session) return;
+
+        // 1. Verify controller exists in session (by controllerId, not socket.id to handle reconnections)
+        const controllerSession = session.controllers.get(controllerId);
+        if (!controllerSession) {
+          // Controller not found in session - might be a stale connection
+          return;
+        }
+
+        // Update controller's socket ID in case it reconnected
+        if (controllerSession.socketId !== socket.id) {
+          // Remove old socket mapping
+          roomManager.deleteController(controllerSession.socketId);
+          // Update to new socket ID
+          controllerSession.socketId = socket.id;
+          roomManager.setController(socket.id, { roomId, controllerId });
+          // Ensure the new socket joins the room
+          socket.join(roomId);
+        }
 
         // 2. Find the Active Host
         const hostId = roomManager.getActiveHostId(session);
@@ -737,7 +752,7 @@ io.on(
           const rpcPayload: AirJamActionRpcPayload = {
             actionName,
             args,
-            controllerId: controllerInfo.controllerId,
+            controllerId,
           };
           io.to(hostId).emit("airjam:action_rpc", rpcPayload);
         }

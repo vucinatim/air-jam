@@ -7,7 +7,7 @@ import {
   ChevronUp,
   CornerDownLeft,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface RemoteDPadProps {
   onMove: (vector: { x: number; y: number }) => void;
@@ -135,11 +135,57 @@ export const RemoteDPad = ({
 
   const segmentPath = createSegmentPath();
 
+  // Create callback refs that attach native touch listeners with { passive: false }
+  const createPathRef = useCallback(
+    (dir: "up" | "down" | "left" | "right") => {
+      let cleanup: (() => void) | null = null;
+
+      return (el: SVGPathElement | null) => {
+        // Clean up previous listeners if element changed
+        if (cleanup) {
+          cleanup();
+          cleanup = null;
+        }
+
+        if (!el) return;
+
+        const touchStart = (e: TouchEvent) => {
+          e.preventDefault();
+          handleMove(dir);
+        };
+        const touchEnd = (e: TouchEvent) => {
+          e.preventDefault();
+          handleMoveEnd(dir);
+        };
+
+        el.addEventListener("touchstart", touchStart, { passive: false });
+        el.addEventListener("touchend", touchEnd, { passive: false });
+
+        cleanup = () => {
+          el.removeEventListener("touchstart", touchStart);
+          el.removeEventListener("touchend", touchEnd);
+        };
+      };
+    },
+    [handleMove, handleMoveEnd],
+  );
+
+  const pathRefs = useMemo(
+    () => ({
+      up: createPathRef("up"),
+      down: createPathRef("down"),
+      left: createPathRef("left"),
+      right: createPathRef("right"),
+    }),
+    [createPathRef],
+  );
+
   // Reusable props for the segment buttons
   const getSegmentProps = useCallback(
     (dir: "up" | "down" | "left" | "right", rotation: number) => {
       const isActive = moveDir === dir;
       return {
+        ref: pathRefs[dir],
         d: segmentPath,
         transform: `rotate(${rotation}, ${center}, ${center})`,
         className: `
@@ -154,23 +200,41 @@ export const RemoteDPad = ({
           transform: `rotate(${rotation}deg) ${isActive ? "scale(0.98)" : "scale(1)"}`,
           transformOrigin: `${center}px ${center}px`,
         },
-        onTouchStart: (e: React.TouchEvent) => {
-          e.preventDefault();
-          handleMove(dir);
-        },
-        onTouchEnd: (e: React.TouchEvent) => {
-          e.preventDefault();
-          handleMoveEnd(dir);
-        },
         onMouseDown: () => handleMove(dir),
         onMouseUp: () => handleMoveEnd(dir),
         onMouseLeave: () => handleMoveEnd(dir),
       };
     },
-    [center, handleMove, handleMoveEnd, moveDir, segmentPath],
+    [center, handleMove, handleMoveEnd, moveDir, pathRefs, segmentPath],
   );
 
   const centerBtnRadius = innerRadius - gapWidth; // Consistent gap
+
+  // Ref for center button to attach native touch listeners
+  const centerButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Attach native touch event listeners to center button with { passive: false }
+  useEffect(() => {
+    const button = centerButtonRef.current;
+    if (!button) return;
+
+    const touchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      handleConfirm(true);
+    };
+    const touchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      handleConfirm(false);
+    };
+
+    button.addEventListener("touchstart", touchStart, { passive: false });
+    button.addEventListener("touchend", touchEnd, { passive: false });
+
+    return () => {
+      button.removeEventListener("touchstart", touchStart);
+      button.removeEventListener("touchend", touchEnd);
+    };
+  }, [handleConfirm]);
 
   // Calculate icon positions
   const iconRadius = (innerRadius + outerRadius) / 2;
@@ -208,18 +272,11 @@ export const RemoteDPad = ({
 
       {/* Center Confirm Button */}
       <button
+        ref={centerButtonRef}
         className={`absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-neutral-900 transition-all duration-100 ease-out ${isConfirmPressed ? "scale-95 bg-neutral-700 shadow-inner" : "bg-neutral-800 shadow-xl"} `}
         style={{
           width: centerBtnRadius * 2,
           height: centerBtnRadius * 2,
-        }}
-        onTouchStart={(e) => {
-          e.preventDefault();
-          handleConfirm(true);
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleConfirm(false);
         }}
         onMouseDown={() => handleConfirm(true)}
         onMouseUp={() => handleConfirm(false)}

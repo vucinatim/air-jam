@@ -38,6 +38,7 @@ import type {
  */
 export function createAirJamStore<
   T extends {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     actions: Record<string, (...args: any[]) => any>;
   },
 >(initializer: StateCreator<T>) {
@@ -66,6 +67,7 @@ export function createAirJamStore<
     const { getSocket } = useAirJamContext();
     const role = useAirJamState((state) => state.role);
     const roomId = useAirJamState((state) => state.roomId);
+    const controllerId = useAirJamState((state) => state.controllerId);
     const socket =
       role === "host" ? getSocket("host") : getSocket("controller");
 
@@ -177,11 +179,18 @@ export function createAirJamStore<
               // 1. Optimistic Update (Optional, disabled for safety by default)
               // originalActions[key](...args);
 
-              // 2. Send RPC to Host
+              // 2. Send RPC to Host (include controllerId to handle reconnections)
+              if (!controllerId) {
+                console.warn(
+                  "[AirJamStore] Cannot send action RPC: controllerId not set",
+                );
+                return;
+              }
               socket.emit("controller:action_rpc", {
                 roomId,
                 actionName: key,
                 args,
+                controllerId,
               });
             };
         });
