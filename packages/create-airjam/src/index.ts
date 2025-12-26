@@ -1,4 +1,5 @@
 import { program } from "commander";
+import { execSync } from "node:child_process";
 import fs from "fs-extra";
 import kleur from "kleur";
 import path from "node:path";
@@ -59,16 +60,54 @@ async function main() {
 
   console.log(kleur.cyan(`\nCreating project in ${targetDir}...\n`));
 
-  // Copy template, excluding development files
+  // Copy template, excluding development files and gitignored files
   await fs.copy(templateDir, targetDir, {
     filter: (src) => {
       const relativePath = path.relative(templateDir, src);
-      // Exclude node_modules, lock files, and .npmrc (only needed for template development)
-      return (
-        !relativePath.includes("node_modules") &&
-        !relativePath.endsWith("pnpm-lock.yaml") &&
-        !relativePath.endsWith(".npmrc")
-      );
+      const basename = path.basename(src);
+      const normalizedPath = relativePath.replace(/\\/g, "/"); // Normalize path separators
+
+      // Exclude node_modules
+      if (normalizedPath.includes("node_modules")) {
+        return false;
+      }
+
+      // Exclude build output directories (check if first path segment is dist or dist-ssr)
+      const firstSegment = normalizedPath.split("/")[0];
+      if (firstSegment === "dist" || firstSegment === "dist-ssr") {
+        return false;
+      }
+
+      // Exclude lock files and npm config
+      if (
+        relativePath.endsWith("pnpm-lock.yaml") ||
+        relativePath.endsWith("package-lock.json") ||
+        relativePath.endsWith("yarn.lock") ||
+        relativePath.endsWith(".npmrc")
+      ) {
+        return false;
+      }
+
+      // Exclude .env files except .env.example
+      if (basename.startsWith(".env") && basename !== ".env.example") {
+        return false;
+      }
+
+      // Exclude *.local files (like .env.local, config.local.json, etc.)
+      if (basename.endsWith(".local")) {
+        return false;
+      }
+
+      // Exclude editor and OS files
+      if (
+        basename === ".DS_Store" ||
+        normalizedPath.includes(".vscode/") ||
+        normalizedPath.includes(".idea/")
+      ) {
+        return false;
+      }
+
+      return true;
     },
   });
 
@@ -81,11 +120,27 @@ async function main() {
   }
 
   console.log(kleur.green("✓ Project created successfully!\n"));
+
+  // Install dependencies
+  console.log(kleur.cyan("Installing dependencies...\n"));
+  try {
+    execSync("pnpm install", {
+      cwd: targetDir,
+      stdio: "inherit",
+    });
+    console.log(kleur.green("\n✓ Dependencies installed successfully!\n"));
+  } catch (error) {
+    console.log(
+      kleur.yellow(
+        "\n⚠ Failed to install dependencies automatically. Please run 'pnpm install' manually.\n"
+      )
+    );
+  }
+
   console.log("Next steps:\n");
   console.log(kleur.cyan(`  cd ${projectName}`));
-  console.log(kleur.cyan("  pnpm install"));
-  console.log(kleur.cyan("  cp env.example .env"));
-  console.log(kleur.cyan("  # Edit .env and set AIR_JAM_MASTER_KEY"));
+  console.log(kleur.cyan("  cp .env.example .env"));
+  console.log(kleur.cyan("  # Edit .env and set AIR_JAM_MASTER_KEY (optional for local dev)"));
   console.log(kleur.cyan("  pnpm run dev:server  # Terminal 1 - Start server"));
   console.log(kleur.cyan("  pnpm run dev         # Terminal 2 - Start game"));
   console.log("");
