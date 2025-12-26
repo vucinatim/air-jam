@@ -49,7 +49,8 @@ export const GamePlayer = ({
       <iframe
         ref={iframeRef}
         src={iframeSrc}
-        className="h-full w-full border-none"
+        className="h-full w-full border-none bg-black"
+        style={{ backgroundColor: "#000000" }}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
         onLoad={() => {
           console.log("[GamePlayer] Iframe loaded", {

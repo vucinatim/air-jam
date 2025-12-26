@@ -14,15 +14,15 @@ export function ControllerView() {
   const directionRef = useRef(0);
 
   // Use the networked store
-  const phase = usePongStore((state: PongState) => state.phase);
   const teamAssignments = usePongStore(
     (state: PongState) => state.teamAssignments,
   );
   const actions = usePongStore((state: PongState) => state.actions);
 
-  const myTeam = controller.controllerId
+  const myAssignment = controller.controllerId
     ? teamAssignments[controller.controllerId]
     : null;
+  const myTeam = myAssignment?.team ?? null;
 
   // Send input loop (only when playing)
   useEffect(() => {
@@ -43,15 +43,7 @@ export function ControllerView() {
   }, [controller.connectionStatus, controller.gameState, controller]);
 
   return (
-    <div className="dark">
-      {/* Debug State Component */}
-      <div className="fixed top-20 right-4 z-50">
-        <AirJamDebug
-          state={usePongStore((state: PongState) => state)}
-          title="Pong Game State"
-        />
-      </div>
-
+    <div className="relative bg-black">
       <ControllerShell
         connectionStatus={controller.connectionStatus}
         roomId={controller.roomId}
@@ -61,13 +53,20 @@ export function ControllerView() {
         onReconnect={() => controller.reconnect()}
         onRefresh={() => window.location.reload()}
       >
-        {phase === "lobby" ? (
-          // Team selection UI
+        {/* Debug State Component */}
+        <div className="absolute top-5 right-5 z-50">
+          <AirJamDebug
+            state={usePongStore((state: PongState) => state)}
+            title="Pong Game State"
+          />
+        </div>
+        {controller.gameState === "paused" ? (
+          // Team selection UI (shown when paused)
           <div className="flex h-full w-full flex-col gap-2 p-2">
             {/* Up button - Select Team 1 */}
             <button
               type="button"
-              className={`flex-1 touch-none select-none rounded-xl text-4xl font-bold text-white shadow-lg hover:opacity-90 active:scale-95 ${
+              className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
                 myTeam === "team1"
                   ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
                   : "opacity-70"
@@ -86,7 +85,7 @@ export function ControllerView() {
             {/* Down button - Select Team 2 */}
             <button
               type="button"
-              className={`flex-1 touch-none select-none rounded-xl text-4xl font-bold text-white shadow-lg hover:opacity-90 active:scale-95 ${
+              className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
                 myTeam === "team2"
                   ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
                   : "opacity-70"
@@ -108,7 +107,7 @@ export function ControllerView() {
             {/* Up button */}
             <button
               type="button"
-              className="flex-1 touch-none select-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+              className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg select-none hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
               style={{
                 willChange: "transform",
                 transition: "none",
@@ -124,7 +123,7 @@ export function ControllerView() {
             {/* Down button */}
             <button
               type="button"
-              className="flex-1 touch-none select-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+              className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg select-none hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
               style={{
                 willChange: "transform",
                 transition: "none",

@@ -115,7 +115,8 @@ function JoypadContentInner() {
             }airjam_mode=child&airjam_force_connect=true&aj_controller_id=${
               shell.controllerId
             }&aj_room=${shell.roomId}`}
-            className="h-full w-full border-none"
+            className="h-full w-full border-none bg-black"
+            style={{ backgroundColor: "#000000" }}
             allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
             onLoad={() => setIframeLoaded(true)}

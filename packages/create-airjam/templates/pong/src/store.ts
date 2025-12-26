@@ -1,21 +1,24 @@
 import { createAirJamStore } from "@air-jam/sdk";
 
+export interface TeamAssignment {
+  team: "team1" | "team2";
+  position: "front" | "back";
+}
+
 export interface PongState {
-  phase: "lobby" | "playing" | "gameover";
   scores: { team1: number; team2: number };
-  // Map controllerId -> "team1" | "team2"
-  teamAssignments: Record<string, "team1" | "team2">;
+  // Map controllerId -> { team, position }
+  teamAssignments: Record<string, TeamAssignment>;
 
   actions: {
     joinTeam: (team: "team1" | "team2", playerId?: string) => void;
-    setPhase: (phase: "lobby" | "playing" | "gameover") => void;
     resetGame: () => void;
     scorePoint: (team: "team1" | "team2") => void;
   };
 }
 
+// This store is automatically synced between the host and all controllers.
 export const usePongStore = createAirJamStore<PongState>((set) => ({
-  phase: "lobby",
   scores: { team1: 0, team2: 0 },
   teamAssignments: {},
 
@@ -23,17 +26,46 @@ export const usePongStore = createAirJamStore<PongState>((set) => ({
     // Note: playerId is injected by the SDK on the Host side automatically
     joinTeam: (team, playerId) => {
       if (!playerId) return;
-      set((state) => ({
-        teamAssignments: { ...state.teamAssignments, [playerId]: team },
-      }));
-    },
+      set((state) => {
+        const newAssignments = { ...state.teamAssignments };
+        const currentAssignment = newAssignments[playerId];
 
-    setPhase: (phase) => set({ phase }),
+        // If player is already on this team, don't change anything
+        if (currentAssignment && currentAssignment.team === team) {
+          return state;
+        }
+
+        // Remove player from their current team if they're switching
+        if (currentAssignment && currentAssignment.team !== team) {
+          delete newAssignments[playerId];
+        }
+
+        // Count players in the target team (excluding the current player)
+        const teamPlayers = Object.values(newAssignments).filter(
+          (assignment) => assignment.team === team,
+        );
+
+        // Enforce max 2 players per team
+        if (teamPlayers.length >= 2) {
+          // Team is full, don't allow assignment
+          return state;
+        }
+
+        // Assign position: first player = front, second = back
+        const position: "front" | "back" =
+          teamPlayers.length === 0 ? "front" : "back";
+
+        newAssignments[playerId] = { team, position };
+
+        return {
+          teamAssignments: newAssignments,
+        };
+      });
+    },
 
     resetGame: () =>
       set({
         scores: { team1: 0, team2: 0 },
-        phase: "lobby",
         teamAssignments: {},
       }),
 
