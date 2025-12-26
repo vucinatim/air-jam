@@ -34,10 +34,10 @@ import type {
 import {
   controllerStateSchema,
   controllerSystemSchema,
-  hostRegistrationSchema,
+  hostCreateRoomSchema,
+  hostReconnectSchema,
   roomCodeSchema,
 } from "../protocol";
-import { generateRoomCode } from "../utils/ids";
 import { detectRunMode } from "../utils/mode";
 import { urlBuilder } from "../utils/url-builder";
 
@@ -276,15 +276,24 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
   // Always connect - forceConnect kept for API compatibility
   const shouldConnect = true;
 
-  // Generate fallback room ID once
-  const [fallbackRoomId] = useState(() => generateRoomCode());
+  // Subscribe to store state to get roomId (server-issued for standalone mode)
+  const storeRoomId = useStore(store, (s) => s.roomId);
 
   // Parse room ID from various sources
-  const parsedRoomId = useMemo<RoomCode>(() => {
+  // For child mode: use arcadeParams.room (from URL)
+  // For standalone mode: use store.roomId (set after server responds)
+  const parsedRoomId = useMemo<RoomCode | null>(() => {
     if (arcadeParams) {
+      // Child mode: room ID comes from URL params
       return roomCodeSchema.parse(arcadeParams.room.toUpperCase());
     }
 
+    // Standalone mode: use store.roomId (server-issued)
+    if (storeRoomId) {
+      return roomCodeSchema.parse(storeRoomId.toUpperCase());
+    }
+
+    // Fallback: check URL param or options (for reconnection scenarios)
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const paramRoom = params.get("room");
@@ -298,15 +307,8 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
       return roomCodeSchema.parse(options.roomId.toUpperCase());
     }
 
-    return fallbackRoomId;
-  }, [options.roomId, fallbackRoomId, arcadeParams]);
-
-  // Update InputManager room ID when parsedRoomId changes
-  useEffect(() => {
-    if (inputManager) {
-      inputManager.setRoomId(parsedRoomId);
-    }
-  }, [inputManager, parsedRoomId]);
+    return null;
+  }, [options.roomId, storeRoomId, arcadeParams]);
 
   const [joinUrl, setJoinUrl] = useState<string>("");
 
@@ -330,6 +332,7 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
       players: state.players,
       gameState: state.gameState,
       mode: state.mode,
+      roomId: state.roomId,
     })),
   );
 
@@ -352,6 +355,8 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
       return;
     }
 
+    if (!parsedRoomId) return;
+
     const payload = controllerSystemSchema.safeParse({
       roomId: parsedRoomId,
       command: "toggle_pause",
@@ -363,7 +368,7 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
   const sendState = useCallback(
     (state: ControllerStatePayload): boolean => {
-      if (!socket || !socket.connected) {
+      if (!socket || !socket.connected || !parsedRoomId) {
         return false;
       }
       const payload = controllerStateSchema.safeParse({
@@ -407,14 +412,34 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
   // Build controller URL
   useEffect(() => {
+    if (!parsedRoomId) return; // Don't build URL until we have a room ID
+
     (async () => {
       const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
         path: config.controllerPath,
         host: config.publicHost,
       });
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "packages/sdk/src/hooks/use-air-jam-host.ts:405",
+            message: "useAirJamHost - building joinUrl",
+            data: { parsedRoomId, joinUrl: url, optionsRoomId: options.roomId },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run2",
+            hypothesisId: "JOINURL",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
       setJoinUrl(url);
     })();
-  }, [parsedRoomId, config.controllerPath, config.publicHost]);
+  }, [parsedRoomId, config.controllerPath, config.publicHost, options.roomId]);
 
   // Get setRegisteredRoomId from store
   const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
@@ -424,7 +449,11 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     const storeState = store.getState();
     storeState.setMode(detectRunMode());
     storeState.setRole("host");
-    storeState.setRoomId(parsedRoomId);
+    // Don't set roomId here - it will be set after server responds
+    // Only set it if we have it (child mode or reconnection)
+    if (parsedRoomId) {
+      storeState.setRoomId(parsedRoomId);
+    }
     storeState.setStatus("connecting");
     storeState.setError(undefined);
 
@@ -436,14 +465,14 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     const registerHost = async () => {
       const storeState = store.getState();
 
-      // Prevent duplicate registration for the same room
+      // Prevent duplicate registration
       const currentRegisteredRoomId = store.getState().registeredRoomId;
-      if (currentRegisteredRoomId === parsedRoomId && socket.connected) {
+      if (currentRegisteredRoomId && socket.connected) {
         return;
       }
 
       if (arcadeParams) {
-        // Child Mode - join as child
+        // Child Mode - join as child (unchanged)
         const childRoomId = roomCodeSchema.parse(
           arcadeParams.room.toUpperCase(),
         );
@@ -463,28 +492,68 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
           setRegisteredRoomId(childRoomId);
         });
       } else {
-        // Standalone Mode - register as master host
-        const payload = hostRegistrationSchema.parse({
-          roomId: parsedRoomId,
-          maxPlayers: options.maxPlayers ?? config.maxPlayers,
-          apiKey: options.apiKey ?? config.apiKey,
-        });
+        // Standalone Mode - use server-issued room IDs
+        const createNewRoom = () => {
+          const payload = hostCreateRoomSchema.parse({
+            maxPlayers: options.maxPlayers ?? config.maxPlayers,
+            apiKey: options.apiKey ?? config.apiKey,
+          });
 
-        socket.emit("host:register", payload, (ack) => {
-          if (!ack.ok) {
-            storeState.setError(ack.message ?? "Failed to register host");
-            storeState.setStatus("disconnected");
-            setRegisteredRoomId(null);
-            return;
-          }
-          storeState.setStatus("connected");
-          if (ack.roomId) {
-            storeState.setRoomId(ack.roomId);
-            setRegisteredRoomId(ack.roomId);
+          socket.emit("host:createRoom", payload, (ack) => {
+            if (!ack.ok) {
+              storeState.setError(ack.message ?? "Failed to create room");
+              storeState.setStatus("disconnected");
+              setRegisteredRoomId(null);
+              return;
+            }
+
+            if (ack.roomId) {
+              storeState.setStatus("connected");
+              storeState.setRoomId(ack.roomId);
+              setRegisteredRoomId(ack.roomId);
+
+              // Save room ID to sessionStorage for reconnection on reload
+              if (typeof window !== "undefined") {
+                sessionStorage.setItem("airjam_room_id", ack.roomId);
+              }
+            } else {
+              storeState.setError("Server did not return room ID");
+              storeState.setStatus("disconnected");
+            }
+          });
+        };
+
+        // Check for saved room ID in sessionStorage (for reconnection)
+        if (typeof window !== "undefined") {
+          const savedRoomId = sessionStorage.getItem("airjam_room_id");
+          if (savedRoomId) {
+            // Attempt to reconnect to existing room
+            const reconnectPayload = hostReconnectSchema.parse({
+              roomId: savedRoomId,
+              apiKey: options.apiKey ?? config.apiKey,
+            });
+
+            socket.emit("host:reconnect", reconnectPayload, (ack) => {
+              if (ack.ok && ack.roomId) {
+                storeState.setStatus("connected");
+                storeState.setRoomId(ack.roomId);
+                setRegisteredRoomId(ack.roomId);
+              } else {
+                // Reconnection failed (room expired), create new room
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("airjam_room_id");
+                }
+                createNewRoom();
+              }
+            });
           } else {
-            setRegisteredRoomId(parsedRoomId);
+            // No saved room ID, create new room
+            createNewRoom();
           }
-        });
+        } else {
+          // Not in browser environment, create new room
+          createNewRoom();
+        }
       }
     };
 
@@ -527,7 +596,7 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     };
 
     const handleState = (payload: ControllerStateMessage): void => {
-      if (payload.roomId !== parsedRoomId) return;
+      if (!parsedRoomId || payload.roomId !== parsedRoomId) return;
 
       const storeState = store.getState();
       if (payload.state.gameState) {
@@ -556,13 +625,8 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     // If socket is already connected, register immediately
     const currentRegisteredRoomId = store.getState().registeredRoomId;
-    if (socket.connected && currentRegisteredRoomId !== parsedRoomId) {
+    if (socket.connected && !currentRegisteredRoomId) {
       registerHost();
-    }
-
-    // Reset registered room when parsedRoomId changes
-    if (currentRegisteredRoomId && currentRegisteredRoomId !== parsedRoomId) {
-      setRegisteredRoomId(null);
     }
 
     return () => {
@@ -580,8 +644,8 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     config.apiKey,
     options.maxPlayers,
     options.apiKey,
-    parsedRoomId,
     arcadeParams,
+    parsedRoomId, // Include parsedRoomId since it's used in handleState callback
     shouldConnect,
     socket,
     store,
@@ -606,7 +670,7 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
   );
 
   return {
-    roomId: parsedRoomId,
+    roomId: parsedRoomId ?? ("" as RoomCode), // Return empty string as fallback if not yet available
     joinUrl,
     connectionStatus: connectionState.connectionStatus,
     players: connectionState.players,

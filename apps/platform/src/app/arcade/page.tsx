@@ -16,11 +16,29 @@ export const arcadeInputSchema = z.object({
 });
 
 export default function ArcadePage() {
-  // Persist Room ID for development convenience
+  // Generate fresh room ID on each load (no persistence)
+  // This prevents stale controller connections from previous sessions
   const [persistedRoomId] = useState(() => {
+    // Clear any existing sessionStorage entry to ensure fresh room ID
     if (typeof sessionStorage !== "undefined") {
-      return sessionStorage.getItem("airjam_platform_room_id") || undefined;
+      sessionStorage.removeItem("airjam_platform_room_id");
     }
+    // #region agent log
+    fetch("http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "apps/platform/src/app/arcade/page.tsx:20",
+        message:
+          "ArcadePage - starting with fresh room ID (cleared sessionStorage)",
+        data: { persistedRoomId: undefined },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run3",
+        hypothesisId: "FIX",
+      }),
+    }).catch(() => {});
+    // #endregion
     return undefined;
   });
 
@@ -57,9 +75,27 @@ export default function ArcadePage() {
         mode="arcade"
         initialRoomId={persistedRoomId}
         onRoomIdChange={(roomId) => {
-          if (typeof sessionStorage !== "undefined") {
-            sessionStorage.setItem("airjam_platform_room_id", roomId);
-          }
+          // #region agent log
+          fetch(
+            "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                location: "apps/platform/src/app/arcade/page.tsx:59",
+                message:
+                  "ArcadePage - onRoomIdChange callback (no-op, not persisting)",
+                data: { roomId },
+                timestamp: Date.now(),
+                sessionId: "debug-session",
+                runId: "run3",
+                hypothesisId: "FIX",
+              }),
+            },
+          ).catch(() => {});
+          // #endregion
+          // No longer persisting room ID to sessionStorage
+          // Each host reload generates a fresh room ID to prevent stale controller connections
         }}
         className="h-screen"
       />

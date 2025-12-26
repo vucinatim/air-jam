@@ -5,7 +5,9 @@ import {
   controllerStateSchema,
   controllerSystemSchema,
   ErrorCode,
+  hostCreateRoomSchema,
   hostJoinAsChildSchema,
+  hostReconnectSchema,
   hostRegisterSystemSchema,
   hostRegistrationSchema,
   PlaySoundEventPayload,
@@ -21,7 +23,9 @@ import {
   type ControllerLeavePayload,
   type ControllerLeftNotice,
   type ControllerStateMessage,
+  type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
+  type HostReconnectPayload,
   type HostRegisterSystemPayload,
   type HostRegistrationPayload,
   type HostStateSyncPayload,
@@ -40,7 +44,8 @@ import { Server, type Socket } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 import { authService } from "./services/auth-service.js";
 import { roomManager } from "./services/room-manager.js";
-import type { ControllerSession } from "./types.js";
+import type { ControllerSession, RoomSession } from "./types.js";
+import { generateRoomCode } from "./utils/ids.js";
 
 const PORT = Number(process.env.PORT ?? 4000);
 
@@ -139,6 +144,177 @@ io.on(
       },
     );
 
+    // --- CREATE ROOM (Server-Issued Room ID) ---
+    socket.on(
+      "host:createRoom",
+      async (
+        payload: HostCreateRoomPayload,
+        callback: (ack: {
+          ok: boolean;
+          roomId?: string;
+          message?: string;
+          code?: ErrorCode | string;
+        }) => void,
+      ) => {
+        const parsed = hostCreateRoomSchema.safeParse(payload);
+        if (!parsed.success) {
+          callback({
+            ok: false,
+            message: parsed.error.message,
+            code: ErrorCode.INVALID_PAYLOAD,
+          });
+          return;
+        }
+
+        const { maxPlayers, apiKey } = parsed.data;
+
+        // API Key Validation (if provided)
+        if (apiKey) {
+          const verification = await authService.verifyApiKey(apiKey);
+          if (!verification.isVerified) {
+            callback({
+              ok: false,
+              message: verification.error,
+              code: ErrorCode.INVALID_API_KEY,
+            });
+            return;
+          }
+        }
+
+        // IDEMPOTENCY: Check if this socket already has a room
+        const existingRoomId = roomManager.getRoomByHostId(socket.id);
+        if (existingRoomId) {
+          const existingSession = roomManager.getRoom(existingRoomId);
+          // Verify the socket is still connected and is the master host
+          if (
+            existingSession &&
+            existingSession.masterHostSocketId === socket.id
+          ) {
+            console.log(
+              `[server] Host ${socket.id} already has room ${existingRoomId}, returning existing.`,
+            );
+            callback({ ok: true, roomId: existingRoomId });
+            return;
+          }
+        }
+
+        // Generate unique room ID
+        let roomId: string;
+        let attempts = 0;
+        do {
+          roomId = generateRoomCode();
+          attempts++;
+          if (attempts > 10) {
+            callback({
+              ok: false,
+              message: "Failed to generate unique room ID",
+              code: ErrorCode.CONNECTION_FAILED,
+            });
+            return;
+          }
+        } while (roomManager.getRoom(roomId));
+
+        // Create new room session
+        const session: RoomSession = {
+          roomId,
+          masterHostSocketId: socket.id,
+          focus: "SYSTEM",
+          controllers: new Map(),
+          maxPlayers: maxPlayers ?? 8,
+          gameState: "paused",
+        };
+
+        roomManager.setRoom(roomId, session);
+        roomManager.setHostRoom(socket.id, roomId);
+        socket.join(roomId);
+
+        console.log(`[server] Created room ${roomId} for host ${socket.id}`);
+        callback({ ok: true, roomId });
+        io.to(roomId).emit("server:roomReady", { roomId });
+      },
+    );
+
+    // --- RECONNECT TO ROOM ---
+    socket.on(
+      "host:reconnect",
+      async (
+        payload: HostReconnectPayload,
+        callback: (ack: {
+          ok: boolean;
+          roomId?: string;
+          message?: string;
+          code?: ErrorCode | string;
+        }) => void,
+      ) => {
+        const parsed = hostReconnectSchema.safeParse(payload);
+        if (!parsed.success) {
+          callback({
+            ok: false,
+            message: parsed.error.message,
+            code: ErrorCode.INVALID_PAYLOAD,
+          });
+          return;
+        }
+
+        const { roomId, apiKey } = parsed.data;
+
+        // API Key Validation (if provided)
+        if (apiKey) {
+          const verification = await authService.verifyApiKey(apiKey);
+          if (!verification.isVerified) {
+            callback({
+              ok: false,
+              message: verification.error,
+              code: ErrorCode.INVALID_API_KEY,
+            });
+            return;
+          }
+        }
+
+        const session = roomManager.getRoom(roomId);
+        if (!session) {
+          callback({
+            ok: false,
+            message: "Room not found",
+            code: ErrorCode.ROOM_NOT_FOUND,
+          });
+          return;
+        }
+
+        // Check if the previous master host socket is still connected
+        const previousMasterSocket = io.sockets.sockets.get(
+          session.masterHostSocketId,
+        );
+        const isPreviousHostConnected =
+          previousMasterSocket?.connected ?? false;
+
+        // Allow reconnect if:
+        // 1. Previous host is not connected (disconnected/reload)
+        // 2. OR this socket is already the master host (reconnection from same client)
+        if (
+          !isPreviousHostConnected ||
+          session.masterHostSocketId === socket.id
+        ) {
+          session.masterHostSocketId = socket.id;
+          roomManager.setRoom(roomId, session);
+          roomManager.setHostRoom(socket.id, roomId);
+          socket.join(roomId);
+
+          console.log(
+            `[server] Host ${socket.id} reconnected to room ${roomId}`,
+          );
+          callback({ ok: true, roomId });
+          io.to(roomId).emit("server:roomReady", { roomId });
+        } else {
+          callback({
+            ok: false,
+            message: "Room already has an active host",
+            code: ErrorCode.ALREADY_CONNECTED,
+          });
+        }
+      },
+    );
+
     // --- LAUNCH GAME (System -> Server) ---
     socket.on(
       "system:launchGame",
@@ -197,8 +373,53 @@ io.on(
 
         console.log(`[server] Launching game in room ${roomId}`);
 
+        // #region agent log
+        const roomSockets = io.sockets.adapter.rooms.get(roomId);
+        fetch(
+          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "packages/server/src/index.ts:198",
+              message: "system:launchGame - before emit client:loadUi",
+              data: {
+                roomId,
+                gameUrl,
+                controllerCount: session.controllers.size,
+                controllerIds: Array.from(session.controllers.keys()),
+                socketsInRoom: roomSockets?.size || 0,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "A",
+            }),
+          },
+        ).catch(() => {});
+        // #endregion
+
         // Broadcast to controllers to load UI
         io.to(roomId).emit("client:loadUi", { url: gameUrl });
+
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "packages/server/src/index.ts:202",
+              message: "system:launchGame - after emit client:loadUi",
+              data: { roomId, gameUrl },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "A",
+            }),
+          },
+        ).catch(() => {});
+        // #endregion
 
         callback({ ok: true, joinToken });
       },
@@ -450,7 +671,51 @@ io.on(
 
       session.controllers.set(controllerId, controllerSession);
       roomManager.setController(socket.id, { roomId, controllerId });
+
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "packages/server/src/index.ts:453",
+            message: "controller:join - before socket.join",
+            data: {
+              roomId,
+              controllerId,
+              socketId: socket.id,
+              activeControllerUrl: session.activeControllerUrl,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "C",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
+
       socket.join(roomId);
+
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "packages/server/src/index.ts:458",
+            message: "controller:join - after socket.join",
+            data: { roomId, controllerId, socketId: socket.id },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "C",
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
 
       const notice: ControllerJoinedNotice = {
         controllerId,
@@ -488,6 +753,30 @@ io.on(
       // We check activeControllerUrl instead of childHostSocketId because the game might be
       // in the process of loading (launched but not yet connected) or momentarily disconnected.
       if (session.activeControllerUrl) {
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "packages/server/src/index.ts:491",
+              message:
+                "controller:join - emitting client:loadUi directly to socket",
+              data: {
+                roomId,
+                controllerId,
+                socketId: socket.id,
+                url: session.activeControllerUrl,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "E",
+            }),
+          },
+        ).catch(() => {});
+        // #endregion
         socket.emit("client:loadUi", { url: session.activeControllerUrl });
       }
 

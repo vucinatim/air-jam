@@ -227,6 +227,26 @@ export const hostJoinAsChildSchema = z.object({
 
 export type HostJoinAsChildPayload = z.infer<typeof hostJoinAsChildSchema>;
 
+/**
+ * Schema for creating a new room (server-issued room ID)
+ */
+export const hostCreateRoomSchema = z.object({
+  maxPlayers: z.number().int().min(1).max(16).default(8),
+  apiKey: z.string().optional(),
+});
+
+export type HostCreateRoomPayload = z.infer<typeof hostCreateRoomSchema>;
+
+/**
+ * Schema for reconnecting to an existing room
+ */
+export const hostReconnectSchema = z.object({
+  roomId: roomCodeSchema,
+  apiKey: z.string().optional(),
+});
+
+export type HostReconnectPayload = z.infer<typeof hostReconnectSchema>;
+
 export interface SystemLaunchGameAck {
   ok: boolean;
   joinToken?: string;
@@ -268,6 +288,14 @@ export interface ClientToServerEvents {
   ) => void;
   "host:registerSystem": (
     payload: HostRegisterSystemPayload,
+    callback: (ack: HostRegistrationAck) => void,
+  ) => void;
+  "host:createRoom": (
+    payload: HostCreateRoomPayload,
+    callback: (ack: HostRegistrationAck) => void,
+  ) => void;
+  "host:reconnect": (
+    payload: HostReconnectPayload,
     callback: (ack: HostRegistrationAck) => void,
   ) => void;
   "system:launchGame": (

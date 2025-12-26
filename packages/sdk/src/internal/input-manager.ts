@@ -165,11 +165,9 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
   private inputBuffer = new Map<string, Record<string, unknown>>();
   private latchState = new Map<string, LatchState>();
   private config: InputConfig<TSchema>;
-  private roomId?: string;
 
-  constructor(config: InputConfig<TSchema> = {}, roomId?: string) {
+  constructor(config: InputConfig<TSchema> = {}) {
     this.config = config;
-    this.roomId = roomId;
   }
 
   /**
@@ -177,10 +175,10 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
    * Should be called when 'server:input' event is received.
    */
   handleInput(payload: ControllerInputEvent): void {
-    // Security/Sanity check: Only process inputs from our room
-    if (this.roomId && payload.roomId !== this.roomId) {
-      return;
-    }
+    // Note: We don't filter by roomId here because:
+    // 1. The server already routes input correctly to the right host
+    // 2. Multiple host instances might share the same InputManager instance
+    // 3. The roomId check was causing false rejections when hosts re-register
 
     // Store raw input as-is (arbitrary structure)
     this.inputBuffer.set(payload.controllerId, payload.input);
@@ -230,13 +228,6 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
   clearInput(controllerId: string): void {
     this.inputBuffer.delete(controllerId);
     this.latchState.delete(controllerId);
-  }
-
-  /**
-   * Updates the room ID filter.
-   */
-  setRoomId(roomId: string | undefined): void {
-    this.roomId = roomId;
   }
 
   /**

@@ -83,6 +83,9 @@ export const ArcadeSystem = ({
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const isLaunchingRef = useRef(false);
+  // Refs to track current state values for use in callbacks without stale closures
+  const activeGameRef = useRef<ArcadeGame | null>(null);
+  const joinTokenRef = useRef<string | null>(null);
 
   // Navigation logic refs
   const lastExitTime = useRef<number>(0);
@@ -193,13 +196,21 @@ export const ArcadeSystem = ({
   const launchGame = useCallback(
     async (game: ArcadeGame) => {
       // Prevent launching if already launching, game is active, or joinToken exists
+      // Use refs to check current values without stale closures
       if (
         !host.socket ||
         !host.socket.connected ||
         isLaunchingRef.current ||
-        activeGame ||
-        joinToken
+        activeGameRef.current ||
+        joinTokenRef.current
       ) {
+        console.log("[Arcade] Launch blocked:", {
+          hasSocket: !!host.socket,
+          connected: host.socket?.connected,
+          isLaunching: isLaunchingRef.current,
+          activeGame: !!activeGameRef.current,
+          joinToken: !!joinTokenRef.current,
+        });
         return;
       }
 
@@ -223,7 +234,9 @@ export const ArcadeSystem = ({
           if (ack.ok && ack.joinToken) {
             console.log("[Arcade] Game launch successful");
             setJoinToken(ack.joinToken);
+            joinTokenRef.current = ack.joinToken;
             setActiveGame(game);
+            activeGameRef.current = game;
             setNormalizedGameUrl(baseUrl);
             setView("game");
           } else {
@@ -232,12 +245,13 @@ export const ArcadeSystem = ({
         },
       );
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [host.socket, host.roomId, isLaunching],
+    [host.socket, host.roomId],
   );
 
   const exitGame = useCallback(() => {
     lastExitTime.current = Date.now();
+
+    console.log("[Arcade] Exiting game, clearing state");
 
     if (host.socket?.connected) {
       host.socket.emit("system:closeGame", { roomId: host.roomId });
@@ -248,15 +262,29 @@ export const ArcadeSystem = ({
       onExitGame?.();
     }
 
+    // Clear state immediately (synchronously with refs)
     setView("browser");
     setActiveGame(null);
+    activeGameRef.current = null;
     setNormalizedGameUrl("");
     setJoinToken(null);
+    joinTokenRef.current = null;
     isLaunchingRef.current = false;
     setIsLaunching(false);
     // Reset auto-launch flag so game can be launched again if needed
     hasAutoLaunched.current = false;
+
+    console.log("[Arcade] Game exit complete, state cleared");
   }, [host.socket, host.roomId, mode, onExitGame]);
+
+  // Keep refs updated with state
+  useEffect(() => {
+    activeGameRef.current = activeGame;
+  }, [activeGame]);
+
+  useEffect(() => {
+    joinTokenRef.current = joinToken;
+  }, [joinToken]);
 
   // Keep refs updated
   useEffect(() => {
