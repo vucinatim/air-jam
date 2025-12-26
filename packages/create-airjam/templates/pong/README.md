@@ -16,10 +16,12 @@ A starter template for building multiplayer games with Air Jam. This template in
    pnpm install
    ```
 
-2. Copy the environment example file (optional - defaults work for local dev):
+2. Configure environment variables (optional - defaults work for local dev):
    ```bash
-   cp env.example .env
+   mv .env.example .env.local
    ```
+   
+   Then edit `.env.local` with your settings if needed.
 
 ## Local Development
 
@@ -44,7 +46,7 @@ The game will be available at `http://localhost:5173` (or the port Vite assigns)
 If you prefer to use the official Air Jam server instead of running locally:
 
 1. Get your API key from the [Air Jam Platform](https://air-jam.com)
-2. Set in `.env`:
+2. Set in `.env.local`:
    ```bash
    VITE_AIR_JAM_SERVER_URL=https://your-server-url.com
    VITE_AIR_JAM_API_KEY=your-api-key-here
@@ -64,16 +66,17 @@ If you prefer to use the official Air Jam server instead of running locally:
 
 ```
 src/
-  ├── App.tsx            # Main app component with routing
-  ├── HostView.tsx       # Game host view (runs the game)
-  ├── ControllerView.tsx # Controller view (mobile interface)
-  ├── types.ts           # Game input schema and types
-  └── main.tsx           # Entry point
+  ├── App.tsx              # Main app component with routing
+  ├── host-view.tsx        # Game host view (runs the game)
+  ├── controller-view.tsx  # Controller view (mobile interface)
+  ├── types.ts             # Game input schema and types
+  ├── store.ts             # Shared networked state store
+  └── main.tsx             # Entry point
 ```
 
 ## Environment Variables
 
-See `env.example` for all available environment variables. Key variables:
+See `.env.example` for all available environment variables. Key variables:
 
 - `VITE_AIR_JAM_SERVER_URL` - Server URL (defaults to localhost:4000 for local dev)
 - `VITE_AIR_JAM_API_KEY` - API key (optional for local dev, required for production)

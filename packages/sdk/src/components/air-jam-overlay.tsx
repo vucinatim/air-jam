@@ -11,8 +11,8 @@ import {
 import QRCode from "qrcode";
 import type { JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
-import type { ConnectionStatus } from "../protocol";
 import { useAirJamHost } from "../hooks/use-air-jam-host";
+import type { ConnectionStatus } from "../protocol";
 import { PlayerAvatar } from "./player-avatar";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Badge } from "./ui/badge";

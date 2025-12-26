@@ -5,9 +5,10 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@air-jam/sdk"],
   env: {
     // Expose VERCEL_URL to the client as NEXT_PUBLIC_APP_URL so we can auto-detect the domain
+    // VERCEL_URL is automatically set by Vercel (includes custom domains like air-jam.app)
     NEXT_PUBLIC_APP_URL: process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000",
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   },
   async headers() {
     return [
