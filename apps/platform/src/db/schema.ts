@@ -1,11 +1,4 @@
-import {
-  boolean,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-} from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -68,10 +61,7 @@ export const games = pgTable("games", {
   url: text("url").notNull(), // The URL where the game is hosted
   thumbnailUrl: text("thumbnail_url"),
   coverUrl: text("cover_url"),
-  minPlayers: integer("min_players").default(1).notNull(),
-  maxPlayers: integer("max_players"), // Null means infinite
   isPublished: boolean("is_published").default(false).notNull(),
-  orientation: text("orientation").default("landscape").notNull(), // 'landscape' | 'portrait' | 'any'
   config: jsonb("config").default({}).notNull(), // Game specific configuration variables
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -9,18 +9,18 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-const JoypadContent = dynamic(() => Promise.resolve(JoypadContentInner), {
+const ControllerContent = dynamic(() => Promise.resolve(ControllerContentInner), {
   ssr: false,
 });
 
-export default function JoypadPage() {
+export default function ControllerPage() {
   return (
     <AirJamProvider>
-      <JoypadContent />
+      <ControllerContent />
     </AirJamProvider>
   );
 }
-function JoypadContentInner() {
+function ControllerContentInner() {
   const router = useRouter();
   const shell = useAirJamShell();
 
@@ -58,7 +58,7 @@ function JoypadContentInner() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              location: "joypad/page.tsx:42",
+              location: "controller/page.tsx:42",
               message: "sendInput returned false in loop",
               data: {
                 activeUrl: shell.activeUrl,
@@ -112,7 +112,7 @@ function JoypadContentInner() {
       onReconnect={handleReconnect}
       onTogglePlayPause={handleTogglePlayPause}
       onRefresh={() => window.location.reload()}
-      requiredOrientation={shell.activeUrl ? "any" : "portrait"}
+      forceOrientation={shell.activeUrl ? undefined : "portrait"}
       customActions={
         shell.activeUrl ? (
           <Button

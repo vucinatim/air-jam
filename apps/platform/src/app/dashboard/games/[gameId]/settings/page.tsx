@@ -18,13 +18,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
@@ -49,9 +42,6 @@ const gameSettingsSchema = z.object({
     .optional()
     .or(z.literal("")),
   coverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  minPlayers: z.number().min(1),
-  maxPlayers: z.number().min(1).nullable().optional(),
-  orientation: z.enum(["landscape", "portrait", "any"]),
   isPublished: z.boolean(),
 });
 
@@ -104,9 +94,6 @@ export default function GameSettingsPage() {
       url: "",
       thumbnailUrl: "",
       coverUrl: "",
-      minPlayers: 1,
-      maxPlayers: null,
-      orientation: "landscape",
       isPublished: false,
     },
   });
@@ -120,13 +107,10 @@ export default function GameSettingsPage() {
         url: game.url,
         thumbnailUrl: game.thumbnailUrl || "",
         coverUrl: game.coverUrl || "",
-        minPlayers: game.minPlayers,
-        maxPlayers: game.maxPlayers,
-        orientation:
-          (game.orientation as "landscape" | "portrait" | "any") || "landscape",
         isPublished: game.isPublished,
       });
       // Initialize slug input for availability checking
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSlugInput(game.slug || "");
     }
   }, [game, form]);
@@ -145,7 +129,7 @@ export default function GameSettingsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configuration</h1>
         <p className="text-muted-foreground">
-          Manage your game&apos;s metadata and gameplay settings.
+          Manage your game&apos;s metadata and hosting settings.
         </p>
       </div>
 
@@ -184,7 +168,9 @@ export default function GameSettingsPage() {
                   render={({ field }) => {
                     const isValidFormat = /^[a-z0-9-]+$/.test(field.value);
                     const showStatus =
-                      field.value.length > 0 && isValidFormat && debouncedSlug === field.value;
+                      field.value.length > 0 &&
+                      isValidFormat &&
+                      debouncedSlug === field.value;
                     const isAvailable = slugCheck?.available;
 
                     return (
@@ -199,8 +185,14 @@ export default function GameSettingsPage() {
                               <Input
                                 className={cn(
                                   "rounded-l-none pr-10",
-                                  showStatus && !isCheckingSlug && isAvailable && "border-green-500 focus-visible:ring-green-500",
-                                  showStatus && !isCheckingSlug && !isAvailable && "border-red-500 focus-visible:ring-red-500",
+                                  showStatus &&
+                                    !isCheckingSlug &&
+                                    isAvailable &&
+                                    "border-green-500 focus-visible:ring-green-500",
+                                  showStatus &&
+                                    !isCheckingSlug &&
+                                    !isAvailable &&
+                                    "border-red-500 focus-visible:ring-red-500",
                                 )}
                                 {...field}
                                 onChange={(e) => {
@@ -210,9 +202,10 @@ export default function GameSettingsPage() {
                               />
                               {/* Status indicator */}
                               {field.value.length > 0 && isValidFormat && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                  {isCheckingSlug || debouncedSlug !== field.value ? (
-                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                                  {isCheckingSlug ||
+                                  debouncedSlug !== field.value ? (
+                                    <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
                                   ) : isAvailable ? (
                                     <Check className="h-4 w-4 text-green-500" />
                                   ) : (
@@ -275,88 +268,6 @@ export default function GameSettingsPage() {
               />
             </CardContent>
           </Card>
-
-          {/* Gameplay Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Gameplay</CardTitle>
-              <CardDescription>How the game is played.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="minPlayers"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Min Players</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value, 10))
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="maxPlayers"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Max Players</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Leave empty for infinite"
-                          {...field}
-                          value={field.value ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(
-                              value === "" ? null : parseInt(value, 10),
-                            );
-                          }}
-                        />
-                      </FormControl>
-
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="orientation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Screen Orientation</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select orientation" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="any">Any</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
         </form>
       </Form>
 
@@ -365,7 +276,9 @@ export default function GameSettingsPage() {
           <Button
             type="submit"
             form="game-settings-form"
-            disabled={updateGame.isPending || (slugCheck && !slugCheck.available)}
+            disabled={
+              updateGame.isPending || (slugCheck && !slugCheck.available)
+            }
           >
             {updateGame.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -416,12 +416,11 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     (async () => {
       const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
-        path: config.controllerPath,
         host: config.publicHost,
       });
       setJoinUrl(url);
     })();
-  }, [parsedRoomId, config.controllerPath, config.publicHost, options.roomId]);
+  }, [parsedRoomId, config.publicHost, options.roomId]);
 
   // Get setRegisteredRoomId from store
   const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);

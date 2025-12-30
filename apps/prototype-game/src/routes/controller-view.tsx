@@ -234,7 +234,7 @@ const ControllerContent = () => {
     <ControllerShell
       roomId={roomId}
       connectionStatus={connectionStatus}
-      requiredOrientation="landscape"
+      forceOrientation="landscape"
       gameState={gameState}
       onTogglePlayPause={handleTogglePlayPause}
       onReconnect={handleReconnect}

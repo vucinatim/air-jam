@@ -42,7 +42,7 @@ import { detectRunMode } from "../utils/mode";
  *
  * @example Basic usage (room from URL)
  * ```tsx
- * // URL: https://yourgame.com/joypad?room=ABCD
+ * // URL: https://yourgame.com/controller?room=ABCD
  * const controller = useAirJamController();
  * // Automatically joins room ABCD
  * ```

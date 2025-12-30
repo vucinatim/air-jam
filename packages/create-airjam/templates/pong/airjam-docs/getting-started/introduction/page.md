@@ -47,7 +47,7 @@ export const App = () => (
   >
     <Routes>
       <Route path="/" element={<HostView />} />
-      <Route path="/joypad" element={<ControllerView />} />
+      <Route path="/controller" element={<ControllerView />} />
     </Routes>
   </AirJamProvider>
 );

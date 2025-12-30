@@ -7,7 +7,6 @@ import { HostView } from "./routes/host-view";
 
 export const App = (): JSX.Element => (
   <AirJamProvider
-    controllerPath="/joypad"
     serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
     input={{
       schema: gameInputSchema,
@@ -19,7 +18,7 @@ export const App = (): JSX.Element => (
   >
     <Routes>
       <Route path="/" element={<HostView />} />
-      <Route path="/joypad" element={<ControllerView />} />
+      <Route path="/controller" element={<ControllerView />} />
     </Routes>
   </AirJamProvider>
 );

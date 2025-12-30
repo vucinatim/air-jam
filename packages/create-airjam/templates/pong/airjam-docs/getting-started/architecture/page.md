@@ -23,7 +23,7 @@ Air Jam consists of four main components in a monorepo structure. This page expl
 1. Player scans QR on arcade screen
 2. Platform loads controller shell on phone
 3. Player browses games using phone as remote
-4. Game launches → controller switches to game's joypad
+4. Game launches → controller switches to game's controller
 5. Game ends → returns to arcade browser
 ```
 

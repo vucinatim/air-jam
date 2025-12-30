@@ -79,10 +79,7 @@ export const gameRouter = createTRPCRouter({
         url: z.string().url().optional(),
         thumbnailUrl: z.string().url().optional().or(z.literal("")),
         coverUrl: z.string().url().optional().or(z.literal("")),
-        minPlayers: z.number().int().min(1).optional(),
-        maxPlayers: z.number().int().min(1).nullable().optional(),
         isPublished: z.boolean().optional(),
-        orientation: z.enum(["landscape", "portrait", "any"]).optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {

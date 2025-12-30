@@ -268,7 +268,7 @@ export const ArcadeSystem = ({
       setIsLaunching(true);
 
       const baseUrl = await urlBuilder.normalizeForMobile(game.url);
-      const controllerUrl = `${baseUrl.replace(/\/$/, "")}/joypad`;
+      const controllerUrl = `${baseUrl.replace(/\/$/, "")}/controller`;
 
       host.socket.emit(
         "system:launchGame",

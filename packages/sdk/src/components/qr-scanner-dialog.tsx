@@ -15,8 +15,8 @@ interface QRScannerDialogProps {
 /**
  * Extracts room code from a scanned URL or text.
  * Supports formats like:
- * - http://host/joypad?room=CODE
- * - https://host/joypad?room=CODE
+ * - http://host/controller?room=CODE
+ * - https://host/controller?room=CODE
  * - Just the room code itself
  */
 const extractRoomCode = (text: string): string | null => {

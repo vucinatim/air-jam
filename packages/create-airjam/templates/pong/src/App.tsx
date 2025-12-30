@@ -7,7 +7,6 @@ import { gameInputSchema } from "./types";
 export function App() {
   return (
     <AirJamProvider
-      controllerPath="/joypad"
       input={{
         schema: gameInputSchema,
         latch: {
@@ -17,7 +16,7 @@ export function App() {
     >
       <Routes>
         <Route path="/" element={<HostView />} />
-        <Route path="/joypad" element={<ControllerView />} />
+        <Route path="/controller" element={<ControllerView />} />
       </Routes>
     </AirJamProvider>
   );

@@ -1,4 +1,4 @@
-import { DEFAULT_CONTROLLER_PATH, DEFAULT_SERVER_PORT } from "../constants";
+import { CONTROLLER_PATH, DEFAULT_SERVER_PORT } from "../constants";
 import type { RoomCode } from "../protocol";
 import { getLocalNetworkIp } from "./network-ip";
 
@@ -76,16 +76,16 @@ class UrlBuilder {
 
   /**
    * Build a controller URL with room code.
+   * Controller is always at {baseUrl}/controller (standardized convention).
    * Automatically uses local IP when running on localhost.
    */
   async buildControllerUrl(
     roomId: RoomCode,
     options?: {
-      path?: string;
       host?: string;
     },
   ): Promise<string> {
-    const path = options?.path || DEFAULT_CONTROLLER_PATH;
+    const path = CONTROLLER_PATH;
 
     // If explicit host is provided, use it
     if (options?.host) {

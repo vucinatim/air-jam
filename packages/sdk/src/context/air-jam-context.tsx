@@ -54,7 +54,7 @@ import {
 import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import { DEFAULT_CONTROLLER_PATH, DEFAULT_MAX_PLAYERS } from "../constants";
+import { DEFAULT_MAX_PLAYERS } from "../constants";
 import { InputManager, type InputConfig } from "../internal/input-manager";
 import type { ConnectionRole } from "../protocol";
 import { createAirJamStore, type AirJamStore } from "../state/connection-store";
@@ -73,8 +73,6 @@ export interface AirJamConfig {
   serverUrl?: string;
   /** API key for production authentication */
   apiKey?: string;
-  /** Path for controller page (default: /joypad) */
-  controllerPath: string;
   /** Maximum players allowed in a room */
   maxPlayers: number;
   /** Public host for controller URLs (optional) */
@@ -98,7 +96,6 @@ export interface AirJamConfig {
  * <AirJamProvider
  *   serverUrl="wss://your-server.com"
  *   apiKey="your-api-key"
- *   controllerPath="/controller"
  *   maxPlayers={4}
  *   input={{
  *     schema: myInputSchema,
@@ -124,12 +121,6 @@ export interface AirJamProviderProps<
    * Falls back to VITE_AIR_JAM_API_KEY or NEXT_PUBLIC_AIR_JAM_API_KEY environment variables.
    */
   apiKey?: string;
-  /**
-   * URL path for the controller page on your app.
-   * Controllers will be directed to this path with ?room=XXXX query parameter.
-   * @default "/joypad"
-   */
-  controllerPath?: string;
   /**
    * Maximum number of players allowed in a room.
    * @default 8
@@ -272,7 +263,7 @@ const getEnvApiKey = (): string | undefined => {
  *   <AirJamProvider>
  *     <Routes>
  *       <Route path="/" element={<HostView />} />
- *       <Route path="/joypad" element={<ControllerView />} />
+ *       <Route path="/controller" element={<ControllerView />} />
  *     </Routes>
  *   </AirJamProvider>
  * );
@@ -309,7 +300,6 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
   serverUrl,
   apiKey,
-  controllerPath = DEFAULT_CONTROLLER_PATH,
   maxPlayers = DEFAULT_MAX_PLAYERS,
   publicHost,
   input,
@@ -319,11 +309,10 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
     () => ({
       serverUrl: serverUrl ?? getEnvServerUrl(),
       apiKey: apiKey ?? getEnvApiKey(),
-      controllerPath,
       maxPlayers,
       publicHost,
     }),
-    [serverUrl, apiKey, controllerPath, maxPlayers, publicHost],
+    [serverUrl, apiKey, maxPlayers, publicHost],
   );
 
   // Create InputManager from input config if provided

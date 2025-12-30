@@ -23,8 +23,6 @@ const inputSchema = z.object({
   serverUrl="wss://your-server.com"
   // Optional: API key for production
   apiKey="your-api-key"
-  // Optional: Path for controller page (default: "/joypad")
-  controllerPath="/controller"
   // Optional: Max players (default: 8)
   maxPlayers={4}
   // Optional: Input configuration with schema and latching
@@ -297,7 +295,7 @@ const ControllerView = () => {
 Controllers automatically join rooms from URL query parameters:
 
 ```
-https://yourgame.com/joypad?room=ABCD
+https://yourgame.com/controller?room=ABCD
 ```
 
 This is how QR code scanning works—the host generates a URL with the room code embedded.

@@ -47,7 +47,7 @@ export function ControllerView() {
       <ControllerShell
         connectionStatus={controller.connectionStatus}
         roomId={controller.roomId}
-        requiredOrientation="portrait"
+        forceOrientation="portrait"
         gameState={controller.gameState}
         onTogglePlayPause={() => controller.sendSystemCommand("toggle_pause")}
         onReconnect={() => controller.reconnect()}

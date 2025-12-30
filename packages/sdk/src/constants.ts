@@ -8,9 +8,10 @@
 export const DEFAULT_SERVER_PORT = 4000;
 
 /**
- * Default path for controller endpoints
+ * Standard path for controller endpoints.
+ * All Air Jam games use this convention - controller is always at {baseUrl}/controller
  */
-export const DEFAULT_CONTROLLER_PATH = "/joypad";
+export const CONTROLLER_PATH = "/controller";
 
 /**
  * Input debounce time in milliseconds
