@@ -18,7 +18,6 @@ import { detectRunMode } from "../utils/mode";
 import { PlayerAvatar } from "./player-avatar";
 import { QRScannerDialog } from "./qr-scanner-dialog";
 import { Button } from "./ui/button";
-import { VolumeControls } from "./volume-controls";
 
 interface ControllerShellProps {
   roomId?: string | null;
@@ -280,13 +279,6 @@ export const ControllerShell = ({
             </Button>
           </div>
         </header>
-
-        {/* Volume Controls - positioned absolutely for mobile */}
-        <div className="pointer-events-none fixed right-4 bottom-4 z-50">
-          <div className="pointer-events-auto">
-            <VolumeControls compact={true} />
-          </div>
-        </div>
 
         <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 select-none sm:p-4">
           <div className="bg-card/95 absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center shadow-lg backdrop-blur-sm">

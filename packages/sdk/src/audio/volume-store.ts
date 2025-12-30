@@ -10,6 +10,19 @@ interface VolumeSettings {
   getEffectiveVolume: (category: "music" | "sfx") => number;
 }
 
+/**
+ * Settings sync message from parent (arcade) to child (game) iframe.
+ * This allows the arcade overlay to control volume for embedded games.
+ */
+interface AirJamSettingsSyncMessage {
+  type: "AIRJAM_SETTINGS_SYNC";
+  payload: {
+    masterVolume: number;
+    musicVolume: number;
+    sfxVolume: number;
+  };
+}
+
 const STORAGE_KEY = "air-jam-volume-settings";
 
 // Load initial state from localStorage
@@ -75,3 +88,37 @@ export const useVolumeStore = create<VolumeSettings>((set, get) => ({
     return masterVolume * categoryVolume;
   },
 }));
+
+/**
+ * Set up parent message listener for child mode (games running in arcade iframe).
+ * When the arcade sends AIRJAM_SETTINGS_SYNC messages, apply them to the volume store.
+ * This runs once at module load time and is completely transparent to game developers.
+ */
+const setupParentSettingsListener = () => {
+  if (typeof window === "undefined") return;
+
+  // Only listen if we're running inside an iframe (child mode)
+  const isInIframe = window.parent !== window;
+  if (!isInIframe) return;
+
+  const handleMessage = (event: MessageEvent<AirJamSettingsSyncMessage>) => {
+    // Only accept settings sync messages from parent
+    if (event.source !== window.parent) return;
+    if (event.data?.type !== "AIRJAM_SETTINGS_SYNC") return;
+
+    const { masterVolume, musicVolume, sfxVolume } = event.data.payload;
+
+    // Apply settings without saving to localStorage (arcade owns the settings)
+    const store = useVolumeStore.getState();
+
+    // Use setters to trigger AudioManager subscription updates
+    if (typeof masterVolume === "number") store.setMasterVolume(masterVolume);
+    if (typeof musicVolume === "number") store.setMusicVolume(musicVolume);
+    if (typeof sfxVolume === "number") store.setSfxVolume(sfxVolume);
+  };
+
+  window.addEventListener("message", handleMessage);
+};
+
+// Initialize the parent settings listener
+setupParentSettingsListener();

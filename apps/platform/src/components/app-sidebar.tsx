@@ -4,7 +4,6 @@ import {
   BookOpen,
   ChevronLeft,
   Gamepad2,
-  Globe,
   LayoutDashboard,
   LineChart,
   Settings,
@@ -116,12 +115,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton disabled>
                     <Variable />
                     <span>Variables</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton disabled>
-                    <Globe />
-                    <span>Publishing</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>

@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useRef } from "react";
+import { useVolumeStore } from "@air-jam/sdk";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface GamePlayerGame {
   id: string;
@@ -34,10 +35,37 @@ export const GamePlayer = ({
   showExitOverlay = true,
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  // Subscribe to volume settings from the arcade overlay
+  const { masterVolume, musicVolume, sfxVolume } = useVolumeStore();
 
   const iframeSrc = `${normalizedUrl}${
     game.url.includes("?") ? "&" : "?"
   }aj_room=${roomId}&aj_token=${joinToken}`;
+
+  /**
+   * Send current volume settings to the game iframe via postMessage.
+   * The SDK's volume store in the game will listen for these messages.
+   */
+  const sendSettingsToGame = useCallback(() => {
+    if (!iframeRef.current?.contentWindow) return;
+
+    iframeRef.current.contentWindow.postMessage(
+      {
+        type: "AIRJAM_SETTINGS_SYNC",
+        payload: { masterVolume, musicVolume, sfxVolume },
+      },
+      "*",
+    );
+  }, [masterVolume, musicVolume, sfxVolume]);
+
+  // Send settings whenever they change (and iframe is loaded)
+  useEffect(() => {
+    if (iframeLoaded && isVisible) {
+      sendSettingsToGame();
+    }
+  }, [iframeLoaded, isVisible, sendSettingsToGame]);
 
   return (
     <div
@@ -57,6 +85,9 @@ export const GamePlayer = ({
             gameId: game.id,
             src: iframeRef.current?.src,
           });
+          setIframeLoaded(true);
+          // Send initial settings after a small delay to ensure the game is ready
+          setTimeout(sendSettingsToGame, 100);
         }}
         onError={(e) => {
           console.error("[GamePlayer] Iframe error", e);
