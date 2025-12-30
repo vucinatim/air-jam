@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { Github } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,7 +38,7 @@ export const Navbar = () => {
           className="flex items-center gap-4 transition-opacity hover:opacity-80"
         >
           <Image
-            src="/images/air-jam-icon-new.png"
+            src="/images/airjam-logo.png"
             alt="Air Jam"
             width={32}
             height={32}
@@ -60,6 +61,33 @@ export const Navbar = () => {
           >
             Docs
           </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="https://www.npmjs.com/package/@air-jam/sdk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="NPM Package"
+            >
+              <svg
+                className="h-6 w-6"
+                viewBox="0 0 18 7"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M0 0h18v6H9v1H5V6H0V0zm1 5h2V2h1v3h1V1H1v4zm5-4v5h2V5h2V1H6zm2 1h1v2H8V2zm3-1v4h2V2h1v3h1V2h1v3h1V1h-6z" />
+              </svg>
+            </Link>
+            <Link
+              href="https://github.com/vucinatim/air-jam"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="GitHub Repository"
+            >
+              <Github className="h-5 w-5" />
+            </Link>
+          </div>
         </div>
       </div>
     </nav>

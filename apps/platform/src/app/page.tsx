@@ -16,9 +16,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient } from "@/lib/auth-client";
-import { AlertCircle, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  Code,
+  Github,
+  Loader2,
+  QrCode,
+  Smartphone,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Suspense } from "react";
 
@@ -27,9 +35,29 @@ function HomeContent() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const showLogin = searchParams.get("login") === "true";
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const session = await authClient.getSession();
+        setIsAuthenticated(!!session?.data?.session);
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleDashboardClick = (e: React.MouseEvent) => {
+    if (isAuthenticated === false) {
+      e.preventDefault();
+      router.push("/?login=true");
+    }
+  };
 
   const handleAuth = async (action: "signin" | "signup") => {
     setLoading(true);
@@ -213,20 +241,203 @@ function HomeContent() {
           <Button
             size="lg"
             variant="outline"
-            className="group h-14 px-8 text-lg font-semibold shadow-[0_10px_40px_rgba(0,0,0,0.3),0_0_20px_rgba(0,255,240,0.3)] transition-all hover:scale-105 hover:shadow-[0_15px_50px_rgba(0,0,0,0.4),0_0_30px_rgba(0,255,240,0.5)]"
+            className="group h-14 px-8 text-lg font-semibold shadow-[0_10px_40px_rgba(0,0,0,0.3),0_0_20px_var(--color-airjam-cyan)/0.3] transition-all hover:scale-105 hover:shadow-[0_15px_50px_rgba(0,0,0,0.4),0_0_30px_var(--color-airjam-cyan)/0.5]"
             onClick={() => router.push("/arcade")}
           >
             Enter Arcade
           </Button>
         </div>
       </section>
+
+      {/* Features Section */}
+      <section className="px-4 py-24">
+        <div className="container mx-auto space-y-24">
+          {/* Row 1: What is Air Jam */}
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="from-airjam-cyan/20 absolute inset-0 rounded-2xl bg-linear-to-br to-blue-500/20 blur-3xl" />
+                <div className="border-border/50 bg-background/50 relative flex h-64 w-64 items-center justify-center rounded-2xl border backdrop-blur-sm">
+                  <Smartphone className="text-airjam-cyan h-32 w-32" />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+                Multiplayer Games with Smartphones as Controllers
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                Air Jam enables you to build interactive multiplayer games where
+                a computer or TV acts as the host display and smartphones become
+                game controllers. Create engaging experiences that bring people
+                together without requiring any app downloads.
+              </p>
+              <ul className="text-muted-foreground space-y-2 pt-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>Support up to 8 players simultaneously</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>Real-time input with haptic feedback</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>Type-safe with end-to-end validation</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Row 2: How Developers Use It */}
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            <div className="order-2 space-y-4 md:order-1">
+              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+                Developer Friendly SDK
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                Built with modern web technologies, Air Jam makes it easy to
+                integrate multiplayer controller support into your games. Wrap
+                your app with the provider, define your input schema, and start
+                building.
+              </p>
+              <ul className="text-muted-foreground space-y-2 pt-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>React and TypeScript support</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>Zod schema validation</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>Performance optimized with input latching</span>
+                </li>
+              </ul>
+            </div>
+            <div className="order-1 flex justify-center md:order-2">
+              <div className="relative">
+                <div className="from-airjam-cyan/20 absolute inset-0 rounded-2xl bg-linear-to-br to-blue-500/20 blur-3xl" />
+                <div className="border-border/50 bg-background/50 relative flex h-64 w-64 items-center justify-center rounded-2xl border backdrop-blur-sm">
+                  <Code className="text-airjam-cyan h-32 w-32" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: How Players Use It */}
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="from-airjam-cyan/20 absolute inset-0 rounded-2xl bg-linear-to-br to-blue-500/20 blur-3xl" />
+                <div className="border-border/50 bg-background/50 relative flex h-64 w-64 items-center justify-center rounded-2xl border backdrop-blur-sm">
+                  <QrCode className="text-airjam-cyan h-32 w-32" />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+                Zero App Download Required
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                Players join your games instantly by scanning a QR code. No app
+                store downloads, no installations—just scan and play. The
+                intuitive experience makes it easy for anyone to jump into your
+                game.
+              </p>
+              <ul className="text-muted-foreground space-y-2 pt-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>Instant connection via QR code</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>Works on any modern smartphone</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-airjam-cyan">•</span>
+                  <span>No registration or sign-up needed</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-border/50 bg-background/50 border-t backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-12">
+          <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
+            <div className="text-center md:text-left">
+              <p className="text-muted-foreground text-sm">
+                © {new Date().getFullYear()} Air Jam. All rights reserved.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-6">
+              <Link
+                href="/docs"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Docs
+              </Link>
+              <Link
+                href="/dashboard/games"
+                onClick={handleDashboardClick}
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/arcade"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Arcade
+              </Link>
+              <div className="flex items-center gap-4">
+                <Link
+                  href="https://www.npmjs.com/package/@air-jam/sdk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="NPM Package"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 18 7"
+                    fill="currentColor"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M0 0h18v6H9v1H5V6H0V0zm1 5h2V2h1v3h1V1H1v4zm5-4v5h2V5h2V1H6zm2 1h1v2H8V2zm3-1v4h2V2h1v3h1V2h1v3h1V1h-6z" />
+                  </svg>
+                </Link>
+                <Link
+                  href="https://github.com/vucinatim/air-jam"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="GitHub Repository"
+                >
+                  <Github className="h-5 w-5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      }
+    >
       <HomeContent />
     </Suspense>
   );

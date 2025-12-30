@@ -50,7 +50,7 @@ const SHIP_DESIGN = {
     color: 0x333333,
   },
   EXHAUST: {
-    trailColor: new Color(0x00fff0), // neon cyan
+    trailColor: new Color(0x00d3f3), // Air Jam highlight color
     trailWidth: 0.8,
     trailLength: 0.1,
 
@@ -64,7 +64,7 @@ const SHIP_DESIGN = {
   },
   PARTICLES: {
     maxParticles: 300,
-    color: new Color("#00ffff"),
+    color: new Color("#00D3F3"),
     size: 1.2,
     sizeVariance: 0.2,
     opacity: 0.6,
@@ -106,7 +106,7 @@ const createFinShape = () => {
 // --- PARTICLE SHADER ---
 const ParticleShaderMaterial = new ShaderMaterial({
   uniforms: {
-    color: { value: new Color("cyan") },
+    color: { value: new Color("#00D3F3") },
     pointSize: { value: 1.0 },
     dpr: { value: 1.0 },
     opacity: { value: 1.0 },
@@ -409,7 +409,7 @@ export const Ship = ({ groupRef }: ShipProps) => {
         flatShading: true,
       }),
       wing: new MeshStandardMaterial({
-        color: 0x00aaff,
+        color: 0x00d3f3,
         roughness: 0.6,
         metalness: 0.2,
         flatShading: true,

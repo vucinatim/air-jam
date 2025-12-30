@@ -72,7 +72,7 @@ interface ExhaustTrailProps {
 export function Trail({
   target,
   thrustRef,
-  color = "#00ffff",
+  color = "#00D3F3",
   width = 0.5,
   length = 1.5, // Increased from 1.0
   maxPoints = 200, // Increased from 100

@@ -3,7 +3,6 @@
 import {
   BookOpen,
   ChevronLeft,
-  Gamepad2,
   LayoutDashboard,
   LineChart,
   Settings,
@@ -65,7 +64,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenuButton size="lg" asChild>
                 <Link href="/dashboard/games">
                   <Image
-                    src="/images/air-jam-icon-new.png"
+                    src="/images/airjam-logo.png"
                     alt="Air Jam"
                     width={32}
                     height={32}

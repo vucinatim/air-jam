@@ -59,7 +59,7 @@
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --airjam: oklch(0.7 0.25 200);
-  --airjam-cyan: oklch(0.75 0.18 200);
+  --airjam-cyan: #00D3F3;
   --airjam-magenta: oklch(0.6 0.25 320);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -96,7 +96,7 @@
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --airjam: oklch(0.75 0.3 200);
-  --airjam-cyan: oklch(0.75 0.18 200);
+  --airjam-cyan: #00D3F3;
   --airjam-magenta: oklch(0.6 0.25 320);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);

@@ -2,9 +2,19 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { SoundManifest } from "@air-jam/sdk";
+import { useAudio } from "@air-jam/sdk";
 import { Gamepad2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { GamePlayerGame } from "./game-player";
+
+const ARCADE_SOUND_MANIFEST: SoundManifest = {
+  select: {
+    src: ["/audio/select.wav"],
+    volume: 0.6,
+    category: "sfx",
+  },
+};
 
 interface GameBrowserProps {
   games: GamePlayerGame[];
@@ -26,6 +36,8 @@ export const GameBrowser = ({
   header,
 }: GameBrowserProps) => {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const audio = useAudio(ARCADE_SOUND_MANIFEST);
+  const prevSelectedIndexRef = useRef<number | null>(null);
 
   // Auto-scroll to keep selected game visible
   useEffect(() => {
@@ -38,6 +50,20 @@ export const GameBrowser = ({
       });
     }
   }, [selectedIndex]);
+
+  // Play sound when selection changes
+  useEffect(() => {
+    // Skip on initial mount or if selection hasn't actually changed
+    if (prevSelectedIndexRef.current === null) {
+      prevSelectedIndexRef.current = selectedIndex;
+      return;
+    }
+
+    if (prevSelectedIndexRef.current !== selectedIndex && isVisible) {
+      audio.play("select");
+      prevSelectedIndexRef.current = selectedIndex;
+    }
+  }, [selectedIndex, isVisible, audio]);
 
   return (
     <div

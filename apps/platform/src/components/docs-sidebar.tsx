@@ -40,7 +40,7 @@ export function DocsSidebar({
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
                 <Image
-                  src="/images/air-jam-icon-new.png"
+                  src="/images/airjam-logo.png"
                   alt="Air Jam"
                   width={32}
                   height={32}

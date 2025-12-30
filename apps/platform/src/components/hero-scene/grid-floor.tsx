@@ -22,7 +22,7 @@ export const GridFloor = () => {
     if (ctx) {
       ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, 1024, 1024);
-      ctx.strokeStyle = "#00ffff";
+      ctx.strokeStyle = "#00D3F3";
       ctx.lineWidth = 1;
 
       ctx.beginPath();

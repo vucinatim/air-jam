@@ -130,7 +130,12 @@ export class AudioManager<T extends string = string> {
   }
 
   /**
-   * Initialize audio context (must be called on user interaction)
+   * Resume audio context if suspended. This is automatically called by play(),
+   * so you typically don't need to call this manually.
+   *
+   * Note: Due to browser autoplay policies, audio context starts suspended
+   * and can only be resumed in response to a user gesture. The useAudio hook
+   * handles this automatically, and play() also calls init() internally.
    */
   public init() {
     if (Howler.ctx && Howler.ctx.state === "suspended") {
@@ -185,6 +190,9 @@ export class AudioManager<T extends string = string> {
       sprite,
       pitch,
     } = options || {};
+
+    // Auto-init audio context on play (handles browser autoplay policy)
+    this.init();
 
     if (remote) {
       this.playRemote(id, target, volume, loop);
@@ -296,6 +304,9 @@ export class AudioManager<T extends string = string> {
     pos: { x: number; y: number; z: number },
     sprite?: string,
   ): number | null {
+    // Auto-init audio context on play
+    this.init();
+
     const soundId = this.playLocal(id, undefined, undefined, sprite);
     if (soundId !== null) {
       const sound = this.sounds.get(id);

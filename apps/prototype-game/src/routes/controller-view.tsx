@@ -52,8 +52,6 @@ const DirectionControl = ({
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
 
-    // Initialize audio context on first interaction
-    audio.init();
     audio.play("click");
 
     const currentVector = store.getState().vector;
@@ -107,13 +105,10 @@ const ActionControl = ({
   activeRingClass,
 }: ActionControlProps) => {
   const isActive = useStore(store, (state) => state[action]);
-  const audio = useAudio(SOUND_MANIFEST);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
-
-    audio.init();
 
     if (action === "ability") {
       store.getState().setAbility(true);
@@ -211,7 +206,6 @@ const ControllerContent = () => {
   const handleTogglePlayPause = (): void => {
     if (connectionStatus !== "connected") return;
 
-    audio.init();
     audio.play("click");
     vibrate([50, 50, 50]);
 
