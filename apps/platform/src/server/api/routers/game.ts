@@ -40,6 +40,24 @@ export const gameRouter = createTRPCRouter({
     return await db.select().from(games).where(eq(games.isPublished, true));
   }),
 
+  /** Look up a game by slug first, then fall back to ID. Public for shareable URLs. */
+  getBySlugOrId: publicProcedure
+    .input(z.object({ slugOrId: z.string() }))
+    .query(async ({ input }) => {
+      // Try slug first
+      let game = await db.query.games.findFirst({
+        where: (games, { eq }) => eq(games.slug, input.slugOrId),
+      });
+      // Fall back to ID
+      if (!game) {
+        game = await db.query.games.findFirst({
+          where: (games, { eq }) => eq(games.id, input.slugOrId),
+        });
+      }
+      if (!game) throw new Error("Game not found");
+      return game;
+    }),
+
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
@@ -116,6 +134,26 @@ export const gameRouter = createTRPCRouter({
       });
 
       return apiKey;
+    }),
+
+  /** Check if a slug is available (excludes the current game if editing) */
+  checkSlugAvailability: protectedProcedure
+    .input(
+      z.object({
+        slug: z.string().min(1),
+        excludeGameId: z.string().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const existingGame = await db.query.games.findFirst({
+        where: (games, { eq }) => eq(games.slug, input.slug),
+      });
+
+      // Available if no game has this slug, or if it's the current game being edited
+      const isAvailable =
+        !existingGame || existingGame.id === input.excludeGameId;
+
+      return { available: isAvailable };
     }),
 
   regenerateApiKey: protectedProcedure

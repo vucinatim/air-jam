@@ -25,13 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Save } from "lucide-react";
+import { Check, Loader2, Save, X } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -62,7 +62,29 @@ export default function GameSettingsPage() {
   const gameId = params.gameId as string;
   const utils = api.useUtils();
 
+  // Debounced slug for availability check
+  const [debouncedSlug, setDebouncedSlug] = useState("");
+  const [slugInput, setSlugInput] = useState("");
+
   const { data: game, isLoading } = api.game.get.useQuery({ id: gameId });
+
+  // Check slug availability with debounce
+  const { data: slugCheck, isFetching: isCheckingSlug } =
+    api.game.checkSlugAvailability.useQuery(
+      { slug: debouncedSlug, excludeGameId: gameId },
+      {
+        enabled: debouncedSlug.length > 0 && /^[a-z0-9-]+$/.test(debouncedSlug),
+      },
+    );
+
+  // Debounce slug input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSlug(slugInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [slugInput]);
+
   const updateGame = api.game.update.useMutation({
     onSuccess: () => {
       utils.game.get.invalidate({ id: gameId });
@@ -104,6 +126,8 @@ export default function GameSettingsPage() {
           (game.orientation as "landscape" | "portrait" | "any") || "landscape",
         isPublished: game.isPublished,
       });
+      // Initialize slug input for availability checking
+      setSlugInput(game.slug || "");
     }
   }, [game, form]);
 
@@ -157,20 +181,57 @@ export default function GameSettingsPage() {
                 <FormField
                   control={form.control}
                   name="slug"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Slug (URL)</FormLabel>
-                      <FormControl>
-                        <div className="flex">
-                          <span className="bg-muted text-muted-foreground flex items-center rounded-l-md border border-r-0 px-3 text-sm">
-                            /play/
-                          </span>
-                          <Input className="rounded-l-none" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const isValidFormat = /^[a-z0-9-]+$/.test(field.value);
+                    const showStatus =
+                      field.value.length > 0 && isValidFormat && debouncedSlug === field.value;
+                    const isAvailable = slugCheck?.available;
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Slug (URL)</FormLabel>
+                        <FormControl>
+                          <div className="flex">
+                            <span className="bg-muted text-muted-foreground flex items-center rounded-l-md border border-r-0 px-3 text-sm">
+                              /play/
+                            </span>
+                            <div className="relative flex-1">
+                              <Input
+                                className={cn(
+                                  "rounded-l-none pr-10",
+                                  showStatus && !isCheckingSlug && isAvailable && "border-green-500 focus-visible:ring-green-500",
+                                  showStatus && !isCheckingSlug && !isAvailable && "border-red-500 focus-visible:ring-red-500",
+                                )}
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  setSlugInput(e.target.value);
+                                }}
+                              />
+                              {/* Status indicator */}
+                              {field.value.length > 0 && isValidFormat && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                  {isCheckingSlug || debouncedSlug !== field.value ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                  ) : isAvailable ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <X className="h-4 w-4 text-red-500" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </FormControl>
+                        {showStatus && !isCheckingSlug && !isAvailable && (
+                          <p className="text-sm text-red-500">
+                            This slug is already taken
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
               </div>
               <FormField
@@ -296,38 +357,6 @@ export default function GameSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Publishing */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Publishing</CardTitle>
-              <CardDescription>
-                Control visibility in the arcade.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <FormLabel>Publish to Arcade</FormLabel>
-                <FormDescription>
-                  When enabled, the game will be visible in the public library.
-                </FormDescription>
-              </div>
-              <FormField
-                control={form.control}
-                name="isPublished"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
         </form>
       </Form>
 
@@ -336,7 +365,7 @@ export default function GameSettingsPage() {
           <Button
             type="submit"
             form="game-settings-form"
-            disabled={updateGame.isPending}
+            disabled={updateGame.isPending || (slugCheck && !slugCheck.available)}
           >
             {updateGame.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

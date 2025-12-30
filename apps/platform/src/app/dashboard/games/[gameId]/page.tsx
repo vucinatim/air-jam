@@ -18,7 +18,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { api } from "@/trpc/react";
 import {
   Activity,
@@ -58,6 +60,35 @@ export default function GameOverviewPage() {
     },
   });
 
+  const updatePublishStatus = api.game.update.useMutation({
+    onMutate: async (newData) => {
+      // Cancel outgoing refetches
+      await utils.game.get.cancel({ id: gameId });
+
+      // Snapshot previous value
+      const previousGame = utils.game.get.getData({ id: gameId });
+
+      // Optimistically update
+      utils.game.get.setData({ id: gameId }, (old) => {
+        if (!old) return old;
+        return { ...old, isPublished: newData.isPublished ?? old.isPublished };
+      });
+
+      return { previousGame };
+    },
+    onError: (err, newData, context) => {
+      // Rollback on error
+      if (context?.previousGame) {
+        utils.game.get.setData({ id: gameId }, context.previousGame);
+      }
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      utils.game.get.invalidate({ id: gameId });
+      utils.game.getAllPublic.invalidate();
+    },
+  });
+
   const handleCopyApiKey = async () => {
     if (apiKey?.key) {
       await navigator.clipboard.writeText(apiKey.key);
@@ -83,8 +114,24 @@ export default function GameOverviewPage() {
             {game.description || "No description provided."}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/play/${game.id}`}>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="publish-toggle" className="cursor-pointer">
+              {game.isPublished ? "Published" : "Draft"}
+            </Label>
+            <Switch
+              id="publish-toggle"
+              checked={game.isPublished}
+              onCheckedChange={(checked) => {
+                updatePublishStatus.mutate({
+                  id: gameId,
+                  isPublished: checked,
+                });
+              }}
+              disabled={updatePublishStatus.isPending}
+            />
+          </div>
+          <Link href={`/play/${game.slug || game.id}`}>
             <Button
               variant="outline"
               className="border-airjam-cyan text-airjam-cyan hover:bg-airjam-cyan/10"
@@ -124,12 +171,14 @@ export default function GameOverviewPage() {
           <CardContent>
             <div
               className="truncate text-2xl font-bold"
-              title={game.slug || "Not set"}
+              title={game.slug || game.id}
             >
-              {game.slug || "Not set"}
+              {game.slug || (
+                <span className="text-muted-foreground text-sm">Using ID</span>
+              )}
             </div>
             <p className="text-muted-foreground text-xs">
-              airjam.io/play/{game.slug || "..."}
+              /play/{game.slug || game.id}
             </p>
           </CardContent>
         </Card>
@@ -168,7 +217,7 @@ export default function GameOverviewPage() {
           </CardHeader>
           <CardContent className="pl-2">
             <div className="text-muted-foreground flex h-[200px] items-center justify-center">
-              No recent activity (Analytics coming soon)
+              Analytics coming soon...
             </div>
           </CardContent>
         </Card>

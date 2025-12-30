@@ -14,7 +14,7 @@ import { z } from "zod";
 export default function PlayGamePage({
   params,
 }: {
-  params: Promise<{ gameId: string }>;
+  params: Promise<{ slugOrId: string }>;
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function PlayGamePage({
     data: game,
     isLoading,
     error,
-  } = api.game.get.useQuery({ id: resolvedParams.gameId });
+  } = api.game.getBySlugOrId.useQuery({ slugOrId: resolvedParams.slugOrId });
 
   if (isLoading) {
     return (
@@ -49,8 +49,8 @@ export default function PlayGamePage({
             The game could not be found or you don&apos;t have permission to
             view it.
           </p>
-          <Link href="/dashboard/games">
-            <Button>Return to Dashboard</Button>
+          <Link href="/arcade">
+            <Button>Browse Arcade</Button>
           </Link>
         </div>
       </div>
@@ -62,6 +62,7 @@ export default function PlayGamePage({
     id: game.id,
     name: game.name,
     url: game.url,
+    slug: game.slug,
   };
 
   // Input schema for arcade navigation
@@ -159,3 +160,4 @@ const PreviewHeader = ({
     </div>
   );
 };
+

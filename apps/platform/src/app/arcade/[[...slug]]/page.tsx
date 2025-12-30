@@ -3,7 +3,7 @@
 import { ArcadeLoader, ArcadeSystem } from "@/components/arcade";
 import { api } from "@/trpc/react";
 import { AirJamProvider } from "@air-jam/sdk";
-import { useState } from "react";
+import { use, useState } from "react";
 import { z } from "zod";
 
 // Input schema for arcade navigation
@@ -15,7 +15,15 @@ export const arcadeInputSchema = z.object({
   action: z.boolean(),
 });
 
-export default function ArcadePage() {
+export default function ArcadePage({
+  params,
+}: {
+  params: Promise<{ slug?: string[] }>;
+}) {
+  const resolvedParams = use(params);
+  // Extract slug from optional catch-all (e.g., /arcade/space-battle → ["space-battle"])
+  const slugOrId = resolvedParams.slug?.[0];
+
   // Generate fresh room ID on each load (no persistence)
   // This prevents stale controller connections from previous sessions
   const [persistedRoomId] = useState(() => {
@@ -26,7 +34,17 @@ export default function ArcadePage() {
     return undefined;
   });
 
-  const { data: games, isLoading } = api.game.getAllPublic.useQuery();
+  const { data: games, isLoading: gamesLoading } =
+    api.game.getAllPublic.useQuery();
+
+  // If a slug is provided, look up that specific game for auto-launch
+  const { data: targetGame, isLoading: targetLoading } =
+    api.game.getBySlugOrId.useQuery(
+      { slugOrId: slugOrId! },
+      { enabled: !!slugOrId },
+    );
+
+  const isLoading = gamesLoading || (slugOrId && targetLoading);
 
   if (isLoading) {
     return (
@@ -36,12 +54,17 @@ export default function ArcadePage() {
     );
   }
 
-  // Convert games to ArcadeGame format
+  // Convert games to ArcadeGame format (including slug for URL updates)
   const arcadeGames = (games ?? []).map((game) => ({
     id: game.id,
     name: game.name,
     url: game.url,
+    slug: game.slug,
   }));
+
+  // Determine if we should auto-launch a game
+  const initialGameId = targetGame?.id;
+  const shouldAutoLaunch = !!slugOrId && !!targetGame;
 
   return (
     <AirJamProvider
@@ -57,8 +80,10 @@ export default function ArcadePage() {
       <ArcadeSystem
         games={arcadeGames}
         mode="arcade"
+        initialGameId={initialGameId}
+        autoLaunch={shouldAutoLaunch}
         initialRoomId={persistedRoomId}
-        onRoomIdChange={(roomId) => {
+        onRoomIdChange={() => {
           // No longer persisting room ID to sessionStorage
           // Each host reload generates a fresh room ID to prevent stale controller connections
         }}
@@ -67,3 +92,4 @@ export default function ArcadePage() {
     </AirJamProvider>
   );
 }
+

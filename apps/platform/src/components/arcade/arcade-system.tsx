@@ -1,6 +1,6 @@
 "use client";
 
-import { arcadeInputSchema } from "@/app/arcade/page";
+import { arcadeInputSchema } from "@/app/arcade/[[...slug]]/page";
 import { cn } from "@/lib/utils";
 import {
   AirJamOverlay,
@@ -13,9 +13,17 @@ import { ArcadeLoader } from "./arcade-loader";
 import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
 
+// Calculate grid columns based on window width
+const getGridColumns = (): number => {
+  if (typeof window === "undefined") return 3;
+  if (window.innerWidth >= 1024) return 3; // lg
+  if (window.innerWidth >= 768) return 2; // md
+  return 1; // sm
+};
+
 const DEFAULT_PLATFORM_API_KEY = process.env.NEXT_PUBLIC_PLATFORM_API_KEY;
 
-export type ArcadeGame = GamePlayerGame;
+export type ArcadeGame = GamePlayerGame & { slug?: string | null };
 
 type ArcadeMode = "arcade" | "preview";
 
@@ -170,22 +178,45 @@ export const ArcadeSystem = ({
 
         // Navigate on rising edge
         if (isVectorActive && !wasVectorActive) {
+          const columns = getGridColumns();
+
           if (latchedInput.vector.y < -0.5) {
-            setSelectedIndex((prev) =>
-              prev - 1 < 0 ? games.length - 1 : prev - 1,
-            );
+            // Up: move up one row (subtract columns)
+            setSelectedIndex((prev) => {
+              const newIndex = prev - columns;
+              if (newIndex < 0) {
+                // Wrap to bottom of same column
+                const currentCol = prev % columns;
+                const lastRow = Math.floor((games.length - 1) / columns);
+                return Math.min(
+                  lastRow * columns + currentCol,
+                  games.length - 1,
+                );
+              }
+              return newIndex;
+            });
           } else if (latchedInput.vector.y > 0.5) {
-            setSelectedIndex((prev) =>
-              prev + 1 >= games.length ? 0 : prev + 1,
-            );
+            // Down: move down one row (add columns)
+            setSelectedIndex((prev) => {
+              const newIndex = prev + columns;
+              if (newIndex >= games.length) {
+                // Wrap to top of same column
+                return prev % columns;
+              }
+              return newIndex;
+            });
           } else if (latchedInput.vector.x < -0.5) {
-            setSelectedIndex((prev) =>
-              prev - 1 < 0 ? games.length - 1 : prev - 1,
-            );
+            // Left: move left one column
+            setSelectedIndex((prev) => {
+              const newIndex = prev - 1;
+              return newIndex < 0 ? games.length - 1 : newIndex;
+            });
           } else if (latchedInput.vector.x > 0.5) {
-            setSelectedIndex((prev) =>
-              prev + 1 >= games.length ? 0 : prev + 1,
-            );
+            // Right: move right one column
+            setSelectedIndex((prev) => {
+              const newIndex = prev + 1;
+              return newIndex >= games.length ? 0 : newIndex;
+            });
           }
         }
 
@@ -257,13 +288,19 @@ export const ArcadeSystem = ({
             activeGameRef.current = game;
             setNormalizedGameUrl(baseUrl);
             setView("game");
+
+            // Update URL shallowly in arcade mode for deep linking
+            if (mode === "arcade" && typeof window !== "undefined") {
+              const gameSlugOrId = game.slug || game.id;
+              window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
+            }
           } else {
             console.error("[Arcade] Failed to launch game:", ack.message);
           }
         },
       );
     },
-    [host.socket, host.roomId],
+    [host.socket, host.roomId, mode],
   );
 
   const exitGame = useCallback(() => {
@@ -278,6 +315,11 @@ export const ArcadeSystem = ({
     // In preview mode, call the onExitGame callback
     if (mode === "preview") {
       onExitGame?.();
+    }
+
+    // Reset URL shallowly in arcade mode
+    if (mode === "arcade" && typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/arcade");
     }
 
     // Clear state immediately (synchronously with refs)
@@ -436,7 +478,14 @@ export const ArcadeSystem = ({
       )}
     >
       {/* Background */}
-      <div className="absolute inset-0 z-0 bg-linear-to-br from-slate-900 to-black" />
+      <div className="absolute inset-0 z-0 bg-black" />
+      {/* Subtle gradient overlay */}
+      <div
+        className="absolute inset-0 z-0 opacity-[0.08]"
+        style={{
+          background: `linear-gradient(to bottom right, var(--color-airjam-cyan) 0%, var(--color-airjam-magenta) 100%)`,
+        }}
+      />
 
       {/* Optional top header */}
       {header && (
