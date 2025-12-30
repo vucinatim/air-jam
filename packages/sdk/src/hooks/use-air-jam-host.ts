@@ -419,24 +419,6 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
         path: config.controllerPath,
         host: config.publicHost,
       });
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "packages/sdk/src/hooks/use-air-jam-host.ts:405",
-            message: "useAirJamHost - building joinUrl",
-            data: { parsedRoomId, joinUrl: url, optionsRoomId: options.roomId },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "run2",
-            hypothesisId: "JOINURL",
-          }),
-        },
-      ).catch(() => {});
-      // #endregion
       setJoinUrl(url);
     })();
   }, [parsedRoomId, config.controllerPath, config.publicHost, options.roomId]);

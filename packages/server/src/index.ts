@@ -47,6 +47,10 @@ import { roomManager } from "./services/room-manager.js";
 import type { ControllerSession, RoomSession } from "./types.js";
 import { generateRoomCode } from "./utils/ids.js";
 
+// Throttling variables for logging
+let lastServerInputLogTime = 0;
+let lastServerInputFailLogTime = 0;
+
 const PORT = Number(process.env.PORT ?? 4000);
 
 const app = express();
@@ -373,53 +377,8 @@ io.on(
 
         console.log(`[server] Launching game in room ${roomId}`);
 
-        // #region agent log
-        const roomSockets = io.sockets.adapter.rooms.get(roomId);
-        fetch(
-          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              location: "packages/server/src/index.ts:198",
-              message: "system:launchGame - before emit client:loadUi",
-              data: {
-                roomId,
-                gameUrl,
-                controllerCount: session.controllers.size,
-                controllerIds: Array.from(session.controllers.keys()),
-                socketsInRoom: roomSockets?.size || 0,
-              },
-              timestamp: Date.now(),
-              sessionId: "debug-session",
-              runId: "run1",
-              hypothesisId: "A",
-            }),
-          },
-        ).catch(() => {});
-        // #endregion
-
         // Broadcast to controllers to load UI
         io.to(roomId).emit("client:loadUi", { url: gameUrl });
-
-        // #region agent log
-        fetch(
-          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              location: "packages/server/src/index.ts:202",
-              message: "system:launchGame - after emit client:loadUi",
-              data: { roomId, gameUrl },
-              timestamp: Date.now(),
-              sessionId: "debug-session",
-              runId: "run1",
-              hypothesisId: "A",
-            }),
-          },
-        ).catch(() => {});
-        // #endregion
 
         callback({ ok: true, joinToken });
       },
@@ -526,6 +485,24 @@ io.on(
 
       // Tell controllers to unload UI
       io.to(roomId).emit("client:unloadUi");
+
+      // Resync player list to master host when returning to SYSTEM focus
+      // This ensures the master host has all players for arcade navigation
+      if (session.masterHostSocketId) {
+        const masterSocket = io.sockets.sockets.get(session.masterHostSocketId);
+        if (masterSocket) {
+          setTimeout(() => {
+            session.controllers.forEach((c) => {
+              const notice: ControllerJoinedNotice = {
+                controllerId: c.controllerId,
+                nickname: c.nickname,
+                player: c.playerProfile,
+              };
+              masterSocket.emit("server:controllerJoined", notice);
+            });
+          }, 100);
+        }
+      }
     });
 
     // --- LEGACY/STANDALONE HOST REGISTER ---
@@ -672,50 +649,7 @@ io.on(
       session.controllers.set(controllerId, controllerSession);
       roomManager.setController(socket.id, { roomId, controllerId });
 
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "packages/server/src/index.ts:453",
-            message: "controller:join - before socket.join",
-            data: {
-              roomId,
-              controllerId,
-              socketId: socket.id,
-              activeControllerUrl: session.activeControllerUrl,
-            },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "run1",
-            hypothesisId: "C",
-          }),
-        },
-      ).catch(() => {});
-      // #endregion
-
       socket.join(roomId);
-
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "packages/server/src/index.ts:458",
-            message: "controller:join - after socket.join",
-            data: { roomId, controllerId, socketId: socket.id },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "run1",
-            hypothesisId: "C",
-          }),
-        },
-      ).catch(() => {});
-      // #endregion
 
       const notice: ControllerJoinedNotice = {
         controllerId,
@@ -753,30 +687,6 @@ io.on(
       // We check activeControllerUrl instead of childHostSocketId because the game might be
       // in the process of loading (launched but not yet connected) or momentarily disconnected.
       if (session.activeControllerUrl) {
-        // #region agent log
-        fetch(
-          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              location: "packages/server/src/index.ts:491",
-              message:
-                "controller:join - emitting client:loadUi directly to socket",
-              data: {
-                roomId,
-                controllerId,
-                socketId: socket.id,
-                url: session.activeControllerUrl,
-              },
-              timestamp: Date.now(),
-              sessionId: "debug-session",
-              runId: "run1",
-              hypothesisId: "E",
-            }),
-          },
-        ).catch(() => {});
-        // #endregion
         socket.emit("client:loadUi", { url: session.activeControllerUrl });
       }
 
@@ -806,22 +716,67 @@ io.on(
     });
 
     socket.on("controller:input", (payload: ControllerInputEvent) => {
+      const now = Date.now();
+
+      // Only log when there's actual user input (not just the loop sending zeros)
+      const input = payload?.input;
+      const hasActiveInput =
+        input &&
+        (input.action === true ||
+          (typeof input.vector === "object" &&
+            input.vector !== null &&
+            (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) >
+              0.01 ||
+              Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
+                0.01)));
+
+      // Throttled logging - only log active input, once per second max
+      if (
+        hasActiveInput &&
+        (!lastServerInputLogTime || now - lastServerInputLogTime > 1000)
+      ) {
+        lastServerInputLogTime = now;
+      }
+
       // Validate roomId and controllerId, but accept arbitrary input structure
       const result = controllerInputSchema.safeParse(payload);
       if (!result.success) {
+        if (
+          !lastServerInputFailLogTime ||
+          now - lastServerInputFailLogTime > 1000
+        ) {
+          lastServerInputFailLogTime = now;
+        }
         return;
       }
 
       const { roomId } = result.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
+        if (
+          !lastServerInputFailLogTime ||
+          now - lastServerInputFailLogTime > 1000
+        ) {
+          lastServerInputFailLogTime = now;
+        }
         return;
       }
 
       // Route based on FOCUS - pass through arbitrary input to host
       const targetHostId = roomManager.getActiveHostId(session);
       if (targetHostId) {
+        // Only log routing success if throttled
+        if (!lastServerInputLogTime || now - lastServerInputLogTime > 1000) {
+          lastServerInputLogTime = now;
+        }
         io.to(targetHostId).emit("server:input", result.data);
+      } else {
+        if (
+          !lastServerInputFailLogTime ||
+          now - lastServerInputFailLogTime > 1000
+        ) {
+          lastServerInputFailLogTime = now;
+        }
       }
     });
 
@@ -1023,14 +978,18 @@ io.on(
           return;
         }
 
-        // Update controller's socket ID in case it reconnected
+        // NOTE: We intentionally do NOT update the controller's socket ID in controllerIndex.
+        // The action_rpc may come from a different socket (e.g., game iframe's socket)
+        // than the original controller:join socket (shell socket).
+        // The shell socket is the persistent connection, so we should NOT replace it
+        // with the iframe's socket, or else when the iframe unloads we'd trigger
+        // server:controllerLeft and remove the player incorrectly.
+        //
+        // HOWEVER, we DO need to add this socket to the room so it can receive
+        // state sync broadcasts (airjam:state_sync). The game UI's createAirJamStore
+        // registers listeners on this socket, so it needs to be in the room.
         if (controllerSession.socketId !== socket.id) {
-          // Remove old socket mapping
-          roomManager.deleteController(controllerSession.socketId);
-          // Update to new socket ID
-          controllerSession.socketId = socket.id;
-          roomManager.setController(socket.id, { roomId, controllerId });
-          // Ensure the new socket joins the room
+          // Join the room for state sync broadcasts, but don't update controllerIndex
           socket.join(roomId);
         }
 
@@ -1067,6 +1026,26 @@ io.on(
 
           // Tell controllers to unload UI
           io.to(roomId).emit("client:unloadUi");
+
+          // Resync player list to master host when returning to SYSTEM focus
+          // This ensures the master host has all players for arcade navigation
+          if (session.masterHostSocketId) {
+            const masterSocket = io.sockets.sockets.get(
+              session.masterHostSocketId,
+            );
+            if (masterSocket) {
+              setTimeout(() => {
+                session.controllers.forEach((c) => {
+                  const notice: ControllerJoinedNotice = {
+                    controllerId: c.controllerId,
+                    nickname: c.nickname,
+                    player: c.playerProfile,
+                  };
+                  masterSocket.emit("server:controllerJoined", notice);
+                });
+              }, 100);
+            }
+          }
         } else if (socket.id === session.masterHostSocketId) {
           // Master disconnected
           console.log(`[server] Host disconnected from room ${roomId}`);

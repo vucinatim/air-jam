@@ -51,6 +51,10 @@ const getRoomFromLocation = (): string | null => {
   return code ? code.toUpperCase() : null;
 };
 
+// Throttling variables for logging
+let lastSendInputLogTime = 0;
+let lastSendInputFailLogTime = 0;
+
 export const useAirJamShell = (
   options: AirJamShellOptions = {},
 ): AirJamShellApi => {
@@ -171,9 +175,6 @@ export const useAirJamShell = (
         nickname: nicknameRef.current || undefined,
       });
       socket.emit("controller:join", payload, (ack) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'packages/sdk/src/hooks/use-air-jam-shell.ts:173',message:'controller:join ack received',data:{roomId:parsedRoomId,controllerId,ackOk:ack.ok,ackControllerId:ack.controllerId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
         const storeState = store.getState();
         if (!ack.ok) {
           storeState.setError(ack.message ?? "Unable to join room");
@@ -192,13 +193,7 @@ export const useAirJamShell = (
     };
 
     const handleLoadUi = (payload: { url: string }): void => {
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'packages/sdk/src/hooks/use-air-jam-shell.ts:191',message:'handleLoadUi - event received',data:{url:payload.url,roomId:parsedRoomId,controllerId,socketConnected:socket?.connected},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       setActiveUrl(payload.url);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'packages/sdk/src/hooks/use-air-jam-shell.ts:193',message:'handleLoadUi - after setActiveUrl',data:{url:payload.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
     };
 
     const handleUnloadUi = (): void => {
@@ -265,11 +260,7 @@ export const useAirJamShell = (
     socket.on("disconnect", handleDisconnect);
     socket.on("server:welcome", handleWelcome);
     socket.on("server:state", handleState);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'packages/sdk/src/hooks/use-air-jam-shell.ts:259',message:'Registering client:loadUi event handler',data:{roomId:parsedRoomId,controllerId,socketConnected:socket?.connected},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
+
     socket.on("client:loadUi", handleLoadUi);
     socket.on("client:unloadUi", handleUnloadUi);
     socket.on("server:error", handleError);
@@ -294,12 +285,43 @@ export const useAirJamShell = (
   const sendInput = useCallback(
     (input: ControllerInputPayload): boolean => {
       const storeState = store.getState();
+      const now = Date.now();
+
+      // Only log when there's actual user input (not just the loop sending zeros)
+      const hasActiveInput =
+        input.action === true ||
+        (typeof input.vector === "object" &&
+          input.vector !== null &&
+          (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) >
+            0.01 ||
+            Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
+              0.01));
+
+      // Throttled logging - only log active input, once per second max
+      if (
+        hasActiveInput &&
+        (!lastSendInputLogTime || now - lastSendInputLogTime > 1000)
+      ) {
+        lastSendInputLogTime = now;
+      }
 
       if (!parsedRoomId || !storeState.controllerId || !socket) {
+        if (
+          !lastSendInputFailLogTime ||
+          now - lastSendInputFailLogTime > 1000
+        ) {
+          lastSendInputFailLogTime = now;
+        }
         storeState.setError("Not connected to a room");
         return false;
       }
       if (!socket.connected) {
+        if (
+          !lastSendInputFailLogTime ||
+          now - lastSendInputFailLogTime > 1000
+        ) {
+          lastSendInputFailLogTime = now;
+        }
         return false;
       }
 

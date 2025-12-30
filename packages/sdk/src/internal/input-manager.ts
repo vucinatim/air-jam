@@ -39,6 +39,9 @@
 import type { z } from "zod";
 import type { ControllerInputEvent } from "../protocol";
 
+// Throttling for debug logging
+let lastInputManagerLogTime = 0;
+
 /**
  * Configuration for input handling with optional validation and latching.
  *
@@ -182,6 +185,26 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
 
     // Store raw input as-is (arbitrary structure)
     this.inputBuffer.set(payload.controllerId, payload.input);
+
+    // Throttled logging - only log active input, once per second max
+    const now = Date.now();
+    const input = payload?.input;
+    const hasActiveInput =
+      input &&
+      (input.action === true ||
+        (typeof input.vector === "object" &&
+          input.vector !== null &&
+          (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) >
+            0.01 ||
+            Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
+              0.01)));
+
+    if (
+      hasActiveInput &&
+      (!lastInputManagerLogTime || now - lastInputManagerLogTime > 1000)
+    ) {
+      lastInputManagerLogTime = now;
+    }
   }
 
   /**

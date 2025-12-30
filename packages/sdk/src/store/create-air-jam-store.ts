@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { create, type StateCreator } from "zustand";
 import { useAirJamContext, useAirJamState } from "../context/air-jam-context";
 import type {
@@ -58,6 +58,9 @@ export function createAirJamStore<
   });
 
   // 2. The Hook Component
+  // Track if game UI is unloaded to disable proxy actions
+  const gameUiUnloadedRef = { current: false };
+
   const useSyncedStore = <U>(
     selector: (state: T) => U = (s) => s as unknown as U,
   ): U => {
@@ -70,6 +73,12 @@ export function createAirJamStore<
     const controllerId = useAirJamState((state) => state.controllerId);
     const socket =
       role === "host" ? getSocket("host") : getSocket("controller");
+
+    // Keep a ref to the socket so we can access the LATEST one inside closures
+    const socketRef = useRef(socket);
+    useEffect(() => {
+      socketRef.current = socket;
+    }, [socket]);
 
     // --- NETWORKING LOGIC ---
     useEffect(() => {
@@ -109,6 +118,9 @@ export function createAirJamStore<
 
       // CONTROLLER: Listen for state updates
       if (role === "controller") {
+        // Reset unloaded flag when we have a new room/socket (game is loading)
+        gameUiUnloadedRef.current = false;
+
         const handleSync = (payload: AirJamStateSyncPayload) => {
           const { data } = payload;
           // Merge incoming state, but KEEP the local actions
@@ -128,9 +140,39 @@ export function createAirJamStore<
         };
 
         socket.on("airjam:state_sync", handleSync);
-        return () => socket.off("airjam:state_sync", handleSync);
+
+        // Also listen for client:unloadUi to clean up when game exits
+        // This ensures listeners are removed even if the component doesn't unmount
+        const handleUnloadUi = () => {
+          gameUiUnloadedRef.current = true; // Disable proxy actions
+          socket.off("airjam:state_sync", handleSync);
+        };
+
+        // Also listen for client:loadUi to re-enable proxy actions when new game loads
+        const handleLoadUi = () => {
+          gameUiUnloadedRef.current = false; // Re-enable proxy actions when game loads
+        };
+        socket.on("client:loadUi", handleLoadUi);
+
+        // Also listen for socket disconnect as a fallback to disable proxy actions
+        const handleDisconnect = () => {
+          gameUiUnloadedRef.current = true; // Disable proxy actions on disconnect
+        };
+        socket.on("disconnect", handleDisconnect);
+
+        // Register client:unloadUi listener
+        // Socket.IO listeners work even if registered before connection, but we include socket.id
+        // in dependencies to ensure the effect re-runs when socket connects (socket.id changes from undefined to a string)
+        socket.on("client:unloadUi", handleUnloadUi);
+
+        return () => {
+          socket.off("airjam:state_sync", handleSync);
+          socket.off("client:loadUi", handleLoadUi);
+          socket.off("client:unloadUi", handleUnloadUi);
+          socket.off("disconnect", handleDisconnect);
+        };
       }
-    }, [socket, role, roomId]);
+    }, [socket, role, roomId, socket?.id]);
 
     // --- PROXY ACTIONS (The Magic) ---
     // On the Controller, we replace actions with Network Calls
@@ -176,17 +218,37 @@ export function createAirJamStore<
           // We cast to the same type as T["actions"] to maintain type compatibility
           (proxyActions as Record<string, (...args: unknown[]) => void>)[key] =
             (...args: unknown[]) => {
-              // 1. Optimistic Update (Optional, disabled for safety by default)
-              // originalActions[key](...args);
+              // --- EXECUTION TIME GUARDS (THE FIX) ---
+              // Check guards at EXECUTION time, not creation time
+              // This ensures old closures are still safe even if they're called after game exit
 
-              // 2. Send RPC to Host (include controllerId to handle reconnections)
+              // 1. Check if UI is unloaded right now (at execution time)
+              if (gameUiUnloadedRef.current) {
+                console.warn(
+                  `[AirJamStore] Action "${key}" blocked: Game UI unloaded.`,
+                );
+                return;
+              }
+
+              // 2. Check if we have a valid socket right now (at execution time)
+              const activeSocket = socketRef.current;
+              if (!activeSocket || !activeSocket.connected) {
+                console.warn(
+                  `[AirJamStore] Action "${key}" blocked: Socket disconnected.`,
+                );
+                return;
+              }
+
+              // 3. Check controllerId
               if (!controllerId) {
                 console.warn(
                   "[AirJamStore] Cannot send action RPC: controllerId not set",
                 );
                 return;
               }
-              socket.emit("controller:action_rpc", {
+
+              // 4. Send RPC to Host (include controllerId to handle reconnections)
+              activeSocket.emit("controller:action_rpc", {
                 roomId,
                 actionName: key,
                 args,

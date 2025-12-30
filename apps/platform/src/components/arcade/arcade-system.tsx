@@ -134,12 +134,28 @@ export const ArcadeSystem = ({
     ) {
       return;
     }
+    // Throttling for debug logging
+    let lastArcadeInputLogTime = 0;
 
     const interval = setInterval(() => {
       // Get input for all connected players
       host.players.forEach((player) => {
         const latchedInput = host.getInput?.(player.id);
         if (!latchedInput) return;
+
+        // Throttled logging - only log active input, once per second max
+        const now = Date.now();
+        const hasActiveInput =
+          latchedInput.action === true ||
+          (latchedInput.vector &&
+            (Math.abs(latchedInput.vector.x) > 0.01 ||
+              Math.abs(latchedInput.vector.y) > 0.01));
+        if (
+          hasActiveInput &&
+          (!lastArcadeInputLogTime || now - lastArcadeInputLogTime > 1000)
+        ) {
+          lastArcadeInputLogTime = now;
+        }
 
         // Detect edge transitions
         const prevVec = lastVectorStates.current.get(player.id) ?? {
@@ -189,7 +205,9 @@ export const ArcadeSystem = ({
       });
     }, 16); // ~60fps polling
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host.getInput, host.players, games, view, activeGame, joinToken]);
 

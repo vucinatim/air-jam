@@ -23,22 +23,6 @@ export default function ArcadePage() {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.removeItem("airjam_platform_room_id");
     }
-    // #region agent log
-    fetch("http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "apps/platform/src/app/arcade/page.tsx:20",
-        message:
-          "ArcadePage - starting with fresh room ID (cleared sessionStorage)",
-        data: { persistedRoomId: undefined },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run3",
-        hypothesisId: "FIX",
-      }),
-    }).catch(() => {});
-    // #endregion
     return undefined;
   });
 
@@ -75,25 +59,6 @@ export default function ArcadePage() {
         mode="arcade"
         initialRoomId={persistedRoomId}
         onRoomIdChange={(roomId) => {
-          // #region agent log
-          fetch(
-            "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                location: "apps/platform/src/app/arcade/page.tsx:59",
-                message:
-                  "ArcadePage - onRoomIdChange callback (no-op, not persisting)",
-                data: { roomId },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                runId: "run3",
-                hypothesisId: "FIX",
-              }),
-            },
-          ).catch(() => {});
-          // #endregion
           // No longer persisting room ID to sessionStorage
           // Each host reload generates a fresh room ID to prevent stale controller connections
         }}

@@ -27,6 +27,7 @@ function JoypadContentInner() {
   // Use refs to store input state - avoids re-renders and keeps loop stable
   const vectorRef = useRef({ x: 0, y: 0 });
   const actionRef = useRef(false);
+  const lastLoopFailLogRef = useRef(0);
 
   // Send input loop for Arcade Controller (approx 60fps)
   // Using refs means this effect only runs once when connection status changes
@@ -39,11 +40,38 @@ function JoypadContentInner() {
 
     const loop = () => {
       // Read from refs - always gets latest values without causing re-renders
-      shell.sendInput({
+      const inputResult = shell.sendInput({
         vector: vectorRef.current,
         action: actionRef.current,
         timestamp: Date.now(),
       });
+      // Log throttled failures
+      const now = Date.now();
+      if (
+        !inputResult &&
+        (!lastLoopFailLogRef.current || now - lastLoopFailLogRef.current > 1000)
+      ) {
+        lastLoopFailLogRef.current = now;
+        fetch(
+          "http://127.0.0.1:7245/ingest/77275639-c0f5-41c0-a729-c2568f3ab68e",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "joypad/page.tsx:42",
+              message: "sendInput returned false in loop",
+              data: {
+                activeUrl: shell.activeUrl,
+                connectionStatus: shell.connectionStatus,
+              },
+              timestamp: now,
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "H3",
+            }),
+          },
+        ).catch(() => {});
+      }
       animationFrameId = requestAnimationFrame(loop);
     };
 

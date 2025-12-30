@@ -382,7 +382,7 @@ export const AirJamOverlay = (): JSX.Element | null => {
                               size="lg"
                             >
                               <Play className="mr-2 h-5 w-5" />
-                              Start Game
+                              Play
                             </Button>
                           </div>
                         </div>
