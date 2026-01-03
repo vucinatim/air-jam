@@ -30,7 +30,6 @@ export class AirJamClient {
   public readonly role: ConnectionRole;
   private readonly _inputBuffer: Map<string, ControllerInputPayload> =
     new Map();
-  private _listenerRegisteredAt?: number;
   public readonly _clientInstanceId: string;
 
   constructor(options: AirJamClientOptions) {

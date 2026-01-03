@@ -11,8 +11,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Resolve SDK to source files for instant updates during development
-      // This only works when running in the monorepo structure
       "@air-jam/sdk": path.resolve(__dirname, "../../../sdk/src"),
     },
   },

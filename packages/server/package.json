@@ -1,6 +1,6 @@
 {
   "name": "@air-jam/server",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Air Jam game server for local development and production",
   "private": false,
   "type": "module",

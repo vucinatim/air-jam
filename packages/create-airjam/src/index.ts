@@ -1,7 +1,7 @@
 import { program } from "commander";
-import { execSync } from "node:child_process";
 import fs from "fs-extra";
 import kleur from "kleur";
+import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
@@ -37,7 +37,12 @@ async function main() {
   }
 
   const targetDir = path.resolve(process.cwd(), projectName);
-  const templateDir = path.resolve(__dirname, "..", "templates", options.template);
+  const templateDir = path.resolve(
+    __dirname,
+    "..",
+    "templates",
+    options.template,
+  );
 
   if (!fs.existsSync(templateDir)) {
     console.log(kleur.red(`Template "${options.template}" not found`));
@@ -130,22 +135,29 @@ async function main() {
     });
     console.log(kleur.green("\n✓ Dependencies installed successfully!\n"));
   } catch (error) {
+    console.error(error);
     console.log(
       kleur.yellow(
-        "\n⚠ Failed to install dependencies automatically. Please run 'pnpm install' manually.\n"
-      )
+        "\n⚠ Failed to install dependencies automatically. Please run 'pnpm install' manually.\n",
+      ),
     );
   }
 
   console.log("Next steps:\n");
   console.log(kleur.cyan(`  cd ${projectName}`));
   console.log(kleur.cyan("  cp .env.example .env"));
-  console.log(kleur.cyan("  # Edit .env and set AIR_JAM_MASTER_KEY (optional for local dev)"));
+  console.log(
+    kleur.cyan(
+      "  # Edit .env and set AIR_JAM_MASTER_KEY (optional for local dev)",
+    ),
+  );
   console.log(kleur.cyan("  pnpm run dev:server  # Terminal 1 - Start server"));
   console.log(kleur.cyan("  pnpm run dev         # Terminal 2 - Start game"));
   console.log("");
   console.log(
-    kleur.dim("Then open http://localhost:5173 and scan the QR code with your phone!")
+    kleur.dim(
+      "Then open http://localhost:5173 and scan the QR code with your phone!",
+    ),
   );
 }
 

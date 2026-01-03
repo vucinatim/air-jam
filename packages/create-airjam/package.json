@@ -1,6 +1,6 @@
 {
   "name": "create-airjam",
-  "version": "0.1.4",
+  "version": "0.1.7",
   "description": "CLI to scaffold Air Jam game projects",
   "type": "module",
   "license": "MIT",
@@ -32,7 +32,7 @@
     "extract-docs": "tsx scripts/extract-docs.ts",
     "build": "pnpm extract-docs && tsup",
     "dev": "tsup --watch",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "node scripts/prepublish.js && pnpm build"
   },
   "dependencies": {
     "commander": "^14.0.0",

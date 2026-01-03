@@ -8,9 +8,7 @@
     "dev:server": "air-jam-server",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "install:standalone": "pnpm install --ignore-workspace",
-    "prepublishOnly": "node scripts/prepublish.js"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",
