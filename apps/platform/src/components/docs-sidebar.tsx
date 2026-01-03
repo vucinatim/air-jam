@@ -7,6 +7,7 @@ import {
   Layers,
   Lightbulb,
   Network,
+  Rocket,
   Zap,
 } from "lucide-react";
 import Image from "next/image";
@@ -78,11 +79,11 @@ export function DocsSidebar({
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === "/docs/getting-started/architecture"}
+                isActive={pathname === "/docs/getting-started/quick-start"}
               >
-                <Link href="/docs/getting-started/architecture">
-                  <Layers />
-                  <span>Architecture</span>
+                <Link href="/docs/getting-started/quick-start">
+                  <Rocket />
+                  <span>Quick Start</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -103,6 +104,17 @@ export function DocsSidebar({
         <SidebarGroup>
           <SidebarGroupLabel>How it Works</SidebarGroupLabel>
           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/docs/how-it-works/architecture"}
+              >
+                <Link href="/docs/how-it-works/architecture">
+                  <Layers />
+                  <span>Architecture</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
