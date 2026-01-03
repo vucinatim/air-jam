@@ -54,7 +54,7 @@ The provider automatically reads from these environment variables if props aren'
 The primary hook for game hosts. Connects to the server, manages players, and provides input access.
 
 ```tsx
-import { useAirJamHost } from "@air-jam/sdk";
+import { HostShell, useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
   const host = useAirJamHost({
@@ -91,13 +91,15 @@ const HostView = () => {
   } = host;
 
   return (
-    <div>
-      <h1>Room: {roomId}</h1>
-      <img
-        src={`https://api.qrserver.com/v1/create-qr-code/?data=${joinUrl}`}
-      />
-      <p>Players: {players.length}</p>
-    </div>
+    <HostShell>
+      {/* HostShell automatically provides:
+          - Top navbar with room ID and player avatars
+          - QR code overlay when paused
+          - Play/pause controls
+          - Settings panel
+      */}
+      <GameCanvas />
+    </HostShell>
   );
 };
 ```
@@ -221,7 +223,7 @@ const Laser = ({ ownerId }: { ownerId: string }) => {
 Hook for building mobile controllers that connect to game hosts.
 
 ```tsx
-import { useAirJamController } from "@air-jam/sdk";
+import { ControllerShell, useAirJamController } from "@air-jam/sdk";
 
 const ControllerView = () => {
   const controller = useAirJamController({
@@ -266,7 +268,7 @@ const ControllerView = () => {
   }
 
   return (
-    <div>
+    <ControllerShell forceOrientation="landscape">
       <Joystick
         onMove={(x, y) => {
           controller.sendInput({
@@ -285,7 +287,7 @@ const ControllerView = () => {
           });
         }}
       />
-    </div>
+    </ControllerShell>
   );
 };
 ```

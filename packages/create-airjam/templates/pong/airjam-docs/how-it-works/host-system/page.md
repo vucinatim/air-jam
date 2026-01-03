@@ -11,18 +11,28 @@ The simplest mode—your game connects directly to the Air Jam server.
 **Usage:**
 
 ```tsx filename="src/components/HostView.tsx"
-const host = useAirJamHost({
-  onPlayerJoin: (player) => spawnPlayer(player),
-  onPlayerLeave: (id) => removePlayer(id),
-});
+import { HostShell, useAirJamHost } from "@air-jam/sdk";
 
-// Host receives all input directly
-useFrame(() => {
-  host.players.forEach((p) => {
-    const input = host.getInput(p.id);
-    processInput(p.id, input);
+const HostView = () => {
+  const host = useAirJamHost({
+    onPlayerJoin: (player) => spawnPlayer(player),
+    onPlayerLeave: (id) => removePlayer(id),
   });
-});
+
+  // Host receives all input directly
+  useFrame(() => {
+    host.players.forEach((p) => {
+      const input = host.getInput(p.id);
+      processInput(p.id, input);
+    });
+  });
+
+  return (
+    <HostShell>
+      <GameCanvas />
+    </HostShell>
+  );
+};
 ```
 
 ### Arcade Mode (Two-Host Model)

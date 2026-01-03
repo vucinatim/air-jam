@@ -1,6 +1,6 @@
 {
   "name": "@air-jam/sdk",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "The core SDK for building Air Jam games and controllers",
   "private": false,
   "type": "module",

@@ -27,12 +27,10 @@ pnpm add @air-jam/sdk
 import { AirJamProvider } from "@air-jam/sdk";
 import { z } from "zod";
 
-// Define your input schema
+// Define your input schema (matches Pong template)
 const gameInputSchema = z.object({
-  vector: z.object({ x: z.number(), y: z.number() }),
-  action: z.boolean(),
-  ability: z.boolean(),
-  timestamp: z.number(),
+  direction: z.number().min(-1).max(1), // -1 (up), 0 (stop), 1 (down)
+  action: z.boolean(), // e.g. Start Game / Fire
 });
 
 export const App = () => (
@@ -40,8 +38,8 @@ export const App = () => (
     input={{
       schema: gameInputSchema,
       latch: {
-        booleanFields: ["action", "ability"],
-        vectorFields: ["vector"],
+        // Latch boolean inputs to ensure short taps are caught in the game loop
+        booleanFields: ["action"],
       },
     }}
   >
@@ -56,30 +54,39 @@ export const App = () => (
 ### 3. Create Your Host View
 
 ```tsx filename="src/components/HostView.tsx"
-import { useAirJamHost } from "@air-jam/sdk";
-import { QRCode } from "./QRCode";
+import { HostShell, useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
   const host = useAirJamHost({
     onPlayerJoin: (player) => {
       console.log(`${player.label} joined!`);
-      spawnPlayer(player.id, player.color);
+      // Spawn player logic...
     },
     onPlayerLeave: (id) => {
       console.log(`Player ${id} left`);
-      removePlayer(id);
+      // Despawn player logic...
     },
   });
 
+  // In your game loop (e.g., useFrame or requestAnimationFrame):
+  // host.players.forEach(p => {
+  //   const input = host.getInput(p.id);
+  //   if (input) {
+  //     player.y += input.direction * SPEED;
+  //     if (input.action) fireLaser(p.id);
+  //   }
+  // });
+
   return (
-    <div>
-      <h1>Room: {host.roomId}</h1>
-      <QRCode value={host.joinUrl} />
-      <p>Players: {host.players.length}</p>
-      
-      {/* Your game canvas */}
-      <GameCanvas players={host.players} getInput={host.getInput} />
-    </div>
+    <HostShell>
+      {/* HostShell automatically provides:
+          - Top navbar with room ID and player avatars
+          - QR code overlay when paused
+          - Play/pause controls
+          - Settings panel
+      */}
+      <GameCanvas />
+    </HostShell>
   );
 };
 ```
@@ -87,36 +94,47 @@ const HostView = () => {
 ### 4. Create Your Controller View
 
 ```tsx filename="src/components/ControllerView.tsx"
-import { useAirJamController } from "@air-jam/sdk";
-import { Joystick, Button } from "./ui";
+import { useAirJamController, ControllerShell } from "@air-jam/sdk";
 
 const ControllerView = () => {
   const controller = useAirJamController();
-  
-  const handleInput = (vector: { x: number; y: number }, action: boolean) => {
-    controller.sendInput({
-      vector,
-      action,
-      ability: false,
-      timestamp: Date.now(),
-    });
+
+  const sendInput = (direction: number, action: boolean) => {
+    controller.sendInput({ direction, action });
   };
 
-  if (controller.connectionStatus !== "connected") {
-    return <div>Connecting to room {controller.roomId}...</div>;
-  }
-
   return (
-    <div>
-      <Joystick onMove={(x, y) => handleInput({ x, y }, false)} />
-      <Button onPress={() => handleInput({ x: 0, y: 0 }, true)}>Fire</Button>
-    </div>
+    // ControllerShell handles connection status, errors, and platform integration
+    <ControllerShell forceOrientation="portrait">
+      <div className="flex h-full flex-col gap-4 p-4">
+        <button
+          className="flex-1 rounded-xl bg-blue-500"
+          onTouchStart={() => sendInput(-1, false)}
+          onTouchEnd={() => sendInput(0, false)}
+        >
+          UP
+        </button>
+        <button
+          className="flex-1 rounded-xl bg-blue-500"
+          onTouchStart={() => sendInput(1, false)}
+          onTouchEnd={() => sendInput(0, false)}
+        >
+          DOWN
+        </button>
+        <button
+          className="h-24 rounded-xl bg-red-500"
+          onClick={() => sendInput(0, true)}
+        >
+          ACTION
+        </button>
+      </div>
+    </ControllerShell>
   );
 };
 ```
 
 ## Next Steps
 
-- [Architecture](/docs/getting-started/architecture) - Understand the system design
+- [Architecture](/docs/how-it-works/architecture) - Understand the system design
 - [Hooks Reference](/docs/sdk/hooks) - Complete API documentation
 - [Input System](/docs/sdk/input-system) - Learn about latching and validation
