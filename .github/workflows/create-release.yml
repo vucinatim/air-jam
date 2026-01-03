@@ -1,0 +1,69 @@
+name: Create Release from Tag
+
+on:
+  push:
+    tags:
+      - 'sdk-v*'
+      - 'server-v*'
+      - 'create-airjam-v*'
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract tag info
+        id: tag-info
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          
+          if [[ "$TAG_NAME" == sdk-v* ]]; then
+            PACKAGE="sdk"
+            VERSION=${TAG_NAME#sdk-v}
+            PACKAGE_NAME="@air-jam/sdk"
+          elif [[ "$TAG_NAME" == server-v* ]]; then
+            PACKAGE="server"
+            VERSION=${TAG_NAME#server-v}
+            PACKAGE_NAME="@air-jam/server"
+          elif [[ "$TAG_NAME" == create-airjam-v* ]]; then
+            PACKAGE="create-airjam"
+            VERSION=${TAG_NAME#create-airjam-v}
+            PACKAGE_NAME="create-airjam"
+          elif [[ "$TAG_NAME" == v* ]]; then
+            PACKAGE="all"
+            VERSION=${TAG_NAME#v}
+            PACKAGE_NAME="air-jam"
+          else
+            echo "Unknown tag format: $TAG_NAME"
+            exit 1
+          fi
+          
+          echo "package=$PACKAGE" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag-info.outputs.tag }}
+          name: ${{ steps.tag-info.outputs.package_name }} v${{ steps.tag-info.outputs.version }}
+          body: |
+            ## ${{ steps.tag-info.outputs.package_name }} v${{ steps.tag-info.outputs.version }}
+            
+            Published to npm: [`${{ steps.tag-info.outputs.package_name }}@${{ steps.tag-info.outputs.version }}`](https://www.npmjs.com/package/${{ steps.tag-info.outputs.package_name }})
+            
+            ### Installation
+            
+            ```bash
+            npm install ${{ steps.tag-info.outputs.package_name }}@${{ steps.tag-info.outputs.version }}
+            ```
+          draft: false
+          prerelease: false

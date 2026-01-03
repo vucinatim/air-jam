@@ -3,6 +3,7 @@
 import { HeroScene } from "@/components/hero-scene/hero-scene";
 import { Navbar } from "@/components/navbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -229,23 +230,35 @@ function HomeContent() {
         <HeroScene />
 
         {/* Content */}
-        <div className="relative z-10 flex -translate-y-[150px] flex-col items-center justify-center space-y-8 px-4 text-center">
-          <h1 className="text-6xl font-bold tracking-tight sm:text-7xl md:text-8xl">
-            <span className="from-foreground to-foreground/70 bg-linear-to-r bg-clip-text text-transparent">
-              Air Jam
-            </span>
-          </h1>
-          <p className="text-muted-foreground max-w-2xl text-lg sm:text-xl md:text-2xl">
+        <div className="relative z-10 flex -translate-y-[160px] flex-col items-center justify-center space-y-8 px-4 text-center">
+          <div className="flex flex-col items-center gap-1">
+            <Badge
+              variant="outline"
+              className="border-airjam-cyan/50 bg-background/90 text-airjam-cyan hover:border-airjam-cyan px-2.5 py-0.5 text-[10px] font-semibold whitespace-nowrap shadow-[0_0_10px_rgba(0,211,243,0.3)] backdrop-blur-md transition-all hover:shadow-[0_0_15px_rgba(0,211,243,0.5)] sm:text-xs"
+            >
+              Free & Open Source
+            </Badge>
+            <h1 className="text-6xl font-bold tracking-tight sm:text-7xl md:text-8xl">
+              <span className="from-foreground to-foreground/70 bg-linear-to-r bg-clip-text text-transparent">
+                Air Jam
+              </span>
+            </h1>
+          </div>
+          <p className="text-foreground relative z-20 max-w-2xl text-lg font-medium [text-shadow:0_2px_8px_rgba(0,0,0,0.9),0_0_20px_rgba(0,0,0,0.7),0_0_40px_rgba(0,0,0,0.5)] sm:text-xl md:text-2xl">
             Vibecode a game. Play it with friends.
           </p>
-          <Button
-            size="lg"
-            variant="outline"
-            className="group h-14 px-8 text-lg font-semibold shadow-[0_10px_40px_rgba(0,0,0,0.3),0_0_20px_var(--color-airjam-cyan)/0.3] transition-all hover:scale-105 hover:shadow-[0_15px_50px_rgba(0,0,0,0.4),0_0_30px_var(--color-airjam-cyan)/0.5]"
-            onClick={() => router.push("/arcade")}
-          >
-            Enter Arcade
-          </Button>
+          <div className="relative z-10">
+            <Button
+              size="lg"
+              variant="outline"
+              className="neon-glow-button group border-airjam-cyan/70 bg-background/80 text-foreground hover:border-airjam-cyan relative h-14 border-2 px-8 text-lg font-semibold backdrop-blur-sm transition-all duration-300 hover:scale-105"
+              onClick={() => router.push("/arcade")}
+            >
+              <span className="relative z-10">Enter Arcade</span>
+              <span className="bg-airjam-cyan/30 absolute inset-0 rounded-md opacity-80 blur-2xl transition-opacity group-hover:opacity-100" />
+              <span className="bg-airjam-cyan/20 absolute -inset-2 rounded-md opacity-60 blur-3xl transition-opacity group-hover:opacity-80" />
+            </Button>
+          </div>
         </div>
       </section>
 

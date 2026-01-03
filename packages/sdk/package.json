@@ -11,6 +11,9 @@
     "directory": "packages/sdk"
   },
   "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "bugs": {
+    "url": "https://github.com/vucinatim/air-jam/issues"
+  },
   "publishConfig": {
     "access": "public"
   },

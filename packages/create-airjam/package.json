@@ -10,6 +10,9 @@
     "directory": "packages/create-airjam"
   },
   "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "bugs": {
+    "url": "https://github.com/vucinatim/air-jam/issues"
+  },
   "keywords": [
     "air-jam",
     "cli",
