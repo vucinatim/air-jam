@@ -1,8 +1,4 @@
-import {
-  AirJamDebug,
-  ControllerShell,
-  useAirJamController,
-} from "@air-jam/sdk";
+import { ControllerShell, useAirJamController } from "@air-jam/sdk";
 import { useEffect, useRef } from "react";
 import { usePongStore, type PongState } from "./store";
 
@@ -43,101 +39,84 @@ export function ControllerView() {
   }, [controller.connectionStatus, controller.gameState, controller]);
 
   return (
-    <div className="relative bg-black">
-      <ControllerShell
-        connectionStatus={controller.connectionStatus}
-        roomId={controller.roomId}
-        forceOrientation="portrait"
-        gameState={controller.gameState}
-        onTogglePlayPause={() => controller.sendSystemCommand("toggle_pause")}
-        onReconnect={() => controller.reconnect()}
-        onRefresh={() => window.location.reload()}
-      >
-        {/* Debug State Component */}
-        <div className="absolute top-5 right-5 z-50">
-          <AirJamDebug
-            state={usePongStore((state: PongState) => state)}
-            title="Pong Game State"
-          />
+    <ControllerShell forceOrientation="portrait">
+      {controller.gameState === "paused" ? (
+        // Team selection UI (shown when paused)
+        <div className="flex h-full w-full flex-col gap-2 p-2">
+          {/* Up button - Select Team 1 */}
+          <button
+            type="button"
+            className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
+              myTeam === "team1"
+                ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
+                : "opacity-70"
+            }`}
+            style={{
+              backgroundColor: myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
+              willChange: "transform",
+              transition: "none",
+            }}
+            onTouchStart={() => actions.joinTeam("team1")}
+            onMouseDown={() => actions.joinTeam("team1")}
+          >
+            SOLARIS
+          </button>
+
+          {/* Down button - Select Team 2 */}
+          <button
+            type="button"
+            className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
+              myTeam === "team2"
+                ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
+                : "opacity-70"
+            }`}
+            style={{
+              backgroundColor: myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
+              willChange: "transform",
+              transition: "none",
+            }}
+            onTouchStart={() => actions.joinTeam("team2")}
+            onMouseDown={() => actions.joinTeam("team2")}
+          >
+            NEBULON
+          </button>
         </div>
-        {controller.gameState === "paused" ? (
-          // Team selection UI (shown when paused)
-          <div className="flex h-full w-full flex-col gap-2 p-2">
-            {/* Up button - Select Team 1 */}
-            <button
-              type="button"
-              className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
-                myTeam === "team1"
-                  ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
-                  : "opacity-70"
-              }`}
-              style={{
-                backgroundColor: myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
-                willChange: "transform",
-                transition: "none",
-              }}
-              onTouchStart={() => actions.joinTeam("team1")}
-              onMouseDown={() => actions.joinTeam("team1")}
-            >
-              SOLARIS
-            </button>
+      ) : (
+        // Game control buttons
+        <div className="flex h-full w-full flex-col gap-2 p-2">
+          {/* Up button */}
+          <button
+            type="button"
+            className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg select-none hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+            style={{
+              willChange: "transform",
+              transition: "none",
+            }}
+            onTouchStart={() => (directionRef.current = -1)}
+            onTouchEnd={() => (directionRef.current = 0)}
+            onMouseDown={() => (directionRef.current = -1)}
+            onMouseUp={() => (directionRef.current = 0)}
+          >
+            ▲ UP
+          </button>
 
-            {/* Down button - Select Team 2 */}
-            <button
-              type="button"
-              className={`flex-1 touch-none rounded-xl text-4xl font-bold text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
-                myTeam === "team2"
-                  ? "ring-4 ring-white ring-offset-2 ring-offset-zinc-900"
-                  : "opacity-70"
-              }`}
-              style={{
-                backgroundColor: myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
-                willChange: "transform",
-                transition: "none",
-              }}
-              onTouchStart={() => actions.joinTeam("team2")}
-              onMouseDown={() => actions.joinTeam("team2")}
-            >
-              NEBULON
-            </button>
-          </div>
-        ) : (
-          // Game control buttons
-          <div className="flex h-full w-full flex-col gap-2 p-2">
-            {/* Up button */}
-            <button
-              type="button"
-              className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg select-none hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
-              style={{
-                willChange: "transform",
-                transition: "none",
-              }}
-              onTouchStart={() => (directionRef.current = -1)}
-              onTouchEnd={() => (directionRef.current = 0)}
-              onMouseDown={() => (directionRef.current = -1)}
-              onMouseUp={() => (directionRef.current = 0)}
-            >
-              ▲ UP
-            </button>
-
-            {/* Down button */}
-            <button
-              type="button"
-              className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg select-none hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
-              style={{
-                willChange: "transform",
-                transition: "none",
-              }}
-              onTouchStart={() => (directionRef.current = 1)}
-              onTouchEnd={() => (directionRef.current = 0)}
-              onMouseDown={() => (directionRef.current = 1)}
-              onMouseUp={() => (directionRef.current = 0)}
-            >
-              ▼ DOWN
-            </button>
-          </div>
-        )}
-      </ControllerShell>
-    </div>
+          {/* Down button */}
+          <button
+            type="button"
+            className="flex-1 touch-none rounded-xl bg-zinc-800 text-4xl font-bold text-white shadow-lg select-none hover:bg-zinc-700 active:scale-95 active:bg-zinc-700"
+            style={{
+              willChange: "transform",
+              transition: "none",
+            }}
+            onTouchStart={() => (directionRef.current = 1)}
+            onTouchEnd={() => (directionRef.current = 0)}
+            onMouseDown={() => (directionRef.current = 1)}
+            onMouseUp={() => (directionRef.current = 0)}
+          >
+            ▼ DOWN
+          </button>
+        </div>
+      )}
+    </ControllerShell>
   );
 }

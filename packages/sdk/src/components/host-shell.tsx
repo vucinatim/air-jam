@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import type { JSX } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAirJamHost } from "../hooks/use-air-jam-host";
 import type { ConnectionStatus } from "../protocol";
 import { PlayerAvatar } from "./player-avatar";
@@ -29,7 +29,11 @@ const statusCopy: Record<ConnectionStatus, string> = {
   reconnecting: "Reconnecting…",
 };
 
-export const AirJamOverlay = (): JSX.Element | null => {
+interface HostShellProps {
+  children: ReactNode;
+}
+
+export const HostShell = ({ children }: HostShellProps): JSX.Element => {
   const host = useAirJamHost();
   const {
     roomId,
@@ -149,64 +153,64 @@ export const AirJamOverlay = (): JSX.Element | null => {
 
   // In Child Mode (Platform), we hide the overlay completely
   // because the Platform handles the UI/Header.
-  if (isChildMode) return null;
+  if (isChildMode) {
+    return <>{children}</>;
+  }
 
   // Always render the navbar (unless child mode + playing)
   return (
-    <div className="dark">
+    <div className="dark relative">
       {/* Top Navbar - Always Visible */}
-      {!isChildMode && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-99999">
-          <div className="mx-auto w-full">
-            <div className="flex items-center justify-between px-4 py-2">
-              {/* Left: Room name */}
-              <div className="flex items-center gap-3">
-                <div>
-                  <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
-                    Room
-                  </p>
-                  <p className="text-foreground text-lg font-semibold">
-                    {roomId}
-                  </p>
-                </div>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-99999">
+        <div className="mx-auto w-full">
+          <div className="flex items-center justify-between px-4 py-2">
+            {/* Left: Room name */}
+            <div className="flex items-center gap-3">
+              <div>
+                <p className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
+                  Room
+                </p>
+                <p className="text-foreground text-lg font-semibold">
+                  {roomId}
+                </p>
               </div>
+            </div>
 
-              {/* Right: Avatar stack and play/pause */}
-              <div className="pointer-events-auto flex items-center gap-3">
-                {/* Avatar stack */}
-                {players.length > 0 && (
-                  <div className="flex items-center -space-x-2">
-                    {players.slice(0, 4).map((player) => (
-                      <PlayerAvatar key={player.id} player={player} size="sm" />
-                    ))}
-                    {players.length > 4 && (
-                      <div className="border-background bg-muted flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-medium">
-                        +{players.length - 4}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Play/Pause button */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleGameState}
-                  aria-label={gameState === "playing" ? "Pause" : "Play"}
-                  className="h-8 w-8"
-                >
-                  {gameState === "playing" ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
+            {/* Right: Avatar stack and play/pause */}
+            <div className="pointer-events-auto flex items-center gap-3">
+              {/* Avatar stack */}
+              {players.length > 0 && (
+                <div className="flex items-center -space-x-2">
+                  {players.slice(0, 4).map((player) => (
+                    <PlayerAvatar key={player.id} player={player} size="sm" />
+                  ))}
+                  {players.length > 4 && (
+                    <div className="border-background bg-muted flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-medium">
+                      +{players.length - 4}
+                    </div>
                   )}
-                </Button>
-              </div>
+                </div>
+              )}
+
+              {/* Play/Pause button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={toggleGameState}
+                aria-label={gameState === "playing" ? "Pause" : "Play"}
+                className="h-8 w-8"
+              >
+                {gameState === "playing" ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Paused Overlay - Only visible when paused */}
       {gameState === "paused" && (
@@ -508,6 +512,10 @@ export const AirJamOverlay = (): JSX.Element | null => {
           </div>
         </div>
       )}
+
+      {/* Game content - rendered as children */}
+      {children}
     </div>
   );
 };
+

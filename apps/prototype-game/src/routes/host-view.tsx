@@ -1,5 +1,5 @@
 import {
-  AirJamOverlay,
+  HostShell,
   useAirJamHost,
   useAudio,
   type PlayerProfile,
@@ -106,62 +106,63 @@ const HostViewContent = (): JSX.Element => {
   }, []);
 
   return (
-    <div className="bg-background relative h-screen w-screen overflow-hidden">
-      <AirJamOverlay />
-      <ScoreDisplay />
-      <DebugOverlay>
-        <PlayersSection />
-        <BotsSection />
-        <CTFDebugSection />
-        <SceneInfoSection />
-      </DebugOverlay>
-      {/* Editor Button */}
-      <div className="absolute top-14 right-4 z-50">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setIsEditorOpen(!isEditorOpen)}
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          {isEditorOpen ? (
-            <X className="h-4 w-4" />
-          ) : (
-            <Settings2 className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-      <div className="relative flex h-full w-full">
-        {/* Game View */}
-        <div
-          className={`relative h-full transition-all duration-300 ${
-            isEditorOpen ? "w-1/2" : "w-full"
-          }`}
-        >
-          <GameScene onCamerasReady={setCameras} />
-          {cameras.length > 0 && canvasRef.current && (
-            <PlayerHUDOverlay
-              canvasElement={canvasRef.current}
-              cameras={cameras}
-            />
+    <HostShell>
+      <div className="bg-background relative h-screen w-screen overflow-hidden">
+        <ScoreDisplay />
+        <DebugOverlay>
+          <PlayersSection />
+          <BotsSection />
+          <CTFDebugSection />
+          <SceneInfoSection />
+        </DebugOverlay>
+        {/* Editor Button */}
+        <div className="absolute top-14 right-4 z-50">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsEditorOpen(!isEditorOpen)}
+            className="bg-background/80 backdrop-blur-sm"
+          >
+            {isEditorOpen ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <Settings2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        <div className="relative flex h-full w-full">
+          {/* Game View */}
+          <div
+            className={`relative h-full transition-all duration-300 ${
+              isEditorOpen ? "w-1/2" : "w-full"
+            }`}
+          >
+            <GameScene onCamerasReady={setCameras} />
+            {cameras.length > 0 && canvasRef.current && (
+              <PlayerHUDOverlay
+                canvasElement={canvasRef.current}
+                cameras={cameras}
+              />
+            )}
+          </div>
+          {/* Editor View */}
+          {isEditorOpen && (
+            <div className="border-border bg-background flex h-full w-1/2 flex-col border-l">
+              <div className="border-border shrink-0 border-b px-6 py-4">
+                <h2 className="text-lg font-semibold">
+                  Game Object Editor -{" "}
+                  {editorObjectType.charAt(0).toUpperCase() +
+                    editorObjectType.slice(1)}
+                </h2>
+              </div>
+              <div className="min-h-0 flex-1">
+                <GameObjectEditor objectType={editorObjectType} />
+              </div>
+            </div>
           )}
         </div>
-        {/* Editor View */}
-        {isEditorOpen && (
-          <div className="border-border bg-background flex h-full w-1/2 flex-col border-l">
-            <div className="border-border shrink-0 border-b px-6 py-4">
-              <h2 className="text-lg font-semibold">
-                Game Object Editor -{" "}
-                {editorObjectType.charAt(0).toUpperCase() +
-                  editorObjectType.slice(1)}
-              </h2>
-            </div>
-            <div className="min-h-0 flex-1">
-              <GameObjectEditor objectType={editorObjectType} />
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+    </HostShell>
   );
 };
 

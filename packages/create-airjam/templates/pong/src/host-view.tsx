@@ -1,9 +1,4 @@
-import {
-  AirJamDebug,
-  AirJamOverlay,
-  PlayerAvatar,
-  useAirJamHost,
-} from "@air-jam/sdk";
+import { HostShell, PlayerAvatar, useAirJamHost } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePongStore } from "./store";
 import { gameInputSchema } from "./types";
@@ -348,17 +343,7 @@ export function HostView() {
   }, [host, resetBall, countdown, teamAssignments, actions]);
 
   return (
-    <>
-      <AirJamOverlay />
-
-      {/* Debug State Component */}
-      <div className="fixed top-20 right-4 z-50">
-        <AirJamDebug
-          state={usePongStore((state) => state)}
-          title="Pong Game State"
-        />
-      </div>
-
+    <HostShell>
       <div className="relative flex min-h-screen flex-col items-center justify-center bg-zinc-900 p-4">
         {/* UI Layer using Store Data */}
         <div className="mb-4 flex w-full max-w-4xl items-center gap-4">
@@ -396,6 +381,6 @@ export function HostView() {
 
         <canvas ref={canvasRef} className="rounded-lg border-2 border-white" />
       </div>
-    </>
+    </HostShell>
   );
 }

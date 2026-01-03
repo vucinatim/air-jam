@@ -3,7 +3,7 @@
 import { arcadeInputSchema } from "@/app/arcade/[[...slug]]/page";
 import { cn } from "@/lib/utils";
 import {
-  AirJamOverlay,
+  HostShell,
   type SystemLaunchGameAck,
   urlBuilder,
   useAirJamHost,
@@ -450,77 +450,76 @@ export const ArcadeSystem = ({
   // Preview mode: show loading while launching
   if (mode === "preview" && !activeGame && !joinToken) {
     return (
-      <div
-        className={cn(
-          "relative flex h-full w-full items-center justify-center bg-slate-950 text-white",
-          className,
-        )}
-      >
-        <div className="absolute inset-0">
-          <ArcadeLoader />
+      <HostShell>
+        <div
+          className={cn(
+            "relative flex h-full w-full items-center justify-center bg-slate-950 text-white",
+            className,
+          )}
+        >
+          <div className="absolute inset-0">
+            <ArcadeLoader />
+          </div>
+          <div className="z-10 flex flex-col items-center gap-4 pt-40">
+            <span className="text-airjam-cyan animate-pulse font-mono tracking-widest">
+              CONNECTING TO AIR JAM...
+            </span>
+          </div>
         </div>
-        <div className="z-10 flex flex-col items-center gap-4 pt-40">
-          <span className="text-airjam-cyan animate-pulse font-mono tracking-widest">
-            CONNECTING TO AIR JAM...
-          </span>
-        </div>
-        {/* Still show the overlay for QR code */}
-        <AirJamOverlay />
-      </div>
+      </HostShell>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "relative h-full w-full overflow-hidden bg-slate-950 font-sans text-slate-50",
-        className,
-      )}
-    >
-      {/* Background */}
-      <div className="absolute inset-0 z-0 bg-black" />
-      {/* Subtle gradient overlay */}
+    <HostShell>
       <div
-        className="absolute inset-0 z-0 opacity-[0.08]"
-        style={{
-          background: `linear-gradient(to bottom right, var(--color-airjam-cyan) 0%, var(--color-airjam-magenta) 100%)`,
-        }}
-      />
-
-      {/* Optional top header */}
-      {header && (
-        <div className="absolute top-0 right-0 left-0 z-50 p-4">{header}</div>
-      )}
-
-      {/* Browser View (only in arcade mode or when game view is hidden) */}
-      {mode === "arcade" && (
-        <GameBrowser
-          games={games}
-          selectedIndex={selectedIndex}
-          isVisible={view === "browser"}
-          onSelectGame={(game, idx) => {
-            setSelectedIndex(idx);
-            launchGame(game);
+        className={cn(
+          "relative h-full w-full overflow-hidden bg-slate-950 font-sans text-slate-50",
+          className,
+        )}
+      >
+        {/* Background */}
+        <div className="absolute inset-0 z-0 bg-black" />
+        {/* Subtle gradient overlay */}
+        <div
+          className="absolute inset-0 z-0 opacity-[0.08]"
+          style={{
+            background: `linear-gradient(to bottom right, var(--color-airjam-cyan) 0%, var(--color-airjam-magenta) 100%)`,
           }}
-          header={header}
         />
-      )}
 
-      {/* Game View */}
-      {activeGame && joinToken && (
-        <GamePlayer
-          game={activeGame}
-          normalizedUrl={normalizedGameUrl}
-          joinToken={joinToken}
-          roomId={host.roomId!}
-          isVisible={view === "game"}
-          onExit={exitGame}
-          showExitOverlay={showGameExitOverlay}
-        />
-      )}
+        {/* Optional top header */}
+        {header && (
+          <div className="absolute top-0 right-0 left-0 z-50 p-4">{header}</div>
+        )}
 
-      {/* Air Jam Overlay */}
-      <AirJamOverlay />
-    </div>
+        {/* Browser View (only in arcade mode or when game view is hidden) */}
+        {mode === "arcade" && (
+          <GameBrowser
+            games={games}
+            selectedIndex={selectedIndex}
+            isVisible={view === "browser"}
+            onSelectGame={(game, idx) => {
+              setSelectedIndex(idx);
+              launchGame(game);
+            }}
+            header={header}
+          />
+        )}
+
+        {/* Game View */}
+        {activeGame && joinToken && (
+          <GamePlayer
+            game={activeGame}
+            normalizedUrl={normalizedGameUrl}
+            joinToken={joinToken}
+            roomId={host.roomId!}
+            isVisible={view === "game"}
+            onExit={exitGame}
+            showExitOverlay={showGameExitOverlay}
+          />
+        )}
+      </div>
+    </HostShell>
   );
 };

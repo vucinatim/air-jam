@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { AirJamProvider, ControllerShell, useAirJamShell } from "@air-jam/sdk";
 import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-const ControllerContent = dynamic(() => Promise.resolve(ControllerContentInner), {
-  ssr: false,
-});
+const ControllerContent = dynamic(
+  () => Promise.resolve(ControllerContentInner),
+  {
+    ssr: false,
+  },
+);
 
 export default function ControllerPage() {
   return (
@@ -21,7 +23,6 @@ export default function ControllerPage() {
   );
 }
 function ControllerContentInner() {
-  const router = useRouter();
   const shell = useAirJamShell();
 
   // Use refs to store input state - avoids re-renders and keeps loop stable
@@ -80,16 +81,6 @@ function ControllerContentInner() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [shell.connectionStatus, shell, shell.activeUrl]);
 
-  const handleReconnect = (roomCode: string) => {
-    router.push(`?room=${roomCode}`);
-  };
-
-  const handleTogglePlayPause = () => {
-    if (shell.connectionStatus !== "connected") return;
-
-    shell.sendSystemCommand("toggle_pause");
-  };
-
   // --- IFRAME LOGIC ---
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [, setIframeLoaded] = useState(false);
@@ -106,12 +97,6 @@ function ControllerContentInner() {
 
   return (
     <ControllerShell
-      connectionStatus={shell.connectionStatus}
-      roomId={shell.roomId}
-      gameState={shell.gameState}
-      onReconnect={handleReconnect}
-      onTogglePlayPause={handleTogglePlayPause}
-      onRefresh={() => window.location.reload()}
       forceOrientation={shell.activeUrl ? undefined : "portrait"}
       customActions={
         shell.activeUrl ? (

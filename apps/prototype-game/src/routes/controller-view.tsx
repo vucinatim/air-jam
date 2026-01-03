@@ -148,15 +148,7 @@ const ActionControl = ({
 // --- Main View Content ---
 
 const ControllerContent = () => {
-  const {
-    roomId,
-    connectionStatus,
-    sendInput,
-    sendSystemCommand,
-    gameState,
-    reconnect,
-    socket,
-  } = useAirJamController();
+  const { connectionStatus, sendInput, socket } = useAirJamController();
   const audio = useAudio(SOUND_MANIFEST);
 
   // Create a stable store instance
@@ -203,37 +195,8 @@ const ControllerContent = () => {
 
   // Engine sounds are now handled on host, removed from controller
 
-  const handleTogglePlayPause = (): void => {
-    if (connectionStatus !== "connected") return;
-
-    audio.play("click");
-    vibrate([50, 50, 50]);
-
-    // Use system command for pause toggle
-    sendSystemCommand("toggle_pause");
-  };
-
-  const handleReconnect = (roomCode: string): void => {
-    // Update URL with new room code and reload to reconnect
-    const url = new URL(window.location.href);
-    url.searchParams.set("room", roomCode);
-    window.location.href = url.toString();
-  };
-
-  const handleRefresh = (): void => {
-    reconnect();
-  };
-
   return (
-    <ControllerShell
-      roomId={roomId}
-      connectionStatus={connectionStatus}
-      forceOrientation="landscape"
-      gameState={gameState}
-      onTogglePlayPause={handleTogglePlayPause}
-      onReconnect={handleReconnect}
-      onRefresh={handleRefresh}
-    >
+    <ControllerShell forceOrientation="landscape">
       <div className="flex h-full w-full touch-none items-stretch gap-2 select-none">
         {/* Left Side - Left/Right Controls */}
         <div className="flex flex-1 items-center justify-center gap-2">

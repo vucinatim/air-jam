@@ -5,10 +5,8 @@ export * from "./context";
 export * from "./audio";
 
 // Components
-export * from "./components/air-jam-debug";
-export * from "./components/air-jam-overlay";
 export * from "./components/controller-shell";
-export * from "./components/debug-state-dialog";
+export * from "./components/host-shell";
 export * from "./components/player-avatar";
 export * from "./components/ui/button";
 export * from "./components/ui/slider";
