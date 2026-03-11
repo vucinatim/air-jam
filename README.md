@@ -113,6 +113,7 @@ pnpm install
 ```
 
 This scaffolds a complete project with:
+
 - Working Pong game template
 - Local development server setup
 - SDK configuration
@@ -184,6 +185,7 @@ pnpm drizzle-kit push
 The server can be deployed as a Node.js application:
 
 1. **Build the server**:
+
    ```bash
    cd packages/server
    pnpm build
@@ -204,12 +206,14 @@ The server can be deployed as a Node.js application:
 #### Environment Variables Summary
 
 **Platform** (`apps/platform`):
+
 - `DATABASE_URL`: PostgreSQL connection
 - `BETTER_AUTH_SECRET`: Auth secret
 - `BETTER_AUTH_URL`: Production URL
 - `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Server URL
 
 **Server** (`packages/server`):
+
 - `DATABASE_URL`: PostgreSQL connection
 - `AIR_JAM_MASTER_KEY`: Master key (required for production)
 - `PORT`: Server port (default: 4000)
@@ -224,6 +228,7 @@ Games built with Air Jam are static web applications. Deploy to:
 - **Cloudflare Pages**: Fast global CDN
 
 Set environment variables:
+
 - `VITE_AIR_JAM_SERVER_URL` or `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL
 - `VITE_AIR_JAM_API_KEY` or `NEXT_PUBLIC_AIR_JAM_API_KEY`: Your API key (from platform dashboard)
 
@@ -246,6 +251,7 @@ MIT License
 ## Acknowledgments
 
 Built with:
+
 - [React](https://react.dev/)
 - [Next.js](https://nextjs.org/)
 - [Socket.IO](https://socket.io/)

@@ -1,5 +1,5 @@
-import { defineConfig } from "tsup";
 import { chmod, readFile, writeFile } from "node:fs/promises";
+import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: {
@@ -20,4 +20,3 @@ export default defineConfig({
     await chmod(cliPath, 0o755);
   },
 });
-

@@ -35,8 +35,9 @@ export function TeamSwitcher({
     return null;
   }
 
-  const ActiveLogo = activeTeam.logo as React.ComponentType<{ className?: string }>;
-
+  const ActiveLogo = activeTeam.logo as React.ComponentType<{
+    className?: string;
+  }>;
 
   return (
     <SidebarMenu>
@@ -74,7 +75,9 @@ export function TeamSwitcher({
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">
                   {(() => {
-                    const TeamLogo = team.logo as React.ComponentType<{ className?: string }>;
+                    const TeamLogo = team.logo as React.ComponentType<{
+                      className?: string;
+                    }>;
                     return <TeamLogo className="size-3.5 shrink-0" />;
                   })()}
                 </div>

@@ -145,14 +145,22 @@ async function main() {
 
   console.log("Next steps:\n");
   console.log(kleur.cyan(`  cd ${projectName}`));
-  console.log(kleur.cyan("  cp .env.example .env"));
-  console.log(
-    kleur.cyan(
-      "  # Edit .env and set AIR_JAM_MASTER_KEY (optional for local dev)",
-    ),
-  );
+  console.log(kleur.cyan("  cp .env.example .env.local"));
   console.log(kleur.cyan("  pnpm run dev:server  # Terminal 1 - Start server"));
   console.log(kleur.cyan("  pnpm run dev         # Terminal 2 - Start game"));
+  console.log(
+    kleur.cyan(
+      "  # Optional HTTPS mode (needed for gyro/camera testing on phones)",
+    ),
+  );
+  console.log(
+    kleur.cyan(
+      "  pnpm run secure:init -- --hostname my-game-dev.example.com --tunnel my-game-dev",
+    ),
+  );
+  console.log(
+    kleur.cyan("  pnpm run dev:secure  # Optional HTTPS mode for sensors"),
+  );
   console.log("");
   console.log(
     kleur.dim(

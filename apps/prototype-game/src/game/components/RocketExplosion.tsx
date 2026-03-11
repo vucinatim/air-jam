@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/purity */
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";

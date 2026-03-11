@@ -32,7 +32,6 @@ export class SocketManager {
 
     const socket = io(this.serverUrl, {
       autoConnect: false,
-      transports: ["websocket"],
       query: { role },
     }) as AirJamSocket;
 

@@ -11,12 +11,19 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@air-jam/sdk": path.resolve(__dirname, "../../../sdk/src"),
     },
   },
   server: {
     host: true,
+    allowedHosts: true,
     port: 5173,
+    proxy: {
+      "/socket.io": {
+        target: "http://127.0.0.1:4000",
+        ws: true,
+        changeOrigin: true,
+      },
+    },
     headers: {
       // Required for embedding in Air Jam platform iframe
       "Content-Security-Policy": "frame-ancestors *;",
@@ -25,6 +32,7 @@ export default defineConfig({
   },
   preview: {
     host: true,
+    allowedHosts: true,
     port: 5173,
     headers: {
       "Content-Security-Policy": "frame-ancestors *;",

@@ -18,13 +18,7 @@ export const SdkArchitectureDiagram = () => {
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
-          <linearGradient
-            id="sdkGradient"
-            x1="0%"
-            y1="0%"
-            x2="0%"
-            y2="100%"
-          >
+          <linearGradient id="sdkGradient" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor={diagramColors.gradientStart} />
             <stop offset="100%" stopColor={diagramColors.gradientEnd} />
           </linearGradient>
@@ -317,4 +311,3 @@ export const SdkArchitectureDiagram = () => {
     </div>
   );
 };
-

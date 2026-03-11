@@ -1,6 +1,8 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import {
+  Bot,
   Code2,
   Cpu,
   Info,
@@ -27,6 +29,19 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { DOCS_SECTIONS, type DocsIcon } from "@/lib/docs-index";
+
+const ICONS: Record<DocsIcon, LucideIcon> = {
+  info: Info,
+  rocket: Rocket,
+  lightbulb: Lightbulb,
+  layers: Layers,
+  cpu: Cpu,
+  code: Code2,
+  zap: Zap,
+  network: Network,
+  bot: Bot,
+};
 
 export function DocsSidebar({
   ...props
@@ -62,111 +77,30 @@ export function DocsSidebar({
       </div>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Getting Started</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/getting-started/introduction"}
-              >
-                <Link href="/docs/getting-started/introduction">
-                  <Info />
-                  <span>Introduction</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/getting-started/quick-start"}
-              >
-                <Link href="/docs/getting-started/quick-start">
-                  <Rocket />
-                  <span>Quick Start</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/getting-started/game-ideas"}
-              >
-                <Link href="/docs/getting-started/game-ideas">
-                  <Lightbulb />
-                  <span>Game Ideas</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>How it Works</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/how-it-works/architecture"}
-              >
-                <Link href="/docs/how-it-works/architecture">
-                  <Layers />
-                  <span>Architecture</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/how-it-works/host-system"}
-              >
-                <Link href="/docs/how-it-works/host-system">
-                  <Cpu />
-                  <span>Host System</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>SDK</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/sdk/hooks"}
-              >
-                <Link href="/docs/sdk/hooks">
-                  <Code2 />
-                  <span>Hooks</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/sdk/input-system"}
-              >
-                <Link href="/docs/sdk/input-system">
-                  <Zap />
-                  <span>Input System</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === "/docs/sdk/networked-state"}
-              >
-                <Link href="/docs/sdk/networked-state">
-                  <Network />
-                  <span>Networked State</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+        {DOCS_SECTIONS.map((section) => (
+          <SidebarGroup key={section.title}>
+            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+            <SidebarMenu>
+              {section.pages.map((page) => {
+                const Icon = ICONS[page.icon];
+                return (
+                  <SidebarMenuItem key={page.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === page.href}
+                      tooltip={page.title}
+                    >
+                      <Link href={page.href}>
+                        <Icon />
+                        <span>{page.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarRail />

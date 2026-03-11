@@ -7,15 +7,17 @@ A starter template for building multiplayer games with Air Jam. This template in
 ### Installation
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 2. Configure environment variables (optional - defaults work for local dev):
+
    ```bash
-   mv .env.example .env.local
+   cp .env.example .env.local
    ```
-   
+
    Then edit `.env.local` with your settings if needed.
 
 ## Local Development
@@ -23,6 +25,7 @@ A starter template for building multiplayer games with Air Jam. This template in
 ### Option 1: Run Server and Game Separately (Recommended)
 
 **Terminal 1 - Start the local server:**
+
 ```bash
 pnpm run dev:server
 ```
@@ -30,6 +33,7 @@ pnpm run dev:server
 The server will start on `http://localhost:4000` in development mode (no authentication required).
 
 **Terminal 2 - Start the game:**
+
 ```bash
 pnpm run dev
 ```
@@ -50,6 +54,36 @@ If you prefer to use the official Air Jam server instead of running locally:
    ```bash
    pnpm run dev
    ```
+
+### Option 3: Optional HTTPS for Device Sensors (Gyroscope/Camera)
+
+Most local development works on plain HTTP. Use this only when you need secure browser APIs (gyroscope, motion sensors, some camera APIs).
+
+One-time setup per project:
+
+1. Log in to Cloudflare Tunnel:
+   ```bash
+   cloudflared tunnel login
+   ```
+2. Initialize secure mode:
+   ```bash
+   pnpm run secure:init -- --hostname my-game-dev.example.com --tunnel my-game-dev
+   ```
+   This writes `.cloudflared/config.yml` and updates `.env.local`.
+
+Daily secure dev:
+
+```bash
+pnpm run dev:secure
+```
+
+What `dev:secure` does:
+
+- starts local Air Jam server on `http://localhost:4000`
+- starts Vite on `http://localhost:5173`
+- runs your named Cloudflare tunnel
+- serves your host/controller over the configured HTTPS hostname
+- injects `VITE_AIR_JAM_SERVER_URL` and `VITE_AIR_JAM_PUBLIC_HOST` at runtime from `AIR_JAM_SECURE_PUBLIC_HOST`
 
 ## Playing the Game
 
@@ -75,6 +109,8 @@ See `.env.example` for all available environment variables. Key variables:
 
 - `VITE_AIR_JAM_SERVER_URL` - Server URL (defaults to localhost:4000 for local dev)
 - `VITE_AIR_JAM_API_KEY` - API key (optional for local dev, required for production)
+- `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev:secure` for host/controller URLs
+- `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev:secure`
 
 ## Production Deployment
 
@@ -108,4 +144,3 @@ The built files will be in the `dist/` directory.
 ## License
 
 MIT
-

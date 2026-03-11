@@ -13,12 +13,14 @@ Air Jam consists of four main components in a monorepo structure. This page expl
 **Technology:** Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
 
 **Key Features:**
+
 - **Developer Portal** - Account management, API key generation, analytics
 - **Game Catalog** - Submit, manage, and discover Air Jam games
 - **Arcade Mode** - Browse and launch games from a unified interface
 - **Controller Shell** - Persistent mobile wrapper that loads game controllers
 
 **Arcade Mode Flow:**
+
 ```
 1. Player scans QR on arcade screen
 2. Platform loads controller shell on phone
@@ -59,6 +61,7 @@ Air Jam consists of four main components in a monorepo structure. This page expl
 **Technology:** React, Vite, React Three Fiber, Rapier Physics
 
 **Demonstrates:**
+
 - Host-side game logic with physics
 - Controller UI with joystick and buttons
 - Player spawning/despawning on join/leave

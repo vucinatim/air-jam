@@ -59,7 +59,7 @@
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --airjam: oklch(0.7 0.25 200);
-  --airjam-cyan: #00D3F3;
+  --airjam-cyan: #00d3f3;
   --airjam-magenta: oklch(0.6 0.25 320);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -96,7 +96,7 @@
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --airjam: oklch(0.75 0.3 200);
-  --airjam-cyan: #00D3F3;
+  --airjam-cyan: #00d3f3;
   --airjam-magenta: oklch(0.6 0.25 320);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -135,7 +135,7 @@
 @layer components {
   /* Neon Glow Button */
   .neon-glow-button {
-    box-shadow: 
+    box-shadow:
       0 0 10px rgba(0, 211, 243, 0.8),
       0 0 30px rgba(0, 211, 243, 0.6),
       0 0 60px rgba(0, 211, 243, 0.5),
@@ -146,7 +146,7 @@
   }
 
   .neon-glow-button:hover {
-    box-shadow: 
+    box-shadow:
       0 0 15px rgba(0, 211, 243, 1),
       0 0 40px rgba(0, 211, 243, 0.8),
       0 0 80px rgba(0, 211, 243, 0.7),
@@ -156,8 +156,9 @@
   }
 
   @keyframes neon-pulse {
-    0%, 100% {
-      box-shadow: 
+    0%,
+    100% {
+      box-shadow:
         0 0 10px rgba(0, 211, 243, 0.8),
         0 0 30px rgba(0, 211, 243, 0.6),
         0 0 60px rgba(0, 211, 243, 0.5),
@@ -166,7 +167,7 @@
         inset 0 0 20px rgba(0, 211, 243, 0.1);
     }
     50% {
-      box-shadow: 
+      box-shadow:
         0 0 15px rgba(0, 211, 243, 1),
         0 0 40px rgba(0, 211, 243, 0.8),
         0 0 80px rgba(0, 211, 243, 0.7),

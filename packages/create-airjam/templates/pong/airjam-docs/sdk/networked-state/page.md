@@ -572,4 +572,4 @@ const useGameStore = createAirJamStore<GameState>((set) => ({
 
 - [SDK Hooks](/docs/sdk/hooks) - Other SDK hooks and utilities
 - [Input System](/docs/sdk/input-system) - Handling controller input
-- [Architecture](/docs/getting-started/architecture) - System overview
+- [Architecture](/docs/how-it-works/architecture) - System overview

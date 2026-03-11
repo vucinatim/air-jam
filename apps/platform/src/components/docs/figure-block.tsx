@@ -1,6 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import React, { type HTMLAttributes, type ReactElement, type ReactNode } from "react";
+import React, {
+  type HTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 export interface FigureBlockProps extends HTMLAttributes<HTMLElement> {
   children?: ReactNode;
@@ -23,7 +27,11 @@ export default function FigureBlock({
 }: FigureBlockProps) {
   // Only handle Shiki-transformed code blocks
   if (!isShikiFigure) {
-    return <figure className={className} {...props}>{children}</figure>;
+    return (
+      <figure className={className} {...props}>
+        {children}
+      </figure>
+    );
   }
 
   // Find the pre element and then the code element inside it
@@ -138,4 +146,3 @@ export default function FigureBlock({
     </figure>
   );
 }
-

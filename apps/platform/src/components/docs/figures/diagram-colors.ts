@@ -31,5 +31,3 @@ export const diagramColors = {
   gradientStartPink: "rgba(255, 16, 240, 0.1)", // neon pink
   gradientEndPink: "rgba(255, 16, 240, 0.05)",
 };
-
-

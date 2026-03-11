@@ -6,8 +6,8 @@
  */
 
 import dotenv from "dotenv";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Load .env file if it exists
 const __filename = fileURLToPath(import.meta.url);
@@ -16,4 +16,3 @@ dotenv.config({ path: join(__dirname, "..", ".env") });
 
 // Import and start the server
 import "./index.js";
-

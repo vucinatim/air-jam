@@ -1,3 +1,4 @@
+import { getSiteUrl } from "@/lib/site-url";
 import { TRPCReactProvider } from "@/trpc/react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -14,8 +15,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Air Jam Platform",
-  description: "The home of Air Jam Arcade",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: "Air Jam Platform",
+    template: "%s | Air Jam",
+  },
+  description:
+    "Air Jam docs and platform for QR-code multiplayer controllers and SDK integration.",
 };
 
 export default function RootLayout({

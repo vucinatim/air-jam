@@ -7,6 +7,8 @@ import { gameInputSchema } from "./types";
 export function App() {
   return (
     <AirJamProvider
+      serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
+      publicHost={import.meta.env.VITE_AIR_JAM_PUBLIC_HOST}
       input={{
         schema: gameInputSchema,
         latch: {

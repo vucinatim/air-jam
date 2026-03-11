@@ -182,6 +182,7 @@ const AirJamContext = createContext<AirJamContextValue | null>(null);
 interface ImportMetaEnv {
   VITE_AIR_JAM_SERVER_URL?: string;
   VITE_AIR_JAM_API_KEY?: string;
+  VITE_AIR_JAM_PUBLIC_HOST?: string;
 }
 
 const getViteEnv = (): ImportMetaEnv | undefined => {
@@ -231,6 +232,25 @@ const getEnvApiKey = (): string | undefined => {
   if (typeof process !== "undefined" && process.env) {
     const nextKey = process.env.NEXT_PUBLIC_AIR_JAM_API_KEY;
     if (nextKey) return nextKey;
+  }
+
+  return undefined;
+};
+
+/**
+ * Attempts to read public host from various environment variable formats
+ */
+const getEnvPublicHost = (): string | undefined => {
+  // Vite
+  const viteEnv = getViteEnv();
+  if (viteEnv?.VITE_AIR_JAM_PUBLIC_HOST) {
+    return viteEnv.VITE_AIR_JAM_PUBLIC_HOST;
+  }
+
+  // Next.js / Node
+  if (typeof process !== "undefined" && process.env) {
+    const nextHost = process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
+    if (nextHost) return nextHost;
   }
 
   return undefined;
@@ -310,7 +330,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       serverUrl: serverUrl ?? getEnvServerUrl(),
       apiKey: apiKey ?? getEnvApiKey(),
       maxPlayers,
-      publicHost,
+      publicHost: publicHost ?? getEnvPublicHost(),
     }),
     [serverUrl, apiKey, maxPlayers, publicHost],
   );

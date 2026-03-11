@@ -3,10 +3,10 @@ name: Create Release from Tag
 on:
   push:
     tags:
-      - 'sdk-v*'
-      - 'server-v*'
-      - 'create-airjam-v*'
-      - 'v*'
+      - "sdk-v*"
+      - "server-v*"
+      - "create-airjam-v*"
+      - "v*"
 
 jobs:
   create-release:
@@ -23,7 +23,7 @@ jobs:
         id: tag-info
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          
+
           if [[ "$TAG_NAME" == sdk-v* ]]; then
             PACKAGE="sdk"
             VERSION=${TAG_NAME#sdk-v}
@@ -44,7 +44,7 @@ jobs:
             echo "Unknown tag format: $TAG_NAME"
             exit 1
           fi
-          
+
           echo "package=$PACKAGE" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
@@ -57,11 +57,11 @@ jobs:
           name: ${{ steps.tag-info.outputs.package_name }} v${{ steps.tag-info.outputs.version }}
           body: |
             ## ${{ steps.tag-info.outputs.package_name }} v${{ steps.tag-info.outputs.version }}
-            
+
             Published to npm: [`${{ steps.tag-info.outputs.package_name }}@${{ steps.tag-info.outputs.version }}`](https://www.npmjs.com/package/${{ steps.tag-info.outputs.package_name }})
-            
+
             ### Installation
-            
+
             ```bash
             npm install ${{ steps.tag-info.outputs.package_name }}@${{ steps.tag-info.outputs.version }}
             ```

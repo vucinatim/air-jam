@@ -6,25 +6,27 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "air-jam-server",
+    "secure:init": "node ./scripts/secure-init.mjs",
+    "dev:secure": "node ./scripts/dev-secure.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@air-jam/sdk": "workspace:*",
+    "@air-jam/sdk": "^0.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0",
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@air-jam/server": "workspace:*",
+    "@air-jam/server": "^0.1.3",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
-    "@types/node": "^22.0.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -33,6 +35,7 @@
     "tailwindcss": "^4.0.0",
     "typescript": "~5.6.0",
     "typescript-eslint": "^8.46.4",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "cloudflared": "^0.7.1"
   }
 }

@@ -25,7 +25,7 @@ You'll need two terminal windows to run the local development environment: one f
 This runs the local WebSocket server that handles game connections.
 
 ```bash
-pnpm dev:server
+pnpm run dev:server
 ```
 
 > **Note:** The local server runs on `http://localhost:4000`.
@@ -34,7 +34,7 @@ pnpm dev:server
 This runs the game client (Vite).
 
 ```bash
-pnpm dev
+pnpm run dev
 ```
 
 ## 3. Play the Game
@@ -44,9 +44,30 @@ Open your browser and visit:
 [http://localhost:5173](http://localhost:5173)
 
 You should see the Pong template game. You can now:
+
 1.  Open the game in your browser (Host view)
 2.  Scan the QR code with your phone (Controller view)
 3.  Play the game!
+
+## Optional: HTTPS for Motion Sensors
+
+Most local Air Jam development works on HTTP. Enable HTTPS only when you need secure browser APIs such as gyroscope or motion sensors.
+
+1. One-time Cloudflare login:
+   ```bash
+   cloudflared tunnel login
+   ```
+2. One-time project secure setup:
+   ```bash
+   pnpm run secure:init -- --hostname my-game-dev.example.com --tunnel my-game-dev
+   ```
+3. Run secure dev:
+   ```bash
+   pnpm run dev:secure
+   ```
+
+This keeps the local Air Jam server on `http://localhost:4000`, tunnels only the Vite host URL through HTTPS, and uses that secure host for controller QR URLs.
+`dev:secure` injects secure `VITE_AIR_JAM_SERVER_URL` and `VITE_AIR_JAM_PUBLIC_HOST` at runtime from `AIR_JAM_SECURE_PUBLIC_HOST`.
 
 ## 4. Customize & Build
 
