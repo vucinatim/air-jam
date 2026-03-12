@@ -74,10 +74,14 @@ const CONTROLLER_JOIN_RATE_LIMIT_MAX = parsePositiveInt(
   120,
 );
 const allowedOrigins = process.env.AIR_JAM_ALLOWED_ORIGINS?.split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/^['"]|['"]$/g, ""))
   .filter(Boolean);
 const corsOrigin =
-  allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : "*";
+  !allowedOrigins ||
+  allowedOrigins.length === 0 ||
+  allowedOrigins.includes("*")
+    ? "*"
+    : allowedOrigins;
 
 const app = express();
 app.use(cors({ origin: corsOrigin }));
