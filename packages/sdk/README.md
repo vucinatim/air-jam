@@ -23,7 +23,7 @@ function MyGame() {
   const { roomId, joinUrl, connectionStatus, players } = useAirJamHost({
     roomId: "MYROOM", // Optional: Custom room ID
     maxPlayers: 4,
-    apiKey: process.env.AIR_JAM_API_KEY, // Required for production
+    apiKey: import.meta.env.VITE_AIR_JAM_PUBLIC_KEY, // Required for production (legacy: VITE_AIR_JAM_API_KEY)
     onPlayerJoin: (player) => console.log("Player joined:", player),
     onInput: (event) => {
       console.log("Input from", event.controllerId, event.input);

@@ -43,6 +43,7 @@ import { createServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 import { authService } from "./services/auth-service.js";
+import { rateLimitService } from "./services/rate-limit-service.js";
 import { roomManager } from "./services/room-manager.js";
 import type { ControllerSession, RoomSession } from "./types.js";
 import { generateRoomCode } from "./utils/ids.js";
@@ -51,10 +52,35 @@ import { generateRoomCode } from "./utils/ids.js";
 let lastServerInputLogTime = 0;
 let lastServerInputFailLogTime = 0;
 
+const parsePositiveInt = (
+  value: string | undefined,
+  fallback: number,
+): number => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 const PORT = Number(process.env.PORT ?? 4000);
+const RATE_LIMIT_WINDOW_MS = parsePositiveInt(
+  process.env.AIR_JAM_RATE_LIMIT_WINDOW_MS,
+  60_000,
+);
+const HOST_REGISTRATION_RATE_LIMIT_MAX = parsePositiveInt(
+  process.env.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX,
+  30,
+);
+const CONTROLLER_JOIN_RATE_LIMIT_MAX = parsePositiveInt(
+  process.env.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX,
+  120,
+);
+const allowedOrigins = process.env.AIR_JAM_ALLOWED_ORIGINS?.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const corsOrigin =
+  allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : "*";
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 app.get("/health", (_, res) => {
@@ -70,7 +96,7 @@ const io = new Server<
   SocketData
 >(httpServer, {
   cors: {
-    origin: "*",
+    origin: corsOrigin,
   },
   pingInterval: 2000,
   pingTimeout: 5000,
@@ -90,10 +116,56 @@ io.on(
       SocketData
     >,
   ) => {
+    const isHostAuthorizedForRoom = (roomId: string): boolean => {
+      return roomManager.getRoomByHostId(socket.id) === roomId;
+    };
+
+    const isControllerAuthorizedForRoom = (
+      roomId: string,
+      controllerId?: string,
+    ): boolean => {
+      const controllerInfo = roomManager.getControllerInfo(socket.id);
+      if (!controllerInfo || controllerInfo.roomId !== roomId) {
+        return false;
+      }
+      if (controllerId && controllerInfo.controllerId !== controllerId) {
+        return false;
+      }
+      return true;
+    };
+
+    const forwardedFor = socket.handshake.headers["x-forwarded-for"];
+    const socketIdentifier =
+      (typeof forwardedFor === "string" &&
+        forwardedFor.split(",")[0]?.trim()) ||
+      (Array.isArray(forwardedFor) && forwardedFor[0]?.split(",")[0]?.trim()) ||
+      socket.handshake.address ||
+      socket.id;
+
+    const isRateLimited = (bucket: string, limit: number): boolean => {
+      const result = rateLimitService.check(
+        `${bucket}:${socketIdentifier}`,
+        limit,
+        RATE_LIMIT_WINDOW_MS,
+      );
+      return !result.allowed;
+    };
+
     // --- SYSTEM HOST REGISTRATION (Arcade) ---
     socket.on(
       "host:registerSystem",
       async (payload: HostRegisterSystemPayload, callback) => {
+        if (
+          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
+        ) {
+          callback({
+            ok: false,
+            message: "Too many host registration attempts. Please try again.",
+            code: ErrorCode.SERVICE_UNAVAILABLE,
+          });
+          return;
+        }
+
         const parsed = hostRegisterSystemSchema.safeParse(payload);
         if (!parsed.success) {
           callback({
@@ -160,6 +232,17 @@ io.on(
           code?: ErrorCode | string;
         }) => void,
       ) => {
+        if (
+          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
+        ) {
+          callback({
+            ok: false,
+            message: "Too many host registration attempts. Please try again.",
+            code: ErrorCode.SERVICE_UNAVAILABLE,
+          });
+          return;
+        }
+
         const parsed = hostCreateRoomSchema.safeParse(payload);
         if (!parsed.success) {
           callback({
@@ -172,17 +255,15 @@ io.on(
 
         const { maxPlayers, apiKey } = parsed.data;
 
-        // API Key Validation (if provided)
-        if (apiKey) {
-          const verification = await authService.verifyApiKey(apiKey);
-          if (!verification.isVerified) {
-            callback({
-              ok: false,
-              message: verification.error,
-              code: ErrorCode.INVALID_API_KEY,
-            });
-            return;
-          }
+        // API key validation is always executed; in local/dev mode auth is disabled.
+        const verification = await authService.verifyApiKey(apiKey);
+        if (!verification.isVerified) {
+          callback({
+            ok: false,
+            message: verification.error,
+            code: ErrorCode.INVALID_API_KEY,
+          });
+          return;
         }
 
         // IDEMPOTENCY: Check if this socket already has a room
@@ -250,6 +331,17 @@ io.on(
           code?: ErrorCode | string;
         }) => void,
       ) => {
+        if (
+          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
+        ) {
+          callback({
+            ok: false,
+            message: "Too many host registration attempts. Please try again.",
+            code: ErrorCode.SERVICE_UNAVAILABLE,
+          });
+          return;
+        }
+
         const parsed = hostReconnectSchema.safeParse(payload);
         if (!parsed.success) {
           callback({
@@ -262,17 +354,15 @@ io.on(
 
         const { roomId, apiKey } = parsed.data;
 
-        // API Key Validation (if provided)
-        if (apiKey) {
-          const verification = await authService.verifyApiKey(apiKey);
-          if (!verification.isVerified) {
-            callback({
-              ok: false,
-              message: verification.error,
-              code: ErrorCode.INVALID_API_KEY,
-            });
-            return;
-          }
+        // API key validation is always executed; in local/dev mode auth is disabled.
+        const verification = await authService.verifyApiKey(apiKey);
+        if (!verification.isVerified) {
+          callback({
+            ok: false,
+            message: verification.error,
+            code: ErrorCode.INVALID_API_KEY,
+          });
+          return;
         }
 
         const session = roomManager.getRoom(roomId);
@@ -510,6 +600,17 @@ io.on(
     socket.on(
       "host:register",
       async (payload: HostRegistrationPayload, callback) => {
+        if (
+          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
+        ) {
+          callback({
+            ok: false,
+            message: "Too many host registration attempts. Please try again.",
+            code: ErrorCode.SERVICE_UNAVAILABLE,
+          });
+          return;
+        }
+
         const parsed = hostRegistrationSchema.safeParse(payload);
         if (!parsed.success) {
           callback({
@@ -519,7 +620,18 @@ io.on(
           });
           return;
         }
-        const { roomId, maxPlayers } = parsed.data;
+        const { roomId, maxPlayers, apiKey } = parsed.data;
+
+        // API key validation is always executed; in local/dev mode auth is disabled.
+        const verification = await authService.verifyApiKey(apiKey);
+        if (!verification.isVerified) {
+          callback({
+            ok: false,
+            message: verification.error,
+            code: ErrorCode.INVALID_API_KEY,
+          });
+          return;
+        }
 
         // If mode is 'child', we should redirect them to use host:join_as_child if possible,
         // but for standalone dev, they might use this.
@@ -551,6 +663,15 @@ io.on(
     );
 
     socket.on("controller:join", (payload: ControllerJoinPayload, callback) => {
+      if (isRateLimited("controller-join", CONTROLLER_JOIN_RATE_LIMIT_MAX)) {
+        callback({
+          ok: false,
+          message: "Too many join attempts. Please try again.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
       const parsed = controllerJoinSchema.safeParse(payload);
       if (!parsed.success) {
         callback({
@@ -701,6 +822,12 @@ io.on(
         return;
       }
       const { roomId, controllerId } = parsed.data;
+
+      // Prevent forged leave events from other sockets.
+      if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+        return;
+      }
+
       const session = roomManager.getRoom(roomId);
       if (!session) {
         return;
@@ -750,7 +877,13 @@ io.on(
         return;
       }
 
-      const { roomId } = result.data;
+      const { roomId, controllerId } = result.data;
+
+      // Only the socket that joined this controller can send its input.
+      if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+        return;
+      }
+
       const session = roomManager.getRoom(roomId);
       if (!session) {
         if (
@@ -787,6 +920,12 @@ io.on(
       }
 
       const { roomId, command } = parsed.data;
+
+      // Only joined controllers from this room can trigger system commands.
+      if (!isControllerAuthorizedForRoom(roomId)) {
+        return;
+      }
+
       const session = roomManager.getRoom(roomId);
       if (!session) {
         return;
@@ -842,6 +981,12 @@ io.on(
       }
 
       const { roomId, command } = parsed.data;
+
+      // Only host sockets for this room can mutate host-controlled system state.
+      if (!isHostAuthorizedForRoom(roomId)) {
+        return;
+      }
+
       const session = roomManager.getRoom(roomId);
       if (!session) {
         return;
@@ -869,6 +1014,10 @@ io.on(
       if (!result.success) return;
 
       const { roomId, state } = result.data;
+      if (!isHostAuthorizedForRoom(roomId)) {
+        return;
+      }
+
       const session = roomManager.getRoom(roomId);
       if (session) {
         // Sync state if provided
@@ -927,6 +1076,11 @@ io.on(
 
     socket.on("controller:play_sound", (payload: PlaySoundEventPayload) => {
       const { roomId, soundId, volume, loop } = payload;
+
+      if (!isControllerAuthorizedForRoom(roomId)) {
+        return;
+      }
+
       const session = roomManager.getRoom(roomId);
       if (!session) return;
 

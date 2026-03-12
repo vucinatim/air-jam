@@ -43,7 +43,8 @@ const inputSchema = z.object({
 The provider automatically reads from these environment variables if props aren't provided:
 
 - `VITE_AIR_JAM_SERVER_URL` / `NEXT_PUBLIC_AIR_JAM_SERVER_URL` - WebSocket server URL
-- `VITE_AIR_JAM_API_KEY` / `NEXT_PUBLIC_AIR_JAM_API_KEY` - API key
+- `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY` - Public API key
+- `VITE_AIR_JAM_API_KEY` / `NEXT_PUBLIC_AIR_JAM_API_KEY` - Legacy public key variable (still supported)
 
 ---
 

@@ -93,7 +93,7 @@ When you're ready to share your game, you'll need to deploy it and connect it to
     - Set the following environment variables in your deployment settings:
 
     ```bash
-    VITE_AIR_JAM_API_KEY=your_api_key_here
+    VITE_AIR_JAM_PUBLIC_KEY=your_public_key_here
     VITE_AIR_JAM_SERVER_URL=wss://api.air-jam.app
     ```
 

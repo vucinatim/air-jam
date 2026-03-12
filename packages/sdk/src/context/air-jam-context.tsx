@@ -118,7 +118,8 @@ export interface AirJamProviderProps<
   serverUrl?: string;
   /**
    * API key for production authentication.
-   * Falls back to VITE_AIR_JAM_API_KEY or NEXT_PUBLIC_AIR_JAM_API_KEY environment variables.
+   * Falls back to VITE_AIR_JAM_PUBLIC_KEY or NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY
+   * (legacy: VITE_AIR_JAM_API_KEY / NEXT_PUBLIC_AIR_JAM_API_KEY).
    */
   apiKey?: string;
   /**
@@ -181,6 +182,7 @@ const AirJamContext = createContext<AirJamContextValue | null>(null);
 // Type-safe access to import.meta.env (Vite)
 interface ImportMetaEnv {
   VITE_AIR_JAM_SERVER_URL?: string;
+  VITE_AIR_JAM_PUBLIC_KEY?: string;
   VITE_AIR_JAM_API_KEY?: string;
   VITE_AIR_JAM_PUBLIC_HOST?: string;
 }
@@ -224,12 +226,18 @@ const getEnvServerUrl = (): string | undefined => {
 const getEnvApiKey = (): string | undefined => {
   // Vite
   const viteEnv = getViteEnv();
+  if (viteEnv?.VITE_AIR_JAM_PUBLIC_KEY) {
+    return viteEnv.VITE_AIR_JAM_PUBLIC_KEY;
+  }
   if (viteEnv?.VITE_AIR_JAM_API_KEY) {
     return viteEnv.VITE_AIR_JAM_API_KEY;
   }
 
   // Next.js / Node
   if (typeof process !== "undefined" && process.env) {
+    const nextPublicKey = process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY;
+    if (nextPublicKey) return nextPublicKey;
+
     const nextKey = process.env.NEXT_PUBLIC_AIR_JAM_API_KEY;
     if (nextKey) return nextKey;
   }

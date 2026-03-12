@@ -192,8 +192,8 @@ The server can be deployed as a Node.js application:
    ```
 
 2. **Deploy to Railway/Render/Fly.io**:
-   - Set `DATABASE_URL` environment variable
-   - Set `AIR_JAM_MASTER_KEY` for production mode
+   - Set `DATABASE_URL` and/or `AIR_JAM_MASTER_KEY` for API key verification
+   - (Optional) Set `AIR_JAM_ALLOWED_ORIGINS` to your app domains
    - Set `PORT` (defaults to 4000)
    - Run `node dist/cli.js` or `pnpm start`
 
@@ -214,8 +214,13 @@ The server can be deployed as a Node.js application:
 
 **Server** (`packages/server`):
 
-- `DATABASE_URL`: PostgreSQL connection
-- `AIR_JAM_MASTER_KEY`: Master key (required for production)
+- `DATABASE_URL`: PostgreSQL connection (enables database-backed key validation)
+- `AIR_JAM_MASTER_KEY`: Optional master key for key validation
+- `AIR_JAM_AUTH_MODE`: `disabled` | `required` (default auto: disabled in local dev, required in production)
+- `AIR_JAM_ALLOWED_ORIGINS`: Optional comma-separated CORS allowlist (default `*`)
+- `AIR_JAM_RATE_LIMIT_WINDOW_MS`: Optional rate-limit window in ms (default: `60000`)
+- `AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX`: Optional max host registration attempts per window (default: `30`)
+- `AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX`: Optional max controller joins per window (default: `120`)
 - `PORT`: Server port (default: 4000)
 
 ### Game Deployment
@@ -230,7 +235,7 @@ Games built with Air Jam are static web applications. Deploy to:
 Set environment variables:
 
 - `VITE_AIR_JAM_SERVER_URL` or `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL
-- `VITE_AIR_JAM_API_KEY` or `NEXT_PUBLIC_AIR_JAM_API_KEY`: Your API key (from platform dashboard)
+- `VITE_AIR_JAM_PUBLIC_KEY` or `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY`: Your public API key (legacy supported: `VITE_AIR_JAM_API_KEY` / `NEXT_PUBLIC_AIR_JAM_API_KEY`)
 
 ## Documentation
 

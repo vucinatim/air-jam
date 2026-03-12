@@ -6,7 +6,7 @@
  * This ensures that when the package is published, templates have the correct versions.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -85,6 +85,15 @@ async function updateTemplateViteConfig(templatePath) {
   }
 }
 
+async function cleanupTemplateArtifacts(templatePath) {
+  const removablePaths = ["node_modules", "dist", "dist-ssr"];
+
+  for (const relativePath of removablePaths) {
+    const artifactPath = join(templatePath, relativePath);
+    await rm(artifactPath, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   try {
     // Update all template package.json files
@@ -94,6 +103,7 @@ async function main() {
     for (const template of templates) {
       if (template.isDirectory()) {
         const templatePath = join(templatesDir, template.name);
+        await cleanupTemplateArtifacts(templatePath);
         await updateTemplatePackageJson(templatePath);
         await updateTemplateViteConfig(templatePath);
       }

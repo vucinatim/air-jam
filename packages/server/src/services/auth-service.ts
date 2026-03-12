@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { apiKeys, db } from "../db.js";
 
+type AuthMode = "disabled" | "required";
+
 /**
  * API key verification result
  */
@@ -12,19 +14,20 @@ export interface VerificationResult {
 /**
  * Authentication service
  * Handles API key verification
- * In dev mode (no master key, no database), allows all connections
+ * In local/dev mode, allows all connections by default.
+ * In production, defaults to required auth (fail-closed).
  */
 export class AuthService {
   private masterKey: string | undefined;
   private databaseUrl: string | undefined;
-  private isDevMode: boolean;
+  private authMode: AuthMode;
 
   constructor() {
     this.masterKey = process.env.AIR_JAM_MASTER_KEY;
     this.databaseUrl = process.env.DATABASE_URL;
-    this.isDevMode = !this.masterKey && !this.databaseUrl;
+    this.authMode = this.resolveAuthMode();
 
-    if (this.isDevMode) {
+    if (this.authMode === "disabled") {
       console.log(
         "[server] Running in development mode - authentication disabled",
       );
@@ -34,17 +37,21 @@ export class AuthService {
       );
     } else if (this.databaseUrl) {
       console.log("[server] Running with database authentication");
+    } else {
+      console.log(
+        "[server] Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
+      );
     }
   }
 
   /**
    * Verify an API key
    * Returns verification result with optional error message
-   * In dev mode, always returns success
+   * In local/dev mode, always returns success
    */
   async verifyApiKey(apiKey?: string): Promise<VerificationResult> {
-    // Dev mode: no auth required
-    if (this.isDevMode) {
+    // Local/dev mode: no auth required
+    if (this.authMode === "disabled") {
       return { isVerified: true };
     }
 
@@ -98,6 +105,32 @@ export class AuthService {
         error: "Internal Server Error",
       };
     }
+  }
+
+  private resolveAuthMode(): AuthMode {
+    const configuredMode = process.env.AIR_JAM_AUTH_MODE?.toLowerCase();
+
+    if (configuredMode === "disabled") {
+      return "disabled";
+    }
+
+    if (configuredMode === "required") {
+      return "required";
+    }
+
+    // Auto mode (default):
+    // - Require auth whenever credentials are configured.
+    // - Fail closed in production even if credentials are missing.
+    // - Keep local development friction-free.
+    if (this.masterKey || this.databaseUrl) {
+      return "required";
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      return "required";
+    }
+
+    return "disabled";
   }
 }
 

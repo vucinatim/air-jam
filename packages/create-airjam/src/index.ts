@@ -116,6 +116,14 @@ async function main() {
     },
   });
 
+  // npm packaging can strip/transform template dotfiles like .gitignore.
+  // Keep publish-safe filenames in templates and restore real dotfiles here.
+  const gitignorePlaceholderPath = path.join(targetDir, "_gitignore");
+  const gitignorePath = path.join(targetDir, ".gitignore");
+  if (fs.existsSync(gitignorePlaceholderPath)) {
+    await fs.move(gitignorePlaceholderPath, gitignorePath, { overwrite: true });
+  }
+
   // Update package.json name
   const pkgPath = path.join(targetDir, "package.json");
   if (fs.existsSync(pkgPath)) {

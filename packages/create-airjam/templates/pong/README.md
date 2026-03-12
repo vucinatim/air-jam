@@ -48,7 +48,7 @@ If you prefer to use the official Air Jam server instead of running locally:
 2. Set in `.env.local`:
    ```bash
    VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
-   VITE_AIR_JAM_API_KEY=your-api-key-here
+   VITE_AIR_JAM_PUBLIC_KEY=your-public-key-here
    ```
 3. Run only the game:
    ```bash
@@ -108,7 +108,8 @@ src/
 See `.env.example` for all available environment variables. Key variables:
 
 - `VITE_AIR_JAM_SERVER_URL` - Server URL (defaults to localhost:4000 for local dev)
-- `VITE_AIR_JAM_API_KEY` - API key (optional for local dev, required for production)
+- `VITE_AIR_JAM_PUBLIC_KEY` - Public API key (optional for local dev, required for production)
+- `VITE_AIR_JAM_API_KEY` - Legacy public key variable (still supported)
 - `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev:secure` for host/controller URLs
 - `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev:secure`
 
@@ -118,7 +119,7 @@ See `.env.example` for all available environment variables. Key variables:
 
 1. Set environment variables in Vercel:
    - `VITE_AIR_JAM_SERVER_URL` - Your official Air Jam server URL
-   - `VITE_AIR_JAM_API_KEY` - Your API key from the Air Jam platform
+   - `VITE_AIR_JAM_PUBLIC_KEY` - Your public API key from the Air Jam platform
 
 2. Deploy:
    ```bash
@@ -126,6 +127,7 @@ See `.env.example` for all available environment variables. Key variables:
    ```
 
 The game will connect to the official Air Jam server - no local server needed!
+`vercel.json` is included in this template so `/controller?room=XXXX` and other SPA routes resolve correctly.
 
 ### Building for Production
 
