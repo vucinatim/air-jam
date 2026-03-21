@@ -9,6 +9,7 @@ This is the default implementation loop for launch-period work.
 1. Pick one checklist item from `docs/implementation-plan.md`.
 2. Define acceptance behavior before touching code.
 3. Confirm whether it is P0 (launch-blocking) or P1 (post-launch acceptable).
+4. For critical networking/security paths, define tests first.
 
 ## 2) Implement Minimal Changes
 
@@ -21,13 +22,14 @@ This is the default implementation loop for launch-period work.
 1. Add regression tests for every security/trust-boundary fix.
 2. Add/update integration tests for socket flows when behavior changes.
 3. Keep tests focused on observable behavior, not internals.
+4. For server-critical paths, include correctness + stability checks (and performance baseline when relevant).
 
 ## 4) Run Required Gates
 
 1. `pnpm typecheck`
 2. `pnpm lint`
-3. `pnpm build`
-4. `pnpm test` (once baseline test setup is in place)
+3. `pnpm test`
+4. `pnpm build`
 
 ## 5) Update Docs in Same Change
 

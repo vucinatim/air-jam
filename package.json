@@ -11,6 +11,9 @@
     "dev:platform": "pnpm --filter platform dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
+    "perf:sanity": "pnpm --filter server perf:sanity",
+    "test": "pnpm --filter server test && pnpm --filter sdk test",
+    "test:scaffold": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke",
     "typecheck": "pnpm --filter sdk build && pnpm -r --filter \"!sdk\" typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

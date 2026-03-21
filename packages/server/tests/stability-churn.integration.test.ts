@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import type { AuthService } from "../src/services/auth-service";
+import { setupServerTestHarness } from "./helpers/server-test-harness";
+
+type HostCreateRoomAck = {
+  ok: boolean;
+  roomId?: string;
+};
+
+type ControllerJoinAck = {
+  ok: boolean;
+};
+
+const allowAllAuthService = {
+  verifyApiKey: async () => ({ isVerified: true }),
+} as AuthService;
+
+describe("server stability churn", () => {
+  const harness = setupServerTestHarness({
+    server: { authService: allowAllAuthService },
+  });
+
+  it("handles repeated host reconnect cycles without losing room ownership", async () => {
+    let host = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 8 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    for (let i = 0; i < 5; i += 1) {
+      host.disconnect();
+      await harness.delay(25);
+
+      host = await harness.connectSocket();
+      const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
+        host,
+        "host:reconnect",
+        { roomId },
+      );
+
+      expect(reconnectAck.ok).toBe(true);
+      expect(reconnectAck.roomId).toBe(roomId);
+    }
+  });
+
+  it("handles rapid controller join/leave churn without stale controller sessions", async () => {
+    const host = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 16 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    for (let i = 0; i < 12; i += 1) {
+      const controllerId = `ctrl_churn_${i}`;
+      const controller = await harness.connectSocket();
+
+      const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+        controller,
+        "controller:join",
+        {
+          roomId,
+          controllerId,
+          nickname: `Player ${i}`,
+        },
+      );
+
+      expect(joinAck.ok).toBe(true);
+
+      const leftNoticePromise = harness.waitForEvent<{ controllerId: string }>(
+        host,
+        "server:controllerLeft",
+      );
+
+      controller.emit("controller:leave", {
+        roomId,
+        controllerId,
+      });
+
+      const leftNotice = await leftNoticePromise;
+      expect(leftNotice.controllerId).toBe(controllerId);
+      controller.disconnect();
+    }
+
+    const room = harness.getRoomManager().getRoom(roomId);
+    expect(room).toBeDefined();
+    expect(room?.controllers.size).toBe(0);
+  });
+});

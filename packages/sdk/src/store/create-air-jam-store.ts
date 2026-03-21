@@ -6,6 +6,11 @@ import type {
   AirJamStateSyncPayload,
 } from "../protocol";
 
+const INTERNAL_ACTION_PREFIX = "_";
+
+export const isInternalActionName = (actionName: string): boolean =>
+  actionName.startsWith(INTERNAL_ACTION_PREFIX);
+
 /**
  * Creates a networked Zustand store that automatically syncs state between host and controllers.
  *
@@ -99,6 +104,9 @@ export function createAirJamStore<
         // Listen for Action Requests (RPCs) from controllers
         const handleAction = (payload: AirJamActionRpcPayload) => {
           const { actionName, args, controllerId } = payload;
+          if (isInternalActionName(actionName)) {
+            return;
+          }
           // Execute the action on the Host (Source of Truth)
           // We can optionally pass controllerId as the last arg if the action expects it
           const actionFn = store.getState().actions[actionName];
@@ -214,6 +222,10 @@ export function createAirJamStore<
         const proxyActions = {} as T["actions"];
 
         Object.keys(originalActions).forEach((key) => {
+          if (isInternalActionName(key)) {
+            return;
+          }
+
           // Type assertion needed because we're creating proxies dynamically
           // We cast to the same type as T["actions"] to maintain type compatibility
           (proxyActions as Record<string, (...args: unknown[]) => void>)[key] =

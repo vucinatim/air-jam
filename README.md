@@ -134,6 +134,22 @@ Full contribution workflow and standards: [CONTRIBUTING.md](./CONTRIBUTING.md)
 3. Update documentation if needed
 4. Submit a PR with a clear description of changes
 
+### Optional Local Perf Sanity
+
+Run a lightweight server benchmark locally (not CI-gated):
+
+```bash
+pnpm perf:sanity
+```
+
+Optional flags:
+
+- `--controllers=<n>` (default `8`)
+- `--hz=<n>` events/sec per controller (default `30`)
+- `--durationMs=<n>` measurement duration in ms (default `90000`)
+- `--warmupMs=<n>` warmup duration in ms (default `3000`)
+- `--strict` to return non-zero exit when soft thresholds are exceeded
+
 ### Areas for Contribution
 
 - 🐛 Bug fixes
@@ -242,6 +258,7 @@ Set environment variables:
 ## Documentation
 
 - **[Project Docs Index](./docs/docs-index.md)**: Planning, workflow, and supporting docs
+- **[Performance Baseline](./docs/performance-baseline.md)**: Optional local perf sanity snapshots
 - **[SDK Documentation](./packages/sdk/README.md)**: Complete SDK reference
 - **[Platform Docs](./apps/platform/src/app/docs/)**: Full documentation in the platform app
 - **[Architecture Guide](./apps/platform/src/app/docs/how-it-works/architecture/page.mdx)**: System design overview

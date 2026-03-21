@@ -35,6 +35,7 @@
     "extract-docs": "tsx scripts/extract-docs.ts",
     "build": "pnpm extract-docs && tsup",
     "dev": "tsup --watch",
+    "smoke": "node scripts/smoke-test.mjs",
     "prepublishOnly": "node scripts/prepublish.js && pnpm build"
   },
   "dependencies": {

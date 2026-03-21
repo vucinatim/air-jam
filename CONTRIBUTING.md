@@ -19,8 +19,13 @@ Thanks for contributing.
    ```bash
    pnpm typecheck
    pnpm lint
+   pnpm test
+   pnpm test:scaffold
+   pnpm perf:sanity
    pnpm build
    ```
+4. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
+5. `pnpm perf:sanity` is optional and non-blocking (intended for local regression spotting, not CI gating).
 
 ## Development Workflow
 
@@ -34,9 +39,11 @@ Thanks for contributing.
 1. `pnpm typecheck` passes.
 2. `pnpm lint` passes.
 3. `pnpm build` passes.
-4. Tests relevant to your change pass.
-5. Documentation is updated if behavior/API changed.
-6. PR description explains:
+4. `pnpm test` passes.
+5. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
+6. Tests relevant to your change pass.
+7. Documentation is updated if behavior/API changed.
+8. PR description explains:
    - what changed
    - why it changed
    - how it was validated

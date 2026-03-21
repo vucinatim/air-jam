@@ -28,7 +28,10 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/cli.js",
     "build": "tsup",
-    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "perf:sanity": "tsx scripts/perf-sanity.ts",
+    "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "prepublishOnly": "node scripts/prepublish.js && pnpm build"
   },
   "dependencies": {
@@ -50,6 +53,7 @@
     "@types/uuid": "^11.0.0",
     "tsup": "^8.5.1",
     "tsx": "^4.19.2",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
   }
 }

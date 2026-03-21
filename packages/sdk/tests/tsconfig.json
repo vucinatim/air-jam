@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "..",
+    "types": ["node", "react", "react-dom", "vitest/globals"],
+    "composite": false,
+    "incremental": false
+  },
+  "include": ["./**/*.ts", "../src/**/*.ts"]
+}

@@ -40,17 +40,15 @@ import Color from "color";
 import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Server, type Socket } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
-import { authService } from "./services/auth-service.js";
-import { rateLimitService } from "./services/rate-limit-service.js";
-import { roomManager } from "./services/room-manager.js";
+import { AuthService, authService } from "./services/auth-service.js";
+import { RateLimitService, rateLimitService } from "./services/rate-limit-service.js";
+import { RoomManager, roomManager } from "./services/room-manager.js";
 import type { ControllerSession, RoomSession } from "./types.js";
 import { generateRoomCode } from "./utils/ids.js";
-
-// Throttling variables for logging
-let lastServerInputLogTime = 0;
-let lastServerInputFailLogTime = 0;
 
 const parsePositiveInt = (
   value: string | undefined,
@@ -60,75 +58,128 @@ const parsePositiveInt = (
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-const PORT = Number(process.env.PORT ?? 4000);
-const RATE_LIMIT_WINDOW_MS = parsePositiveInt(
-  process.env.AIR_JAM_RATE_LIMIT_WINDOW_MS,
-  60_000,
-);
-const HOST_REGISTRATION_RATE_LIMIT_MAX = parsePositiveInt(
-  process.env.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX,
-  30,
-);
-const CONTROLLER_JOIN_RATE_LIMIT_MAX = parsePositiveInt(
-  process.env.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX,
-  120,
-);
-const allowedOrigins = process.env.AIR_JAM_ALLOWED_ORIGINS?.split(",")
-  .map((origin) => origin.trim().replace(/^['"]|['"]$/g, ""))
-  .filter(Boolean);
-const corsOrigin =
-  !allowedOrigins ||
-  allowedOrigins.length === 0 ||
-  allowedOrigins.includes("*")
-    ? "*"
-    : allowedOrigins;
-
-const app = express();
-app.use(cors({ origin: corsOrigin }));
-app.use(express.json());
-
-app.get("/health", (_, res) => {
-  res.json({ ok: true });
-});
-
-const httpServer = createServer(app);
-
-const io = new Server<
+export type AirJamIoServer = Server<
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,
   SocketData
->(httpServer, {
-  cors: {
-    origin: corsOrigin,
-  },
-  pingInterval: 2000,
-  pingTimeout: 5000,
-});
+>;
 
-const emitError = (socketId: string, payload: ServerErrorPayload): void => {
-  io.to(socketId).emit("server:error", payload);
+export interface CreateAirJamServerOptions {
+  port?: number;
+  rateLimitWindowMs?: number;
+  hostRegistrationRateLimitMax?: number;
+  controllerJoinRateLimitMax?: number;
+  allowedOrigins?: string[] | "*";
+  authService?: AuthService;
+  rateLimitService?: RateLimitService;
+  roomManager?: RoomManager;
+}
+
+export interface AirJamServerRuntime {
+  app: express.Express;
+  httpServer: ReturnType<typeof createServer>;
+  io: AirJamIoServer;
+  start: (portOverride?: number) => Promise<number>;
+  stop: () => Promise<void>;
+  getPort: () => number | null;
+}
+
+const parseAllowedOrigins = (input?: string[] | "*"): string[] | "*" => {
+  if (input === "*") {
+    return "*";
+  }
+
+  if (input && input.length > 0) {
+    return input.includes("*") ? "*" : input;
+  }
+
+  const allowedOrigins = process.env.AIR_JAM_ALLOWED_ORIGINS?.split(",")
+    .map((origin) => origin.trim().replace(/^['"]|['"]$/g, ""))
+    .filter(Boolean);
+
+  if (
+    !allowedOrigins ||
+    allowedOrigins.length === 0 ||
+    allowedOrigins.includes("*")
+  ) {
+    return "*";
+  }
+
+  return allowedOrigins;
 };
 
-io.on(
-  "connection",
-  (
-    socket: Socket<
-      ClientToServerEvents,
-      ServerToClientEvents,
-      InterServerEvents,
-      SocketData
-    >,
-  ) => {
+export const createAirJamServer = (
+  options: CreateAirJamServerOptions = {},
+): AirJamServerRuntime => {
+  let activePort: number | null = null;
+
+  // Throttling variables for logging
+  let lastServerInputLogTime = 0;
+  let lastServerInputFailLogTime = 0;
+
+  const roomManagerInstance = options.roomManager ?? roomManager;
+  const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
+  const authServiceInstance = options.authService ?? authService;
+
+  const defaultPort = Number(process.env.PORT ?? 4000);
+  const RATE_LIMIT_WINDOW_MS =
+    options.rateLimitWindowMs ??
+    parsePositiveInt(process.env.AIR_JAM_RATE_LIMIT_WINDOW_MS, 60_000);
+  const HOST_REGISTRATION_RATE_LIMIT_MAX =
+    options.hostRegistrationRateLimitMax ??
+    parsePositiveInt(process.env.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX, 30);
+  const CONTROLLER_JOIN_RATE_LIMIT_MAX =
+    options.controllerJoinRateLimitMax ??
+    parsePositiveInt(process.env.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX, 120);
+  const corsOrigin = parseAllowedOrigins(options.allowedOrigins);
+
+  const app = express();
+  app.use(cors({ origin: corsOrigin }));
+  app.use(express.json());
+
+  app.get("/health", (_, res) => {
+    res.json({ ok: true });
+  });
+
+  const httpServer = createServer(app);
+
+  const io = new Server<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    InterServerEvents,
+    SocketData
+  >(httpServer, {
+    cors: {
+      origin: corsOrigin,
+    },
+    pingInterval: 2000,
+    pingTimeout: 5000,
+  });
+
+  const emitError = (socketId: string, payload: ServerErrorPayload): void => {
+    io.to(socketId).emit("server:error", payload);
+  };
+
+  io.on(
+    "connection",
+    (
+      socket: Socket<
+        ClientToServerEvents,
+        ServerToClientEvents,
+        InterServerEvents,
+        SocketData
+      >,
+    ) => {
     const isHostAuthorizedForRoom = (roomId: string): boolean => {
-      return roomManager.getRoomByHostId(socket.id) === roomId;
+      return roomManagerInstance.getRoomByHostId(socket.id) === roomId;
     };
 
     const isControllerAuthorizedForRoom = (
       roomId: string,
       controllerId?: string,
     ): boolean => {
-      const controllerInfo = roomManager.getControllerInfo(socket.id);
+      const controllerInfo = roomManagerInstance.getControllerInfo(socket.id);
       if (!controllerInfo || controllerInfo.roomId !== roomId) {
         return false;
       }
@@ -147,7 +198,7 @@ io.on(
       socket.id;
 
     const isRateLimited = (bucket: string, limit: number): boolean => {
-      const result = rateLimitService.check(
+      const result = rateLimitServiceInstance.check(
         `${bucket}:${socketIdentifier}`,
         limit,
         RATE_LIMIT_WINDOW_MS,
@@ -182,8 +233,8 @@ io.on(
 
         const { roomId, apiKey } = parsed.data;
 
-        // API Key Validation using authService
-        const verification = await authService.verifyApiKey(apiKey);
+        // API Key Validation using authServiceInstance
+        const verification = await authServiceInstance.verifyApiKey(apiKey);
         if (!verification.isVerified) {
           console.warn(
             `[server] Unauthorized host registration attempt for room ${roomId}`,
@@ -196,12 +247,12 @@ io.on(
           return;
         }
 
-        let session = roomManager.getRoom(roomId);
+        let session = roomManagerInstance.getRoom(roomId);
 
         if (session) {
           // Reconnect logic for System Host
           session.masterHostSocketId = socket.id;
-          roomManager.setRoom(roomId, session);
+          roomManagerInstance.setRoom(roomId, session);
         } else {
           // Create new room
           console.log(`[server] Creating room ${roomId}`);
@@ -213,10 +264,10 @@ io.on(
             maxPlayers: 32, // Default increased to 32 to allow for observers/queue
             gameState: "paused",
           };
-          roomManager.setRoom(roomId, session);
+          roomManagerInstance.setRoom(roomId, session);
         }
 
-        roomManager.setHostRoom(socket.id, roomId);
+        roomManagerInstance.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
         callback({ ok: true, roomId });
@@ -260,7 +311,7 @@ io.on(
         const { maxPlayers, apiKey } = parsed.data;
 
         // API key validation is always executed; in local/dev mode auth is disabled.
-        const verification = await authService.verifyApiKey(apiKey);
+        const verification = await authServiceInstance.verifyApiKey(apiKey);
         if (!verification.isVerified) {
           callback({
             ok: false,
@@ -271,9 +322,9 @@ io.on(
         }
 
         // IDEMPOTENCY: Check if this socket already has a room
-        const existingRoomId = roomManager.getRoomByHostId(socket.id);
+        const existingRoomId = roomManagerInstance.getRoomByHostId(socket.id);
         if (existingRoomId) {
-          const existingSession = roomManager.getRoom(existingRoomId);
+          const existingSession = roomManagerInstance.getRoom(existingRoomId);
           // Verify the socket is still connected and is the master host
           if (
             existingSession &&
@@ -301,7 +352,7 @@ io.on(
             });
             return;
           }
-        } while (roomManager.getRoom(roomId));
+        } while (roomManagerInstance.getRoom(roomId));
 
         // Create new room session
         const session: RoomSession = {
@@ -313,8 +364,8 @@ io.on(
           gameState: "paused",
         };
 
-        roomManager.setRoom(roomId, session);
-        roomManager.setHostRoom(socket.id, roomId);
+        roomManagerInstance.setRoom(roomId, session);
+        roomManagerInstance.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
         console.log(`[server] Created room ${roomId} for host ${socket.id}`);
@@ -359,7 +410,7 @@ io.on(
         const { roomId, apiKey } = parsed.data;
 
         // API key validation is always executed; in local/dev mode auth is disabled.
-        const verification = await authService.verifyApiKey(apiKey);
+        const verification = await authServiceInstance.verifyApiKey(apiKey);
         if (!verification.isVerified) {
           callback({
             ok: false,
@@ -369,7 +420,7 @@ io.on(
           return;
         }
 
-        const session = roomManager.getRoom(roomId);
+        const session = roomManagerInstance.getRoom(roomId);
         if (!session) {
           callback({
             ok: false,
@@ -394,8 +445,8 @@ io.on(
           session.masterHostSocketId === socket.id
         ) {
           session.masterHostSocketId = socket.id;
-          roomManager.setRoom(roomId, session);
-          roomManager.setHostRoom(socket.id, roomId);
+          roomManagerInstance.setRoom(roomId, session);
+          roomManagerInstance.setHostRoom(socket.id, roomId);
           socket.join(roomId);
 
           console.log(
@@ -428,7 +479,7 @@ io.on(
         }
 
         const { roomId, gameUrl } = parsed.data;
-        const session = roomManager.getRoom(roomId);
+        const session = roomManagerInstance.getRoom(roomId);
 
         if (!session) {
           callback({
@@ -493,7 +544,7 @@ io.on(
         }
 
         const { roomId, joinToken } = parsed.data;
-        const session = roomManager.getRoom(roomId);
+        const session = roomManagerInstance.getRoom(roomId);
 
         if (!session) {
           callback({
@@ -520,7 +571,7 @@ io.on(
         session.childHostSocketId = socket.id;
         session.focus = "GAME"; // Auto-focus on join
 
-        roomManager.setHostRoom(socket.id, roomId);
+        roomManagerInstance.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
         // Send initial state to the game
@@ -553,7 +604,7 @@ io.on(
     // --- CLOSE GAME (System -> Server) ---
     socket.on("system:closeGame", (payload: { roomId: string }) => {
       const { roomId } = payload;
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) {
         return;
       }
@@ -627,7 +678,7 @@ io.on(
         const { roomId, maxPlayers, apiKey } = parsed.data;
 
         // API key validation is always executed; in local/dev mode auth is disabled.
-        const verification = await authService.verifyApiKey(apiKey);
+        const verification = await authServiceInstance.verifyApiKey(apiKey);
         if (!verification.isVerified) {
           callback({
             ok: false,
@@ -641,7 +692,7 @@ io.on(
         // but for standalone dev, they might use this.
         // For now, we treat 'host:register' as creating a STANDALONE room or joining as master.
 
-        let session = roomManager.getRoom(roomId);
+        let session = roomManagerInstance.getRoom(roomId);
         if (session) {
           // If room exists, we assume they are taking over or reconnecting as Master
           session.masterHostSocketId = socket.id;
@@ -656,10 +707,10 @@ io.on(
             maxPlayers,
             gameState: "paused",
           };
-          roomManager.setRoom(roomId, session);
+          roomManagerInstance.setRoom(roomId, session);
         }
 
-        roomManager.setHostRoom(socket.id, roomId);
+        roomManagerInstance.setHostRoom(socket.id, roomId);
         socket.join(roomId);
         callback({ ok: true, roomId });
         io.to(roomId).emit("server:roomReady", { roomId });
@@ -686,7 +737,7 @@ io.on(
         return;
       }
       const { roomId, controllerId, nickname } = parsed.data;
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) {
         callback({
           ok: false,
@@ -723,7 +774,7 @@ io.on(
 
       const existing = session.controllers.get(controllerId);
       if (existing) {
-        roomManager.deleteController(existing.socketId);
+        roomManagerInstance.deleteController(existing.socketId);
       }
 
       const PLAYER_COLORS = [
@@ -772,7 +823,7 @@ io.on(
       };
 
       session.controllers.set(controllerId, controllerSession);
-      roomManager.setController(socket.id, { roomId, controllerId });
+      roomManagerInstance.setController(socket.id, { roomId, controllerId });
 
       socket.join(roomId);
 
@@ -783,7 +834,7 @@ io.on(
       };
 
       // Emit to Active Host based on Focus
-      io.to(roomManager.getActiveHostId(session)).emit(
+      io.to(roomManagerInstance.getActiveHostId(session)).emit(
         "server:controllerJoined",
         notice,
       );
@@ -832,14 +883,14 @@ io.on(
         return;
       }
 
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) {
         return;
       }
       session.controllers.delete(controllerId);
-      roomManager.deleteController(socket.id);
+      roomManagerInstance.deleteController(socket.id);
       const notice: ControllerLeftNotice = { controllerId };
-      io.to(roomManager.getActiveHostId(session)).emit(
+      io.to(roomManagerInstance.getActiveHostId(session)).emit(
         "server:controllerLeft",
         notice,
       );
@@ -888,7 +939,7 @@ io.on(
         return;
       }
 
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) {
         if (
           !lastServerInputFailLogTime ||
@@ -900,7 +951,7 @@ io.on(
       }
 
       // Route based on FOCUS - pass through arbitrary input to host
-      const targetHostId = roomManager.getActiveHostId(session);
+      const targetHostId = roomManagerInstance.getActiveHostId(session);
       if (targetHostId) {
         // Only log routing success if throttled
         if (!lastServerInputLogTime || now - lastServerInputLogTime > 1000) {
@@ -930,7 +981,7 @@ io.on(
         return;
       }
 
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) {
         return;
       }
@@ -991,7 +1042,7 @@ io.on(
         return;
       }
 
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) {
         return;
       }
@@ -1022,7 +1073,7 @@ io.on(
         return;
       }
 
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (session) {
         // Sync state if provided
         if (state.gameState) {
@@ -1045,10 +1096,10 @@ io.on(
     });
 
     socket.on("host:signal", (payload: SignalPayload) => {
-      const roomId = roomManager.getRoomByHostId(socket.id);
+      const roomId = roomManagerInstance.getRoomByHostId(socket.id);
       if (!roomId) return;
 
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) return;
 
       if (payload.targetId) {
@@ -1063,7 +1114,12 @@ io.on(
 
     socket.on("host:play_sound", (payload: PlaySoundEventPayload) => {
       const { roomId, targetControllerId, soundId, volume, loop } = payload;
-      const session = roomManager.getRoom(roomId);
+
+      if (!isHostAuthorizedForRoom(roomId)) {
+        return;
+      }
+
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) return;
 
       const message = { id: soundId, volume, loop };
@@ -1085,10 +1141,10 @@ io.on(
         return;
       }
 
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
       if (!session) return;
 
-      io.to(roomManager.getActiveHostId(session)).emit("server:playSound", {
+      io.to(roomManagerInstance.getActiveHostId(session)).emit("server:playSound", {
         id: soundId,
         volume,
         loop,
@@ -1098,7 +1154,7 @@ io.on(
     // --- STORE SYNC (Host -> Server -> All) ---
     socket.on("host:state_sync", (payload: HostStateSyncPayload) => {
       const { roomId, data } = payload;
-      const session = roomManager.getRoom(roomId);
+      const session = roomManagerInstance.getRoom(roomId);
 
       // Security: Validate socket.id is a host for this room
       if (!session) {
@@ -1126,35 +1182,28 @@ io.on(
       (payload: ControllerActionRpcPayload) => {
         const { roomId, actionName, args, controllerId } = payload;
 
-        const session = roomManager.getRoom(roomId);
-        if (!session) return;
-
-        // 1. Verify controller exists in session (by controllerId, not socket.id to handle reconnections)
-        const controllerSession = session.controllers.get(controllerId);
-        if (!controllerSession) {
-          // Controller not found in session - might be a stale connection
+        // Never allow internal action names over the network.
+        if (actionName.startsWith("_")) {
           return;
         }
 
-        // NOTE: We intentionally do NOT update the controller's socket ID in controllerIndex.
-        // The action_rpc may come from a different socket (e.g., game iframe's socket)
-        // than the original controller:join socket (shell socket).
-        // The shell socket is the persistent connection, so we should NOT replace it
-        // with the iframe's socket, or else when the iframe unloads we'd trigger
-        // server:controllerLeft and remove the player incorrectly.
-        //
-        // HOWEVER, we DO need to add this socket to the room so it can receive
-        // state sync broadcasts (airjam:state_sync). The game UI's createAirJamStore
-        // registers listeners on this socket, so it needs to be in the room.
-        if (controllerSession.socketId !== socket.id) {
-          // Join the room for state sync broadcasts, but don't update controllerIndex
-          socket.join(roomId);
+        // Only the controller that joined with this socket can call actions.
+        if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+          return;
         }
 
-        // 2. Find the Active Host
-        const hostId = roomManager.getActiveHostId(session);
+        const session = roomManagerInstance.getRoom(roomId);
+        if (!session) return;
+
+        // Verify controller exists in session.
+        const controllerSession = session.controllers.get(controllerId);
+        if (!controllerSession) {
+          return;
+        }
+
+        // Find the active host.
+        const hostId = roomManagerInstance.getActiveHostId(session);
         if (hostId) {
-          // 3. Forward to Host (include controllerId so Host knows who sent it)
           const rpcPayload: AirJamActionRpcPayload = {
             actionName,
             args,
@@ -1166,11 +1215,11 @@ io.on(
     );
 
     socket.on("disconnect", () => {
-      const roomId = roomManager.getRoomByHostId(socket.id);
+      const roomId = roomManagerInstance.getRoomByHostId(socket.id);
       if (roomId) {
-        const session = roomManager.getRoom(roomId);
+        const session = roomManagerInstance.getRoom(roomId);
         if (!session) {
-          roomManager.deleteHost(socket.id);
+          roomManagerInstance.deleteHost(socket.id);
           return;
         }
 
@@ -1209,40 +1258,97 @@ io.on(
           console.log(`[server] Host disconnected from room ${roomId}`);
 
           setTimeout(() => {
-            const currentSession = roomManager.getRoom(roomId);
+            const currentSession = roomManagerInstance.getRoom(roomId);
             if (
               currentSession &&
               currentSession.masterHostSocketId === socket.id
             ) {
               console.log(`[server] Removing room ${roomId}`);
-              roomManager.removeRoom(roomId, io, "Host disconnected");
+              roomManagerInstance.removeRoom(roomId, io, "Host disconnected");
             }
           }, 3000);
         }
 
-        roomManager.deleteHost(socket.id);
+        roomManagerInstance.deleteHost(socket.id);
         return;
       }
 
-      const controller = roomManager.getControllerInfo(socket.id);
+      const controller = roomManagerInstance.getControllerInfo(socket.id);
       if (controller) {
-        const session = roomManager.getRoom(controller.roomId);
+        const session = roomManagerInstance.getRoom(controller.roomId);
         if (session) {
           session.controllers.delete(controller.controllerId);
           const notice: ControllerLeftNotice = {
             controllerId: controller.controllerId,
           };
-          io.to(roomManager.getActiveHostId(session)).emit(
+          io.to(roomManagerInstance.getActiveHostId(session)).emit(
             "server:controllerLeft",
             notice,
           );
         }
-        roomManager.deleteController(socket.id);
+        roomManagerInstance.deleteController(socket.id);
       }
     });
-  },
-);
+  });
 
-httpServer.listen(PORT, () => {
-  console.log(`[air-jam] server listening on http://localhost:${PORT}`);
-});
+  const start = async (portOverride?: number): Promise<number> => {
+    if (httpServer.listening) {
+      return activePort ?? defaultPort;
+    }
+
+    const resolvedPort = portOverride ?? options.port ?? defaultPort;
+    await new Promise<void>((resolve, reject) => {
+      httpServer.once("error", reject);
+      httpServer.listen(resolvedPort, () => {
+        httpServer.off("error", reject);
+        resolve();
+      });
+    });
+
+    const address = httpServer.address();
+    activePort =
+      typeof address === "object" && address?.port ? address.port : resolvedPort;
+
+    console.log(`[air-jam] server listening on http://localhost:${activePort}`);
+    return activePort;
+  };
+
+  const stop = async (): Promise<void> => {
+    if (!httpServer.listening) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      io.close(() => resolve());
+    });
+
+    activePort = null;
+  };
+
+  const getPort = (): number | null => activePort;
+
+  return {
+    app,
+    httpServer,
+    io,
+    start,
+    stop,
+    getPort,
+  };
+};
+
+const isMainModule = (() => {
+  if (!process.argv[1]) {
+    return false;
+  }
+  const thisFilePath = fileURLToPath(import.meta.url);
+  return thisFilePath === path.resolve(process.argv[1]);
+})();
+
+if (isMainModule) {
+  const runtime = createAirJamServer();
+  runtime.start().catch((error) => {
+    console.error("[air-jam] failed to start server", error);
+    process.exitCode = 1;
+  });
+}

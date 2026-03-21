@@ -4,7 +4,8 @@ Core docs:
 
 1. [Implementation Plan](./implementation-plan.md)
 2. [Development Loop](./development-loop.md)
-3. [Archive Notes](./archive/done/archive-notes.md)
+3. [Performance Baseline](./performance-baseline.md)
+4. [Archive Notes](./archive/done/archive-notes.md)
 
 Supporting plans:
 
