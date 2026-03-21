@@ -22,6 +22,15 @@ This is the single active execution checklist for Air Jam.
 3. Docs correctness pass for onboarding/API usage.
 4. PR CI gates that enforce all launch-critical checks.
 
+## Status Snapshot
+
+1. A) Critical-path test foundation: complete.
+2. B) Security hardening: complete.
+3. C) Reliability and developer confidence: complete.
+4. D) Docs and DX correctness: complete.
+5. E) UX conversion improvements: active focus.
+6. F) Operational readiness: pending.
+
 ### Next Priority Improvements
 
 1. Arcade discovery UX upgrade (thumbnail/cover/author metadata in cards).
@@ -33,6 +42,8 @@ This is the single active execution checklist for Air Jam.
 1. Full SDK composability migration (`@air-jam/sdk` vs `@air-jam/sdk/ui` split).
 2. Full contract-first RPC migration across all examples/templates.
 3. Heavy bundle optimization and advanced deployment ergonomics.
+4. Long-duration soak test automation (30-60m nightly) until traction justifies it.
+5. CI-gated performance thresholds (perf remains local/manual for now).
 
 ## Execution Checklist
 
@@ -56,7 +67,7 @@ Critical server correctness paths (must be covered by automated tests):
 Critical server stability/performance paths (must be measured; CI gating can be phased in):
 - [x] Reconnect churn test (repeated host/controller disconnect/reconnect cycles).
 - [x] Join/leave churn test (rapid controller connect/disconnect bursts).
-- [ ] Soak test (long-running room activity with no state/listener leaks).
+- [ ] Soak test (long-running room activity with no state/listener leaks, deferred).
 - [x] Input throughput/latency benchmark under multi-controller load (optional `pnpm perf:sanity`, non-CI).
 
 Exit criteria:
@@ -97,10 +108,10 @@ Target gates (after this track):
 
 ## D) Docs and DX Correctness (P0)
 
-- [ ] Fix SDK README examples to match current API surface.
-- [ ] Fix Quick Start references to use actual template files (`AGENTS.md` instead of nonexistent docs).
-- [ ] Add concise troubleshooting section for first-run setup (local server, API key, controller join URL issues).
-- [ ] Verify template README and platform docs are aligned.
+- [x] Fix SDK README examples to match current API surface.
+- [x] Fix Quick Start references to use actual template files (`AGENTS.md` instead of nonexistent docs).
+- [x] Add concise troubleshooting section for first-run setup (local server, API key, controller join URL issues).
+- [x] Verify template README and platform docs are aligned.
 
 Exit criteria:
 1. New developer can follow docs without hitting missing APIs/files.
@@ -124,14 +135,10 @@ Exit criteria:
 - [ ] Confirm release workflow and package versions are coherent.
 - [ ] Prepare rollback notes (disable publish listing, rotate API key guidance).
 
-## Suggested Sequence
+## Suggested Sequence (From Current State)
 
-1. A) Critical-path test foundation
-2. B) Security hardening (test-driven)
-3. C) Reliability and developer confidence
-4. D) Docs/DX corrections
-5. E) UX conversion improvements
-6. F) Final launch gate run
+1. E) UX conversion improvements
+2. F) Final launch gate run
 
 ## Release Gate Rules
 

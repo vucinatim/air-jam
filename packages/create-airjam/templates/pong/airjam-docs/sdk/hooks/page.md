@@ -81,7 +81,7 @@ const HostView = () => {
     players, // Array of PlayerProfile
     gameState, // "playing" | "paused"
     lastError, // Error message if any
-    mode, // "standalone" | "arcade" | "platform"
+    mode, // "standalone" | "platform"
 
     // Functions
     getInput, // (controllerId: string) => Input | undefined
@@ -149,17 +149,16 @@ host.sendSignal(
 host.sendSignal(
   "TOAST",
   {
-    title: "Achievement Unlocked!",
-    message: "First blood",
-    variant: "success", // "default" | "success" | "destructive"
+    message: "Achievement unlocked: First blood",
+    color: "#22c55e", // Optional accent color
+    duration: 2000, // Optional duration in ms
   },
   playerId,
 );
 
 // Broadcast to all players (omit targetId)
 host.sendSignal("TOAST", {
-  title: "Round Start!",
-  message: "Get ready to fight",
+  message: "Round start! Get ready to fight.",
 });
 ```
 

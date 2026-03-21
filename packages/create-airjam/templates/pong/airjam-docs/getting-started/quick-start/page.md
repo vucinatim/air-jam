@@ -73,11 +73,32 @@ This keeps the local Air Jam server on `http://localhost:4000`, tunnels only the
 
 This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster.
 
-- **Check `AI_INSTRUCTIONS.md`**: Provides context for AI coding assistants.
+- **Check `AGENTS.md`**: Project-wide coding contract and workflow for AI coding assistants.
+- **Check `airjam-docs/`**: Local extracted docs bundled with the template.
 - **Modify `src/host-view.tsx`**: Contains the main game logic and rendering.
 - **Modify `src/controller-view.tsx`**: Defines the mobile controller interface.
 - **Modify `src/store.ts`**: Manage shared networked state.
 - **Modify `src/types.ts`**: Define your game input schema.
+
+## Troubleshooting
+
+### Server not connecting locally
+
+1. Verify `pnpm run dev:server` is running.
+2. Confirm server health: [http://localhost:4000/health](http://localhost:4000/health).
+3. Confirm your game is using `http://localhost:4000` for `VITE_AIR_JAM_SERVER_URL` (or no override at all for local defaults).
+
+### API key errors in deployed environments
+
+1. Ensure `VITE_AIR_JAM_PUBLIC_KEY` is set in your host platform.
+2. Ensure the server URL points at your real Air Jam backend.
+3. Rotate/re-copy key from Dashboard if validation fails.
+
+### QR / controller join URL issues
+
+1. Confirm host and controller are on the same room code.
+2. If testing on phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` (or use `pnpm run dev:secure`).
+3. For SPA hosting, ensure rewrites route `/controller?room=XXXX` to your app entry.
 
 ## 5. Deploy Your Game
 
@@ -94,7 +115,7 @@ When you're ready to share your game, you'll need to deploy it and connect it to
 
     ```bash
     VITE_AIR_JAM_PUBLIC_KEY=your_public_key_here
-    VITE_AIR_JAM_SERVER_URL=wss://api.air-jam.app
+    VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
     ```
 
 ## 6. Publish to Arcade

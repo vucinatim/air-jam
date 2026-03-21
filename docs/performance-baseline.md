@@ -5,13 +5,36 @@ Status: active baseline (non-CI)
 
 This document tracks lightweight local performance sanity runs.
 
-## Command
+## Default Command
+
+```bash
+pnpm perf:sanity
+```
+
+## Latest Result (2026-03-21, default profile)
+
+- controllers: `8`
+- target hz/controller: `30`
+- measurement duration: `90.50 s`
+- sent events: `21240`
+- received events: `21240`
+- drop rate: `0.00%`
+- throughput sent: `234.69 evt/s`
+- throughput received: `234.69 evt/s`
+- latency p50: `0.59 ms`
+- latency p95: `1.10 ms`
+- latency p99: `2.72 ms`
+- latency avg: `0.71 ms`
+- latency max: `35.61 ms`
+- heap delta: `-1.03 MB`
+
+## Previous Snapshot (2026-03-21, short profile)
+
+Command:
 
 ```bash
 pnpm perf:sanity -- --durationMs=12000 --warmupMs=1000 --controllers=6 --hz=25
 ```
-
-## Latest Result (2026-03-21)
 
 - controllers: `6`
 - target hz/controller: `25`

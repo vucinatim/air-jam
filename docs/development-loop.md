@@ -30,6 +30,7 @@ This is the default implementation loop for launch-period work.
 2. `pnpm lint`
 3. `pnpm test`
 4. `pnpm build`
+5. When touching networking/perf-sensitive server paths, run optional `pnpm perf:sanity`.
 
 ## 5) Update Docs in Same Change
 

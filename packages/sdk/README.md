@@ -1,87 +1,129 @@
 # @air-jam/sdk
 
-The core SDK for building Air Jam games and controllers.
+Core SDK for building Air Jam hosts and mobile controllers.
 
 ## Installation
 
 ```bash
-npm install @air-jam/sdk
-# or
-pnpm add @air-jam/sdk
+pnpm add @air-jam/sdk zod
 ```
 
-## Usage
+## Minimal Setup
 
-### 1. Host (The Game)
-
-Use `useAirJamHost` to register your game session and listen for input.
+Wrap your app with `AirJamProvider`.
 
 ```tsx
-import { useAirJamHost } from "@air-jam/sdk";
+import { AirJamProvider } from "@air-jam/sdk";
+import { z } from "zod";
 
-function MyGame() {
-  const { roomId, joinUrl, connectionStatus, players } = useAirJamHost({
-    roomId: "MYROOM", // Optional: Custom room ID
+const inputSchema = z.object({
+  vector: z.object({ x: z.number(), y: z.number() }),
+  action: z.boolean(),
+});
+
+export const App = () => (
+  <AirJamProvider
+    input={{
+      schema: inputSchema,
+      latch: {
+        booleanFields: ["action"],
+        vectorFields: ["vector"],
+      },
+    }}
+  >
+    {/* your router/views */}
+  </AirJamProvider>
+);
+```
+
+## Host Usage
+
+Use `useAirJamHost` in your host/game view.
+
+```tsx
+import { HostShell, useAirJamHost } from "@air-jam/sdk";
+
+export const HostView = () => {
+  const host = useAirJamHost({
     maxPlayers: 4,
-    apiKey: import.meta.env.VITE_AIR_JAM_PUBLIC_KEY, // Required for production (legacy: VITE_AIR_JAM_API_KEY)
-    onPlayerJoin: (player) => console.log("Player joined:", player),
-    onInput: (event) => {
-      console.log("Input from", event.controllerId, event.input);
-    },
+    onPlayerJoin: (player) => console.log("joined", player.id),
+    onPlayerLeave: (controllerId) => console.log("left", controllerId),
   });
 
-  if (connectionStatus === "connecting") return <div>Connecting...</div>;
-
   return (
-    <div>
-      <h1>Room: {roomId}</h1>
-      <p>Join at: {joinUrl}</p>
-      {/* Render your game here */}
-    </div>
+    <HostShell>
+      <h1>Room: {host.roomId}</h1>
+      <p>Status: {host.connectionStatus}</p>
+      <p>Join URL: {host.joinUrl}</p>
+    </HostShell>
   );
-}
+};
 ```
 
-### 2. Controller (The Phone)
+Use `host.getInput(controllerId)` in your game loop.
 
-Use `useAirJamController` to connect a phone to a game session.
+## Controller Usage
+
+Use `useAirJamController` in your controller view.
 
 ```tsx
-import { useAirJamController } from "@air-jam/sdk";
+import { ControllerShell, useAirJamController } from "@air-jam/sdk";
 
-function MyController() {
-  const { joinRoom, sendInput, connectionStatus } = useAirJamController();
+export const ControllerView = () => {
+  const controller = useAirJamController({ nickname: "Player 1" });
 
-  // Join a room (usually from URL query param)
-  useEffect(() => {
-    joinRoom("MYROOM", "Player 1");
-  }, []);
-
-  const handlePress = () => {
-    sendInput({
-      action: true,
-      vector: { x: 0, y: 0 },
-      timestamp: Date.now(),
-    });
-  };
-
-  return <button onPointerDown={handlePress}>Fire!</button>;
-}
+  return (
+    <ControllerShell forceOrientation="portrait">
+      <button
+        onPointerDown={() =>
+          controller.sendInput({
+            vector: { x: 0, y: 0 },
+            action: true,
+          })
+        }
+      >
+        Action
+      </button>
+    </ControllerShell>
+  );
+};
 ```
 
-## API Reference
+Controllers usually join via URL query param: `/controller?room=ABCD`.
 
-### `useAirJamHost(options)`
+## Networked State (Host Source of Truth)
 
-- `options.roomId`: (Optional) Request a specific room code.
-- `options.maxPlayers`: (Optional) Limit number of players (default 8).
-- `options.apiKey`: (Optional) Your Air Jam API Key (required for production).
-- `options.onInput`: Callback for controller input.
-- `options.onPlayerJoin`: Callback when a player joins.
-- `options.onPlayerLeave`: Callback when a player leaves.
+Use `createAirJamStore` for shared game state synced from host to controllers.
 
-### `useAirJamController()`
+```tsx
+import { createAirJamStore } from "@air-jam/sdk";
 
-- `joinRoom(roomId, nickname)`: Connect to a room.
-- `sendInput(input)`: Send input data to the host.
-- `connectionStatus`: Current connection state.
+interface GameState {
+  phase: "lobby" | "playing";
+  actions: {
+    setPhase: (phase: "lobby" | "playing") => void;
+  };
+}
+
+export const useGameStore = createAirJamStore<GameState>((set) => ({
+  phase: "lobby",
+  actions: {
+    setPhase: (phase) => set({ phase }),
+  },
+}));
+```
+
+On controllers, action calls are proxied to the host automatically.
+
+## Environment Variables
+
+- `VITE_AIR_JAM_SERVER_URL` / `NEXT_PUBLIC_AIR_JAM_SERVER_URL`
+- `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY`
+- Legacy public key vars are still supported:
+  - `VITE_AIR_JAM_API_KEY`
+  - `NEXT_PUBLIC_AIR_JAM_API_KEY`
+
+## Full Docs
+
+- Platform docs: https://air-jam.app/docs
+- Monorepo docs index: `docs/docs-index.md`

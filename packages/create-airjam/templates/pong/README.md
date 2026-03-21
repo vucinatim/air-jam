@@ -113,6 +113,26 @@ See `.env.example` for all available environment variables. Key variables:
 - `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev:secure` for host/controller URLs
 - `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev:secure`
 
+## Troubleshooting
+
+### Server not connecting locally
+
+1. Ensure `pnpm run dev:server` is running.
+2. Verify server health at `http://localhost:4000/health`.
+3. Remove or correct `VITE_AIR_JAM_SERVER_URL` overrides in `.env.local`.
+
+### API key errors in deployed environments
+
+1. Ensure `VITE_AIR_JAM_PUBLIC_KEY` is set in your hosting provider.
+2. Ensure `VITE_AIR_JAM_SERVER_URL` points to your production Air Jam backend.
+3. Re-copy/rotate your key from the Air Jam platform if needed.
+
+### Controller join URL / QR issues
+
+1. Confirm the room code on host and phone matches.
+2. If testing on a phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` or use `pnpm run dev:secure`.
+3. Ensure SPA rewrites are enabled so `/controller?room=XXXX` resolves to your app (`vercel.json` is included).
+
 ## Production Deployment
 
 ### Deploying to Vercel
