@@ -125,6 +125,8 @@ See the [SDK README](./packages/sdk/README.md) for detailed usage.
 
 We welcome contributions! Here's how you can help:
 
+Full contribution workflow and standards: [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ### Submitting a Pull Request
 
 1. Ensure all checks pass (`pnpm typecheck`, `pnpm lint`, `pnpm build`)
@@ -239,13 +241,21 @@ Set environment variables:
 
 ## Documentation
 
+- **[Project Docs Index](./docs/docs-index.md)**: Planning, workflow, and supporting docs
 - **[SDK Documentation](./packages/sdk/README.md)**: Complete SDK reference
 - **[Platform Docs](./apps/platform/src/app/docs/)**: Full documentation in the platform app
 - **[Architecture Guide](./apps/platform/src/app/docs/how-it-works/architecture/page.mdx)**: System design overview
 
+## Project Policies
+
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)**: Contribution workflow and quality expectations
+- **[LICENSE](./LICENSE)**: Project license terms
+- **[SECURITY.md](./SECURITY.md)**: Vulnerability reporting and security policy
+- **[AGENTS.md](./AGENTS.md)**: General engineering contract for coding agents
+
 ## License
 
-MIT License
+[MIT License](./LICENSE)
 
 ## Support
 
