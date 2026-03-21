@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { apiKeys, games } from "@/db/schema";
+import { apiKeys, games, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
@@ -37,7 +37,19 @@ export const gameRouter = createTRPCRouter({
   }),
 
   getAllPublic: publicProcedure.query(async () => {
-    return await db.select().from(games).where(eq(games.isPublished, true));
+    return await db
+      .select({
+        id: games.id,
+        name: games.name,
+        slug: games.slug,
+        url: games.url,
+        thumbnailUrl: games.thumbnailUrl,
+        videoUrl: games.videoUrl,
+        ownerName: users.name,
+      })
+      .from(games)
+      .innerJoin(users, eq(games.userId, users.id))
+      .where(eq(games.isPublished, true));
   }),
 
   /** Look up a game by slug first, then fall back to ID. Public for shareable URLs. */
@@ -78,6 +90,7 @@ export const gameRouter = createTRPCRouter({
         description: z.string().optional(),
         url: z.string().url().optional(),
         thumbnailUrl: z.string().url().optional().or(z.literal("")),
+        videoUrl: z.string().url().optional().or(z.literal("")),
         coverUrl: z.string().url().optional().or(z.literal("")),
         isPublished: z.boolean().optional(),
       }),

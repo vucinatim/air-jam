@@ -21,6 +21,7 @@ const routeLabels: Record<string, string> = {
   variables: "Variables",
   publishing: "Publishing",
   analytics: "Analytics",
+  account: "Account",
 };
 
 export function DynamicBreadcrumbs() {

@@ -13,8 +13,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
 import { Gamepad2, Plus, Search } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function GamesPage() {
+  const router = useRouter();
   const { data: games, isLoading } = api.game.list.useQuery();
 
   return (
@@ -68,50 +70,103 @@ export default function GamesPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {games?.map((game) => (
-            <Card
-              key={game.id}
-              className="group relative overflow-hidden transition-all hover:shadow-md"
-            >
-              <Link
-                href={`/dashboard/games/${game.id}`}
-                className="absolute inset-0 z-10"
+          {games?.map((game) => {
+            const hasThumbnail = !!game.thumbnailUrl;
+
+            return (
+              <Card
+                key={game.id}
+                className="group relative cursor-pointer overflow-hidden transition-all hover:shadow-md"
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/dashboard/games/${game.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/dashboard/games/${game.id}`);
+                  }
+                }}
               >
-                <span className="sr-only">View {game.name}</span>
-              </Link>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="bg-airjam-cyan/10 text-airjam-cyan flex h-10 w-10 items-center justify-center rounded-lg">
-                    <Gamepad2 className="h-5 w-5" />
+                {hasThumbnail && (
+                  <>
+                    <div
+                      className="absolute inset-0 z-0 scale-105 bg-cover bg-center blur-[1.5px]"
+                      style={{ backgroundImage: `url(${game.thumbnailUrl})` }}
+                    />
+                    <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/95 via-black/80 to-black/55" />
+                  </>
+                )}
+                <CardHeader className="relative z-20">
+                  <div className="flex items-center justify-between">
+                    <div
+                      className={
+                        hasThumbnail
+                          ? "bg-white/20 text-white flex h-10 w-10 items-center justify-center rounded-lg backdrop-blur-xs"
+                          : "bg-airjam-cyan/10 text-airjam-cyan flex h-10 w-10 items-center justify-center rounded-lg"
+                      }
+                    >
+                      <Gamepad2 className="h-5 w-5" />
+                    </div>
+                    <div className="relative z-20 flex gap-2">
+                      {/* Actions that shouldn't trigger the card click */}
+                    </div>
                   </div>
-                  <div className="relative z-20 flex gap-2">
-                    {/* Actions that shouldn't trigger the card click */}
+                  <CardTitle
+                    className={
+                      hasThumbnail ? "mt-4 line-clamp-1 text-white" : "mt-4 line-clamp-1"
+                    }
+                  >
+                    {game.name}
+                  </CardTitle>
+                  <CardDescription
+                    className={
+                      hasThumbnail
+                        ? "line-clamp-1 text-white/80"
+                        : "line-clamp-1"
+                    }
+                  >
+                    {game.url}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="relative z-20">
+                  <div
+                    className={
+                      hasThumbnail
+                        ? "grid grid-cols-2 gap-4 text-sm text-white"
+                        : "grid grid-cols-2 gap-4 text-sm"
+                    }
+                  >
+                    <div>
+                      <p className={hasThumbnail ? "text-white/70" : "text-muted-foreground"}>
+                        Status
+                      </p>
+                      <p className="inline-flex items-center gap-2 font-medium">
+                        <span
+                          className={
+                            game.isPublished
+                              ? "h-2 w-2 rounded-full bg-emerald-400"
+                              : hasThumbnail
+                                ? "h-2 w-2 rounded-full bg-white/60"
+                                : "h-2 w-2 rounded-full bg-muted-foreground"
+                          }
+                        />
+                        {game.isPublished ? "Live" : "Development"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={hasThumbnail ? "text-white/70" : "text-muted-foreground"}>
+                        Updated
+                      </p>
+                      <p className="font-medium">
+                        {/* We'd want a real date here, falling back for now */}
+                        {new Date(game.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <CardTitle className="mt-4 line-clamp-1">{game.name}</CardTitle>
-                <CardDescription className="line-clamp-1">
-                  {game.url}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Status</p>
-                    <p className="font-medium">
-                      {game.isPublished ? "Live" : "Development"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Updated</p>
-                    <p className="font-medium">
-                      {/* We'd want a real date here, falling back for now */}
-                      {new Date(game.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { SoundManifest } from "@air-jam/sdk";
 import { useAudio } from "@air-jam/sdk";
 import { Gamepad2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GamePlayerGame } from "./game-player";
 
 const ARCADE_SOUND_MANIFEST: SoundManifest = {
@@ -36,8 +36,16 @@ export const GameBrowser = ({
   header,
 }: GameBrowserProps) => {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const audio = useAudio(ARCADE_SOUND_MANIFEST);
   const prevSelectedIndexRef = useRef<number | null>(null);
+  const [imageLoadErrors, setImageLoadErrors] = useState<
+    Record<string, boolean>
+  >({});
+  const [videoReady, setVideoReady] = useState<Record<string, boolean>>({});
+  const [videoLoadErrors, setVideoLoadErrors] = useState<
+    Record<string, boolean>
+  >({});
 
   // Auto-scroll to keep selected game visible
   useEffect(() => {
@@ -64,6 +72,23 @@ export const GameBrowser = ({
       prevSelectedIndexRef.current = selectedIndex;
     }
   }, [selectedIndex, isVisible, audio]);
+
+  // Keep only the selected card's video playing.
+  useEffect(() => {
+    games.forEach((game, idx) => {
+      const video = videoRefs.current[game.id];
+      if (!video) return;
+
+      if (idx === selectedIndex) {
+        void video.play().catch(() => {
+          // Ignore autoplay race errors; browser policies are satisfied by muted+inline.
+        });
+      } else {
+        video.pause();
+        video.currentTime = 0;
+      }
+    });
+  }, [games, selectedIndex]);
 
   return (
     <div
@@ -93,45 +118,111 @@ export const GameBrowser = ({
             No games found. Create one in the dashboard!
           </div>
         ) : (
-          games.map((game, idx) => (
-            <Card
-              key={game.id}
-              ref={(el) => {
-                cardRefs.current[idx] = el;
-              }}
-              className={cn(
-                "cursor-pointer border-2 bg-slate-900/50 backdrop-blur transition-all duration-200",
-                idx === selectedIndex
-                  ? "border-airjam-cyan scale-105 bg-slate-800"
-                  : "border-white/10 opacity-70",
-              )}
-              style={
-                idx === selectedIndex
-                  ? {
-                      boxShadow: `0 0 30px color-mix(in srgb, var(--color-airjam-cyan) 50%, transparent)`,
-                    }
-                  : undefined
-              }
-              onClick={() => onSelectGame(game, idx)}
-            >
-              <CardContent className="flex aspect-video flex-col items-center justify-center p-8 text-center">
-                <Gamepad2
-                  className={cn(
-                    "mb-4 h-16 w-16",
-                    idx === selectedIndex
-                      ? "text-airjam-cyan"
-                      : "text-slate-600",
-                  )}
-                />
-                <h3 className="text-2xl font-bold text-white">{game.name}</h3>
-                {idx === selectedIndex && (
-                  <div className="text-airjam-cyan mt-4 animate-pulse text-xs font-bold tracking-widest uppercase">
-                    Press Action to Play
-                  </div>
+          games.map((game, idx) => {
+            const isSelected = idx === selectedIndex;
+            const hasThumbnail =
+              !!game.thumbnailUrl && !imageLoadErrors[game.id];
+            const hasVideo = !!game.videoUrl && !videoLoadErrors[game.id];
+            const shouldRevealVideo =
+              isSelected && hasVideo && !!videoReady[game.id];
+            const shouldShowFallbackIcon =
+              !hasThumbnail && !(isSelected && hasVideo);
+
+            return (
+              <Card
+                key={game.id}
+                ref={(el) => {
+                  cardRefs.current[idx] = el;
+                }}
+                className={cn(
+                  "cursor-pointer overflow-hidden border-2 bg-slate-900/50 py-0 backdrop-blur transition-all duration-200",
+                  isSelected
+                    ? "border-airjam-cyan scale-105 gap-0 bg-slate-800"
+                    : "gap-0 border-white/10 opacity-80",
                 )}
-              </CardContent>
-            </Card>
-          ))
+                style={
+                  isSelected
+                    ? {
+                        boxShadow: `0 0 30px color-mix(in srgb, var(--color-airjam-cyan) 50%, transparent)`,
+                      }
+                    : undefined
+                }
+                onClick={() => onSelectGame(game, idx)}
+              >
+                <CardContent className="relative aspect-video p-0">
+                  <div className="absolute inset-0 bg-slate-900">
+                    {hasVideo && (
+                      <video
+                        ref={(el) => {
+                          videoRefs.current[game.id] = el;
+                        }}
+                        src={game.videoUrl!}
+                        className={cn(
+                          "absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-300",
+                          shouldRevealVideo ? "opacity-100" : "opacity-0",
+                        )}
+                        muted
+                        loop
+                        playsInline
+                        preload="auto"
+                        onLoadedData={() =>
+                          setVideoReady((current) => ({
+                            ...current,
+                            [game.id]: true,
+                          }))
+                        }
+                        onError={() =>
+                          setVideoLoadErrors((current) => ({
+                            ...current,
+                            [game.id]: true,
+                          }))
+                        }
+                      />
+                    )}
+                    {hasThumbnail && (
+                      // eslint-disable-next-line @next/next/no-img-element -- user-provided remote URLs are not known at build time
+                      <img
+                        src={game.thumbnailUrl!}
+                        alt={`${game.name} thumbnail`}
+                        className={cn(
+                          "absolute inset-0 block h-full w-full object-cover object-center transition-opacity duration-300",
+                          shouldRevealVideo ? "opacity-0" : "opacity-100",
+                        )}
+                        loading="lazy"
+                        onError={() =>
+                          setImageLoadErrors((current) => ({
+                            ...current,
+                            [game.id]: true,
+                          }))
+                        }
+                      />
+                    )}
+                    {shouldShowFallbackIcon && (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Gamepad2
+                          className={cn(
+                            "h-16 w-16",
+                            isSelected ? "text-airjam-cyan" : "text-slate-600",
+                          )}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/5" />
+
+                  <div className="absolute right-0 bottom-0 left-0 p-4">
+                    <h3 className="line-clamp-2 text-left text-2xl font-bold text-white md:text-3xl">
+                      {game.name}
+                    </h3>
+                    <p className="text-left text-base font-medium text-slate-200 md:text-lg">
+                      by {game.ownerName || "Unknown Creator"}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

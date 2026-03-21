@@ -62,6 +62,8 @@ export default function PlayGamePage({
     id: game.id,
     name: game.name,
     url: game.url,
+    thumbnailUrl: game.thumbnailUrl,
+    videoUrl: game.videoUrl,
     slug: game.slug,
   };
 

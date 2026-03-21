@@ -59,6 +59,9 @@ export default function ArcadePage({
     id: game.id,
     name: game.name,
     url: game.url,
+    ownerName: game.ownerName,
+    thumbnailUrl: game.thumbnailUrl,
+    videoUrl: game.videoUrl,
     slug: game.slug,
   }));
 

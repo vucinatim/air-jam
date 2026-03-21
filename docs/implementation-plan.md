@@ -28,14 +28,14 @@ This is the single active execution checklist for Air Jam.
 2. B) Security hardening: complete.
 3. C) Reliability and developer confidence: complete.
 4. D) Docs and DX correctness: complete.
-5. E) UX conversion improvements: active focus.
-6. F) Operational readiness: pending.
+5. E) UX conversion improvements: mostly complete (safe-area docs pending).
+6. F) Operational readiness: in progress.
 
 ### Next Priority Improvements
 
-1. Arcade discovery UX upgrade (thumbnail/cover/author metadata in cards).
-2. Host shell safe-area guidance and default layout contract.
-3. Mobile landing-page hero polish pass.
+1. Final launch smoke pass on production-like flow (room/join/launch/exit/publish).
+2. Rollback runbook notes for publish visibility and API key rotation.
+3. Host shell safe-area guidance and default layout contract.
 
 ### Explicitly Deferred
 
@@ -119,9 +119,9 @@ Exit criteria:
 
 ## E) UX Conversion Improvements (P1)
 
-- [ ] Expose game media metadata in dashboard settings (thumbnail/cover).
-- [ ] Render media and author metadata in arcade browser cards.
-- [ ] Add fallback visuals and loading behavior for missing media.
+- [x] Expose game media metadata in dashboard settings (thumbnail/cover/video).
+- [x] Render media and author metadata in arcade browser cards.
+- [x] Add fallback visuals and loading behavior for missing media.
 - [ ] Add safe-area/top-overlay contract docs for host UI composition.
 
 Exit criteria:
@@ -130,15 +130,15 @@ Exit criteria:
 
 ## F) Operational Readiness (P1)
 
-- [ ] Define go/no-go checklist run before major visibility pushes/releases.
+- [x] Define go/no-go checklist run before major visibility pushes/releases.
 - [ ] Run production-like smoke pass (create room, join controllers, launch/exit game, publish/unpublish flow).
-- [ ] Confirm release workflow and package versions are coherent.
+- [x] Confirm release workflow and package versions are coherent.
 - [ ] Prepare rollback notes (disable publish listing, rotate API key guidance).
 
 ## Suggested Sequence (From Current State)
 
-1. E) UX conversion improvements
-2. F) Final launch gate run
+1. F) Final launch smoke pass + rollback notes
+2. E) Safe-area/top-overlay host composition docs
 
 ## Release Gate Rules
 
@@ -148,6 +148,15 @@ Go only if all are true:
 3. Docs onboarding path is verified end to end from a clean scaffolded project.
 4. Critical-path server correctness/stability tests are green.
 5. Baseline performance benchmark is recorded and accepted.
+
+## Validation Snapshot (2026-03-21)
+
+1. `pnpm typecheck`: pass.
+2. `pnpm lint`: pass.
+3. `pnpm test`: pass.
+4. `pnpm test:scaffold`: pass.
+5. `pnpm build`: pass.
+6. CI workflow enforces launch-critical gates (`.github/workflows/ci.yml`).
 
 No-go if any are true:
 1. Known auth/RPC spoof path remains open.

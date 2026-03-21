@@ -60,6 +60,7 @@ export const games = pgTable("games", {
   description: text("description"),
   url: text("url").notNull(), // The URL where the game is hosted
   thumbnailUrl: text("thumbnail_url"),
+  videoUrl: text("video_url"),
   coverUrl: text("cover_url"),
   isPublished: boolean("is_published").default(false).notNull(),
   config: jsonb("config").default({}).notNull(), // Game specific configuration variables

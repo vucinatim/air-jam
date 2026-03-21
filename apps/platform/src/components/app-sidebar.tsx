@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LineChart,
   Settings,
+  UserRound,
   Variable,
 } from "lucide-react";
 import Image from "next/image";
@@ -146,6 +147,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton disabled>
                     <LineChart />
                     <span>Global Analytics</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === "/dashboard/account"}
+                  >
+                    <Link href="/dashboard/account">
+                      <UserRound />
+                      <span>Account</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

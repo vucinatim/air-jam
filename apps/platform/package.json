@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "pnpm run dev:full",
+    "dev:app": "next dev",
+    "dev:db": "drizzle-kit studio --config drizzle.config.ts",
+    "dev:full": "bash -lc 'pnpm run dev:db & DB_PID=$!; trap \"kill $DB_PID 2>/dev/null || true\" EXIT INT TERM; pnpm run dev:app'",
+    "dev:no-db": "pnpm run dev:app",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

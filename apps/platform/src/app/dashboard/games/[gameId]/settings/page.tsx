@@ -25,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Loader2, Save, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 const gameSettingsSchema = z.object({
@@ -41,11 +41,82 @@ const gameSettingsSchema = z.object({
     .url("Must be a valid URL")
     .optional()
     .or(z.literal("")),
+  videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   coverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   isPublished: z.boolean(),
 });
 
 type GameSettingsForm = z.infer<typeof gameSettingsSchema>;
+
+const isValidHttpUrl = (value?: string) => {
+  if (!value) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const MediaPreview = ({
+  label,
+  url,
+  type,
+}: {
+  label: string;
+  url?: string;
+  type: "image" | "video";
+}) => {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const hasUrl = Boolean(url);
+  const isValidUrl = isValidHttpUrl(url);
+  const hasError = !!url && failedUrl === url;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-muted-foreground text-xs font-medium">{label}</p>
+      <div className="bg-muted/20 relative aspect-video overflow-hidden rounded-md border">
+        {!hasUrl && (
+          <div className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
+            No URL set
+          </div>
+        )}
+        {hasUrl && !isValidUrl && (
+          <div className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
+            Invalid URL
+          </div>
+        )}
+        {hasUrl && isValidUrl && hasError && (
+          <div className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
+            Failed to load
+          </div>
+        )}
+        {hasUrl && isValidUrl && !hasError && type === "image" && (
+          // eslint-disable-next-line @next/next/no-img-element -- user-provided remote URLs are not known at build time
+          <img
+            src={url}
+            alt={`${label} preview`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setFailedUrl(url ?? null)}
+          />
+        )}
+        {hasUrl && isValidUrl && !hasError && type === "video" && (
+          <video
+            src={url}
+            className="h-full w-full object-cover"
+            muted
+            loop
+            playsInline
+            autoPlay
+            preload="metadata"
+            onError={() => setFailedUrl(url ?? null)}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function GameSettingsPage() {
   const params = useParams();
@@ -54,10 +125,8 @@ export default function GameSettingsPage() {
 
   // Debounced slug for availability check
   const [debouncedSlug, setDebouncedSlug] = useState("");
-  const [slugInput, setSlugInput] = useState("");
 
   const { data: game, isLoading } = api.game.get.useQuery({ id: gameId });
-
   // Check slug availability with debounce
   const { data: slugCheck, isFetching: isCheckingSlug } =
     api.game.checkSlugAvailability.useQuery(
@@ -66,14 +135,6 @@ export default function GameSettingsPage() {
         enabled: debouncedSlug.length > 0 && /^[a-z0-9-]+$/.test(debouncedSlug),
       },
     );
-
-  // Debounce slug input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSlug(slugInput);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [slugInput]);
 
   const updateGame = api.game.update.useMutation({
     onSuccess: () => {
@@ -93,10 +154,24 @@ export default function GameSettingsPage() {
       description: "",
       url: "",
       thumbnailUrl: "",
+      videoUrl: "",
       coverUrl: "",
       isPublished: false,
     },
   });
+
+  const watchedSlug = useWatch({
+    control: form.control,
+    name: "slug",
+  });
+
+  // Debounce slug input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSlug(watchedSlug || "");
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [watchedSlug]);
 
   useEffect(() => {
     if (game) {
@@ -106,14 +181,25 @@ export default function GameSettingsPage() {
         description: game.description || "",
         url: game.url,
         thumbnailUrl: game.thumbnailUrl || "",
+        videoUrl: game.videoUrl || "",
         coverUrl: game.coverUrl || "",
         isPublished: game.isPublished,
       });
-      // Initialize slug input for availability checking
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSlugInput(game.slug || "");
     }
   }, [game, form]);
+
+  const thumbnailUrl = useWatch({
+    control: form.control,
+    name: "thumbnailUrl",
+  });
+  const videoUrl = useWatch({
+    control: form.control,
+    name: "videoUrl",
+  });
+  const coverUrl = useWatch({
+    control: form.control,
+    name: "coverUrl",
+  });
 
   const onSubmit = (data: GameSettingsForm) => {
     updateGame.mutate({
@@ -195,10 +281,6 @@ export default function GameSettingsPage() {
                                     "border-red-500 focus-visible:ring-red-500",
                                 )}
                                 {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  setSlugInput(e.target.value);
-                                }}
                               />
                               {/* Status indicator */}
                               {field.value.length > 0 && isValidFormat && (
@@ -266,6 +348,72 @@ export default function GameSettingsPage() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="thumbnailUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Thumbnail URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://.../thumbnail.jpg" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Used as the game card image in the arcade browser.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="videoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preview Video URL (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://.../preview.mp4" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Plays on selected arcade cards when available.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="coverUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cover URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://.../cover.jpg" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Reserved for future larger hero/feature placements.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Media Preview</p>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <MediaPreview
+                    label="Thumbnail"
+                    url={thumbnailUrl}
+                    type="image"
+                  />
+                  <MediaPreview
+                    label="Preview Video"
+                    url={videoUrl}
+                    type="video"
+                  />
+                  <MediaPreview label="Cover" url={coverUrl} type="image" />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </form>

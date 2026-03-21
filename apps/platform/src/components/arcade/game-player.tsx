@@ -8,6 +8,9 @@ export interface GamePlayerGame {
   id: string;
   name: string;
   url: string;
+  ownerName?: string | null;
+  thumbnailUrl?: string | null;
+  videoUrl?: string | null;
 }
 
 interface GamePlayerProps {

@@ -29,6 +29,13 @@
       "when": 1767099585956,
       "tag": "0003_lonely_morlun",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774109855607,
+      "tag": "0004_normal_wolf_cub",
+      "breakpoints": true
     }
   ]
 }
