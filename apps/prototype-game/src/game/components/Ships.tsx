@@ -8,6 +8,7 @@ import { Ship } from "./Ship";
 
 export function Ships() {
   const players = useGameStore((state) => state.players);
+  const roundId = useGameStore((state) => state.roundId);
   const playerTeams = useCaptureTheFlagStore((state) => state.playerTeams);
   const basePositions = useCaptureTheFlagStore((state) => state.basePositions);
 
@@ -37,7 +38,7 @@ export function Ships() {
 
         return (
           <Ship
-            key={player.controllerId}
+            key={`${roundId}:${player.controllerId}`}
             controllerId={player.controllerId}
             position={position}
           />

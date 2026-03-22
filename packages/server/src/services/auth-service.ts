@@ -29,7 +29,7 @@ export class AuthService {
 
     if (this.authMode === "disabled") {
       console.log(
-        "[server] Running in development mode - authentication disabled",
+        "[server] Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce API keys)",
       );
     } else if (this.masterKey && !this.databaseUrl) {
       console.log(
@@ -119,13 +119,9 @@ export class AuthService {
     }
 
     // Auto mode (default):
-    // - Require auth whenever credentials are configured.
-    // - Fail closed in production even if credentials are missing.
-    // - Keep local development friction-free.
-    if (this.masterKey || this.databaseUrl) {
-      return "required";
-    }
-
+    // - Production defaults to required.
+    // - Development defaults to disabled for friction-free local iteration.
+    // - Use AIR_JAM_AUTH_MODE=required to enforce auth in development.
     if (process.env.NODE_ENV === "production") {
       return "required";
     }

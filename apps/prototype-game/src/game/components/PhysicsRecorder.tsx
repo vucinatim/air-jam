@@ -1,8 +1,14 @@
 import { useFrame } from "@react-three/fiber";
 import type { RapierRigidBody } from "@react-three/rapier";
 import { type MutableRefObject, type RefObject } from "react";
-import type { InputState } from "../input-store";
 import { usePhysicsStore } from "../physics-store";
+
+interface RecorderInputState {
+  vector: { x: number; y: number };
+  action: boolean;
+  ability: boolean;
+  timestamp: number;
+}
 
 export interface PhysicsFrame {
   timestamp: number;
@@ -23,7 +29,7 @@ export interface PhysicsDebugData {
 
 interface PhysicsRecorderProps {
   rigidBodyRef: RefObject<RapierRigidBody>;
-  inputRef: MutableRefObject<InputState>;
+  inputRef: MutableRefObject<RecorderInputState>;
   debugDataRef: MutableRefObject<PhysicsDebugData>;
 }
 

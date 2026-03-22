@@ -1,5 +1,8 @@
 import { PerspectiveCamera } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import {
+  Canvas,
+  useFrame,
+} from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { useEffect, useRef } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
@@ -25,6 +28,34 @@ import { SpaceEnvironment } from "./SpaceEnvironment";
 import "../abilities/health-pack";
 import "../abilities/rocket";
 import "../abilities/speed-boost";
+
+function SpectatorCamera() {
+  const cameraRef = useRef<ThreePerspectiveCamera>(null);
+
+  useFrame((state) => {
+    const camera = cameraRef.current;
+    if (!camera) return;
+
+    const time = state.clock.elapsedTime * 0.18;
+    const radius = 220;
+    const x = Math.cos(time) * radius;
+    const z = Math.sin(time) * radius;
+    const y = 95 + Math.sin(time * 1.8) * 10;
+    camera.position.set(x, y, z);
+    camera.lookAt(0, 0, 0);
+  });
+
+  return (
+    <PerspectiveCamera
+      ref={cameraRef}
+      makeDefault
+      fov={60}
+      near={0.1}
+      far={5000}
+      position={[180, 95, 180]}
+    />
+  );
+}
 
 function MultiCameraController({
   onCamerasReady,
@@ -107,6 +138,8 @@ function MultiCameraController({
 
 export function GameScene({
   onCamerasReady,
+  mode = "match",
+  paused = false,
 }: {
   onCamerasReady?: (
     cameras: Array<{
@@ -114,16 +147,19 @@ export function GameScene({
       viewport: { x: number; y: number; width: number; height: number };
     }>,
   ) => void;
+  mode?: "match" | "spectator";
+  paused?: boolean;
 }) {
   const isDebugPanelOpen = useDebugStore((state) => state.isOpen);
 
   return (
     <Canvas shadows gl={{ antialias: true }}>
       <Physics
+        paused={paused}
         gravity={[0, 0, 0]}
         interpolate={true}
         timeStep="vary"
-        debug={isDebugPanelOpen}
+        debug={mode === "match" ? isDebugPanelOpen : false}
       >
         <SpaceEnvironment />
         <Ships />
@@ -137,7 +173,11 @@ export function GameScene({
         <PlayerBases />
         <Flags />
         <JumpPads />
-        <MultiCameraController onCamerasReady={onCamerasReady || (() => {})} />
+        {mode === "spectator" ? (
+          <SpectatorCamera />
+        ) : (
+          <MultiCameraController onCamerasReady={onCamerasReady || (() => {})} />
+        )}
       </Physics>
     </Canvas>
   );

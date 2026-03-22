@@ -125,6 +125,21 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controllerId]);
 
+  useEffect(() => {
+    return () => {
+      shipPositions.delete(controllerId);
+      shipRotations.delete(controllerId);
+
+      if (engineIdleSoundIdRef.current !== null) {
+        audio.stop("engine_idle", engineIdleSoundIdRef.current);
+      }
+
+      if (engineThrustSoundIdRef.current !== null) {
+        audio.stop("engine_thrust", engineThrustSoundIdRef.current);
+      }
+    };
+  }, [audio, controllerId]);
+
   // --- THE LOOP ---
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;

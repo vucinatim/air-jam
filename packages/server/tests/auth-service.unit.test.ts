@@ -48,4 +48,28 @@ describe("AuthService", () => {
 
     expect(result).toEqual({ isVerified: true });
   });
+
+  it("defaults to disabled auth in development even when DATABASE_URL is set", async () => {
+    delete process.env.AIR_JAM_AUTH_MODE;
+    process.env.NODE_ENV = "development";
+    process.env.DATABASE_URL = "postgres://example";
+
+    const authService = new AuthService();
+    const result = await authService.verifyApiKey();
+
+    expect(result).toEqual({ isVerified: true });
+  });
+
+  it("defaults to required auth in production when mode is not set", async () => {
+    delete process.env.AIR_JAM_AUTH_MODE;
+    process.env.NODE_ENV = "production";
+    delete process.env.AIR_JAM_MASTER_KEY;
+    delete process.env.DATABASE_URL;
+
+    const authService = new AuthService();
+    const result = await authService.verifyApiKey();
+
+    expect(result.isVerified).toBe(false);
+    expect(result.error).toBe("Unauthorized: Invalid or Missing API Key");
+  });
 });

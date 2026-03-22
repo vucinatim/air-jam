@@ -1,4 +1,4 @@
-import type { ControllerInputEvent, PlayerProfile } from "@air-jam/sdk";
+import type { PlayerProfile } from "@air-jam/sdk";
 import { create } from "zustand";
 import {
   TEAM_CONFIG,
@@ -6,33 +6,49 @@ import {
   useCaptureTheFlagStore,
 } from "./capture-the-flag-store";
 import { useHealthStore } from "./health-store";
-import { useInputStore } from "./input-store";
 import { usePlayerStatsStore } from "./player-stats-store";
+
+type PlayerSource = "connected" | "bot";
 
 export interface PlayerSlot {
   controllerId: string;
   profile: PlayerProfile;
   color: string;
   teamId: TeamId;
+  source: PlayerSource;
 }
 
 export type CameraMode = "follow" | "topdown";
 
 interface GameState {
   players: PlayerSlot[];
+  roundId: number;
   cameraMode: CameraMode;
+  bumpRound: () => void;
   setCameraMode: (mode: CameraMode) => void;
-  upsertPlayer: (profile: PlayerProfile, controllerId: string) => void;
-  removePlayer: (controllerId: string) => void;
-  applyInput: (event: ControllerInputEvent) => void;
-  clearInputs: () => void;
+  upsertConnectedPlayer: (profile: PlayerProfile, controllerId: string) => void;
+  removeConnectedPlayer: (controllerId: string) => void;
+  upsertBotPlayer: (profile: PlayerProfile, controllerId: string) => void;
+  removeBotPlayer: (controllerId: string) => void;
+  setPlayerTeam: (controllerId: string, teamId: TeamId) => void;
 }
+
+const cleanupPlayerSystems = (controllerId: string) => {
+  useHealthStore.getState().removeHealth(controllerId);
+  usePlayerStatsStore.getState().removeStats(controllerId);
+  useCaptureTheFlagStore.getState().removePlayer(controllerId);
+};
 
 export const useGameStore = create<GameState>((set) => ({
   players: [],
+  roundId: 0,
   cameraMode: "follow",
+  bumpRound: () =>
+    set((state) => ({
+      roundId: state.roundId + 1,
+    })),
   setCameraMode: (mode) => set({ cameraMode: mode }),
-  upsertPlayer: (profile, controllerId) => {
+  upsertConnectedPlayer: (profile, controllerId) => {
     set((state) => {
       const existing = state.players.find(
         (player) => player.controllerId === controllerId,
@@ -50,6 +66,7 @@ export const useGameStore = create<GameState>((set) => ({
                     profile,
                     teamId,
                     color: TEAM_CONFIG[teamId].color,
+                    source: "connected",
                   }
                 : player,
           ),
@@ -68,42 +85,129 @@ export const useGameStore = create<GameState>((set) => ({
         profile,
         color,
         teamId,
+        source: "connected",
       };
       // Initialize health and stats for new player
       useHealthStore.getState().initializeHealth(controllerId);
       usePlayerStatsStore.getState().initializeStats(controllerId);
-      // Initialize input for new player (input store will handle empty input creation)
-      useInputStore.getState().applyInput({
-        controllerId,
-        input: {
-          vector: { x: 0, y: 0 },
-          action: false,
-          ability: false,
-          timestamp: Date.now(),
-        },
-      });
       return { players: [...state.players, slot] };
     });
   },
-  removePlayer: (controllerId) => {
-    set((state) => ({
-      players: state.players.filter(
-        (player) => player.controllerId !== controllerId,
-      ),
-    }));
-    // Clean up health and stats when player is removed
-    useHealthStore.getState().removeHealth(controllerId);
-    usePlayerStatsStore.getState().removeStats(controllerId);
-    // Clean up input when player is removed
-    useInputStore.getState().removeInput(controllerId);
-    useCaptureTheFlagStore.getState().removePlayer(controllerId);
+  removeConnectedPlayer: (controllerId) => {
+    let removed = false;
+    set((state) => {
+      const target = state.players.find(
+        (player) => player.controllerId === controllerId,
+      );
+      if (!target || target.source !== "connected") {
+        return state;
+      }
+      removed = true;
+      return {
+        players: state.players.filter(
+          (player) => player.controllerId !== controllerId,
+        ),
+      };
+    });
+
+    if (removed) {
+      cleanupPlayerSystems(controllerId);
+    }
   },
-  applyInput: (event) => {
-    // Update input store instead of players array to avoid unnecessary rerenders
-    useInputStore.getState().applyInput(event);
+  upsertBotPlayer: (profile, controllerId) => {
+    set((state) => {
+      const existing = state.players.find(
+        (player) => player.controllerId === controllerId,
+      );
+      if (existing) {
+        const ctfStore = useCaptureTheFlagStore.getState();
+        const teamId =
+          ctfStore.getPlayerTeam(controllerId) ?? existing.teamId ?? "solaris";
+        return {
+          players: state.players.map(
+            (player): PlayerSlot =>
+              player.controllerId === controllerId
+                ? {
+                    ...player,
+                    profile,
+                    teamId,
+                    color: TEAM_CONFIG[teamId].color,
+                    source: "bot",
+                  }
+                : player,
+          ),
+        };
+      }
+
+      if (state.players.length >= 4) {
+        return state;
+      }
+
+      const ctfStore = useCaptureTheFlagStore.getState();
+      const teamId = ctfStore.assignPlayerToTeam(controllerId);
+      const color = TEAM_CONFIG[teamId].color;
+      const slot: PlayerSlot = {
+        controllerId,
+        profile,
+        color,
+        teamId,
+        source: "bot",
+      };
+      useHealthStore.getState().initializeHealth(controllerId);
+      usePlayerStatsStore.getState().initializeStats(controllerId);
+
+      return { players: [...state.players, slot] };
+    });
   },
-  clearInputs: () => {
-    // Clear all inputs in the input store
-    useInputStore.getState().clearAllInputs();
+  removeBotPlayer: (controllerId) => {
+    let removed = false;
+    set((state) => {
+      const target = state.players.find(
+        (player) => player.controllerId === controllerId,
+      );
+      if (!target || target.source !== "bot") {
+        return state;
+      }
+      removed = true;
+      return {
+        players: state.players.filter(
+          (player) => player.controllerId !== controllerId,
+        ),
+      };
+    });
+
+    if (removed) {
+      cleanupPlayerSystems(controllerId);
+    }
+  },
+  setPlayerTeam: (controllerId, teamId) => {
+    useCaptureTheFlagStore.getState().setPlayerTeam(controllerId, teamId);
+
+    set((state) => {
+      const target = state.players.find(
+        (player) => player.controllerId === controllerId,
+      );
+      if (!target) {
+        return state;
+      }
+
+      if (target.teamId === teamId) {
+        return state;
+      }
+
+      return {
+        players: state.players.map((player): PlayerSlot => {
+          if (player.controllerId !== controllerId) {
+            return player;
+          }
+
+          return {
+            ...player,
+            teamId,
+            color: TEAM_CONFIG[teamId].color,
+          };
+        }),
+      };
+    });
   },
 }));

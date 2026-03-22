@@ -6,7 +6,7 @@ import { BotController } from "./BotController";
 
 interface BotManagerState {
   bots: Map<string, BotController>;
-  addBot: () => void;
+  addBot: () => string;
   getBotInput: (
     controllerId: string,
     _delta: number,
@@ -29,7 +29,7 @@ export const useBotManager = create<BotManagerState>((set, get) => ({
     });
 
     // Add to GameStore as a player
-    useGameStore.getState().upsertPlayer(
+    useGameStore.getState().upsertBotPlayer(
       {
         id: controllerId,
         label: `Bot ${controllerId.slice(4)}`,
@@ -39,7 +39,7 @@ export const useBotManager = create<BotManagerState>((set, get) => ({
       controllerId,
     );
 
-    console.log(`[BotManager] Added bot: ${controllerId}`);
+    return controllerId;
   },
 
   getBotInput: (controllerId, _delta, time) => {
@@ -54,6 +54,6 @@ export const useBotManager = create<BotManagerState>((set, get) => ({
       newBots.delete(controllerId);
       return { bots: newBots };
     });
-    useGameStore.getState().removePlayer(controllerId);
+    useGameStore.getState().removeBotPlayer(controllerId);
   },
 }));

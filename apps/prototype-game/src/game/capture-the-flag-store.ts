@@ -38,8 +38,10 @@ interface CaptureTheFlagState {
   basePositions: Record<TeamId, [number, number, number]>;
   getBasePosition: (teamId: TeamId) => [number, number, number];
   assignPlayerToTeam: (controllerId: string) => TeamId;
+  setPlayerTeam: (controllerId: string, teamId: TeamId) => void;
   getPlayerTeam: (controllerId: string) => TeamId | undefined;
   removePlayer: (controllerId: string) => void;
+  resetMatch: () => void;
   handleBaseEntry: (controllerId: string, baseTeam: TeamId) => void;
   tryPickupFlag: (controllerId: string, flagTeam: TeamId) => void;
   dropFlagAtPosition: (
@@ -201,6 +203,17 @@ export const useCaptureTheFlagStore = create<CaptureTheFlagState>(
 
         return targetTeam;
       },
+      setPlayerTeam: (controllerId: string, teamId: TeamId) => {
+        set((state) => {
+          if (state.playerTeams[controllerId] === teamId) {
+            return state;
+          }
+
+          return {
+            playerTeams: { ...state.playerTeams, [controllerId]: teamId },
+          };
+        });
+      },
       getPlayerTeam: (controllerId: string) => {
         return get().playerTeams[controllerId];
       },
@@ -228,6 +241,18 @@ export const useCaptureTheFlagStore = create<CaptureTheFlagState>(
           return {
             playerTeams: updatedPlayerTeams,
             flags: updatedFlags,
+          };
+        });
+      },
+      resetMatch: () => {
+        set((state) => {
+          const nextBasePositions = generateRandomBasePositions();
+
+          return {
+            ...state,
+            flags: createInitialFlags(nextBasePositions),
+            scores: createInitialScores(),
+            basePositions: nextBasePositions,
           };
         });
       },

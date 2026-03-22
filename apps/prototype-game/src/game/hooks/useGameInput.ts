@@ -1,13 +1,19 @@
-import { useGetInput } from "@air-jam/sdk";
+import {
+  useGetInput,
+  useRoom,
+} from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { useBotManager } from "../bot-system/BotManager";
+import { usePrototypeMatchStore } from "../match-store";
 import { type GameLoopInput, gameInputSchema } from "../types";
 
 export const useGameInput = () => {
   // Get getInput without subscribing to connection state
   const getInputFromHost = useGetInput<typeof gameInputSchema>();
   const botManager = useBotManager.getState();
+  const { gameState } = useRoom();
+  const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
 
   // We need time for bot updates
   const timeRef = useRef(0);
@@ -17,6 +23,10 @@ export const useGameInput = () => {
   });
 
   const popInput = (controllerId: string): GameLoopInput | undefined => {
+    if (gameState !== "playing" || matchPhase !== "playing") {
+      return undefined;
+    }
+
     if (controllerId.startsWith("bot-")) {
       // It's a bot!
       const delta = 1 / 60;
@@ -40,13 +50,5 @@ export const useGameInput = () => {
     };
   };
 
-  const clearInput = (controllerId: string) => {
-    // Input cleanup is handled by InputManager automatically
-    // Bot cleanup is handled by BotManager.removeBot usually
-    if (controllerId.startsWith("bot-")) {
-      return;
-    }
-  };
-
-  return { popInput, clearInput };
+  return { popInput };
 };

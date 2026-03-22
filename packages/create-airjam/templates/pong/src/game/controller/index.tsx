@@ -6,6 +6,7 @@ import {
   useInputWriter,
   useRemoteSound,
 } from "@air-jam/sdk";
+import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { ControllerHeader } from "./components/controller-header";
 import { EndedPanel } from "./components/ended-panel";
@@ -109,66 +110,68 @@ export function ControllerView() {
   }, [controlsDisabled]);
 
   return (
-    <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-zinc-950 text-white">
-      <ControllerHeader
-        roomId={controller.roomId}
-        myProfile={myProfile}
-        connectionStatus={controller.connectionStatus}
-        matchPhase={matchPhase}
-        gameState={controller.gameState}
-        canSendSystemCommand={canSendSystemCommand}
-        onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
-        onReturnToLobby={() => actions.returnToLobby()}
-      />
-
-      {connectionNotice ? (
-        <div className="border-b border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-200">
-          {connectionNotice}
-        </div>
-      ) : null}
-      {latestToast ? (
-        <div
-          className="border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em]"
-          style={{
-            borderColor: `${latestToast.color ?? "#38bdf8"}55`,
-            backgroundColor: `${latestToast.color ?? "#38bdf8"}1a`,
-            color: latestToast.color ?? "#bae6fd",
-          }}
-        >
-          {latestToast.message}
-        </div>
-      ) : null}
-
-      {matchPhase === "lobby" ? (
-        <LobbyPanel
-          myTeam={myTeam}
-          botTeam={botTeam}
-          pointsToWin={pointsToWin}
-          canStartMatch={readiness.canStart}
-          controlsDisabled={controlsDisabled}
-          readinessText={readinessText}
-          onJoinTeam={(team) => actions.joinTeam({ team })}
-          onToggleBotEnabled={(enabled) => actions.setBotEnabled({ enabled })}
-          onSetPointsToWin={(nextPointsToWin) =>
-            actions.setPointsToWin({ pointsToWin: nextPointsToWin })
-          }
-          onStartMatch={() => actions.startMatch()}
-        />
-      ) : matchPhase === "ended" ? (
-        <EndedPanel
-          matchSummary={matchSummary}
+    <ForcedOrientationShell desired="portrait" className="bg-zinc-950">
+      <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-white">
+        <ControllerHeader
+          roomId={controller.roomId}
+          myProfile={myProfile}
+          connectionStatus={controller.connectionStatus}
+          matchPhase={matchPhase}
+          gameState={controller.gameState}
           canSendSystemCommand={canSendSystemCommand}
-          onRestartMatch={() => actions.restartMatch()}
+          onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
           onReturnToLobby={() => actions.returnToLobby()}
         />
-      ) : (
-        <PlayingControls
-          controlsDisabled={controlsDisabled}
-          onDirectionChange={(direction) => {
-            directionRef.current = direction;
-          }}
-        />
-      )}
-    </div>
+
+        {connectionNotice ? (
+          <div className="border-b border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-200">
+            {connectionNotice}
+          </div>
+        ) : null}
+        {latestToast ? (
+          <div
+            className="border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em]"
+            style={{
+              borderColor: `${latestToast.color ?? "#38bdf8"}55`,
+              backgroundColor: `${latestToast.color ?? "#38bdf8"}1a`,
+              color: latestToast.color ?? "#bae6fd",
+            }}
+          >
+            {latestToast.message}
+          </div>
+        ) : null}
+
+        {matchPhase === "lobby" ? (
+          <LobbyPanel
+            myTeam={myTeam}
+            botTeam={botTeam}
+            pointsToWin={pointsToWin}
+            canStartMatch={readiness.canStart}
+            controlsDisabled={controlsDisabled}
+            readinessText={readinessText}
+            onJoinTeam={(team) => actions.joinTeam({ team })}
+            onToggleBotEnabled={(enabled) => actions.setBotEnabled({ enabled })}
+            onSetPointsToWin={(nextPointsToWin) =>
+              actions.setPointsToWin({ pointsToWin: nextPointsToWin })
+            }
+            onStartMatch={() => actions.startMatch()}
+          />
+        ) : matchPhase === "ended" ? (
+          <EndedPanel
+            matchSummary={matchSummary}
+            canSendSystemCommand={canSendSystemCommand}
+            onRestartMatch={() => actions.restartMatch()}
+            onReturnToLobby={() => actions.returnToLobby()}
+          />
+        ) : (
+          <PlayingControls
+            controlsDisabled={controlsDisabled}
+            onDirectionChange={(direction) => {
+              directionRef.current = direction;
+            }}
+          />
+        )}
+      </div>
+    </ForcedOrientationShell>
   );
 }
