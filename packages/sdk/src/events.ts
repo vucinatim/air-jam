@@ -8,11 +8,6 @@
  */
 export const HostEvents = {
   /**
-   * Register as a master host (standalone mode)
-   */
-  REGISTER: "host:register",
-
-  /**
    * Register as the system/arcade master host
    */
   REGISTER_SYSTEM: "host:registerSystem",
@@ -109,7 +104,7 @@ export const ServerEvents = {
 } as const;
 
 /**
- * Client events (server -> controller shell)
+ * Client events (server -> controller runtime)
  */
 export const ClientEvents = {
   /**

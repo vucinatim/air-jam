@@ -253,7 +253,7 @@ Games built with Air Jam are static web applications. Deploy to:
 Set environment variables:
 
 - `VITE_AIR_JAM_SERVER_URL` or `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL
-- `VITE_AIR_JAM_PUBLIC_KEY` or `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY`: Your public API key (legacy supported: `VITE_AIR_JAM_API_KEY` / `NEXT_PUBLIC_AIR_JAM_API_KEY`)
+- `VITE_AIR_JAM_PUBLIC_KEY` or `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY`: Your public API key
 
 ## Documentation
 

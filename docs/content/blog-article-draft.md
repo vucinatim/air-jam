@@ -62,7 +62,7 @@ The app itself is a provider wrapping two routes:
 </AirJamProvider>
 ```
 
-On the host side, you call `useAirJamHost()` and you get a list of connected players and a `getInput()` function that returns the latest validated input from any controller. On the controller side, you call `useAirJamController()` and you get a `sendInput()` function. That's the entire networking API for basic games.
+On the host side, you call `useAirJamHost()` and you get a list of connected players and a `getInput()` function that returns the latest validated input from any controller. On the controller side, you use `useControllerTick()` with `useInputWriter()` to publish input snapshots. That's the entire networking API for basic games.
 
 When you need shared state -- scores, team assignments, game phases -- there's `createAirJamStore`. It works exactly like Zustand (because it _is_ Zustand under the hood), but the store automatically syncs between all devices. The host is always the source of truth. When a controller calls an action, it's transparently sent as an RPC to the host, executed there, and the result broadcasts back to everyone.
 
@@ -120,11 +120,11 @@ I mentioned `createAirJamStore` above, but it's worth emphasizing what it actual
 
 This means you get a host-authoritative multiplayer architecture -- the kind that prevents cheating and keeps state consistent -- without writing any networking code. The API is identical to regular Zustand. If you know how to write a React state hook, you know how to build multiplayer game state with Air Jam.
 
-### Batteries Included, But Optional
+### Headless by Default
 
-The SDK ships with shell components -- `HostShell` and `ControllerShell` -- that handle the stuff every game needs: displaying a QR code and room code, showing connected players, managing connection status, locking screen orientation, fullscreen toggles. They're there so you can get a playable game running fast.
+The SDK is now intentionally headless. Runtime behavior lives in hooks and session providers (`useAirJamHost`, `useAirJamController`, `HostSessionProvider`, `ControllerSessionProvider`), and your app owns the UI completely.
 
-But they're optional. You can use them as-is for quick prototypes, customize them, or replace them entirely. The framework is designed as a set of hooks and primitives first, with the UI components as a convenience layer on top.
+That gives one unambiguous architecture: the framework handles networking, room lifecycle, input latching, and state sync; your game handles layout, controls, and visual design.
 
 ## What People Built With It
 
@@ -170,7 +170,7 @@ That's what I was building toward. Not a framework that makes one kind of game. 
 
 ## What I Took Away From All of This
 
-The thing that surprised me most wasn't the technical stuff. The framework worked about as well as I'd hoped -- the input latching was invisible (which is the point), the state sync held up, and the shell components gave people a running start.
+The thing that surprised me most wasn't the technical stuff. The framework worked about as well as I'd hoped -- the input latching was invisible (which is the point), and the state sync held up.
 
 What surprised me was how _personal_ the games became. When the framework handles all the infrastructure, the creative energy goes entirely into game design. That's how you end up with your coworkers' faces as game characters and "death by boredom" as a mechanic. People weren't thinking about WebSockets. They were thinking about what would be funny, what would make a good moment when everyone plays together.
 

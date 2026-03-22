@@ -87,9 +87,9 @@ export const DOCS_SECTIONS: DocsSection[] = [
       {
         title: "Input System",
         href: "/docs/sdk/input-system",
-        description: "Input latching, vectors, and button event handling.",
+        description: "Input behavior modes, vectors, and button event handling.",
         icon: "zap",
-        keywords: ["input", "latching", "vector", "button", "validation"],
+        keywords: ["input", "behavior", "vector", "button", "validation"],
       },
       {
         title: "Networked State",

@@ -1,8 +1,10 @@
 import {
-  Button,
-  ControllerShell,
   PlaySoundPayload,
   useAirJamController,
+  useControllerTick,
+  useConnectionStatus,
+  useInputWriter,
+  useRoom,
   useAudio,
 } from "@air-jam/sdk";
 import {
@@ -17,6 +19,7 @@ import {
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
+import { Button } from "../components/ui/button";
 import { createControllerStore } from "../game/controller-store";
 import { SOUND_MANIFEST } from "../game/sounds";
 
@@ -148,45 +151,45 @@ const ActionControl = ({
 // --- Main View Content ---
 
 const ControllerContent = () => {
-  const { connectionStatus, sendInput, socket } = useAirJamController();
+  const controller = useAirJamController();
+  const connectionStatus = useConnectionStatus();
+  const { roomId } = useRoom();
+  const writeInput = useInputWriter();
+  const socket = controller.socket;
   const audio = useAudio(SOUND_MANIFEST);
 
   // Create a stable store instance
   const [store] = useState(() => createControllerStore());
 
-  // Subscribe to store changes to transmit input
-  useEffect(() => {
-    if (connectionStatus !== "connected") return;
-
-    const unsubscribe = store.subscribe((state) => {
-      // Send arbitrary input structure - this game uses vector/action/ability
-      // Other games can define their own structure
-      sendInput({
+  // Canonical controller cadence: publish a fixed-tick input snapshot.
+  useControllerTick(
+    () => {
+      const state = store.getState();
+      writeInput({
         vector: state.vector,
         action: state.action,
         ability: state.ability,
         timestamp: Date.now(),
       });
-    });
-
-    return unsubscribe;
-  }, [connectionStatus, sendInput, store]);
+    },
+    {
+      enabled: connectionStatus === "connected",
+      intervalMs: 16,
+    },
+  );
 
   // Listen for server sound events
   useEffect(() => {
     if (!socket) return;
 
     const handlePlaySound = (payload: PlaySoundPayload) => {
-      // Type assertion needed since payload.id is string but audio.play expects SoundId
-      audio.play(payload.id as keyof typeof SOUND_MANIFEST);
-    };
-
-    socket.on("server:playSound", (payload) => {
       console.log("[Controller] Received server:playSound event:", payload);
       if (payload.id) {
         audio.play(payload.id as keyof typeof SOUND_MANIFEST);
       }
-    });
+    };
+
+    socket.on("server:playSound", handlePlaySound);
 
     return () => {
       socket.off("server:playSound", handlePlaySound);
@@ -196,8 +199,26 @@ const ControllerContent = () => {
   // Engine sounds are now handled on host, removed from controller
 
   return (
-    <ControllerShell forceOrientation="landscape">
-      <div className="flex h-full w-full touch-none items-stretch gap-2 select-none">
+    <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-black text-white">
+      <header className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-xs uppercase">
+        <span>
+          Room <span className="font-semibold tracking-wider">{roomId ?? "----"}</span>
+        </span>
+        <span
+          className={
+            connectionStatus === "connected"
+              ? "text-emerald-300"
+              : connectionStatus === "connecting" ||
+                  connectionStatus === "reconnecting"
+                ? "text-amber-300"
+                : "text-rose-300"
+          }
+        >
+          {connectionStatus}
+        </span>
+      </header>
+
+      <div className="flex min-h-0 flex-1 touch-none items-stretch gap-2 p-2 select-none">
         {/* Left Side - Left/Right Controls */}
         <div className="flex flex-1 items-center justify-center gap-2">
           <DirectionControl
@@ -254,7 +275,7 @@ const ControllerContent = () => {
           />
         </div>
       </div>
-    </ControllerShell>
+    </div>
   );
 };
 

@@ -21,13 +21,13 @@ import { SystemOverviewDiagram } from "@/components/docs/figures/system-overview
 - **Developer Portal** - Account management, API key generation, analytics
 - **Game Catalog** - Submit, manage, and discover Air Jam games
 - **Arcade Mode** - Browse and launch games from a unified interface
-- **Controller Shell** - Persistent mobile wrapper that loads game controllers
+- **Controller Runtime** - Persistent mobile wrapper that loads game controllers
 
 **Arcade Mode Flow:**
 
 ```
 1. Player scans QR on arcade screen
-2. Platform loads controller shell on phone
+2. Platform loads controller runtime on phone
 3. Player browses games using phone as remote
 4. Game launches → controller switches to game's controller
 5. Game ends → returns to arcade browser
@@ -120,11 +120,11 @@ Game runs inside an iframe on the Air Jam Platform.
 
 ### Bridge Mode
 
-Controller runs inside platform's shell (iframe communication).
+Controller runs inside platform's runtime wrapper (iframe communication).
 
 ```
 ┌─────────────────────────────────────────┐
-│  Platform Controller Shell (Parent)     │
+│  Platform Controller Runtime (Parent)   │
 │  ┌───────────────────────────────────┐  │
 │  │  Your Controller UI (iframe)      │  │
 │  │  • Input via postMessage          │  │
@@ -141,14 +141,14 @@ Controller runs inside platform's shell (iframe communication).
 
 ```
 1. Player moves joystick on phone
-2. Controller calls sendInput({ vector: {x, y}, action: false })
+2. Controller publishes input via useInputWriter({ vector: {x, y}, action: false })
 3. SDK sends controller:input event to server
 4. Server routes to host socket
 5. Host SDK's InputManager receives input
 6. InputManager validates with Zod schema
-7. InputManager applies latching if configured
+7. InputManager applies configured input behavior (`pulse`, `hold`, `latest`)
 8. Game calls getInput(playerId) in game loop
-9. Returns typed, validated, latched input
+9. Returns typed, validated input with behavior semantics applied
 ```
 
 ### Signal Path (Game → Controller)

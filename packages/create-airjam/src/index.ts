@@ -9,16 +9,32 @@ import prompts from "prompts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const normalizeWorkspaceSpecs = (
+  deps: Record<string, string> | undefined,
+): Record<string, string> | undefined => {
+  if (!deps) return deps;
+
+  return Object.fromEntries(
+    Object.entries(deps).map(([name, range]) => {
+      if (!range.startsWith("workspace:")) {
+        return [name, range];
+      }
+      return [name, range.replace(/^workspace:/, "")];
+    }),
+  );
+};
+
 async function main() {
   program
     .name("create-airjam")
     .description("Scaffold a new Air Jam game project")
     .argument("[project-name]", "Name of the project directory")
     .option("-t, --template <template>", "Template to use", "pong")
+    .option("--skip-install", "Skip dependency installation", false)
     .parse();
 
   const args = program.args;
-  const options = program.opts<{ template: string }>();
+  const options = program.opts<{ template: string; skipInstall: boolean }>();
 
   let projectName = args[0];
 
@@ -129,33 +145,43 @@ async function main() {
   if (fs.existsSync(pkgPath)) {
     const pkg = await fs.readJson(pkgPath);
     pkg.name = projectName;
+    pkg.dependencies = normalizeWorkspaceSpecs(pkg.dependencies);
+    pkg.devDependencies = normalizeWorkspaceSpecs(pkg.devDependencies);
     await fs.writeJson(pkgPath, pkg, { spaces: 2 });
   }
 
   console.log(kleur.green("✓ Project created successfully!\n"));
 
-  // Install dependencies
-  console.log(kleur.cyan("Installing dependencies...\n"));
-  try {
-    execSync("pnpm install", {
-      cwd: targetDir,
-      stdio: "inherit",
-    });
-    console.log(kleur.green("\n✓ Dependencies installed successfully!\n"));
-  } catch (error) {
-    console.error(error);
-    console.log(
-      kleur.yellow(
-        "\n⚠ Failed to install dependencies automatically. Please run 'pnpm install' manually.\n",
-      ),
-    );
+  if (!options.skipInstall) {
+    // Install dependencies
+    console.log(kleur.cyan("Installing dependencies...\n"));
+    try {
+      execSync("pnpm install", {
+        cwd: targetDir,
+        stdio: "inherit",
+      });
+      console.log(kleur.green("\n✓ Dependencies installed successfully!\n"));
+    } catch (error) {
+      console.error(error);
+      console.log(
+        kleur.yellow(
+          "\n⚠ Failed to install dependencies automatically. Please run 'pnpm install' manually.\n",
+        ),
+      );
+    }
+  } else {
+    console.log(kleur.yellow("Skipped dependency installation (--skip-install).\n"));
   }
 
   console.log("Next steps:\n");
   console.log(kleur.cyan(`  cd ${projectName}`));
   console.log(kleur.cyan("  cp .env.example .env.local"));
-  console.log(kleur.cyan("  pnpm run dev:server  # Terminal 1 - Start server"));
-  console.log(kleur.cyan("  pnpm run dev         # Terminal 2 - Start game"));
+  console.log(
+    kleur.cyan("  pnpm run dev         # Recommended: start server + game"),
+  );
+  console.log(
+    kleur.cyan("  pnpm run dev -- --web-only  # Optional: official backend only"),
+  );
   console.log(
     kleur.cyan(
       "  # Optional HTTPS mode (needed for gyro/camera testing on phones)",
@@ -167,7 +193,7 @@ async function main() {
     ),
   );
   console.log(
-    kleur.cyan("  pnpm run dev:secure  # Optional HTTPS mode for sensors"),
+    kleur.cyan("  pnpm run dev -- --secure  # Optional HTTPS mode for sensors"),
   );
   console.log("");
   console.log(

@@ -4,38 +4,45 @@ The Air Jam SDK provides React hooks for building multiplayer games. This page d
 
 ## Provider
 
-### `AirJamProvider`
+### `createAirJamApp`
 
-The root provider that must wrap your application. Manages WebSocket connections, state, and input processing.
+Use `createAirJamApp` as the canonical runtime setup. It wires scoped providers, route paths, and typed input schema in one place.
 
 ```tsx
-import { AirJamProvider } from "@air-jam/sdk";
+import { createAirJamApp, env } from "@air-jam/sdk";
 import { z } from "zod";
 
 const inputSchema = z.object({
   vector: z.object({ x: z.number(), y: z.number() }),
-  action: z.boolean(),
   timestamp: z.number(),
 });
 
-<AirJamProvider
-  // Optional: WebSocket server URL (auto-detects from env)
-  serverUrl="wss://your-server.com"
-  // Optional: API key for production
-  apiKey="your-api-key"
-  // Optional: Max players (default: 8)
-  maxPlayers={4}
-  // Optional: Input configuration with schema and latching
-  input={{
-    schema: inputSchema,
-    latch: {
-      booleanFields: ["action"],
-      vectorFields: ["vector"],
-    },
-  }}
->
-  <App />
-</AirJamProvider>;
+const airjam = createAirJamApp({
+  runtime: env.vite(),
+  game: {
+    controllerPath: "/controller",
+  },
+  input: { schema: inputSchema },
+});
+
+<Routes>
+  <Route
+    path="/"
+    element={
+      <airjam.Host>
+        <HostView />
+      </airjam.Host>
+    }
+  />
+  <Route
+    path={airjam.paths.controller}
+    element={
+      <airjam.Controller>
+        <ControllerView />
+      </airjam.Controller>
+    }
+  />
+</Routes>;
 ```
 
 **Environment Variables:**
@@ -44,7 +51,6 @@ The provider automatically reads from these environment variables if props aren'
 
 - `VITE_AIR_JAM_SERVER_URL` / `NEXT_PUBLIC_AIR_JAM_SERVER_URL` - WebSocket server URL
 - `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY` - Public API key
-- `VITE_AIR_JAM_API_KEY` / `NEXT_PUBLIC_AIR_JAM_API_KEY` - Legacy public key variable (still supported)
 
 ---
 
@@ -55,7 +61,7 @@ The provider automatically reads from these environment variables if props aren'
 The primary hook for game hosts. Connects to the server, manages players, and provides input access.
 
 ```tsx
-import { HostShell, useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
   const host = useAirJamHost({
@@ -92,15 +98,15 @@ const HostView = () => {
   } = host;
 
   return (
-    <HostShell>
-      {/* HostShell automatically provides:
-          - Top navbar with room ID and player avatars
-          - QR code overlay when paused
-          - Play/pause controls
-          - Settings panel
-      */}
+    <div className="relative min-h-screen bg-black text-white">
+      <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/70 px-4 py-2 backdrop-blur">
+        <span>Room {roomId}</span>
+        <button onClick={toggleGameState}>
+          {gameState === "playing" ? "Pause" : "Resume"}
+        </button>
+      </header>
       <GameCanvas />
-    </HostShell>
+    </div>
   );
 };
 ```
@@ -117,7 +123,7 @@ useFrame(() => {
     // Move player based on joystick
     movePlayer(player.id, input.vector);
 
-    // Handle button press (automatically latched)
+    // Handle button press (tap-safe pulse by default)
     if (input.action) {
       playerShoot(player.id);
     }
@@ -227,7 +233,12 @@ const Laser = ({ ownerId }: { ownerId: string }) => {
 Hook for building mobile controllers that connect to game hosts.
 
 ```tsx
-import { ControllerShell, useAirJamController } from "@air-jam/sdk";
+import {
+  useAirJamController,
+  useControllerTick,
+  useInputWriter,
+} from "@air-jam/sdk";
+import { useRef } from "react";
 
 const ControllerView = () => {
   const controller = useAirJamController({
@@ -244,6 +255,9 @@ const ControllerView = () => {
       }
     },
   });
+  const writeInput = useInputWriter();
+  const vectorRef = useRef({ x: 0, y: 0 });
+  const actionRef = useRef(false);
 
   const {
     roomId, // Room code (from URL or props)
@@ -253,11 +267,26 @@ const ControllerView = () => {
     stateMessage, // Optional message from host
 
     // Functions
-    sendInput, // Send input to host
     sendSystemCommand, // "exit" | "ready" | "toggle_pause"
     setNickname, // Update nickname
     reconnect, // Force reconnection
   } = controller;
+
+  // Canonical cadence for continuous controls:
+  // publish at a fixed tick with useControllerTick + useInputWriter.
+  useControllerTick(
+    () => {
+      writeInput({
+        vector: vectorRef.current,
+        action: actionRef.current,
+        timestamp: Date.now(),
+      });
+    },
+    {
+      enabled: connectionStatus === "connected" && gameState === "playing",
+      intervalMs: 16,
+    },
+  );
 
   if (connectionStatus === "connecting") {
     return <div>Connecting to room {roomId}...</div>;
@@ -272,29 +301,32 @@ const ControllerView = () => {
   }
 
   return (
-    <ControllerShell forceOrientation="landscape">
+    <div className="flex h-dvh flex-col bg-zinc-950 p-4 text-white">
+      <div className="mb-2 text-xs uppercase">Room {roomId}</div>
       <Joystick
         onMove={(x, y) => {
-          controller.sendInput({
-            vector: { x, y },
-            action: false,
-            timestamp: Date.now(),
-          });
+          vectorRef.current = { x, y };
         }}
       />
       <FireButton
-        onPress={() => {
-          controller.sendInput({
-            vector: { x: 0, y: 0 },
-            action: true,
-            timestamp: Date.now(),
-          });
-        }}
+        onPress={() => (actionRef.current = true)}
+        onRelease={() => (actionRef.current = false)}
       />
-    </ControllerShell>
+    </div>
   );
 };
 ```
+
+### `useControllerTick`
+
+Fixed-cadence helper for controller loops. Use it with `useInputWriter` instead of hand-rolled `setInterval` loops.
+
+### `useHostTick`
+
+Canonical host loop helper.
+
+- `mode: "raf"` (default) for render-aligned loops.
+- `mode: "interval"` for fixed-cadence polling loops.
 
 **Auto Room Join from URL:**
 
@@ -308,52 +340,57 @@ This is how QR code scanning works—the host generates a URL with the room code
 
 ---
 
-## Utility Hooks
+## Advanced (Non-default)
 
-### `useAirJamContext`
+Use these only when integrating platform-specific runtime behavior.
 
-Low-level hook for accessing the raw context. Most apps don't need this.
-
-```tsx
-import { useAirJamContext } from "@air-jam/sdk";
-
-const { config, store, inputManager } = useAirJamContext();
-```
-
-### `useAirJamConfig`
-
-Access the resolved configuration.
+### Raw socket access (escape hatch)
 
 ```tsx
-import { useAirJamConfig } from "@air-jam/sdk";
-
-const config = useAirJamConfig();
-console.log(config.serverUrl, config.maxPlayers);
+const host = useAirJamHost();
+host.socket.emit("custom:event", { value: 1 });
 ```
 
-### `useAirJamState`
+### Internal context hooks
 
-Subscribe to specific state with optimal re-rendering.
+`useAirJamContext`, `useAirJamConfig`, `useAirJamState`, and `useAirJamSocket` are intentionally internal and are not part of the root public SDK surface.
+
+---
+
+## Diagnostics
+
+Air Jam emits structured diagnostics for common misuse paths in development builds.
 
 ```tsx
-import { useAirJamState } from "@air-jam/sdk";
+import {
+  onAirJamDiagnostic,
+  setAirJamDiagnosticsEnabled,
+} from "@air-jam/sdk";
 
-const { players, gameState } = useAirJamState((state) => ({
-  players: state.players,
-  gameState: state.gameState,
-}));
+setAirJamDiagnosticsEnabled(true);
+
+const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+  console.log(diagnostic.code, diagnostic.message, diagnostic.details);
+});
 ```
 
-### `useAirJamSocket`
+### Diagnostics Reference
 
-Get the raw Socket.IO instance for advanced usage.
-
-```tsx
-import { useAirJamSocket } from "@air-jam/sdk";
-
-const socket = useAirJamSocket("host");
-socket.emit("custom:event", { data: "value" });
-```
+| Code | Meaning | Expected Fix |
+| ---- | ------- | ------------ |
+| `AJ_SCOPE_MISMATCH` | A host/controller hook was used in the wrong scoped provider tree. | Use `HostSessionProvider` for host hooks and `ControllerSessionProvider` for controller hooks. |
+| `AJ_MISSING_SESSION_PROVIDER` | SDK context was read outside Air Jam session providers. | Wrap route/root with scoped session provider. |
+| `AJ_CONFIG_MISSING_SERVER_URL` | Runtime config cannot resolve server URL when env resolution is disabled. | Provide `serverUrl` prop when using `resolveEnv={false}`. |
+| `AJ_CONFIG_MISSING_API_KEY` | Production runtime started without canonical API key config. | Set `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY` or pass `apiKey` explicitly. |
+| `AJ_STORE_ACTION_SESSION_NOT_READY` | Controller action dispatch attempted before role/room was ready. | Wait until room/session is established before dispatching store actions. |
+| `AJ_STORE_ACTION_UI_UNLOADED` | Controller attempted state action dispatch while game UI was unloaded. | Only dispatch actions while game UI is active. |
+| `AJ_STORE_ACTION_SOCKET_DISCONNECTED` | Controller state action dispatch attempted while socket disconnected. | Reconnect before dispatching action. |
+| `AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE` | State action payload contained non-serializable values. | Use JSON-safe payload objects only (no functions/symbols/cycles). |
+| `AJ_INPUT_WRITER_INVALID_SHAPE` | `useInputWriter` payload was not an object. | Send plain object payloads only. |
+| `AJ_INPUT_WRITER_NOT_SERIALIZABLE` | Input payload contained non-serializable values. | Keep input payload JSON-safe. |
+| `AJ_INPUT_WRITER_SESSION_NOT_READY` | Input writer called before room/controller identity was ready. | Start publish loop after controller connection/session is ready. |
+| `AJ_INPUT_WRITER_SOCKET_DISCONNECTED` | Input writer called while controller socket was disconnected. | Reconnect before sending input. |
+| `AJ_INPUT_WRITER_SCHEMA_INVALID` | Input payload failed runtime schema validation. | Match payload shape to configured input schema. |
 
 ---
 

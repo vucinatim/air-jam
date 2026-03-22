@@ -1,0 +1,70 @@
+import type { ServerErrorPayload } from "@air-jam/sdk/protocol";
+import { createRateLimitGuard, resolveSocketIdentifier } from "../policies/rate-limit-policy.js";
+import { createSocketAuthorization } from "../policies/socket-authorization.js";
+import type { AuthService } from "../services/auth-service.js";
+import type { RateLimitService } from "../services/rate-limit-service.js";
+import type { RoomManager } from "../services/room-manager.js";
+import { registerControllerHandlers } from "./handlers/register-controller-handlers.js";
+import { registerDisconnectHandler } from "./handlers/register-disconnect-handler.js";
+import { registerHostLifecycleHandlers } from "./handlers/register-host-lifecycle-handlers.js";
+import { registerRealtimeHandlers } from "./handlers/register-realtime-handlers.js";
+import type { SocketHandlerContext } from "./socket-handler-context.js";
+import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
+
+export interface RegisterSocketHandlersOptions {
+  io: AirJamIoServer;
+  socket: AirJamSocket;
+  roomManager: RoomManager;
+  rateLimitService: RateLimitService;
+  authService: AuthService;
+  rateLimitWindowMs: number;
+  hostRegistrationRateLimitMax: number;
+  controllerJoinRateLimitMax: number;
+}
+
+export const registerSocketHandlers = ({
+  io,
+  socket,
+  roomManager,
+  rateLimitService,
+  authService,
+  rateLimitWindowMs,
+  hostRegistrationRateLimitMax,
+  controllerJoinRateLimitMax,
+}: RegisterSocketHandlersOptions): void => {
+  const { isHostAuthorizedForRoom, isControllerAuthorizedForRoom } =
+    createSocketAuthorization(socket.id, roomManager);
+
+  const socketIdentifier = resolveSocketIdentifier(
+    socket.handshake.headers["x-forwarded-for"],
+    socket.handshake.address,
+    socket.id,
+  );
+  const isRateLimited = createRateLimitGuard(
+    rateLimitService,
+    socketIdentifier,
+    rateLimitWindowMs,
+  );
+
+  const emitError = (socketId: string, payload: ServerErrorPayload): void => {
+    io.to(socketId).emit("server:error", payload);
+  };
+
+  const context: SocketHandlerContext = {
+    io,
+    socket,
+    roomManager,
+    authService,
+    hostRegistrationRateLimitMax,
+    controllerJoinRateLimitMax,
+    emitError,
+    isRateLimited,
+    isHostAuthorizedForRoom,
+    isControllerAuthorizedForRoom,
+  };
+
+  registerHostLifecycleHandlers(context);
+  registerControllerHandlers(context);
+  registerRealtimeHandlers(context);
+  registerDisconnectHandler(context);
+};

@@ -1,5 +1,6 @@
 import type { RoomCode } from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
+import { markRoomTeardown } from "../domain/room-session-domain.js";
 import type { ControllerIndexEntry, RoomSession } from "../types.js";
 
 /**
@@ -89,6 +90,8 @@ export class RoomManager {
   removeRoom(roomId: RoomCode, io: Server, reason: string): void {
     const session = this.rooms.get(roomId);
     if (!session) return;
+
+    markRoomTeardown(session);
 
     // Notify all clients
     io.to(roomId).emit("server:hostLeft", { roomId, reason });

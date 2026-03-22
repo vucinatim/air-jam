@@ -1,13 +1,16 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../context/air-jam-context";
+import { useAssertSessionScope } from "../context/session-providers";
+import type { PlaySoundPayload } from "../protocol";
 import { AudioManager, SoundManifest } from "./audio-manager";
+import { initializeParentSettingsSync } from "./volume-store";
 
 // Module-level singleton manager cache
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const managerCache = new WeakMap<SoundManifest, AudioManager<any>>();
 let globalInitialized = false;
+let settingsSyncInitialized = false;
 
 /**
  * Hook to use audio with a sound manifest
@@ -30,6 +33,13 @@ export function useAudio<M extends SoundManifest>(
     manager = new AudioManager<SoundId>(manifest);
     managerCache.set(manifest, manager);
   }
+
+  // Explicit runtime adapter initialization for iframe settings sync.
+  useEffect(() => {
+    if (settingsSyncInitialized) return;
+    initializeParentSettingsSync();
+    settingsSyncInitialized = true;
+  }, []);
 
   // Inject socket into manager when connection is available
   useEffect(() => {
@@ -66,64 +76,6 @@ export function useAudio<M extends SoundManifest>(
   return manager;
 }
 
-// Legacy exports for backward compatibility (can be removed later)
-const LegacyAudioContext = createContext<AudioManager | null>(null);
-
-export const AudioProvider = ({
-  children,
-  manager,
-}: {
-  children: React.ReactNode;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  manager: AudioManager<any>;
-}) => {
-  const { store, getSocket } = useAirJamContext();
-  const roomId = useStore(store, (state) => state.roomId);
-  const role = useStore(store, (state) => state.role);
-
-  // Inject socket into manager
-  useEffect(() => {
-    if (role && roomId) {
-      const socket = getSocket(role);
-      manager.setSocket(socket, roomId);
-    }
-  }, [manager, role, roomId, getSocket]);
-
-  // Ensure audio context is resumed on first interaction
-  useEffect(() => {
-    const handleInteraction = () => {
-      manager.init();
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
-    };
-
-    window.addEventListener("click", handleInteraction);
-    window.addEventListener("touchstart", handleInteraction);
-    window.addEventListener("keydown", handleInteraction);
-
-    return () => {
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
-    };
-  }, [manager]);
-
-  return (
-    <LegacyAudioContext.Provider value={manager}>
-      {children}
-    </LegacyAudioContext.Provider>
-  );
-};
-
-export const useAudioLegacy = <T extends string = string>() => {
-  const manager = useContext(LegacyAudioContext);
-  if (!manager) {
-    throw new Error("useAudioLegacy must be used within an AudioProvider");
-  }
-  return manager as AudioManager<T>;
-};
-
 /**
  * Hook to create a stable AudioManager instance
  */
@@ -137,4 +89,56 @@ export const useAudioManager = <T extends string = string>(
   }
 
   return managerRef.current;
+};
+
+export const isManifestSoundId = <M extends SoundManifest>(
+  manifest: M,
+  soundId: unknown,
+): soundId is keyof M & string => {
+  return (
+    typeof soundId === "string" &&
+    Object.prototype.hasOwnProperty.call(manifest, soundId)
+  );
+};
+
+export interface UseRemoteSoundOptions {
+  enabled?: boolean;
+}
+
+/**
+ * Listen for host-triggered remote sound events and play them locally
+ * on the active controller session.
+ */
+export const useRemoteSound = <M extends SoundManifest>(
+  manifest: M,
+  audio: AudioManager<keyof M & string>,
+  options: UseRemoteSoundOptions = {},
+): void => {
+  useAssertSessionScope("controller", "useRemoteSound");
+
+  const { getSocket } = useAirJamContext();
+  const socket = useMemo(() => getSocket("controller"), [getSocket]);
+  const enabled = options.enabled ?? true;
+
+  useEffect(() => {
+    if (!socket || !enabled) {
+      return;
+    }
+
+    const handlePlaySound = (payload: PlaySoundPayload): void => {
+      if (!isManifestSoundId(manifest, payload.id)) {
+        return;
+      }
+
+      audio.play(payload.id, {
+        volume: payload.volume,
+        loop: payload.loop,
+      });
+    };
+
+    socket.on("server:playSound", handlePlaySound);
+    return () => {
+      socket.off("server:playSound", handlePlaySound);
+    };
+  }, [audio, enabled, manifest, socket]);
 };

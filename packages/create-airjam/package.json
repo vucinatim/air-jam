@@ -1,6 +1,6 @@
 {
   "name": "create-airjam",
-  "version": "0.2.1",
+  "version": "1.0.0",
   "description": "CLI to scaffold Air Jam game projects",
   "type": "module",
   "license": "MIT",
@@ -32,10 +32,12 @@
     "templates"
   ],
   "scripts": {
-    "extract-docs": "tsx scripts/extract-docs.ts",
-    "build": "pnpm extract-docs && tsup",
+    "build": "tsup",
     "dev": "tsup --watch",
     "smoke": "node scripts/smoke-test.mjs",
+    "smoke:registry": "node scripts/smoke-test.mjs --source=registry",
+    "smoke:tarball": "node scripts/smoke-test.mjs --source=tarball",
+    "smoke:workspace": "node scripts/smoke-test.mjs --source=workspace",
     "prepublishOnly": "node scripts/prepublish.js && pnpm build"
   },
   "dependencies": {

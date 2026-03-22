@@ -15,7 +15,7 @@ import { StandaloneHostDiagram } from "@/components/docs/figures/standalone-host
 **Usage:**
 
 ```tsx filename="src/components/HostView.tsx"
-import { HostShell, useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
   const host = useAirJamHost({
@@ -31,11 +31,7 @@ const HostView = () => {
     });
   });
 
-  return (
-    <HostShell>
-      <GameCanvas />
-    </HostShell>
-  );
+  return <GameCanvas />;
 };
 ```
 
@@ -68,8 +64,8 @@ import { FocusSystemDiagram } from "@/components/docs/figures/focus-system-diagr
 ```
 [Platform]                    [Server]                    [Controller]
     │                             │                            │
-    │ host:register               │                            │
-    │ { mode: "master" }          │                            │
+    │ host:createRoom             │                            │
+    │ { maxPlayers: 8 }           │                            │
     │ ───────────────────────────▶│                            │
     │                             │                            │
     │ ack: { ok, roomId: "ABCD" } │                            │
@@ -159,7 +155,6 @@ useFrame(() => {
 // Automatic registration when useAirJamHost is called
 const host = useAirJamHost({
   roomId: "GAME", // Optional custom room code
-  maxPlayers: 4, // Optional limit
 });
 
 // host.roomId contains the room code
@@ -176,13 +171,10 @@ const host = useAirJamHost({
   onPlayerJoin: (player) => {
     // Existing players synced automatically
   },
-  onChildClose: () => {
-    // Called when arcade closes the game
-    cleanupGame();
-  },
 });
 
-// host.isChildMode === true
+// Child close/lifecycle handling is owned by the arcade platform adapter.
+// Game hosts should keep gameplay logic in host callbacks/input loops only.
 ```
 
 ## Player Management

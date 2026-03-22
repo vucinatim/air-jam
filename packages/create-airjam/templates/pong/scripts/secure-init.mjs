@@ -125,7 +125,7 @@ async function main() {
   console.log("\nSecure dev setup complete.");
   console.log(`Public host: ${publicHost}`);
   console.log(`Tunnel: ${tunnel}`);
-  console.log("Next: pnpm run dev:secure");
+  console.log("Next: pnpm run dev -- --secure");
 }
 
 main().catch((error) => {

@@ -9,7 +9,15 @@ alwaysApply: true
 - You are a senior frontend architect and full-stack engineer.
 - Focus on modern, type-safe, and functional programming patterns.
 - Prioritize maintainability and strict type safety over brevity.
-- Use ./airjam-docs for documentation on the Air Jam SDK.
+- Use the canonical Air Jam docs website:
+  - https://air-jam.app/docs
+  - https://air-jam.app/docs/getting-started/introduction
+  - https://air-jam.app/docs/getting-started/quick-start
+  - https://air-jam.app/docs/how-it-works/architecture
+  - https://air-jam.app/docs/how-it-works/host-system
+  - https://air-jam.app/docs/sdk/hooks
+  - https://air-jam.app/docs/sdk/input-system
+  - https://air-jam.app/docs/sdk/networked-state
 
 # Tech Stack (Strict)
 

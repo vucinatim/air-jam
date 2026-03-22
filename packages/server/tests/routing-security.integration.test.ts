@@ -1,3 +1,4 @@
+import { ErrorCode } from "@air-jam/sdk/protocol";
 import { describe, expect, it } from "vitest";
 import type { AuthService } from "../src/services/auth-service";
 import { setupServerTestHarness } from "./helpers/server-test-harness";
@@ -14,6 +15,7 @@ type ControllerJoinAck = {
 type LaunchGameAck = {
   ok: boolean;
   joinToken?: string;
+  code?: ErrorCode | string;
 };
 
 const allowAllAuthService = {
@@ -118,29 +120,30 @@ describe("server routing and security", () => {
 
     attacker.emit("controller:action_rpc", {
       roomId,
-      controllerId: "ctrl_legit_1",
       actionName: "joinTeam",
-      args: ["team1"],
+      payload: { team: "team1" },
     });
 
     await harness.expectNoEvent(host, "airjam:action_rpc");
 
     legitController.emit("controller:action_rpc", {
       roomId,
-      controllerId: "ctrl_legit_1",
       actionName: "joinTeam",
-      args: ["team1"],
+      payload: { team: "team1" },
     });
 
     const forwarded = await harness.waitForEvent<{
       actionName: string;
-      args: unknown[];
-      controllerId: string;
+      payload: unknown;
+      actor: { id: string; role: "controller" | "host" };
     }>(host, "airjam:action_rpc");
 
     expect(forwarded.actionName).toBe("joinTeam");
-    expect(forwarded.controllerId).toBe("ctrl_legit_1");
-    expect(forwarded.args).toEqual(["team1"]);
+    expect(forwarded.actor).toEqual({
+      id: "ctrl_legit_1",
+      role: "controller",
+    });
+    expect(forwarded.payload).toEqual({ team: "team1" });
   });
 
   it("never forwards internal action names over action RPC", async () => {
@@ -165,9 +168,8 @@ describe("server routing and security", () => {
 
     controller.emit("controller:action_rpc", {
       roomId,
-      controllerId: "ctrl_internal_1",
       actionName: "_syncState",
-      args: [{ any: "payload" }],
+      payload: { any: "payload" },
     });
 
     await harness.expectNoEvent(host, "airjam:action_rpc");
@@ -217,5 +219,117 @@ describe("server routing and security", () => {
     );
 
     expect(received.id).toBe("valid_sound");
+  });
+
+  it("blocks unauthorized launch and close transitions", async () => {
+    const masterHost = await harness.connectSocket();
+    const attacker = await harness.connectSocket();
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      masterHost,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_transition_1", nickname: "Transit" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const forgedLaunchAck = await harness.emitWithAck<LaunchGameAck>(
+      attacker,
+      "system:launchGame",
+      {
+        roomId,
+        gameId: "pong",
+        gameUrl: "https://example.com/pong",
+      },
+    );
+
+    expect(forgedLaunchAck.ok).toBe(false);
+    expect(forgedLaunchAck.code).toBe(ErrorCode.UNAUTHORIZED);
+    await harness.expectNoEvent(controller, "client:loadUi");
+
+    const validLaunchAck = await harness.emitWithAck<LaunchGameAck>(
+      masterHost,
+      "system:launchGame",
+      {
+        roomId,
+        gameId: "pong",
+        gameUrl: "https://example.com/pong",
+      },
+    );
+    expect(validLaunchAck.ok).toBe(true);
+    const controllerLoadUi = await harness.waitForEvent<{ url: string }>(
+      controller,
+      "client:loadUi",
+    );
+    expect(controllerLoadUi.url).toBe("https://example.com/pong");
+
+    const childHost = await harness.connectSocket();
+    const childJoinAck = await harness.emitWithAck<{ ok: boolean }>(
+      childHost,
+      "host:joinAsChild",
+      {
+        roomId,
+        joinToken: validLaunchAck.joinToken,
+      },
+    );
+    expect(childJoinAck.ok).toBe(true);
+
+    attacker.emit("system:closeGame", { roomId });
+    await harness.expectNoEvent(controller, "client:unloadUi");
+    await harness.expectNoEvent(childHost, "disconnect");
+
+    masterHost.emit("system:closeGame", { roomId });
+    await harness.waitForEvent(controller, "client:unloadUi", 2_000);
+  });
+
+  it("blocks forged host:state mutation attempts", async () => {
+    const masterHost = await harness.connectSocket();
+    const attacker = await harness.connectSocket();
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      masterHost,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_state_1", nickname: "State" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    await harness.delay(25);
+    const initialSession = harness.getRoomManager().getRoom(roomId);
+    expect(initialSession?.gameState).toBe("paused");
+
+    attacker.emit("host:state", {
+      roomId,
+      state: { gameState: "playing" },
+    });
+
+    await harness.delay(50);
+    const afterForgedUpdate = harness.getRoomManager().getRoom(roomId);
+    expect(afterForgedUpdate?.gameState).toBe("paused");
+
+    masterHost.emit("host:state", {
+      roomId,
+      state: { gameState: "playing" },
+    });
+
+    await harness.delay(50);
+    const afterValidUpdate = harness.getRoomManager().getRoom(roomId);
+    expect(afterValidUpdate?.gameState).toBe("playing");
   });
 });

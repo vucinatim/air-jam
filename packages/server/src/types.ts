@@ -16,6 +16,16 @@ export interface ControllerSession {
 export type RoomFocus = "SYSTEM" | "GAME";
 
 /**
+ * Explicit room lifecycle state
+ */
+export type RoomLifecycleState =
+  | "SYSTEM_IDLE"
+  | "GAME_LAUNCH_PENDING"
+  | "GAME_ACTIVE"
+  | "CLOSING"
+  | "TEARDOWN";
+
+/**
  * Room session state
  */
 export interface RoomSession {
@@ -28,6 +38,7 @@ export interface RoomSession {
   controllers: Map<string, ControllerSession>;
   maxPlayers: number;
   gameState: GameState;
+  lifecycleState: RoomLifecycleState;
 }
 
 /**

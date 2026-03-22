@@ -17,6 +17,7 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     port: 5173,
+    strictPort: true,
     proxy: {
       "/socket.io": {
         target: "http://127.0.0.1:4000",
@@ -34,6 +35,7 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     port: 5173,
+    strictPort: true,
     headers: {
       "Content-Security-Policy": "frame-ancestors *;",
     },

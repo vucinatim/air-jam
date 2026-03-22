@@ -8,7 +8,7 @@
  * **Key features:**
  * - No store subscriptions = no re-renders on state changes
  * - Typed input based on provider schema
- * - Automatic latching support (if configured)
+ * - Tap-safe behavior handling (booleans pulse by default)
  * - Stable function reference across renders
  *
  * **When to use this vs useAirJamHost().getInput:**
@@ -18,6 +18,7 @@
 import { useCallback } from "react";
 import type { z } from "zod";
 import { useAirJamContext } from "../context/air-jam-context";
+import { useAssertSessionScope } from "../context/session-providers";
 
 /**
  * Lightweight hook for accessing controller input without store subscriptions.
@@ -47,7 +48,7 @@ import { useAirJamContext } from "../context/air-jam-context";
  *     meshRef.current.position.x += input.vector.x * SPEED;
  *     meshRef.current.position.y += input.vector.y * SPEED;
  *
- *     // Fire if action button pressed (auto-latched)
+ *     // Fire if action button pressed (tap-safe pulse)
  *     if (input.action) {
  *       fireLaser();
  *     }
@@ -78,6 +79,8 @@ import { useAirJamContext } from "../context/air-jam-context";
 export const useGetInput = <TSchema extends z.ZodSchema = z.ZodSchema>(): ((
   controllerId: string,
 ) => z.infer<TSchema> | undefined) => {
+  useAssertSessionScope("host", "useGetInput");
+
   const { inputManager } = useAirJamContext();
 
   // Use useCallback to return a stable function reference

@@ -16,6 +16,7 @@
  */
 import { useCallback } from "react";
 import { useAirJamContext } from "../context/air-jam-context";
+import { useAssertSessionScope } from "../context/session-providers";
 import type {
   HapticSignalPayload,
   SignalPayload,
@@ -136,6 +137,8 @@ export interface SendSignalFn {
  * ```
  */
 export const useSendSignal = (): SendSignalFn => {
+  useAssertSessionScope("host", "useSendSignal");
+
   const { getSocket } = useAirJamContext();
 
   // Get socket directly without subscribing to store state

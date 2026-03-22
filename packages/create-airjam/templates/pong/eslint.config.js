@@ -27,6 +27,16 @@ export default defineConfig([
     rules: {
       "react-hooks/refs": "off",
       "react-hooks/purity": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
       ...prettierConfig.rules,
     },
   },

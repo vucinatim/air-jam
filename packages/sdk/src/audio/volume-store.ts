@@ -1,4 +1,9 @@
 import { create } from "zustand";
+import { getRuntimeUrlOrigin } from "../protocol/url-policy";
+import {
+  isAirJamSettingsSyncMessage,
+  parseAirJamBridgeInitMessage,
+} from "../runtime/iframe-bridge";
 
 interface VolumeSettings {
   masterVolume: number; // 0-1
@@ -8,19 +13,6 @@ interface VolumeSettings {
   setMusicVolume: (volume: number) => void;
   setSfxVolume: (volume: number) => void;
   getEffectiveVolume: (category: "music" | "sfx") => number;
-}
-
-/**
- * Settings sync message from parent (arcade) to child (game) iframe.
- * This allows the arcade overlay to control volume for embedded games.
- */
-interface AirJamSettingsSyncMessage {
-  type: "AIRJAM_SETTINGS_SYNC";
-  payload: {
-    masterVolume: number;
-    musicVolume: number;
-    sfxVolume: number;
-  };
 }
 
 const STORAGE_KEY = "air-jam-volume-settings";
@@ -63,6 +55,9 @@ const saveToStorage = (state: VolumeSettings) => {
 
 const initialValues = loadFromStorage();
 
+let parentSettingsListenerCleanup: (() => void) | null = null;
+let bridgePortCleanup: (() => void) | null = null;
+
 export const useVolumeStore = create<VolumeSettings>((set, get) => ({
   masterVolume: initialValues.masterVolume ?? 1.0,
   musicVolume: initialValues.musicVolume ?? 0.8,
@@ -90,35 +85,95 @@ export const useVolumeStore = create<VolumeSettings>((set, get) => ({
 }));
 
 /**
- * Set up parent message listener for child mode (games running in arcade iframe).
- * When the arcade sends AIRJAM_SETTINGS_SYNC messages, apply them to the volume store.
- * This runs once at module load time and is completely transparent to game developers.
+ * Initialize parent settings sync for child mode (games running in arcade iframe).
+ * This is intentionally explicit and must be called by a runtime adapter.
  */
-const setupParentSettingsListener = () => {
+export const initializeParentSettingsSync = () => {
+  if (parentSettingsListenerCleanup) {
+    return;
+  }
+
   if (typeof window === "undefined") return;
 
-  // Only listen if we're running inside an iframe (child mode)
   const isInIframe = window.parent !== window;
   if (!isInIframe) return;
 
-  const handleMessage = (event: MessageEvent<AirJamSettingsSyncMessage>) => {
-    // Only accept settings sync messages from parent
-    if (event.source !== window.parent) return;
-    if (event.data?.type !== "AIRJAM_SETTINGS_SYNC") return;
+  const trustedParentOrigin = getRuntimeUrlOrigin(document.referrer);
+  if (!trustedParentOrigin) {
+    console.warn(
+      "[AirJamVolume] Parent settings sync disabled: unable to resolve trusted parent origin.",
+    );
+    return;
+  }
 
-    const { masterVolume, musicVolume, sfxVolume } = event.data.payload;
-
+  const applySyncedSettings = (payload: {
+    masterVolume?: number;
+    musicVolume?: number;
+    sfxVolume?: number;
+  }) => {
     // Apply settings without saving to localStorage (arcade owns the settings)
     const store = useVolumeStore.getState();
 
     // Use setters to trigger AudioManager subscription updates
+    const { masterVolume, musicVolume, sfxVolume } = payload;
     if (typeof masterVolume === "number") store.setMasterVolume(masterVolume);
     if (typeof musicVolume === "number") store.setMusicVolume(musicVolume);
     if (typeof sfxVolume === "number") store.setSfxVolume(sfxVolume);
   };
 
-  window.addEventListener("message", handleMessage);
+  const bindBridgePort = (port: MessagePort) => {
+    bridgePortCleanup?.();
+
+    const handlePortMessage = (event: MessageEvent<unknown>) => {
+      if (!isAirJamSettingsSyncMessage(event.data)) return;
+      applySyncedSettings(event.data.payload);
+    };
+
+    port.addEventListener("message", handlePortMessage as EventListener);
+    port.start();
+
+    bridgePortCleanup = () => {
+      port.removeEventListener("message", handlePortMessage as EventListener);
+      try {
+        port.close();
+      } catch {
+        // Ignore close errors
+      }
+      bridgePortCleanup = null;
+    };
+  };
+
+  const handleInitMessage = (event: MessageEvent<unknown>) => {
+    if (event.source !== window.parent) return;
+    if (event.origin !== trustedParentOrigin) return;
+
+    const initMessage = parseAirJamBridgeInitMessage(event.data);
+    if (!initMessage) return;
+
+    const bridgePort = event.ports?.[0];
+    if (!bridgePort) return;
+
+    bindBridgePort(bridgePort);
+  };
+
+  const handleLegacySettingsMessage = (event: MessageEvent<unknown>) => {
+    // Only accept settings sync messages from parent
+    if (event.source !== window.parent) return;
+    if (event.origin !== trustedParentOrigin) return;
+    if (!isAirJamSettingsSyncMessage(event.data)) return;
+    applySyncedSettings(event.data.payload);
+  };
+
+  window.addEventListener("message", handleInitMessage);
+  window.addEventListener("message", handleLegacySettingsMessage);
+  parentSettingsListenerCleanup = () => {
+    window.removeEventListener("message", handleInitMessage);
+    window.removeEventListener("message", handleLegacySettingsMessage);
+    bridgePortCleanup?.();
+    parentSettingsListenerCleanup = null;
+  };
 };
 
-// Initialize the parent settings listener
-setupParentSettingsListener();
+export const disposeParentSettingsSync = () => {
+  parentSettingsListenerCleanup?.();
+};

@@ -33,6 +33,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Canonical Guard
+        run: pnpm guard:canonical
+
       - name: Test
         run: pnpm test
 

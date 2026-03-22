@@ -202,7 +202,7 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
 
     // 1. INPUT PHASE
     // Use the dedicated input hook for high-performance, zero-render input processing
-    // This automatically handles latch pattern to ensure rapid taps are never missed
+    // Input behavior handles tap-safe action pulses by default
     const input = popInput(controllerId);
 
     // Always update position/rotation tracking for camera (even without input)
@@ -679,7 +679,7 @@ function handleAbilities(
   audio: ReturnType<typeof useAudio>,
   sendSignal: SendSignalFn,
 ) {
-  // The input hook already handled the latch pattern and consumption
+  // The input hook already handled pulse behavior and consumption
   // We just need to check if ability button is pressed and we have a queued ability
   const currentAbility = store.getAbility(id);
   const hasAbilityInSlot = currentAbility !== null;

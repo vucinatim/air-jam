@@ -8,7 +8,7 @@ Air Jam is a platform for building **"AirConsole-style" multiplayer games** wher
 - **Instant Multiplayer**: Seamlessly connect up to 8 smartphones as controllers
 - **Developer Friendly**: Built with modern web technologies (React, TypeScript)
 - **Type Safe**: End-to-end type safety with Zod schema validation
-- **Performance Optimized**: Latching system ensures no input is ever missed
+- **Performance Optimized**: Tap-safe button input with fixed tick cadence
 - **Haptic Feedback**: Send vibration patterns to controllers for game events
 
 ## How It Works
@@ -28,37 +28,51 @@ pnpm add @air-jam/sdk
 ### 2. Wrap Your App
 
 ```tsx filename="src/App.tsx"
-import { AirJamProvider } from "@air-jam/sdk";
-import { z } from "zod";
-
-// Define your input schema (matches Pong template)
-const gameInputSchema = z.object({
-  direction: z.number().min(-1).max(1), // -1 (up), 0 (stop), 1 (down)
-  action: z.boolean(), // e.g. Start Game / Fire
-});
+import { airjam } from "./airjam.config";
 
 export const App = () => (
-  <AirJamProvider
-    input={{
-      schema: gameInputSchema,
-      latch: {
-        // Latch boolean inputs to ensure short taps are caught in the game loop
-        booleanFields: ["action"],
-      },
-    }}
-  >
-    <Routes>
-      <Route path="/" element={<HostView />} />
-      <Route path="/controller" element={<ControllerView />} />
-    </Routes>
-  </AirJamProvider>
+  <Routes>
+    <Route
+      path="/"
+      element={
+        <airjam.Host>
+          <HostView />
+        </airjam.Host>
+      }
+    />
+    <Route
+      path={airjam.paths.controller}
+      element={
+        <airjam.Controller>
+          <ControllerView />
+        </airjam.Controller>
+      }
+    />
+  </Routes>
 );
+```
+
+```tsx filename="src/airjam.config.ts"
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { z } from "zod";
+
+const gameInputSchema = z.object({
+  direction: z.number().min(-1).max(1),
+});
+
+export const airjam = createAirJamApp({
+  runtime: env.vite(),
+  game: {
+    controllerPath: "/controller",
+  },
+  input: { schema: gameInputSchema },
+});
 ```
 
 ### 3. Create Your Host View
 
 ```tsx filename="src/components/HostView.tsx"
-import { HostShell, useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
   const host = useAirJamHost({
@@ -82,15 +96,15 @@ const HostView = () => {
   // });
 
   return (
-    <HostShell>
-      {/* HostShell automatically provides:
-          - Top navbar with room ID and player avatars
-          - QR code overlay when paused
-          - Play/pause controls
-          - Settings panel
-      */}
+    <div className="relative min-h-screen bg-black text-white">
+      <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/70 px-4 py-2 backdrop-blur">
+        <span>Room {host.roomId}</span>
+        <button onClick={host.toggleGameState}>
+          {host.gameState === "playing" ? "Pause" : "Resume"}
+        </button>
+      </header>
       <GameCanvas />
-    </HostShell>
+    </div>
   );
 };
 ```
@@ -98,47 +112,48 @@ const HostView = () => {
 ### 4. Create Your Controller View
 
 ```tsx filename="src/components/ControllerView.tsx"
-import { useAirJamController, ControllerShell } from "@air-jam/sdk";
+import {
+  useAirJamController,
+  useControllerTick,
+  useInputWriter,
+} from "@air-jam/sdk";
 
 const ControllerView = () => {
   const controller = useAirJamController();
+  const writeInput = useInputWriter();
 
-  const sendInput = (direction: number, action: boolean) => {
-    controller.sendInput({ direction, action });
-  };
-
-  return (
-    // ControllerShell handles connection status, errors, and platform integration
-    <ControllerShell forceOrientation="portrait">
-      <div className="flex h-full flex-col gap-4 p-4">
-        <button
-          className="flex-1 rounded-xl bg-blue-500"
-          onTouchStart={() => sendInput(-1, false)}
-          onTouchEnd={() => sendInput(0, false)}
-        >
-          UP
-        </button>
-        <button
-          className="flex-1 rounded-xl bg-blue-500"
-          onTouchStart={() => sendInput(1, false)}
-          onTouchEnd={() => sendInput(0, false)}
-        >
-          DOWN
-        </button>
-        <button
-          className="h-24 rounded-xl bg-red-500"
-          onClick={() => sendInput(0, true)}
-        >
-          ACTION
-        </button>
-      </div>
-    </ControllerShell>
+  useControllerTick(
+    () => {
+      writeInput({
+        direction: directionRef.current,
+      });
+    },
+    {
+      enabled:
+        controller.connectionStatus === "connected" &&
+        controller.gameState === "playing",
+      intervalMs: 16,
+    },
   );
 };
 ```
+
+## Canonical Architecture: Three Lanes
+
+Use one lane per concern:
+
+1. **Input lane**: `useControllerTick` + `useInputWriter` (controller), `getInput` / `useGetInput` (host).
+2. **State lane**: `createAirJamStore` with host-owned actions and `useActions()` dispatch.
+3. **Signal lane**: `sendSignal` / system commands for out-of-band UX and runtime commands.
+
+Avoid cross-lane misuse:
+
+1. Don’t stream per-frame movement through store actions.
+2. Don’t encode authoritative gameplay state in signals.
+3. Don’t call `state.actions.*`; use `useActions()` only.
 
 ## Next Steps
 
 - [Architecture](/docs/how-it-works/architecture) - Understand the system design
 - [Hooks Reference](/docs/sdk/hooks) - Complete API documentation
-- [Input System](/docs/sdk/input-system) - Learn about latching and validation
+- [Input System](/docs/sdk/input-system) - Learn about input behavior and validation

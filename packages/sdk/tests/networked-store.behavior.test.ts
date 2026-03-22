@@ -2,7 +2,13 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  onAirJamDiagnostic,
+  resetAirJamDiagnosticsForTests,
+  setAirJamDiagnosticsEnabled,
+} from "../src/diagnostics";
 import { createAirJamStore } from "../src/store/create-air-jam-store";
+import type { AirJamActionContext } from "../src/store/create-air-jam-store";
 
 type Role = "host" | "controller";
 
@@ -11,6 +17,10 @@ const mockedContext = vi.hoisted(() => {
     role: "controller" as Role,
     roomId: "ROOM1",
     controllerId: "ctrl_1",
+    players: [
+      { id: "ctrl_1", label: "Player 1" },
+      { id: "ctrl_2", label: "Player 2" },
+    ],
   };
 
   return {
@@ -79,18 +89,41 @@ class MockSocket {
 
 interface TestStoreState {
   phase: string;
+  lastActor?: string;
+  lastRole?: "controller" | "host";
+  lastConnectedPlayerIds?: string[];
   actions: {
-    joinTeam: (team: string, controllerId?: string) => void;
-    setPhase: (phase: string) => void;
+    joinTeam: (
+      ctx: AirJamActionContext,
+      payload: { team: string },
+    ) => void;
+    setPhase: (
+      ctx: AirJamActionContext,
+      payload: { phase: string },
+    ) => void;
   };
 }
 
 const createTestStore = () =>
   createAirJamStore<TestStoreState>((set) => ({
     phase: "lobby",
+    lastActor: undefined,
+    lastRole: undefined,
     actions: {
-      joinTeam: (team) => set({ phase: team }),
-      setPhase: (phase) => set({ phase }),
+      joinTeam: (ctx, { team }) =>
+        set({
+          phase: team,
+          lastActor: ctx.actorId,
+          lastRole: ctx.role,
+          lastConnectedPlayerIds: ctx.connectedPlayerIds,
+        }),
+      setPhase: (ctx, { phase }) =>
+        set({
+          phase,
+          lastActor: ctx.actorId,
+          lastRole: ctx.role,
+          lastConnectedPlayerIds: ctx.connectedPlayerIds,
+        }),
     },
   }));
 
@@ -100,12 +133,19 @@ describe("createAirJamStore networked behavior", () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    resetAirJamDiagnosticsForTests();
+    setAirJamDiagnosticsEnabled(true);
+
     hostSocket = new MockSocket();
     controllerSocket = new MockSocket();
 
     mockedContext.state.role = "controller";
     mockedContext.state.roomId = "ROOM1";
     mockedContext.state.controllerId = "ctrl_1";
+    mockedContext.state.players = [
+      { id: "ctrl_1", label: "Player 1" },
+      { id: "ctrl_2", label: "Player 2" },
+    ];
 
     mockedContext.useAirJamContext.mockReturnValue({
       getSocket: (role: Role) =>
@@ -122,14 +162,15 @@ describe("createAirJamStore networked behavior", () => {
 
   afterEach(() => {
     warnSpy.mockRestore();
+    resetAirJamDiagnosticsForTests();
   });
 
   it("proxies controller public actions over action RPC", () => {
     const useStore = createTestStore();
-    const { result, unmount } = renderHook(() => useStore((state) => state.actions));
+    const { result, unmount } = renderHook(() => useStore.useActions());
 
     act(() => {
-      result.current.joinTeam("red");
+      result.current.joinTeam({ team: "red" });
     });
 
     const rpcEmit = controllerSocket.emitted.find(
@@ -139,16 +180,46 @@ describe("createAirJamStore networked behavior", () => {
     expect(rpcEmit?.args[0]).toEqual({
       roomId: "ROOM1",
       actionName: "joinTeam",
-      args: ["red"],
-      controllerId: "ctrl_1",
+      payload: { team: "red" },
     });
+    expect(
+      controllerSocket.emitted.some((call) => call.event === "controller:input"),
+    ).toBe(false);
+
+    unmount();
+  });
+
+  it("keeps state lane transport on action RPC even for input-like payload fields", () => {
+    const useStore = createTestStore();
+    const { result, unmount } = renderHook(() => useStore.useActions());
+
+    act(() => {
+      (
+        result.current.joinTeam as unknown as (
+          payload: Record<string, unknown>,
+        ) => void
+      )({
+        team: "red",
+        vector: { x: 1, y: 0 },
+        action: true,
+      });
+    });
+
+    expect(
+      controllerSocket.emitted.some(
+        (call) => call.event === "controller:action_rpc",
+      ),
+    ).toBe(true);
+    expect(
+      controllerSocket.emitted.some((call) => call.event === "controller:input"),
+    ).toBe(false);
 
     unmount();
   });
 
   it("hides internal actions on controller and blocks emits after unload", () => {
     const useStore = createTestStore();
-    const { result, unmount } = renderHook(() => useStore((state) => state.actions));
+    const { result, unmount } = renderHook(() => useStore.useActions());
 
     expect(
       Object.prototype.hasOwnProperty.call(
@@ -158,7 +229,7 @@ describe("createAirJamStore networked behavior", () => {
     ).toBe(false);
 
     act(() => {
-      result.current.joinTeam("blue");
+      result.current.joinTeam({ team: "blue" });
     });
 
     expect(
@@ -168,7 +239,7 @@ describe("createAirJamStore networked behavior", () => {
 
     act(() => {
       controllerSocket.trigger("client:unloadUi");
-      result.current.joinTeam("green");
+      result.current.joinTeam({ team: "green" });
     });
 
     expect(
@@ -177,6 +248,80 @@ describe("createAirJamStore networked behavior", () => {
     ).toBe(1);
 
     unmount();
+  });
+
+  it("blocks controller action RPC payloads that are not serializable", () => {
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      diagnostics.push(diagnostic.code);
+    });
+
+    const useStore = createTestStore();
+    const { result, unmount } = renderHook(() => useStore.useActions());
+
+    act(() => {
+      (
+        result.current.joinTeam as unknown as (payload: unknown) => void
+      )({
+        team: "blue",
+        bad: () => "fn",
+      });
+    });
+
+    expect(
+      controllerSocket.emitted.filter((call) => call.event === "controller:action_rpc")
+        .length,
+    ).toBe(0);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[AirJamStore] Action "joinTeam" blocked: payload must be RPC-serializable.',
+      ),
+      expect.objectContaining({ actionName: "joinTeam" }),
+    );
+    expect(diagnostics).toContain("AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE");
+
+    unmount();
+    unsubscribe();
+  });
+
+  it("drops event-like payloads and continues action RPC with undefined payload", () => {
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      diagnostics.push(diagnostic.code);
+    });
+
+    const useStore = createTestStore();
+    const { result, unmount } = renderHook(() => useStore.useActions());
+
+    act(() => {
+      (
+        result.current.joinTeam as unknown as (payload: unknown) => void
+      )({
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        target: {},
+      });
+    });
+
+    const rpcEmit = controllerSocket.emitted.find(
+      (call) => call.event === "controller:action_rpc",
+    );
+
+    expect(rpcEmit?.args[0]).toEqual({
+      roomId: "ROOM1",
+      actionName: "joinTeam",
+      payload: undefined,
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[AirJamStore] Action "joinTeam" received an event-like payload. Dropping payload and continuing.',
+      ),
+      expect.objectContaining({ actionName: "joinTeam" }),
+    );
+    expect(diagnostics).toContain("AJ_STORE_ACTION_EVENT_PAYLOAD_DROPPED");
+
+    unmount();
+    unsubscribe();
   });
 
   it("applies host state sync payload to controller state", () => {
@@ -201,28 +346,73 @@ describe("createAirJamStore networked behavior", () => {
     mockedContext.state.role = "host";
 
     const useStore = createTestStore();
-    const { result, unmount } = renderHook(() => useStore((state) => state.phase));
+    const phaseHook = renderHook(() => useStore((state) => state.phase));
+    const actorHook = renderHook(() => useStore((state) => state.lastActor));
+    const roleHook = renderHook(() => useStore((state) => state.lastRole));
+    const connectedIdsHook = renderHook(
+      () => useStore((state) => state.lastConnectedPlayerIds),
+    );
 
     act(() => {
       hostSocket.trigger("airjam:action_rpc", {
         actionName: "setPhase",
-        args: ["playing"],
-        controllerId: "ctrl_remote",
+        payload: { phase: "playing" },
+        actor: {
+          id: "ctrl_remote",
+          role: "controller",
+        },
       });
     });
 
-    expect(result.current).toBe("playing");
+    expect(phaseHook.result.current).toBe("playing");
+    expect(actorHook.result.current).toBe("ctrl_remote");
+    expect(roleHook.result.current).toBe("controller");
+    expect(connectedIdsHook.result.current).toEqual(["ctrl_1", "ctrl_2"]);
 
     act(() => {
       hostSocket.trigger("airjam:action_rpc", {
         actionName: "_syncState",
-        args: [{ phase: "hacked" }],
-        controllerId: "ctrl_remote",
+        payload: { phase: "hacked" },
+        actor: {
+          id: "ctrl_remote",
+          role: "controller",
+        },
       });
     });
 
-    expect(result.current).toBe("playing");
+    expect(phaseHook.result.current).toBe("playing");
 
-    unmount();
+    phaseHook.unmount();
+    actorHook.unmount();
+    roleHook.unmount();
+    connectedIdsHook.unmount();
+  });
+
+  it("executes host local dispatches with host action context", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const actionsHook = renderHook(() => useStore.useActions());
+    const phaseHook = renderHook(() => useStore((state) => state.phase));
+    const actorHook = renderHook(() => useStore((state) => state.lastActor));
+    const roleHook = renderHook(() => useStore((state) => state.lastRole));
+    const connectedIdsHook = renderHook(
+      () => useStore((state) => state.lastConnectedPlayerIds),
+    );
+
+    act(() => {
+      actionsHook.result.current.setPhase({ phase: "playing" });
+    });
+
+    expect(phaseHook.result.current).toBe("playing");
+    expect(actorHook.result.current).toBe("host");
+    expect(roleHook.result.current).toBe("host");
+    expect(connectedIdsHook.result.current).toEqual(["ctrl_1", "ctrl_2"]);
+
+    actionsHook.unmount();
+    phaseHook.unmount();
+    actorHook.unmount();
+    roleHook.unmount();
+    connectedIdsHook.unmount();
   });
 });

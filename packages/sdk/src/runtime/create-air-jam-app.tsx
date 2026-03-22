@@ -1,0 +1,141 @@
+import type { JSX, ReactNode } from "react";
+import type { z } from "zod";
+import { CONTROLLER_PATH } from "../constants";
+import {
+  ControllerSessionProvider,
+  HostSessionProvider,
+  type AirJamProviderProps,
+} from "../context/session-providers";
+import type { ResolveAirJamConfigInput } from "./air-jam-config";
+
+type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
+  AirJamProviderProps<TSchema>,
+  "children"
+>;
+
+type ControllerSessionProps = Omit<AirJamProviderProps, "children" | "input">;
+
+export interface AirJamGameMetadata {
+  /**
+   * Controller route path relative to the game origin.
+   * Defaults to "/controller".
+   */
+  controllerPath?: string;
+}
+
+export interface CreateAirJamAppOptions<
+  TSchema extends z.ZodSchema = z.ZodSchema,
+> {
+  runtime?: ResolveAirJamConfigInput;
+  game?: AirJamGameMetadata;
+  input?: AirJamProviderProps<TSchema>["input"];
+}
+
+export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
+  Host: (props: { children: ReactNode }) => JSX.Element;
+  Controller: (props: { children: ReactNode }) => JSX.Element;
+  paths: {
+    controller: string;
+  };
+  session: {
+    host: HostSessionProps<TSchema>;
+    controller: ControllerSessionProps;
+  };
+  runtime: ResolveAirJamConfigInput;
+}
+
+const resolveControllerPath = (controllerPath?: string): string => {
+  const normalized = controllerPath ?? CONTROLLER_PATH;
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+};
+
+interface ViteEnvLike {
+  VITE_AIR_JAM_SERVER_URL?: string;
+  VITE_AIR_JAM_PUBLIC_KEY?: string;
+  VITE_AIR_JAM_PUBLIC_HOST?: string;
+}
+
+const readViteEnv = (): ViteEnvLike | null => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const candidate = import.meta as any;
+    if (candidate && typeof candidate.env === "object") {
+      return candidate.env as ViteEnvLike;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+export const env = {
+  auto: (): ResolveAirJamConfigInput => ({
+    resolveEnv: true,
+  }),
+  vite: (): ResolveAirJamConfigInput => {
+    const viteEnv = readViteEnv();
+    return {
+      serverUrl: viteEnv?.VITE_AIR_JAM_SERVER_URL,
+      apiKey: viteEnv?.VITE_AIR_JAM_PUBLIC_KEY,
+      publicHost: viteEnv?.VITE_AIR_JAM_PUBLIC_HOST,
+      resolveEnv: true,
+    };
+  },
+  next: (): ResolveAirJamConfigInput => ({
+    resolveEnv: true,
+  }),
+  explicit: (
+    runtime: Omit<ResolveAirJamConfigInput, "resolveEnv">,
+  ): ResolveAirJamConfigInput => ({
+    ...runtime,
+    resolveEnv: false,
+  }),
+} as const;
+
+export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
+  runtime = {},
+  game,
+  input,
+}: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
+  const controllerPath = resolveControllerPath(game?.controllerPath);
+
+  const hostSession: HostSessionProps<TSchema> = input
+    ? {
+        ...runtime,
+        input,
+      }
+    : { ...runtime };
+
+  const controllerSession: ControllerSessionProps = {
+    ...runtime,
+  };
+
+  const Host = ({ children }: { children: ReactNode }): JSX.Element => {
+    return (
+      <HostSessionProvider<TSchema> {...hostSession}>
+        {children}
+      </HostSessionProvider>
+    );
+  };
+
+  const Controller = ({ children }: { children: ReactNode }): JSX.Element => {
+    return (
+      <ControllerSessionProvider {...controllerSession}>
+        {children}
+      </ControllerSessionProvider>
+    );
+  };
+
+  return {
+    Host,
+    Controller,
+    paths: {
+      controller: controllerPath,
+    },
+    session: {
+      host: hostSession,
+      controller: controllerSession,
+    },
+    runtime,
+  };
+};

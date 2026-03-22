@@ -6,7 +6,7 @@
  * all the functionality needed to manage a multiplayer session:
  * - Room management (create/join rooms)
  * - Player tracking (join/leave events, player list)
- * - Input handling (get validated, latched input from controllers)
+ * - Input handling (typed and behavior-aware controller input)
  * - Signaling (send haptic feedback, toast notifications to controllers)
  * - Game state management (pause/play, broadcast state)
  */
@@ -16,6 +16,7 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { TOGGLE_DEBOUNCE_MS } from "../constants";
 import { useAirJamContext } from "../context/air-jam-context";
+import { useAssertSessionScope } from "../context/session-providers";
 import type { AirJamSocket } from "../context/socket-manager";
 import type {
   ConnectionStatus,
@@ -83,26 +84,6 @@ export interface AirJamHostOptions {
    * Use this to remove player entities, handle cleanup.
    */
   onPlayerLeave?: (controllerId: string) => void;
-  /**
-   * Called when the child window closes in Arcade mode.
-   * Only relevant when running as part of the AirJam Platform.
-   */
-  onChildClose?: () => void;
-  /**
-   * Force connection even in non-standard modes.
-   * @default true
-   */
-  forceConnect?: boolean;
-  /**
-   * Override the API key from provider.
-   * Useful for per-game API keys in multi-game setups.
-   */
-  apiKey?: string;
-  /**
-   * Override the maximum players from provider.
-   * @default 8
-   */
-  maxPlayers?: number;
 }
 
 /**
@@ -158,14 +139,12 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   reconnect: () => void;
   /** Raw Socket.IO socket instance for advanced usage */
   socket: AirJamSocket;
-  /** Whether running in child/arcade mode */
-  isChildMode: boolean;
   /**
    * Get the latest input from a specific controller.
    *
-   * Returns validated, typed input based on the schema provided to AirJamProvider.
-   * If latching is configured, automatically handles latch logic (button presses
-   * and stick flicks are "held" until consumed).
+   * Returns validated, typed input based on the schema provided to the session provider.
+   * Input behavior defaults are tap-safe booleans (`pulse`) and latest vectors (`latest`),
+   * with optional per-field overrides.
    *
    * @example In a game loop
    * ```ts
@@ -192,7 +171,7 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * **Features:**
  * - Automatic room creation and management
  * - Real-time player join/leave events
- * - Typed input with validation and latching
+ * - Typed input with validation and behavior defaults
  * - Haptic feedback and toast notifications
  * - Game state synchronization
  *
@@ -234,7 +213,7 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  *       // Move player based on joystick
  *       movePlayer(player.id, input.vector);
  *
- *       // Handle button press (auto-latched)
+ *       // Handle button press (tap-safe pulse default)
  *       if (input.action) {
  *         playerShoot(player.id);
  *       }
@@ -255,6 +234,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
 export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
   options: AirJamHostOptions = {},
 ): AirJamHostApi<TSchema> => {
+  useAssertSessionScope("host", "useAirJamHost");
+
   // Get context (includes inputManager from provider)
   const { config, store, getSocket, disconnectSocket, inputManager } =
     useAirJamContext();
@@ -271,9 +252,6 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     return null;
   }, []);
 
-  const isChildMode = !!arcadeParams;
-
-  // Always connect - forceConnect kept for API compatibility
   const shouldConnect = true;
 
   // Subscribe to store state to get roomId (server-issued for standalone mode)
@@ -315,13 +293,11 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
   // Keep callback refs stable
   const onPlayerJoinRef = useRef(options.onPlayerJoin);
   const onPlayerLeaveRef = useRef(options.onPlayerLeave);
-  const onChildCloseRef = useRef(options.onChildClose);
 
   useEffect(() => {
     onPlayerJoinRef.current = options.onPlayerJoin;
     onPlayerLeaveRef.current = options.onPlayerLeave;
-    onChildCloseRef.current = options.onChildClose;
-  }, [options.onPlayerJoin, options.onPlayerLeave, options.onChildClose]);
+  }, [options.onPlayerJoin, options.onPlayerLeave]);
 
   // Subscribe to store state
   const connectionState = useStore(
@@ -476,8 +452,8 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
         // Standalone Mode - use server-issued room IDs
         const createNewRoom = () => {
           const payload = hostCreateRoomSchema.parse({
-            maxPlayers: options.maxPlayers ?? config.maxPlayers,
-            apiKey: options.apiKey ?? config.apiKey,
+            maxPlayers: config.maxPlayers,
+            apiKey: config.apiKey,
           });
 
           socket.emit("host:createRoom", payload, (ack) => {
@@ -511,7 +487,7 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
             // Attempt to reconnect to existing room
             const reconnectPayload = hostReconnectSchema.parse({
               roomId: savedRoomId,
-              apiKey: options.apiKey ?? config.apiKey,
+              apiKey: config.apiKey,
             });
 
             socket.emit("host:reconnect", reconnectPayload, (ack) => {
@@ -572,10 +548,6 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
       }
     };
 
-    const handleChildClose = (): void => {
-      onChildCloseRef.current?.();
-    };
-
     const handleState = (payload: ControllerStateMessage): void => {
       if (!parsedRoomId || payload.roomId !== parsedRoomId) return;
 
@@ -598,7 +570,6 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     socket.on("server:controllerLeft", handleLeave);
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
-    socket.on("server:closeChild", handleChildClose);
     socket.on("server:state", handleState);
 
     // Connect the socket
@@ -617,14 +588,11 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
       socket.off("server:controllerLeft", handleLeave);
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);
-      socket.off("server:closeChild", handleChildClose);
       socket.off("server:state", handleState);
     };
   }, [
     config.maxPlayers,
     config.apiKey,
-    options.maxPlayers,
-    options.apiKey,
     arcadeParams,
     parsedRoomId, // Include parsedRoomId since it's used in handleState callback
     shouldConnect,
@@ -663,7 +631,6 @@ export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
     sendSignal,
     reconnect,
     socket: returnSocket,
-    isChildMode,
     getInput,
   };
 };

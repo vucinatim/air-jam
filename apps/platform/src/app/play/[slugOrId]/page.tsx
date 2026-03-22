@@ -1,15 +1,16 @@
 "use client";
 
 import { ArcadeSystem } from "@/components/arcade";
+import { toArcadeGame } from "@/lib/arcade-game-mapper";
+import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
-import { AirJamProvider } from "@air-jam/sdk";
+import { HostSessionProvider } from "@air-jam/sdk";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use } from "react";
-import { z } from "zod";
 
 export default function PlayGamePage({
   params,
@@ -57,35 +58,10 @@ export default function PlayGamePage({
     );
   }
 
-  // Convert to ArcadeGame format
-  const arcadeGame = {
-    id: game.id,
-    name: game.name,
-    url: game.url,
-    thumbnailUrl: game.thumbnailUrl,
-    videoUrl: game.videoUrl,
-    slug: game.slug,
-  };
-
-  // Input schema for arcade navigation
-  const arcadeInputSchema = z.object({
-    vector: z.object({
-      x: z.number(),
-      y: z.number(),
-    }),
-    action: z.boolean(),
-  });
+  const arcadeGame = toArcadeGame(game);
 
   return (
-    <AirJamProvider
-      input={{
-        schema: arcadeInputSchema,
-        latch: {
-          booleanFields: ["action"],
-          vectorFields: ["vector"],
-        },
-      }}
-    >
+    <HostSessionProvider {...platformArcadeHostSessionConfig}>
       <div className="flex h-screen flex-col bg-slate-950">
         {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
         <div className="relative z-100">
@@ -107,7 +83,7 @@ export default function PlayGamePage({
           />
         </div>
       </div>
-    </AirJamProvider>
+    </HostSessionProvider>
   );
 }
 

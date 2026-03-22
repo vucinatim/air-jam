@@ -1,16 +1,22 @@
 "use client";
 
-import { arcadeInputSchema } from "@/app/arcade/[[...slug]]/page";
 import { cn } from "@/lib/utils";
+import { arcadeInputSchema } from "@/lib/airjam-session-config";
 import {
-  HostShell,
   type SystemLaunchGameAck,
   urlBuilder,
   useAirJamHost,
+  useHostTick,
 } from "@air-jam/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
 import { GameBrowser } from "./game-browser";
+import {
+  EXIT_COOLDOWN_MS,
+  shouldAutoLaunchGame,
+  useArcadeRuntimeManager,
+} from "./arcade-runtime-manager";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
 
 // Calculate grid columns based on window width
@@ -20,8 +26,6 @@ const getGridColumns = (): number => {
   if (window.innerWidth >= 768) return 2; // md
   return 1; // sm
 };
-
-const DEFAULT_PLATFORM_API_KEY = process.env.NEXT_PUBLIC_PLATFORM_API_KEY;
 
 export type ArcadeGame = GamePlayerGame & { slug?: string | null };
 
@@ -35,16 +39,12 @@ interface ArcadeSystemProps {
   initialGameId?: string;
   /** Auto-launch the initial game when connected */
   autoLaunch?: boolean;
-  /** API key for the platform */
-  apiKey?: string;
   /** Custom header content for the browser view */
   header?: React.ReactNode;
   /** Whether to show the exit button overlay on the game player */
   showGameExitOverlay?: boolean;
-  /** Initial room ID to use */
-  initialRoomId?: string;
-  /** Callback when room ID changes */
-  onRoomIdChange?: (roomId: string) => void;
+  /** Whether to show the platform chrome/navbar */
+  showChrome?: boolean;
   /** Callback when exiting a game (preview mode) */
   onExitGame?: () => void;
   /** Custom class name for the container */
@@ -62,96 +62,70 @@ export const ArcadeSystem = ({
   mode = "arcade",
   initialGameId,
   autoLaunch = false,
-  apiKey = DEFAULT_PLATFORM_API_KEY,
   header,
   showGameExitOverlay = true,
-  initialRoomId,
-  onRoomIdChange,
+  showChrome = mode === "arcade",
   onExitGame,
   className,
 }: ArcadeSystemProps) => {
-  // Ref for exit callback (used in onChildClose)
-  const exitGameRef = useRef<() => void>(() => {});
-  // Ref for launch callback (used in handleInput)
+  const runtime = useArcadeRuntimeManager({
+    games,
+    mode,
+    initialGameId,
+    onExitGame,
+  });
+  const {
+    state,
+    stateRef,
+    activeGame,
+    selectedGame,
+    moveSelection,
+    setSelectedIndex,
+    beginLaunch,
+    completeLaunch,
+    failLaunch,
+    exitGame: resetRuntimeAfterExit,
+    markAutoLaunched,
+  } = runtime;
+
+  // Ref for launch callback (used in input loop)
   const launchGameRef = useRef<(game: ArcadeGame) => void>(() => {});
 
-  // State for view & selection
-  const [view, setView] = useState<"browser" | "game">(
-    mode === "preview" ? "game" : "browser",
-  );
-  const [selectedIndex, setSelectedIndex] = useState(() => {
-    if (initialGameId && games.length > 0) {
-      const idx = games.findIndex((g) => g.id === initialGameId);
-      return idx !== -1 ? idx : 0;
-    }
-    return 0;
-  });
-  const [activeGame, setActiveGame] = useState<ArcadeGame | null>(null);
-  const [normalizedGameUrl, setNormalizedGameUrl] = useState<string>("");
-  const [joinToken, setJoinToken] = useState<string | null>(null);
-  const [isLaunching, setIsLaunching] = useState(false);
-  const isLaunchingRef = useRef(false);
-  // Refs to track current state values for use in callbacks without stale closures
-  const activeGameRef = useRef<ArcadeGame | null>(null);
-  const joinTokenRef = useRef<string | null>(null);
-
   // Navigation logic refs
-  const lastExitTime = useRef<number>(0);
-  const EXIT_COOLDOWN = 500;
+  const EXIT_COOLDOWN = EXIT_COOLDOWN_MS;
   const lastVectorStates = useRef<Map<string, { x: number; y: number }>>(
     new Map(),
   );
+  const lastArcadeInputLogTimeRef = useRef(0);
 
   const host = useAirJamHost<typeof arcadeInputSchema>({
-    roomId: initialRoomId,
-    apiKey,
     onPlayerJoin: () => {
       // Broadcast will be handled by effect below
     },
-    onChildClose: () => {
-      console.log("[Arcade] onChildClose callback fired");
-      exitGameRef.current();
-    },
-    forceConnect: true,
   });
 
   const broadcastCurrentState = useCallback(() => {
     if (!games || games.length === 0) return;
-    const currentGame = games[selectedIndex];
+    const currentGame = games[state.selectedIndex];
 
-    if (view === "browser") {
+    if (state.view === "browser") {
       host.sendState({
         message: currentGame ? currentGame.name : undefined,
       });
-    } else if (view === "game" && activeGame) {
+    } else if (state.view === "game" && activeGame) {
       host.sendState({
         message: activeGame.name,
       });
     }
-  }, [games, selectedIndex, view, host, activeGame]);
+  }, [games, state.selectedIndex, state.view, host, activeGame]);
 
-  // Process input for navigation (polling pattern)
-  // Only process input when in browser view (not when game is active)
-  useEffect(() => {
-    if (
-      !host.getInput ||
-      !games ||
-      games.length === 0 ||
-      view !== "browser" ||
-      activeGame
-    ) {
-      return;
-    }
-    // Throttling for debug logging
-    let lastArcadeInputLogTime = 0;
-
-    const interval = setInterval(() => {
-      // Get input for all connected players
+  // Canonical host polling loop for browser navigation.
+  useHostTick(
+    () => {
       host.players.forEach((player) => {
         const latchedInput = host.getInput?.(player.id);
         if (!latchedInput) return;
 
-        // Throttled logging - only log active input, once per second max
         const now = Date.now();
         const hasActiveInput =
           latchedInput.action === true ||
@@ -160,12 +134,12 @@ export const ArcadeSystem = ({
               Math.abs(latchedInput.vector.y) > 0.01));
         if (
           hasActiveInput &&
-          (!lastArcadeInputLogTime || now - lastArcadeInputLogTime > 1000)
+          (!lastArcadeInputLogTimeRef.current ||
+            now - lastArcadeInputLogTimeRef.current > 1000)
         ) {
-          lastArcadeInputLogTime = now;
+          lastArcadeInputLogTimeRef.current = now;
         }
 
-        // Detect edge transitions
         const prevVec = lastVectorStates.current.get(player.id) ?? {
           x: 0,
           y: 0,
@@ -176,96 +150,55 @@ export const ArcadeSystem = ({
           Math.abs(latchedInput.vector.x) > 0.5 ||
           Math.abs(latchedInput.vector.y) > 0.5;
 
-        // Navigate on rising edge
         if (isVectorActive && !wasVectorActive) {
-          const columns = getGridColumns();
-
-          if (latchedInput.vector.y < -0.5) {
-            // Up: move up one row (subtract columns)
-            setSelectedIndex((prev) => {
-              const newIndex = prev - columns;
-              if (newIndex < 0) {
-                // Wrap to bottom of same column
-                const currentCol = prev % columns;
-                const lastRow = Math.floor((games.length - 1) / columns);
-                return Math.min(
-                  lastRow * columns + currentCol,
-                  games.length - 1,
-                );
-              }
-              return newIndex;
-            });
-          } else if (latchedInput.vector.y > 0.5) {
-            // Down: move down one row (add columns)
-            setSelectedIndex((prev) => {
-              const newIndex = prev + columns;
-              if (newIndex >= games.length) {
-                // Wrap to top of same column
-                return prev % columns;
-              }
-              return newIndex;
-            });
-          } else if (latchedInput.vector.x < -0.5) {
-            // Left: move left one column
-            setSelectedIndex((prev) => {
-              const newIndex = prev - 1;
-              return newIndex < 0 ? games.length - 1 : newIndex;
-            });
-          } else if (latchedInput.vector.x > 0.5) {
-            // Right: move right one column
-            setSelectedIndex((prev) => {
-              const newIndex = prev + 1;
-              return newIndex >= games.length ? 0 : newIndex;
-            });
-          }
+          moveSelection(latchedInput.vector, getGridColumns());
         }
 
         lastVectorStates.current.set(player.id, latchedInput.vector);
 
-        // Handle action button
         if (latchedInput.action) {
-          const now = Date.now();
-          if (now - lastExitTime.current < EXIT_COOLDOWN) return;
-
-          setSelectedIndex((currentIndex) => {
-            const game = games[currentIndex];
-            if (game) launchGameRef.current(game);
-            return currentIndex;
-          });
+          if (now - stateRef.current.lastExitAt < EXIT_COOLDOWN) return;
+          const game = games[stateRef.current.selectedIndex] ?? selectedGame;
+          if (game) {
+            launchGameRef.current(game);
+          }
         }
       });
-    }, 16); // ~60fps polling
-
-    return () => {
-      clearInterval(interval);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host.getInput, host.players, games, view, activeGame, joinToken]);
+    },
+    {
+      enabled:
+        !!host.getInput &&
+        games.length > 0 &&
+        state.view === "browser" &&
+        !activeGame,
+      mode: "interval",
+      intervalMs: 16,
+    },
+  );
 
   const launchGame = useCallback(
     async (game: ArcadeGame) => {
-      // Prevent launching if already launching, game is active, or joinToken exists
-      // Use refs to check current values without stale closures
-      if (
-        !host.socket ||
-        !host.socket.connected ||
-        isLaunchingRef.current ||
-        activeGameRef.current ||
-        joinTokenRef.current
-      ) {
+      if (!host.socket || !host.socket.connected) {
         console.log("[Arcade] Launch blocked:", {
           hasSocket: !!host.socket,
           connected: host.socket?.connected,
-          isLaunching: isLaunchingRef.current,
-          activeGame: !!activeGameRef.current,
-          joinToken: !!joinTokenRef.current,
+        });
+        return;
+      }
+
+      if (!beginLaunch()) {
+        const snapshot = stateRef.current;
+        console.log("[Arcade] Launch blocked:", {
+          hasSocket: !!host.socket,
+          connected: host.socket?.connected,
+          isLaunching: snapshot.isLaunching,
+          activeGame: !!snapshot.activeGameId,
+          joinToken: !!snapshot.joinToken,
         });
         return;
       }
 
       console.log("[Arcade] Launching game:", game.name);
-      isLaunchingRef.current = true;
-      setIsLaunching(true);
 
       const baseUrl = await urlBuilder.normalizeForMobile(game.url);
       const controllerUrl = `${baseUrl.replace(/\/$/, "")}/controller`;
@@ -278,16 +211,13 @@ export const ArcadeSystem = ({
           gameUrl: controllerUrl,
         },
         (ack: SystemLaunchGameAck) => {
-          isLaunchingRef.current = false;
-          setIsLaunching(false);
           if (ack.ok && ack.joinToken) {
             console.log("[Arcade] Game launch successful");
-            setJoinToken(ack.joinToken);
-            joinTokenRef.current = ack.joinToken;
-            setActiveGame(game);
-            activeGameRef.current = game;
-            setNormalizedGameUrl(baseUrl);
-            setView("game");
+            completeLaunch({
+              gameId: game.id,
+              joinToken: ack.joinToken,
+              normalizedGameUrl: baseUrl,
+            });
 
             // Update URL shallowly in arcade mode for deep linking
             if (mode === "arcade" && typeof window !== "undefined") {
@@ -295,26 +225,20 @@ export const ArcadeSystem = ({
               window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
             }
           } else {
+            failLaunch();
             console.error("[Arcade] Failed to launch game:", ack.message);
           }
         },
       );
     },
-    [host.socket, host.roomId, mode],
+    [host.socket, host.roomId, mode, beginLaunch, stateRef, completeLaunch, failLaunch],
   );
 
   const exitGame = useCallback(() => {
-    lastExitTime.current = Date.now();
-
     console.log("[Arcade] Exiting game, clearing state");
 
     if (host.socket?.connected) {
       host.socket.emit("system:closeGame", { roomId: host.roomId });
-    }
-
-    // In preview mode, call the onExitGame callback
-    if (mode === "preview") {
-      onExitGame?.();
     }
 
     // Reset URL shallowly in arcade mode
@@ -322,105 +246,86 @@ export const ArcadeSystem = ({
       window.history.replaceState(null, "", "/arcade");
     }
 
-    // Clear state immediately (synchronously with refs)
-    setView("browser");
-    setActiveGame(null);
-    activeGameRef.current = null;
-    setNormalizedGameUrl("");
-    setJoinToken(null);
-    joinTokenRef.current = null;
-    isLaunchingRef.current = false;
-    setIsLaunching(false);
-    // Reset auto-launch flag so game can be launched again if needed
-    hasAutoLaunched.current = false;
+    resetRuntimeAfterExit();
 
     console.log("[Arcade] Game exit complete, state cleared");
-  }, [host.socket, host.roomId, mode, onExitGame]);
-
-  // Keep refs updated with state
-  useEffect(() => {
-    activeGameRef.current = activeGame;
-  }, [activeGame]);
-
-  useEffect(() => {
-    joinTokenRef.current = joinToken;
-  }, [joinToken]);
-
-  // Keep refs updated
-  useEffect(() => {
-    exitGameRef.current = exitGame;
-  }, [exitGame]);
+  }, [host.socket, host.roomId, mode, resetRuntimeAfterExit]);
 
   useEffect(() => {
     launchGameRef.current = launchGame;
   }, [launchGame]);
 
-  // Notify parent of room ID changes
+  // Platform-owned child-host lifecycle event.
   useEffect(() => {
-    if (host.roomId && onRoomIdChange) {
-      onRoomIdChange(host.roomId);
-    }
-  }, [host.roomId, onRoomIdChange]);
+    const handleChildClose = () => {
+      console.log("[Arcade] server:closeChild received");
+      exitGame();
+    };
+
+    host.socket.on("server:closeChild", handleChildClose);
+    return () => {
+      host.socket.off("server:closeChild", handleChildClose);
+    };
+  }, [host.socket, exitGame]);
 
   // Auto-launch effect (for both arcade and preview modes)
-  const hasAutoLaunched = useRef(false);
-  const launchGameRefForAutoLaunch = useRef(launchGame);
   useEffect(() => {
-    launchGameRefForAutoLaunch.current = launchGame;
-  }, [launchGame]);
-
-  useEffect(() => {
-    const shouldAutoLaunch = mode === "preview" || autoLaunch;
-
-    // Early return if game is already active, launching, or has joinToken
-    if (activeGame || isLaunching || joinToken) {
+    if (
+      !shouldAutoLaunchGame({
+        mode,
+        autoLaunch,
+        hasAutoLaunched: state.hasAutoLaunched,
+        isConnected: !!host.socket?.connected,
+        roomId: host.roomId,
+        hasActiveGame: !!activeGame,
+        isLaunching: state.isLaunching,
+        hasJoinToken: !!state.joinToken,
+        gamesLength: games.length,
+      })
+    ) {
       return;
     }
 
-    if (
-      shouldAutoLaunch &&
-      !hasAutoLaunched.current &&
-      host.socket?.connected &&
-      host.roomId &&
-      games.length > 0
-    ) {
-      const gameToLaunch = initialGameId
-        ? games.find((g) => g.id === initialGameId)
-        : games[0];
+    const gameToLaunch = initialGameId
+      ? games.find((game) => game.id === initialGameId)
+      : games[0];
 
-      if (gameToLaunch) {
-        console.log(
-          "[Arcade] Auto-launching game:",
-          gameToLaunch.name,
-          "in room:",
-          host.roomId,
-        );
-
-        hasAutoLaunched.current = true;
-        // Use queueMicrotask to avoid synchronous setState in effect warning
-        queueMicrotask(() => {
-          launchGameRefForAutoLaunch.current(gameToLaunch);
-        });
-      }
+    if (!gameToLaunch) {
+      return;
     }
+
+    console.log(
+      "[Arcade] Auto-launching game:",
+      gameToLaunch.name,
+      "in room:",
+      host.roomId,
+    );
+
+    markAutoLaunched();
+    // Use queueMicrotask to avoid synchronous setState in effect warning
+    queueMicrotask(() => {
+      launchGameRef.current(gameToLaunch);
+    });
   }, [
     mode,
     autoLaunch,
     initialGameId,
+    state.hasAutoLaunched,
+    state.isLaunching,
+    state.joinToken,
     host.socket?.connected,
     host.roomId,
     games,
     activeGame,
-    isLaunching,
-    joinToken,
+    markAutoLaunched,
   ]);
 
   // Broadcast state whenever relevant things change
   useEffect(() => {
     broadcastCurrentState();
   }, [
-    view,
-    selectedIndex,
+    state.view,
+    state.selectedIndex,
     games,
     host.connectionStatus,
     broadcastCurrentState,
@@ -438,7 +343,7 @@ export const ArcadeSystem = ({
     return (
       <div
         className={cn(
-          "flex h-full items-center justify-center bg-black text-white",
+          "flex h-full w-full items-center justify-center bg-black text-white",
           className,
         )}
       >
@@ -448,34 +353,47 @@ export const ArcadeSystem = ({
   }
 
   // Preview mode: show loading while launching
-  if (mode === "preview" && !activeGame && !joinToken) {
+  if (mode === "preview" && !activeGame && !state.joinToken) {
     return (
-      <HostShell>
-        <div
-          className={cn(
-            "relative flex h-full w-full items-center justify-center bg-slate-950 text-white",
-            className,
-          )}
-        >
-          <div className="absolute inset-0">
-            <ArcadeLoader />
-          </div>
-          <div className="z-10 flex flex-col items-center gap-4 pt-40">
-            <span className="text-airjam-cyan animate-pulse font-mono tracking-widest">
-              CONNECTING TO AIR JAM...
-            </span>
-          </div>
+      <div
+        className={cn(
+          "relative flex h-full w-full items-center justify-center bg-slate-950 text-white",
+          className,
+        )}
+      >
+        <div className="absolute inset-0">
+          <ArcadeLoader />
         </div>
-      </HostShell>
+        <div className="z-10 flex flex-col items-center gap-4 pt-40">
+          <span className="text-airjam-cyan animate-pulse font-mono tracking-widest">
+            CONNECTING TO AIR JAM...
+          </span>
+        </div>
+      </div>
     );
   }
 
   return (
-    <HostShell>
+    <div
+      className={cn(
+        "flex h-full w-full flex-col overflow-hidden bg-slate-950 font-sans text-slate-50",
+        className,
+      )}
+    >
+      {showChrome && (
+        <ArcadeChrome
+          roomId={host.roomId || undefined}
+          players={host.players}
+          gameState={host.gameState}
+          connectionStatus={host.connectionStatus}
+          onTogglePause={host.toggleGameState}
+          className="z-40 shrink-0"
+        />
+      )}
+
       <div
         className={cn(
-          "relative h-full w-full overflow-hidden bg-slate-950 font-sans text-slate-50",
-          className,
+          "relative min-h-0 flex-1 overflow-hidden bg-slate-950 font-sans text-slate-50",
         )}
       >
         {/* Background */}
@@ -497,8 +415,8 @@ export const ArcadeSystem = ({
         {mode === "arcade" && (
           <GameBrowser
             games={games}
-            selectedIndex={selectedIndex}
-            isVisible={view === "browser"}
+            selectedIndex={state.selectedIndex}
+            isVisible={state.view === "browser"}
             onSelectGame={(game, idx) => {
               setSelectedIndex(idx);
               launchGame(game);
@@ -508,18 +426,18 @@ export const ArcadeSystem = ({
         )}
 
         {/* Game View */}
-        {activeGame && joinToken && (
+        {activeGame && state.joinToken && (
           <GamePlayer
             game={activeGame}
-            normalizedUrl={normalizedGameUrl}
-            joinToken={joinToken}
+            normalizedUrl={state.normalizedGameUrl}
+            joinToken={state.joinToken}
             roomId={host.roomId!}
-            isVisible={view === "game"}
+            isVisible={state.view === "game"}
             onExit={exitGame}
             showExitOverlay={showGameExitOverlay}
           />
         )}
       </div>
-    </HostShell>
+    </div>
   );
 };

@@ -23,6 +23,18 @@ export default defineConfig([
       },
     },
     extends: [js.configs.recommended, tseslint.configs.recommended],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
   },
   {
     files: ["apps/**/*.{ts,tsx}", "packages/sdk/**/*.{ts,tsx}"],
@@ -44,6 +56,16 @@ export default defineConfig([
     rules: {
       "react-hooks/refs": "off",
       "react-hooks/purity": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
   // Disable ESLint rules that conflict with Prettier

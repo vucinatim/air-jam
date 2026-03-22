@@ -22,25 +22,16 @@ A starter template for building multiplayer games with Air Jam. This template in
 
 ## Local Development
 
-### Option 1: Run Server and Game Separately (Recommended)
-
-**Terminal 1 - Start the local server:**
-
-```bash
-pnpm run dev:server
-```
-
-The server will start on `http://localhost:4000` in development mode (no authentication required).
-
-**Terminal 2 - Start the game:**
+### Default (Recommended)
 
 ```bash
 pnpm run dev
 ```
 
-The game will be available at `http://localhost:5173` (or the port Vite assigns).
+This starts both the local Air Jam server (`http://localhost:4000`) and the game (`http://localhost:5173`) in one command.
+It also auto-detects your LAN IP and sets `VITE_AIR_JAM_PUBLIC_HOST` so QR links are phone-friendly by default.
 
-### Option 2: Use the Official Air Jam Server
+### Use Official Air Jam Backend (No Local Server)
 
 If you prefer to use the official Air Jam server instead of running locally:
 
@@ -50,12 +41,12 @@ If you prefer to use the official Air Jam server instead of running locally:
    VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
    VITE_AIR_JAM_PUBLIC_KEY=your-public-key-here
    ```
-3. Run only the game:
+3. Start web-only mode:
    ```bash
-   pnpm run dev
+   pnpm run dev -- --web-only
    ```
 
-### Option 3: Optional HTTPS for Device Sensors (Gyroscope/Camera)
+### Optional HTTPS (Gyroscope/Camera APIs)
 
 Most local development works on plain HTTP. Use this only when you need secure browser APIs (gyroscope, motion sensors, some camera APIs).
 
@@ -74,10 +65,10 @@ One-time setup per project:
 Daily secure dev:
 
 ```bash
-pnpm run dev:secure
+pnpm run dev -- --secure
 ```
 
-What `dev:secure` does:
+What `dev -- --secure` does:
 
 - starts local Air Jam server on `http://localhost:4000`
 - starts Vite on `http://localhost:5173`
@@ -91,17 +82,77 @@ What `dev:secure` does:
 2. Scan the QR code with your phone to open the controller / open the controller view in your browser
 3. Use the controller to play Pong!
 
+### Lobby Flow (Template Defaults)
+
+- Game opens in a lobby state.
+- Host shows a dedicated lobby screen (QR + team readiness, no debug control bar).
+- Controllers pick a team (`SOLARIS` / `NEBULON`).
+- Controllers set `Points to Win` (`3`, `5`, `7`, `11`).
+- Optional: enable `Bot Opponent` from the controller lobby.
+- Press `Start Match` to begin.
+- During a running match, use `Pause` / `Resume` and `Lobby` from controller.
+- Match transitions to an `ended` state automatically when one team reaches target points.
+- Ended state provides `Play Again` and `Back to Lobby` from controller.
+
+### Feedback Pattern (Canonical)
+
+- Host feedback is centralized in `src/game/host/use-pong-feedback.ts`.
+- Paddle collisions trigger:
+  - controller-only `hit` sound (targeted to the player who touched the ball)
+  - controller-only haptic pulse (`light`) for that same player
+- Score events trigger:
+  - host-only sound (`score`)
+- Match start/end trigger host-only start/win cues.
+- Match end also broadcasts a controller `TOAST` message with winner + final score.
+- Sound manifest is defined in `src/game/shared/sounds.ts` and files live in `public/sounds`.
+
 ## Project Structure
 
 ```
 src/
-  ├── App.tsx              # Main app component with routing
-  ├── host-view.tsx        # Game host view (runs the game)
-  ├── controller-view.tsx  # Controller view (mobile interface)
-  ├── types.ts             # Game input schema and types
-  ├── store.ts             # Shared networked state store
-  └── main.tsx             # Entry point
+  ├── App.tsx                     # Main app component with routing
+  ├── airjam.config.ts            # Canonical runtime/game metadata
+  ├── game/
+  │   ├── input.ts                # Input schema/types
+  │   ├── store.ts                # Shared networked state store
+  │   ├── controller/
+  │   │   ├── index.tsx           # Controller game view shell
+  │   │   ├── components/         # Header, lobby, playing controls, ended panel
+  │   │   └── hooks/              # Controller connection guard/use-case hooks
+  │   ├── host/
+  │   │   ├── index.tsx           # Host game view shell
+  │   │   ├── components/         # Lobby/ended/overlay host UI
+  │   │   ├── game-engine/        # Simulation modules (input/collision/render)
+  │   │   └── use-pong-feedback.ts # Canonical host-owned feedback policy
+  │   └── shared/
+  │       ├── team.ts             # Team domain (ids/labels/colors)
+  │       ├── match-readiness.ts  # Canonical readiness logic/text
+  │       └── sounds.ts           # Shared sound manifest
+  └── main.tsx                    # Entry point
 ```
+
+## Runtime Pattern (Canonical)
+
+- `airjam.config.ts` is the single source for runtime metadata + provider config.
+- `airjam.Host` wraps `HostView` from `src/game/host/index.tsx` and owns input schema + behavior defaults.
+- `airjam.Controller` wraps `ControllerView` from `src/game/controller/index.tsx`.
+- Controller input is published on a fixed 16ms cadence using `useInputWriter` in `src/game/controller/index.tsx`.
+- Host input is consumed with `host.getInput(playerId)` in the game loop.
+
+## Canonical Usage Rules
+
+- Keep game lifecycle in the networked store (`lobby`, `playing`, `ended`), not in transport state.
+- Treat `gameState` (`paused` / `playing`) as runtime pause only.
+- Host owns authority for simulation, scoring, and state transitions; controllers send input + actions.
+- Keep feedback centralized in host feedback modules (`use-pong-feedback`): no scattered side-effects.
+- Target controller feedback explicitly when needed (e.g., hitter-only hit cue) and keep broad cues host-local by default.
+
+## What SDK Handles For You
+
+- Remote controller sound playback: use `useRemoteSound(manifest, audio)` instead of manual `server:playSound` socket subscriptions.
+- Controller toast signaling: use `useControllerToasts()` to consume host `sendSignal("TOAST", ...)`.
+- Presence-aware action context: every store action receives `ctx.connectedPlayerIds` (no custom presence sync action needed).
+- Host phase/runtime bridge: use `useHostGameStateBridge(...)` for canonical lifecycle-to-pause/play synchronization.
 
 ## Environment Variables
 
@@ -109,15 +160,14 @@ See `.env.example` for all available environment variables. Key variables:
 
 - `VITE_AIR_JAM_SERVER_URL` - Server URL (defaults to localhost:4000 for local dev)
 - `VITE_AIR_JAM_PUBLIC_KEY` - Public API key (optional for local dev, required for production)
-- `VITE_AIR_JAM_API_KEY` - Legacy public key variable (still supported)
-- `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev:secure` for host/controller URLs
-- `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev:secure`
+- `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev -- --secure` for host/controller URLs
+- `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev -- --secure`
 
 ## Troubleshooting
 
 ### Server not connecting locally
 
-1. Ensure `pnpm run dev:server` is running.
+1. Ensure `pnpm run dev` is running.
 2. Verify server health at `http://localhost:4000/health`.
 3. Remove or correct `VITE_AIR_JAM_SERVER_URL` overrides in `.env.local`.
 
@@ -130,7 +180,7 @@ See `.env.example` for all available environment variables. Key variables:
 ### Controller join URL / QR issues
 
 1. Confirm the room code on host and phone matches.
-2. If testing on a phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` or use `pnpm run dev:secure`.
+2. If testing on a phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` or use `pnpm run dev -- --secure`.
 3. Ensure SPA rewrites are enabled so `/controller?room=XXXX` resolves to your app (`vercel.json` is included).
 
 ## Production Deployment

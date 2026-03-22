@@ -325,7 +325,7 @@ function HomeContent() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-airjam-cyan">•</span>
-                  <span>Performance optimized with input latching</span>
+                  <span>Performance optimized with tap-safe input behavior</span>
                 </li>
               </ul>
             </div>

@@ -1,25 +1,27 @@
-import { AirJamProvider } from "@air-jam/sdk";
 import { Route, Routes } from "react-router-dom";
-import { ControllerView } from "./controller-view";
-import { HostView } from "./host-view";
-import { gameInputSchema } from "./types";
+import { airjam } from "./airjam.config";
+import { ControllerView } from "./game/controller";
+import { HostView } from "./game/host";
 
 export function App() {
   return (
-    <AirJamProvider
-      serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
-      publicHost={import.meta.env.VITE_AIR_JAM_PUBLIC_HOST}
-      input={{
-        schema: gameInputSchema,
-        latch: {
-          booleanFields: ["action"],
-        },
-      }}
-    >
-      <Routes>
-        <Route path="/" element={<HostView />} />
-        <Route path="/controller" element={<ControllerView />} />
-      </Routes>
-    </AirJamProvider>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <airjam.Host>
+            <HostView />
+          </airjam.Host>
+        }
+      />
+      <Route
+        path={airjam.paths.controller}
+        element={
+          <airjam.Controller>
+            <ControllerView />
+          </airjam.Controller>
+        }
+      />
+    </Routes>
   );
 }

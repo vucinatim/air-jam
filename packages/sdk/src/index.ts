@@ -4,29 +4,37 @@ export * from "./context";
 // Audio
 export * from "./audio";
 
-// Components
-export * from "./components/controller-shell";
-export * from "./components/host-shell";
-export * from "./components/player-avatar";
-export * from "./components/ui/button";
-export * from "./components/ui/slider";
-export * from "./components/volume-controls";
-
 // Constants
 export * from "./constants";
 
 // Events
 export * from "./events";
 
+// Diagnostics
+export * from "./diagnostics";
+
 // Hooks
 export * from "./hooks/use-air-jam-controller";
 export * from "./hooks/use-air-jam-host";
-export * from "./hooks/use-air-jam-shell";
+export * from "./hooks/use-controller-tick";
+export * from "./hooks/use-connection-status";
+export * from "./hooks/use-controller-toasts";
 export * from "./hooks/use-get-input";
+export * from "./hooks/use-host-game-state-bridge";
+export * from "./hooks/use-host-tick";
+export * from "./hooks/use-input-writer";
+export * from "./hooks/use-players";
+export * from "./hooks/use-room";
 export * from "./hooks/use-send-signal";
 
 // Protocol types
 export * from "./protocol";
+
+// Runtime config bootstrap
+export * from "./runtime/air-jam-config";
+export * from "./runtime/create-air-jam-app";
+export * from "./runtime/iframe-bridge";
+export * from "./runtime/sdk-version";
 
 // Store
 export * from "./store/create-air-jam-store";

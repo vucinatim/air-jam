@@ -11,16 +11,16 @@
  * Controllers automatically handle:
  * - Room joining via URL parameter (?room=XXXX) or props
  * - Haptic feedback (vibration patterns on signal receipt)
- * - Bridge mode for iframe embedding in the AirJam Platform
+ * - Embedded sub-controller mode for iframe usage in the AirJam Platform
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
+import { useAssertSessionScope } from "../context/session-providers";
 import type { AirJamSocket } from "../context/socket-manager";
 import type {
   ConnectionStatus,
-  ControllerInputPayload,
   ControllerStateMessage,
   GameState,
   PlayerProfile,
@@ -28,7 +28,6 @@ import type {
   SignalPayload,
 } from "../protocol";
 import {
-  controllerInputSchema,
   controllerJoinSchema,
   controllerSystemSchema,
   roomCodeSchema,
@@ -75,11 +74,6 @@ export interface AirJamControllerOptions {
    */
   controllerId?: string;
   /**
-   * Force connection even in non-standard modes (e.g., iframe).
-   * @default false
-   */
-  forceConnect?: boolean;
-  /**
    * Called when the host sends a state update (game state, messages, etc.)
    */
   onState?: (state: ControllerStatePayload) => void;
@@ -103,20 +97,6 @@ export interface AirJamControllerApi {
   gameState: GameState;
   /** Optional message from the host (e.g., "Get Ready!") */
   stateMessage?: string;
-  /**
-   * Send input to the host.
-   *
-   * @example Sending joystick and button input
-   * ```ts
-   * controller.sendInput({
-   *   vector: { x: joystickX, y: joystickY },
-   *   action: isFirePressed,
-   *   ability: isAbilityPressed,
-   *   timestamp: Date.now(),
-   * });
-   * ```
-   */
-  sendInput: (input: ControllerInputPayload) => boolean;
   /**
    * Send a system command to the host.
    *
@@ -153,7 +133,7 @@ const getRoomFromLocation = (): string | null => {
  *
  * This hook handles all the complexity of connecting a mobile controller to a game:
  * - Automatic room joining from URL parameters
- * - Input sending with validation
+ * - Input runtime/session state for `useInputWriter`
  * - Haptic feedback on signal receipt (vibration)
  * - Game state synchronization
  * - Auto-reconnection on disconnect
@@ -173,30 +153,13 @@ const getRoomFromLocation = (): string | null => {
  * const ControllerView = () => {
  *   const controller = useAirJamController();
  *
- *   const handleJoystickMove = (x: number, y: number) => {
- *     controller.sendInput({
- *       vector: { x, y },
- *       action: false,
- *       timestamp: Date.now(),
- *     });
- *   };
- *
- *   const handleFirePress = () => {
- *     controller.sendInput({
- *       vector: { x: 0, y: 0 },
- *       action: true,
- *       timestamp: Date.now(),
- *     });
- *   };
- *
  *   if (controller.connectionStatus !== "connected") {
  *     return <div>Connecting to room {controller.roomId}...</div>;
  *   }
  *
  *   return (
  *     <div>
- *       <Joystick onMove={handleJoystickMove} />
- *       <FireButton onPress={handleFirePress} />
+ *       <p>Connected: {controller.controllerId}</p>
  *       <p>Game: {controller.gameState}</p>
  *     </div>
  *   );
@@ -217,6 +180,8 @@ const getRoomFromLocation = (): string | null => {
 export const useAirJamController = (
   options: AirJamControllerOptions = {},
 ): AirJamControllerApi => {
+  useAssertSessionScope("controller", "useAirJamController");
+
   // Get context
   const { store, getSocket, disconnectSocket } = useAirJamContext();
 
@@ -291,31 +256,10 @@ export const useAirJamController = (
     setReconnectKey((prev) => prev + 1);
   }, [parsedRoomId, disconnectSocket]);
 
-  const isChildMode = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    const params = new URLSearchParams(window.location.search);
-    return params.get("airjam_mode") === "child";
-  }, []);
-
-  const shouldConnect = useMemo(() => {
-    if (options.forceConnect) return true;
-    if (subControllerParams) return true;
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("airjam_force_connect") === "true";
-    }
-    return false;
-  }, [options.forceConnect, subControllerParams]);
-
-  const canConnect = useMemo(
-    () => !isChildMode || shouldConnect,
-    [isChildMode, shouldConnect],
-  );
-
-  // Get socket from context (only if can connect and have room)
+  // Get socket from context (only if we have a room)
   const socket = useMemo(
-    () => (canConnect && parsedRoomId ? getSocket("controller") : null),
-    [canConnect, parsedRoomId, getSocket],
+    () => (parsedRoomId ? getSocket("controller") : null),
+    [parsedRoomId, getSocket],
   );
 
   // Automatically listen for haptic signals
@@ -372,33 +316,7 @@ export const useAirJamController = (
     storeState.setStatus(parsedRoomId ? "connecting" : "idle");
     storeState.setError(undefined);
 
-    if (!canConnect) {
-      // --- BRIDGE MODE (Iframe Child) ---
-      storeState.setStatus("connected");
-
-      const handleMessage = (event: MessageEvent) => {
-        if (event.source !== window.parent) return;
-
-        const data = event.data;
-        if (data?.type === "AIRJAM_STATE") {
-          const payload = data.payload as ControllerStatePayload;
-          if (payload.gameState) storeState.setGameState(payload.gameState);
-          if (payload.message !== undefined)
-            storeState.setStateMessage(payload.message);
-          onStateRef.current?.(payload);
-        }
-      };
-
-      window.addEventListener("message", handleMessage);
-      window.parent.postMessage({ type: "AIRJAM_READY" }, "*");
-
-      return () => {
-        window.removeEventListener("message", handleMessage);
-        storeState.setStatus("disconnected");
-      };
-    }
-
-    // --- NORMAL MODE (Direct Socket Connection) ---
+    // --- Direct Socket Connection ---
     if (!parsedRoomId || !socket || !controllerId) {
       storeState.setStatus("idle");
       return;
@@ -512,7 +430,6 @@ export const useAirJamController = (
   }, [
     parsedRoomId,
     reconnectKey,
-    canConnect,
     socket,
     controllerId,
     subControllerParams,
@@ -524,58 +441,10 @@ export const useAirJamController = (
     nicknameRef.current = value;
   }, []);
 
-  const sendInput = useCallback(
-    (input: ControllerInputPayload): boolean => {
-      const storeState = store.getState();
-
-      if (!canConnect) {
-        // Bridge Mode
-        if (typeof window !== "undefined") {
-          window.parent.postMessage(
-            {
-              type: "AIRJAM_INPUT",
-              payload: input,
-            },
-            "*",
-          );
-        }
-        return true;
-      }
-
-      if (!parsedRoomId || !storeState.controllerId || !socket) {
-        storeState.setError("Not connected to a room");
-        return false;
-      }
-      if (!socket.connected) {
-        return false;
-      }
-
-      if (typeof input !== "object" || input === null || Array.isArray(input)) {
-        storeState.setError("Input must be an object");
-        return false;
-      }
-
-      const payload = controllerInputSchema.safeParse({
-        roomId: parsedRoomId,
-        controllerId: storeState.controllerId,
-        input,
-      });
-      if (!payload.success) {
-        storeState.setError(payload.error.message);
-        return false;
-      }
-
-      socket.emit("controller:input", payload.data);
-      return true;
-    },
-    [parsedRoomId, canConnect, socket, store],
-  );
-
   const sendSystemCommand = useCallback(
     (command: "exit" | "ready" | "toggle_pause") => {
       const storeState = store.getState();
 
-      if (!canConnect) return;
       if (!parsedRoomId || !storeState.controllerId || !socket) return;
       if (!socket.connected) return;
 
@@ -588,7 +457,7 @@ export const useAirJamController = (
         socket.emit("controller:system", payload.data);
       }
     },
-    [parsedRoomId, canConnect, socket, store],
+    [parsedRoomId, socket, store],
   );
 
   return {
@@ -598,7 +467,6 @@ export const useAirJamController = (
     lastError: connectionState.lastError,
     gameState: connectionState.gameState,
     stateMessage: connectionState.stateMessage,
-    sendInput,
     sendSystemCommand,
     setNickname,
     reconnect,

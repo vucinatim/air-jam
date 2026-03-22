@@ -3,27 +3,27 @@
  * @module AirJamContext
  * @description Core context and provider for the AirJam SDK.
  *
- * The AirJamProvider is the root component that must wrap your application
- * to enable AirJam functionality. It manages:
+ * Scoped session providers build on top of this internal provider to enable
+ * AirJam functionality. It manages:
  * - WebSocket connections to the AirJam server
  * - Global state via Zustand store
- * - Input validation and latching configuration
+ * - Input validation and behavior configuration
  * - Environment variable resolution for server URLs and API keys
  *
  * @example Basic Setup
  * ```tsx
- * import { AirJamProvider } from "@air-jam/sdk";
+ * import { HostSessionProvider } from "@air-jam/sdk";
  *
  * const App = () => (
- *   <AirJamProvider>
+ *   <HostSessionProvider>
  *     <YourGame />
- *   </AirJamProvider>
+ *   </HostSessionProvider>
  * );
  * ```
  *
  * @example With Input Configuration
  * ```tsx
- * import { AirJamProvider } from "@air-jam/sdk";
+ * import { HostSessionProvider } from "@air-jam/sdk";
  * import { z } from "zod";
  *
  * const inputSchema = z.object({
@@ -32,14 +32,14 @@
  * });
  *
  * const App = () => (
- *   <AirJamProvider
+ *   <HostSessionProvider
  *     input={{
  *       schema: inputSchema,
- *       latch: { booleanFields: ["action"], vectorFields: ["vector"] },
+ *       behavior: { pulse: ["action"], latest: ["vector"] },
  *     }}
  *   >
  *     <YourGame />
- *   </AirJamProvider>
+ *   </HostSessionProvider>
  * );
  * ```
  */
@@ -54,9 +54,11 @@ import {
 import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import { DEFAULT_MAX_PLAYERS } from "../constants";
+import { createAirJamDiagnosticError } from "../diagnostics";
 import { InputManager, type InputConfig } from "../internal/input-manager";
 import type { ConnectionRole } from "../protocol";
+import type { AirJamConfig } from "../runtime/air-jam-config";
+import { resolveAirJamConfig } from "../runtime/air-jam-config";
 import { createAirJamStore, type AirJamStore } from "../state/connection-store";
 import { SocketManager, type AirJamSocket } from "./socket-manager";
 
@@ -65,45 +67,30 @@ import { SocketManager, type AirJamSocket } from "./socket-manager";
 // ============================================================================
 
 /**
- * Resolved configuration for the AirJam SDK.
- * Created from AirJamProviderProps with environment variable fallbacks applied.
- */
-export interface AirJamConfig {
-  /** WebSocket server URL. Falls back to env vars or window location */
-  serverUrl?: string;
-  /** API key for production authentication */
-  apiKey?: string;
-  /** Maximum players allowed in a room */
-  maxPlayers: number;
-  /** Public host for controller URLs (optional) */
-  publicHost?: string;
-}
-
-/**
  * Props for the AirJamProvider component.
  *
  * @template TSchema - Zod schema type for input validation (inferred from input.schema)
  *
  * @example Minimal configuration (uses environment variables)
  * ```tsx
- * <AirJamProvider>
+ * <HostSessionProvider>
  *   <App />
- * </AirJamProvider>
+ * </HostSessionProvider>
  * ```
  *
  * @example Full configuration
  * ```tsx
- * <AirJamProvider
+ * <HostSessionProvider
  *   serverUrl="wss://your-server.com"
  *   apiKey="your-api-key"
  *   maxPlayers={4}
  *   input={{
  *     schema: myInputSchema,
- *     latch: { booleanFields: ["fire"], vectorFields: ["move"] },
+ *     behavior: { pulse: ["fire"], latest: ["move"] },
  *   }}
  * >
  *   <App />
- * </AirJamProvider>
+ * </HostSessionProvider>
  * ```
  */
 export interface AirJamProviderProps<
@@ -119,7 +106,7 @@ export interface AirJamProviderProps<
   /**
    * API key for production authentication.
    * Falls back to VITE_AIR_JAM_PUBLIC_KEY or NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY
-   * (legacy: VITE_AIR_JAM_API_KEY / NEXT_PUBLIC_AIR_JAM_API_KEY).
+   * when not provided directly.
    */
   apiKey?: string;
   /**
@@ -133,8 +120,16 @@ export interface AirJamProviderProps<
    */
   publicHost?: string;
   /**
-   * Input handling configuration including Zod schema validation and latching.
-   * When provided, enables typed input with automatic validation and latch support.
+   * Enable environment-variable fallback resolution for config fields.
+   * Set to false to require explicit `serverUrl` / `apiKey` / `publicHost`.
+   * @default true
+   */
+  resolveEnv?: boolean;
+  /**
+   * Input handling configuration including Zod schema validation and field behavior.
+   * When provided, enables typed input with tap-safe defaults:
+   * - booleans => `pulse`
+   * - vectors => `latest`
    *
    * @example
    * ```ts
@@ -144,9 +139,9 @@ export interface AirJamProviderProps<
    *     action: z.boolean(),
    *     ability: z.boolean(),
    *   }),
-   *   latch: {
-   *     booleanFields: ["action", "ability"],  // Latch button presses
-   *     vectorFields: ["vector"],               // Latch stick flicks
+   *   behavior: {
+   *     pulse: ["action", "ability"],  // consume-on-read actions
+   *     latest: ["vector"],            // continuous movement
    *   },
    * }}
    * ```
@@ -176,95 +171,6 @@ export interface AirJamContextValue {
 const AirJamContext = createContext<AirJamContextValue | null>(null);
 
 // ============================================================================
-// Environment Variable Resolution
-// ============================================================================
-
-// Type-safe access to import.meta.env (Vite)
-interface ImportMetaEnv {
-  VITE_AIR_JAM_SERVER_URL?: string;
-  VITE_AIR_JAM_PUBLIC_KEY?: string;
-  VITE_AIR_JAM_API_KEY?: string;
-  VITE_AIR_JAM_PUBLIC_HOST?: string;
-}
-
-const getViteEnv = (): ImportMetaEnv | undefined => {
-  try {
-    // Access import.meta.env dynamically to avoid TS errors
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
-    if (meta && typeof meta.env === "object") {
-      return meta.env as ImportMetaEnv;
-    }
-  } catch {
-    // import.meta not available
-  }
-  return undefined;
-};
-
-/**
- * Attempts to read server URL from various environment variable formats
- */
-const getEnvServerUrl = (): string | undefined => {
-  // Vite
-  const viteEnv = getViteEnv();
-  if (viteEnv?.VITE_AIR_JAM_SERVER_URL) {
-    return viteEnv.VITE_AIR_JAM_SERVER_URL;
-  }
-
-  // Next.js / Node
-  if (typeof process !== "undefined" && process.env) {
-    const nextUrl = process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL;
-    if (nextUrl) return nextUrl;
-  }
-
-  return undefined;
-};
-
-/**
- * Attempts to read API key from various environment variable formats
- */
-const getEnvApiKey = (): string | undefined => {
-  // Vite
-  const viteEnv = getViteEnv();
-  if (viteEnv?.VITE_AIR_JAM_PUBLIC_KEY) {
-    return viteEnv.VITE_AIR_JAM_PUBLIC_KEY;
-  }
-  if (viteEnv?.VITE_AIR_JAM_API_KEY) {
-    return viteEnv.VITE_AIR_JAM_API_KEY;
-  }
-
-  // Next.js / Node
-  if (typeof process !== "undefined" && process.env) {
-    const nextPublicKey = process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY;
-    if (nextPublicKey) return nextPublicKey;
-
-    const nextKey = process.env.NEXT_PUBLIC_AIR_JAM_API_KEY;
-    if (nextKey) return nextKey;
-  }
-
-  return undefined;
-};
-
-/**
- * Attempts to read public host from various environment variable formats
- */
-const getEnvPublicHost = (): string | undefined => {
-  // Vite
-  const viteEnv = getViteEnv();
-  if (viteEnv?.VITE_AIR_JAM_PUBLIC_HOST) {
-    return viteEnv.VITE_AIR_JAM_PUBLIC_HOST;
-  }
-
-  // Next.js / Node
-  if (typeof process !== "undefined" && process.env) {
-    const nextHost = process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
-    if (nextHost) return nextHost;
-  }
-
-  return undefined;
-};
-
-// ============================================================================
 // Provider Component
 // ============================================================================
 
@@ -278,28 +184,28 @@ const getEnvPublicHost = (): string | undefined => {
  * **Key responsibilities:**
  * - Creates and manages WebSocket connections to the AirJam server
  * - Provides a Zustand store for connection state (players, game state, etc.)
- * - Creates an InputManager for typed input validation and latching
+ * - Creates an InputManager for typed input behavior processing
  * - Resolves configuration from props and environment variables
  *
  * @template TSchema - Zod schema for input validation (inferred from props)
  *
  * @example Basic usage
  * ```tsx
- * import { AirJamProvider } from "@air-jam/sdk";
+ * import { HostSessionProvider } from "@air-jam/sdk";
  *
  * export const App = () => (
- *   <AirJamProvider>
+ *   <HostSessionProvider>
  *     <Routes>
  *       <Route path="/" element={<HostView />} />
  *       <Route path="/controller" element={<ControllerView />} />
  *     </Routes>
- *   </AirJamProvider>
+ *   </HostSessionProvider>
  * );
  * ```
  *
- * @example With typed input and latching
+ * @example With typed input behavior overrides
  * ```tsx
- * import { AirJamProvider } from "@air-jam/sdk";
+ * import { HostSessionProvider } from "@air-jam/sdk";
  * import { z } from "zod";
  *
  * const gameInputSchema = z.object({
@@ -310,17 +216,17 @@ const getEnvPublicHost = (): string | undefined => {
  * });
  *
  * export const App = () => (
- *   <AirJamProvider
+ *   <HostSessionProvider
  *     input={{
  *       schema: gameInputSchema,
- *       latch: {
- *         booleanFields: ["action", "ability"],
- *         vectorFields: ["vector"],
+ *       behavior: {
+ *         pulse: ["action", "ability"],
+ *         latest: ["vector"],
  *       },
  *     }}
  *   >
  *     <GameRoutes />
- *   </AirJamProvider>
+ *   </HostSessionProvider>
  * );
  * ```
  */
@@ -328,19 +234,22 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
   serverUrl,
   apiKey,
-  maxPlayers = DEFAULT_MAX_PLAYERS,
+  maxPlayers,
   publicHost,
+  resolveEnv = true,
   input,
 }: AirJamProviderProps<TSchema>) => {
-  // Resolve config with env fallbacks
+  // Resolve config via runtime config resolver.
   const config = useMemo<AirJamConfig>(
-    () => ({
-      serverUrl: serverUrl ?? getEnvServerUrl(),
-      apiKey: apiKey ?? getEnvApiKey(),
-      maxPlayers,
-      publicHost: publicHost ?? getEnvPublicHost(),
-    }),
-    [serverUrl, apiKey, maxPlayers, publicHost],
+    () =>
+      resolveAirJamConfig({
+        serverUrl,
+        apiKey,
+        maxPlayers,
+        publicHost,
+        resolveEnv,
+      }),
+    [serverUrl, apiKey, maxPlayers, publicHost, resolveEnv],
   );
 
   // Create InputManager from input config if provided
@@ -423,9 +332,9 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
 export const useAirJamContext = (): AirJamContextValue => {
   const context = useContext(AirJamContext);
   if (!context) {
-    throw new Error(
-      "useAirJamContext must be used within an AirJamProvider. " +
-        "Wrap your app or component tree with <AirJamProvider>.",
+    throw createAirJamDiagnosticError(
+      "AJ_MISSING_SESSION_PROVIDER",
+      "useAirJamContext must be used within a session provider. Wrap your app or component tree with <HostSessionProvider> or <ControllerSessionProvider>.",
     );
   }
   return context;
@@ -493,3 +402,4 @@ export const useAirJamSocket = (role: ConnectionRole): AirJamSocket => {
 // ============================================================================
 
 export { AirJamContext };
+export type { AirJamConfig } from "../runtime/air-jam-config";

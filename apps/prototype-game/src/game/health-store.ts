@@ -59,10 +59,8 @@ export const useHealthStore = create<HealthState>((set, get) => ({
   },
   removeHealth: (controllerId: string) => {
     set((state) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [controllerId]: healthToRemove, ...restHealth } = state.health;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [controllerId]: deadToRemove, ...restDead } = state.isDead;
+      const { [controllerId]: _healthToRemove, ...restHealth } = state.health;
+      const { [controllerId]: _deadToRemove, ...restDead } = state.isDead;
       return { health: restHealth, isDead: restDead };
     });
   },

@@ -167,7 +167,7 @@ export const SystemOverviewDiagram = () => {
           fontSize="11"
           fontWeight="500"
         >
-          Controller Shell
+          Controller Runtime
         </text>
         <text
           x="600"
