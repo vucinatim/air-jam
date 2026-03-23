@@ -14,6 +14,8 @@ Supporting plans:
 1. [SDK Composability Plan](./plans/sdk-composability-plan.md)
 2. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
 3. [Blog Article Plan](./plans/blog-article-plan.md)
+4. [Arcade Controller Overlay Plan](./plans/arcade-controller-overlay-plan.md)
+5. [Arcade Runtime Full Transition Plan](./plans/arcade-runtime-full-transition-plan.md)
 
 Content drafts:
 

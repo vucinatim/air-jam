@@ -85,6 +85,23 @@ export const DOCS_SECTIONS: DocsSection[] = [
         keywords: ["hooks", "api", "reference", "react", "host", "controller"],
       },
       {
+        title: "UI Components",
+        href: "/docs/sdk/ui-components",
+        description:
+          "Canonical reusable UI components from @air-jam/sdk/ui with usage examples.",
+        icon: "code",
+        keywords: [
+          "ui",
+          "components",
+          "qr code",
+          "avatar",
+          "orientation",
+          "volume",
+          "button",
+          "slider",
+        ],
+      },
+      {
         title: "Input System",
         href: "/docs/sdk/input-system",
         description: "Input behavior modes, vectors, and button event handling.",
