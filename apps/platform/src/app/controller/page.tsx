@@ -8,6 +8,8 @@ import {
   getControllerLocalProfileServerSnapshot,
   subscribeControllerLocalProfile,
 } from "@/lib/controller-local-profile";
+import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
+import { cn } from "@/lib/utils";
 import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
   type AirJamStateSyncPayload,
@@ -45,6 +47,7 @@ import {
 } from "react";
 
 function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
+  const documentFullscreen = useDocumentFullscreen();
   const localProfile = useSyncExternalStore(
     subscribeControllerLocalProfile,
     getControllerLocalProfileClientSnapshot,
@@ -404,11 +407,22 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         routeRoomId={routeRoomId}
         activeUrl={activeUrl}
         emitArcadeAction={emitArcadeAction}
+        documentFullscreen={documentFullscreen}
       />
 
-      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden pt-[env(safe-area-inset-top)] sm:p-4">
+      <main
+        className={cn(
+          "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden sm:p-4",
+          !documentFullscreen && "pt-[env(safe-area-inset-top)]",
+        )}
+      >
         {activeUrl && (
-          <div className="bg-background absolute inset-0 z-20 pt-[env(safe-area-inset-top)]">
+          <div
+            className={cn(
+              "bg-background absolute inset-0 z-20",
+              !documentFullscreen && "pt-[env(safe-area-inset-top)]",
+            )}
+          >
             {controllerIframeSrc ? (
               <iframe
                 ref={iframeRef}

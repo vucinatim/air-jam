@@ -30,12 +30,14 @@ interface ControllerMenuSheetProps {
   routeRoomId: string | null;
   activeUrl: string | null;
   emitArcadeAction: (action: string) => void;
+  documentFullscreen: boolean;
 }
 
 export function ControllerMenuSheet({
   routeRoomId,
   activeUrl,
   emitArcadeAction,
+  documentFullscreen,
 }: ControllerMenuSheetProps) {
   const router = useRouter();
   const controller = useAirJamController();
@@ -223,8 +225,17 @@ export function ControllerMenuSheet({
     };
   }, [scanning]);
 
+  const topChromePadding = documentFullscreen
+    ? "pt-2"
+    : "pt-[max(0.5rem,env(safe-area-inset-top))]";
+
   const overlayChrome = (
-    <header className="border-border/40 relative flex w-full shrink-0 items-center border-b px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+    <header
+      className={cn(
+        "border-border/40 relative flex w-full shrink-0 items-center border-b px-3 pb-2",
+        topChromePadding,
+      )}
+    >
       <span className="sr-only" aria-live="polite">
         {`Connection ${connectionLabel}`}
       </span>
@@ -321,7 +332,12 @@ export function ControllerMenuSheet({
   );
 
   const closedChrome = (
-    <header className="pointer-events-none fixed top-0 left-0 right-0 z-50 flex w-full shrink-0 items-center px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+    <header
+      className={cn(
+        "pointer-events-none fixed top-0 left-0 right-0 z-50 flex w-full shrink-0 items-center px-3 pb-2",
+        topChromePadding,
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-center pl-1 pr-2">
         <div className="pointer-events-auto min-w-0">
           <div className="flex items-center gap-1">
@@ -399,7 +415,10 @@ export function ControllerMenuSheet({
 
       <ControllerMenuNotch
         position="fixed"
-        className="z-60 mt-[env(safe-area-inset-top)]"
+        className={cn(
+          "z-60",
+          documentFullscreen ? "mt-0" : "mt-[env(safe-area-inset-top)]",
+        )}
         strokeClassName="stroke-zinc-700"
         pulse={connectionNotchPulse}
         onClick={toggleOverlay}
