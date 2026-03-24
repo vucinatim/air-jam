@@ -106,6 +106,47 @@ describe("server room lifecycle", () => {
     expect(rejoinedNotice.controllerId).toBe("ctrl_rejoin_1");
   });
 
+  it("replaces the previous controller identity when the same socket rejoins with a new controller id", async () => {
+    const host = await harness.connectSocket();
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const controller = await harness.connectSocket();
+    const firstJoinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_old_1", nickname: "Old" },
+    );
+    expect(firstJoinAck.ok).toBe(true);
+
+    const leftNoticePromise = harness.waitForEvent<{ controllerId: string }>(
+      host,
+      "server:controllerLeft",
+      2_000,
+    );
+    const secondJoinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_new_1", nickname: "New" },
+    );
+
+    expect(secondJoinAck.ok).toBe(true);
+    expect((await leftNoticePromise).controllerId).toBe("ctrl_old_1");
+
+    const session = harness.getRoomManager().getRoom(roomId)!;
+    expect(Array.from(session.controllers.keys())).toEqual(["ctrl_new_1"]);
+
+    controller.disconnect();
+    await harness.delay(30);
+    expect(Array.from(session.controllers.keys())).toEqual([]);
+  });
+
   it("cleans up room state after host disconnect timeout", async () => {
     const host = await harness.connectSocket();
 

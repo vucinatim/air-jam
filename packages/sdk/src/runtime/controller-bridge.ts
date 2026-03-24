@@ -16,6 +16,7 @@ import type {
   ServerErrorPayload,
   SignalPayload,
 } from "../protocol";
+import type { PlayerUpdatedNotice } from "../protocol/notices";
 import {
   createBridgeHandshake,
 } from "./iframe-bridge";
@@ -48,6 +49,7 @@ export const controllerBridgeServerEvents = [
   "server:error",
   "server:signal",
   "server:playSound",
+  "server:playerUpdated",
   "client:loadUi",
   "client:unloadUi",
   "airjam:state_sync",
@@ -74,6 +76,7 @@ export type ControllerBridgeServerEventArgs = {
   "server:error": [payload: ServerErrorPayload];
   "server:signal": [payload: SignalPayload];
   "server:playSound": [payload: PlaySoundPayload];
+  "server:playerUpdated": [payload: PlayerUpdatedNotice];
   "client:loadUi": [payload: ClientLoadUiPayload];
   "client:unloadUi": [];
   "airjam:state_sync": [payload: AirJamStateSyncPayload];

@@ -18,8 +18,10 @@
  */
 import type {
   ConnectionStatus,
+  ControllerUpdatePlayerProfileAck,
   GameState,
   PlayerProfile,
+  PlayerProfilePatch,
   RoomCode,
 } from "../protocol";
 import type { ControllerStatePayload } from "../protocol";
@@ -59,6 +61,10 @@ export interface AirJamControllerOptions {
    */
   nickname?: string;
   /**
+   * Preset avatar id sent on join (optional).
+   */
+  avatarId?: string;
+  /**
    * Controller ID for this instance.
    * Auto-generated if not provided. Persists across reconnects.
    */
@@ -97,10 +103,19 @@ export interface AirJamControllerApi {
    */
   sendSystemCommand: (command: "exit" | "toggle_pause") => void;
   /**
-   * Update the player nickname.
-   * Changes take effect on next connection.
+   * Update the player nickname (local draft for next join).
    */
   setNickname: (value: string) => void;
+  /**
+   * Update preset avatar id (local draft for next join).
+   */
+  setAvatarId: (value: string) => void;
+  /**
+   * Patch display name and/or avatar on the server without reconnecting.
+   */
+  updatePlayerProfile: (
+    patch: PlayerProfilePatch,
+  ) => Promise<ControllerUpdatePlayerProfileAck>;
   /** Force reconnection to the room */
   reconnect: () => void;
   /** List of all connected players in the room */

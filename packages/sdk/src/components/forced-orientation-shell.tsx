@@ -34,6 +34,26 @@ const readViewportSize = (): ViewportSize => {
 };
 
 const getOrientation = ({ width, height }: ViewportSize): ForcedOrientation => {
+  if (typeof window !== "undefined") {
+    if (window.screen?.orientation?.type) {
+      if (window.screen.orientation.type.startsWith("portrait")) {
+        return "portrait";
+      }
+      if (window.screen.orientation.type.startsWith("landscape")) {
+        return "landscape";
+      }
+    }
+
+    if (window.matchMedia) {
+      if (window.matchMedia("(orientation: portrait)").matches) {
+        return "portrait";
+      }
+      if (window.matchMedia("(orientation: landscape)").matches) {
+        return "landscape";
+      }
+    }
+  }
+
   return width >= height ? "landscape" : "portrait";
 };
 
@@ -54,7 +74,7 @@ export const ForcedOrientationShell = ({
   contentClassName,
   style,
 }: ForcedOrientationShellProps): JSX.Element => {
-  const [viewport, setViewport] = useState<ViewportSize>(() => readViewportSize());
+  const [viewport, setViewport] = useState<ViewportSize | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -105,11 +125,21 @@ export const ForcedOrientationShell = ({
     };
   }, [desired, lockOnGesture]);
 
-  const currentOrientation = getOrientation(viewport);
-  const needsRotation = currentOrientation !== desired;
+  const currentOrientation = viewport ? getOrientation(viewport) : desired;
+  const needsRotation = viewport ? currentOrientation !== desired : false;
 
   const shellStyle = useMemo<CSSProperties>(() => {
     if (!needsRotation) {
+      return {
+        position: "fixed",
+        inset: 0,
+        width: "100dvw",
+        height: "100dvh",
+        overflow: "hidden",
+      };
+    }
+
+    if (!viewport) {
       return {
         position: "fixed",
         inset: 0,

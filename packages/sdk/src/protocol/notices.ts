@@ -17,6 +17,11 @@ export interface ControllerLeftNotice {
   controllerId: string;
 }
 
+/** Emitted when a controller updates their profile (label / avatar) after join. */
+export interface PlayerUpdatedNotice {
+  player: PlayerProfile;
+}
+
 export interface RoomReadyNotice {
   roomId: RoomCode;
 }

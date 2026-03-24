@@ -33,6 +33,8 @@ const host = useAirJamHost();
 />;
 ```
 
+If you are rendering before the join URL has been resolved, prefer gating with `host.joinUrlStatus === "ready"` and show your own loading state until then.
+
 Props:
 
 - `value: string` (required)

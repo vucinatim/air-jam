@@ -1,23 +1,29 @@
 "use client";
 
+import { ControllerMenuSheet } from "@/components/controller-menu-sheet";
 import { RemoteDPad } from "@/components/remote-d-pad";
-import { Button } from "@/components/ui/button";
 import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
+import {
+  getControllerLocalProfileClientSnapshot,
+  getControllerLocalProfileServerSnapshot,
+  subscribeControllerLocalProfile,
+} from "@/lib/controller-local-profile";
 import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
   type AirJamStateSyncPayload,
   appendRuntimeQueryParams,
   type ClientLoadUiPayload,
   type ControllerBridgeServerEventName,
+  ControllerSessionProvider,
   type ControllerStateMessage,
   type ControllerWelcomePayload,
   createControllerBridgeAttachMessage,
   createControllerBridgeCloseMessage,
-  ControllerSessionProvider,
   type HostLeftNotice,
   normalizeRuntimeUrl,
   parseControllerBridgeEmitMessage,
   parseControllerBridgeRequestMessage,
+  type PlayerUpdatedNotice,
   type PlaySoundPayload,
   type ServerErrorPayload,
   type SignalPayload,
@@ -26,32 +32,33 @@ import {
   useInputWriter,
 } from "@air-jam/sdk";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
-import { ArrowLeft, CornerDownLeft, QrCode } from "lucide-react";
-import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CornerDownLeft } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
-const ARCADE_ACTION_TOGGLE_QR = "airjam.arcade.toggle_qr";
-
-const ControllerContent = dynamic(
-  () => Promise.resolve(ControllerContentInner),
-  {
-    ssr: false,
-  },
-);
-
-export default function ControllerPage() {
-  return (
-    <ControllerSessionProvider {...platformControllerSessionConfig}>
-      <ControllerContent />
-    </ControllerSessionProvider>
+function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
+  const localProfile = useSyncExternalStore(
+    subscribeControllerLocalProfile,
+    getControllerLocalProfileClientSnapshot,
+    getControllerLocalProfileServerSnapshot,
   );
-}
-function ControllerContentInner() {
-  const controller = useAirJamController();
+
+  const controller = useAirJamController({
+    roomId: routeRoomId ?? undefined,
+    nickname: localProfile.label,
+    avatarId: localProfile.avatarId,
+  });
   const writeInput = useInputWriter();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
 
-  // Use refs to store input state - avoids re-renders and keeps loop stable
   const vectorRef = useRef({ x: 0, y: 0 });
   const actionRef = useRef(false);
   const lastLoopFailLogRef = useRef(0);
@@ -87,7 +94,6 @@ function ControllerContentInner() {
     };
   }, [controller.socket]);
 
-  // Canonical controller loop: fixed-cadence input publishing.
   useControllerTick(
     () => {
       const inputResult = writeInput({
@@ -110,7 +116,6 @@ function ControllerContentInner() {
     },
   );
 
-  // --- IFRAME LOGIC ---
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgePortRef = useRef<MessagePort | null>(null);
   const controllerSocketRef = useRef(controller.socket);
@@ -121,16 +126,28 @@ function ControllerContentInner() {
     stateMessage: controller.stateMessage,
     players: controller.players,
   });
+
   const controllerIframeSrc = useMemo(() => {
     if (!activeUrl || !controller.controllerId || !controller.roomId) {
       return null;
     }
 
+    const self = controller.players.find(
+      (p) => p.id === controller.controllerId,
+    );
+
     return appendRuntimeQueryParams(activeUrl, {
       aj_controller_id: controller.controllerId,
       aj_room: controller.roomId,
+      ...(self?.label ? { aj_player_label: self.label } : {}),
+      ...(self?.avatarId ? { aj_player_avatar: self.avatarId } : {}),
     });
-  }, [activeUrl, controller.controllerId, controller.roomId]);
+  }, [
+    activeUrl,
+    controller.controllerId,
+    controller.players,
+    controller.roomId,
+  ]);
 
   const emitArcadeAction = useCallback(
     (actionName: string) => {
@@ -247,9 +264,7 @@ function ControllerContentInner() {
     [closeBridge],
   );
 
-  // Reset ALL state when activeUrl changes (prevents stale input causing game relaunch)
   useEffect(() => {
-    // Reset input refs to prevent ghost inputs when switching between arcade and game
     vectorRef.current = { x: 0, y: 0 };
     actionRef.current = false;
     if (!activeUrl) {
@@ -350,6 +365,9 @@ function ControllerContentInner() {
     const handleStateSync = (payload: AirJamStateSyncPayload) => {
       forwardBridgeEvent("airjam:state_sync", payload);
     };
+    const handlePlayerUpdated = (payload: PlayerUpdatedNotice) => {
+      forwardBridgeEvent("server:playerUpdated", payload);
+    };
 
     controller.socket.on("connect", handleConnect);
     controller.socket.on("disconnect", handleDisconnect);
@@ -362,6 +380,7 @@ function ControllerContentInner() {
     controller.socket.on("client:loadUi", handleLoadUi);
     controller.socket.on("client:unloadUi", handleUnloadUi);
     controller.socket.on("airjam:state_sync", handleStateSync);
+    controller.socket.on("server:playerUpdated", handlePlayerUpdated);
 
     return () => {
       controller.socket?.off("connect", handleConnect);
@@ -375,95 +394,21 @@ function ControllerContentInner() {
       controller.socket?.off("client:loadUi", handleLoadUi);
       controller.socket?.off("client:unloadUi", handleUnloadUi);
       controller.socket?.off("airjam:state_sync", handleStateSync);
+      controller.socket?.off("server:playerUpdated", handlePlayerUpdated);
     };
   }, [closeBridge, controller.socket, forwardBridgeEvent]);
 
-  const connectionLabels: Record<
-    NonNullable<typeof controller.connectionStatus>,
-    string
-  > = {
-    connected: "Connected",
-    connecting: "Connecting",
-    disconnected: "Disconnected",
-    idle: "Idle",
-    reconnecting: "Reconnecting",
-  };
-
-  const statusDotClass =
-    controller.connectionStatus === "connected"
-      ? "bg-emerald-400"
-      : controller.connectionStatus === "connecting" ||
-          controller.connectionStatus === "reconnecting"
-        ? "animate-pulse bg-amber-300"
-        : controller.connectionStatus === "idle"
-          ? "bg-slate-500"
-          : "bg-rose-400";
-
-  const connectionLabel =
-    connectionLabels[controller.connectionStatus] ??
-    controller.connectionStatus;
-
   const layout = (
     <div className="text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-black select-none">
-      <header className="border-border/40 sticky top-0 z-50 flex shrink-0 items-center border-b px-4 py-2">
-        <div className="flex min-w-0 flex-1 items-center">
-          <div className="min-w-0">
-            <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">
-              Room
-            </p>
-            <p className="truncate text-lg leading-tight font-semibold">
-              {controller.roomId ?? "N/A"}
-            </p>
-          </div>
-        </div>
+      <ControllerMenuSheet
+        routeRoomId={routeRoomId}
+        activeUrl={activeUrl}
+        emitArcadeAction={emitArcadeAction}
+      />
 
-        <div
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-xs font-medium tracking-wide uppercase"
-          aria-live="polite"
-          aria-label={`Connection ${connectionLabel}`}
-        >
-          <span
-            className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass}`}
-            aria-hidden
-          />
-          {connectionLabel}
-        </div>
-
-        <div className="flex flex-1 justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => emitArcadeAction(ARCADE_ACTION_TOGGLE_QR)}
-            aria-label="Toggle host join QR"
-            title="Toggle host join QR"
-          >
-            <QrCode className="h-4 w-4" />
-          </Button>
-          {activeUrl ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="border-red-500 hover:border-red-600"
-              onClick={() => {
-                if (confirm("Exit game and return to arcade?")) {
-                  controller.sendSystemCommand("exit");
-                }
-              }}
-              aria-label="Exit game"
-              title="Exit game"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          ) : null}
-        </div>
-      </header>
-
-      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4">
-        {/* --- CHILD GAME CONTROLLER --- */}
+      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden pt-[env(safe-area-inset-top)] sm:p-4">
         {activeUrl && (
-          <div className="bg-background absolute inset-0 z-20">
+          <div className="bg-background absolute inset-0 z-20 pt-[env(safe-area-inset-top)]">
             {controllerIframeSrc ? (
               <iframe
                 ref={iframeRef}
@@ -483,9 +428,8 @@ function ControllerContentInner() {
           </div>
         )}
 
-        {/* --- DEFAULT ARCADE CONTROLLER --- */}
         {!activeUrl && (
-          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-8 px-6 py-12">
+          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-8 px-6 pb-12 pt-24">
             <div className="text-center opacity-30">
               <h1 className="text-4xl font-black tracking-tighter uppercase select-none">
                 Air Jam
@@ -541,5 +485,41 @@ function ControllerContentInner() {
         </div>
       )}
     </div>
+  );
+}
+
+function ControllerRoomKeyedInner() {
+  const searchParams = useSearchParams();
+  const roomKey = searchParams.get("room");
+  const routeRoomId = useMemo(() => {
+    if (!roomKey) {
+      return null;
+    }
+
+    const normalized = roomKey
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    return normalized || null;
+  }, [roomKey]);
+
+  return (
+    <ControllerPageInner key={routeRoomId ?? ""} routeRoomId={routeRoomId} />
+  );
+}
+
+export default function ControllerPage() {
+  return (
+    <ControllerSessionProvider {...platformControllerSessionConfig}>
+      <Suspense
+        fallback={
+          <div className="flex h-dvh items-center justify-center bg-black text-white">
+            Loading…
+          </div>
+        }
+      >
+        <ControllerRoomKeyedInner />
+      </Suspense>
+    </ControllerSessionProvider>
   );
 }

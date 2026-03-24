@@ -3,10 +3,12 @@ import {
   controllerJoinSchema,
   controllerLeaveSchema,
   controllerSystemSchema,
+  controllerUpdatePlayerProfileSchema,
   ErrorCode,
   type ControllerInputEvent,
   type ControllerJoinPayload,
   type ControllerLeavePayload,
+  type ControllerUpdatePlayerProfileAck,
   type PlayerProfile,
 } from "@air-jam/sdk/protocol";
 import Color from "color";
@@ -81,7 +83,7 @@ export const registerControllerHandlers = (
       return;
     }
 
-    const { roomId, controllerId, nickname } = parsed.data;
+    const { roomId, controllerId, nickname, avatarId } = parsed.data;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       callback({
@@ -94,6 +96,28 @@ export const registerControllerHandlers = (
         message: "Room not found",
       });
       return;
+    }
+
+    const previousController = roomManager.getControllerInfo(socket.id);
+    if (
+      previousController &&
+      (previousController.roomId !== roomId ||
+        previousController.controllerId !== controllerId)
+    ) {
+      const previousSession = roomManager.getRoom(previousController.roomId);
+      const previousEntry = previousSession?.controllers.get(
+        previousController.controllerId,
+      );
+      if (previousSession && previousEntry?.socketId === socket.id) {
+        previousSession.controllers.delete(previousController.controllerId);
+        io.to(roomManager.getActiveHostId(previousSession)).emit(
+          "server:controllerLeft",
+          {
+            controllerId: previousController.controllerId,
+          },
+        );
+      }
+      roomManager.deleteController(socket.id);
     }
 
     if (session.controllers.size >= session.maxPlayers) {
@@ -126,6 +150,7 @@ export const registerControllerHandlers = (
       id: controllerId,
       label: nickname ?? `Player ${session.controllers.size}`,
       color,
+      ...(avatarId ? { avatarId } : {}),
     };
 
     const controllerSession: ControllerSession = {
@@ -152,6 +177,74 @@ export const registerControllerHandlers = (
       socket.emit("client:loadUi", { url: session.activeControllerUrl });
     }
   });
+
+  socket.on(
+    "controller:updatePlayerProfile",
+    (payload: unknown, callback: (ack: ControllerUpdatePlayerProfileAck) => void) => {
+      const respond = (ack: ControllerUpdatePlayerProfileAck): void => {
+        callback?.(ack);
+      };
+
+      const parsed = controllerUpdatePlayerProfileSchema.safeParse(payload);
+      if (!parsed.success) {
+        respond({
+          ok: false,
+          message: parsed.error.message,
+        });
+        return;
+      }
+
+      const { roomId, controllerId, patch } = parsed.data;
+      if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+        respond({
+          ok: false,
+          message: "Not authorized",
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        respond({
+          ok: false,
+          message: "Room not found",
+          code: ErrorCode.ROOM_NOT_FOUND,
+        });
+        return;
+      }
+
+      const controllerSession = session.controllers.get(controllerId);
+      if (!controllerSession) {
+        respond({
+          ok: false,
+          message: "Controller not in room",
+        });
+        return;
+      }
+
+      const nextProfile: PlayerProfile = {
+        ...controllerSession.playerProfile,
+        ...(patch.label !== undefined ? { label: patch.label } : {}),
+        ...(patch.avatarId !== undefined ? { avatarId: patch.avatarId } : {}),
+      };
+
+      controllerSession.playerProfile = nextProfile;
+      if (patch.label !== undefined) {
+        controllerSession.nickname = patch.label;
+      }
+
+      const notice = { player: nextProfile };
+
+      io.to(roomManager.getActiveHostId(session)).emit(
+        "server:playerUpdated",
+        notice,
+      );
+      socket.emit("server:playerUpdated", notice);
+
+      respond({ ok: true, player: nextProfile });
+    },
+  );
 
   socket.on("controller:leave", (payload: ControllerLeavePayload) => {
     const parsed = controllerLeaveSchema.safeParse(payload);

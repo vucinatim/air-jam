@@ -5,6 +5,8 @@ import type {
   ControllerLeavePayload,
   ControllerStateMessage,
   ControllerSystemPayload,
+  ControllerUpdatePlayerProfileAck,
+  ControllerUpdatePlayerProfilePayload,
 } from "./controller";
 import type { HostRegistrationAck } from "./host";
 import type {
@@ -22,6 +24,7 @@ import type {
   ControllerLeftNotice,
   ControllerWelcomePayload,
   HostLeftNotice,
+  PlayerUpdatedNotice,
   RoomReadyNotice,
 } from "./notices";
 import type { ServerErrorPayload } from "./errors";
@@ -64,6 +67,10 @@ export interface ClientToServerEvents {
     payload: ControllerJoinPayload,
     callback: (ack: ControllerJoinAck) => void,
   ) => void;
+  "controller:updatePlayerProfile": (
+    payload: ControllerUpdatePlayerProfilePayload,
+    callback: (ack: ControllerUpdatePlayerProfileAck) => void,
+  ) => void;
   "controller:leave": (payload: ControllerLeavePayload) => void;
   "controller:input": (payload: ControllerInputEvent) => void;
   "controller:system": (payload: ControllerSystemPayload) => void;
@@ -79,6 +86,7 @@ export interface ServerToClientEvents {
   "server:roomReady": (payload: RoomReadyNotice) => void;
   "server:controllerJoined": (payload: ControllerJoinedNotice) => void;
   "server:controllerLeft": (payload: ControllerLeftNotice) => void;
+  "server:playerUpdated": (payload: PlayerUpdatedNotice) => void;
   "server:input": (payload: ControllerInputEvent) => void;
   "server:error": (payload: ServerErrorPayload) => void;
   "server:state": (payload: ControllerStateMessage) => void;

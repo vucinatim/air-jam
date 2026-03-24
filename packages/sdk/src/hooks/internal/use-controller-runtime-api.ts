@@ -6,16 +6,20 @@ import { useAssertSessionScope } from "../../context/session-providers";
 import type {
   ControllerJoinAck,
   ControllerStateMessage,
+  ControllerUpdatePlayerProfileAck,
   GameState,
   PlayerProfile,
+  PlayerProfilePatch,
   RoomCode,
   SignalPayload,
 } from "../../protocol";
 import {
   controllerJoinSchema,
   controllerSystemSchema,
+  playerProfilePatchSchema,
   roomCodeSchema,
 } from "../../protocol";
+import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import { generateControllerId } from "../../utils/ids";
 import { detectRunMode } from "../../utils/mode";
 import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
@@ -43,6 +47,15 @@ export const useControllerRuntimeApi = (
 
   const { store, getSocket, disconnectSocket } = useAirJamContext();
   const nicknameRef = useRef(options.nickname ?? "");
+  const avatarIdRef = useRef(options.avatarId ?? "");
+
+  useEffect(() => {
+    nicknameRef.current = options.nickname ?? "";
+  }, [options.nickname]);
+
+  useEffect(() => {
+    avatarIdRef.current = options.avatarId ?? "";
+  }, [options.avatarId]);
 
   const subControllerParams = useMemo(() => {
     return readEmbeddedControllerRuntimeParams();
@@ -181,6 +194,7 @@ export const useControllerRuntimeApi = (
         roomId: parsedRoomId,
         controllerId,
         nickname: nicknameRef.current || undefined,
+        avatarId: avatarIdRef.current || undefined,
       });
       socket.emit("controller:join", payload, (ack: ControllerJoinAck) => {
         const latestState = store.getState();
@@ -261,12 +275,17 @@ export const useControllerRuntimeApi = (
       store.getState().setError(payload.message);
     };
 
+    const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
+      store.getState().upsertPlayer(payload.player);
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("server:welcome", handleWelcome);
     socket.on("server:state", handleState);
     socket.on("server:hostLeft", handleHostLeft);
     socket.on("server:error", handleError);
+    socket.on("server:playerUpdated", handlePlayerUpdated);
 
     if (socket.connected) {
       handleConnect();
@@ -281,6 +300,7 @@ export const useControllerRuntimeApi = (
       socket.off("server:state", handleState);
       socket.off("server:hostLeft", handleHostLeft);
       socket.off("server:error", handleError);
+      socket.off("server:playerUpdated", handlePlayerUpdated);
     };
   }, [
     parsedRoomId,
@@ -295,6 +315,49 @@ export const useControllerRuntimeApi = (
   const setNickname = useCallback((value: string) => {
     nicknameRef.current = value;
   }, []);
+
+  const setAvatarId = useCallback((value: string) => {
+    avatarIdRef.current = value;
+  }, []);
+
+  const updatePlayerProfile = useCallback(
+    (patch: PlayerProfilePatch): Promise<ControllerUpdatePlayerProfileAck> => {
+      const parsedPatch = playerProfilePatchSchema.safeParse(patch);
+      if (!parsedPatch.success) {
+        return Promise.resolve({
+          ok: false,
+          message: parsedPatch.error.message,
+        });
+      }
+
+      if (!socket || !parsedRoomId) {
+        return Promise.resolve({ ok: false, message: "Not connected" });
+      }
+
+      if (subControllerParams) {
+        return Promise.resolve({
+          ok: false,
+          message: "Profile updates are unavailable in embedded controller runtime",
+        });
+      }
+
+      const controllerIdForPatch = store.getState().controllerId;
+      if (!controllerIdForPatch) {
+        return Promise.resolve({ ok: false, message: "No controller id" });
+      }
+
+      return new Promise((resolve) => {
+        socket.emit("controller:updatePlayerProfile", {
+          roomId: parsedRoomId,
+          controllerId: controllerIdForPatch,
+          patch: parsedPatch.data,
+        }, (ack: ControllerUpdatePlayerProfileAck) => {
+          resolve(ack);
+        });
+      });
+    },
+    [parsedRoomId, socket, store, subControllerParams],
+  );
 
   const sendSystemCommand = useCallback(
     (command: "exit" | "toggle_pause") => {
@@ -324,6 +387,8 @@ export const useControllerRuntimeApi = (
     stateMessage: connectionState.stateMessage,
     sendSystemCommand,
     setNickname,
+    setAvatarId,
+    updatePlayerProfile,
     reconnect,
     players: connectionState.players,
     socket,

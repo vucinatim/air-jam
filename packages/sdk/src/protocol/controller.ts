@@ -33,6 +33,8 @@ export const controllerJoinSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),
   nickname: z.string().trim().min(1).max(24).optional(),
+  /** Preset avatar key (platform-defined); optional at join. */
+  avatarId: z.string().trim().min(1).max(48).optional(),
 });
 
 export type ControllerJoinPayload = z.infer<typeof controllerJoinSchema>;
@@ -55,6 +57,40 @@ export interface PlayerProfile {
   id: string;
   label: string;
   color?: string;
+  /** Preset avatar id chosen by the player (platform resolves to artwork). */
+  avatarId?: string;
+}
+
+export const playerProfilePatchSchema = z
+  .object({
+    label: z.string().trim().min(1).max(24).optional(),
+    avatarId: z.string().trim().min(1).max(48).optional(),
+  })
+  .strict();
+
+export type PlayerProfilePatch = z.infer<typeof playerProfilePatchSchema>;
+
+export const controllerUpdatePlayerProfileSchema = z
+  .object({
+    roomId: roomCodeSchema,
+    controllerId: z.string().min(3),
+    patch: playerProfilePatchSchema,
+  })
+  .refine(
+    (data) =>
+      data.patch.label !== undefined || data.patch.avatarId !== undefined,
+    { message: "patch must include at least one field" },
+  );
+
+export type ControllerUpdatePlayerProfilePayload = z.infer<
+  typeof controllerUpdatePlayerProfileSchema
+>;
+
+export interface ControllerUpdatePlayerProfileAck {
+  ok: boolean;
+  message?: string;
+  player?: PlayerProfile;
+  code?: ErrorCode | string;
 }
 
 export interface ControllerJoinAck {

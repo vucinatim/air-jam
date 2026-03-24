@@ -88,6 +88,11 @@ export const ServerEvents = {
   CONTROLLER_LEFT: "server:controllerLeft",
 
   /**
+   * Player profile updated (label / avatar) after join
+   */
+  PLAYER_UPDATED: "server:playerUpdated",
+
+  /**
    * Host left notification
    */
   HOST_LEFT: "server:hostLeft",

@@ -92,4 +92,54 @@ describe("server state sync", () => {
 
     await harness.expectNoEvent(controller, "airjam:state_sync");
   });
+
+  it("updates player profile and notifies host + controller", async () => {
+    const host = await harness.connectSocket();
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_profile_1",
+        nickname: "Old",
+        avatarId: "aj-1",
+      },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const hostNoticePromise = harness.waitForEvent<{
+      player: { id: string; label: string; avatarId?: string };
+    }>(host, "server:playerUpdated");
+    const selfNoticePromise = harness.waitForEvent<{
+      player: { id: string; label: string; avatarId?: string };
+    }>(controller, "server:playerUpdated");
+
+    const updateAck = await harness.emitWithAck<{
+      ok: boolean;
+      player?: { id: string; label: string; avatarId?: string };
+    }>(controller, "controller:updatePlayerProfile", {
+      roomId,
+      controllerId: "ctrl_profile_1",
+      patch: { label: "NewName", avatarId: "aj-2" },
+    });
+
+    expect(updateAck.ok).toBe(true);
+    expect(updateAck.player?.label).toBe("NewName");
+    expect(updateAck.player?.avatarId).toBe("aj-2");
+
+    const hostNotice = await hostNoticePromise;
+    const selfNotice = await selfNoticePromise;
+    expect(hostNotice.player.label).toBe("NewName");
+    expect(selfNotice.player.id).toBe("ctrl_profile_1");
+  });
 });

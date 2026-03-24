@@ -19,6 +19,7 @@ import {
   type HostBridgeServerEventName,
   type PlaySoundPayload,
   type PlayerProfile,
+  type PlayerUpdatedNotice,
   type ServerErrorPayload,
   useVolumeStore,
 } from "@air-jam/sdk";
@@ -358,6 +359,9 @@ export const GamePlayer = ({
     const handleControllerLeft = (payload: ControllerLeftNotice) => {
       forwardHostBridgeEvent("server:controllerLeft", payload);
     };
+    const handlePlayerUpdated = (payload: PlayerUpdatedNotice) => {
+      forwardHostBridgeEvent("server:playerUpdated", payload);
+    };
     const handleInput = (payload: ControllerInputEvent) => {
       forwardHostBridgeEvent("server:input", payload);
     };
@@ -384,6 +388,7 @@ export const GamePlayer = ({
     hostSocket.on("disconnect", handleDisconnect);
     hostSocket.on("server:controllerJoined", handleControllerJoined);
     hostSocket.on("server:controllerLeft", handleControllerLeft);
+    hostSocket.on("server:playerUpdated", handlePlayerUpdated);
     hostSocket.on("server:input", handleInput);
     hostSocket.on("server:error", handleError);
     hostSocket.on("server:state", handleState);
@@ -397,6 +402,7 @@ export const GamePlayer = ({
       hostSocket.off("disconnect", handleDisconnect);
       hostSocket.off("server:controllerJoined", handleControllerJoined);
       hostSocket.off("server:controllerLeft", handleControllerLeft);
+      hostSocket.off("server:playerUpdated", handlePlayerUpdated);
       hostSocket.off("server:input", handleInput);
       hostSocket.off("server:error", handleError);
       hostSocket.off("server:state", handleState);

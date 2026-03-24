@@ -16,6 +16,7 @@ const playerProfileSchema = z
     id: z.string().min(1),
     label: z.string().min(1),
     color: z.string().optional(),
+    avatarId: z.string().optional(),
   })
   .strict();
 

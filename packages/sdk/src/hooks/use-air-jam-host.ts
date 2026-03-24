@@ -24,6 +24,8 @@ import type {
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { useHostRuntimeApi } from "./internal/use-host-runtime-api";
 
+export type JoinUrlStatus = "loading" | "ready" | "unavailable";
+
 /**
  * Options for configuring the host connection.
  *
@@ -80,6 +82,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   roomId: RoomCode;
   /** Full URL for controllers to join (display as QR code) */
   joinUrl: string;
+  /** Whether the join URL is still being resolved, ready to render, or unavailable */
+  joinUrlStatus: JoinUrlStatus;
   /** Current connection status to the server */
   connectionStatus: ConnectionStatus;
   /** List of currently connected players */

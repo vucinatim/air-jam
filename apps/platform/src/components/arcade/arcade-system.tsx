@@ -133,6 +133,8 @@ export const ArcadeSystem = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host.joinUrl, host.roomId]);
 
+  const joinQrStatus = host.joinUrlStatus;
+
   const broadcastCurrentState = useCallback(() => {
     if (!games || games.length === 0) return;
     const currentGame = games[state.selectedIndex];
@@ -543,7 +545,18 @@ export const ArcadeSystem = ({
                     {host.roomId || "----"}
                   </p>
                 </div>
-                {arcadeJoinUrl ? (
+                {joinQrStatus === "loading" ? (
+                  <div
+                    className="flex flex-col items-center justify-center gap-3 rounded-lg border border-white/25 bg-white/6 text-sm text-white/70 shadow-sm"
+                    style={{
+                      width: ARCADE_QR_OVERLAY_SIZE,
+                      height: ARCADE_QR_OVERLAY_SIZE,
+                    }}
+                  >
+                    <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-white/85" />
+                    <span>Preparing join QR…</span>
+                  </div>
+                ) : arcadeJoinUrl ? (
                   <RoomQrCode
                     value={arcadeJoinUrl}
                     size={ARCADE_QR_OVERLAY_SIZE}
@@ -561,7 +574,9 @@ export const ArcadeSystem = ({
                       height: ARCADE_QR_OVERLAY_SIZE,
                     }}
                   >
-                    QR unavailable
+                    {joinQrStatus === "unavailable"
+                      ? "QR unavailable"
+                      : "Preparing join QR…"}
                   </div>
                 )}
                 <p className="max-w-xs text-center text-sm text-slate-400">

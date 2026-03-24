@@ -15,6 +15,7 @@ import type {
   ServerErrorPayload,
   SignalPayload,
 } from "../protocol";
+import type { PlayerUpdatedNotice } from "../protocol/notices";
 import { createBridgeHandshake } from "./iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "./sdk-version";
 
@@ -37,6 +38,7 @@ export const hostBridgeServerEvents = [
   "disconnect",
   "server:controllerJoined",
   "server:controllerLeft",
+  "server:playerUpdated",
   "server:input",
   "server:error",
   "server:state",
@@ -62,6 +64,7 @@ export type HostBridgeServerEventArgs = {
   disconnect: [reason?: string];
   "server:controllerJoined": [payload: ControllerJoinedNotice];
   "server:controllerLeft": [payload: ControllerLeftNotice];
+  "server:playerUpdated": [payload: PlayerUpdatedNotice];
   "server:input": [payload: ControllerInputEvent];
   "server:error": [payload: ServerErrorPayload];
   "server:state": [payload: ControllerStateMessage];

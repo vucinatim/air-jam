@@ -25,7 +25,16 @@ export const RoomQrCode = ({
   alt = "Room join QR code",
 }: RoomQrCodeProps): JSX.Element => {
   const trimmed = value.trim();
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const qrKey = `${trimmed}\0${size}\0${padding}\0${foregroundColor}\0${backgroundColor}\0${errorCorrectionLevel}`;
+  const [qrState, setQrState] = useState<{
+    key: string | null;
+    dataUrl: string | null;
+    error: boolean;
+  }>({
+    key: null,
+    dataUrl: null,
+    error: false,
+  });
 
   useEffect(() => {
     if (!trimmed) {
@@ -45,12 +54,20 @@ export const RoomQrCode = ({
     })
       .then((nextUrl) => {
         if (!cancelled) {
-          setDataUrl(nextUrl);
+          setQrState({
+            key: qrKey,
+            dataUrl: nextUrl,
+            error: false,
+          });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setDataUrl(null);
+          setQrState({
+            key: qrKey,
+            dataUrl: null,
+            error: true,
+          });
         }
       });
 
@@ -63,10 +80,14 @@ export const RoomQrCode = ({
     foregroundColor,
     padding,
     size,
+    qrKey,
     trimmed,
   ]);
 
-  const imageSrc = trimmed && dataUrl ? dataUrl : null;
+  const imageSrc =
+    trimmed && qrState.key === qrKey && qrState.dataUrl ? qrState.dataUrl : null;
+  const isLoading = !!trimmed && qrState.key !== qrKey;
+  const isUnavailable = !trimmed || (qrState.key === qrKey && qrState.error);
 
   return (
     <div
@@ -87,9 +108,14 @@ export const RoomQrCode = ({
           height={size}
           className="h-full w-full rounded-md object-cover"
         />
+      ) : isLoading ? (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-md bg-black/15 text-xs text-white/70">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+          <span>Generating QR…</span>
+        </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center rounded-md bg-black/15 text-xs text-white/70">
-          QR unavailable
+          {isUnavailable ? "QR unavailable" : "Generating QR…"}
         </div>
       )}
     </div>

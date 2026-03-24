@@ -17,6 +17,7 @@ import type {
   SignalType,
   ToastSignalPayload,
 } from "../../protocol";
+import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import {
   controllerStateSchema,
   controllerSystemSchema,
@@ -29,7 +30,11 @@ import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readChildHostRuntimeParams } from "../../runtime/runtime-session-params";
 import { detectRunMode } from "../../utils/mode";
 import { urlBuilder } from "../../utils/url-builder";
-import type { AirJamHostApi, AirJamHostOptions } from "../use-air-jam-host";
+import type {
+  AirJamHostApi,
+  AirJamHostOptions,
+  JoinUrlStatus,
+} from "../use-air-jam-host";
 
 export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   options: AirJamHostOptions,
@@ -72,7 +77,19 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     return null;
   }, [options.roomId, storeRoomId, arcadeParams]);
 
-  const [joinUrl, setJoinUrl] = useState<string>("");
+  const joinUrlBuildKey = useMemo(
+    () => (parsedRoomId ? `${parsedRoomId}\0${config.publicHost ?? ""}` : null),
+    [config.publicHost, parsedRoomId],
+  );
+  const [computedJoinUrl, setComputedJoinUrl] = useState<{
+    key: string | null;
+    url: string;
+    error: boolean;
+  }>({
+    key: null,
+    url: "",
+    error: false,
+  });
 
   const onPlayerJoinRef = useRef(options.onPlayerJoin);
   const onPlayerLeaveRef = useRef(options.onPlayerLeave);
@@ -172,20 +189,60 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   }, [socket, arcadeParams, disconnectSocket]);
 
   useEffect(() => {
-    if (!parsedRoomId) return;
-
     if (arcadeParams?.joinUrl) {
-      setJoinUrl(arcadeParams.joinUrl);
+      return;
+    }
+    if (!parsedRoomId || !joinUrlBuildKey) {
       return;
     }
 
-    (async () => {
-      const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
-        host: config.publicHost,
-      });
-      setJoinUrl(url);
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
+          host: config.publicHost,
+        });
+        if (!cancelled) {
+          setComputedJoinUrl({
+            key: joinUrlBuildKey,
+            url,
+            error: false,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setComputedJoinUrl({
+            key: joinUrlBuildKey,
+            url: "",
+            error: true,
+          });
+        }
+      }
     })();
-  }, [parsedRoomId, arcadeParams?.joinUrl, config.publicHost, options.roomId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [parsedRoomId, arcadeParams?.joinUrl, config.publicHost, joinUrlBuildKey]);
+
+  const joinUrl = arcadeParams?.joinUrl
+    ? arcadeParams.joinUrl
+    : computedJoinUrl.key === joinUrlBuildKey
+      ? computedJoinUrl.url
+      : "";
+
+  const joinUrlStatus: JoinUrlStatus = arcadeParams?.joinUrl
+    ? "ready"
+    : !joinUrlBuildKey
+      ? "loading"
+      : computedJoinUrl.key !== joinUrlBuildKey
+        ? "loading"
+        : computedJoinUrl.error
+          ? "unavailable"
+          : computedJoinUrl.url
+            ? "ready"
+            : "loading";
 
   const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
 
@@ -311,6 +368,10 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       onPlayerLeaveRef.current?.(payload.controllerId);
     };
 
+    const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
+      store.getState().upsertPlayer(payload.player);
+    };
+
     const handleInput = (payload: ControllerInputEvent): void => {
       if (inputManager) {
         inputManager.handleInput(payload);
@@ -337,6 +398,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     socket.on("disconnect", handleDisconnect);
     socket.on("server:controllerJoined", handleJoin);
     socket.on("server:controllerLeft", handleLeave);
+    socket.on("server:playerUpdated", handlePlayerUpdated);
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
     socket.on("server:state", handleState);
@@ -352,6 +414,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       socket.off("disconnect", handleDisconnect);
       socket.off("server:controllerJoined", handleJoin);
       socket.off("server:controllerLeft", handleLeave);
+      socket.off("server:playerUpdated", handlePlayerUpdated);
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);
       socket.off("server:state", handleState);
@@ -383,6 +446,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   return {
     roomId: parsedRoomId ?? ("" as RoomCode),
     joinUrl,
+    joinUrlStatus,
     connectionStatus: connectionState.connectionStatus,
     players: connectionState.players,
     lastError: connectionState.lastError,

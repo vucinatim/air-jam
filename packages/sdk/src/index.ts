@@ -44,6 +44,12 @@ export * from "./runtime/sdk-version";
 // Store
 export * from "./store/create-air-jam-store";
 
+// Browser vendor-prefixed DOM types
+export type {
+  DocumentWithFullscreen,
+  ElementWithFullscreen,
+} from "./types/browser";
+
 // Utilities
 export * from "./utils/ids";
 export * from "./utils/network-ip";
