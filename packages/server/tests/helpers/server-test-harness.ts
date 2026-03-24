@@ -44,8 +44,11 @@ export const setupServerTestHarness = (
   let roomManager = new RoomManager();
   const sockets: GenericSocket[] = [];
   let baseUrl = "";
+  let previousChildTeardownMs: string | undefined;
 
   beforeEach(async () => {
+    previousChildTeardownMs = process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
+    process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = "50";
     roomManager = new RoomManager();
     const rateLimitService = new RateLimitService();
     runtime = createAirJamServer({
@@ -69,6 +72,11 @@ export const setupServerTestHarness = (
       runtime = null;
     }
     baseUrl = "";
+    if (previousChildTeardownMs === undefined) {
+      delete process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
+    } else {
+      process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = previousChildTeardownMs;
+    }
   });
 
   const connectSocket = async (): Promise<GenericSocket> => {

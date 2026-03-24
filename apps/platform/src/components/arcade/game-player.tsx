@@ -1,7 +1,27 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { getRuntimeUrlOrigin, useVolumeStore } from "@air-jam/sdk";
+import {
+  AIRJAM_HOST_BRIDGE_EVENT,
+  createHostBridgeAttachMessage,
+  createHostBridgeCloseMessage,
+  getRuntimeUrlOrigin,
+  parseHostBridgeEmitMessage,
+  parseHostBridgeRequestMessage,
+  type AirJamActionRpcPayload,
+  type AirJamRealtimeClient,
+  type ControllerInputEvent,
+  type ControllerJoinedNotice,
+  type ControllerLeftNotice,
+  type ControllerStateMessage,
+  type HostLeftNotice,
+  type HostRegistrationAck,
+  type HostBridgeServerEventName,
+  type PlaySoundPayload,
+  type PlayerProfile,
+  type ServerErrorPayload,
+  useVolumeStore,
+} from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   buildArcadeGameIframeSrc,
@@ -24,6 +44,9 @@ interface GamePlayerProps {
   joinToken: string;
   roomId: string;
   joinUrl?: string | null;
+  hostSocket: AirJamRealtimeClient;
+  players: PlayerProfile[];
+  gameState: "paused" | "playing";
   isVisible: boolean;
   onExit: () => void;
   /** Whether to show the default exit button overlay */
@@ -40,12 +63,23 @@ export const GamePlayer = ({
   joinToken,
   roomId,
   joinUrl,
+  hostSocket,
+  players,
+  gameState,
   isVisible,
   onExit,
   showExitOverlay = false,
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const bridgePortRef = useRef<MessagePort | null>(null);
+  const settingsBridgePortRef = useRef<MessagePort | null>(null);
+  const hostBridgePortRef = useRef<MessagePort | null>(null);
+  const hostSocketRef = useRef(hostSocket);
+  const hostBridgeStateRef = useRef({
+    roomId,
+    joinToken,
+    players,
+    gameState,
+  });
   const [iframeLoaded, setIframeLoaded] = useState(false);
 
   // Subscribe to volume settings from the arcade overlay
@@ -76,13 +110,13 @@ export const GamePlayer = ({
 
     // Reset previous bridge channel if present.
     try {
-      bridgePortRef.current?.close();
+      settingsBridgePortRef.current?.close();
     } catch {
       // Ignore close errors
     }
 
-    bridgePortRef.current = channel.port1;
-    bridgePortRef.current.start();
+    settingsBridgePortRef.current = channel.port1;
+    settingsBridgePortRef.current.start();
 
     contentWindow.postMessage(
       createArcadeBridgeInitMessage(),
@@ -102,7 +136,7 @@ export const GamePlayer = ({
       sfxVolume,
     });
 
-    const bridgePort = bridgePortRef.current;
+    const bridgePort = settingsBridgePortRef.current;
     if (bridgePort) {
       bridgePort.postMessage(payload);
       return;
@@ -123,15 +157,255 @@ export const GamePlayer = ({
   }, [iframeLoaded, isVisible, sendSettingsToGame]);
 
   useEffect(() => {
+    hostSocketRef.current = hostSocket;
+    hostBridgeStateRef.current = {
+      roomId,
+      joinToken,
+      players,
+      gameState,
+    };
+  }, [gameState, hostSocket, joinToken, players, roomId]);
+
+  useEffect(() => {
     return () => {
       try {
-        bridgePortRef.current?.close();
+        settingsBridgePortRef.current?.close();
       } catch {
         // Ignore close errors
       }
-      bridgePortRef.current = null;
+      settingsBridgePortRef.current = null;
+      try {
+        hostBridgePortRef.current?.postMessage(
+          createHostBridgeCloseMessage("game_unloaded"),
+        );
+        hostBridgePortRef.current?.close();
+      } catch {
+        // Ignore close errors
+      }
+      hostBridgePortRef.current = null;
     };
   }, []);
+
+  const closeHostBridge = useCallback((reason?: string) => {
+    const currentPort = hostBridgePortRef.current;
+    if (!currentPort) {
+      return;
+    }
+
+    try {
+      currentPort.postMessage(createHostBridgeCloseMessage(reason));
+    } catch {
+      // Port may already be closed by the child iframe.
+    }
+
+    currentPort.onmessage = null;
+    currentPort.close();
+    hostBridgePortRef.current = null;
+  }, []);
+
+  const attachHostBridgePort = useCallback(
+    (port: MessagePort) => {
+      closeHostBridge("replaced");
+      hostBridgePortRef.current = port;
+      port.start?.();
+
+      port.onmessage = (event) => {
+        const message = parseHostBridgeEmitMessage(event.data);
+        const socket = hostSocketRef.current;
+        if (!message) {
+          return;
+        }
+
+        socket.emit(message.payload.event, ...(message.payload.args as never[]));
+      };
+
+      const state = hostBridgeStateRef.current;
+      const socket = hostSocketRef.current;
+      const playerNotices: ControllerJoinedNotice[] = state.players.map((player) => ({
+        controllerId: player.id,
+        nickname: player.label,
+        player,
+      }));
+
+      port.postMessage(
+        createHostBridgeAttachMessage({
+          roomId: state.roomId,
+          joinToken: state.joinToken,
+          connected: socket.connected,
+          socketId: socket.id,
+          players: playerNotices,
+          state: {
+            gameState: state.gameState,
+          },
+        }),
+      );
+    },
+    [closeHostBridge],
+  );
+
+  const forwardHostBridgeEvent = useCallback(
+    (eventName: HostBridgeServerEventName, ...args: unknown[]) => {
+      const currentPort = hostBridgePortRef.current;
+      if (!currentPort) {
+        return;
+      }
+
+      currentPort.postMessage(
+        {
+          type: AIRJAM_HOST_BRIDGE_EVENT,
+          payload: {
+            event: eventName,
+            args,
+          },
+        },
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
+
+      if (iframeTargetOrigin && event.origin !== iframeTargetOrigin) {
+        return;
+      }
+
+      const request = parseHostBridgeRequestMessage(event.data);
+      if (!request) {
+        return;
+      }
+
+      if (
+        request.payload.handshake.runtimeKind !== "arcade-host-iframe" ||
+        request.payload.handshake.capabilityFlags.hostBridge !== true
+      ) {
+        return;
+      }
+
+      const port = event.ports[0];
+      if (!port) {
+        return;
+      }
+
+      const state = hostBridgeStateRef.current;
+      const socket = hostSocketRef.current;
+
+      if (
+        request.payload.roomId !== state.roomId ||
+        request.payload.joinToken !== state.joinToken
+      ) {
+        port.postMessage(
+          createHostBridgeCloseMessage("Embedded host bridge session mismatch."),
+        );
+        port.close();
+        return;
+      }
+
+      if (!socket.connected) {
+        port.postMessage(
+          createHostBridgeCloseMessage("Parent host runtime is disconnected."),
+        );
+        port.close();
+        return;
+      }
+
+      socket.emit(
+        "host:activateEmbeddedGame",
+        {
+          roomId: state.roomId,
+          joinToken: state.joinToken,
+        },
+        (ack: HostRegistrationAck) => {
+          if (!ack.ok) {
+            port.postMessage(
+              createHostBridgeCloseMessage(
+                ack.message ?? "Failed to activate embedded host runtime.",
+              ),
+            );
+            port.close();
+            return;
+          }
+
+          attachHostBridgePort(port);
+        },
+      );
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      closeHostBridge("game_unloaded");
+    };
+  }, [
+    attachHostBridgePort,
+    closeHostBridge,
+    iframeTargetOrigin,
+  ]);
+
+  useEffect(() => {
+    const handleConnect = () => {
+      forwardHostBridgeEvent("connect");
+    };
+    const handleDisconnect = (reason?: string) => {
+      forwardHostBridgeEvent("disconnect", reason);
+    };
+    const handleControllerJoined = (payload: ControllerJoinedNotice) => {
+      forwardHostBridgeEvent("server:controllerJoined", payload);
+    };
+    const handleControllerLeft = (payload: ControllerLeftNotice) => {
+      forwardHostBridgeEvent("server:controllerLeft", payload);
+    };
+    const handleInput = (payload: ControllerInputEvent) => {
+      forwardHostBridgeEvent("server:input", payload);
+    };
+    const handleError = (payload: ServerErrorPayload) => {
+      forwardHostBridgeEvent("server:error", payload);
+    };
+    const handleState = (payload: ControllerStateMessage) => {
+      forwardHostBridgeEvent("server:state", payload);
+    };
+    const handleHostLeft = (payload: HostLeftNotice) => {
+      forwardHostBridgeEvent("server:hostLeft", payload);
+    };
+    const handlePlaySound = (payload: PlaySoundPayload) => {
+      forwardHostBridgeEvent("server:playSound", payload);
+    };
+    const handleActionRpc = (payload: AirJamActionRpcPayload) => {
+      forwardHostBridgeEvent("airjam:action_rpc", payload);
+    };
+    const handleCloseChild = () => {
+      forwardHostBridgeEvent("server:closeChild");
+    };
+
+    hostSocket.on("connect", handleConnect);
+    hostSocket.on("disconnect", handleDisconnect);
+    hostSocket.on("server:controllerJoined", handleControllerJoined);
+    hostSocket.on("server:controllerLeft", handleControllerLeft);
+    hostSocket.on("server:input", handleInput);
+    hostSocket.on("server:error", handleError);
+    hostSocket.on("server:state", handleState);
+    hostSocket.on("server:hostLeft", handleHostLeft);
+    hostSocket.on("server:playSound", handlePlaySound);
+    hostSocket.on("airjam:action_rpc", handleActionRpc);
+    hostSocket.on("server:closeChild", handleCloseChild);
+
+    return () => {
+      hostSocket.off("connect", handleConnect);
+      hostSocket.off("disconnect", handleDisconnect);
+      hostSocket.off("server:controllerJoined", handleControllerJoined);
+      hostSocket.off("server:controllerLeft", handleControllerLeft);
+      hostSocket.off("server:input", handleInput);
+      hostSocket.off("server:error", handleError);
+      hostSocket.off("server:state", handleState);
+      hostSocket.off("server:hostLeft", handleHostLeft);
+      hostSocket.off("server:playSound", handlePlaySound);
+      hostSocket.off("airjam:action_rpc", handleActionRpc);
+      hostSocket.off("server:closeChild", handleCloseChild);
+    };
+  }, [forwardHostBridgeEvent, hostSocket]);
 
   return (
     <div

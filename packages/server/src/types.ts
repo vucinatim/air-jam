@@ -39,6 +39,8 @@ export interface RoomSession {
   maxPlayers: number;
   gameState: GameState;
   lifecycleState: RoomLifecycleState;
+  /** Deferred teardown when child host socket drops (Socket.IO reconnect grace). */
+  pendingChildTeardownTimer?: ReturnType<typeof setTimeout>;
 }
 
 /**

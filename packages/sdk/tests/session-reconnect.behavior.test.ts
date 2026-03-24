@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
+import { resetControllerRealtimeClientForTests } from "../src/runtime/controller-realtime-client";
+import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
 import { createAirJamStore } from "../src/state/connection-store";
 
 const mocked = vi.hoisted(() => ({
@@ -81,6 +83,8 @@ describe("session reconnect behavior", () => {
   afterEach(() => {
     window.history.replaceState({}, "", "/");
     mocked.store = null;
+    resetControllerRealtimeClientForTests();
+    resetHostRealtimeClientForTests();
     vi.restoreAllMocks();
   });
 
@@ -135,5 +139,102 @@ describe("session reconnect behavior", () => {
         "https://platform.example/controller?room=ROOM1",
       );
     });
+  });
+
+  it("uses the embedded host bridge without opening a direct host socket", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/game?aj_room=ROOM1&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1",
+    );
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const { result, unmount } = renderHook(() => useAirJamHost());
+    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const bridgePort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(bridgePort).toBeDefined();
+
+    act(() => {
+      bridgePort!.postMessage({
+        type: "AIRJAM_HOST_BRIDGE_ATTACH",
+        payload: {
+          handshake: {
+            protocolVersion: "2",
+            sdkVersion: "1.0.0",
+            runtimeKind: "arcade-host-runtime",
+            capabilityFlags: {
+              hostBridge: true,
+            },
+          },
+          snapshot: {
+            roomId: "ROOM1",
+            joinToken: "join_123",
+            connected: true,
+            players: [],
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    expect(mocked.hostSocket.connect).not.toHaveBeenCalled();
+    expect(mocked.hostSocket.emit).not.toHaveBeenCalledWith(
+      "host:joinAsChild",
+      expect.anything(),
+      expect.any(Function),
+    );
+
+    unmount();
+  });
+
+  it("uses the embedded controller bridge without opening a direct controller socket", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1",
+    );
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const { result, unmount } = renderHook(() => useAirJamController());
+    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const bridgePort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(bridgePort).toBeDefined();
+
+    act(() => {
+      bridgePort!.postMessage({
+        type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+        payload: {
+          handshake: {
+            protocolVersion: "2",
+            sdkVersion: "1.0.0",
+            runtimeKind: "arcade-controller-runtime",
+            capabilityFlags: {
+              controllerBridge: true,
+            },
+          },
+          snapshot: {
+            roomId: "ROOM1",
+            controllerId: "ctrl_1",
+            connected: true,
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    expect(mocked.controllerSocket.connect).not.toHaveBeenCalled();
+    expect(mocked.controllerSocket.emit).not.toHaveBeenCalledWith(
+      "controller:join",
+      expect.anything(),
+      expect.any(Function),
+    );
+
+    unmount();
   });
 });

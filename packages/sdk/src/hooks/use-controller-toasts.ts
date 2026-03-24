@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-providers";
 import type { SignalPayload, ToastSignalPayload } from "../protocol";
+import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 
 export interface ControllerToast extends ToastSignalPayload {
   id: string;
@@ -30,7 +31,10 @@ export const useControllerToasts = (
   useAssertSessionScope("controller", "useControllerToasts");
 
   const { getSocket } = useAirJamContext();
-  const socket = useMemo(() => getSocket("controller"), [getSocket]);
+  const socket = useMemo(
+    () => getControllerRealtimeClient((role) => getSocket(role)),
+    [getSocket],
+  );
   const maxToasts = options.maxToasts ?? DEFAULT_MAX_TOASTS;
   const defaultDurationMs = options.defaultDurationMs ?? DEFAULT_TOAST_DURATION_MS;
 

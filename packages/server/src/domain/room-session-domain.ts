@@ -85,6 +85,19 @@ export const getRoomLifecyclePhase = (
   return session.lifecycleState;
 };
 
+/**
+ * Delay before tearing down an arcade game after the child host socket drops.
+ * Override with `AIR_JAM_CHILD_HOST_TEARDOWN_MS` (tests use a low value).
+ */
+export const getChildHostDisconnectTeardownMs = (): number => {
+  const raw = process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
+  if (raw === undefined || raw === "") {
+    return 4000;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 4000;
+};
+
 export const canBeginGameLaunch = (session: RoomSession): LaunchAvailability => {
   const phase = getRoomLifecyclePhase(session);
   if (phase === "CLOSING") {
@@ -151,6 +164,12 @@ export const activateChildHost = (
 ): void => {
   transitionRoomLifecycle(session, "GAME_ACTIVE");
   session.childHostSocketId = childHostSocketId;
+  session.focus = "GAME";
+};
+
+export const activateEmbeddedGame = (session: RoomSession): void => {
+  transitionRoomLifecycle(session, "GAME_ACTIVE");
+  session.childHostSocketId = undefined;
   session.focus = "GAME";
 };
 
@@ -257,6 +276,11 @@ export const transitionToSystemFocus = (
   session: RoomSession,
   options: TransitionToSystemFocusOptions = {},
 ): void => {
+  if (session.pendingChildTeardownTimer) {
+    clearTimeout(session.pendingChildTeardownTimer);
+    session.pendingChildTeardownTimer = undefined;
+  }
+
   beginRoomClosing(session);
   resetRoomToSystemState(session, options.resetGameState);
 

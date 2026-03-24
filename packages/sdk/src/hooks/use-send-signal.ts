@@ -23,6 +23,7 @@ import type {
   SignalType,
   ToastSignalPayload,
 } from "../protocol";
+import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 
 /**
  * Function signature for sending signals to controllers.
@@ -149,7 +150,7 @@ export const useSendSignal = (): SendSignalFn => {
       payload: HapticSignalPayload | ToastSignalPayload,
       targetId?: string,
     ): void => {
-      const socket = getSocket("host");
+      const socket = getHostRealtimeClient((role) => getSocket(role));
       if (!socket || !socket.connected) {
         return;
       }

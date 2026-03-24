@@ -5,12 +5,12 @@ import { useShallow } from "zustand/react/shallow";
 import { TOGGLE_DEBOUNCE_MS } from "../../constants";
 import { useAirJamContext } from "../../context/air-jam-context";
 import { useAssertSessionScope } from "../../context/session-providers";
-import type { AirJamSocket } from "../../context/socket-manager";
 import type {
   ControllerInputEvent,
   ControllerStateMessage,
   ControllerStatePayload,
   HapticSignalPayload,
+  HostRegistrationAck,
   PlayerProfile,
   RoomCode,
   SignalPayload,
@@ -24,6 +24,8 @@ import {
   hostReconnectSchema,
   roomCodeSchema,
 } from "../../protocol";
+import { getHostRealtimeClient } from "../../runtime/host-realtime-client";
+import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readChildHostRuntimeParams } from "../../runtime/runtime-session-params";
 import { detectRunMode } from "../../utils/mode";
 import { urlBuilder } from "../../utils/url-builder";
@@ -92,8 +94,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     })),
   );
 
-  const socket = useMemo(
-    () => (shouldConnect ? getSocket("host") : null),
+  const socket = useMemo<AirJamRealtimeClient | null>(
+    () =>
+      shouldConnect ? getHostRealtimeClient((role) => getSocket(role)) : null,
     [shouldConnect, getSocket],
   );
 
@@ -159,11 +162,14 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   ) as AirJamHostApi["sendSignal"];
 
   const reconnect = useCallback(() => {
-    disconnectSocket("host");
+    socket?.disconnect();
+    if (!arcadeParams) {
+      disconnectSocket("host");
+    }
     if (socket) {
       socket.connect();
     }
-  }, [socket, disconnectSocket]);
+  }, [socket, arcadeParams, disconnectSocket]);
 
   useEffect(() => {
     if (!parsedRoomId) return;
@@ -199,32 +205,18 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     }
 
     const registerHost = async () => {
-      const currentState = store.getState();
-      const currentRegisteredRoomId = currentState.registeredRoomId;
-      if (currentRegisteredRoomId && socket.connected) {
+      if (arcadeParams) {
+        const childRoomId = roomCodeSchema.parse(arcadeParams.room.toUpperCase());
+        const latestState = store.getState();
+        latestState.setStatus("connected");
+        latestState.setRoomId(childRoomId);
+        setRegisteredRoomId(childRoomId);
         return;
       }
 
-      if (arcadeParams) {
-        const childRoomId = roomCodeSchema.parse(
-          arcadeParams.room.toUpperCase(),
-        );
-        const payload = {
-          roomId: childRoomId,
-          joinToken: arcadeParams.token,
-        };
-        socket.emit("host:joinAsChild", payload, (ack) => {
-          const latestState = store.getState();
-          if (!ack.ok) {
-            latestState.setError(ack.message ?? "Failed to join as child");
-            latestState.setStatus("disconnected");
-            setRegisteredRoomId(null);
-            return;
-          }
-          latestState.setStatus("connected");
-          latestState.setRoomId(childRoomId);
-          setRegisteredRoomId(childRoomId);
-        });
+      const currentState = store.getState();
+      const currentRegisteredRoomId = currentState.registeredRoomId;
+      if (currentRegisteredRoomId && socket.connected) {
         return;
       }
 
@@ -234,7 +226,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           apiKey: config.apiKey,
         });
 
-        socket.emit("host:createRoom", payload, (ack) => {
+        socket.emit("host:createRoom", payload, (ack: HostRegistrationAck) => {
           const latestState = store.getState();
           if (!ack.ok) {
             latestState.setError(ack.message ?? "Failed to create room");
@@ -267,7 +259,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             apiKey: config.apiKey,
           });
 
-          socket.emit("host:reconnect", reconnectPayload, (ack) => {
+          socket.emit("host:reconnect", reconnectPayload, (ack: HostRegistrationAck) => {
             const latestState = store.getState();
             if (ack.ok && ack.roomId) {
               latestState.setStatus("connected");
@@ -295,6 +287,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     const handleDisconnect = (): void => {
       store.getState().setStatus("disconnected");
+      if (arcadeParams) {
+        setRegisteredRoomId(null);
+      }
     };
 
     const handleJoin = (payload: {
@@ -373,8 +368,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     setRegisteredRoomId,
   ]);
 
-  const returnSocket = socket ?? getSocket("host");
-
   const getInput = useCallback(
     (controllerId: string): z.infer<TSchema> | undefined => {
       if (!inputManager) {
@@ -399,7 +392,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     sendState,
     sendSignal,
     reconnect,
-    socket: returnSocket as AirJamSocket,
+    socket: socket ?? getHostRealtimeClient((role) => getSocket(role)),
     getInput,
   };
 };

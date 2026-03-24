@@ -32,6 +32,15 @@ export const hostJoinAsChildSchema = z.object({
 
 export type HostJoinAsChildPayload = z.infer<typeof hostJoinAsChildSchema>;
 
+export const hostActivateEmbeddedGameSchema = z.object({
+  roomId: roomCodeSchema,
+  joinToken: z.string(),
+});
+
+export type HostActivateEmbeddedGamePayload = z.infer<
+  typeof hostActivateEmbeddedGameSchema
+>;
+
 export const hostCreateRoomSchema = z.object({
   maxPlayers: z.number().int().min(1).max(16).default(8),
   apiKey: z.string().optional(),

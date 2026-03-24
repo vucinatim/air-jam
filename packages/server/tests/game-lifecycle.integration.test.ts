@@ -95,6 +95,73 @@ describe("server game lifecycle", () => {
     expect(stateNotice.state.gameState).toBe("paused");
   });
 
+  it("activates embedded games on the master host socket without requiring a child host socket", async () => {
+    const masterHost = await harness.connectSocket();
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      masterHost,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_embed_1", nickname: "Embed" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const controllerLoadUiPromise = harness.waitForEvent<{ url: string }>(
+      controller,
+      "client:loadUi",
+    );
+    const launchAck = await harness.emitWithAck<LaunchGameAck>(
+      masterHost,
+      "system:launchGame",
+      {
+        roomId,
+        gameId: "pong",
+        gameUrl: "https://example.com/pong",
+      },
+    );
+    expect(launchAck.ok).toBe(true);
+    await controllerLoadUiPromise;
+
+    const activateAck = await harness.emitWithAck<{ ok: boolean; roomId?: string }>(
+      masterHost,
+      "host:activateEmbeddedGame",
+      {
+        roomId,
+        joinToken: launchAck.joinToken,
+      },
+    );
+    expect(activateAck.ok).toBe(true);
+    expect(activateAck.roomId).toBe(roomId);
+
+    const session = harness.getRoomManager().getRoom(roomId)!;
+    expect(session.focus).toBe("GAME");
+    expect(session.childHostSocketId).toBeUndefined();
+
+    const inputPromise = harness.waitForEvent<{
+      controllerId: string;
+      input: { action?: boolean };
+    }>(masterHost, "server:input", 2_000);
+
+    controller.emit("controller:input", {
+      roomId,
+      controllerId: "ctrl_embed_1",
+      input: { action: true },
+      timestamp: Date.now(),
+    });
+
+    const inputEvent = await inputPromise;
+    expect(inputEvent.controllerId).toBe("ctrl_embed_1");
+    expect(inputEvent.input.action).toBe(true);
+  });
+
   it("rejects child host join when token is invalid", async () => {
     const masterHost = await harness.connectSocket();
 
@@ -324,5 +391,65 @@ describe("server game lifecycle", () => {
     expect(secondToggleState.state.gameState).not.toBe(
       thirdToggleState.state.gameState,
     );
+  });
+
+  it("lets a new child host socket re-join after disconnect without unloading controllers", async () => {
+    const masterHost = await harness.connectSocket();
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      masterHost,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_rechild_1", nickname: "Rechild" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const launchAck = await harness.emitWithAck<LaunchGameAck>(
+      masterHost,
+      "system:launchGame",
+      {
+        roomId,
+        gameId: "proto",
+        gameUrl: "https://example.com/game",
+      },
+    );
+    expect(launchAck.ok).toBe(true);
+
+    const childOne = await harness.connectSocket();
+    const joinOneAck = await harness.emitWithAck<{ ok: boolean }>(
+      childOne,
+      "host:joinAsChild",
+      { roomId, joinToken: launchAck.joinToken },
+    );
+    expect(joinOneAck.ok).toBe(true);
+
+    childOne.disconnect();
+    await harness.delay(20);
+
+    const childTwo = await harness.connectSocket();
+    const joinTwoAck = await harness.emitWithAck<{ ok: boolean }>(
+      childTwo,
+      "host:joinAsChild",
+      { roomId, joinToken: launchAck.joinToken },
+    );
+    expect(joinTwoAck.ok).toBe(true);
+
+    await harness.expectNoEvent(controller, "client:unloadUi", 120);
+
+    const togglePromise = harness.waitForEvent<{
+      roomId: string;
+      state: { gameState: "paused" | "playing" };
+    }>(childTwo, "server:state", 2_000);
+    masterHost.emit("host:system", { roomId, command: "toggle_pause" });
+    const toggleState = await togglePromise;
+    expect(toggleState.roomId).toBe(roomId);
   });
 });

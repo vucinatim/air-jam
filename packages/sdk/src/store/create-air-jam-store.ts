@@ -7,6 +7,11 @@ import type {
   AirJamActionRpcPayload,
   AirJamStateSyncPayload,
 } from "../protocol";
+import {
+  getControllerRealtimeClient,
+} from "../runtime/controller-realtime-client";
+import { getHostRealtimeClient } from "../runtime/host-realtime-client";
+import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
 
 const INTERNAL_ACTION_PREFIX = "_";
@@ -106,8 +111,10 @@ export function createAirJamStore<
       () => Array.from(new Set(players.map((player) => player.id))).sort(),
       [players],
     );
-    const socket =
-      role === "host" ? getSocket("host") : getSocket("controller");
+    const socket: AirJamRealtimeClient =
+      role === "host"
+        ? getHostRealtimeClient((runtimeRole) => getSocket(runtimeRole))
+        : getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole));
 
     const socketRef = useRef(socket);
     useEffect(() => {

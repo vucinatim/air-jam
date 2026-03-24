@@ -12,6 +12,8 @@ export const runtimeKindSchema = z.enum([
   "standalone-controller",
   "arcade-runtime",
   "arcade-game-iframe",
+  "arcade-host-runtime",
+  "arcade-host-iframe",
   "arcade-controller-runtime",
   "arcade-controller-iframe",
 ]);

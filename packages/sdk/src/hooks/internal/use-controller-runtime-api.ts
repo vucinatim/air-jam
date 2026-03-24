@@ -3,8 +3,8 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../../context/air-jam-context";
 import { useAssertSessionScope } from "../../context/session-providers";
-import type { AirJamSocket } from "../../context/socket-manager";
 import type {
+  ControllerJoinAck,
   ControllerStateMessage,
   GameState,
   PlayerProfile,
@@ -18,6 +18,9 @@ import {
 } from "../../protocol";
 import { generateControllerId } from "../../utils/ids";
 import { detectRunMode } from "../../utils/mode";
+import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
+import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
+import { readEmbeddedControllerRuntimeParams } from "../../runtime/runtime-session-params";
 import type {
   AirJamControllerApi,
   AirJamControllerOptions,
@@ -42,14 +45,7 @@ export const useControllerRuntimeApi = (
   const nicknameRef = useRef(options.nickname ?? "");
 
   const subControllerParams = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get("aj_room");
-    const controllerId = params.get("aj_controller_id");
-    if (room && controllerId) {
-      return { room, controllerId };
-    }
-    return null;
+    return readEmbeddedControllerRuntimeParams();
   }, []);
 
   const parsedRoomId = useMemo<RoomCode | null>(() => {
@@ -99,16 +95,24 @@ export const useControllerRuntimeApi = (
 
   const [reconnectKey, setReconnectKey] = useState(0);
 
-  const reconnect = useCallback(() => {
-    if (!parsedRoomId) return;
-    disconnectSocket("controller");
-    setReconnectKey((prev) => prev + 1);
-  }, [parsedRoomId, disconnectSocket]);
-
-  const socket = useMemo(
-    () => (parsedRoomId ? getSocket("controller") : null),
+  const socket = useMemo<AirJamRealtimeClient | null>(
+    () =>
+      parsedRoomId
+        ? getControllerRealtimeClient(
+            (role) => getSocket(role),
+          )
+        : null,
     [parsedRoomId, getSocket],
   );
+
+  const reconnect = useCallback(() => {
+    if (!parsedRoomId) return;
+    socket?.disconnect();
+    if (!subControllerParams) {
+      disconnectSocket("controller");
+    }
+    setReconnectKey((prev) => prev + 1);
+  }, [parsedRoomId, disconnectSocket, socket, subControllerParams]);
 
   useEffect(() => {
     if (!socket) return;
@@ -178,7 +182,7 @@ export const useControllerRuntimeApi = (
         controllerId,
         nickname: nicknameRef.current || undefined,
       });
-      socket.emit("controller:join", payload, (ack) => {
+      socket.emit("controller:join", payload, (ack: ControllerJoinAck) => {
         const latestState = store.getState();
         if (!ack.ok) {
           latestState.setError(ack.message ?? "Unable to join room");
@@ -192,8 +196,12 @@ export const useControllerRuntimeApi = (
       });
     };
 
-    const handleDisconnect = (): void => {
-      store.getState().setStatus("disconnected");
+    const handleDisconnect = (reason?: string): void => {
+      const latestState = store.getState();
+      if (reason) {
+        latestState.setError(reason);
+      }
+      latestState.setStatus("disconnected");
     };
 
     const handleWelcome = (payload: {
@@ -241,7 +249,10 @@ export const useControllerRuntimeApi = (
       latestState.resetGameState();
 
       setTimeout(() => {
-        disconnectSocket("controller");
+        socket.disconnect();
+        if (!subControllerParams) {
+          disconnectSocket("controller");
+        }
         setReconnectKey((prev) => prev + 1);
       }, 1000);
     };
@@ -304,7 +315,7 @@ export const useControllerRuntimeApi = (
     [parsedRoomId, socket, store],
   );
 
-  return {
+    return {
     roomId: parsedRoomId,
     controllerId: connectionState.controllerId,
     connectionStatus: connectionState.connectionStatus,
@@ -315,6 +326,6 @@ export const useControllerRuntimeApi = (
     setNickname,
     reconnect,
     players: connectionState.players,
-    socket: socket as AirJamSocket | null,
+    socket,
   };
 };

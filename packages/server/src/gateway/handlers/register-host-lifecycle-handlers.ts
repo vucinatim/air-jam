@@ -1,11 +1,13 @@
 import {
   ErrorCode,
   hostCreateRoomSchema,
+  hostActivateEmbeddedGameSchema,
   hostJoinAsChildSchema,
   hostReconnectSchema,
   hostRegisterSystemSchema,
   systemLaunchGameSchema,
   type HostCreateRoomPayload,
+  type HostActivateEmbeddedGamePayload,
   type HostJoinAsChildPayload,
   type HostReconnectPayload,
   type HostRegisterSystemPayload,
@@ -13,11 +15,14 @@ import {
 } from "@air-jam/sdk/protocol";
 import { v4 as uuidv4 } from "uuid";
 import {
+  activateEmbeddedGame,
+  activateChildHost,
   beginRoomClosing,
   beginChildHostActivation,
   beginGameLaunch,
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
+  getRoomLifecyclePhase,
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
@@ -366,6 +371,49 @@ export const registerHostLifecycleHandlers = (
       return;
     }
 
+    const phase = getRoomLifecyclePhase(session);
+    if (phase === "GAME_ACTIVE" && session.joinToken === joinToken) {
+      const hasLiveChild =
+        session.childHostSocketId &&
+        io.sockets.sockets.get(session.childHostSocketId)?.connected;
+      if (!hasLiveChild) {
+        if (session.pendingChildTeardownTimer) {
+          clearTimeout(session.pendingChildTeardownTimer);
+          session.pendingChildTeardownTimer = undefined;
+        }
+        if (session.childHostSocketId) {
+          roomManager.deleteHost(session.childHostSocketId);
+        }
+        activateChildHost(session, socket.id);
+        roomManager.setHostRoom(socket.id, roomId);
+        socket.join(roomId);
+
+        setTimeout(() => {
+          session.controllers.forEach((controller) => {
+            socket.emit(
+              "server:controllerJoined",
+              toControllerJoinedNotice(controller),
+            );
+          });
+
+          socket.emit("server:state", {
+            roomId,
+            state: { gameState: session.gameState },
+          });
+        }, 100);
+
+        callback({ ok: true, roomId });
+        return;
+      }
+
+      callback({
+        ok: false,
+        message: "Game already active",
+        code: ErrorCode.ALREADY_CONNECTED,
+      });
+      return;
+    }
+
     const activationAvailability = beginChildHostActivation(session, socket.id);
     if (
       !activationAvailability.ok &&
@@ -418,6 +466,76 @@ export const registerHostLifecycleHandlers = (
 
     callback({ ok: true, roomId });
   });
+
+  socket.on(
+    "host:activateEmbeddedGame",
+    (
+      payload: HostActivateEmbeddedGamePayload,
+      callback: (ack: HostAck) => void,
+    ) => {
+      const parsed = hostActivateEmbeddedGameSchema.safeParse(payload);
+      if (!parsed.success) {
+        callback({
+          ok: false,
+          message: parsed.error.message,
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      const { roomId, joinToken } = parsed.data;
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        callback({
+          ok: false,
+          message: "Room not found",
+          code: ErrorCode.ROOM_NOT_FOUND,
+        });
+        return;
+      }
+
+      if (session.masterHostSocketId !== socket.id) {
+        callback({
+          ok: false,
+          message: "Unauthorized: Not System Host",
+          code: ErrorCode.UNAUTHORIZED,
+        });
+        return;
+      }
+
+      if (session.joinToken !== joinToken) {
+        callback({
+          ok: false,
+          message: "Invalid Join Token",
+          code: ErrorCode.INVALID_TOKEN,
+        });
+        return;
+      }
+
+      const phase = getRoomLifecyclePhase(session);
+      if (phase === "GAME_ACTIVE" && session.focus === "GAME") {
+        callback({ ok: true, roomId });
+        return;
+      }
+
+      if (phase !== "GAME_LAUNCH_PENDING") {
+        callback({
+          ok: false,
+          message: "Launch not pending",
+          code: ErrorCode.CONNECTION_FAILED,
+        });
+        return;
+      }
+
+      if (session.pendingChildTeardownTimer) {
+        clearTimeout(session.pendingChildTeardownTimer);
+        session.pendingChildTeardownTimer = undefined;
+      }
+
+      activateEmbeddedGame(session);
+      callback({ ok: true, roomId });
+    },
+  );
 
   socket.on("system:closeGame", (payload: { roomId: string }) => {
     const { roomId } = payload;

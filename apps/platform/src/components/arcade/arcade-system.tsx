@@ -129,13 +129,8 @@ export const ArcadeSystem = ({
     if (host.joinUrl) {
       return host.joinUrl;
     }
-    if (!host.roomId || typeof window === "undefined") {
-      return null;
-    }
-    return new URL(
-      `/controller?room=${host.roomId}`,
-      window.location.origin,
-    ).toString();
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host.joinUrl, host.roomId]);
 
   const broadcastCurrentState = useCallback(() => {
@@ -607,6 +602,9 @@ export const ArcadeSystem = ({
             joinToken={state.joinToken}
             roomId={host.roomId!}
             joinUrl={arcadeJoinUrl}
+            hostSocket={host.socket}
+            players={host.players}
+            gameState={host.gameState}
             isVisible={state.view === "game"}
             onExit={exitGame}
             showExitOverlay={showGameExitOverlay}

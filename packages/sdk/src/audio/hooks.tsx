@@ -3,12 +3,15 @@ import { useStore } from "zustand";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-providers";
 import type { PlaySoundPayload } from "../protocol";
+import {
+  getControllerRealtimeClient,
+} from "../runtime/controller-realtime-client";
+import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 import { AudioManager, SoundManifest } from "./audio-manager";
 import { initializeParentSettingsSync } from "./volume-store";
 
 // Module-level singleton manager cache
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const managerCache = new WeakMap<SoundManifest, AudioManager<any>>();
+const managerCache = new WeakMap<SoundManifest, AudioManager<string>>();
 let globalInitialized = false;
 let settingsSyncInitialized = false;
 
@@ -44,8 +47,11 @@ export function useAudio<M extends SoundManifest>(
   // Inject socket into manager when connection is available
   useEffect(() => {
     if (role && roomId) {
-      const socket = getSocket(role);
-      manager.setSocket(socket, roomId);
+      const socket =
+        role === "controller"
+          ? getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole))
+          : getHostRealtimeClient((runtimeRole) => getSocket(runtimeRole));
+      manager.setSocket(socket, roomId, role);
     }
   }, [manager, role, roomId, getSocket]);
 
@@ -117,7 +123,10 @@ export const useRemoteSound = <M extends SoundManifest>(
   useAssertSessionScope("controller", "useRemoteSound");
 
   const { getSocket } = useAirJamContext();
-  const socket = useMemo(() => getSocket("controller"), [getSocket]);
+  const socket = useMemo(
+    () => getControllerRealtimeClient((role) => getSocket(role)),
+    [getSocket],
+  );
   const enabled = options.enabled ?? true;
 
   useEffect(() => {

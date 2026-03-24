@@ -9,6 +9,7 @@ import type {
 import type { HostRegistrationAck } from "./host";
 import type {
   ClientLoadUiPayload,
+  HostActivateEmbeddedGamePayload,
   HostCreateRoomPayload,
   HostJoinAsChildPayload,
   HostReconnectPayload,
@@ -51,6 +52,10 @@ export interface ClientToServerEvents {
   ) => void;
   "host:joinAsChild": (
     payload: HostJoinAsChildPayload,
+    callback: (ack: HostRegistrationAck) => void,
+  ) => void;
+  "host:activateEmbeddedGame": (
+    payload: HostActivateEmbeddedGamePayload,
     callback: (ack: HostRegistrationAck) => void,
   ) => void;
   "system:closeGame": (payload: { roomId: string }) => void;

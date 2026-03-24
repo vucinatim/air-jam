@@ -91,6 +91,11 @@ export class RoomManager {
     const session = this.rooms.get(roomId);
     if (!session) return;
 
+    if (session.pendingChildTeardownTimer) {
+      clearTimeout(session.pendingChildTeardownTimer);
+      session.pendingChildTeardownTimer = undefined;
+    }
+
     markRoomTeardown(session);
 
     // Notify all clients

@@ -11,7 +11,6 @@
  * - Game state management (pause/play, broadcast state)
  */
 import type { z } from "zod";
-import type { AirJamSocket } from "../context/socket-manager";
 import type {
   ConnectionStatus,
   ControllerStatePayload,
@@ -22,6 +21,7 @@ import type {
   RunMode,
   ToastSignalPayload,
 } from "../protocol";
+import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { useHostRuntimeApi } from "./internal/use-host-runtime-api";
 
 /**
@@ -119,8 +119,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   };
   /** Reconnect to the server */
   reconnect: () => void;
-  /** Raw Socket.IO socket instance for advanced usage */
-  socket: AirJamSocket;
+  /** Realtime client for host events (socket-backed standalone, bridge-backed in arcade embeds) */
+  socket: AirJamRealtimeClient;
   /**
    * Get the latest input from a specific controller.
    *
@@ -152,7 +152,7 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  *
  * This hook is runtime-aware:
  * - standalone: creates/reconnects host rooms directly
- * - arcade iframe runtime: auto-detects `aj_room` + `aj_token` and joins as child host
+ * - arcade iframe runtime: auto-detects `aj_room` + `aj_token` and bridges through the platform-owned host session
  *
  * **Features:**
  * - Automatic room creation and management

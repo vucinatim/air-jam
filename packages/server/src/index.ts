@@ -112,8 +112,11 @@ export const createAirJamServer = (
     SocketData
   >(httpServer, {
     cors: { origin: corsOrigin },
-    pingInterval: 2000,
-    pingTimeout: 5000,
+    // Arcade tab: system host + game iframe share one event loop. Heavy WebGL /
+    // match start can stall the JS thread for several seconds; the default
+    // ~5s ping window drops the master host and tears down the room.
+    pingInterval: 10_000,
+    pingTimeout: 45_000,
   });
 
   io.on("connection", (socket) => {

@@ -1,5 +1,6 @@
 import {
   beginRoomClosing,
+  getChildHostDisconnectTeardownMs,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
@@ -19,10 +20,29 @@ export const registerDisconnectHandler = (
       }
 
       if (socket.id === session.childHostSocketId) {
-        beginRoomClosing(session);
-        transitionToSystemFocus(io, roomId, session, {
-          resyncPlayersToMaster: true,
-        });
+        if (session.pendingChildTeardownTimer) {
+          clearTimeout(session.pendingChildTeardownTimer);
+        }
+        session.childHostSocketId = undefined;
+        session.pendingChildTeardownTimer = setTimeout(() => {
+          session.pendingChildTeardownTimer = undefined;
+          const current = roomManager.getRoom(roomId);
+          if (!current) {
+            return;
+          }
+          const childAlive =
+            current.childHostSocketId &&
+            io.sockets.sockets.get(current.childHostSocketId)?.connected;
+          if (childAlive) {
+            return;
+          }
+          beginRoomClosing(current);
+          transitionToSystemFocus(io, roomId, current, {
+            resyncPlayersToMaster: true,
+          });
+        }, getChildHostDisconnectTeardownMs());
+        roomManager.deleteHost(socket.id);
+        return;
       } else if (socket.id === session.masterHostSocketId) {
         setTimeout(() => {
           const currentSession = roomManager.getRoom(roomId);

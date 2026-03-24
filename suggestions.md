@@ -9,3 +9,4 @@
 5. Add dedicated room capability tokens for controller actions (`controller:system`, `controller:play_sound`, `controller:action_rpc`) to remove trust from room-code knowledge and prevent cross-room spoofing.
 6. Split `packages/server/src/index.ts` Socket.IO handlers into domain modules (`room-lifecycle`, `game-lifecycle`, `signals`, `rpc`) and wire them through a small registration function to reduce core-file complexity and make targeted tests/composition easier.
 7. Add a dedicated server performance harness (`autocannon` or custom socket benchmark) with committed baseline metrics and threshold-based CI checks for input latency and reconnect churn regressions.
+8. Extract the now-parallel host/controller bridge clients into a small generic bridge transport base so handshake, port lifecycle, timeout handling, and event fanout live in one place instead of being duplicated across runtime roles.

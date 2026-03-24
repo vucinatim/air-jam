@@ -6,6 +6,7 @@ import {
   controllerInputSchema,
   type ControllerInputPayload,
 } from "../protocol";
+import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
 
 export const useInputWriter = (): ((input: ControllerInputPayload) => boolean) => {
@@ -42,7 +43,9 @@ export const useInputWriter = (): ((input: ControllerInputPayload) => boolean) =
         return false;
       }
 
-      const socket = getSocket("controller");
+      const socket = getControllerRealtimeClient(
+        (role) => getSocket(role),
+      );
       if (!socket.connected) {
         emitAirJamDiagnostic({
           code: "AJ_INPUT_WRITER_SOCKET_DISCONNECTED",

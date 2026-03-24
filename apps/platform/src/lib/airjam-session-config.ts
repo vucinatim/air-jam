@@ -10,6 +10,7 @@ export const arcadeInputSchema = z.object({
 
 export const platformRuntimeConfig = {
   serverUrl: process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL,
+  publicHost: process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST,
 };
 
 export const platformControllerSessionConfig = {

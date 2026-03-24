@@ -1,6 +1,6 @@
 import { Howl, Howler } from "howler";
-import type { Socket } from "socket.io-client";
-import type { ClientToServerEvents, ServerToClientEvents } from "../protocol";
+import type { ConnectionRole } from "../protocol";
+import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { useVolumeStore } from "./volume-store";
 
 export type SoundCategory = "music" | "sfx";
@@ -51,9 +51,9 @@ export class AudioManager<T extends string = string> {
   private categories: Map<string, SoundCategory> = new Map();
   private manifest: SoundManifest = {};
   private _muted: boolean = false;
-  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null =
-    null;
+  private socket: AirJamRealtimeClient | null = null;
   private roomId: string | null = null;
+  private role: ConnectionRole | null = null;
   private activeSoundIds: Map<
     number,
     { soundId: string; category: SoundCategory }
@@ -122,11 +122,13 @@ export class AudioManager<T extends string = string> {
   }
 
   public setSocket(
-    socket: Socket<ServerToClientEvents, ClientToServerEvents> | null,
+    socket: AirJamRealtimeClient | null,
     roomId?: string,
+    role?: ConnectionRole,
   ) {
     this.socket = socket;
     if (roomId) this.roomId = roomId;
+    if (role) this.role = role;
   }
 
   /**
@@ -278,22 +280,7 @@ export class AudioManager<T extends string = string> {
   }
 
   private isHost(): boolean {
-    // Heuristic: If we have a socket and it's connected as host...
-    // Or we can just check if we are running in a browser environment that looks like host?
-    // Better: The socket instance usually has query params or we can pass a flag.
-    // For now, let's assume if we are calling playRemote with a target, we are likely host.
-    // Actually, we can just rely on the fact that `host:play_sound` is only available on Host socket type?
-    // No, both share types.
-
-    // Let's add a role property to AudioManager or infer from socket.
-    const query = this.socket?.io?.opts?.query;
-    return (
-      (query &&
-        typeof query === "object" &&
-        "role" in query &&
-        query.role === "host") ||
-      false
-    );
+    return this.role === "host";
   }
 
   /**

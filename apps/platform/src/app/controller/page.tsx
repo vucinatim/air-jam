@@ -1,13 +1,26 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { RemoteDPad } from "@/components/remote-d-pad";
 import { Button } from "@/components/ui/button";
 import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
 import {
+  AIRJAM_CONTROLLER_BRIDGE_EVENT,
+  type AirJamStateSyncPayload,
   appendRuntimeQueryParams,
+  type ClientLoadUiPayload,
+  type ControllerBridgeServerEventName,
+  type ControllerStateMessage,
+  type ControllerWelcomePayload,
+  createControllerBridgeAttachMessage,
+  createControllerBridgeCloseMessage,
   ControllerSessionProvider,
+  type HostLeftNotice,
   normalizeRuntimeUrl,
+  parseControllerBridgeEmitMessage,
+  parseControllerBridgeRequestMessage,
+  type PlaySoundPayload,
+  type ServerErrorPayload,
+  type SignalPayload,
   useAirJamController,
   useControllerTick,
   useInputWriter,
@@ -99,7 +112,15 @@ function ControllerContentInner() {
 
   // --- IFRAME LOGIC ---
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [, setIframeLoaded] = useState(false);
+  const bridgePortRef = useRef<MessagePort | null>(null);
+  const controllerSocketRef = useRef(controller.socket);
+  const controllerSessionRef = useRef({
+    roomId: controller.roomId,
+    controllerId: controller.controllerId,
+    gameState: controller.gameState,
+    stateMessage: controller.stateMessage,
+    players: controller.players,
+  });
   const controllerIframeSrc = useMemo(() => {
     if (!activeUrl || !controller.controllerId || !controller.roomId) {
       return null;
@@ -130,13 +151,232 @@ function ControllerContentInner() {
     [controller.socket, controller.roomId],
   );
 
+  const closeBridge = useCallback((reason?: string) => {
+    const currentPort = bridgePortRef.current;
+    if (!currentPort) {
+      return;
+    }
+
+    try {
+      currentPort.postMessage(createControllerBridgeCloseMessage(reason));
+    } catch {
+      // Port may already be closed by the child iframe.
+    }
+
+    currentPort.onmessage = null;
+    currentPort.close();
+    bridgePortRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    controllerSocketRef.current = controller.socket;
+    controllerSessionRef.current = {
+      roomId: controller.roomId,
+      controllerId: controller.controllerId,
+      gameState: controller.gameState,
+      stateMessage: controller.stateMessage,
+      players: controller.players,
+    };
+  }, [
+    controller.controllerId,
+    controller.gameState,
+    controller.players,
+    controller.roomId,
+    controller.socket,
+    controller.stateMessage,
+  ]);
+
+  const forwardBridgeEvent = useCallback(
+    (event: ControllerBridgeServerEventName, ...args: unknown[]) => {
+      const currentPort = bridgePortRef.current;
+      if (!currentPort) {
+        return;
+      }
+
+      currentPort.postMessage({
+        type: AIRJAM_CONTROLLER_BRIDGE_EVENT,
+        payload: {
+          event,
+          args,
+        },
+      });
+    },
+    [],
+  );
+
+  const attachBridgePort = useCallback(
+    (port: MessagePort) => {
+      closeBridge("replaced");
+      bridgePortRef.current = port;
+      port.start?.();
+
+      port.onmessage = (event) => {
+        const message = parseControllerBridgeEmitMessage(event.data);
+        const socket = controllerSocketRef.current;
+        const session = controllerSessionRef.current;
+        if (!message || !socket || !session.roomId) {
+          return;
+        }
+
+        socket.emit(
+          message.payload.event,
+          ...(message.payload.args as never[]),
+        );
+      };
+
+      const session = controllerSessionRef.current;
+      const player = session.players.find(
+        (candidate) => candidate.id === session.controllerId,
+      );
+      const socket = controllerSocketRef.current;
+
+      port.postMessage(
+        createControllerBridgeAttachMessage({
+          roomId: session.roomId!,
+          controllerId: session.controllerId!,
+          connected: socket?.connected ?? false,
+          socketId: socket?.id,
+          player,
+          state: {
+            gameState: session.gameState,
+            message: session.stateMessage,
+          },
+        }),
+      );
+    },
+    [closeBridge],
+  );
+
   // Reset ALL state when activeUrl changes (prevents stale input causing game relaunch)
   useEffect(() => {
-    setIframeLoaded(false);
     // Reset input refs to prevent ghost inputs when switching between arcade and game
     vectorRef.current = { x: 0, y: 0 };
     actionRef.current = false;
-  }, [activeUrl]);
+    if (!activeUrl) {
+      closeBridge("game_unloaded");
+    }
+  }, [activeUrl, closeBridge]);
+
+  useEffect(() => {
+    if (!activeUrl) {
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
+
+      const request = parseControllerBridgeRequestMessage(event.data);
+      if (!request) {
+        return;
+      }
+
+      if (
+        request.payload.handshake.runtimeKind !== "arcade-controller-iframe" ||
+        request.payload.handshake.capabilityFlags.controllerBridge !== true
+      ) {
+        return;
+      }
+
+      const port = event.ports[0];
+      if (!port) {
+        return;
+      }
+
+      const session = controllerSessionRef.current;
+
+      if (
+        !session.roomId ||
+        !session.controllerId ||
+        request.payload.roomId !== session.roomId ||
+        request.payload.controllerId !== session.controllerId
+      ) {
+        port.postMessage(
+          createControllerBridgeCloseMessage(
+            "Embedded controller bridge session mismatch.",
+          ),
+        );
+        port.close();
+        return;
+      }
+
+      attachBridgePort(port);
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      closeBridge("game_unloaded");
+    };
+  }, [activeUrl, attachBridgePort, closeBridge]);
+
+  useEffect(() => {
+    if (!controller.socket) {
+      closeBridge("controller_socket_missing");
+      return;
+    }
+
+    const handleConnect = () => {
+      forwardBridgeEvent("connect");
+    };
+    const handleDisconnect = (reason?: string) => {
+      forwardBridgeEvent("disconnect", reason);
+    };
+    const handleWelcome = (payload: ControllerWelcomePayload) => {
+      forwardBridgeEvent("server:welcome", payload);
+    };
+    const handleState = (payload: ControllerStateMessage) => {
+      forwardBridgeEvent("server:state", payload);
+    };
+    const handleHostLeft = (payload: HostLeftNotice) => {
+      forwardBridgeEvent("server:hostLeft", payload);
+    };
+    const handleError = (payload: ServerErrorPayload) => {
+      forwardBridgeEvent("server:error", payload);
+    };
+    const handleSignal = (payload: SignalPayload) => {
+      forwardBridgeEvent("server:signal", payload);
+    };
+    const handlePlaySound = (payload: PlaySoundPayload) => {
+      forwardBridgeEvent("server:playSound", payload);
+    };
+    const handleLoadUi = (payload: ClientLoadUiPayload) => {
+      forwardBridgeEvent("client:loadUi", payload);
+    };
+    const handleUnloadUi = () => {
+      forwardBridgeEvent("client:unloadUi");
+    };
+    const handleStateSync = (payload: AirJamStateSyncPayload) => {
+      forwardBridgeEvent("airjam:state_sync", payload);
+    };
+
+    controller.socket.on("connect", handleConnect);
+    controller.socket.on("disconnect", handleDisconnect);
+    controller.socket.on("server:welcome", handleWelcome);
+    controller.socket.on("server:state", handleState);
+    controller.socket.on("server:hostLeft", handleHostLeft);
+    controller.socket.on("server:error", handleError);
+    controller.socket.on("server:signal", handleSignal);
+    controller.socket.on("server:playSound", handlePlaySound);
+    controller.socket.on("client:loadUi", handleLoadUi);
+    controller.socket.on("client:unloadUi", handleUnloadUi);
+    controller.socket.on("airjam:state_sync", handleStateSync);
+
+    return () => {
+      controller.socket?.off("connect", handleConnect);
+      controller.socket?.off("disconnect", handleDisconnect);
+      controller.socket?.off("server:welcome", handleWelcome);
+      controller.socket?.off("server:state", handleState);
+      controller.socket?.off("server:hostLeft", handleHostLeft);
+      controller.socket?.off("server:error", handleError);
+      controller.socket?.off("server:signal", handleSignal);
+      controller.socket?.off("server:playSound", handlePlaySound);
+      controller.socket?.off("client:loadUi", handleLoadUi);
+      controller.socket?.off("client:unloadUi", handleUnloadUi);
+      controller.socket?.off("airjam:state_sync", handleStateSync);
+    };
+  }, [closeBridge, controller.socket, forwardBridgeEvent]);
 
   const connectionLabels: Record<
     NonNullable<typeof controller.connectionStatus>,
@@ -232,7 +472,6 @@ function ControllerContentInner() {
                 style={{ backgroundColor: "#000000" }}
                 allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-                onLoad={() => setIframeLoaded(true)}
               />
             ) : (
               <div className="flex h-full items-center justify-center px-6 text-center">

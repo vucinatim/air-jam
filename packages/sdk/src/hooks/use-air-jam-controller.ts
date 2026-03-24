@@ -16,7 +16,6 @@
  * - standalone: joins by `room` URL param or `roomId` option
  * - arcade iframe runtime: auto-detects `aj_room` + `aj_controller_id` and binds as sub-controller
  */
-import type { AirJamSocket } from "../context/socket-manager";
 import type {
   ConnectionStatus,
   GameState,
@@ -24,6 +23,7 @@ import type {
   RoomCode,
 } from "../protocol";
 import type { ControllerStatePayload } from "../protocol";
+import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { useControllerRuntimeApi } from "./internal/use-controller-runtime-api";
 
 /**
@@ -105,8 +105,8 @@ export interface AirJamControllerApi {
   reconnect: () => void;
   /** List of all connected players in the room */
   players: PlayerProfile[];
-  /** Raw Socket.IO socket instance (null if not connected) */
-  socket: AirJamSocket | null;
+  /** Realtime client for controller events (socket-backed standalone, bridge-backed in arcade embeds) */
+  socket: AirJamRealtimeClient | null;
 }
 
 /**

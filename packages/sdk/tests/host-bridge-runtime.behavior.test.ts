@@ -1,0 +1,117 @@
+// @vitest-environment jsdom
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getHostRealtimeClient,
+  resetHostRealtimeClientForTests,
+} from "../src/runtime/host-realtime-client";
+
+describe("embedded host bridge runtime", () => {
+  beforeEach(() => {
+    window.history.replaceState(
+      {},
+      "",
+      "/host?aj_room=ROOM1&aj_token=join_123",
+    );
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, "", "/");
+    resetHostRealtimeClientForTests();
+    vi.restoreAllMocks();
+  });
+
+  it("bootstraps a message-channel bridge and forwards child host emits to the parent port", async () => {
+    const directSocketGetter = vi.fn(() => {
+      throw new Error("direct socket should not be requested in embedded mode");
+    });
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const client = getHostRealtimeClient(directSocketGetter);
+    const connectSpy = vi.fn();
+    client.on("connect", connectSpy);
+
+    client.connect();
+
+    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    expect(requestCall?.[0]).toMatchObject({
+      type: "AIRJAM_HOST_BRIDGE_REQUEST",
+    });
+    expect(directSocketGetter).not.toHaveBeenCalled();
+
+    const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(parentPort).toBeDefined();
+    const parentMessages: unknown[] = [];
+    parentPort!.onmessage = (event) => {
+      parentMessages.push(event.data);
+    };
+    parentPort!.start?.();
+
+    parentPort!.postMessage({
+      type: "AIRJAM_HOST_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-host-runtime",
+          capabilityFlags: {
+            hostBridge: true,
+          },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          joinToken: "join_123",
+          connected: true,
+          players: [],
+        },
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(client.connected).toBe(true);
+    expect(connectSpy).toHaveBeenCalledTimes(1);
+
+    client.emit("host:system", {
+      roomId: "ROOM1",
+      command: "toggle_pause",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(parentMessages).toContainEqual({
+      type: "AIRJAM_HOST_BRIDGE_EMIT",
+      payload: {
+        event: "host:system",
+        args: [
+          {
+            roomId: "ROOM1",
+            command: "toggle_pause",
+          },
+        ],
+      },
+    });
+  });
+
+  it("fails closed when the parent never attaches the bridge", () => {
+    vi.useFakeTimers();
+
+    const client = getHostRealtimeClient(
+      vi.fn(() => {
+        throw new Error("direct socket should not be requested in embedded mode");
+      }),
+    );
+    const disconnectSpy = vi.fn();
+    client.on("disconnect", disconnectSpy);
+
+    client.connect();
+    vi.advanceTimersByTime(2000);
+
+    expect(client.connected).toBe(false);
+    expect(disconnectSpy).toHaveBeenCalledWith(
+      "Embedded host bridge handshake timed out.",
+    );
+
+    vi.useRealTimers();
+  });
+});
