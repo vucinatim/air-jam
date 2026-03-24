@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { SoundManifest } from "@air-jam/sdk";
 import { useAudio } from "@air-jam/sdk";
 import { Gamepad2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GamePlayerGame } from "./game-player";
 
 const ARCADE_SOUND_MANIFEST: SoundManifest = {
@@ -16,12 +16,16 @@ const ARCADE_SOUND_MANIFEST: SoundManifest = {
   },
 };
 
+const SCROLL_TOP_THRESHOLD_PX = 12;
+
 interface GameBrowserProps {
   games: GamePlayerGame[];
   selectedIndex: number;
   isVisible: boolean;
   onSelectGame: (game: GamePlayerGame, index: number) => void;
   header?: React.ReactNode;
+  /** Fires when the browser list is scrolled to / away from the top (for chrome styling). */
+  onScrollTopChange?: (atTop: boolean) => void;
 }
 
 /**
@@ -34,7 +38,9 @@ export const GameBrowser = ({
   isVisible,
   onSelectGame,
   header,
+  onScrollTopChange,
 }: GameBrowserProps) => {
+  const scrollRootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const audio = useAudio(ARCADE_SOUND_MANIFEST);
@@ -90,29 +96,47 @@ export const GameBrowser = ({
     });
   }, [games, selectedIndex]);
 
+  const emitScrollTop = useCallback(() => {
+    if (!onScrollTopChange) return;
+    const el = scrollRootRef.current;
+    if (!el) return;
+    onScrollTopChange(el.scrollTop <= SCROLL_TOP_THRESHOLD_PX);
+  }, [onScrollTopChange]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+    emitScrollTop();
+    queueMicrotask(emitScrollTop);
+  }, [isVisible, games.length, emitScrollTop]);
+
   return (
     <div
+      ref={scrollRootRef}
+      onScroll={emitScrollTop}
       className={cn(
-        "relative z-10 flex h-full flex-col overflow-y-auto p-12 transition-all duration-500",
+        "relative z-10 flex h-full flex-col overflow-y-auto px-12 pt-2 pb-12 transition-all duration-500",
         isVisible
           ? "scale-100 opacity-100"
           : "pointer-events-none scale-95 opacity-0",
       )}
     >
-      {/* Title centered at top */}
-      <header className="absolute top-0 right-0 left-0 z-40 flex flex-col items-center justify-center pt-16">
-        <h1 className="text-4xl font-bold tracking-tighter text-white">
-          Air Jam <span className="text-airjam-cyan">Arcade</span>
-        </h1>
-        <p className="mt-2 text-slate-400">Select a game using your phone</p>
-      </header>
-
       {/* Custom header positioned at top */}
       {header && (
         <div className="absolute top-0 right-0 left-0 z-50 p-4">{header}</div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 pt-32 md:grid-cols-2 lg:grid-cols-3">
+      {/* Title: in flow, directly under arcade chrome gutter */}
+      <header className="z-40 flex shrink-0 flex-col items-center pb-5 text-center">
+        <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+          Air Jam{" "}
+          <span className="font-bold text-airjam-cyan">Arcade</span>
+        </h1>
+        <p className="mt-1.5 max-w-md text-sm tracking-wide text-slate-500">
+          Select a game using your phone
+        </p>
+      </header>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {games.length === 0 ? (
           <div className="col-span-full py-20 text-center text-slate-500">
             No games found. Create one in the dashboard!
@@ -135,10 +159,10 @@ export const GameBrowser = ({
                   cardRefs.current[idx] = el;
                 }}
                 className={cn(
-                  "cursor-pointer overflow-hidden border-2 bg-slate-900/50 py-0 backdrop-blur transition-all duration-200",
+                  "cursor-pointer overflow-hidden border bg-slate-950/60 py-0 shadow-lg backdrop-blur-md transition-all duration-200",
                   isSelected
-                    ? "border-airjam-cyan scale-105 gap-0 bg-slate-800"
-                    : "gap-0 border-white/10 opacity-80",
+                    ? "border-airjam-cyan/90 scale-[1.02] gap-0 bg-slate-900/80"
+                    : "gap-0 border-white/8 opacity-90 hover:border-white/15 hover:opacity-100",
                 )}
                 style={
                   isSelected
@@ -198,12 +222,16 @@ export const GameBrowser = ({
                       />
                     )}
                     {shouldShowFallbackIcon && (
-                      <div className="flex h-full w-full items-center justify-center">
+                      <div className="pointer-events-none absolute inset-0 overflow-hidden">
                         <Gamepad2
+                          aria-hidden
                           className={cn(
-                            "h-16 w-16",
-                            isSelected ? "text-airjam-cyan" : "text-slate-600",
+                            "absolute right-[-22%] bottom-[-34%] h-[min(125%,26rem)] w-[min(125%,26rem)] max-h-[420px] max-w-[420px] min-h-56 min-w-56 sm:min-h-72 sm:min-w-72 md:min-h-80 md:min-w-80",
+                            "-rotate-26",
+                            "text-slate-500 opacity-[0.09]",
+                            isSelected && "text-airjam-cyan opacity-[0.14]",
                           )}
+                          strokeWidth={2}
                         />
                       </div>
                     )}

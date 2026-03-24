@@ -175,6 +175,70 @@ describe("server routing and security", () => {
     await harness.expectNoEvent(host, "airjam:action_rpc");
   });
 
+  it("routes namespaced arcade actions to master host during game focus", async () => {
+    const masterHost = await harness.connectSocket();
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      masterHost,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_arcade_1", nickname: "ArcadeCtrl" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const launchAck = await harness.emitWithAck<LaunchGameAck>(
+      masterHost,
+      "system:launchGame",
+      {
+        roomId,
+        gameId: "pong",
+        gameUrl: "https://example.com/pong",
+      },
+    );
+    expect(launchAck.ok).toBe(true);
+    expect(launchAck.joinToken).toBeTypeOf("string");
+
+    const childHost = await harness.connectSocket();
+    const childJoinAck = await harness.emitWithAck<{ ok: boolean }>(
+      childHost,
+      "host:joinAsChild",
+      {
+        roomId,
+        joinToken: launchAck.joinToken,
+      },
+    );
+    expect(childJoinAck.ok).toBe(true);
+
+    controller.emit("controller:action_rpc", {
+      roomId,
+      actionName: "airjam.arcade.toggle_qr",
+      payload: null,
+    });
+
+    const forwarded = await harness.waitForEvent<{
+      actionName: string;
+      payload: unknown;
+      actor: { id: string; role: "controller" | "host" };
+    }>(masterHost, "airjam:action_rpc");
+
+    expect(forwarded.actionName).toBe("airjam.arcade.toggle_qr");
+    expect(forwarded.actor).toEqual({
+      id: "ctrl_arcade_1",
+      role: "controller",
+    });
+    expect(forwarded.payload).toBeNull();
+
+    await harness.expectNoEvent(childHost, "airjam:action_rpc");
+  });
+
   it("blocks unauthorized host:play_sound events", async () => {
     const host = await harness.connectSocket();
     const controller = await harness.connectSocket();

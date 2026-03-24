@@ -23,6 +23,7 @@ export const registerRealtimeHandlers = (
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
   } = context;
+  const ARCADE_ACTION_PREFIX = "airjam.arcade.";
 
   socket.on("host:system", (payload) => {
     const parsed = controllerSystemSchema.safeParse(payload);
@@ -190,7 +191,10 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    const hostId = roomManager.getActiveHostId(session);
+    const shouldRouteToMaster = actionName.startsWith(ARCADE_ACTION_PREFIX);
+    const hostId = shouldRouteToMaster
+      ? session.masterHostSocketId
+      : roomManager.getActiveHostId(session);
     if (hostId) {
       const rpcPayload: AirJamActionRpcPayload = {
         actionName,

@@ -7,7 +7,7 @@ import {
   PlayerAvatar,
   RoomQrCode,
 } from "@air-jam/sdk/ui";
-import { Settings2, X } from "lucide-react";
+import { Settings2, Volume2, VolumeX, X } from "lucide-react";
 import type { JSX } from "react";
 import {
   useEffect,
@@ -298,15 +298,20 @@ const EndedOverlay = ({
 
 interface MatchBackdropProps {
   children: JSX.Element;
+  topRightSlot?: JSX.Element;
 }
 
-const MatchBackdrop = ({ children }: MatchBackdropProps): JSX.Element => {
+const MatchBackdrop = ({
+  children,
+  topRightSlot,
+}: MatchBackdropProps): JSX.Element => {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
       <div className="absolute inset-0 [&>canvas]:scale-110 [&>canvas]:blur-lg [&>canvas]:brightness-40">
         <GameScene mode="spectator" paused={true} />
       </div>
       <div className="absolute inset-0 bg-radial from-transparent to-black/70" />
+      {topRightSlot}
       {children}
     </div>
   );
@@ -323,7 +328,7 @@ const PausedOverlay = ({
   connectionStatus: "idle" | "connecting" | "connected" | "disconnected" | "reconnecting";
   lastError?: string;
 }) => (
-  <div className="pointer-events-none absolute inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+  <div className="pointer-events-none absolute inset-0 z-70 flex items-center justify-center bg-black/60 backdrop-blur-sm">
     <div className="pointer-events-auto flex flex-col items-center gap-4 rounded-xl border border-white/15 bg-black/70 px-6 py-5 text-center text-white">
       <div className="text-xs tracking-[0.2em] text-zinc-400 uppercase">Paused</div>
       <div className="text-2xl font-black tracking-wide uppercase">Room {roomId ?? "----"}</div>
@@ -350,10 +355,35 @@ const PausedOverlay = ({
   </div>
 );
 
+const HostMuteButton = ({
+  muted,
+  onToggle,
+}: {
+  muted: boolean;
+  onToggle: () => void;
+}): JSX.Element => (
+  <Button
+    type="button"
+    variant="outline"
+    size="icon"
+    onClick={onToggle}
+    aria-label={muted ? "Unmute audio" : "Mute audio"}
+    title={muted ? "Unmute" : "Mute"}
+    className="border-white/20 bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+  >
+    {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+  </Button>
+);
+
 const HostViewContent = (): JSX.Element => {
   const audio = useAudio(SOUND_MANIFEST);
+  const [audioMuted, setAudioMuted] = useState(false);
 
-  useBackgroundMusic(true);
+  useEffect(() => {
+    audio.mute(audioMuted);
+  }, [audio, audioMuted]);
+
+  useBackgroundMusic(!audioMuted);
 
   const host = useAirJamHost();
   const {
@@ -576,9 +606,18 @@ const HostViewContent = (): JSX.Element => {
     }
   }, [matchPhase]);
 
+  const muteSlot = (
+    <div className="pointer-events-auto absolute top-4 right-4 z-80">
+      <HostMuteButton
+        muted={audioMuted}
+        onToggle={() => setAudioMuted((current) => !current)}
+      />
+    </div>
+  );
+
   if (matchPhase === "lobby") {
     return (
-      <MatchBackdrop>
+      <MatchBackdrop topRightSlot={muteSlot}>
         <LobbyOverlay
           joinQrValue={joinQrValue}
           roomId={roomId}
@@ -595,7 +634,7 @@ const HostViewContent = (): JSX.Element => {
 
   if (matchPhase === "ended") {
     return (
-      <MatchBackdrop>
+      <MatchBackdrop topRightSlot={muteSlot}>
         <EndedOverlay
           roomId={roomId}
           matchSummary={matchSummary}
@@ -617,20 +656,27 @@ const HostViewContent = (): JSX.Element => {
         <SceneInfoSection />
       </DebugOverlay>
 
-      <div className="absolute top-4 right-4 z-50 flex items-center gap-3 text-xs uppercase">
-        <span
-          className={`h-2.5 w-2.5 rounded-full ${
-            connectionStatus === "connected"
-              ? "bg-emerald-400"
-              : connectionStatus === "connecting" ||
-                  connectionStatus === "reconnecting"
-                ? "bg-amber-300"
-                : "bg-rose-400"
-          }`}
+      <div className="absolute top-4 right-4 left-4 z-50 flex items-center justify-end gap-3 text-xs uppercase">
+        <div className="mr-auto flex items-center gap-3">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              connectionStatus === "connected"
+                ? "bg-emerald-400"
+                : connectionStatus === "connecting" ||
+                    connectionStatus === "reconnecting"
+                  ? "bg-amber-300"
+                  : "bg-rose-400"
+            }`}
+          />
+          <span className="text-white/90">
+            Room{" "}
+            <span className="font-semibold tracking-wider">{roomId || "----"}</span>
+          </span>
+        </div>
+        <HostMuteButton
+          muted={audioMuted}
+          onToggle={() => setAudioMuted((current) => !current)}
         />
-        <span className="text-white/90">
-          Room <span className="font-semibold tracking-wider">{roomId || "----"}</span>
-        </span>
       </div>
 
       <div className="absolute top-14 right-4 z-50">

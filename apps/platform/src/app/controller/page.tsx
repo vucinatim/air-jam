@@ -12,9 +12,12 @@ import {
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
-import { ArrowLeft } from "lucide-react";
+import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import { ArrowLeft, CornerDownLeft, QrCode } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const ARCADE_ACTION_TOGGLE_QR = "airjam.arcade.toggle_qr";
 
 const ControllerContent = dynamic(
   () => Promise.resolve(ControllerContentInner),
@@ -34,7 +37,6 @@ function ControllerContentInner() {
   const controller = useAirJamController();
   const writeInput = useInputWriter();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
-  const [isPortrait, setIsPortrait] = useState(true);
 
   // Use refs to store input state - avoids re-renders and keeps loop stable
   const vectorRef = useRef({ x: 0, y: 0 });
@@ -109,6 +111,25 @@ function ControllerContentInner() {
     });
   }, [activeUrl, controller.controllerId, controller.roomId]);
 
+  const emitArcadeAction = useCallback(
+    (actionName: string) => {
+      if (
+        !controller.socket ||
+        !controller.socket.connected ||
+        !controller.roomId
+      ) {
+        return;
+      }
+
+      controller.socket.emit("controller:action_rpc", {
+        roomId: controller.roomId,
+        actionName,
+        payload: null,
+      });
+    },
+    [controller.socket, controller.roomId],
+  );
+
   // Reset ALL state when activeUrl changes (prevents stale input causing game relaunch)
   useEffect(() => {
     setIframeLoaded(false);
@@ -117,43 +138,68 @@ function ControllerContentInner() {
     actionRef.current = false;
   }, [activeUrl]);
 
-  // Keep default controller in portrait only.
-  useEffect(() => {
-    if (activeUrl) {
-      setIsPortrait(true);
-      return;
-    }
-
-    const media = window.matchMedia("(orientation: portrait)");
-    const handleChange = () => setIsPortrait(media.matches);
-    handleChange();
-    media.addEventListener("change", handleChange);
-    return () => media.removeEventListener("change", handleChange);
-  }, [activeUrl]);
+  const connectionLabels: Record<
+    NonNullable<typeof controller.connectionStatus>,
+    string
+  > = {
+    connected: "Connected",
+    connecting: "Connecting",
+    disconnected: "Disconnected",
+    idle: "Idle",
+    reconnecting: "Reconnecting",
+  };
 
   const statusDotClass =
     controller.connectionStatus === "connected"
       ? "bg-emerald-400"
       : controller.connectionStatus === "connecting" ||
           controller.connectionStatus === "reconnecting"
-        ? "bg-amber-300"
-        : "bg-rose-400";
+        ? "animate-pulse bg-amber-300"
+        : controller.connectionStatus === "idle"
+          ? "bg-slate-500"
+          : "bg-rose-400";
 
-  return (
-    <div className="dark">
-      <div className="text-foreground relative flex h-dvh w-dvw touch-none flex-col overflow-hidden bg-black select-none">
-        <header className="sticky top-0 z-50 flex items-center justify-between border-b px-4 py-2">
-          <div className="flex items-center gap-3">
-            <span className={`h-2.5 w-2.5 rounded-full ${statusDotClass}`} />
-            <div>
-              <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">
-                Room
-              </p>
-              <p className="text-lg leading-tight font-semibold">
-                {controller.roomId ?? "N/A"}
-              </p>
-            </div>
+  const connectionLabel =
+    connectionLabels[controller.connectionStatus] ??
+    controller.connectionStatus;
+
+  const layout = (
+    <div className="text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-black select-none">
+      <header className="border-border/40 sticky top-0 z-50 flex shrink-0 items-center border-b px-4 py-2">
+        <div className="flex min-w-0 flex-1 items-center">
+          <div className="min-w-0">
+            <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">
+              Room
+            </p>
+            <p className="truncate text-lg leading-tight font-semibold">
+              {controller.roomId ?? "N/A"}
+            </p>
           </div>
+        </div>
+
+        <div
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 text-xs font-medium tracking-wide uppercase"
+          aria-live="polite"
+          aria-label={`Connection ${connectionLabel}`}
+        >
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass}`}
+            aria-hidden
+          />
+          {connectionLabel}
+        </div>
+
+        <div className="flex flex-1 justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => emitArcadeAction(ARCADE_ACTION_TOGGLE_QR)}
+            aria-label="Toggle host join QR"
+            title="Toggle host join QR"
+          >
+            <QrCode className="h-4 w-4" />
+          </Button>
           {activeUrl ? (
             <Button
               type="button"
@@ -170,80 +216,91 @@ function ControllerContentInner() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-          ) : (
-            <p className="text-muted-foreground text-xs uppercase">
-              {controller.connectionStatus}
-            </p>
-          )}
-        </header>
+          ) : null}
+        </div>
+      </header>
 
-        <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4">
-          {!isPortrait && !activeUrl && (
-            <div className="bg-background/95 absolute inset-0 z-30 flex flex-col items-center justify-center px-6 text-center backdrop-blur-sm">
-              <p className="text-xl font-semibold">Rotate your device</p>
-              <p className="text-muted-foreground mt-2 text-sm">
-                The default arcade controller is portrait-only.
-              </p>
-            </div>
-          )}
-
-          {/* --- CHILD GAME CONTROLLER --- */}
-          {activeUrl && (
-            <div className="bg-background absolute inset-0 z-20">
-              {controllerIframeSrc ? (
-                <iframe
-                  ref={iframeRef}
-                  src={controllerIframeSrc}
-                  className="h-full w-full border-none bg-black"
-                  style={{ backgroundColor: "#000000" }}
-                  allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-                  onLoad={() => setIframeLoaded(true)}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center px-6 text-center">
-                  <p className="text-muted-foreground text-sm">
-                    Unable to load game controller UI due to invalid runtime URL.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* --- DEFAULT ARCADE CONTROLLER --- */}
-          {!activeUrl && (
-            <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-8 px-6 py-12">
-              <div className="text-center opacity-30">
-                <h1 className="text-4xl font-black tracking-tighter uppercase select-none">
-                  Air Jam
-                </h1>
-                <p className="text-primary text-2xl font-black tracking-wider uppercase">
-                  Arcade
+      <main className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-4">
+        {/* --- CHILD GAME CONTROLLER --- */}
+        {activeUrl && (
+          <div className="bg-background absolute inset-0 z-20">
+            {controllerIframeSrc ? (
+              <iframe
+                ref={iframeRef}
+                src={controllerIframeSrc}
+                className="h-full w-full border-none bg-black"
+                style={{ backgroundColor: "#000000" }}
+                allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+                onLoad={() => setIframeLoaded(true)}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center px-6 text-center">
+                <p className="text-muted-foreground text-sm">
+                  Unable to load game controller UI due to invalid runtime URL.
                 </p>
               </div>
+            )}
+          </div>
+        )}
 
-              <div className="flex flex-1 items-center justify-center">
-                <RemoteDPad
-                  onMove={(vector) => {
-                    vectorRef.current = vector;
-                  }}
-                  onConfirm={() => {
-                    actionRef.current = true;
-                  }}
-                  onConfirmRelease={() => {
-                    actionRef.current = false;
-                  }}
-                />
-              </div>
-
-              <div className="text-muted-foreground text-center text-sm opacity-50">
-                <p>Use the remote to navigate</p>
-                <p className="mt-1">Press OK to select</p>
-              </div>
+        {/* --- DEFAULT ARCADE CONTROLLER --- */}
+        {!activeUrl && (
+          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-8 px-6 py-12">
+            <div className="text-center opacity-30">
+              <h1 className="text-4xl font-black tracking-tighter uppercase select-none">
+                Air Jam
+              </h1>
+              <p className="text-primary text-2xl font-black tracking-wider uppercase">
+                Arcade
+              </p>
             </div>
-          )}
-        </main>
-      </div>
+
+            <div className="flex flex-1 items-center justify-center">
+              <RemoteDPad
+                onMove={(vector) => {
+                  vectorRef.current = vector;
+                }}
+                onConfirm={() => {
+                  actionRef.current = true;
+                }}
+                onConfirmRelease={() => {
+                  actionRef.current = false;
+                }}
+              />
+            </div>
+
+            <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm opacity-50">
+              <p>Use the remote to navigate</p>
+              <p className="mt-0.5 flex items-center justify-center gap-1.5">
+                <span>Press</span>
+                <CornerDownLeft
+                  className="inline-block h-5 w-5 shrink-0 text-neutral-400 opacity-70"
+                  aria-label="the center button"
+                />
+                <span>to select</span>
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+
+  return (
+    <div className="dark">
+      {!activeUrl ? (
+        <ForcedOrientationShell
+          desired="portrait"
+          contentClassName="h-full w-full bg-black"
+        >
+          {layout}
+        </ForcedOrientationShell>
+      ) : (
+        <div className="relative flex h-dvh w-dvw flex-col bg-black">
+          {layout}
+        </div>
+      )}
     </div>
   );
 }

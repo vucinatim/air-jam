@@ -13,17 +13,21 @@ describe("arcade bridge helpers", () => {
         normalizedUrl: "https://game.example/play",
         roomId: "ABCD",
         joinToken: "join_123",
+        joinUrl: "https://platform.example/controller?room=ABCD",
       }),
-    ).toBe("https://game.example/play?aj_room=ABCD&aj_token=join_123");
+    ).toBe(
+      "https://game.example/play?aj_room=ABCD&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DABCD",
+    );
 
     expect(
       buildArcadeGameIframeSrc({
         normalizedUrl: "https://game.example/play?foo=bar",
         roomId: "ABCD",
         joinToken: "join_123",
+        joinUrl: "https://platform.example/controller?room=ABCD",
       }),
     ).toBe(
-      "https://game.example/play?foo=bar&aj_room=ABCD&aj_token=join_123",
+      "https://game.example/play?foo=bar&aj_room=ABCD&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DABCD",
     );
   });
 
@@ -43,6 +47,7 @@ describe("arcade bridge helpers", () => {
         normalizedUrl: "javascript:alert(1)",
         roomId: "ABCD",
         joinToken: "join_123",
+        joinUrl: "https://platform.example/controller?room=ABCD",
       }),
     ).toBeNull();
   });

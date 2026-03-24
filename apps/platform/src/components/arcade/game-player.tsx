@@ -1,10 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  getRuntimeUrlOrigin,
-  useVolumeStore,
-} from "@air-jam/sdk";
+import { getRuntimeUrlOrigin, useVolumeStore } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   buildArcadeGameIframeSrc,
@@ -26,6 +23,7 @@ interface GamePlayerProps {
   normalizedUrl: string;
   joinToken: string;
   roomId: string;
+  joinUrl?: string | null;
   isVisible: boolean;
   onExit: () => void;
   /** Whether to show the default exit button overlay */
@@ -41,9 +39,10 @@ export const GamePlayer = ({
   normalizedUrl,
   joinToken,
   roomId,
+  joinUrl,
   isVisible,
   onExit,
-  showExitOverlay = true,
+  showExitOverlay = false,
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgePortRef = useRef<MessagePort | null>(null);
@@ -56,6 +55,7 @@ export const GamePlayer = ({
     normalizedUrl,
     roomId,
     joinToken,
+    joinUrl,
   });
   const iframeTargetOrigin = getRuntimeUrlOrigin(normalizedUrl);
 

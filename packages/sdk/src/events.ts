@@ -124,16 +124,6 @@ export const ClientEvents = {
 } as const;
 
 /**
- * Child events (server -> child host)
- */
-export const ChildEvents = {
-  /**
-   * Server requests child to close
-   */
-  CLOSE: "child:close",
-} as const;
-
-/**
  * All events combined for easy reference
  */
 export const Events = {
@@ -142,5 +132,4 @@ export const Events = {
   System: SystemEvents,
   Server: ServerEvents,
   Client: ClientEvents,
-  Child: ChildEvents,
 } as const;

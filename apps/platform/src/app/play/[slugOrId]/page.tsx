@@ -78,7 +78,6 @@ export default function PlayGamePage({
             mode="preview"
             initialGameId={game.id}
             onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
-            showGameExitOverlay={false}
             className="flex-1"
           />
         </div>

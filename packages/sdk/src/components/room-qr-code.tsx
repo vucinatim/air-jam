@@ -88,7 +88,7 @@ export const RoomQrCode = ({
           className="h-full w-full rounded-md object-cover"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center rounded-md border border-white/20 bg-black/20 text-xs text-white/70">
+        <div className="flex h-full w-full items-center justify-center rounded-md bg-black/15 text-xs text-white/70">
           QR unavailable
         </div>
       )}

@@ -1,22 +1,26 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { arcadeInputSchema } from "@/lib/airjam-session-config";
+import { cn } from "@/lib/utils";
 import {
+  type AirJamActionRpcPayload,
+  normalizeRuntimeUrl,
   type SystemLaunchGameAck,
   urlBuilder,
   useAirJamHost,
   useHostTick,
 } from "@air-jam/sdk";
-import { useCallback, useEffect, useRef } from "react";
+import { RoomQrCode } from "@air-jam/sdk/ui";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
-import { GameBrowser } from "./game-browser";
 import {
   EXIT_COOLDOWN_MS,
   shouldAutoLaunchGame,
   useArcadeRuntimeManager,
 } from "./arcade-runtime-manager";
+import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
 
 // Calculate grid columns based on window width
@@ -30,6 +34,21 @@ const getGridColumns = (): number => {
 export type ArcadeGame = GamePlayerGame & { slug?: string | null };
 
 type ArcadeMode = "arcade" | "preview";
+const ARCADE_ACTION_TOGGLE_QR = "airjam.arcade.toggle_qr";
+const ARCADE_ACTION_SHOW_QR = "airjam.arcade.show_qr";
+const ARCADE_ACTION_HIDE_QR = "airjam.arcade.hide_qr";
+const ARCADE_ACTION_EXIT_GAME = "airjam.arcade.exit_game";
+
+/** Pixel size for the join QR in the full-screen overlay (below arcade chrome). */
+const ARCADE_QR_OVERLAY_SIZE = 260;
+
+/** Top padding for game browser so content clears the overlaid chrome bar (~py-2 + logo/room row). */
+const ARCADE_BROWSER_CHROME_GUTTER_PT = "pt-14";
+
+const ARCADE_QR_OVERLAY_MOTION_TRANSITION = {
+  duration: 0.18,
+  ease: [0.22, 1, 0.36, 1] as const,
+};
 
 interface ArcadeSystemProps {
   games: ArcadeGame[];
@@ -63,7 +82,7 @@ export const ArcadeSystem = ({
   initialGameId,
   autoLaunch = false,
   header,
-  showGameExitOverlay = true,
+  showGameExitOverlay = false,
   showChrome = mode === "arcade",
   onExitGame,
   className,
@@ -97,12 +116,27 @@ export const ArcadeSystem = ({
     new Map(),
   );
   const lastArcadeInputLogTimeRef = useRef(0);
+  const [qrVisible, setQrVisible] = useState(true);
+  const [browserListAtTop, setBrowserListAtTop] = useState(true);
 
   const host = useAirJamHost<typeof arcadeInputSchema>({
     onPlayerJoin: () => {
       // Broadcast will be handled by effect below
     },
   });
+
+  const arcadeJoinUrl = useMemo(() => {
+    if (host.joinUrl) {
+      return host.joinUrl;
+    }
+    if (!host.roomId || typeof window === "undefined") {
+      return null;
+    }
+    return new URL(
+      `/controller?room=${host.roomId}`,
+      window.location.origin,
+    ).toString();
+  }, [host.joinUrl, host.roomId]);
 
   const broadcastCurrentState = useCallback(() => {
     if (!games || games.length === 0) return;
@@ -200,8 +234,19 @@ export const ArcadeSystem = ({
 
       console.log("[Arcade] Launching game:", game.name);
 
-      const baseUrl = await urlBuilder.normalizeForMobile(game.url);
-      const controllerUrl = `${baseUrl.replace(/\/$/, "")}/controller`;
+      const normalizedHostUrl = normalizeRuntimeUrl(game.url);
+      if (!normalizedHostUrl) {
+        failLaunch();
+        console.error("[Arcade] Failed to launch game: invalid game URL", {
+          gameId: game.id,
+          gameUrl: game.url,
+        });
+        return;
+      }
+
+      const mobileControllerBaseUrl =
+        await urlBuilder.normalizeForMobile(normalizedHostUrl);
+      const controllerUrl = `${mobileControllerBaseUrl.replace(/\/$/, "")}/controller`;
 
       host.socket.emit(
         "system:launchGame",
@@ -213,10 +258,11 @@ export const ArcadeSystem = ({
         (ack: SystemLaunchGameAck) => {
           if (ack.ok && ack.joinToken) {
             console.log("[Arcade] Game launch successful");
+            setQrVisible(false);
             completeLaunch({
               gameId: game.id,
               joinToken: ack.joinToken,
-              normalizedGameUrl: baseUrl,
+              normalizedGameUrl: normalizedHostUrl,
             });
 
             // Update URL shallowly in arcade mode for deep linking
@@ -231,7 +277,17 @@ export const ArcadeSystem = ({
         },
       );
     },
-    [host.socket, host.roomId, mode, beginLaunch, stateRef, completeLaunch, failLaunch],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      arcadeJoinUrl,
+      host.socket,
+      host.roomId,
+      mode,
+      beginLaunch,
+      stateRef,
+      completeLaunch,
+      failLaunch,
+    ],
   );
 
   const exitGame = useCallback(() => {
@@ -246,10 +302,46 @@ export const ArcadeSystem = ({
       window.history.replaceState(null, "", "/arcade");
     }
 
+    setQrVisible(true);
     resetRuntimeAfterExit();
 
     console.log("[Arcade] Game exit complete, state cleared");
   }, [host.socket, host.roomId, mode, resetRuntimeAfterExit]);
+
+  const handleArcadeAction = useCallback(
+    (event: AirJamActionRpcPayload) => {
+      switch (event.actionName) {
+        case ARCADE_ACTION_TOGGLE_QR:
+          setQrVisible((current) => !current);
+          return;
+        case ARCADE_ACTION_SHOW_QR:
+          setQrVisible(true);
+          return;
+        case ARCADE_ACTION_HIDE_QR:
+          setQrVisible(false);
+          return;
+        case ARCADE_ACTION_EXIT_GAME:
+          if (stateRef.current.view === "game") {
+            exitGame();
+          }
+          return;
+        default:
+          return;
+      }
+    },
+    [exitGame, stateRef],
+  );
+
+  useEffect(() => {
+    if (!host.socket) {
+      return;
+    }
+
+    host.socket.on("airjam:action_rpc", handleArcadeAction);
+    return () => {
+      host.socket?.off("airjam:action_rpc", handleArcadeAction);
+    };
+  }, [host.socket, handleArcadeAction]);
 
   useEffect(() => {
     launchGameRef.current = launchGame;
@@ -352,6 +444,8 @@ export const ArcadeSystem = ({
     );
   }
 
+  const isBrowserChromeVisible = showChrome && state.view === "browser";
+
   // Preview mode: show loading while launching
   if (mode === "preview" && !activeGame && !state.joinToken) {
     return (
@@ -380,50 +474,130 @@ export const ArcadeSystem = ({
         className,
       )}
     >
-      {showChrome && (
-        <ArcadeChrome
-          roomId={host.roomId || undefined}
-          players={host.players}
-          gameState={host.gameState}
-          connectionStatus={host.connectionStatus}
-          onTogglePause={host.toggleGameState}
-          className="z-40 shrink-0"
-        />
-      )}
-
       <div
         className={cn(
           "relative min-h-0 flex-1 overflow-hidden bg-slate-950 font-sans text-slate-50",
         )}
       >
-        {/* Background */}
-        <div className="absolute inset-0 z-0 bg-black" />
-        {/* Subtle gradient overlay */}
+        {/* Base — near-black void */}
+        <div className="absolute inset-0 z-0 bg-[#050508]" />
+        {/* Soft ambient glows (no full-screen color wash) */}
         <div
-          className="absolute inset-0 z-0 opacity-[0.08]"
+          className="pointer-events-none absolute inset-0 z-0"
           style={{
-            background: `linear-gradient(to bottom right, var(--color-airjam-cyan) 0%, var(--color-airjam-magenta) 100%)`,
+            background: `radial-gradient(ellipse 110% 75% at 50% -18%, color-mix(in srgb, var(--color-airjam-cyan) 16%, transparent), transparent 58%)`,
+          }}
+        />
+        {/* Micro grid, vignette-faded for a sleek HUD feel */}
+        <div
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            opacity: 0.45,
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage:
+              "radial-gradient(ellipse 88% 78% at 50% 42%, black 22%, transparent 72%)",
           }}
         />
 
-        {/* Optional top header */}
-        {header && (
-          <div className="absolute top-0 right-0 left-0 z-50 p-4">{header}</div>
-        )}
-
-        {/* Browser View (only in arcade mode or when game view is hidden) */}
-        {mode === "arcade" && (
-          <GameBrowser
-            games={games}
-            selectedIndex={state.selectedIndex}
-            isVisible={state.view === "browser"}
-            onSelectGame={(game, idx) => {
-              setSelectedIndex(idx);
-              launchGame(game);
-            }}
-            header={header}
+        {isBrowserChromeVisible && (
+          <ArcadeChrome
+            roomId={host.roomId || undefined}
+            players={host.players}
+            connectionStatus={host.connectionStatus}
+            qrVisible={qrVisible}
+            onToggleQr={() => setQrVisible((current) => !current)}
+            listAtTop={browserListAtTop}
+            className="absolute top-0 right-0 left-0 z-60"
           />
         )}
+
+        {/* Optional top header */}
+        {header && (
+          <div className="absolute top-0 right-0 left-0 z-70 p-4">{header}</div>
+        )}
+
+        <AnimatePresence>
+          {qrVisible && (
+            <motion.div
+              key="arcade-join-qr-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-label={
+                host.roomId
+                  ? `Join room ${host.roomId}`
+                  : "Scan QR code to join as controller"
+              }
+              className="absolute inset-0 z-50 flex cursor-pointer flex-col items-center justify-center bg-black/85 px-6 backdrop-blur-md"
+              initial={{ opacity: 0, y: -18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14 }}
+              transition={ARCADE_QR_OVERLAY_MOTION_TRANSITION}
+              onClick={() => setQrVisible(false)}
+            >
+              <div
+                className="flex cursor-default flex-col items-center gap-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
+                    Join room
+                  </p>
+                  <p className="text-2xl font-semibold tracking-tight text-white tabular-nums">
+                    {host.roomId || "----"}
+                  </p>
+                </div>
+                {arcadeJoinUrl ? (
+                  <RoomQrCode
+                    value={arcadeJoinUrl}
+                    size={ARCADE_QR_OVERLAY_SIZE}
+                    padding={2}
+                    foregroundColor="#111827"
+                    backgroundColor="#ffffff"
+                    alt="QR code to join this room as a controller"
+                    className="rounded-lg border border-white/25 bg-white/6 shadow-sm"
+                  />
+                ) : (
+                  <div
+                    className="flex items-center justify-center rounded-lg border border-white/25 bg-white/6 text-sm text-white/70 shadow-sm"
+                    style={{
+                      width: ARCADE_QR_OVERLAY_SIZE,
+                      height: ARCADE_QR_OVERLAY_SIZE,
+                    }}
+                  >
+                    QR unavailable
+                  </div>
+                )}
+                <p className="max-w-xs text-center text-sm text-slate-400">
+                  Scan with your phone to connect as a controller
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div
+          className={cn(
+            "absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden",
+            isBrowserChromeVisible && ARCADE_BROWSER_CHROME_GUTTER_PT,
+          )}
+        >
+          {/* Browser View (only in arcade mode or when game view is hidden) */}
+          {mode === "arcade" && (
+            <GameBrowser
+              games={games}
+              selectedIndex={state.selectedIndex}
+              isVisible={state.view === "browser"}
+              onSelectGame={(game, idx) => {
+                setSelectedIndex(idx);
+                launchGame(game);
+              }}
+              header={header}
+              onScrollTopChange={setBrowserListAtTop}
+            />
+          )}
+        </div>
 
         {/* Game View */}
         {activeGame && state.joinToken && (
@@ -432,6 +606,7 @@ export const ArcadeSystem = ({
             normalizedUrl={state.normalizedGameUrl}
             joinToken={state.joinToken}
             roomId={host.roomId!}
+            joinUrl={arcadeJoinUrl}
             isVisible={state.view === "game"}
             onExit={exitGame}
             showExitOverlay={showGameExitOverlay}

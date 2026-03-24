@@ -1,11 +1,32 @@
 "use client";
 
-import { ArcadeLoader, ArcadeSystem } from "@/components/arcade";
+import {
+  ArcadeLoader,
+  ArcadeSystem,
+  type ArcadeGame,
+} from "@/components/arcade";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { api } from "@/trpc/react";
 import { HostSessionProvider } from "@air-jam/sdk";
 import { use } from "react";
+
+/** In development, repeat each game N times to stress-test the grid (unique ids). */
+const ARCADE_DEV_GRID_REPEAT = 3;
+
+function expandArcadeGamesForDev(games: ArcadeGame[]): ArcadeGame[] {
+  if (process.env.NODE_ENV !== "development") return games;
+  if (ARCADE_DEV_GRID_REPEAT < 2) return games;
+
+  return games.flatMap((game) =>
+    Array.from({ length: ARCADE_DEV_GRID_REPEAT }, (_, row) => ({
+      ...game,
+      id: row === 0 ? game.id : `${game.id}__arcade-dev-${row}`,
+      name: row === 0 ? game.name : `${game.name} · ${row + 1}`,
+      slug: row === 0 ? game.slug : undefined,
+    })),
+  );
+}
 
 export default function ArcadePage({
   params,
@@ -36,7 +57,7 @@ export default function ArcadePage({
     );
   }
 
-  const arcadeGames = toArcadeGames(games);
+  const arcadeGames = expandArcadeGamesForDev(toArcadeGames(games));
 
   // Determine if we should auto-launch a game
   const initialGameId = targetGame?.id;
