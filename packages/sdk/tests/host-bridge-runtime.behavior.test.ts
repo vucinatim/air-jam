@@ -114,4 +114,62 @@ describe("embedded host bridge runtime", () => {
 
     vi.useRealTimers();
   });
+
+  it("rejects attach with a lower arcade surface epoch than a previous attach", async () => {
+    const directSocketGetter = vi.fn(() => {
+      throw new Error("direct socket should not be requested in embedded mode");
+    });
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const client = getHostRealtimeClient(directSocketGetter);
+    const disconnectSpy = vi.fn();
+    client.on("disconnect", disconnectSpy);
+
+    client.connect();
+
+    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(parentPort).toBeDefined();
+
+    const attachPayload = {
+      handshake: {
+        protocolVersion: "2",
+        sdkVersion: "1.0.0",
+        runtimeKind: "arcade-host-runtime",
+        capabilityFlags: { hostBridge: true },
+      },
+      snapshot: {
+        roomId: "ROOM1",
+        joinToken: "join_123",
+        connected: true,
+        players: [],
+        arcadeSurface: { epoch: 3, kind: "game" as const, gameId: "pong" },
+      },
+    };
+
+    parentPort!.postMessage({
+      type: "AIRJAM_HOST_BRIDGE_ATTACH",
+      payload: attachPayload,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(client.connected).toBe(true);
+
+    parentPort!.postMessage({
+      type: "AIRJAM_HOST_BRIDGE_ATTACH",
+      payload: {
+        ...attachPayload,
+        snapshot: {
+          ...attachPayload.snapshot,
+          arcadeSurface: { epoch: 2, kind: "game" as const, gameId: "pong" },
+        },
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(disconnectSpy).toHaveBeenCalledWith(
+      "Embedded host bridge attach rejected: stale arcade surface epoch.",
+    );
+  });
 });

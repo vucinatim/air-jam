@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { ArcadeGame } from "./arcade-system";
 
-export type ArcadeView = "browser" | "game";
-
+/** Browser vs game “mode” for the arcade shell lives in `ArcadeSurfaceState.kind` (replicated). This reducer only tracks host-local launch mechanics (selection, tokens, URLs). */
 export interface ArcadeRuntimeState {
-  view: ArcadeView;
   selectedIndex: number;
   activeGameId: string | null;
   normalizedGameUrl: string;
   joinToken: string | null;
   isLaunching: boolean;
-  hasAutoLaunched: boolean;
+  consumedAutoLaunchRequestKey: string | null;
   lastExitAt: number;
 }
 
@@ -97,35 +95,53 @@ export const getNextSelectedIndex = ({
   return selectedIndex;
 };
 
-export const shouldAutoLaunchGame = ({
+export const getAutoLaunchRequestKey = ({
   mode,
   autoLaunch,
-  hasAutoLaunched,
+  initialGameId,
+}: {
+  mode: "arcade" | "preview";
+  autoLaunch: boolean;
+  initialGameId?: string;
+}): string | null => {
+  if (mode === "preview") {
+    return `preview:${initialGameId ?? "__first__"}`;
+  }
+
+  if (!autoLaunch || !initialGameId) {
+    return null;
+  }
+
+  return `arcade:${initialGameId}`;
+};
+
+export const shouldAutoLaunchGame = ({
+  autoLaunchRequestKey,
+  consumedAutoLaunchRequestKey,
   isConnected,
   roomId,
-  hasActiveGame,
+  surfaceKind,
   isLaunching,
   hasJoinToken,
   gamesLength,
 }: {
-  mode: "arcade" | "preview";
-  autoLaunch: boolean;
-  hasAutoLaunched: boolean;
+  autoLaunchRequestKey: string | null;
+  consumedAutoLaunchRequestKey: string | null;
   isConnected: boolean;
   roomId?: string | null;
-  hasActiveGame: boolean;
+  /** From replicated `ArcadeSurfaceState.kind` — not runtime `activeGameId`. */
+  surfaceKind: "browser" | "game";
   isLaunching: boolean;
   hasJoinToken: boolean;
   gamesLength: number;
 }): boolean => {
-  const launchEnabled = mode === "preview" || autoLaunch;
   return (
-    launchEnabled &&
-    !hasAutoLaunched &&
+    autoLaunchRequestKey != null &&
+    consumedAutoLaunchRequestKey !== autoLaunchRequestKey &&
     isConnected &&
     !!roomId &&
     gamesLength > 0 &&
-    !hasActiveGame &&
+    surfaceKind === "browser" &&
     !isLaunching &&
     !hasJoinToken
   );
@@ -148,24 +164,21 @@ type RuntimeAction =
     }
   | { type: "launch-failure" }
   | { type: "exit-game"; exitedAt: number }
-  | { type: "mark-auto-launched" };
+  | { type: "consume-auto-launch"; requestKey: string };
 
 export const createInitialArcadeRuntimeState = ({
   games,
-  mode,
   initialGameId,
 }: {
   games: ArcadeGame[];
-  mode: "arcade" | "preview";
   initialGameId?: string;
 }): ArcadeRuntimeState => ({
-  view: mode === "preview" ? "game" : "browser",
   selectedIndex: getInitialSelectedIndex(games, initialGameId),
   activeGameId: null,
   normalizedGameUrl: "",
   joinToken: null,
   isLaunching: false,
-  hasAutoLaunched: false,
+  consumedAutoLaunchRequestKey: null,
   lastExitAt: 0,
 });
 
@@ -200,7 +213,6 @@ export const reduceArcadeRuntimeState = (
     case "launch-success":
       return {
         ...state,
-        view: "game",
         isLaunching: false,
         activeGameId: action.gameId,
         normalizedGameUrl: action.normalizedGameUrl,
@@ -211,25 +223,23 @@ export const reduceArcadeRuntimeState = (
       return {
         ...state,
         isLaunching: false,
-        hasAutoLaunched: false,
+        consumedAutoLaunchRequestKey: null,
       };
 
     case "exit-game":
       return {
         ...state,
-        view: "browser",
         activeGameId: null,
         normalizedGameUrl: "",
         joinToken: null,
         isLaunching: false,
-        hasAutoLaunched: false,
         lastExitAt: action.exitedAt,
       };
 
-    case "mark-auto-launched":
+    case "consume-auto-launch":
       return {
         ...state,
-        hasAutoLaunched: true,
+        consumedAutoLaunchRequestKey: action.requestKey,
       };
 
     default:
@@ -250,7 +260,7 @@ export const useArcadeRuntimeManager = ({
 }) => {
   const [state, dispatch] = useReducer(
     reduceArcadeRuntimeState,
-    createInitialArcadeRuntimeState({ games, mode, initialGameId }),
+    createInitialArcadeRuntimeState({ games, initialGameId }),
   );
 
   const stateRef = useRef(state);
@@ -334,8 +344,8 @@ export const useArcadeRuntimeManager = ({
     }
   }, [mode, onExitGame]);
 
-  const markAutoLaunched = useCallback(() => {
-    dispatch({ type: "mark-auto-launched" });
+  const consumeAutoLaunch = useCallback((requestKey: string) => {
+    dispatch({ type: "consume-auto-launch", requestKey });
   }, []);
 
   return {
@@ -349,6 +359,6 @@ export const useArcadeRuntimeManager = ({
     completeLaunch,
     failLaunch,
     exitGame,
-    markAutoLaunched,
+    consumeAutoLaunch,
   };
 };

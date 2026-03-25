@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  ArcadeLoader,
-  ArcadeSystem,
-  type ArcadeGame,
-} from "@/components/arcade";
+import { ArcadeSystem, type ArcadeGame } from "@/components/arcade";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { api } from "@/trpc/react";
@@ -49,26 +45,24 @@ export default function ArcadePage({
 
   const isLoading = gamesLoading || (slugOrId && targetLoading);
 
-  if (isLoading) {
-    return (
-      <div className="h-screen w-screen bg-black">
-        <ArcadeLoader />
-      </div>
-    );
-  }
+  const arcadeGames = games
+    ? expandArcadeGamesForDev(toArcadeGames(games))
+    : [];
 
-  const arcadeGames = expandArcadeGamesForDev(toArcadeGames(games));
-
-  // Determine if we should auto-launch a game
   const initialGameId = targetGame?.id;
   const shouldAutoLaunch = !!slugOrId && !!targetGame;
+  const hostRouteIntent = slugOrId
+    ? { kind: "game" as const, gameId: initialGameId ?? null }
+    : { kind: "browser" as const };
 
   return (
     <HostSessionProvider {...platformArcadeHostSessionConfig}>
       <ArcadeSystem
         games={arcadeGames}
+        gamesCatalogReady={!isLoading}
         mode="arcade"
         initialGameId={initialGameId}
+        hostRouteIntent={hostRouteIntent}
         autoLaunch={shouldAutoLaunch}
         className="h-screen"
       />

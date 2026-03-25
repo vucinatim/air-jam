@@ -4,6 +4,8 @@ import { roomCodeSchema } from "./core";
 export interface HostStateSyncPayload {
   roomId: string;
   data: Record<string, unknown>;
+  /** Separates concurrent replicated stores in the same room (e.g. arcade shell vs game). */
+  storeDomain: string;
 }
 
 export type AirJamActionActorRole = "controller" | "host";
@@ -17,17 +19,20 @@ export interface ControllerActionRpcPayload {
   roomId: string;
   actionName: string;
   payload: unknown;
+  storeDomain: string;
 }
 
 export interface AirJamStateSyncPayload {
   roomId: string;
   data: Record<string, unknown>;
+  storeDomain: string;
 }
 
 export interface AirJamActionRpcPayload {
   actionName: string;
   payload: unknown;
   actor: AirJamActionActor;
+  storeDomain: string;
 }
 
 export const controllerActionRpcSchema = z
@@ -35,5 +40,14 @@ export const controllerActionRpcSchema = z
     roomId: roomCodeSchema,
     actionName: z.string().trim().min(1),
     payload: z.unknown(),
+    storeDomain: z.string().trim().min(1).max(128),
+  })
+  .strict();
+
+export const hostStateSyncSchema = z
+  .object({
+    roomId: roomCodeSchema,
+    data: z.record(z.string(), z.unknown()),
+    storeDomain: z.string().trim().min(1).max(128),
   })
   .strict();

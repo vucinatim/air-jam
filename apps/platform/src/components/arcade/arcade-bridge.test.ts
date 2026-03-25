@@ -41,6 +41,24 @@ describe("arcade bridge helpers", () => {
     expect(message.payload.handshake.capabilityFlags.settingsSync).toBe(true);
   });
 
+  it("includes arcade surface params when provided", () => {
+    expect(
+      buildArcadeGameIframeSrc({
+        normalizedUrl: "https://game.example/play",
+        roomId: "ABCD",
+        joinToken: "join_123",
+        joinUrl: "https://platform.example/controller?room=ABCD",
+        arcadeSurface: {
+          epoch: 3,
+          kind: "game",
+          gameId: "pong",
+        },
+      }),
+    ).toBe(
+      "https://game.example/play?aj_room=ABCD&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DABCD&aj_arcade_epoch=3&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_store_domain=aj.embedded.game%3A3%3Apong",
+    );
+  });
+
   it("rejects non-http iframe URLs", () => {
     expect(
       buildArcadeGameIframeSrc({

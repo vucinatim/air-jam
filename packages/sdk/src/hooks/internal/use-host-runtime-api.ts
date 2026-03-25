@@ -20,6 +20,7 @@ import type {
 import {
   controllerStateSchema,
   controllerSystemSchema,
+  ErrorCode,
   hostCreateRoomSchema,
   hostReconnectSchema,
   roomCodeSchema,
@@ -27,7 +28,7 @@ import {
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import { getHostRealtimeClient } from "../../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
-import { readChildHostRuntimeParams } from "../../runtime/runtime-session-params";
+import { readEmbeddedHostChildSession } from "../../runtime/embedded-runtime-adapters";
 import { detectRunMode } from "../../utils/mode";
 import { urlBuilder } from "../../utils/url-builder";
 import type {
@@ -45,16 +46,14 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   const { config, store, getSocket, disconnectSocket, inputManager } =
     useAirJamContext();
 
-  const arcadeParams = useMemo(() => {
-    return readChildHostRuntimeParams();
-  }, []);
+  const embeddedHost = useMemo(() => readEmbeddedHostChildSession(), []);
 
   const shouldConnect = true;
   const storeRoomId = useStore(store, (s) => s.roomId);
 
   const parsedRoomId = useMemo<RoomCode | null>(() => {
-    if (arcadeParams) {
-      return roomCodeSchema.parse(arcadeParams.room.toUpperCase());
+    if (embeddedHost) {
+      return embeddedHost.roomId;
     }
 
     if (storeRoomId) {
@@ -75,7 +74,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     }
 
     return null;
-  }, [options.roomId, storeRoomId, arcadeParams]);
+  }, [options.roomId, storeRoomId, embeddedHost]);
 
   const joinUrlBuildKey = useMemo(
     () => (parsedRoomId ? `${parsedRoomId}\0${config.publicHost ?? ""}` : null),
@@ -180,16 +179,16 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
   const reconnect = useCallback(() => {
     socket?.disconnect();
-    if (!arcadeParams) {
+    if (!embeddedHost) {
       disconnectSocket("host");
     }
     if (socket) {
       socket.connect();
     }
-  }, [socket, arcadeParams, disconnectSocket]);
+  }, [socket, embeddedHost, disconnectSocket]);
 
   useEffect(() => {
-    if (arcadeParams?.joinUrl) {
+    if (embeddedHost?.joinUrl) {
       return;
     }
     if (!parsedRoomId || !joinUrlBuildKey) {
@@ -224,15 +223,15 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     return () => {
       cancelled = true;
     };
-  }, [parsedRoomId, arcadeParams?.joinUrl, config.publicHost, joinUrlBuildKey]);
+  }, [parsedRoomId, embeddedHost?.joinUrl, config.publicHost, joinUrlBuildKey]);
 
-  const joinUrl = arcadeParams?.joinUrl
-    ? arcadeParams.joinUrl
+  const joinUrl = embeddedHost?.joinUrl
+    ? embeddedHost.joinUrl
     : computedJoinUrl.key === joinUrlBuildKey
       ? computedJoinUrl.url
       : "";
 
-  const joinUrlStatus: JoinUrlStatus = arcadeParams?.joinUrl
+  const joinUrlStatus: JoinUrlStatus = embeddedHost?.joinUrl
     ? "ready"
     : !joinUrlBuildKey
       ? "loading"
@@ -245,6 +244,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             : "loading";
 
   const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
+  const reconnectRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   useEffect(() => {
     const storeState = store.getState();
@@ -262,10 +264,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     }
 
     const registerHost = async () => {
-      if (arcadeParams) {
-        const childRoomId = roomCodeSchema.parse(
-          arcadeParams.room.toUpperCase(),
-        );
+      if (embeddedHost) {
+        const childRoomId = embeddedHost.roomId;
         const latestState = store.getState();
         latestState.setStatus("connected");
         latestState.setRoomId(childRoomId);
@@ -297,6 +297,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           if (ack.roomId) {
             latestState.setStatus("connected");
             latestState.setRoomId(ack.roomId);
+            latestState.setHostArcadeSessionFromServer(null);
             setRegisteredRoomId(ack.roomId);
 
             if (typeof window !== "undefined") {
@@ -318,24 +319,48 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             apiKey: config.apiKey,
           });
 
-          socket.emit(
-            "host:reconnect",
-            reconnectPayload,
-            (ack: HostRegistrationAck) => {
-              const latestState = store.getState();
-              if (ack.ok && ack.roomId) {
-                latestState.setStatus("connected");
-                latestState.setRoomId(ack.roomId);
-                setRegisteredRoomId(ack.roomId);
-                return;
-              }
+          const maxReconnectAttempts = 12;
+          const reconnectRetryDelayMs = 250;
 
-              if (typeof window !== "undefined") {
-                sessionStorage.removeItem("airjam_room_id");
-              }
-              createNewRoom();
-            },
-          );
+          const attemptReconnect = (attempt: number) => {
+            store.getState().setHostReconnectAckPending(true);
+            socket.emit(
+              "host:reconnect",
+              reconnectPayload,
+              (ack: HostRegistrationAck) => {
+                const latestState = store.getState();
+                if (ack.ok && ack.roomId) {
+                  latestState.setHostReconnectAckPending(false);
+                  latestState.setStatus("connected");
+                  latestState.setRoomId(ack.roomId);
+                  latestState.setHostArcadeSessionFromServer(
+                    ack.arcadeSession ?? null,
+                  );
+                  setRegisteredRoomId(ack.roomId);
+                  return;
+                }
+
+                if (
+                  ack.code === ErrorCode.ALREADY_CONNECTED &&
+                  attempt < maxReconnectAttempts
+                ) {
+                  reconnectRetryTimeoutRef.current = setTimeout(() => {
+                    reconnectRetryTimeoutRef.current = null;
+                    attemptReconnect(attempt + 1);
+                  }, reconnectRetryDelayMs);
+                  return;
+                }
+
+                latestState.setHostReconnectAckPending(false);
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("airjam_room_id");
+                }
+                createNewRoom();
+              },
+            );
+          };
+
+          attemptReconnect(0);
           return;
         }
       }
@@ -350,7 +375,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     const handleDisconnect = (): void => {
       store.getState().setStatus("disconnected");
-      if (arcadeParams) {
+      if (embeddedHost) {
         setRegisteredRoomId(null);
       }
     };
@@ -419,6 +444,10 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     }
 
     return () => {
+      if (reconnectRetryTimeoutRef.current) {
+        clearTimeout(reconnectRetryTimeoutRef.current);
+        reconnectRetryTimeoutRef.current = null;
+      }
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
       socket.off("server:controllerJoined", handleJoin);
@@ -431,7 +460,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   }, [
     config.maxPlayers,
     config.apiKey,
-    arcadeParams,
+    embeddedHost,
     parsedRoomId,
     shouldConnect,
     socket,

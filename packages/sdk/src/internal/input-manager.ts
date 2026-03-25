@@ -102,6 +102,10 @@ interface ControllerBehaviorState {
 /**
  * Internal class that manages input buffering, validation, and behavior semantics.
  *
+ * **Single input lane:** one `InputManager` per `HostSessionProvider`, fed only by `server:input`.
+ * Multiple `createAirJamStore` domains in the same room (e.g. `arcade.surface` + embedded game)
+ * do not duplicate or fork input — gameplay still reads controller input through this manager only.
+ *
  * Created automatically by `HostSessionProvider` when input configuration is provided.
  * Access input via `useGetInput()` or `useAirJamHost().getInput()`.
  *

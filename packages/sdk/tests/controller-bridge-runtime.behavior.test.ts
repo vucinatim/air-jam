@@ -165,4 +165,61 @@ describe("embedded controller bridge runtime", () => {
       },
     });
   });
+
+  it("rejects attach with a lower arcade surface epoch than a previous attach", async () => {
+    const directSocketGetter = vi.fn(() => {
+      throw new Error("direct socket should not be requested in embedded mode");
+    });
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const client = getControllerRealtimeClient(directSocketGetter);
+    const disconnectSpy = vi.fn();
+    client.on("disconnect", disconnectSpy);
+
+    client.connect();
+
+    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(parentPort).toBeDefined();
+
+    const attachPayload = {
+      handshake: {
+        protocolVersion: "2",
+        sdkVersion: "1.0.0",
+        runtimeKind: "arcade-controller-runtime",
+        capabilityFlags: { controllerBridge: true },
+      },
+      snapshot: {
+        roomId: "ROOM1",
+        controllerId: "ctrl_1",
+        connected: true,
+        arcadeSurface: { epoch: 2, kind: "game" as const, gameId: "a" },
+      },
+    };
+
+    parentPort!.postMessage({
+      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+      payload: attachPayload,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(client.connected).toBe(true);
+
+    parentPort!.postMessage({
+      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+      payload: {
+        ...attachPayload,
+        snapshot: {
+          ...attachPayload.snapshot,
+          arcadeSurface: { epoch: 1, kind: "game" as const, gameId: "a" },
+        },
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(disconnectSpy).toHaveBeenCalledWith(
+      "Embedded controller bridge attach rejected: stale arcade surface epoch.",
+    );
+  });
 });

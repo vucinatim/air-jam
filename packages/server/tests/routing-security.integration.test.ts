@@ -122,6 +122,7 @@ describe("server routing and security", () => {
       roomId,
       actionName: "joinTeam",
       payload: { team: "team1" },
+      storeDomain: "default",
     });
 
     await harness.expectNoEvent(host, "airjam:action_rpc");
@@ -130,15 +131,18 @@ describe("server routing and security", () => {
       roomId,
       actionName: "joinTeam",
       payload: { team: "team1" },
+      storeDomain: "default",
     });
 
     const forwarded = await harness.waitForEvent<{
       actionName: string;
       payload: unknown;
+      storeDomain: string;
       actor: { id: string; role: "controller" | "host" };
     }>(host, "airjam:action_rpc");
 
     expect(forwarded.actionName).toBe("joinTeam");
+    expect(forwarded.storeDomain).toBe("default");
     expect(forwarded.actor).toEqual({
       id: "ctrl_legit_1",
       role: "controller",
@@ -170,6 +174,7 @@ describe("server routing and security", () => {
       roomId,
       actionName: "_syncState",
       payload: { any: "payload" },
+      storeDomain: "default",
     });
 
     await harness.expectNoEvent(host, "airjam:action_rpc");
@@ -221,15 +226,18 @@ describe("server routing and security", () => {
       roomId,
       actionName: "airjam.arcade.toggle_qr",
       payload: null,
+      storeDomain: "arcade.surface",
     });
 
     const forwarded = await harness.waitForEvent<{
       actionName: string;
       payload: unknown;
+      storeDomain: string;
       actor: { id: string; role: "controller" | "host" };
     }>(masterHost, "airjam:action_rpc");
 
     expect(forwarded.actionName).toBe("airjam.arcade.toggle_qr");
+    expect(forwarded.storeDomain).toBe("arcade.surface");
     expect(forwarded.actor).toEqual({
       id: "ctrl_arcade_1",
       role: "controller",

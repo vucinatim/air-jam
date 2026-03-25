@@ -22,7 +22,7 @@ import {
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
-import { readEmbeddedControllerRuntimeParams } from "../../runtime/runtime-session-params";
+import { readEmbeddedControllerChildSession } from "../../runtime/embedded-runtime-adapters";
 import { generateControllerId } from "../../utils/ids";
 import { detectRunMode } from "../../utils/mode";
 import type {
@@ -57,24 +57,25 @@ export const useControllerRuntimeApi = (
     avatarIdRef.current = options.avatarId ?? "";
   }, [options.avatarId]);
 
-  const subControllerParams = useMemo(() => {
-    return readEmbeddedControllerRuntimeParams();
-  }, []);
+  const embeddedController = useMemo(
+    () => readEmbeddedControllerChildSession(),
+    [],
+  );
 
   const parsedRoomId = useMemo<RoomCode | null>(() => {
     const code =
-      subControllerParams?.room ?? options.roomId ?? getRoomFromLocation();
+      embeddedController?.roomId ?? options.roomId ?? getRoomFromLocation();
     if (!code) return null;
     try {
       return roomCodeSchema.parse(code.toUpperCase());
     } catch {
       return null;
     }
-  }, [options.roomId, subControllerParams]);
+  }, [options.roomId, embeddedController]);
 
   const controllerId = useMemo<string>(() => {
-    if (subControllerParams?.controllerId) {
-      return subControllerParams.controllerId;
+    if (embeddedController?.controllerId) {
+      return embeddedController.controllerId;
     }
     if (options.controllerId) {
       return options.controllerId;
@@ -85,7 +86,7 @@ export const useControllerRuntimeApi = (
       if (urlControllerId) return urlControllerId;
     }
     return generateControllerId();
-  }, [options.controllerId, subControllerParams]);
+  }, [options.controllerId, embeddedController]);
 
   const onStateRef = useRef<AirJamControllerOptions["onState"]>(
     options.onState,
@@ -120,11 +121,11 @@ export const useControllerRuntimeApi = (
   const reconnect = useCallback(() => {
     if (!parsedRoomId) return;
     socket?.disconnect();
-    if (!subControllerParams) {
+    if (!embeddedController) {
       disconnectSocket("controller");
     }
     setReconnectKey((prev) => prev + 1);
-  }, [parsedRoomId, disconnectSocket, socket, subControllerParams]);
+  }, [parsedRoomId, disconnectSocket, socket, embeddedController]);
 
   useEffect(() => {
     if (!socket) return;
@@ -185,7 +186,7 @@ export const useControllerRuntimeApi = (
     const handleConnect = (): void => {
       store.getState().setStatus("connected");
 
-      if (subControllerParams) {
+      if (embeddedController) {
         return;
       }
 
@@ -266,7 +267,7 @@ export const useControllerRuntimeApi = (
 
       setTimeout(() => {
         socket.disconnect();
-        if (!subControllerParams) {
+        if (!embeddedController) {
           disconnectSocket("controller");
         }
         setReconnectKey((prev) => prev + 1);
@@ -309,7 +310,7 @@ export const useControllerRuntimeApi = (
     reconnectKey,
     socket,
     controllerId,
-    subControllerParams,
+    embeddedController,
     store,
     disconnectSocket,
   ]);
@@ -336,7 +337,7 @@ export const useControllerRuntimeApi = (
         return Promise.resolve({ ok: false, message: "Not connected" });
       }
 
-      if (subControllerParams) {
+      if (embeddedController) {
         return Promise.resolve({
           ok: false,
           message:
@@ -363,7 +364,7 @@ export const useControllerRuntimeApi = (
         );
       });
     },
-    [parsedRoomId, socket, store, subControllerParams],
+    [parsedRoomId, socket, store, embeddedController],
   );
 
   const sendSystemCommand = useCallback(

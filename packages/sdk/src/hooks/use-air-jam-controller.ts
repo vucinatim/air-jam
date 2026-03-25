@@ -12,9 +12,11 @@
  * - Room joining via URL parameter (?room=XXXX) or props
  * - Haptic feedback (vibration patterns on signal receipt)
  *
- * This hook is runtime-aware:
- * - standalone: joins by `room` URL param or `roomId` option
- * - arcade iframe runtime: auto-detects `aj_room` + `aj_controller_id` and binds as sub-controller
+ * **Standalone:** joins using `?room=` or `roomId` (and optional `controllerId`).
+ *
+ * **Embedded controller iframe:** when `aj_room` + `aj_controller_id` are present, binds as the
+ * platform-injected sub-controller; see
+ * {@link ../runtime/embedded-runtime-adapters.readEmbeddedControllerChildSession}.
  */
 import type {
   ConnectionStatus,

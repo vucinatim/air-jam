@@ -47,19 +47,24 @@ describe("server state sync", () => {
     host.emit("host:state_sync", {
       roomId,
       data: { phase: "playing", score: 5 },
+      storeDomain: "default",
     });
 
     const payloadA = await harness.waitForEvent<{
       roomId: string;
       data: Record<string, unknown>;
+      storeDomain: string;
     }>(controllerA, "airjam:state_sync");
     const payloadB = await harness.waitForEvent<{
       roomId: string;
       data: Record<string, unknown>;
+      storeDomain: string;
     }>(controllerB, "airjam:state_sync");
 
     expect(payloadA.roomId).toBe(roomId);
     expect(payloadB.roomId).toBe(roomId);
+    expect(payloadA.storeDomain).toBe("default");
+    expect(payloadB.storeDomain).toBe("default");
     expect(payloadA.data).toEqual({ phase: "playing", score: 5 });
     expect(payloadB.data).toEqual({ phase: "playing", score: 5 });
   });

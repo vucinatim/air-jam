@@ -6,5 +6,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     testTimeout: 10_000,
+    /** Avoid parallel test file pollution of shared jsdom globals (e.g. window.history). */
+    fileParallelism: false,
   },
 });

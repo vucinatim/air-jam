@@ -1,5 +1,10 @@
 "use client";
 
+import { useArcadeSurfaceStore } from "@/components/arcade";
+import {
+  embeddedBridgeForwardShouldClose,
+  shouldRejectControllerBridgeHandshake,
+} from "@/components/arcade/embedded-bridge-surface-guard";
 import { ControllerMenuSheet } from "@/components/controller-menu-sheet";
 import { RemoteDPad } from "@/components/remote-d-pad";
 import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
@@ -11,9 +16,11 @@ import {
 import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import { cn } from "@/lib/utils";
 import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
   type AirJamStateSyncPayload,
   appendRuntimeQueryParams,
+  arcadeSurfaceRuntimeUrlParams,
   type ClientLoadUiPayload,
   type ControllerBridgeServerEventName,
   ControllerSessionProvider,
@@ -25,6 +32,7 @@ import {
   normalizeRuntimeUrl,
   parseControllerBridgeEmitMessage,
   parseControllerBridgeRequestMessage,
+  type ArcadeSurfaceRuntimeIdentity,
   type PlayerUpdatedNotice,
   type PlaySoundPayload,
   type ServerErrorPayload,
@@ -42,9 +50,9 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   useSyncExternalStore,
 } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
   const documentFullscreen = useDocumentFullscreen();
@@ -60,42 +68,41 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     avatarId: localProfile.avatarId,
   });
   const writeInput = useInputWriter();
-  const [activeUrl, setActiveUrl] = useState<string | null>(null);
+
+  const arcadeSurface = useArcadeSurfaceStore(
+    useShallow((s) => ({
+      kind: s.kind,
+      controllerUrl: s.controllerUrl,
+      orientation: s.orientation,
+      epoch: s.epoch,
+      gameId: s.gameId,
+    })),
+  );
+
+  const activeUrl = useMemo(() => {
+    if (
+      controller.connectionStatus !== "connected" ||
+      arcadeSurface.kind !== "game" ||
+      !arcadeSurface.controllerUrl
+    ) {
+      return null;
+    }
+    const normalized = normalizeRuntimeUrl(arcadeSurface.controllerUrl);
+    if (!normalized) {
+      return null;
+    }
+    return normalized;
+  }, [
+    controller.connectionStatus,
+    arcadeSurface.kind,
+    arcadeSurface.controllerUrl,
+  ]);
 
   const vectorRef = useRef({ x: 0, y: 0 });
   const actionRef = useRef(false);
   const lastLoopFailLogRef = useRef(0);
-
-  useEffect(() => {
-    if (!controller.socket) return;
-
-    const handleLoadUi = (payload: { url: string }) => {
-      const normalized = normalizeRuntimeUrl(payload.url);
-      if (!normalized) {
-        console.warn("[Controller] Blocked client:loadUi with invalid URL", {
-          url: payload.url,
-        });
-        setActiveUrl(null);
-        return;
-      }
-      setActiveUrl(normalized);
-    };
-    const handleUnloadUi = () => {
-      setActiveUrl(null);
-    };
-    const handleDisconnect = () => {
-      setActiveUrl(null);
-    };
-
-    controller.socket.on("client:loadUi", handleLoadUi);
-    controller.socket.on("client:unloadUi", handleUnloadUi);
-    controller.socket.on("disconnect", handleDisconnect);
-    return () => {
-      controller.socket?.off("client:loadUi", handleLoadUi);
-      controller.socket?.off("client:unloadUi", handleUnloadUi);
-      controller.socket?.off("disconnect", handleDisconnect);
-    };
-  }, [controller.socket]);
+  const arcadeSurfaceRef = useRef(arcadeSurface);
+  arcadeSurfaceRef.current = arcadeSurface;
 
   useControllerTick(
     () => {
@@ -121,6 +128,10 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgePortRef = useRef<MessagePort | null>(null);
+  /** Snapshot of `ArcadeSurfaceRuntimeIdentity` at last successful bridge attach; used to drop stale forwards after a surface switch. */
+  const bridgeAttachedIdentityRef = useRef<ArcadeSurfaceRuntimeIdentity | null>(
+    null,
+  );
   const controllerSocketRef = useRef(controller.socket);
   const controllerSessionRef = useRef({
     roomId: controller.roomId,
@@ -130,9 +141,10 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     stateMessage: controller.stateMessage,
     players: controller.players,
   });
-  const controllerPresentationOrientation = activeUrl
-    ? controller.controllerOrientation
-    : "portrait";
+  const controllerPresentationOrientation =
+    activeUrl && arcadeSurface.kind === "game"
+      ? arcadeSurface.orientation
+      : "portrait";
   const controllerChromeInsetClass = !documentFullscreen
     ? activeUrl && controllerPresentationOrientation === "landscape"
       ? "pr-[env(safe-area-inset-right)]"
@@ -153,9 +165,19 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
       aj_room: controller.roomId,
       ...(self?.label ? { aj_player_label: self.label } : {}),
       ...(self?.avatarId ? { aj_player_avatar: self.avatarId } : {}),
+      ...(arcadeSurface.kind === "game"
+        ? arcadeSurfaceRuntimeUrlParams({
+            epoch: arcadeSurface.epoch,
+            kind: arcadeSurface.kind,
+            gameId: arcadeSurface.gameId,
+          })
+        : {}),
     });
   }, [
     activeUrl,
+    arcadeSurface.epoch,
+    arcadeSurface.gameId,
+    arcadeSurface.kind,
     controller.controllerId,
     controller.players,
     controller.roomId,
@@ -175,6 +197,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         roomId: controller.roomId,
         actionName,
         payload: null,
+        storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
       });
     },
     [controller.socket, controller.roomId],
@@ -195,6 +218,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     currentPort.onmessage = null;
     currentPort.close();
     bridgePortRef.current = null;
+    bridgeAttachedIdentityRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -224,6 +248,18 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         return;
       }
 
+      const attached = bridgeAttachedIdentityRef.current;
+      const surface = arcadeSurfaceRef.current;
+      const activeIdentity: ArcadeSurfaceRuntimeIdentity = {
+        epoch: surface.epoch,
+        kind: surface.kind,
+        gameId: surface.gameId,
+      };
+      if (embeddedBridgeForwardShouldClose(attached, activeIdentity)) {
+        closeBridge("arcade_surface_changed");
+        return;
+      }
+
       currentPort.postMessage({
         type: AIRJAM_CONTROLLER_BRIDGE_EVENT,
         payload: {
@@ -232,13 +268,21 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         },
       });
     },
-    [],
+    [closeBridge],
   );
 
   const attachBridgePort = useCallback(
     (port: MessagePort) => {
       closeBridge("replaced");
       bridgePortRef.current = port;
+      bridgeAttachedIdentityRef.current =
+        arcadeSurface.kind === "game"
+          ? {
+              epoch: arcadeSurface.epoch,
+              kind: arcadeSurface.kind,
+              gameId: arcadeSurface.gameId,
+            }
+          : null;
       port.start?.();
 
       port.onmessage = (event) => {
@@ -273,10 +317,19 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
             orientation: session.controllerOrientation,
             message: session.stateMessage,
           },
+          ...(arcadeSurface.kind === "game"
+            ? {
+                arcadeSurface: {
+                  epoch: arcadeSurface.epoch,
+                  kind: arcadeSurface.kind,
+                  gameId: arcadeSurface.gameId,
+                },
+              }
+            : {}),
         }),
       );
     },
-    [closeBridge],
+    [arcadeSurface.epoch, arcadeSurface.gameId, arcadeSurface.kind, closeBridge],
   );
 
   useEffect(() => {
@@ -325,6 +378,19 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         port.postMessage(
           createControllerBridgeCloseMessage(
             "Embedded controller bridge session mismatch.",
+          ),
+        );
+        port.close();
+        return;
+      }
+
+      const surface = arcadeSurfaceRef.current;
+      if (
+        shouldRejectControllerBridgeHandshake(surface, request.payload.arcadeSurface)
+      ) {
+        port.postMessage(
+          createControllerBridgeCloseMessage(
+            "Embedded controller bridge handshake rejected: arcade surface mismatch.",
           ),
         );
         port.close();

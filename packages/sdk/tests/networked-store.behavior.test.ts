@@ -7,8 +7,12 @@ import {
   resetAirJamDiagnosticsForTests,
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
-import { createAirJamStore } from "../src/store/create-air-jam-store";
-import type { AirJamActionContext } from "../src/store/create-air-jam-store";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  AIR_JAM_DEFAULT_STORE_DOMAIN,
+  createAirJamStore,
+  type AirJamActionContext,
+} from "../src/store/create-air-jam-store";
 
 type Role = "host" | "controller";
 
@@ -21,6 +25,8 @@ const mockedContext = vi.hoisted(() => {
       { id: "ctrl_1", label: "Player 1" },
       { id: "ctrl_2", label: "Player 2" },
     ],
+    hostReconnectAckPending: false,
+    hostArcadeSessionFromServer: null as null,
   };
 
   return {
@@ -146,6 +152,8 @@ describe("createAirJamStore networked behavior", () => {
       { id: "ctrl_1", label: "Player 1" },
       { id: "ctrl_2", label: "Player 2" },
     ];
+    mockedContext.state.hostReconnectAckPending = false;
+    mockedContext.state.hostArcadeSessionFromServer = null;
 
     mockedContext.useAirJamContext.mockReturnValue({
       getSocket: (role: Role) =>
@@ -181,6 +189,7 @@ describe("createAirJamStore networked behavior", () => {
       roomId: "ROOM1",
       actionName: "joinTeam",
       payload: { team: "red" },
+      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
     });
     expect(
       controllerSocket.emitted.some((call) => call.event === "controller:input"),
@@ -311,6 +320,7 @@ describe("createAirJamStore networked behavior", () => {
       roomId: "ROOM1",
       actionName: "joinTeam",
       payload: undefined,
+      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
     });
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining(
@@ -324,6 +334,104 @@ describe("createAirJamStore networked behavior", () => {
     unsubscribe();
   });
 
+  it("applies host state sync to controller after unloadUi (sync stays subscribed)", () => {
+    const useStore = createTestStore();
+    const phaseHook = renderHook(() => useStore((state) => state.phase));
+
+    expect(phaseHook.result.current).toBe("lobby");
+
+    act(() => {
+      controllerSocket.trigger("client:unloadUi");
+    });
+
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      });
+    });
+
+    expect(phaseHook.result.current).toBe("playing");
+
+    phaseHook.unmount();
+  });
+
+  it("emits host:state_sync on host mount so controllers can replay current snapshot", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const { unmount } = renderHook(() => useStore((state) => state.phase));
+
+    const syncCalls = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    );
+    expect(syncCalls.length).toBeGreaterThanOrEqual(1);
+    expect(syncCalls[0]?.args[0]).toEqual({
+      roomId: "ROOM1",
+      data: { phase: "lobby" },
+      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+    });
+
+    unmount();
+  });
+
+  it("emits host:state_sync again when player roster changes without a store mutation", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const { rerender, unmount } = renderHook(() =>
+      useStore((state) => state.phase),
+    );
+
+    const countAfterMount = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    ).length;
+
+    act(() => {
+      mockedContext.state.players = [
+        ...mockedContext.state.players,
+        { id: "ctrl_new", label: "New" },
+      ];
+      rerender();
+    });
+
+    const countAfterRoster = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    ).length;
+
+    expect(countAfterRoster).toBeGreaterThan(countAfterMount);
+
+    unmount();
+  });
+
+  it("emits host:state_sync on server:controllerJoined when roster ids are unchanged (same-controller reconnect)", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const { unmount } = renderHook(() => useStore((state) => state.phase));
+
+    const countBefore = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    ).length;
+
+    act(() => {
+      hostSocket.trigger("server:controllerJoined", {
+        controllerId: "ctrl_1",
+        nickname: "Player 1",
+        player: { id: "ctrl_1", label: "Player 1" },
+      });
+    });
+
+    const countAfter = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    ).length;
+
+    expect(countAfter).toBeGreaterThan(countBefore);
+
+    unmount();
+  });
+
   it("applies host state sync payload to controller state", () => {
     const useStore = createTestStore();
     const { result, unmount } = renderHook(() => useStore((state) => state.phase));
@@ -334,12 +442,77 @@ describe("createAirJamStore networked behavior", () => {
       controllerSocket.trigger("airjam:state_sync", {
         roomId: "ROOM1",
         data: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
       });
     });
 
     expect(result.current).toBe("playing");
 
     unmount();
+  });
+
+  it("ignores controller state sync when storeDomain does not match", () => {
+    const useStore = createTestStore();
+    const phaseHook = renderHook(() => useStore((state) => state.phase));
+
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "playing" },
+        storeDomain: "arcade.surface",
+      });
+    });
+
+    expect(phaseHook.result.current).toBe("lobby");
+
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      });
+    });
+
+    expect(phaseHook.result.current).toBe("playing");
+
+    phaseHook.unmount();
+  });
+
+  it("ignores host action RPC when storeDomain does not match", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const phaseHook = renderHook(() => useStore((state) => state.phase));
+
+    act(() => {
+      hostSocket.trigger("airjam:action_rpc", {
+        actionName: "setPhase",
+        payload: { phase: "playing" },
+        storeDomain: "arcade.surface",
+        actor: {
+          id: "ctrl_remote",
+          role: "controller",
+        },
+      });
+    });
+
+    expect(phaseHook.result.current).toBe("lobby");
+
+    act(() => {
+      hostSocket.trigger("airjam:action_rpc", {
+        actionName: "setPhase",
+        payload: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        actor: {
+          id: "ctrl_remote",
+          role: "controller",
+        },
+      });
+    });
+
+    expect(phaseHook.result.current).toBe("playing");
+
+    phaseHook.unmount();
   });
 
   it("executes host-side action RPCs and ignores internal action names", () => {
@@ -357,6 +530,7 @@ describe("createAirJamStore networked behavior", () => {
       hostSocket.trigger("airjam:action_rpc", {
         actionName: "setPhase",
         payload: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
         actor: {
           id: "ctrl_remote",
           role: "controller",
@@ -373,6 +547,7 @@ describe("createAirJamStore networked behavior", () => {
       hostSocket.trigger("airjam:action_rpc", {
         actionName: "_syncState",
         payload: { phase: "hacked" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
         actor: {
           id: "ctrl_remote",
           role: "controller",
@@ -414,5 +589,55 @@ describe("createAirJamStore networked behavior", () => {
     actorHook.unmount();
     roleHook.unmount();
     connectedIdsHook.unmount();
+  });
+
+  it("suppresses arcade.shell host:state_sync while reconnect ack is pending, then emits when cleared", () => {
+    mockedContext.state.role = "host";
+    mockedContext.state.hostReconnectAckPending = true;
+
+    const useArcadeShellStore = createAirJamStore<TestStoreState>(
+      (set) => ({
+        phase: "lobby",
+        lastActor: undefined,
+        lastRole: undefined,
+        actions: {
+          joinTeam: (ctx, { team }) =>
+            set({
+              phase: team,
+              lastActor: ctx.actorId,
+              lastRole: ctx.role,
+              lastConnectedPlayerIds: ctx.connectedPlayerIds,
+            }),
+          setPhase: (ctx, { phase }) =>
+            set({
+              phase,
+              lastActor: ctx.actorId,
+              lastRole: ctx.role,
+              lastConnectedPlayerIds: ctx.connectedPlayerIds,
+            }),
+        },
+      }),
+      { storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN },
+    );
+
+    hostSocket.emitted.length = 0;
+
+    const { rerender } = renderHook(() => useArcadeShellStore());
+
+    const syncWhilePending = hostSocket.emitted.filter(
+      (c) => c.event === "host:state_sync",
+    );
+    expect(syncWhilePending.length).toBe(0);
+
+    mockedContext.state.hostReconnectAckPending = false;
+    rerender();
+
+    const syncAfterClear = hostSocket.emitted.filter(
+      (c) => c.event === "host:state_sync",
+    );
+    expect(syncAfterClear.length).toBeGreaterThan(0);
+    expect(
+      (syncAfterClear[0]?.args[0] as { storeDomain?: string })?.storeDomain,
+    ).toBe(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN);
   });
 });

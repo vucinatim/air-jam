@@ -9,6 +9,12 @@
  * - Input handling (typed and behavior-aware controller input)
  * - Signaling (send haptic feedback, toast notifications to controllers)
  * - Game state management (pause/play, broadcast state)
+ *
+ * **Standalone (default):** creates or reconnects a room from session storage / options.
+ *
+ * **Embedded child host:** when `aj_room` + `aj_token` are present, the hook binds to that
+ * room and skips create-room; resolution is centralized in
+ * {@link ../runtime/embedded-runtime-adapters.readEmbeddedHostChildSession}.
  */
 import type { z } from "zod";
 import type {

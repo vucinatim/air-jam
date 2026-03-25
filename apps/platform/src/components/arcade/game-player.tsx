@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  embeddedBridgeForwardShouldClose,
+  shouldRejectHostBridgeHandshake,
+} from "@/components/arcade/embedded-bridge-surface-guard";
 import { cn } from "@/lib/utils";
 import {
   AIRJAM_HOST_BRIDGE_EVENT,
@@ -16,6 +20,7 @@ import {
   type ControllerStateMessage,
   type HostLeftNotice,
   type HostRegistrationAck,
+  type ArcadeSurfaceRuntimeIdentity,
   type HostBridgeServerEventName,
   type PlaySoundPayload,
   type PlayerProfile,
@@ -49,6 +54,8 @@ interface GamePlayerProps {
   players: PlayerProfile[];
   gameState: "paused" | "playing";
   isVisible: boolean;
+  /** Carried on host bridge attach for embedded runtime epoch alignment. */
+  arcadeSurfaceRuntimeIdentity?: ArcadeSurfaceRuntimeIdentity;
   onExit: () => void;
   /** Whether to show the default exit button overlay */
   showExitOverlay?: boolean;
@@ -68,12 +75,16 @@ export const GamePlayer = ({
   players,
   gameState,
   isVisible,
+  arcadeSurfaceRuntimeIdentity,
   onExit,
   showExitOverlay = false,
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const settingsBridgePortRef = useRef<MessagePort | null>(null);
   const hostBridgePortRef = useRef<MessagePort | null>(null);
+  /** Identity frozen at last host bridge attach; drop forwards if parent surface drifts first. */
+  const hostBridgeAttachedIdentityRef =
+    useRef<ArcadeSurfaceRuntimeIdentity | null>(null);
   const hostSocketRef = useRef(hostSocket);
   const hostBridgeStateRef = useRef({
     roomId,
@@ -81,7 +92,12 @@ export const GamePlayer = ({
     players,
     gameState,
   });
+  const arcadeIdentityRef = useRef(arcadeSurfaceRuntimeIdentity);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  useEffect(() => {
+    arcadeIdentityRef.current = arcadeSurfaceRuntimeIdentity;
+  }, [arcadeSurfaceRuntimeIdentity]);
 
   // Subscribe to volume settings from the arcade overlay
   const { masterVolume, musicVolume, sfxVolume } = useVolumeStore();
@@ -91,6 +107,7 @@ export const GamePlayer = ({
     roomId,
     joinToken,
     joinUrl,
+    arcadeSurface: arcadeSurfaceRuntimeIdentity,
   });
   const iframeTargetOrigin = getRuntimeUrlOrigin(normalizedUrl);
 
@@ -202,12 +219,14 @@ export const GamePlayer = ({
     currentPort.onmessage = null;
     currentPort.close();
     hostBridgePortRef.current = null;
+    hostBridgeAttachedIdentityRef.current = null;
   }, []);
 
   const attachHostBridgePort = useCallback(
     (port: MessagePort) => {
       closeHostBridge("replaced");
       hostBridgePortRef.current = port;
+      hostBridgeAttachedIdentityRef.current = arcadeSurfaceRuntimeIdentity ?? null;
       port.start?.();
 
       port.onmessage = (event) => {
@@ -238,16 +257,26 @@ export const GamePlayer = ({
           state: {
             gameState: state.gameState,
           },
+          ...(arcadeSurfaceRuntimeIdentity
+            ? { arcadeSurface: arcadeSurfaceRuntimeIdentity }
+            : {}),
         }),
       );
     },
-    [closeHostBridge],
+    [arcadeSurfaceRuntimeIdentity, closeHostBridge],
   );
 
   const forwardHostBridgeEvent = useCallback(
     (eventName: HostBridgeServerEventName, ...args: unknown[]) => {
       const currentPort = hostBridgePortRef.current;
       if (!currentPort) {
+        return;
+      }
+
+      const attached = hostBridgeAttachedIdentityRef.current;
+      const active = arcadeIdentityRef.current;
+      if (embeddedBridgeForwardShouldClose(attached, active)) {
+        closeHostBridge("arcade_surface_changed");
         return;
       }
 
@@ -261,7 +290,7 @@ export const GamePlayer = ({
         },
       );
     },
-    [],
+    [closeHostBridge],
   );
 
   useEffect(() => {
@@ -300,6 +329,21 @@ export const GamePlayer = ({
       ) {
         port.postMessage(
           createHostBridgeCloseMessage("Embedded host bridge session mismatch."),
+        );
+        port.close();
+        return;
+      }
+
+      if (
+        shouldRejectHostBridgeHandshake(
+          arcadeIdentityRef.current,
+          request.payload.arcadeSurface,
+        )
+      ) {
+        port.postMessage(
+          createHostBridgeCloseMessage(
+            "Embedded host bridge handshake rejected: arcade surface mismatch.",
+          ),
         );
         port.close();
         return;

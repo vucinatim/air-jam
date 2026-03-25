@@ -20,12 +20,14 @@ import {
   beginChildHostActivation,
   beginGameLaunch,
   beginRoomClosing,
+  buildArcadeSessionForHostAck,
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
   getRoomLifecyclePhase,
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
+import type { HostArcadeSessionSnapshot } from "@air-jam/sdk/protocol";
 import type { RoomSession } from "../../types.js";
 import { generateRoomCode } from "../../utils/ids.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
@@ -35,6 +37,7 @@ type HostAck = {
   roomId?: string;
   message?: string;
   code?: ErrorCode | string;
+  arcadeSession?: HostArcadeSessionSnapshot;
 };
 
 export const registerHostLifecycleHandlers = (
@@ -258,7 +261,11 @@ export const registerHostLifecycleHandlers = (
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
-        callback({ ok: true, roomId });
+        callback({
+          ok: true,
+          roomId,
+          arcadeSession: buildArcadeSessionForHostAck(session),
+        });
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {
         callback({
@@ -283,7 +290,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const { roomId, gameUrl } = parsed.data;
+      const { roomId, gameUrl, gameId } = parsed.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
         callback({
@@ -338,7 +345,7 @@ export const registerHostLifecycleHandlers = (
       }
 
       const joinToken = uuidv4();
-      const transitionResult = beginGameLaunch(session, joinToken, gameUrl);
+      const transitionResult = beginGameLaunch(session, joinToken, gameUrl, gameId);
       if (!transitionResult.ok) {
         callback({
           ok: false,

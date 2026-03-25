@@ -3,20 +3,27 @@
 import { arcadeInputSchema } from "@/lib/airjam-session-config";
 import { cn } from "@/lib/utils";
 import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   type AirJamActionRpcPayload,
+  airJamArcadePlatformActions,
   normalizeRuntimeUrl,
   type SystemLaunchGameAck,
   urlBuilder,
   useAirJamHost,
   useHostTick,
 } from "@air-jam/sdk";
+import { useAirJamState } from "@air-jam/sdk/context/air-jam-context";
+import type { AirJamStore } from "@air-jam/sdk/state/connection-store";
 import { RoomQrCode } from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
+import { useArcadeSurfaceStore } from "./arcade-surface-store";
 import {
   EXIT_COOLDOWN_MS,
+  getAutoLaunchRequestKey,
   shouldAutoLaunchGame,
   useArcadeRuntimeManager,
 } from "./arcade-runtime-manager";
@@ -34,10 +41,9 @@ const getGridColumns = (): number => {
 export type ArcadeGame = GamePlayerGame & { slug?: string | null };
 
 type ArcadeMode = "arcade" | "preview";
-const ARCADE_ACTION_TOGGLE_QR = "airjam.arcade.toggle_qr";
-const ARCADE_ACTION_SHOW_QR = "airjam.arcade.show_qr";
-const ARCADE_ACTION_HIDE_QR = "airjam.arcade.hide_qr";
-const ARCADE_ACTION_EXIT_GAME = "airjam.arcade.exit_game";
+type ArcadeHostRouteIntent =
+  | { kind: "browser" }
+  | { kind: "game"; gameId: string | null };
 
 /** Pixel size for the join QR in the full-screen overlay (below arcade chrome). */
 const ARCADE_QR_OVERLAY_SIZE = 260;
@@ -52,10 +58,17 @@ const ARCADE_QR_OVERLAY_MOTION_TRANSITION = {
 
 interface ArcadeSystemProps {
   games: ArcadeGame[];
+  /**
+   * When false, the public game catalog is still loading — do not drop
+   * `hostArcadeSessionFromServer` during hydration; apply once the matching game entry exists.
+   */
+  gamesCatalogReady?: boolean;
   /** The mode determines the UI behavior */
   mode?: ArcadeMode;
   /** Initial game ID to select (used for auto-launch) */
   initialGameId?: string;
+  /** Host URL intent on boot/reconnect: bare `/arcade` means browser; `/arcade/[slug]` means target that game. */
+  hostRouteIntent?: ArcadeHostRouteIntent;
   /** Auto-launch the initial game when connected */
   autoLaunch?: boolean;
   /** Custom header content for the browser view */
@@ -78,8 +91,10 @@ interface ArcadeSystemProps {
  */
 export const ArcadeSystem = ({
   games,
+  gamesCatalogReady = true,
   mode = "arcade",
   initialGameId,
+  hostRouteIntent = { kind: "browser" },
   autoLaunch = false,
   header,
   showGameExitOverlay = false,
@@ -104,7 +119,7 @@ export const ArcadeSystem = ({
     completeLaunch,
     failLaunch,
     exitGame: resetRuntimeAfterExit,
-    markAutoLaunched,
+    consumeAutoLaunch,
   } = runtime;
 
   // Ref for launch callback (used in input loop)
@@ -116,8 +131,26 @@ export const ArcadeSystem = ({
     new Map(),
   );
   const lastArcadeInputLogTimeRef = useRef(0);
-  const [qrVisible, setQrVisible] = useState(true);
+  /** Scroll position for chrome styling only; not part of surface authority. */
   const [browserListAtTop, setBrowserListAtTop] = useState(true);
+
+  const qrVisible = useArcadeSurfaceStore((s) => s.overlay === "qr");
+  const surfaceKind = useArcadeSurfaceStore((s) => s.kind);
+  const arcadeSurfaceRuntimeIdentity = useArcadeSurfaceStore(
+    useShallow((s) => ({
+      epoch: s.epoch,
+      kind: s.kind,
+      gameId: s.gameId,
+    })),
+  );
+  const surfaceActions = useArcadeSurfaceStore.useActions();
+  const lastRoomIdForSurfaceRef = useRef<string | null>(null);
+  const hostArcadeSessionFromServer = useAirJamState(
+    (s: AirJamStore) => s.hostArcadeSessionFromServer,
+  );
+  const setHostArcadeSessionFromServer = useAirJamState(
+    (s: AirJamStore) => s.setHostArcadeSessionFromServer,
+  );
 
   const host = useAirJamHost<typeof arcadeInputSchema>({
     onPlayerJoin: () => {
@@ -134,21 +167,132 @@ export const ArcadeSystem = ({
   }, [host.joinUrl, host.roomId]);
 
   const joinQrStatus = host.joinUrlStatus;
+  const autoLaunchRequestKey = useMemo(
+    () => getAutoLaunchRequestKey({ mode, autoLaunch, initialGameId }),
+    [mode, autoLaunch, initialGameId],
+  );
+
+  useEffect(() => {
+    if (!host.roomId || !host.socket?.connected) {
+      return;
+    }
+    if (lastRoomIdForSurfaceRef.current === host.roomId) {
+      return;
+    }
+
+    const previousRoomId = lastRoomIdForSurfaceRef.current;
+    lastRoomIdForSurfaceRef.current = host.roomId;
+
+    if (previousRoomId !== null && previousRoomId !== host.roomId) {
+      surfaceActions.resetHostSurfaceForMode({ mode });
+      return;
+    }
+
+    if (hostArcadeSessionFromServer) {
+      return;
+    }
+
+    surfaceActions.resetHostSurfaceForMode({ mode });
+  }, [
+    host.roomId,
+    host.socket?.connected,
+    mode,
+    surfaceActions,
+    hostArcadeSessionFromServer,
+  ]);
+
+  useEffect(() => {
+    if (!host.roomId || !host.socket?.connected) {
+      return;
+    }
+    if (!hostArcadeSessionFromServer) {
+      return;
+    }
+
+    const snap = hostArcadeSessionFromServer;
+
+    if (hostRouteIntent.kind === "browser") {
+      host.socket.emit("system:closeGame", { roomId: host.roomId });
+      setHostArcadeSessionFromServer(null);
+      return;
+    }
+
+    if (hostRouteIntent.kind === "game" && hostRouteIntent.gameId) {
+      if (snap.gameId !== hostRouteIntent.gameId) {
+        host.socket.emit("system:closeGame", { roomId: host.roomId });
+        setHostArcadeSessionFromServer(null);
+        return;
+      }
+    }
+
+    const game = games.find((g) => g.id === snap.gameId) ?? null;
+
+    if (!game) {
+      if (!gamesCatalogReady) {
+        return;
+      }
+      setHostArcadeSessionFromServer(null);
+      return;
+    }
+
+    const normalizedHostUrl = normalizeRuntimeUrl(game.url);
+    if (!normalizedHostUrl) {
+      setHostArcadeSessionFromServer(null);
+      return;
+    }
+
+    surfaceActions.setGameSurface({
+      gameId: game.id,
+      controllerUrl: snap.controllerUrl,
+      orientation: "landscape",
+    });
+    surfaceActions.setOverlay({ overlay: "hidden" });
+
+    completeLaunch({
+      gameId: game.id,
+      normalizedGameUrl: normalizedHostUrl,
+      joinToken: snap.joinToken,
+    });
+
+    const idx = games.findIndex((g) => g.id === game.id);
+    if (idx >= 0) {
+      setSelectedIndex(idx);
+    }
+
+    if (mode === "arcade" && typeof window !== "undefined") {
+      const gameSlugOrId = game.slug || game.id;
+      window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
+    }
+
+    setHostArcadeSessionFromServer(null);
+  }, [
+    host.roomId,
+    host.socket?.connected,
+    hostArcadeSessionFromServer,
+    hostRouteIntent,
+    games,
+    gamesCatalogReady,
+    mode,
+    completeLaunch,
+    surfaceActions,
+    setHostArcadeSessionFromServer,
+    setSelectedIndex,
+  ]);
 
   const broadcastCurrentState = useCallback(() => {
     if (!games || games.length === 0) return;
     const currentGame = games[state.selectedIndex];
 
-    if (state.view === "browser") {
+    if (surfaceKind === "browser") {
       host.sendState({
         message: currentGame ? currentGame.name : undefined,
       });
-    } else if (state.view === "game" && activeGame) {
+    } else if (surfaceKind === "game" && activeGame) {
       host.sendState({
         message: activeGame.name,
       });
     }
-  }, [games, state.selectedIndex, state.view, host, activeGame]);
+  }, [games, state.selectedIndex, surfaceKind, host, activeGame]);
 
   // Canonical host polling loop for browser navigation.
   useHostTick(
@@ -200,8 +344,8 @@ export const ArcadeSystem = ({
       enabled:
         !!host.getInput &&
         games.length > 0 &&
-        state.view === "browser" &&
-        !activeGame,
+        mode === "arcade" &&
+        surfaceKind === "browser",
       mode: "interval",
       intervalMs: 16,
     },
@@ -255,7 +399,12 @@ export const ArcadeSystem = ({
         (ack: SystemLaunchGameAck) => {
           if (ack.ok && ack.joinToken) {
             console.log("[Arcade] Game launch successful");
-            setQrVisible(false);
+            surfaceActions.setGameSurface({
+              gameId: game.id,
+              controllerUrl: controllerUrl,
+              orientation: "landscape",
+            });
+            surfaceActions.setOverlay({ overlay: "hidden" });
             completeLaunch({
               gameId: game.id,
               joinToken: ack.joinToken,
@@ -284,6 +433,7 @@ export const ArcadeSystem = ({
       stateRef,
       completeLaunch,
       failLaunch,
+      surfaceActions,
     ],
   );
 
@@ -299,26 +449,32 @@ export const ArcadeSystem = ({
       window.history.replaceState(null, "", "/arcade");
     }
 
-    setQrVisible(true);
+    surfaceActions.setBrowserSurface();
+    surfaceActions.setOverlay({
+      overlay: mode === "arcade" ? "qr" : "hidden",
+    });
     resetRuntimeAfterExit();
 
     console.log("[Arcade] Game exit complete, state cleared");
-  }, [host.socket, host.roomId, mode, resetRuntimeAfterExit]);
+  }, [host.socket, host.roomId, mode, resetRuntimeAfterExit, surfaceActions]);
 
   const handleArcadeAction = useCallback(
     (event: AirJamActionRpcPayload) => {
+      if (event.storeDomain !== AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN) {
+        return;
+      }
       switch (event.actionName) {
-        case ARCADE_ACTION_TOGGLE_QR:
-          setQrVisible((current) => !current);
+        case airJamArcadePlatformActions.toggleQr:
+          surfaceActions.toggleQrOverlay();
           return;
-        case ARCADE_ACTION_SHOW_QR:
-          setQrVisible(true);
+        case airJamArcadePlatformActions.showQr:
+          surfaceActions.setOverlay({ overlay: "qr" });
           return;
-        case ARCADE_ACTION_HIDE_QR:
-          setQrVisible(false);
+        case airJamArcadePlatformActions.hideQr:
+          surfaceActions.setOverlay({ overlay: "hidden" });
           return;
-        case ARCADE_ACTION_EXIT_GAME:
-          if (stateRef.current.view === "game") {
+        case airJamArcadePlatformActions.exitGame:
+          if (surfaceKind === "game") {
             exitGame();
           }
           return;
@@ -326,7 +482,7 @@ export const ArcadeSystem = ({
           return;
       }
     },
-    [exitGame, stateRef],
+    [exitGame, surfaceKind, surfaceActions],
   );
 
   useEffect(() => {
@@ -361,12 +517,11 @@ export const ArcadeSystem = ({
   useEffect(() => {
     if (
       !shouldAutoLaunchGame({
-        mode,
-        autoLaunch,
-        hasAutoLaunched: state.hasAutoLaunched,
+        autoLaunchRequestKey,
+        consumedAutoLaunchRequestKey: state.consumedAutoLaunchRequestKey,
         isConnected: !!host.socket?.connected,
         roomId: host.roomId,
-        hasActiveGame: !!activeGame,
+        surfaceKind,
         isLaunching: state.isLaunching,
         hasJoinToken: !!state.joinToken,
         gamesLength: games.length,
@@ -382,6 +537,9 @@ export const ArcadeSystem = ({
     if (!gameToLaunch) {
       return;
     }
+    if (!autoLaunchRequestKey) {
+      return;
+    }
 
     console.log(
       "[Arcade] Auto-launching game:",
@@ -390,30 +548,29 @@ export const ArcadeSystem = ({
       host.roomId,
     );
 
-    markAutoLaunched();
+    consumeAutoLaunch(autoLaunchRequestKey);
     // Use queueMicrotask to avoid synchronous setState in effect warning
     queueMicrotask(() => {
       launchGameRef.current(gameToLaunch);
     });
   }, [
-    mode,
-    autoLaunch,
+    autoLaunchRequestKey,
     initialGameId,
-    state.hasAutoLaunched,
+    state.consumedAutoLaunchRequestKey,
     state.isLaunching,
     state.joinToken,
     host.socket?.connected,
     host.roomId,
     games,
-    activeGame,
-    markAutoLaunched,
+    surfaceKind,
+    consumeAutoLaunch,
   ]);
 
   // Broadcast state whenever relevant things change
   useEffect(() => {
     broadcastCurrentState();
   }, [
-    state.view,
+    surfaceKind,
     state.selectedIndex,
     games,
     host.connectionStatus,
@@ -427,8 +584,8 @@ export const ArcadeSystem = ({
     }
   }, [host.players.length, broadcastCurrentState]);
 
-  // Loading state
-  if (!games) {
+  // Loading state: catalog fetch in progress (or legacy undefined games)
+  if (!gamesCatalogReady || !games) {
     return (
       <div
         className={cn(
@@ -441,10 +598,10 @@ export const ArcadeSystem = ({
     );
   }
 
-  const isBrowserChromeVisible = showChrome && state.view === "browser";
+  const isBrowserChromeVisible = showChrome && surfaceKind === "browser";
 
-  // Preview mode: show loading while launching
-  if (mode === "preview" && !activeGame && !state.joinToken) {
+  // Preview mode: show loading until surface is game with a join token (launch + hydration)
+  if (mode === "preview" && surfaceKind === "browser" && !state.joinToken) {
     return (
       <div
         className={cn(
@@ -504,7 +661,7 @@ export const ArcadeSystem = ({
             players={host.players}
             connectionStatus={host.connectionStatus}
             qrVisible={qrVisible}
-            onToggleQr={() => setQrVisible((current) => !current)}
+            onToggleQr={() => surfaceActions.toggleQrOverlay()}
             listAtTop={browserListAtTop}
             className="absolute top-0 right-0 left-0 z-60"
           />
@@ -531,7 +688,7 @@ export const ArcadeSystem = ({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -14 }}
               transition={ARCADE_QR_OVERLAY_MOTION_TRANSITION}
-              onClick={() => setQrVisible(false)}
+              onClick={() => surfaceActions.setOverlay({ overlay: "hidden" })}
             >
               <div
                 className="flex cursor-default flex-col items-center gap-6"
@@ -598,7 +755,7 @@ export const ArcadeSystem = ({
             <GameBrowser
               games={games}
               selectedIndex={state.selectedIndex}
-              isVisible={state.view === "browser"}
+              isVisible={surfaceKind === "browser"}
               onSelectGame={(game, idx) => {
                 setSelectedIndex(idx);
                 launchGame(game);
@@ -609,8 +766,8 @@ export const ArcadeSystem = ({
           )}
         </div>
 
-        {/* Game View */}
-        {activeGame && state.joinToken && (
+        {/* Game View — surface kind is authoritative for shell; runtime holds iframe credentials */}
+        {surfaceKind === "game" && activeGame && state.joinToken && (
           <GamePlayer
             game={activeGame}
             normalizedUrl={state.normalizedGameUrl}
@@ -620,7 +777,8 @@ export const ArcadeSystem = ({
             hostSocket={host.socket}
             players={host.players}
             gameState={host.gameState}
-            isVisible={state.view === "game"}
+            isVisible={surfaceKind === "game"}
+            arcadeSurfaceRuntimeIdentity={arcadeSurfaceRuntimeIdentity}
             onExit={exitGame}
             showExitOverlay={showGameExitOverlay}
           />

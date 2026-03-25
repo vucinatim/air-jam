@@ -13,9 +13,20 @@ import {
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
+import { resolveImplicitReplicatedStoreDomainFromWindow } from "../runtime/arcade-runtime-url";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  AIR_JAM_DEFAULT_STORE_DOMAIN,
+} from "./air-jam-store-domain-constants";
+
+export { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN, AIR_JAM_DEFAULT_STORE_DOMAIN };
 
 const INTERNAL_ACTION_PREFIX = "_";
 const UNRESOLVED_ACTOR_ID = "unknown";
+
+export interface CreateAirJamStoreOptions {
+  storeDomain?: string;
+}
 
 const isEventLikePayload = (payload: unknown): boolean => {
   if (payload === null || typeof payload !== "object") {
@@ -89,10 +100,17 @@ const toActionContext = (
  * Host is the source of truth:
  * - Host broadcasts state updates to all controllers.
  * - Controllers invoke actions through RPC to host.
+ *
+ * `storeDomain` isolates sync and action RPC so multiple replicated stores can coexist in one room
+ * (e.g. arcade shell vs running game). When omitted, resolves from the runtime URL: explicit
+ * `aj_store_domain`, else embedded Arcade identity (`aj_arcade_*`), else the default domain.
  */
 export function createAirJamStore<
   T extends AirJamNetworkedState,
->(initializer: StateCreator<T>): AirJamSyncedStoreHook<T> {
+>(
+  initializer: StateCreator<T>,
+  options?: CreateAirJamStoreOptions,
+): AirJamSyncedStoreHook<T> {
   const store = create<T>((set, get, api) => initializer(set, get, api));
 
   // Track whether game UI is unloaded to block stale controller actions.
@@ -103,12 +121,35 @@ export function createAirJamStore<
   ): U => {
     const slice = store(selector);
 
+    const explicitDomain = options?.storeDomain;
+    let resolvedStoreDomain: string;
+    if (typeof explicitDomain === "string" && explicitDomain.trim().length > 0) {
+      const trimmed = explicitDomain.trim();
+      resolvedStoreDomain =
+        trimmed.length > 128 ? trimmed.slice(0, 128) : trimmed;
+    } else {
+      resolvedStoreDomain = resolveImplicitReplicatedStoreDomainFromWindow();
+    }
+
     const { getSocket } = useAirJamContext();
     const role = useAirJamState((state) => state.role);
     const roomId = useAirJamState((state) => state.roomId);
     const players = useAirJamState((state) => state.players);
+    const hostReconnectAckPending = useAirJamState(
+      (state) => state.hostReconnectAckPending,
+    );
+    const hostArcadeSessionFromServer = useAirJamState(
+      (state) => state.hostArcadeSessionFromServer,
+    );
+    const blockArcadeShellHostBroadcast =
+      resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN &&
+      (hostReconnectAckPending || hostArcadeSessionFromServer != null);
     const connectedPlayerIds = useMemo(
       () => Array.from(new Set(players.map((player) => player.id))).sort(),
+      [players],
+    );
+    const playerRosterKey = useMemo(
+      () => players.map((player) => player.id).sort().join(","),
       [players],
     );
     const socket: AirJamRealtimeClient =
@@ -131,12 +172,34 @@ export function createAirJamStore<
       }
 
       if (role === "host") {
+        const flushHostStateSync = (): void => {
+          if (blockArcadeShellHostBroadcast) {
+            return;
+          }
+          const stateData = stripActionsFromState(store.getState());
+          socket.emit("host:state_sync", {
+            roomId,
+            data: stateData,
+            storeDomain: resolvedStoreDomain,
+          });
+        };
+
         const unsubscribe = store.subscribe((newState) => {
+          if (blockArcadeShellHostBroadcast) {
+            return;
+          }
           const { actions, ...stateData } = newState;
-          socket.emit("host:state_sync", { roomId, data: stateData });
+          socket.emit("host:state_sync", {
+            roomId,
+            data: stateData,
+            storeDomain: resolvedStoreDomain,
+          });
         });
 
         const handleAction = (payload: AirJamActionRpcPayload) => {
+          if (payload.storeDomain !== resolvedStoreDomain) {
+            return;
+          }
           const { actionName } = payload;
           if (isInternalActionName(actionName)) {
             return;
@@ -151,10 +214,12 @@ export function createAirJamStore<
           }
         };
 
+        socket.on("server:controllerJoined", flushHostStateSync);
         socket.on("airjam:action_rpc", handleAction);
 
         return () => {
           unsubscribe();
+          socket.off("server:controllerJoined", flushHostStateSync);
           socket.off("airjam:action_rpc", handleAction);
         };
       }
@@ -163,13 +228,15 @@ export function createAirJamStore<
         gameUiUnloadedRef.current = false;
 
         const handleSync = (payload: AirJamStateSyncPayload) => {
+          if (payload.storeDomain !== resolvedStoreDomain) {
+            return;
+          }
           const stateData = stripActionsFromState(payload.data as Partial<T>);
           store.setState(stateData);
         };
 
         const handleUnloadUi = () => {
           gameUiUnloadedRef.current = true;
-          socket.off("airjam:state_sync", handleSync);
         };
 
         const handleLoadUi = () => {
@@ -192,7 +259,37 @@ export function createAirJamStore<
           socket.off("disconnect", handleDisconnect);
         };
       }
-    }, [socket, role, roomId, socket?.id]);
+    }, [
+      socket,
+      role,
+      roomId,
+      socket?.id,
+      resolvedStoreDomain,
+      blockArcadeShellHostBroadcast,
+    ]);
+
+    useEffect(() => {
+      if (role !== "host" || !socket || !roomId) {
+        return;
+      }
+      if (blockArcadeShellHostBroadcast) {
+        return;
+      }
+      const stateData = stripActionsFromState(store.getState());
+      socket.emit("host:state_sync", {
+        roomId,
+        data: stateData,
+        storeDomain: resolvedStoreDomain,
+      });
+    }, [
+      role,
+      socket,
+      roomId,
+      socket?.id,
+      playerRosterKey,
+      resolvedStoreDomain,
+      blockArcadeShellHostBroadcast,
+    ]);
 
     const dispatchedActions = useMemo<AirJamActionDispatchMap<T["actions"]>>(() => {
       const sourceActions = store.getState().actions;
@@ -278,12 +375,13 @@ export function createAirJamStore<
             roomId,
             actionName,
             payload: normalizedPayload,
+            storeDomain: resolvedStoreDomain,
           });
         };
       }
 
       return actionDispatch;
-    }, [role, roomId]);
+    }, [role, roomId, resolvedStoreDomain]);
 
     const stateActions = store.getState().actions;
 

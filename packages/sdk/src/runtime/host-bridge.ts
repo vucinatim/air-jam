@@ -16,6 +16,10 @@ import type {
   SignalPayload,
 } from "../protocol";
 import type { PlayerUpdatedNotice } from "../protocol/notices";
+import {
+  arcadeSurfaceRuntimeIdentitySchema,
+  type ArcadeSurfaceRuntimeIdentity,
+} from "./arcade-surface-identity";
 import { createBridgeHandshake } from "./iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "./sdk-version";
 
@@ -81,6 +85,8 @@ export interface HostBridgeSnapshot {
   socketId?: string;
   players: ControllerJoinedNotice[];
   state?: ControllerStateMessage["state"];
+  /** Present when the platform shell attaches the embedded host runtime to a game surface. */
+  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
 }
 
 export interface HostBridgeRequestMessage {
@@ -89,6 +95,7 @@ export interface HostBridgeRequestMessage {
     handshake: V2Handshake;
     roomId: RoomCode;
     joinToken: string;
+    arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
   };
 }
 
@@ -131,6 +138,7 @@ const hostBridgeRequestSchema = z
         handshake: v2HandshakeSchema,
         roomId: z.string().min(1),
         joinToken: z.string().min(1),
+        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
       })
       .strict(),
   })
@@ -150,6 +158,7 @@ const hostBridgeAttachSchema = z
             socketId: z.string().optional(),
             players: z.array(z.unknown()),
             state: z.unknown().optional(),
+            arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
           })
           .strict(),
       })
@@ -195,6 +204,7 @@ const hostBridgeCloseSchema = z
 export const createHostBridgeRequestMessage = (payload: {
   roomId: RoomCode;
   joinToken: string;
+  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
 }): HostBridgeRequestMessage => ({
   type: AIRJAM_HOST_BRIDGE_REQUEST,
   payload: {
@@ -207,6 +217,7 @@ export const createHostBridgeRequestMessage = (payload: {
     }),
     roomId: payload.roomId,
     joinToken: payload.joinToken,
+    ...(payload.arcadeSurface ? { arcadeSurface: payload.arcadeSurface } : {}),
   },
 });
 

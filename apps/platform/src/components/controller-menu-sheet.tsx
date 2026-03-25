@@ -16,6 +16,7 @@ import { CONTROLLER_AVATAR_PRESETS } from "@/lib/controller-profile-presets";
 import { parseRoomFromQrText } from "@/lib/parse-room-from-qr-text";
 import { cn } from "@/lib/utils";
 import {
+  airJamArcadePlatformActions,
   useAirJamController,
   type ControllerOrientation,
   type DocumentWithFullscreen,
@@ -300,7 +301,7 @@ export function ControllerMenuSheet({
           variant="outline"
           size="icon"
           onClick={() => {
-            emitArcadeAction("airjam.arcade.toggle_qr");
+            emitArcadeAction(airJamArcadePlatformActions.toggleQr);
             setOverlayOpen(false);
           }}
           aria-label="Toggle host join QR"
@@ -403,7 +404,7 @@ export function ControllerMenuSheet({
           variant="outline"
           size="icon"
           className="bg-background/50 pointer-events-auto backdrop-blur-sm"
-          onClick={() => emitArcadeAction("airjam.arcade.toggle_qr")}
+          onClick={() => emitArcadeAction(airJamArcadePlatformActions.toggleQr)}
           aria-label="Toggle host join QR"
           title="Toggle host join QR"
         >

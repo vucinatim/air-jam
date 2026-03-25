@@ -1,6 +1,7 @@
 import type {
   ControllerStateMessage,
   GameState,
+  HostArcadeSessionSnapshot,
   RoomCode,
 } from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
@@ -125,15 +126,18 @@ export const startGameLaunch = (
   session: RoomSession,
   joinToken: string,
   gameUrl: string,
+  gameId: string,
 ): void => {
   session.joinToken = joinToken;
   session.activeControllerUrl = gameUrl;
+  session.activeGameId = gameId;
 };
 
 export const beginGameLaunch = (
   session: RoomSession,
   joinToken: string,
   gameUrl: string,
+  gameId: string,
 ): LaunchAvailability => {
   const launchAvailability = canBeginGameLaunch(session);
   if (!launchAvailability.ok) {
@@ -141,8 +145,32 @@ export const beginGameLaunch = (
   }
 
   transitionRoomLifecycle(session, "GAME_LAUNCH_PENDING");
-  startGameLaunch(session, joinToken, gameUrl);
+  startGameLaunch(session, joinToken, gameUrl, gameId);
   return { ok: true };
+};
+
+/**
+ * Snapshot for host `host:reconnect` ack so the client can restore arcade UI after refresh.
+ */
+export const buildArcadeSessionForHostAck = (
+  session: RoomSession,
+): HostArcadeSessionSnapshot | undefined => {
+  if (
+    !session.joinToken ||
+    !session.activeControllerUrl ||
+    !session.activeGameId
+  ) {
+    return undefined;
+  }
+  const phase = session.lifecycleState;
+  if (phase !== "GAME_ACTIVE" && phase !== "GAME_LAUNCH_PENDING") {
+    return undefined;
+  }
+  return {
+    gameId: session.activeGameId,
+    controllerUrl: session.activeControllerUrl,
+    joinToken: session.joinToken,
+  };
 };
 
 export const canActivateChildHost = (
@@ -200,6 +228,7 @@ export const resetRoomToSystemState = (
   session.childHostSocketId = undefined;
   session.joinToken = undefined;
   session.activeControllerUrl = undefined;
+  session.activeGameId = undefined;
   transitionRoomLifecycle(session, "SYSTEM_IDLE");
   if (resetGameState) {
     session.gameState = "paused";

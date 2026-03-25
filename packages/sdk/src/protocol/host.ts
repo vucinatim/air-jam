@@ -3,11 +3,23 @@ import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
 import { runtimeUrlSchema } from "./url-policy";
 
+/**
+ * Active arcade game session as seen by the server (join token + controller shell URL + catalog id).
+ * Returned on host reconnect so the platform can restore iframe + replicated surface after refresh.
+ */
+export interface HostArcadeSessionSnapshot {
+  gameId: string;
+  controllerUrl: string;
+  joinToken: string;
+}
+
 export interface HostRegistrationAck {
   ok: boolean;
   roomId?: RoomCode;
   message?: string;
   code?: ErrorCode | string;
+  /** When reconnecting, present if the room still has a launched game (launch pending or active). */
+  arcadeSession?: HostArcadeSessionSnapshot;
 }
 
 export const hostRegisterSystemSchema = z.object({

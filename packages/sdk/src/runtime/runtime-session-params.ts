@@ -1,14 +1,25 @@
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
+import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
+import {
+  parseOptionalArcadeSurfaceFromSearchParams,
+} from "./arcade-runtime-url";
+
+export {
+  arcadeSurfaceRuntimeUrlParams,
+  parseOptionalArcadeSurfaceFromSearchParams,
+} from "./arcade-runtime-url";
 
 export interface ChildHostRuntimeParams {
   room: string;
   token: string;
   joinUrl?: string;
+  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
 }
 
 export interface EmbeddedControllerRuntimeParams {
   room: string;
   controllerId: string;
+  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
 }
 
 export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
@@ -26,10 +37,13 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
   const joinUrl = params.get("aj_join_url");
   const normalizedJoinUrl = joinUrl ? normalizeRuntimeUrl(joinUrl) : null;
 
+  const arcadeSurface = parseOptionalArcadeSurfaceFromSearchParams(params);
+
   return {
     room,
     token,
     joinUrl: normalizedJoinUrl ?? undefined,
+    ...(arcadeSurface ? { arcadeSurface } : {}),
   };
 };
 
@@ -46,8 +60,11 @@ export const readEmbeddedControllerRuntimeParams =
       return null;
     }
 
+    const arcadeSurface = parseOptionalArcadeSurfaceFromSearchParams(params);
+
     return {
       room,
       controllerId,
+      ...(arcadeSurface ? { arcadeSurface } : {}),
     };
   };

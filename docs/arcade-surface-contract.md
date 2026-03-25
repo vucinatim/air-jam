@@ -278,15 +278,9 @@ Recommended rule:
 
 ## Mapping From Current Code
 
-### Current Field: `useArcadeRuntimeManager.view`
+### Former field: `useArcadeRuntimeManager.view` (removed)
 
-Current location:
-
-1. `apps/platform/src/components/arcade/arcade-runtime-manager.ts`
-
-Future:
-
-1. becomes derived from `ArcadeSurfaceState.kind`
+Was duplicated with `ArcadeSurfaceState.kind`. The runtime reducer no longer stores a `view`; use `ArcadeSurfaceState.kind` only.
 
 ### Current Field: `useArcadeRuntimeManager.activeGameId`
 
@@ -361,3 +355,11 @@ This contract is ready to implement when:
 2. controller shell can render entirely from it
 3. bridge attach can validate against it
 4. all current overlapping state owners have an explicit migration path
+
+## Implementation status (2026-03-25)
+
+In progress: `ArcadeSurfaceState` and `useArcadeSurfaceStore` (`createAirJamStore`) in `apps/platform/src/components/arcade/`; host updates surface on launch/exit and room session; platform controller outer shell reads `kind` + `controllerUrl` from replicated state.
+
+Host Arcade UI and arcade-mode host input tick use replicated `surface.kind` (not local `view`). Launch applies surface before `completeLaunch`; exit applies `setBrowserSurface` / overlay before clearing runtime state.
+
+`ArcadeSurfaceRuntimeIdentity` is optional on `ControllerBridgeSnapshot` and `HostBridgeSnapshot` in `@air-jam/sdk`; platform passes it on attach when `kind === "game"`. Embedded controller/host bridge clients reject an attach whose `arcadeSurface.epoch` is strictly lower than the last accepted attach epoch (`validateArcadeBridgeAttachEpoch` in the SDK).

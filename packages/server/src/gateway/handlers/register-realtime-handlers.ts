@@ -2,13 +2,14 @@ import {
   controllerActionRpcSchema,
   controllerStateSchema,
   controllerSystemSchema,
+  hostStateSyncSchema,
   type AirJamActionRpcPayload,
   type AirJamStateSyncPayload,
   type ControllerActionRpcPayload,
   type ControllerStateMessage,
-  type HostStateSyncPayload,
   type PlaySoundEventPayload,
   type SignalPayload,
+  isAirJamArcadePlatformPrefixAction,
 } from "@air-jam/sdk/protocol";
 import { emitRoomState } from "../../domain/room-session-domain.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
@@ -23,7 +24,6 @@ export const registerRealtimeHandlers = (
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
   } = context;
-  const ARCADE_ACTION_PREFIX = "airjam.arcade.";
 
   socket.on("host:system", (payload) => {
     const parsed = controllerSystemSchema.safeParse(payload);
@@ -151,8 +151,13 @@ export const registerRealtimeHandlers = (
     });
   });
 
-  socket.on("host:state_sync", (payload: HostStateSyncPayload) => {
-    const { roomId, data } = payload;
+  socket.on("host:state_sync", (payload: unknown) => {
+    const parsed = hostStateSyncSchema.safeParse(payload);
+    if (!parsed.success) {
+      return;
+    }
+
+    const { roomId, data, storeDomain } = parsed.data;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       return;
@@ -165,7 +170,7 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    const syncPayload: AirJamStateSyncPayload = { roomId, data };
+    const syncPayload: AirJamStateSyncPayload = { roomId, data, storeDomain };
     io.to(roomId).emit("airjam:state_sync", syncPayload);
   });
 
@@ -175,7 +180,8 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    const { roomId, actionName, payload: actionPayload } = parsed.data;
+    const { roomId, actionName, payload: actionPayload, storeDomain } =
+      parsed.data;
     if (actionName.startsWith("_")) {
       return;
     }
@@ -200,7 +206,7 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    const shouldRouteToMaster = actionName.startsWith(ARCADE_ACTION_PREFIX);
+    const shouldRouteToMaster = isAirJamArcadePlatformPrefixAction(actionName);
     const hostId = shouldRouteToMaster
       ? session.masterHostSocketId
       : roomManager.getActiveHostId(session);
@@ -208,6 +214,7 @@ export const registerRealtimeHandlers = (
       const rpcPayload: AirJamActionRpcPayload = {
         actionName,
         payload: actionPayload,
+        storeDomain,
         actor: {
           id: controllerId,
           role: "controller",

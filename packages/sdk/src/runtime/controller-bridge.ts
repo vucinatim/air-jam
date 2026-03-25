@@ -18,6 +18,10 @@ import type {
 } from "../protocol";
 import type { PlayerUpdatedNotice } from "../protocol/notices";
 import {
+  arcadeSurfaceRuntimeIdentitySchema,
+  type ArcadeSurfaceRuntimeIdentity,
+} from "./arcade-surface-identity";
+import {
   createBridgeHandshake,
 } from "./iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "./sdk-version";
@@ -89,6 +93,8 @@ export interface ControllerBridgeSnapshot {
   socketId?: string;
   player?: PlayerProfile;
   state?: ControllerStateMessage["state"];
+  /** Present when the platform shell attaches the embedded controller runtime to a game surface. */
+  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
 }
 
 export interface ControllerBridgeRequestMessage {
@@ -97,6 +103,7 @@ export interface ControllerBridgeRequestMessage {
     handshake: V2Handshake;
     roomId: RoomCode;
     controllerId: string;
+    arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
   };
 }
 
@@ -145,6 +152,7 @@ const bridgeRequestSchema = z
         handshake: v2HandshakeSchema,
         roomId: z.string().min(1),
         controllerId: z.string().min(1),
+        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
       })
       .strict(),
   })
@@ -164,6 +172,7 @@ const bridgeAttachSchema = z
             socketId: z.string().optional(),
             player: z.unknown().optional(),
             state: z.unknown().optional(),
+            arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
           })
           .strict(),
       })
@@ -209,6 +218,7 @@ const bridgeCloseSchema = z
 export const createControllerBridgeRequestMessage = (payload: {
   roomId: RoomCode;
   controllerId: string;
+  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
 }): ControllerBridgeRequestMessage => ({
   type: AIRJAM_CONTROLLER_BRIDGE_REQUEST,
   payload: {
@@ -221,6 +231,9 @@ export const createControllerBridgeRequestMessage = (payload: {
     }),
     roomId: payload.roomId,
     controllerId: payload.controllerId,
+    ...(payload.arcadeSurface
+      ? { arcadeSurface: payload.arcadeSurface }
+      : {}),
   },
 });
 

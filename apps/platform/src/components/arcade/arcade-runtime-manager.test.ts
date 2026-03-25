@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ArcadeGame } from "./arcade-system";
 import {
   createInitialArcadeRuntimeState,
+  getAutoLaunchRequestKey,
   getInitialSelectedIndex,
   getNextSelectedIndex,
   reduceArcadeRuntimeState,
@@ -63,11 +64,13 @@ describe("arcade runtime manager", () => {
   it("tracks launch and exit transitions without stale runtime state", () => {
     let state = createInitialArcadeRuntimeState({
       games,
-      mode: "arcade",
       initialGameId: "g2",
     });
 
-    state = reduceArcadeRuntimeState(state, { type: "mark-auto-launched" });
+    state = reduceArcadeRuntimeState(state, {
+      type: "consume-auto-launch",
+      requestKey: "arcade:g2",
+    });
     state = reduceArcadeRuntimeState(state, { type: "launch-start" });
     state = reduceArcadeRuntimeState(state, {
       type: "launch-success",
@@ -76,7 +79,6 @@ describe("arcade runtime manager", () => {
       joinToken: "join_abc",
     });
 
-    expect(state.view).toBe("game");
     expect(state.activeGameId).toBe("g2");
     expect(state.joinToken).toBe("join_abc");
 
@@ -85,23 +87,47 @@ describe("arcade runtime manager", () => {
       exitedAt: 123_456,
     });
 
-    expect(state.view).toBe("browser");
     expect(state.activeGameId).toBeNull();
     expect(state.joinToken).toBeNull();
     expect(state.isLaunching).toBe(false);
-    expect(state.hasAutoLaunched).toBe(false);
+    expect(state.consumedAutoLaunchRequestKey).toBe("arcade:g2");
     expect(state.lastExitAt).toBe(123_456);
   });
 
-  it("computes auto-launch eligibility from explicit runtime conditions", () => {
+  it("derives a stable auto-launch request key per route intent", () => {
     expect(
-      shouldAutoLaunchGame({
+      getAutoLaunchRequestKey({
+        mode: "arcade",
+        autoLaunch: true,
+        initialGameId: "g2",
+      }),
+    ).toBe("arcade:g2");
+
+    expect(
+      getAutoLaunchRequestKey({
         mode: "arcade",
         autoLaunch: false,
-        hasAutoLaunched: false,
+        initialGameId: "g2",
+      }),
+    ).toBeNull();
+
+    expect(
+      getAutoLaunchRequestKey({
+        mode: "preview",
+        autoLaunch: false,
+        initialGameId: undefined,
+      }),
+    ).toBe("preview:__first__");
+  });
+
+  it("computes auto-launch eligibility using surface kind (browser) not runtime activeGame", () => {
+    expect(
+      shouldAutoLaunchGame({
+        autoLaunchRequestKey: null,
+        consumedAutoLaunchRequestKey: null,
         isConnected: true,
         roomId: "ABCD",
-        hasActiveGame: false,
+        surfaceKind: "browser",
         isLaunching: false,
         hasJoinToken: false,
         gamesLength: 1,
@@ -110,12 +136,11 @@ describe("arcade runtime manager", () => {
 
     expect(
       shouldAutoLaunchGame({
-        mode: "arcade",
-        autoLaunch: true,
-        hasAutoLaunched: false,
+        autoLaunchRequestKey: "arcade:g1",
+        consumedAutoLaunchRequestKey: null,
         isConnected: true,
         roomId: "ABCD",
-        hasActiveGame: false,
+        surfaceKind: "browser",
         isLaunching: false,
         hasJoinToken: false,
         gamesLength: 1,
@@ -124,12 +149,37 @@ describe("arcade runtime manager", () => {
 
     expect(
       shouldAutoLaunchGame({
-        mode: "preview",
-        autoLaunch: false,
-        hasAutoLaunched: true,
+        autoLaunchRequestKey: "arcade:g1",
+        consumedAutoLaunchRequestKey: "arcade:g1",
         isConnected: true,
         roomId: "ABCD",
-        hasActiveGame: false,
+        surfaceKind: "browser",
+        isLaunching: false,
+        hasJoinToken: false,
+        gamesLength: 1,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldAutoLaunchGame({
+        autoLaunchRequestKey: "arcade:g1",
+        consumedAutoLaunchRequestKey: null,
+        isConnected: true,
+        roomId: "ABCD",
+        surfaceKind: "game",
+        isLaunching: false,
+        hasJoinToken: false,
+        gamesLength: 1,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldAutoLaunchGame({
+        autoLaunchRequestKey: "preview:__first__",
+        consumedAutoLaunchRequestKey: "preview:__first__",
+        isConnected: true,
+        roomId: "ABCD",
+        surfaceKind: "browser",
         isLaunching: false,
         hasJoinToken: false,
         gamesLength: 1,

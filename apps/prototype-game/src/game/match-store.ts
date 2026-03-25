@@ -1,11 +1,5 @@
-import {
-  createAirJamStore,
-  type AirJamActionContext,
-} from "@air-jam/sdk";
-import {
-  TEAM_CONFIG,
-  type TeamId,
-} from "./capture-the-flag-store";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
+import { TEAM_CONFIG, type TeamId } from "./capture-the-flag-store";
 import {
   createEmptyTeamCounts,
   getMatchReadiness,
@@ -109,21 +103,20 @@ const isTeamFull = (
   botCounts: TeamCounts,
   teamId: TeamId,
 ): boolean => {
-  return getEffectiveCountForTeam(humanCounts, botCounts, teamId) >= MAX_TEAM_SIZE;
+  return (
+    getEffectiveCountForTeam(humanCounts, botCounts, teamId) >= MAX_TEAM_SIZE
+  );
 };
 
 const clampBotCounts = (
   botCounts: TeamCounts,
   humanCounts: TeamCounts,
 ): TeamCounts => {
-  return TEAM_IDS.reduce(
-    (acc, teamId) => {
-      const maxBotsForTeam = Math.max(0, MAX_TEAM_SIZE - humanCounts[teamId]);
-      acc[teamId] = Math.max(0, Math.min(maxBotsForTeam, botCounts[teamId]));
-      return acc;
-    },
-    createEmptyTeamCounts(),
-  );
+  return TEAM_IDS.reduce((acc, teamId) => {
+    const maxBotsForTeam = Math.max(0, MAX_TEAM_SIZE - humanCounts[teamId]);
+    acc[teamId] = Math.max(0, Math.min(maxBotsForTeam, botCounts[teamId]));
+    return acc;
+  }, createEmptyTeamCounts());
 };
 
 const autoAssignTeam = (
@@ -200,7 +193,10 @@ export const usePrototypeMatchStore = createAirJamStore<PrototypeMatchState>(
           );
 
           const humanCounts = getHumanCounts(completedAssignments);
-          const normalizedBotCounts = clampBotCounts(state.botCounts, humanCounts);
+          const normalizedBotCounts = clampBotCounts(
+            state.botCounts,
+            humanCounts,
+          );
 
           if (
             completedAssignments === state.teamAssignments &&
@@ -225,7 +221,10 @@ export const usePrototypeMatchStore = createAirJamStore<PrototypeMatchState>(
             return state;
           }
 
-          const connectedSet = toConnectedPlayerIdSet(connectedPlayerIds, actorId);
+          const connectedSet = toConnectedPlayerIdSet(
+            connectedPlayerIds,
+            actorId,
+          );
           const prunedAssignments = pruneDisconnectedAssignments(
             state.teamAssignments,
             connectedSet,
@@ -277,15 +276,24 @@ export const usePrototypeMatchStore = createAirJamStore<PrototypeMatchState>(
           );
           const humanCounts = getHumanCounts(completedAssignments);
 
-          const maxBotsForTeam = Math.max(0, MAX_TEAM_SIZE - humanCounts[teamId]);
-          const clampedRequested = Math.max(0, Math.min(maxBotsForTeam, Math.round(count)));
+          const maxBotsForTeam = Math.max(
+            0,
+            MAX_TEAM_SIZE - humanCounts[teamId],
+          );
+          const clampedRequested = Math.max(
+            0,
+            Math.min(maxBotsForTeam, Math.round(count)),
+          );
 
           const proposedBotCounts: TeamCounts = {
             ...state.botCounts,
             [teamId]: clampedRequested,
           };
 
-          const normalizedBotCounts = clampBotCounts(proposedBotCounts, humanCounts);
+          const normalizedBotCounts = clampBotCounts(
+            proposedBotCounts,
+            humanCounts,
+          );
 
           if (
             completedAssignments === state.teamAssignments &&
@@ -333,7 +341,10 @@ export const usePrototypeMatchStore = createAirJamStore<PrototypeMatchState>(
             state.botCounts,
           );
           const humanCounts = getHumanCounts(completedAssignments);
-          const normalizedBotCounts = clampBotCounts(state.botCounts, humanCounts);
+          const normalizedBotCounts = clampBotCounts(
+            state.botCounts,
+            humanCounts,
+          );
 
           const readiness = getMatchReadiness(humanCounts, normalizedBotCounts);
 

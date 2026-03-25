@@ -17,6 +17,7 @@ import type {
   DirectSocketGetter,
 } from "./realtime-client";
 import { readChildHostRuntimeParams } from "./runtime-session-params";
+import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach";
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
 
@@ -28,6 +29,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
   private port: MessagePort | null = null;
   private connectTimeout: ReturnType<typeof setTimeout> | null = null;
   private requested = false;
+  private lastAttachedArcadeEpoch: number | null = null;
 
   connect(): this {
     const runtimeParams = readChildHostRuntimeParams();
@@ -58,6 +60,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
       createHostBridgeRequestMessage({
         roomId: runtimeParams.room as RoomCode,
         joinToken: runtimeParams.token,
+        arcadeSurface: runtimeParams.arcadeSurface,
       }),
       "*",
       [channel.port2],
@@ -128,6 +131,18 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
       }
 
       const snapshot = attachMessage.payload.snapshot;
+      const epochResult = validateArcadeBridgeAttachEpoch(
+        this.lastAttachedArcadeEpoch,
+        snapshot.arcadeSurface,
+      );
+      if (!epochResult.ok) {
+        this.fail(
+          "Embedded host bridge attach rejected: stale arcade surface epoch.",
+        );
+        return;
+      }
+      this.lastAttachedArcadeEpoch = epochResult.nextLast;
+
       this.id = snapshot.socketId ?? snapshot.roomId;
       this.requested = false;
       this.clearConnectTimeout();
@@ -186,6 +201,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
     this.requested = false;
     this.connected = false;
     this.id = undefined;
+    this.lastAttachedArcadeEpoch = null;
 
     if (this.port) {
       this.port.onmessage = null;

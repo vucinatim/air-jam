@@ -4,6 +4,7 @@ import type {
   ConnectionStatus,
   ControllerOrientation,
   GameState,
+  HostArcadeSessionSnapshot,
   PlayerProfile,
   RunMode,
 } from "../protocol";
@@ -20,6 +21,20 @@ export interface AirJamStore {
   players: PlayerProfile[];
   lastError?: string;
   registeredRoomId: string | null;
+  /**
+   * Set by the host runtime when `host:reconnect` returns `arcadeSession` so the platform can
+   * restore game surface + join token after a full page reload. Cleared after consumption.
+   */
+  hostArcadeSessionFromServer: HostArcadeSessionSnapshot | null;
+  setHostArcadeSessionFromServer: (
+    snapshot: HostArcadeSessionSnapshot | null,
+  ) => void;
+  /**
+   * True while `host:reconnect` is in flight (saved session restore). Used to avoid broadcasting
+   * a default browser `ArcadeSurfaceState` before the ack returns.
+   */
+  hostReconnectAckPending: boolean;
+  setHostReconnectAckPending: (pending: boolean) => void;
   setRole: (role: ConnectionRole | null) => void;
   setRoomId: (roomId: string | null) => void;
   setControllerId: (controllerId: string | null) => void;
@@ -54,6 +69,12 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     players: [],
     lastError: undefined,
     registeredRoomId: null,
+    hostArcadeSessionFromServer: null,
+    setHostArcadeSessionFromServer: (snapshot) =>
+      set({ hostArcadeSessionFromServer: snapshot }),
+    hostReconnectAckPending: false,
+    setHostReconnectAckPending: (pending) =>
+      set({ hostReconnectAckPending: pending }),
     setRole: (role) => set({ role }),
     setRoomId: (roomId) => set({ roomId }),
     setControllerId: (controllerId) => set({ controllerId }),
