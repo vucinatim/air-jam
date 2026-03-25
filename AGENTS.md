@@ -34,7 +34,7 @@ Run relevant checks before considering work complete:
 
 ## Documentation Discipline
 
-1. Keep one active implementation tracker in `docs/implementation-plan.md`.
+1. Keep intended architecture in `docs/framework-paradigm.md` and the active implementation tracker in `docs/implementation-plan.md`.
 2. Keep workflow guidance in `docs/development-loop.md`.
 3. Keep navigation pointers in `docs/docs-index.md`.
 4. Move completed/superseded plan snapshots to `docs/archive/done/`.

@@ -3,525 +3,483 @@
 Last updated: 2026-03-25  
 Status: active
 
-This is the single active execution checklist for Air Jam.
-
 Architecture baseline: [Framework Paradigm](./framework-paradigm.md)
 
-Rebaseline note:
+This is the single active implementation tracker for the current Air Jam architecture reset.
 
-The previous plan assumed a stronger "platform-owned special runtime" split than we now want.
-That work is not all invalid, but it is no longer the architectural source of truth.
-Going forward, the implementation plan follows the nested Air Jam model defined in the paradigm doc above.
+## Mission
 
-## Mission (Current Milestone)
+Stabilize Air Jam around one real paradigm:
 
-Ship the pre-release framework with:
+1. Arcade is an Air Jam app around another Air Jam app.
+2. `createAirJamStore` remains the canonical replicated state primitive.
+3. The bridge is transport-only.
+4. The server owns only hard runtime invariants.
+5. Arcade host and controller always derive the active surface from the same replayable snapshot.
 
-1. One unambiguous framework paradigm.
-2. Headless SDK core.
-3. Arcade built cleanly from the same Air Jam primitives as standalone apps.
-4. Deterministic Arcade host/controller sync from replayable state snapshots.
-5. A locked public API that makes misuse difficult by default.
+## What We Are Fixing
 
-## Ordering Rules (Non-Negotiable)
+The main architectural problem is not that the foundation is broken.
 
-1. Paradigm and ownership model first.
-2. Runtime invariants and sync contracts second.
-3. Explicit runtime adapters third.
-4. Platform/runtime migration fourth.
-5. Template + docs migration fifth.
-6. Cleanup and removal last.
+The real problem is that Arcade state currently leaks across too many authorities:
 
-No phase jumps unless blockers require temporary parallelization.
+1. local React state in platform surfaces
+2. transient `client:loadUi` / `client:unloadUi` pulses
+3. server room lifecycle/focus fields
+4. hidden embedded-runtime behavior inside generic SDK hooks
+5. bridge attach state that is not strong enough to reject stale runtimes
 
-## Progress Snapshot
+This creates drift and reconnect bugs because "what UI should be active?" is not modeled as one replayable fact.
 
-1. Baseline paradigm reset: in progress.
-2. Replayable Arcade sync model: pending.
-3. Explicit embedded runtime adapter cleanup: pending.
-4. Server invariant minimization: pending.
-5. Template/docs realignment: pending.
-6. Cleanup and release hardening: pending.
+## High-Level Current Read
 
-## Current Execution Focus
+### What Is Good
 
-### 1. Lock Ownership Boundaries
+1. lane separation is already real in the framework
+2. `createAirJamStore` is a strong primitive
+3. server room/focus/join-token invariants are useful
+4. host/controller bridges are a good transport mechanism
 
-- [ ] Define the canonical Arcade state domain that belongs in replicated state.
-- [ ] Define the minimal server-owned runtime invariants that stay authoritative.
-- [ ] Define the exact responsibilities of the bridge and explicitly ban app-level UI ownership there.
+### What Is Muddy
 
-### 2. Fix Arcade/Controller Drift Correctly
+1. Arcade outer surface state is not a canonical replicated state domain yet
+2. controller page still depends on transient UI pulses
+3. generic host/controller hooks still infer embedded runtime mode from URL params
+4. platform commands and platform input are not expressed through one clean ownership model
+5. bridge snapshots do not yet carry a strong surface identity / epoch
 
-- [ ] Replace transient controller UI truth with a replayable Arcade surface snapshot.
-- [ ] Make host Arcade UI and controller outer UI derive from the same snapshot.
-- [ ] Add a runtime epoch to game surface switches so stale embedded iframes are rejected.
+## Target Outcome
 
-### 3. Reconcile Core Hooks With The Real Paradigm
+The architecture is considered correct when:
 
-- [ ] Identify hidden arcade-mode inference still living in generic SDK hooks.
-- [ ] Move those behaviors behind explicit embedded runtime adapters over time.
-- [ ] Keep standalone APIs simple and generic while preserving nested-runtime support.
+1. Arcade browser and controller always agree on the active surface after reconnect
+2. a controller joining mid-session renders the correct browser/game surface from snapshot alone
+3. stale embedded host/controller iframes cannot remain attached after a surface switch
+4. Arcade is implemented from normal Air Jam primitives, not from a second special paradigm
+5. generic SDK hooks stay simple and standalone by default
 
-### 4. Realign Docs And Templates
+## Non-Negotiable Rules
 
-- [ ] Rewrite architecture docs and examples around the nested Air Jam model.
-- [ ] Ensure create-airjam teaches the same lane separation and ownership model.
-- [ ] Remove stale language that frames Arcade as a separate framework paradigm.
+1. One owner per fact.
+2. If the state matters after reconnect, it must exist in a replayable snapshot.
+3. The bridge may adapt transport, but it may not become the owner of Arcade UI semantics.
+4. The server may enforce invariants, but it may not become the owner of app-level Arcade UI state.
+5. No hidden arcade-mode inference should remain in generic hooks long-term.
 
-## Phase 0: Baseline Freeze (P0)
+## Canonical Ownership Model
 
-- [x] Tag/record current passing validation snapshot (`typecheck`, `lint`, `test`, `build`, `test:scaffold`).
-- [x] Freeze protocol/event naming changes until Phase 1 contract definitions are approved.
-- [x] Add this milestone note to PR template/checklist (if missing): “Does this change align to the implementation plan?”
+### 1. Server Owns
 
-Exit criteria:
+The server owns:
 
-1. Baseline is reproducible from clean checkout.
-2. All contributors use this file as the single tracker for framework work.
+1. room membership
+2. controller identity
+3. master-host / child-host authorization
+4. focus / routing target
+5. join tokens and attach validity
+6. reconnect continuity
+7. runtime epoch validation inputs when needed
 
-## Phase 1: Contracts v2 (P0)
+The server does not own:
 
-### 1A) Introduce Versioned Contract Surface
+1. Arcade browser selection
+2. Arcade overlay/menu presentation
+3. active controller surface as an app-level UI concept
 
-- [x] Create dedicated versioned contract module(s) for v2 handshake + runtime messages.
-- [x] Define handshake payload (runtime kind, sdk version, protocol version, capability flags).
-- [x] Define bridge message contract (`BOOTSTRAP`, `PLAYERS_UPDATE`, `GAME_STATE_UPDATE`, `INPUT_FRAME`, `PAUSE`, `RESUME`, `SHUTDOWN`, `READY`, `STATE_PATCH`, `SIGNAL`, `ERROR`, `METRICS`).
-- [x] Separate transport-neutral contract types from socket event labels.
+### 2. Arcade Host Store Owns
 
-### 1B) Validation and Tests
+Arcade host replicated state should own a canonical surface domain such as:
 
-- [x] Add schema validation tests for all v2 contract messages.
-- [x] Add version mismatch reject tests.
-- [x] Add compatibility rule tests (required fields, unknown message handling policy).
+1. `surface.kind`: `browser | game`
+2. `surface.gameId`
+3. `surface.controllerUrl`
+4. `surface.orientation`
+5. `surface.overlay`
+6. `surface.epoch`
 
-Exit criteria:
+This store becomes the source of truth for:
 
-1. Contract module is the single source of truth for server/sdk/platform runtime messaging.
-2. Deprecated proxy message types are not used in new runtime paths.
+1. host Arcade rendering
+2. controller outer shell rendering
+3. bridge bootstrap identity
 
-## Validation Snapshot (Phase 0 Baseline)
+### 3. Embedded Game Owns
 
-Recorded on: 2026-03-21
+The embedded game store owns only game-local state:
 
-1. `pnpm typecheck`: pass.
-2. `pnpm lint`: pass (non-blocking baseline-browser-mapping staleness notices observed).
-3. `pnpm test`: pass.
-4. `pnpm build`: pass.
-5. `pnpm test:scaffold`: pass.
+1. lobby/readiness
+2. scores
+3. teams
+4. match phase
+5. gameplay controller UI
 
-Tracking notes:
+### 4. Bridge Owns
 
-1. PR checklist template added at `.github/pull_request_template.md`.
-2. Protocol/event naming changes are frozen to v2 contract definitions until Phase 2+ runtime integration.
+The bridge owns:
 
-## Phase 2: Server Kernel Split (P0)
+1. runtime handshake
+2. capability/version validation
+3. transport forwarding
+4. stale runtime rejection using epoch/surface identity
 
-### 2A) Structural Refactor
+The bridge must not own:
 
-- [x] Split `packages/server/src/index.ts` responsibilities into:
-  1. socket gateway
-  2. domain room state machine/use-cases
-  3. auth/rate-limit/authorization policy layer
-  4. broadcast/router layer
-- [x] Define explicit room state transitions (SYSTEM focus, GAME focus, launch pending, closing, teardown).
-- [x] Centralize ownership guards (host/controller auth checks) in one policy module.
+1. browser vs game UI decisions
+2. Arcade menu state
+3. platform lifecycle semantics beyond attach/detach validity
 
-### 2B) Behavioral Consistency
+## Workstreams
 
-- [x] Preserve existing tested behavior while refactoring (green integration suite at each slice).
-- [x] Remove duplicate/legacy event pathways as they become obsolete under v2.
-- [x] Delete server backup artifact (`packages/server/src/index.ts.backup`).
+## Phase 1. Ownership Audit
 
-### 2C) Test Expansion
+Goal: produce an exact map of where each important fact currently lives.
 
-- [x] Add state-machine transition tests (valid/invalid transitions).
-- [x] Add unauthorized transition attempts coverage (forged close/launch/state mutation attempts).
+### Tasks
 
-Exit criteria:
+- [x] Audit Arcade host state in `apps/platform/src/components/arcade`.
+- [x] Audit controller outer-shell state in `apps/platform/src/app/controller`.
+- [x] Audit server-owned room/session fields in `packages/server/src`.
+- [x] Audit embedded runtime inference in generic hooks under `packages/sdk/src/hooks/internal`.
+- [x] Audit bridge attach snapshots and handshake fields in `packages/sdk/src/runtime`.
 
-1. Gateway handlers are thin and delegate to domain use-cases.
-2. Room transitions are explicit, validated, and test-covered.
-3. No backup/legacy artifacts remain in server source.
+### Deliverable
 
-## Phase 3: SDK Headless (P0)
+A short written ownership map that answers:
 
-### 3A) Public API Reshape
+1. where the fact lives now
+2. where it should live
+3. whether the current owner is correct or wrong
 
-- [x] Implement headless session providers (`HostSessionProvider`, `ControllerSessionProvider` naming can finalize during implementation).
-- [x] Expose granular hooks only for the headless runtime path (`usePlayers`, `useConnectionStatus`, `useRoom`, `useGetInput`, `useInputWriter`, `useSendSignal`, state hooks).
-- [x] Ensure lifecycle is initialized exactly once per role/runtime tree.
+### Exit Criteria
 
-### 3B) Internal Cleanup
+- [x] Every important Arcade/controller sync fact has exactly one intended future owner.
 
-- [x] Split protocol file into focused contract modules.
-- [x] Remove/replace overlapping lifecycle hooks (`useAirJamShell` in core path).
-- [x] Move environment resolution/bootstrap logic out of core runtime ownership path.
-- [x] Isolate audio iframe settings sync behind explicit adapter initialization (no hidden module-load side effects).
-- [x] Constrain or replace networked state RPC magic with explicit contract-safe behavior.
+### Audit Findings (2026-03-25)
 
-### 3C) Exports
+#### Finding 1. Active controller surface is split across three authorities
 
-- [x] Remove lifecycle-owning UI components from core root export.
-- [x] Provide optional UI exports only through dedicated UI entry/package.
+Current owners:
 
-Exit criteria:
+1. server room field `activeControllerUrl` in `packages/server/src/types.ts` and `packages/server/src/domain/room-session-domain.ts`
+2. controller page local `activeUrl` state in `apps/platform/src/app/controller/page.tsx`
+3. host Arcade runtime manager state (`view`, `activeGameId`, `normalizedGameUrl`, `joinToken`) in `apps/platform/src/components/arcade/arcade-runtime-manager.ts`
 
-1. `@air-jam/sdk` core is headless and does not own rendered UI.
-2. One lifecycle path per role is clear and enforced.
-3. No deprecated proxy protocol surfaces remain in core path.
+Target owner:
 
-## Phase 4: Platform Runtime Migration (P0)
+1. Arcade host replicated surface snapshot
 
-### 4A) Arcade Runtime Ownership
+Verdict:
 
-- [x] Introduce explicit arcade runtime manager that owns persistent room/session.
-- [x] Keep controllers connected across game switches.
-- [x] Implement versioned iframe bridge using v2 contracts (prefer `MessageChannel` where practical).
-- [x] Maintain persistent non-overlapping navbar/chrome outside iframe.
+This is the main drift bug. The current model represents the same fact in multiple incompatible forms and only one of them is replayable.
 
-### 4B) Controller Runtime
+#### Finding 2. Controller outer shell still depends on transient UI pulses
 
-- [x] Remove `useAirJamShell` dependence from platform controller flow.
-- [x] Replace query-flag behavior (`airjam_mode`, `airjam_force_connect`) with explicit runtime contract flow.
-- [x] Remove debug ingest call from controller page runtime.
+Current owner:
 
-### 4C) Behavior and Tests
+1. `client:loadUi` / `client:unloadUi` event handling in `apps/platform/src/app/controller/page.tsx`
+2. `createAirJamStore` controller action gating also depends on those same pulses in `packages/sdk/src/store/create-air-jam-store.ts`
 
-- [x] Add arcade runtime manager unit tests (selection, launch/exit transitions, auto-launch gating).
-- [x] Add platform/runtime behavior tests for:
-  1. room persistence across game switches
-  2. bootstrap correctness for newly loaded game iframe
-  3. controller continuity on switch
-  4. pause/resume propagation
+Target owner:
 
-Exit criteria:
+1. Arcade host replicated surface snapshot
 
-1. Platform fully owns arcade room lifecycle.
-2. Embedded game cannot directly create its own host socket in arcade mode.
-3. Game switching does not tear down controller session.
+Verdict:
 
-## Phase 5: Template + First-Party Migration (P0)
+This is architecturally wrong for reconnect-sensitive state. A pulse is not a source of truth.
 
-### 5A) `create-airjam` Template
+#### Finding 3. Arcade host rendering is locally authoritative instead of snapshot-driven
 
-- [x] Rewrite template to canonical headless pattern only.
-- [x] Remove shell-first assumptions and manual transport loop defaults.
-- [x] Document official input cadence pattern with `useInputWriter`.
-- [x] Keep scaffold smoke tests green after migration.
+Current owner:
 
-Notes:
+1. `useArcadeRuntimeManager` reducer state in `apps/platform/src/components/arcade/arcade-runtime-manager.ts`
+2. local `qrVisible` state in `apps/platform/src/components/arcade/arcade-system.tsx`
 
-1. Scaffold smoke now defaults to local tarball validation (`@air-jam/sdk` + `@air-jam/server` packed from workspace), which removes publish-order coupling during pre-release hardening.
-2. Template dependencies now normalize to semver at scaffold time from workspace ranges, targeting `@air-jam/sdk@^1.0.0`.
-3. Registry smoke remains available as an explicit post-publish check (run after publishing `@air-jam/sdk@1.0.0`).
+Target owner:
 
-### 5B) First-Party App Migration
+1. Arcade host replicated surface snapshot for any state that must survive reconnect or remain in sync with controllers
+2. local React state only for purely presentational ephemeral details
 
-- [x] Migrate `apps/prototype-game` to current APIs.
-- [x] Migrate platform arcade/play/controller surfaces to the runtime ownership model.
-- [x] Validate migration path against externally reviewed examples (`the-office`, `last-band-standing`, `code-review`) and update usage guidance.
+Verdict:
 
-### 5C) Docs Rewrite
+The runtime manager is a good UI helper, but it is currently being used as authority for cross-device state.
 
-- [x] Rewrite docs to one canonical architecture path.
-- [x] Remove mixed shell+hook lifecycle guidance from primary docs.
-- [x] Keep optional advanced sections separate and clearly marked.
+#### Finding 4. Generic SDK hooks still encode hidden embedded-runtime mode
 
-Exit criteria:
+Current owner:
 
-1. New scaffolded project follows exactly one recommended path.
-2. Docs and template match runtime reality.
+1. URL-param runtime detection in `packages/sdk/src/runtime/runtime-session-params.ts`
+2. hidden branching in `packages/sdk/src/hooks/internal/use-host-runtime-api.ts`
+3. hidden branching in `packages/sdk/src/hooks/internal/use-controller-runtime-api.ts`
 
-## Phase 6: Legacy Purge + Release Gate (P0)
+Target owner:
 
-### 6A) Hard Deletion Execution
+1. explicit embedded host/controller runtime adapters
 
-- [x] Remove `packages/sdk/src/hooks/use-air-jam-shell.ts`.
-- [x] Remove `packages/sdk/src/AirJamClient.ts`.
-- [x] Remove deprecated proxy protocol section from SDK contracts.
-- [x] Remove legacy audio API exports (`AudioProvider`, `useAudioLegacy`) if still present.
-- [x] Remove lifecycle-owning shell exports from SDK UI entrypoint.
+Verdict:
 
-### 6B) Final Validation
+This is a direct paradigm leak. It keeps the framework half in standalone mode and half in special Arcade mode.
 
-- [x] `pnpm typecheck`
-- [x] `pnpm lint`
-- [x] `pnpm test`
-- [x] `pnpm test:scaffold`
-- [x] `pnpm build`
-- [ ] Production-like smoke pass:
-  1. create room
-  2. connect controllers
-  3. launch game
-  4. switch/exit game
-  5. verify controller continuity
-  6. publish/unpublish flow sanity check
+#### Finding 5. Bridge snapshots are too weak to identify a surface instance
 
-Notes:
+Current owner:
 
-1. Automated coverage for room/controller continuity, launch/exit flow, and routing/security is green through server integration tests and platform runtime tests.
-2. Manual publish/unpublish flow sanity check still pending.
+1. `ControllerBridgeSnapshot` in `packages/sdk/src/runtime/controller-bridge.ts`
+2. `HostBridgeSnapshot` in `packages/sdk/src/runtime/host-bridge.ts`
 
-Exit criteria:
+Current snapshot gaps:
 
-1. No legacy paradigm APIs remain in the main user path.
-2. All release gates are green.
-3. Docs + template + runtime behavior are aligned.
+1. no `surface.kind`
+2. no `surface.gameId`
+3. no `surface.controllerUrl`
+4. no `surface.epoch`
 
-## Phase 7: Paradigm Lockdown (P0, Pre-Release)
+Target owner:
 
-Goal: enforce one intended path in code, docs, and runtime guardrails so misuse is hard by design.
+1. bridge attach/bootstrap contracts should carry the active surface identity and epoch
 
-### 7.0) Lane Separation Contract (Architecture Rule)
+Verdict:
 
-Establish and enforce three distinct lanes (non-overlapping responsibilities):
+Without surface identity and epoch, the bridge can transport traffic but cannot deterministically reject stale embedded runtimes after a switch.
 
-1. Input lane (high-frequency, transient):
-   - controller publish: `useInputWriter`
-   - host read: `getInput` / `useGetInput`
-   - no game-state replication semantics
-2. State lane (authoritative, replicated):
-   - host-owned shared game state + coarse actions via `createAirJamStore`
-   - no per-frame analog input transport through state actions
-3. Signal lane (out-of-band UX/system):
-   - haptics/toasts/system commands (`useSendSignal`, `sendSystemCommand`)
-   - no authoritative gameplay state ownership
+#### Finding 6. Server room model mixes good invariants with app-level UI hints
 
-Non-goals:
+Current owner:
 
-1. No "store as universal transport" pattern.
-2. No per-frame controller input via action RPC/store dispatch.
+1. good invariants: `focus`, `joinToken`, `childHostSocketId`, `lifecycleState`
+2. muddy app-level field: `activeControllerUrl`
 
-### 7A) Public API Lockdown
+Target owner:
 
-- [x] Stop exporting unscoped lifecycle primitives from `@air-jam/sdk` public entrypoints.
-- [x] Remove/privatize `AirJamProvider` and low-level socket manager exports from public root/context barrels.
-- [x] Keep only scoped provider path public (`HostSessionProvider`, `ControllerSessionProvider`).
-- [x] Make scope enforcement strict: host/controller hooks must error when provider scope is missing or wrong (no unscoped fallback).
-- [x] Add compile-time/export-surface tests to prevent re-introducing removed exports.
-- [x] Enforce role-pure hooks:
-  1. host hooks expose only host concerns
-  2. controller hooks expose only controller concerns
-  3. platform/arcade-specific behavior moves to platform adapters (not core role hooks)
+1. server keeps hard invariants
+2. Arcade replicated state owns active surface/UI semantics
 
-### 7B) Controller Input API Canonicalization
+Verdict:
 
-- [x] Define `useInputWriter` as the canonical controller input publish path in API + docs.
-- [x] Migrate first-party controller runtime loops to `useInputWriter`.
-- [x] Move raw `sendInput` out of primary docs path (advanced-only section) or remove from public API if not required.
-- [x] Add tests for expected fixed-tick writer behavior and invalid payload rejection.
-- [x] Add docs + lint/CI guardrails that explicitly reject "per-frame input through store actions" examples.
+The server model is not broadly wrong, but `activeControllerUrl` is the beginning of the ownership leak from app state into runtime state.
 
-Notes:
+#### Finding 7. Platform command model exists, but it is implicit
 
-1. `sendInput` escape hatch removed from `useAirJamController` public API; controller input publish path is now `useInputWriter` only.
+Current owner:
 
-### 7B.1) Input Behavior Model Simplification (Hide Latching Internals)
+1. browser navigation via input lane in `apps/platform/src/components/arcade/arcade-system.tsx`
+2. QR/exit/menu commands via `airjam.arcade.*` action RPC routing in `packages/server/src/gateway/handlers/register-realtime-handlers.ts`
 
-- [x] Keep transport-level latching internally, but remove `latch` terminology from default developer path.
-- [x] Introduce intuitive field behavior semantics for public API/docs (for example: `pulse`, `hold`, `latest`).
-- [x] Provide default behavior without extra config:
-  1. booleans default to tap-safe `pulse` behavior
-  2. vectors default to `latest` behavior
-- [x] Keep advanced per-field overrides as opt-in only (advanced section, not quickstart).
-- [x] Update `InputManager` and tests to guarantee "button taps are not lost between ticks" under defaults.
-- [x] Add migration notes from legacy `latch` config to new behavior semantics.
+Target owner:
 
-### 7B.2) Networked Store Canonicalization (State Lane Only)
+1. input lane remains for high-frequency browser navigation if desired
+2. platform command lane becomes an explicit and documented contract
 
-- [x] Keep `createAirJamStore` as the canonical replicated state lane primitive; do not use it for per-frame input transport.
-- [x] Canonical dispatch path: `useStore.useActions()` only in primary docs/template/first-party usage.
-- [x] Remove `state.actions.*` from default examples (retain compatibility only if needed, but mark non-canonical).
-- [x] Standardize action signature guidance to payload-object style for consistency and argument-order safety.
-- [x] Add dev-time guardrails in RPC bridge for non-serializable args / synthetic event payload mistakes with clear errors.
-- [x] Replace hidden trailing controller-id injection semantics in canonical docs/API guidance with explicit action context model:
-  1. canonical host action shape: `(ctx, payload) => void`
-  2. canonical controller call shape: `actions.someAction(payload)`
-  3. `ctx.actorId`/`ctx.role` is authoritative and server-derived
-- [x] Remove temporary compatibility path for legacy trailing-id actions (full pre-release purge).
-- [x] Add tests for canonical `useActions()` dispatch path.
-- [x] Add tests for blocked non-serializable RPC args.
-- [x] Add tests for internal action filtering.
-- [x] Add tests for state lane behavior separation from input lane.
-- [x] Add tests for action-context correctness (`ctx.actorId` and role behavior).
+Verdict:
 
-### 7B.3) Canonical Tick Helpers
+This is not fundamentally wrong, but it is under-specified and currently feels accidental.
 
-- [x] Provide first-party tick helpers to avoid loop reinvention:
-  1. `useControllerTick` (default 16ms cadence)
-  2. `useHostTick` (frame/timer-based host loop helper)
-- [x] Migrate first-party/template examples to use canonical tick helpers where appropriate.
-- [x] Add tests for stable cadence behavior and cleanup/unmount correctness.
+#### Finding 8. Shared connection store has no concept of Arcade surface state
 
-### 7C) Configuration Path Simplification
+Current owner:
 
-- [x] Remove hook-level config overrides that duplicate provider responsibilities (`forceConnect`, hook-local `apiKey`, hook-local `maxPlayers`) unless absolutely required.
-- [x] Establish provider config as the single authoritative runtime config surface.
-- [x] Reduce env-var ambiguity: keep one canonical key naming in docs and runtime.
-- [x] Add startup validation errors with actionable messages when canonical config is missing.
+1. generic connection store in `packages/sdk/src/state/connection-store.ts`
 
-### 7C.1) Minimal Game Config Contract (Canonical)
+Current fields:
 
-- [x] Define a minimal optional game config contract (`airjam.config.ts` or equivalent) as a single source for runtime metadata.
-- [x] Keep scope intentionally small (for example: controller path only) to avoid over-configuration.
-- [x] Ensure this contract complements providers/hooks rather than creating a second lifecycle paradigm.
+1. role/session state
+2. players
+3. `gameState`
+4. `controllerOrientation`
+5. `stateMessage`
 
-Notes:
+Missing:
 
-1. SDK now exports `createAirJamApp` + `env` as the single canonical runtime/session wiring API.
-2. Template + prototype + platform wiring now uses `airjam.Host` / `airjam.Controller` wrappers + `airjam.paths.controller`.
-3. Removed legacy API key env fallback names from runtime resolution (`VITE_AIR_JAM_API_KEY`, `NEXT_PUBLIC_AIR_JAM_API_KEY`).
+1. active Arcade surface
+2. controller game URL
+3. surface epoch
+4. overlay state
 
-### 7D) Runtime Trust-Boundary Hardening
+Target owner:
 
-- [x] Replace permissive iframe `postMessage("*")` usage with strict `targetOrigin` derived from normalized game URL.
-- [x] Validate `client:loadUi` URL origin/protocol before iframe load on platform controller/runtime.
-- [x] Replace hardcoded bridge `sdkVersion` literals with a single source (build/runtime constant) to avoid drift.
-- [x] Create one shared URL/origin policy module reused by platform + server for consistent validation rules.
-- [x] Add tests for rejected invalid origins/URLs and successful valid bridge bootstraps.
+1. dedicated Arcade replicated store or explicit formalized Arcade state slice
 
-### 7E) First-Party Conformance Sweep
+Verdict:
 
-- [x] Remove remaining direct `AirJamProvider` usage in platform surfaces and switch to scoped providers.
-- [x] Ensure template, prototype game, and platform all use the same canonical wiring shape.
-- [x] Add a static grep-based CI guard that fails on forbidden legacy/unscoped imports and deprecated query-flag patterns.
+There is currently nowhere canonical in the app model for the state we need to keep host Arcade and controller shell aligned.
 
-Notes:
+## Phase 2. Define The Canonical Arcade Surface Contract
 
-1. Canonical guard now also blocks inline provider config props in runtime first-party paths; session-config modules are the enforced wiring shape.
+Goal: replace transient UI truth with a replayable replicated surface snapshot.
 
-### 7E.1) Unified Diagnostics Model
+Reference spec: [Arcade Surface Contract](./arcade-surface-contract.md)
 
-- [x] Replace scattered booleans/warns on non-hot paths with structured diagnostics (error codes + actionable messages).
-- [x] Keep hot-path APIs fast, but provide optional diagnostics channel for debug/dev builds.
-- [x] Define one diagnostics reference table in docs (code, meaning, expected fix).
-- [x] Add tests for representative diagnostics emissions on common misuse paths.
+### Tasks
 
-### 7F) Docs/LLM Contract Freeze
+- [ ] Define the Arcade surface state shape and name it explicitly.
+- [ ] Decide which fields are required for browser/game switching and reconnect replay.
+- [ ] Define `surface.epoch` semantics for every surface change.
+- [ ] Define how overlay/menu state fits into the same domain.
+- [ ] Decide whether this domain lives in a dedicated Arcade store or a thin formalized slice over existing runtime state.
 
-- [x] Rewrite SDK README quickstart to a single scoped-provider path only.
-- [x] Add an explicit "Three Lanes" section (Input / State / Signal) with "use this / do not use this" examples.
-- [x] Add explicit "one correct way" section with anti-patterns (what not to do).
-- [x] Remove latching jargon from beginner docs; explain behavior in gameplay terms ("tap-safe buttons", "latest stick vector").
-- [x] Networked state docs: present one canonical dispatch path (`useActions`) and one canonical action-shape style (payload object).
-- [x] Document explicit action context (`ctx.actorId`, `ctx.role`) as the canonical identity model.
-- [x] Document canonical tick helpers (`useControllerTick`, `useHostTick`) in quickstart-level examples.
-- [x] Keep advanced/escape-hatch content in a separate section clearly marked non-default.
-- [x] Sync extracted template docs and verify examples match shipped API exactly.
+### Deliverable
 
-### 7G) Lockdown Release Gate
+A concrete contract for the Arcade surface snapshot, with examples for:
 
-- [x] `pnpm typecheck`
-- [x] `pnpm lint`
-- [x] `pnpm test`
-- [x] `pnpm test:scaffold`
-- [x] `pnpm build`
-- [ ] Manual E2E sanity:
-  1. arcade launch flow
-  2. controller continuity through switch/exit
-  3. scoped-provider misuse throws clear errors
-  4. invalid iframe/runtime URL blocked
+1. browser idle
+2. game active
+3. switching game A -> game B
+4. returning from game -> browser
 
-Exit criteria:
+### Exit Criteria
 
-1. Exactly one documented and supported way to build host/controller runtime flows.
-2. Public SDK surface cannot be used in unscoped lifecycle mode.
-3. First-party apps/templates conform to canonical architecture with no exceptions.
-4. Bridge/runtime messaging path is origin-constrained and version-consistent.
-5. CI contains mechanical guards against paradigm regressions.
-6. Lane separation is explicit, test-covered, and reflected consistently in SDK README/docs/template/platform usage.
-7. Default input behavior is tap-safe and intuitive without requiring developers to understand latching internals.
-8. Networked store usage is canonical, typed, and unambiguous with clear state-lane boundaries.
-9. Role hooks are pure and do not leak platform-specific runtime concerns.
-10. Canonical state actions use explicit server-derived action context (`ctx.actorId`/`ctx.role`) rather than hidden trailing-arg magic.
-11. Canonical tick helpers are available and used in first-party/template examples.
-12. Diagnostics are structured and actionable for non-hot misuse paths.
-13. URL/origin validation policy is centralized and shared across platform and server.
+- [ ] Host Arcade UI and controller outer shell can both be implemented from the same contract.
 
-## Optional Post-Launch (P1)
+### Contract Decision (2026-03-25)
 
-- [ ] Advanced perf/soak automation.
-- [ ] Additional UI primitive library expansion.
-- [ ] CI-gated performance thresholds.
+The concrete target contract now exists in [docs/arcade-surface-contract.md](/Users/timvucina/Desktop/MyProjects/air-jam/docs/arcade-surface-contract.md).
 
-## Phase 8: Template Canonicality + SDK Ergonomics Hardening (P0, Pre-Release)
+Locked decisions:
 
-Goal: reduce template complexity and ambiguity by moving recurring boilerplate into canonical SDK primitives and simplifying the Pong structure.
+1. canonical owner is Arcade host replicated state
+2. canonical shape is `ArcadeSurfaceState`
+3. `epoch` increments on surface instance changes only
+4. controller shell derives active game UI from snapshot, not pulses
+5. bridge bootstrap/attach must eventually validate surface identity and epoch
 
-### 8A) SDK Ergonomics (Remove Template Workarounds)
+## Phase 3. Make Controller Outer Shell Snapshot-Driven
 
-- [x] Add controller-side `TOAST` handling as a first-class built-in path (not ad-hoc per template).
-- [x] Add canonical controller hook for remote audio events (for example: `useRemoteSound(manifest)`), replacing manual `server:playSound` socket wiring.
-- [x] Add canonical presence helper for networked stores so templates do not need custom `connectedPlayerIds` + pruning plumbing.
-- [x] Add canonical lifecycle bridge helper for host runtime phase transitions (`lobby/playing/ended` -> runtime pause/play), removing repeated glue logic.
-- [x] Expose typed utility to parse/validate remote sound IDs without local `as` casts.
+Goal: controller outer UI must stop depending on transient load/unload pulses.
 
-### 8B) Pong Template Refactor (Aesthetic + Minimal)
+### Tasks
 
-- [x] Split `controller-view.tsx` into focused components/hooks:
-  1. header/status
-  2. lobby panel
-  3. playing controls
-  4. ended panel
-  5. connection guard hook
-- [x] Extract shared `team` domain module (team ids, labels, colors, formatting helpers) and remove duplicated constants/functions.
-- [x] Extract canonical readiness helper (`canStartMatch`) used by store + controller + lobby text.
-- [x] Rename stale action `setSoloBotEnabled` -> canonical `setBotEnabled` (or equivalent) across store/docs/template.
-- [x] Remove unused controller input fields (drop unused `action` from input schema unless used).
-- [x] Replace touch+mouse dual handlers with pointer-event canonical controls.
-- [x] Split `host/game-engine.ts` into cohesive modules:
-  1. simulation/input
-  2. collision/scoring
-  3. render
-  4. paddle/team selectors
-- [x] Move sound manifest import boundary from `host/*` into shared template module (`src/shared/*`) to avoid cross-layer coupling.
-- [x] Remove non-essential type assertions and non-null assumptions where clean typed helpers can replace them.
+- [ ] Replace `client:loadUi` / `client:unloadUi` as primary truth for controller page rendering.
+- [ ] Derive controller outer surface from the canonical Arcade surface snapshot.
+- [ ] Keep browser navigation/input enabled only when the snapshot says the browser is active.
+- [ ] Ensure reconnect/join replay uses snapshot only.
 
-### 8C) Template Dev/Script Hygiene
+### Exit Criteria
 
-- [x] Deduplicate shared process/port/spawn logic between `dev-all.mjs` and `dev-secure.mjs` into one small script utility.
-- [x] Keep generated template output clean (no built artifacts in template baseline).
+- [ ] Controller reconnect during browser renders browser correctly without relying on missed pulses.
+- [ ] Controller reconnect during game renders game correctly without relying on missed pulses.
 
-### 8D) Docs + Canonical Contract Lock
+## Phase 4. Make Host Arcade Snapshot-Driven
 
-- [x] Update template README with one short "canonical structure" section matching the refactored file layout.
-- [x] Add explicit "what SDK now handles for you" section (toast handling, remote sounds, presence sync, lifecycle bridge).
-- [x] Ensure examples in template/docs no longer show manual socket event subscriptions for common feedback paths.
+Goal: the host Arcade surface must derive from the same authoritative app state as the controller.
 
-### 8E) Acceptance Gates
+### Tasks
 
-- [x] `pnpm --filter my-airjam-game typecheck`
-- [x] `pnpm --filter my-airjam-game build`
-- [x] `pnpm lint`
-- [x] `pnpm test`
-- [x] `pnpm test:scaffold`
+- [ ] Stop treating local runtime manager state as the only truth for active surface.
+- [ ] Align launch/close transitions with the canonical Arcade surface contract.
+- [ ] Keep local UI helpers only as derived/presentational state, not authority.
+- [ ] Ensure host refresh/reconnect can restore the correct surface deterministically.
 
-Verification snapshot (March 22, 2026):
+### Exit Criteria
 
-- `pnpm --filter my-airjam-game typecheck`
-- `pnpm --filter my-airjam-game build`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm test:scaffold`
-- `pnpm -C packages/create-airjam smoke:workspace`
-- [ ] Manual sanity:
-  1. bot enable/disable + team switching cannot deadlock
-  2. start gate consistent across host/controller/lobby text
-  3. hit feedback: human hitter only on controller; bot hit on host only
-  4. score/start/win feedback follows canonical ownership rules
-  5. reconnect/disconnect UX disables controls safely
+- [ ] Host Arcade and controller shell cannot drift on browser/game state after reconnect.
 
-Exit criteria:
+## Phase 5. Harden Embedded Runtime Epochs
 
-1. Pong template has no monolithic role files and no duplicated readiness/format/team constants.
-2. Canonical feedback and presence behavior require no manual socket wiring in template code.
-3. Template LOC for core role views is materially reduced while preserving behavior.
-4. Docs, template, and SDK primitives are aligned to one unambiguous path.
+Goal: stale iframes must not remain logically attached after a surface switch.
 
-## Merge Discipline For This Milestone
+### Tasks
 
-1. One phase-oriented PR at a time (or small adjacent slices).
-2. Every behavior change includes tests.
-3. Every contract/API change includes docs update in same PR.
-4. If a requested shortcut introduces ambiguity, stop and refactor instead.
+- [ ] Add `surface.epoch` to host/controller embedded runtime bootstrap.
+- [ ] Add epoch validation to bridge attach and runtime requests.
+- [ ] Reject stale bridge handshakes when the active surface has changed.
+- [ ] Ensure browser -> game -> browser and game A -> game B switches invalidate old runtimes cleanly.
+
+### Exit Criteria
+
+- [ ] Stale embedded host/controller runtimes cannot continue sending or receiving traffic after a switch.
+
+## Phase 6. Pull Hidden Arcade Logic Out Of Generic Hooks
+
+Goal: generic hooks should not silently become embedded runtime hooks because of URL params.
+
+### Tasks
+
+- [ ] Audit `useAirJamHost` hidden embedded-runtime behavior.
+- [ ] Audit `useAirJamController` hidden embedded-runtime behavior.
+- [ ] Introduce explicit embedded host/controller runtime adapters.
+- [ ] Keep standalone APIs simple and default.
+- [ ] Move URL-param detection behind explicit adapter boundaries over time.
+
+### Exit Criteria
+
+- [ ] Generic hooks describe one obvious default runtime model.
+- [ ] Embedded runtime behavior exists behind explicit adapter contracts.
+
+## Phase 7. Server Invariant Minimization
+
+Goal: keep the server authoritative only where that authority is actually needed.
+
+### Tasks
+
+- [ ] Review every Arcade-related field in `RoomSession`.
+- [ ] Keep focus, membership, join token, and lifecycle invariants.
+- [ ] Remove or demote app-level UI ownership assumptions that belong in Arcade replicated state instead.
+- [ ] Define the minimum server contract needed for attach validity and routing.
+
+### Exit Criteria
+
+- [ ] Server room state reflects runtime invariants, not partial app UI truth.
+
+## Phase 8. Command And Input Cleanup
+
+Goal: platform intent should be explicit and coherent.
+
+### Tasks
+
+- [ ] Review `airjam.arcade.*` command usage and formalize the allowed platform command set.
+- [ ] Keep per-frame browser navigation on input lane if it remains useful.
+- [ ] Ensure platform commands are coarse and explicit.
+- [ ] Eliminate accidental mixing of gameplay semantics and platform semantics.
+
+### Exit Criteria
+
+- [ ] Platform commands have a clean contract and obvious ownership model.
+
+## Validation Plan
+
+The architecture is not done until these behaviors are covered.
+
+### Required Runtime Tests
+
+- [ ] controller reconnect while Arcade browser is active
+- [ ] controller reconnect while game is active
+- [ ] host Arcade reconnect while controllers stay connected
+- [ ] game A -> game B switch without stale controller/host runtime drift
+- [ ] game -> browser return without stale iframe traffic
+- [ ] stale embedded runtime rejected by epoch mismatch
+
+### Required Quality Gates
+
+- [ ] `pnpm typecheck`
+- [ ] `pnpm lint`
+- [ ] targeted SDK runtime tests
+- [ ] targeted server routing/lifecycle tests
+- [ ] platform behavior coverage for browser/game switching and reconnect
+
+## Out Of Scope For This Plan
+
+These are not part of the current architecture reset unless they block the work:
+
+1. new gameplay features
+2. visual redesign unrelated to ownership/sync
+3. broad SDK API redesign outside runtime boundary cleanup
+4. replacing Zustand or the current replicated store primitive
+
+## Recommended Execution Order
+
+1. finish ownership audit
+2. define Arcade surface contract
+3. make controller shell snapshot-driven
+4. make host Arcade snapshot-driven
+5. add epoch to bridge/runtime contracts
+6. clean generic hook boundaries
+7. minimize server ownership
+8. lock tests and remove old transient truth paths
+
+## Current Recommendation
+
+Do not start by editing the server again.
+
+Start with the ownership audit and the Arcade surface contract.
+
+If we get those two right, the rest becomes a disciplined migration.
+If we skip them, we will keep patching symptoms inside a muddy model.

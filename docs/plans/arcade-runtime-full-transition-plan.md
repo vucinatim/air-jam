@@ -1,24 +1,28 @@
 # Arcade Runtime Full Transition + Purge Plan
 
+> **Canonical architecture:** [`docs/framework-paradigm.md`](../framework-paradigm.md) and [`docs/implementation-plan.md`](../implementation-plan.md).  
+> This file is a **tactical backlog** (file paths, phases, purge list). If anything below conflicts with the framework paradigm—especially **server-owned Arcade UI** or **“separate runtime product”**—**the paradigm wins**.
+
 ## Decision
 
-Arcade is not "just another Air Jam game".  
-Arcade is a first-class runtime product with different responsibilities:
+Arcade is a **first-party Air Jam app** built from the same primitives as standalone games: same lanes, same session model, **bridge transport only** where the iframe boundary requires it. It is **not** a second framework or a separate “runtime product” paradigm.
 
-1. persistent room/session owner
+Arcade still has **distinct responsibilities** in product terms:
+
+1. persistent room/session owner (platform host)
 2. game launcher/router
-3. controller runtime host
-4. system UX authority (overlay, QR, pause, exit)
+3. controller shell for browser + embedded game surfaces
+4. platform UX for overlay, QR, pause, exit—owned in **Arcade host replicated state**, not as ad hoc server UI authority
 
-From this point, we optimize for one canonical architecture with zero hidden mode magic.
+We optimize for **one replayable surface snapshot** shared by host and controller, **deterministic epochs**, and **zero hidden arcade mode** inside generic SDK hooks.
 
 ## Non-Negotiable Architecture Rules
 
-1. Standalone game runtime and Arcade runtime are separate contracts.
+1. Standalone and Arcade use the **same** Air Jam contracts; Arcade adds **explicit adapters** and **bridge** where embedded, not a parallel framework.
 2. No URL-param auto-mode inference inside core SDK host/controller hooks.
 3. No toggle-based pause semantics in platform/system flows.
-4. Platform/system command lane is separate from gameplay input lane.
-5. Server is source of truth for room lifecycle, focus, overlay, and command outcomes.
+4. Platform/system command lane stays separate from gameplay input lane.
+5. Server owns **hard invariants** (membership, auth, routing/focus, join tokens, reconnect continuity, epoch validation)—**not** app-level Arcade browser/overlay UI as primary truth.
 6. If a path is legacy/duplicate/ambiguous, delete it (no soft deprecation on this branch).
 
 ## Target Architecture (Canonical)
@@ -132,19 +136,20 @@ Purge/Align:
 
 ## B) Server Domain Canonicalization
 
-### B1. Make platform overlay state server-authoritative
+### B1. Invariants vs Arcade UI state
 
-Refactor:
+**Canonical model:** scene/overlay/pause guard for the Arcade shell live in **Arcade host replicated state** (see `docs/arcade-surface-contract.md`). The server carries **routing/auth/session invariants** and may mirror or relay snapshots for migration, but must **not** become the long-term owner of app-level Arcade UI truth.
+
+Refactor as needed:
 
 1. `packages/server/src/types.ts`
 2. `packages/server/src/domain/room-session-domain.ts`
 
-Add explicit domain fields:
+Where the server still stores transitional fields (for example during migration), treat them as **invariant or transport helpers**, not the final source of truth for overlay UX. Prefer:
 
-1. `overlayState: "hidden" | "menu" | "qr"`
-2. `overlayVersion: number`
-3. `pauseOrigin: "none" | "platform_overlay"`
-4. `ownerControllerId?: string`
+1. epoch / join-token style guards
+2. explicit platform command ACKs
+3. forwarding **surface snapshots** authored by the Arcade host authority
 
 ### B2. Add explicit platform command lane
 
@@ -224,7 +229,7 @@ Purge:
 ### C4. Overlay state sync
 
 Controller sheet is presentational.  
-Server snapshot (`server:platform_overlay_state`) is canonical.
+It reconciles to the **same replayable surface snapshot** as the Arcade host (transport may use `server:platform_overlay_state` or store replication during migration).
 
 ## D) Protocol and Transport Simplification
 
@@ -264,13 +269,14 @@ Delete when replacement lands:
 
 Edit docs/spec first:
 
-1. `docs/plans/arcade-controller-overlay-plan.md`
-2. this file as source of truth
+1. `docs/framework-paradigm.md` (canonical)
+2. `docs/plans/arcade-controller-overlay-plan.md`
+3. this file (tactical backlog)
 
 Freeze:
 
 1. command names
-2. ownership policy
+2. ownership policy (host store vs server invariants)
 3. pause semantics
 4. runtime boundaries
 
@@ -303,7 +309,7 @@ Edit:
 Deliver:
 
 1. browser chrome only in browser scene
-2. host overlay layer driven by server snapshot
+2. host overlay layer driven by Arcade surface snapshot (same source as controller)
 
 ## Phase 3: Platform Controller Runtime
 
@@ -373,7 +379,7 @@ Edit:
 1. Arcade system UX is controller-driven in-game, not host-chrome-driven.
 2. No platform path relies on `toggle_pause`.
 3. Core SDK hooks contain no arcade URL-param branching.
-4. Server owns overlay state and broadcasts authoritative snapshots.
+4. Arcade host and controller derive overlay/scene from the **same** replayable surface snapshot; server enforces invariants and may relay, without owning app-level Arcade UI truth.
 5. One canonical command/event contract is used by platform and tests.
 6. Duplicate/unused protocol/runtime artifacts listed above are removed.
 

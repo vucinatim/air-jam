@@ -7,7 +7,7 @@ Status: active
 
 This document defines the intended Air Jam architecture.
 
-It replaces the earlier "vNext" framing that pushed Arcade too far into a special runtime product model.
+It replaces earlier framing that pushed Arcade too far into a special runtime product model.
 
 The correct direction for Air Jam is:
 

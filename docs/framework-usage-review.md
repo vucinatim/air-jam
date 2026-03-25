@@ -3,6 +3,8 @@
 Date: 2026-03-21  
 Scope: `../../zerodays/air-jam-games/last-band-standing`, `../../zerodays/air-jam-games/code-review`
 
+Empirical review of real games on an earlier SDK shape. Canonical architecture today is [`framework-paradigm.md`](./framework-paradigm.md).
+
 ## Why this review
 
 These two games were vibecoded with minimal framework internals knowledge, so they are strong signals for how developers and LLMs interpret the SDK in practice.

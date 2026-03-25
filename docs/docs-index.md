@@ -3,11 +3,12 @@
 Core docs:
 
 1. [Framework Paradigm](./framework-paradigm.md)
-2. [Implementation Plan](./implementation-plan.md)
-3. [Development Loop](./development-loop.md)
-4. [Performance Baseline](./performance-baseline.md)
-5. [Framework Usage Review](./framework-usage-review.md)
-6. [Archive Notes](./archive/done/archive-notes.md)
+2. [Arcade Surface Contract](./arcade-surface-contract.md)
+3. [Implementation Plan](./implementation-plan.md)
+4. [Development Loop](./development-loop.md)
+5. [Performance Baseline](./performance-baseline.md)
+6. [Framework Usage Review](./framework-usage-review.md)
+7. [Archive Notes](./archive/done/archive-notes.md)
 
 Supporting plans:
 

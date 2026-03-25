@@ -11,10 +11,10 @@ Make Arcade host UI least-obtrusive for fullscreen games:
 
 ## Architecture Principles (Non-Negotiable)
 
-1. Host/server remains source of truth for scene, overlay, and game pause state.
+1. A single replayable snapshot (Arcade host-owned replicated state) is the source of truth for scene, overlay, and game pause state; the server enforces hard invariants only (see `docs/framework-paradigm.md`).
 2. Platform overlay behavior must never depend on `toggle_pause` semantics.
 3. Gameplay input lane and platform command lane remain strictly separate.
-4. Controller UI is a thin remote; it does not own canonical overlay state.
+4. Controller UI derives from that same snapshot; it does not invent parallel canonical overlay state.
 5. Reconnect must converge by snapshot, not by client-local inference.
 
 ## UX Contract (Canonical)
@@ -179,9 +179,9 @@ Notes:
 
 ## Ownership and Race Rules
 
-1. Host is single source of truth for overlay state.
-2. Controller local sheet state is presentational and reconciles to `server:platform_overlay_state`.
-3. Last command processed by host wins; host increments `version` and broadcasts.
+1. Arcade host replicated state is the single source of truth for overlay/scene; the server enforces invariants (auth, routing, epoch), not app-level UI ownership.
+2. Controller local sheet state is presentational and reconciles to the same surface snapshot the host uses (transport may still use events like `server:platform_overlay_state` during migration).
+3. Last command processed by the Arcade host authority wins; bump `version` / `epoch` and broadcast or replicate the updated snapshot.
 4. Commands are idempotent:
    - `open_menu` while already `menu` is a no-op.
    - `show_qr` while already `qr` is a no-op.
@@ -210,9 +210,9 @@ Recommended default for `exit_game`:
 
 ## Reconnect and Snapshot Semantics
 
-1. On controller join/rejoin, server immediately sends current `server:platform_overlay_state`.
+1. On controller join/rejoin, deliver the current surface snapshot (replicated store replay; server may relay during migration).
 2. Controller UI derives notch/sheet state from latest snapshot (not local memory).
-3. Overlay snapshot must be emitted after:
+3. Surface snapshot must be updated after:
    - game launch success
    - game exit
    - overlay transition
@@ -256,7 +256,7 @@ Recommended default for `exit_game`:
 1. Add protocol types for `controller:platform_command` and `server:platform_overlay_state`.
 2. Add command ACK type/event (`server:platform_command_ack`).
 3. Add server handler for `controller:platform_command`.
-4. Persist overlay state in room session model (platform-owned).
+4. Persist overlay/scene in Arcade host replicated state; server stores only invariant fields (not as owner of Arcade UI truth).
 5. Implement room-scoped permission policy (`ownerControllerId`, capabilities).
 6. Broadcast `server:platform_overlay_state` on every accepted transition and on join/rejoin.
 7. Add rate limiting/dedupe in handler boundary.
