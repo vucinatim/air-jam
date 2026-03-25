@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Air Jam
+
+- **Controller chrome (Arcade embedded game):** outer notch and safe-area follow host-driven session orientation via the SDK, not the arcade surface launch hint. See [`docs/platform-controller-presentation.md`](../../docs/platform-controller-presentation.md).
+
 ## Getting Started
 
 First, run the development server:

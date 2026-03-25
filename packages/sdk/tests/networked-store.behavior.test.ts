@@ -13,6 +13,7 @@ import {
   createAirJamStore,
   type AirJamActionContext,
 } from "../src/store/create-air-jam-store";
+import type { HostArcadeRestoreState } from "../src/state/connection-store";
 
 type Role = "host" | "controller";
 
@@ -25,8 +26,10 @@ const mockedContext = vi.hoisted(() => {
       { id: "ctrl_1", label: "Player 1" },
       { id: "ctrl_2", label: "Player 2" },
     ],
-    hostReconnectAckPending: false,
-    hostArcadeSessionFromServer: null as null,
+    hostArcadeRestore: {
+      phase: "idle" as const,
+      session: null as null,
+    } as HostArcadeRestoreState,
   };
 
   return {
@@ -152,8 +155,10 @@ describe("createAirJamStore networked behavior", () => {
       { id: "ctrl_1", label: "Player 1" },
       { id: "ctrl_2", label: "Player 2" },
     ];
-    mockedContext.state.hostReconnectAckPending = false;
-    mockedContext.state.hostArcadeSessionFromServer = null;
+    mockedContext.state.hostArcadeRestore = {
+      phase: "idle",
+      session: null,
+    } as HostArcadeRestoreState;
 
     mockedContext.useAirJamContext.mockReturnValue({
       getSocket: (role: Role) =>
@@ -226,7 +231,7 @@ describe("createAirJamStore networked behavior", () => {
     unmount();
   });
 
-  it("hides internal actions on controller and blocks emits after unload", () => {
+  it("hides internal actions on controller and blocks emits after disconnect", () => {
     const useStore = createTestStore();
     const { result, unmount } = renderHook(() => useStore.useActions());
 
@@ -247,7 +252,8 @@ describe("createAirJamStore networked behavior", () => {
     ).toBe(1);
 
     act(() => {
-      controllerSocket.trigger("client:unloadUi");
+      controllerSocket.connected = false;
+      controllerSocket.trigger("disconnect", "closed");
       result.current.joinTeam({ team: "green" });
     });
 
@@ -332,29 +338,6 @@ describe("createAirJamStore networked behavior", () => {
 
     unmount();
     unsubscribe();
-  });
-
-  it("applies host state sync to controller after unloadUi (sync stays subscribed)", () => {
-    const useStore = createTestStore();
-    const phaseHook = renderHook(() => useStore((state) => state.phase));
-
-    expect(phaseHook.result.current).toBe("lobby");
-
-    act(() => {
-      controllerSocket.trigger("client:unloadUi");
-    });
-
-    act(() => {
-      controllerSocket.trigger("airjam:state_sync", {
-        roomId: "ROOM1",
-        data: { phase: "playing" },
-        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
-      });
-    });
-
-    expect(phaseHook.result.current).toBe("playing");
-
-    phaseHook.unmount();
   });
 
   it("emits host:state_sync on host mount so controllers can replay current snapshot", () => {
@@ -593,7 +576,10 @@ describe("createAirJamStore networked behavior", () => {
 
   it("suppresses arcade.shell host:state_sync while reconnect ack is pending, then emits when cleared", () => {
     mockedContext.state.role = "host";
-    mockedContext.state.hostReconnectAckPending = true;
+    mockedContext.state.hostArcadeRestore = {
+      phase: "awaiting_ack",
+      session: null,
+    } as HostArcadeRestoreState;
 
     const useArcadeShellStore = createAirJamStore<TestStoreState>(
       (set) => ({
@@ -629,7 +615,10 @@ describe("createAirJamStore networked behavior", () => {
     );
     expect(syncWhilePending.length).toBe(0);
 
-    mockedContext.state.hostReconnectAckPending = false;
+    mockedContext.state.hostArcadeRestore = {
+      phase: "idle",
+      session: null,
+    } as HostArcadeRestoreState;
     rerender();
 
     const syncAfterClear = hostSocket.emitted.filter(

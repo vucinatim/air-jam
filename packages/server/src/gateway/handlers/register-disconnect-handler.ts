@@ -37,7 +37,7 @@ export const registerDisconnectHandler = (
             return;
           }
           beginRoomClosing(current);
-          transitionToSystemFocus(io, roomId, current, {
+          transitionToSystemFocus(io, current, {
             resyncPlayersToMaster: true,
           });
         }, getChildHostDisconnectTeardownMs());

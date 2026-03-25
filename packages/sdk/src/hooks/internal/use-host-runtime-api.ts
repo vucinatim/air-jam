@@ -297,7 +297,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           if (ack.roomId) {
             latestState.setStatus("connected");
             latestState.setRoomId(ack.roomId);
-            latestState.setHostArcadeSessionFromServer(null);
+            latestState.clearHostArcadeRestore();
             setRegisteredRoomId(ack.roomId);
 
             if (typeof window !== "undefined") {
@@ -323,18 +323,28 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           const reconnectRetryDelayMs = 250;
 
           const attemptReconnect = (attempt: number) => {
-            store.getState().setHostReconnectAckPending(true);
+            store.getState().setHostArcadeRestore({
+              phase: "awaiting_ack",
+              session: null,
+            });
             socket.emit(
               "host:reconnect",
               reconnectPayload,
               (ack: HostRegistrationAck) => {
                 const latestState = store.getState();
                 if (ack.ok && ack.roomId) {
-                  latestState.setHostReconnectAckPending(false);
                   latestState.setStatus("connected");
                   latestState.setRoomId(ack.roomId);
-                  latestState.setHostArcadeSessionFromServer(
-                    ack.arcadeSession ?? null,
+                  latestState.setHostArcadeRestore(
+                    ack.arcadeSession
+                      ? {
+                          phase: "pending_restore",
+                          session: ack.arcadeSession,
+                        }
+                      : {
+                          phase: "idle",
+                          session: null,
+                        },
                   );
                   setRegisteredRoomId(ack.roomId);
                   return;
@@ -351,7 +361,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                   return;
                 }
 
-                latestState.setHostReconnectAckPending(false);
+                latestState.clearHostArcadeRestore();
                 if (typeof window !== "undefined") {
                   sessionStorage.removeItem("airjam_room_id");
                 }

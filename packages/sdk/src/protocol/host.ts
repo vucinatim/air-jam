@@ -1,15 +1,13 @@
 import { z } from "zod";
 import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
-import { runtimeUrlSchema } from "./url-policy";
 
 /**
- * Active arcade game session as seen by the server (join token + controller shell URL + catalog id).
+ * Active arcade game session as seen by the server (join token + catalog id).
  * Returned on host reconnect so the platform can restore iframe + replicated surface after refresh.
  */
 export interface HostArcadeSessionSnapshot {
   gameId: string;
-  controllerUrl: string;
   joinToken: string;
 }
 
@@ -32,7 +30,6 @@ export type HostRegisterSystemPayload = z.infer<typeof hostRegisterSystemSchema>
 export const systemLaunchGameSchema = z.object({
   roomId: roomCodeSchema,
   gameId: z.string(),
-  gameUrl: runtimeUrlSchema,
 });
 
 export type SystemLaunchGamePayload = z.infer<typeof systemLaunchGameSchema>;
@@ -72,8 +69,4 @@ export interface SystemLaunchGameAck {
   joinToken?: string;
   message?: string;
   code?: ErrorCode | string;
-}
-
-export interface ClientLoadUiPayload {
-  url: string;
 }

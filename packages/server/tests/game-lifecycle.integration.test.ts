@@ -23,7 +23,7 @@ describe("server game lifecycle", () => {
     server: { authService: allowAllAuthService },
   });
 
-  it("launches game, notifies controllers, and lets child host join", async () => {
+  it("launches game and lets child host join", async () => {
     const masterHost = await harness.connectSocket();
     const controller = await harness.connectSocket();
 
@@ -43,26 +43,17 @@ describe("server game lifecycle", () => {
     );
     expect(joinAck.ok).toBe(true);
 
-    const controllerLoadUiPromise = harness.waitForEvent<{ url: string }>(
-      controller,
-      "client:loadUi",
-    );
-
     const launchAck = await harness.emitWithAck<LaunchGameAck>(
       masterHost,
       "system:launchGame",
       {
         roomId,
         gameId: "pong",
-        gameUrl: "https://example.com/pong",
       },
     );
 
     expect(launchAck.ok).toBe(true);
     expect(launchAck.joinToken).toBeTypeOf("string");
-
-    const controllerLoadUi = await controllerLoadUiPromise;
-    expect(controllerLoadUi.url).toBe("https://example.com/pong");
 
     const childHost = await harness.connectSocket();
     const joinedNoticePromise = harness.waitForEvent<{ controllerId: string }>(
@@ -114,21 +105,15 @@ describe("server game lifecycle", () => {
     );
     expect(joinAck.ok).toBe(true);
 
-    const controllerLoadUiPromise = harness.waitForEvent<{ url: string }>(
-      controller,
-      "client:loadUi",
-    );
     const launchAck = await harness.emitWithAck<LaunchGameAck>(
       masterHost,
       "system:launchGame",
       {
         roomId,
         gameId: "pong",
-        gameUrl: "https://example.com/pong",
       },
     );
     expect(launchAck.ok).toBe(true);
-    await controllerLoadUiPromise;
 
     const activateAck = await harness.emitWithAck<{ ok: boolean; roomId?: string }>(
       masterHost,
@@ -188,33 +173,7 @@ describe("server game lifecycle", () => {
     expect(childJoinAck.code).toBe(ErrorCode.INVALID_TOKEN);
   });
 
-  it("rejects launch requests with non-http game URLs", async () => {
-    const masterHost = await harness.connectSocket();
-
-    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
-      masterHost,
-      "host:createRoom",
-      { maxPlayers: 4 },
-    );
-    expect(createAck.ok).toBe(true);
-
-    const roomId = createAck.roomId!;
-
-    const launchAck = await harness.emitWithAck<LaunchGameAck>(
-      masterHost,
-      "system:launchGame",
-      {
-        roomId,
-        gameId: "bad-game",
-        gameUrl: "javascript:alert(1)",
-      },
-    );
-
-    expect(launchAck.ok).toBe(false);
-    expect(launchAck.code).toBe(ErrorCode.INVALID_PAYLOAD);
-  });
-
-  it("closes game and forces controllers to unload UI", async () => {
+  it("closes game and disconnects the child host without dropping controllers", async () => {
     const masterHost = await harness.connectSocket();
     const controller = await harness.connectSocket();
 
@@ -234,24 +193,16 @@ describe("server game lifecycle", () => {
     );
     expect(joinAck.ok).toBe(true);
 
-    const controllerLoadUiPromise = harness.waitForEvent<{ url: string }>(
-      controller,
-      "client:loadUi",
-    );
-
     const launchAck = await harness.emitWithAck<LaunchGameAck>(
       masterHost,
       "system:launchGame",
       {
         roomId,
         gameId: "pong",
-        gameUrl: "https://example.com/pong",
       },
     );
 
     expect(launchAck.ok).toBe(true);
-
-    await controllerLoadUiPromise;
 
     const childHost = await harness.connectSocket();
     const childJoinAck = await harness.emitWithAck<{ ok: boolean }>(
@@ -268,7 +219,7 @@ describe("server game lifecycle", () => {
     const childDisconnectPromise = harness.waitForEvent(childHost, "disconnect", 2_000);
     masterHost.emit("system:closeGame", { roomId });
 
-    await harness.waitForEvent(controller, "client:unloadUi", 2_000);
+    await harness.expectNoEvent(controller, "disconnect", 120);
     await childDisconnectPromise;
   });
 
@@ -291,22 +242,15 @@ describe("server game lifecycle", () => {
     );
     expect(joinAck.ok).toBe(true);
 
-    const firstLoadPromise = harness.waitForEvent<{ url: string }>(
-      controller,
-      "client:loadUi",
-      2_000,
-    );
     const firstLaunchAck = await harness.emitWithAck<LaunchGameAck>(
       masterHost,
       "system:launchGame",
       {
         roomId,
         gameId: "game-one",
-        gameUrl: "https://example.com/game-one",
       },
     );
     expect(firstLaunchAck.ok).toBe(true);
-    expect((await firstLoadPromise).url).toBe("https://example.com/game-one");
 
     const childHostOne = await harness.connectSocket();
     const childJoinOneAck = await harness.emitWithAck<{ ok: boolean }>(
@@ -328,32 +272,24 @@ describe("server game lifecycle", () => {
     expect(firstToggleState.roomId).toBe(roomId);
     expect(["paused", "playing"]).toContain(firstToggleState.state.gameState);
 
-    const unloadPromise = harness.waitForEvent(controller, "client:unloadUi", 2_000);
     const childDisconnectPromise = harness.waitForEvent(
       childHostOne,
       "disconnect",
       2_000,
     );
     masterHost.emit("system:closeGame", { roomId });
-    await unloadPromise;
+    await harness.expectNoEvent(controller, "disconnect", 120);
     await childDisconnectPromise;
 
-    const secondLoadPromise = harness.waitForEvent<{ url: string }>(
-      controller,
-      "client:loadUi",
-      2_000,
-    );
     const secondLaunchAck = await harness.emitWithAck<LaunchGameAck>(
       masterHost,
       "system:launchGame",
       {
         roomId,
         gameId: "game-two",
-        gameUrl: "https://example.com/game-two",
       },
     );
     expect(secondLaunchAck.ok).toBe(true);
-    expect((await secondLoadPromise).url).toBe("https://example.com/game-two");
 
     const childHostTwo = await harness.connectSocket();
     const childJoinedControllerPromise = harness.waitForEvent<{
@@ -418,7 +354,6 @@ describe("server game lifecycle", () => {
       {
         roomId,
         gameId: "proto",
-        gameUrl: "https://example.com/game",
       },
     );
     expect(launchAck.ok).toBe(true);
@@ -442,7 +377,7 @@ describe("server game lifecycle", () => {
     );
     expect(joinTwoAck.ok).toBe(true);
 
-    await harness.expectNoEvent(controller, "client:unloadUi", 120);
+    await harness.expectNoEvent(controller, "disconnect", 120);
 
     const togglePromise = harness.waitForEvent<{
       roomId: string;

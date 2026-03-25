@@ -125,18 +125,15 @@ export const canBeginGameLaunch = (
 export const startGameLaunch = (
   session: RoomSession,
   joinToken: string,
-  gameUrl: string,
   gameId: string,
 ): void => {
   session.joinToken = joinToken;
-  session.activeControllerUrl = gameUrl;
   session.activeGameId = gameId;
 };
 
 export const beginGameLaunch = (
   session: RoomSession,
   joinToken: string,
-  gameUrl: string,
   gameId: string,
 ): LaunchAvailability => {
   const launchAvailability = canBeginGameLaunch(session);
@@ -145,7 +142,7 @@ export const beginGameLaunch = (
   }
 
   transitionRoomLifecycle(session, "GAME_LAUNCH_PENDING");
-  startGameLaunch(session, joinToken, gameUrl, gameId);
+  startGameLaunch(session, joinToken, gameId);
   return { ok: true };
 };
 
@@ -155,11 +152,7 @@ export const beginGameLaunch = (
 export const buildArcadeSessionForHostAck = (
   session: RoomSession,
 ): HostArcadeSessionSnapshot | undefined => {
-  if (
-    !session.joinToken ||
-    !session.activeControllerUrl ||
-    !session.activeGameId
-  ) {
+  if (!session.joinToken || !session.activeGameId) {
     return undefined;
   }
   const phase = session.lifecycleState;
@@ -168,7 +161,6 @@ export const buildArcadeSessionForHostAck = (
   }
   return {
     gameId: session.activeGameId,
-    controllerUrl: session.activeControllerUrl,
     joinToken: session.joinToken,
   };
 };
@@ -227,7 +219,6 @@ export const resetRoomToSystemState = (
   session.focus = "SYSTEM";
   session.childHostSocketId = undefined;
   session.joinToken = undefined;
-  session.activeControllerUrl = undefined;
   session.activeGameId = undefined;
   transitionRoomLifecycle(session, "SYSTEM_IDLE");
   if (resetGameState) {
@@ -312,7 +303,6 @@ export const disconnectChildHostIfPresent = (
 
 export const transitionToSystemFocus = (
   io: AirJamIoServer,
-  roomId: RoomCode,
   session: RoomSession,
   options: TransitionToSystemFocusOptions = {},
 ): void => {
@@ -323,8 +313,6 @@ export const transitionToSystemFocus = (
 
   beginRoomClosing(session);
   resetRoomToSystemState(session, options.resetGameState);
-
-  io.to(roomId).emit("client:unloadUi");
 
   if (options.notifyMasterCloseChild && session.masterHostSocketId) {
     io.to(session.masterHostSocketId).emit("server:closeChild");

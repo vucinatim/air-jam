@@ -28,7 +28,7 @@ describe("room session domain lifecycle", () => {
     const session = createSession();
     expect(getRoomLifecyclePhase(session)).toBe("SYSTEM_IDLE");
 
-    beginGameLaunch(session, "token-1", "https://example.com/game", "g1");
+    beginGameLaunch(session, "token-1", "g1");
     expect(getRoomLifecyclePhase(session)).toBe("GAME_LAUNCH_PENDING");
 
     beginChildHostActivation(session, "host-child");
@@ -56,7 +56,7 @@ describe("room session domain lifecycle", () => {
 
   it("resets game and routing fields when returning to system state", () => {
     const session = createSession();
-    beginGameLaunch(session, "token-1", "https://example.com/game", "g1");
+    beginGameLaunch(session, "token-1", "g1");
     beginChildHostActivation(session, "host-child");
     session.gameState = "playing";
 
@@ -64,7 +64,6 @@ describe("room session domain lifecycle", () => {
     expect(session.focus).toBe("SYSTEM");
     expect(session.childHostSocketId).toBeUndefined();
     expect(session.joinToken).toBeUndefined();
-    expect(session.activeControllerUrl).toBeUndefined();
     expect(session.activeGameId).toBeUndefined();
     expect(session.lifecycleState).toBe("SYSTEM_IDLE");
     expect(session.gameState).toBe("playing");
@@ -85,7 +84,7 @@ describe("room session domain lifecycle", () => {
     });
 
     const pendingSession = createSession();
-    beginGameLaunch(pendingSession, "token-1", "https://example.com/game", "g1");
+    beginGameLaunch(pendingSession, "token-1", "g1");
     expect(canActivateChildHost(pendingSession)).toEqual({ ok: true });
 
     const activeSession = createSession();
@@ -103,7 +102,6 @@ describe("room session domain lifecycle", () => {
     const launchAttempt = beginGameLaunch(
       activeSession,
       "token-1",
-      "https://example.com/game",
       "g1",
     );
     expect(launchAttempt).toEqual({ ok: false, reason: "GAME_ACTIVE" });

@@ -334,9 +334,9 @@ A concrete contract for the Arcade surface snapshot, with examples for:
 1. Types live in `apps/platform/src/components/arcade/arcade-surface-types.ts` (`ArcadeSurfaceState` matches the contract doc).
 2. Canonical replicated store: `apps/platform/src/components/arcade/arcade-surface-store.ts` (`createAirJamStore`), host-only mutations for surface transitions, `epoch` bump on browser↔game and game↔game.
 3. `ArcadeSystem` resets surface on new `roomId`, updates surface on launch success and exit, drives QR overlay from `surface.overlay` instead of local React state.
-4. Platform controller (`apps/platform/src/app/controller/page.tsx`) derives embedded game `activeUrl` from replicated surface (`kind === "game"` + `controllerUrl`); `client:loadUi` / `client:unloadUi` are no longer used for outer-shell URL (bridge forwarding to the embedded iframe is unchanged).
+4. Platform controller (`apps/platform/src/app/controller/page.tsx`) derives embedded game `activeUrl` from replicated surface (`kind === "game"` + `controllerUrl`); `client:loadUi` / `client:unloadUi` are no longer used for controller shell behavior.
 
-Phase 4 progress: redundant `view` field removed from `ArcadeRuntimeState`; shell browser/game is `ArcadeSurfaceState.kind` only. Join token + normalized host URL stay host-local in the runtime reducer (not replicated to controllers by design). Host full reload: `host:reconnect` ack may include `arcadeSession` (`HostArcadeSessionSnapshot`); `use-host-runtime-api` stores it on `AirJamStore.hostArcadeSessionFromServer`; `ArcadeSystem` hydrates `ArcadeSurfaceState` + runtime launch state when present, and skips the default `resetHostSurfaceForMode` for that bind.
+Phase 4 progress: redundant `view` field removed from `ArcadeRuntimeState`; shell browser/game is `ArcadeSurfaceState.kind` only. Join token + normalized host URL stay host-local in the runtime reducer (not replicated to controllers by design). Host full reload: `host:reconnect` ack may include `arcadeSession` (`HostArcadeSessionSnapshot`); `use-host-runtime-api` stores it on the host-only `AirJamStore.hostArcadeRestore` seam; `ArcadeSystem` hydrates `ArcadeSurfaceState` + runtime launch state when present, derives `controllerUrl` locally from the game catalog, and skips the default `resetHostSurfaceForMode` for that bind.
 
 ### Contract Decision (2026-03-25)
 
@@ -360,14 +360,14 @@ Goal: controller outer UI must stop depending on transient load/unload pulses.
 - [x] Derive controller outer surface from the canonical Arcade surface snapshot.
 - [x] Keep browser navigation/input enabled only when the snapshot says the browser is active (`surfaceKind === "browser"` + arcade mode guard).
 - [x] Add authoritative synced-store snapshot replay on controller join/reconnect so a late-joining controller receives the current `ArcadeSurfaceState` without waiting for a future host mutation (`createAirJamStore` host effect emits current snapshot on mount, socket reconnect, when the player roster key changes, and on `server:controllerJoined` so same-`controllerId` socket replacement replays without a roster-id change).
-- [x] Decouple controller store sync lifetime from `client:loadUi` / `client:unloadUi`; unloading game UI may gate controller actions, but it must not unsubscribe the controller from replicated store updates.
+- [x] Decouple controller store sync lifetime from `client:loadUi` / `client:unloadUi`; controller stores now remain subscribed to replicated state and stale actions are blocked by real socket/bridge lifecycle instead.
 
 ### Review Findings (2026-03-25)
 
 Addressed in SDK:
 
 1. Host now pushes a full `host:state_sync` for each networked store when the host hook mounts/reconnects and when `players` membership changes, so new controllers receive the latest snapshot without a host-side mutation.
-2. Controller `airjam:state_sync` subscription is no longer removed on `client:unloadUi`; only `gameUiUnloadedRef` gates action RPCs.
+2. Controller `airjam:state_sync` subscription is no longer removed on `client:unloadUi`; later cleanup removed `gameUiUnloadedRef` entirely and action RPC blocking now relies on real socket/bridge disconnect state instead of legacy load/unload pulses.
 3. Same-`controllerId` reconnect: host also flushes `host:state_sync` on every `server:controllerJoined` (the server emits this on each `controller:join`, including when a new socket replaces an existing session for the same id). Covered by `networked-store.behavior.test.ts`.
 
 ### Review resolution (2026-03-26)
@@ -376,8 +376,8 @@ Addressed in SDK:
 
 ### Exit Criteria
 
-- [ ] Controller reconnect during browser renders browser correctly without relying on missed pulses (manual QA pending).
-- [ ] Controller reconnect during game renders game correctly without relying on missed pulses (manual QA pending).
+- [x] Controller reconnect during browser renders browser correctly without relying on missed pulses (manual QA passed 2026-03-26).
+- [x] Controller reconnect during game renders game correctly without relying on missed pulses (manual QA passed 2026-03-26).
 
 ## Phase 4. Make Host Arcade Snapshot-Driven
 
@@ -388,20 +388,20 @@ Goal: the host Arcade surface must derive from the same authoritative app state 
 - [x] Stop treating local runtime manager state as the only truth for active surface (no duplicate `view`; visibility and host tick use `surfaceKind`; join token and host iframe URL remain in the runtime reducer).
 - [x] Align launch/close transitions with the canonical Arcade surface contract (surface lane updates on launch/exit; join/runtime details still local).
 - [x] Keep local UI helpers only as derived/presentational state, not authority (shell/game visibility from `ArcadeSurfaceState`; auto-launch uses `surfaceKind === "browser"` in `shouldAutoLaunchGame`; `GamePlayer` gated by `surfaceKind === "game"` plus runtime join/URL; scroll `browserListAtTop` is chrome-only).
-- [x] Ensure host refresh/reconnect can restore the correct surface deterministically (`RoomSession.activeGameId`, `HostRegistrationAck.arcadeSession` on `host:reconnect`, platform hydration in `ArcadeSystem`).
+- [x] Ensure host refresh/reconnect can restore the correct surface deterministically (`RoomSession.activeGameId`, `HostRegistrationAck.arcadeSession` on `host:reconnect`, and local `controllerUrl` derivation in `ArcadeSystem`).
 - [x] Ensure host reconnect restore does not consume and drop a valid server snapshot before required local dependencies are ready; if the game catalog is still loading, the `arcadeSession` must be retained and applied once the game entry is available (`gamesCatalogReady` on `ArcadeSystem`; arcade route mounts `HostSessionProvider` + `ArcadeSystem` during catalog load; hydration skips clear until the catalog is ready).
 
 ### Exit Criteria
 
-- [ ] Host Arcade and controller shell cannot drift on browser/game state after reconnect.
+- [x] Host Arcade and controller shell cannot drift on browser/game state after reconnect (manual QA passed 2026-03-26).
 - [x] Host reconnect must not briefly rebroadcast the default browser `ArcadeSurfaceState` before restoring a valid server-provided active game snapshot (implemented 2026-03-26).
 
 ### Implementation note (2026-03-26)
 
-Wrong-order `host:state_sync` for the arcade shell domain is suppressed when:
+Wrong-order `host:state_sync` for the arcade shell domain is suppressed while `AirJamStore.hostArcadeRestore.phase !== "idle"`:
 
-1. `hostReconnectAckPending` is true for the in-flight `host:reconnect` call (`AirJamStore` + `use-host-runtime-api`).
-2. `hostArcadeSessionFromServer` is non-null until `ArcadeSystem` finishes hydration (`createAirJamStore` for `storeDomain: arcade.surface` skips host emits while either condition holds).
+1. `awaiting_ack` while `host:reconnect` is in flight (`use-host-runtime-api`).
+2. `pending_restore` after reconnect ack returns an active arcade session and before `ArcadeSystem` finishes hydration (`createAirJamStore` for `storeDomain: arcade.surface` skips host emits while the restore seam is non-idle).
 
 Covered by `packages/sdk/tests/networked-store.behavior.test.ts` (“suppresses arcade.shell host:state_sync while reconnect ack is pending, then emits when cleared”).
 
@@ -420,7 +420,7 @@ Goal: stale iframes must not remain logically attached after a surface switch.
 ### Exit Criteria
 
 - [x] **In code + tests:** attach rejects regressive epochs; forward path closes on identity drift; covered by `packages/sdk/tests/validate-arcade-bridge-attach.test.ts`, `controller-bridge-runtime.behavior.test.ts`, `host-bridge-runtime.behavior.test.ts`, `arcade-bridge-request-surface.test.ts`, and platform iframe URL tests (`arcade-bridge.test.ts`).
-- [ ] **Manual / full-stack:** confirm no stale traffic in real Arcade after rapid game A↔B and browser↔game switches (complements automated layers above).
+- [x] **Manual / full-stack:** confirm no stale traffic in real Arcade after rapid game A↔B and browser↔game switches (complements automated layers above; manual QA passed 2026-03-26).
 
 ## Phase 6. Support Parallel Scoped Stores Per Room
 
@@ -470,14 +470,14 @@ Goal: keep the server authoritative only where that authority is actually needed
 
 ### Tasks
 
-- [x] Review `RoomSession` arcade-related fields (2026-03-26); `activeControllerUrl` documented in `packages/server/src/types.ts` as routing/reconnect/legacy `client:loadUi` — not authoritative for Arcade UI chrome.
+- [x] Review `RoomSession` arcade-related fields (2026-03-26); the old `activeControllerUrl` field was identified as a server ownership leak and later removed.
 - [ ] Keep focus, membership, join token, and lifecycle invariants (ongoing).
-- [ ] Further demote or remove `activeControllerUrl` / `client:loadUi` once end-to-end verification allows (optional Phase 10).
+- [x] Remove `activeControllerUrl` and shrink reconnect/session restore so host derives `controllerUrl` locally from catalog/runtime metadata instead of from a server-owned UI URL field.
 - [ ] Define minimum attach contract in a dedicated doc if server surface shrinks further.
 
 ### Exit Criteria
 
-- [ ] Server room state reflects runtime invariants only; **partial:** ownership of `activeControllerUrl` is documented; full removal of legacy pulses is Phase 10 scope.
+- [x] Server room state reflects runtime invariants only; the legacy `activeControllerUrl` field was removed and reconnect snapshots now carry only `gameId` + `joinToken`.
 
 ## Implementation Guardrails
 
@@ -521,26 +521,37 @@ Goal: finish the architecture reset completely. The system is not done when the 
 ### Tasks
 
 - [x] Inventory transitional compatibility (living list — remove as code is deleted):
-  1. **`client:loadUi` / `client:unloadUi`:** server still emits on controller join (`activeControllerUrl`) and host lifecycle; SDK controller store still toggles `gameUiUnloadedRef` on these events; platform bridge forwards them to embedded iframe. Outer shell URL is snapshot-driven; pulses remain for embedded runtime gating and legacy tests.
-  2. **`RoomSession.activeControllerUrl`:** routing, `host:reconnect` snapshot (`buildArcadeSessionForHostAck`), join-time `client:loadUi`; JSDoc in `packages/server/src/types.ts` — not Arcade chrome authority.
+  1. **Removed on 2026-03-26:** `client:loadUi` / `client:unloadUi`. Outer shell state is snapshot-driven, embedded controller runtimes now rely on bridge/socket lifecycle instead of legacy load/unload pulses, and server/platform/tests no longer use these events in normal flow.
+  2. **Removed on 2026-03-26:** `RoomSession.activeControllerUrl`. Reconnect snapshots now carry only `gameId` + `joinToken`, and host restore derives `controllerUrl` locally from the game catalog/runtime URL.
   3. **`sessionStorage` `airjam_room_id`:** host standalone reconnect in `use-host-runtime-api`.
-  4. **`hostReconnectAckPending` / `hostArcadeSessionFromServer`:** reconnect ordering guard (not a shim to delete until surface init can be made synchronous).
-- [ ] Re-audit inventory before deleting any of the above end-to-end.
-- [ ] Remove deprecated protocol/event usage once the final path is verified end-to-end.
+  4. **`hostArcadeRestore`:** host-only reconnect ordering guard. This is transitional only if surface restore can eventually be made synchronous or move behind a narrower host adapter; do not delete as compatibility cleanup by default.
+- [x] Record concrete cleanup classification before deleting anything:
+  1. **Completed:** `client:loadUi` / `client:unloadUi` were removed after embedded-runtime action gating was switched to real socket/bridge disconnect state and server/platform/tests stopped depending on them.
+  2. **Completed:** `RoomSession.activeControllerUrl` was removed after reconnect/session restore was changed to use `gameId` + `joinToken` only and host restore derived `controllerUrl` locally.
+  3. **Keep unless separately redesigned:** `hostArcadeRestore`. This is currently a real reconnect-ordering seam, not merely dead compatibility. It should only disappear if reconnect hydration becomes synchronous or moves behind a narrower host-only adapter.
+  4. **Out of Arcade cleanup scope unless touched:** `sessionStorage` `airjam_room_id`. This belongs to standalone host reconnect behavior and is not an Arcade-specific compatibility path.
+- [x] Define cleanup order so removal does not create new shadow paths:
+  1. First remove dead app/game-level Arcade-awareness and obsolete comments/tests.
+  2. Then replace embedded-runtime action gating so it no longer depends on `client:loadUi` / `client:unloadUi`.
+  3. Then remove legacy load/unload protocol emissions and forwarding.
+  4. Then remove `activeControllerUrl` and shrink server reconnect payloads if still possible.
+  5. Only after code paths are final, rewrite docs to describe the final architecture with no migration language.
+- [x] Re-audit inventory before deleting any of the above end-to-end.
+- [x] Remove deprecated protocol/event usage once the final path is verified end-to-end.
 - [ ] Remove transitional replay/reconnect shims that are no longer needed after the final authority model is fully in place.
 - [ ] Remove duplicate ownership paths where an older field/state/event still shadows the new canonical source of truth.
-- [ ] Remove any remaining game/app-level Arcade-awareness helpers that were added only to bridge the migration.
-- [ ] Remove old unscoped assumptions once scoped-store runtime resolution is the only supported model.
+- [x] Remove any remaining game/app-level Arcade-awareness helpers that were added only to bridge the migration.
+- [x] Remove old unscoped assumptions once scoped-store runtime resolution is the only supported model.
 - [ ] Remove legacy comments, TODO notes, and “temporary” code branches that no longer serve a live migration purpose.
 - [ ] Remove dead tests that only exist for superseded behavior, and replace them with tests that assert the final intended contract.
 - [ ] Collapse interim naming that preserves old terminology when the final concept has a clearer canonical name.
 - [ ] Update docs so they describe only the final architecture, not a mixture of current behavior and retired transition paths.
 - [ ] Review public SDK surfaces for transitional overload or optionality that can now be simplified.
 - [ ] Verify that no framework/platform concern is still leaking into app/game code purely for migration convenience.
-- [ ] Run final manual runtime QA for the highest-risk reconnect/surface flows before removing the last compatibility code.
-- [ ] Verify host refresh during an active game does not briefly flip controllers back to browser before restore.
-- [ ] Verify controller reconnect during an active game restores the correct outer shell and embedded game without drift.
-- [ ] Verify controller reconnect during Arcade browser restores browser state cleanly and does not leave stale embedded runtime attachment behind.
+- [x] Run final manual runtime QA for the highest-risk reconnect/surface flows before removing the last compatibility code.
+- [x] Verify host refresh during an active game does not briefly flip controllers back to browser before restore.
+- [x] Verify controller reconnect during an active game restores the correct outer shell and embedded game without drift.
+- [x] Verify controller reconnect during Arcade browser restores browser state cleanly and does not leave stale embedded runtime attachment behind.
 
 ### Exit Criteria
 
@@ -549,7 +560,7 @@ Goal: finish the architecture reset completely. The system is not done when the 
 - [ ] No app/game code contains Arcade-specific migration logic just to function when embedded.
 - [ ] Docs, tests, and runtime code all describe the same final model with no “temporary” caveats left behind.
 - [ ] The codebase can be understood without knowing the migration history.
-- [ ] Final manual reconnect/surface QA passes for host refresh in-game, controller reconnect in-game, and controller reconnect in-browser.
+- [x] Final manual reconnect/surface QA passes for host refresh in-game, controller reconnect in-game, and controller reconnect in-browser.
 
 ## Phase 11. Framework Boundary Tightening
 
@@ -593,11 +604,11 @@ Coverage is **split**: automated tests prove protocol/SDK/platform units; **Arca
 
 Checklist (keep until manual passes are logged):
 
-- [ ] controller reconnect while Arcade browser is active
-- [ ] controller reconnect while game is active
-- [ ] host Arcade reconnect while controllers stay connected
-- [ ] game A -> game B switch without stale controller/host runtime drift
-- [ ] game -> browser return without stale iframe traffic
+- [x] controller reconnect while Arcade browser is active
+- [x] controller reconnect while game is active
+- [x] host Arcade reconnect while controllers stay connected
+- [x] game A -> game B switch without stale controller/host runtime drift
+- [x] game -> browser return without stale iframe traffic
 - [x] stale embedded runtime rejected by epoch mismatch (automated tests above)
 
 ### Required Quality Gates

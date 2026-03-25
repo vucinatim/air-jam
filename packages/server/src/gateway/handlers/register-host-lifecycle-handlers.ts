@@ -290,7 +290,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const { roomId, gameUrl, gameId } = parsed.data;
+      const { roomId, gameId } = parsed.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
         callback({
@@ -345,7 +345,7 @@ export const registerHostLifecycleHandlers = (
       }
 
       const joinToken = uuidv4();
-      const transitionResult = beginGameLaunch(session, joinToken, gameUrl, gameId);
+      const transitionResult = beginGameLaunch(session, joinToken, gameId);
       if (!transitionResult.ok) {
         callback({
           ok: false,
@@ -355,7 +355,6 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      io.to(roomId).emit("client:loadUi", { url: gameUrl });
       callback({ ok: true, joinToken });
     },
   );
@@ -575,7 +574,7 @@ export const registerHostLifecycleHandlers = (
 
     beginRoomClosing(session);
     disconnectChildHostIfPresent(io, session);
-    transitionToSystemFocus(io, roomId, session, {
+    transitionToSystemFocus(io, session, {
       resyncPlayersToMaster: true,
     });
   });

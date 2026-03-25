@@ -21,7 +21,6 @@ import {
   type AirJamStateSyncPayload,
   appendRuntimeQueryParams,
   arcadeSurfaceRuntimeUrlParams,
-  type ClientLoadUiPayload,
   type ControllerBridgeServerEventName,
   ControllerSessionProvider,
   type ControllerStateMessage,
@@ -73,7 +72,6 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     useShallow((s) => ({
       kind: s.kind,
       controllerUrl: s.controllerUrl,
-      orientation: s.orientation,
       epoch: s.epoch,
       gameId: s.gameId,
     })),
@@ -141,9 +139,10 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     stateMessage: controller.stateMessage,
     players: controller.players,
   });
+  /** Outer chrome: SDK `controllerOrientation` (host `server:state`), not arcade surface launch `orientation`. */
   const controllerPresentationOrientation =
     activeUrl && arcadeSurface.kind === "game"
-      ? arcadeSurface.orientation
+      ? controller.controllerOrientation
       : "portrait";
   const controllerChromeInsetClass = !documentFullscreen
     ? activeUrl && controllerPresentationOrientation === "landscape"
@@ -437,12 +436,6 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     const handlePlaySound = (payload: PlaySoundPayload) => {
       forwardBridgeEvent("server:playSound", payload);
     };
-    const handleLoadUi = (payload: ClientLoadUiPayload) => {
-      forwardBridgeEvent("client:loadUi", payload);
-    };
-    const handleUnloadUi = () => {
-      forwardBridgeEvent("client:unloadUi");
-    };
     const handleStateSync = (payload: AirJamStateSyncPayload) => {
       forwardBridgeEvent("airjam:state_sync", payload);
     };
@@ -458,8 +451,6 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     controller.socket.on("server:error", handleError);
     controller.socket.on("server:signal", handleSignal);
     controller.socket.on("server:playSound", handlePlaySound);
-    controller.socket.on("client:loadUi", handleLoadUi);
-    controller.socket.on("client:unloadUi", handleUnloadUi);
     controller.socket.on("airjam:state_sync", handleStateSync);
     controller.socket.on("server:playerUpdated", handlePlayerUpdated);
 
@@ -472,8 +463,6 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
       controller.socket?.off("server:error", handleError);
       controller.socket?.off("server:signal", handleSignal);
       controller.socket?.off("server:playSound", handlePlaySound);
-      controller.socket?.off("client:loadUi", handleLoadUi);
-      controller.socket?.off("client:unloadUi", handleUnloadUi);
       controller.socket?.off("airjam:state_sync", handleStateSync);
       controller.socket?.off("server:playerUpdated", handlePlayerUpdated);
     };

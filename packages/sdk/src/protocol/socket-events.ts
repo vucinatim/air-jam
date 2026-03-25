@@ -10,7 +10,6 @@ import type {
 } from "./controller";
 import type { HostRegistrationAck } from "./host";
 import type {
-  ClientLoadUiPayload,
   HostActivateEmbeddedGamePayload,
   HostCreateRoomPayload,
   HostJoinAsChildPayload,
@@ -96,8 +95,6 @@ export interface ServerToClientEvents {
   "server:playSound": (payload: PlaySoundPayload) => void;
   "server:redirect": (url: string) => void;
   "server:closeChild": () => void;
-  "client:loadUi": (payload: ClientLoadUiPayload) => void;
-  "client:unloadUi": () => void;
   "airjam:state_sync": (payload: AirJamStateSyncPayload) => void;
   "airjam:action_rpc": (payload: AirJamActionRpcPayload) => void;
 }

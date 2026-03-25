@@ -9,6 +9,11 @@ import type {
   RunMode,
 } from "../protocol";
 
+export interface HostArcadeRestoreState {
+  phase: "idle" | "awaiting_ack" | "pending_restore";
+  session: HostArcadeSessionSnapshot | null;
+}
+
 export interface AirJamStore {
   role: ConnectionRole | null;
   roomId: string | null;
@@ -22,19 +27,15 @@ export interface AirJamStore {
   lastError?: string;
   registeredRoomId: string | null;
   /**
-   * Set by the host runtime when `host:reconnect` returns `arcadeSession` so the platform can
-   * restore game surface + join token after a full page reload. Cleared after consumption.
+   * Host-only reconnect restore seam used during `host:reconnect`.
+   * - `awaiting_ack`: reconnect ack is in flight, so arcade shell broadcast must stay suppressed
+   * - `pending_restore`: reconnect ack returned an active arcade session and the platform has not
+   *   consumed it yet
+   * - `idle`: no reconnect restoration is in progress
    */
-  hostArcadeSessionFromServer: HostArcadeSessionSnapshot | null;
-  setHostArcadeSessionFromServer: (
-    snapshot: HostArcadeSessionSnapshot | null,
-  ) => void;
-  /**
-   * True while `host:reconnect` is in flight (saved session restore). Used to avoid broadcasting
-   * a default browser `ArcadeSurfaceState` before the ack returns.
-   */
-  hostReconnectAckPending: boolean;
-  setHostReconnectAckPending: (pending: boolean) => void;
+  hostArcadeRestore: HostArcadeRestoreState;
+  setHostArcadeRestore: (next: HostArcadeRestoreState) => void;
+  clearHostArcadeRestore: () => void;
   setRole: (role: ConnectionRole | null) => void;
   setRoomId: (roomId: string | null) => void;
   setControllerId: (controllerId: string | null) => void;
@@ -69,12 +70,18 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     players: [],
     lastError: undefined,
     registeredRoomId: null,
-    hostArcadeSessionFromServer: null,
-    setHostArcadeSessionFromServer: (snapshot) =>
-      set({ hostArcadeSessionFromServer: snapshot }),
-    hostReconnectAckPending: false,
-    setHostReconnectAckPending: (pending) =>
-      set({ hostReconnectAckPending: pending }),
+    hostArcadeRestore: {
+      phase: "idle",
+      session: null,
+    },
+    setHostArcadeRestore: (next) => set({ hostArcadeRestore: next }),
+    clearHostArcadeRestore: () =>
+      set({
+        hostArcadeRestore: {
+          phase: "idle",
+          session: null,
+        },
+      }),
     setRole: (role) => set({ role }),
     setRoomId: (roomId) => set({ roomId }),
     setControllerId: (controllerId) => set({ controllerId }),

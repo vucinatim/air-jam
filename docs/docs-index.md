@@ -9,6 +9,7 @@ Core docs:
 5. [Performance Baseline](./performance-baseline.md)
 6. [Framework Usage Review](./framework-usage-review.md)
 7. [Archive Notes](./archive/done/archive-notes.md)
+8. [Platform Controller Presentation](./platform-controller-presentation.md)
 
 Supporting plans:
 

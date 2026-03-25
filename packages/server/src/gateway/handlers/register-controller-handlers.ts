@@ -178,10 +178,6 @@ export const registerControllerHandlers = (
         orientation: session.controllerOrientation,
       },
     });
-
-    if (session.activeControllerUrl) {
-      socket.emit("client:loadUi", { url: session.activeControllerUrl });
-    }
   });
 
   socket.on(
@@ -359,7 +355,7 @@ export const registerControllerHandlers = (
     if (command === "exit") {
       beginRoomClosing(session);
       disconnectChildHostIfPresent(io, session);
-      transitionToSystemFocus(io, roomId, session, {
+      transitionToSystemFocus(io, session, {
         resetGameState: true,
         notifyMasterCloseChild: true,
       });

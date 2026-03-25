@@ -109,26 +109,6 @@ export const ServerEvents = {
 } as const;
 
 /**
- * Client events (server -> controller runtime)
- */
-export const ClientEvents = {
-  /**
-   * Load a game UI in the controller iframe
-   */
-  LOAD_UI: "client:loadUi",
-
-  /**
-   * Unload the game UI from the controller iframe
-   */
-  UNLOAD_UI: "client:unloadUi",
-
-  /**
-   * Update game state display
-   */
-  STATE: "client:state",
-} as const;
-
-/**
  * All events combined for easy reference
  */
 export const Events = {
@@ -136,5 +116,4 @@ export const Events = {
   Controller: ControllerEvents,
   System: SystemEvents,
   Server: ServerEvents,
-  Client: ClientEvents,
 } as const;

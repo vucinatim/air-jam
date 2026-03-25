@@ -93,12 +93,14 @@ Rules:
 
 ### `orientation`
 
-The intended controller presentation orientation for the current surface.
+Launch-time hint for the active surface (replication, catalog, host UX). It is **not** the live source of truth for controller outer chrome.
+
+**Live controller notch / safe-area / shell layout** on the platform controller page follows **`controllerOrientation` in the server session**, broadcast via `server:state` from the host (`host:state`). The SDK exposes this as `useAirJamController().controllerOrientation`. See [Platform Controller Presentation](./platform-controller-presentation.md).
 
 Rules:
 
 1. `portrait` by default for Arcade browser
-2. for game surfaces, set from the active game contract or host state
+2. for game surfaces, may be set when entering the surface (e.g. catalog default); runtime presentation still converges on host-reported orientation
 
 ### `overlay`
 
@@ -193,7 +195,7 @@ Responsibilities:
 1. subscribe to replicated surface state
 2. render browser controls when `kind === "browser"`
 3. render embedded controller iframe when `kind === "game"`
-4. use `orientation` for shell layout
+4. use server-backed `controllerOrientation` (SDK) for outer notch / safe-area when `kind === "game"`; use surface `orientation` only as non-authoritative launch metadata
 5. use `epoch` to reject stale attached iframe sessions
 
 ### Embedded Game Runtimes
@@ -302,17 +304,17 @@ Future:
 
 1. becomes derived from `ArcadeSurfaceState.controllerUrl` or paired game host metadata
 
-### Current Field: server `activeControllerUrl`
+### Historical Field: server `activeControllerUrl`
 
 Current location:
 
 1. `packages/server/src/types.ts`
 2. `packages/server/src/domain/room-session-domain.ts`
 
-Future:
+Result:
 
-1. removed as app-level source of truth
-2. at most kept as a temporary transport compatibility detail during migration
+1. removed as an app-level source of truth
+2. removed from server room state once reconnect restore switched to `gameId` + `joinToken` and host-side `controllerUrl` derivation
 
 ### Current Field: controller page `activeUrl`
 
@@ -338,8 +340,7 @@ Future:
 
 ### Allowed During Migration
 
-1. temporary compatibility emission of `client:loadUi` / `client:unloadUi`
-2. temporary derivation from the new snapshot into old fields
+1. temporary derivation from the new snapshot into old server/runtime fields while those fields are being removed
 
 ### Not Allowed As Final State
 

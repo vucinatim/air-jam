@@ -65,7 +65,6 @@ describe("server routing and security", () => {
       {
         roomId,
         gameId: "pong",
-        gameUrl: "https://example.com/pong",
       },
     );
 
@@ -205,7 +204,6 @@ describe("server routing and security", () => {
       {
         roomId,
         gameId: "pong",
-        gameUrl: "https://example.com/pong",
       },
     );
     expect(launchAck.ok).toBe(true);
@@ -319,13 +317,12 @@ describe("server routing and security", () => {
       {
         roomId,
         gameId: "pong",
-        gameUrl: "https://example.com/pong",
       },
     );
 
     expect(forgedLaunchAck.ok).toBe(false);
     expect(forgedLaunchAck.code).toBe(ErrorCode.UNAUTHORIZED);
-    await harness.expectNoEvent(controller, "client:loadUi");
+    expect(harness.getRoomManager().getRoom(roomId)?.activeGameId).toBeUndefined();
 
     const validLaunchAck = await harness.emitWithAck<LaunchGameAck>(
       masterHost,
@@ -333,15 +330,10 @@ describe("server routing and security", () => {
       {
         roomId,
         gameId: "pong",
-        gameUrl: "https://example.com/pong",
       },
     );
     expect(validLaunchAck.ok).toBe(true);
-    const controllerLoadUi = await harness.waitForEvent<{ url: string }>(
-      controller,
-      "client:loadUi",
-    );
-    expect(controllerLoadUi.url).toBe("https://example.com/pong");
+    expect(harness.getRoomManager().getRoom(roomId)?.activeGameId).toBe("pong");
 
     const childHost = await harness.connectSocket();
     const childJoinAck = await harness.emitWithAck<{ ok: boolean }>(
@@ -355,11 +347,13 @@ describe("server routing and security", () => {
     expect(childJoinAck.ok).toBe(true);
 
     attacker.emit("system:closeGame", { roomId });
-    await harness.expectNoEvent(controller, "client:unloadUi");
+    await harness.expectNoEvent(controller, "disconnect");
     await harness.expectNoEvent(childHost, "disconnect");
 
+    const childDisconnectPromise = harness.waitForEvent(childHost, "disconnect", 2_000);
     masterHost.emit("system:closeGame", { roomId });
-    await harness.waitForEvent(controller, "client:unloadUi", 2_000);
+    await harness.expectNoEvent(controller, "disconnect", 120);
+    await childDisconnectPromise;
   });
 
   it("blocks forged host:state mutation attempts", async () => {

@@ -60,7 +60,8 @@ interface ArcadeSystemProps {
   games: ArcadeGame[];
   /**
    * When false, the public game catalog is still loading — do not drop
-   * `hostArcadeSessionFromServer` during hydration; apply once the matching game entry exists.
+   * the pending host reconnect restore session during hydration; apply once the matching game
+   * entry exists.
    */
   gamesCatalogReady?: boolean;
   /** The mode determines the UI behavior */
@@ -145,12 +146,13 @@ export const ArcadeSystem = ({
   );
   const surfaceActions = useArcadeSurfaceStore.useActions();
   const lastRoomIdForSurfaceRef = useRef<string | null>(null);
-  const hostArcadeSessionFromServer = useAirJamState(
-    (s: AirJamStore) => s.hostArcadeSessionFromServer,
+  const hostArcadeRestore = useAirJamState(
+    (s: AirJamStore) => s.hostArcadeRestore,
   );
-  const setHostArcadeSessionFromServer = useAirJamState(
-    (s: AirJamStore) => s.setHostArcadeSessionFromServer,
+  const clearHostArcadeRestore = useAirJamState(
+    (s: AirJamStore) => s.clearHostArcadeRestore,
   );
+  const pendingHostArcadeRestoreSession = hostArcadeRestore.session;
 
   const host = useAirJamHost<typeof arcadeInputSchema>({
     onPlayerJoin: () => {
@@ -188,7 +190,7 @@ export const ArcadeSystem = ({
       return;
     }
 
-    if (hostArcadeSessionFromServer) {
+    if (hostArcadeRestore.phase === "pending_restore") {
       return;
     }
 
@@ -198,84 +200,105 @@ export const ArcadeSystem = ({
     host.socket?.connected,
     mode,
     surfaceActions,
-    hostArcadeSessionFromServer,
+    hostArcadeRestore.phase,
   ]);
 
   useEffect(() => {
     if (!host.roomId || !host.socket?.connected) {
       return;
     }
-    if (!hostArcadeSessionFromServer) {
+    if (!pendingHostArcadeRestoreSession) {
       return;
     }
 
-    const snap = hostArcadeSessionFromServer;
+    let cancelled = false;
 
-    if (hostRouteIntent.kind === "browser") {
-      host.socket.emit("system:closeGame", { roomId: host.roomId });
-      setHostArcadeSessionFromServer(null);
-      return;
-    }
+    const restoreArcadeSession = async (): Promise<void> => {
+      const snap = pendingHostArcadeRestoreSession;
+      if (!snap) {
+        return;
+      }
 
-    if (hostRouteIntent.kind === "game" && hostRouteIntent.gameId) {
-      if (snap.gameId !== hostRouteIntent.gameId) {
+      if (hostRouteIntent.kind === "browser") {
         host.socket.emit("system:closeGame", { roomId: host.roomId });
-        setHostArcadeSessionFromServer(null);
+        clearHostArcadeRestore();
         return;
       }
-    }
 
-    const game = games.find((g) => g.id === snap.gameId) ?? null;
+      if (hostRouteIntent.kind === "game" && hostRouteIntent.gameId) {
+        if (snap.gameId !== hostRouteIntent.gameId) {
+          host.socket.emit("system:closeGame", { roomId: host.roomId });
+          clearHostArcadeRestore();
+          return;
+        }
+      }
 
-    if (!game) {
-      if (!gamesCatalogReady) {
+      const game = games.find((g) => g.id === snap.gameId) ?? null;
+
+      if (!game) {
+        if (!gamesCatalogReady) {
+          return;
+        }
+        clearHostArcadeRestore();
         return;
       }
-      setHostArcadeSessionFromServer(null);
-      return;
-    }
 
-    const normalizedHostUrl = normalizeRuntimeUrl(game.url);
-    if (!normalizedHostUrl) {
-      setHostArcadeSessionFromServer(null);
-      return;
-    }
+      const normalizedHostUrl = normalizeRuntimeUrl(game.url);
+      if (!normalizedHostUrl) {
+        clearHostArcadeRestore();
+        return;
+      }
 
-    surfaceActions.setGameSurface({
-      gameId: game.id,
-      controllerUrl: snap.controllerUrl,
-      orientation: "landscape",
-    });
-    surfaceActions.setOverlay({ overlay: "hidden" });
+      const mobileControllerBaseUrl =
+        await urlBuilder.normalizeForMobile(normalizedHostUrl);
+      const controllerUrl = `${mobileControllerBaseUrl.replace(/\/$/, "")}/controller`;
 
-    completeLaunch({
-      gameId: game.id,
-      normalizedGameUrl: normalizedHostUrl,
-      joinToken: snap.joinToken,
-    });
+      if (cancelled) {
+        return;
+      }
 
-    const idx = games.findIndex((g) => g.id === game.id);
-    if (idx >= 0) {
-      setSelectedIndex(idx);
-    }
+      surfaceActions.setGameSurface({
+        gameId: game.id,
+        controllerUrl,
+        orientation: "landscape",
+      });
+      surfaceActions.setOverlay({ overlay: "hidden" });
 
-    if (mode === "arcade" && typeof window !== "undefined") {
-      const gameSlugOrId = game.slug || game.id;
-      window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
-    }
+      completeLaunch({
+        gameId: game.id,
+        normalizedGameUrl: normalizedHostUrl,
+        joinToken: snap.joinToken,
+      });
 
-    setHostArcadeSessionFromServer(null);
+      const idx = games.findIndex((g) => g.id === game.id);
+      if (idx >= 0) {
+        setSelectedIndex(idx);
+      }
+
+      if (mode === "arcade" && typeof window !== "undefined") {
+        const gameSlugOrId = game.slug || game.id;
+        window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
+      }
+
+      clearHostArcadeRestore();
+    };
+
+    void restoreArcadeSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     host.roomId,
     host.socket?.connected,
-    hostArcadeSessionFromServer,
+    pendingHostArcadeRestoreSession,
     hostRouteIntent,
     games,
     gamesCatalogReady,
     mode,
     completeLaunch,
     surfaceActions,
-    setHostArcadeSessionFromServer,
+    clearHostArcadeRestore,
     setSelectedIndex,
   ]);
 
@@ -394,7 +417,6 @@ export const ArcadeSystem = ({
         {
           roomId: host.roomId,
           gameId: game.id,
-          gameUrl: controllerUrl,
         },
         (ack: SystemLaunchGameAck) => {
           if (ack.ok && ack.joinToken) {

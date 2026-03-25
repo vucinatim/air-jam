@@ -2,7 +2,6 @@ import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
 import type {
   AirJamStateSyncPayload,
-  ClientLoadUiPayload,
   ControllerActionRpcPayload,
   ControllerInputEvent,
   ControllerStateMessage,
@@ -54,8 +53,6 @@ export const controllerBridgeServerEvents = [
   "server:signal",
   "server:playSound",
   "server:playerUpdated",
-  "client:loadUi",
-  "client:unloadUi",
   "airjam:state_sync",
 ] as const;
 
@@ -81,8 +78,6 @@ export type ControllerBridgeServerEventArgs = {
   "server:signal": [payload: SignalPayload];
   "server:playSound": [payload: PlaySoundPayload];
   "server:playerUpdated": [payload: PlayerUpdatedNotice];
-  "client:loadUi": [payload: ClientLoadUiPayload];
-  "client:unloadUi": [];
   "airjam:state_sync": [payload: AirJamStateSyncPayload];
 };
 

@@ -45,12 +45,6 @@ export interface RoomSession {
   joinToken?: string; // Token required for a child to join
   /** Set when a game is launched from the system host (`system:launchGame`). */
   activeGameId?: string;
-  /**
-   * Controller surface URL recorded at launch for routing (`focus`), reconnect snapshots
-   * (`host:reconnect` ack), and legacy `client:loadUi` hints. Arcade browser/game chrome is not
-   * owned here — platform replicated surface state is authoritative for that UI.
-   */
-  activeControllerUrl?: string;
   controllers: Map<string, ControllerSession>;
   maxPlayers: number;
   gameState: GameState;

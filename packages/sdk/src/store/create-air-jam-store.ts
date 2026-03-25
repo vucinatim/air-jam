@@ -113,9 +113,6 @@ export function createAirJamStore<
 ): AirJamSyncedStoreHook<T> {
   const store = create<T>((set, get, api) => initializer(set, get, api));
 
-  // Track whether game UI is unloaded to block stale controller actions.
-  const gameUiUnloadedRef = { current: false };
-
   const useSyncedStore = <U>(
     selector: (state: T) => U = (state) => state as unknown as U,
   ): U => {
@@ -135,15 +132,12 @@ export function createAirJamStore<
     const role = useAirJamState((state) => state.role);
     const roomId = useAirJamState((state) => state.roomId);
     const players = useAirJamState((state) => state.players);
-    const hostReconnectAckPending = useAirJamState(
-      (state) => state.hostReconnectAckPending,
-    );
-    const hostArcadeSessionFromServer = useAirJamState(
-      (state) => state.hostArcadeSessionFromServer,
+    const hostArcadeRestore = useAirJamState(
+      (state) => state.hostArcadeRestore,
     );
     const blockArcadeShellHostBroadcast =
       resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN &&
-      (hostReconnectAckPending || hostArcadeSessionFromServer != null);
+      hostArcadeRestore.phase !== "idle";
     const connectedPlayerIds = useMemo(
       () => Array.from(new Set(players.map((player) => player.id))).sort(),
       [players],
@@ -225,8 +219,6 @@ export function createAirJamStore<
       }
 
       if (role === "controller") {
-        gameUiUnloadedRef.current = false;
-
         const handleSync = (payload: AirJamStateSyncPayload) => {
           if (payload.storeDomain !== resolvedStoreDomain) {
             return;
@@ -235,28 +227,10 @@ export function createAirJamStore<
           store.setState(stateData);
         };
 
-        const handleUnloadUi = () => {
-          gameUiUnloadedRef.current = true;
-        };
-
-        const handleLoadUi = () => {
-          gameUiUnloadedRef.current = false;
-        };
-
-        const handleDisconnect = () => {
-          gameUiUnloadedRef.current = true;
-        };
-
         socket.on("airjam:state_sync", handleSync);
-        socket.on("client:loadUi", handleLoadUi);
-        socket.on("client:unloadUi", handleUnloadUi);
-        socket.on("disconnect", handleDisconnect);
 
         return () => {
           socket.off("airjam:state_sync", handleSync);
-          socket.off("client:loadUi", handleLoadUi);
-          socket.off("client:unloadUi", handleUnloadUi);
-          socket.off("disconnect", handleDisconnect);
         };
       }
     }, [
@@ -336,16 +310,6 @@ export function createAirJamStore<
               severity: "warn",
               message: `[AirJamStore] Action "${actionName}" blocked: session role not ready.`,
               details: { actionName, role, roomId },
-            });
-            return;
-          }
-
-          if (gameUiUnloadedRef.current) {
-            emitAirJamDiagnostic({
-              code: "AJ_STORE_ACTION_UI_UNLOADED",
-              severity: "warn",
-              message: `[AirJamStore] Action "${actionName}" blocked: Game UI unloaded.`,
-              details: { actionName },
             });
             return;
           }
