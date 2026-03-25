@@ -44,6 +44,8 @@ interface ControllerMenuSheetProps {
   emitArcadeAction: (action: string) => void;
   controllerOrientation: ControllerOrientation;
   documentFullscreen: boolean;
+  /** Host arcade join QR overlay is visible (replicated `ArcadeSurfaceState.overlay === "qr"`). */
+  hostQrVisible: boolean;
 }
 
 /** Shared top-left: avatar + “Room” label, status dot, room code (sheet + floating bar). */
@@ -102,6 +104,7 @@ export function ControllerMenuSheet({
   emitArcadeAction,
   controllerOrientation,
   documentFullscreen,
+  hostQrVisible,
 }: ControllerMenuSheetProps) {
   const router = useRouter();
 
@@ -118,7 +121,26 @@ export function ControllerMenuSheet({
   });
   const [roomDraft, setRoomDraft] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [saveProfileSuccess, setSaveProfileSuccess] = useState(false);
+  const [applyRoomSuccess, setApplyRoomSuccess] = useState(false);
+  const saveSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applySuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyNavTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveSuccessTimerRef.current) {
+        clearTimeout(saveSuccessTimerRef.current);
+      }
+      if (applySuccessTimerRef.current) {
+        clearTimeout(applySuccessTimerRef.current);
+      }
+      if (applyNavTimerRef.current) {
+        clearTimeout(applyNavTimerRef.current);
+      }
+    };
+  }, []);
 
   const displayedRoomId = controller.roomId ?? routeRoomId;
 
@@ -202,12 +224,27 @@ export function ControllerMenuSheet({
       return;
     }
 
+    if (applySuccessTimerRef.current) {
+      clearTimeout(applySuccessTimerRef.current);
+    }
+    if (applyNavTimerRef.current) {
+      clearTimeout(applyNavTimerRef.current);
+    }
+
     // If we're already in a room, disconnect first
     if (controller.roomId && controller.roomId !== code) {
       controller.socket?.disconnect();
     }
 
-    router.replace(`/controller?room=${encodeURIComponent(code)}`);
+    setApplyRoomSuccess(true);
+    applyNavTimerRef.current = setTimeout(() => {
+      applyNavTimerRef.current = null;
+      router.replace(`/controller?room=${encodeURIComponent(code)}`);
+    }, 550);
+    applySuccessTimerRef.current = setTimeout(() => {
+      applySuccessTimerRef.current = null;
+      setApplyRoomSuccess(false);
+    }, 2800);
   }, [roomDraft, router, controller.roomId, controller.socket]);
 
   const saveProfile = useCallback(async () => {
@@ -221,7 +258,18 @@ export function ControllerMenuSheet({
     writeControllerLocalProfile(next);
     controller.setNickname(next.label);
     controller.setAvatarId(next.avatarId);
-    await controller.updatePlayerProfile(toProfilePatch(next));
+    const ack = await controller.updatePlayerProfile(toProfilePatch(next));
+    if (!ack.ok) {
+      return;
+    }
+    if (saveSuccessTimerRef.current) {
+      clearTimeout(saveSuccessTimerRef.current);
+    }
+    setSaveProfileSuccess(true);
+    saveSuccessTimerRef.current = setTimeout(() => {
+      saveSuccessTimerRef.current = null;
+      setSaveProfileSuccess(false);
+    }, 2600);
   }, [controller, profileDraft]);
 
   useEffect(() => {
@@ -354,13 +402,13 @@ export function ControllerMenuSheet({
       <div className="flex min-w-0 flex-1 justify-end gap-2 pl-2">
         <Button
           type="button"
-          variant="outline"
+          variant={hostQrVisible ? "default" : "outline"}
           size="icon-touch"
           onClick={() => {
             emitArcadeAction(airJamArcadePlatformActions.toggleQr);
           }}
-          aria-label="Toggle host join QR"
-          title="Toggle host join QR"
+          aria-label={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
+          title={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
         >
           <QrCode className="h-4 w-4" />
         </Button>
@@ -439,12 +487,17 @@ export function ControllerMenuSheet({
       <div className="flex min-w-0 flex-1 justify-end gap-2 pl-2">
         <Button
           type="button"
-          variant="outline"
+          variant={hostQrVisible ? "default" : "outline"}
           size="icon-touch"
-          className="bg-background/50 pointer-events-auto backdrop-blur-sm"
+          className={cn(
+            "pointer-events-auto",
+            hostQrVisible
+              ? "shadow-md"
+              : "bg-background/50 backdrop-blur-sm",
+          )}
           onClick={() => emitArcadeAction(airJamArcadePlatformActions.toggleQr)}
-          aria-label="Toggle host join QR"
-          title="Toggle host join QR"
+          aria-label={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
+          title={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
         >
           <QrCode className="h-4 w-4" />
         </Button>
@@ -629,9 +682,41 @@ export function ControllerMenuSheet({
                     <Button
                       type="button"
                       size="touch"
+                      className="w-full"
+                      disabled={saveProfileSuccess}
                       onClick={() => void saveProfile()}
                     >
-                      Save profile
+                      <span className="relative grid min-h-[1.25em] w-full place-items-center">
+                        <AnimatePresence mode="wait" initial={false}>
+                          {saveProfileSuccess ? (
+                            <motion.span
+                              key="saved"
+                              initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                              exit={{ opacity: 0, y: -8 }}
+                              transition={{
+                                type: "spring",
+                                stiffness: 420,
+                                damping: 32,
+                              }}
+                              className="text-primary-foreground col-start-1 row-start-1 font-semibold"
+                            >
+                              Saved!
+                            </motion.span>
+                          ) : (
+                            <motion.span
+                              key="save"
+                              initial={{ opacity: 0, y: -6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 6 }}
+                              transition={{ duration: 0.18 }}
+                              className="col-start-1 row-start-1"
+                            >
+                              Save profile
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </span>
                     </Button>
                   </section>
 
@@ -653,14 +738,60 @@ export function ControllerMenuSheet({
                         inputMode="text"
                       />
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" size="touch" onClick={applyRoom}>
-                        Apply room
+                    <div className="flex w-full flex-col gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="touch"
+                        className="w-full"
+                        disabled={applyRoomSuccess}
+                        onClick={applyRoom}
+                      >
+                        <span className="relative grid min-h-[1.25em] w-full place-items-center">
+                          <AnimatePresence mode="wait" initial={false}>
+                            {applyRoomSuccess ? (
+                              <motion.span
+                                key="applied"
+                                initial={{
+                                  opacity: 0,
+                                  y: 10,
+                                  filter: "blur(4px)",
+                                }}
+                                animate={{
+                                  opacity: 1,
+                                  y: 0,
+                                  filter: "blur(0px)",
+                                }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 420,
+                                  damping: 32,
+                                }}
+                                className="text-foreground col-start-1 row-start-1 font-semibold"
+                              >
+                                Applied!
+                              </motion.span>
+                            ) : (
+                              <motion.span
+                                key="apply"
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.18 }}
+                                className="col-start-1 row-start-1"
+                              >
+                                Apply room
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </span>
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         size="touch"
+                        className="w-full"
                         onClick={() => setScanning(true)}
                       >
                         <ScanLine className="mr-2 h-4 w-4" />

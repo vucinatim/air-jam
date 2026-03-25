@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../../context/air-jam-context";
-import { useAssertSessionScope } from "../../context/session-providers";
+import {
+  useAssertSessionScope,
+  useClaimSessionRuntimeOwner,
+} from "../../context/session-providers";
 import type {
   ControllerJoinAck,
   ControllerStateMessage,
@@ -44,6 +47,7 @@ export const useControllerRuntimeApi = (
   hookName: "useAirJamController",
 ): AirJamControllerApi => {
   useAssertSessionScope("controller", hookName);
+  useClaimSessionRuntimeOwner("controller-runtime", hookName);
 
   const { store, getSocket, disconnectSocket } = useAirJamContext();
   const nicknameRef = useRef(options.nickname ?? "");

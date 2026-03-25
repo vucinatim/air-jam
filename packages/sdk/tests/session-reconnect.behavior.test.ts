@@ -47,6 +47,7 @@ const mocked = vi.hoisted(() => ({
   hostSocket: null as any,
   useAirJamContext: vi.fn(),
   useAssertSessionScope: vi.fn(),
+  useClaimSessionRuntimeOwner: vi.fn(),
 }));
 
 vi.mock("../src/context/air-jam-context", () => ({
@@ -55,6 +56,7 @@ vi.mock("../src/context/air-jam-context", () => ({
 
 vi.mock("../src/context/session-providers", () => ({
   useAssertSessionScope: mocked.useAssertSessionScope,
+  useClaimSessionRuntimeOwner: mocked.useClaimSessionRuntimeOwner,
 }));
 
 describe("session reconnect behavior", () => {

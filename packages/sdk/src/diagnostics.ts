@@ -2,6 +2,7 @@ export type AirJamDiagnosticSeverity = "warn" | "error";
 
 export type AirJamDiagnosticCode =
   | "AJ_SCOPE_MISMATCH"
+  | "AJ_DUPLICATE_SESSION_OWNER"
   | "AJ_MISSING_SESSION_PROVIDER"
   | "AJ_CONFIG_MISSING_SERVER_URL"
   | "AJ_CONFIG_MISSING_API_KEY"

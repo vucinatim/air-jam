@@ -143,6 +143,9 @@ export interface AirJamControllerApi {
  *
  * This hook automatically adapts between standalone and arcade iframe runtimes.
  *
+ * Mount this once near the top of your controller provider tree. Child components that only need
+ * session state should use `useControllerSession()` instead of mounting another runtime owner.
+ *
  * **Typical usage flow:**
  * 1. Player scans QR code on game screen
  * 2. Opens controller URL with ?room=XXXX parameter

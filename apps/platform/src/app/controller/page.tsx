@@ -74,8 +74,11 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
       controllerUrl: s.controllerUrl,
       epoch: s.epoch,
       gameId: s.gameId,
+      overlay: s.overlay,
     })),
   );
+
+  const hostQrVisible = arcadeSurface.overlay === "qr";
 
   const activeUrl = useMemo(() => {
     if (
@@ -475,6 +478,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         emitArcadeAction={emitArcadeAction}
         controllerOrientation={controllerPresentationOrientation}
         documentFullscreen={documentFullscreen}
+        hostQrVisible={hostQrVisible}
       />
 
       <main

@@ -11,11 +11,17 @@ export type __assert_host_provider_exported = AssertTrue<
 export type __assert_controller_provider_exported = AssertTrue<
   Has<"ControllerSessionProvider">
 >;
+export type __assert_controller_session_hook_exported = AssertTrue<
+  Has<"useControllerSession">
+>;
 export type __assert_create_airjam_app_exported = AssertTrue<
   Has<"createAirJamApp">
 >;
 export type __assert_env_exported = AssertTrue<
   Has<"env">
+>;
+export type __assert_host_session_hook_exported = AssertTrue<
+  Has<"useHostSession">
 >;
 export type __assert_define_airjam_config_not_exported = AssertFalse<
   Has<"defineAirJamConfig">

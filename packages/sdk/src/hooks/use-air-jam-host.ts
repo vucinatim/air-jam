@@ -164,6 +164,9 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * - standalone: creates/reconnects host rooms directly
  * - arcade iframe runtime: auto-detects `aj_room` + `aj_token` and bridges through the platform-owned host session
  *
+ * Mount this once near the top of your host provider tree. Child components that only need
+ * session state should use `useHostSession()` instead of mounting another runtime owner.
+ *
  * **Features:**
  * - Automatic room creation and management
  * - Real-time player join/leave events

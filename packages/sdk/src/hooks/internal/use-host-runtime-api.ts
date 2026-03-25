@@ -4,7 +4,10 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { TOGGLE_DEBOUNCE_MS } from "../../constants";
 import { useAirJamContext } from "../../context/air-jam-context";
-import { useAssertSessionScope } from "../../context/session-providers";
+import {
+  useAssertSessionScope,
+  useClaimSessionRuntimeOwner,
+} from "../../context/session-providers";
 import type {
   ControllerInputEvent,
   ControllerStateMessage,
@@ -42,6 +45,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   hookName: "useAirJamHost",
 ): AirJamHostApi<TSchema> => {
   useAssertSessionScope("host", hookName);
+  useClaimSessionRuntimeOwner("host-runtime", hookName);
 
   const { config, store, getSocket, disconnectSocket, inputManager } =
     useAirJamContext();
