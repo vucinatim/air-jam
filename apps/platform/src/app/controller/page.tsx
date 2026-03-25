@@ -126,9 +126,18 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     roomId: controller.roomId,
     controllerId: controller.controllerId,
     gameState: controller.gameState,
+    controllerOrientation: controller.controllerOrientation,
     stateMessage: controller.stateMessage,
     players: controller.players,
   });
+  const controllerPresentationOrientation = activeUrl
+    ? controller.controllerOrientation
+    : "portrait";
+  const controllerChromeInsetClass = !documentFullscreen
+    ? activeUrl && controllerPresentationOrientation === "landscape"
+      ? "pr-[env(safe-area-inset-right)]"
+      : "pt-[env(safe-area-inset-top)]"
+    : undefined;
 
   const controllerIframeSrc = useMemo(() => {
     if (!activeUrl || !controller.controllerId || !controller.roomId) {
@@ -194,11 +203,13 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
       roomId: controller.roomId,
       controllerId: controller.controllerId,
       gameState: controller.gameState,
+      controllerOrientation: controller.controllerOrientation,
       stateMessage: controller.stateMessage,
       players: controller.players,
     };
   }, [
     controller.controllerId,
+    controller.controllerOrientation,
     controller.gameState,
     controller.players,
     controller.roomId,
@@ -259,6 +270,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
           player,
           state: {
             gameState: session.gameState,
+            orientation: session.controllerOrientation,
             message: session.stateMessage,
           },
         }),
@@ -407,20 +419,21 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         routeRoomId={routeRoomId}
         activeUrl={activeUrl}
         emitArcadeAction={emitArcadeAction}
+        controllerOrientation={controllerPresentationOrientation}
         documentFullscreen={documentFullscreen}
       />
 
       <main
         className={cn(
           "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden sm:p-4",
-          !documentFullscreen && "pt-[env(safe-area-inset-top)]",
+          controllerChromeInsetClass,
         )}
       >
         {activeUrl && (
           <div
             className={cn(
               "bg-background absolute inset-0 z-20",
-              !documentFullscreen && "pt-[env(safe-area-inset-top)]",
+              controllerChromeInsetClass,
             )}
           >
             {controllerIframeSrc ? (
@@ -443,7 +456,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         )}
 
         {!activeUrl && (
-          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-8 px-6 pb-12 pt-24">
+          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-8 px-6 pt-24 pb-12">
             <div className="text-center opacity-30">
               <h1 className="text-4xl font-black tracking-tighter uppercase select-none">
                 Air Jam

@@ -16,10 +16,14 @@ export interface ControllerInputEvent {
   input: ControllerInputPayload;
 }
 
+export const controllerOrientationSchema = z.enum(["portrait", "landscape"]);
+
+export type ControllerOrientation = z.infer<typeof controllerOrientationSchema>;
+
 export const controllerStateSchema = z.object({
   roomId: roomCodeSchema,
   state: z.object({
-    orientation: z.enum(["portrait", "landscape"]).optional(),
+    orientation: controllerOrientationSchema.optional(),
     message: z.string().optional(),
     gameState: z.enum(["paused", "playing"]).optional(),
   }),
@@ -27,7 +31,9 @@ export const controllerStateSchema = z.object({
 
 export type ControllerStateMessage = z.infer<typeof controllerStateSchema>;
 
-export type ControllerStatePayload = z.infer<typeof controllerStateSchema>["state"];
+export type ControllerStatePayload = z.infer<
+  typeof controllerStateSchema
+>["state"];
 
 export const controllerJoinSchema = z.object({
   roomId: roomCodeSchema,

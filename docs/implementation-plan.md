@@ -1,53 +1,84 @@
 # Air Jam Implementation Plan
 
-Last updated: 2026-03-21  
+Last updated: 2026-03-25  
 Status: active
 
-This is the single active execution checklist for Air Jam.  
-Source baseline: `docs/framework-vnext-paradigm.md` (Comprehensive Rewrite Baseline section).
+This is the single active execution checklist for Air Jam.
+
+Architecture baseline: [Framework Paradigm](./framework-paradigm.md)
+
+Rebaseline note:
+
+The previous plan assumed a stronger "platform-owned special runtime" split than we now want.
+That work is not all invalid, but it is no longer the architectural source of truth.
+Going forward, the implementation plan follows the nested Air Jam model defined in the paradigm doc above.
 
 ## Mission (Current Milestone)
 
-Ship the pre-release vNext rewrite with:
+Ship the pre-release framework with:
 
 1. One unambiguous framework paradigm.
 2. Headless SDK core.
-3. Platform-owned persistent arcade runtime.
-4. No deprecated/legacy behavior left in the primary path.
+3. Arcade built cleanly from the same Air Jam primitives as standalone apps.
+4. Deterministic Arcade host/controller sync from replayable state snapshots.
 5. A locked public API that makes misuse difficult by default.
 
 ## Ordering Rules (Non-Negotiable)
 
-1. Contracts first.
-2. Server/domain split second.
-3. SDK headless core third.
-4. Platform runtime migration fourth.
+1. Paradigm and ownership model first.
+2. Runtime invariants and sync contracts second.
+3. Explicit runtime adapters third.
+4. Platform/runtime migration fourth.
 5. Template + docs migration fifth.
-6. Legacy purge last (before release).
+6. Cleanup and removal last.
 
 No phase jumps unless blockers require temporary parallelization.
 
 ## Progress Snapshot
 
-1. Phase 0 (Baseline freeze): complete.
-2. Phase 1 (Contracts v2): complete.
-3. Phase 2 (Server kernel split): complete.
-4. Phase 3 (SDK headless vNext): complete.
-5. Phase 4 (Platform runtime migration): complete.
-6. Phase 5 (Template/docs migration): in progress.
-7. Phase 6 (Legacy purge + release gate): pending.
-8. Phase 7 (Paradigm lockdown): pending.
+1. Baseline paradigm reset: in progress.
+2. Replayable Arcade sync model: pending.
+3. Explicit embedded runtime adapter cleanup: pending.
+4. Server invariant minimization: pending.
+5. Template/docs realignment: pending.
+6. Cleanup and release hardening: pending.
+
+## Current Execution Focus
+
+### 1. Lock Ownership Boundaries
+
+- [ ] Define the canonical Arcade state domain that belongs in replicated state.
+- [ ] Define the minimal server-owned runtime invariants that stay authoritative.
+- [ ] Define the exact responsibilities of the bridge and explicitly ban app-level UI ownership there.
+
+### 2. Fix Arcade/Controller Drift Correctly
+
+- [ ] Replace transient controller UI truth with a replayable Arcade surface snapshot.
+- [ ] Make host Arcade UI and controller outer UI derive from the same snapshot.
+- [ ] Add a runtime epoch to game surface switches so stale embedded iframes are rejected.
+
+### 3. Reconcile Core Hooks With The Real Paradigm
+
+- [ ] Identify hidden arcade-mode inference still living in generic SDK hooks.
+- [ ] Move those behaviors behind explicit embedded runtime adapters over time.
+- [ ] Keep standalone APIs simple and generic while preserving nested-runtime support.
+
+### 4. Realign Docs And Templates
+
+- [ ] Rewrite architecture docs and examples around the nested Air Jam model.
+- [ ] Ensure create-airjam teaches the same lane separation and ownership model.
+- [ ] Remove stale language that frames Arcade as a separate framework paradigm.
 
 ## Phase 0: Baseline Freeze (P0)
 
 - [x] Tag/record current passing validation snapshot (`typecheck`, `lint`, `test`, `build`, `test:scaffold`).
 - [x] Freeze protocol/event naming changes until Phase 1 contract definitions are approved.
-- [x] Add this milestone note to PR template/checklist (if missing): “Does this change align to vNext paradigm?”
+- [x] Add this milestone note to PR template/checklist (if missing): “Does this change align to the implementation plan?”
 
 Exit criteria:
 
 1. Baseline is reproducible from clean checkout.
-2. All contributors use this file as the single tracker for vNext.
+2. All contributors use this file as the single tracker for framework work.
 
 ## Phase 1: Contracts v2 (P0)
 
@@ -81,7 +112,7 @@ Recorded on: 2026-03-21
 
 Tracking notes:
 
-1. PR checklist template added at `.github/pull_request_template.md` with vNext alignment gate.
+1. PR checklist template added at `.github/pull_request_template.md`.
 2. Protocol/event naming changes are frozen to v2 contract definitions until Phase 2+ runtime integration.
 
 ## Phase 2: Server Kernel Split (P0)
@@ -113,12 +144,12 @@ Exit criteria:
 2. Room transitions are explicit, validated, and test-covered.
 3. No backup/legacy artifacts remain in server source.
 
-## Phase 3: SDK Headless vNext (P0)
+## Phase 3: SDK Headless (P0)
 
 ### 3A) Public API Reshape
 
 - [x] Implement headless session providers (`HostSessionProvider`, `ControllerSessionProvider` naming can finalize during implementation).
-- [x] Expose granular hooks only for vNext runtime path (`usePlayers`, `useConnectionStatus`, `useRoom`, `useGetInput`, `useInputWriter`, `useSendSignal`, state hooks).
+- [x] Expose granular hooks only for the headless runtime path (`usePlayers`, `useConnectionStatus`, `useRoom`, `useGetInput`, `useInputWriter`, `useSendSignal`, state hooks).
 - [x] Ensure lifecycle is initialized exactly once per role/runtime tree.
 
 ### 3B) Internal Cleanup
@@ -174,7 +205,7 @@ Exit criteria:
 
 ### 5A) `create-airjam` Template
 
-- [x] Rewrite template to canonical vNext headless pattern only.
+- [x] Rewrite template to canonical headless pattern only.
 - [x] Remove shell-first assumptions and manual transport loop defaults.
 - [x] Document official input cadence pattern with `useInputWriter`.
 - [x] Keep scaffold smoke tests green after migration.
@@ -187,8 +218,8 @@ Notes:
 
 ### 5B) First-Party App Migration
 
-- [x] Migrate `apps/prototype-game` to vNext APIs.
-- [x] Migrate platform arcade/play/controller surfaces to vNext runtime ownership model.
+- [x] Migrate `apps/prototype-game` to current APIs.
+- [x] Migrate platform arcade/play/controller surfaces to the runtime ownership model.
 - [x] Validate migration path against externally reviewed examples (`the-office`, `last-band-standing`, `code-review`) and update usage guidance.
 
 ### 5C) Docs Rewrite
@@ -236,7 +267,7 @@ Exit criteria:
 
 1. No legacy paradigm APIs remain in the main user path.
 2. All release gates are green.
-3. vNext docs + template + runtime behavior are aligned.
+3. Docs + template + runtime behavior are aligned.
 
 ## Phase 7: Paradigm Lockdown (P0, Pre-Release)
 

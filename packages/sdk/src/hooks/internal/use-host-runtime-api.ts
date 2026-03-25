@@ -17,7 +17,6 @@ import type {
   SignalType,
   ToastSignalPayload,
 } from "../../protocol";
-import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import {
   controllerStateSchema,
   controllerSystemSchema,
@@ -25,6 +24,7 @@ import {
   hostReconnectSchema,
   roomCodeSchema,
 } from "../../protocol";
+import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import { getHostRealtimeClient } from "../../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readChildHostRuntimeParams } from "../../runtime/runtime-session-params";
@@ -263,7 +263,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     const registerHost = async () => {
       if (arcadeParams) {
-        const childRoomId = roomCodeSchema.parse(arcadeParams.room.toUpperCase());
+        const childRoomId = roomCodeSchema.parse(
+          arcadeParams.room.toUpperCase(),
+        );
         const latestState = store.getState();
         latestState.setStatus("connected");
         latestState.setRoomId(childRoomId);
@@ -316,20 +318,24 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             apiKey: config.apiKey,
           });
 
-          socket.emit("host:reconnect", reconnectPayload, (ack: HostRegistrationAck) => {
-            const latestState = store.getState();
-            if (ack.ok && ack.roomId) {
-              latestState.setStatus("connected");
-              latestState.setRoomId(ack.roomId);
-              setRegisteredRoomId(ack.roomId);
-              return;
-            }
+          socket.emit(
+            "host:reconnect",
+            reconnectPayload,
+            (ack: HostRegistrationAck) => {
+              const latestState = store.getState();
+              if (ack.ok && ack.roomId) {
+                latestState.setStatus("connected");
+                latestState.setRoomId(ack.roomId);
+                setRegisteredRoomId(ack.roomId);
+                return;
+              }
 
-            if (typeof window !== "undefined") {
-              sessionStorage.removeItem("airjam_room_id");
-            }
-            createNewRoom();
-          });
+              if (typeof window !== "undefined") {
+                sessionStorage.removeItem("airjam_room_id");
+              }
+              createNewRoom();
+            },
+          );
           return;
         }
       }
@@ -384,6 +390,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       const latestState = store.getState();
       if (payload.state.gameState) {
         latestState.setGameState(payload.state.gameState);
+      }
+      if (payload.state.orientation) {
+        latestState.setControllerOrientation(payload.state.orientation);
       }
       if (payload.state.message !== undefined) {
         latestState.setStateMessage(payload.state.message);

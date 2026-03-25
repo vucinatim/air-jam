@@ -1,4 +1,13 @@
-import type { GameState, PlayerProfile, RoomCode } from "@air-jam/sdk/protocol";
+import type {
+  ControllerStateMessage,
+  GameState,
+  PlayerProfile,
+  RoomCode,
+} from "@air-jam/sdk/protocol";
+
+type ControllerOrientation = NonNullable<
+  ControllerStateMessage["state"]["orientation"]
+>;
 
 /**
  * Controller session information
@@ -38,6 +47,7 @@ export interface RoomSession {
   controllers: Map<string, ControllerSession>;
   maxPlayers: number;
   gameState: GameState;
+  controllerOrientation: ControllerOrientation;
   lifecycleState: RoomLifecycleState;
   /** Deferred teardown when child host socket drops (Socket.IO reconnect grace). */
   pendingChildTeardownTimer?: ReturnType<typeof setTimeout>;

@@ -2,11 +2,11 @@
 
 Core docs:
 
-1. [Implementation Plan](./implementation-plan.md)
-2. [Development Loop](./development-loop.md)
-3. [Performance Baseline](./performance-baseline.md)
-4. [Framework Usage Review](./framework-usage-review.md)
-5. [Framework vNext Paradigm](./framework-vnext-paradigm.md)
+1. [Framework Paradigm](./framework-paradigm.md)
+2. [Implementation Plan](./implementation-plan.md)
+3. [Development Loop](./development-loop.md)
+4. [Performance Baseline](./performance-baseline.md)
+5. [Framework Usage Review](./framework-usage-review.md)
 6. [Archive Notes](./archive/done/archive-notes.md)
 
 Supporting plans:

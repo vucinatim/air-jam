@@ -1,7 +1,7 @@
 import {
+  controllerActionRpcSchema,
   controllerStateSchema,
   controllerSystemSchema,
-  controllerActionRpcSchema,
   type AirJamActionRpcPayload,
   type AirJamStateSyncPayload,
   type ControllerActionRpcPayload,
@@ -42,8 +42,14 @@ export const registerRealtimeHandlers = (
     }
 
     if (command === "toggle_pause") {
-      session.gameState = session.gameState === "playing" ? "paused" : "playing";
-      emitRoomState(io, roomId, session.gameState);
+      session.gameState =
+        session.gameState === "playing" ? "paused" : "playing";
+      emitRoomState(
+        io,
+        roomId,
+        session.gameState,
+        session.controllerOrientation,
+      );
     }
   });
 
@@ -65,6 +71,9 @@ export const registerRealtimeHandlers = (
 
     if (state.gameState) {
       session.gameState = state.gameState;
+    }
+    if (state.orientation) {
+      session.controllerOrientation = state.orientation;
     }
 
     session.controllers.forEach((controller) => {

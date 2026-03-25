@@ -5,11 +5,11 @@ Core SDK for building Air Jam hosts and mobile controllers.
 ## Three Lanes (Canonical)
 
 1. `Input lane` (high frequency, transient):
-`useControllerTick` + `useInputWriter` on controller, `host.getInput` / `useGetInput` on host.
+   `useControllerTick` + `useInputWriter` on controller, `host.getInput` / `useGetInput` on host.
 2. `State lane` (replicated, host-authoritative):
-`createAirJamStore` + `useActions` with `(ctx, payload)` action handlers.
+   `createAirJamStore` + `useActions` with `(ctx, payload)` action handlers.
 3. `Signal lane` (out-of-band UX/system):
-`sendSignal` / `sendSystemCommand` for haptics, toasts, room-level commands, and remote audio cues.
+   `sendSignal` / `sendSystemCommand` for haptics, toasts, room-level commands, and remote audio cues.
 
 Do not mix lanes:
 
@@ -138,6 +138,7 @@ export const ControllerView = () => {
 
   return (
     <section>
+      <p>Layout: {controller.controllerOrientation}</p>
       <button
         onPointerDown={() =>
           writeInput({
@@ -155,16 +156,16 @@ export const ControllerView = () => {
 
 Controllers usually join via URL query param: `/controller?room=ABCD`.
 
+Hosts can also broadcast the intended controller layout orientation with
+`host.sendState({ orientation: "portrait" | "landscape" })`, which controllers
+receive as `controller.controllerOrientation`.
+
 ## Controller Feedback Helpers
 
 Use SDK hooks for canonical feedback wiring instead of manual socket listeners.
 
 ```tsx
-import {
-  useAudio,
-  useControllerToasts,
-  useRemoteSound,
-} from "@air-jam/sdk";
+import { useAudio, useControllerToasts, useRemoteSound } from "@air-jam/sdk";
 
 const manifest = {
   hit: { src: ["/sounds/hit.wav"] },
@@ -271,10 +272,21 @@ import { airjam } from "./airjam.config";
 
 export const App = () => (
   <Routes>
-    <Route path="/" element={<airjam.Host><HostView /></airjam.Host>} />
+    <Route
+      path="/"
+      element={
+        <airjam.Host>
+          <HostView />
+        </airjam.Host>
+      }
+    />
     <Route
       path={airjam.paths.controller}
-      element={<airjam.Controller><ControllerView /></airjam.Controller>}
+      element={
+        <airjam.Controller>
+          <ControllerView />
+        </airjam.Controller>
+      }
     />
   </Routes>
 );

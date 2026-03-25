@@ -32,6 +32,7 @@ type ControllerMenuNotchProps = {
   pulse?: boolean;
   onClick: () => void;
   position: "fixed" | "absolute";
+  placement?: "top" | "right";
   "aria-label": string;
   title?: string;
   children: ReactNode;
@@ -43,40 +44,74 @@ export const ControllerMenuNotch = ({
   pulse,
   onClick,
   position,
+  placement = "top",
   "aria-label": ariaLabel,
   title,
   children,
 }: ControllerMenuNotchProps) => {
+  const isRightPlacement = placement === "right";
+
   return (
     <button
       type="button"
       className={cn(
         position === "fixed"
-          ? "fixed top-0 left-1/2 z-40"
-          : "absolute top-0 left-1/2 z-10",
-        "-translate-x-1/2 -translate-y-px cursor-pointer touch-manipulation",
+          ? isRightPlacement
+            ? "fixed top-1/2 right-0 z-40"
+            : "fixed top-0 left-1/2 z-40"
+          : isRightPlacement
+            ? "absolute top-1/2 right-0 z-10"
+            : "absolute top-0 left-1/2 z-10",
+        isRightPlacement
+          ? "translate-x-px -translate-y-1/2"
+          : "-translate-x-1/2 -translate-y-px",
+        "cursor-pointer touch-manipulation",
         pulse && "animate-pulse",
         className,
       )}
-      style={{ width: NOTCH_W, height: NOTCH_H }}
+      style={{
+        width: isRightPlacement ? NOTCH_H : NOTCH_W,
+        height: isRightPlacement ? NOTCH_W : NOTCH_H,
+      }}
       onClick={onClick}
       aria-label={ariaLabel}
       title={title}
     >
       <svg
-        className="pointer-events-none absolute inset-0 size-full drop-shadow-sm"
+        className={cn(
+          "pointer-events-none absolute drop-shadow-sm",
+          isRightPlacement
+            ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90"
+            : "inset-0 size-full",
+        )}
         viewBox={`0 0 ${NOTCH_W} ${NOTCH_H}`}
         fill="none"
         aria-hidden
+        style={
+          isRightPlacement ? { width: NOTCH_W, height: NOTCH_H } : undefined
+        }
       >
         <path
           d={NOTCH_PATH}
-          className={cn("fill-background transition-colors duration-300", strokeClassName)}
+          className={cn(
+            "fill-background transition-colors duration-300",
+            strokeClassName,
+          )}
           strokeWidth={1}
           strokeLinejoin="round"
         />
       </svg>
-      <span className="relative z-10 flex size-full items-center justify-center pt-2 pb-4">
+      <span
+        className={cn(
+          "relative z-10 flex items-center justify-center",
+          isRightPlacement
+            ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90"
+            : "size-full pt-2 pb-4",
+        )}
+        style={
+          isRightPlacement ? { width: NOTCH_W, height: NOTCH_H } : undefined
+        }
+      >
         {children}
       </span>
     </button>

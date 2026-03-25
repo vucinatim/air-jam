@@ -20,11 +20,11 @@ import {
   roomCodeSchema,
 } from "../../protocol";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
-import { generateControllerId } from "../../utils/ids";
-import { detectRunMode } from "../../utils/mode";
 import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readEmbeddedControllerRuntimeParams } from "../../runtime/runtime-session-params";
+import { generateControllerId } from "../../utils/ids";
+import { detectRunMode } from "../../utils/mode";
 import type {
   AirJamControllerApi,
   AirJamControllerOptions,
@@ -102,6 +102,7 @@ export const useControllerRuntimeApi = (
       controllerId: state.controllerId,
       players: state.players,
       gameState: state.gameState,
+      controllerOrientation: state.controllerOrientation,
       stateMessage: state.stateMessage,
     })),
   );
@@ -111,9 +112,7 @@ export const useControllerRuntimeApi = (
   const socket = useMemo<AirJamRealtimeClient | null>(
     () =>
       parsedRoomId
-        ? getControllerRealtimeClient(
-            (role) => getSocket(role),
-          )
+        ? getControllerRealtimeClient((role) => getSocket(role))
         : null,
     [parsedRoomId, getSocket],
   );
@@ -250,6 +249,9 @@ export const useControllerRuntimeApi = (
       if (payload.state.gameState) {
         latestState.setGameState(payload.state.gameState);
       }
+      if (payload.state.orientation) {
+        latestState.setControllerOrientation(payload.state.orientation);
+      }
       if (payload.state.message !== undefined) {
         latestState.setStateMessage(payload.state.message);
       }
@@ -337,7 +339,8 @@ export const useControllerRuntimeApi = (
       if (subControllerParams) {
         return Promise.resolve({
           ok: false,
-          message: "Profile updates are unavailable in embedded controller runtime",
+          message:
+            "Profile updates are unavailable in embedded controller runtime",
         });
       }
 
@@ -347,13 +350,17 @@ export const useControllerRuntimeApi = (
       }
 
       return new Promise((resolve) => {
-        socket.emit("controller:updatePlayerProfile", {
-          roomId: parsedRoomId,
-          controllerId: controllerIdForPatch,
-          patch: parsedPatch.data,
-        }, (ack: ControllerUpdatePlayerProfileAck) => {
-          resolve(ack);
-        });
+        socket.emit(
+          "controller:updatePlayerProfile",
+          {
+            roomId: parsedRoomId,
+            controllerId: controllerIdForPatch,
+            patch: parsedPatch.data,
+          },
+          (ack: ControllerUpdatePlayerProfileAck) => {
+            resolve(ack);
+          },
+        );
       });
     },
     [parsedRoomId, socket, store, subControllerParams],
@@ -378,12 +385,13 @@ export const useControllerRuntimeApi = (
     [parsedRoomId, socket, store],
   );
 
-    return {
+  return {
     roomId: parsedRoomId,
     controllerId: connectionState.controllerId,
     connectionStatus: connectionState.connectionStatus,
     lastError: connectionState.lastError,
     gameState: connectionState.gameState as GameState,
+    controllerOrientation: connectionState.controllerOrientation,
     stateMessage: connectionState.stateMessage,
     sendSystemCommand,
     setNickname,

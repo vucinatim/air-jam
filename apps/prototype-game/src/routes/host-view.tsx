@@ -1,27 +1,15 @@
-import {
-  useAirJamHost,
-  useAudio,
-  useHostGameStateBridge,
-} from "@air-jam/sdk";
-import {
-  PlayerAvatar,
-  RoomQrCode,
-} from "@air-jam/sdk/ui";
+import { useAirJamHost, useAudio, useHostGameStateBridge } from "@air-jam/sdk";
+import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
 import { Settings2, Volume2, VolumeX, X } from "lucide-react";
 import type { JSX } from "react";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { Button } from "../components/ui/button";
 import { useBotManager } from "../game/bot-system/BotManager";
 import {
   TEAM_CONFIG,
-  type TeamId,
   useCaptureTheFlagStore,
+  type TeamId,
 } from "../game/capture-the-flag-store";
 import { DebugOverlay } from "../game/components/DebugOverlay";
 import {
@@ -41,10 +29,7 @@ import {
   getTeamCounts,
   type TeamCounts,
 } from "../game/match-readiness";
-import {
-  usePrototypeMatchStore,
-  type MatchSummary,
-} from "../game/match-store";
+import { usePrototypeMatchStore, type MatchSummary } from "../game/match-store";
 import { SOUND_MANIFEST } from "../game/sounds";
 
 interface TeamCardProps {
@@ -53,11 +38,7 @@ interface TeamCardProps {
   botCount: number;
 }
 
-const TeamCard = ({
-  teamId,
-  players,
-  botCount,
-}: TeamCardProps) => {
+const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
   const team = TEAM_CONFIG[teamId];
   const totalCount = players.length + botCount;
 
@@ -102,10 +83,18 @@ interface LobbyOverlayProps {
   roomId: string | null;
   pointsToWin: number;
   botCounts: TeamCounts;
-  connectionStatus: "idle" | "connecting" | "connected" | "disconnected" | "reconnecting";
+  connectionStatus:
+    | "idle"
+    | "connecting"
+    | "connected"
+    | "disconnected"
+    | "reconnecting";
   lastError?: string;
   connectedPlayers: Array<{ id: string; label: string; color?: string }>;
-  teamPlayers: Record<TeamId, Array<{ id: string; label: string; color?: string }>>;
+  teamPlayers: Record<
+    TeamId,
+    Array<{ id: string; label: string; color?: string }>
+  >;
 }
 
 const LobbyOverlay = ({
@@ -138,7 +127,9 @@ const LobbyOverlay = ({
           <div className="text-xs tracking-[0.22em] text-zinc-400 uppercase">
             Prototype Lobby
           </div>
-          <h1 className="text-5xl font-black tracking-tight uppercase">Join Room</h1>
+          <h1 className="text-5xl font-black tracking-tight uppercase">
+            Join Room
+          </h1>
           <div className="text-xl font-bold tracking-[0.2em] text-zinc-200 uppercase">
             {roomId ?? "----"}
           </div>
@@ -221,7 +212,10 @@ interface EndedOverlayProps {
   roomId: string | null;
   matchSummary: MatchSummary | null;
   botCounts: TeamCounts;
-  teamPlayers: Record<TeamId, Array<{ id: string; label: string; color?: string }>>;
+  teamPlayers: Record<
+    TeamId,
+    Array<{ id: string; label: string; color?: string }>
+  >;
 }
 
 const EndedOverlay = ({
@@ -325,13 +319,22 @@ const PausedOverlay = ({
 }: {
   roomId: string | null;
   joinQrValue: string;
-  connectionStatus: "idle" | "connecting" | "connected" | "disconnected" | "reconnecting";
+  connectionStatus:
+    | "idle"
+    | "connecting"
+    | "connected"
+    | "disconnected"
+    | "reconnecting";
   lastError?: string;
 }) => (
   <div className="pointer-events-none absolute inset-0 z-70 flex items-center justify-center bg-black/60 backdrop-blur-sm">
     <div className="pointer-events-auto flex flex-col items-center gap-4 rounded-xl border border-white/15 bg-black/70 px-6 py-5 text-center text-white">
-      <div className="text-xs tracking-[0.2em] text-zinc-400 uppercase">Paused</div>
-      <div className="text-2xl font-black tracking-wide uppercase">Room {roomId ?? "----"}</div>
+      <div className="text-xs tracking-[0.2em] text-zinc-400 uppercase">
+        Paused
+      </div>
+      <div className="text-2xl font-black tracking-wide uppercase">
+        Room {roomId ?? "----"}
+      </div>
       {joinQrValue.trim().length > 0 ? (
         <RoomQrCode
           value={joinQrValue}
@@ -392,13 +395,16 @@ const HostViewContent = (): JSX.Element => {
     connectionStatus,
     gameState,
     lastError,
+    sendState,
     toggleGameState,
   } = host;
 
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
   const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);
   const botCounts = usePrototypeMatchStore((state) => state.botCounts);
-  const teamAssignments = usePrototypeMatchStore((state) => state.teamAssignments);
+  const teamAssignments = usePrototypeMatchStore(
+    (state) => state.teamAssignments,
+  );
   const matchSummary = usePrototypeMatchStore((state) => state.matchSummary);
   const matchActions = usePrototypeMatchStore.useActions();
 
@@ -584,8 +590,19 @@ const HostViewContent = (): JSX.Element => {
     ).toString();
   }, [host.joinUrl, host.roomId]);
 
-  const showPausedOverlay =
-    matchPhase === "playing" && gameState !== "playing";
+  const showPausedOverlay = matchPhase === "playing" && gameState !== "playing";
+  const controllerOrientation =
+    matchPhase === "playing" ? "landscape" : "portrait";
+
+  useEffect(() => {
+    if (connectionStatus !== "connected") {
+      return;
+    }
+
+    sendState({
+      orientation: controllerOrientation,
+    });
+  }, [connectionStatus, controllerOrientation, sendState]);
 
   const [cameras, setCameras] = useState<
     Array<{
@@ -670,7 +687,9 @@ const HostViewContent = (): JSX.Element => {
           />
           <span className="text-white/90">
             Room{" "}
-            <span className="font-semibold tracking-wider">{roomId || "----"}</span>
+            <span className="font-semibold tracking-wider">
+              {roomId || "----"}
+            </span>
           </span>
         </div>
         <HostMuteButton
@@ -705,7 +724,10 @@ const HostViewContent = (): JSX.Element => {
             paused={gameState !== "playing"}
           />
           {cameras.length > 0 && canvasRef.current && (
-            <PlayerHUDOverlay canvasElement={canvasRef.current} cameras={cameras} />
+            <PlayerHUDOverlay
+              canvasElement={canvasRef.current}
+              cameras={cameras}
+            />
           )}
           {showPausedOverlay ? (
             <PausedOverlay

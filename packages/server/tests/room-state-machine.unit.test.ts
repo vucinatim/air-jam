@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  beginRoomClosing,
   beginChildHostActivation,
   beginGameLaunch,
-  canBeginGameLaunch,
+  beginRoomClosing,
   canActivateChildHost,
+  canBeginGameLaunch,
   canTransitionRoomLifecycle,
   getRoomLifecyclePhase,
   markRoomTeardown,
@@ -19,6 +19,7 @@ const createSession = (): RoomSession => ({
   controllers: new Map(),
   maxPlayers: 8,
   gameState: "paused",
+  controllerOrientation: "portrait",
   lifecycleState: "SYSTEM_IDLE",
 });
 
@@ -66,10 +67,13 @@ describe("room session domain lifecycle", () => {
     expect(session.activeControllerUrl).toBeUndefined();
     expect(session.lifecycleState).toBe("SYSTEM_IDLE");
     expect(session.gameState).toBe("playing");
+    expect(session.controllerOrientation).toBe("portrait");
 
     session.gameState = "playing";
+    session.controllerOrientation = "landscape";
     resetRoomToSystemState(session, true);
     expect(session.gameState).toBe("paused");
+    expect(session.controllerOrientation).toBe("portrait");
   });
 
   it("blocks child-host activation unless launch is pending", () => {
@@ -104,7 +108,10 @@ describe("room session domain lifecycle", () => {
     expect(activeSession.joinToken).toBeUndefined();
 
     const idleSession = createSession();
-    const activationAttempt = beginChildHostActivation(idleSession, "host-child");
+    const activationAttempt = beginChildHostActivation(
+      idleSession,
+      "host-child",
+    );
     expect(activationAttempt).toEqual({
       ok: false,
       reason: "NO_LAUNCH_PENDING",

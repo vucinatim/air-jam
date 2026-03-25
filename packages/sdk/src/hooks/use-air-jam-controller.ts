@@ -18,13 +18,14 @@
  */
 import type {
   ConnectionStatus,
+  ControllerOrientation,
+  ControllerStatePayload,
   ControllerUpdatePlayerProfileAck,
   GameState,
   PlayerProfile,
   PlayerProfilePatch,
   RoomCode,
 } from "../protocol";
-import type { ControllerStatePayload } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { useControllerRuntimeApi } from "./internal/use-controller-runtime-api";
 
@@ -91,6 +92,8 @@ export interface AirJamControllerApi {
   lastError?: string;
   /** Current game state (paused or playing) */
   gameState: GameState;
+  /** Intended controller presentation orientation for the active game UI. */
+  controllerOrientation: ControllerOrientation;
   /** Optional message from the host (e.g., "Get Ready!") */
   stateMessage?: string;
   /**

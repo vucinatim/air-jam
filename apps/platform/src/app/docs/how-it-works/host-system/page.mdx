@@ -228,11 +228,12 @@ Send state updates to all controllers:
 // Update game state display
 host.sendState({
   gameState: "playing", // "playing" | "paused"
+  orientation: "landscape", // "portrait" | "landscape"
   message: "Round 3 - Fight!",
 });
 
 // Controllers receive via onState callback
-// or controller.gameState / controller.stateMessage
+// or controller.gameState / controller.controllerOrientation / controller.stateMessage
 ```
 
 ## Error Handling

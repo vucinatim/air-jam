@@ -1,10 +1,18 @@
-import type { GameState, RoomCode } from "@air-jam/sdk/protocol";
+import type {
+  ControllerStateMessage,
+  GameState,
+  RoomCode,
+} from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
 import type {
   ControllerSession,
   RoomLifecycleState,
   RoomSession,
 } from "../types.js";
+
+type ControllerOrientation = NonNullable<
+  ControllerStateMessage["state"]["orientation"]
+>;
 
 type AirJamIoServer = Server;
 
@@ -18,11 +26,7 @@ export type RoomLifecyclePhase = RoomLifecycleState;
 
 export interface LaunchAvailability {
   ok: boolean;
-  reason?:
-    | "GAME_ACTIVE"
-    | "LAUNCH_PENDING"
-    | "ROOM_CLOSING"
-    | "ROOM_TORN_DOWN";
+  reason?: "GAME_ACTIVE" | "LAUNCH_PENDING" | "ROOM_CLOSING" | "ROOM_TORN_DOWN";
 }
 
 export interface ChildHostActivationAvailability {
@@ -98,7 +102,9 @@ export const getChildHostDisconnectTeardownMs = (): number => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 4000;
 };
 
-export const canBeginGameLaunch = (session: RoomSession): LaunchAvailability => {
+export const canBeginGameLaunch = (
+  session: RoomSession,
+): LaunchAvailability => {
   const phase = getRoomLifecyclePhase(session);
   if (phase === "CLOSING") {
     return { ok: false, reason: "ROOM_CLOSING" };
@@ -197,6 +203,7 @@ export const resetRoomToSystemState = (
   transitionRoomLifecycle(session, "SYSTEM_IDLE");
   if (resetGameState) {
     session.gameState = "paused";
+    session.controllerOrientation = "portrait";
   }
 };
 
@@ -233,10 +240,11 @@ export const emitRoomState = (
   io: AirJamIoServer,
   roomId: RoomCode,
   gameState: GameState,
+  controllerOrientation: ControllerOrientation,
 ): void => {
   io.to(roomId).emit("server:state", {
     roomId,
-    state: { gameState },
+    state: { gameState, orientation: controllerOrientation },
   });
 };
 
@@ -251,7 +259,10 @@ export const resyncPlayersToMasterHost = (
 
   setTimeout(() => {
     session.controllers.forEach((controller) => {
-      masterSocket.emit("server:controllerJoined", toControllerJoinedNotice(controller));
+      masterSocket.emit(
+        "server:controllerJoined",
+        toControllerJoinedNotice(controller),
+      );
     });
   }, 100);
 };

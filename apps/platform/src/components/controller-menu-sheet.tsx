@@ -4,7 +4,6 @@ import { ControllerMenuNotch } from "@/components/controller-menu-notch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CONTROLLER_AVATAR_PRESETS } from "@/lib/controller-profile-presets";
 import {
   getControllerLocalProfileClientSnapshot,
   getControllerLocalProfileServerSnapshot,
@@ -13,10 +12,12 @@ import {
   writeControllerLocalProfile,
   type ControllerPersistedProfile,
 } from "@/lib/controller-local-profile";
+import { CONTROLLER_AVATAR_PRESETS } from "@/lib/controller-profile-presets";
 import { parseRoomFromQrText } from "@/lib/parse-room-from-qr-text";
 import { cn } from "@/lib/utils";
 import {
   useAirJamController,
+  type ControllerOrientation,
   type DocumentWithFullscreen,
   type ElementWithFullscreen,
 } from "@air-jam/sdk";
@@ -24,12 +25,19 @@ import { LogOut, Maximize, QrCode, ScanLine, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 interface ControllerMenuSheetProps {
   routeRoomId: string | null;
   activeUrl: string | null;
   emitArcadeAction: (action: string) => void;
+  controllerOrientation: ControllerOrientation;
   documentFullscreen: boolean;
 }
 
@@ -37,6 +45,7 @@ export function ControllerMenuSheet({
   routeRoomId,
   activeUrl,
   emitArcadeAction,
+  controllerOrientation,
   documentFullscreen,
 }: ControllerMenuSheetProps) {
   const router = useRouter();
@@ -109,16 +118,19 @@ export function ControllerMenuSheet({
   ]);
 
   const applyRoom = useCallback(() => {
-    const code = roomDraft.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const code = roomDraft
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
     if (code.length < 4) {
       return;
     }
-    
+
     // If we're already in a room, disconnect first
     if (controller.roomId && controller.roomId !== code) {
       controller.socket?.disconnect();
     }
-    
+
     router.replace(`/controller?room=${encodeURIComponent(code)}`);
     setOverlayOpen(false);
   }, [roomDraft, router, controller.roomId, controller.socket]);
@@ -150,9 +162,7 @@ export function ControllerMenuSheet({
     const run = async () => {
       const BarcodeDetectorApi = (
         globalThis as unknown as {
-          BarcodeDetector?: new (opts: {
-            formats: string[];
-          }) => {
+          BarcodeDetector?: new (opts: { formats: string[] }) => {
             detect: (
               source: HTMLVideoElement,
             ) => Promise<{ rawValue?: string }[]>;
@@ -228,6 +238,25 @@ export function ControllerMenuSheet({
   const topChromePadding = documentFullscreen
     ? "pt-2"
     : "pt-[max(0.5rem,env(safe-area-inset-top))]";
+  const notchPlacement =
+    activeUrl && controllerOrientation === "landscape" ? "right" : "top";
+  const landscapeMenu = notchPlacement === "right";
+  const notchOffsetClass = documentFullscreen
+    ? landscapeMenu
+      ? "mr-0"
+      : "mt-0"
+    : landscapeMenu
+      ? "mr-[env(safe-area-inset-right)]"
+      : "mt-[env(safe-area-inset-top)]";
+  const overlayFrameClass = landscapeMenu
+    ? "items-stretch justify-end bg-black/72 backdrop-blur-sm"
+    : "flex-col bg-black/97";
+  const overlayPanelClass = landscapeMenu
+    ? "border-border/50 flex h-full w-full max-w-md flex-col border-l bg-black/97 shadow-2xl"
+    : "flex h-full w-full flex-col bg-black/97";
+  const overlayBodyClass = landscapeMenu
+    ? "min-h-0 flex-1 overflow-y-auto px-4 py-5"
+    : "min-h-0 flex-1 overflow-y-auto px-4 py-6";
 
   const overlayChrome = (
     <header
@@ -239,14 +268,17 @@ export function ControllerMenuSheet({
       <span className="sr-only" aria-live="polite">
         {`Connection ${connectionLabel}`}
       </span>
-      <div className="flex min-w-0 flex-1 items-center pl-1 pr-2">
+      <div className="flex min-w-0 flex-1 items-center pr-2 pl-1">
         <div className="min-w-0">
           <div className="flex items-center gap-1">
             <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
               Room
             </p>
             <span
-              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotClass)}
+              className={cn(
+                "h-1.5 w-1.5 shrink-0 rounded-full",
+                statusDotClass,
+              )}
               aria-hidden
             />
           </div>
@@ -260,7 +292,7 @@ export function ControllerMenuSheet({
       </div>
 
       {/* Empty space for the fixed notch to sit over */}
-      <div className="w-[96px] shrink-0" />
+      {!landscapeMenu ? <div className="w-[96px] shrink-0" /> : null}
 
       <div className="flex min-w-0 flex-1 justify-end gap-2 pl-2">
         <Button
@@ -293,12 +325,14 @@ export function ControllerMenuSheet({
               doc.msFullscreenElement
             ) {
               if (doc.exitFullscreen) void doc.exitFullscreen();
-              else if (doc.webkitExitFullscreen) void doc.webkitExitFullscreen();
+              else if (doc.webkitExitFullscreen)
+                void doc.webkitExitFullscreen();
               else if (doc.mozCancelFullScreen) void doc.mozCancelFullScreen();
               else if (doc.msExitFullscreen) void doc.msExitFullscreen();
             } else {
               if (el.requestFullscreen) void el.requestFullscreen();
-              else if (el.webkitRequestFullscreen) void el.webkitRequestFullscreen();
+              else if (el.webkitRequestFullscreen)
+                void el.webkitRequestFullscreen();
               else if (el.mozRequestFullScreen) void el.mozRequestFullScreen();
               else if (el.msRequestFullscreen) void el.msRequestFullscreen();
             }
@@ -334,18 +368,21 @@ export function ControllerMenuSheet({
   const closedChrome = (
     <header
       className={cn(
-        "pointer-events-none fixed top-0 left-0 right-0 z-50 flex w-full shrink-0 items-center px-3 pb-2",
+        "pointer-events-none fixed top-0 right-0 left-0 z-50 flex w-full shrink-0 items-center px-3 pb-2",
         topChromePadding,
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center pl-1 pr-2">
+      <div className="flex min-w-0 flex-1 items-center pr-2 pl-1">
         <div className="pointer-events-auto min-w-0">
           <div className="flex items-center gap-1">
             <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
               Room
             </p>
             <span
-              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotClass)}
+              className={cn(
+                "h-1.5 w-1.5 shrink-0 rounded-full",
+                statusDotClass,
+              )}
               aria-hidden
             />
           </div>
@@ -365,7 +402,7 @@ export function ControllerMenuSheet({
           type="button"
           variant="outline"
           size="icon"
-          className="pointer-events-auto bg-background/50 backdrop-blur-sm"
+          className="bg-background/50 pointer-events-auto backdrop-blur-sm"
           onClick={() => emitArcadeAction("airjam.arcade.toggle_qr")}
           aria-label="Toggle host join QR"
           title="Toggle host join QR"
@@ -376,7 +413,7 @@ export function ControllerMenuSheet({
           type="button"
           variant="outline"
           size="icon"
-          className="pointer-events-auto bg-background/50 backdrop-blur-sm"
+          className="bg-background/50 pointer-events-auto backdrop-blur-sm"
           onClick={() => {
             const doc = document as DocumentWithFullscreen;
             const root = document.documentElement;
@@ -390,12 +427,14 @@ export function ControllerMenuSheet({
               doc.msFullscreenElement
             ) {
               if (doc.exitFullscreen) void doc.exitFullscreen();
-              else if (doc.webkitExitFullscreen) void doc.webkitExitFullscreen();
+              else if (doc.webkitExitFullscreen)
+                void doc.webkitExitFullscreen();
               else if (doc.mozCancelFullScreen) void doc.mozCancelFullScreen();
               else if (doc.msExitFullscreen) void doc.msExitFullscreen();
             } else {
               if (el.requestFullscreen) void el.requestFullscreen();
-              else if (el.webkitRequestFullscreen) void el.webkitRequestFullscreen();
+              else if (el.webkitRequestFullscreen)
+                void el.webkitRequestFullscreen();
               else if (el.mozRequestFullScreen) void el.mozRequestFullScreen();
               else if (el.msRequestFullscreen) void el.msRequestFullscreen();
             }
@@ -415,10 +454,8 @@ export function ControllerMenuSheet({
 
       <ControllerMenuNotch
         position="fixed"
-        className={cn(
-          "z-60",
-          documentFullscreen ? "mt-0" : "mt-[env(safe-area-inset-top)]",
-        )}
+        placement={notchPlacement}
+        className={cn("z-60", notchOffsetClass)}
         strokeClassName="stroke-zinc-700"
         pulse={connectionNotchPulse}
         onClick={toggleOverlay}
@@ -468,99 +505,103 @@ export function ControllerMenuSheet({
         {overlayOpen ? (
           <motion.div
             key="controller-overlay"
-            className="fixed inset-0 z-50 flex flex-col bg-black/97"
-            initial={{ y: "-100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "-100%" }}
+            className={cn("fixed inset-0 z-50 flex", overlayFrameClass)}
+            initial={landscapeMenu ? { x: "100%" } : { y: "-100%" }}
+            animate={landscapeMenu ? { x: 0 } : { y: 0 }}
+            exit={landscapeMenu ? { x: "100%" } : { y: "-100%" }}
             transition={{ type: "spring", stiffness: 420, damping: 38 }}
           >
-            {overlayChrome}
+            <div className={overlayPanelClass}>
+              {overlayChrome}
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
-              <div className="mx-auto flex max-w-md flex-col gap-8">
-                <section className="flex flex-col gap-3">
-                  <h2 className="text-sm font-semibold tracking-wide uppercase">
-                    Profile
-                  </h2>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="aj-display-name">Display name</Label>
-                    <Input
-                      id="aj-display-name"
-                      value={profileDraft.label}
-                      onChange={(e) =>
-                        setProfileDraft((d) => ({
-                          ...d,
-                          label: e.target.value,
-                        }))
-                      }
-                      maxLength={24}
-                      autoCapitalize="words"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-muted-foreground text-xs uppercase">
-                      Avatar
-                    </p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {CONTROLLER_AVATAR_PRESETS.map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          className={`flex h-14 items-center justify-center rounded-lg border text-2xl ${
-                            profileDraft.avatarId === preset.id
-                              ? "border-primary ring-primary ring-2"
-                              : "border-border/60"
-                          }`}
-                          onClick={() =>
-                            setProfileDraft((d) => ({
-                              ...d,
-                              avatarId: preset.id,
-                            }))
-                          }
-                        >
-                          {preset.emoji}
-                        </button>
-                      ))}
+              <div className={overlayBodyClass}>
+                <div className="mx-auto flex max-w-md flex-col gap-8">
+                  <section className="flex flex-col gap-3">
+                    <h2 className="text-sm font-semibold tracking-wide uppercase">
+                      Profile
+                    </h2>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="aj-display-name">Display name</Label>
+                      <Input
+                        id="aj-display-name"
+                        value={profileDraft.label}
+                        onChange={(e) =>
+                          setProfileDraft((d) => ({
+                            ...d,
+                            label: e.target.value,
+                          }))
+                        }
+                        maxLength={24}
+                        autoCapitalize="words"
+                      />
                     </div>
-                  </div>
-                  <Button type="button" onClick={() => void saveProfile()}>
-                    Save profile
-                  </Button>
-                </section>
+                    <div className="flex flex-col gap-2">
+                      <p className="text-muted-foreground text-xs uppercase">
+                        Avatar
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {CONTROLLER_AVATAR_PRESETS.map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            className={`flex h-14 items-center justify-center rounded-lg border text-2xl ${
+                              profileDraft.avatarId === preset.id
+                                ? "border-primary ring-primary ring-2"
+                                : "border-border/60"
+                            }`}
+                            onClick={() =>
+                              setProfileDraft((d) => ({
+                                ...d,
+                                avatarId: preset.id,
+                              }))
+                            }
+                          >
+                            {preset.emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <Button type="button" onClick={() => void saveProfile()}>
+                      Save profile
+                    </Button>
+                  </section>
 
-                <section className="flex flex-col gap-3">
-                  <h2 className="text-sm font-semibold tracking-wide uppercase">
-                    Room
-                  </h2>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="aj-room-code">Room code</Label>
-                    <Input
-                      id="aj-room-code"
-                      value={roomDraft}
-                      onChange={(e) =>
-                        setRoomDraft(
-                          e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
-                        )
-                      }
-                      maxLength={8}
-                      autoCapitalize="characters"
-                      inputMode="text"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" onClick={applyRoom}>
-                      Apply room
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setScanning(true)}
-                    >
-                      <ScanLine className="mr-2 h-4 w-4" />
-                      Scan QR
-                    </Button>
-                  </div>
-                </section>
+                  <section className="flex flex-col gap-3">
+                    <h2 className="text-sm font-semibold tracking-wide uppercase">
+                      Room
+                    </h2>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="aj-room-code">Room code</Label>
+                      <Input
+                        id="aj-room-code"
+                        value={roomDraft}
+                        onChange={(e) =>
+                          setRoomDraft(
+                            e.target.value
+                              .toUpperCase()
+                              .replace(/[^A-Z0-9]/g, ""),
+                          )
+                        }
+                        maxLength={8}
+                        autoCapitalize="characters"
+                        inputMode="text"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" onClick={applyRoom}>
+                        Apply room
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setScanning(true)}
+                      >
+                        <ScanLine className="mr-2 h-4 w-4" />
+                        Scan QR
+                      </Button>
+                    </div>
+                  </section>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -582,7 +623,7 @@ export function ControllerMenuSheet({
           </div>
           <video
             ref={videoRef}
-            className="mt-4 flex-1 w-full rounded-lg object-cover"
+            className="mt-4 w-full flex-1 rounded-lg object-cover"
             controls={false}
             muted
             playsInline

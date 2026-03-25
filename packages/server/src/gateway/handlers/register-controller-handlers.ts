@@ -48,13 +48,8 @@ const PLAYER_COLORS = [
 export const registerControllerHandlers = (
   context: SocketHandlerContext,
 ): void => {
-  const {
-    io,
-    socket,
-    roomManager,
-    isControllerAuthorizedForRoom,
-    emitError,
-  } = context;
+  const { io, socket, roomManager, isControllerAuthorizedForRoom, emitError } =
+    context;
   let lastServerInputLogTime = 0;
   let lastServerInputFailLogTime = 0;
 
@@ -138,7 +133,8 @@ export const registerControllerHandlers = (
       roomManager.deleteController(existing.socketId);
     }
 
-    const colorHex = PLAYER_COLORS[session.controllers.size % PLAYER_COLORS.length];
+    const colorHex =
+      PLAYER_COLORS[session.controllers.size % PLAYER_COLORS.length];
     let color: string;
     try {
       color = Color(colorHex).hex();
@@ -170,8 +166,18 @@ export const registerControllerHandlers = (
     );
 
     callback({ ok: true, controllerId, roomId });
-    socket.emit("server:welcome", { controllerId, roomId, player: playerProfile });
-    socket.emit("server:state", { roomId, state: { gameState: session.gameState } });
+    socket.emit("server:welcome", {
+      controllerId,
+      roomId,
+      player: playerProfile,
+    });
+    socket.emit("server:state", {
+      roomId,
+      state: {
+        gameState: session.gameState,
+        orientation: session.controllerOrientation,
+      },
+    });
 
     if (session.activeControllerUrl) {
       socket.emit("client:loadUi", { url: session.activeControllerUrl });
@@ -180,7 +186,10 @@ export const registerControllerHandlers = (
 
   socket.on(
     "controller:updatePlayerProfile",
-    (payload: unknown, callback: (ack: ControllerUpdatePlayerProfileAck) => void) => {
+    (
+      payload: unknown,
+      callback: (ack: ControllerUpdatePlayerProfileAck) => void,
+    ) => {
       const respond = (ack: ControllerUpdatePlayerProfileAck): void => {
         callback?.(ack);
       };
@@ -278,8 +287,10 @@ export const registerControllerHandlers = (
       (input.action === true ||
         (typeof input.vector === "object" &&
           input.vector !== null &&
-          (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) > 0.01 ||
-            Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) > 0.01)));
+          (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) >
+            0.01 ||
+            Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
+              0.01)));
 
     if (
       hasActiveInput &&
@@ -356,8 +367,14 @@ export const registerControllerHandlers = (
     }
 
     if (command === "toggle_pause") {
-      session.gameState = session.gameState === "playing" ? "paused" : "playing";
-      emitRoomState(io, roomId, session.gameState);
+      session.gameState =
+        session.gameState === "playing" ? "paused" : "playing";
+      emitRoomState(
+        io,
+        roomId,
+        session.gameState,
+        session.controllerOrientation,
+      );
     }
   });
 };

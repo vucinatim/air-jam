@@ -97,7 +97,9 @@ describe("embedded controller bridge runtime", () => {
 
     const client = getControllerRealtimeClient(
       vi.fn(() => {
-        throw new Error("direct socket should not be requested in embedded mode");
+        throw new Error(
+          "direct socket should not be requested in embedded mode",
+        );
       }),
     );
     const disconnectSpy = vi.fn();
@@ -112,5 +114,55 @@ describe("embedded controller bridge runtime", () => {
     );
 
     vi.useRealTimers();
+  });
+
+  it("replays snapshot orientation state on attach", async () => {
+    const directSocketGetter = vi.fn(() => {
+      throw new Error("direct socket should not be requested in embedded mode");
+    });
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const client = getControllerRealtimeClient(directSocketGetter);
+    const stateSpy = vi.fn();
+    client.on("server:state", stateSpy);
+
+    client.connect();
+
+    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(parentPort).toBeDefined();
+
+    parentPort!.postMessage({
+      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-controller-runtime",
+          capabilityFlags: {
+            controllerBridge: true,
+          },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          connected: true,
+          state: {
+            gameState: "playing",
+            orientation: "landscape",
+          },
+        },
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(stateSpy).toHaveBeenCalledWith({
+      roomId: "ROOM1",
+      state: {
+        gameState: "playing",
+        orientation: "landscape",
+      },
+    });
   });
 });

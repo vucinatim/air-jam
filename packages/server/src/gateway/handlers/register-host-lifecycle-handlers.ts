@@ -1,13 +1,13 @@
 import {
   ErrorCode,
-  hostCreateRoomSchema,
   hostActivateEmbeddedGameSchema,
+  hostCreateRoomSchema,
   hostJoinAsChildSchema,
   hostReconnectSchema,
   hostRegisterSystemSchema,
   systemLaunchGameSchema,
-  type HostCreateRoomPayload,
   type HostActivateEmbeddedGamePayload,
+  type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
   type HostReconnectPayload,
   type HostRegisterSystemPayload,
@@ -15,11 +15,11 @@ import {
 } from "@air-jam/sdk/protocol";
 import { v4 as uuidv4 } from "uuid";
 import {
-  activateEmbeddedGame,
   activateChildHost,
-  beginRoomClosing,
+  activateEmbeddedGame,
   beginChildHostActivation,
   beginGameLaunch,
+  beginRoomClosing,
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
   getRoomLifecyclePhase,
@@ -95,6 +95,7 @@ export const registerHostLifecycleHandlers = (
           controllers: new Map(),
           maxPlayers: 32,
           gameState: "paused",
+          controllerOrientation: "portrait",
           lifecycleState: "SYSTEM_IDLE",
         };
         roomManager.setRoom(roomId, session);
@@ -152,7 +153,10 @@ export const registerHostLifecycleHandlers = (
       const existingRoomId = roomManager.getRoomByHostId(socket.id);
       if (existingRoomId) {
         const existingSession = roomManager.getRoom(existingRoomId);
-        if (existingSession && existingSession.masterHostSocketId === socket.id) {
+        if (
+          existingSession &&
+          existingSession.masterHostSocketId === socket.id
+        ) {
           callback({ ok: true, roomId: existingRoomId });
           return;
         }
@@ -180,6 +184,7 @@ export const registerHostLifecycleHandlers = (
         controllers: new Map(),
         maxPlayers: maxPlayers ?? 8,
         gameState: "paused",
+        controllerOrientation: "portrait",
         lifecycleState: "SYSTEM_IDLE",
       };
 
@@ -194,10 +199,7 @@ export const registerHostLifecycleHandlers = (
 
   socket.on(
     "host:reconnect",
-    async (
-      payload: HostReconnectPayload,
-      callback: (ack: HostAck) => void,
-    ) => {
+    async (payload: HostReconnectPayload, callback: (ack: HostAck) => void) => {
       if (
         context.isRateLimited(
           "host-registration",
@@ -243,9 +245,14 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const previousMasterSocket = io.sockets.sockets.get(session.masterHostSocketId);
+      const previousMasterSocket = io.sockets.sockets.get(
+        session.masterHostSocketId,
+      );
       const isPreviousHostConnected = previousMasterSocket?.connected ?? false;
-      if (!isPreviousHostConnected || session.masterHostSocketId === socket.id) {
+      if (
+        !isPreviousHostConnected ||
+        session.masterHostSocketId === socket.id
+      ) {
         session.masterHostSocketId = socket.id;
         roomManager.setRoom(roomId, session);
         roomManager.setHostRoom(socket.id, roomId);
@@ -263,82 +270,88 @@ export const registerHostLifecycleHandlers = (
     },
   );
 
-  socket.on("system:launchGame", (payload: SystemLaunchGamePayload, callback) => {
-    const parsed = systemLaunchGameSchema.safeParse(payload);
-    if (!parsed.success) {
-      callback({
-        ok: false,
-        message: parsed.error.message,
-        code: ErrorCode.INVALID_PAYLOAD,
-      });
-      return;
-    }
+  socket.on(
+    "system:launchGame",
+    (payload: SystemLaunchGamePayload, callback) => {
+      const parsed = systemLaunchGameSchema.safeParse(payload);
+      if (!parsed.success) {
+        callback({
+          ok: false,
+          message: parsed.error.message,
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
 
-    const { roomId, gameUrl } = parsed.data;
-    const session = roomManager.getRoom(roomId);
-    if (!session) {
-      callback({
-        ok: false,
-        message: "Room not found",
-        code: ErrorCode.ROOM_NOT_FOUND,
-      });
-      return;
-    }
+      const { roomId, gameUrl } = parsed.data;
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        callback({
+          ok: false,
+          message: "Room not found",
+          code: ErrorCode.ROOM_NOT_FOUND,
+        });
+        return;
+      }
 
-    if (session.masterHostSocketId !== socket.id) {
-      callback({
-        ok: false,
-        message: "Unauthorized: Not System Host",
-        code: ErrorCode.UNAUTHORIZED,
-      });
-      return;
-    }
+      if (session.masterHostSocketId !== socket.id) {
+        callback({
+          ok: false,
+          message: "Unauthorized: Not System Host",
+          code: ErrorCode.UNAUTHORIZED,
+        });
+        return;
+      }
 
-    const launchAvailability = canBeginGameLaunch(session);
-    if (!launchAvailability.ok && launchAvailability.reason === "GAME_ACTIVE") {
-      callback({
-        ok: false,
-        message: "Game already active",
-        code: ErrorCode.ALREADY_CONNECTED,
-      });
-      return;
-    }
+      const launchAvailability = canBeginGameLaunch(session);
+      if (
+        !launchAvailability.ok &&
+        launchAvailability.reason === "GAME_ACTIVE"
+      ) {
+        callback({
+          ok: false,
+          message: "Game already active",
+          code: ErrorCode.ALREADY_CONNECTED,
+        });
+        return;
+      }
 
-    if (
-      !launchAvailability.ok &&
-      launchAvailability.reason === "LAUNCH_PENDING" &&
-      session.joinToken
-    ) {
-      callback({ ok: true, joinToken: session.joinToken });
-      return;
-    }
-    if (
-      !launchAvailability.ok &&
-      (launchAvailability.reason === "ROOM_CLOSING" ||
-        launchAvailability.reason === "ROOM_TORN_DOWN")
-    ) {
-      callback({
-        ok: false,
-        message: "Room is closing",
-        code: ErrorCode.CONNECTION_FAILED,
-      });
-      return;
-    }
+      if (
+        !launchAvailability.ok &&
+        launchAvailability.reason === "LAUNCH_PENDING" &&
+        session.joinToken
+      ) {
+        callback({ ok: true, joinToken: session.joinToken });
+        return;
+      }
+      if (
+        !launchAvailability.ok &&
+        (launchAvailability.reason === "ROOM_CLOSING" ||
+          launchAvailability.reason === "ROOM_TORN_DOWN")
+      ) {
+        callback({
+          ok: false,
+          message: "Room is closing",
+          code: ErrorCode.CONNECTION_FAILED,
+        });
+        return;
+      }
 
-    const joinToken = uuidv4();
-    const transitionResult = beginGameLaunch(session, joinToken, gameUrl);
-    if (!transitionResult.ok) {
-      callback({
-        ok: false,
-        message: "Unable to launch game from current room state",
-        code: ErrorCode.CONNECTION_FAILED,
-      });
-      return;
-    }
+      const joinToken = uuidv4();
+      const transitionResult = beginGameLaunch(session, joinToken, gameUrl);
+      if (!transitionResult.ok) {
+        callback({
+          ok: false,
+          message: "Unable to launch game from current room state",
+          code: ErrorCode.CONNECTION_FAILED,
+        });
+        return;
+      }
 
-    io.to(roomId).emit("client:loadUi", { url: gameUrl });
-    callback({ ok: true, joinToken });
-  });
+      io.to(roomId).emit("client:loadUi", { url: gameUrl });
+      callback({ ok: true, joinToken });
+    },
+  );
 
   socket.on("host:joinAsChild", (payload: HostJoinAsChildPayload, callback) => {
     const parsed = hostJoinAsChildSchema.safeParse(payload);
@@ -398,7 +411,10 @@ export const registerHostLifecycleHandlers = (
 
           socket.emit("server:state", {
             roomId,
-            state: { gameState: session.gameState },
+            state: {
+              gameState: session.gameState,
+              orientation: session.controllerOrientation,
+            },
           });
         }, 100);
 
@@ -455,12 +471,18 @@ export const registerHostLifecycleHandlers = (
 
     setTimeout(() => {
       session.controllers.forEach((controller) => {
-        socket.emit("server:controllerJoined", toControllerJoinedNotice(controller));
+        socket.emit(
+          "server:controllerJoined",
+          toControllerJoinedNotice(controller),
+        );
       });
 
       socket.emit("server:state", {
         roomId,
-        state: { gameState: session.gameState },
+        state: {
+          gameState: session.gameState,
+          orientation: session.controllerOrientation,
+        },
       });
     }, 100);
 

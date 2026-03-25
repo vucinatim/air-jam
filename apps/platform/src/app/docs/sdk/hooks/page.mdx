@@ -264,6 +264,7 @@ const ControllerView = () => {
     controllerId, // This controller's unique ID
     connectionStatus, // Connection state
     gameState, // "playing" | "paused"
+    controllerOrientation, // "portrait" | "landscape"
     stateMessage, // Optional message from host
 
     // Functions
@@ -303,6 +304,9 @@ const ControllerView = () => {
   return (
     <div className="flex h-dvh flex-col bg-zinc-950 p-4 text-white">
       <div className="mb-2 text-xs uppercase">Room {roomId}</div>
+      <div className="mb-2 text-xs uppercase">
+        Layout {controllerOrientation}
+      </div>
       <Joystick
         onMove={(x, y) => {
           vectorRef.current = { x, y };
@@ -362,10 +366,7 @@ host.socket.emit("custom:event", { value: 1 });
 Air Jam emits structured diagnostics for common misuse paths in development builds.
 
 ```tsx
-import {
-  onAirJamDiagnostic,
-  setAirJamDiagnosticsEnabled,
-} from "@air-jam/sdk";
+import { onAirJamDiagnostic, setAirJamDiagnosticsEnabled } from "@air-jam/sdk";
 
 setAirJamDiagnosticsEnabled(true);
 
@@ -376,21 +377,21 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 
 ### Diagnostics Reference
 
-| Code | Meaning | Expected Fix |
-| ---- | ------- | ------------ |
-| `AJ_SCOPE_MISMATCH` | A host/controller hook was used in the wrong scoped provider tree. | Use `HostSessionProvider` for host hooks and `ControllerSessionProvider` for controller hooks. |
-| `AJ_MISSING_SESSION_PROVIDER` | SDK context was read outside Air Jam session providers. | Wrap route/root with scoped session provider. |
-| `AJ_CONFIG_MISSING_SERVER_URL` | Runtime config cannot resolve server URL when env resolution is disabled. | Provide `serverUrl` prop when using `resolveEnv={false}`. |
-| `AJ_CONFIG_MISSING_API_KEY` | Production runtime started without canonical API key config. | Set `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY` or pass `apiKey` explicitly. |
-| `AJ_STORE_ACTION_SESSION_NOT_READY` | Controller action dispatch attempted before role/room was ready. | Wait until room/session is established before dispatching store actions. |
-| `AJ_STORE_ACTION_UI_UNLOADED` | Controller attempted state action dispatch while game UI was unloaded. | Only dispatch actions while game UI is active. |
-| `AJ_STORE_ACTION_SOCKET_DISCONNECTED` | Controller state action dispatch attempted while socket disconnected. | Reconnect before dispatching action. |
-| `AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE` | State action payload contained non-serializable values. | Use JSON-safe payload objects only (no functions/symbols/cycles). |
-| `AJ_INPUT_WRITER_INVALID_SHAPE` | `useInputWriter` payload was not an object. | Send plain object payloads only. |
-| `AJ_INPUT_WRITER_NOT_SERIALIZABLE` | Input payload contained non-serializable values. | Keep input payload JSON-safe. |
-| `AJ_INPUT_WRITER_SESSION_NOT_READY` | Input writer called before room/controller identity was ready. | Start publish loop after controller connection/session is ready. |
-| `AJ_INPUT_WRITER_SOCKET_DISCONNECTED` | Input writer called while controller socket was disconnected. | Reconnect before sending input. |
-| `AJ_INPUT_WRITER_SCHEMA_INVALID` | Input payload failed runtime schema validation. | Match payload shape to configured input schema. |
+| Code                                       | Meaning                                                                   | Expected Fix                                                                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `AJ_SCOPE_MISMATCH`                        | A host/controller hook was used in the wrong scoped provider tree.        | Use `HostSessionProvider` for host hooks and `ControllerSessionProvider` for controller hooks. |
+| `AJ_MISSING_SESSION_PROVIDER`              | SDK context was read outside Air Jam session providers.                   | Wrap route/root with scoped session provider.                                                  |
+| `AJ_CONFIG_MISSING_SERVER_URL`             | Runtime config cannot resolve server URL when env resolution is disabled. | Provide `serverUrl` prop when using `resolveEnv={false}`.                                      |
+| `AJ_CONFIG_MISSING_API_KEY`                | Production runtime started without canonical API key config.              | Set `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY` or pass `apiKey` explicitly.  |
+| `AJ_STORE_ACTION_SESSION_NOT_READY`        | Controller action dispatch attempted before role/room was ready.          | Wait until room/session is established before dispatching store actions.                       |
+| `AJ_STORE_ACTION_UI_UNLOADED`              | Controller attempted state action dispatch while game UI was unloaded.    | Only dispatch actions while game UI is active.                                                 |
+| `AJ_STORE_ACTION_SOCKET_DISCONNECTED`      | Controller state action dispatch attempted while socket disconnected.     | Reconnect before dispatching action.                                                           |
+| `AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE` | State action payload contained non-serializable values.                   | Use JSON-safe payload objects only (no functions/symbols/cycles).                              |
+| `AJ_INPUT_WRITER_INVALID_SHAPE`            | `useInputWriter` payload was not an object.                               | Send plain object payloads only.                                                               |
+| `AJ_INPUT_WRITER_NOT_SERIALIZABLE`         | Input payload contained non-serializable values.                          | Keep input payload JSON-safe.                                                                  |
+| `AJ_INPUT_WRITER_SESSION_NOT_READY`        | Input writer called before room/controller identity was ready.            | Start publish loop after controller connection/session is ready.                               |
+| `AJ_INPUT_WRITER_SOCKET_DISCONNECTED`      | Input writer called while controller socket was disconnected.             | Reconnect before sending input.                                                                |
+| `AJ_INPUT_WRITER_SCHEMA_INVALID`           | Input payload failed runtime schema validation.                           | Match payload shape to configured input schema.                                                |
 
 ---
 
