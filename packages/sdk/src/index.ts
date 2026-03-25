@@ -32,14 +32,8 @@ export * from "./protocol";
 
 // Runtime config bootstrap
 export * from "./runtime/arcade-bridge-request-surface";
-export {
-  AIRJAM_STORE_DOMAIN_URL_PARAM,
-  embeddedReplicatedStoreDomainFromArcadeIdentity,
-  resolveImplicitReplicatedStoreDomainFromSearchParams,
-  resolveImplicitReplicatedStoreDomainFromWindow,
-} from "./runtime/arcade-runtime-url";
+export { arcadeSurfaceRuntimeUrlParams } from "./runtime/arcade-runtime-url";
 export * from "./runtime/arcade-surface-identity";
-export * from "./runtime/runtime-session-params";
 export * from "./runtime/air-jam-config";
 export * from "./runtime/controller-bridge";
 export * from "./runtime/controller-realtime-client";

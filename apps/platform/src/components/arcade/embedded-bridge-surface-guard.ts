@@ -28,7 +28,7 @@ export const shouldRejectControllerBridgeHandshake = (
     epoch: number;
     gameId: string | null;
   },
-  requestArcadeSurface: ArcadeSurfaceRuntimeIdentity | undefined,
+  requestArcadeSurface: ArcadeSurfaceRuntimeIdentity,
 ): boolean => {
   if (shellSurface.kind !== "game" || !shellSurface.gameId) {
     return false;
@@ -49,7 +49,7 @@ export const shouldRejectControllerBridgeHandshake = (
  */
 export const shouldRejectHostBridgeHandshake = (
   activeIdentity: ArcadeSurfaceRuntimeIdentity | null | undefined,
-  requestArcadeSurface: ArcadeSurfaceRuntimeIdentity | undefined,
+  requestArcadeSurface: ArcadeSurfaceRuntimeIdentity,
 ): boolean => {
   if (activeIdentity == null) {
     return false;

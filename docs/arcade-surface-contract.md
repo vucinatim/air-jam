@@ -1,11 +1,11 @@
 # Arcade Surface Contract
 
 Last updated: 2026-03-25  
-Status: draft, implementation-target
+Status: active
 
 ## Purpose
 
-This document defines the canonical replayable state contract that keeps:
+This document defines the replayable shell state that keeps:
 
 1. Arcade host UI
 2. controller outer shell
@@ -13,30 +13,23 @@ This document defines the canonical replayable state contract that keeps:
 
 aligned on the same active surface.
 
-This contract exists to replace transient UI pulses and split local authority.
+## Canonical Owner
 
-## Core Decision
+The canonical owner is:
 
-The active Arcade/controller surface is app state, not transport state.
+1. the Arcade shell replicated store
 
-So the canonical owner is:
+It is not owned by:
 
-1. Arcade host replicated state
-
-It does not live primarily in:
-
-1. server room session
+1. server room session state
 2. controller page local state
-3. bridge attach state
-4. generic shared connection store
+3. bridge lifecycle state
+4. generic shared connection-store state
 
-Those layers may cache or forward it, but they do not own it.
-
-## Canonical State Shape
+## State Shape
 
 ```ts
 type ArcadeSurfaceKind = "browser" | "game";
-
 type ArcadeOverlayKind = "hidden" | "menu" | "qr";
 
 interface ArcadeSurfaceState {
@@ -49,32 +42,32 @@ interface ArcadeSurfaceState {
 }
 ```
 
-## Field Semantics
+## Field Rules
 
 ### `epoch`
 
-Monotonic integer incremented every time the active surface instance changes.
+Monotonic runtime identity for the current surface instance.
 
-Used for:
+Increment on:
 
-1. rejecting stale embedded runtimes
-2. making browser/game transitions deterministic across reconnect
-3. ensuring old iframes cannot continue talking after a switch
+1. browser -> game
+2. game -> browser
+3. game A -> game B
+
+Do not increment on:
+
+1. overlay changes
+2. reconnect to the same surface
+3. re-attach to the same surface instance
 
 ### `kind`
 
-The current outer surface the Arcade system is presenting.
-
-Values:
+Primary shell rendering switch:
 
 1. `browser`
 2. `game`
 
-This is the primary field both host Arcade and controller shell render from.
-
 ### `gameId`
-
-The currently active game identifier.
 
 Rules:
 
@@ -83,28 +76,25 @@ Rules:
 
 ### `controllerUrl`
 
-The normalized controller runtime URL for the active game.
-
 Rules:
 
 1. `null` when `kind === "browser"`
 2. required when `kind === "game"`
-3. must already be normalized and valid before entering the state
+3. must already be normalized and valid before entering the game surface
 
 ### `orientation`
 
-Launch-time hint for the active surface (replication, catalog, host UX). It is **not** the live source of truth for controller outer chrome.
-
-**Live controller notch / safe-area / shell layout** on the platform controller page follows **`controllerOrientation` in the server session**, broadcast via `server:state` from the host (`host:state`). The SDK exposes this as `useAirJamController().controllerOrientation`. See [Platform Controller Presentation](./platform-controller-presentation.md).
+Launch-time surface metadata.
 
 Rules:
 
-1. `portrait` by default for Arcade browser
-2. for game surfaces, may be set when entering the surface (e.g. catalog default); runtime presentation still converges on host-reported orientation
+1. `portrait` for browser
+2. game surface may start with catalog/default orientation
+3. live controller outer chrome still follows host-reported `controllerOrientation` from `server:state`
 
 ### `overlay`
 
-Platform overlay state, owned by Arcade app state.
+Replayable platform overlay state.
 
 Values:
 
@@ -112,101 +102,36 @@ Values:
 2. `menu`
 3. `qr`
 
-Rules:
-
-1. this is platform state, not embedded game state
-2. it should be replayable on reconnect if we want reconnect to preserve it
-3. if preserving overlay across reconnect feels too heavy, we can still own it here and intentionally reset it on reconnect with an explicit policy
-
-## Canonical Examples
-
-### Browser Idle
-
-```ts
-{
-  epoch: 1,
-  kind: "browser",
-  gameId: null,
-  controllerUrl: null,
-  orientation: "portrait",
-  overlay: "hidden",
-}
-```
-
-### Browser With QR Open
-
-```ts
-{
-  epoch: 1,
-  kind: "browser",
-  gameId: null,
-  controllerUrl: null,
-  orientation: "portrait",
-  overlay: "qr",
-}
-```
-
-### Game Active
-
-```ts
-{
-  epoch: 2,
-  kind: "game",
-  gameId: "pong",
-  controllerUrl: "https://example.com/pong/controller",
-  orientation: "landscape",
-  overlay: "hidden",
-}
-```
-
-### Return From Game To Browser
-
-```ts
-{
-  epoch: 3,
-  kind: "browser",
-  gameId: null,
-  controllerUrl: null,
-  orientation: "portrait",
-  overlay: "hidden",
-}
-```
-
 ## Ownership Rules
 
-### Arcade Host Store
+### Arcade Shell Store
 
-Owns the canonical `ArcadeSurfaceState`.
+Owns:
 
-Responsibilities:
-
-1. setting browser surface
-2. setting game surface
-3. incrementing `epoch`
-4. changing overlay state
-5. broadcasting this state through the normal replicated state lane
+1. browser/game surface
+2. `epoch`
+3. overlay state
+4. active game metadata needed by the shell
 
 ### Controller Outer Shell
 
-Does not own surface truth.
+Derives from the Arcade surface snapshot.
 
 Responsibilities:
 
-1. subscribe to replicated surface state
-2. render browser controls when `kind === "browser"`
-3. render embedded controller iframe when `kind === "game"`
-4. use server-backed `controllerOrientation` (SDK) for outer notch / safe-area when `kind === "game"`; use surface `orientation` only as non-authoritative launch metadata
-5. use `epoch` to reject stale attached iframe sessions
+1. render browser controls when `kind === "browser"`
+2. render embedded controller iframe when `kind === "game"`
+3. use `epoch` and surface identity to reject stale bridge sessions
 
-### Embedded Game Runtimes
+### Embedded Game Runtime
 
-Do not own outer Arcade surface truth.
+Does not own shell truth.
 
 Responsibilities:
 
-1. attach against the current `epoch`
-2. accept being invalidated when `epoch` changes
-3. own game-local state only
+1. attach against the current surface identity
+2. own only game-local state
+3. accept invalidation when `epoch` changes
 
 ### Server
 
@@ -214,153 +139,45 @@ Does not own `ArcadeSurfaceState`.
 
 Responsibilities:
 
-1. keep room membership / focus / join token / host authorization valid
-2. optionally validate runtime epoch inputs if they are passed through attach flows
-3. route traffic correctly
+1. room/runtime invariants
+2. routing and authorization
+3. join token continuity
 
-## Where This State Should Live
+## Parallel Store Rule
 
-Recommended location:
+Arcade uses two legitimate replicated domains in one room:
 
-1. a dedicated Arcade replicated store in the platform app
+1. the persistent Arcade shell domain
+2. the active embedded game domain
 
-Why:
+Rules:
 
-1. this state is Arcade app state
-2. it needs host ownership and replay on reconnect
-3. it should not contaminate the generic shared connection store
-4. it should not be partially mirrored into server room fields as app-level truth
+1. shell state stays live across browser/game switches
+2. embedded game state is scoped to the current surface instance
+3. game store domain is resolved automatically by SDK/runtime
+4. game/app code keeps normal `createAirJamStore(...)` usage
 
-Not recommended:
+## Bridge Rule
 
-1. putting `ArcadeSurfaceState` into `RoomSession`
-2. storing it only in `useArcadeRuntimeManager`
-3. storing it only in controller page local state
-4. stuffing it into the generic SDK connection store as the long-term home
+Embedded bridge traffic is surface-bound.
 
-## Epoch Rules
+Required on every embedded bridge request and attach:
 
-`epoch` increments on every surface instance change.
+1. `epoch`
+2. `kind`
+3. `gameId`
 
-### Increment Required
+That identity is used to:
 
-1. browser -> game
-2. game -> browser
-3. game A -> game B
+1. reject stale attachments
+2. close stale forwards after shell drift
+3. keep old iframes from surviving a surface switch
 
-### Increment Not Required
+## Invariants
 
-1. overlay changes within the same surface instance
-2. controller reconnect while the same surface remains active
-3. host reconnect while restoring the same surface instance
+The contract is correct when:
 
-### Notes
-
-Overlay changes are not new runtime instances. They are state changes within the same surface.
-
-## Runtime / Bridge Contract Additions
-
-Host/controller embedded runtime bootstrap and attach should include:
-
-```ts
-interface ArcadeSurfaceRuntimeIdentity {
-  epoch: number;
-  kind: "browser" | "game";
-  gameId: string | null;
-}
-```
-
-Minimum rule:
-
-1. if a bridge request or attach targets an older `epoch`, reject it
-
-Recommended rule:
-
-1. bootstrap/attach includes enough identity to assert that the runtime belongs to the current active surface
-
-## Mapping From Current Code
-
-### Former field: `useArcadeRuntimeManager.view` (removed)
-
-Was duplicated with `ArcadeSurfaceState.kind`. The runtime reducer no longer stores a `view`; use `ArcadeSurfaceState.kind` only.
-
-### Current Field: `useArcadeRuntimeManager.activeGameId`
-
-Current location:
-
-1. `apps/platform/src/components/arcade/arcade-runtime-manager.ts`
-
-Future:
-
-1. becomes derived from `ArcadeSurfaceState.gameId`
-
-### Current Field: `useArcadeRuntimeManager.normalizedGameUrl`
-
-Current location:
-
-1. `apps/platform/src/components/arcade/arcade-runtime-manager.ts`
-
-Future:
-
-1. becomes derived from `ArcadeSurfaceState.controllerUrl` or paired game host metadata
-
-### Historical Field: server `activeControllerUrl`
-
-Current location:
-
-1. `packages/server/src/types.ts`
-2. `packages/server/src/domain/room-session-domain.ts`
-
-Result:
-
-1. removed as an app-level source of truth
-2. removed from server room state once reconnect restore switched to `gameId` + `joinToken` and host-side `controllerUrl` derivation
-
-### Current Field: controller page `activeUrl`
-
-Current location:
-
-1. `apps/platform/src/app/controller/page.tsx`
-
-Future:
-
-1. derived from `ArcadeSurfaceState.kind` + `ArcadeSurfaceState.controllerUrl`
-
-### Current Field: local `qrVisible`
-
-Current location:
-
-1. `apps/platform/src/components/arcade/arcade-system.tsx`
-
-Future:
-
-1. derived from `ArcadeSurfaceState.overlay`
-
-## Migration Policy
-
-### Allowed During Migration
-
-1. temporary derivation from the new snapshot into old server/runtime fields while those fields are being removed
-
-### Not Allowed As Final State
-
-1. keeping both local `activeUrl` and snapshot as co-equal truth
-2. keeping server `activeControllerUrl` as primary Arcade UI truth
-3. relying on missed pulse order for reconnect correctness
-
-## Acceptance Criteria
-
-This contract is ready to implement when:
-
-1. host Arcade can render entirely from it
-2. controller shell can render entirely from it
-3. bridge attach can validate against it
-4. all current overlapping state owners have an explicit migration path
-
-## Implementation status (2026-03-25)
-
-In progress: `ArcadeSurfaceState` and `useArcadeSurfaceStore` (`createAirJamStore`) in `apps/platform/src/components/arcade/`; host updates surface on launch/exit and room session; platform controller outer shell reads `kind` + `controllerUrl` from replicated state.
-
-Host Arcade UI and arcade-mode host input tick use replicated `surface.kind` (not local `view`). Launch applies surface before `completeLaunch`; exit applies `setBrowserSurface` / overlay before clearing runtime state.
-
-`ArcadeSurfaceRuntimeIdentity` is optional on `ControllerBridgeSnapshot` and `HostBridgeSnapshot` in `@air-jam/sdk`; platform passes it on attach when `kind === "game"`. Embedded controller/host bridge clients reject an attach whose `arcadeSurface.epoch` is strictly lower than the last accepted attach epoch (`validateArcadeBridgeAttachEpoch` in the SDK).
+1. host and controller shell can replay the same active surface after reconnect
+2. a controller joining mid-session renders correctly from snapshot alone
+3. browser/game switches invalidate old embedded runtimes deterministically
+4. no second authority stores “what surface is active?” in parallel

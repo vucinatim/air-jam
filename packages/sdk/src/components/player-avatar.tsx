@@ -1,14 +1,6 @@
 import type { JSX } from "react";
 import type { PlayerProfile } from "../protocol";
-
-// Generate a consistent avatar URL for a player based on their ID
-const getPlayerAvatarUrl = (playerId: string): string => {
-  // Use DiceBear API with identicon style for GitHub-like avatars
-  // The seed ensures the same player ID always gets the same avatar
-  return `https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=${encodeURIComponent(
-    playerId,
-  )}`;
-};
+import { getPlayerAvatarImageUrl } from "../utils/player-avatar-url";
 
 // Convert hex color to rgba with opacity
 const hexToRgba = (hex: string, opacity: number): string => {
@@ -51,7 +43,7 @@ export const PlayerAvatar = ({
 
   return (
     <img
-      src={getPlayerAvatarUrl(player.id)}
+      src={getPlayerAvatarImageUrl(player)}
       alt={player.label}
       className={`bg-secondary/30 shrink-0 rounded-full shadow-lg ${sizeClasses[size]} ${className}`}
       style={{

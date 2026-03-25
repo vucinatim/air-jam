@@ -55,7 +55,7 @@ interface GamePlayerProps {
   gameState: "paused" | "playing";
   isVisible: boolean;
   /** Carried on host bridge attach for embedded runtime epoch alignment. */
-  arcadeSurfaceRuntimeIdentity?: ArcadeSurfaceRuntimeIdentity;
+  arcadeSurfaceRuntimeIdentity: ArcadeSurfaceRuntimeIdentity;
   onExit: () => void;
   /** Whether to show the default exit button overlay */
   showExitOverlay?: boolean;
@@ -226,7 +226,7 @@ export const GamePlayer = ({
     (port: MessagePort) => {
       closeHostBridge("replaced");
       hostBridgePortRef.current = port;
-      hostBridgeAttachedIdentityRef.current = arcadeSurfaceRuntimeIdentity ?? null;
+      hostBridgeAttachedIdentityRef.current = arcadeSurfaceRuntimeIdentity;
       port.start?.();
 
       port.onmessage = (event) => {
@@ -257,9 +257,7 @@ export const GamePlayer = ({
           state: {
             gameState: state.gameState,
           },
-          ...(arcadeSurfaceRuntimeIdentity
-            ? { arcadeSurface: arcadeSurfaceRuntimeIdentity }
-            : {}),
+          arcadeSurface: arcadeSurfaceRuntimeIdentity,
         }),
       );
     },

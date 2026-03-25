@@ -316,15 +316,11 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
             orientation: session.controllerOrientation,
             message: session.stateMessage,
           },
-          ...(arcadeSurface.kind === "game"
-            ? {
-                arcadeSurface: {
-                  epoch: arcadeSurface.epoch,
-                  kind: arcadeSurface.kind,
-                  gameId: arcadeSurface.gameId,
-                },
-              }
-            : {}),
+          arcadeSurface: {
+            epoch: arcadeSurface.epoch,
+            kind: arcadeSurface.kind,
+            gameId: arcadeSurface.gameId,
+          },
         }),
       );
     },

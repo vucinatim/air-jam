@@ -129,7 +129,7 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/game?aj_room=ROOM1&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1",
+      "/game?aj_room=ROOM1&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
 
     const { result } = renderHook(() => useAirJamHost());
@@ -145,7 +145,7 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/game?aj_room=ROOM1&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1",
+      "/game?aj_room=ROOM1&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
@@ -171,6 +171,7 @@ describe("session reconnect behavior", () => {
             joinToken: "join_123",
             connected: true,
             players: [],
+            arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
           },
         },
       });
@@ -194,7 +195,7 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1",
+      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
@@ -219,6 +220,7 @@ describe("session reconnect behavior", () => {
             roomId: "ROOM1",
             controllerId: "ctrl_1",
             connected: true,
+            arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
           },
         },
       });

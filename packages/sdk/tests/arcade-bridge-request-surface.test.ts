@@ -8,12 +8,6 @@ describe("arcadeBridgeRequestSurfaceMismatchesActive", () => {
     gameId: "pong",
   };
 
-  it("returns false when request omits surface (legacy)", () => {
-    expect(arcadeBridgeRequestSurfaceMismatchesActive(active, undefined)).toBe(
-      false,
-    );
-  });
-
   it("returns false when request matches active", () => {
     expect(
       arcadeBridgeRequestSurfaceMismatchesActive(active, { ...active }),

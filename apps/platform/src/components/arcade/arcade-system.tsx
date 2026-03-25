@@ -112,7 +112,6 @@ export const ArcadeSystem = ({
   const {
     state,
     stateRef,
-    activeGame,
     selectedGame,
     moveSelection,
     setSelectedIndex,
@@ -143,6 +142,14 @@ export const ArcadeSystem = ({
       kind: s.kind,
       gameId: s.gameId,
     })),
+  );
+  const activeGame = useMemo(
+    () =>
+      arcadeSurfaceRuntimeIdentity.gameId
+        ? games.find((game) => game.id === arcadeSurfaceRuntimeIdentity.gameId) ??
+          null
+        : null,
+    [games, arcadeSurfaceRuntimeIdentity.gameId],
   );
   const surfaceActions = useArcadeSurfaceStore.useActions();
   const lastRoomIdForSurfaceRef = useRef<string | null>(null);
@@ -265,7 +272,6 @@ export const ArcadeSystem = ({
       surfaceActions.setOverlay({ overlay: "hidden" });
 
       completeLaunch({
-        gameId: game.id,
         normalizedGameUrl: normalizedHostUrl,
         joinToken: snap.joinToken,
       });
@@ -390,8 +396,8 @@ export const ArcadeSystem = ({
           hasSocket: !!host.socket,
           connected: host.socket?.connected,
           isLaunching: snapshot.isLaunching,
-          activeGame: !!snapshot.activeGameId,
           joinToken: !!snapshot.joinToken,
+          surfaceKind,
         });
         return;
       }
@@ -428,7 +434,6 @@ export const ArcadeSystem = ({
             });
             surfaceActions.setOverlay({ overlay: "hidden" });
             completeLaunch({
-              gameId: game.id,
               joinToken: ack.joinToken,
               normalizedGameUrl: normalizedHostUrl,
             });
@@ -606,7 +611,7 @@ export const ArcadeSystem = ({
     }
   }, [host.players.length, broadcastCurrentState]);
 
-  // Loading state: catalog fetch in progress (or legacy undefined games)
+  // Loading state while the public game catalog is not ready.
   if (!gamesCatalogReady || !games) {
     return (
       <div

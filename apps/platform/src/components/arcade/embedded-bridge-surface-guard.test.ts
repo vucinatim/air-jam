@@ -65,11 +65,6 @@ describe("shouldRejectControllerBridgeHandshake", () => {
     ).toBe(true);
   });
 
-  it("allows legacy request without arcadeSurface on game shell", () => {
-    expect(shouldRejectControllerBridgeHandshake(gameSurface, undefined)).toBe(
-      false,
-    );
-  });
 });
 
 describe("shouldRejectHostBridgeHandshake", () => {

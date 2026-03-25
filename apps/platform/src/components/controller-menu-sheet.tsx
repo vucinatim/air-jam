@@ -21,7 +21,9 @@ import {
   type ControllerOrientation,
   type DocumentWithFullscreen,
   type ElementWithFullscreen,
+  type PlayerProfile,
 } from "@air-jam/sdk";
+import { getDiceBearAdventurerNeutralUrl, PlayerAvatar } from "@air-jam/sdk/ui";
 import { LogOut, Maximize, QrCode, ScanLine, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
@@ -29,6 +31,7 @@ import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -68,6 +71,36 @@ export function ControllerMenuSheet({
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const displayedRoomId = controller.roomId ?? routeRoomId;
+
+  const selfProfileForAvatar = useMemo((): PlayerProfile | null => {
+    const id = controller.controllerId;
+    const fromList = id
+      ? controller.players.find((p) => p.id === id)
+      : undefined;
+    if (fromList) {
+      return fromList;
+    }
+    if (id) {
+      return {
+        id,
+        label: localProfile.label || "Player",
+        avatarId: localProfile.avatarId,
+      };
+    }
+    if (localProfile.avatarId) {
+      return {
+        id: "preview",
+        label: localProfile.label || "Player",
+        avatarId: localProfile.avatarId,
+      };
+    }
+    return null;
+  }, [
+    controller.controllerId,
+    controller.players,
+    localProfile.avatarId,
+    localProfile.label,
+  ]);
 
   const connectionLabels: Record<
     NonNullable<typeof controller.connectionStatus>,
@@ -253,7 +286,7 @@ export function ControllerMenuSheet({
     ? "items-stretch justify-end bg-black/72 backdrop-blur-sm"
     : "flex-col bg-black/97";
   const overlayPanelClass = landscapeMenu
-    ? "border-border/50 flex h-full w-full max-w-md flex-col border-l bg-black/97 shadow-2xl"
+    ? "flex h-full w-full max-w-md flex-col bg-black/97 shadow-2xl"
     : "flex h-full w-full flex-col bg-black/97";
   const overlayBodyClass = landscapeMenu
     ? "min-h-0 flex-1 overflow-y-auto px-4 py-5"
@@ -262,14 +295,21 @@ export function ControllerMenuSheet({
   const overlayChrome = (
     <header
       className={cn(
-        "border-border/40 relative flex w-full shrink-0 items-center border-b px-3 pb-2",
+        "relative flex w-full shrink-0 items-center px-3 pb-2",
         topChromePadding,
       )}
     >
       <span className="sr-only" aria-live="polite">
         {`Connection ${connectionLabel}`}
       </span>
-      <div className="flex min-w-0 flex-1 items-center pr-2 pl-1">
+      <div className="flex min-w-0 flex-1 items-center gap-2 pr-2 pl-1">
+        {selfProfileForAvatar ? (
+          <PlayerAvatar
+            player={selfProfileForAvatar}
+            size="sm"
+            className="ring-border shrink-0 ring-2"
+          />
+        ) : null}
         <div className="min-w-0">
           <div className="flex items-center gap-1">
             <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
@@ -373,7 +413,14 @@ export function ControllerMenuSheet({
         topChromePadding,
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center pr-2 pl-1">
+      <div className="flex min-w-0 flex-1 items-center gap-2 pr-2 pl-1">
+        {selfProfileForAvatar ? (
+          <PlayerAvatar
+            player={selfProfileForAvatar}
+            size="sm"
+            className="ring-border pointer-events-auto shrink-0 ring-2"
+          />
+        ) : null}
         <div className="pointer-events-auto min-w-0">
           <div className="flex items-center gap-1">
             <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
@@ -489,13 +536,23 @@ export function ControllerMenuSheet({
                 transition={{ duration: 0.15 }}
                 className="absolute flex items-center justify-center"
               >
-                <Image
-                  src="/images/airjam-logo.png"
-                  alt=""
-                  width={64}
-                  height={20}
-                  className="h-4 w-auto object-contain"
-                />
+                <motion.div
+                  className="flex items-center justify-center"
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 3.2,
+                    ease: "easeInOut",
+                  }}
+                >
+                  <Image
+                    src="/images/airjam-logo.png"
+                    alt=""
+                    width={64}
+                    height={20}
+                    className="h-4 w-auto object-contain"
+                  />
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -540,26 +597,44 @@ export function ControllerMenuSheet({
                       <p className="text-muted-foreground text-xs uppercase">
                         Avatar
                       </p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {CONTROLLER_AVATAR_PRESETS.map((preset) => (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            className={`flex h-14 items-center justify-center rounded-lg border text-2xl ${
-                              profileDraft.avatarId === preset.id
-                                ? "border-primary ring-primary ring-2"
-                                : "border-border/60"
-                            }`}
-                            onClick={() =>
-                              setProfileDraft((d) => ({
-                                ...d,
-                                avatarId: preset.id,
-                              }))
-                            }
-                          >
-                            {preset.emoji}
-                          </button>
-                        ))}
+                      <div className="flex gap-2 overflow-x-auto px-2 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {CONTROLLER_AVATAR_PRESETS.map((preset) => {
+                          const src = getDiceBearAdventurerNeutralUrl(
+                            preset.seed,
+                          );
+                          const selected = profileDraft.avatarId === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              aria-pressed={selected}
+                              className={cn(
+                                "bg-secondary/30 h-14 w-14 shrink-0 rounded-xl border-2 p-0 transition-colors",
+                                selected
+                                  ? "border-primary ring-primary ring-offset-background ring-2 ring-offset-2"
+                                  : "hover:bg-secondary/50 border-transparent",
+                              )}
+                              onClick={() =>
+                                setProfileDraft((d) => ({
+                                  ...d,
+                                  avatarId: preset.id,
+                                }))
+                              }
+                            >
+                              <span className="block size-full overflow-hidden rounded-[10px]">
+                                {/* eslint-disable-next-line @next/next/no-img-element -- DiceBear SVG */}
+                                <img
+                                  src={src}
+                                  alt=""
+                                  width={56}
+                                  height={56}
+                                  className="size-full object-cover"
+                                  draggable={false}
+                                />
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                     <Button type="button" onClick={() => void saveProfile()}>

@@ -85,8 +85,8 @@ export interface HostBridgeSnapshot {
   socketId?: string;
   players: ControllerJoinedNotice[];
   state?: ControllerStateMessage["state"];
-  /** Present when the platform shell attaches the embedded host runtime to a game surface. */
-  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+  /** The platform shell's active game surface identity for this embedded host runtime. */
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }
 
 export interface HostBridgeRequestMessage {
@@ -95,7 +95,7 @@ export interface HostBridgeRequestMessage {
     handshake: V2Handshake;
     roomId: RoomCode;
     joinToken: string;
-    arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+    arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   };
 }
 
@@ -138,7 +138,7 @@ const hostBridgeRequestSchema = z
         handshake: v2HandshakeSchema,
         roomId: z.string().min(1),
         joinToken: z.string().min(1),
-        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
+        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
       })
       .strict(),
   })
@@ -158,7 +158,7 @@ const hostBridgeAttachSchema = z
             socketId: z.string().optional(),
             players: z.array(z.unknown()),
             state: z.unknown().optional(),
-            arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
+            arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
           })
           .strict(),
       })
@@ -204,7 +204,7 @@ const hostBridgeCloseSchema = z
 export const createHostBridgeRequestMessage = (payload: {
   roomId: RoomCode;
   joinToken: string;
-  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }): HostBridgeRequestMessage => ({
   type: AIRJAM_HOST_BRIDGE_REQUEST,
   payload: {
@@ -217,7 +217,7 @@ export const createHostBridgeRequestMessage = (payload: {
     }),
     roomId: payload.roomId,
     joinToken: payload.joinToken,
-    ...(payload.arcadeSurface ? { arcadeSurface: payload.arcadeSurface } : {}),
+    arcadeSurface: payload.arcadeSurface,
   },
 });
 

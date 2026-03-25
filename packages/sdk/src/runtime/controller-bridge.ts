@@ -88,8 +88,8 @@ export interface ControllerBridgeSnapshot {
   socketId?: string;
   player?: PlayerProfile;
   state?: ControllerStateMessage["state"];
-  /** Present when the platform shell attaches the embedded controller runtime to a game surface. */
-  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+  /** The platform shell's active game surface identity for this embedded controller runtime. */
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }
 
 export interface ControllerBridgeRequestMessage {
@@ -98,7 +98,7 @@ export interface ControllerBridgeRequestMessage {
     handshake: V2Handshake;
     roomId: RoomCode;
     controllerId: string;
-    arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+    arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   };
 }
 
@@ -147,7 +147,7 @@ const bridgeRequestSchema = z
         handshake: v2HandshakeSchema,
         roomId: z.string().min(1),
         controllerId: z.string().min(1),
-        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
+        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
       })
       .strict(),
   })
@@ -167,7 +167,7 @@ const bridgeAttachSchema = z
             socketId: z.string().optional(),
             player: z.unknown().optional(),
             state: z.unknown().optional(),
-            arcadeSurface: arcadeSurfaceRuntimeIdentitySchema.optional(),
+            arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
           })
           .strict(),
       })
@@ -213,7 +213,7 @@ const bridgeCloseSchema = z
 export const createControllerBridgeRequestMessage = (payload: {
   roomId: RoomCode;
   controllerId: string;
-  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }): ControllerBridgeRequestMessage => ({
   type: AIRJAM_CONTROLLER_BRIDGE_REQUEST,
   payload: {
@@ -226,9 +226,7 @@ export const createControllerBridgeRequestMessage = (payload: {
     }),
     roomId: payload.roomId,
     controllerId: payload.controllerId,
-    ...(payload.arcadeSurface
-      ? { arcadeSurface: payload.arcadeSurface }
-      : {}),
+    arcadeSurface: payload.arcadeSurface,
   },
 });
 

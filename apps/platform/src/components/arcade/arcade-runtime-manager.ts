@@ -4,7 +4,6 @@ import type { ArcadeGame } from "./arcade-system";
 /** Browser vs game “mode” for the arcade shell lives in `ArcadeSurfaceState.kind` (replicated). This reducer only tracks host-local launch mechanics (selection, tokens, URLs). */
 export interface ArcadeRuntimeState {
   selectedIndex: number;
-  activeGameId: string | null;
   normalizedGameUrl: string;
   joinToken: string | null;
   isLaunching: boolean;
@@ -158,7 +157,6 @@ type RuntimeAction =
   | { type: "launch-start" }
   | {
       type: "launch-success";
-      gameId: string;
       normalizedGameUrl: string;
       joinToken: string;
     }
@@ -174,7 +172,6 @@ export const createInitialArcadeRuntimeState = ({
   initialGameId?: string;
 }): ArcadeRuntimeState => ({
   selectedIndex: getInitialSelectedIndex(games, initialGameId),
-  activeGameId: null,
   normalizedGameUrl: "",
   joinToken: null,
   isLaunching: false,
@@ -214,7 +211,6 @@ export const reduceArcadeRuntimeState = (
       return {
         ...state,
         isLaunching: false,
-        activeGameId: action.gameId,
         normalizedGameUrl: action.normalizedGameUrl,
         joinToken: action.joinToken,
       };
@@ -229,7 +225,6 @@ export const reduceArcadeRuntimeState = (
     case "exit-game":
       return {
         ...state,
-        activeGameId: null,
         normalizedGameUrl: "",
         joinToken: null,
         isLaunching: false,
@@ -272,14 +267,6 @@ export const useArcadeRuntimeManager = ({
     return games[state.selectedIndex] ?? null;
   }, [games, state.selectedIndex]);
 
-  const activeGame = useMemo(() => {
-    if (!state.activeGameId) {
-      return null;
-    }
-
-    return games.find((game) => game.id === state.activeGameId) ?? null;
-  }, [games, state.activeGameId]);
-
   const setSelectedIndex = useCallback(
     (index: number) => {
       dispatch({
@@ -305,7 +292,7 @@ export const useArcadeRuntimeManager = ({
 
   const beginLaunch = useCallback((): boolean => {
     const snapshot = stateRef.current;
-    if (snapshot.isLaunching || snapshot.activeGameId || snapshot.joinToken) {
+    if (snapshot.isLaunching || snapshot.joinToken) {
       return false;
     }
 
@@ -315,17 +302,14 @@ export const useArcadeRuntimeManager = ({
 
   const completeLaunch = useCallback(
     ({
-      gameId,
       normalizedGameUrl,
       joinToken,
     }: {
-      gameId: string;
       normalizedGameUrl: string;
       joinToken: string;
     }) => {
       dispatch({
         type: "launch-success",
-        gameId,
         normalizedGameUrl,
         joinToken,
       });
@@ -352,7 +336,6 @@ export const useArcadeRuntimeManager = ({
     state,
     stateRef,
     selectedGame,
-    activeGame,
     setSelectedIndex,
     moveSelection,
     beginLaunch,

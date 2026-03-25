@@ -38,11 +38,6 @@ describe("validateArcadeBridgeAttachEpoch", () => {
     expect(r).toEqual({ ok: false });
   });
 
-  it("leaves last unchanged when identity is absent", () => {
-    const r = validateArcadeBridgeAttachEpoch(2, undefined);
-    expect(r).toEqual({ ok: true, nextLast: 2 });
-  });
-
   it("accepts identity when last was never set from identity", () => {
     const r = validateArcadeBridgeAttachEpoch(null, {
       epoch: 1,

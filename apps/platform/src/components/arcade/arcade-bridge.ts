@@ -53,11 +53,11 @@ export const buildArcadeGameIframeSrc = ({
   roomId: string;
   joinToken: string;
   joinUrl?: string | null;
-  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }): string | null =>
   appendRuntimeQueryParams(normalizedUrl, {
     aj_room: roomId,
     aj_token: joinToken,
     aj_join_url: joinUrl,
-    ...(arcadeSurface ? arcadeSurfaceRuntimeUrlParams(arcadeSurface) : {}),
+    ...arcadeSurfaceRuntimeUrlParams(arcadeSurface),
   });

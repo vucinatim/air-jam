@@ -11,7 +11,7 @@ describe("embedded controller bridge runtime", () => {
     window.history.replaceState(
       {},
       "",
-      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1",
+      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
   });
 
@@ -62,6 +62,7 @@ describe("embedded controller bridge runtime", () => {
           roomId: "ROOM1",
           controllerId: "ctrl_1",
           connected: true,
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
         },
       },
     });
@@ -147,6 +148,7 @@ describe("embedded controller bridge runtime", () => {
           roomId: "ROOM1",
           controllerId: "ctrl_1",
           connected: true,
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
           state: {
             gameState: "playing",
             orientation: "landscape",

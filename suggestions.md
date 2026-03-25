@@ -16,7 +16,7 @@
 These consolidate Phase 11 of `docs/implementation-plan.md` without starting a second migration.
 
 1. **Single bootstrap owner:** Route embedded-vs-standalone and URL parsing through one module (today split across `embedded-runtime-adapters.ts`, `runtime-session-params.ts`, `use-host-runtime-api` / `use-controller-runtime-api`, and realtime clients). Goal: one import graph for “how this runtime gets room/join/arcade params.”
-2. **Reconnect state:** If `hostReconnectAckPending` / `hostArcadeSessionFromServer` can move behind a host-only adapter (narrower than `AirJamStore`), do it after Phase 10 cleanup so generic store stays room/session shaped.
+2. **Reconnect state:** If `hostArcadeRestore` can move behind a host-only adapter (narrower than `AirJamStore`), do it after Phase 10 cleanup so generic store stays room/session shaped.
 3. **Protocol touchpoints:** Prefer funneling schema changes through `packages/sdk/src/protocol` (and server mirrors) with a short “change recipe” in `development-loop.md` so fewer files drift.
 4. **Public SDK surface:** Audit `packages/sdk/src/index.ts` exports added during the reset; drop aliases and `export *` re-exports that only existed for migration.
 5. **Platform seam:** Keep outer-shell policy (bridge drift, iframe URLs) in `apps/platform` and resist moving Arcade-only branches into `createAirJamStore` or generic hooks. Drift + handshake rejection for embedded bridges is centralized in `apps/platform/src/components/arcade/embedded-bridge-surface-guard.ts` (extend there when adding new shell→iframe paths).

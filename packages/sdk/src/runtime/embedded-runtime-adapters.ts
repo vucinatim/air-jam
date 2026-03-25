@@ -13,7 +13,7 @@ import {
 export type EmbeddedHostChildSession = {
   roomId: RoomCode;
   joinUrl?: string;
-  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 };
 
 /**
@@ -22,7 +22,7 @@ export type EmbeddedHostChildSession = {
 export type EmbeddedControllerChildSession = {
   roomId: RoomCode;
   controllerId: string;
-  arcadeSurface?: ArcadeSurfaceRuntimeIdentity;
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 };
 
 /**
@@ -52,6 +52,6 @@ export const readEmbeddedControllerChildSession =
     return {
       roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
       controllerId: raw.controllerId,
-      ...(raw.arcadeSurface ? { arcadeSurface: raw.arcadeSurface } : {}),
+      arcadeSurface: raw.arcadeSurface,
     };
   };

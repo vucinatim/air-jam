@@ -74,12 +74,10 @@ describe("arcade runtime manager", () => {
     state = reduceArcadeRuntimeState(state, { type: "launch-start" });
     state = reduceArcadeRuntimeState(state, {
       type: "launch-success",
-      gameId: "g2",
       normalizedGameUrl: "https://game-two.test",
       joinToken: "join_abc",
     });
 
-    expect(state.activeGameId).toBe("g2");
     expect(state.joinToken).toBe("join_abc");
 
     state = reduceArcadeRuntimeState(state, {
@@ -87,7 +85,6 @@ describe("arcade runtime manager", () => {
       exitedAt: 123_456,
     });
 
-    expect(state.activeGameId).toBeNull();
     expect(state.joinToken).toBeNull();
     expect(state.isLaunching).toBe(false);
     expect(state.consumedAutoLaunchRequestKey).toBe("arcade:g2");

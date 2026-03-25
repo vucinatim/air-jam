@@ -143,6 +143,16 @@ export const HostView = () => {
 4. Use `ctx.actorId` for identity-aware actions (team join, ownership, etc.).
 5. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
 
+## Embedded Arcade Runtimes
+
+When a game runs inside Arcade, `createAirJamStore` still works the same way in game code.
+
+The SDK/runtime automatically resolves the correct replicated store domain from the embedded runtime context, so you should:
+
+1. keep normal `createAirJamStore(...)` usage in games
+2. not parse Arcade URL params in app/game code
+3. not pick custom store domains in game code just to work when embedded
+
 ## API Summary
 
 `createAirJamStore<T>(initializer)` returns:
