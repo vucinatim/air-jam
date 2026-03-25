@@ -17,7 +17,7 @@ import { parseRoomFromQrText } from "@/lib/parse-room-from-qr-text";
 import { cn } from "@/lib/utils";
 import {
   airJamArcadePlatformActions,
-  useAirJamController,
+  type AirJamControllerApi,
   type ControllerOrientation,
   type DocumentWithFullscreen,
   type ElementWithFullscreen,
@@ -40,20 +40,70 @@ import {
 interface ControllerMenuSheetProps {
   routeRoomId: string | null;
   activeUrl: string | null;
+  controller: AirJamControllerApi;
   emitArcadeAction: (action: string) => void;
   controllerOrientation: ControllerOrientation;
   documentFullscreen: boolean;
 }
 
+/** Shared top-left: avatar + “Room” label, status dot, room code (sheet + floating bar). */
+const ControllerMenuLeadingChrome = ({
+  selfProfileForAvatar,
+  displayedRoomId,
+  statusDotClass,
+  /** Parent uses `pointer-events-none` (floating bar); re-enable hits on this block. */
+  pointerEventsAuto,
+}: {
+  selfProfileForAvatar: PlayerProfile | null;
+  displayedRoomId: string | null;
+  statusDotClass: string;
+  pointerEventsAuto?: boolean;
+}) => (
+  <div
+    className={cn(
+      "flex min-w-0 flex-1 items-center gap-2 pr-2 pl-1",
+      pointerEventsAuto && "pointer-events-auto",
+    )}
+  >
+    {selfProfileForAvatar ? (
+      <PlayerAvatar
+        player={selfProfileForAvatar}
+        size="sm"
+        className="ring-border h-10! w-10! shrink-0 ring-2"
+      />
+    ) : null}
+    <div className="min-w-0">
+      <div className="flex items-center gap-1">
+        <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
+          Room
+        </p>
+        <span
+          className={cn(
+            "h-1.5 w-1.5 shrink-0 rounded-full",
+            statusDotClass,
+          )}
+          aria-hidden
+        />
+      </div>
+      <p
+        className="truncate text-base leading-tight font-semibold tracking-wide tabular-nums"
+        title={displayedRoomId ?? undefined}
+      >
+        {displayedRoomId ?? "—"}
+      </p>
+    </div>
+  </div>
+);
+
 export function ControllerMenuSheet({
   routeRoomId,
   activeUrl,
+  controller,
   emitArcadeAction,
   controllerOrientation,
   documentFullscreen,
 }: ControllerMenuSheetProps) {
   const router = useRouter();
-  const controller = useAirJamController();
 
   const localProfile = useSyncExternalStore(
     subscribeControllerLocalProfile,
@@ -73,16 +123,12 @@ export function ControllerMenuSheet({
   const displayedRoomId = controller.roomId ?? routeRoomId;
 
   const selfProfileForAvatar = useMemo((): PlayerProfile | null => {
-    const id = controller.controllerId;
-    const fromList = id
-      ? controller.players.find((p) => p.id === id)
-      : undefined;
-    if (fromList) {
-      return fromList;
+    if (controller.selfPlayer) {
+      return controller.selfPlayer;
     }
-    if (id) {
+    if (controller.controllerId) {
       return {
-        id,
+        id: controller.controllerId,
         label: localProfile.label || "Player",
         avatarId: localProfile.avatarId,
       };
@@ -97,7 +143,7 @@ export function ControllerMenuSheet({
     return null;
   }, [
     controller.controllerId,
-    controller.players,
+    controller.selfPlayer,
     localProfile.avatarId,
     localProfile.label,
   ]);
@@ -133,19 +179,15 @@ export function ControllerMenuSheet({
 
   const toggleOverlay = useCallback(() => {
     if (!overlayOpen) {
-      const self = controller.players.find(
-        (p) => p.id === controller.controllerId,
-      );
       setProfileDraft({
-        label: self?.label ?? localProfile.label,
-        avatarId: self?.avatarId ?? localProfile.avatarId,
+        label: controller.selfPlayer?.label ?? localProfile.label,
+        avatarId: controller.selfPlayer?.avatarId ?? localProfile.avatarId,
       });
       setRoomDraft(displayedRoomId ?? "");
     }
     setOverlayOpen((prev) => !prev);
   }, [
-    controller.controllerId,
-    controller.players,
+    controller.selfPlayer,
     displayedRoomId,
     localProfile,
     overlayOpen,
@@ -166,7 +208,6 @@ export function ControllerMenuSheet({
     }
 
     router.replace(`/controller?room=${encodeURIComponent(code)}`);
-    setOverlayOpen(false);
   }, [roomDraft, router, controller.roomId, controller.socket]);
 
   const saveProfile = useCallback(async () => {
@@ -181,7 +222,6 @@ export function ControllerMenuSheet({
     controller.setNickname(next.label);
     controller.setAvatarId(next.avatarId);
     await controller.updatePlayerProfile(toProfilePatch(next));
-    setOverlayOpen(false);
   }, [controller, profileDraft]);
 
   useEffect(() => {
@@ -302,35 +342,11 @@ export function ControllerMenuSheet({
       <span className="sr-only" aria-live="polite">
         {`Connection ${connectionLabel}`}
       </span>
-      <div className="flex min-w-0 flex-1 items-center gap-2 pr-2 pl-1">
-        {selfProfileForAvatar ? (
-          <PlayerAvatar
-            player={selfProfileForAvatar}
-            size="sm"
-            className="ring-border shrink-0 ring-2"
-          />
-        ) : null}
-        <div className="min-w-0">
-          <div className="flex items-center gap-1">
-            <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
-              Room
-            </p>
-            <span
-              className={cn(
-                "h-1.5 w-1.5 shrink-0 rounded-full",
-                statusDotClass,
-              )}
-              aria-hidden
-            />
-          </div>
-          <p
-            className="truncate text-base leading-tight font-semibold tracking-wide tabular-nums"
-            title={displayedRoomId ?? undefined}
-          >
-            {displayedRoomId ?? "—"}
-          </p>
-        </div>
-      </div>
+      <ControllerMenuLeadingChrome
+        selfProfileForAvatar={selfProfileForAvatar}
+        displayedRoomId={displayedRoomId}
+        statusDotClass={statusDotClass}
+      />
 
       {/* Empty space for the fixed notch to sit over */}
       {!landscapeMenu ? <div className="w-[96px] shrink-0" /> : null}
@@ -339,10 +355,9 @@ export function ControllerMenuSheet({
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size="icon-touch"
           onClick={() => {
             emitArcadeAction(airJamArcadePlatformActions.toggleQr);
-            setOverlayOpen(false);
           }}
           aria-label="Toggle host join QR"
           title="Toggle host join QR"
@@ -352,7 +367,7 @@ export function ControllerMenuSheet({
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size="icon-touch"
           onClick={() => {
             const doc = document as DocumentWithFullscreen;
             const root = document.documentElement;
@@ -377,7 +392,6 @@ export function ControllerMenuSheet({
               else if (el.mozRequestFullScreen) void el.mozRequestFullScreen();
               else if (el.msRequestFullscreen) void el.msRequestFullscreen();
             }
-            setOverlayOpen(false);
           }}
           aria-label="Toggle fullscreen"
           title="Toggle fullscreen"
@@ -388,7 +402,7 @@ export function ControllerMenuSheet({
           <Button
             type="button"
             variant="outline"
-            size="icon"
+            size="icon-touch"
             className="border-red-500 hover:border-red-600"
             onClick={() => {
               if (confirm("Exit game and return to arcade?")) {
@@ -413,35 +427,12 @@ export function ControllerMenuSheet({
         topChromePadding,
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2 pr-2 pl-1">
-        {selfProfileForAvatar ? (
-          <PlayerAvatar
-            player={selfProfileForAvatar}
-            size="sm"
-            className="ring-border pointer-events-auto shrink-0 ring-2"
-          />
-        ) : null}
-        <div className="pointer-events-auto min-w-0">
-          <div className="flex items-center gap-1">
-            <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
-              Room
-            </p>
-            <span
-              className={cn(
-                "h-1.5 w-1.5 shrink-0 rounded-full",
-                statusDotClass,
-              )}
-              aria-hidden
-            />
-          </div>
-          <p
-            className="truncate text-base leading-tight font-semibold tracking-wide tabular-nums"
-            title={displayedRoomId ?? undefined}
-          >
-            {displayedRoomId ?? "—"}
-          </p>
-        </div>
-      </div>
+      <ControllerMenuLeadingChrome
+        selfProfileForAvatar={selfProfileForAvatar}
+        displayedRoomId={displayedRoomId}
+        statusDotClass={statusDotClass}
+        pointerEventsAuto
+      />
 
       <div className="w-[96px] shrink-0" />
 
@@ -449,7 +440,7 @@ export function ControllerMenuSheet({
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size="icon-touch"
           className="bg-background/50 pointer-events-auto backdrop-blur-sm"
           onClick={() => emitArcadeAction(airJamArcadePlatformActions.toggleQr)}
           aria-label="Toggle host join QR"
@@ -460,7 +451,7 @@ export function ControllerMenuSheet({
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size="icon-touch"
           className="bg-background/50 pointer-events-auto backdrop-blur-sm"
           onClick={() => {
             const doc = document as DocumentWithFullscreen;
@@ -575,9 +566,6 @@ export function ControllerMenuSheet({
               <div className={overlayBodyClass}>
                 <div className="mx-auto flex max-w-md flex-col gap-8">
                   <section className="flex flex-col gap-3">
-                    <h2 className="text-sm font-semibold tracking-wide uppercase">
-                      Profile
-                    </h2>
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="aj-display-name">Display name</Label>
                       <Input
@@ -594,10 +582,11 @@ export function ControllerMenuSheet({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <p className="text-muted-foreground text-xs uppercase">
-                        Avatar
-                      </p>
-                      <div className="flex gap-2 overflow-x-auto px-2 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <div
+                        className="flex gap-2 overflow-x-auto px-2 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        role="group"
+                        aria-label="Avatar"
+                      >
                         {CONTROLLER_AVATAR_PRESETS.map((preset) => {
                           const src = getDiceBearAdventurerNeutralUrl(
                             preset.seed,
@@ -637,15 +626,16 @@ export function ControllerMenuSheet({
                         })}
                       </div>
                     </div>
-                    <Button type="button" onClick={() => void saveProfile()}>
+                    <Button
+                      type="button"
+                      size="touch"
+                      onClick={() => void saveProfile()}
+                    >
                       Save profile
                     </Button>
                   </section>
 
                   <section className="flex flex-col gap-3">
-                    <h2 className="text-sm font-semibold tracking-wide uppercase">
-                      Room
-                    </h2>
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="aj-room-code">Room code</Label>
                       <Input
@@ -664,12 +654,13 @@ export function ControllerMenuSheet({
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" onClick={applyRoom}>
+                      <Button type="button" size="touch" onClick={applyRoom}>
                         Apply room
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
+                        size="touch"
                         onClick={() => setScanning(true)}
                       >
                         <ScanLine className="mr-2 h-4 w-4" />
@@ -691,7 +682,7 @@ export function ControllerMenuSheet({
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="touch"
               onClick={() => setScanning(false)}
             >
               Cancel

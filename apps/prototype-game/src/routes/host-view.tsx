@@ -1,4 +1,9 @@
-import { useAirJamHost, useAudio, useHostGameStateBridge } from "@air-jam/sdk";
+import {
+  useAirJamHost,
+  useAudio,
+  useHostGameStateBridge,
+  type PlayerProfile,
+} from "@air-jam/sdk";
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
 import { Settings2, Volume2, VolumeX, X } from "lucide-react";
 import type { JSX } from "react";
@@ -34,7 +39,7 @@ import { SOUND_MANIFEST } from "../game/sounds";
 
 interface TeamCardProps {
   teamId: TeamId;
-  players: Array<{ id: string; label: string; color?: string }>;
+  players: PlayerProfile[];
   botCount: number;
 }
 
@@ -90,11 +95,8 @@ interface LobbyOverlayProps {
     | "disconnected"
     | "reconnecting";
   lastError?: string;
-  connectedPlayers: Array<{ id: string; label: string; color?: string }>;
-  teamPlayers: Record<
-    TeamId,
-    Array<{ id: string; label: string; color?: string }>
-  >;
+  connectedPlayers: PlayerProfile[];
+  teamPlayers: Record<TeamId, PlayerProfile[]>;
 }
 
 const LobbyOverlay = ({
@@ -541,20 +543,12 @@ const HostViewContent = (): JSX.Element => {
   }, [audio, ctfScores, matchActions, matchPhase, pointsToWin]);
 
   const connectedPlayers = useMemo(
-    () =>
-      players.map((player) => ({
-        id: player.id,
-        label: player.label,
-        color: player.color,
-      })),
+    () => players,
     [players],
   );
 
   const teamPlayers = useMemo(() => {
-    const grouped: Record<
-      TeamId,
-      Array<{ id: string; label: string; color?: string }>
-    > = {
+    const grouped: Record<TeamId, PlayerProfile[]> = {
       solaris: [],
       nebulon: [],
     };
@@ -565,11 +559,7 @@ const HostViewContent = (): JSX.Element => {
         return;
       }
 
-      grouped[teamId].push({
-        id: player.id,
-        label: player.label,
-        color: player.color,
-      });
+      grouped[teamId].push(player);
     });
 
     return grouped;

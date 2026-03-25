@@ -24,9 +24,14 @@ const buttonVariants = cva(
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
         sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
         lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        /** ~48px touch target; use on mobile-first surfaces (e.g. arcade controller). */
+        touch: "min-h-12 h-12 px-6 text-base rounded-xl touch-manipulation has-[>svg]:px-5",
         icon: "size-9",
         "icon-sm": "size-8",
         "icon-lg": "size-10",
+        /** Square ~44px; icon buttons on mobile-first surfaces. */
+        "icon-touch":
+          "size-11 min-h-11 min-w-11 shrink-0 rounded-xl touch-manipulation [&_svg:not([class*='size-'])]:size-[1.125rem]",
       },
     },
     defaultVariants: {

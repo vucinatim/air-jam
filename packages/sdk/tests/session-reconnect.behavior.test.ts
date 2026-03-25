@@ -195,7 +195,7 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_player_label=Captain&aj_player_avatar=aj-3",
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
@@ -228,6 +228,11 @@ describe("session reconnect behavior", () => {
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
+    });
+    expect(result.current.selfPlayer).toMatchObject({
+      id: "ctrl_1",
+      label: "Captain",
+      avatarId: "aj-3",
     });
 
     expect(mocked.controllerSocket.connect).not.toHaveBeenCalled();

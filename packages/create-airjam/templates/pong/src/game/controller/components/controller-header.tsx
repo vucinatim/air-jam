@@ -46,6 +46,11 @@ export const ControllerHeader = ({
           </span>
         )}
         <span>
+          {myProfile ? (
+            <span className="mr-2 font-semibold normal-case text-zinc-200">
+              {myProfile.label}
+            </span>
+          ) : null}
           Room{" "}
           <span className="font-semibold tracking-wider">
             {roomId ?? "----"}

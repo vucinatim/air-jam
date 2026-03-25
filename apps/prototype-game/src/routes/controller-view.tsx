@@ -290,16 +290,7 @@ const ControllerContent = () => {
     : undefined;
   const myTeam = myAssignment?.teamId ?? null;
 
-  const myProfile = useMemo(() => {
-    if (!controller.controllerId) {
-      return null;
-    }
-
-    return (
-      controller.players.find((player) => player.id === controller.controllerId) ??
-      null
-    );
-  }, [controller.controllerId, controller.players]);
+  const myProfile = controller.selfPlayer;
 
   const connectedAssignments = useMemo(() => {
     const connectedPlayerIdSet = new Set(
@@ -364,6 +355,11 @@ const ControllerContent = () => {
             </span>
           )}
           <span>
+            {myProfile ? (
+              <span className="mr-2 font-semibold normal-case text-zinc-200">
+                {myProfile.label}
+              </span>
+            ) : null}
             Room{" "}
             <span className="font-semibold tracking-wider">
               {controller.roomId ?? "----"}

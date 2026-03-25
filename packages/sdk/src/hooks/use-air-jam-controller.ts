@@ -125,6 +125,8 @@ export interface AirJamControllerApi {
   reconnect: () => void;
   /** List of all connected players in the room */
   players: PlayerProfile[];
+  /** This controller's current player profile when known. */
+  selfPlayer: PlayerProfile | null;
   /** Realtime client for controller events (socket-backed standalone, bridge-backed in arcade embeds) */
   socket: AirJamRealtimeClient | null;
 }

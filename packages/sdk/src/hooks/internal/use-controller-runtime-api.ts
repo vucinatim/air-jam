@@ -107,6 +107,15 @@ export const useControllerRuntimeApi = (
       stateMessage: state.stateMessage,
     })),
   );
+  const selfPlayer = useMemo(
+    () =>
+      connectionState.controllerId
+        ? connectionState.players.find(
+            (player) => player.id === connectionState.controllerId,
+          ) ?? null
+        : null,
+    [connectionState.controllerId, connectionState.players],
+  );
 
   const [reconnectKey, setReconnectKey] = useState(0);
 
@@ -182,6 +191,18 @@ export const useControllerRuntimeApi = (
     }
 
     storeState.setControllerId(controllerId);
+    if (embeddedController?.playerProfile?.label || embeddedController?.playerProfile?.avatarId) {
+      const fallbackPlayer: PlayerProfile = {
+        id: controllerId,
+        label: embeddedController.playerProfile?.label || nicknameRef.current || "Player",
+        ...(embeddedController.playerProfile?.avatarId
+          ? { avatarId: embeddedController.playerProfile.avatarId }
+          : avatarIdRef.current
+            ? { avatarId: avatarIdRef.current }
+            : {}),
+      };
+      storeState.upsertPlayer(fallbackPlayer);
+    }
 
     const handleConnect = (): void => {
       store.getState().setStatus("connected");
@@ -400,6 +421,7 @@ export const useControllerRuntimeApi = (
     updatePlayerProfile,
     reconnect,
     players: connectionState.players,
+    selfPlayer,
     socket,
   };
 };

@@ -1,4 +1,5 @@
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
+import type { PlayerProfile } from "../protocol";
 import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 import { parseOptionalArcadeSurfaceFromSearchParams } from "./arcade-runtime-url";
 
@@ -13,6 +14,10 @@ export interface EmbeddedControllerRuntimeParams {
   room: string;
   controllerId: string;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
+  playerProfile?: {
+    label?: PlayerProfile["label"];
+    avatarId?: PlayerProfile["avatarId"];
+  };
 }
 
 export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
@@ -61,9 +66,20 @@ export const readEmbeddedControllerRuntimeParams =
       return null;
     }
 
+    const rawLabel = params.get("aj_player_label")?.trim();
+    const rawAvatarId = params.get("aj_player_avatar")?.trim();
+    const playerProfile =
+      rawLabel || rawAvatarId
+        ? {
+            ...(rawLabel ? { label: rawLabel } : {}),
+            ...(rawAvatarId ? { avatarId: rawAvatarId } : {}),
+          }
+        : undefined;
+
     return {
       room,
       controllerId,
       arcadeSurface,
+      ...(playerProfile ? { playerProfile } : {}),
     };
   };

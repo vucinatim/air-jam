@@ -23,6 +23,10 @@ export type EmbeddedControllerChildSession = {
   roomId: RoomCode;
   controllerId: string;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
+  playerProfile?: {
+    label?: string;
+    avatarId?: string;
+  };
 };
 
 /**
@@ -53,5 +57,6 @@ export const readEmbeddedControllerChildSession =
       roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
       controllerId: raw.controllerId,
       arcadeSurface: raw.arcadeSurface,
+      ...(raw.playerProfile ? { playerProfile: raw.playerProfile } : {}),
     };
   };

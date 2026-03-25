@@ -41,13 +41,7 @@ export function ControllerView() {
     ? teamAssignments[controller.controllerId]
     : undefined;
   const myTeam = myAssignment?.team ?? null;
-  const myProfile = useMemo(
-    () =>
-      controller.controllerId
-        ? controller.players.find((player) => player.id === controller.controllerId) ?? null
-        : null,
-    [controller.controllerId, controller.players],
-  );
+  const myProfile = controller.selfPlayer;
 
   const connectedPlayerIdSet = useMemo(
     () => new Set(controller.players.map((player) => player.id)),

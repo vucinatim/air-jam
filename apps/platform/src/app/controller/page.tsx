@@ -155,15 +155,15 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
       return null;
     }
 
-    const self = controller.players.find(
-      (p) => p.id === controller.controllerId,
-    );
+    const labelForEmbed = controller.selfPlayer?.label || localProfile.label;
+    const avatarIdForEmbed =
+      controller.selfPlayer?.avatarId || localProfile.avatarId;
 
     return appendRuntimeQueryParams(activeUrl, {
       aj_controller_id: controller.controllerId,
       aj_room: controller.roomId,
-      ...(self?.label ? { aj_player_label: self.label } : {}),
-      ...(self?.avatarId ? { aj_player_avatar: self.avatarId } : {}),
+      ...(labelForEmbed ? { aj_player_label: labelForEmbed } : {}),
+      ...(avatarIdForEmbed ? { aj_player_avatar: avatarIdForEmbed } : {}),
       ...(arcadeSurface.kind === "game"
         ? arcadeSurfaceRuntimeUrlParams({
             epoch: arcadeSurface.epoch,
@@ -178,7 +178,9 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
     arcadeSurface.gameId,
     arcadeSurface.kind,
     controller.controllerId,
-    controller.players,
+    localProfile.avatarId,
+    localProfile.label,
+    controller.selfPlayer,
     controller.roomId,
   ]);
 
@@ -469,6 +471,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
       <ControllerMenuSheet
         routeRoomId={routeRoomId}
         activeUrl={activeUrl}
+        controller={controller}
         emitArcadeAction={emitArcadeAction}
         controllerOrientation={controllerPresentationOrientation}
         documentFullscreen={documentFullscreen}
