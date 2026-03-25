@@ -3,7 +3,7 @@
  * Owned by Arcade host replicated state and synced to controllers.
  */
 
-export type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk";
+export type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk/arcade/surface";
 
 export type ArcadeSurfaceKind = "browser" | "game";
 

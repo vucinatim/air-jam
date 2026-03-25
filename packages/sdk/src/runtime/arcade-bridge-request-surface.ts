@@ -3,7 +3,7 @@ import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 /**
  * Returns true when the iframe surface identity does not match the parent's active surface.
  */
-export const arcadeBridgeRequestSurfaceMismatchesActive = (
+export const isArcadeSurfaceMismatch = (
   active: ArcadeSurfaceRuntimeIdentity,
   request: ArcadeSurfaceRuntimeIdentity,
 ): boolean => {

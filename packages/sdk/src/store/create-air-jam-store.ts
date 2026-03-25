@@ -16,10 +16,7 @@ import { isRpcSerializable } from "../utils/is-rpc-serializable";
 import { resolveImplicitReplicatedStoreDomainFromWindow } from "../runtime/arcade-runtime-url";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-  AIR_JAM_DEFAULT_STORE_DOMAIN,
 } from "./air-jam-store-domain-constants";
-
-export { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN, AIR_JAM_DEFAULT_STORE_DOMAIN };
 
 const INTERNAL_ACTION_PREFIX = "_";
 const UNRESOLVED_ACTOR_ID = "unknown";

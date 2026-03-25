@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { arcadeBridgeRequestSurfaceMismatchesActive } from "../src/runtime/arcade-bridge-request-surface";
+import { isArcadeSurfaceMismatch } from "../src/runtime/arcade-bridge-request-surface";
 
-describe("arcadeBridgeRequestSurfaceMismatchesActive", () => {
+describe("isArcadeSurfaceMismatch", () => {
   const active = {
     epoch: 2,
     kind: "game" as const,
@@ -10,13 +10,13 @@ describe("arcadeBridgeRequestSurfaceMismatchesActive", () => {
 
   it("returns false when request matches active", () => {
     expect(
-      arcadeBridgeRequestSurfaceMismatchesActive(active, { ...active }),
+      isArcadeSurfaceMismatch(active, { ...active }),
     ).toBe(false);
   });
 
   it("returns true when epoch differs", () => {
     expect(
-      arcadeBridgeRequestSurfaceMismatchesActive(active, {
+      isArcadeSurfaceMismatch(active, {
         ...active,
         epoch: 1,
       }),
@@ -25,7 +25,7 @@ describe("arcadeBridgeRequestSurfaceMismatchesActive", () => {
 
   it("returns true when gameId differs", () => {
     expect(
-      arcadeBridgeRequestSurfaceMismatchesActive(active, {
+      isArcadeSurfaceMismatch(active, {
         ...active,
         gameId: "other",
       }),

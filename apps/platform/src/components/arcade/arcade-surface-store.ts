@@ -1,8 +1,8 @@
 import {
-  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   createAirJamStore,
   type AirJamActionContext,
 } from "@air-jam/sdk";
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import {
   createInitialArcadeSurfaceState,
   type ArcadeOverlayKind,

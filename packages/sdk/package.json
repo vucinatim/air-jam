@@ -44,6 +44,46 @@
       "import": "./dist/ui.js",
       "require": "./dist/ui.cjs"
     },
+    "./arcade": {
+      "types": "./dist/arcade.d.ts",
+      "import": "./dist/arcade.js",
+      "require": "./dist/arcade.cjs"
+    },
+    "./arcade/bridge": {
+      "types": "./dist/arcade/bridge.d.ts",
+      "import": "./dist/arcade/bridge.js",
+      "require": "./dist/arcade/bridge.cjs"
+    },
+    "./arcade/bridge/controller": {
+      "types": "./dist/arcade/bridge/controller.d.ts",
+      "import": "./dist/arcade/bridge/controller.js",
+      "require": "./dist/arcade/bridge/controller.cjs"
+    },
+    "./arcade/bridge/host": {
+      "types": "./dist/arcade/bridge/host.d.ts",
+      "import": "./dist/arcade/bridge/host.js",
+      "require": "./dist/arcade/bridge/host.cjs"
+    },
+    "./arcade/bridge/iframe": {
+      "types": "./dist/arcade/bridge/iframe.d.ts",
+      "import": "./dist/arcade/bridge/iframe.js",
+      "require": "./dist/arcade/bridge/iframe.cjs"
+    },
+    "./arcade/host": {
+      "types": "./dist/arcade/host.d.ts",
+      "import": "./dist/arcade/host.js",
+      "require": "./dist/arcade/host.cjs"
+    },
+    "./arcade/surface": {
+      "types": "./dist/arcade/surface.d.ts",
+      "import": "./dist/arcade/surface.js",
+      "require": "./dist/arcade/surface.cjs"
+    },
+    "./arcade/url": {
+      "types": "./dist/arcade/url.d.ts",
+      "import": "./dist/arcade/url.js",
+      "require": "./dist/arcade/url.cjs"
+    },
     "./protocol": {
       "types": "./dist/protocol.d.ts",
       "import": "./dist/protocol.js",

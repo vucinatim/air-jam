@@ -8,11 +8,13 @@ import {
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
 import {
-  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-  AIR_JAM_DEFAULT_STORE_DOMAIN,
   createAirJamStore,
   type AirJamActionContext,
 } from "../src/store/create-air-jam-store";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  AIR_JAM_DEFAULT_STORE_DOMAIN,
+} from "../src/store/air-jam-store-domain-constants";
 import type { HostArcadeRestoreState } from "../src/state/connection-store";
 
 type Role = "host" | "controller";

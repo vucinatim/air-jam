@@ -6,34 +6,40 @@ import {
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { cn } from "@/lib/utils";
 import {
+  type PlayerProfile,
+  useVolumeStore,
+} from "@air-jam/sdk";
+import type {
+  AirJamActionRpcPayload,
+  ControllerInputEvent,
+  ControllerJoinedNotice,
+  ControllerLeftNotice,
+  ControllerStateMessage,
+  HostLeftNotice,
+  HostRegistrationAck,
+  PlaySoundPayload,
+  PlayerUpdatedNotice,
+  ServerErrorPayload,
+} from "@air-jam/sdk/protocol";
+import {
   AIRJAM_HOST_BRIDGE_EVENT,
   createHostBridgeAttachMessage,
   createHostBridgeCloseMessage,
-  getRuntimeUrlOrigin,
   parseHostBridgeEmitMessage,
   parseHostBridgeRequestMessage,
-  type AirJamActionRpcPayload,
   type AirJamRealtimeClient,
-  type ControllerInputEvent,
-  type ControllerJoinedNotice,
-  type ControllerLeftNotice,
-  type ControllerStateMessage,
-  type HostLeftNotice,
-  type HostRegistrationAck,
-  type ArcadeSurfaceRuntimeIdentity,
   type HostBridgeServerEventName,
-  type PlaySoundPayload,
-  type PlayerProfile,
-  type PlayerUpdatedNotice,
-  type ServerErrorPayload,
-  useVolumeStore,
-} from "@air-jam/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+} from "@air-jam/sdk/arcade/bridge/host";
+import type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk/arcade/surface";
 import {
   buildArcadeGameIframeSrc,
+  getRuntimeUrlOrigin,
+} from "@air-jam/sdk/arcade/url";
+import {
   createArcadeBridgeInitMessage,
   createArcadeSettingsSyncMessage,
-} from "./arcade-bridge";
+} from "@air-jam/sdk/arcade/bridge/iframe";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface GamePlayerGame {
   id: string;

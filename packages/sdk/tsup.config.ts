@@ -9,6 +9,14 @@ const packageJson = JSON.parse(
 export default defineConfig({
   entry: [
     "src/index.ts",
+    "src/arcade.ts",
+    "src/arcade/bridge.ts",
+    "src/arcade/bridge/controller.ts",
+    "src/arcade/bridge/host.ts",
+    "src/arcade/bridge/iframe.ts",
+    "src/arcade/host.ts",
+    "src/arcade/surface.ts",
+    "src/arcade/url.ts",
     "src/ui.ts",
     "src/protocol.ts",
     "src/contracts/v2/index.ts",

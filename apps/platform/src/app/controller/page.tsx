@@ -16,30 +16,38 @@ import {
 import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import { cn } from "@/lib/utils";
 import {
-  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-  AIRJAM_CONTROLLER_BRIDGE_EVENT,
-  type AirJamStateSyncPayload,
-  appendRuntimeQueryParams,
-  arcadeSurfaceRuntimeUrlParams,
-  type ControllerBridgeServerEventName,
   ControllerSessionProvider,
-  type ControllerStateMessage,
-  type ControllerWelcomePayload,
-  createControllerBridgeAttachMessage,
-  createControllerBridgeCloseMessage,
-  type HostLeftNotice,
-  normalizeRuntimeUrl,
-  parseControllerBridgeEmitMessage,
-  parseControllerBridgeRequestMessage,
-  type ArcadeSurfaceRuntimeIdentity,
-  type PlayerUpdatedNotice,
-  type PlaySoundPayload,
-  type ServerErrorPayload,
-  type SignalPayload,
   useAirJamController,
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
+import type {
+  AirJamStateSyncPayload,
+  ControllerStateMessage,
+  ControllerWelcomePayload,
+  HostLeftNotice,
+  PlayerUpdatedNotice,
+  PlaySoundPayload,
+  ServerErrorPayload,
+  SignalPayload,
+} from "@air-jam/sdk/protocol";
+import {
+  AIRJAM_CONTROLLER_BRIDGE_EVENT,
+  type ControllerBridgeServerEventName,
+  createControllerBridgeAttachMessage,
+  createControllerBridgeCloseMessage,
+  parseControllerBridgeEmitMessage,
+  parseControllerBridgeRequestMessage,
+} from "@air-jam/sdk/arcade/bridge/controller";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  arcadeSurfaceRuntimeUrlParams,
+  type ArcadeSurfaceRuntimeIdentity,
+} from "@air-jam/sdk/arcade/surface";
+import {
+  appendRuntimeQueryParams,
+  normalizeRuntimeUrl,
+} from "@air-jam/sdk/arcade/url";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import { CornerDownLeft } from "lucide-react";
 import { useSearchParams } from "next/navigation";

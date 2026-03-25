@@ -1,14 +1,11 @@
 import {
-  AIR_JAM_SDK_VERSION,
   AIRJAM_BRIDGE_INIT,
   AIRJAM_SETTINGS_SYNC,
-  appendRuntimeQueryParams,
-  arcadeSurfaceRuntimeUrlParams,
   createBridgeHandshake,
   type AirJamBridgeInitMessage,
   type AirJamSettingsSyncMessage,
-  type ArcadeSurfaceRuntimeIdentity,
-} from "@air-jam/sdk";
+} from "../../runtime/iframe-bridge";
+import { AIR_JAM_SDK_VERSION } from "../../runtime/sdk-version";
 
 export interface ArcadeVolumeSettings {
   masterVolume?: number;
@@ -42,22 +39,4 @@ export const createArcadeSettingsSyncMessage = ({
   },
 });
 
-export const buildArcadeGameIframeSrc = ({
-  normalizedUrl,
-  roomId,
-  joinToken,
-  joinUrl,
-  arcadeSurface,
-}: {
-  normalizedUrl: string;
-  roomId: string;
-  joinToken: string;
-  joinUrl?: string | null;
-  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
-}): string | null =>
-  appendRuntimeQueryParams(normalizedUrl, {
-    aj_room: roomId,
-    aj_token: joinToken,
-    aj_join_url: joinUrl,
-    ...arcadeSurfaceRuntimeUrlParams(arcadeSurface),
-  });
+export type { AirJamBridgeInitMessage, AirJamSettingsSyncMessage };

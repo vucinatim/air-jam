@@ -16,13 +16,13 @@ import { CONTROLLER_AVATAR_PRESETS } from "@/lib/controller-profile-presets";
 import { parseRoomFromQrText } from "@/lib/parse-room-from-qr-text";
 import { cn } from "@/lib/utils";
 import {
-  airJamArcadePlatformActions,
   type AirJamControllerApi,
   type ControllerOrientation,
   type DocumentWithFullscreen,
   type ElementWithFullscreen,
   type PlayerProfile,
 } from "@air-jam/sdk";
+import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import { getDiceBearAdventurerNeutralUrl, PlayerAvatar } from "@air-jam/sdk/ui";
 import { LogOut, Maximize, QrCode, ScanLine, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";

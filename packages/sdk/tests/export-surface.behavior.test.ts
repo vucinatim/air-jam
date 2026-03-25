@@ -10,6 +10,49 @@ describe("sdk export surface", () => {
     expect("useAirJamState" in sdk).toBe(false);
     expect("useAirJamSocket" in sdk).toBe(false);
     expect("SocketManager" in sdk).toBe(false);
+    expect("resolveAirJamConfig" in sdk).toBe(false);
+    expect("getControllerRealtimeClient" in sdk).toBe(false);
+    expect("getHostRealtimeClient" in sdk).toBe(false);
+    expect("readEmbeddedControllerChildSession" in sdk).toBe(false);
+    expect("readEmbeddedHostChildSession" in sdk).toBe(false);
+    expect("generateRoomCode" in sdk).toBe(false);
+    expect("generateControllerId" in sdk).toBe(false);
+    expect("getLocalNetworkIp" in sdk).toBe(false);
+    expect("DEFAULT_SERVER_PORT" in sdk).toBe(false);
+    expect("CONTROLLER_PATH" in sdk).toBe(false);
+    expect("INPUT_DEBOUNCE_MS" in sdk).toBe(false);
+    expect("TOGGLE_DEBOUNCE_MS" in sdk).toBe(false);
+    expect("SOCKET_CONFIG" in sdk).toBe(false);
+    expect("DEFAULT_MAX_PLAYERS" in sdk).toBe(false);
+    expect("HostEvents" in sdk).toBe(false);
+    expect("ControllerEvents" in sdk).toBe(false);
+    expect("SystemEvents" in sdk).toBe(false);
+    expect("ServerEvents" in sdk).toBe(false);
+    expect("Events" in sdk).toBe(false);
+    expect("urlBuilder" in sdk).toBe(false);
+    expect("AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN" in sdk).toBe(false);
+    expect("AIR_JAM_SDK_VERSION" in sdk).toBe(false);
+    expect("createBridgeHandshake" in sdk).toBe(false);
+    expect("arcadeSurfaceRuntimeUrlParams" in sdk).toBe(false);
+    expect("createControllerBridgeAttachMessage" in sdk).toBe(false);
+    expect("createHostBridgeAttachMessage" in sdk).toBe(false);
+    expect("isArcadeSurfaceMismatch" in sdk).toBe(false);
+    expect("AirJamStateSyncPayload" in sdk).toBe(false);
+    expect("AirJamActionRpcPayload" in sdk).toBe(false);
+    expect("ControllerStateMessage" in sdk).toBe(false);
+    expect("ControllerWelcomePayload" in sdk).toBe(false);
+    expect("HostLeftNotice" in sdk).toBe(false);
+    expect("PlayerUpdatedNotice" in sdk).toBe(false);
+    expect("PlaySoundPayload" in sdk).toBe(false);
+    expect("ServerErrorPayload" in sdk).toBe(false);
+    expect("HostRegistrationAck" in sdk).toBe(false);
+    expect("SystemLaunchGameAck" in sdk).toBe(false);
+    expect("useAudioManager" in sdk).toBe(false);
+    expect("isManifestSoundId" in sdk).toBe(false);
+    expect("detectSoundCategory" in sdk).toBe(false);
+    expect("initializeParentSettingsSync" in sdk).toBe(false);
+    expect("disposeParentSettingsSync" in sdk).toBe(false);
+    expect("isInternalActionName" in sdk).toBe(false);
   });
 
   it("keeps package subpath exports limited to public entrypoints", () => {
@@ -23,6 +66,14 @@ describe("sdk export surface", () => {
     expect(exportKeys).toEqual(
       expect.arrayContaining([
         ".",
+        "./arcade",
+        "./arcade/bridge",
+        "./arcade/bridge/controller",
+        "./arcade/bridge/host",
+        "./arcade/bridge/iframe",
+        "./arcade/host",
+        "./arcade/surface",
+        "./arcade/url",
         "./ui",
         "./protocol",
         "./contracts/v2",

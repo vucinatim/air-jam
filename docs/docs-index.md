@@ -14,9 +14,10 @@ Core docs:
 Active supporting plans:
 
 1. [SDK Composability Plan](./plans/sdk-composability-plan.md)
-2. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
-3. [Blog Article Plan](./plans/blog-article-plan.md)
-4. [Arcade Controller Overlay Plan](./plans/arcade-controller-overlay-plan.md)
+2. [SDK Surface Plan](./plans/sdk-surface-plan.md)
+3. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
+4. [Blog Article Plan](./plans/blog-article-plan.md)
+5. [Arcade Controller Overlay Plan](./plans/arcade-controller-overlay-plan.md)
 
 Content drafts:
 

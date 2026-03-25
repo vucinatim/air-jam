@@ -2,31 +2,33 @@
 
 import { arcadeInputSchema } from "@/lib/airjam-session-config";
 import { cn } from "@/lib/utils";
+import { useAirJamHost, useHostTick } from "@air-jam/sdk";
+import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
+import type {
+  AirJamActionRpcPayload,
+  SystemLaunchGameAck,
+} from "@air-jam/sdk/protocol";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-  type AirJamActionRpcPayload,
-  airJamArcadePlatformActions,
+} from "@air-jam/sdk/arcade/surface";
+import { useHostArcadeRestore } from "@air-jam/sdk/arcade/host";
+import {
   normalizeRuntimeUrl,
-  type SystemLaunchGameAck,
   urlBuilder,
-  useAirJamHost,
-  useHostTick,
-} from "@air-jam/sdk";
-import { useAirJamState } from "@air-jam/sdk/context/air-jam-context";
-import type { AirJamStore } from "@air-jam/sdk/state/connection-store";
+} from "@air-jam/sdk/arcade/url";
 import { RoomQrCode } from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
-import { useArcadeSurfaceStore } from "./arcade-surface-store";
 import {
   EXIT_COOLDOWN_MS,
   getAutoLaunchRequestKey,
   shouldAutoLaunchGame,
   useArcadeRuntimeManager,
 } from "./arcade-runtime-manager";
+import { useArcadeSurfaceStore } from "./arcade-surface-store";
 import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
 
@@ -146,19 +148,15 @@ export const ArcadeSystem = ({
   const activeGame = useMemo(
     () =>
       arcadeSurfaceRuntimeIdentity.gameId
-        ? games.find((game) => game.id === arcadeSurfaceRuntimeIdentity.gameId) ??
-          null
+        ? (games.find(
+            (game) => game.id === arcadeSurfaceRuntimeIdentity.gameId,
+          ) ?? null)
         : null,
     [games, arcadeSurfaceRuntimeIdentity.gameId],
   );
   const surfaceActions = useArcadeSurfaceStore.useActions();
   const lastRoomIdForSurfaceRef = useRef<string | null>(null);
-  const hostArcadeRestore = useAirJamState(
-    (s: AirJamStore) => s.hostArcadeRestore,
-  );
-  const clearHostArcadeRestore = useAirJamState(
-    (s: AirJamStore) => s.clearHostArcadeRestore,
-  );
+  const hostArcadeRestore = useHostArcadeRestore();
   const pendingHostArcadeRestoreSession = hostArcadeRestore.session;
 
   const host = useAirJamHost<typeof arcadeInputSchema>({
@@ -228,14 +226,14 @@ export const ArcadeSystem = ({
 
       if (hostRouteIntent.kind === "browser") {
         host.socket.emit("system:closeGame", { roomId: host.roomId });
-        clearHostArcadeRestore();
+        hostArcadeRestore.clear();
         return;
       }
 
       if (hostRouteIntent.kind === "game" && hostRouteIntent.gameId) {
         if (snap.gameId !== hostRouteIntent.gameId) {
           host.socket.emit("system:closeGame", { roomId: host.roomId });
-          clearHostArcadeRestore();
+          hostArcadeRestore.clear();
           return;
         }
       }
@@ -246,13 +244,13 @@ export const ArcadeSystem = ({
         if (!gamesCatalogReady) {
           return;
         }
-        clearHostArcadeRestore();
+        hostArcadeRestore.clear();
         return;
       }
 
       const normalizedHostUrl = normalizeRuntimeUrl(game.url);
       if (!normalizedHostUrl) {
-        clearHostArcadeRestore();
+        hostArcadeRestore.clear();
         return;
       }
 
@@ -286,7 +284,7 @@ export const ArcadeSystem = ({
         window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
       }
 
-      clearHostArcadeRestore();
+      hostArcadeRestore.clear();
     };
 
     void restoreArcadeSession();
@@ -304,8 +302,9 @@ export const ArcadeSystem = ({
     mode,
     completeLaunch,
     surfaceActions,
-    clearHostArcadeRestore,
+    hostArcadeRestore,
     setSelectedIndex,
+    host.socket,
   ]);
 
   const broadcastCurrentState = useCallback(() => {

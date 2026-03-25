@@ -1,5 +1,5 @@
-import type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk";
-import { arcadeBridgeRequestSurfaceMismatchesActive } from "@air-jam/sdk";
+import { isArcadeSurfaceMismatch } from "@air-jam/sdk/arcade/surface";
+import type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk/arcade/surface";
 
 /**
  * After a successful attach, the shell stores `attachIdentity`. Before each shell→iframe
@@ -12,10 +12,7 @@ export const embeddedBridgeForwardShouldClose = (
   if (!attachIdentity || activeIdentity == null) {
     return false;
   }
-  return arcadeBridgeRequestSurfaceMismatchesActive(
-    activeIdentity,
-    attachIdentity,
-  );
+  return isArcadeSurfaceMismatch(activeIdentity, attachIdentity);
 };
 
 /**
@@ -33,7 +30,7 @@ export const shouldRejectControllerBridgeHandshake = (
   if (shellSurface.kind !== "game" || !shellSurface.gameId) {
     return false;
   }
-  return arcadeBridgeRequestSurfaceMismatchesActive(
+  return isArcadeSurfaceMismatch(
     {
       epoch: shellSurface.epoch,
       kind: shellSurface.kind,
@@ -54,8 +51,5 @@ export const shouldRejectHostBridgeHandshake = (
   if (activeIdentity == null) {
     return false;
   }
-  return arcadeBridgeRequestSurfaceMismatchesActive(
-    activeIdentity,
-    requestArcadeSurface,
-  );
+  return isArcadeSurfaceMismatch(activeIdentity, requestArcadeSurface);
 };

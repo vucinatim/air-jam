@@ -1,62 +1,112 @@
-// Context & Provider (primary API)
-export * from "./context";
+export {
+  ControllerSessionProvider,
+  HostSessionProvider,
+  type AirJamProviderProps,
+} from "./context/session-providers";
 
-// Audio
-export * from "./audio";
+export {
+  AudioManager,
+  type PlayOptions,
+  type SoundCategory,
+  type SoundConfig,
+  type SoundManifest,
+} from "./audio/audio-manager";
+export {
+  useAudio,
+  useRemoteSound,
+  type UseRemoteSoundOptions,
+} from "./audio/hooks";
+export { useVolumeStore } from "./audio/volume-store";
 
-// Constants
-export * from "./constants";
+export {
+  onAirJamDiagnostic,
+  setAirJamDiagnosticsEnabled,
+  type AirJamDiagnostic,
+  type AirJamDiagnosticCode,
+  type AirJamDiagnosticSeverity,
+} from "./diagnostics";
 
-// Events
-export * from "./events";
+export {
+  useAirJamController,
+  type AirJamControllerApi,
+  type AirJamControllerOptions,
+} from "./hooks/use-air-jam-controller";
+export {
+  useAirJamHost,
+  type AirJamHostApi,
+  type AirJamHostOptions,
+  type JoinUrlStatus,
+} from "./hooks/use-air-jam-host";
+export { useConnectionStatus } from "./hooks/use-connection-status";
+export {
+  useControllerSession,
+  type AirJamControllerSessionState,
+} from "./hooks/use-controller-session";
+export {
+  useControllerTick,
+  type ControllerTickInfo,
+  type ControllerTickOptions,
+} from "./hooks/use-controller-tick";
+export {
+  useControllerToasts,
+  type ControllerToast,
+  type UseControllerToastsOptions,
+} from "./hooks/use-controller-toasts";
+export { useGetInput } from "./hooks/use-get-input";
+export {
+  useHostGameStateBridge,
+  type UseHostGameStateBridgeOptions,
+} from "./hooks/use-host-game-state-bridge";
+export {
+  useHostSession,
+  type AirJamHostSessionState,
+} from "./hooks/use-host-session";
+export {
+  useHostTick,
+  type HostTickInfo,
+  type HostTickOptions,
+} from "./hooks/use-host-tick";
+export { useInputWriter } from "./hooks/use-input-writer";
+export { usePlayers } from "./hooks/use-players";
+export { useRoom, type RoomState } from "./hooks/use-room";
+export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
 
-// Diagnostics
-export * from "./diagnostics";
+export type {
+  ConnectionStatus,
+  GameState,
+  RoomCode,
+  RunMode,
+} from "./protocol/core";
+export type {
+  ControllerOrientation,
+  ControllerStatePayload,
+  ControllerUpdatePlayerProfileAck,
+  PlayerProfile,
+  PlayerProfilePatch,
+} from "./protocol/controller";
+export type {
+  HapticSignalPayload,
+  SignalPayload,
+  SignalType,
+  ToastSignalPayload,
+} from "./protocol/signals";
 
-// Hooks
-export * from "./hooks/use-air-jam-controller";
-export * from "./hooks/use-air-jam-host";
-export * from "./hooks/use-controller-tick";
-export * from "./hooks/use-controller-session";
-export * from "./hooks/use-connection-status";
-export * from "./hooks/use-controller-toasts";
-export * from "./hooks/use-get-input";
-export * from "./hooks/use-host-game-state-bridge";
-export * from "./hooks/use-host-session";
-export * from "./hooks/use-host-tick";
-export * from "./hooks/use-input-writer";
-export * from "./hooks/use-players";
-export * from "./hooks/use-room";
-export * from "./hooks/use-send-signal";
+export {
+  createAirJamApp,
+  env,
+  type AirJamApp,
+  type AirJamGameMetadata,
+  type CreateAirJamAppOptions,
+} from "./runtime/create-air-jam-app";
 
-// Protocol types
-export * from "./protocol";
+export {
+  createAirJamStore,
+  type AirJamActionContext,
+  type AirJamSyncedStoreHook,
+  type CreateAirJamStoreOptions,
+} from "./store/create-air-jam-store";
 
-// Runtime config bootstrap
-export * from "./runtime/arcade-bridge-request-surface";
-export { arcadeSurfaceRuntimeUrlParams } from "./runtime/arcade-runtime-url";
-export * from "./runtime/arcade-surface-identity";
-export * from "./runtime/air-jam-config";
-export * from "./runtime/controller-bridge";
-export * from "./runtime/controller-realtime-client";
-export * from "./runtime/create-air-jam-app";
-export * from "./runtime/embedded-runtime-adapters";
-export * from "./runtime/host-bridge";
-export * from "./runtime/host-realtime-client";
-export * from "./runtime/iframe-bridge";
-export * from "./runtime/realtime-client";
-export * from "./runtime/sdk-version";
-
-// Store
-export * from "./store/create-air-jam-store";
-
-// Browser vendor-prefixed DOM types
 export type {
   DocumentWithFullscreen,
   ElementWithFullscreen,
 } from "./types/browser";
-
-// Utilities
-export * from "./utils/ids";
-export * from "./utils/network-ip";
-export * from "./utils/url-builder";
