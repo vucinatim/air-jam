@@ -4,7 +4,7 @@ import {
   useCaptureTheFlagStore,
 } from "../capture-the-flag-store";
 import { useGameStore } from "../game-store";
-import { Ship } from "./Ship";
+import { Ship } from "./ship";
 
 export function Ships() {
   const players = useGameStore((state) => state.players);

@@ -21,12 +21,12 @@ import {
 } from "../constants";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
-import { useGameInput } from "../hooks/useGameInput";
+import { useGameInput } from "../hooks/use-game-input";
 import { useLasersStore } from "../lasers-store";
 import { usePlayerStatsStore } from "../player-stats-store";
 import { SOUND_MANIFEST } from "../sounds";
-import { ShipExplosion } from "./ShipExplosion";
-import { ShipModel } from "./ShipModel";
+import { ShipExplosion } from "./ship-explosion";
+import { ShipModel } from "./ship-model";
 
 // --- Global Tracking ---
 export const shipPositions = new Map<string, Vector3>();

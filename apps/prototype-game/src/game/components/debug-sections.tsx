@@ -5,7 +5,7 @@ import {
   getAllAbilityDefinitions,
   useAbilitiesStore,
 } from "../abilities-store";
-import { useBotManager } from "../bot-system/BotManager";
+import { useBotManager } from "../bot-system/bot-manager";
 import {
   TEAM_CONFIG,
   useCaptureTheFlagStore,
@@ -16,7 +16,7 @@ import { useDecalsStore } from "../decals-store";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
 import { useLasersStore } from "../lasers-store";
-import { DebugSection } from "./DebugOverlay";
+import { DebugSection } from "./debug-overlay";
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 

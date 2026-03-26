@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
-import type { PhysicsFrame } from "./PhysicsRecorder";
+import type { PhysicsFrame } from "./physics-recorder";
 
 interface PhysicsReportDialogProps {
   frames: PhysicsFrame[];

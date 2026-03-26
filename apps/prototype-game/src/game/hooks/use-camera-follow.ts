@@ -4,7 +4,7 @@ import {
   Vector3,
   type PerspectiveCamera as ThreePerspectiveCamera,
 } from "three";
-import { shipPositions, shipRotations } from "../components/Ship";
+import { shipPositions, shipRotations } from "../components/ship";
 import { PLAYER_CAMERA_OFFSET, TOPDOWN_CAMERA_HEIGHT } from "../constants";
 import { useDebugStore } from "../debug-store";
 import { useGameStore } from "../game-store";

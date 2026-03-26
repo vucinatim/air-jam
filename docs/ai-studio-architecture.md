@@ -630,6 +630,49 @@ This is not anti-developer.
 
 It is how Air Jam preserves the quality of the local-first studio loop.
 
+### Initial Compatibility Baseline
+
+The initial supported dependency profile should be based on the real dependency surface already proven by the prototype game.
+
+That means Air Jam Studio should fully support the package classes currently used by the prototype game, including:
+
+1. React and React DOM
+2. React Router
+3. Zustand
+4. Zod
+5. Tailwind CSS and related Vite integration
+6. Radix UI primitives used by the prototype
+7. Three.js
+8. React Three Fiber
+9. Drei
+10. Rapier compatibility packages used by the prototype
+11. common utility libraries such as `clsx`, `class-variance-authority`, `tailwind-merge`, `nanoid`, and `lucide-react`
+12. the Vite plugins required by the prototype game's current build shape
+
+This should be treated as the first official runtime compatibility profile, not as an accidental one-off example.
+
+The important rule is:
+
+If Air Jam Studio cannot support the dependency surface required by the prototype game, then the studio is not yet supporting first-class Air Jam game development.
+
+### Compatibility Profiles
+
+To keep the model extensible without becoming vague, dependency support should be expressed through explicit runtime compatibility profiles.
+
+The recommended first profile is:
+
+1. `prototype-game`
+
+That profile should define:
+
+1. supported packages
+2. allowed version ranges
+3. supported build plugins
+4. local-preview compatibility
+5. authoritative-publish compatibility
+
+Over time, Air Jam can add new profiles or expand the existing one deliberately instead of drifting into accidental package support.
+
 ## Why A Browser-Local Runtime Is Still Worth It
 
 A browser-local runtime is worth the effort if it delivers:

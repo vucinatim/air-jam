@@ -110,7 +110,7 @@ What `dev -- --secure` does:
 
 ```
 src/
-  ├── App.tsx                     # Main app component with routing
+  ├── app.tsx                     # Main app component with routing
   ├── airjam.config.ts            # Canonical runtime/game metadata
   ├── game/
   │   ├── input.ts                # Input schema/types

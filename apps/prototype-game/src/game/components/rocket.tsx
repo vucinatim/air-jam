@@ -7,8 +7,8 @@ import { useDecalsStore } from "../decals-store";
 import { useHealthStore } from "../health-store";
 import { useRocketsStore } from "../rockets-store";
 import { SOUND_MANIFEST } from "../sounds";
-import { RocketExplosion } from "./RocketExplosion";
-import { RocketModel } from "./RocketModel";
+import { RocketExplosion } from "./rocket-explosion";
+import { RocketModel } from "./rocket-model";
 
 interface RocketProps {
   id: string;

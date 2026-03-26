@@ -1,5 +1,5 @@
 import { useRocketsStore } from "../rockets-store";
-import { Rocket } from "./Rocket";
+import { Rocket } from "./rocket";
 
 export function Rockets() {
   const rockets = useRocketsStore((state) => state.rockets);

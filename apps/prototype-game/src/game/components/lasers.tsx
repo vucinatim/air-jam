@@ -1,5 +1,5 @@
 import { useLasersStore } from "../lasers-store";
-import { Laser } from "./Laser";
+import { Laser } from "./laser";
 
 export function Lasers() {
   const lasers = useLasersStore((state) => state.lasers);

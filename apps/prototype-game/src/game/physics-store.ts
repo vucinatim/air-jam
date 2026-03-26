@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { PhysicsFrame } from "./components/PhysicsRecorder";
+import type { PhysicsFrame } from "./components/physics-recorder";
 
 interface PhysicsStore {
   isRecording: boolean;

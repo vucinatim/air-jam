@@ -12,7 +12,7 @@ import {
 } from "three";
 import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
 import { SOUND_MANIFEST } from "../sounds";
-import { shipPositions } from "./Ship";
+import { shipPositions } from "./ship";
 
 interface JumpPadProps {
   position: [number, number, number];

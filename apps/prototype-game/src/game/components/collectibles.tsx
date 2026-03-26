@@ -1,5 +1,5 @@
 import { useCollectiblesStore } from "../collectibles-store";
-import { Collectible } from "./Collectible";
+import { Collectible } from "./collectible";
 
 export function Collectibles() {
   const collectibles = useCollectiblesStore((state) => state.collectibles);

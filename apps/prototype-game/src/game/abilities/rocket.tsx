@@ -3,8 +3,8 @@ import {
   registerAbilityImplementation,
   type AbilityImplementation,
 } from "../abilities-store";
-import { RocketModel } from "../components/RocketModel";
-import { shipPositions, shipRotations } from "../components/Ship";
+import { RocketModel } from "../components/rocket-model";
+import { shipPositions, shipRotations } from "../components/ship";
 import { useRocketsStore } from "../rockets-store";
 
 /**

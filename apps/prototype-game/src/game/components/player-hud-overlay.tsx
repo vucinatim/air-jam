@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils";
 import { getAbilityIconPath, useAbilitiesStore } from "../abilities-store";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
-import { shipPositions } from "./Ship";
+import { shipPositions } from "./ship";
 
 // --- CONFIGURATION ---
 const HUD_CONFIG = {

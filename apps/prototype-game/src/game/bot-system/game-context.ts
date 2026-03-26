@@ -8,7 +8,7 @@ import {
   useCollectiblesStore,
   type CollectibleData,
 } from "../collectibles-store";
-import { shipPositions, shipRotations } from "../components/Ship";
+import { shipPositions, shipRotations } from "../components/ship";
 import {
   JUMP_FORCE,
   JUMP_PADS,
@@ -18,7 +18,7 @@ import {
 } from "../constants";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
-import type { JumpPadInfo } from "./ReachabilityChecker";
+import type { JumpPadInfo } from "./reachability-checker";
 
 export interface BotSelf {
   controllerId: string;

@@ -2,9 +2,9 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useRef, useState } from "react";
 import * as THREE from "three";
-import { FlagModel } from "./FlagModel";
-import { RocketModel } from "./RocketModel";
-import { ShipModel } from "./ShipModel";
+import { FlagModel } from "./flag-model";
+import { RocketModel } from "./rocket-model";
+import { ShipModel } from "./ship-model";
 
 interface GameObjectEditorProps {
   objectType: "rocket" | "laser" | "ship" | "collectible" | "flag";

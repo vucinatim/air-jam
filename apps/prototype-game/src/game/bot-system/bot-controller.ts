@@ -3,8 +3,8 @@ import { useAbilitiesStore } from "../abilities-store";
 import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
 import { botDebugLog } from "../debug-logging";
 import type { GameLoopInput } from "../types";
-import { GameContext } from "./GameContext";
-import { ReachabilityChecker, type JumpPadInfo } from "./ReachabilityChecker";
+import { GameContext } from "./game-context";
+import { ReachabilityChecker, type JumpPadInfo } from "./reachability-checker";
 
 /**
  * Bot States - The Brain's decision states

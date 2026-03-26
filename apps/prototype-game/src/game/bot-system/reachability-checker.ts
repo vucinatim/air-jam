@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import { GameContext } from "./GameContext";
+import { GameContext } from "./game-context";
 
 export interface JumpPadInfo {
   id: string;

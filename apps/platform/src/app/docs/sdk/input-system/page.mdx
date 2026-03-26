@@ -12,7 +12,7 @@ import { InputFlowDiagram } from "@/components/docs/figures/input-flow-diagram";
 
 Configure input in `HostSessionProvider`:
 
-```tsx filename="src/App.tsx"
+```tsx filename="src/app.tsx"
 import { HostSessionProvider } from "@air-jam/sdk";
 import { z } from "zod";
 
@@ -48,7 +48,7 @@ This default is the canonical path for most games.
 
 Use `input.behavior` only when your game has specialized needs.
 
-```tsx filename="src/App.tsx"
+```tsx filename="src/app.tsx"
 <HostSessionProvider
   input={{
     schema: gameInputSchema,

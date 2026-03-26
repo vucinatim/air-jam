@@ -17,7 +17,7 @@ import {
   Vector3,
   type Group,
 } from "three";
-import { Trail } from "./Trail";
+import { Trail } from "./trail";
 
 // ==========================================
 // 1. DESIGN CONFIGURATION (TWEAK VISUALS HERE)

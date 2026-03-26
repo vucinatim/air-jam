@@ -10,25 +10,25 @@ import type { JSX } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { Button } from "../components/ui/button";
-import { useBotManager } from "../game/bot-system/BotManager";
+import { useBotManager } from "../game/bot-system/bot-manager";
 import {
   TEAM_CONFIG,
   useCaptureTheFlagStore,
   type TeamId,
 } from "../game/capture-the-flag-store";
-import { DebugOverlay } from "../game/components/DebugOverlay";
+import { DebugOverlay } from "../game/components/debug-overlay";
 import {
   BotsSection,
   CTFDebugSection,
   PlayersSection,
   SceneInfoSection,
-} from "../game/components/DebugSections";
-import { GameObjectEditor } from "../game/components/GameObjectEditor";
-import { GameScene } from "../game/components/GameScene";
-import { PlayerHUDOverlay } from "../game/components/PlayerHUDOverlay";
-import { ScoreDisplay } from "../game/components/ScoreDisplay";
+} from "../game/components/debug-sections";
+import { GameObjectEditor } from "../game/components/game-object-editor";
+import { GameScene } from "../game/components/game-scene";
+import { PlayerHUDOverlay } from "../game/components/player-hud-overlay";
+import { ScoreDisplay } from "../game/components/score-display";
 import { useGameStore } from "../game/game-store";
-import { useBackgroundMusic } from "../game/hooks/useBackgroundMusic";
+import { useBackgroundMusic } from "../game/hooks/use-background-music";
 import {
   getLobbyReadinessText,
   getTeamCounts,

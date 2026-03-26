@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { PhysicsReportDialog } from "../game/components/PhysicsReportDialog";
+import { PhysicsReportDialog } from "../game/components/physics-report-dialog";
 import { useGameStore } from "../game/game-store";
 import { usePhysicsStore } from "../game/physics-store";
 

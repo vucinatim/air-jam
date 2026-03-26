@@ -14,8 +14,8 @@ import {
   type TeamId,
 } from "../capture-the-flag-store";
 import { SOUND_MANIFEST } from "../sounds";
-import { FlagModel } from "./FlagModel";
-import { shipPositions } from "./Ship";
+import { FlagModel } from "./flag-model";
+import { shipPositions } from "./ship";
 
 function FlagCarrierTrail({
   teamId,

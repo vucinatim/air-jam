@@ -7,7 +7,7 @@
 ## Target Developer Experience
 
 ```tsx
-// App.tsx
+// app.tsx
 <AirJamProvider>
   <Game />
 </AirJamProvider>;
