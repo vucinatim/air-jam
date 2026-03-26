@@ -3,8 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import { memo, useEffect, useRef, useState } from "react";
-import * as THREE from "three";
-import { Euler, MathUtils, Quaternion, Vector3 } from "three";
+import { Euler, MathUtils, Quaternion, Vector3, type Group } from "three";
 
 import { useAudio, useSendSignal, type SendSignalFn } from "@air-jam/sdk";
 import { getAbilityVisual, useAbilitiesStore } from "../abilities-store";
@@ -59,7 +58,7 @@ interface ShipProps {
 function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
   // --- Refs & State ---
   const rigidBodyRef = useRef<RapierRigidBody>(null);
-  const planeGroupRef = useRef<THREE.Group>(null);
+  const planeGroupRef = useRef<Group>(null);
 
   // Physics Logic Refs
   const currentThrustRef = useRef(0);

@@ -6,11 +6,44 @@ import { defineConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const resolveManualChunk = (id: string): string | undefined => {
+  if (!id.includes("node_modules")) {
+    return undefined;
+  }
+
+  if (
+    id.includes("/react/") ||
+    id.includes("/react-dom/") ||
+    id.includes("react-router-dom")
+  ) {
+    return "react-runtime";
+  }
+
+  if (
+    id.includes("/zustand/") ||
+    id.includes("/howler/") ||
+    id.includes("/socket.io-client/") ||
+    id.includes("/qrcode/") ||
+    id.includes("/zod/")
+  ) {
+    return "app-runtime";
+  }
+
+  return undefined;
+};
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: resolveManualChunk,
+      },
     },
   },
   server: {

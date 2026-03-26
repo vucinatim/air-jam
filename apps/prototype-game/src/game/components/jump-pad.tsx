@@ -2,10 +2,10 @@ import { useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
-import * as THREE from "three";
 import {
   AdditiveBlending,
   CylinderGeometry,
+  DoubleSide,
   MeshStandardMaterial,
   RingGeometry,
   type Mesh,
@@ -346,13 +346,13 @@ export function JumpPad({ position, id }: JumpPadProps) {
           <primitive object={gradientGeometry} attach="geometry" />
           <shaderMaterial
             vertexShader={gradientCylinderVertex}
-            fragmentShader={gradientCylinderFragment}
-            transparent
-            blending={AdditiveBlending}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
+              fragmentShader={gradientCylinderFragment}
+              transparent
+              blending={AdditiveBlending}
+              depthWrite={false}
+              side={DoubleSide}
+            />
+          </mesh>
         {/* Barrel cylinder - hidden, only gradient effect visible */}
         <mesh
           ref={baseRef}

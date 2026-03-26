@@ -1,7 +1,7 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useRef, useState } from "react";
-import * as THREE from "three";
+import type { Group } from "three";
 import { FlagModel } from "./flag-model";
 import { RocketModel } from "./rocket-model";
 import { ShipModel } from "./ship-model";
@@ -22,7 +22,7 @@ function EditorScene({
   // Refs for ShipModel (needed for preview)
   const thrustRef = useRef(0.5);
   const thrustInputRef = useRef(0.5);
-  const planeGroupRef = useRef<THREE.Group | null>(null);
+  const planeGroupRef = useRef<Group | null>(null);
 
   // Animate thrust for preview (simple sine wave)
   useFrame((state) => {

@@ -1,6 +1,5 @@
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import * as THREE from "three";
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -11,7 +10,9 @@ import {
   Mesh,
   MeshStandardMaterial,
   Object3D,
+  PointLight,
   Points,
+  Quaternion,
   ShaderMaterial,
   Shape,
   Vector3,
@@ -231,7 +232,7 @@ function EngineParticles({
     if (!meshRef.current || !objectRef.current) return;
 
     const worldPos = new Vector3();
-    const worldQuat = new THREE.Quaternion();
+    const worldQuat = new Quaternion();
     objectRef.current.getWorldPosition(worldPos);
     objectRef.current.getWorldQuaternion(worldQuat);
 
@@ -356,7 +357,7 @@ function ExhaustLight({
   position: [number, number, number];
   thrustRef: React.RefObject<number>;
 }) {
-  const lightRef = useRef<THREE.PointLight>(null);
+  const lightRef = useRef<PointLight>(null);
 
   useFrame(() => {
     const thrust = thrustRef.current;
@@ -404,8 +405,8 @@ export function ShipModel({
 }: ShipModelProps) {
   const leftNozzleRef = useRef<Mesh | null>(null);
   const rightNozzleRef = useRef<Mesh | null>(null);
-  const leftTrailTargetRef = useRef<THREE.Object3D | null>(null);
-  const rightTrailTargetRef = useRef<THREE.Object3D | null>(null);
+  const leftTrailTargetRef = useRef<Object3D | null>(null);
+  const rightTrailTargetRef = useRef<Object3D | null>(null);
 
   // --- Geometries ---
   const geos = useMemo(

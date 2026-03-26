@@ -7,7 +7,7 @@ import {
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
 import { Settings2, Volume2, VolumeX, X } from "lucide-react";
 import type { JSX } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { Button } from "../components/ui/button";
 import { useBotManager } from "../game/bot-system/bot-manager";
@@ -23,7 +23,6 @@ import {
   PlayersSection,
   SceneInfoSection,
 } from "../game/components/debug-sections";
-import { GameObjectEditor } from "../game/components/game-object-editor";
 import { GameScene } from "../game/components/game-scene";
 import { PlayerHUDOverlay } from "../game/components/player-hud-overlay";
 import { ScoreDisplay } from "../game/components/score-display";
@@ -36,6 +35,11 @@ import {
 } from "../game/match-readiness";
 import { usePrototypeMatchStore, type MatchSummary } from "../game/match-store";
 import { SOUND_MANIFEST } from "../game/sounds";
+
+const GameObjectEditor = lazy(async () => {
+  const module = await import("../game/components/game-object-editor");
+  return { default: module.GameObjectEditor };
+});
 
 interface TeamCardProps {
   teamId: TeamId;
@@ -739,7 +743,15 @@ const HostViewContent = (): JSX.Element => {
               </h2>
             </div>
             <div className="min-h-0 flex-1">
-              <GameObjectEditor objectType={editorObjectType} />
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+                    Loading editor…
+                  </div>
+                }
+              >
+                <GameObjectEditor objectType={editorObjectType} />
+              </Suspense>
             </div>
           </div>
         )}

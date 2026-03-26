@@ -1,6 +1,11 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
+import {
+  CylinderGeometry,
+  DoubleSide,
+  PlaneGeometry,
+  type Mesh,
+} from "three";
 
 const FLAG_HEIGHT = 8;
 
@@ -23,15 +28,15 @@ export function FlagModel({
   animationSpeed = 1,
 }: FlagModelProps) {
   const poleGeometry = useMemo(
-    () => new THREE.CylinderGeometry(0.25, 0.25, FLAG_HEIGHT, 8),
+    () => new CylinderGeometry(0.25, 0.25, FLAG_HEIGHT, 8),
     [],
   );
   const bannerGeometry = useMemo(
-    () => new THREE.PlaneGeometry(3.5, 2.5, 8, 6),
+    () => new PlaneGeometry(3.5, 2.5, 8, 6),
     [],
   );
 
-  const bannerRef = useRef<THREE.Mesh | null>(null);
+  const bannerRef = useRef<Mesh | null>(null);
   const originalPositionsRef = useRef<Float32Array | null>(null);
 
   // Store original positions on mount
@@ -107,7 +112,7 @@ export function FlagModel({
           color={color}
           emissive={color}
           emissiveIntensity={0.5}
-          side={THREE.DoubleSide}
+          side={DoubleSide}
           transparent
           opacity={0.9}
         />

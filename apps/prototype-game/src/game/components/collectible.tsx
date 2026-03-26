@@ -2,11 +2,13 @@ import { useAudio, useSendSignal } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import * as THREE from "three";
 import {
   AdditiveBlending,
   BoxGeometry,
   ConeGeometry,
+  DoubleSide,
+  Group,
+  Mesh,
   MeshStandardMaterial,
   OctahedronGeometry,
   Vector3,
@@ -42,7 +44,7 @@ function ExplosionParticles({
   position: [number, number, number];
   color: number;
 }) {
-  const particlesRef = useRef<THREE.Group>(null);
+  const particlesRef = useRef<Group>(null);
   const particles = useRef<Particle[]>([]);
   const ageRef = useRef(0);
 
@@ -100,7 +102,7 @@ function ExplosionParticles({
       particle.velocity.y -= 5 * delta;
 
       // Update mesh
-      const mesh = particlesRef.current?.children[index] as THREE.Mesh;
+      const mesh = particlesRef.current?.children[index] as Mesh;
       if (mesh) {
         const progress = particle.age / particle.lifetime;
         const fadeOut = 1 - progress;
@@ -187,8 +189,8 @@ const CollectibleComponent = ({ collectible }: CollectibleProps) => {
     [rarityColor],
   );
 
-  const meshRef = useRef<THREE.Mesh>(null);
-  const groupRef = useRef<THREE.Group>(null);
+  const meshRef = useRef<Mesh>(null);
+  const groupRef = useRef<Group>(null);
   const rotationRef = useRef(0);
   const collectedRef = useRef(false);
   const [showExplosion, setShowExplosion] = useState(false);
@@ -284,7 +286,7 @@ const CollectibleComponent = ({ collectible }: CollectibleProps) => {
               transparent
               blending={AdditiveBlending}
               depthWrite={false}
-              side={THREE.DoubleSide}
+              side={DoubleSide}
             />
           </mesh>
 

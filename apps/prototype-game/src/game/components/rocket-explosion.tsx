@@ -1,9 +1,10 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import * as THREE from "three";
 import {
   AdditiveBlending,
   BoxGeometry,
+  Group,
+  PointLight,
   MeshStandardMaterial,
   SphereGeometry,
   Vector3,
@@ -34,9 +35,9 @@ export function RocketExplosion({
   position,
   onComplete,
 }: RocketExplosionProps) {
-  const particlesRef = useRef<THREE.Group>(null);
-  const flashRef = useRef<THREE.Mesh>(null);
-  const lightRef = useRef<THREE.PointLight>(null);
+  const particlesRef = useRef<Group>(null);
+  const flashRef = useRef<Mesh>(null);
+  const lightRef = useRef<PointLight>(null);
   const particles = useRef<Particle[]>([]);
   const ageRef = useRef(0);
 

@@ -1,6 +1,16 @@
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
+import {
+  AdditiveBlending,
+  BufferAttribute,
+  Color,
+  DoubleSide,
+  Sphere,
+  Vector3,
+  type BufferGeometry,
+  type Mesh,
+  type Object3D,
+} from "three";
 
 const trailVertexShader = `
   uniform float uTime;
@@ -58,9 +68,9 @@ const trailFragmentShader = `
 `;
 
 interface ExhaustTrailProps {
-  target: React.RefObject<THREE.Object3D | null>;
+  target: React.RefObject<Object3D | null>;
   thrustRef: React.RefObject<number>;
-  color?: string | THREE.Color;
+  color?: string | Color;
   width?: number; // Starting width (at exhaust)
   length?: number; // Life of the trail in seconds
   decaySpeed?: number; // How fast it tapers/fades
@@ -79,12 +89,12 @@ export function Trail({
   interval = 2,
 }: ExhaustTrailProps) {
   const { scene } = useThree();
-  const meshRef = useRef<THREE.Mesh>(null);
-  const geomRef = useRef<THREE.BufferGeometry>(null);
+  const meshRef = useRef<Mesh>(null);
+  const geomRef = useRef<BufferGeometry>(null);
 
   // Data structures to manage trail history
-  const points = useRef<THREE.Vector3[]>([]);
-  const directions = useRef<THREE.Vector3[]>([]);
+  const points = useRef<Vector3[]>([]);
+  const directions = useRef<Vector3[]>([]);
   const creationTimes = useRef<number[]>([]); // Store absolute time of creation
 
   const frameCount = useRef(0);
@@ -122,21 +132,21 @@ export function Trail({
       }
     }
 
-    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute("aAge", new THREE.BufferAttribute(age, 1));
-    geo.setAttribute("aAngle", new THREE.BufferAttribute(angle, 1));
-    geo.setAttribute("aDirection", new THREE.BufferAttribute(dir, 3));
-    geo.setAttribute("aRadius", new THREE.BufferAttribute(radius, 1));
+    geo.setAttribute("position", new BufferAttribute(pos, 3));
+    geo.setAttribute("aAge", new BufferAttribute(age, 1));
+    geo.setAttribute("aAngle", new BufferAttribute(angle, 1));
+    geo.setAttribute("aDirection", new BufferAttribute(dir, 3));
+    geo.setAttribute("aRadius", new BufferAttribute(radius, 1));
     geo.setIndex(indices);
 
     // Prevent culling when trail extends outside view
-    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
+    geo.boundingSphere = new Sphere(new Vector3(), Infinity);
   }, [maxPoints, segments]);
 
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uColor: { value: new THREE.Color(color) },
+      uColor: { value: new Color(color) },
       uOpacity: { value: 1.0 },
     }),
     [color],
@@ -147,17 +157,17 @@ export function Trail({
 
     const now = state.clock.elapsedTime;
     const geo = geomRef.current;
-    const attrPos = geo.attributes.position as THREE.BufferAttribute;
-    const attrAge = geo.attributes.aAge as THREE.BufferAttribute;
-    const attrAngle = geo.attributes.aAngle as THREE.BufferAttribute;
-    const attrDir = geo.attributes.aDirection as THREE.BufferAttribute;
-    const attrRadius = geo.attributes.aRadius as THREE.BufferAttribute;
+    const attrPos = geo.attributes.position as BufferAttribute;
+    const attrAge = geo.attributes.aAge as BufferAttribute;
+    const attrAngle = geo.attributes.aAngle as BufferAttribute;
+    const attrDir = geo.attributes.aDirection as BufferAttribute;
+    const attrRadius = geo.attributes.aRadius as BufferAttribute;
 
     // 1. ADD NEW POINTS (only while thrusting)
     const isThrusting = thrustRef.current > 0.1;
     frameCount.current++;
     if (isThrusting && frameCount.current % interval === 0) {
-      const worldPos = new THREE.Vector3();
+      const worldPos = new Vector3();
       target.current.getWorldPosition(worldPos);
 
       // Only add if we have moved or if buffer is empty
@@ -168,8 +178,8 @@ export function Trail({
 
         // Calculate direction based on movement
         const dir = lastP
-          ? new THREE.Vector3().subVectors(worldPos, lastP).normalize()
-          : new THREE.Vector3(0, 0, 1); // Default
+          ? new Vector3().subVectors(worldPos, lastP).normalize()
+          : new Vector3(0, 0, 1); // Default
         directions.current.unshift(dir);
       }
     }
@@ -239,8 +249,8 @@ export function Trail({
         fragmentShader={trailFragmentShader}
         transparent
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
-        side={THREE.DoubleSide}
+        blending={AdditiveBlending}
+        side={DoubleSide}
       />
     </mesh>,
     scene,

@@ -1,7 +1,16 @@
 import { useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import * as THREE from "three";
+import {
+  AdditiveBlending,
+  Color,
+  DoubleSide,
+  RepeatWrapping,
+  SphereGeometry,
+  WireframeGeometry,
+  type Mesh,
+  type ShaderMaterial,
+} from "three";
 
 interface HolographicEarthModelProps {
   /** Radius of the sphere */
@@ -21,8 +30,8 @@ export const HolographicEarthModel = ({
   showWireframe = true,
   textureUrl = "https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_specular_2048.jpg",
 }: HolographicEarthModelProps) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const shaderRef = useRef<THREE.ShaderMaterial>(null);
+  const meshRef = useRef<Mesh>(null);
+  const shaderRef = useRef<ShaderMaterial>(null);
 
   // Load Earth texture
   const earthTexture = useTexture(textureUrl);
@@ -30,8 +39,8 @@ export const HolographicEarthModel = ({
   // Create texture with proper wrapping
   const texture = useMemo(() => {
     const tex = earthTexture.clone();
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
+    tex.wrapS = RepeatWrapping;
+    tex.wrapT = RepeatWrapping;
     return tex;
   }, [earthTexture]);
 
@@ -117,12 +126,12 @@ export const HolographicEarthModel = ({
           uniforms={{
             uTexture: { value: texture },
             uTime: { value: 0 },
-            uColorHigh: { value: new THREE.Color(0x00eaff) },
-            uColorLow: { value: new THREE.Color(0x001133) },
+            uColorHigh: { value: new Color(0x00eaff) },
+            uColorLow: { value: new Color(0x001133) },
           }}
           transparent
-          side={THREE.DoubleSide}
-          blending={THREE.AdditiveBlending}
+          side={DoubleSide}
+          blending={AdditiveBlending}
           depthWrite={false}
         />
       </mesh>
@@ -133,8 +142,8 @@ export const HolographicEarthModel = ({
 
 const WireframeOverlay = ({ radius }: { radius: number }) => {
   const wireframeGeo = useMemo(() => {
-    const geo = new THREE.SphereGeometry(radius * 1.005, 64, 64);
-    return new THREE.WireframeGeometry(geo);
+    const geo = new SphereGeometry(radius * 1.005, 64, 64);
+    return new WireframeGeometry(geo);
   }, [radius]);
 
   return (

@@ -7,7 +7,7 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import { useRef } from "react";
-import * as THREE from "three";
+import type { Group } from "three";
 import {
   TEAM_CONFIG,
   useCaptureTheFlagStore,
@@ -24,7 +24,7 @@ function FlagCarrierTrail({
   teamId: TeamId;
   carrierId: string;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
+  const groupRef = useRef<Group>(null);
   const color = TEAM_CONFIG[teamId].color;
 
   useFrame(() => {
@@ -64,7 +64,7 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
   const audio = useAudio(SOUND_MANIFEST);
   const sendSignal = useSendSignal();
   const rigidBodyRef = useRef<RapierRigidBody>(null);
-  const groupRef = useRef<THREE.Group>(null);
+  const groupRef = useRef<Group>(null);
   const prevPositionRef = useRef<[number, number, number] | null>(null);
 
   const handlePickup = (payload: CollisionPayload) => {

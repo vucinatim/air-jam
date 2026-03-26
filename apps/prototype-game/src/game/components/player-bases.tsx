@@ -6,8 +6,7 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import { useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
-import { AdditiveBlending, CylinderGeometry } from "three";
+import { AdditiveBlending, Color, CylinderGeometry, DoubleSide } from "three";
 import {
   TEAM_CONFIG,
   useCaptureTheFlagStore,
@@ -58,7 +57,7 @@ function TeamBase({ teamId }: TeamBaseProps) {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
 
   const uniformsRef = useRef({
-    baseColor: { value: new THREE.Color(team.color) },
+    baseColor: { value: new Color(team.color) },
     whiteAmount: { value: 0 },
   });
 
@@ -179,7 +178,7 @@ function TeamBase({ teamId }: TeamBaseProps) {
               transparent
               blending={AdditiveBlending}
               depthWrite={false}
-              side={THREE.DoubleSide}
+              side={DoubleSide}
               uniforms={uniformsRef.current}
             />
           </mesh>
