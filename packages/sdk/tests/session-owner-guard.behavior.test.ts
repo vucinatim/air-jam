@@ -15,7 +15,7 @@ import {
 
 const PROVIDER_CONFIG = {
   serverUrl: "http://localhost:3001",
-  apiKey: "test_public_key",
+  appId: "test_app_id",
 };
 
 const ControllerProviderForTest = ControllerSessionProvider as React.ComponentType<any>;

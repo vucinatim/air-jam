@@ -32,4 +32,4 @@ Games do not configure the **platform** notch directly. They drive presentation 
 
 - Platform: `ControllerMenuSheet`, `controller-menu-notch.tsx`, `app/controller/page.tsx`
 - Contract: [arcade-surface-contract.md](./arcade-surface-contract.md)
-- Overlay UX context: [plans/arcade-controller-overlay-plan.md](./plans/arcade-controller-overlay-plan.md)
+- Overlay UX history: [archive/done/arcade-controller-overlay-plan.md](./archive/done/arcade-controller-overlay-plan.md)

@@ -2,6 +2,7 @@ import {
   arcadeSurfaceRuntimeUrlParams,
   type ArcadeSurfaceRuntimeIdentity,
 } from "./surface";
+import type { ChildHostCapability } from "../protocol";
 import {
   appendRuntimeQueryParams,
   getRuntimeUrlOrigin,
@@ -18,19 +19,20 @@ export { arcadeSurfaceRuntimeUrlParams } from "./surface";
 export const buildArcadeGameIframeSrc = ({
   normalizedUrl,
   roomId,
-  joinToken,
+  launchCapability,
   joinUrl,
   arcadeSurface,
 }: {
   normalizedUrl: string;
   roomId: string;
-  joinToken: string;
+  launchCapability: ChildHostCapability;
   joinUrl?: string | null;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }): string | null =>
   appendRuntimeQueryParams(normalizedUrl, {
     aj_room: roomId,
-    aj_token: joinToken,
+    aj_cap: launchCapability.token,
+    aj_cap_exp: String(launchCapability.expiresAt),
     aj_join_url: joinUrl,
     ...arcadeSurfaceRuntimeUrlParams(arcadeSurface),
   });

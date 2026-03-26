@@ -35,7 +35,7 @@ This is the default implementation loop for launch-period work.
 ## 5) Update Docs in Same Change
 
 1. Update affected docs immediately when contracts/behavior change.
-2. Keep `docs/implementation-plan.md` as the single active checklist.
+2. Keep `docs/implementation-plan.md` as the single active implementation tracker or summary, and archive detailed completed plans under `docs/archive/done/`.
 3. Track non-launch architecture follow-ups in `suggestions.md`.
 
 ## 6) Merge Discipline

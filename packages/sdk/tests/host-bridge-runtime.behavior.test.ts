@@ -11,7 +11,7 @@ describe("embedded host bridge runtime", () => {
     window.history.replaceState(
       {},
       "",
-      "/host?aj_room=ROOM1&aj_token=join_123&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+      "/host?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
   });
 
@@ -60,7 +60,7 @@ describe("embedded host bridge runtime", () => {
         },
         snapshot: {
           roomId: "ROOM1",
-          joinToken: "join_123",
+          capabilityToken: "join_123",
           connected: true,
           players: [],
           arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
@@ -141,7 +141,7 @@ describe("embedded host bridge runtime", () => {
       },
       snapshot: {
         roomId: "ROOM1",
-        joinToken: "join_123",
+        capabilityToken: "join_123",
         connected: true,
         players: [],
         arcadeSurface: { epoch: 3, kind: "game" as const, gameId: "pong" },

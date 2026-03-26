@@ -271,7 +271,7 @@ export const ArcadeSystem = ({
 
       completeLaunch({
         normalizedGameUrl: normalizedHostUrl,
-        joinToken: snap.joinToken,
+        launchCapability: snap.launchCapability,
       });
 
       const idx = games.findIndex((g) => g.id === game.id);
@@ -395,7 +395,7 @@ export const ArcadeSystem = ({
           hasSocket: !!host.socket,
           connected: host.socket?.connected,
           isLaunching: snapshot.isLaunching,
-          joinToken: !!snapshot.joinToken,
+          hasLaunchCapability: !!snapshot.launchCapability,
           surfaceKind,
         });
         return;
@@ -424,7 +424,7 @@ export const ArcadeSystem = ({
           gameId: game.id,
         },
         (ack: SystemLaunchGameAck) => {
-          if (ack.ok && ack.joinToken) {
+          if (ack.ok && ack.launchCapability) {
             console.log("[Arcade] Game launch successful");
             surfaceActions.setGameSurface({
               gameId: game.id,
@@ -433,7 +433,7 @@ export const ArcadeSystem = ({
             });
             surfaceActions.setOverlay({ overlay: "hidden" });
             completeLaunch({
-              joinToken: ack.joinToken,
+              launchCapability: ack.launchCapability,
               normalizedGameUrl: normalizedHostUrl,
             });
 
@@ -549,7 +549,7 @@ export const ArcadeSystem = ({
         roomId: host.roomId,
         surfaceKind,
         isLaunching: state.isLaunching,
-        hasJoinToken: !!state.joinToken,
+        hasLaunchCapability: !!state.launchCapability,
         gamesLength: games.length,
       })
     ) {
@@ -584,7 +584,7 @@ export const ArcadeSystem = ({
     initialGameId,
     state.consumedAutoLaunchRequestKey,
     state.isLaunching,
-    state.joinToken,
+    state.launchCapability,
     host.socket?.connected,
     host.roomId,
     games,
@@ -627,7 +627,7 @@ export const ArcadeSystem = ({
   const isBrowserChromeVisible = showChrome && surfaceKind === "browser";
 
   // Preview mode: show loading until surface is game with a join token (launch + hydration)
-  if (mode === "preview" && surfaceKind === "browser" && !state.joinToken) {
+  if (mode === "preview" && surfaceKind === "browser" && !state.launchCapability) {
     return (
       <div
         className={cn(
@@ -793,11 +793,11 @@ export const ArcadeSystem = ({
         </div>
 
         {/* Game View — surface kind is authoritative for shell; runtime holds iframe credentials */}
-        {surfaceKind === "game" && activeGame && state.joinToken && (
+        {surfaceKind === "game" && activeGame && state.launchCapability && (
           <GamePlayer
             game={activeGame}
             normalizedUrl={state.normalizedGameUrl}
-            joinToken={state.joinToken}
+            launchCapability={state.launchCapability}
             roomId={host.roomId!}
             joinUrl={arcadeJoinUrl}
             hostSocket={host.socket}

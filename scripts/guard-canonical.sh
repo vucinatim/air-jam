@@ -68,12 +68,12 @@ check_forbidden \
   "${RUNTIME_PATHS[@]}"
 
 check_forbidden \
-  '<HostSessionProvider[^>]*(serverUrl|apiKey|maxPlayers|publicHost|input)\s*=' \
+  '<HostSessionProvider[^>]*(serverUrl|appId|maxPlayers|publicHost|input)\s*=' \
   "inline HostSessionProvider runtime config props (use canonical session-config module)" \
   "${RUNTIME_PATHS[@]}"
 
 check_forbidden \
-  '<ControllerSessionProvider[^>]*(serverUrl|apiKey|maxPlayers|publicHost|input)\s*=' \
+  '<ControllerSessionProvider[^>]*(serverUrl|appId|maxPlayers|publicHost|input)\s*=' \
   "inline ControllerSessionProvider runtime config props (use canonical session-config module)" \
   "${RUNTIME_PATHS[@]}"
 
@@ -91,7 +91,7 @@ check_forbidden \
 
 check_forbidden \
   'VITE_AIR_JAM_API_KEY|NEXT_PUBLIC_AIR_JAM_API_KEY|AJ_CONFIG_LEGACY_API_KEY_ENV' \
-  "legacy API key env names/diagnostics must not appear in canonical code/docs" \
+  "legacy API key env names/diagnostics must not appear in canonical code/docs after the appId rename" \
   "packages/sdk/src" \
   "${DOC_PATHS[@]}" \
   "README.md"

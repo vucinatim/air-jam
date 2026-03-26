@@ -121,7 +121,11 @@ async function main(): Promise<void> {
 
   const runtime = createAirJamServer({
     authService: {
-      verifyApiKey: async () => ({ isVerified: true }),
+      verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+        isVerified: true,
+        appId,
+        verifiedVia: "appId" as const,
+      }),
     },
   });
 
@@ -135,6 +139,14 @@ async function main(): Promise<void> {
 
     host = await connectSocket(baseUrl);
     sockets.push(host);
+    const bootstrapAck = await emitWithAck<{ ok: boolean }>(
+      host,
+      "host:bootstrap",
+      {},
+    );
+    if (!bootstrapAck.ok) {
+      throw new Error("Failed to bootstrap host for perf sanity run");
+    }
 
     const createAck = await emitWithAck<{ ok: boolean; roomId?: string }>(
       host,

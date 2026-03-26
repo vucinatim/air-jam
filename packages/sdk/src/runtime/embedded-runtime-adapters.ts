@@ -7,7 +7,7 @@ import {
 } from "./runtime-session-params";
 
 /**
- * Embedded host session for a game running inside the platform shell iframe (`aj_room`, `aj_token`, …).
+ * Embedded host session for a game running inside the platform shell iframe (`aj_room`, `aj_cap`, …).
  * Standalone hosts do not produce this snapshot — they use normal room create/reconnect flow.
  */
 export type EmbeddedHostChildSession = {

@@ -12,7 +12,7 @@
  *
  * **Standalone (default):** creates or reconnects a room from session storage / options.
  *
- * **Embedded child host:** when `aj_room` + `aj_token` are present, the hook binds to that
+ * **Embedded child host:** when `aj_room` + `aj_cap` are present, the hook binds to that
  * room and skips create-room; resolution is centralized in
  * {@link ../runtime/embedded-runtime-adapters.readEmbeddedHostChildSession}.
  */
@@ -162,7 +162,7 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  *
  * This hook is runtime-aware:
  * - standalone: creates/reconnects host rooms directly
- * - arcade iframe runtime: auto-detects `aj_room` + `aj_token` and bridges through the platform-owned host session
+ * - arcade iframe runtime: auto-detects `aj_room` + `aj_cap` and bridges through the platform-owned host session
  *
  * Mount this once near the top of your host provider tree. Child components that only need
  * session state should use `useHostSession()` instead of mounting another runtime owner.

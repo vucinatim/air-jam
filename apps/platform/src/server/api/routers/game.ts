@@ -1,8 +1,17 @@
 import { db } from "@/db";
-import { apiKeys, games, users } from "@/db/schema";
+import { appIds, games, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+
+const normalizeAllowedOrigins = (values: string[]): string[] => {
+  const normalized = values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => new URL(value).origin);
+
+  return Array.from(new Set(normalized));
+};
 
 export const gameRouter = createTRPCRouter({
   create: protectedProcedure
@@ -21,12 +30,12 @@ export const gameRouter = createTRPCRouter({
         })
         .returning();
 
-      // Auto-generate API key for the game
-      const apiKey = `aj_live_${crypto.randomUUID().replace(/-/g, "")}`;
-      await db.insert(apiKeys).values({
+      // Auto-generate app ID for the game
+      const appId = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
+      await db.insert(appIds).values({
         id: crypto.randomUUID(),
         gameId: gameId,
-        key: apiKey,
+        key: appId,
       });
 
       return game;
@@ -126,7 +135,7 @@ export const gameRouter = createTRPCRouter({
       }
     }),
 
-  getApiKey: protectedProcedure
+  getAppId: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input, ctx }) => {
       // Verify game belongs to user
@@ -139,11 +148,11 @@ export const gameRouter = createTRPCRouter({
         throw new Error("Game not found or unauthorized");
       }
 
-      const apiKey = await db.query.apiKeys.findFirst({
-        where: (apiKeys, { eq }) => eq(apiKeys.gameId, input.gameId),
+      const appId = await db.query.appIds.findFirst({
+        where: (appIds, { eq }) => eq(appIds.gameId, input.gameId),
       });
 
-      return apiKey;
+      return appId;
     }),
 
   /** Check if a slug is available (excludes the current game if editing) */
@@ -166,7 +175,7 @@ export const gameRouter = createTRPCRouter({
       return { available: isAvailable };
     }),
 
-  regenerateApiKey: protectedProcedure
+  regenerateAppId: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       // Verify game belongs to user
@@ -179,20 +188,53 @@ export const gameRouter = createTRPCRouter({
         throw new Error("Game not found or unauthorized");
       }
 
-      // Generate new API key
-      const newKey = `aj_live_${crypto.randomUUID().replace(/-/g, "")}`;
+      // Generate new app ID
+      const newKey = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
 
-      // Update existing API key record
-      const [updatedApiKey] = await db
-        .update(apiKeys)
+      // Update existing app ID record
+      const [updatedAppId] = await db
+        .update(appIds)
         .set({
           key: newKey,
           isActive: true,
           lastUsedAt: null, // Reset last used timestamp
         })
-        .where(eq(apiKeys.gameId, input.gameId))
+        .where(eq(appIds.gameId, input.gameId))
         .returning();
 
-      return updatedApiKey;
+      return updatedAppId;
+    }),
+
+  updateAppIdPolicy: protectedProcedure
+    .input(
+      z.object({
+        gameId: z.string(),
+        allowedOrigins: z.array(z.string().url()).default([]),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const game = await db.query.games.findFirst({
+        where: (games, { eq, and }) =>
+          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
+      });
+
+      if (!game) {
+        throw new Error("Game not found or unauthorized");
+      }
+
+      const normalizedAllowedOrigins = normalizeAllowedOrigins(
+        input.allowedOrigins,
+      );
+
+      const [updatedAppId] = await db
+        .update(appIds)
+        .set({
+          allowedOrigins:
+            normalizedAllowedOrigins.length > 0 ? normalizedAllowedOrigins : null,
+        })
+        .where(eq(appIds.gameId, input.gameId))
+        .returning();
+
+      return updatedAppId;
     }),
 });

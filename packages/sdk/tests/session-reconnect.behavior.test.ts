@@ -65,10 +65,11 @@ describe("session reconnect behavior", () => {
     mocked.store = createAirJamStore();
     mocked.controllerSocket = mocked.createMockSocket();
     mocked.hostSocket = mocked.createMockSocket();
+    vi.stubGlobal("fetch", vi.fn());
 
     mocked.useAirJamContext.mockReturnValue({
       config: {
-        apiKey: undefined,
+        appId: undefined,
         maxPlayers: 8,
         publicHost: "http://localhost:3000",
         resolveEnv: true,
@@ -87,6 +88,7 @@ describe("session reconnect behavior", () => {
     mocked.store = null;
     resetControllerRealtimeClientForTests();
     resetHostRealtimeClientForTests();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -117,6 +119,21 @@ describe("session reconnect behavior", () => {
   it("recovers host status when the cached socket is already connected", async () => {
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    sessionStorage.setItem("airjam_room_id", "ROOM1");
+    mocked.hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        callback?: (ack: unknown) => void,
+      ) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+        }
+        if (event === "host:reconnect") {
+          callback?.({ ok: true, roomId: "ROOM1" });
+        }
+      },
+    );
 
     const { result } = renderHook(() => useAirJamHost());
 
@@ -125,13 +142,79 @@ describe("session reconnect behavior", () => {
     });
 
     expect(mocked.hostSocket.connect).not.toHaveBeenCalled();
+    expect(mocked.hostSocket.emit).toHaveBeenCalledWith(
+      "host:bootstrap",
+      { appId: undefined },
+      expect.any(Function),
+    );
+  });
+
+  it("fetches a signed host grant before bootstrap when a grant endpoint is configured", async () => {
+    mocked.store?.getState().setRoomId("ROOM1");
+    mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    sessionStorage.setItem("airjam_room_id", "ROOM1");
+    mocked.useAirJamContext.mockReturnValue({
+      config: {
+        appId: "aj_app_demo",
+        hostGrantEndpoint: "/api/airjam/host-grant",
+        maxPlayers: 8,
+        publicHost: "http://localhost:3000",
+        resolveEnv: true,
+        serverUrl: "http://localhost:3001",
+      },
+      store: mocked.store,
+      getSocket: (role: "host" | "controller") =>
+        role === "controller" ? mocked.controllerSocket : mocked.hostSocket,
+      disconnectSocket: vi.fn(),
+      inputManager: null,
+    });
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ hostGrant: "signed_host_grant" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    mocked.hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        callback?: (ack: unknown) => void,
+      ) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+        }
+        if (event === "host:reconnect") {
+          callback?.({ ok: true, roomId: "ROOM1" });
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost());
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    expect(fetch).toHaveBeenCalledWith("/api/airjam/host-grant", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ appId: "aj_app_demo" }),
+    });
+    expect(mocked.hostSocket.emit).toHaveBeenCalledWith(
+      "host:bootstrap",
+      { hostGrant: "signed_host_grant" },
+      expect.any(Function),
+    );
   });
 
   it("prefers the injected arcade join url in child-host mode", async () => {
     window.history.replaceState(
       {},
       "",
-      "/game?aj_room=ROOM1&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+      "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
 
     const { result } = renderHook(() => useAirJamHost());
@@ -147,7 +230,7 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/game?aj_room=ROOM1&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+      "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
@@ -170,7 +253,7 @@ describe("session reconnect behavior", () => {
           },
           snapshot: {
             roomId: "ROOM1",
-            joinToken: "join_123",
+            capabilityToken: "join_123",
             connected: true,
             players: [],
             arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },

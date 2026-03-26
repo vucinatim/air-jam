@@ -1,5 +1,9 @@
 import type { ServerErrorPayload } from "@air-jam/sdk/protocol";
-import { createRateLimitGuard, resolveSocketIdentifier } from "../policies/rate-limit-policy.js";
+import {
+  createRateLimitGuard,
+  createScopedRateLimitGuard,
+  resolveSocketIdentifier,
+} from "../policies/rate-limit-policy.js";
 import { createSocketAuthorization } from "../policies/socket-authorization.js";
 import type { AuthService } from "../services/auth-service.js";
 import type { RateLimitService } from "../services/rate-limit-service.js";
@@ -20,6 +24,7 @@ export interface RegisterSocketHandlersOptions {
   rateLimitWindowMs: number;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
+  staticAppRateLimitMax: number;
 }
 
 export const registerSocketHandlers = ({
@@ -31,6 +36,7 @@ export const registerSocketHandlers = ({
   rateLimitWindowMs,
   hostRegistrationRateLimitMax,
   controllerJoinRateLimitMax,
+  staticAppRateLimitMax,
 }: RegisterSocketHandlersOptions): void => {
   const { isHostAuthorizedForRoom, isControllerAuthorizedForRoom } =
     createSocketAuthorization(socket.id, roomManager);
@@ -45,6 +51,10 @@ export const registerSocketHandlers = ({
     socketIdentifier,
     rateLimitWindowMs,
   );
+  const isScopedRateLimited = createScopedRateLimitGuard(
+    rateLimitService,
+    rateLimitWindowMs,
+  );
 
   const emitError = (socketId: string, payload: ServerErrorPayload): void => {
     io.to(socketId).emit("server:error", payload);
@@ -57,8 +67,10 @@ export const registerSocketHandlers = ({
     authService,
     hostRegistrationRateLimitMax,
     controllerJoinRateLimitMax,
+    staticAppRateLimitMax,
     emitError,
     isRateLimited,
+    isScopedRateLimited,
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
   };

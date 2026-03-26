@@ -1,4 +1,5 @@
 import type {
+  ChildHostCapability,
   ControllerStateMessage,
   GameState,
   PlayerProfile,
@@ -42,7 +43,7 @@ export interface RoomSession {
   masterHostSocketId: string; // The Arcade (System)
   childHostSocketId?: string; // The Game (Child)
   focus: RoomFocus;
-  joinToken?: string; // Token required for a child to join
+  launchCapability?: ChildHostCapability; // Capability required for a child host to join
   /** Set when a game is launched from the system host (`system:launchGame`). */
   activeGameId?: string;
   controllers: Map<string, ControllerSession>;

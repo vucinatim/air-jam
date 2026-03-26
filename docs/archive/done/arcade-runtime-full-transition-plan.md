@@ -22,7 +22,7 @@ We optimize for **one replayable surface snapshot** shared by host and controlle
 2. No URL-param auto-mode inference inside core SDK host/controller hooks.
 3. No toggle-based pause semantics in platform/system flows.
 4. Platform/system command lane stays separate from gameplay input lane.
-5. Server owns **hard invariants** (membership, auth, routing/focus, join tokens, reconnect continuity, epoch validation)—**not** app-level Arcade browser/overlay UI as primary truth.
+5. Server owns **hard invariants** (membership, auth, routing/focus, child launch capability, reconnect continuity, epoch validation)—**not** app-level Arcade browser/overlay UI as primary truth.
 6. If a path is legacy/duplicate/ambiguous, delete it (no soft deprecation on this branch).
 
 ## Target Architecture (Canonical)
@@ -86,7 +86,7 @@ Refactor:
 
 Purge:
 
-1. URL parsing branches for `aj_room`, `aj_token`, `aj_controller_id`
+1. URL parsing branches for `aj_room`, `aj_cap`, `aj_controller_id`
 2. implicit "child mode"/"sub-controller mode" behavior from standalone hooks
 
 Result:
@@ -270,7 +270,7 @@ Delete when replacement lands:
 Edit docs/spec first:
 
 1. `docs/framework-paradigm.md` (canonical)
-2. `docs/plans/arcade-controller-overlay-plan.md`
+2. `docs/archive/done/arcade-controller-overlay-plan.md`
 3. this file (tactical backlog)
 
 Freeze:

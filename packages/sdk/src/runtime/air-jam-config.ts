@@ -6,14 +6,16 @@ import {
 
 export interface AirJamConfig {
   serverUrl?: string;
-  apiKey?: string;
+  appId?: string;
+  hostGrantEndpoint?: string;
   maxPlayers: number;
   publicHost?: string;
 }
 
 export interface ResolveAirJamConfigInput {
   serverUrl?: string;
-  apiKey?: string;
+  appId?: string;
+  hostGrantEndpoint?: string;
   maxPlayers?: number;
   publicHost?: string;
   resolveEnv?: boolean;
@@ -21,7 +23,8 @@ export interface ResolveAirJamConfigInput {
 
 interface ImportMetaEnv {
   VITE_AIR_JAM_SERVER_URL?: string;
-  VITE_AIR_JAM_PUBLIC_KEY?: string;
+  VITE_AIR_JAM_APP_ID?: string;
+  VITE_AIR_JAM_HOST_GRANT_ENDPOINT?: string;
   VITE_AIR_JAM_PUBLIC_HOST?: string;
 }
 
@@ -69,17 +72,17 @@ const getEnvServerUrl = (): string | undefined => {
   return undefined;
 };
 
-const getEnvApiKey = (): string | undefined => {
+const getEnvAppId = (): string | undefined => {
   const viteEnv = getViteEnv();
-  if (viteEnv?.VITE_AIR_JAM_PUBLIC_KEY) {
-    return viteEnv.VITE_AIR_JAM_PUBLIC_KEY;
+  if (viteEnv?.VITE_AIR_JAM_APP_ID) {
+    return viteEnv.VITE_AIR_JAM_APP_ID;
   }
 
   const nodeEnv = getNodeEnv();
   if (nodeEnv) {
-    const nextPublicKey = nodeEnv.NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY;
-    if (nextPublicKey) {
-      return nextPublicKey;
+    const nextAppId = nodeEnv.NEXT_PUBLIC_AIR_JAM_APP_ID;
+    if (nextAppId) {
+      return nextAppId;
     }
   }
 
@@ -103,9 +106,27 @@ const getEnvPublicHost = (): string | undefined => {
   return undefined;
 };
 
+const getEnvHostGrantEndpoint = (): string | undefined => {
+  const viteEnv = getViteEnv();
+  if (viteEnv?.VITE_AIR_JAM_HOST_GRANT_ENDPOINT) {
+    return viteEnv.VITE_AIR_JAM_HOST_GRANT_ENDPOINT;
+  }
+
+  const nodeEnv = getNodeEnv();
+  if (nodeEnv) {
+    const nextEndpoint = nodeEnv.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT;
+    if (nextEndpoint) {
+      return nextEndpoint;
+    }
+  }
+
+  return undefined;
+};
+
 export const resolveAirJamConfig = ({
   serverUrl,
-  apiKey,
+  appId,
+  hostGrantEndpoint,
   maxPlayers = DEFAULT_MAX_PLAYERS,
   publicHost,
   resolveEnv = true,
@@ -119,26 +140,28 @@ export const resolveAirJamConfig = ({
     }
     return {
       serverUrl,
-      apiKey,
+      appId,
+      hostGrantEndpoint,
       maxPlayers,
       publicHost,
     };
   }
 
-  const resolvedApiKey = apiKey ?? getEnvApiKey();
+  const resolvedAppId = appId ?? getEnvAppId();
 
-  if (getNodeEnvMode() === "production" && !resolvedApiKey) {
+  if (getNodeEnvMode() === "production" && !resolvedAppId) {
     emitAirJamDiagnostic({
-      code: "AJ_CONFIG_MISSING_API_KEY",
+      code: "AJ_CONFIG_MISSING_APP_ID",
       severity: "error",
       message:
-        "Missing API key in production. Set VITE_AIR_JAM_PUBLIC_KEY or NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY, or pass `apiKey` to the session provider.",
+        "Missing app ID in production. Set VITE_AIR_JAM_APP_ID or NEXT_PUBLIC_AIR_JAM_APP_ID, or pass `appId` to the session provider.",
     });
   }
 
   return {
     serverUrl: serverUrl ?? getEnvServerUrl(),
-    apiKey: resolvedApiKey,
+    appId: resolvedAppId,
+    hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
     maxPlayers,
     publicHost: publicHost ?? getEnvPublicHost(),
   };

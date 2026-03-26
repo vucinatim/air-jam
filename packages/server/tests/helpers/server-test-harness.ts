@@ -16,7 +16,13 @@ interface HarnessOptions {
 }
 
 export interface ServerTestHarness {
-  connectSocket: () => Promise<GenericSocket>;
+  connectSocket: (options?: {
+    origin?: string;
+  }) => Promise<GenericSocket>;
+  bootstrapHost: (
+    socket: GenericSocket,
+    appId?: string,
+  ) => Promise<{ ok: boolean; code?: string; message?: string }>;
   emitWithAck: <TAck>(
     socket: GenericSocket,
     event: string,
@@ -79,12 +85,19 @@ export const setupServerTestHarness = (
     }
   });
 
-  const connectSocket = async (): Promise<GenericSocket> => {
+  const connectSocket = async (options?: {
+    origin?: string;
+  }): Promise<GenericSocket> => {
     const socket = await new Promise<GenericSocket>((resolve, reject) => {
       const nextSocket = io(baseUrl, {
         transports: ["websocket"],
         forceNew: true,
         reconnection: false,
+        extraHeaders: options?.origin
+          ? {
+              origin: options.origin,
+            }
+          : undefined,
       });
 
       const onConnectError = (error: Error) => {
@@ -113,6 +126,13 @@ export const setupServerTestHarness = (
     return await new Promise((resolve) => {
       socket.emit(event, payload, (ack: TAck) => resolve(ack));
     });
+  };
+
+  const bootstrapHost = async (
+    socket: GenericSocket,
+    appId?: string,
+  ): Promise<{ ok: boolean; code?: string; message?: string }> => {
+    return await emitWithAck(socket, "host:bootstrap", { appId });
   };
 
   const waitForEvent = async <TPayload>(
@@ -162,6 +182,7 @@ export const setupServerTestHarness = (
 
   return {
     connectSocket,
+    bootstrapHost,
     emitWithAck,
     waitForEvent,
     expectNoEvent,

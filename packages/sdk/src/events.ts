@@ -8,6 +8,11 @@
  */
 export const HostEvents = {
   /**
+   * Bootstrap host authority for the current socket.
+   */
+  BOOTSTRAP: "host:bootstrap",
+
+  /**
    * Register as the system/arcade master host
    */
   REGISTER_SYSTEM: "host:registerSystem",

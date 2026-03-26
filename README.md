@@ -89,8 +89,8 @@ pnpm dev:server
 # Database
 DATABASE_URL=postgresql://user:password@localhost:5432/airjam
 
-# Production mode (requires API key authentication)
-AIR_JAM_MASTER_KEY=your-master-key  # Optional for dev mode
+# Optional stronger signed host-grant mode
+AIR_JAM_HOST_GRANT_SECRET=your-signing-secret
 ```
 
 #### Running the Prototype Game
@@ -175,7 +175,6 @@ The platform is a Next.js application that can be deployed to Vercel, Railway, o
    - `BETTER_AUTH_SECRET`: Random secret for authentication
    - `BETTER_AUTH_URL`: Your production URL (e.g., `https://your-domain.com`)
    - `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL (e.g., `https://server.your-domain.com`)
-   - `AIR_JAM_MASTER_KEY`: Master key for server authentication (optional)
 
 4. **Build settings**:
    - Framework Preset: Next.js
@@ -210,7 +209,8 @@ The server can be deployed as a Node.js application:
    ```
 
 2. **Deploy to Railway/Render/Fly.io**:
-   - Set `DATABASE_URL` and/or `AIR_JAM_MASTER_KEY` for API key verification
+  - Set `DATABASE_URL` for app ID lookup and optional origin policy
+  - Optionally set `AIR_JAM_HOST_GRANT_SECRET` if you want signed host-grant mode
    - (Optional) Set `AIR_JAM_ALLOWED_ORIGINS` to your app domains
    - Set `PORT` (defaults to 4000)
    - Run `node dist/cli.js` or `pnpm start`
@@ -232,12 +232,13 @@ The server can be deployed as a Node.js application:
 
 **Server** (`packages/server`):
 
-- `DATABASE_URL`: PostgreSQL connection (enables database-backed key validation)
-- `AIR_JAM_MASTER_KEY`: Optional master key for key validation
+- `DATABASE_URL`: PostgreSQL connection (enables app ID lookup and optional origin policy)
 - `AIR_JAM_AUTH_MODE`: `disabled` | `required` (default auto: disabled in local dev, required in production)
+- `AIR_JAM_HOST_GRANT_SECRET`: Optional secret for stronger signed host-grant mode
 - `AIR_JAM_ALLOWED_ORIGINS`: Optional comma-separated CORS allowlist (default `*`)
 - `AIR_JAM_RATE_LIMIT_WINDOW_MS`: Optional rate-limit window in ms (default: `60000`)
 - `AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX`: Optional max host registration attempts per window (default: `30`)
+- `AIR_JAM_STATIC_APP_RATE_LIMIT_MAX`: Optional max bootstrap/lifecycle attempts per app+origin scope in static mode (default: `120`)
 - `AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX`: Optional max controller joins per window (default: `120`)
 - `PORT`: Server port (default: 4000)
 
@@ -253,7 +254,7 @@ Games built with Air Jam are static web applications. Deploy to:
 Set environment variables:
 
 - `VITE_AIR_JAM_SERVER_URL` or `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL
-- `VITE_AIR_JAM_PUBLIC_KEY` or `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY`: Your public API key
+- `VITE_AIR_JAM_APP_ID` or `NEXT_PUBLIC_AIR_JAM_APP_ID`: Your public app ID
 
 ## Documentation
 

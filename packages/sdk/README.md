@@ -297,7 +297,7 @@ This keeps runtime config, host input schema, and route path ownership in one pl
 ## Environment Variables
 
 - `VITE_AIR_JAM_SERVER_URL` / `NEXT_PUBLIC_AIR_JAM_SERVER_URL`
-- `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY`
+- `VITE_AIR_JAM_APP_ID` / `NEXT_PUBLIC_AIR_JAM_APP_ID`
 
 ## Full Docs
 

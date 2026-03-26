@@ -1,15 +1,16 @@
 import * as dotenv from "dotenv";
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 dotenv.config();
 
 // Define only the schema we need for verification
-export const apiKeys = pgTable("api_keys", {
+export const appIds = pgTable("app_ids", {
   id: text("id").primaryKey(),
-  gameId: text("game_id").notNull().unique(), // One API key per game
+  gameId: text("game_id").notNull().unique(), // One app identity record per game
   key: text("key").notNull().unique(),
+  allowedOrigins: jsonb("allowed_origins").$type<string[]>(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastUsedAt: timestamp("last_used_at"),

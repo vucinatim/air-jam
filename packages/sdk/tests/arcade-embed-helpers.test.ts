@@ -11,7 +11,10 @@ describe("arcade embed helpers", () => {
       buildArcadeGameIframeSrc({
         normalizedUrl: "https://game.example/play",
         roomId: "ABCD",
-        joinToken: "join_123",
+        launchCapability: {
+          token: "join_123",
+          expiresAt: 1_700_000_000_000,
+        },
         joinUrl: "https://platform.example/controller?room=ABCD",
         arcadeSurface: {
           epoch: 3,
@@ -20,14 +23,17 @@ describe("arcade embed helpers", () => {
         },
       }),
     ).toBe(
-      "https://game.example/play?aj_room=ABCD&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DABCD&aj_arcade_epoch=3&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_store_domain=aj.embedded.game%3A3%3Apong",
+      "https://game.example/play?aj_room=ABCD&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DABCD&aj_arcade_epoch=3&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_store_domain=aj.embedded.game%3A3%3Apong",
     );
 
     expect(
       buildArcadeGameIframeSrc({
         normalizedUrl: "https://game.example/play?foo=bar",
         roomId: "ABCD",
-        joinToken: "join_123",
+        launchCapability: {
+          token: "join_123",
+          expiresAt: 1_700_000_000_000,
+        },
         joinUrl: "https://platform.example/controller?room=ABCD",
         arcadeSurface: {
           epoch: 3,
@@ -36,7 +42,7 @@ describe("arcade embed helpers", () => {
         },
       }),
     ).toBe(
-      "https://game.example/play?foo=bar&aj_room=ABCD&aj_token=join_123&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DABCD&aj_arcade_epoch=3&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_store_domain=aj.embedded.game%3A3%3Apong",
+      "https://game.example/play?foo=bar&aj_room=ABCD&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DABCD&aj_arcade_epoch=3&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_store_domain=aj.embedded.game%3A3%3Apong",
     );
   });
 
@@ -56,7 +62,10 @@ describe("arcade embed helpers", () => {
       buildArcadeGameIframeSrc({
         normalizedUrl: "javascript:alert(1)",
         roomId: "ABCD",
-        joinToken: "join_123",
+        launchCapability: {
+          token: "join_123",
+          expiresAt: 1_700_000_000_000,
+        },
         joinUrl: "https://platform.example/controller?room=ABCD",
         arcadeSurface: {
           epoch: 3,

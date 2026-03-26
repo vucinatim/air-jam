@@ -8,9 +8,10 @@ import type {
   ControllerUpdatePlayerProfileAck,
   ControllerUpdatePlayerProfilePayload,
 } from "./controller";
-import type { HostRegistrationAck } from "./host";
+import type { HostBootstrapAck, HostSocketAuthority, HostRegistrationAck } from "./host";
 import type {
   HostActivateEmbeddedGamePayload,
+  HostBootstrapPayload,
   HostCreateRoomPayload,
   HostJoinAsChildPayload,
   HostReconnectPayload,
@@ -36,6 +37,10 @@ import type {
 } from "./sync";
 
 export interface ClientToServerEvents {
+  "host:bootstrap": (
+    payload: HostBootstrapPayload,
+    callback: (ack: HostBootstrapAck) => void,
+  ) => void;
   "host:registerSystem": (
     payload: HostRegisterSystemPayload,
     callback: (ack: HostRegistrationAck) => void,
@@ -103,4 +108,6 @@ export interface InterServerEvents {
   ping: () => void;
 }
 
-export type SocketData = Record<string, unknown>;
+export interface SocketData {
+  hostAuthority?: HostSocketAuthority;
+}

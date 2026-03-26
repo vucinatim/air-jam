@@ -35,6 +35,7 @@ export interface CreateAirJamServerOptions {
   rateLimitWindowMs?: number;
   hostRegistrationRateLimitMax?: number;
   controllerJoinRateLimitMax?: number;
+  staticAppRateLimitMax?: number;
   allowedOrigins?: string[] | "*";
   authService?: AuthService;
   rateLimitService?: RateLimitService;
@@ -93,6 +94,9 @@ export const createAirJamServer = (
   const controllerJoinRateLimitMax =
     options.controllerJoinRateLimitMax ??
     parsePositiveInt(process.env.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX, 120);
+  const staticAppRateLimitMax =
+    options.staticAppRateLimitMax ??
+    parsePositiveInt(process.env.AIR_JAM_STATIC_APP_RATE_LIMIT_MAX, 120);
   const corsOrigin = parseAllowedOrigins(options.allowedOrigins);
 
   const app = express();
@@ -129,6 +133,7 @@ export const createAirJamServer = (
       rateLimitWindowMs,
       hostRegistrationRateLimitMax,
       controllerJoinRateLimitMax,
+      staticAppRateLimitMax,
     });
   });
 

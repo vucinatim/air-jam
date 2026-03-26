@@ -1,12 +1,15 @@
 import {
   ErrorCode,
   hostActivateEmbeddedGameSchema,
+  hostBootstrapSchema,
   hostCreateRoomSchema,
   hostJoinAsChildSchema,
   hostReconnectSchema,
   hostRegisterSystemSchema,
   systemLaunchGameSchema,
   type HostActivateEmbeddedGamePayload,
+  type HostBootstrapAck,
+  type HostBootstrapPayload,
   type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
   type HostReconnectPayload,
@@ -24,6 +27,8 @@ import {
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
   getRoomLifecyclePhase,
+  isChildHostCapabilityExpired,
+  issueChildHostCapability,
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
@@ -45,6 +50,129 @@ export const registerHostLifecycleHandlers = (
 ): void => {
   const { io, socket, roomManager, authService } = context;
 
+  const bindHostAuthority = (
+    appId?: string,
+    verifiedVia?: "appId" | "hostGrant",
+    verifiedOrigin?: string,
+  ): void => {
+    socket.data.hostAuthority = {
+      appId,
+      verifiedAt: Date.now(),
+      verifiedVia,
+      verifiedOrigin,
+    };
+  };
+
+  const resolveStaticAppQuotaScope = (): string | null => {
+    const authority = socket.data.hostAuthority;
+    if (!authority?.appId || authority.verifiedVia !== "appId") {
+      return null;
+    }
+
+    return `${authority.appId}::${authority.verifiedOrigin ?? "unknown-origin"}`;
+  };
+
+  const isStaticAppRateLimited = (bucket: string): boolean => {
+    const scope = resolveStaticAppQuotaScope();
+    if (!scope) {
+      return false;
+    }
+
+    return context.isScopedRateLimited(
+      bucket,
+      scope,
+      context.staticAppRateLimitMax,
+    );
+  };
+
+  const ensureHostAuthority = (
+    callback: (ack: HostAck) => void,
+  ): boolean => {
+    if (socket.data.hostAuthority) {
+      return true;
+    }
+
+    callback({
+      ok: false,
+      message: "Unauthorized: Host bootstrap required",
+      code: ErrorCode.UNAUTHORIZED,
+    });
+    return false;
+  };
+
+  socket.on(
+    "host:bootstrap",
+    async (
+      payload: HostBootstrapPayload,
+      callback: (ack: HostBootstrapAck) => void,
+    ) => {
+      if (
+        context.isRateLimited(
+          "host-bootstrap",
+          context.hostRegistrationRateLimitMax,
+        )
+      ) {
+        callback({
+          ok: false,
+          message: "Too many host registration attempts. Please try again.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
+      const parsed = hostBootstrapSchema.safeParse(payload);
+      if (!parsed.success) {
+        callback({
+          ok: false,
+          message: parsed.error.message,
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      const verification = await authService.verifyHostBootstrap({
+        appId: parsed.data.appId,
+        hostGrant: parsed.data.hostGrant,
+        origin:
+          typeof socket.handshake.headers.origin === "string"
+            ? socket.handshake.headers.origin
+            : undefined,
+      });
+      if (!verification.isVerified) {
+        callback({
+          ok: false,
+          message: verification.error,
+          code: ErrorCode.INVALID_APP_ID,
+        });
+        return;
+      }
+
+      if (
+        verification.verifiedVia === "appId" &&
+        verification.appId &&
+        context.isScopedRateLimited(
+          "static-app-bootstrap",
+          `${verification.appId}::${verification.verifiedOrigin ?? "unknown-origin"}`,
+          context.staticAppRateLimitMax,
+        )
+      ) {
+        callback({
+          ok: false,
+          message: "Too many bootstrap attempts for this app. Please try again.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
+      bindHostAuthority(
+        verification.appId,
+        verification.verifiedVia,
+        verification.verifiedOrigin,
+      );
+      callback({ ok: true });
+    },
+  );
+
   socket.on(
     "host:registerSystem",
     async (payload: HostRegisterSystemPayload, callback) => {
@@ -62,6 +190,19 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
+      if (!ensureHostAuthority(callback)) {
+        return;
+      }
+
+      if (isStaticAppRateLimited("static-app-lifecycle")) {
+        callback({
+          ok: false,
+          message: "Too many host lifecycle attempts for this app. Please try again.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
       const parsed = hostRegisterSystemSchema.safeParse(payload);
       if (!parsed.success) {
         callback({
@@ -72,19 +213,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const { roomId, apiKey } = parsed.data;
-      const verification = await authService.verifyApiKey(apiKey);
-      if (!verification.isVerified) {
-        console.warn(
-          `[server] Unauthorized host registration attempt for room ${roomId}`,
-        );
-        callback({
-          ok: false,
-          message: verification.error,
-          code: ErrorCode.INVALID_API_KEY,
-        });
-        return;
-      }
+      const { roomId } = parsed.data;
 
       let session = roomManager.getRoom(roomId);
       if (session) {
@@ -132,6 +261,19 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
+      if (!ensureHostAuthority(callback)) {
+        return;
+      }
+
+      if (isStaticAppRateLimited("static-app-lifecycle")) {
+        callback({
+          ok: false,
+          message: "Too many host lifecycle attempts for this app. Please try again.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
       const parsed = hostCreateRoomSchema.safeParse(payload);
       if (!parsed.success) {
         callback({
@@ -142,16 +284,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const { maxPlayers, apiKey } = parsed.data;
-      const verification = await authService.verifyApiKey(apiKey);
-      if (!verification.isVerified) {
-        callback({
-          ok: false,
-          message: verification.error,
-          code: ErrorCode.INVALID_API_KEY,
-        });
-        return;
-      }
+      const { maxPlayers } = parsed.data;
 
       const existingRoomId = roomManager.getRoomByHostId(socket.id);
       if (existingRoomId) {
@@ -217,6 +350,19 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
+      if (!ensureHostAuthority(callback)) {
+        return;
+      }
+
+      if (isStaticAppRateLimited("static-app-lifecycle")) {
+        callback({
+          ok: false,
+          message: "Too many host lifecycle attempts for this app. Please try again.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
       const parsed = hostReconnectSchema.safeParse(payload);
       if (!parsed.success) {
         callback({
@@ -227,16 +373,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const { roomId, apiKey } = parsed.data;
-      const verification = await authService.verifyApiKey(apiKey);
-      if (!verification.isVerified) {
-        callback({
-          ok: false,
-          message: verification.error,
-          code: ErrorCode.INVALID_API_KEY,
-        });
-        return;
-      }
+      const { roomId } = parsed.data;
 
       const session = roomManager.getRoom(roomId);
       if (!session) {
@@ -264,7 +401,7 @@ export const registerHostLifecycleHandlers = (
         callback({
           ok: true,
           roomId,
-          arcadeSession: buildArcadeSessionForHostAck(session),
+          arcadeSession: buildArcadeSessionForHostAck(session, uuidv4),
         });
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {
@@ -326,9 +463,10 @@ export const registerHostLifecycleHandlers = (
       if (
         !launchAvailability.ok &&
         launchAvailability.reason === "LAUNCH_PENDING" &&
-        session.joinToken
+        session.launchCapability &&
+        !isChildHostCapabilityExpired(session.launchCapability)
       ) {
-        callback({ ok: true, joinToken: session.joinToken });
+        callback({ ok: true, launchCapability: session.launchCapability });
         return;
       }
       if (
@@ -344,8 +482,12 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const joinToken = uuidv4();
-      const transitionResult = beginGameLaunch(session, joinToken, gameId);
+      const launchCapability = issueChildHostCapability(uuidv4());
+      const transitionResult = beginGameLaunch(
+        session,
+        launchCapability,
+        gameId,
+      );
       if (!transitionResult.ok) {
         callback({
           ok: false,
@@ -355,7 +497,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      callback({ ok: true, joinToken });
+      callback({ ok: true, launchCapability });
     },
   );
 
@@ -370,7 +512,7 @@ export const registerHostLifecycleHandlers = (
       return;
     }
 
-    const { roomId, joinToken } = parsed.data;
+    const { roomId, capabilityToken } = parsed.data;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       callback({
@@ -381,17 +523,36 @@ export const registerHostLifecycleHandlers = (
       return;
     }
 
-    if (session.joinToken !== joinToken) {
+    if (!session.launchCapability) {
       callback({
         ok: false,
-        message: "Invalid Join Token",
+        message: "Launch capability missing",
+        code: ErrorCode.INVALID_TOKEN,
+      });
+      return;
+    }
+    if (isChildHostCapabilityExpired(session.launchCapability)) {
+      callback({
+        ok: false,
+        message: "Launch capability expired",
+        code: ErrorCode.TOKEN_EXPIRED,
+      });
+      return;
+    }
+    if (session.launchCapability.token !== capabilityToken) {
+      callback({
+        ok: false,
+        message: "Invalid launch capability",
         code: ErrorCode.INVALID_TOKEN,
       });
       return;
     }
 
     const phase = getRoomLifecyclePhase(session);
-    if (phase === "GAME_ACTIVE" && session.joinToken === joinToken) {
+    if (
+      phase === "GAME_ACTIVE" &&
+      session.launchCapability.token === capabilityToken
+    ) {
       const hasLiveChild =
         session.childHostSocketId &&
         io.sockets.sockets.get(session.childHostSocketId)?.connected;
@@ -511,7 +672,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const { roomId, joinToken } = parsed.data;
+      const { roomId, capabilityToken } = parsed.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
         callback({
@@ -531,10 +692,26 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      if (session.joinToken !== joinToken) {
+      if (!session.launchCapability) {
         callback({
           ok: false,
-          message: "Invalid Join Token",
+          message: "Launch capability missing",
+          code: ErrorCode.INVALID_TOKEN,
+        });
+        return;
+      }
+      if (isChildHostCapabilityExpired(session.launchCapability)) {
+        callback({
+          ok: false,
+          message: "Launch capability expired",
+          code: ErrorCode.TOKEN_EXPIRED,
+        });
+        return;
+      }
+      if (session.launchCapability.token !== capabilityToken) {
+        callback({
+          ok: false,
+          message: "Invalid launch capability",
           code: ErrorCode.INVALID_TOKEN,
         });
         return;

@@ -8,7 +8,7 @@
  * - WebSocket connections to the AirJam server
  * - Global state via Zustand store
  * - Input validation and behavior configuration
- * - Environment variable resolution for server URLs and API keys
+ * - Environment variable resolution for server URLs and app IDs
  *
  * @example Basic Setup
  * ```tsx
@@ -82,7 +82,8 @@ import { SocketManager, type AirJamSocket } from "./socket-manager";
  * ```tsx
  * <HostSessionProvider
  *   serverUrl="wss://your-server.com"
- *   apiKey="your-api-key"
+ *   appId="your-app-id"
+ *   hostGrantEndpoint="/api/airjam/host-grant"
  *   maxPlayers={4}
  *   input={{
  *     schema: myInputSchema,
@@ -104,11 +105,16 @@ export interface AirJamProviderProps<
    */
   serverUrl?: string;
   /**
-   * API key for production authentication.
-   * Falls back to VITE_AIR_JAM_PUBLIC_KEY or NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY
+   * App ID for production bootstrap identity.
+   * Falls back to VITE_AIR_JAM_APP_ID or NEXT_PUBLIC_AIR_JAM_APP_ID
    * when not provided directly.
    */
-  apiKey?: string;
+  appId?: string;
+  /**
+   * Optional endpoint that returns a short-lived signed host grant for stronger production bootstrap.
+   * When provided, the host runtime fetches a grant automatically before `host:bootstrap`.
+   */
+  hostGrantEndpoint?: string;
   /**
    * Maximum number of players allowed in a room.
    * @default 8
@@ -121,7 +127,7 @@ export interface AirJamProviderProps<
   publicHost?: string;
   /**
    * Enable environment-variable fallback resolution for config fields.
-   * Set to false to require explicit `serverUrl` / `apiKey` / `publicHost`.
+   * Set to false to require explicit `serverUrl` / `appId` / `hostGrantEndpoint` / `publicHost`.
    * @default true
    */
   resolveEnv?: boolean;
@@ -233,7 +239,7 @@ const AirJamContext = createContext<AirJamContextValue | null>(null);
 export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
   serverUrl,
-  apiKey,
+  appId,
   maxPlayers,
   publicHost,
   resolveEnv = true,
@@ -244,12 +250,12 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
     () =>
       resolveAirJamConfig({
         serverUrl,
-        apiKey,
+        appId,
         maxPlayers,
         publicHost,
         resolveEnv,
       }),
-    [serverUrl, apiKey, maxPlayers, publicHost, resolveEnv],
+    [serverUrl, appId, maxPlayers, publicHost, resolveEnv],
   );
 
   // Create InputManager from input config if provided

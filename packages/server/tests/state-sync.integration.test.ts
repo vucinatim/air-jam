@@ -8,7 +8,11 @@ type HostCreateRoomAck = {
 };
 
 const allowAllAuthService = {
-  verifyApiKey: async () => ({ isVerified: true }),
+  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+    isVerified: true,
+    appId,
+    verifiedVia: "appId" as const,
+  }),
 } as AuthService;
 
 describe("server state sync", () => {
@@ -18,6 +22,7 @@ describe("server state sync", () => {
 
   it("broadcasts host state sync to all controllers in the room", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controllerA = await harness.connectSocket();
     const controllerB = await harness.connectSocket();
 
@@ -71,6 +76,7 @@ describe("server state sync", () => {
 
   it("ignores forged host state sync from non-host sockets", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
     const attacker = await harness.connectSocket();
 
@@ -100,6 +106,7 @@ describe("server state sync", () => {
 
   it("updates player profile and notifies host + controller", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(

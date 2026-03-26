@@ -18,7 +18,7 @@ import { SystemOverviewDiagram } from "@/components/docs/figures/system-overview
 
 **Key Features:**
 
-- **Developer Portal** - Account management, API key generation, analytics
+- **Developer Portal** - Account management, app ID issuance, analytics
 - **Game Catalog** - Submit, manage, and discover Air Jam games
 - **Arcade Mode** - Browse and launch games from a unified interface
 - **Controller Runtime** - Persistent mobile wrapper that loads game controllers
@@ -110,7 +110,7 @@ Game runs inside an iframe on the Air Jam Platform.
 │  Air Jam Platform (Parent)              │
 │  ┌───────────────────────────────────┐  │
 │  │  Your Game (iframe)               │  │
-│  │  • Receives join token            │  │
+│  │  • Receives launch capability     │  │
 │  │  • Controlled player routing      │  │
 │  └───────────────────────────────────┘  │
 └─────────────────────────────────────────┘
@@ -165,11 +165,19 @@ Controller runs inside platform's runtime wrapper (iframe communication).
 
 ## Security
 
-### API Key Authentication
+### Host Bootstrap
 
-- Games must provide valid API key for production
-- Keys are validated against platform database
-- Rate limiting prevents abuse
+- Hosts perform one `host:bootstrap` verification step in production/static mode
+- In normal static mode, the server validates the browser-facing `appId` once, then binds host authority to the socket
+- Static apps can optionally restrict bootstrap by allowed origin per app identity
+- In optional signed mode, the SDK first fetches a short-lived host grant from `hostGrantEndpoint`, then bootstraps with that grant instead of raw `appId`
+- Later host lifecycle events rely on socket authority instead of repeated raw auth payloads
+
+### Child Launch Capability
+
+- Arcade game launch issues a room/game-scoped `launchCapability`
+- Embedded host iframes receive `aj_cap` / `aj_cap_exp` automatically
+- Game code does not parse or manage this capability directly
 
 ### Room Isolation
 

@@ -14,12 +14,16 @@ type ControllerJoinAck = {
 
 type LaunchGameAck = {
   ok: boolean;
-  joinToken?: string;
+  launchCapability?: { token: string; expiresAt: number };
   code?: ErrorCode | string;
 };
 
 const allowAllAuthService = {
-  verifyApiKey: async () => ({ isVerified: true }),
+  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+    isVerified: true,
+    appId,
+    verifiedVia: "appId" as const,
+  }),
 } as AuthService;
 
 describe("server routing and security", () => {
@@ -29,6 +33,7 @@ describe("server routing and security", () => {
 
   it("routes controller input to active host based on focus", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -69,7 +74,7 @@ describe("server routing and security", () => {
     );
 
     expect(launchAck.ok).toBe(true);
-    expect(launchAck.joinToken).toBeTypeOf("string");
+    expect(launchAck.launchCapability?.token).toBeTypeOf("string");
 
     const childHost = await harness.connectSocket();
     const childJoinAck = await harness.emitWithAck<{ ok: boolean }>(
@@ -77,7 +82,7 @@ describe("server routing and security", () => {
       "host:joinAsChild",
       {
         roomId,
-        joinToken: launchAck.joinToken,
+        capabilityToken: launchAck.launchCapability?.token,
       },
     );
     expect(childJoinAck.ok).toBe(true);
@@ -99,6 +104,7 @@ describe("server routing and security", () => {
 
   it("blocks spoofed action RPC calls from sockets that do not own controllerId", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const legitController = await harness.connectSocket();
     const attacker = await harness.connectSocket();
 
@@ -151,6 +157,7 @@ describe("server routing and security", () => {
 
   it("never forwards internal action names over action RPC", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -181,6 +188,7 @@ describe("server routing and security", () => {
 
   it("routes namespaced arcade actions to master host during game focus", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -207,7 +215,7 @@ describe("server routing and security", () => {
       },
     );
     expect(launchAck.ok).toBe(true);
-    expect(launchAck.joinToken).toBeTypeOf("string");
+    expect(launchAck.launchCapability?.token).toBeTypeOf("string");
 
     const childHost = await harness.connectSocket();
     const childJoinAck = await harness.emitWithAck<{ ok: boolean }>(
@@ -215,7 +223,7 @@ describe("server routing and security", () => {
       "host:joinAsChild",
       {
         roomId,
-        joinToken: launchAck.joinToken,
+        capabilityToken: launchAck.launchCapability?.token,
       },
     );
     expect(childJoinAck.ok).toBe(true);
@@ -247,6 +255,7 @@ describe("server routing and security", () => {
 
   it("blocks unauthorized host:play_sound events", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
     const attacker = await harness.connectSocket();
 
@@ -293,6 +302,7 @@ describe("server routing and security", () => {
 
   it("blocks unauthorized launch and close transitions", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const attacker = await harness.connectSocket();
     const controller = await harness.connectSocket();
 
@@ -341,7 +351,7 @@ describe("server routing and security", () => {
       "host:joinAsChild",
       {
         roomId,
-        joinToken: validLaunchAck.joinToken,
+        capabilityToken: validLaunchAck.launchCapability?.token,
       },
     );
     expect(childJoinAck.ok).toBe(true);
@@ -358,6 +368,7 @@ describe("server routing and security", () => {
 
   it("blocks forged host:state mutation attempts", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const attacker = await harness.connectSocket();
     const controller = await harness.connectSocket();
 

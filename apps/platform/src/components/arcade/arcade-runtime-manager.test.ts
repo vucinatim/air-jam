@@ -75,17 +75,20 @@ describe("arcade runtime manager", () => {
     state = reduceArcadeRuntimeState(state, {
       type: "launch-success",
       normalizedGameUrl: "https://game-two.test",
-      joinToken: "join_abc",
+      launchCapability: {
+        token: "join_abc",
+        expiresAt: 1_700_000_000_000,
+      },
     });
 
-    expect(state.joinToken).toBe("join_abc");
+    expect(state.launchCapability?.token).toBe("join_abc");
 
     state = reduceArcadeRuntimeState(state, {
       type: "exit-game",
       exitedAt: 123_456,
     });
 
-    expect(state.joinToken).toBeNull();
+    expect(state.launchCapability).toBeNull();
     expect(state.isLaunching).toBe(false);
     expect(state.consumedAutoLaunchRequestKey).toBe("arcade:g2");
     expect(state.lastExitAt).toBe(123_456);
@@ -126,7 +129,7 @@ describe("arcade runtime manager", () => {
         roomId: "ABCD",
         surfaceKind: "browser",
         isLaunching: false,
-        hasJoinToken: false,
+        hasLaunchCapability: false,
         gamesLength: 1,
       }),
     ).toBe(false);
@@ -139,7 +142,7 @@ describe("arcade runtime manager", () => {
         roomId: "ABCD",
         surfaceKind: "browser",
         isLaunching: false,
-        hasJoinToken: false,
+        hasLaunchCapability: false,
         gamesLength: 1,
       }),
     ).toBe(true);
@@ -152,7 +155,7 @@ describe("arcade runtime manager", () => {
         roomId: "ABCD",
         surfaceKind: "browser",
         isLaunching: false,
-        hasJoinToken: false,
+        hasLaunchCapability: false,
         gamesLength: 1,
       }),
     ).toBe(false);
@@ -165,7 +168,7 @@ describe("arcade runtime manager", () => {
         roomId: "ABCD",
         surfaceKind: "game",
         isLaunching: false,
-        hasJoinToken: false,
+        hasLaunchCapability: false,
         gamesLength: 1,
       }),
     ).toBe(false);
@@ -178,7 +181,7 @@ describe("arcade runtime manager", () => {
         roomId: "ABCD",
         surfaceKind: "browser",
         isLaunching: false,
-        hasJoinToken: false,
+        hasLaunchCapability: false,
         gamesLength: 1,
       }),
     ).toBe(false);

@@ -90,7 +90,7 @@ import { FocusSystemDiagram } from "@/components/docs/figures/focus-system-diagr
     │ system:launchGame   │                       │                   │
     │ ───────────────────▶│                       │                   │
     │                     │                       │                   │
-    │ ack: { joinToken }  │                       │                   │
+    │ ack: { launchCapability } │                 │                   │
     │ ◀────────────────── │                       │                   │
     │                     │                       │                   │
     │ Load iframe ───────────────────────────────▶│                   │
@@ -161,11 +161,19 @@ const host = useAirJamHost({
 // host.joinUrl contains full URL for QR code
 ```
 
+Production bootstrap remains automatic here:
+
+1. local dev: no auth ceremony
+2. static deploy: SDK bootstraps with your `appId`
+3. optional signed mode: SDK fetches a host grant from `hostGrantEndpoint` before bootstrap
+
+Game code does not change between those modes.
+
 ### Child Mode (Arcade)
 
 ```tsx
 // SDK auto-detects arcade mode from URL params
-// ?aj_room=ABCD&aj_token=xxxxx
+// ?aj_room=ABCD&aj_cap=xxxxx
 
 const host = useAirJamHost({
   onPlayerJoin: (player) => {

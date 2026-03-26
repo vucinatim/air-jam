@@ -141,7 +141,7 @@ Responsibilities:
 
 1. room/runtime invariants
 2. routing and authorization
-3. join token continuity
+3. child launch capability continuity
 
 ## Parallel Store Rule
 

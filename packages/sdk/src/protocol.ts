@@ -3,6 +3,7 @@ export * from "./protocol/core";
 export * from "./protocol/controller";
 export * from "./protocol/errors";
 export * from "./protocol/host";
+export * from "./protocol/host-grant";
 export * from "./protocol/notices";
 export * from "./protocol/signals";
 export * from "./protocol/socket-events";

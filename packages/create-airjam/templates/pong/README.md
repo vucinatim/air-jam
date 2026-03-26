@@ -35,11 +35,11 @@ It also auto-detects your LAN IP and sets `VITE_AIR_JAM_PUBLIC_HOST` so QR links
 
 If you prefer to use the official Air Jam server instead of running locally:
 
-1. Get your API key from the [Air Jam Platform](https://air-jam.app)
+1. Get your app ID from the [Air Jam Platform](https://air-jam.app)
 2. Set in `.env.local`:
    ```bash
    VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
-   VITE_AIR_JAM_PUBLIC_KEY=your-public-key-here
+   VITE_AIR_JAM_APP_ID=your-app-id-here
    ```
 3. Start web-only mode:
    ```bash
@@ -159,7 +159,7 @@ src/
 See `.env.example` for all available environment variables. Key variables:
 
 - `VITE_AIR_JAM_SERVER_URL` - Server URL (defaults to localhost:4000 for local dev)
-- `VITE_AIR_JAM_PUBLIC_KEY` - Public API key (optional for local dev, required for production)
+- `VITE_AIR_JAM_APP_ID` - Public app ID (optional for local dev, required for production)
 - `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev -- --secure` for host/controller URLs
 - `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev -- --secure`
 
@@ -171,9 +171,9 @@ See `.env.example` for all available environment variables. Key variables:
 2. Verify server health at `http://localhost:4000/health`.
 3. Remove or correct `VITE_AIR_JAM_SERVER_URL` overrides in `.env.local`.
 
-### API key errors in deployed environments
+### App ID errors in deployed environments
 
-1. Ensure `VITE_AIR_JAM_PUBLIC_KEY` is set in your hosting provider.
+1. Ensure `VITE_AIR_JAM_APP_ID` is set in your hosting provider.
 2. Ensure `VITE_AIR_JAM_SERVER_URL` points to your production Air Jam backend.
 3. Re-copy/rotate your key from the Air Jam platform if needed.
 
@@ -189,7 +189,7 @@ See `.env.example` for all available environment variables. Key variables:
 
 1. Set environment variables in Vercel:
    - `VITE_AIR_JAM_SERVER_URL` - Your official Air Jam server URL
-   - `VITE_AIR_JAM_PUBLIC_KEY` - Your public API key from the Air Jam platform
+   - `VITE_AIR_JAM_APP_ID` - Your app ID from the Air Jam platform
 
 2. Deploy:
    ```bash

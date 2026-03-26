@@ -10,8 +10,10 @@ export interface SocketHandlerContext {
   authService: AuthService;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
+  staticAppRateLimitMax: number;
   emitError: (socketId: string, payload: ServerErrorPayload) => void;
   isRateLimited: (bucket: string, limit: number) => boolean;
+  isScopedRateLimited: (bucket: string, scope: string, limit: number) => boolean;
   isHostAuthorizedForRoom: (roomId: RoomCode) => boolean;
   isControllerAuthorizedForRoom: (
     roomId: RoomCode,

@@ -80,7 +80,7 @@ export type HostBridgeServerEventArgs = {
 
 export interface HostBridgeSnapshot {
   roomId: RoomCode;
-  joinToken: string;
+  capabilityToken: string;
   connected: boolean;
   socketId?: string;
   players: ControllerJoinedNotice[];
@@ -94,7 +94,7 @@ export interface HostBridgeRequestMessage {
   payload: {
     handshake: V2Handshake;
     roomId: RoomCode;
-    joinToken: string;
+    capabilityToken: string;
     arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   };
 }
@@ -136,8 +136,8 @@ const hostBridgeRequestSchema = z
     payload: z
       .object({
         handshake: v2HandshakeSchema,
-        roomId: z.string().min(1),
-        joinToken: z.string().min(1),
+            roomId: z.string().min(1),
+        capabilityToken: z.string().min(1),
         arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
       })
       .strict(),
@@ -153,7 +153,7 @@ const hostBridgeAttachSchema = z
         snapshot: z
           .object({
             roomId: z.string().min(1),
-            joinToken: z.string().min(1),
+            capabilityToken: z.string().min(1),
             connected: z.boolean(),
             socketId: z.string().optional(),
             players: z.array(z.unknown()),
@@ -203,7 +203,7 @@ const hostBridgeCloseSchema = z
 
 export const createHostBridgeRequestMessage = (payload: {
   roomId: RoomCode;
-  joinToken: string;
+  capabilityToken: string;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }): HostBridgeRequestMessage => ({
   type: AIRJAM_HOST_BRIDGE_REQUEST,
@@ -216,7 +216,7 @@ export const createHostBridgeRequestMessage = (payload: {
       },
     }),
     roomId: payload.roomId,
-    joinToken: payload.joinToken,
+    capabilityToken: payload.capabilityToken,
     arcadeSurface: payload.arcadeSurface,
   },
 });

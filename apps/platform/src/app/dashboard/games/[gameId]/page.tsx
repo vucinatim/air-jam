@@ -41,19 +41,19 @@ export default function GameOverviewPage() {
   const params = useParams();
   const gameId = params.gameId as string;
   const [copied, setCopied] = useState(false);
-  const [isKeyVisible, setIsKeyVisible] = useState(false);
+  const [isAppIdVisible, setIsAppIdVisible] = useState(false);
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const utils = api.useUtils();
   const { data: game, isLoading } = api.game.get.useQuery({ id: gameId });
-  const { data: apiKey } = api.game.getApiKey.useQuery(
+  const { data: appId } = api.game.getAppId.useQuery(
     { gameId },
     { enabled: !!gameId },
   );
 
-  const regenerateApiKey = api.game.regenerateApiKey.useMutation({
+  const regenerateAppId = api.game.regenerateAppId.useMutation({
     onSuccess: () => {
-      utils.game.getApiKey.invalidate({ gameId });
-      setIsKeyVisible(true); // Show the new key
+      utils.game.getAppId.invalidate({ gameId });
+      setIsAppIdVisible(true); // Show the new app ID
       setCopied(false);
       setShowRegenerateDialog(false);
     },
@@ -88,9 +88,9 @@ export default function GameOverviewPage() {
     },
   });
 
-  const handleCopyApiKey = async () => {
-    if (apiKey?.key) {
-      await navigator.clipboard.writeText(apiKey.key);
+  const handleCopyAppId = async () => {
+    if (appId?.key) {
+      await navigator.clipboard.writeText(appId.key);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -183,15 +183,15 @@ export default function GameOverviewPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">API Key</CardTitle>
+            <CardTitle className="text-sm font-medium">App ID</CardTitle>
             <Key className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {apiKey?.isActive ? "Active" : "Inactive"}
+              {appId?.isActive ? "Active" : "Inactive"}
             </div>
             <p className="text-muted-foreground text-xs">
-              {apiKey?.isActive ? "Ready to use" : "Not available"}
+              {appId?.isActive ? "Ready to use" : "Not available"}
             </p>
           </CardContent>
         </Card>
@@ -223,8 +223,8 @@ export default function GameOverviewPage() {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">API Key</span>
-                  {apiKey?.key && (
+                  <span className="text-sm font-medium">App ID</span>
+                  {appId?.key && (
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
@@ -238,7 +238,7 @@ export default function GameOverviewPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={handleCopyApiKey}
+                        onClick={handleCopyAppId}
                         className="h-7 px-2"
                       >
                         {copied ? (
@@ -256,18 +256,18 @@ export default function GameOverviewPage() {
                     </div>
                   )}
                 </div>
-                {apiKey?.key ? (
+                {appId?.key ? (
                   <div className="bg-muted relative rounded-md p-2 pr-8 font-mono text-xs break-all">
-                    {isKeyVisible
-                      ? apiKey.key
-                      : "•".repeat(Math.min(apiKey.key.length, 40))}
+                    {isAppIdVisible
+                      ? appId.key
+                      : "•".repeat(Math.min(appId.key.length, 40))}
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setIsKeyVisible(!isKeyVisible)}
+                      onClick={() => setIsAppIdVisible(!isAppIdVisible)}
                       className="hover:bg-muted-foreground/10 absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 p-0"
                     >
-                      {isKeyVisible ? (
+                      {isAppIdVisible ? (
                         <EyeOff className="h-3 w-3" />
                       ) : (
                         <Eye className="h-3 w-3" />
@@ -276,7 +276,7 @@ export default function GameOverviewPage() {
                   </div>
                 ) : (
                   <div className="text-muted-foreground text-xs">
-                    No API key found
+                    No app ID found
                   </div>
                 )}
               </div>
@@ -291,22 +291,22 @@ export default function GameOverviewPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
+            <AlertDialogTitle>Regenerate App ID?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will replace your current API key with a new one. The
-              previous API key will be immediately invalidated and your game
-              will stop working until you update it with the new key. This
+              This will replace your current app ID with a new one. The
+              previous app ID will be immediately invalidated and your game
+              will stop working until you update it with the new app ID. This
               action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => regenerateApiKey.mutate({ gameId })}
-              disabled={regenerateApiKey.isPending}
+              onClick={() => regenerateAppId.mutate({ gameId })}
+              disabled={regenerateAppId.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {regenerateApiKey.isPending ? (
+              {regenerateAppId.isPending ? (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                   Regenerating...

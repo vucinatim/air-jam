@@ -50,7 +50,7 @@ const airjam = createAirJamApp({
 The provider automatically reads from these environment variables if props aren't provided:
 
 - `VITE_AIR_JAM_SERVER_URL` / `NEXT_PUBLIC_AIR_JAM_SERVER_URL` - WebSocket server URL
-- `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY` - Public API key
+- `VITE_AIR_JAM_APP_ID` / `NEXT_PUBLIC_AIR_JAM_APP_ID` - Public app ID
 
 ---
 
@@ -383,7 +383,7 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 | `AJ_SCOPE_MISMATCH`                        | A host/controller hook was used in the wrong scoped provider tree.        | Use `HostSessionProvider` for host hooks and `ControllerSessionProvider` for controller hooks. |
 | `AJ_MISSING_SESSION_PROVIDER`              | SDK context was read outside Air Jam session providers.                   | Wrap route/root with scoped session provider.                                                  |
 | `AJ_CONFIG_MISSING_SERVER_URL`             | Runtime config cannot resolve server URL when env resolution is disabled. | Provide `serverUrl` prop when using `resolveEnv={false}`.                                      |
-| `AJ_CONFIG_MISSING_API_KEY`                | Production runtime started without canonical API key config.              | Set `VITE_AIR_JAM_PUBLIC_KEY` / `NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY` or pass `apiKey` explicitly.  |
+| `AJ_CONFIG_MISSING_APP_ID`                 | Production runtime started without canonical app ID config.               | Set `VITE_AIR_JAM_APP_ID` / `NEXT_PUBLIC_AIR_JAM_APP_ID` or pass `appId` explicitly.            |
 | `AJ_STORE_ACTION_SESSION_NOT_READY`        | Controller action dispatch attempted before role/room was ready.          | Wait until room/session is established before dispatching store actions.                       |
 | `AJ_STORE_ACTION_SOCKET_DISCONNECTED`      | Controller state action dispatch attempted while socket disconnected.     | Reconnect before dispatching action.                                                           |
 | `AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE` | State action payload contained non-serializable values.                   | Use JSON-safe payload objects only (no functions/symbols/cycles).                              |

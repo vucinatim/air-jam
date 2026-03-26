@@ -59,7 +59,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
     window.parent.postMessage(
       createHostBridgeRequestMessage({
         roomId: runtimeParams.room as RoomCode,
-        joinToken: runtimeParams.token,
+        capabilityToken: runtimeParams.capabilityToken,
         arcadeSurface: runtimeParams.arcadeSurface,
       }),
       "*",

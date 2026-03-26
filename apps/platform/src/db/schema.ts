@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -63,18 +64,19 @@ export const games = pgTable("games", {
   videoUrl: text("video_url"),
   coverUrl: text("cover_url"),
   isPublished: boolean("is_published").default(false).notNull(),
-  config: jsonb("config").default({}).notNull(), // Game specific configuration variables
+  config: jsonb("config").default(sql`'{}'::jsonb`).notNull(), // Game specific configuration variables
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const apiKeys = pgTable("api_keys", {
+export const appIds = pgTable("app_ids", {
   id: text("id").primaryKey(),
   gameId: text("game_id")
     .references(() => games.id)
     .notNull()
-    .unique(), // One API key per game
-  key: text("key").notNull().unique(), // The actual API key string (e.g. aj_live_...)
+    .unique(), // One app identity record per game
+  key: text("key").notNull().unique(), // The public app ID string (e.g. aj_app_...)
+  allowedOrigins: jsonb("allowed_origins").$type<string[]>(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastUsedAt: timestamp("last_used_at"),

@@ -44,6 +44,7 @@ const gameSettingsSchema = z.object({
   videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   coverUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   isPublished: z.boolean(),
+  allowedOriginsText: z.string(),
 });
 
 type GameSettingsForm = z.infer<typeof gameSettingsSchema>;
@@ -127,6 +128,10 @@ export default function GameSettingsPage() {
   const [debouncedSlug, setDebouncedSlug] = useState("");
 
   const { data: game, isLoading } = api.game.get.useQuery({ id: gameId });
+  const { data: appId } = api.game.getAppId.useQuery(
+    { gameId },
+    { enabled: !!gameId },
+  );
   // Check slug availability with debounce
   const { data: slugCheck, isFetching: isCheckingSlug } =
     api.game.checkSlugAvailability.useQuery(
@@ -139,7 +144,15 @@ export default function GameSettingsPage() {
   const updateGame = api.game.update.useMutation({
     onSuccess: () => {
       utils.game.get.invalidate({ id: gameId });
-      alert("Settings saved successfully!");
+    },
+    onError: (error) => {
+      alert(`Error: ${error.message}`);
+    },
+  });
+
+  const updateAppIdPolicy = api.game.updateAppIdPolicy.useMutation({
+    onSuccess: () => {
+      utils.game.getAppId.invalidate({ gameId });
     },
     onError: (error) => {
       alert(`Error: ${error.message}`);
@@ -157,6 +170,7 @@ export default function GameSettingsPage() {
       videoUrl: "",
       coverUrl: "",
       isPublished: false,
+      allowedOriginsText: "",
     },
   });
 
@@ -184,9 +198,10 @@ export default function GameSettingsPage() {
         videoUrl: game.videoUrl || "",
         coverUrl: game.coverUrl || "",
         isPublished: game.isPublished,
+        allowedOriginsText: (appId?.allowedOrigins ?? []).join("\n"),
       });
     }
-  }, [game, form]);
+  }, [game, appId, form]);
 
   const thumbnailUrl = useWatch({
     control: form.control,
@@ -202,10 +217,34 @@ export default function GameSettingsPage() {
   });
 
   const onSubmit = (data: GameSettingsForm) => {
-    updateGame.mutate({
-      id: gameId,
-      ...data,
-    });
+    const allowedOrigins = data.allowedOriginsText
+      .split(/[\n,]/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    void Promise.all([
+      updateGame.mutateAsync({
+        id: gameId,
+        name: data.name,
+        slug: data.slug,
+        description: data.description,
+        url: data.url,
+        thumbnailUrl: data.thumbnailUrl,
+        videoUrl: data.videoUrl,
+        coverUrl: data.coverUrl,
+        isPublished: data.isPublished,
+      }),
+      updateAppIdPolicy.mutateAsync({
+        gameId,
+        allowedOrigins,
+      }),
+    ])
+      .then(() => {
+        alert("Settings saved successfully!");
+      })
+      .catch(() => {
+        // Error toasts/alerts are handled by the underlying mutations.
+      });
   };
 
   if (isLoading) return <div>Loading settings...</div>;
@@ -343,6 +382,28 @@ export default function GameSettingsPage() {
                     </FormControl>
                     <FormDescription>
                       The URL where your game is hosted (iframe source).
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="allowedOriginsText"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Allowed Origins (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={"https://my-game.vercel.app\nhttps://my-game.netlify.app"}
+                        rows={4}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Optional static-mode bootstrap allowlist. Leave empty to
+                      allow any origin using this App ID. Add one origin per
+                      line to restrict production host bootstrap.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

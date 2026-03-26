@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { z } from "zod";
+import { z as zod } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { TOGGLE_DEBOUNCE_MS } from "../../constants";
@@ -13,6 +14,8 @@ import type {
   ControllerStateMessage,
   ControllerStatePayload,
   HapticSignalPayload,
+  HostBootstrapAck,
+  HostBootstrapPayload,
   HostRegistrationAck,
   PlayerProfile,
   RoomCode,
@@ -24,6 +27,7 @@ import {
   controllerStateSchema,
   controllerSystemSchema,
   ErrorCode,
+  hostBootstrapSchema,
   hostCreateRoomSchema,
   hostReconnectSchema,
   roomCodeSchema,
@@ -252,6 +256,14 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     null,
   );
 
+  const hostGrantResponseSchema = useMemo(
+    () =>
+      zod.object({
+        hostGrant: zod.string().min(1),
+      }),
+    [],
+  );
+
   useEffect(() => {
     const storeState = store.getState();
     storeState.setMode(detectRunMode());
@@ -277,16 +289,72 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         return;
       }
 
-      const currentState = store.getState();
-      const currentRegisteredRoomId = currentState.registeredRoomId;
-      if (currentRegisteredRoomId && socket.connected) {
+      const resolveBootstrapPayload = async (): Promise<HostBootstrapPayload> => {
+        if (!config.hostGrantEndpoint) {
+          return hostBootstrapSchema.parse({
+            appId: config.appId,
+          });
+        }
+
+        const response = await fetch(config.hostGrantEndpoint, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(
+            config.appId ? { appId: config.appId } : {},
+          ),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch host grant (${response.status})`,
+          );
+        }
+
+        const parsed = hostGrantResponseSchema.safeParse(await response.json());
+        if (!parsed.success) {
+          throw new Error("Invalid host grant response");
+        }
+
+        return hostBootstrapSchema.parse({
+          hostGrant: parsed.data.hostGrant,
+        });
+      };
+
+      let bootstrapPayload: HostBootstrapPayload;
+      try {
+        bootstrapPayload = await resolveBootstrapPayload();
+      } catch (error) {
+        const latestState = store.getState();
+        latestState.setError(
+          error instanceof Error
+            ? error.message
+            : "Failed to resolve host bootstrap grant",
+        );
+        latestState.setStatus("disconnected");
+        latestState.clearHostArcadeRestore();
+        setRegisteredRoomId(null);
+        return;
+      }
+
+      const bootstrapAck = await new Promise<HostBootstrapAck>((resolve) => {
+        socket.emit("host:bootstrap", bootstrapPayload, resolve);
+      });
+
+      if (!bootstrapAck.ok) {
+        const latestState = store.getState();
+        latestState.setError(bootstrapAck.message ?? "Failed to authorize host");
+        latestState.setStatus("disconnected");
+        latestState.clearHostArcadeRestore();
+        setRegisteredRoomId(null);
         return;
       }
 
       const createNewRoom = () => {
         const payload = hostCreateRoomSchema.parse({
           maxPlayers: config.maxPlayers,
-          apiKey: config.apiKey,
         });
 
         socket.emit("host:createRoom", payload, (ack: HostRegistrationAck) => {
@@ -320,7 +388,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         if (savedRoomId) {
           const reconnectPayload = hostReconnectSchema.parse({
             roomId: savedRoomId,
-            apiKey: config.apiKey,
           });
 
           const maxReconnectAttempts = 12;
@@ -383,15 +450,13 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     };
 
     const handleConnect = (): void => {
-      store.getState().setStatus("connected");
+      store.getState().setStatus("connecting");
       void registerHost();
     };
 
     const handleDisconnect = (): void => {
       store.getState().setStatus("disconnected");
-      if (embeddedHost) {
-        setRegisteredRoomId(null);
-      }
+      setRegisteredRoomId(null);
     };
 
     const handleJoin = (payload: {
@@ -473,7 +538,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     };
   }, [
     config.maxPlayers,
-    config.apiKey,
+    config.appId,
+    config.hostGrantEndpoint,
     embeddedHost,
     parsedRoomId,
     shouldConnect,
@@ -481,6 +547,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     store,
     inputManager,
     setRegisteredRoomId,
+    hostGrantResponseSchema,
   ]);
 
   const getInput = useCallback(

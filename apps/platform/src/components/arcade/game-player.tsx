@@ -11,6 +11,7 @@ import {
 } from "@air-jam/sdk";
 import type {
   AirJamActionRpcPayload,
+  ChildHostCapability,
   ControllerInputEvent,
   ControllerJoinedNotice,
   ControllerLeftNotice,
@@ -53,7 +54,7 @@ export interface GamePlayerGame {
 interface GamePlayerProps {
   game: GamePlayerGame;
   normalizedUrl: string;
-  joinToken: string;
+  launchCapability: ChildHostCapability;
   roomId: string;
   joinUrl?: string | null;
   hostSocket: AirJamRealtimeClient;
@@ -74,7 +75,7 @@ interface GamePlayerProps {
 export const GamePlayer = ({
   game,
   normalizedUrl,
-  joinToken,
+  launchCapability,
   roomId,
   joinUrl,
   hostSocket,
@@ -94,7 +95,7 @@ export const GamePlayer = ({
   const hostSocketRef = useRef(hostSocket);
   const hostBridgeStateRef = useRef({
     roomId,
-    joinToken,
+    capabilityToken: launchCapability.token,
     players,
     gameState,
   });
@@ -111,7 +112,7 @@ export const GamePlayer = ({
   const iframeSrc = buildArcadeGameIframeSrc({
     normalizedUrl,
     roomId,
-    joinToken,
+    launchCapability,
     joinUrl,
     arcadeSurface: arcadeSurfaceRuntimeIdentity,
   });
@@ -184,11 +185,11 @@ export const GamePlayer = ({
     hostSocketRef.current = hostSocket;
     hostBridgeStateRef.current = {
       roomId,
-      joinToken,
+      capabilityToken: launchCapability.token,
       players,
       gameState,
     };
-  }, [gameState, hostSocket, joinToken, players, roomId]);
+  }, [gameState, hostSocket, launchCapability.token, players, roomId]);
 
   useEffect(() => {
     return () => {
@@ -256,7 +257,7 @@ export const GamePlayer = ({
       port.postMessage(
         createHostBridgeAttachMessage({
           roomId: state.roomId,
-          joinToken: state.joinToken,
+          capabilityToken: state.capabilityToken,
           connected: socket.connected,
           socketId: socket.id,
           players: playerNotices,
@@ -329,7 +330,7 @@ export const GamePlayer = ({
 
       if (
         request.payload.roomId !== state.roomId ||
-        request.payload.joinToken !== state.joinToken
+        request.payload.capabilityToken !== state.capabilityToken
       ) {
         port.postMessage(
           createHostBridgeCloseMessage("Embedded host bridge session mismatch."),
@@ -365,7 +366,7 @@ export const GamePlayer = ({
         "host:activateEmbeddedGame",
         {
           roomId: state.roomId,
-          joinToken: state.joinToken,
+          capabilityToken: state.capabilityToken,
         },
         (ack: HostRegistrationAck) => {
           if (!ack.ok) {

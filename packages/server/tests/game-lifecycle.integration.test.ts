@@ -10,12 +10,16 @@ type HostCreateRoomAck = {
 
 type LaunchGameAck = {
   ok: boolean;
-  joinToken?: string;
+  launchCapability?: { token: string; expiresAt: number };
   code?: ErrorCode | string;
 };
 
 const allowAllAuthService = {
-  verifyApiKey: async () => ({ isVerified: true }),
+  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+    isVerified: true,
+    appId,
+    verifiedVia: "appId" as const,
+  }),
 } as AuthService;
 
 describe("server game lifecycle", () => {
@@ -25,6 +29,7 @@ describe("server game lifecycle", () => {
 
   it("launches game and lets child host join", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -53,7 +58,7 @@ describe("server game lifecycle", () => {
     );
 
     expect(launchAck.ok).toBe(true);
-    expect(launchAck.joinToken).toBeTypeOf("string");
+    expect(launchAck.launchCapability?.token).toBeTypeOf("string");
 
     const childHost = await harness.connectSocket();
     const joinedNoticePromise = harness.waitForEvent<{ controllerId: string }>(
@@ -71,7 +76,7 @@ describe("server game lifecycle", () => {
       "host:joinAsChild",
       {
         roomId,
-        joinToken: launchAck.joinToken,
+        capabilityToken: launchAck.launchCapability?.token,
       },
     );
 
@@ -88,6 +93,7 @@ describe("server game lifecycle", () => {
 
   it("activates embedded games on the master host socket without requiring a child host socket", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -120,7 +126,7 @@ describe("server game lifecycle", () => {
       "host:activateEmbeddedGame",
       {
         roomId,
-        joinToken: launchAck.joinToken,
+        capabilityToken: launchAck.launchCapability?.token,
       },
     );
     expect(activateAck.ok).toBe(true);
@@ -149,6 +155,7 @@ describe("server game lifecycle", () => {
 
   it("rejects child host join when token is invalid", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
       masterHost,
@@ -166,7 +173,7 @@ describe("server game lifecycle", () => {
       message?: string;
     }>(childHost, "host:joinAsChild", {
       roomId,
-      joinToken: "invalid-token",
+      capabilityToken: "invalid-token",
     });
 
     expect(childJoinAck.ok).toBe(false);
@@ -175,6 +182,7 @@ describe("server game lifecycle", () => {
 
   it("closes game and disconnects the child host without dropping controllers", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -210,7 +218,7 @@ describe("server game lifecycle", () => {
       "host:joinAsChild",
       {
         roomId,
-        joinToken: launchAck.joinToken,
+        capabilityToken: launchAck.launchCapability?.token,
       },
     );
 
@@ -225,6 +233,7 @@ describe("server game lifecycle", () => {
 
   it("keeps controllers connected across game switches and propagates pause/resume", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -258,7 +267,7 @@ describe("server game lifecycle", () => {
       "host:joinAsChild",
       {
         roomId,
-        joinToken: firstLaunchAck.joinToken,
+        capabilityToken: firstLaunchAck.launchCapability?.token,
       },
     );
     expect(childJoinOneAck.ok).toBe(true);
@@ -300,7 +309,7 @@ describe("server game lifecycle", () => {
       "host:joinAsChild",
       {
         roomId,
-        joinToken: secondLaunchAck.joinToken,
+        capabilityToken: secondLaunchAck.launchCapability?.token,
       },
     );
     expect(childJoinTwoAck.ok).toBe(true);
@@ -331,6 +340,7 @@ describe("server game lifecycle", () => {
 
   it("lets a new child host socket re-join after disconnect without unloading controllers", async () => {
     const masterHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -362,7 +372,7 @@ describe("server game lifecycle", () => {
     const joinOneAck = await harness.emitWithAck<{ ok: boolean }>(
       childOne,
       "host:joinAsChild",
-      { roomId, joinToken: launchAck.joinToken },
+      { roomId, capabilityToken: launchAck.launchCapability?.token },
     );
     expect(joinOneAck.ok).toBe(true);
 
@@ -373,7 +383,7 @@ describe("server game lifecycle", () => {
     const joinTwoAck = await harness.emitWithAck<{ ok: boolean }>(
       childTwo,
       "host:joinAsChild",
-      { roomId, joinToken: launchAck.joinToken },
+      { roomId, capabilityToken: launchAck.launchCapability?.token },
     );
     expect(joinTwoAck.ok).toBe(true);
 

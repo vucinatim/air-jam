@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import type { ChildHostCapability } from "@air-jam/sdk/protocol";
 import type { ArcadeGame } from "./arcade-system";
 
 /** Browser vs game “mode” for the arcade shell lives in `ArcadeSurfaceState.kind` (replicated). This reducer only tracks host-local launch mechanics (selection, tokens, URLs). */
 export interface ArcadeRuntimeState {
   selectedIndex: number;
   normalizedGameUrl: string;
-  joinToken: string | null;
+  launchCapability: ChildHostCapability | null;
   isLaunching: boolean;
   consumedAutoLaunchRequestKey: string | null;
   lastExitAt: number;
@@ -121,7 +122,7 @@ export const shouldAutoLaunchGame = ({
   roomId,
   surfaceKind,
   isLaunching,
-  hasJoinToken,
+  hasLaunchCapability,
   gamesLength,
 }: {
   autoLaunchRequestKey: string | null;
@@ -131,7 +132,7 @@ export const shouldAutoLaunchGame = ({
   /** From replicated `ArcadeSurfaceState.kind` — not runtime `activeGameId`. */
   surfaceKind: "browser" | "game";
   isLaunching: boolean;
-  hasJoinToken: boolean;
+  hasLaunchCapability: boolean;
   gamesLength: number;
 }): boolean => {
   return (
@@ -142,7 +143,7 @@ export const shouldAutoLaunchGame = ({
     gamesLength > 0 &&
     surfaceKind === "browser" &&
     !isLaunching &&
-    !hasJoinToken
+    !hasLaunchCapability
   );
 };
 
@@ -158,7 +159,7 @@ type RuntimeAction =
   | {
       type: "launch-success";
       normalizedGameUrl: string;
-      joinToken: string;
+      launchCapability: ChildHostCapability;
     }
   | { type: "launch-failure" }
   | { type: "exit-game"; exitedAt: number }
@@ -173,7 +174,7 @@ export const createInitialArcadeRuntimeState = ({
 }): ArcadeRuntimeState => ({
   selectedIndex: getInitialSelectedIndex(games, initialGameId),
   normalizedGameUrl: "",
-  joinToken: null,
+  launchCapability: null,
   isLaunching: false,
   consumedAutoLaunchRequestKey: null,
   lastExitAt: 0,
@@ -212,7 +213,7 @@ export const reduceArcadeRuntimeState = (
         ...state,
         isLaunching: false,
         normalizedGameUrl: action.normalizedGameUrl,
-        joinToken: action.joinToken,
+        launchCapability: action.launchCapability,
       };
 
     case "launch-failure":
@@ -226,7 +227,7 @@ export const reduceArcadeRuntimeState = (
       return {
         ...state,
         normalizedGameUrl: "",
-        joinToken: null,
+        launchCapability: null,
         isLaunching: false,
         lastExitAt: action.exitedAt,
       };
@@ -292,7 +293,7 @@ export const useArcadeRuntimeManager = ({
 
   const beginLaunch = useCallback((): boolean => {
     const snapshot = stateRef.current;
-    if (snapshot.isLaunching || snapshot.joinToken) {
+    if (snapshot.isLaunching || snapshot.launchCapability) {
       return false;
     }
 
@@ -303,15 +304,15 @@ export const useArcadeRuntimeManager = ({
   const completeLaunch = useCallback(
     ({
       normalizedGameUrl,
-      joinToken,
+      launchCapability,
     }: {
       normalizedGameUrl: string;
-      joinToken: string;
+      launchCapability: ChildHostCapability;
     }) => {
       dispatch({
         type: "launch-success",
         normalizedGameUrl,
-        joinToken,
+        launchCapability,
       });
     },
     [],

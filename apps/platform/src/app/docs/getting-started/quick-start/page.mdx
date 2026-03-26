@@ -88,11 +88,11 @@ This project is "vibecode friendly"—it includes documentation and AI instructi
 2. Confirm server health: [http://localhost:4000/health](http://localhost:4000/health).
 3. Confirm your game is using `http://localhost:4000` for `VITE_AIR_JAM_SERVER_URL` (or no override at all for local defaults).
 
-### API key errors in deployed environments
+### App ID errors in deployed environments
 
-1. Ensure `VITE_AIR_JAM_PUBLIC_KEY` is set in your host platform.
+1. Ensure `VITE_AIR_JAM_APP_ID` is set in your host platform.
 2. Ensure the server URL points at your real Air Jam backend.
-3. Rotate/re-copy key from Dashboard if validation fails.
+3. Generate/re-copy the App ID from Dashboard if bootstrap fails.
 
 ### QR / controller join URL issues
 
@@ -107,16 +107,60 @@ When you're ready to share your game, you'll need to deploy it and connect it to
 1.  **Create a Game Profile**:
     - Go to the [Platform Dashboard](/dashboard)
     - Create a profile and a new game
-    - Copy your **API Key**
+    - Copy your **App ID**
 
 2.  **Deploy the Client**:
     - Deploy your game to a static hosting provider like Vercel, Netlify, or GitHub Pages.
     - Set the following environment variables in your deployment settings:
 
     ```bash
-    VITE_AIR_JAM_PUBLIC_KEY=your_public_key_here
+    VITE_AIR_JAM_APP_ID=your_app_id_here
     VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
     ```
+
+The SDK handles production bootstrap automatically from that `appId`. You do not need to mint tokens or add auth code in your game.
+If you want to lock production bootstrap to your deployed site only, set the optional allowed-origin list for the App ID in the dashboard settings.
+
+### Optional: Stronger Signed Host Bootstrap
+
+If you want stricter production ownership guarantees, you can keep the game static and add one small backend or edge endpoint that returns a signed host grant.
+
+Frontend env:
+
+```bash
+VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
+```
+
+Server env:
+
+```bash
+AIR_JAM_HOST_GRANT_SECRET=your_signing_secret
+```
+
+The SDK will fetch the host grant automatically before `host:bootstrap`. Your game code stays unchanged.
+
+Example endpoint shape:
+
+```ts
+import { createHostGrant } from "@air-jam/sdk/protocol";
+
+export async function POST(request: Request) {
+  const { appId } = await request.json();
+
+  const hostGrant = await createHostGrant({
+    secret: process.env.AIR_JAM_HOST_GRANT_SECRET!,
+    claims: {
+      appId,
+      exp: Math.floor(Date.now() / 1000) + 60,
+      origins: ["https://your-game.example"],
+    },
+  });
+
+  return Response.json({ hostGrant });
+}
+```
+
+That endpoint is also where you can add your own rules, for example checking the signed-in user or limiting which app IDs they are allowed to bootstrap.
 
 ## 6. Publish to Arcade
 

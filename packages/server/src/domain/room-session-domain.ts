@@ -1,4 +1,5 @@
 import type {
+  ChildHostCapability,
   ControllerStateMessage,
   GameState,
   HostArcadeSessionSnapshot,
@@ -103,6 +104,34 @@ export const getChildHostDisconnectTeardownMs = (): number => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 4000;
 };
 
+/**
+ * Child-host launch capabilities are room/game scoped and only valid for the current launch.
+ * Keep them long enough for normal refresh/reconnect behavior, but never longer than the launch session itself.
+ */
+export const getChildHostCapabilityTtlMs = (): number => {
+  const raw = process.env.AIR_JAM_CHILD_HOST_CAPABILITY_TTL_MS;
+  if (raw === undefined || raw === "") {
+    return 24 * 60 * 60 * 1000;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : 24 * 60 * 60 * 1000;
+};
+
+export const issueChildHostCapability = (
+  token: string,
+  now = Date.now(),
+): ChildHostCapability => ({
+  token,
+  expiresAt: now + getChildHostCapabilityTtlMs(),
+});
+
+export const isChildHostCapabilityExpired = (
+  capability: ChildHostCapability,
+  now = Date.now(),
+): boolean => capability.expiresAt <= now;
+
 export const canBeginGameLaunch = (
   session: RoomSession,
 ): LaunchAvailability => {
@@ -124,16 +153,16 @@ export const canBeginGameLaunch = (
 
 export const startGameLaunch = (
   session: RoomSession,
-  joinToken: string,
+  launchCapability: ChildHostCapability,
   gameId: string,
 ): void => {
-  session.joinToken = joinToken;
+  session.launchCapability = launchCapability;
   session.activeGameId = gameId;
 };
 
 export const beginGameLaunch = (
   session: RoomSession,
-  joinToken: string,
+  launchCapability: ChildHostCapability,
   gameId: string,
 ): LaunchAvailability => {
   const launchAvailability = canBeginGameLaunch(session);
@@ -142,7 +171,7 @@ export const beginGameLaunch = (
   }
 
   transitionRoomLifecycle(session, "GAME_LAUNCH_PENDING");
-  startGameLaunch(session, joinToken, gameId);
+  startGameLaunch(session, launchCapability, gameId);
   return { ok: true };
 };
 
@@ -151,17 +180,30 @@ export const beginGameLaunch = (
  */
 export const buildArcadeSessionForHostAck = (
   session: RoomSession,
+  issueToken?: () => string,
 ): HostArcadeSessionSnapshot | undefined => {
-  if (!session.joinToken || !session.activeGameId) {
+  if (!session.activeGameId) {
     return undefined;
   }
   const phase = session.lifecycleState;
   if (phase !== "GAME_ACTIVE" && phase !== "GAME_LAUNCH_PENDING") {
     return undefined;
   }
+  const currentCapability = session.launchCapability;
+  if (currentCapability && !isChildHostCapabilityExpired(currentCapability)) {
+    return {
+      gameId: session.activeGameId,
+      launchCapability: currentCapability,
+    };
+  }
+  if (!issueToken) {
+    return undefined;
+  }
+  const refreshedCapability = issueChildHostCapability(issueToken());
+  session.launchCapability = refreshedCapability;
   return {
     gameId: session.activeGameId,
-    joinToken: session.joinToken,
+    launchCapability: refreshedCapability,
   };
 };
 
@@ -218,7 +260,7 @@ export const resetRoomToSystemState = (
 ): void => {
   session.focus = "SYSTEM";
   session.childHostSocketId = undefined;
-  session.joinToken = undefined;
+  session.launchCapability = undefined;
   session.activeGameId = undefined;
   transitionRoomLifecycle(session, "SYSTEM_IDLE");
   if (resetGameState) {

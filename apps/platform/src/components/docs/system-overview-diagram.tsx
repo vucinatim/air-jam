@@ -279,7 +279,7 @@ export const SystemOverviewDiagram = () => {
           fill={diagramColors.textSecondary}
           fontSize="10"
         >
-          (API Keys)
+          (App IDs)
         </text>
 
         <rect

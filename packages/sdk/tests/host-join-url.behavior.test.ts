@@ -48,6 +48,7 @@ const mocked = vi.hoisted(() => ({
   hostSocket: null as unknown,
   useAirJamContext: vi.fn(),
   useAssertSessionScope: vi.fn(),
+  useClaimSessionRuntimeOwner: vi.fn(),
 }));
 
 vi.mock("../src/context/air-jam-context", () => ({
@@ -56,6 +57,7 @@ vi.mock("../src/context/air-jam-context", () => ({
 
 vi.mock("../src/context/session-providers", () => ({
   useAssertSessionScope: mocked.useAssertSessionScope,
+  useClaimSessionRuntimeOwner: mocked.useClaimSessionRuntimeOwner,
 }));
 
 describe("host join url behavior", () => {
@@ -66,7 +68,7 @@ describe("host join url behavior", () => {
 
     mocked.useAirJamContext.mockReturnValue({
       config: {
-        apiKey: undefined,
+        appId: undefined,
         maxPlayers: 8,
         publicHost: "http://localhost:3000",
         resolveEnv: true,

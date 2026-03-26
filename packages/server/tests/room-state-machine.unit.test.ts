@@ -7,6 +7,7 @@ import {
   canBeginGameLaunch,
   canTransitionRoomLifecycle,
   getRoomLifecyclePhase,
+  issueChildHostCapability,
   markRoomTeardown,
   resetRoomToSystemState,
 } from "../src/domain/room-session-domain";
@@ -28,7 +29,7 @@ describe("room session domain lifecycle", () => {
     const session = createSession();
     expect(getRoomLifecyclePhase(session)).toBe("SYSTEM_IDLE");
 
-    beginGameLaunch(session, "token-1", "g1");
+    beginGameLaunch(session, issueChildHostCapability("token-1"), "g1");
     expect(getRoomLifecyclePhase(session)).toBe("GAME_LAUNCH_PENDING");
 
     beginChildHostActivation(session, "host-child");
@@ -56,14 +57,14 @@ describe("room session domain lifecycle", () => {
 
   it("resets game and routing fields when returning to system state", () => {
     const session = createSession();
-    beginGameLaunch(session, "token-1", "g1");
+    beginGameLaunch(session, issueChildHostCapability("token-1"), "g1");
     beginChildHostActivation(session, "host-child");
     session.gameState = "playing";
 
     resetRoomToSystemState(session, false);
     expect(session.focus).toBe("SYSTEM");
     expect(session.childHostSocketId).toBeUndefined();
-    expect(session.joinToken).toBeUndefined();
+    expect(session.launchCapability).toBeUndefined();
     expect(session.activeGameId).toBeUndefined();
     expect(session.lifecycleState).toBe("SYSTEM_IDLE");
     expect(session.gameState).toBe("playing");
@@ -84,7 +85,11 @@ describe("room session domain lifecycle", () => {
     });
 
     const pendingSession = createSession();
-    beginGameLaunch(pendingSession, "token-1", "g1");
+    beginGameLaunch(
+      pendingSession,
+      issueChildHostCapability("token-1"),
+      "g1",
+    );
     expect(canActivateChildHost(pendingSession)).toEqual({ ok: true });
 
     const activeSession = createSession();
@@ -101,11 +106,11 @@ describe("room session domain lifecycle", () => {
 
     const launchAttempt = beginGameLaunch(
       activeSession,
-      "token-1",
+      issueChildHostCapability("token-1"),
       "g1",
     );
     expect(launchAttempt).toEqual({ ok: false, reason: "GAME_ACTIVE" });
-    expect(activeSession.joinToken).toBeUndefined();
+    expect(activeSession.launchCapability).toBeUndefined();
 
     const idleSession = createSession();
     const activationAttempt = beginChildHostActivation(

@@ -51,7 +51,7 @@ The server owns only hard runtime invariants:
 2. controller identity
 3. host / child-host authorization
 4. focus / routing
-5. join token validity
+5. child launch capability validity
 6. reconnect continuity
 
 The server does not own Arcade UI truth.

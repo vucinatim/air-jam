@@ -19,7 +19,11 @@ type ControllerJoinAck = {
 };
 
 const allowAllAuthService = {
-  verifyApiKey: async () => ({ isVerified: true }),
+  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+    isVerified: true,
+    appId,
+    verifiedVia: "appId" as const,
+  }),
 } as AuthService;
 
 describe("server room lifecycle", () => {
@@ -29,6 +33,7 @@ describe("server room lifecycle", () => {
 
   it("allows host reconnect after disconnect", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
       host,
       "host:createRoom",
@@ -43,6 +48,7 @@ describe("server room lifecycle", () => {
     await harness.delay(30);
 
     const reconnectedHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(reconnectedHost)).ok).toBe(true);
     const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
       reconnectedHost,
       "host:reconnect",
@@ -55,6 +61,7 @@ describe("server room lifecycle", () => {
 
   it("routes controller join/leave/rejoin notices to the host", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
       host,
       "host:createRoom",
@@ -108,6 +115,7 @@ describe("server room lifecycle", () => {
 
   it("replaces the previous controller identity when the same socket rejoins with a new controller id", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
       host,
       "host:createRoom",
@@ -149,6 +157,7 @@ describe("server room lifecycle", () => {
 
   it("cleans up room state after host disconnect timeout", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
       host,

@@ -5,7 +5,8 @@ import { parseOptionalArcadeSurfaceFromSearchParams } from "./arcade-runtime-url
 
 export interface ChildHostRuntimeParams {
   room: string;
-  token: string;
+  capabilityToken: string;
+  capabilityExpiresAt?: number;
   joinUrl?: string;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }
@@ -27,10 +28,15 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
 
   const params = new URLSearchParams(window.location.search);
   const room = params.get("aj_room");
-  const token = params.get("aj_token");
-  if (!room || !token) {
+  const capabilityToken = params.get("aj_cap");
+  if (!room || !capabilityToken) {
     return null;
   }
+
+  const rawCapabilityExpiresAt = params.get("aj_cap_exp");
+  const parsedCapabilityExpiresAt = rawCapabilityExpiresAt
+    ? Number(rawCapabilityExpiresAt)
+    : NaN;
 
   const joinUrl = params.get("aj_join_url");
   const normalizedJoinUrl = joinUrl ? normalizeRuntimeUrl(joinUrl) : null;
@@ -42,7 +48,10 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
 
   return {
     room,
-    token,
+    capabilityToken,
+    capabilityExpiresAt: Number.isFinite(parsedCapabilityExpiresAt)
+      ? parsedCapabilityExpiresAt
+      : undefined,
     joinUrl: normalizedJoinUrl ?? undefined,
     arcadeSurface,
   };

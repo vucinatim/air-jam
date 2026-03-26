@@ -36,9 +36,9 @@ describe("runtime url policy", () => {
     expect(
       appendRuntimeQueryParams("https://game.example/play?foo=bar", {
         aj_room: "ABCD",
-        aj_token: "join_123",
+        aj_cap: "join_123",
       }),
-    ).toBe("https://game.example/play?foo=bar&aj_room=ABCD&aj_token=join_123");
+    ).toBe("https://game.example/play?foo=bar&aj_room=ABCD&aj_cap=join_123");
 
     expect(
       appendRuntimeQueryParams("javascript:alert(1)", {

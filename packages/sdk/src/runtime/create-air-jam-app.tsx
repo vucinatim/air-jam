@@ -51,7 +51,8 @@ const resolveControllerPath = (controllerPath?: string): string => {
 
 interface ViteEnvLike {
   VITE_AIR_JAM_SERVER_URL?: string;
-  VITE_AIR_JAM_PUBLIC_KEY?: string;
+  VITE_AIR_JAM_APP_ID?: string;
+  VITE_AIR_JAM_HOST_GRANT_ENDPOINT?: string;
   VITE_AIR_JAM_PUBLIC_HOST?: string;
 }
 
@@ -76,7 +77,8 @@ export const env = {
     const viteEnv = readViteEnv();
     return {
       serverUrl: viteEnv?.VITE_AIR_JAM_SERVER_URL,
-      apiKey: viteEnv?.VITE_AIR_JAM_PUBLIC_KEY,
+      appId: viteEnv?.VITE_AIR_JAM_APP_ID,
+      hostGrantEndpoint: viteEnv?.VITE_AIR_JAM_HOST_GRANT_ENDPOINT,
       publicHost: viteEnv?.VITE_AIR_JAM_PUBLIC_HOST,
       resolveEnv: true,
     };

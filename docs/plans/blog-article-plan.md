@@ -100,7 +100,7 @@ The backstory and motivation:
   state sync)
 - The goal: handle the hard stuff so people can focus on the fun, creative parts
 - Designed from the start to be extensible and open-source
-- A free public server so anyone can deploy games anywhere with an API key
+- A free public server so anyone can deploy games anywhere with an app ID
 
 **Key insight to articulate:** There are two hard problems in making phone-controller
 party games: (1) the real-time networking/input pipeline, and (2) the actual game.
@@ -221,7 +221,7 @@ Honest takeaways about vibe-coding games with the framework:
 ### 7. TRY IT YOURSELF (~200 words)
 
 - Fully open-source: GitHub link
-- Free public server with API keys
+- Free public server with app IDs
 - One command: `npx create-airjam my-game`
 - npm packages: `@air-jam/sdk`, `@air-jam/server`
 - Documentation and platform link
@@ -274,7 +274,7 @@ games are the ones you play with people in the room.
   - `@air-jam/server` -- https://www.npmjs.com/package/@air-jam/server
   - `create-airjam` -- https://www.npmjs.com/package/create-airjam
 - **Scaffold command:** `npx create-airjam my-game`
-- **API keys:** Sign up at air-jam.app, create a game in dashboard, key auto-generated
+- **App IDs:** Sign up at air-jam.app, create a game in dashboard, app ID auto-generated
 - **Game jam games:** Will all be published and playable at air-jam.app/arcade
 
 ## Remaining Questions

@@ -28,10 +28,10 @@ describe("runtime config validation", () => {
     ).toThrow("[AirJam][AJ_CONFIG_MISSING_SERVER_URL]");
   });
 
-  it("emits actionable error diagnostic in production when API key is missing", () => {
+  it("emits actionable error diagnostic in production when app ID is missing", () => {
     process.env.NODE_ENV = "production";
-    delete process.env.VITE_AIR_JAM_PUBLIC_KEY;
-    delete process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY;
+    delete process.env.VITE_AIR_JAM_APP_ID;
+    delete process.env.NEXT_PUBLIC_AIR_JAM_APP_ID;
 
     const codes: string[] = [];
     const unsubscribe = onAirJamDiagnostic((diagnostic) => {
@@ -42,22 +42,36 @@ describe("runtime config validation", () => {
       serverUrl: "https://api.example.com",
     });
 
-    expect(resolved.apiKey).toBeUndefined();
-    expect(codes).toContain("AJ_CONFIG_MISSING_API_KEY");
+    expect(resolved.appId).toBeUndefined();
+    expect(codes).toContain("AJ_CONFIG_MISSING_APP_ID");
     unsubscribe();
   });
 
-  it("ignores removed legacy API key env names", () => {
+  it("ignores removed legacy app ID env names", () => {
     process.env.NODE_ENV = "development";
-    process.env.NEXT_PUBLIC_AIR_JAM_API_KEY = "legacy-key";
-    process.env.VITE_AIR_JAM_API_KEY = "legacy-vite-key";
-    delete process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY;
-    delete process.env.VITE_AIR_JAM_PUBLIC_KEY;
+    process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_KEY = "legacy-key";
+    process.env.VITE_AIR_JAM_PUBLIC_KEY = "legacy-vite-key";
+    delete process.env.NEXT_PUBLIC_AIR_JAM_APP_ID;
+    delete process.env.VITE_AIR_JAM_APP_ID;
 
     const resolved = resolveAirJamConfig({
       serverUrl: "https://api.example.com",
     });
 
-    expect(resolved.apiKey).toBeUndefined();
+    expect(resolved.appId).toBeUndefined();
+  });
+
+  it("resolves host grant endpoint from environment", () => {
+    process.env.NODE_ENV = "production";
+    process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT =
+      "https://example.com/api/airjam/host-grant";
+
+    const resolved = resolveAirJamConfig({
+      serverUrl: "https://api.example.com",
+    });
+
+    expect(resolved.hostGrantEndpoint).toBe(
+      "https://example.com/api/airjam/host-grant",
+    );
   });
 });
