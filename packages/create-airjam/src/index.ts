@@ -8,9 +8,23 @@ import prompts from "prompts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const manifestPath = path.resolve(__dirname, "..", "template-version-manifest.json");
+
+type TemplateVersionManifest = Record<string, string>;
+
+const loadTemplateVersionManifest = (): TemplateVersionManifest => {
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(
+      "Missing template version manifest. Rebuild create-airjam before scaffolding.",
+    );
+  }
+
+  return fs.readJsonSync(manifestPath) as TemplateVersionManifest;
+};
 
 const normalizeWorkspaceSpecs = (
   deps: Record<string, string> | undefined,
+  manifest: TemplateVersionManifest,
 ): Record<string, string> | undefined => {
   if (!deps) return deps;
 
@@ -19,9 +33,84 @@ const normalizeWorkspaceSpecs = (
       if (!range.startsWith("workspace:")) {
         return [name, range];
       }
-      return [name, range.replace(/^workspace:/, "")];
+
+      const normalizedRange = range.replace(/^workspace:/, "");
+      if (manifest[name]) {
+        return [name, `^${manifest[name]}`];
+      }
+
+      return [name, normalizedRange];
     }),
   );
+};
+
+const parseNamedSpecs = (values: string[] | undefined): Map<string, string> => {
+  const entries = values ?? [];
+  const namedSpecs = new Map<string, string>();
+
+  for (const entry of entries) {
+    const separatorIndex = entry.indexOf("=");
+    if (separatorIndex <= 0) {
+      throw new Error(
+        `Invalid spec override "${entry}". Expected NAME=SPEC format.`,
+      );
+    }
+
+    const name = entry.slice(0, separatorIndex).trim();
+    const spec = entry.slice(separatorIndex + 1).trim();
+
+    if (!name || !spec) {
+      throw new Error(
+        `Invalid spec override "${entry}". Expected NAME=SPEC format.`,
+      );
+    }
+
+    namedSpecs.set(name, spec);
+  }
+
+  return namedSpecs;
+};
+
+const applyNamedSpecs = (
+  pkg: {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+    pnpm?: {
+      overrides?: Record<string, string>;
+    };
+  },
+  depSpecs: Map<string, string>,
+  overrideSpecs: Map<string, string>,
+) => {
+  const dependencies = { ...(pkg.dependencies ?? {}) };
+  const devDependencies = { ...(pkg.devDependencies ?? {}) };
+
+  for (const [name, spec] of depSpecs.entries()) {
+    if (Object.prototype.hasOwnProperty.call(dependencies, name)) {
+      dependencies[name] = spec;
+      continue;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(devDependencies, name)) {
+      devDependencies[name] = spec;
+      continue;
+    }
+
+    dependencies[name] = spec;
+  }
+
+  pkg.dependencies = dependencies;
+  pkg.devDependencies = devDependencies;
+
+  if (overrideSpecs.size === 0) {
+    return;
+  }
+
+  pkg.pnpm = pkg.pnpm ?? {};
+  pkg.pnpm.overrides = {
+    ...(pkg.pnpm.overrides ?? {}),
+    ...Object.fromEntries(overrideSpecs),
+  };
 };
 
 async function main() {
@@ -31,10 +120,30 @@ async function main() {
     .argument("[project-name]", "Name of the project directory")
     .option("-t, --template <template>", "Template to use", "pong")
     .option("--skip-install", "Skip dependency installation", false)
+    .option(
+      "--dep-spec <name=spec>",
+      "Override a scaffold dependency spec (advanced/internal)",
+      (value, previous: string[] = []) => [...previous, value],
+      [],
+    )
+    .option(
+      "--override-spec <name=spec>",
+      "Add a pnpm override to the scaffolded project (advanced/internal)",
+      (value, previous: string[] = []) => [...previous, value],
+      [],
+    )
     .parse();
 
   const args = program.args;
-  const options = program.opts<{ template: string; skipInstall: boolean }>();
+  const options = program.opts<{
+    template: string;
+    skipInstall: boolean;
+    depSpec: string[];
+    overrideSpec: string[];
+  }>();
+  const manifest = loadTemplateVersionManifest();
+  const depSpecs = parseNamedSpecs(options.depSpec);
+  const overrideSpecs = parseNamedSpecs(options.overrideSpec);
 
   let projectName = args[0];
 
@@ -145,8 +254,9 @@ async function main() {
   if (fs.existsSync(pkgPath)) {
     const pkg = await fs.readJson(pkgPath);
     pkg.name = projectName;
-    pkg.dependencies = normalizeWorkspaceSpecs(pkg.dependencies);
-    pkg.devDependencies = normalizeWorkspaceSpecs(pkg.devDependencies);
+    pkg.dependencies = normalizeWorkspaceSpecs(pkg.dependencies, manifest);
+    pkg.devDependencies = normalizeWorkspaceSpecs(pkg.devDependencies, manifest);
+    applyNamedSpecs(pkg, depSpecs, overrideSpecs);
     await fs.writeJson(pkgPath, pkg, { spaces: 2 });
   }
 

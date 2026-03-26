@@ -129,6 +129,28 @@ This scaffolds a complete project with:
 - SDK configuration
 - Documentation and AI instructions
 
+### Internal Template Workflow
+
+Inside this monorepo, template games stay as real workspace packages. We do not
+mutate template dependency files at publish time anymore.
+
+The canonical workflow is:
+
+- Develop templates in-place against workspace packages.
+- Use `pnpm test:scaffold:workspace` to prove scaffolds work against local packages.
+- Use `pnpm test:scaffold:tarball` to prove scaffolds work against packed unpublished artifacts.
+- Use `pnpm pack:local` to produce local tarballs under `.airjam/tarballs/`.
+
+Useful local scaffold helpers:
+
+```bash
+pnpm scaffold:workspace -- my-local-game
+pnpm scaffold:tarball -- ../scratch/my-airjam-game
+```
+
+That keeps template source, workspace development, and pre-publish verification on
+the same path instead of relying on hidden publish-time rewrites.
+
 See the [SDK README](./packages/sdk/README.md) for detailed usage.
 
 ## Contributing

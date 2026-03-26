@@ -11,14 +11,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@air-jam/sdk": "workspace:^1.0.0",
+    "@air-jam/sdk": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0",
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@air-jam/server": "workspace:^1.0.0",
+    "@air-jam/server": "workspace:*",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.0.0",

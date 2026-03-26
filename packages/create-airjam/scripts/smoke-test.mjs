@@ -40,10 +40,6 @@ const toExactVersion = (value) => {
   return value.replace(/^[~^]/, "");
 };
 
-const writeJson = (filePath, json) => {
-  fs.writeFileSync(filePath, `${JSON.stringify(json, null, 2)}\n`, "utf-8");
-};
-
 const packWorkspacePackage = ({ packageDir, outDir }) => {
   fs.mkdirSync(outDir, { recursive: true });
   const before = new Set(fs.readdirSync(outDir));
@@ -55,32 +51,6 @@ const packWorkspacePackage = ({ packageDir, outDir }) => {
     throw new Error(`No tarball produced for package at ${packageDir}`);
   }
   return path.join(outDir, created[created.length - 1]);
-};
-
-const rewireScaffoldDeps = ({
-  projectDir,
-  sdkDep,
-  serverDep,
-  sdkOverride,
-  zodDep,
-}) => {
-  const pkgPath = path.join(projectDir, "package.json");
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-
-  pkg.dependencies = pkg.dependencies || {};
-  pkg.devDependencies = pkg.devDependencies || {};
-  pkg.dependencies["@air-jam/sdk"] = sdkDep;
-  if (zodDep) {
-    pkg.dependencies.zod = zodDep;
-  }
-  pkg.devDependencies["@air-jam/server"] = serverDep;
-  if (sdkOverride) {
-    pkg.pnpm = pkg.pnpm || {};
-    pkg.pnpm.overrides = pkg.pnpm.overrides || {};
-    pkg.pnpm.overrides["@air-jam/sdk"] = sdkOverride;
-  }
-
-  writeJson(pkgPath, pkg);
 };
 
 const main = () => {
@@ -100,13 +70,17 @@ const main = () => {
   const projectDir = path.join(tempRoot, projectName);
 
   try {
-    const shouldSkipInstall = source !== "registry";
-    run(
-      `node ${JSON.stringify(cliEntry)} ${projectName} --template pong ${
-        shouldSkipInstall ? "--skip-install" : ""
-      }`.trim(),
-      tempRoot,
-    );
+    const cliArgs = [
+      "node",
+      JSON.stringify(cliEntry),
+      projectName,
+      "--template",
+      "pong",
+    ];
+
+    if (source !== "registry") {
+      cliArgs.push("--skip-install");
+    }
 
     if (source === "tarball") {
       const tarballDir = path.join(tempRoot, "tarballs");
@@ -121,14 +95,9 @@ const main = () => {
         packageDir: path.join(repoRoot, "packages", "server"),
         outDir: tarballDir,
       });
-
-      rewireScaffoldDeps({
-        projectDir,
-        sdkDep: `file:${sdkTarball}`,
-        serverDep: `file:${serverTarball}`,
-        sdkOverride: `file:${sdkTarball}`,
-      });
-      run("pnpm install", projectDir);
+      cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
+      cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
+      cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
     } else if (source === "workspace") {
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
@@ -136,12 +105,21 @@ const main = () => {
       const sdkPkg = JSON.parse(
         fs.readFileSync(path.join(repoRoot, "packages", "sdk", "package.json"), "utf-8"),
       );
-      rewireScaffoldDeps({
-        projectDir,
-        sdkDep: `link:${path.join(repoRoot, "packages", "sdk")}`,
-        serverDep: `link:${path.join(repoRoot, "packages", "server")}`,
-        zodDep: toExactVersion(sdkPkg.dependencies?.zod),
-      });
+      cliArgs.push(
+        `--dep-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
+      );
+      cliArgs.push(
+        `--dep-spec=@air-jam/server=link:${path.join(repoRoot, "packages", "server")}`,
+      );
+      cliArgs.push(`--dep-spec=zod=${toExactVersion(sdkPkg.dependencies?.zod)}`);
+      cliArgs.push(
+        `--override-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
+      );
+    }
+
+    run(cliArgs.join(" "), tempRoot);
+
+    if (source !== "registry") {
       run("pnpm install", projectDir);
     }
 

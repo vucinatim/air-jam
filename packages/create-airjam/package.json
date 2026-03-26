@@ -29,10 +29,11 @@
   },
   "files": [
     "dist",
-    "templates"
+    "templates",
+    "template-version-manifest.json"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "node scripts/generate-template-version-manifest.mjs && tsup",
     "dev": "tsup --watch",
     "smoke": "node scripts/smoke-test.mjs",
     "smoke:registry": "node scripts/smoke-test.mjs --source=registry",

@@ -32,6 +32,16 @@ This is the default implementation loop for launch-period work.
 4. `pnpm build`
 5. When touching networking/perf-sensitive server paths, run optional `pnpm perf:sanity`.
 
+## 4a) Template / Scaffold Validation
+
+When touching `create-airjam`, templates, or package boundary behavior:
+
+1. Keep template files canonical for workspace development.
+2. Do not rely on publish-time mutation of template dependencies or Vite config.
+3. Validate workspace scaffolds with `pnpm test:scaffold:workspace`.
+4. Validate unpublished-package behavior with `pnpm test:scaffold:tarball`.
+5. If you need local artifacts for another repo, use `pnpm pack:local`.
+
 ## 5) Update Docs in Same Change
 
 1. Update affected docs immediately when contracts/behavior change.

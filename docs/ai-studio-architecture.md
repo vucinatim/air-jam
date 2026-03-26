@@ -286,6 +286,40 @@ It should not initially promise:
 
 Those promises would expand scope too early and make reliability worse.
 
+## Editor And Agent UI Stack
+
+The studio should use mature editor primitives where they clearly help, but the Studio architecture itself must remain first-party.
+
+### Main Code Editor
+
+The recommended main code editor is Monaco.
+
+Reasons:
+
+1. it fits the expected IDE-like experience best
+2. it is a strong match for a serious desktop-oriented coding tool
+3. it aligns with the kind of file navigation, diagnostics, and editing experience users will expect from an AI-native code studio
+
+CodeMirror remains a reasonable option for smaller embedded editors or secondary text surfaces, but it should not be the primary Studio code editor unless a later product constraint proves Monaco to be the wrong fit.
+
+### Agent UI
+
+The Studio should have a custom Air Jam-owned agent UI.
+
+The product should not be framed internally as "a chat app with tools".
+
+The agent UI must be able to represent:
+
+1. active workspace context
+2. tool calls
+3. file patches
+4. preview actions
+5. run progress
+6. checkpoints and recovery
+7. publish-related operations
+
+Those concepts belong to Air Jam Studio directly and should not depend on a third-party chat abstraction.
+
 ## Workspace Model
 
 Air Jam Studio should operate on a canonical workspace model.
@@ -426,6 +460,63 @@ Agents should operate on the same workspace model as humans.
 No separate hidden "agent project format" should exist.
 
 That would create drift and make the product harder to reason about.
+
+## Agent Execution Engine
+
+The Studio may use a third-party agent loop implementation internally if it materially speeds up development, but only behind a strict first-party boundary.
+
+### Recommended Direction
+
+Vercel AI SDK's `ToolLoopAgent` is a reasonable candidate for the initial multi-step agent execution engine.
+
+It appears especially useful for:
+
+1. bounded multi-step tool loops
+2. step-based stopping conditions
+3. dynamic per-step tool/model selection
+4. streaming agent execution UX
+5. forcing structured tool-based workflows instead of freeform direct answers
+
+### Architecture Rule
+
+The Studio must not expose Vercel AI SDK concepts as its product architecture.
+
+Instead, Air Jam should own its own internal execution contract, for example:
+
+1. `AgentRun`
+2. `AgentStep`
+3. `AgentToolCall`
+4. `WorkspacePatch`
+5. `AgentCheckpoint`
+6. `AgentResult`
+
+The implementation behind that contract may use `ToolLoopAgent` initially, but the product should remain replaceable if a different execution engine later proves better.
+
+### Why This Boundary Matters
+
+Air Jam Studio is not just an LLM loop with tools.
+
+It also requires:
+
+1. workspace persistence
+2. preview-aware tool execution
+3. patch safety
+4. resumability
+5. checkpoints
+6. publish integration
+7. Studio-specific progress and recovery semantics
+
+Those concerns belong to Air Jam Studio, not to the external agent SDK.
+
+### Recommended V1 Stack
+
+The current recommended V1 direction is:
+
+1. Monaco for the main editor
+2. Air Jam-owned agent UI
+3. Air Jam-owned backend tools and workspace contracts
+4. Vercel AI SDK `ToolLoopAgent` as an internal execution engine
+5. Air Jam-owned persistence, eventing, patching, preview, and publish boundaries
 
 ## Agent Guardrails
 

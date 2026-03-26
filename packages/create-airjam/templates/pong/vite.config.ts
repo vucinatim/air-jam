@@ -13,20 +13,14 @@ const resolveManualChunk = (id: string): string | undefined => {
 
   if (
     id.includes("/react/") ||
-    id.includes("/react-dom/") ||
-    id.includes("react-router-dom")
-  ) {
-    return "react-runtime";
-  }
-
-  if (
+    id.includes("react-router-dom") ||
     id.includes("/zustand/") ||
     id.includes("/howler/") ||
     id.includes("/socket.io-client/") ||
     id.includes("/qrcode/") ||
     id.includes("/zod/")
   ) {
-    return "app-runtime";
+    return "vendor-runtime";
   }
 
   return undefined;
