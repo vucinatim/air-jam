@@ -175,7 +175,7 @@ See `.env.example` for all available environment variables. Key variables:
 
 1. Ensure `VITE_AIR_JAM_APP_ID` is set in your hosting provider.
 2. Ensure `VITE_AIR_JAM_SERVER_URL` points to your production Air Jam backend.
-3. Re-copy/rotate your key from the Air Jam platform if needed.
+3. Re-copy/rotate your App ID from the Air Jam platform if needed.
 
 ### Controller join URL / QR issues
 
@@ -198,6 +198,45 @@ See `.env.example` for all available environment variables. Key variables:
 
 The game will connect to the official Air Jam server - no local server needed!
 `vercel.json` is included in this template so `/controller?room=XXXX` and other SPA routes resolve correctly.
+
+### Optional: Stronger Signed Host Bootstrap
+
+If you want stricter ownership guarantees without giving up static hosting, keep the game static and add one small backend or edge route that returns a signed host grant.
+
+Frontend env:
+
+```bash
+VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
+```
+
+Server env:
+
+```bash
+AIR_JAM_HOST_GRANT_SECRET=your_signing_secret
+```
+
+Minimal endpoint shape:
+
+```ts
+import { createHostGrant } from "@air-jam/sdk/protocol";
+
+export async function POST(request: Request) {
+  const { appId } = await request.json();
+
+  const hostGrant = await createHostGrant({
+    secret: process.env.AIR_JAM_HOST_GRANT_SECRET!,
+    claims: {
+      appId,
+      exp: Math.floor(Date.now() / 1000) + 60,
+      origins: ["https://your-game.example"],
+    },
+  });
+
+  return Response.json({ hostGrant });
+}
+```
+
+The SDK fetches that grant automatically before `host:bootstrap`. Your host/controller game code does not change.
 
 ### Building for Production
 

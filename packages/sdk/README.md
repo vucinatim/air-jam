@@ -43,6 +43,34 @@ export const airjam = createAirJamApp({
 });
 ```
 
+## Production Auth Modes
+
+There are two canonical production modes:
+
+1. Static `appId` mode
+2. Optional signed host-grant mode
+
+Static `appId` mode is the default. Set:
+
+```bash
+VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
+VITE_AIR_JAM_APP_ID=aj_app_your_app_id
+```
+
+If you want stricter ownership guarantees while keeping the game static, add:
+
+```bash
+VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
+```
+
+and have that endpoint return:
+
+```json
+{ "hostGrant": "..." }
+```
+
+The SDK fetches the host grant automatically before `host:bootstrap`. Game code stays unchanged.
+
 ## Host Usage
 
 Use `useAirJamHost` in your host/game view.

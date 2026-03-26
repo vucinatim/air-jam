@@ -121,6 +121,12 @@ When you're ready to share your game, you'll need to deploy it and connect it to
 The SDK handles production bootstrap automatically from that `appId`. You do not need to mint tokens or add auth code in your game.
 If you want to lock production bootstrap to your deployed site only, set the optional allowed-origin list for the App ID in the dashboard settings.
 
+Before release, run the canonical workspace validation from the repo root:
+
+```bash
+pnpm check:release
+```
+
 ### Optional: Stronger Signed Host Bootstrap
 
 If you want stricter production ownership guarantees, you can keep the game static and add one small backend or edge endpoint that returns a signed host grant.

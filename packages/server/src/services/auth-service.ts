@@ -33,6 +33,13 @@ export interface HostBootstrapVerificationResult extends VerificationResult {
   grantClaims?: HostGrantClaims;
 }
 
+export interface HostBootstrapAuthService {
+  verifyHostBootstrap: (
+    input: VerifyHostBootstrapInput,
+  ) => Promise<HostBootstrapVerificationResult>;
+  getStartupConfigurationError?: () => string | null;
+}
+
 const normalizeOrigin = (value?: string): string | null => {
   if (!value) {
     return null;
@@ -69,17 +76,40 @@ export class AuthService {
       this.logger.info(
         "Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce app identity checks)",
       );
-    } else if (this.masterKey && !this.databaseUrl) {
+    } else if (this.masterKey && !this.databaseUrl && !this.hostGrantSecret) {
       this.logger.info(
         "Running with master key authentication (no database required)",
       );
+    } else if (this.databaseUrl && this.hostGrantSecret) {
+      this.logger.info(
+        "Running with database authentication and signed host-grant verification",
+      );
     } else if (this.databaseUrl) {
       this.logger.info("Running with database authentication");
+    } else if (this.hostGrantSecret) {
+      this.logger.info(
+        "Running with signed host-grant authentication only (app ID bootstrap disabled because DATABASE_URL is not configured)",
+      );
     } else {
       this.logger.warn(
         "Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
       );
     }
+  }
+
+  getStartupConfigurationError(): string | null {
+    if (this.authMode !== "required") {
+      return null;
+    }
+
+    if (this.masterKey || this.databaseUrl || this.hostGrantSecret) {
+      return null;
+    }
+
+    return [
+      "AIR_JAM_AUTH_MODE=required requires an auth backend.",
+      "Configure DATABASE_URL for app ID bootstrap, AIR_JAM_HOST_GRANT_SECRET for signed host grants, or AIR_JAM_MASTER_KEY for the legacy fallback.",
+    ].join(" ");
   }
 
   async verifyHostBootstrap({

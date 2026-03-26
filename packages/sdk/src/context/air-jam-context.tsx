@@ -182,6 +182,10 @@ interface DevProviderMountWindow extends Window {
   __airJamDevProviderMountSent__?: boolean;
 }
 
+interface ProcessLike {
+  env?: Record<string, string | undefined>;
+}
+
 const isDevelopmentRuntime = (): boolean => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,7 +197,8 @@ const isDevelopmentRuntime = (): boolean => {
     // Ignore environments without import.meta
   }
 
-  return process.env.NODE_ENV !== "production";
+  const processLike = (globalThis as { process?: ProcessLike }).process;
+  return processLike?.env?.NODE_ENV !== "production";
 };
 
 // ============================================================================

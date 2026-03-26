@@ -5,7 +5,7 @@ import {
   resolveSocketIdentifier,
 } from "../policies/rate-limit-policy.js";
 import { createSocketAuthorization } from "../policies/socket-authorization.js";
-import type { AuthService } from "../services/auth-service.js";
+import type { HostBootstrapAuthService } from "../services/auth-service.js";
 import type { RateLimitService } from "../services/rate-limit-service.js";
 import type { RoomManager } from "../services/room-manager.js";
 import { registerControllerHandlers } from "./handlers/register-controller-handlers.js";
@@ -22,7 +22,7 @@ export interface RegisterSocketHandlersOptions {
   logger: ServerLogger;
   roomManager: RoomManager;
   rateLimitService: RateLimitService;
-  authService: AuthService;
+  authService: HostBootstrapAuthService;
   rateLimitWindowMs: number;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;

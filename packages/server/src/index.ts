@@ -11,7 +11,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import { registerSocketHandlers } from "./gateway/register-socket-handlers.js";
-import { AuthService } from "./services/auth-service.js";
+import {
+  AuthService,
+  type HostBootstrapAuthService,
+} from "./services/auth-service.js";
 import { createServerLogger, type ServerLogger } from "./logging/logger.js";
 import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
 import {
@@ -44,7 +47,7 @@ export interface CreateAirJamServerOptions {
   staticAppRateLimitMax?: number;
   allowedOrigins?: string[] | "*";
   logger?: ServerLogger;
-  authService?: AuthService;
+  authService?: HostBootstrapAuthService;
   rateLimitService?: RateLimitService;
   roomManager?: RoomManager;
   devLogCollector?: DevLogCollector | false;
@@ -119,6 +122,13 @@ export const createAirJamServer = (
   const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
   const authServiceInstance =
     options.authService ?? new AuthService({ logger: logger.child({ component: "auth" }) });
+  const startupConfigurationError =
+    typeof authServiceInstance.getStartupConfigurationError === "function"
+      ? authServiceInstance.getStartupConfigurationError()
+      : null;
+  if (startupConfigurationError) {
+    throw new Error(startupConfigurationError);
+  }
 
   const defaultPort = Number(process.env.PORT ?? 4000);
   const rateLimitWindowMs =

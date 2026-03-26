@@ -74,6 +74,19 @@ describe("AuthService", () => {
     expect(result.error).toBe("Unauthorized: Invalid or Missing App ID");
   });
 
+  it("reports a clear startup configuration error when required auth has no backend", () => {
+    process.env.AIR_JAM_AUTH_MODE = "required";
+    delete process.env.AIR_JAM_MASTER_KEY;
+    delete process.env.DATABASE_URL;
+    delete process.env.AIR_JAM_HOST_GRANT_SECRET;
+
+    const authService = new AuthService();
+
+    expect(authService.getStartupConfigurationError()).toBe(
+      "AIR_JAM_AUTH_MODE=required requires an auth backend. Configure DATABASE_URL for app ID bootstrap, AIR_JAM_HOST_GRANT_SECRET for signed host grants, or AIR_JAM_MASTER_KEY for the legacy fallback.",
+    );
+  });
+
   it("accepts a valid signed host grant", async () => {
     process.env.AIR_JAM_AUTH_MODE = "required";
     process.env.AIR_JAM_HOST_GRANT_SECRET = "secret_123";

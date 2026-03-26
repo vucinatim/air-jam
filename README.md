@@ -72,6 +72,10 @@ BETTER_AUTH_URL=http://localhost:3000
 
 # Server connection
 NEXT_PUBLIC_AIR_JAM_SERVER_URL=http://localhost:4000
+NEXT_PUBLIC_AIR_JAM_APP_ID=aj_app_your_platform_app_id
+
+# Optional stronger signed host-grant mode
+NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
 ```
 
 #### Running the Development Server
@@ -92,6 +96,12 @@ DATABASE_URL=postgresql://user:password@localhost:5432/airjam
 # Optional stronger signed host-grant mode
 AIR_JAM_HOST_GRANT_SECRET=your-signing-secret
 ```
+
+If you set `AIR_JAM_AUTH_MODE=required`, the server now fails fast on boot unless at least one auth backend is configured:
+
+- `DATABASE_URL` for static `appId` bootstrap
+- `AIR_JAM_HOST_GRANT_SECRET` for signed host grants
+- `AIR_JAM_MASTER_KEY` only as a legacy fallback
 
 #### Running the Prototype Game
 
@@ -129,10 +139,31 @@ Full contribution workflow and standards: [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ### Submitting a Pull Request
 
-1. Ensure all checks pass (`pnpm typecheck`, `pnpm lint`, `pnpm build`)
+1. Ensure all checks pass (`pnpm check:release`)
 2. Write clear commit messages
 3. Update documentation if needed
 4. Submit a PR with a clear description of changes
+
+### Release Validation
+
+Run the canonical release check before shipping:
+
+```bash
+pnpm check:release
+```
+
+That includes:
+
+- workspace typechecks
+- automated tests
+- workspace builds
+- a lightweight happy-path smoke flow
+
+If you only want the smoke flow:
+
+```bash
+pnpm smoke:happy-path
+```
 
 ### Optional Local Perf Sanity
 
@@ -175,6 +206,8 @@ The platform is a Next.js application that can be deployed to Vercel, Railway, o
    - `BETTER_AUTH_SECRET`: Random secret for authentication
    - `BETTER_AUTH_URL`: Your production URL (e.g., `https://your-domain.com`)
    - `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL (e.g., `https://server.your-domain.com`)
+   - `NEXT_PUBLIC_AIR_JAM_APP_ID`: Your platform App ID
+   - `NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT`: Optional signed host-grant endpoint for stricter host auth
 
 4. **Build settings**:
    - Framework Preset: Next.js
@@ -229,6 +262,8 @@ The server can be deployed as a Node.js application:
 - `BETTER_AUTH_SECRET`: Auth secret
 - `BETTER_AUTH_URL`: Production URL
 - `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Server URL
+- `NEXT_PUBLIC_AIR_JAM_APP_ID`: Public app ID for platform host bootstrap
+- `NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT`: Optional signed host-grant endpoint
 
 **Server** (`packages/server`):
 

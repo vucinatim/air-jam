@@ -11,6 +11,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 5. Add dedicated room capability tokens for controller actions (`controller:system`, `controller:play_sound`, `controller:action_rpc`) so room-code knowledge is not enough to issue privileged commands.
 6. Add a dedicated server performance harness with committed baseline metrics and threshold-based CI checks for input latency and reconnect churn regressions.
 7. Extract the parallel host/controller bridge clients into a small generic bridge transport base so handshake, timeout, port lifecycle, and event fanout do not stay duplicated.
+8. Split the prototype game and Pong template production bundles so the default host build no longer ships a single >500 kB client chunk; keep the template’s golden path fast and avoid teaching new games a heavy baseline.
 
 ## Framework Boundary Follow-Ups
 
