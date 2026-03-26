@@ -8,7 +8,8 @@ Related docs:
 1. [Framework Paradigm](./framework-paradigm.md)
 2. [Implementation Plan](./implementation-plan.md)
 3. [Auth Capability Plan](./plans/auth-capability-plan.md)
-4. [Docs Index](./docs-index.md)
+4. [AI Studio Architecture](./ai-studio-architecture.md)
+5. [Docs Index](./docs-index.md)
 
 ## Purpose
 

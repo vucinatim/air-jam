@@ -178,6 +178,10 @@ export interface AirJamContextValue {
 
 const AirJamContext = createContext<AirJamContextValue | null>(null);
 
+interface DevProviderMountWindow extends Window {
+  __airJamDevProviderMountSent__?: boolean;
+}
+
 const isDevelopmentRuntime = (): boolean => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -303,22 +307,29 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   }, [socketManager]);
 
   useEffect(() => {
+    const devWindow =
+      typeof window !== "undefined"
+        ? (window as unknown as DevProviderMountWindow)
+        : undefined;
+
     if (
-      typeof window !== "undefined" &&
+      devWindow &&
       isDevelopmentRuntime() &&
-      window.parent &&
-      window.parent !== window
+      devWindow.parent &&
+      devWindow.parent !== devWindow &&
+      !devWindow.__airJamDevProviderMountSent__
     ) {
       try {
-        window.parent.postMessage(
+        devWindow.__airJamDevProviderMountSent__ = true;
+        devWindow.parent.postMessage(
           {
             type: AIRJAM_DEV_PROVIDER_MOUNTED,
             payload: {
               appId: config.appId,
               serverUrl: config.serverUrl,
-              href: window.location.href,
-              origin: window.location.origin,
-              pathname: window.location.pathname,
+              href: devWindow.location.href,
+              origin: devWindow.location.origin,
+              pathname: devWindow.location.pathname,
             },
           },
           "*",

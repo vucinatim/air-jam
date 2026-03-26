@@ -1,6 +1,7 @@
 import { Quaternion, Vector3 } from "three";
 import { useAbilitiesStore } from "../abilities-store";
 import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
+import { botDebugLog } from "../debug-logging";
 import type { GameLoopInput } from "../types";
 import { GameContext } from "./GameContext";
 import { ReachabilityChecker, type JumpPadInfo } from "./ReachabilityChecker";
@@ -77,7 +78,7 @@ class BotBrain {
     // Logging
     if (time - this.lastLogTime > this.logInterval) {
       this.lastLogTime = time;
-      console.log(
+      botDebugLog(
         `[BOT ${botId.slice(4)}] State: ${
           this.state
         }, Pos: (${self.position.x.toFixed(1)}, ${self.position.y.toFixed(
@@ -86,7 +87,7 @@ class BotBrain {
       );
       if (this.targetPosition) {
         const dist = self.position.distanceTo(this.targetPosition);
-        console.log(
+        botDebugLog(
           `  Target: (${this.targetPosition.x.toFixed(
             1,
           )}, ${this.targetPosition.y.toFixed(
@@ -128,13 +129,13 @@ class BotBrain {
         this.targetPosition = target;
         this.targetPlayerId = null;
         if (time - this.lastLogTime > this.logInterval) {
-          console.log(
+          botDebugLog(
             `  → GATHER: Health pack at (${healthPackPos.x.toFixed(
               1,
             )}, ${healthPackPos.y.toFixed(1)}, ${healthPackPos.z.toFixed(1)})`,
           );
           if (this.usingJumpPad) {
-            console.log(`    Using jump pad to reach health pack`);
+            botDebugLog(`    Using jump pad to reach health pack`);
           }
         }
         return {
@@ -186,7 +187,7 @@ class BotBrain {
       this.targetPosition = target;
       this.targetPlayerId = null;
       if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
-        console.log(`  → RETRIEVE: Using jump pad to reach dropped flag`);
+        botDebugLog(`  → RETRIEVE: Using jump pad to reach dropped flag`);
       }
       return {
         state: this.state,
@@ -211,13 +212,13 @@ class BotBrain {
       this.targetPlayerId = null;
       if (time - this.lastLogTime > this.logInterval) {
         const status = enemyFlag.status === "dropped" ? "dropped" : "at base";
-        console.log(
+        botDebugLog(
           `  → CAPTURE: Enemy flag ${status} at (${flagPos.x.toFixed(
             1,
           )}, ${flagPos.y.toFixed(1)}, ${flagPos.z.toFixed(1)})`,
         );
         if (this.usingJumpPad) {
-          console.log(`    Using jump pad to reach enemy flag`);
+          botDebugLog(`    Using jump pad to reach enemy flag`);
         }
       }
       return {
@@ -257,7 +258,7 @@ class BotBrain {
       this.targetPosition = target;
       this.targetPlayerId = null;
       if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
-        console.log(`  → GATHER: Using jump pad to reach collectible`);
+        botDebugLog(`  → GATHER: Using jump pad to reach collectible`);
       }
       return {
         state: this.state,
@@ -271,7 +272,7 @@ class BotBrain {
       this.setState(BotState.SEARCH, time);
       this.targetPosition = this.generateWanderTarget(self.position);
       if (time - this.lastLogTime > this.logInterval) {
-        console.log(`  → SEARCH: New wander target`);
+        botDebugLog(`  → SEARCH: New wander target`);
       }
     }
 
@@ -282,7 +283,7 @@ class BotBrain {
     ) {
       this.targetPosition = this.generateWanderTarget(self.position);
       if (time - this.lastLogTime > this.logInterval) {
-        console.log(`  → Target reached, generating new wander target`);
+        botDebugLog(`  → Target reached, generating new wander target`);
       }
     }
 
@@ -504,7 +505,7 @@ class BotBody {
       const toTarget = adjustedTarget.clone().sub(position);
       const forward = new Vector3(0, 0, -1).applyQuaternion(rotation);
       const angle = toTarget.normalize().dot(forward);
-      console.log(
+      botDebugLog(
         `  Body: Input (${inputVector.x.toFixed(2)}, ${inputVector.y.toFixed(
           2,
         )}), InAir: ${isInAir}, AngleToTarget: ${(
@@ -512,7 +513,7 @@ class BotBody {
           Math.PI
         ).toFixed(1)}°`,
       );
-      console.log(
+      botDebugLog(
         `    Forces: Seek(${seekForce.length().toFixed(2)}), Avoid(${avoidForce
           .length()
           .toFixed(2)}), Sep(${separationForce.length().toFixed(2)})`,
@@ -571,7 +572,7 @@ class BotBody {
         if (!isBlocked) {
           // Log when we start shooting
           if (this.logFrameCount === 0) {
-            console.log(
+            botDebugLog(
               `  → SHOOTING at enemy ${enemy.controllerId.slice(
                 4,
               )} (dist: ${distance.toFixed(1)}, angle: ${(
@@ -875,7 +876,7 @@ export class BotController {
       if (allSameDirection && Math.abs(vector.x) > 0.5) {
         // We're stuck turning! Reset target
         if (time - this.stuckTurnDetectionTime > 1.0) {
-          console.log(
+          botDebugLog(
             `[BOT ${this.controllerId.slice(
               4,
             )}] Detected stuck turning loop! Resetting target.`,

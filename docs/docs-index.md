@@ -8,7 +8,8 @@ Current core docs:
 4. [Development Loop](./development-loop.md)
 5. [Performance Baseline](./performance-baseline.md)
 6. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-7. [Platform Controller Presentation](./platform-controller-presentation.md)
+7. [AI Studio Architecture](./ai-studio-architecture.md)
+8. [Platform Controller Presentation](./platform-controller-presentation.md)
 
 Active supporting plans:
 
