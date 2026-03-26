@@ -9,6 +9,7 @@
     "dev:template:pong": "pnpm --filter @air-jam/sdk build && pnpm --filter @air-jam/server build && pnpm --filter my-airjam-game dev",
     "dev:prototype-game": "pnpm --filter prototype-game dev -- --host",
     "dev:server": "pnpm --filter server dev",
+    "dev:logs": "pnpm --filter @air-jam/server logs:dev",
     "dev:platform": "pnpm --filter platform dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

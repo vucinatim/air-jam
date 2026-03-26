@@ -8,6 +8,7 @@
 import dotenv from "dotenv";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createServerLogger } from "./logging/logger.js";
 import { createAirJamServer } from "./index.js";
 
 // Load .env file if it exists
@@ -15,8 +16,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, "..", ".env") });
 
-const runtime = createAirJamServer();
+const logger = createServerLogger({ service: "air-jam-server" });
+const runtime = createAirJamServer({ logger });
 runtime.start().catch((error) => {
-  console.error("[air-jam] failed to start server", error);
+  logger.error({ err: error }, "Failed to start server");
   process.exit(1);
 });

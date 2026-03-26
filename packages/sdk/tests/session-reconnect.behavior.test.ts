@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { onAirJamDiagnostic } from "../src/diagnostics";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
 import { resetControllerRealtimeClientForTests } from "../src/runtime/controller-realtime-client";
@@ -208,6 +209,87 @@ describe("session reconnect behavior", () => {
       { hostGrant: "signed_host_grant" },
       expect.any(Function),
     );
+  });
+
+  it("emits a diagnostic when host bootstrap is rejected", async () => {
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      diagnostics.push(diagnostic.code);
+    });
+
+    mocked.hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        callback?: (ack: unknown) => void,
+      ) => {
+        if (event === "host:bootstrap") {
+          callback?.({
+            ok: false,
+            code: "INVALID_APP_ID",
+            message: "Unauthorized: Invalid or Missing App ID",
+          });
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost());
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("disconnected");
+    });
+
+    expect(result.current.lastError).toBe(
+      "Unauthorized: Invalid or Missing App ID",
+    );
+    expect(diagnostics).toContain("AJ_HOST_BOOTSTRAP_FAILED");
+    unsubscribe();
+  });
+
+  it("does not re-bootstrap on the same socket after createRoom updates room state", async () => {
+    sessionStorage.clear();
+
+    mocked.hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        callback?: (ack: unknown) => void,
+      ) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+          return;
+        }
+        if (event === "host:createRoom") {
+          callback?.({ ok: true, roomId: "ROOM1" });
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost());
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+      expect(result.current.roomId).toBe("ROOM1");
+    });
+
+    await waitFor(() => {
+      expect(
+        mocked.hostSocket.emit.mock.calls.filter(
+          ([event]: [string, ...unknown[]]) => event === "host:bootstrap",
+        ),
+      ).toHaveLength(1);
+    });
+
+    expect(
+      mocked.hostSocket.emit.mock.calls.filter(
+        ([event]: [string, ...unknown[]]) => event === "host:createRoom",
+      ),
+    ).toHaveLength(1);
+    expect(
+      mocked.hostSocket.emit.mock.calls.filter(
+        ([event]: [string, ...unknown[]]) => event === "host:reconnect",
+      ),
+    ).toHaveLength(0);
   });
 
   it("prefers the injected arcade join url in child-host mode", async () => {

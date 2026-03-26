@@ -5,6 +5,10 @@ import {
   type AirJamBridgeInitMessage,
   type AirJamSettingsSyncMessage,
 } from "../../runtime/iframe-bridge";
+import {
+  AIRJAM_DEV_LOG_SINK_FAILURE,
+  AIRJAM_DEV_PROVIDER_MOUNTED,
+} from "../../runtime/dev-runtime-events";
 import { AIR_JAM_SDK_VERSION } from "../../runtime/sdk-version";
 
 export interface ArcadeVolumeSettings {
@@ -40,3 +44,4 @@ export const createArcadeSettingsSyncMessage = ({
 });
 
 export type { AirJamBridgeInitMessage, AirJamSettingsSyncMessage };
+export { AIRJAM_DEV_LOG_SINK_FAILURE, AIRJAM_DEV_PROVIDER_MOUNTED };

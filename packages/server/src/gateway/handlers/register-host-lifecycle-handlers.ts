@@ -17,6 +17,7 @@ import {
   type SystemLaunchGamePayload,
 } from "@air-jam/sdk/protocol";
 import { v4 as uuidv4 } from "uuid";
+import { redactIdentifier } from "../../logging/logger.js";
 import {
   activateChildHost,
   activateEmbeddedGame,
@@ -48,19 +49,31 @@ type HostAck = {
 export const registerHostLifecycleHandlers = (
   context: SocketHandlerContext,
 ): void => {
-  const { io, socket, roomManager, authService } = context;
+  const { io, socket, roomManager, authService, logger } = context;
+  const requestOrigin =
+    typeof socket.handshake.headers.origin === "string"
+      ? socket.handshake.headers.origin
+      : undefined;
 
   const bindHostAuthority = (
     appId?: string,
     verifiedVia?: "appId" | "hostGrant",
     verifiedOrigin?: string,
-  ): void => {
+  ): string => {
+    const traceId = `host_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
     socket.data.hostAuthority = {
       appId,
+      traceId,
       verifiedAt: Date.now(),
       verifiedVia,
       verifiedOrigin,
     };
+    return traceId;
+  };
+
+  const getHostLogger = () => {
+    const traceId = socket.data.hostAuthority?.traceId;
+    return traceId ? logger.child({ traceId }) : logger;
   };
 
   const resolveStaticAppQuotaScope = (): string | null => {
@@ -86,12 +99,14 @@ export const registerHostLifecycleHandlers = (
   };
 
   const ensureHostAuthority = (
+    eventName: string,
     callback: (ack: HostAck) => void,
   ): boolean => {
     if (socket.data.hostAuthority) {
       return true;
     }
 
+    logger.warn({ eventName }, "Rejected host lifecycle event before bootstrap");
     callback({
       ok: false,
       message: "Unauthorized: Host bootstrap required",
@@ -112,6 +127,7 @@ export const registerHostLifecycleHandlers = (
           context.hostRegistrationRateLimitMax,
         )
       ) {
+        logger.warn("Rejected host bootstrap due to socket rate limit");
         callback({
           ok: false,
           message: "Too many host registration attempts. Please try again.",
@@ -122,6 +138,7 @@ export const registerHostLifecycleHandlers = (
 
       const parsed = hostBootstrapSchema.safeParse(payload);
       if (!parsed.success) {
+        logger.warn({ issues: parsed.error.issues }, "Rejected host bootstrap with invalid payload");
         callback({
           ok: false,
           message: parsed.error.message,
@@ -133,12 +150,17 @@ export const registerHostLifecycleHandlers = (
       const verification = await authService.verifyHostBootstrap({
         appId: parsed.data.appId,
         hostGrant: parsed.data.hostGrant,
-        origin:
-          typeof socket.handshake.headers.origin === "string"
-            ? socket.handshake.headers.origin
-            : undefined,
+        origin: requestOrigin,
       });
       if (!verification.isVerified) {
+        logger.warn(
+          {
+            reason: verification.error,
+            appIdHint: redactIdentifier(parsed.data.appId),
+            hasHostGrant: Boolean(parsed.data.hostGrant),
+          },
+          "Rejected host bootstrap",
+        );
         callback({
           ok: false,
           message: verification.error,
@@ -156,6 +178,13 @@ export const registerHostLifecycleHandlers = (
           context.staticAppRateLimitMax,
         )
       ) {
+        logger.warn(
+          {
+            appIdHint: redactIdentifier(verification.appId),
+            verifiedOrigin: verification.verifiedOrigin,
+          },
+          "Rejected host bootstrap due to static app quota",
+        );
         callback({
           ok: false,
           message: "Too many bootstrap attempts for this app. Please try again.",
@@ -164,12 +193,20 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      bindHostAuthority(
+      const traceId = bindHostAuthority(
         verification.appId,
         verification.verifiedVia,
         verification.verifiedOrigin,
       );
-      callback({ ok: true });
+      getHostLogger().info(
+        {
+          verifiedVia: verification.verifiedVia,
+          appIdHint: redactIdentifier(verification.appId),
+          verifiedOrigin: verification.verifiedOrigin,
+        },
+        "Host bootstrap verified",
+      );
+      callback({ ok: true, traceId });
     },
   );
 
@@ -182,6 +219,7 @@ export const registerHostLifecycleHandlers = (
           context.hostRegistrationRateLimitMax,
         )
       ) {
+        logger.warn("Rejected host registerSystem due to socket rate limit");
         callback({
           ok: false,
           message: "Too many host registration attempts. Please try again.",
@@ -190,11 +228,12 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      if (!ensureHostAuthority(callback)) {
+      if (!ensureHostAuthority("host:registerSystem", callback)) {
         return;
       }
 
       if (isStaticAppRateLimited("static-app-lifecycle")) {
+        getHostLogger().warn("Rejected host registerSystem due to static app quota");
         callback({
           ok: false,
           message: "Too many host lifecycle attempts for this app. Please try again.",
@@ -205,6 +244,7 @@ export const registerHostLifecycleHandlers = (
 
       const parsed = hostRegisterSystemSchema.safeParse(payload);
       if (!parsed.success) {
+        getHostLogger().warn({ issues: parsed.error.issues }, "Rejected host registerSystem with invalid payload");
         callback({
           ok: false,
           message: parsed.error.message,
@@ -236,6 +276,7 @@ export const registerHostLifecycleHandlers = (
       roomManager.setHostRoom(socket.id, roomId);
       socket.join(roomId);
 
+      getHostLogger().info({ roomId }, "Host registered as system host");
       callback({ ok: true, roomId });
       io.to(roomId).emit("server:roomReady", { roomId });
     },
@@ -253,6 +294,7 @@ export const registerHostLifecycleHandlers = (
           context.hostRegistrationRateLimitMax,
         )
       ) {
+        logger.warn("Rejected host createRoom due to socket rate limit");
         callback({
           ok: false,
           message: "Too many host registration attempts. Please try again.",
@@ -261,11 +303,12 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      if (!ensureHostAuthority(callback)) {
+      if (!ensureHostAuthority("host:createRoom", callback)) {
         return;
       }
 
       if (isStaticAppRateLimited("static-app-lifecycle")) {
+        getHostLogger().warn("Rejected host createRoom due to static app quota");
         callback({
           ok: false,
           message: "Too many host lifecycle attempts for this app. Please try again.",
@@ -276,6 +319,7 @@ export const registerHostLifecycleHandlers = (
 
       const parsed = hostCreateRoomSchema.safeParse(payload);
       if (!parsed.success) {
+        getHostLogger().warn({ issues: parsed.error.issues }, "Rejected host createRoom with invalid payload");
         callback({
           ok: false,
           message: parsed.error.message,
@@ -293,6 +337,7 @@ export const registerHostLifecycleHandlers = (
           existingSession &&
           existingSession.masterHostSocketId === socket.id
         ) {
+          getHostLogger().info({ roomId: existingRoomId }, "Host createRoom reused existing room");
           callback({ ok: true, roomId: existingRoomId });
           return;
         }
@@ -328,6 +373,7 @@ export const registerHostLifecycleHandlers = (
       roomManager.setHostRoom(socket.id, roomId);
       socket.join(roomId);
 
+      getHostLogger().info({ roomId, maxPlayers }, "Host created room");
       callback({ ok: true, roomId });
       io.to(roomId).emit("server:roomReady", { roomId });
     },
@@ -342,6 +388,7 @@ export const registerHostLifecycleHandlers = (
           context.hostRegistrationRateLimitMax,
         )
       ) {
+        logger.warn("Rejected host reconnect due to socket rate limit");
         callback({
           ok: false,
           message: "Too many host registration attempts. Please try again.",
@@ -350,11 +397,12 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      if (!ensureHostAuthority(callback)) {
+      if (!ensureHostAuthority("host:reconnect", callback)) {
         return;
       }
 
       if (isStaticAppRateLimited("static-app-lifecycle")) {
+        getHostLogger().warn("Rejected host reconnect due to static app quota");
         callback({
           ok: false,
           message: "Too many host lifecycle attempts for this app. Please try again.",
@@ -365,6 +413,7 @@ export const registerHostLifecycleHandlers = (
 
       const parsed = hostReconnectSchema.safeParse(payload);
       if (!parsed.success) {
+        getHostLogger().warn({ issues: parsed.error.issues }, "Rejected host reconnect with invalid payload");
         callback({
           ok: false,
           message: parsed.error.message,
@@ -377,6 +426,7 @@ export const registerHostLifecycleHandlers = (
 
       const session = roomManager.getRoom(roomId);
       if (!session) {
+        getHostLogger().warn({ roomId }, "Rejected host reconnect because room was not found");
         callback({
           ok: false,
           message: "Room not found",
@@ -398,6 +448,7 @@ export const registerHostLifecycleHandlers = (
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
+        getHostLogger().info({ roomId }, "Host reconnected to room");
         callback({
           ok: true,
           roomId,
@@ -405,6 +456,7 @@ export const registerHostLifecycleHandlers = (
         });
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {
+        getHostLogger().warn({ roomId }, "Rejected host reconnect because another active host owns the room");
         callback({
           ok: false,
           message: "Room already has an active host",
@@ -430,6 +482,7 @@ export const registerHostLifecycleHandlers = (
       const { roomId, gameId } = parsed.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
+        getHostLogger().warn({ roomId, gameId }, "Rejected game launch because room was not found");
         callback({
           ok: false,
           message: "Room not found",
@@ -439,6 +492,7 @@ export const registerHostLifecycleHandlers = (
       }
 
       if (session.masterHostSocketId !== socket.id) {
+        getHostLogger().warn({ roomId, gameId }, "Rejected game launch from non-system host");
         callback({
           ok: false,
           message: "Unauthorized: Not System Host",
@@ -452,6 +506,7 @@ export const registerHostLifecycleHandlers = (
         !launchAvailability.ok &&
         launchAvailability.reason === "GAME_ACTIVE"
       ) {
+        getHostLogger().warn({ roomId, gameId }, "Rejected game launch because a game is already active");
         callback({
           ok: false,
           message: "Game already active",
@@ -466,6 +521,7 @@ export const registerHostLifecycleHandlers = (
         session.launchCapability &&
         !isChildHostCapabilityExpired(session.launchCapability)
       ) {
+        getHostLogger().info({ roomId, gameId }, "Reused pending launch capability");
         callback({ ok: true, launchCapability: session.launchCapability });
         return;
       }
@@ -474,6 +530,7 @@ export const registerHostLifecycleHandlers = (
         (launchAvailability.reason === "ROOM_CLOSING" ||
           launchAvailability.reason === "ROOM_TORN_DOWN")
       ) {
+        getHostLogger().warn({ roomId, gameId }, "Rejected game launch because room is closing");
         callback({
           ok: false,
           message: "Room is closing",
@@ -489,6 +546,7 @@ export const registerHostLifecycleHandlers = (
         gameId,
       );
       if (!transitionResult.ok) {
+        getHostLogger().warn({ roomId, gameId }, "Rejected game launch due to invalid lifecycle state");
         callback({
           ok: false,
           message: "Unable to launch game from current room state",
@@ -497,6 +555,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
+      getHostLogger().info({ roomId, gameId }, "Issued game launch capability");
       callback({ ok: true, launchCapability });
     },
   );
@@ -504,6 +563,7 @@ export const registerHostLifecycleHandlers = (
   socket.on("host:joinAsChild", (payload: HostJoinAsChildPayload, callback) => {
     const parsed = hostJoinAsChildSchema.safeParse(payload);
     if (!parsed.success) {
+      getHostLogger().warn({ issues: parsed.error.issues }, "Rejected child host join with invalid payload");
       callback({
         ok: false,
         message: parsed.error.message,
@@ -515,6 +575,7 @@ export const registerHostLifecycleHandlers = (
     const { roomId, capabilityToken } = parsed.data;
     const session = roomManager.getRoom(roomId);
     if (!session) {
+      getHostLogger().warn({ roomId }, "Rejected child host join because room was not found");
       callback({
         ok: false,
         message: "Room not found",
@@ -524,6 +585,7 @@ export const registerHostLifecycleHandlers = (
     }
 
     if (!session.launchCapability) {
+      getHostLogger().warn({ roomId }, "Rejected child host join because launch capability is missing");
       callback({
         ok: false,
         message: "Launch capability missing",
@@ -532,6 +594,7 @@ export const registerHostLifecycleHandlers = (
       return;
     }
     if (isChildHostCapabilityExpired(session.launchCapability)) {
+      getHostLogger().warn({ roomId }, "Rejected child host join because launch capability expired");
       callback({
         ok: false,
         message: "Launch capability expired",
@@ -540,6 +603,7 @@ export const registerHostLifecycleHandlers = (
       return;
     }
     if (session.launchCapability.token !== capabilityToken) {
+      getHostLogger().warn({ roomId }, "Rejected child host join because capability token was invalid");
       callback({
         ok: false,
         message: "Invalid launch capability",
@@ -568,6 +632,7 @@ export const registerHostLifecycleHandlers = (
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
+        getHostLogger().info({ roomId }, "Child host rejoined active game after disconnect");
         setTimeout(() => {
           session.controllers.forEach((controller) => {
             socket.emit(
@@ -594,6 +659,7 @@ export const registerHostLifecycleHandlers = (
         message: "Game already active",
         code: ErrorCode.ALREADY_CONNECTED,
       });
+      getHostLogger().warn({ roomId }, "Rejected child host join because an active child host is already connected");
       return;
     }
 
@@ -602,6 +668,7 @@ export const registerHostLifecycleHandlers = (
       !activationAvailability.ok &&
       activationAvailability.reason === "GAME_ACTIVE"
     ) {
+      getHostLogger().warn({ roomId }, "Rejected child host join because game is already active");
       callback({
         ok: false,
         message: "Game already active",
@@ -613,6 +680,7 @@ export const registerHostLifecycleHandlers = (
       !activationAvailability.ok &&
       activationAvailability.reason === "NO_LAUNCH_PENDING"
     ) {
+      getHostLogger().warn({ roomId }, "Rejected child host join because launch is not pending");
       callback({
         ok: false,
         message: "Launch not pending",
@@ -625,6 +693,7 @@ export const registerHostLifecycleHandlers = (
       (activationAvailability.reason === "ROOM_CLOSING" ||
         activationAvailability.reason === "ROOM_TORN_DOWN")
     ) {
+      getHostLogger().warn({ roomId }, "Rejected child host join because room is closing");
       callback({
         ok: false,
         message: "Room is closing",
@@ -636,6 +705,7 @@ export const registerHostLifecycleHandlers = (
     roomManager.setHostRoom(socket.id, roomId);
     socket.join(roomId);
 
+    getHostLogger().info({ roomId }, "Child host joined pending launch");
     setTimeout(() => {
       session.controllers.forEach((controller) => {
         socket.emit(
@@ -664,6 +734,7 @@ export const registerHostLifecycleHandlers = (
     ) => {
       const parsed = hostActivateEmbeddedGameSchema.safeParse(payload);
       if (!parsed.success) {
+        getHostLogger().warn({ issues: parsed.error.issues }, "Rejected embedded game activation with invalid payload");
         callback({
           ok: false,
           message: parsed.error.message,
@@ -675,6 +746,7 @@ export const registerHostLifecycleHandlers = (
       const { roomId, capabilityToken } = parsed.data;
       const session = roomManager.getRoom(roomId);
       if (!session) {
+        getHostLogger().warn({ roomId }, "Rejected embedded game activation because room was not found");
         callback({
           ok: false,
           message: "Room not found",
@@ -684,6 +756,7 @@ export const registerHostLifecycleHandlers = (
       }
 
       if (session.masterHostSocketId !== socket.id) {
+        getHostLogger().warn({ roomId }, "Rejected embedded game activation from non-system host");
         callback({
           ok: false,
           message: "Unauthorized: Not System Host",
@@ -693,6 +766,7 @@ export const registerHostLifecycleHandlers = (
       }
 
       if (!session.launchCapability) {
+        getHostLogger().warn({ roomId }, "Rejected embedded game activation because launch capability is missing");
         callback({
           ok: false,
           message: "Launch capability missing",
@@ -701,6 +775,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
       if (isChildHostCapabilityExpired(session.launchCapability)) {
+        getHostLogger().warn({ roomId }, "Rejected embedded game activation because launch capability expired");
         callback({
           ok: false,
           message: "Launch capability expired",
@@ -709,6 +784,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
       if (session.launchCapability.token !== capabilityToken) {
+        getHostLogger().warn({ roomId }, "Rejected embedded game activation because capability token was invalid");
         callback({
           ok: false,
           message: "Invalid launch capability",
@@ -719,11 +795,13 @@ export const registerHostLifecycleHandlers = (
 
       const phase = getRoomLifecyclePhase(session);
       if (phase === "GAME_ACTIVE" && session.focus === "GAME") {
+        getHostLogger().info({ roomId }, "Embedded game activation acknowledged for already-active game");
         callback({ ok: true, roomId });
         return;
       }
 
       if (phase !== "GAME_LAUNCH_PENDING") {
+        getHostLogger().warn({ roomId }, "Rejected embedded game activation because launch is not pending");
         callback({
           ok: false,
           message: "Launch not pending",
@@ -738,6 +816,7 @@ export const registerHostLifecycleHandlers = (
       }
 
       activateEmbeddedGame(session);
+      getHostLogger().info({ roomId }, "Embedded game activated");
       callback({ ok: true, roomId });
     },
   );
@@ -746,6 +825,7 @@ export const registerHostLifecycleHandlers = (
     const { roomId } = payload;
     const session = roomManager.getRoom(roomId);
     if (!session || session.masterHostSocketId !== socket.id) {
+      getHostLogger().warn({ roomId }, "Ignored closeGame from non-system host or missing room");
       return;
     }
 
@@ -754,5 +834,6 @@ export const registerHostLifecycleHandlers = (
     transitionToSystemFocus(io, session, {
       resyncPlayersToMaster: true,
     });
+    getHostLogger().info({ roomId }, "Closed active game and returned room to system focus");
   });
 };

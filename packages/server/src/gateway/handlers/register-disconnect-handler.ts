@@ -8,9 +8,16 @@ import type { SocketHandlerContext } from "../socket-handler-context.js";
 export const registerDisconnectHandler = (
   context: SocketHandlerContext,
 ): void => {
-  const { io, socket, roomManager } = context;
+  const { io, socket, roomManager, logger } = context;
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
+    logger.debug(
+      {
+        reason,
+        traceId: socket.data.hostAuthority?.traceId,
+      },
+      "Socket disconnected",
+    );
     const roomId = roomManager.getRoomByHostId(socket.id);
     if (roomId) {
       const session = roomManager.getRoom(roomId);

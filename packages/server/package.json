@@ -26,6 +26,7 @@
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
+    "logs:dev": "tsx scripts/dev-logs.ts",
     "start": "node dist/cli.js",
     "build": "tsup",
     "test": "vitest run --config vitest.config.ts",
@@ -41,6 +42,7 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.0",
     "express": "^4.21.2",
+    "pino": "^10.3.1",
     "postgres": "^3.4.7",
     "socket.io": "^4.8.1",
     "uuid": "^13.0.0",

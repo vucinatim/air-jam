@@ -49,12 +49,34 @@ const resolveControllerPath = (controllerPath?: string): string => {
   return normalized.startsWith("/") ? normalized : `/${normalized}`;
 };
 
-interface ViteEnvLike {
+export interface ViteEnvLike {
   VITE_AIR_JAM_SERVER_URL?: string;
   VITE_AIR_JAM_APP_ID?: string;
   VITE_AIR_JAM_HOST_GRANT_ENDPOINT?: string;
   VITE_AIR_JAM_PUBLIC_HOST?: string;
 }
+
+type ViteEnvSource = Record<string, unknown> | undefined;
+
+const toViteEnvLike = (source?: ViteEnvSource): ViteEnvLike | undefined => {
+  if (!source) {
+    return undefined;
+  }
+
+  const readString = (key: keyof ViteEnvLike): string | undefined => {
+    const value = source[key];
+    return typeof value === "string" ? value : undefined;
+  };
+
+  return {
+    VITE_AIR_JAM_SERVER_URL: readString("VITE_AIR_JAM_SERVER_URL"),
+    VITE_AIR_JAM_APP_ID: readString("VITE_AIR_JAM_APP_ID"),
+    VITE_AIR_JAM_HOST_GRANT_ENDPOINT: readString(
+      "VITE_AIR_JAM_HOST_GRANT_ENDPOINT",
+    ),
+    VITE_AIR_JAM_PUBLIC_HOST: readString("VITE_AIR_JAM_PUBLIC_HOST"),
+  };
+};
 
 const readViteEnv = (): ViteEnvLike | null => {
   try {
@@ -73,8 +95,8 @@ export const env = {
   auto: (): ResolveAirJamConfigInput => ({
     resolveEnv: true,
   }),
-  vite: (): ResolveAirJamConfigInput => {
-    const viteEnv = readViteEnv();
+  vite: (viteEnvInput?: ViteEnvSource): ResolveAirJamConfigInput => {
+    const viteEnv = toViteEnvLike(viteEnvInput) ?? readViteEnv();
     return {
       serverUrl: viteEnv?.VITE_AIR_JAM_SERVER_URL,
       appId: viteEnv?.VITE_AIR_JAM_APP_ID,

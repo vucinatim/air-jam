@@ -37,6 +37,8 @@ import {
   getRuntimeUrlOrigin,
 } from "@air-jam/sdk/arcade/url";
 import {
+  AIRJAM_DEV_LOG_SINK_FAILURE,
+  AIRJAM_DEV_PROVIDER_MOUNTED,
   createArcadeBridgeInitMessage,
   createArcadeSettingsSyncMessage,
 } from "@air-jam/sdk/arcade/bridge/iframe";
@@ -305,6 +307,32 @@ export const GamePlayer = ({
       }
 
       if (iframeTargetOrigin && event.origin !== iframeTargetOrigin) {
+        return;
+      }
+
+      if (
+        typeof event.data === "object" &&
+        event.data !== null &&
+        "type" in event.data &&
+        event.data.type === AIRJAM_DEV_PROVIDER_MOUNTED
+      ) {
+        console.info(
+          "[Arcade][AJ_EMBEDDED_PROVIDER_MOUNTED]",
+          (event.data as { payload?: unknown }).payload,
+        );
+        return;
+      }
+
+      if (
+        typeof event.data === "object" &&
+        event.data !== null &&
+        "type" in event.data &&
+        event.data.type === AIRJAM_DEV_LOG_SINK_FAILURE
+      ) {
+        console.error(
+          "[Arcade][AJ_EMBEDDED_BROWSER_LOG_SINK_FAILED]",
+          (event.data as { payload?: unknown }).payload,
+        );
         return;
       }
 

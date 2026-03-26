@@ -11,7 +11,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import { registerSocketHandlers } from "./gateway/register-socket-handlers.js";
-import { AuthService, authService } from "./services/auth-service.js";
+import { AuthService } from "./services/auth-service.js";
+import { createServerLogger, type ServerLogger } from "./logging/logger.js";
+import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
+import {
+  DevLogCollector,
+  type BrowserLogBatchPayload,
+} from "./logging/dev-log-collector.js";
 import { RateLimitService, rateLimitService } from "./services/rate-limit-service.js";
 import { RoomManager, roomManager } from "./services/room-manager.js";
 
@@ -37,9 +43,12 @@ export interface CreateAirJamServerOptions {
   controllerJoinRateLimitMax?: number;
   staticAppRateLimitMax?: number;
   allowedOrigins?: string[] | "*";
+  logger?: ServerLogger;
   authService?: AuthService;
   rateLimitService?: RateLimitService;
   roomManager?: RoomManager;
+  devLogCollector?: DevLogCollector | false;
+  devLogDir?: string;
 }
 
 export interface AirJamServerRuntime {
@@ -75,14 +84,41 @@ const parseAllowedOrigins = (input?: string[] | "*"): string[] | "*" => {
   return allowedOrigins;
 };
 
+const isDevLogCollectorEnabled = (override?: DevLogCollector | false): boolean => {
+  if (override === false) {
+    return false;
+  }
+
+  if (process.env.AIR_JAM_DEV_LOG_COLLECTOR) {
+    return process.env.AIR_JAM_DEV_LOG_COLLECTOR === "enabled";
+  }
+
+  return process.env.NODE_ENV !== "production";
+};
+
 export const createAirJamServer = (
   options: CreateAirJamServerOptions = {},
 ): AirJamServerRuntime => {
   let activePort: number | null = null;
 
+  const devLogCollector =
+    options.devLogCollector === false
+      ? null
+      : options.devLogCollector ??
+        new DevLogCollector({
+          enabled: isDevLogCollectorEnabled(options.devLogCollector),
+          logDir:
+            options.devLogDir ??
+            process.env.AIR_JAM_DEV_LOG_DIR ??
+            resolveDefaultDevLogDir(),
+        });
+  const logger =
+    options.logger ??
+    createServerLogger({ service: "air-jam-server" }, undefined, devLogCollector);
   const roomManagerInstance = options.roomManager ?? roomManager;
   const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
-  const authServiceInstance = options.authService ?? authService;
+  const authServiceInstance =
+    options.authService ?? new AuthService({ logger: logger.child({ component: "auth" }) });
 
   const defaultPort = Number(process.env.PORT ?? 4000);
   const rateLimitWindowMs =
@@ -107,6 +143,31 @@ export const createAirJamServer = (
     res.json({ ok: true });
   });
 
+  app.post("/__airjam/dev/browser-logs", async (req, res) => {
+    if (!devLogCollector?.enabled) {
+      res.status(404).json({ ok: false });
+      return;
+    }
+
+    const payload = req.body as BrowserLogBatchPayload | undefined;
+    if (
+      !payload ||
+      (payload.mode !== "reset" && payload.mode !== "append") ||
+      typeof payload.sessionId !== "string" ||
+      !payload.sessionId ||
+      !Array.isArray(payload.entries) ||
+      payload.entries.length === 0 ||
+      typeof payload.metadata !== "object" ||
+      payload.metadata === null
+    ) {
+      res.status(400).json({ ok: false, message: "Invalid browser log payload" });
+      return;
+    }
+
+    devLogCollector.enqueueBrowserBatch(payload);
+    res.json({ ok: true });
+  });
+
   const httpServer = createServer(app);
 
   const io = new Server<
@@ -127,6 +188,7 @@ export const createAirJamServer = (
     registerSocketHandlers({
       io,
       socket,
+      logger,
       roomManager: roomManagerInstance,
       rateLimitService: rateLimitServiceInstance,
       authService: authServiceInstance,
@@ -155,7 +217,10 @@ export const createAirJamServer = (
     activePort =
       typeof address === "object" && address?.port ? address.port : resolvedPort;
 
-    console.log(`[air-jam] server listening on http://localhost:${activePort}`);
+    logger.info(
+      { port: activePort, corsOrigin },
+      `Server listening on http://localhost:${activePort}`,
+    );
     return activePort;
   };
 
@@ -194,7 +259,8 @@ const isMainModule = (() => {
 if (isMainModule) {
   const runtime = createAirJamServer();
   runtime.start().catch((error) => {
-    console.error("[air-jam] failed to start server", error);
+    const logger = createServerLogger({ service: "air-jam-server" });
+    logger.error({ err: error }, "Failed to start server");
     process.exitCode = 1;
   });
 }

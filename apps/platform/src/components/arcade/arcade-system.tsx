@@ -686,6 +686,7 @@ export const ArcadeSystem = ({
             roomId={host.roomId || undefined}
             players={host.players}
             connectionStatus={host.connectionStatus}
+            lastError={host.lastError}
             qrVisible={qrVisible}
             onToggleQr={() => surfaceActions.toggleQrOverlay()}
             listAtTop={browserListAtTop}

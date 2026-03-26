@@ -18,7 +18,7 @@ const inputSchema = z.object({
 });
 
 const airjam = createAirJamApp({
-  runtime: env.vite(),
+  runtime: env.vite(import.meta.env),
   game: {
     controllerPath: "/controller",
   },

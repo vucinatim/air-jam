@@ -16,6 +16,7 @@ interface ArcadeChromeProps {
     | "connected"
     | "disconnected"
     | "reconnecting";
+  lastError?: string;
   qrVisible: boolean;
   onToggleQr: () => void;
   className?: string;
@@ -27,6 +28,7 @@ export const ArcadeChrome = ({
   roomId,
   players,
   connectionStatus,
+  lastError,
   qrVisible,
   onToggleQr,
   className,
@@ -54,7 +56,7 @@ export const ArcadeChrome = ({
             className="h-7 w-auto shrink-0 object-contain"
             priority={false}
           />
-          <div title={`Connection ${connectionStatus}`}>
+          <div title={lastError ?? `Connection ${connectionStatus}`}>
             <span className="sr-only">{`Connection ${connectionStatus}. `}</span>
             <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
               Room
@@ -62,6 +64,11 @@ export const ArcadeChrome = ({
             <p className="text-lg leading-tight font-semibold text-white">
               {roomId || "----"}
             </p>
+            {lastError ? (
+              <p className="max-w-[22rem] text-[11px] leading-tight text-rose-300">
+                {lastError}
+              </p>
+            ) : null}
           </div>
         </div>
 

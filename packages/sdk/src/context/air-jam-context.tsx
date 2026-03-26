@@ -54,11 +54,13 @@ import {
 import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
+import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { InputManager, type InputConfig } from "../internal/input-manager";
 import type { ConnectionRole } from "../protocol";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
+import { AIRJAM_DEV_PROVIDER_MOUNTED } from "../runtime/dev-runtime-events";
 import { createAirJamStore, type AirJamStore } from "../state/connection-store";
 import { SocketManager, type AirJamSocket } from "./socket-manager";
 
@@ -176,6 +178,20 @@ export interface AirJamContextValue {
 
 const AirJamContext = createContext<AirJamContextValue | null>(null);
 
+const isDevelopmentRuntime = (): boolean => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = import.meta as any;
+    if (meta?.env && typeof meta.env.DEV === "boolean") {
+      return meta.env.DEV;
+    }
+  } catch {
+    // Ignore environments without import.meta
+  }
+
+  return process.env.NODE_ENV !== "production";
+};
+
 // ============================================================================
 // Provider Component
 // ============================================================================
@@ -240,6 +256,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
   serverUrl,
   appId,
+  hostGrantEndpoint,
   maxPlayers,
   publicHost,
   resolveEnv = true,
@@ -251,11 +268,12 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       resolveAirJamConfig({
         serverUrl,
         appId,
+        hostGrantEndpoint,
         maxPlayers,
         publicHost,
         resolveEnv,
       }),
-    [serverUrl, appId, maxPlayers, publicHost, resolveEnv],
+    [serverUrl, appId, hostGrantEndpoint, maxPlayers, publicHost, resolveEnv],
   );
 
   // Create InputManager from input config if provided
@@ -283,6 +301,38 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       socketManager.disconnectAll();
     };
   }, [socketManager]);
+
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      isDevelopmentRuntime() &&
+      window.parent &&
+      window.parent !== window
+    ) {
+      try {
+        window.parent.postMessage(
+          {
+            type: AIRJAM_DEV_PROVIDER_MOUNTED,
+            payload: {
+              appId: config.appId,
+              serverUrl: config.serverUrl,
+              href: window.location.href,
+              origin: window.location.origin,
+              pathname: window.location.pathname,
+            },
+          },
+          "*",
+        );
+      } catch {
+        // Best effort only
+      }
+    }
+
+    ensureDevBrowserLogSink({
+      serverUrl: config.serverUrl,
+      appId: config.appId,
+    });
+  }, [config.serverUrl, config.appId]);
 
   // Stable function references - don't recreate when config changes
   const getSocket = useCallback(

@@ -31,10 +31,12 @@ export interface HostBootstrapAck {
   ok: boolean;
   message?: string;
   code?: ErrorCode | string;
+  traceId?: string;
 }
 
 export interface HostSocketAuthority {
   appId?: string;
+  traceId: string;
   verifiedAt: number;
   verifiedVia?: "appId" | "hostGrant";
   verifiedOrigin?: string;

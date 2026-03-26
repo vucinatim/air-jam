@@ -13,6 +13,7 @@ Build and maintain a clean, minimal, and extensible codebase that can scale with
 3. Prioritize long-term maintainability over short-term speed.
 4. Avoid hacks that increase future complexity.
 5. Refactor when needed instead of layering temporary fixes.
+6. DO not assume we are building for backwards compatibility - we want to do full purge refactors when we can.
 
 ## Development Standards
 

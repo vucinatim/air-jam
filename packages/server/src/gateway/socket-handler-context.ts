@@ -1,4 +1,5 @@
 import type { RoomCode, ServerErrorPayload } from "@air-jam/sdk/protocol";
+import type { ServerLogger } from "../logging/logger.js";
 import type { AuthService } from "../services/auth-service.js";
 import type { RoomManager } from "../services/room-manager.js";
 import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
@@ -6,6 +7,7 @@ import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
 export interface SocketHandlerContext {
   io: AirJamIoServer;
   socket: AirJamSocket;
+  logger: ServerLogger;
   roomManager: RoomManager;
   authService: AuthService;
   hostRegistrationRateLimitMax: number;

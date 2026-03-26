@@ -9,6 +9,7 @@ import {
   useAssertSessionScope,
   useClaimSessionRuntimeOwner,
 } from "../../context/session-providers";
+import { emitAirJamDiagnostic } from "../../diagnostics";
 import type {
   ControllerInputEvent,
   ControllerStateMessage,
@@ -100,11 +101,16 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
   const onPlayerJoinRef = useRef(options.onPlayerJoin);
   const onPlayerLeaveRef = useRef(options.onPlayerLeave);
+  const parsedRoomIdRef = useRef<RoomCode | null>(parsedRoomId);
 
   useEffect(() => {
     onPlayerJoinRef.current = options.onPlayerJoin;
     onPlayerLeaveRef.current = options.onPlayerLeave;
   }, [options.onPlayerJoin, options.onPlayerLeave]);
+
+  useEffect(() => {
+    parsedRoomIdRef.current = parsedRoomId;
+  }, [parsedRoomId]);
 
   const connectionState = useStore(
     store,
@@ -256,6 +262,20 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     null,
   );
 
+  const setDevHostTraceId = useCallback((traceId?: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const browserWindow = window as Window & {
+      __airJamHostTraceId__?: string;
+    };
+    if (traceId) {
+      browserWindow.__airJamHostTraceId__ = traceId;
+      return;
+    }
+    delete browserWindow.__airJamHostTraceId__;
+  }, []);
+
   const hostGrantResponseSchema = useMemo(
     () =>
       zod.object({
@@ -266,10 +286,11 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
   useEffect(() => {
     const storeState = store.getState();
+    const initialRoomId = parsedRoomIdRef.current;
     storeState.setMode(detectRunMode());
     storeState.setRole("host");
-    if (parsedRoomId) {
-      storeState.setRoomId(parsedRoomId);
+    if (initialRoomId) {
+      storeState.setRoomId(initialRoomId);
     }
     storeState.setStatus("connecting");
     storeState.setError(undefined);
@@ -328,14 +349,27 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         bootstrapPayload = await resolveBootstrapPayload();
       } catch (error) {
         const latestState = store.getState();
-        latestState.setError(
+        const message =
           error instanceof Error
             ? error.message
-            : "Failed to resolve host bootstrap grant",
+            : "Failed to resolve host bootstrap grant";
+        emitAirJamDiagnostic({
+          code: "AJ_HOST_BOOTSTRAP_FAILED",
+          severity: "error",
+          message,
+          details: {
+            stage: "resolve_bootstrap_payload",
+            hasAppId: Boolean(config.appId),
+            hasHostGrantEndpoint: Boolean(config.hostGrantEndpoint),
+          },
+        });
+        latestState.setError(
+          message,
         );
         latestState.setStatus("disconnected");
         latestState.clearHostArcadeRestore();
         setRegisteredRoomId(null);
+        setDevHostTraceId(undefined);
         return;
       }
 
@@ -345,12 +379,27 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
       if (!bootstrapAck.ok) {
         const latestState = store.getState();
-        latestState.setError(bootstrapAck.message ?? "Failed to authorize host");
+        const message = bootstrapAck.message ?? "Failed to authorize host";
+        emitAirJamDiagnostic({
+          code: "AJ_HOST_BOOTSTRAP_FAILED",
+          severity: "error",
+          message,
+          details: {
+            stage: "bootstrap_ack",
+            ackCode: bootstrapAck.code,
+            hasAppId: Boolean(config.appId),
+            hasHostGrantEndpoint: Boolean(config.hostGrantEndpoint),
+          },
+        });
+        latestState.setError(message);
         latestState.setStatus("disconnected");
         latestState.clearHostArcadeRestore();
         setRegisteredRoomId(null);
+        setDevHostTraceId(undefined);
         return;
       }
+
+      setDevHostTraceId(bootstrapAck.traceId);
 
       const createNewRoom = () => {
         const payload = hostCreateRoomSchema.parse({
@@ -363,6 +412,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             latestState.setError(ack.message ?? "Failed to create room");
             latestState.setStatus("disconnected");
             setRegisteredRoomId(null);
+            setDevHostTraceId(undefined);
             return;
           }
 
@@ -380,6 +430,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
           latestState.setError("Server did not return room ID");
           latestState.setStatus("disconnected");
+          setDevHostTraceId(undefined);
         });
       };
 
@@ -457,6 +508,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     const handleDisconnect = (): void => {
       store.getState().setStatus("disconnected");
       setRegisteredRoomId(null);
+      setDevHostTraceId(undefined);
     };
 
     const handleJoin = (payload: {
@@ -489,7 +541,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     };
 
     const handleState = (payload: ControllerStateMessage): void => {
-      if (!parsedRoomId || payload.roomId !== parsedRoomId) return;
+      const activeRoomId = parsedRoomIdRef.current;
+      if (!activeRoomId || payload.roomId !== activeRoomId) return;
 
       const latestState = store.getState();
       if (payload.state.gameState) {
@@ -535,18 +588,19 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);
       socket.off("server:state", handleState);
+      setDevHostTraceId(undefined);
     };
   }, [
     config.maxPlayers,
     config.appId,
     config.hostGrantEndpoint,
     embeddedHost,
-    parsedRoomId,
     shouldConnect,
     socket,
     store,
     inputManager,
     setRegisteredRoomId,
+    setDevHostTraceId,
     hostGrantResponseSchema,
   ]);
 

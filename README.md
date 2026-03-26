@@ -240,7 +240,25 @@ The server can be deployed as a Node.js application:
 - `AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX`: Optional max host registration attempts per window (default: `30`)
 - `AIR_JAM_STATIC_APP_RATE_LIMIT_MAX`: Optional max bootstrap/lifecycle attempts per app+origin scope in static mode (default: `120`)
 - `AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX`: Optional max controller joins per window (default: `120`)
+- `AIR_JAM_LOG_LEVEL`: Optional server log level (`fatal` | `error` | `warn` | `info` | `debug` | `trace`, default: `info`)
+- `AIR_JAM_DEV_LOG_COLLECTOR`: Optional unified dev log collector mode (`enabled` | `disabled`, default: enabled outside production)
+- `AIR_JAM_DEV_LOG_DIR`: Optional unified dev log output directory (default: `./.airjam/logs`, canonical file: `dev-latest.ndjson`)
 - `PORT`: Server port (default: 4000)
+
+#### Dev Log Viewer
+
+When the dev log collector is enabled, the server writes the canonical local debug stream to:
+
+- `.airjam/logs/dev-latest.ndjson`
+
+Use the built-in viewer to inspect it:
+
+```bash
+pnpm dev:logs
+pnpm dev:logs -- --follow
+pnpm dev:logs -- --trace=host_abc123
+pnpm dev:logs -- --source=browser --level=warn
+```
 
 ### Game Deployment
 

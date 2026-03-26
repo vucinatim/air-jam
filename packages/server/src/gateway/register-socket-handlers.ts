@@ -14,10 +14,12 @@ import { registerHostLifecycleHandlers } from "./handlers/register-host-lifecycl
 import { registerRealtimeHandlers } from "./handlers/register-realtime-handlers.js";
 import type { SocketHandlerContext } from "./socket-handler-context.js";
 import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
+import type { ServerLogger } from "../logging/logger.js";
 
 export interface RegisterSocketHandlersOptions {
   io: AirJamIoServer;
   socket: AirJamSocket;
+  logger: ServerLogger;
   roomManager: RoomManager;
   rateLimitService: RateLimitService;
   authService: AuthService;
@@ -30,6 +32,7 @@ export interface RegisterSocketHandlersOptions {
 export const registerSocketHandlers = ({
   io,
   socket,
+  logger,
   roomManager,
   rateLimitService,
   authService,
@@ -55,6 +58,15 @@ export const registerSocketHandlers = ({
     rateLimitService,
     rateLimitWindowMs,
   );
+  const socketLogger = logger.child({
+    scope: "socket",
+    socketId: socket.id,
+    socketIdentifier,
+    origin:
+      typeof socket.handshake.headers.origin === "string"
+        ? socket.handshake.headers.origin
+        : undefined,
+  });
 
   const emitError = (socketId: string, payload: ServerErrorPayload): void => {
     io.to(socketId).emit("server:error", payload);
@@ -63,6 +75,7 @@ export const registerSocketHandlers = ({
   const context: SocketHandlerContext = {
     io,
     socket,
+    logger: socketLogger,
     roomManager,
     authService,
     hostRegistrationRateLimitMax,
@@ -74,6 +87,8 @@ export const registerSocketHandlers = ({
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
   };
+
+  socketLogger.debug("Socket connected");
 
   registerHostLifecycleHandlers(context);
   registerControllerHandlers(context);

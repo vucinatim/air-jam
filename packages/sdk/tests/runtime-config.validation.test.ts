@@ -5,6 +5,7 @@ import {
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
+import { env } from "../src/runtime/create-air-jam-app";
 
 const originalEnv = { ...process.env };
 
@@ -73,5 +74,23 @@ describe("runtime config validation", () => {
     expect(resolved.hostGrantEndpoint).toBe(
       "https://example.com/api/airjam/host-grant",
     );
+  });
+
+  it("accepts explicit vite env input at the app boundary", () => {
+    const runtime = env.vite({
+      VITE_AIR_JAM_SERVER_URL: "https://api.example.com",
+      VITE_AIR_JAM_APP_ID: "aj_app_test",
+      VITE_AIR_JAM_HOST_GRANT_ENDPOINT:
+        "https://example.com/api/airjam/host-grant",
+      VITE_AIR_JAM_PUBLIC_HOST: "https://play.example.com",
+    });
+
+    expect(runtime).toEqual({
+      serverUrl: "https://api.example.com",
+      appId: "aj_app_test",
+      hostGrantEndpoint: "https://example.com/api/airjam/host-grant",
+      publicHost: "https://play.example.com",
+      resolveEnv: true,
+    });
   });
 });

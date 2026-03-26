@@ -15,7 +15,8 @@ Active supporting plans:
 1. [SDK Composability Plan](./plans/sdk-composability-plan.md)
 2. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
 3. [Auth Capability Plan](./plans/auth-capability-plan.md)
-4. [Blog Article Plan](./plans/blog-article-plan.md)
+4. [Logging System Plan](./plans/logging-system-plan.md)
+5. [Blog Article Plan](./plans/blog-article-plan.md)
 
 Content drafts:
 

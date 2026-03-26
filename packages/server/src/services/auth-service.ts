@@ -3,6 +3,7 @@ import {
   verifyHostGrant,
   type HostGrantClaims,
 } from "@air-jam/sdk/protocol";
+import { createServerLogger, type ServerLogger } from "../logging/logger.js";
 import { appIds, db } from "../db.js";
 
 type AuthMode = "disabled" | "required";
@@ -51,30 +52,32 @@ const normalizeOrigin = (value?: string): string | null => {
  * In production, defaults to required auth (fail-closed).
  */
 export class AuthService {
+  private logger: ServerLogger;
   private masterKey: string | undefined;
   private hostGrantSecret: string | undefined;
   private databaseUrl: string | undefined;
   private authMode: AuthMode;
 
-  constructor() {
+  constructor(options: { logger?: ServerLogger } = {}) {
+    this.logger = options.logger ?? createServerLogger({ component: "auth" });
     this.masterKey = process.env.AIR_JAM_MASTER_KEY;
     this.hostGrantSecret = process.env.AIR_JAM_HOST_GRANT_SECRET;
     this.databaseUrl = process.env.DATABASE_URL;
     this.authMode = this.resolveAuthMode();
 
     if (this.authMode === "disabled") {
-      console.log(
-        "[server] Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce app identity checks)",
+      this.logger.info(
+        "Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce app identity checks)",
       );
     } else if (this.masterKey && !this.databaseUrl) {
-      console.log(
-        "[server] Running with master key authentication (no database required)",
+      this.logger.info(
+        "Running with master key authentication (no database required)",
       );
     } else if (this.databaseUrl) {
-      console.log("[server] Running with database authentication");
+      this.logger.info("Running with database authentication");
     } else {
-      console.log(
-        "[server] Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
+      this.logger.warn(
+        "Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
       );
     }
   }
@@ -212,9 +215,9 @@ export class AuthService {
         db.update(appIds)
           .set({ lastUsedAt: new Date() })
           .where(eq(appIds.id, keyRecord.id))
-          .catch((err: unknown) =>
-            console.error("[server] Failed to update lastUsedAt", err),
-          );
+          .catch((err: unknown) => {
+            this.logger.warn({ err }, "Failed to update app ID lastUsedAt");
+          });
 
         return { isVerified: true };
       }
@@ -224,7 +227,7 @@ export class AuthService {
         error: "Unauthorized: Invalid or Missing App ID",
       };
     } catch (error) {
-      console.error("[server] Database error during key verification", error);
+      this.logger.error({ err: error }, "Database error during app ID verification");
       return {
         isVerified: false,
         error: "Internal Server Error",
@@ -254,8 +257,3 @@ export class AuthService {
     return "disabled";
   }
 }
-
-/**
- * Singleton instance
- */
-export const authService = new AuthService();
