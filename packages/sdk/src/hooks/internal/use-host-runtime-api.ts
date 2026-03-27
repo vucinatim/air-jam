@@ -133,6 +133,16 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   );
 
   const [lastToggle, setLastToggle] = useState(0);
+  const hydrateHostPlayers = useCallback(
+    (players?: PlayerProfile[]) => {
+      const latestState = store.getState();
+      latestState.resetPlayers();
+      players?.forEach((player) => {
+        latestState.upsertPlayer(player);
+      });
+    },
+    [store],
+  );
   const canEmitAuthoritativeHostState = useCallback(
     (roomId: RoomCode | null): roomId is RoomCode => {
       if (!socket || !socket.connected || !roomId) {
@@ -355,6 +365,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         const latestState = store.getState();
         latestState.setStatus("connected");
         latestState.setRoomId(childRoomId);
+        hydrateHostPlayers();
         setRegisteredRoomId(childRoomId);
         return;
       }
@@ -456,6 +467,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       ) => {
         const latestState = store.getState();
         latestState.clearHostArcadeRestore();
+        latestState.resetPlayers();
         setRegisteredRoomId(null);
         const payload = hostCreateRoomSchema.parse({
           maxPlayers: config.maxPlayers,
@@ -484,6 +496,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             latestState.setStatus("connected");
             latestState.setRoomId(ack.roomId);
             latestState.clearHostArcadeRestore();
+            hydrateHostPlayers(ack.players);
             setRegisteredRoomId(ack.roomId);
 
             if (typeof window !== "undefined") {
@@ -530,6 +543,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                 if (ack.ok && ack.roomId) {
                   latestState.setStatus("connected");
                   latestState.setRoomId(ack.roomId);
+                  hydrateHostPlayers(ack.players);
                   latestState.setHostArcadeRestore(
                     ack.arcadeSession
                       ? {
@@ -614,6 +628,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         },
       });
       store.getState().setStatus("disconnected");
+      store.getState().resetPlayers();
       setRegisteredRoomId(null);
       setDevHostTraceId(undefined);
     };
@@ -726,6 +741,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     setDevHostTraceId,
     hostGrantResponseSchema,
     emitHostRuntimeEvent,
+    hydrateHostPlayers,
   ]);
 
   const getInput = useCallback(

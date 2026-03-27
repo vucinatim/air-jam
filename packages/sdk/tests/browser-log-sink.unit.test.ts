@@ -93,26 +93,21 @@ describe("browser log sink", () => {
 
     window.dispatchEvent(new Event("pagehide"));
 
-    expect(sendBeacon).toHaveBeenCalledTimes(1);
-    expect(sendBeacon).toHaveBeenCalledWith(
-      "http://localhost:3001/__airjam/dev/browser-logs",
-      expect.any(Blob),
-    );
-
     const calls = sendBeacon.mock.calls as unknown[][];
-    const body = calls[0]?.[1] as Blob | undefined;
-    expect(body).toBeInstanceOf(Blob);
-    const payload = JSON.parse(await body!.text()) as {
-      entries: Array<Record<string, unknown>>;
-    };
-    const unloadEvent = payload.entries.find(
-      (entry) => entry.event === "runtime.window.pagehide",
+    const unloadCall = calls.find(
+      (call) => call[0] === "http://localhost:3001/__airjam/dev/browser-unload",
     );
-
-    expect(unloadEvent).toMatchObject({
+    expect(unloadCall).toBeTruthy();
+    const body = unloadCall?.[1];
+    expect(typeof body).toBe("string");
+    const payload = JSON.parse(body as string) as {
+      entry: Record<string, unknown>;
+    };
+    expect(payload.entry).toMatchObject({
       source: "runtime",
+      event: "runtime.window.pagehide",
       message: "Window pagehide observed",
     });
-    expect(typeof unloadEvent?.sourceSeq).toBe("number");
+    expect(typeof payload.entry.sourceSeq).toBe("number");
   });
 });

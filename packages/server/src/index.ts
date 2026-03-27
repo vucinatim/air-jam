@@ -21,6 +21,7 @@ import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
 import {
   DevLogCollector,
   type BrowserLogBatchPayload,
+  type BrowserLogUnloadPayload,
 } from "./logging/dev-log-collector.js";
 import { RateLimitService, rateLimitService } from "./services/rate-limit-service.js";
 import { RoomManager, roomManager } from "./services/room-manager.js";
@@ -178,6 +179,46 @@ export const createAirJamServer = (
     devLogCollector.enqueueBrowserBatch(payload);
     res.json({ ok: true });
   });
+
+  app.post(
+    "/__airjam/dev/browser-unload",
+    express.text({ type: "*/*" }),
+    async (req, res) => {
+      if (!devLogCollector?.enabled) {
+        res.status(404).json({ ok: false });
+        return;
+      }
+
+      if (typeof req.body !== "string" || req.body.trim().length === 0) {
+        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        return;
+      }
+
+      let payload: BrowserLogUnloadPayload | null = null;
+      try {
+        payload = JSON.parse(req.body) as BrowserLogUnloadPayload;
+      } catch {
+        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        return;
+      }
+
+      if (
+        !payload ||
+        typeof payload.sessionId !== "string" ||
+        !payload.sessionId ||
+        typeof payload.metadata !== "object" ||
+        payload.metadata === null ||
+        typeof payload.entry !== "object" ||
+        payload.entry === null
+      ) {
+        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        return;
+      }
+
+      devLogCollector.enqueueBrowserUnload(payload);
+      res.status(204).end();
+    },
+  );
 
   const httpServer = createServer(app);
 

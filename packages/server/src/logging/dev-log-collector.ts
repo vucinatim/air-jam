@@ -53,6 +53,12 @@ export interface BrowserLogBatchPayload {
   entries: BrowserLogEntry[];
 }
 
+export interface BrowserLogUnloadPayload {
+  sessionId: string;
+  metadata: BrowserLogSessionMetadata;
+  entry: BrowserLogEntry;
+}
+
 export interface DevLogEvent {
   time: string;
   occurredAt: string;
@@ -254,6 +260,47 @@ export class DevLogCollector {
         metadata: payload.metadata,
       });
     }
+  }
+
+  enqueueBrowserUnload(payload: BrowserLogUnloadPayload): void {
+    if (!this.enabled) {
+      return;
+    }
+
+    const ingestedAt = new Date().toISOString();
+    const entry = payload.entry;
+    const occurredAt =
+      typeof entry.occurredAt === "string"
+        ? entry.occurredAt
+        : typeof entry.time === "string"
+          ? entry.time
+          : ingestedAt;
+
+    this.appendEvent({
+      time: occurredAt,
+      occurredAt,
+      ingestedAt,
+      level: entry.level,
+      source: "browser",
+      sourceSeq: entry.sourceSeq,
+      repeatCount: entry.repeatCount,
+      event: entry.event ?? resolveAirJamBrowserLogEvent(entry.source),
+      browserSource: entry.source,
+      consoleCategory: entry.consoleCategory,
+      msg: entry.message,
+      code: entry.code,
+      data: entry.data,
+      err: entry.stack ? { stack: entry.stack } : undefined,
+      role: entry.role ?? payload.metadata.role,
+      traceId: entry.traceId ?? payload.metadata.traceId,
+      roomId: entry.roomId ?? payload.metadata.roomId,
+      controllerId: entry.controllerId ?? payload.metadata.controllerId,
+      runtimeEpoch: entry.runtimeEpoch,
+      runtimeKind: entry.runtimeKind,
+      origin: payload.metadata.origin,
+      sessionId: payload.sessionId,
+      metadata: payload.metadata,
+    });
   }
 
   private appendEvent(event: DevLogEventDraft): void {

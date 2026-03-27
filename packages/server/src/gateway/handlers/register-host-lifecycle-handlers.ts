@@ -14,8 +14,10 @@ import {
   type HostBootstrapPayload,
   type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
+  type HostRegistrationAck,
   type HostReconnectPayload,
   type HostRegisterSystemPayload,
+  type PlayerProfile,
   type SystemLaunchGamePayload,
 } from "@air-jam/sdk/protocol";
 import { v4 as uuidv4 } from "uuid";
@@ -35,18 +37,9 @@ import {
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
-import type { HostArcadeSessionSnapshot } from "@air-jam/sdk/protocol";
 import type { RoomSession } from "../../types.js";
 import { generateRoomCode } from "../../utils/ids.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
-
-type HostAck = {
-  ok: boolean;
-  roomId?: string;
-  message?: string;
-  code?: ErrorCode | string;
-  arcadeSession?: HostArcadeSessionSnapshot;
-};
 
 export const registerHostLifecycleHandlers = (
   context: SocketHandlerContext,
@@ -73,6 +66,9 @@ export const registerHostLifecycleHandlers = (
     };
     return traceId;
   };
+
+  const buildHostRosterSnapshot = (session: RoomSession): PlayerProfile[] =>
+    Array.from(session.controllers.values(), (controller) => controller.playerProfile);
 
   const getHostLogger = (bindings: Record<string, unknown> = {}) => {
     const traceId = socket.data.hostAuthority?.traceId;
@@ -124,7 +120,7 @@ export const registerHostLifecycleHandlers = (
 
   const ensureHostAuthority = (
     eventName: string,
-    callback: (ack: HostAck) => void,
+    callback: (ack: HostRegistrationAck) => void,
   ): boolean => {
     if (socket.data.hostAuthority) {
       return true;
@@ -353,7 +349,7 @@ export const registerHostLifecycleHandlers = (
     "host:createRoom",
     async (
       payload: HostCreateRoomPayload,
-      callback: (ack: HostAck) => void,
+      callback: (ack: HostRegistrationAck) => void,
     ) => {
       if (
         context.isRateLimited(
@@ -428,7 +424,11 @@ export const registerHostLifecycleHandlers = (
             "Host createRoom reused existing room",
             { roomId: existingRoomId, reused: true },
           );
-          callback({ ok: true, roomId: existingRoomId });
+          callback({
+            ok: true,
+            roomId: existingRoomId,
+            players: buildHostRosterSnapshot(existingSession),
+          });
           return;
         }
       }
@@ -474,14 +474,21 @@ export const registerHostLifecycleHandlers = (
         maxPlayers,
         reused: false,
       });
-      callback({ ok: true, roomId });
+      callback({
+        ok: true,
+        roomId,
+        players: buildHostRosterSnapshot(session),
+      });
       io.to(roomId).emit("server:roomReady", { roomId });
     },
   );
 
   socket.on(
     "host:reconnect",
-    async (payload: HostReconnectPayload, callback: (ack: HostAck) => void) => {
+    async (
+      payload: HostReconnectPayload,
+      callback: (ack: HostRegistrationAck) => void,
+    ) => {
       if (
         context.isRateLimited(
           "host-registration",
@@ -576,11 +583,14 @@ export const registerHostLifecycleHandlers = (
 
         logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.reconnectAccepted, "Host reconnected to room", {
           roomId,
+          controllerCount: session.controllers.size,
+          focus: session.focus,
         });
         callback({
           ok: true,
           roomId,
           arcadeSession: buildArcadeSessionForHostAck(session, uuidv4),
+          players: buildHostRosterSnapshot(session),
         });
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {
@@ -1021,7 +1031,7 @@ export const registerHostLifecycleHandlers = (
     "host:activateEmbeddedGame",
     (
       payload: HostActivateEmbeddedGamePayload,
-      callback: (ack: HostAck) => void,
+      callback: (ack: HostRegistrationAck) => void,
     ) => {
       const parsed = hostActivateEmbeddedGameSchema.safeParse(payload);
       if (!parsed.success) {

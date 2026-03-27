@@ -311,7 +311,8 @@ Responsibilities:
 - capture `unhandledrejection`
 - capture Air Jam diagnostics
 - forward structured batches to the server
-- send `pagehide` / `beforeunload` through an immediate beacon-style path instead of relying on the normal batch timer
+- send `pagehide` / `beforeunload` through a tiny dedicated unload beacon endpoint instead of relying on the normal batch timer
+- treat `visibilitychange -> hidden` as an extra unload attribution hint in development when browsers are inconsistent about unload lifecycle timing
 
 The browser sink should not know about files. It should only know how to send structured events to the server collector.
 

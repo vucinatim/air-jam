@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
+import type { PlayerProfile } from "./controller";
 
 export const childHostCapabilitySchema = z.object({
   token: z.string().min(1),
@@ -25,6 +26,8 @@ export interface HostRegistrationAck {
   code?: ErrorCode | string;
   /** When reconnecting, present if the room still has a launched game (launch pending or active). */
   arcadeSession?: HostArcadeSessionSnapshot;
+  /** Authoritative controller roster snapshot for the connected room. */
+  players?: PlayerProfile[];
 }
 
 export interface HostBootstrapAck {

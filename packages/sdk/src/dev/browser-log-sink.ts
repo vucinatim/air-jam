@@ -59,6 +59,12 @@ interface BrowserLogBatchPayload {
   entries: BrowserLogEntry[];
 }
 
+interface BrowserLogUnloadPayload {
+  sessionId: string;
+  metadata: BrowserLogBatchPayload["metadata"];
+  entry: BrowserLogEntry;
+}
+
 type ConsoleMethodName = "debug" | "info" | "log" | "warn" | "error";
 
 interface BrowserLogSinkOptions {
@@ -134,6 +140,15 @@ const resolveLogEndpoint = (serverUrl?: string): string | null => {
 
   const baseUrl = normalizeServerUrlToHttp(serverUrl).replace(/\/$/, "");
   return `${baseUrl}/__airjam/dev/browser-logs`;
+};
+
+const resolveUnloadEndpoint = (serverUrl?: string): string | null => {
+  if (!serverUrl) {
+    return null;
+  }
+
+  const baseUrl = normalizeServerUrlToHttp(serverUrl).replace(/\/$/, "");
+  return `${baseUrl}/__airjam/dev/browser-unload`;
 };
 
 const resolveLogLevelFromDiagnostic = (
@@ -272,6 +287,7 @@ export const updateDevBrowserLogContext = (
 
 class BrowserLogSinkRuntime {
   private endpoint: string | null = null;
+  private unloadEndpoint: string | null = null;
   private appId: string | undefined;
   private readonly sessionId = createSessionId();
   private readonly queue: BrowserLogEntry[] = [];
@@ -282,6 +298,7 @@ class BrowserLogSinkRuntime {
 
   update(options: BrowserLogSinkOptions): void {
     this.endpoint = resolveLogEndpoint(options.serverUrl);
+    this.unloadEndpoint = resolveUnloadEndpoint(options.serverUrl);
     this.appId = options.appId;
   }
 
@@ -409,24 +426,48 @@ class BrowserLogSinkRuntime {
     });
 
     window.addEventListener("pagehide", () => {
-      this.emitImmediate({
-        occurredAt: new Date().toISOString(),
-        level: "info",
-        source: "runtime",
-        event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
-        message: "Window pagehide observed",
-      });
+      this.emitUnloadEvent(
+        {
+          occurredAt: new Date().toISOString(),
+          level: "info",
+          source: "runtime",
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
+          message: "Window pagehide observed",
+        },
+        { trigger: "pagehide" },
+      );
       void this.flush(true);
     });
 
     window.addEventListener("beforeunload", () => {
-      this.emitImmediate({
-        occurredAt: new Date().toISOString(),
-        level: "info",
-        source: "runtime",
-        event: AIRJAM_DEV_LOG_EVENTS.runtime.windowBeforeUnload,
-        message: "Window beforeunload observed",
-      });
+      this.emitUnloadEvent(
+        {
+          occurredAt: new Date().toISOString(),
+          level: "info",
+          source: "runtime",
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.windowBeforeUnload,
+          message: "Window beforeunload observed",
+        },
+        { trigger: "beforeunload" },
+      );
+      void this.flush(true);
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "hidden") {
+        return;
+      }
+
+      this.emitUnloadEvent(
+        {
+          occurredAt: new Date().toISOString(),
+          level: "info",
+          source: "runtime",
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
+          message: "Document hidden before unload",
+        },
+        { trigger: "visibilitychange" },
+      );
       void this.flush(true);
     });
 
@@ -550,7 +591,7 @@ class BrowserLogSinkRuntime {
     };
   }
 
-  private serializePayload(payload: BrowserLogBatchPayload): string | null {
+  private serializePayload(payload: unknown): string | null {
     try {
       return JSON.stringify(payload);
     } catch {
@@ -558,21 +599,71 @@ class BrowserLogSinkRuntime {
     }
   }
 
-  private emitImmediate(entry: BrowserLogEntry): void {
-    if (!this.endpoint) {
+  private async postUnloadPayload(body: string): Promise<void> {
+    if (!this.unloadEndpoint) {
       return;
     }
 
-    const normalizedEntry = this.normalizeEntry(entry);
-    const payload = this.buildPayload([...this.queue, normalizedEntry]);
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.sendBeacon === "function"
+    ) {
+      try {
+        if (navigator.sendBeacon(this.unloadEndpoint, body)) {
+          return;
+        }
+      } catch {
+        // Fall through to fetch keepalive transport.
+      }
+    }
+
+    try {
+      const response = await fetch(this.unloadEndpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "text/plain;charset=UTF-8",
+        },
+        body,
+        keepalive: true,
+        mode: "cors",
+      });
+      if (!response.ok) {
+        this.reportTransportFailure(
+          `Browser unload endpoint returned ${response.status}`,
+          { status: response.status, transport: "unload" },
+        );
+      }
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : "Unknown browser unload transport failure";
+      this.reportTransportFailure(reason, { transport: "unload" });
+    }
+  }
+
+  private emitUnloadEvent(
+    entry: BrowserLogEntry,
+    details?: Record<string, unknown>,
+  ): void {
+    if (!this.unloadEndpoint) {
+      return;
+    }
+
+    const payload: BrowserLogUnloadPayload = {
+      sessionId: this.sessionId,
+      metadata: this.getMetadata(),
+      entry: this.normalizeEntry({
+        ...entry,
+        data: details ? [toSerializable(details)] : entry.data,
+      }),
+    };
     const body = this.serializePayload(payload);
     if (!body) {
       return;
     }
 
-    this.queue.splice(0, this.queue.length);
-    this.hasReset = true;
-    void this.postPayload(body, true);
+    void this.postUnloadPayload(body);
   }
 
   private getMetadata(): BrowserLogBatchPayload["metadata"] {

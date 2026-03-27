@@ -295,7 +295,29 @@ const truncate = (value: string, max = 120): string => {
   return `${value.slice(0, max - 1)}…`;
 };
 
-const formatDetails = (event: DevLogEvent): string[] => {
+const EXTRA_DETAIL_KEYS = [
+  "component",
+  "focus",
+  "controllerCount",
+  "maxPlayers",
+  "reused",
+  "reason",
+  "command",
+  "gameId",
+] as const;
+
+const formatScalarDetailValue = (value: unknown): string | null => {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return String(value);
+  }
+  return null;
+};
+
+export const formatDetails = (event: DevLogEvent): string[] => {
   const details: string[] = [];
   if (event.event) details.push(`event=${event.event}`);
   if (typeof event.collectorSeq === "number") {
@@ -336,6 +358,14 @@ const formatDetails = (event: DevLogEvent): string[] => {
     details.push(`ingested=${event.ingestedAt}`);
   }
   if (event.appIdHint) details.push(`app=${event.appIdHint}`);
+
+  for (const key of EXTRA_DETAIL_KEYS) {
+    const value = formatScalarDetailValue(event[key]);
+    if (value !== null) {
+      details.push(`${key}=${value}`);
+    }
+  }
+
   return details;
 };
 

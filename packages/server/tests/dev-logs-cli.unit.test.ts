@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCliArgs, passesFilter } from "../scripts/dev-logs";
+import { formatDetails, parseCliArgs, passesFilter } from "../scripts/dev-logs";
 
 describe("dev logs cli", () => {
   it("parses runtime filters", () => {
@@ -147,5 +147,25 @@ describe("dev logs cli", () => {
         options,
       ),
     ).toBe(true);
+  });
+
+  it("surfaces important scalar event fields in formatted details", () => {
+    expect(
+      formatDetails({
+        event: "host.reconnect.accepted",
+        roomId: "ROOM1",
+        controllerCount: 1,
+        focus: "SYSTEM",
+        component: "host-lifecycle",
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        "event=host.reconnect.accepted",
+        "room=ROOM1",
+        "controllerCount=1",
+        "focus=SYSTEM",
+        "component=host-lifecycle",
+      ]),
+    );
   });
 });

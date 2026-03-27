@@ -8,6 +8,12 @@ type HostCreateRoomAck = {
   roomId?: string;
   message?: string;
   code?: ErrorCode | string;
+  players?: Array<{
+    id: string;
+    label: string;
+    color?: string;
+    avatarId?: string;
+  }>;
 };
 
 type ControllerJoinAck = {
@@ -57,6 +63,46 @@ describe("server room lifecycle", () => {
 
     expect(reconnectAck.ok).toBe(true);
     expect(reconnectAck.roomId).toBe(roomId);
+  });
+
+  it("returns the current controller roster in the host reconnect ack", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const controller = await harness.connectSocket();
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_existing_1", nickname: "Existing" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    host.disconnect();
+    await harness.delay(30);
+
+    const reconnectedHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(reconnectedHost)).ok).toBe(true);
+    const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
+      reconnectedHost,
+      "host:reconnect",
+      { roomId },
+    );
+
+    expect(reconnectAck.ok).toBe(true);
+    expect(reconnectAck.players).toEqual([
+      expect.objectContaining({
+        id: "ctrl_existing_1",
+        label: "Existing",
+      }),
+    ]);
   });
 
   it("routes controller join/leave/rejoin notices to the host", async () => {

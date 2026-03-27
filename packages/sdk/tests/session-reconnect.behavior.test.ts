@@ -150,6 +150,50 @@ describe("session reconnect behavior", () => {
     );
   });
 
+  it("hydrates existing players from the host reconnect ack", async () => {
+    mocked.store?.getState().setRoomId("ROOM1");
+    mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    sessionStorage.setItem("airjam_room_id", "ROOM1");
+    mocked.hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        callback?: (ack: unknown) => void,
+      ) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+        }
+        if (event === "host:reconnect") {
+          callback?.({
+            ok: true,
+            roomId: "ROOM1",
+            players: [
+              {
+                id: "ctrl_existing_1",
+                label: "Existing Player",
+                avatarId: "avatar-1",
+              },
+            ],
+          });
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost());
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    expect(result.current.players).toEqual([
+      {
+        id: "ctrl_existing_1",
+        label: "Existing Player",
+        avatarId: "avatar-1",
+      },
+    ]);
+  });
+
   it("blocks direct host state emits when the active room is no longer authoritative", async () => {
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");

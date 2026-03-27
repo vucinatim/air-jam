@@ -143,29 +143,70 @@ describe("dev browser log sink", () => {
             runtimeEpoch: 2,
             roomId: "ROOM1",
           },
-          {
-            occurredAt: "2026-03-26T20:00:01.150Z",
-            level: "info",
-            source: "runtime",
-            sourceSeq: 5,
-            event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
-            message: "Window pagehide observed",
-          },
-          {
-            occurredAt: "2026-03-26T20:00:01.175Z",
-            level: "info",
-            source: "runtime",
-            sourceSeq: 6,
-            event: AIRJAM_DEV_LOG_EVENTS.runtime.windowBeforeUnload,
-            message: "Window beforeunload observed",
-          },
         ],
       }),
     });
 
     expect(appendResponse.status).toBe(200);
 
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    const unloadResponse = await fetch(`${baseUrl}/__airjam/dev/browser-unload`, {
+      method: "POST",
+      headers: {
+        "content-type": "text/plain;charset=UTF-8",
+      },
+      body: JSON.stringify({
+        sessionId: "session-one",
+        metadata: {
+          appId: "aj_app_test123",
+          traceId: bootstrapAck.traceId,
+          origin: "http://localhost:5173",
+          pathname: "/play",
+        },
+        entry: {
+          occurredAt: "2026-03-26T20:00:01.150Z",
+          level: "info",
+          source: "runtime",
+          sourceSeq: 5,
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
+          message: "Window pagehide observed",
+          data: [{ trigger: "pagehide" }],
+        },
+      }),
+    });
+
+    expect(unloadResponse.status).toBe(204);
+
+    const unloadBeforeResponse = await fetch(
+      `${baseUrl}/__airjam/dev/browser-unload`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "text/plain;charset=UTF-8",
+        },
+        body: JSON.stringify({
+          sessionId: "session-one",
+          metadata: {
+            appId: "aj_app_test123",
+            traceId: bootstrapAck.traceId,
+            origin: "http://localhost:5173",
+            pathname: "/play",
+          },
+          entry: {
+            occurredAt: "2026-03-26T20:00:01.175Z",
+            level: "info",
+            source: "runtime",
+            sourceSeq: 6,
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.windowBeforeUnload,
+            message: "Window beforeunload observed",
+            data: [{ trigger: "beforeunload" }],
+          },
+        }),
+      },
+    );
+
+    expect(unloadBeforeResponse.status).toBe(204);
+
+    await new Promise((resolve) => setTimeout(resolve, 75));
 
     const latestContents = await readFile(path.join(tempDir, "dev-latest.ndjson"), "utf8");
     const events = parseEvents(latestContents);
