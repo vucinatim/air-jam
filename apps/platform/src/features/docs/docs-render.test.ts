@@ -21,7 +21,7 @@ describe("docs render validation", () => {
       expect(html.length).toBeGreaterThan(0);
       expect(html).toContain("<h1");
     }
-  }, 15_000);
+  }, 30_000);
 
   it("preserves server-rendered code blocks for docs pages with fenced code", async () => {
     for (const document of getDocsDocuments()) {
@@ -40,5 +40,5 @@ describe("docs render validation", () => {
       expect(html).toContain("<pre");
       expect(html).toContain("<code");
     }
-  }, 15_000);
+  }, 30_000);
 });

@@ -15,5 +15,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["docs/**/*.ts"]
+  "include": ["docs/**/*.ts", "blog/**/*.ts"]
 }

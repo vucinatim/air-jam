@@ -359,6 +359,88 @@ Heavy aggregation should happen:
 
 This keeps runtime performance and analytics concerns decoupled.
 
+## Projection Strategy
+
+Once eligibility can pause and resume across reconnects, gaps, and recoveries, analytics derivation becomes an interval projection problem rather than a simple counter problem.
+
+Air Jam should model this explicitly.
+
+### Recommended Shape
+
+The cleanest derivation flow is:
+
+1. raw append-only usage ledger
+2. normalized interval or segment records
+3. aggregate metrics derived from those normalized intervals
+
+This is better than trying to answer every dashboard question directly from raw events.
+
+### Why This Matters
+
+A raw ledger may contain patterns like:
+
+1. controller joined
+2. controller disconnected
+3. controller reconnected
+4. controller left
+
+If reconnect grace and eligibility pauses are part of the product rules, then the analytics layer must intentionally exclude some gaps while preserving the audit trail.
+
+That makes projection a first-class concern.
+
+### Normalized Segment Examples
+
+Recommended derived segment types include:
+
+1. controller presence segments
+2. game-active segments
+3. eligible playtime segments
+
+Example uses:
+
+1. controller-seconds are computed from controller presence segments
+2. total game-active time is computed from game-active segments
+3. payout-grade or quota-grade playtime is computed from eligible playtime segments
+
+### Incremental Projector
+
+The default implementation should favor a small deterministic projector that:
+
+1. consumes ordered raw events
+2. updates normalized segment records
+3. updates daily or session-level aggregates
+
+This is usually easier to reason about than embedding all accounting semantics inside one large SQL query.
+
+### SQL Recompute And Backfill
+
+Postgres window functions are still useful.
+
+Recommended uses:
+
+1. backfilling derived data from the raw ledger
+2. validating projector output
+3. rebuilding aggregates after metric definition changes
+
+Useful tools may include:
+
+1. `LAG()`
+2. `LEAD()`
+3. partitioned ordering by runtime session, game session, or controller identity
+
+These are implementation tools, not the primary product contract.
+
+### API Read Rule
+
+Dashboard and product APIs should read:
+
+1. normalized segment tables
+2. derived aggregate tables
+
+They should not calculate interval math on demand from raw events inside request handlers.
+
+That rule keeps reads fast, keeps accounting deterministic, and avoids duplicating metric logic across the product.
+
 ## Hosted Vs Self-Hosted Story
 
 Analytics should respect the open product boundary.

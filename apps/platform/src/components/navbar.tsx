@@ -47,6 +47,12 @@ export const Navbar = () => {
         </Link>
         <div className="flex items-center gap-6">
           <Link
+            href="/blog"
+            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+          >
+            Blog
+          </Link>
+          <Link
             href="/dashboard/games"
             onClick={handleDashboardClick}
             className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"

@@ -48,16 +48,17 @@ When touching `create-airjam`, templates, or package boundary behavior:
 2. Keep `docs/implementation-plan.md` as the single active implementation tracker or summary, and archive detailed completed plans under `docs/archive/done/`.
 3. Track non-launch architecture follow-ups in `suggestions.md`.
 
-## 5a) Docs Contribution Rules
+## 5a) Content Contribution Rules
 
-When a change touches documentation or public framework contracts:
+When a change touches public content or framework contracts:
 
 1. Put public framework docs content in `content/docs/`, not under `apps/platform/src/app/docs/`.
-2. Keep page-local metadata in neighboring `page.docs.ts` files and treat that metadata as canonical.
-3. Treat `apps/platform/src/features/docs/` as the only runtime/docs delivery boundary for the platform app.
-4. Do not edit `apps/platform/src/features/docs/generated/content-docs.generated.ts` directly; regenerate it through the platform docs scripts.
-5. Put maintainer-only docs, plans, and architectural notes in root `docs/`.
-6. Update docs tests/manifests in the same change when public docs behavior or metadata changes.
+2. Put public blog content in `content/blog/`, not under the Next app tree.
+3. Keep page-local metadata in neighboring `page.docs.ts` and `post.meta.ts` files and treat that metadata as canonical.
+4. Treat `apps/platform/src/features/docs/` and `apps/platform/src/features/blog/` as the only runtime delivery boundaries for those content systems.
+5. Do not edit generated content source files under `apps/platform/src/features/*/generated/` directly; regenerate them through the platform content scripts.
+6. Put maintainer-only docs, plans, and architectural notes in root `docs/`.
+7. Update content tests/manifests/routes in the same change when public docs or blog behavior changes.
 
 ## 6) Merge Discipline
 

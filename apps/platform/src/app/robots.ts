@@ -10,6 +10,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: [
           "/",
+          "/blog",
           "/docs",
           "/llms.txt",
           "/docs-manifest",

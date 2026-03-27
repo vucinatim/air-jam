@@ -1,0 +1,56 @@
+import { metadata } from "./post.meta";
+
+export { metadata };
+
+# Air Jam 1.0
+
+Air Jam 1.0 is the first public release of the framework and platform. This post is placeholder launch content for the new blog system, but it already reflects the shape we want for real release articles.
+
+## What shipped
+
+- A cleaner SDK built around the host, controller, and state lanes.
+- A real platform surface for docs, dashboard flows, and Arcade integration.
+- A docs system that works for both people and coding agents.
+
+## Why this release matters
+
+Air Jam is not just a QR-code controller demo anymore. The core shape is now stable enough that game projects can build against it without needing to reverse-engineer the repo every time they touch the framework.
+
+## What we focused on
+
+The 1.0 work was mostly about making the system legible:
+
+- clear SDK conventions
+- cleaner server/bootstrap boundaries
+- canonical docs source in `content/docs`
+- machine-readable discovery without a second fake docs product
+
+## Minimal example
+
+```tsx
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { z } from "zod";
+
+export const airjam = createAirJamApp({
+  runtime: env.vite(import.meta.env),
+  game: {
+    controllerPath: "/controller",
+  },
+  input: {
+    schema: z.object({
+      action: z.boolean().optional(),
+    }),
+  },
+});
+```
+
+## What comes next
+
+Before this post becomes the real public launch article, we will replace the placeholder copy with:
+
+1. actual release notes
+2. upgrade guidance
+3. a clearer explanation of what kind of games Air Jam is best at
+4. links to the first public examples and starter projects
+
+For now, this post proves the blog slice is real, routable, and ready to carry release writing.
