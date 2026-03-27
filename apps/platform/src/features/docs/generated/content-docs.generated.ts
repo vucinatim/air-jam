@@ -18,6 +18,10 @@ import {
   metadata as introductionMetadata,
 } from "@content/docs/getting-started/introduction/page.docs";
 import {
+  migratingLegacyGamesDocsPage,
+  metadata as migratingLegacyGamesMetadata,
+} from "@content/docs/getting-started/migrating-legacy-games/page.docs";
+import {
   quickStartDocsPage,
   metadata as quickStartMetadata,
 } from "@content/docs/getting-started/quick-start/page.docs";
@@ -460,6 +464,169 @@ const generatedContentDocsDocuments = [
     ],
     loadComponent: () =>
       import("@content/docs/getting-started/game-ideas/page.mdx"),
+  },
+  {
+    page: migratingLegacyGamesDocsPage,
+    metadata: migratingLegacyGamesMetadata,
+    sourcePath: "content/docs/getting-started/migrating-legacy-games/page.mdx",
+    headings: [
+      {
+        title: "Migrating Legacy Games",
+        slug: "migrating-legacy-games",
+        depth: 1,
+        excerpt:
+          "This guide is for older Air Jam games that still use the pre-v1 app shape. If you are starting fresh, use Quick Start instead. Tip: if you are using an LLM to help with the migration, copy this guide into the…",
+      },
+      {
+        title: "When You Need This Guide",
+        slug: "when-you-need-this-guide",
+        depth: 2,
+        excerpt:
+          "You are likely on the old shape if your game still has some of these patterns: AirJamProvider in App.tsx flat files like src/host-view.tsx, src/controller-view.tsx, and src/store.ts HostShell / ControllerShell old store…",
+      },
+      {
+        title: "Prerelease Local Migration Note",
+        slug: "prerelease-local-migration-note",
+        depth: 2,
+        excerpt:
+          "If you are migrating an old game against a local unreleased Air Jam workspace before packages are published, keep the setup split clean: install @air-jam/sdk from the local package or a local tarball do not depend on…",
+      },
+      {
+        title: "The Target Shape",
+        slug: "the-target-shape",
+        depth: 2,
+        excerpt:
+          "The current canonical app shape looks like this: Not every migrated game must match that exact folder tree. What matters is the boundary model: createAirJamApp(...) defines runtime and input config app.tsx owns…",
+      },
+      {
+        title: "Migration Checklist",
+        slug: "migration-checklist",
+        depth: 2,
+        excerpt:
+          "Use this order. Do not jump around randomly. Replace AirJamProvider bootstrap with createAirJamApp Move host/controller ownership into route wrappers Migrate replicated store actions to (ctx, payload) Remove HostShell /…",
+      },
+      {
+        title: "Step 1: Move Runtime Setup Into airjam.config.ts",
+        slug: "step-1-move-runtime-setup-into-airjamconfigts",
+        depth: 2,
+        excerpt:
+          "Old shape: Target shape: This removes runtime wiring noise from your app tree and gives you one canonical config surface.",
+      },
+      {
+        title: "Step 2: Move Host And Controller Ownership Into app.tsx",
+        slug: "step-2-move-host-and-controller-ownership-into-apptsx",
+        depth: 2,
+        excerpt:
+          "Old shape: Target shape: This is the runtime boundary. Keep it explicit.",
+      },
+      {
+        title: "Step 3: Fix Store Actions First",
+        slug: "step-3-fix-store-actions-first",
+        depth: 2,
+        excerpt:
+          "This is the most important migration after bootstrap. Old actions often looked like this: The current action model is: Controller-side dispatch should always look like: Do not keep trailing playerId arguments around.…",
+      },
+      {
+        title: "Step 4: Remove HostShell And ControllerShell",
+        slug: "step-4-remove-hostshell-and-controllershell",
+        depth: 2,
+        excerpt:
+          "Treat the old shell components as migration targets, not as permanent app structure. Why: they hide app-owned layout inside generic wrappers they can leak presentational concerns into the app they make theme and layout…",
+      },
+      {
+        title: "Step 5: Choose The Right Migration Branch",
+        slug: "step-5-choose-the-right-migration-branch",
+        depth: 2,
+        excerpt:
+          "Not every legacy game should be migrated the same way. Branch A: Flat Legacy App If your app still looks like: then do the full cleanup: add src/airjam.config.ts rename to src/app.tsx move runtime entry files to…",
+      },
+      {
+        title: "Branch A: Flat Legacy App",
+        slug: "branch-a-flat-legacy-app",
+        depth: 3,
+        excerpt:
+          "If your app still looks like: then do the full cleanup: add src/airjam.config.ts rename to src/app.tsx move runtime entry files to src/routes/ move input/store/domain files into src/game/ This is the cleanest migration…",
+      },
+      {
+        title: "Branch B: Already Modular Legacy App",
+        slug: "branch-b-already-modular-legacy-app",
+        depth: 3,
+        excerpt:
+          "If your app already has good structure like: then do not force a cosmetic rewrite just to match a template. Instead: modernize bootstrap and route ownership modernize the store action contract keep healthy…",
+      },
+      {
+        title: "Branch C: Host-Simulation-Heavy App",
+        slug: "branch-c-host-simulation-heavy-app",
+        depth: 3,
+        excerpt:
+          "If most of the game logic lives in a host-side hook or engine module, keep that boundary explicit: replicated store state owns shared, synchronized state host-local hook/engine owns timers, refs, physics, media loading,…",
+      },
+      {
+        title: "Step 6: Migrate Input Based On Input Type",
+        slug: "step-6-migrate-input-based-on-input-type",
+        depth: 2,
+        excerpt:
+          "Do not overgeneralize input migration. Continuous Input Games If your controller sends directional or analog-style input every frame, prefer: local refs/state useInputWriter() useControllerTick(...) Example: Action-Only…",
+      },
+      {
+        title: "Continuous Input Games",
+        slug: "continuous-input-games",
+        depth: 3,
+        excerpt:
+          "If your controller sends directional or analog-style input every frame, prefer: local refs/state useInputWriter() useControllerTick(...) Example:",
+      },
+      {
+        title: "Action-Only Or Choice-Driven Games",
+        slug: "action-only-or-choice-driven-games",
+        depth: 3,
+        excerpt:
+          "If the controller mainly sends taps, choices, or store actions, do not add per-frame input machinery just because another game needed it. Use the simpler model that matches your game. For more input details, see Input…",
+      },
+      {
+        title: "Step 7: Clean Up Old latch Usage Carefully",
+        slug: "step-7-clean-up-old-latch-usage-carefully",
+        depth: 2,
+        excerpt:
+          "Older games may still configure input through latch. For most games, the right migration is smaller than you think: move the schema into airjam.config.ts remove latch entirely keep the default input behavior unless you…",
+      },
+      {
+        title: "Step 8: Remove Legacy Workarounds",
+        slug: "step-8-remove-legacy-workarounds",
+        depth: 2,
+        excerpt:
+          "After bootstrap, shell, and action migration, remove old hacks that only existed because of the old shape. Common examples: theme fixes that fight shell-injected classes old child-mode or shell-mode presentation…",
+      },
+      {
+        title: "Identity Rules To Recheck",
+        slug: "identity-rules-to-recheck",
+        depth: 2,
+        excerpt:
+          "During migration, be explicit about identity. You should know: what is the Air Jam controller/session identity what is the in-game avatar or character identity which store keys use which identity Do not leave this…",
+      },
+      {
+        title: "Validation Checklist",
+        slug: "validation-checklist",
+        depth: 2,
+        excerpt:
+          "Before calling a migration done, verify: host route boots cleanly with controller route joins cleanly with store actions no longer rely on trailing playerId arguments no child component mounts a second runtime owner…",
+      },
+      {
+        title: "Recommended Order For Real Migrations",
+        slug: "recommended-order-for-real-migrations",
+        depth: 2,
+        excerpt:
+          "When migrating multiple games, do them in this order: smallest flat app first host-simulation-heavy app second already-modular app third That order usually sharpens the guide fastest: first app proves the basic recipe…",
+      },
+      {
+        title: "Related Docs",
+        slug: "related-docs",
+        depth: 2,
+        excerpt:
+          "Quick Start Debugging and Logs Input System Networked State Hooks",
+      },
+    ],
+    loadComponent: () =>
+      import("@content/docs/getting-started/migrating-legacy-games/page.mdx"),
   },
   {
     page: architectureDocsPage,

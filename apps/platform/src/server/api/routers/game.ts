@@ -1,9 +1,9 @@
 import { db } from "@/db";
 import { appIds, games, users } from "@/db/schema";
+import { assertOwnedGame } from "@/server/games/assert-owned-game";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
-import { assertOwnedGame } from "@/server/games/assert-owned-game";
 
 const normalizeAllowedOrigins = (values: string[]): string[] => {
   const normalized = values
@@ -55,6 +55,7 @@ export const gameRouter = createTRPCRouter({
         url: games.url,
         thumbnailUrl: games.thumbnailUrl,
         videoUrl: games.videoUrl,
+        coverUrl: games.coverUrl,
         ownerName: users.name,
       })
       .from(games)
@@ -196,7 +197,9 @@ export const gameRouter = createTRPCRouter({
         .update(appIds)
         .set({
           allowedOrigins:
-            normalizedAllowedOrigins.length > 0 ? normalizedAllowedOrigins : null,
+            normalizedAllowedOrigins.length > 0
+              ? normalizedAllowedOrigins
+              : null,
         })
         .where(eq(appIds.gameId, input.gameId))
         .returning();

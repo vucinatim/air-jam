@@ -19,20 +19,28 @@ const run = (command, cwd = repoRoot) => {
   });
 };
 
+const toTarballBaseName = (packageName) =>
+  packageName.replace(/^@/, "").replace(/\//g, "-");
+
 const packWorkspacePackage = (packageDir) => {
   fs.mkdirSync(tarballDir, { recursive: true });
-  const before = new Set(fs.readdirSync(tarballDir));
-  run(`pnpm pack --pack-destination ${JSON.stringify(tarballDir)}`, packageDir);
-  const created = fs
-    .readdirSync(tarballDir)
-    .filter((name) => name.endsWith(".tgz") && !before.has(name))
-    .sort();
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(packageDir, "package.json"), "utf8"),
+  );
+  const expectedTarball = `${toTarballBaseName(packageJson.name)}-${packageJson.version}.tgz`;
+  const tarballPath = path.join(tarballDir, expectedTarball);
 
-  if (created.length === 0) {
+  if (fs.existsSync(tarballPath)) {
+    fs.unlinkSync(tarballPath);
+  }
+
+  run(`pnpm pack --pack-destination ${JSON.stringify(tarballDir)}`, packageDir);
+
+  if (!fs.existsSync(tarballPath)) {
     throw new Error(`No tarball produced for package at ${packageDir}`);
   }
 
-  return path.join(tarballDir, created[created.length - 1]);
+  return tarballPath;
 };
 
 const main = () => {

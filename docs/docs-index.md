@@ -23,7 +23,9 @@ Active supporting plans:
 5. [Logging System Plan](./plans/logging-system-plan.md)
 6. [Release Prep Plan](./plans/release-prep-plan.md)
 7. [V1 Closeout Plan](./plans/v1-closeout-plan.md)
-8. [Blog Article Plan](./plans/blog-article-plan.md)
+8. [Legacy Game Migration Observations](./plans/legacy-game-migration-observations.md)
+9. [Blog Article Plan](./plans/blog-article-plan.md)
+10. [Landing Page Polish Plan](./plans/landing-page-polish-plan.md)
 
 Completed transitions / reference plans:
 

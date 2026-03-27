@@ -143,6 +143,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === "/dashboard/games"}
+                    tooltip="Manage and publish games."
                   >
                     <Link href="/dashboard/games">
                       <LayoutDashboard />
