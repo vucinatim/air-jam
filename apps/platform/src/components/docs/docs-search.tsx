@@ -9,7 +9,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { DOCS_SECTIONS, type DocsIcon } from "@/lib/docs-index";
+import {
+  getDocsSearchEntries,
+  type DocsIcon,
+  type DocsSearchEntry as FrameworkDocsSearchEntry,
+} from "@/features/docs";
 import {
   Bot,
   Code2,
@@ -31,12 +35,15 @@ type DocsSearchProps = {
 };
 
 type DocsSearchEntry = {
+  kind: "page" | "heading";
   title: string;
   section: string;
   href: string;
   description: string;
   icon: LucideIcon;
   keywords: string[];
+  pageTitle?: string;
+  depth?: number;
 };
 
 const ICONS: Record<DocsIcon, LucideIcon> = {
@@ -59,20 +66,22 @@ export const DocsSearch = ({ variant = "button" }: DocsSearchProps) => {
       navigator.platform.toLowerCase().includes("mac"),
   );
   const router = useRouter();
+  const docsSearchEntries = getDocsSearchEntries();
 
   const entries = useMemo<DocsSearchEntry[]>(
     () =>
-      DOCS_SECTIONS.flatMap((section) =>
-        section.pages.map((page) => ({
-          title: page.title,
-          section: section.title,
-          href: page.href,
-          description: page.description,
-          icon: ICONS[page.icon],
-          keywords: page.keywords,
-        })),
-      ),
-    [],
+      docsSearchEntries.map((entry: FrameworkDocsSearchEntry) => ({
+        kind: entry.kind,
+        title: entry.title,
+        section: entry.section,
+        href: entry.href,
+        description: entry.description,
+        icon: ICONS[entry.icon],
+        keywords: entry.keywords,
+        pageTitle: entry.pageTitle,
+        depth: entry.depth,
+      })),
+    [docsSearchEntries],
   );
 
   useEffect(() => {
@@ -138,11 +147,22 @@ export const DocsSearch = ({ variant = "button" }: DocsSearchProps) => {
                 className="flex items-center gap-3"
               >
                 <entry.icon className="size-4 shrink-0" />
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-medium">{entry.title}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {entry.section} · {entry.description}
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="font-medium">
+                    {entry.kind === "heading"
+                      ? `# ${entry.title}`
+                      : entry.title}
                   </span>
+                  <span className="text-muted-foreground text-xs">
+                    {entry.kind === "heading" && entry.pageTitle
+                      ? `${entry.section} · ${entry.pageTitle}`
+                      : `${entry.section} · ${entry.description}`}
+                  </span>
+                  {entry.kind === "heading" ? (
+                    <span className="text-muted-foreground truncate text-xs">
+                      {entry.description}
+                    </span>
+                  ) : null}
                 </div>
               </CommandItem>
             ))}

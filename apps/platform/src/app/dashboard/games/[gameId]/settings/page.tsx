@@ -26,7 +26,7 @@ import { Check, Loader2, Save, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const gameSettingsSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -395,7 +395,9 @@ export default function GameSettingsPage() {
                     <FormLabel>Allowed Origins (Optional)</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder={"https://my-game.vercel.app\nhttps://my-game.netlify.app"}
+                        placeholder={
+                          "https://my-game.vercel.app\nhttps://my-game.netlify.app"
+                        }
                         rows={4}
                         {...field}
                       />
@@ -417,7 +419,10 @@ export default function GameSettingsPage() {
                     <FormItem>
                       <FormLabel>Thumbnail URL</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://.../thumbnail.jpg" {...field} />
+                        <Input
+                          placeholder="https://.../thumbnail.jpg"
+                          {...field}
+                        />
                       </FormControl>
                       <FormDescription>
                         Used as the game card image in the arcade browser.
@@ -433,7 +438,10 @@ export default function GameSettingsPage() {
                     <FormItem>
                       <FormLabel>Preview Video URL (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://.../preview.mp4" {...field} />
+                        <Input
+                          placeholder="https://.../preview.mp4"
+                          {...field}
+                        />
                       </FormControl>
                       <FormDescription>
                         Plays on selected arcade cards when available.

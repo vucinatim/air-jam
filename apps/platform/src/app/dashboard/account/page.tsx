@@ -22,7 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const accountFormSchema = z.object({
   displayName: z
@@ -126,4 +126,3 @@ export default function AccountPage() {
     </div>
   );
 }
-

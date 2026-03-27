@@ -1,10 +1,11 @@
-import { DOCS_PAGES } from "@/lib/docs-index";
+import { getDocsPages } from "@/features/docs";
 import { getSiteUrl } from "@/lib/site-url";
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = getSiteUrl();
   const lastModified = new Date();
+  const docsPages = getDocsPages();
 
   const staticPages: MetadataRoute.Sitemap = [
     {
@@ -21,12 +22,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  const docsPages: MetadataRoute.Sitemap = DOCS_PAGES.map((page) => ({
+  const docsPageEntries: MetadataRoute.Sitemap = docsPages.map((page) => ({
     url: `${siteUrl}${page.href}`,
     lastModified,
     changeFrequency: "weekly",
     priority: 0.8,
   }));
 
-  return [...staticPages, ...docsPages];
+  return [...staticPages, ...docsPageEntries];
 }

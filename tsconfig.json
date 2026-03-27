@@ -1,6 +1,8 @@
 {
   "files": [],
   "references": [
+    { "path": "./apps/platform" },
+    { "path": "./content" },
     { "path": "./packages/server" },
     { "path": "./packages/sdk" },
     { "path": "./apps/prototype-game" }

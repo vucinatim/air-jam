@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Docs Source Integrity
+        run: pnpm --filter platform docs:check-generated
+
       - name: Typecheck
         run: pnpm typecheck
 

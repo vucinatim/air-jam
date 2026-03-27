@@ -8,7 +8,13 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/docs", "/llms.txt"],
+        allow: [
+          "/",
+          "/docs",
+          "/llms.txt",
+          "/docs-manifest",
+          "/docs-search-index",
+        ],
         disallow: ["/api/", "/dashboard/", "/arcade/", "/controller/"],
       },
     ],

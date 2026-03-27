@@ -3,15 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "docs:check-generated": "node ../../scripts/check-content-docs-source.mjs",
+    "docs:generate": "node ../../scripts/generate-content-docs-source.mjs",
     "dev": "pnpm run dev:full",
     "dev:app": "next dev",
     "dev:db": "drizzle-kit studio --config drizzle.config.ts",
     "dev:full": "bash -lc 'pnpm run dev:db & DB_PID=$!; trap \"kill $DB_PID 2>/dev/null || true\" EXIT INT TERM; pnpm run dev:app'",
     "dev:no-db": "pnpm run dev:app",
+    "predev:app": "pnpm run docs:generate",
+    "prebuild": "pnpm run docs:generate",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "pretypecheck": "pnpm run docs:generate",
     "typecheck": "tsc --noEmit",
+    "pretest": "pnpm run docs:generate",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
@@ -64,6 +70,9 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@mdx-js/mdx": "^3.1.1",
+    "@shikijs/rehype": "^4.0.2",
+    "@shikijs/transformers": "^4.0.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.25",
     "@types/react": "^19",
@@ -72,6 +81,7 @@
     "drizzle-kit": "^0.31.8",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "rehype-mdx-code-props": "^3.0.1",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5",

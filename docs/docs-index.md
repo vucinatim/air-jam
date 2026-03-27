@@ -5,21 +5,28 @@ Current core docs:
 1. [Framework Paradigm](./framework-paradigm.md)
 2. [Arcade Surface Contract](./arcade-surface-contract.md)
 3. [Implementation Plan](./implementation-plan.md)
-4. [Development Loop](./development-loop.md)
-5. [Release Workflow](./release-workflow.md)
-6. [Performance Baseline](./performance-baseline.md)
-7. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-8. [AI Studio Architecture](./ai-studio-architecture.md)
-9. [Platform Controller Presentation](./platform-controller-presentation.md)
+4. [Documentation Architecture](./documentation-architecture.md)
+5. [Development Loop](./development-loop.md)
+6. [Release Workflow](./release-workflow.md)
+7. [Performance Baseline](./performance-baseline.md)
+8. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
+9. [Analytics Architecture](./analytics-architecture.md)
+10. [AI Studio Architecture](./ai-studio-architecture.md)
+11. [Platform Controller Presentation](./platform-controller-presentation.md)
 
 Active supporting plans:
 
-1. [SDK Composability Plan](./plans/sdk-composability-plan.md)
-2. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
-3. [Auth Capability Plan](./plans/auth-capability-plan.md)
-4. [Logging System Plan](./plans/logging-system-plan.md)
-5. [Release Prep Plan](./plans/release-prep-plan.md)
-6. [Blog Article Plan](./plans/blog-article-plan.md)
+1. [Documentation Hardening Plan](./plans/documentation-hardening-plan.md)
+2. [SDK Composability Plan](./plans/sdk-composability-plan.md)
+3. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
+4. [Auth Capability Plan](./plans/auth-capability-plan.md)
+5. [Logging System Plan](./plans/logging-system-plan.md)
+6. [Release Prep Plan](./plans/release-prep-plan.md)
+7. [Blog Article Plan](./plans/blog-article-plan.md)
+
+Completed transitions / reference plans:
+
+1. [Documentation Migration Plan](./plans/documentation-migration-plan.md)
 
 Content drafts:
 
