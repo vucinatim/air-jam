@@ -2,6 +2,7 @@ import type {
   ChildHostCapability,
   ControllerStateMessage,
   GameState,
+  HostSessionKind,
   PlayerProfile,
   RoomCode,
 } from "@air-jam/sdk/protocol";
@@ -18,6 +19,16 @@ export interface ControllerSession {
   nickname?: string;
   socketId: string;
   playerProfile: PlayerProfile;
+}
+
+export interface RoomAnalyticsState {
+  runtimeSessionId: string;
+  startedAt: number;
+  appId?: string;
+  gameId?: string;
+  hostVerifiedVia?: "appId" | "hostGrant";
+  hostVerifiedOrigin?: string;
+  hostSessionKind: HostSessionKind;
 }
 
 /**
@@ -40,8 +51,9 @@ export type RoomLifecycleState =
  */
 export interface RoomSession {
   roomId: RoomCode;
-  masterHostSocketId: string; // The Arcade (System)
-  childHostSocketId?: string; // The Game (Child)
+  masterHostSocketId: string; // Primary host socket for the room
+  childHostSocketId?: string; // Secondary game host socket when launched from a system shell
+  analytics: RoomAnalyticsState;
   focus: RoomFocus;
   launchCapability?: ChildHostCapability; // Capability required for a child host to join
   /** Set when a game is launched from the system host (`system:launchGame`). */

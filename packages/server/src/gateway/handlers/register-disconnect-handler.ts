@@ -1,4 +1,5 @@
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
+import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
   getChildHostDisconnectTeardownMs,
@@ -9,7 +10,7 @@ import type { SocketHandlerContext } from "../socket-handler-context.js";
 export const registerDisconnectHandler = (
   context: SocketHandlerContext,
 ): void => {
-  const { io, socket, roomManager } = context;
+  const { io, socket, roomManager, runtimeUsagePublisher } = context;
   const logger = context.logger.child({ component: "disconnect" });
 
   const getDisconnectLogger = (bindings: Record<string, unknown> = {}) => {
@@ -76,10 +77,20 @@ export const registerDisconnectHandler = (
           if (childAlive) {
             return;
           }
+          const previousGameId = current.activeGameId;
           beginRoomClosing(current);
           transitionToSystemFocus(io, current, {
             resyncPlayersToMaster: true,
           });
+          runtimeUsagePublisher.publish(
+            createRoomRuntimeUsageEvent(current, {
+              kind: "game_returned_to_system",
+              gameId: previousGameId,
+              payload: {
+                reason: "child_host_disconnect_timeout",
+              },
+            }),
+          );
           getDisconnectLogger({ roomId }).info(
             {
               event:
@@ -103,6 +114,14 @@ export const registerDisconnectHandler = (
         setTimeout(() => {
           const currentSession = roomManager.getRoom(roomId);
           if (currentSession && currentSession.masterHostSocketId === socket.id) {
+            runtimeUsagePublisher.publish(
+              createRoomRuntimeUsageEvent(currentSession, {
+                kind: "room_closed",
+                payload: {
+                  reason: "host_disconnected",
+                },
+              }),
+            );
             getDisconnectLogger({ roomId }).info(
               {
                 event: AIRJAM_DEV_LOG_EVENTS.host.disconnectRoomClosed,
@@ -130,6 +149,15 @@ export const registerDisconnectHandler = (
       io.to(roomManager.getActiveHostId(session)).emit("server:controllerLeft", {
         controllerId: controller.controllerId,
       });
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "controller_disconnected",
+          payload: {
+            controllerId: controller.controllerId,
+            reason,
+          },
+        }),
+      );
       getDisconnectLogger({
         roomId: controller.roomId,
         controllerId: controller.controllerId,

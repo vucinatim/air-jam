@@ -126,9 +126,13 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   const hostSession: HostSessionProps<TSchema> = input
     ? {
         ...runtime,
+        hostSessionKind: runtime.hostSessionKind ?? "game",
         input,
       }
-    : { ...runtime };
+    : {
+        ...runtime,
+        hostSessionKind: runtime.hostSessionKind ?? "game",
+      };
 
   const controllerSession: ControllerSessionProps = {
     ...runtime,

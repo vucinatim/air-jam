@@ -2,6 +2,7 @@ import {
   AIRJAM_DEV_LOG_EVENTS,
   type ServerErrorPayload,
 } from "@air-jam/sdk/protocol";
+import type { RuntimeUsagePublisher } from "../analytics/runtime-usage.js";
 import {
   createRateLimitGuard,
   createScopedRateLimitGuard,
@@ -26,6 +27,7 @@ export interface RegisterSocketHandlersOptions {
   roomManager: RoomManager;
   rateLimitService: RateLimitService;
   authService: HostBootstrapAuthService;
+  runtimeUsagePublisher: RuntimeUsagePublisher;
   rateLimitWindowMs: number;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
@@ -39,6 +41,7 @@ export const registerSocketHandlers = ({
   roomManager,
   rateLimitService,
   authService,
+  runtimeUsagePublisher,
   rateLimitWindowMs,
   hostRegistrationRateLimitMax,
   controllerJoinRateLimitMax,
@@ -81,6 +84,7 @@ export const registerSocketHandlers = ({
     logger: socketLogger,
     roomManager,
     authService,
+    runtimeUsagePublisher,
     hostRegistrationRateLimitMax,
     controllerJoinRateLimitMax,
     staticAppRateLimitMax,

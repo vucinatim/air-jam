@@ -374,6 +374,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         if (!config.hostGrantEndpoint) {
           return hostBootstrapSchema.parse({
             appId: config.appId,
+            hostSessionKind: config.hostSessionKind,
           });
         }
 
@@ -401,6 +402,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
         return hostBootstrapSchema.parse({
           hostGrant: parsed.data.hostGrant,
+          hostSessionKind: config.hostSessionKind,
         });
       };
 

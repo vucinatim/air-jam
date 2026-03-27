@@ -358,6 +358,15 @@ Add validation around:
 5. projector idempotency
 6. recompute correctness
 
+### Operational tooling
+
+Hardening should leave behind a real operator path, not just test-only recompute logic.
+
+Current rebuild entrypoint:
+
+1. `pnpm analytics:rebuild -- --session=<runtimeSessionId>`
+2. `pnpm analytics:rebuild -- --all`
+
 ### Abuse-readiness direction
 
 Do not implement full creator payouts in this phase.

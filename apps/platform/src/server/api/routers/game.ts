@@ -3,6 +3,7 @@ import { appIds, games, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import { assertOwnedGame } from "@/server/games/assert-owned-game";
 
 const normalizeAllowedOrigins = (values: string[]): string[] => {
   const normalized = values
@@ -82,12 +83,7 @@ export const gameRouter = createTRPCRouter({
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.id), eq(games.userId, ctx.user.id)),
-      });
-      if (!game) throw new Error("Game not found");
-      return game;
+      return await assertOwnedGame(input.id, ctx.user.id);
     }),
 
   update: protectedProcedure
@@ -107,14 +103,7 @@ export const gameRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
 
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, id), eq(games.userId, ctx.user.id)),
-      });
-
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
-      }
+      await assertOwnedGame(id, ctx.user.id);
 
       try {
         const [updatedGame] = await db
@@ -138,15 +127,7 @@ export const gameRouter = createTRPCRouter({
   getAppId: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input, ctx }) => {
-      // Verify game belongs to user
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
-      });
-
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
-      }
+      await assertOwnedGame(input.gameId, ctx.user.id);
 
       const appId = await db.query.appIds.findFirst({
         where: (appIds, { eq }) => eq(appIds.gameId, input.gameId),
@@ -178,15 +159,7 @@ export const gameRouter = createTRPCRouter({
   regenerateAppId: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      // Verify game belongs to user
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
-      });
-
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
-      }
+      await assertOwnedGame(input.gameId, ctx.user.id);
 
       // Generate new app ID
       const newKey = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -213,14 +186,7 @@ export const gameRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
-      });
-
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
-      }
+      await assertOwnedGame(input.gameId, ctx.user.id);
 
       const normalizedAllowedOrigins = normalizeAllowedOrigins(
         input.allowedOrigins,

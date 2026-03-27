@@ -13,6 +13,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 7. Extract the parallel host/controller bridge clients into a small generic bridge transport base so handshake, timeout, port lifecycle, and event fanout do not stay duplicated.
 8. Replace or reconfigure the prototype game’s physics runtime so the host build no longer ships `@dimforge/rapier3d-compat` as a 2 MB+ JS chunk; the easy route/editor/template splits are already done, so the remaining warning is now a real physics-runtime cost rather than loose app structure.
 9. Add optional causal message IDs for key cross-surface hops so some failure stories can be followed by direct cause/effect links instead of correlation by `traceId`, `roomId`, `collectorSeq`, and per-session `sourceSeq` alone.
+10. Split platform analytics reads into a dedicated analytics service/router once game-level dashboards expand into creator/account analytics, so reporting logic does not slowly accumulate inside `gameRouter`.
 
 ## Framework Boundary Follow-Ups
 

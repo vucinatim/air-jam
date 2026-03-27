@@ -3,6 +3,9 @@ import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
 import type { PlayerProfile } from "./controller";
 
+export const hostSessionKindSchema = z.enum(["game", "system"]);
+export type HostSessionKind = z.infer<typeof hostSessionKindSchema>;
+
 export const childHostCapabilitySchema = z.object({
   token: z.string().min(1),
   expiresAt: z.number().int().positive(),
@@ -39,15 +42,18 @@ export interface HostBootstrapAck {
 
 export interface HostSocketAuthority {
   appId?: string;
+  gameId?: string;
   traceId: string;
   verifiedAt: number;
   verifiedVia?: "appId" | "hostGrant";
   verifiedOrigin?: string;
+  hostSessionKind: HostSessionKind;
 }
 
 export const hostBootstrapSchema = z.object({
   appId: z.string().optional(),
   hostGrant: z.string().min(1).optional(),
+  hostSessionKind: hostSessionKindSchema.default("system"),
 });
 
 export type HostBootstrapPayload = z.infer<typeof hostBootstrapSchema>;

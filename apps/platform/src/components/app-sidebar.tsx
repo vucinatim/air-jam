@@ -112,15 +112,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton disabled>
-                    <Variable />
-                    <span>Variables</span>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={
+                      pathname === `/dashboard/games/${gameId}/analytics`
+                    }
+                  >
+                    <Link href={`/dashboard/games/${gameId}/analytics`}>
+                      <LineChart />
+                      <span>Analytics</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton disabled>
-                    <LineChart />
-                    <span>Analytics</span>
+                    <Variable />
+                    <span>Variables</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

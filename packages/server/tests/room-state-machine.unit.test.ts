@@ -16,6 +16,11 @@ import type { RoomSession } from "../src/types";
 const createSession = (): RoomSession => ({
   roomId: "ABCD",
   masterHostSocketId: "host-master",
+  analytics: {
+    runtimeSessionId: "runtime-session-1",
+    startedAt: Date.now(),
+    hostSessionKind: "system",
+  },
   focus: "SYSTEM",
   controllers: new Map(),
   maxPlayers: 8,

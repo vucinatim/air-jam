@@ -1,5 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach } from "vitest";
+import type { HostSessionKind } from "@air-jam/sdk/protocol";
 import {
   createAirJamServer,
   type AirJamServerRuntime,
@@ -22,6 +23,7 @@ export interface ServerTestHarness {
   bootstrapHost: (
     socket: GenericSocket,
     appId?: string,
+    hostSessionKind?: HostSessionKind,
   ) => Promise<{ ok: boolean; code?: string; message?: string }>;
   emitWithAck: <TAck>(
     socket: GenericSocket,
@@ -131,8 +133,12 @@ export const setupServerTestHarness = (
   const bootstrapHost = async (
     socket: GenericSocket,
     appId?: string,
+    hostSessionKind: HostSessionKind = "system",
   ): Promise<{ ok: boolean; code?: string; message?: string }> => {
-    return await emitWithAck(socket, "host:bootstrap", { appId });
+    return await emitWithAck(socket, "host:bootstrap", {
+      appId,
+      hostSessionKind,
+    });
   };
 
   const waitForEvent = async <TPayload>(

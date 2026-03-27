@@ -14,6 +14,7 @@ import {
   type PlayerProfile,
 } from "@air-jam/sdk/protocol";
 import Color from "color";
+import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
   disconnectChildHostIfPresent,
@@ -55,6 +56,7 @@ export const registerControllerHandlers = (
     io,
     socket,
     roomManager,
+    runtimeUsagePublisher,
     isControllerAuthorizedForRoom,
     emitError,
   } = context;
@@ -243,6 +245,7 @@ export const registerControllerHandlers = (
     }
 
     const existing = session.controllers.get(controllerId);
+    const rejoined = Boolean(existing);
     if (existing) {
       roomManager.deleteController(existing.socketId);
     }
@@ -289,6 +292,15 @@ export const registerControllerHandlers = (
       controllerId,
       nickname: nickname ?? undefined,
     });
+    runtimeUsagePublisher.publish(
+      createRoomRuntimeUsageEvent(session, {
+        kind: "controller_joined",
+        payload: {
+          controllerId,
+          rejoined,
+        },
+      }),
+    );
 
     callback({ ok: true, controllerId, roomId });
     socket.emit("server:welcome", {
@@ -482,6 +494,14 @@ export const registerControllerHandlers = (
       roomId,
       controllerId,
     });
+    runtimeUsagePublisher.publish(
+      createRoomRuntimeUsageEvent(session, {
+        kind: "controller_left",
+        payload: {
+          controllerId,
+        },
+      }),
+    );
   });
 
   socket.on("controller:input", (payload: ControllerInputEvent) => {
@@ -636,6 +656,7 @@ export const registerControllerHandlers = (
       return;
     }
 
+    const previousGameId = session.activeGameId;
     if (command === "exit") {
       logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted, "Controller requested room exit", {
         roomId,
@@ -647,6 +668,15 @@ export const registerControllerHandlers = (
         resetGameState: true,
         notifyMasterCloseChild: true,
       });
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "game_returned_to_system",
+          gameId: previousGameId,
+          payload: {
+            reason: "controller_exit",
+          },
+        }),
+      );
       return;
     }
 

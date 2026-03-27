@@ -29,6 +29,7 @@ export interface VerifyHostBootstrapInput {
 
 export interface HostBootstrapVerificationResult extends VerificationResult {
   appId?: string;
+  gameId?: string;
   verifiedVia?: "appId" | "hostGrant";
   verifiedOrigin?: string;
   grantClaims?: HostGrantClaims;
@@ -51,6 +52,20 @@ const normalizeOrigin = (value?: string): string | null => {
   } catch {
     return null;
   }
+};
+
+const resolveActiveAppIdRecord = async (appId?: string) => {
+  if (!appId || !db) {
+    return null;
+  }
+
+  const [keyRecord] = await db
+    .select()
+    .from(appIds)
+    .where(and(eq(appIds.key, appId), eq(appIds.isActive, true)))
+    .limit(1);
+
+  return keyRecord ?? null;
 };
 
 /**
@@ -168,9 +183,11 @@ export class AuthService {
         }
       }
 
+      const keyRecord = await resolveActiveAppIdRecord(grantResult.claims.appId);
       return {
         isVerified: true,
         appId: grantResult.claims.appId,
+        gameId: keyRecord?.gameId,
         verifiedVia: "hostGrant",
         verifiedOrigin: normalizedOrigin,
         grantClaims: grantResult.claims,
@@ -221,11 +238,7 @@ export class AuthService {
     }
 
     try {
-      const [keyRecord] = await db
-        .select()
-        .from(appIds)
-        .where(and(eq(appIds.key, appId), eq(appIds.isActive, true)))
-        .limit(1);
+      const keyRecord = await resolveActiveAppIdRecord(appId);
 
       if (keyRecord) {
         const allowedOrigins = keyRecord.allowedOrigins ?? [];

@@ -21,6 +21,7 @@ export const platformControllerSessionConfig = {
 
 export const platformArcadeHostSessionConfig = {
   ...platformRuntimeConfig,
+  hostSessionKind: "system" as const,
   input: {
     schema: arcadeInputSchema,
   },

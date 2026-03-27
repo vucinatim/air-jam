@@ -23,6 +23,10 @@ import {
   type BrowserLogBatchPayload,
   type BrowserLogUnloadPayload,
 } from "./logging/dev-log-collector.js";
+import {
+  type RuntimeUsagePublisher,
+} from "./analytics/runtime-usage.js";
+import { createDatabaseRuntimeUsageLedgerPublisher } from "./analytics/runtime-usage-ledger.js";
 import { RateLimitService, rateLimitService } from "./services/rate-limit-service.js";
 import { RoomManager, roomManager } from "./services/room-manager.js";
 
@@ -50,6 +54,7 @@ export interface CreateAirJamServerOptions {
   allowedOrigins?: string[] | "*";
   logger?: ServerLogger;
   authService?: HostBootstrapAuthService;
+  runtimeUsagePublisher?: RuntimeUsagePublisher;
   rateLimitService?: RateLimitService;
   roomManager?: RoomManager;
   devLogCollector?: DevLogCollector | false;
@@ -124,6 +129,11 @@ export const createAirJamServer = (
   const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
   const authServiceInstance =
     options.authService ?? new AuthService({ logger: logger.child({ component: "auth" }) });
+  const runtimeUsagePublisher =
+    options.runtimeUsagePublisher ??
+    createDatabaseRuntimeUsageLedgerPublisher(
+      logger.child({ component: "analytics" }),
+    );
   const startupConfigurationError =
     typeof authServiceInstance.getStartupConfigurationError === "function"
       ? authServiceInstance.getStartupConfigurationError()
@@ -244,6 +254,7 @@ export const createAirJamServer = (
       roomManager: roomManagerInstance,
       rateLimitService: rateLimitServiceInstance,
       authService: authServiceInstance,
+      runtimeUsagePublisher,
       rateLimitWindowMs,
       hostRegistrationRateLimitMax,
       controllerJoinRateLimitMax,

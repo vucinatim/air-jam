@@ -18,6 +18,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  GameAnalyticsActivityCard,
+  type GameAnalyticsDailyPoint,
+  type GameAnalyticsTotals,
+} from "@/components/game-analytics/game-analytics-panels";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -49,7 +54,10 @@ export default function GameOverviewPage() {
     { gameId },
     { enabled: !!gameId },
   );
-
+  const { data: analyticsOverview } = api.analytics.getGameOverview.useQuery(
+    { gameId, days: 14 },
+    { enabled: !!gameId },
+  );
   const regenerateAppId = api.game.regenerateAppId.useMutation({
     onSuccess: () => {
       utils.game.getAppId.invalidate({ gameId });
@@ -103,6 +111,16 @@ export default function GameOverviewPage() {
   if (!game) {
     return <div>Game not found</div>;
   }
+
+  const dailyAnalytics: GameAnalyticsDailyPoint[] = analyticsOverview?.daily ?? [];
+  const analyticsTotals: GameAnalyticsTotals = analyticsOverview?.totals ?? {
+    sessionCount: 0,
+    totalGameActiveSeconds: 0,
+    totalControllerSeconds: 0,
+    totalEligiblePlaytimeSeconds: 0,
+    peakConcurrentControllers: 0,
+    lastActivityAt: null,
+  };
 
   return (
     <div className="space-y-6">
@@ -198,16 +216,10 @@ export default function GameOverviewPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <div className="text-muted-foreground flex h-[200px] items-center justify-center">
-              Analytics coming soon...
-            </div>
-          </CardContent>
-        </Card>
+        <GameAnalyticsActivityCard
+          daily={dailyAnalytics}
+          totals={analyticsTotals}
+        />
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Configuration</CardTitle>

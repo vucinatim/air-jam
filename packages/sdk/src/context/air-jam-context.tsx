@@ -59,6 +59,7 @@ import { createAirJamDiagnosticError } from "../diagnostics";
 import { InputManager, type InputConfig } from "../internal/input-manager";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import type { ConnectionRole } from "../protocol";
+import type { HostSessionKind } from "../protocol/host";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
 import {
@@ -126,6 +127,12 @@ export interface AirJamProviderProps<
    * @default 8
    */
   maxPlayers?: number;
+  /**
+   * Declares whether this host provider owns a standalone game room or a system shell room.
+   * Standalone games should use `"game"`; Arcade shell hosts should use `"system"`.
+   * @default "game"
+   */
+  hostSessionKind?: HostSessionKind;
   /**
    * Public hostname for controller URLs.
    * Useful when your app is behind a proxy or has a different public URL.
@@ -271,6 +278,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   appId,
   hostGrantEndpoint,
   maxPlayers,
+  hostSessionKind,
   publicHost,
   resolveEnv = true,
   input,
@@ -283,10 +291,19 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
         appId,
         hostGrantEndpoint,
         maxPlayers,
+        hostSessionKind,
         publicHost,
         resolveEnv,
       }),
-    [serverUrl, appId, hostGrantEndpoint, maxPlayers, publicHost, resolveEnv],
+    [
+      serverUrl,
+      appId,
+      hostGrantEndpoint,
+      maxPlayers,
+      hostSessionKind,
+      publicHost,
+      resolveEnv,
+    ],
   );
 
   // Create InputManager from input config if provided

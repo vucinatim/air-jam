@@ -69,6 +69,7 @@ describe("host join url behavior", () => {
     mocked.useAirJamContext.mockReturnValue({
       config: {
         appId: undefined,
+        hostSessionKind: "game",
         maxPlayers: 8,
         publicHost: "http://localhost:3000",
         resolveEnv: true,

@@ -3,6 +3,7 @@ import {
   ErrorCode,
   hostActivateEmbeddedGameSchema,
   hostBootstrapSchema,
+  type HostSessionKind,
   hostCreateRoomSchema,
   hostJoinAsChildSchema,
   hostReconnectSchema,
@@ -21,6 +22,12 @@ import {
   type SystemLaunchGamePayload,
 } from "@air-jam/sdk/protocol";
 import { v4 as uuidv4 } from "uuid";
+import {
+  createRoomAnalyticsState,
+  createRoomRuntimeUsageEvent,
+  createRuntimeUsageEvent,
+  syncRoomAnalyticsState,
+} from "../../analytics/runtime-usage.js";
 import { redactIdentifier } from "../../logging/logger.js";
 import {
   activateChildHost,
@@ -44,7 +51,8 @@ import type { SocketHandlerContext } from "../socket-handler-context.js";
 export const registerHostLifecycleHandlers = (
   context: SocketHandlerContext,
 ): void => {
-  const { io, socket, roomManager, authService } = context;
+  const { io, socket, roomManager, authService, runtimeUsagePublisher } =
+    context;
   const logger = context.logger.child({ component: "host-lifecycle" });
   const requestOrigin =
     typeof socket.handshake.headers.origin === "string"
@@ -53,18 +61,46 @@ export const registerHostLifecycleHandlers = (
 
   const bindHostAuthority = (
     appId?: string,
+    gameId?: string,
     verifiedVia?: "appId" | "hostGrant",
     verifiedOrigin?: string,
+    hostSessionKind: HostSessionKind = "system",
   ): string => {
     const traceId = `host_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
     socket.data.hostAuthority = {
       appId,
+      gameId,
       traceId,
       verifiedAt: Date.now(),
       verifiedVia,
       verifiedOrigin,
+      hostSessionKind,
     };
     return traceId;
+  };
+
+  const createInitialRoomSession = (
+    roomId: string,
+    maxPlayers: number,
+    hostSessionKind: HostSessionKind,
+  ): RoomSession => {
+    const analytics = createRoomAnalyticsState(socket.data.hostAuthority);
+    analytics.hostSessionKind = hostSessionKind;
+    const startsInGameFocus = hostSessionKind === "game";
+
+    return {
+      roomId,
+      masterHostSocketId: socket.id,
+      analytics,
+      focus: startsInGameFocus ? "GAME" : "SYSTEM",
+      launchCapability: undefined,
+      activeGameId: startsInGameFocus ? analytics.gameId : undefined,
+      controllers: new Map(),
+      maxPlayers,
+      gameState: "paused",
+      controllerOrientation: "portrait",
+      lifecycleState: startsInGameFocus ? "GAME_ACTIVE" : "SYSTEM_IDLE",
+    };
   };
 
   const buildHostRosterSnapshot = (session: RoomSession): PlayerProfile[] =>
@@ -241,14 +277,24 @@ export const registerHostLifecycleHandlers = (
 
       const traceId = bindHostAuthority(
         verification.appId,
+        verification.gameId,
         verification.verifiedVia,
         verification.verifiedOrigin,
+        parsed.data.hostSessionKind,
       );
       logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.bootstrapVerified, "Host bootstrap verified", {
         verifiedVia: verification.verifiedVia,
         appIdHint: redactIdentifier(verification.appId),
         verifiedOrigin: verification.verifiedOrigin,
       });
+      runtimeUsagePublisher.publish(
+        createRuntimeUsageEvent({
+          kind: "host_bootstrap_verified",
+          appId: verification.appId,
+          hostVerifiedVia: verification.verifiedVia,
+          hostVerifiedOrigin: verification.verifiedOrigin,
+        }),
+      );
       callback({ ok: true, traceId });
     },
   );
@@ -319,18 +365,10 @@ export const registerHostLifecycleHandlers = (
       let session = roomManager.getRoom(roomId);
       if (session) {
         session.masterHostSocketId = socket.id;
+        syncRoomAnalyticsState(session.analytics, socket.data.hostAuthority);
         roomManager.setRoom(roomId, session);
       } else {
-        session = {
-          roomId,
-          masterHostSocketId: socket.id,
-          focus: "SYSTEM",
-          controllers: new Map(),
-          maxPlayers: 32,
-          gameState: "paused",
-          controllerOrientation: "portrait",
-          lifecycleState: "SYSTEM_IDLE",
-        };
+        session = createInitialRoomSession(roomId, 32, "system");
         roomManager.setRoom(roomId, session);
       }
 
@@ -340,6 +378,11 @@ export const registerHostLifecycleHandlers = (
       logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.registerSystemAccepted, "Host registered as system host", {
         roomId,
       });
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "room_registered",
+        }),
+      );
       callback({ ok: true, roomId });
       io.to(roomId).emit("server:roomReady", { roomId });
     },
@@ -418,6 +461,10 @@ export const registerHostLifecycleHandlers = (
           existingSession &&
           existingSession.masterHostSocketId === socket.id
         ) {
+          syncRoomAnalyticsState(
+            existingSession.analytics,
+            socket.data.hostAuthority,
+          );
           logHostEvent(
             "info",
             AIRJAM_DEV_LOG_EVENTS.host.createRoomAccepted,
@@ -454,16 +501,11 @@ export const registerHostLifecycleHandlers = (
         }
       } while (roomManager.getRoom(roomId));
 
-      const session: RoomSession = {
+      const session = createInitialRoomSession(
         roomId,
-        masterHostSocketId: socket.id,
-        focus: "SYSTEM",
-        controllers: new Map(),
-        maxPlayers: maxPlayers ?? 8,
-        gameState: "paused",
-        controllerOrientation: "portrait",
-        lifecycleState: "SYSTEM_IDLE",
-      };
+        maxPlayers ?? 8,
+        socket.data.hostAuthority?.hostSessionKind ?? "game",
+      );
 
       roomManager.setRoom(roomId, session);
       roomManager.setHostRoom(socket.id, roomId);
@@ -474,6 +516,25 @@ export const registerHostLifecycleHandlers = (
         maxPlayers,
         reused: false,
       });
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "room_created",
+          payload: {
+            maxPlayers: session.maxPlayers,
+            hostSessionKind: session.analytics.hostSessionKind,
+          },
+        }),
+      );
+      if (session.lifecycleState === "GAME_ACTIVE") {
+        runtimeUsagePublisher.publish(
+          createRoomRuntimeUsageEvent(session, {
+            kind: "game_became_active",
+            payload: {
+              activation: "host_create_room",
+            },
+          }),
+        );
+      }
       callback({
         ok: true,
         roomId,
@@ -577,6 +638,7 @@ export const registerHostLifecycleHandlers = (
         session.masterHostSocketId === socket.id
       ) {
         session.masterHostSocketId = socket.id;
+        syncRoomAnalyticsState(session.analytics, socket.data.hostAuthority);
         roomManager.setRoom(roomId, session);
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
@@ -773,6 +835,12 @@ export const registerHostLifecycleHandlers = (
           gameId,
           reused: false,
         },
+      );
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "game_launch_started",
+          gameId,
+        }),
       );
       callback({ ok: true, launchCapability });
     },
@@ -1007,6 +1075,14 @@ export const registerHostLifecycleHandlers = (
       roomId,
       resumed: false,
     });
+    runtimeUsagePublisher.publish(
+      createRoomRuntimeUsageEvent(session, {
+        kind: "game_became_active",
+        payload: {
+          activation: "child_host_join",
+        },
+      }),
+    );
     setTimeout(() => {
       session.controllers.forEach((controller) => {
         socket.emit(
@@ -1185,6 +1261,14 @@ export const registerHostLifecycleHandlers = (
         roomId,
         alreadyActive: false,
       });
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "game_became_active",
+          payload: {
+            activation: "embedded_game_activate",
+          },
+        }),
+      );
       callback({ ok: true, roomId });
     },
   );
@@ -1205,6 +1289,7 @@ export const registerHostLifecycleHandlers = (
       return;
     }
 
+    const previousGameId = session.activeGameId;
     beginRoomClosing(session);
     disconnectChildHostIfPresent(io, session);
     transitionToSystemFocus(io, session, {
@@ -1217,6 +1302,15 @@ export const registerHostLifecycleHandlers = (
       {
         roomId,
       },
+    );
+    runtimeUsagePublisher.publish(
+      createRoomRuntimeUsageEvent(session, {
+        kind: "game_returned_to_system",
+        gameId: previousGameId,
+        payload: {
+          reason: "system_close_game",
+        },
+      }),
     );
   });
 };

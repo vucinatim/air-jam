@@ -71,6 +71,7 @@ describe("session reconnect behavior", () => {
     mocked.useAirJamContext.mockReturnValue({
       config: {
         appId: undefined,
+        hostSessionKind: "game",
         maxPlayers: 8,
         publicHost: "http://localhost:3000",
         resolveEnv: true,
@@ -145,7 +146,7 @@ describe("session reconnect behavior", () => {
     expect(mocked.hostSocket.connect).not.toHaveBeenCalled();
     expect(mocked.hostSocket.emit).toHaveBeenCalledWith(
       "host:bootstrap",
-      { appId: undefined },
+      { appId: undefined, hostSessionKind: "game" },
       expect.any(Function),
     );
   });
@@ -257,6 +258,7 @@ describe("session reconnect behavior", () => {
     mocked.useAirJamContext.mockReturnValue({
       config: {
         appId: "aj_app_demo",
+        hostSessionKind: "game",
         hostGrantEndpoint: "/api/airjam/host-grant",
         maxPlayers: 8,
         publicHost: "http://localhost:3000",
@@ -306,7 +308,7 @@ describe("session reconnect behavior", () => {
     });
     expect(mocked.hostSocket.emit).toHaveBeenCalledWith(
       "host:bootstrap",
-      { hostGrant: "signed_host_grant" },
+      { hostGrant: "signed_host_grant", hostSessionKind: "game" },
       expect.any(Function),
     );
   });

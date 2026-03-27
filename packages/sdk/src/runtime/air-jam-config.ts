@@ -3,12 +3,14 @@ import {
   createAirJamDiagnosticError,
   emitAirJamDiagnostic,
 } from "../diagnostics";
+import type { HostSessionKind } from "../protocol/host";
 
 export interface AirJamConfig {
   serverUrl?: string;
   appId?: string;
   hostGrantEndpoint?: string;
   maxPlayers: number;
+  hostSessionKind: HostSessionKind;
   publicHost?: string;
 }
 
@@ -17,6 +19,7 @@ export interface ResolveAirJamConfigInput {
   appId?: string;
   hostGrantEndpoint?: string;
   maxPlayers?: number;
+  hostSessionKind?: HostSessionKind;
   publicHost?: string;
   resolveEnv?: boolean;
 }
@@ -128,6 +131,7 @@ export const resolveAirJamConfig = ({
   appId,
   hostGrantEndpoint,
   maxPlayers = DEFAULT_MAX_PLAYERS,
+  hostSessionKind = "game",
   publicHost,
   resolveEnv = true,
 }: ResolveAirJamConfigInput): AirJamConfig => {
@@ -143,6 +147,7 @@ export const resolveAirJamConfig = ({
       appId,
       hostGrantEndpoint,
       maxPlayers,
+      hostSessionKind,
       publicHost,
     };
   }
@@ -163,6 +168,7 @@ export const resolveAirJamConfig = ({
     appId: resolvedAppId,
     hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
     maxPlayers,
+    hostSessionKind,
     publicHost: publicHost ?? getEnvPublicHost(),
   };
 };

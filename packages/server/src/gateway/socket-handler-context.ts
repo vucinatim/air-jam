@@ -1,4 +1,5 @@
 import type { RoomCode, ServerErrorPayload } from "@air-jam/sdk/protocol";
+import type { RuntimeUsagePublisher } from "../analytics/runtime-usage.js";
 import type { ServerLogger } from "../logging/logger.js";
 import type { HostBootstrapAuthService } from "../services/auth-service.js";
 import type { RoomManager } from "../services/room-manager.js";
@@ -10,6 +11,7 @@ export interface SocketHandlerContext {
   logger: ServerLogger;
   roomManager: RoomManager;
   authService: HostBootstrapAuthService;
+  runtimeUsagePublisher: RuntimeUsagePublisher;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
   staticAppRateLimitMax: number;
