@@ -5,8 +5,9 @@
   "packageManager": "pnpm@9.9.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @air-jam/sdk build && pnpm --parallel --filter @air-jam/sdk --filter @air-jam/server --filter platform --filter prototype-game --filter create-airjam run dev",
-    "dev:template:pong": "pnpm --filter @air-jam/sdk build && pnpm --filter @air-jam/server build && pnpm --filter my-airjam-game dev",
+    "dev": "node scripts/dev-workspace.mjs",
+    "dev:pong": "node scripts/dev-workspace.mjs --pong",
+    "dev:template:pong": "pnpm dev:pong",
     "dev:prototype-game": "pnpm --filter prototype-game dev -- --host",
     "dev:server": "pnpm --filter server dev",
     "dev:logs": "pnpm --filter @air-jam/server logs:dev",

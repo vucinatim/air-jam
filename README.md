@@ -51,6 +51,23 @@ pnpm install
 
 ### Development
 
+#### Running The Full Local Stack
+
+Use the top-level workspace launcher for the common local flow:
+
+```bash
+# Start sdk watch, server, platform, and prototype-game
+pnpm dev
+
+# Start sdk watch, server, platform, and pong instead
+pnpm dev -- --pong
+
+# Shortcut alias for pong mode
+pnpm dev:pong
+```
+
+The output is prefixed by process name, so server logs remain visible in the shared terminal.
+
 #### Running the Platform
 
 The platform includes the developer portal, game catalog, and documentation:
@@ -330,6 +347,24 @@ Set environment variables:
 
 - `VITE_AIR_JAM_SERVER_URL` or `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL
 - `VITE_AIR_JAM_APP_ID` or `NEXT_PUBLIC_AIR_JAM_APP_ID`: Your public app ID
+
+### Published Game Media
+
+For v1, published game listing media is URL-based.
+
+If you want thumbnails, cover images, or preview videos in the dashboard and Arcade browser, the intended flow is:
+
+1. host those files yourself with the game deployment
+2. keep them in the game's public static assets, for example `public/media/`
+3. paste the deployed absolute URLs into the game settings in the Air Jam dashboard
+
+Example:
+
+- `https://your-game.vercel.app/media/thumbnail.jpg`
+- `https://your-game.vercel.app/media/cover.jpg`
+- `https://your-game.vercel.app/media/preview.mp4`
+
+Air Jam does not manage media uploads yet. That is intentional for v1 so game publishing stays simple and the platform does not need a full asset-storage product before release.
 
 ## Documentation
 

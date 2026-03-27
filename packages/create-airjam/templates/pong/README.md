@@ -199,6 +199,30 @@ See `.env.example` for all available environment variables. Key variables:
 The game will connect to the official Air Jam server - no local server needed!
 `vercel.json` is included in this template so `/controller?room=XXXX` and other SPA routes resolve correctly.
 
+### Listing Media For The Air Jam Dashboard
+
+For v1, Air Jam expects you to host your own thumbnail, cover, and preview video assets.
+
+The simplest path is:
+
+1. add those files to this project under `public/media/`
+2. deploy the game normally
+3. paste the deployed absolute URLs into the Air Jam dashboard game settings
+
+Example deployed URLs:
+
+- `https://your-game.vercel.app/media/thumbnail.jpg`
+- `https://your-game.vercel.app/media/cover.jpg`
+- `https://your-game.vercel.app/media/preview.mp4`
+
+Recommended conventions:
+
+1. keep listing media in one stable folder such as `public/media/`
+2. use public absolute HTTPS URLs only
+3. avoid renaming files after publishing so dashboard links stay stable
+
+This keeps the v1 publishing flow simple and avoids needing a separate upload/storage system before release.
+
 ### Optional: Stronger Signed Host Bootstrap
 
 If you want stricter ownership guarantees without giving up static hosting, keep the game static and add one small backend or edge route that returns a signed host grant.

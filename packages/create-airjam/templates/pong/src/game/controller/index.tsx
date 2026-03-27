@@ -103,6 +103,20 @@ export function ControllerView() {
     }
   }, [controlsDisabled]);
 
+  useEffect(() => {
+    const releaseDirection = () => {
+      directionRef.current = 0;
+    };
+
+    window.addEventListener("blur", releaseDirection);
+    document.addEventListener("visibilitychange", releaseDirection);
+
+    return () => {
+      window.removeEventListener("blur", releaseDirection);
+      document.removeEventListener("visibilitychange", releaseDirection);
+    };
+  }, []);
+
   return (
     <ForcedOrientationShell desired="portrait" className="bg-zinc-950">
       <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-white">
@@ -138,6 +152,7 @@ export function ControllerView() {
         {matchPhase === "lobby" ? (
           <LobbyPanel
             myTeam={myTeam}
+            teamCounts={teamCounts}
             botTeam={botTeam}
             pointsToWin={pointsToWin}
             canStartMatch={readiness.canStart}
@@ -160,6 +175,7 @@ export function ControllerView() {
         ) : (
           <PlayingControls
             controlsDisabled={controlsDisabled}
+            myTeam={myTeam}
             onDirectionChange={(direction) => {
               directionRef.current = direction;
             }}

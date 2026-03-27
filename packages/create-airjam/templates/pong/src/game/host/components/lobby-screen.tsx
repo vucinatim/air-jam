@@ -96,6 +96,9 @@ export const LobbyScreen = ({
           <div className="text-xl font-bold tracking-[0.2em] text-zinc-200 uppercase">
             {roomId ?? "----"}
           </div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+            Scan to join, choose a side, and start from phone
+          </div>
         </div>
 
         <RoomQrCode

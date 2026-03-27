@@ -425,7 +425,9 @@ export default function GameSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Used as the game card image in the arcade browser.
+                        Used as the game card image in the arcade browser. For
+                        v1, host this asset yourself and paste the public URL
+                        here.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -444,7 +446,8 @@ export default function GameSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Plays on selected arcade cards when available.
+                        Plays on selected arcade cards when available. For v1,
+                        host this video yourself and use a stable public URL.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -461,12 +464,20 @@ export default function GameSettingsPage() {
                       <Input placeholder="https://.../cover.jpg" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Reserved for future larger hero/feature placements.
+                      Reserved for future larger hero/feature placements. For
+                      v1, host this image yourself and paste the public URL
+                      here.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              <div className="rounded-lg border border-white/10 bg-zinc-900/70 p-3 text-sm text-zinc-300">
+                Air Jam does not manage media uploads yet. The simplest v1 flow
+                is to deploy your game and its listing assets together, for
+                example from the same Vercel project under `public/media/...`,
+                then use those absolute URLs here.
+              </div>
               <div className="space-y-3">
                 <p className="text-sm font-medium">Media Preview</p>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

@@ -1,9 +1,11 @@
+import type { TeamCounts } from "../../shared/match-readiness";
 import type { TeamId } from "../../shared/team";
 import { getTeamColor, getTeamLabel } from "../../shared/team";
 import { POINTS_TO_WIN_OPTIONS, PRESS_FEEL_CLASS } from "../constants";
 
 interface LobbyPanelProps {
   myTeam: TeamId | null;
+  teamCounts: TeamCounts;
   botTeam: TeamId | null;
   pointsToWin: number;
   canStartMatch: boolean;
@@ -19,12 +21,14 @@ const TeamJoinButton = ({
   team,
   myTeam,
   isBot,
+  isFull,
   disabled,
   onJoin,
 }: {
   team: TeamId;
   myTeam: TeamId | null;
   isBot: boolean;
+  isFull: boolean;
   disabled: boolean;
   onJoin: (team: TeamId) => void;
 }) => {
@@ -51,13 +55,14 @@ const TeamJoinButton = ({
         }
       }}
     >
-      {isBot ? `${label} BOT` : label}
+      {isBot ? `${label} BOT` : isFull && !selected ? `${label} FULL` : label}
     </button>
   );
 };
 
 export const LobbyPanel = ({
   myTeam,
+  teamCounts,
   botTeam,
   pointsToWin,
   canStartMatch,
@@ -71,6 +76,8 @@ export const LobbyPanel = ({
   const botEnabled = botTeam !== null;
   const team1IsBot = botTeam === "team1";
   const team2IsBot = botTeam === "team2";
+  const team1IsFull = teamCounts.team1 >= 2;
+  const team2IsFull = teamCounts.team2 >= 2;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
@@ -94,14 +101,16 @@ export const LobbyPanel = ({
         team="team1"
         myTeam={myTeam}
         isBot={team1IsBot}
-        disabled={team1IsBot || controlsDisabled}
+        isFull={team1IsFull}
+        disabled={team1IsBot || team1IsFull || controlsDisabled}
         onJoin={onJoinTeam}
       />
       <TeamJoinButton
         team="team2"
         myTeam={myTeam}
         isBot={team2IsBot}
-        disabled={team2IsBot || controlsDisabled}
+        isFull={team2IsFull}
+        disabled={team2IsBot || team2IsFull || controlsDisabled}
         onJoin={onJoinTeam}
       />
 
