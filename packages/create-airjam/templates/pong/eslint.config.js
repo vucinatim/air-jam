@@ -10,6 +10,14 @@ export default defineConfig([
   globalIgnores(["dist", "node_modules", "**/*.json", "**/*.css"]),
   {
     files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "dist",
+      "node_modules",
+      "src/routes/host-view.tsx",
+      "src/routes/controller-view.tsx",
+      "src/game/host/index.tsx",
+      "src/game/controller/index.tsx",
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -35,6 +43,19 @@ export default defineConfig([
           caughtErrorsIgnorePattern: "^_",
           destructuredArrayIgnorePattern: "^_",
           ignoreRestSiblings: true,
+        },
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@air-jam/sdk",
+              importNames: ["useAirJamHost", "useAirJamController"],
+              message:
+                "Mount runtime owner hooks only in the host/controller entry files. Child components should use useHostSession() or useControllerSession() instead.",
+            },
+          ],
         },
       ],
       ...prettierConfig.rules,

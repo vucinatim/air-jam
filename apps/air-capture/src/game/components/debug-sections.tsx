@@ -1,4 +1,4 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useHostSession } from "@air-jam/sdk";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 const MAX_TEAM_SIZE = 2;
 
 export function BotsSection() {
-  const host = useAirJamHost();
+  const { players: connectedPlayers } = useHostSession();
   const botCounts = usePrototypeMatchStore((state) => state.botCounts);
   const teamAssignments = usePrototypeMatchStore(
     (state) => state.teamAssignments,
@@ -35,12 +35,12 @@ export function BotsSection() {
   const matchActions = usePrototypeMatchStore.useActions();
 
   const humanTeamCounts = useMemo(() => {
-    const connectedIds = new Set(host.players.map((player) => player.id));
+    const connectedIds = new Set(connectedPlayers.map((player) => player.id));
     const assignments = Object.entries(teamAssignments)
       .filter(([controllerId]) => connectedIds.has(controllerId))
       .map(([, assignment]) => assignment);
     return getTeamCounts(assignments);
-  }, [host.players, teamAssignments]);
+  }, [connectedPlayers, teamAssignments]);
 
   const maxBotsByTeam: TeamCounts = useMemo(
     () => ({

@@ -68,6 +68,31 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ["apps/**/*.{ts,tsx}"],
+    ignores: [
+      "**/dist/**",
+      "**/src/routes/host-view.tsx",
+      "**/src/routes/controller-view.tsx",
+      "**/src/game/host/index.tsx",
+      "**/src/game/controller/index.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@air-jam/sdk",
+              importNames: ["useAirJamHost", "useAirJamController"],
+              message:
+                "Mount runtime owner hooks only in the host/controller entry files. Child components should use useHostSession() or useControllerSession() instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Disable ESLint rules that conflict with Prettier
   {
     files: ["**/*.{ts,tsx,js,jsx}"],
