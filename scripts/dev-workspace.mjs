@@ -5,13 +5,13 @@ import { spawn } from "node:child_process";
 const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const hasFlag = (flag) => args.includes(flag);
 
-const selectedGame = hasFlag("--pong") ? "pong" : "prototype-game";
+const selectedGame = hasFlag("--pong") ? "pong" : "air-capture";
 
 const usage = () => {
   console.log("Usage: pnpm dev [--pong]");
   console.log("");
   console.log("Modes:");
-  console.log("  default   Start sdk, server, platform, and prototype-game");
+  console.log("  default   Start sdk, server, platform, and air-capture");
   console.log("  --pong    Start sdk, server, platform, and the pong template");
 };
 
@@ -101,8 +101,8 @@ const processes =
         ["server", ["pnpm", "--filter", "@air-jam/server", "dev"]],
         ["platform", ["pnpm", "--filter", "platform", "dev"]],
         [
-          "prototype-game",
-          ["pnpm", "--filter", "prototype-game", "dev", "--", "--host"],
+          "air-capture",
+          ["pnpm", "--filter", "air-capture", "dev", "--", "--host"],
         ],
       ];
 

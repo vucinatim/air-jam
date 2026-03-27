@@ -29,7 +29,7 @@ This is a monorepo managed with pnpm workspaces:
 air-jam/
 ├── apps/
 │   ├── platform/           # Next.js platform web app (developer portal, game catalog)
-│   └── prototype-game/     # Reference game implementation
+│   └── air-capture/        # Reference game implementation
 ├── packages/
 │   ├── sdk/                # Core SDK for building games (@air-jam/sdk)
 │   ├── server/             # WebSocket server for game connections
@@ -56,7 +56,7 @@ pnpm install
 Use the top-level workspace launcher for the common local flow:
 
 ```bash
-# Start sdk watch, server, platform, and prototype-game
+# Start sdk watch, server, platform, and air-capture
 pnpm dev
 
 # Start sdk watch, server, platform, and pong instead
@@ -126,7 +126,7 @@ Reference implementation showcasing SDK capabilities:
 
 ```bash
 # Start the prototype game
-pnpm dev:prototype-game
+pnpm dev:air-capture
 ```
 
 ### Building a Game

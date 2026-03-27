@@ -5,6 +5,6 @@
     { "path": "./content" },
     { "path": "./packages/server" },
     { "path": "./packages/sdk" },
-    { "path": "./apps/prototype-game" }
+    { "path": "./apps/air-capture" }
   ]
 }

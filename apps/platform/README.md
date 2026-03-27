@@ -21,7 +21,7 @@ Platform default URL:
 Related local services:
 
 1. `pnpm dev:server` for the realtime server
-2. `pnpm dev:prototype-game` for the reference game
+2. `pnpm dev:air-capture` for the reference game
 
 ## Notes
 

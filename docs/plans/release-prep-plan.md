@@ -85,7 +85,7 @@ Required outcome:
 
 ## Strongly Recommended Now
 
-### 4. Reduce prototype-game physics payload cost
+### 4. Reduce air-capture physics payload cost
 
 Current issue:
 
@@ -124,8 +124,8 @@ It is a pressure-relief pass on files that are already expensive to reason about
 1. `packages/server/src/gateway/handlers/register-host-lifecycle-handlers.ts`
 2. `apps/platform/src/components/arcade/arcade-system.tsx`
 3. `apps/platform/src/components/controller-menu-sheet.tsx`
-4. `apps/prototype-game/src/routes/host-view.tsx`
-5. `apps/prototype-game/src/game/bot-system/bot-controller.ts`
+4. `apps/air-capture/src/routes/host-view.tsx`
+5. `apps/air-capture/src/game/bot-system/bot-controller.ts`
 
 The rule should be:
 
@@ -239,7 +239,7 @@ It should not be the canonical day-to-day release path.
 
 1. remove user-facing runtime debug logs
 2. add one browser-level smoke test
-3. reduce prototype-game physics payload or split heavyweight demo concerns away from the default reference path
+3. reduce air-capture physics payload or split heavyweight demo concerns away from the default reference path
 
 ### Complexity Control
 

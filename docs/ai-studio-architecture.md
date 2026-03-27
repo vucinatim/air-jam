@@ -1076,7 +1076,7 @@ This should be treated as the first official runtime compatibility profile, not 
 
 The important rule is:
 
-If Air Jam Studio cannot support the dependency surface required by the prototype game, then the studio is not yet supporting first-class Air Jam game development.
+If Air Jam Studio cannot support the dependency surface required by Air Capture, then the studio is not yet supporting first-class Air Jam game development.
 
 ### Compatibility Profiles
 
@@ -1084,7 +1084,7 @@ To keep the model extensible without becoming vague, dependency support should b
 
 The recommended first profile is:
 
-1. `prototype-game`
+1. `air-capture`
 
 That profile should define:
 

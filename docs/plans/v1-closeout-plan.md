@@ -127,7 +127,7 @@ Prove that Air Jam v1 is a real upgrade path, not just a new clean architecture 
 
 ### Required outcomes
 
-1. write a migration document by comparing three old-architecture games against the new `prototype-game` and `pong`
+1. write a migration document by comparing three old-architecture games against the new `air-capture` and `pong`
 2. identify the minimal migration recipe that converts an old game to the current architecture
 3. migrate the three old games fully to the new architecture
 4. validate that each migrated game works correctly
@@ -190,7 +190,7 @@ Make the platform and release presentation feel complete and real.
 ### Required outcomes
 
 1. publish the three migrated games on the platform
-2. publish `prototype-game` and `pong` properly on the platform
+2. publish `air-capture` and `pong` properly on the platform
 3. record gameplay where needed
 4. set thumbnails, preview videos, and related assets
 
@@ -263,7 +263,7 @@ These should help the release, not become blockers for the technical proof path.
 Air Jam should consider v1 ready to publish when all of the following are true:
 
 1. the local dev workflow is simple and documented
-2. `prototype-game` and `pong` both work cleanly
+2. `air-capture` and `pong` both work cleanly
 3. the three old games are migrated and validated
 4. local tarball testing passes
 5. package publish targets are verified

@@ -272,12 +272,12 @@ When the initializing component unmounts, should we clean up?
 
 ---
 
-### Phase 5: Update Prototype Game
+### Phase 5: Update Air Capture
 
 #### 5.1 Files to Delete
 
 ```
-apps/prototype-game/src/game/
+apps/air-capture/src/game/
 ├── context/
 │   ├── input-context.tsx    ❌ DELETE
 │   └── signal-context.tsx   ❌ DELETE
@@ -389,7 +389,7 @@ export const useGameInput = () => {
 ### Verification
 
 - [ ] Build SDK without errors
-- [ ] Build prototype-game without errors
+- [ ] Build air-capture without errors
 - [ ] Test: Input works in Ship component
 - [ ] Test: Signals work (haptics, toasts)
 - [ ] Test: Multiple components can call useAirJamHost()

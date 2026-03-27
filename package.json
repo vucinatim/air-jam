@@ -8,7 +8,7 @@
     "dev": "node scripts/dev-workspace.mjs",
     "dev:pong": "node scripts/dev-workspace.mjs --pong",
     "dev:template:pong": "pnpm dev:pong",
-    "dev:prototype-game": "pnpm --filter prototype-game dev -- --host",
+    "dev:air-capture": "pnpm --filter air-capture dev -- --host",
     "dev:server": "pnpm --filter server dev",
     "dev:logs": "pnpm --filter @air-jam/server logs:dev",
     "analytics:rebuild": "pnpm --filter @air-jam/server analytics:rebuild",
