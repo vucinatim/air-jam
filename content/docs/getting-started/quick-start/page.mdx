@@ -23,23 +23,16 @@ code . # or your preferred editor
 
 ## 2. Start Local Development
 
-You'll need two terminal windows to run the local development environment: one for the backend server and one for the game client.
-
-**Terminal 1: Start the Server**
-This runs the local WebSocket server that handles game connections.
-
-```bash
-pnpm run dev:server
-```
-
-> **Note:** The local server runs on `http://localhost:4000`.
-
-**Terminal 2: Start the Game**
-This runs the game client (Vite).
+The scaffold uses one command for the normal local loop. It starts the local Air Jam server and the game together.
 
 ```bash
 pnpm run dev
 ```
+
+That command starts:
+
+1. the local Air Jam server on `http://localhost:4000`
+2. the game on `http://localhost:5173`
 
 ## 3. Play the Game
 
@@ -67,11 +60,11 @@ Most local Air Jam development works on HTTP. Enable HTTPS only when you need se
    ```
 3. Run secure dev:
    ```bash
-   pnpm run dev:secure
+   pnpm run dev -- --secure
    ```
 
 This keeps the local Air Jam server on `http://localhost:4000`, tunnels only the Vite host URL through HTTPS, and uses that secure host for controller QR URLs.
-`dev:secure` injects secure `VITE_AIR_JAM_SERVER_URL` and `VITE_AIR_JAM_PUBLIC_HOST` at runtime from `AIR_JAM_SECURE_PUBLIC_HOST`.
+`dev -- --secure` injects secure `VITE_AIR_JAM_SERVER_URL` and `VITE_AIR_JAM_PUBLIC_HOST` at runtime from `AIR_JAM_SECURE_PUBLIC_HOST`.
 
 ## 4. Customize & Build
 
@@ -79,16 +72,17 @@ This project is "vibecode friendly"—it includes documentation and AI instructi
 
 - **Check `AGENTS.md`**: Project-wide coding contract and workflow for AI coding assistants.
 - **Check `airjam-docs/`**: Local extracted docs bundled with the template.
-- **Modify `src/host-view.tsx`**: Contains the main game logic and rendering.
-- **Modify `src/controller-view.tsx`**: Defines the mobile controller interface.
-- **Modify `src/store.ts`**: Manage shared networked state.
-- **Modify `src/types.ts`**: Define your game input schema.
+- **Modify `src/airjam.config.ts`**: Canonical runtime setup and input wiring.
+- **Modify `src/game/input.ts`**: Define your input schema.
+- **Modify `src/game/store.ts`**: Manage shared networked state.
+- **Modify `src/game/host/index.tsx`**: Main host/gameplay view.
+- **Modify `src/game/controller/index.tsx`**: Mobile controller interface.
 
 ## Troubleshooting
 
 ### Server not connecting locally
 
-1. Verify `pnpm run dev:server` is running.
+1. Verify `pnpm run dev` is running.
 2. Confirm server health: [http://localhost:4000/health](http://localhost:4000/health).
 3. Confirm your game is using `http://localhost:4000` for `VITE_AIR_JAM_SERVER_URL` (or no override at all for local defaults).
 
@@ -101,7 +95,7 @@ This project is "vibecode friendly"—it includes documentation and AI instructi
 ### QR / controller join URL issues
 
 1. Confirm host and controller are on the same room code.
-2. If testing on phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` (or use `pnpm run dev:secure`).
+2. If testing on phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` (or use `pnpm run dev -- --secure`).
 3. For SPA hosting, ensure rewrites route `/controller?room=XXXX` to your app entry.
 
 ## 5. Deploy Your Game
@@ -125,10 +119,11 @@ When you're ready to share your game, you'll need to deploy it and connect it to
 The SDK handles production bootstrap automatically from that `appId`. You do not need to mint tokens or add auth code in your game.
 If you want to lock production bootstrap to your deployed site only, set the optional allowed-origin list for the App ID in the dashboard settings.
 
-Before release, run the canonical workspace validation from the repo root:
+Before publishing your scaffolded game, run the local checks:
 
 ```bash
-pnpm check:release
+pnpm run typecheck
+pnpm run build
 ```
 
 ### Optional: Stronger Signed Host Bootstrap
@@ -178,6 +173,7 @@ To list your game in the official Air Jam Arcade:
 
 1.  Go to your game's settings in the [Dashboard](/dashboard).
 2.  Enter your **deployed game URL** (e.g., `https://my-game.vercel.app`).
-3.  Toggle the **Publish** switch.
+3.  Optionally add a self-hosted thumbnail, cover image, and preview video URL.
+4.  Toggle the **Publish** switch.
 
 Your game is now live and playable by anyone in the Arcade!

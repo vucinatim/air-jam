@@ -39,9 +39,15 @@ const HostView = () => {
 };
 ```
 
-### Arcade Mode (Two-Host Model)
+### Arcade Mode (Outer App + Embedded Game)
 
-In arcade mode, the platform runs a "master" host and your game runs as a "child" host inside an iframe.
+In arcade mode, the platform runs the outer Arcade app and your game runs as an embedded Air Jam host inside an iframe.
+
+The important rule is:
+
+1. Arcade owns platform surface state
+2. your game owns gameplay state
+3. the server owns room membership, focus routing, and runtime invariants
 
 import { ArcadeModeDiagram } from "@/components/docs/figures/arcade-mode-diagram";
 
@@ -60,6 +66,8 @@ import { FocusSystemDiagram } from "@/components/docs/figures/focus-system-diagr
 1. **Security** - Prevents rogue games from stealing input
 2. **Reliability** - Single source of truth for focus state
 3. **Consistency** - All controllers route to same host
+
+This focus system does not replace the normal Air Jam model. It only decides which host currently receives controller input. Your game still uses the normal input lane, replicated state lane, and signal lane.
 
 ## Connection Flow
 
@@ -173,19 +181,18 @@ Production bootstrap remains automatic here:
 
 Game code does not change between those modes.
 
-### Child Mode (Arcade)
+### Embedded Game Mode (Arcade)
 
 ```tsx
-// SDK auto-detects arcade mode from URL params
-// ?aj_room=ABCD&aj_cap=xxxxx
-
+// SDK auto-detects embedded runtime context from platform-injected params.
+// Game code should not parse those params directly.
 const host = useAirJamHost({
   onPlayerJoin: (player) => {
     // Existing players synced automatically
   },
 });
 
-// Child close/lifecycle handling is owned by the arcade platform adapter.
+// Embedded close/lifecycle handling is owned by the arcade platform adapter.
 // Game hosts should keep gameplay logic in host callbacks/input loops only.
 ```
 

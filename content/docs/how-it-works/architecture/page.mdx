@@ -6,6 +6,10 @@ export { metadata };
 
 Air Jam consists of four main components in a monorepo structure. This page explains how they work together to enable multiplayer gaming with smartphone controllers.
 
+The important current rule is that Air Jam has one framework model, not one model for standalone games and a different model for Arcade.
+
+Arcade is an Air Jam app around another Air Jam app.
+
 ## System Overview
 
 import { SystemOverviewDiagram } from "@/components/docs/figures/system-overview-diagram";
@@ -18,7 +22,7 @@ import { SystemOverviewDiagram } from "@/components/docs/figures/system-overview
 
 **Role:** Central hub for the Air Jam ecosystem
 
-**Technology:** Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
+**Technology:** Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
 
 **Key Features:**
 
@@ -87,6 +91,16 @@ import { SdkArchitectureDiagram } from "@/components/docs/figures/sdk-architectu
 - Player spawning/despawning on join/leave
 - Haptic feedback on collisions
 - Multiple game modes (CTF, survival)
+
+## Core Lane Model
+
+Air Jam uses three lanes and they should stay separate:
+
+1. **Input lane** for high-frequency transient control data via `useInputWriter` and `getInput` / `useGetInput`
+2. **Replicated state lane** for replayable shared state via `createAirJamStore`
+3. **Signal / command lane** for coarse UX/runtime messages such as haptics, toasts, pause, and exit
+
+This is the same model in standalone games and in Arcade-embedded games.
 
 ## Run Modes
 

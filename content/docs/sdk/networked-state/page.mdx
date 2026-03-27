@@ -28,7 +28,7 @@ No trailing `controllerId` arguments and no multi-argument action payloads.
 
 ## Create a Store
 
-```tsx filename="src/store.ts"
+```tsx filename="src/game/store.ts"
 import { createAirJamStore } from "@air-jam/sdk";
 
 type Team = "team1" | "team2";
@@ -79,7 +79,7 @@ export const useGameStore = createAirJamStore<GameState>((set) => ({
 
 ## Use on Controller
 
-```tsx filename="src/controller-view.tsx"
+```tsx filename="src/game/controller/index.tsx"
 import { useAirJamController } from "@air-jam/sdk";
 import { useGameStore } from "./store";
 
@@ -105,7 +105,7 @@ export const ControllerView = () => {
 
 ## Use on Host
 
-```tsx filename="src/host-view.tsx"
+```tsx filename="src/game/host/index.tsx"
 import { useGameStore } from "./store";
 
 export const HostView = () => {

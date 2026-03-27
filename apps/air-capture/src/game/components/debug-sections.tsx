@@ -1,3 +1,5 @@
+import { useAirJamHost } from "@air-jam/sdk";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -5,53 +7,74 @@ import {
   getAllAbilityDefinitions,
   useAbilitiesStore,
 } from "../abilities-store";
-import { useBotManager } from "../bot-system/bot-manager";
 import {
   TEAM_CONFIG,
   useCaptureTheFlagStore,
   type TeamId,
 } from "../capture-the-flag-store";
+import { getTeamCounts, type TeamCounts } from "../match-readiness";
+import { usePrototypeMatchStore } from "../match-store";
 import { useDebugStore } from "../debug-store";
 import { useDecalsStore } from "../decals-store";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
 import { useLasersStore } from "../lasers-store";
 import { DebugSection } from "./debug-overlay";
+import { TeamBotControls } from "./team-bot-controls";
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 
+const MAX_TEAM_SIZE = 2;
+
 export function BotsSection() {
-  const addBot = useBotManager((state) => state.addBot);
-  const removeBot = useBotManager((state) => state.removeBot);
-  const bots = useBotManager((state) => state.bots);
+  const host = useAirJamHost();
+  const botCounts = usePrototypeMatchStore((state) => state.botCounts);
+  const teamAssignments = usePrototypeMatchStore(
+    (state) => state.teamAssignments,
+  );
+  const matchActions = usePrototypeMatchStore.useActions();
+
+  const humanTeamCounts = useMemo(() => {
+    const connectedIds = new Set(host.players.map((player) => player.id));
+    const assignments = Object.entries(teamAssignments)
+      .filter(([controllerId]) => connectedIds.has(controllerId))
+      .map(([, assignment]) => assignment);
+    return getTeamCounts(assignments);
+  }, [host.players, teamAssignments]);
+
+  const maxBotsByTeam: TeamCounts = useMemo(
+    () => ({
+      solaris: Math.max(0, MAX_TEAM_SIZE - humanTeamCounts.solaris),
+      nebulon: Math.max(0, MAX_TEAM_SIZE - humanTeamCounts.nebulon),
+    }),
+    [humanTeamCounts],
+  );
 
   return (
     <DebugSection title="Bots">
-      <div className="space-y-3">
-        <Button onClick={addBot} className="w-full" size="sm">
-          Add Bot
-        </Button>
-
-        {bots.size > 0 && (
-          <div className="space-y-2">
-            {Array.from(bots.keys()).map((botId) => (
-              <div
-                key={botId}
-                className="bg-muted/20 flex items-center justify-between rounded-md p-2"
-              >
-                <span className="text-sm font-medium">{botId}</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => removeBot(botId)}
-                >
-                  Remove
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+      <p className="text-muted-foreground text-xs leading-relaxed">
+        Matches the lobby bot counts. The host syncs these to players and bot
+        controllers during the match.
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <TeamBotControls
+          teamId="solaris"
+          botCount={botCounts.solaris}
+          maxBots={maxBotsByTeam.solaris}
+          disabled={false}
+          onChange={(count) =>
+            matchActions.setTeamBotCount({ teamId: "solaris", count })
+          }
+        />
+        <TeamBotControls
+          teamId="nebulon"
+          botCount={botCounts.nebulon}
+          maxBots={maxBotsByTeam.nebulon}
+          disabled={false}
+          onChange={(count) =>
+            matchActions.setTeamBotCount({ teamId: "nebulon", count })
+          }
+        />
       </div>
     </DebugSection>
   );

@@ -11,7 +11,7 @@ export const gameIdeasDocsPage = defineDocsPage({
   icon: "lightbulb",
   keywords: ["ideas", "examples", "patterns", "game design"],
   docType: "guide",
-  order: 2,
+  order: 3,
   stability: "evolving",
   audience: "user",
 });

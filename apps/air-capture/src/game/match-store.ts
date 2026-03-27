@@ -258,9 +258,12 @@ export const usePrototypeMatchStore = createAirJamStore<PrototypeMatchState>(
           };
         }),
 
-      setTeamBotCount: ({ connectedPlayerIds }, { teamId, count }) =>
+      setTeamBotCount: ({ connectedPlayerIds, role }, { teamId, count }) =>
         set((state) => {
-          if (state.matchPhase !== "lobby") {
+          const canAdjustBots =
+            state.matchPhase === "lobby" ||
+            (state.matchPhase === "playing" && role === "host");
+          if (!canAdjustBots) {
             return state;
           }
 

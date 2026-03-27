@@ -14,10 +14,10 @@ import { InputFlowDiagram } from "@/components/docs/figures/input-flow-diagram";
 
 ## Configuration
 
-Configure input in `HostSessionProvider`:
+Configure input in your canonical Air Jam app setup:
 
-```tsx filename="src/app.tsx"
-import { HostSessionProvider } from "@air-jam/sdk";
+```tsx filename="src/airjam.config.ts"
+import { createAirJamApp, env } from "@air-jam/sdk";
 import { z } from "zod";
 
 const gameInputSchema = z.object({
@@ -29,13 +29,15 @@ const gameInputSchema = z.object({
 
 type GameInput = z.infer<typeof gameInputSchema>;
 
-<HostSessionProvider
+export const airjam = createAirJamApp({
+  runtime: env.vite(import.meta.env),
+  game: {
+    controllerPath: "/controller",
+  },
   input={{
     schema: gameInputSchema,
-  }}
->
-  <HostView />
-</HostSessionProvider>;
+  },
+});
 ```
 
 ## Default Behavior (No Extra Config)
@@ -52,8 +54,12 @@ This default is the canonical path for most games.
 
 Use `input.behavior` only when your game has specialized needs.
 
-```tsx filename="src/app.tsx"
-<HostSessionProvider
+```tsx filename="src/airjam.config.ts"
+export const airjam = createAirJamApp({
+  runtime: env.vite(import.meta.env),
+  game: {
+    controllerPath: "/controller",
+  },
   input={{
     schema: gameInputSchema,
     behavior: {
@@ -62,9 +68,7 @@ Use `input.behavior` only when your game has specialized needs.
       hold: ["menuVector"],
     },
   }}
->
-  <HostView />
-</HostSessionProvider>
+})
 ```
 
 Behavior modes:
@@ -130,7 +134,7 @@ Benefits:
 
 ### Main Host Loop
 
-```tsx filename="src/components/HostView.tsx"
+```tsx filename="src/game/host/index.tsx"
 const host = useAirJamHost();
 
 useFrame(() => {
@@ -151,7 +155,7 @@ useFrame(() => {
 
 Use `useGetInput()` to avoid store-driven re-renders:
 
-```tsx filename="src/components/Ship.tsx"
+```tsx filename="src/game/components/ship.tsx"
 import { useGetInput } from "@air-jam/sdk";
 
 const Ship = ({ playerId }: { playerId: string }) => {
@@ -173,7 +177,7 @@ const Ship = ({ playerId }: { playerId: string }) => {
 
 Use `useInputWriter()` with `useControllerTick()` for fixed-cadence publishing:
 
-```tsx filename="src/components/ControllerView.tsx"
+```tsx filename="src/game/controller/index.tsx"
 import {
   useAirJamController,
   useControllerTick,

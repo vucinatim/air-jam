@@ -10,7 +10,7 @@ export const InputFlowDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
-      data-figure-description="Diagram showing input flow: Controller Phone publishes input → AirJam Server (validates, routes, broadcasts) → Your Game calls getInput(id) which returns typed, validated input with behavior semantics applied."
+      data-figure-description="Diagram showing input flow: Controller Phone publishes input, the Air Jam Server validates and routes it to the active host, and your game calls getInput(id) to read typed, validated input with behavior semantics applied."
     >
       <svg
         viewBox="0 0 600 200"
@@ -84,7 +84,7 @@ export const InputFlowDiagram = () => {
           fontSize="12"
           dominantBaseline="middle"
         >
-          Validates • Routes • Broadcasts
+          Validates • Routes
         </text>
         <rect
           x="220"

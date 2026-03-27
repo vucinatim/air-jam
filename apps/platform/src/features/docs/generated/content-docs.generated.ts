@@ -6,6 +6,10 @@ import {
   metadata as forAgentsMetadata,
 } from "@content/docs/for-agents/page.docs";
 import {
+  debuggingDocsPage,
+  metadata as debuggingMetadata,
+} from "@content/docs/getting-started/debugging/page.docs";
+import {
   gameIdeasDocsPage,
   metadata as gameIdeasMetadata,
 } from "@content/docs/getting-started/game-ideas/page.docs";
@@ -102,7 +106,7 @@ const generatedContentDocsDocuments = [
         slug: "4-create-your-controller-view",
         depth: 3,
         excerpt:
-          'import { useAirJamController, useControllerTick, useInputWriter, } from "@air-jam/sdk"; const ControllerView = () => { const controller = useAirJamController(); const writeInput = useInputWriter(); useControllerTick( ()…',
+          'import { useAirJamController, useControllerTick, useInputWriter, } from "@air-jam/sdk"; import { useRef } from "react"; const ControllerView = () => { const controller = useAirJamController(); const writeInput =…',
       },
       {
         title: "Canonical Architecture: Three Lanes",
@@ -146,7 +150,7 @@ const generatedContentDocsDocuments = [
         slug: "2-start-local-development",
         depth: 2,
         excerpt:
-          "You'll need two terminal windows to run the local development environment: one for the backend server and one for the game client. Terminal 1: Start the Server This runs the local WebSocket server that handles game…",
+          "The scaffold uses one command for the normal local loop. It starts the local Air Jam server and the game together. That command starts: the local Air Jam server on http://localhost:4000 the game on http://localhost:5173",
       },
       {
         title: "3. Play the Game",
@@ -174,14 +178,14 @@ const generatedContentDocsDocuments = [
         slug: "troubleshooting",
         depth: 2,
         excerpt:
-          "Server not connecting locally Verify pnpm run dev:server is running. Confirm server health: http://localhost:4000/health. Confirm your game is using http://localhost:4000 for VITEAIRJAMSERVERURL (or no override at all…",
+          "Server not connecting locally Verify pnpm run dev is running. Confirm server health: http://localhost:4000/health. Confirm your game is using http://localhost:4000 for VITEAIRJAMSERVERURL (or no override at all for…",
       },
       {
         title: "Server not connecting locally",
         slug: "server-not-connecting-locally",
         depth: 3,
         excerpt:
-          "Verify pnpm run dev:server is running. Confirm server health: http://localhost:4000/health. Confirm your game is using http://localhost:4000 for VITEAIRJAMSERVERURL (or no override at all for local defaults).",
+          "Verify pnpm run dev is running. Confirm server health: http://localhost:4000/health. Confirm your game is using http://localhost:4000 for VITEAIRJAMSERVERURL (or no override at all for local defaults).",
       },
       {
         title: "App ID errors in deployed environments",
@@ -195,7 +199,7 @@ const generatedContentDocsDocuments = [
         slug: "qr--controller-join-url-issues",
         depth: 3,
         excerpt:
-          "Confirm host and controller are on the same room code. If testing on phone outside localhost, set VITEAIRJAMPUBLICHOST (or use pnpm run dev:secure). For SPA hosting, ensure rewrites route /controller?room=XXXX to your…",
+          "Confirm host and controller are on the same room code. If testing on phone outside localhost, set VITEAIRJAMPUBLICHOST (or use pnpm run dev -- --secure). For SPA hosting, ensure rewrites route /controller?room=XXXX to…",
       },
       {
         title: "5. Deploy Your Game",
@@ -216,11 +220,111 @@ const generatedContentDocsDocuments = [
         slug: "6-publish-to-arcade",
         depth: 2,
         excerpt:
-          "To list your game in the official Air Jam Arcade: Go to your game's settings in the Dashboard. Enter your deployed game URL (e.g., https://my-game.vercel.app). Toggle the Publish switch. Your game is now live and…",
+          "To list your game in the official Air Jam Arcade: Go to your game's settings in the Dashboard. Enter your deployed game URL (e.g., https://my-game.vercel.app). Optionally add a self-hosted thumbnail, cover image, and…",
       },
     ],
     loadComponent: () =>
       import("@content/docs/getting-started/quick-start/page.mdx"),
+  },
+  {
+    page: debuggingDocsPage,
+    metadata: debuggingMetadata,
+    sourcePath: "content/docs/getting-started/debugging/page.mdx",
+    headings: [
+      {
+        title: "Debugging and Logs",
+        slug: "debugging-and-logs",
+        depth: 1,
+        excerpt:
+          "When local Air Jam development breaks, the fastest fix is usually knowing which surface is failing: game host controller local Air Jam server Arcade embed/runtime wiring This page explains the practical debugging loop.…",
+      },
+      {
+        title: "1. Start With The Canonical Local Loop",
+        slug: "1-start-with-the-canonical-local-loop",
+        depth: 2,
+        excerpt:
+          "For scaffolded games, the default local command is: That gives you the most useful first signal: server logs in the same terminal Vite host output QR/join flow using the same local runtime shape the template expects If…",
+      },
+      {
+        title: "2. Check The Local Server First",
+        slug: "2-check-the-local-server-first",
+        depth: 2,
+        excerpt:
+          "The local server should answer: http://localhost:4000/health If /health is down: your local runtime server is not running the game will not create or join rooms controller QR flow will fail no matter what the UI shows",
+      },
+      {
+        title: "3. Know Which Console To Inspect",
+        slug: "3-know-which-console-to-inspect",
+        depth: 2,
+        excerpt:
+          "Use the right browser console for the right problem: Host tab for room creation, host bootstrap, input consumption, and gameplay errors Controller tab/phone remote inspector for join failures, input publishing, haptics,…",
+      },
+      {
+        title: "4. Common Failure Buckets",
+        slug: "4-common-failure-buckets",
+        depth: 2,
+        excerpt:
+          "Host boots but no room appears Check: server terminal is running host browser console has no bootstrap/config errors VITEAIRJAMSERVERURL is correct for your environment production/static deploy has a valid…",
+      },
+      {
+        title: "Host boots but no room appears",
+        slug: "host-boots-but-no-room-appears",
+        depth: 3,
+        excerpt:
+          "Check: server terminal is running host browser console has no bootstrap/config errors VITEAIRJAMSERVERURL is correct for your environment production/static deploy has a valid VITEAIRJAMAPPID",
+      },
+      {
+        title: "Controller cannot join",
+        slug: "controller-cannot-join",
+        depth: 3,
+        excerpt:
+          "Check: QR or join URL contains the right room code host and controller are talking to the same server origin SPA rewrites are enabled for /controller?room=XXXX phone can actually reach the host URL you are showing If…",
+      },
+      {
+        title: "Input arrives late or not at all",
+        slug: "input-arrives-late-or-not-at-all",
+        depth: 3,
+        excerpt:
+          "Check: controller is publishing input via useControllerTick + useInputWriter host is reading input via getInput or useGetInput you are not trying to send per-frame input through store actions the input schema still…",
+      },
+      {
+        title: "Store actions do nothing",
+        slug: "store-actions-do-nothing",
+        depth: 3,
+        excerpt:
+          "Check: actions are dispatched via useActions() payloads are plain serializable objects your controller is connected before dispatching identity-dependent actions use ctx.actorId on the host side",
+      },
+      {
+        title: "Arcade embed works in standalone but breaks in platform",
+        slug: "arcade-embed-works-in-standalone-but-breaks-in-platform",
+        depth: 3,
+        excerpt:
+          "Check: game code is not parsing Arcade runtime params directly gameplay state lives in the game's own store, not in local iframe lifecycle state you are treating the bridge as transport only, not as app-state truth",
+      },
+      {
+        title: "5. Use SDK Diagnostics In Development",
+        slug: "5-use-sdk-diagnostics-in-development",
+        depth: 2,
+        excerpt:
+          "Air Jam exposes structured diagnostics for common misuse paths: This is especially useful for: missing provider/session scope invalid input payload shape state-action dispatch before session readiness runtime config…",
+      },
+      {
+        title: "6. Use The Reference Games As Sanity Checks",
+        slug: "6-use-the-reference-games-as-sanity-checks",
+        depth: 2,
+        excerpt:
+          "If you are unsure whether the framework or your game is the problem, compare your approach against: pong for the small canonical starter path air-capture for the heavier reference-app path If your code disagrees with…",
+      },
+      {
+        title: "7. Monorepo Maintainer Note",
+        slug: "7-monorepo-maintainer-note",
+        depth: 2,
+        excerpt:
+          "If you are working inside the Air Jam monorepo itself rather than a scaffolded game, the repo also includes a dev log viewer: That is a repo-maintainer convenience, not a normal requirement for scaffold users.",
+      },
+    ],
+    loadComponent: () =>
+      import("@content/docs/getting-started/debugging/page.mdx"),
   },
   {
     page: gameIdeasDocsPage,
@@ -367,7 +471,7 @@ const generatedContentDocsDocuments = [
         slug: "architecture",
         depth: 1,
         excerpt:
-          "Air Jam consists of four main components in a monorepo structure. This page explains how they work together to enable multiplayer gaming with smartphone controllers. System Overview Components 1. Platform…",
+          "Air Jam consists of four main components in a monorepo structure. This page explains how they work together to enable multiplayer gaming with smartphone controllers. The important current rule is that Air Jam has one…",
       },
       {
         title: "System Overview",
@@ -380,14 +484,14 @@ const generatedContentDocsDocuments = [
         slug: "components",
         depth: 2,
         excerpt:
-          "1. Platform (apps/platform) Role: Central hub for the Air Jam ecosystem Technology: Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Developer Portal - Account management, app ID…",
+          "1. Platform (apps/platform) Role: Central hub for the Air Jam ecosystem Technology: Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Developer Portal - Account management, app ID…",
       },
       {
         title: "1. Platform (apps/platform)",
         slug: "1-platform-appsplatform",
         depth: 3,
         excerpt:
-          "Role: Central hub for the Air Jam ecosystem Technology: Next.js 15, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Developer Portal - Account management, app ID issuance, analytics Game Catalog -…",
+          "Role: Central hub for the Air Jam ecosystem Technology: Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Developer Portal - Account management, app ID issuance, analytics Game Catalog -…",
       },
       {
         title: "2. Server (packages/server)",
@@ -409,6 +513,13 @@ const generatedContentDocsDocuments = [
         depth: 3,
         excerpt:
           "Role: Reference implementation showcasing SDK capabilities Technology: React, Vite, React Three Fiber, Rapier Physics Demonstrates: Host-side game logic with physics Controller UI with joystick and buttons Player…",
+      },
+      {
+        title: "Core Lane Model",
+        slug: "core-lane-model",
+        depth: 2,
+        excerpt:
+          "Air Jam uses three lanes and they should stay separate: Input lane for high-frequency transient control data via useInputWriter and getInput / useGetInput Replicated state lane for replayable shared state via…",
       },
       {
         title: "Run Modes",
@@ -515,7 +626,7 @@ const generatedContentDocsDocuments = [
         slug: "host-modes",
         depth: 2,
         excerpt:
-          'Standalone Host The simplest mode—your game connects directly to the Air Jam server. Usage: Arcade Mode (Two-Host Model) In arcade mode, the platform runs a "master" host and your game runs as a "child" host inside an…',
+          "Standalone Host The simplest mode—your game connects directly to the Air Jam server. Usage: Arcade Mode (Outer App + Embedded Game) In arcade mode, the platform runs the outer Arcade app and your game runs as an…",
       },
       {
         title: "Standalone Host",
@@ -525,11 +636,11 @@ const generatedContentDocsDocuments = [
           "The simplest mode—your game connects directly to the Air Jam server. Usage:",
       },
       {
-        title: "Arcade Mode (Two-Host Model)",
-        slug: "arcade-mode-two-host-model",
+        title: "Arcade Mode (Outer App + Embedded Game)",
+        slug: "arcade-mode-outer-app--embedded-game",
         depth: 3,
         excerpt:
-          'In arcade mode, the platform runs a "master" host and your game runs as a "child" host inside an iframe.',
+          "In arcade mode, the platform runs the outer Arcade app and your game runs as an embedded Air Jam host inside an iframe. The important rule is: Arcade owns platform surface state your game owns gameplay state the server…",
       },
       {
         title: "Server-Authoritative Focus System",
@@ -543,7 +654,7 @@ const generatedContentDocsDocuments = [
         slug: "why-server-authoritative",
         depth: 3,
         excerpt:
-          "Security - Prevents rogue games from stealing input Reliability - Single source of truth for focus state Consistency - All controllers route to same host",
+          "Security - Prevents rogue games from stealing input Reliability - Single source of truth for focus state Consistency - All controllers route to same host This focus system does not replace the normal Air Jam model. It…",
       },
       {
         title: "Connection Flow",
@@ -595,8 +706,8 @@ const generatedContentDocsDocuments = [
           "Production bootstrap remains automatic here: local dev: no auth ceremony static deploy: SDK bootstraps with your appId optional signed mode: SDK fetches a host grant from hostGrantEndpoint before bootstrap Game code…",
       },
       {
-        title: "Child Mode (Arcade)",
-        slug: "child-mode-arcade",
+        title: "Embedded Game Mode (Arcade)",
+        slug: "embedded-game-mode-arcade",
         depth: 3,
         excerpt: "const host = useAirJamHost({ onPlayerJoin: (player) => {",
       },
@@ -752,7 +863,7 @@ const generatedContentDocsDocuments = [
         slug: "diagnostics-reference",
         depth: 3,
         excerpt:
-          "Code Meaning Expected Fix AJSCOPEMISMATCH A host/controller hook was used in the wrong scoped provider tree. Use HostSessionProvider for host hooks and ControllerSessionProvider for controller hooks.…",
+          "Code Meaning Expected Fix AJSCOPEMISMATCH A host/controller hook was used in the wrong scoped provider tree. Use the correct scoped wrapper (airjam.Host / airjam.Controller) or the matching session provider.…",
       },
       {
         title: "Types",
@@ -906,7 +1017,7 @@ const generatedContentDocsDocuments = [
         slug: "input-system",
         depth: 1,
         excerpt:
-          "The Air Jam input system provides type-safe, validated controller input with clear behavior semantics. Input Flow Configuration Configure input in HostSessionProvider: Default Behavior (No Extra Config) Without any…",
+          "The Air Jam input system provides type-safe, validated controller input with clear behavior semantics. Input Flow Configuration Configure input in your canonical Air Jam app setup: Default Behavior (No Extra Config)…",
       },
       {
         title: "Input Flow",
@@ -918,7 +1029,7 @@ const generatedContentDocsDocuments = [
         title: "Configuration",
         slug: "configuration",
         depth: 2,
-        excerpt: "Configure input in HostSessionProvider:",
+        excerpt: "Configure input in your canonical Air Jam app setup:",
       },
       {
         title: "Default Behavior (No Extra Config)",
@@ -1135,7 +1246,8 @@ const generatedContentDocsDocuments = [
         title: "Read These First",
         slug: "read-these-first",
         depth: 2,
-        excerpt: "Introduction Quick Start Architecture Host System SDK Hooks",
+        excerpt:
+          "Introduction Quick Start Architecture Host System SDK Hooks Debugging and Logs",
       },
       {
         title: "SDK Focus Areas",

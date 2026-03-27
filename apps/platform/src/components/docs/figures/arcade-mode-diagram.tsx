@@ -10,7 +10,7 @@ export const ArcadeModeDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
-      data-figure-description="Arcade mode architecture diagram: The Air Jam Platform acts as a master host and loads your game inside an iframe as a child host. Controllers connect through the platform's controller runtime. The platform manages game switching, and your game receives a join token to connect to the existing room."
+      data-figure-description="Arcade mode architecture diagram: The Air Jam Platform runs the outer Arcade app and loads your game inside an iframe as an embedded Air Jam host. Controllers connect through the platform controller runtime. The platform manages game switching and routing focus, while your game joins the existing room through a launch capability."
     >
       <svg
         viewBox="0 0 700 400"
@@ -56,7 +56,7 @@ export const ArcadeModeDiagram = () => {
           Air Jam Platform (TV)
         </text>
 
-        {/* Arcade Browser (Master Host) - Middle box */}
+        {/* Arcade Browser (Outer Arcade App) - Middle box */}
         <rect
           x="80"
           y="90"
@@ -75,7 +75,7 @@ export const ArcadeModeDiagram = () => {
           fontSize="14"
           fontWeight="600"
         >
-          Arcade Browser (Master Host)
+          Arcade Browser (Outer App)
         </text>
         <text
           x="100"
@@ -105,7 +105,7 @@ export const ArcadeModeDiagram = () => {
           • Controls input focus
         </text>
 
-        {/* Your Game (Child Host - iframe) - Inner box */}
+        {/* Your Game (Embedded Host - iframe) - Inner box */}
         <rect
           x="110"
           y="210"
@@ -124,7 +124,7 @@ export const ArcadeModeDiagram = () => {
           fontSize="13"
           fontWeight="600"
         >
-          Your Game (Child Host - iframe)
+          Your Game (Embedded Host - iframe)
         </text>
         <text
           x="130"
@@ -133,7 +133,7 @@ export const ArcadeModeDiagram = () => {
           fontSize="10"
           dominantBaseline="middle"
         >
-          • Joins via secure token
+          • Joins via launch capability
         </text>
         <text
           x="130"

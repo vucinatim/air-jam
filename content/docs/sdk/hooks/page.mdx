@@ -87,9 +87,9 @@ const HostView = () => {
   const {
     roomId, // "ABCD" - The room code
     joinUrl, // Full URL for controllers to join
+    joinUrlStatus, // "loading" | "ready" | "unavailable"
     connectionStatus, // "connected" | "connecting" | "disconnected" | "idle"
     players, // Array of PlayerProfile
-    selfPlayer, // This controller's profile when known
     gameState, // "playing" | "paused"
     lastError, // Error message if any
     mode, // "standalone" | "platform"
@@ -247,7 +247,7 @@ import { useRef } from "react";
 
 const ControllerView = () => {
   const controller = useAirJamController({
-    // Optional: Room from URL query param takes precedence
+    // Optional: room from URL query param still takes precedence
     roomId: "ABCD",
 
     // Optional: Player nickname
@@ -273,8 +273,11 @@ const ControllerView = () => {
     stateMessage, // Optional message from host
 
     // Functions
-    sendSystemCommand, // "exit" | "ready" | "toggle_pause"
+    sendSystemCommand, // "exit" | "toggle_pause"
     setNickname, // Update nickname
+    setAvatarId, // Update avatar selection draft
+    updatePlayerProfile, // Patch live label/avatar when connected
+    selfPlayer, // This controller's player profile when known
     reconnect, // Force reconnection
   } = controller;
 
@@ -384,8 +387,8 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 
 | Code                                       | Meaning                                                                   | Expected Fix                                                                                   |
 | ------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `AJ_SCOPE_MISMATCH`                        | A host/controller hook was used in the wrong scoped provider tree.        | Use `HostSessionProvider` for host hooks and `ControllerSessionProvider` for controller hooks. |
-| `AJ_MISSING_SESSION_PROVIDER`              | SDK context was read outside Air Jam session providers.                   | Wrap route/root with scoped session provider.                                                  |
+| `AJ_SCOPE_MISMATCH`                        | A host/controller hook was used in the wrong scoped provider tree.        | Use the correct scoped wrapper (`airjam.Host` / `airjam.Controller`) or the matching session provider. |
+| `AJ_MISSING_SESSION_PROVIDER`              | SDK context was read outside Air Jam session providers.                   | Wrap the route/root with `airjam.Host`, `airjam.Controller`, or the matching low-level session provider. |
 | `AJ_CONFIG_MISSING_SERVER_URL`             | Runtime config cannot resolve server URL when env resolution is disabled. | Provide `serverUrl` prop when using `resolveEnv={false}`.                                      |
 | `AJ_CONFIG_MISSING_APP_ID`                 | Production runtime started without canonical app ID config.               | Set `VITE_AIR_JAM_APP_ID` / `NEXT_PUBLIC_AIR_JAM_APP_ID` or pass `appId` explicitly.           |
 | `AJ_STORE_ACTION_SESSION_NOT_READY`        | Controller action dispatch attempted before role/room was ready.          | Wait until room/session is established before dispatching store actions.                       |

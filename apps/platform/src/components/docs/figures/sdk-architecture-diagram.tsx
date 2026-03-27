@@ -10,7 +10,7 @@ export const SdkArchitectureDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
-      data-figure-description="SDK architecture diagram: scoped session providers wrap the app and provide context. SocketClient manages WebSocket connections. InputManager handles input validation with Zod schemas and applies input behavior semantics (pulse/hold/latest). Zustand store maintains state. Hooks (useAirJamHost, useAirJamController, useGetInput, useSendSignal) provide access to functionality."
+      data-figure-description="SDK architecture diagram: createAirJamApp composes scoped session providers around the app. The realtime client manages socket or bridge-backed connections. Session state is stored in Zustand-backed runtime state. InputManager handles input validation with Zod schemas and applies input behavior semantics (pulse/hold/latest). Hooks expose host, controller, input, and signal access."
     >
       <svg
         viewBox="0 0 700 400"
@@ -34,7 +34,7 @@ export const SdkArchitectureDiagram = () => {
           </marker>
         </defs>
 
-        {/* AirJamProvider Container */}
+        {/* Scoped session runtime container */}
         <rect
           x="50"
           y="20"
@@ -53,10 +53,10 @@ export const SdkArchitectureDiagram = () => {
           fontSize="18"
           fontWeight="600"
         >
-          AirJamProvider
+          createAirJamApp / Scoped Sessions
         </text>
 
-        {/* SocketManager */}
+        {/* Realtime client */}
         <rect
           x="80"
           y="80"
@@ -75,7 +75,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="13"
           fontWeight="600"
         >
-          SocketManager
+          Realtime Client
         </text>
         <text
           x="180"
@@ -96,7 +96,7 @@ export const SdkArchitectureDiagram = () => {
           Connection handling
         </text>
 
-        {/* Zustand Store */}
+        {/* Session/runtime state */}
         <rect
           x="320"
           y="80"
@@ -115,7 +115,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="13"
           fontWeight="600"
         >
-          Zustand Store
+          Runtime State
         </text>
         <text
           x="460"
@@ -124,7 +124,7 @@ export const SdkArchitectureDiagram = () => {
           fill={diagramColors.textSecondary}
           fontSize="11"
         >
-          (Connection State)
+          (Zustand-backed)
         </text>
         <text
           x="460"
@@ -173,7 +173,7 @@ export const SdkArchitectureDiagram = () => {
           fill={diagramColors.textSecondary}
           fontSize="11"
         >
-          • Input Latching
+          • Input Behavior (pulse / hold / latest)
         </text>
         <text
           x="340"
