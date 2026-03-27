@@ -16,13 +16,14 @@ Current core docs:
 
 Active supporting plans:
 
-1. [Documentation Hardening Plan](./plans/documentation-hardening-plan.md)
-2. [SDK Composability Plan](./plans/sdk-composability-plan.md)
-3. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
-4. [Auth Capability Plan](./plans/auth-capability-plan.md)
-5. [Logging System Plan](./plans/logging-system-plan.md)
-6. [Release Prep Plan](./plans/release-prep-plan.md)
-7. [Blog Article Plan](./plans/blog-article-plan.md)
+1. [Analytics Implementation Plan](./plans/analytics-implementation-plan.md)
+2. [Documentation Hardening Plan](./plans/documentation-hardening-plan.md)
+3. [SDK Composability Plan](./plans/sdk-composability-plan.md)
+4. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
+5. [Auth Capability Plan](./plans/auth-capability-plan.md)
+6. [Logging System Plan](./plans/logging-system-plan.md)
+7. [Release Prep Plan](./plans/release-prep-plan.md)
+8. [Blog Article Plan](./plans/blog-article-plan.md)
 
 Completed transitions / reference plans:
 

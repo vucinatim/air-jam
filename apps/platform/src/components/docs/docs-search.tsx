@@ -58,15 +58,36 @@ const ICONS: Record<DocsIcon, LucideIcon> = {
   bot: Bot,
 };
 
+/**
+ * Whether to show Mac-style shortcuts (⌘) vs Ctrl, for UI hints only.
+ * Prefers User-Agent Client Hints when available; falls back to `userAgent`.
+ */
+const isMacLikeKeyboardPlatform = (): boolean => {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+  const uaData = (
+    navigator as Navigator & {
+      userAgentData?: { platform?: string };
+    }
+  ).userAgentData;
+  if (uaData?.platform !== undefined) {
+    return uaData.platform === "macOS";
+  }
+  return /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);
+};
+
 export const DocsSearch = ({ variant = "button" }: DocsSearchProps) => {
   const [open, setOpen] = useState(false);
-  const [isMac] = useState(
-    () =>
-      typeof navigator !== "undefined" &&
-      navigator.platform.toLowerCase().includes("mac"),
-  );
+  const [isMac, setIsMac] = useState(false);
   const router = useRouter();
   const docsSearchEntries = getDocsSearchEntries();
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setIsMac(isMacLikeKeyboardPlatform());
+    });
+  }, []);
 
   const entries = useMemo<DocsSearchEntry[]>(
     () =>

@@ -41,4 +41,19 @@ describe("docs render validation", () => {
       expect(html).toContain("<code");
     }
   }, 30_000);
+
+  it("renders markdown tables as HTML tables", async () => {
+    const hooksDocument = getDocsDocuments().find(
+      (document) => document.page.href === "/docs/sdk/hooks",
+    );
+
+    expect(hooksDocument).toBeDefined();
+
+    const { default: Component } = await hooksDocument!.loadComponent();
+    const html = renderToStaticMarkup(createElement(Component));
+
+    expect(html).toContain("<table");
+    expect(html).toContain("<thead");
+    expect(html).toContain("<tbody");
+  }, 30_000);
 });

@@ -225,4 +225,8 @@
     content: counter(line);
     @apply mr-4 inline-block w-4 text-right text-gray-500;
   }
+
+  pre {
+    background-color: var(--sidebar) !important;
+  }
 }

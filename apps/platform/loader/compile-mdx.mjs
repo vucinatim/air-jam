@@ -6,6 +6,7 @@ import {
 } from "@shikijs/transformers";
 import rehypeMdxCodeProps from "rehype-mdx-code-props";
 import rehypeSlug from "rehype-slug";
+import remarkGfm from "remark-gfm";
 
 const DEFAULT_RENDERER = `import React from 'react'`;
 
@@ -31,7 +32,7 @@ export async function compileMdxSource(content, { development = false } = {}) {
   const result = await mdx.compile(content, {
     development,
     providerImportSource: "@/mdx-components",
-    remarkPlugins: [],
+    remarkPlugins: [remarkGfm],
     rehypePlugins: [
       [rehypeShiki, rehypeShikiOptions],
       rehypeSlug,
