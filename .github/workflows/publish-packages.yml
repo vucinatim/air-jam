@@ -1,8 +1,6 @@
 name: Publish Packages
 
 on:
-  release:
-    types: [created]
   workflow_dispatch:
     inputs:
       package:
@@ -15,15 +13,10 @@ on:
           - sdk
           - server
           - create-airjam
-      version:
-        description: "Version bump type (patch, minor, major)"
-        required: true
-        default: "patch"
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+
+concurrency:
+  group: publish-packages
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -45,8 +38,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure npm CLI Supports Trusted Publishing
+        run: |
+          npm install -g npm@latest
+          node --version
+          npm --version
 
       - name: Install pnpm
         run: corepack enable && corepack prepare pnpm@9.9.0 --activate
@@ -54,26 +53,134 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm build
+      - name: Validate Release
+        run: pnpm check:release
+
+      - name: Read Package Versions
+        id: versions
+        run: |
+          echo "sdk=$(node -p "require('./packages/sdk/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "server=$(node -p "require('./packages/server/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "create_airjam=$(node -p "require('./packages/create-airjam/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Tag Availability
+        run: |
+          check_tag() {
+            local tag="$1"
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "Tag $tag already exists"
+              exit 1
+            fi
+          }
+
+          if [[ "${{ github.event.inputs.package }}" == "all" || "${{ github.event.inputs.package }}" == "sdk" ]]; then
+            check_tag "sdk-v${{ steps.versions.outputs.sdk }}"
+          fi
+
+          if [[ "${{ github.event.inputs.package }}" == "all" || "${{ github.event.inputs.package }}" == "server" ]]; then
+            check_tag "server-v${{ steps.versions.outputs.server }}"
+          fi
+
+          if [[ "${{ github.event.inputs.package }}" == "all" || "${{ github.event.inputs.package }}" == "create-airjam" ]]; then
+            check_tag "create-airjam-v${{ steps.versions.outputs.create_airjam }}"
+          fi
+
+      - name: Verify npm Version Availability
+        run: |
+          check_npm_version() {
+            local package_name="$1"
+            local version="$2"
+            if npm view "${package_name}@${version}" version >/dev/null 2>&1; then
+              echo "${package_name}@${version} is already published on npm"
+              exit 1
+            fi
+          }
+
+          if [[ "${{ github.event.inputs.package }}" == "all" || "${{ github.event.inputs.package }}" == "sdk" ]]; then
+            check_npm_version "@air-jam/sdk" "${{ steps.versions.outputs.sdk }}"
+          fi
+
+          if [[ "${{ github.event.inputs.package }}" == "all" || "${{ github.event.inputs.package }}" == "server" ]]; then
+            check_npm_version "@air-jam/server" "${{ steps.versions.outputs.server }}"
+          fi
+
+          if [[ "${{ github.event.inputs.package }}" == "all" || "${{ github.event.inputs.package }}" == "create-airjam" ]]; then
+            check_npm_version "create-airjam" "${{ steps.versions.outputs.create_airjam }}"
+          fi
 
       - name: Publish SDK
-        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'sdk' || github.event_name == 'release'
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'sdk'
         working-directory: packages/sdk
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Publish Server
-        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'server' || github.event_name == 'release'
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'server'
         working-directory: packages/server
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Publish Create AirJam CLI
-        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'create-airjam' || github.event_name == 'release'
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'create-airjam'
         working-directory: packages/create-airjam
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create SDK Tag
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'sdk'
+        run: |
+          TAG="sdk-v${{ steps.versions.outputs.sdk }}"
+          git rev-parse "$TAG" >/dev/null 2>&1 && {
+            echo "Tag $TAG already exists"
+            exit 1
+          }
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create Server Tag
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'server'
+        run: |
+          TAG="server-v${{ steps.versions.outputs.server }}"
+          git rev-parse "$TAG" >/dev/null 2>&1 && {
+            echo "Tag $TAG already exists"
+            exit 1
+          }
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create Create AirJam Tag
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'create-airjam'
+        run: |
+          TAG="create-airjam-v${{ steps.versions.outputs.create_airjam }}"
+          git rev-parse "$TAG" >/dev/null 2>&1 && {
+            echo "Tag $TAG already exists"
+            exit 1
+          }
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create SDK Release
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'sdk'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: sdk-v${{ steps.versions.outputs.sdk }}
+          name: "@air-jam/sdk v${{ steps.versions.outputs.sdk }}"
+          generate_release_notes: true
+
+      - name: Create Server Release
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'server'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: server-v${{ steps.versions.outputs.server }}
+          name: "@air-jam/server v${{ steps.versions.outputs.server }}"
+          generate_release_notes: true
+
+      - name: Create Create AirJam Release
+        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'create-airjam'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: create-airjam-v${{ steps.versions.outputs.create_airjam }}
+          name: "create-airjam v${{ steps.versions.outputs.create_airjam }}"
+          generate_release_notes: true
