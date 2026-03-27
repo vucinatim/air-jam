@@ -12,7 +12,9 @@ import {
 import { rebuildRuntimeUsageSessionFromLedger } from "../src/analytics/runtime-usage-rebuilder";
 import { eq } from "drizzle-orm";
 
-const maybeIt = db ? it : it.skip;
+const hasEnabledDbIntegrationTests =
+  db && process.env.AIR_JAM_ENABLE_DB_INTEGRATION_TESTS === "enabled";
+const maybeIt = hasEnabledDbIntegrationTests ? it : it.skip;
 
 const insertLedgerFixture = async (runtimeSessionId: string) => {
   const runtimeDb = db;
@@ -73,7 +75,7 @@ const insertLedgerFixture = async (runtimeSessionId: string) => {
 
 afterEach(async () => {
   const runtimeDb = db;
-  if (!runtimeDb) {
+  if (!runtimeDb || !hasEnabledDbIntegrationTests) {
     return;
   }
 

@@ -1,7 +1,7 @@
 # Air Jam Analytics Architecture
 
 Last updated: 2026-03-27  
-Status: active direction
+Status: implemented foundation
 
 Related docs:
 
@@ -21,6 +21,28 @@ It exists to make four things explicit:
 2. where analytics logic should live
 3. how analytics should support monetization without distorting the framework
 4. how Air Jam can stay ready for future creator-reward systems without promising unsafe payout logic too early
+
+## Implementation Status
+
+The analytics foundation described here is now implemented for the initial hosted platform path.
+
+Implemented:
+
+1. runtime usage publisher seam in the server
+2. stable runtime analytics identity on room state
+3. append-only raw runtime usage ledger
+4. deterministic projection into normalized controller, game, and eligibility segments
+5. derived game-session and daily aggregate metrics
+6. platform analytics API and dashboard surfaces
+7. operator rebuild path for ledger replay
+8. first trust guards and analytics debug visibility
+
+Still intentionally deferred:
+
+1. creator/account-level rollups beyond per-game analytics
+2. richer abuse-review and payout-readiness policy
+3. selectable analytics windows and broader reporting UX
+4. optional local analytics sinks for non-hosted dev projects
 
 ## Core Position
 

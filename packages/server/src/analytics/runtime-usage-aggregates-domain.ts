@@ -1,3 +1,5 @@
+import { evaluateRuntimeUsageSessionTrust } from "./runtime-usage-trust-domain.js";
+
 export interface RuntimeUsageInterval {
   startedAt: Date;
   endedAt: Date | null;
@@ -36,7 +38,9 @@ export interface RuntimeUsageGameSessionMetric {
   startedAt: Date;
   endedAt: Date | null;
   controllerSeconds: number;
+  rawEligiblePlaytimeSeconds: number;
   eligiblePlaytimeSeconds: number;
+  trustFlags: string[];
   peakConcurrentControllers: number;
 }
 
@@ -48,7 +52,9 @@ export interface RuntimeUsageDailyGameMetric {
   sessionCount: number;
   totalGameActiveSeconds: number;
   totalControllerSeconds: number;
+  totalRawEligiblePlaytimeSeconds: number;
   totalEligiblePlaytimeSeconds: number;
+  guardedSessionCount: number;
   peakConcurrentControllers: number;
   lastActivityAt: Date | null;
 }
@@ -130,30 +136,49 @@ export const buildRuntimeUsageGameSessionMetrics = (
   eligibleSegments: RuntimeUsageEligibleSegment[],
   referenceTime: Date,
 ): RuntimeUsageGameSessionMetric[] =>
-  gameSegments.map((gameSegment) => ({
-    id: gameSegment.id,
-    runtimeSessionId: gameSegment.runtimeSessionId,
-    roomId: gameSegment.roomId,
-    appId: gameSegment.appId,
-    gameId: gameSegment.gameId,
-    startedAt: gameSegment.startedAt,
-    endedAt: gameSegment.endedAt,
-    controllerSeconds: controllerSegments.reduce(
+  gameSegments.map((gameSegment) => {
+    const gameActiveSeconds = durationSeconds(
+      gameSegment.startedAt,
+      gameSegment.endedAt,
+      referenceTime,
+    );
+    const controllerSeconds = controllerSegments.reduce(
       (sum, controllerSegment) =>
         sum + overlapSeconds(gameSegment, controllerSegment, referenceTime),
       0,
-    ),
-    eligiblePlaytimeSeconds: eligibleSegments.reduce(
+    );
+    const rawEligiblePlaytimeSeconds = eligibleSegments.reduce(
       (sum, eligibleSegment) =>
         sum + overlapSeconds(gameSegment, eligibleSegment, referenceTime),
       0,
-    ),
-    peakConcurrentControllers: peakConcurrentControllers(
+    );
+    const trust = evaluateRuntimeUsageSessionTrust(
       gameSegment,
       controllerSegments,
+      gameActiveSeconds,
+      rawEligiblePlaytimeSeconds,
       referenceTime,
-    ),
-  }));
+    );
+
+    return {
+      id: gameSegment.id,
+      runtimeSessionId: gameSegment.runtimeSessionId,
+      roomId: gameSegment.roomId,
+      appId: gameSegment.appId,
+      gameId: gameSegment.gameId,
+      startedAt: gameSegment.startedAt,
+      endedAt: gameSegment.endedAt,
+      controllerSeconds,
+      rawEligiblePlaytimeSeconds,
+      eligiblePlaytimeSeconds: trust.trustedEligiblePlaytimeSeconds,
+      trustFlags: trust.trustFlags,
+      peakConcurrentControllers: peakConcurrentControllers(
+        gameSegment,
+        controllerSegments,
+        referenceTime,
+      ),
+    };
+  });
 
 export const buildRuntimeUsageDailyGameMetrics = (
   sessionMetrics: RuntimeUsageGameSessionMetric[],
@@ -181,7 +206,9 @@ export const buildRuntimeUsageDailyGameMetrics = (
         sessionCount: 1,
         totalGameActiveSeconds,
         totalControllerSeconds: sessionMetric.controllerSeconds,
+        totalRawEligiblePlaytimeSeconds: sessionMetric.rawEligiblePlaytimeSeconds,
         totalEligiblePlaytimeSeconds: sessionMetric.eligiblePlaytimeSeconds,
+        guardedSessionCount: sessionMetric.trustFlags.length > 0 ? 1 : 0,
         peakConcurrentControllers: sessionMetric.peakConcurrentControllers,
         lastActivityAt,
       });
@@ -191,8 +218,11 @@ export const buildRuntimeUsageDailyGameMetrics = (
     current.sessionCount += 1;
     current.totalGameActiveSeconds += totalGameActiveSeconds;
     current.totalControllerSeconds += sessionMetric.controllerSeconds;
+    current.totalRawEligiblePlaytimeSeconds +=
+      sessionMetric.rawEligiblePlaytimeSeconds;
     current.totalEligiblePlaytimeSeconds +=
       sessionMetric.eligiblePlaytimeSeconds;
+    current.guardedSessionCount += sessionMetric.trustFlags.length > 0 ? 1 : 0;
     current.peakConcurrentControllers = Math.max(
       current.peakConcurrentControllers,
       sessionMetric.peakConcurrentControllers,

@@ -1,4 +1,3 @@
-import * as dotenv from "dotenv";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -11,8 +10,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { loadWorkspaceEnv } from "./env/load-workspace-env.js";
 
-dotenv.config();
+loadWorkspaceEnv();
 
 // Define only the schema the runtime server needs directly.
 export const appIds = pgTable("app_ids", {
@@ -124,8 +124,15 @@ export const runtimeUsageGameSessionMetrics = pgTable(
     startedAt: timestamp("started_at").notNull(),
     endedAt: timestamp("ended_at"),
     controllerSeconds: integer("controller_seconds").default(0).notNull(),
+    rawEligiblePlaytimeSeconds: integer("raw_eligible_playtime_seconds")
+      .default(0)
+      .notNull(),
     eligiblePlaytimeSeconds: integer("eligible_playtime_seconds")
       .default(0)
+      .notNull(),
+    trustFlags: jsonb("trust_flags")
+      .$type<string[]>()
+      .default(sql`'[]'::jsonb`)
       .notNull(),
     peakConcurrentControllers: integer("peak_concurrent_controllers")
       .default(0)
@@ -149,9 +156,15 @@ export const runtimeUsageDailyGameMetrics = pgTable(
     totalControllerSeconds: integer("total_controller_seconds")
       .default(0)
       .notNull(),
+    totalRawEligiblePlaytimeSeconds: integer(
+      "total_raw_eligible_playtime_seconds",
+    )
+      .default(0)
+      .notNull(),
     totalEligiblePlaytimeSeconds: integer("total_eligible_playtime_seconds")
       .default(0)
       .notNull(),
+    guardedSessionCount: integer("guarded_session_count").default(0).notNull(),
     peakConcurrentControllers: integer("peak_concurrent_controllers")
       .default(0)
       .notNull(),

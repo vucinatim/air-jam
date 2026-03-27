@@ -247,8 +247,15 @@ export const runtimeUsageGameSessionMetrics = pgTable(
     startedAt: timestamp("started_at").notNull(),
     endedAt: timestamp("ended_at"),
     controllerSeconds: integer("controller_seconds").default(0).notNull(),
+    rawEligiblePlaytimeSeconds: integer("raw_eligible_playtime_seconds")
+      .default(0)
+      .notNull(),
     eligiblePlaytimeSeconds: integer("eligible_playtime_seconds")
       .default(0)
+      .notNull(),
+    trustFlags: jsonb("trust_flags")
+      .$type<string[]>()
+      .default(sql`'[]'::jsonb`)
       .notNull(),
     peakConcurrentControllers: integer("peak_concurrent_controllers")
       .default(0)
@@ -283,9 +290,15 @@ export const runtimeUsageDailyGameMetrics = pgTable(
     totalControllerSeconds: integer("total_controller_seconds")
       .default(0)
       .notNull(),
+    totalRawEligiblePlaytimeSeconds: integer(
+      "total_raw_eligible_playtime_seconds",
+    )
+      .default(0)
+      .notNull(),
     totalEligiblePlaytimeSeconds: integer("total_eligible_playtime_seconds")
       .default(0)
       .notNull(),
+    guardedSessionCount: integer("guarded_session_count").default(0).notNull(),
     peakConcurrentControllers: integer("peak_concurrent_controllers")
       .default(0)
       .notNull(),

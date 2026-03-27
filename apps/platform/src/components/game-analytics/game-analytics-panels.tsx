@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -6,18 +7,32 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Activity, BarChart3, Clock3, TrendingUp, Users } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  ChevronDown,
+  Clock3,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
 export interface GameAnalyticsDailyPoint {
   bucketDate: string;
   sessionCount: number;
   totalGameActiveSeconds: number;
   totalControllerSeconds: number;
+  totalRawEligiblePlaytimeSeconds: number;
   totalEligiblePlaytimeSeconds: number;
+  guardedSessionCount: number;
   peakConcurrentControllers: number;
   lastActivityAt: Date | null;
 }
@@ -26,18 +41,49 @@ export interface GameAnalyticsTotals {
   sessionCount: number;
   totalGameActiveSeconds: number;
   totalControllerSeconds: number;
+  totalRawEligiblePlaytimeSeconds: number;
   totalEligiblePlaytimeSeconds: number;
+  guardedSessionCount: number;
   peakConcurrentControllers: number;
   lastActivityAt: Date | null;
 }
 
 export interface GameAnalyticsSession {
   id: string;
+  runtimeSessionId: string;
   startedAt: Date;
   endedAt: Date | null;
   controllerSeconds: number;
+  rawEligiblePlaytimeSeconds: number;
   eligiblePlaytimeSeconds: number;
+  trustFlags: string[];
   peakConcurrentControllers: number;
+}
+
+export interface GameAnalyticsDebugSnapshot {
+  runtimeSessionId: string | null;
+  roomId: string | null;
+  sessionStartedAt: Date | null;
+  rawEventCount: number;
+  latestEventAt: Date | null;
+  latestMetricUpdatedAt: Date | null;
+  openSegmentCounts: {
+    controller: number;
+    game: number;
+    eligible: number;
+  };
+  totalSegmentCounts: {
+    controller: number;
+    game: number;
+    eligible: number;
+  };
+  latestSessionMetric: GameAnalyticsSession | null;
+  recentEvents: Array<{
+    id: string;
+    kind: string;
+    occurredAt: Date;
+    payloadSummary: string | null;
+  }>;
 }
 
 interface GameAnalyticsActivityCardProps {
@@ -49,6 +95,10 @@ interface GameAnalyticsDeepDiveProps {
   daily: GameAnalyticsDailyPoint[];
   totals: GameAnalyticsTotals;
   recentSessions: GameAnalyticsSession[];
+}
+
+interface GameAnalyticsDebugCardProps {
+  debugSnapshot: GameAnalyticsDebugSnapshot | null;
 }
 
 const hasAnalyticsActivity = (daily: GameAnalyticsDailyPoint[]): boolean => {
@@ -140,9 +190,15 @@ export function GameAnalyticsActivityCard({
                         <div className="space-y-1">
                           <div className="font-medium">{day.bucketDate}</div>
                           <div>
-                            Eligible:{" "}
+                            Trusted eligible:{" "}
                             {formatAnalyticsDuration(
                               day.totalEligiblePlaytimeSeconds,
+                            )}
+                          </div>
+                          <div>
+                            Raw eligible:{" "}
+                            {formatAnalyticsDuration(
+                              day.totalRawEligiblePlaytimeSeconds,
                             )}
                           </div>
                           <div>
@@ -181,7 +237,7 @@ export function GameAnalyticsActivityCard({
               </div>
               <div className="rounded-lg border p-3">
                 <div className="text-muted-foreground text-xs">
-                  Eligible Share
+                  Trusted Share
                 </div>
                 <div className="mt-1 text-lg font-semibold">
                   {totals.totalGameActiveSeconds > 0
@@ -260,7 +316,7 @@ export function GameAnalyticsDeepDive({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Eligible Playtime
+              Trusted Eligible
             </CardTitle>
             <Clock3 className="text-muted-foreground h-4 w-4" />
           </CardHeader>
@@ -269,7 +325,7 @@ export function GameAnalyticsDeepDive({
               {formatAnalyticsDuration(totals.totalEligiblePlaytimeSeconds)}
             </div>
             <p className="text-muted-foreground text-xs">
-              Reward-grade active time
+              Reward-grade time after trust guards
             </p>
           </CardContent>
         </Card>
@@ -343,10 +399,13 @@ export function GameAnalyticsDeepDive({
                             <div className="font-medium">{day.bucketDate}</div>
                             <div>Sessions: {day.sessionCount}</div>
                             <div>
-                              Eligible:{" "}
+                              Trusted eligible:{" "}
                               {formatAnalyticsDuration(
                                 day.totalEligiblePlaytimeSeconds,
                               )}
+                            </div>
+                            <div>
+                              Guarded sessions: {day.guardedSessionCount}
                             </div>
                           </div>
                         </TooltipContent>
@@ -435,7 +494,7 @@ export function GameAnalyticsDeepDive({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border p-3">
                     <div className="text-muted-foreground text-xs">
-                      Avg eligible session
+                      Avg trusted session
                     </div>
                     <div className="mt-1 text-lg font-semibold">
                       {formatAnalyticsDuration(averageEligibleSessionSeconds)}
@@ -488,7 +547,7 @@ export function GameAnalyticsDeepDive({
               </div>
               <div className="rounded-lg border p-3">
                 <div className="text-muted-foreground text-xs">
-                  Eligible share
+                  Trusted share
                 </div>
                 <div className="mt-1 text-lg font-semibold">
                   {totals.totalGameActiveSeconds > 0
@@ -512,6 +571,22 @@ export function GameAnalyticsDeepDive({
                     : "No activity yet"}
                 </div>
               </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-muted-foreground text-xs">Raw eligible</div>
+                <div className="mt-1 text-lg font-semibold">
+                  {formatAnalyticsDuration(
+                    totals.totalRawEligiblePlaytimeSeconds,
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-muted-foreground text-xs">
+                  Guarded sessions
+                </div>
+                <div className="mt-1 text-lg font-semibold">
+                  {totals.guardedSessionCount}
+                </div>
+              </div>
             </div>
             <div className="rounded-lg border p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
@@ -522,10 +597,10 @@ export function GameAnalyticsDeepDive({
                 {totals.totalEligiblePlaytimeSeconds > 0
                   ? `This game converted ${formatAnalyticsDuration(
                       totals.totalEligiblePlaytimeSeconds,
-                    )} of reward-grade playtime from ${formatAnalyticsDuration(
+                    )} of trusted playtime from ${formatAnalyticsDuration(
                       totals.totalGameActiveSeconds,
                     )} of active runtime in the current window.`
-                  : "No reward-grade playtime has been recorded yet in the current window."}
+                  : "No trusted playtime has been recorded yet in the current window."}
               </p>
             </div>
           </CardContent>
@@ -553,10 +628,23 @@ export function GameAnalyticsDeepDive({
                       Peak {session.peakConcurrentControllers} controller
                       {session.peakConcurrentControllers === 1 ? "" : "s"}
                     </div>
+                    {session.trustFlags.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {session.trustFlags.map((flag) => (
+                          <Badge key={flag} variant="outline">
+                            {flag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-medium">
                       {formatAnalyticsDuration(session.eligiblePlaytimeSeconds)}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      {formatAnalyticsDuration(session.rawEligiblePlaytimeSeconds)}{" "}
+                      raw eligible
                     </div>
                     <div className="text-muted-foreground text-xs">
                       {formatAnalyticsDuration(session.controllerSeconds)}{" "}
@@ -574,5 +662,169 @@ export function GameAnalyticsDeepDive({
         </Card>
       </div>
     </div>
+  );
+}
+
+export function GameAnalyticsDebugCard({
+  debugSnapshot,
+}: GameAnalyticsDebugCardProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Analytics Debug</CardTitle>
+        <CardDescription>
+          Pipeline observability for the latest tracked runtime session.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {debugSnapshot?.runtimeSessionId ? (
+          <Collapsible className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-lg border p-3">
+                <div className="text-muted-foreground text-xs">Runtime session</div>
+                <div className="mt-1 font-mono text-xs">
+                  {debugSnapshot.runtimeSessionId.slice(0, 8)}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-muted-foreground text-xs">Raw events</div>
+                <div className="mt-1 text-lg font-semibold">
+                  {debugSnapshot.rawEventCount}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-muted-foreground text-xs">Latest event</div>
+                <div className="mt-1 text-sm font-semibold">
+                  {formatAnalyticsTimestamp(debugSnapshot.latestEventAt)}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-muted-foreground text-xs">
+                  Aggregate refresh
+                </div>
+                <div className="mt-1 text-sm font-semibold">
+                  {formatAnalyticsTimestamp(debugSnapshot.latestMetricUpdatedAt)}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border p-4">
+                <div className="text-sm font-medium">Segment State</div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <div className="text-muted-foreground text-xs">
+                      Controller segments
+                    </div>
+                    <div className="mt-1 text-lg font-semibold">
+                      {debugSnapshot.totalSegmentCounts.controller}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      {debugSnapshot.openSegmentCounts.controller} open
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground text-xs">
+                      Game segments
+                    </div>
+                    <div className="mt-1 text-lg font-semibold">
+                      {debugSnapshot.totalSegmentCounts.game}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      {debugSnapshot.openSegmentCounts.game} open
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground text-xs">
+                      Eligible segments
+                    </div>
+                    <div className="mt-1 text-lg font-semibold">
+                      {debugSnapshot.totalSegmentCounts.eligible}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      {debugSnapshot.openSegmentCounts.eligible} open
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <div className="text-sm font-medium">Trust Evaluation</div>
+                {debugSnapshot.latestSessionMetric ? (
+                  <div className="mt-3 space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <div className="text-muted-foreground text-xs">
+                          Raw eligible
+                        </div>
+                        <div className="mt-1 text-lg font-semibold">
+                          {formatAnalyticsDuration(
+                            debugSnapshot.latestSessionMetric
+                              .rawEligiblePlaytimeSeconds,
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-xs">
+                          Trusted eligible
+                        </div>
+                        <div className="mt-1 text-lg font-semibold">
+                          {formatAnalyticsDuration(
+                            debugSnapshot.latestSessionMetric
+                              .eligiblePlaytimeSeconds,
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {debugSnapshot.latestSessionMetric.trustFlags.length > 0 ? (
+                        debugSnapshot.latestSessionMetric.trustFlags.map((flag) => (
+                          <Badge key={flag} variant="outline">
+                            {flag}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="outline">trusted</Badge>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground mt-3 text-sm">
+                    No completed session metric yet for this game.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <CollapsibleTrigger className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
+              <ChevronDown className="h-4 w-4" />
+              Show recent raw events
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2">
+              {debugSnapshot.recentEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-start justify-between rounded-lg border p-3"
+                >
+                  <div>
+                    <div className="text-sm font-medium">{event.kind}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {formatAnalyticsTimestamp(event.occurredAt)}
+                    </div>
+                  </div>
+                  <div className="text-muted-foreground max-w-[50%] text-right text-xs">
+                    {event.payloadSummary ?? "No payload summary"}
+                  </div>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        ) : (
+          <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+            No analytics session has been recorded yet for this game.
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

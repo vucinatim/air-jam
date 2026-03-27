@@ -71,6 +71,13 @@
       "when": 1774627526845,
       "tag": "0009_low_mattie_franklin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774631622644,
+      "tag": "0010_odd_wind_dancer",
+      "breakpoints": true
     }
   ]
 }

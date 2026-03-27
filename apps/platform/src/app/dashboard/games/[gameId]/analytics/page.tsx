@@ -2,7 +2,9 @@
 
 import {
   GameAnalyticsDeepDive,
+  GameAnalyticsDebugCard,
   type GameAnalyticsDailyPoint,
+  type GameAnalyticsDebugSnapshot,
   type GameAnalyticsSession,
   type GameAnalyticsTotals,
 } from "@/components/game-analytics/game-analytics-panels";
@@ -28,8 +30,13 @@ export default function GameAnalyticsPage() {
       { gameId, limit: 8 },
       { enabled: !!gameId },
     );
+  const { data: debugSnapshot, isLoading: isLoadingDebug } =
+    api.analytics.getGameDebugSnapshot.useQuery(
+      { gameId },
+      { enabled: !!gameId },
+    );
 
-  if (isLoadingGame || isLoadingOverview || isLoadingSessions) {
+  if (isLoadingGame || isLoadingOverview || isLoadingSessions || isLoadingDebug) {
     return <Skeleton className="h-[640px] w-full" />;
   }
 
@@ -42,11 +49,14 @@ export default function GameAnalyticsPage() {
     sessionCount: 0,
     totalGameActiveSeconds: 0,
     totalControllerSeconds: 0,
+    totalRawEligiblePlaytimeSeconds: 0,
     totalEligiblePlaytimeSeconds: 0,
+    guardedSessionCount: 0,
     peakConcurrentControllers: 0,
     lastActivityAt: null,
   };
   const sessions: GameAnalyticsSession[] = recentSessions ?? [];
+  const debug: GameAnalyticsDebugSnapshot | null = debugSnapshot ?? null;
 
   return (
     <div className="space-y-6">
@@ -63,6 +73,7 @@ export default function GameAnalyticsPage() {
         totals={analyticsTotals}
         recentSessions={sessions}
       />
+      <GameAnalyticsDebugCard debugSnapshot={debug} />
     </div>
   );
 }

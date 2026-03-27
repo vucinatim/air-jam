@@ -1,7 +1,7 @@
 # Air Jam Analytics Implementation Plan
 
 Last updated: 2026-03-27
-Status: active
+Status: implemented foundation
 
 Related docs:
 
@@ -24,6 +24,23 @@ The goal is:
 4. keep the open framework and hosted control-plane boundary clean
 
 This plan should not reopen the architecture unless implementation reveals a real contradiction.
+
+## Completion Note
+
+This implementation arc is complete for the initial hosted analytics foundation.
+
+Completed outcomes:
+
+1. runtime usage seam and stable runtime analytics identity
+2. canonical runtime usage event contract
+3. raw event ledger persistence
+4. normalized interval projection
+5. game-session and daily aggregate tables
+6. platform analytics read surface
+7. game overview and dedicated analytics dashboard views
+8. rebuild path, trust guards, and debug visibility
+
+Remaining work is follow-up product expansion or hardening, not missing foundation. Future analytics changes should start from the current architecture and active product priorities rather than reopening this completed plan.
 
 ## Direction Decision
 

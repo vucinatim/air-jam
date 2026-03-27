@@ -6,16 +6,11 @@
  */
 
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
-import dotenv from "dotenv";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { loadWorkspaceEnv } from "./env/load-workspace-env.js";
 import { createServerLogger } from "./logging/logger.js";
 import { createAirJamServer } from "./index.js";
 
-// Load .env file if it exists
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-dotenv.config({ path: join(__dirname, "..", ".env") });
+loadWorkspaceEnv();
 
 const logger = createServerLogger({ service: "air-jam-server" });
 const runtime = createAirJamServer({ logger });

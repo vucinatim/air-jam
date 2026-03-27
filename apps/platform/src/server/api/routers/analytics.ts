@@ -5,6 +5,7 @@ import {
   getGameAnalyticsOverview,
   getRecentGameAnalyticsSessions,
 } from "@/server/analytics/game-analytics";
+import { getGameAnalyticsDebugSnapshot } from "@/server/analytics/game-analytics-debug";
 
 export const analyticsRouter = createTRPCRouter({
   getGameOverview: protectedProcedure
@@ -29,5 +30,16 @@ export const analyticsRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
       return await getRecentGameAnalyticsSessions(input.gameId, input.limit);
+    }),
+
+  getGameDebugSnapshot: protectedProcedure
+    .input(
+      z.object({
+        gameId: z.string(),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      await assertOwnedGame(input.gameId, ctx.user.id);
+      return await getGameAnalyticsDebugSnapshot(input.gameId);
     }),
 });

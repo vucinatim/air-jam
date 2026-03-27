@@ -10,7 +10,9 @@ export interface GameAnalyticsDailyRow {
   sessionCount: number;
   totalGameActiveSeconds: number;
   totalControllerSeconds: number;
+  totalRawEligiblePlaytimeSeconds: number;
   totalEligiblePlaytimeSeconds: number;
+  guardedSessionCount: number;
   peakConcurrentControllers: number;
   lastActivityAt: Date | null;
 }
@@ -21,7 +23,9 @@ export interface GameAnalyticsOverviewTotals {
   sessionCount: number;
   totalGameActiveSeconds: number;
   totalControllerSeconds: number;
+  totalRawEligiblePlaytimeSeconds: number;
   totalEligiblePlaytimeSeconds: number;
+  guardedSessionCount: number;
   peakConcurrentControllers: number;
   lastActivityAt: Date | null;
 }
@@ -60,7 +64,10 @@ export const buildGameAnalyticsOverview = (
       sessionCount: row?.sessionCount ?? 0,
       totalGameActiveSeconds: row?.totalGameActiveSeconds ?? 0,
       totalControllerSeconds: row?.totalControllerSeconds ?? 0,
+      totalRawEligiblePlaytimeSeconds:
+        row?.totalRawEligiblePlaytimeSeconds ?? 0,
       totalEligiblePlaytimeSeconds: row?.totalEligiblePlaytimeSeconds ?? 0,
+      guardedSessionCount: row?.guardedSessionCount ?? 0,
       peakConcurrentControllers: row?.peakConcurrentControllers ?? 0,
       lastActivityAt: row?.lastActivityAt ?? null,
     };
@@ -73,8 +80,12 @@ export const buildGameAnalyticsOverview = (
         acc.totalGameActiveSeconds + day.totalGameActiveSeconds,
       totalControllerSeconds:
         acc.totalControllerSeconds + day.totalControllerSeconds,
+      totalRawEligiblePlaytimeSeconds:
+        acc.totalRawEligiblePlaytimeSeconds +
+        day.totalRawEligiblePlaytimeSeconds,
       totalEligiblePlaytimeSeconds:
         acc.totalEligiblePlaytimeSeconds + day.totalEligiblePlaytimeSeconds,
+      guardedSessionCount: acc.guardedSessionCount + day.guardedSessionCount,
       peakConcurrentControllers: Math.max(
         acc.peakConcurrentControllers,
         day.peakConcurrentControllers,
@@ -90,7 +101,9 @@ export const buildGameAnalyticsOverview = (
       sessionCount: 0,
       totalGameActiveSeconds: 0,
       totalControllerSeconds: 0,
+      totalRawEligiblePlaytimeSeconds: 0,
       totalEligiblePlaytimeSeconds: 0,
+      guardedSessionCount: 0,
       peakConcurrentControllers: 0,
       lastActivityAt: null,
     },
@@ -119,8 +132,11 @@ export const getGameAnalyticsOverview = async (
       sessionCount: runtimeUsageDailyGameMetrics.sessionCount,
       totalGameActiveSeconds: runtimeUsageDailyGameMetrics.totalGameActiveSeconds,
       totalControllerSeconds: runtimeUsageDailyGameMetrics.totalControllerSeconds,
+      totalRawEligiblePlaytimeSeconds:
+        runtimeUsageDailyGameMetrics.totalRawEligiblePlaytimeSeconds,
       totalEligiblePlaytimeSeconds:
         runtimeUsageDailyGameMetrics.totalEligiblePlaytimeSeconds,
+      guardedSessionCount: runtimeUsageDailyGameMetrics.guardedSessionCount,
       peakConcurrentControllers:
         runtimeUsageDailyGameMetrics.peakConcurrentControllers,
       lastActivityAt: runtimeUsageDailyGameMetrics.lastActivityAt,

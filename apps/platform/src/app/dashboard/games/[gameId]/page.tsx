@@ -117,7 +117,9 @@ export default function GameOverviewPage() {
     sessionCount: 0,
     totalGameActiveSeconds: 0,
     totalControllerSeconds: 0,
+    totalRawEligiblePlaytimeSeconds: 0,
     totalEligiblePlaytimeSeconds: 0,
+    guardedSessionCount: 0,
     peakConcurrentControllers: 0,
     lastActivityAt: null,
   };
