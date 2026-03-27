@@ -1,8 +1,9 @@
-import type {
-  ClientToServerEvents,
-  InterServerEvents,
-  ServerToClientEvents,
-  SocketData,
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  type ClientToServerEvents,
+  type InterServerEvents,
+  type ServerToClientEvents,
+  type SocketData,
 } from "@air-jam/sdk/protocol";
 import cors from "cors";
 import express from "express";
@@ -228,7 +229,11 @@ export const createAirJamServer = (
       typeof address === "object" && address?.port ? address.port : resolvedPort;
 
     logger.info(
-      { port: activePort, corsOrigin },
+      {
+        event: AIRJAM_DEV_LOG_EVENTS.server.started,
+        port: activePort,
+        corsOrigin,
+      },
       `Server listening on http://localhost:${activePort}`,
     );
     return activePort;

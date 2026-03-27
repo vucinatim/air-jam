@@ -1,5 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { createHostGrant } from "@air-jam/sdk/protocol";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  createHostGrant,
+} from "@air-jam/sdk/protocol";
 import { AuthService } from "../src/services/auth-service";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -18,7 +21,40 @@ afterEach(() => {
   resetEnv();
 });
 
+const createMockLogger = () => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+});
+
 describe("AuthService", () => {
+  it("emits canonical startup events for disabled auth mode", () => {
+    process.env.AIR_JAM_AUTH_MODE = "disabled";
+
+    const logger = createMockLogger();
+    new AuthService({ logger: logger as any });
+
+    expect(logger.info).toHaveBeenCalledWith(
+      { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled },
+      "Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce app identity checks)",
+    );
+  });
+
+  it("emits a canonical startup warning when required auth has no backend", () => {
+    process.env.AIR_JAM_AUTH_MODE = "required";
+    delete process.env.AIR_JAM_MASTER_KEY;
+    delete process.env.DATABASE_URL;
+    delete process.env.AIR_JAM_HOST_GRANT_SECRET;
+
+    const logger = createMockLogger();
+    new AuthService({ logger: logger as any });
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { event: AIRJAM_DEV_LOG_EVENTS.auth.backendMissing },
+      "Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
+    );
+  });
+
   it("accepts missing app ID when AIR_JAM_AUTH_MODE=disabled", async () => {
     process.env.AIR_JAM_AUTH_MODE = "disabled";
     delete process.env.AIR_JAM_MASTER_KEY;

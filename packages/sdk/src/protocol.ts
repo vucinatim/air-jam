@@ -1,6 +1,7 @@
 export * from "./protocol/arcade-platform-actions";
 export * from "./protocol/core";
 export * from "./protocol/controller";
+export * from "./protocol/dev-log-events";
 export * from "./protocol/errors";
 export * from "./protocol/host";
 export * from "./protocol/host-grant";

@@ -106,3 +106,9 @@ export interface ControllerJoinAck {
   message?: string;
   code?: ErrorCode | string;
 }
+
+export interface ControllerSocketAuthority {
+  roomId: RoomCode;
+  controllerId: string;
+  joinedAt: number;
+}

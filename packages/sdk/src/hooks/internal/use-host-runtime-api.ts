@@ -25,6 +25,7 @@ import type {
   ToastSignalPayload,
 } from "../../protocol";
 import {
+  AIRJAM_DEV_LOG_EVENTS,
   controllerStateSchema,
   controllerSystemSchema,
   ErrorCode,
@@ -33,10 +34,12 @@ import {
   hostReconnectSchema,
   roomCodeSchema,
 } from "../../protocol";
+import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import { getHostRealtimeClient } from "../../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readEmbeddedHostChildSession } from "../../runtime/embedded-runtime-adapters";
+import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
 import { detectRunMode } from "../../utils/mode";
 import { urlBuilder } from "../../utils/url-builder";
 import type {
@@ -123,7 +126,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       roomId: state.roomId,
     })),
   );
-
   const socket = useMemo<AirJamRealtimeClient | null>(
     () =>
       shouldConnect ? getHostRealtimeClient((role) => getSocket(role)) : null,
@@ -131,6 +133,44 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   );
 
   const [lastToggle, setLastToggle] = useState(0);
+  const canEmitAuthoritativeHostState = useCallback(
+    (roomId: RoomCode | null): roomId is RoomCode => {
+      if (!socket || !socket.connected || !roomId) {
+        return false;
+      }
+
+      const latestState = store.getState();
+      return (
+        latestState.registeredRoomId === roomId &&
+        latestState.hostArcadeRestore.phase === "idle"
+      );
+    },
+    [socket, store],
+  );
+
+  const emitHostRuntimeEvent = useCallback(
+    ({
+      event,
+      message,
+      roomId,
+      data,
+    }: {
+      event: (typeof AIRJAM_DEV_LOG_EVENTS.runtime)[keyof typeof AIRJAM_DEV_LOG_EVENTS.runtime];
+      message: string;
+      roomId?: string;
+      data?: Record<string, unknown>;
+    }) => {
+      emitAirJamDevRuntimeEvent({
+        event,
+        level: "info",
+        message,
+        role: "host",
+        roomId,
+        data,
+      });
+    },
+    [],
+  );
 
   const toggleGameState = useCallback(() => {
     const now = Date.now();
@@ -156,20 +196,22 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
   const sendState = useCallback(
     (state: ControllerStatePayload): boolean => {
-      if (!socket || !socket.connected || !parsedRoomId) {
+      const activeSocket = socket;
+      const activeRoomId = parsedRoomIdRef.current;
+      if (!activeSocket || !canEmitAuthoritativeHostState(activeRoomId)) {
         return false;
       }
       const payload = controllerStateSchema.safeParse({
-        roomId: parsedRoomId,
+        roomId: activeRoomId,
         state,
       });
       if (!payload.success) {
         return false;
       }
-      socket.emit("host:state", payload.data);
+      activeSocket.emit("host:state", payload.data);
       return true;
     },
-    [socket, parsedRoomId],
+    [canEmitAuthoritativeHostState, socket],
   );
 
   const sendSignal = useCallback(
@@ -263,17 +305,24 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   );
 
   const setDevHostTraceId = useCallback((traceId?: string) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const browserWindow = window as Window & {
-      __airJamHostTraceId__?: string;
+    updateDevBrowserLogContext({ traceId });
+  }, []);
+
+  useEffect(() => {
+    updateDevBrowserLogContext({
+      role: "host",
+      roomId: parsedRoomId ?? undefined,
+    });
+  }, [parsedRoomId]);
+
+  useEffect(() => {
+    return () => {
+      updateDevBrowserLogContext({
+        role: undefined,
+        roomId: undefined,
+        traceId: undefined,
+      });
     };
-    if (traceId) {
-      browserWindow.__airJamHostTraceId__ = traceId;
-      return;
-    }
-    delete browserWindow.__airJamHostTraceId__;
   }, []);
 
   const hostGrantResponseSchema = useMemo(
@@ -401,9 +450,24 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
       setDevHostTraceId(bootstrapAck.traceId);
 
-      const createNewRoom = () => {
+      const createNewRoom = (
+        reason: "bootstrap" | "reconnect_fallback" = "bootstrap",
+        details?: Record<string, unknown>,
+      ) => {
+        const latestState = store.getState();
+        latestState.clearHostArcadeRestore();
+        setRegisteredRoomId(null);
         const payload = hostCreateRoomSchema.parse({
           maxPlayers: config.maxPlayers,
+        });
+        emitHostRuntimeEvent({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.hostCreateRoomRequested,
+          message: "Host requested room creation",
+          data: {
+            reason,
+            maxPlayers: payload.maxPlayers,
+            ...details,
+          },
         });
 
         socket.emit("host:createRoom", payload, (ack: HostRegistrationAck) => {
@@ -449,6 +513,15 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
               phase: "awaiting_ack",
               session: null,
             });
+            emitHostRuntimeEvent({
+              event: AIRJAM_DEV_LOG_EVENTS.runtime.hostReconnectRequested,
+              message: "Host requested room reconnect",
+              roomId: reconnectPayload.roomId,
+              data: {
+                attempt,
+                source: "session_storage_restore",
+              },
+            });
             socket.emit(
               "host:reconnect",
               reconnectPayload,
@@ -476,6 +549,18 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                   ack.code === ErrorCode.ALREADY_CONNECTED &&
                   attempt < maxReconnectAttempts
                 ) {
+                  emitHostRuntimeEvent({
+                    event:
+                      AIRJAM_DEV_LOG_EVENTS.runtime.hostReconnectRetryScheduled,
+                    message: "Host reconnect retry scheduled",
+                    roomId: reconnectPayload.roomId,
+                    data: {
+                      attempt,
+                      nextAttempt: attempt + 1,
+                      retryDelayMs: reconnectRetryDelayMs,
+                      ackCode: ack.code,
+                    },
+                  });
                   reconnectRetryTimeoutRef.current = setTimeout(() => {
                     reconnectRetryTimeoutRef.current = null;
                     attemptReconnect(attempt + 1);
@@ -487,7 +572,11 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                 if (typeof window !== "undefined") {
                   sessionStorage.removeItem("airjam_room_id");
                 }
-                createNewRoom();
+                createNewRoom("reconnect_fallback", {
+                  attempt,
+                  ackCode: ack.code,
+                  ackMessage: ack.message,
+                });
               },
             );
           };
@@ -501,14 +590,46 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     };
 
     const handleConnect = (): void => {
+      emitHostRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnected,
+        message: "Host socket connected",
+        roomId: parsedRoomIdRef.current ?? undefined,
+        data: {
+          socketId: socket.id,
+          connected: socket.connected,
+        },
+      });
       store.getState().setStatus("connecting");
       void registerHost();
     };
 
-    const handleDisconnect = (): void => {
+    const handleDisconnect = (reason: string): void => {
+      emitHostRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketDisconnected,
+        message: "Host socket disconnected",
+        roomId: parsedRoomIdRef.current ?? undefined,
+        data: {
+          socketId: socket.id,
+          reason,
+        },
+      });
       store.getState().setStatus("disconnected");
       setRegisteredRoomId(null);
       setDevHostTraceId(undefined);
+    };
+
+    const handleConnectError = (error: Error): void => {
+      emitAirJamDevRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnectError,
+        level: "warn",
+        message: "Host socket connect error",
+        role: "host",
+        roomId: parsedRoomIdRef.current ?? undefined,
+        data: {
+          message: error.message,
+          name: error.name,
+        },
+      });
     };
 
     const handleJoin = (payload: {
@@ -562,6 +683,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
     socket.on("server:controllerJoined", handleJoin);
     socket.on("server:controllerLeft", handleLeave);
     socket.on("server:playerUpdated", handlePlayerUpdated);
@@ -582,6 +704,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       }
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
       socket.off("server:controllerJoined", handleJoin);
       socket.off("server:controllerLeft", handleLeave);
       socket.off("server:playerUpdated", handlePlayerUpdated);
@@ -602,6 +725,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     setRegisteredRoomId,
     setDevHostTraceId,
     hostGrantResponseSchema,
+    emitHostRuntimeEvent,
   ]);
 
   const getInput = useCallback(

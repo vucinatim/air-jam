@@ -94,6 +94,35 @@ describe("arcade runtime manager", () => {
     expect(state.lastExitAt).toBe(123_456);
   });
 
+  it("clears stale launch state on session reset without applying exit cooldown", () => {
+    let state = createInitialArcadeRuntimeState({
+      games,
+      initialGameId: "g2",
+    });
+
+    state = reduceArcadeRuntimeState(state, {
+      type: "consume-auto-launch",
+      requestKey: "arcade:g2",
+    });
+    state = reduceArcadeRuntimeState(state, { type: "launch-start" });
+    state = reduceArcadeRuntimeState(state, {
+      type: "launch-success",
+      normalizedGameUrl: "https://game-two.test",
+      launchCapability: {
+        token: "join_stale",
+        expiresAt: 1_700_000_000_000,
+      },
+    });
+
+    state = reduceArcadeRuntimeState(state, { type: "reset-session" });
+
+    expect(state.launchCapability).toBeNull();
+    expect(state.normalizedGameUrl).toBe("");
+    expect(state.isLaunching).toBe(false);
+    expect(state.consumedAutoLaunchRequestKey).toBeNull();
+    expect(state.lastExitAt).toBe(0);
+  });
+
   it("derives a stable auto-launch request key per route intent", () => {
     expect(
       getAutoLaunchRequestKey({

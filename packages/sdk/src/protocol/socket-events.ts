@@ -3,6 +3,7 @@ import type {
   ControllerJoinAck,
   ControllerJoinPayload,
   ControllerLeavePayload,
+  ControllerSocketAuthority,
   ControllerStateMessage,
   ControllerSystemPayload,
   ControllerUpdatePlayerProfileAck,
@@ -110,4 +111,5 @@ export interface InterServerEvents {
 
 export interface SocketData {
   hostAuthority?: HostSocketAuthority;
+  controllerAuthority?: ControllerSocketAuthority;
 }

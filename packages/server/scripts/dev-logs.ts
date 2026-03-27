@@ -2,6 +2,11 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { watch } from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
+import { pathToFileURL } from "node:url";
+import {
+  resolveAirJamBrowserConsoleCategory,
+  type AirJamDevBrowserConsoleCategory,
+} from "@air-jam/sdk/protocol";
 import { AIR_JAM_WORKSPACE_ROOT } from "../src/logging/log-paths";
 
 type DevLogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
@@ -9,16 +14,26 @@ type DevLogSource = "server" | "browser";
 
 interface DevLogEvent {
   time?: string;
+  occurredAt?: string;
+  ingestedAt?: string;
+  collectorSeq?: number;
   level?: DevLogLevel;
   source?: DevLogSource;
   msg?: string;
+  event?: string;
+  sourceSeq?: number;
+  role?: "host" | "controller";
   traceId?: string;
   roomId?: string;
   socketId?: string;
   controllerId?: string;
   appIdHint?: string;
   code?: string;
+  runtimeEpoch?: number;
+  runtimeKind?: string;
   browserSource?: string;
+  consoleCategory?: AirJamDevBrowserConsoleCategory;
+  repeatCount?: number;
   data?: unknown;
   err?: unknown;
   [key: string]: unknown;
@@ -27,10 +42,16 @@ interface DevLogEvent {
 interface CliOptions {
   filePath: string;
   follow: boolean;
+  view: "full" | "signal";
   source?: DevLogSource;
   traceId?: string;
   roomId?: string;
+  controllerId?: string;
+  event?: string;
   level?: DevLogLevel;
+  runtimeKind?: string;
+  runtimeEpoch?: number;
+  consoleCategory?: AirJamDevBrowserConsoleCategory;
 }
 
 const LEVEL_PRIORITY: Record<DevLogLevel, number> = {
@@ -49,11 +70,11 @@ const DEFAULT_FILE_PATH = path.join(
   "dev-latest.ndjson",
 );
 
-const parseArgs = (): CliOptions => {
-  const args = process.argv.slice(2);
+export const parseCliArgs = (args: string[]): CliOptions => {
   const options: CliOptions = {
     filePath: process.env.AIR_JAM_DEV_LOG_FILE ?? DEFAULT_FILE_PATH,
     follow: false,
+    view: "full",
   };
 
   for (const arg of args) {
@@ -76,12 +97,27 @@ const parseArgs = (): CliOptions => {
       }
       continue;
     }
+    if (arg.startsWith("--view=")) {
+      const value = arg.split("=")[1];
+      if (value === "full" || value === "signal") {
+        options.view = value;
+      }
+      continue;
+    }
     if (arg.startsWith("--trace=")) {
       options.traceId = arg.split("=")[1];
       continue;
     }
     if (arg.startsWith("--room=")) {
       options.roomId = arg.split("=")[1];
+      continue;
+    }
+    if (arg.startsWith("--controller=")) {
+      options.controllerId = arg.split("=")[1];
+      continue;
+    }
+    if (arg.startsWith("--event=")) {
+      options.event = arg.split("=")[1];
       continue;
     }
     if (arg.startsWith("--level=")) {
@@ -98,13 +134,41 @@ const parseArgs = (): CliOptions => {
       }
       continue;
     }
+    if (arg.startsWith("--runtime=")) {
+      const value = arg.split("=")[1];
+      if (value) {
+        options.runtimeKind = value;
+      }
+      continue;
+    }
+    if (arg.startsWith("--epoch=")) {
+      const value = Number(arg.split("=")[1]);
+      if (Number.isInteger(value)) {
+        options.runtimeEpoch = value;
+      }
+      continue;
+    }
+    if (arg.startsWith("--console-category=")) {
+      const value = arg.split("=")[1];
+      if (
+        value === "airjam" ||
+        value === "app" ||
+        value === "framework" ||
+        value === "browser"
+      ) {
+        options.consoleCategory = value;
+      }
+      continue;
+    }
   }
 
   return options;
 };
 
+const parseArgs = (): CliOptions => parseCliArgs(process.argv.slice(2));
+
 const printHelp = (): void => {
-  console.log("Usage: pnpm dev:logs [--follow] [--source=server|browser] [--trace=<id>] [--room=<id>] [--level=<level>] [--file=<path>]");
+  console.log("Usage: pnpm dev:logs [--follow] [--view=full|signal] [--source=server|browser] [--trace=<id>] [--room=<id>] [--controller=<id>] [--event=<name>] [--runtime=<kind>] [--epoch=<n>] [--level=<level>] [--console-category=<kind>] [--file=<path>]");
   console.log("");
   console.log("Reads the canonical Air Jam dev log file and pretty-prints entries.");
   console.log("");
@@ -113,6 +177,10 @@ const printHelp = (): void => {
   console.log("  pnpm dev:logs -- --follow");
   console.log("  pnpm dev:logs -- --trace=host_abc123");
   console.log("  pnpm dev:logs -- --source=browser --level=warn");
+  console.log("  pnpm dev:logs -- --controller=ctrl_123 --event=controller.join.accepted");
+  console.log("  pnpm dev:logs -- --runtime=arcade-host-runtime --epoch=2");
+  console.log("  pnpm dev:logs -- --view=signal --room=ROOM1");
+  console.log("  pnpm dev:logs -- --source=browser --console-category=framework");
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -133,7 +201,13 @@ const parseLine = (line: string): DevLogEvent | null => {
   }
 };
 
-const passesFilter = (event: DevLogEvent, options: CliOptions): boolean => {
+export const passesFilter = (
+  event: DevLogEvent,
+  options: CliOptions,
+): boolean => {
+  if (options.view === "signal" && !passesSignalView(event)) {
+    return false;
+  }
   if (options.source && event.source !== options.source) {
     return false;
   }
@@ -143,12 +217,74 @@ const passesFilter = (event: DevLogEvent, options: CliOptions): boolean => {
   if (options.roomId && event.roomId !== options.roomId) {
     return false;
   }
+  if (options.controllerId && event.controllerId !== options.controllerId) {
+    return false;
+  }
+  if (options.event && event.event !== options.event) {
+    return false;
+  }
+  if (options.runtimeKind && event.runtimeKind !== options.runtimeKind) {
+    return false;
+  }
+  if (
+    typeof options.runtimeEpoch === "number" &&
+    event.runtimeEpoch !== options.runtimeEpoch
+  ) {
+    return false;
+  }
+  const resolvedConsoleCategory =
+    event.consoleCategory ??
+    (event.event === "browser.console" && typeof event.msg === "string"
+      ? resolveAirJamBrowserConsoleCategory(event.msg)
+      : undefined);
+  if (
+    options.consoleCategory &&
+    resolvedConsoleCategory !== options.consoleCategory
+  ) {
+    return false;
+  }
   if (options.level) {
     const eventLevel = event.level ?? "info";
     if (LEVEL_PRIORITY[eventLevel] < LEVEL_PRIORITY[options.level]) {
       return false;
     }
   }
+  return true;
+};
+
+const passesSignalView = (event: DevLogEvent): boolean => {
+  if (
+    event.event === "browser.log_batch.received" ||
+    event.event === "browser.log_session.started"
+  ) {
+    return false;
+  }
+
+  if (event.event !== "browser.console") {
+    return true;
+  }
+
+  if (event.msg === "Browser log sink started") {
+    return false;
+  }
+
+  if (event.level === "error" || event.level === "fatal") {
+    return true;
+  }
+
+  const consoleCategory =
+    event.consoleCategory ??
+    (typeof event.msg === "string"
+      ? resolveAirJamBrowserConsoleCategory(event.msg)
+      : undefined);
+
+  if (
+    consoleCategory === "framework" ||
+    consoleCategory === "browser"
+  ) {
+    return false;
+  }
+
   return true;
 };
 
@@ -161,20 +297,50 @@ const truncate = (value: string, max = 120): string => {
 
 const formatDetails = (event: DevLogEvent): string[] => {
   const details: string[] = [];
+  if (event.event) details.push(`event=${event.event}`);
+  if (typeof event.collectorSeq === "number") {
+    details.push(`collector=${event.collectorSeq}`);
+  }
+  if (typeof event.sourceSeq === "number") {
+    details.push(`sourceSeq=${event.sourceSeq}`);
+  }
+  if (event.role) details.push(`role=${event.role}`);
   if (event.traceId) details.push(`trace=${event.traceId}`);
   if (event.roomId) details.push(`room=${event.roomId}`);
   if (event.socketId) details.push(`socket=${event.socketId}`);
   if (event.controllerId) details.push(`controller=${event.controllerId}`);
   if (event.code) details.push(`code=${event.code}`);
+  if (typeof event.runtimeEpoch === "number") {
+    details.push(`epoch=${event.runtimeEpoch}`);
+  }
+  if (event.runtimeKind) details.push(`runtime=${event.runtimeKind}`);
   if (event.source === "browser" && event.browserSource) {
     details.push(`browser=${event.browserSource}`);
+  }
+  const consoleCategory =
+    event.consoleCategory ??
+    (event.event === "browser.console" && typeof event.msg === "string"
+      ? resolveAirJamBrowserConsoleCategory(event.msg)
+      : undefined);
+  if (consoleCategory) {
+    details.push(`category=${consoleCategory}`);
+  }
+  if (typeof event.repeatCount === "number" && event.repeatCount > 1) {
+    details.push(`repeat=${event.repeatCount}`);
+  }
+  if (
+    event.ingestedAt &&
+    event.occurredAt &&
+    event.ingestedAt !== event.occurredAt
+  ) {
+    details.push(`ingested=${event.ingestedAt}`);
   }
   if (event.appIdHint) details.push(`app=${event.appIdHint}`);
   return details;
 };
 
 const printEvent = (event: DevLogEvent): void => {
-  const time = event.time ?? new Date().toISOString();
+  const time = event.occurredAt ?? event.time ?? new Date().toISOString();
   const level = (event.level ?? "info").toUpperCase().padEnd(5, " ");
   const source = (event.source ?? "server").padEnd(7, " ");
   const details = formatDetails(event);
@@ -255,4 +421,10 @@ async function main(): Promise<void> {
   await new Promise(() => undefined);
 }
 
-void main();
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  pathToFileURL(process.argv[1]).href === import.meta.url;
+
+if (isDirectRun) {
+  void main();
+}

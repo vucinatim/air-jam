@@ -3,23 +3,42 @@ import {
   type AirJamDiagnostic,
   type AirJamDiagnosticSeverity,
 } from "../diagnostics";
-import { AIRJAM_DEV_LOG_SINK_FAILURE } from "../runtime/dev-runtime-events";
+import type {
+  AirJamDevBrowserConsoleCategory,
+  AirJamDevBrowserLogSource,
+  AirJamDevLogEventName,
+} from "../protocol";
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  resolveAirJamBrowserConsoleCategory,
+} from "../protocol";
+import {
+  AIRJAM_DEV_LOG_SINK_FAILURE,
+  AIRJAM_DEV_RUNTIME_EVENT,
+  type AirJamDevRuntimeEventDetail,
+} from "../runtime/dev-runtime-events";
 
 type BrowserLogLevel = "debug" | "info" | "warn" | "error";
-type BrowserLogSource =
-  | "console"
-  | "window-error"
-  | "unhandledrejection"
-  | "diagnostic";
+type BrowserLogSource = AirJamDevBrowserLogSource;
 
 interface BrowserLogEntry {
-  time: string;
+  occurredAt: string;
   level: BrowserLogLevel;
   source: BrowserLogSource;
   message: string;
+  sourceSeq?: number;
+  repeatCount?: number;
+  event?: AirJamDevLogEventName;
   data?: unknown[];
   stack?: string;
   code?: string;
+  consoleCategory?: AirJamDevBrowserConsoleCategory;
+  role?: "host" | "controller";
+  traceId?: string;
+  roomId?: string;
+  controllerId?: string;
+  runtimeEpoch?: number;
+  runtimeKind?: string;
 }
 
 interface BrowserLogBatchPayload {
@@ -28,6 +47,9 @@ interface BrowserLogBatchPayload {
   metadata: {
     appId?: string;
     traceId?: string;
+    roomId?: string;
+    controllerId?: string;
+    role?: "host" | "controller";
     origin?: string;
     pathname?: string;
     href?: string;
@@ -51,9 +73,18 @@ interface BrowserLogSinkController {
 interface BrowserLogSinkGlobal {
   __airJamBrowserLogSink__?: BrowserLogSinkController;
   __airJamHostTraceId__?: string;
+  __airJamDevLogContext__?: DevBrowserLogContext;
+}
+
+export interface DevBrowserLogContext {
+  traceId?: string;
+  roomId?: string;
+  controllerId?: string;
+  role?: "host" | "controller";
 }
 
 const FLUSH_INTERVAL_MS = 200;
+const CONSOLE_REPEAT_COALESCE_WINDOW_MS = 1000;
 
 const resolveNodeEnvMode = (): string | undefined => {
   return (
@@ -174,6 +205,12 @@ const buildConsoleMessage = (args: unknown[]): string => {
   return args.map((arg) => describeUnknown(arg)).join(" ");
 };
 
+export const resolveBrowserConsoleCategory = (
+  args: unknown[],
+): AirJamDevBrowserConsoleCategory => {
+  return resolveAirJamBrowserConsoleCategory(args);
+};
+
 const createSessionId = (): string => {
   const cryptoLike = globalThis.crypto as
     | { randomUUID?: () => string }
@@ -184,11 +221,61 @@ const createSessionId = (): string => {
   return `airjam-browser-${Date.now().toString(36)}`;
 };
 
+const pruneUndefined = <T extends Record<string, unknown>>(value: T): T => {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as T;
+};
+
+const resolveDevBrowserLogContext = (): DevBrowserLogContext => {
+  const globalState = globalThis as BrowserLogSinkGlobal;
+  const explicitContext = globalState.__airJamDevLogContext__;
+  if (explicitContext) {
+    return explicitContext;
+  }
+
+  if (globalState.__airJamHostTraceId__) {
+    return {
+      traceId: globalState.__airJamHostTraceId__,
+    };
+  }
+
+  return {};
+};
+
+export const updateDevBrowserLogContext = (
+  patch: DevBrowserLogContext,
+): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const globalState = globalThis as BrowserLogSinkGlobal;
+  const nextValue = pruneUndefined({
+    ...resolveDevBrowserLogContext(),
+    ...patch,
+  });
+
+  if (Object.keys(nextValue).length === 0) {
+    delete globalState.__airJamDevLogContext__;
+    delete globalState.__airJamHostTraceId__;
+    return;
+  }
+
+  globalState.__airJamDevLogContext__ = nextValue;
+  if (nextValue.traceId) {
+    globalState.__airJamHostTraceId__ = nextValue.traceId;
+    return;
+  }
+  delete globalState.__airJamHostTraceId__;
+};
+
 class BrowserLogSinkRuntime {
   private endpoint: string | null = null;
   private appId: string | undefined;
   private readonly sessionId = createSessionId();
   private readonly queue: BrowserLogEntry[] = [];
+  private nextSourceSeq = 1;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private hasReset = false;
   private readonly originalConsole = new Map<ConsoleMethodName, Console[ConsoleMethodName]>();
@@ -196,6 +283,21 @@ class BrowserLogSinkRuntime {
   update(options: BrowserLogSinkOptions): void {
     this.endpoint = resolveLogEndpoint(options.serverUrl);
     this.appId = options.appId;
+  }
+
+  private allocateSourceSeq(explicitSourceSeq?: number): number {
+    const sourceSeq = explicitSourceSeq ?? this.nextSourceSeq++;
+    if (sourceSeq >= this.nextSourceSeq) {
+      this.nextSourceSeq = sourceSeq + 1;
+    }
+    return sourceSeq;
+  }
+
+  private normalizeEntry(entry: BrowserLogEntry): BrowserLogEntry {
+    return {
+      ...entry,
+      sourceSeq: this.allocateSourceSeq(entry.sourceSeq),
+    };
   }
 
   private reportTransportFailure(
@@ -254,10 +356,11 @@ class BrowserLogSinkRuntime {
       window.console[methodName] = ((...args: unknown[]) => {
         original(...args);
         this.enqueue({
-          time: new Date().toISOString(),
+          occurredAt: new Date().toISOString(),
           level: resolveConsoleLevel(methodName),
           source: "console",
           message: buildConsoleMessage(args),
+          consoleCategory: resolveBrowserConsoleCategory(args),
           data: args.map((arg) => toSerializable(arg)),
         });
       }) as Console[ConsoleMethodName];
@@ -265,7 +368,7 @@ class BrowserLogSinkRuntime {
 
     window.addEventListener("error", (event) => {
       this.enqueue({
-        time: new Date().toISOString(),
+        occurredAt: new Date().toISOString(),
         level: "error",
         source: "window-error",
         message: event.message || "Unhandled window error",
@@ -284,7 +387,7 @@ class BrowserLogSinkRuntime {
           ? event.reason.message
           : describeUnknown(event.reason);
       this.enqueue({
-        time: new Date().toISOString(),
+        occurredAt: new Date().toISOString(),
         level: "error",
         source: "unhandledrejection",
         message: reason,
@@ -296,19 +399,43 @@ class BrowserLogSinkRuntime {
       this.enqueue(this.fromDiagnostic(diagnostic));
     });
 
+    window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, (event) => {
+      const detail = (event as CustomEvent<AirJamDevRuntimeEventDetail>).detail;
+      if (!detail) {
+        return;
+      }
+
+      this.enqueue(this.fromRuntimeEvent(detail));
+    });
+
     window.addEventListener("pagehide", () => {
+      this.emitImmediate({
+        occurredAt: new Date().toISOString(),
+        level: "info",
+        source: "runtime",
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
+        message: "Window pagehide observed",
+      });
       void this.flush(true);
     });
 
     window.addEventListener("beforeunload", () => {
+      this.emitImmediate({
+        occurredAt: new Date().toISOString(),
+        level: "info",
+        source: "runtime",
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.windowBeforeUnload,
+        message: "Window beforeunload observed",
+      });
       void this.flush(true);
     });
 
     this.enqueue({
-      time: new Date().toISOString(),
+      occurredAt: new Date().toISOString(),
       level: "info",
       source: "console",
       message: "Browser log sink started",
+      consoleCategory: "airjam",
       data: [
         {
           href: window.location.href,
@@ -321,7 +448,7 @@ class BrowserLogSinkRuntime {
 
   private fromDiagnostic(diagnostic: AirJamDiagnostic): BrowserLogEntry {
     return {
-      time: new Date(diagnostic.timestamp).toISOString(),
+      occurredAt: new Date(diagnostic.timestamp).toISOString(),
       level: resolveLogLevelFromDiagnostic(diagnostic.severity),
       source: "diagnostic",
       message: diagnostic.message,
@@ -330,8 +457,82 @@ class BrowserLogSinkRuntime {
     };
   }
 
-  private enqueue(entry: BrowserLogEntry): void {
+  private fromRuntimeEvent(detail: AirJamDevRuntimeEventDetail): BrowserLogEntry {
+    return {
+      occurredAt: new Date().toISOString(),
+      level: detail.level ?? "info",
+      source: "runtime",
+      event: detail.event,
+      message: detail.message,
+      code: detail.code,
+      role: detail.role,
+      traceId: detail.traceId,
+      roomId: detail.roomId,
+      controllerId: detail.controllerId,
+      runtimeEpoch: detail.runtimeEpoch,
+      runtimeKind: detail.runtimeKind,
+      data: detail.data ? [toSerializable(detail.data)] : undefined,
+    };
+  }
+
+  private isSameConsolePayload(
+    left: BrowserLogEntry["data"],
+    right: BrowserLogEntry["data"],
+  ): boolean {
+    try {
+      return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+    } catch {
+      return false;
+    }
+  }
+
+  private shouldCoalesceConsoleEntry(
+    previous: BrowserLogEntry | undefined,
+    next: BrowserLogEntry,
+  ): boolean {
+    if (!previous || previous.source !== "console" || next.source !== "console") {
+      return false;
+    }
+
+    if (next.level !== "warn" && next.level !== "error") {
+      return false;
+    }
+
+    const previousTime = Date.parse(previous.occurredAt);
+    const nextTime = Date.parse(next.occurredAt);
+    if (
+      Number.isFinite(previousTime) &&
+      Number.isFinite(nextTime) &&
+      nextTime - previousTime > CONSOLE_REPEAT_COALESCE_WINDOW_MS
+    ) {
+      return false;
+    }
+
+    return (
+      previous.level === next.level &&
+      previous.message === next.message &&
+      previous.consoleCategory === next.consoleCategory &&
+      previous.code === next.code &&
+      previous.role === next.role &&
+      previous.traceId === next.traceId &&
+      previous.roomId === next.roomId &&
+      previous.controllerId === next.controllerId &&
+      this.isSameConsolePayload(previous.data, next.data)
+    );
+  }
+
+  private appendOrCoalesce(entry: BrowserLogEntry): void {
+    const previous = this.queue.at(-1);
+    if (this.shouldCoalesceConsoleEntry(previous, entry) && previous) {
+      previous.repeatCount = (previous.repeatCount ?? 1) + 1;
+      return;
+    }
+
     this.queue.push(entry);
+  }
+
+  private enqueue(entry: BrowserLogEntry): void {
+    this.appendOrCoalesce(this.normalizeEntry(entry));
 
     if (!this.flushTimer) {
       this.flushTimer = setTimeout(() => {
@@ -340,16 +541,59 @@ class BrowserLogSinkRuntime {
     }
   }
 
+  private buildPayload(entries: BrowserLogEntry[]): BrowserLogBatchPayload {
+    return {
+      mode: this.hasReset ? "append" : "reset",
+      sessionId: this.sessionId,
+      metadata: this.getMetadata(),
+      entries,
+    };
+  }
+
+  private serializePayload(payload: BrowserLogBatchPayload): string | null {
+    try {
+      return JSON.stringify(payload);
+    } catch {
+      return null;
+    }
+  }
+
+  private emitImmediate(entry: BrowserLogEntry): void {
+    if (!this.endpoint) {
+      return;
+    }
+
+    const normalizedEntry = this.normalizeEntry(entry);
+    const payload = this.buildPayload([...this.queue, normalizedEntry]);
+    const body = this.serializePayload(payload);
+    if (!body) {
+      return;
+    }
+
+    this.queue.splice(0, this.queue.length);
+    this.hasReset = true;
+    void this.postPayload(body, true);
+  }
+
   private getMetadata(): BrowserLogBatchPayload["metadata"] {
     if (typeof window === "undefined") {
+      const devContext = resolveDevBrowserLogContext();
       return {
         appId: this.appId,
+        traceId: devContext.traceId,
+        roomId: devContext.roomId,
+        controllerId: devContext.controllerId,
+        role: devContext.role,
       };
     }
 
+    const devContext = resolveDevBrowserLogContext();
     return {
       appId: this.appId,
-      traceId: (globalThis as BrowserLogSinkGlobal).__airJamHostTraceId__,
+      traceId: devContext.traceId,
+      roomId: devContext.roomId,
+      controllerId: devContext.controllerId,
+      role: devContext.role,
       origin: window.location.origin,
       pathname: window.location.pathname,
       href: window.location.href,
@@ -368,28 +612,38 @@ class BrowserLogSinkRuntime {
       return;
     }
 
-    const payload: BrowserLogBatchPayload = {
-      mode: this.hasReset ? "append" : "reset",
-      sessionId: this.sessionId,
-      metadata: this.getMetadata(),
-      entries: this.queue.splice(0, this.queue.length),
-    };
-    this.hasReset = true;
-
-    let body: string;
-    try {
-      body = JSON.stringify(payload);
-    } catch {
+    const entries = [...this.queue];
+    const payload = this.buildPayload(entries);
+    const body = this.serializePayload(payload);
+    if (!body) {
       return;
     }
+    this.queue.splice(0, this.queue.length);
+    this.hasReset = true;
+    await this.postPayload(body, useBeacon);
+  }
+
+  private async postPayload(body: string, useBeacon: boolean): Promise<void> {
+    if (!this.endpoint) {
+      return;
+    }
+
     if (
       useBeacon &&
       typeof navigator !== "undefined" &&
       typeof navigator.sendBeacon === "function"
     ) {
-      const blob = new Blob([body], { type: "application/json" });
-      navigator.sendBeacon(this.endpoint, blob);
-      return;
+      try {
+        const requestBody =
+          typeof Blob === "function"
+            ? new Blob([body], { type: "application/json" })
+            : body;
+        if (navigator.sendBeacon(this.endpoint, requestBody)) {
+          return;
+        }
+      } catch {
+        // Fall through to fetch keepalive transport.
+      }
     }
 
     try {

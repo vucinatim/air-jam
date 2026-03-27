@@ -128,6 +128,7 @@ export function createAirJamStore<
     const { getSocket } = useAirJamContext();
     const role = useAirJamState((state) => state.role);
     const roomId = useAirJamState((state) => state.roomId);
+    const registeredRoomId = useAirJamState((state) => state.registeredRoomId);
     const players = useAirJamState((state) => state.players);
     const hostArcadeRestore = useAirJamState(
       (state) => state.hostArcadeRestore,
@@ -135,6 +136,11 @@ export function createAirJamStore<
     const blockArcadeShellHostBroadcast =
       resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN &&
       hostArcadeRestore.phase !== "idle";
+    const canBroadcastHostState =
+      role === "host" &&
+      !!roomId &&
+      registeredRoomId === roomId &&
+      !blockArcadeShellHostBroadcast;
     const connectedPlayerIds = useMemo(
       () => Array.from(new Set(players.map((player) => player.id))).sort(),
       [players],
@@ -164,7 +170,7 @@ export function createAirJamStore<
 
       if (role === "host") {
         const flushHostStateSync = (): void => {
-          if (blockArcadeShellHostBroadcast) {
+          if (!canBroadcastHostState) {
             return;
           }
           const stateData = stripActionsFromState(store.getState());
@@ -176,7 +182,7 @@ export function createAirJamStore<
         };
 
         const unsubscribe = store.subscribe((newState) => {
-          if (blockArcadeShellHostBroadcast) {
+          if (!canBroadcastHostState) {
             return;
           }
           const { actions, ...stateData } = newState;
@@ -234,16 +240,14 @@ export function createAirJamStore<
       socket,
       role,
       roomId,
+      registeredRoomId,
       socket?.id,
       resolvedStoreDomain,
-      blockArcadeShellHostBroadcast,
+      canBroadcastHostState,
     ]);
 
     useEffect(() => {
-      if (role !== "host" || !socket || !roomId) {
-        return;
-      }
-      if (blockArcadeShellHostBroadcast) {
+      if (!canBroadcastHostState || !socket || !roomId) {
         return;
       }
       const stateData = stripActionsFromState(store.getState());
@@ -256,10 +260,11 @@ export function createAirJamStore<
       role,
       socket,
       roomId,
+      registeredRoomId,
       socket?.id,
       playerRosterKey,
       resolvedStoreDomain,
-      blockArcadeShellHostBroadcast,
+      canBroadcastHostState,
     ]);
 
     const dispatchedActions = useMemo<AirJamActionDispatchMap<T["actions"]>>(() => {

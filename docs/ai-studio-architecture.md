@@ -8,7 +8,8 @@ Related docs:
 1. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
 2. [Framework Paradigm](./framework-paradigm.md)
 3. [Implementation Plan](./implementation-plan.md)
-4. [Docs Index](./docs-index.md)
+4. [Logging System Plan](./plans/logging-system-plan.md)
+5. [Docs Index](./docs-index.md)
 
 ## Purpose
 
@@ -80,6 +81,29 @@ Responsibilities:
 6. autosave project changes to the backend
 
 This plane is about speed and responsiveness.
+
+#### Preview modes: browser-local vs Studio-coordinated hosted
+
+**Local-first** here means the default **creation loop**: virtual filesystem, warm Node tooling, instant edit-to-preview feedback. It does **not** mean every socket or URL for a preview session must exist only inside the browser tab.
+
+Because Air Jam games are fundamentally built around phones as controllers, **controller-device testing is part of the primary development loop**, not a secondary convenience.
+
+For that reason, the preferred cross-device preview path should be a **Studio-coordinated preview relay** that gives controller devices a reachable temporary URL while keeping the main creation/runtime loop local-first.
+
+That relay should stay:
+
+1. preview-only
+2. scoped to one active Studio session
+3. short-lived
+4. purpose-built for controller/device testing rather than generic public tunneling
+
+Studio may also provision **Studio-coordinated hosted preview runtimes** using Air Jam’s existing **runtime server** and normal HTTPS/WSS entrypoints when the product explicitly needs a fully hosted preview session. This also stays **preview** infrastructure, not arbitrary app hosting.
+
+So the intended order of preference is:
+
+1. **browser-local** for the default fast creation loop
+2. **relay-backed controller/device preview** as the primary cross-device testing path
+3. **hosted preview runtimes** as a secondary preview mode when a fully hosted session is needed
 
 ### 2. Cloud Authority Plane
 
@@ -175,6 +199,263 @@ It should:
 4. drive deploy and publication state
 
 This is the only place where deploy truth should be finalized.
+
+## Repository And Service Topology
+
+Air Jam Studio should be a separate app and a separate backend service.
+
+It should not be folded into the existing platform app, and it should not be treated as part of the runtime server.
+
+### Recommended Topology
+
+The clean long-term shape is:
+
+1. platform app and platform API
+2. runtime server
+3. Studio app
+4. Studio service
+
+### 1. Platform App And Platform API
+
+This layer should own:
+
+1. auth
+2. account and organization management
+3. billing and subscriptions
+4. project ownership and entitlements
+5. dashboard and management flows
+6. publish permissions and product-level policy
+
+### 2. Runtime Server
+
+This layer should continue to own the Air Jam runtime model:
+
+1. room membership
+2. controller identity
+3. host authorization
+4. routing and focus
+5. reconnect continuity
+6. runtime-specific invariants
+
+The runtime server should not become the workspace or agent backend for Studio.
+
+### 3. Studio App
+
+This should be a separate Vite app.
+
+Reasons:
+
+1. the Studio is a different product surface than the platform dashboard
+2. it is editor-heavy and runtime-heavy
+3. it benefits more from a desktop-like SPA model than from SSR-oriented app structure
+4. it should be able to evolve independently without distorting the platform app
+
+### 3a. Preview Relay
+
+Air Jam should treat the preview relay as a core Studio subsystem rather than as optional infrastructure glue.
+
+Reason:
+
+1. controller-device testing is part of the default development loop
+2. relying only on hosted preview rebuilds would make Studio too slow for the real Air Jam workflow
+3. browser-local preview alone is not enough when the phone must connect through a real reachable URL
+
+The relay should be a narrow service boundary with one job:
+
+1. bind a temporary public preview URL to a specific active local Studio session
+
+It should not become:
+
+1. a generic tunneling platform
+2. a public hosting product
+3. a replacement for publish or deploy infrastructure
+
+Hosted preview runtimes remain useful, but they should not replace the relay-backed default controller testing loop.
+
+### 4. Studio Service
+
+The Studio service is the backend control plane for creation workflows.
+
+It should own:
+
+1. workspace snapshots
+2. checkpoint and recovery logic
+3. agent orchestration
+4. Studio-specific persistence
+5. preview session coordination
+6. realtime session bootstrap
+7. publish requests flowing into the authoritative release pipeline
+
+This service is justified because Studio backend behavior is neither normal platform CRUD nor runtime networking.
+
+## Data Topology
+
+The Studio should use multiple storage and coordination layers with clear boundaries.
+
+### Postgres
+
+Postgres should store durable Studio metadata, ideally in a separate Studio schema even if it shares the same database cluster as the platform initially.
+
+Recommended uses:
+
+1. project metadata
+2. workspace metadata
+3. snapshot metadata
+4. agent run metadata
+5. publish request metadata
+6. release metadata
+
+### Object Storage
+
+Object storage should hold large durable payloads.
+
+Recommended uses:
+
+1. workspace snapshots
+2. checkpoints
+3. build artifacts
+4. logs or transcripts when too large for relational storage
+
+### SpacetimeDB
+
+SpacetimeDB should be the live collaboration and coordination layer for Studio.
+
+Recommended uses:
+
+1. presence
+2. active session state
+3. live collaboration room state
+4. preview session coordination
+5. agent progress streaming
+
+It should not become the primary durable store for workspace or publish truth.
+
+## Backend Ownership Rule
+
+The system should follow this split strictly:
+
+1. platform service owns product authority
+2. runtime server owns runtime authority
+3. Studio service owns creation authority
+
+This is the cleanest way to keep responsibilities understandable as the product grows.
+
+## Cross-Service Authentication
+
+Air Jam should keep authentication pragmatic.
+
+The recommended near-term direction is:
+
+1. one shared Postgres cluster
+2. shared auth and session truth
+3. separate service boundaries
+4. short-lived scoped tokens for realtime and service-to-service execution paths
+
+### Shared Auth Source Of Truth
+
+The platform remains the source of truth for:
+
+1. user identity
+2. organization and membership
+3. billing and entitlements
+4. session validity
+
+Because the Studio service can access the same Postgres cluster, it can validate user sessions against the same underlying auth/session tables without introducing a separate auth service immediately.
+
+This is the correct pragmatic starting point.
+
+### Why Shared Postgres Is Not Enough By Itself
+
+Even with shared auth tables, Studio and realtime systems should not rely forever on synchronous database checks for every live operation.
+
+That would create avoidable latency and coupling in:
+
+1. websocket or stream session bootstrap
+2. preview/runtime session setup
+3. SpacetimeDB connection authorization
+4. frequent Studio coordination actions
+
+Shared Postgres reduces complexity, but it does not remove the need for a clean cross-service auth model.
+
+### Recommended Auth Flow
+
+The recommended flow is:
+
+1. platform handles primary user login
+2. Studio app presents the platform session to the Studio service
+3. Studio service validates that session against shared auth/session tables
+4. Studio service resolves project/workspace permissions
+5. Studio service mints short-lived scoped tokens for downstream Studio and realtime flows
+
+Those scoped tokens should be used for:
+
+1. Studio live session bootstrap
+2. preview session access
+3. runtime test-session access when needed
+4. SpacetimeDB connection bootstrap
+5. agent-run and tool-execution context binding
+
+### Token Philosophy
+
+The system should distinguish between:
+
+1. primary user session
+2. scoped execution/session tokens
+
+The primary session proves user identity.
+
+Scoped tokens prove temporary rights for one bounded execution context.
+
+Examples:
+
+1. user can edit workspace `X`
+2. user can join Studio session `Y`
+3. user can connect to preview runtime `Z`
+4. user can attach to collaboration room `R`
+
+These tokens should be:
+
+1. short-lived
+2. scope-specific
+3. easy to verify locally by downstream services
+4. safe to expire and re-issue without affecting the main login session
+
+### Recommended Ownership
+
+The ownership split should be:
+
+1. platform owns identity and entitlement truth
+2. Studio service validates platform session and mints Studio-scoped tokens
+3. runtime or realtime systems verify Studio-scoped tokens locally
+
+This avoids both extremes:
+
+1. every service calling the platform or database for every action
+2. premature central-auth-platform complexity
+
+### Database Shape
+
+The current recommended database shape is:
+
+1. shared Postgres cluster on Railway
+2. platform schema for auth, users, projects, entitlements
+3. Studio schema for workspaces, snapshots, agent runs, Studio metadata
+
+This gives Air Jam:
+
+1. one operational database to manage initially
+2. direct access to shared auth truth
+3. clean logical boundaries through schemas
+4. a migration path if Studio data later needs to be moved to a separate database
+
+### Closeout Rule For Auth
+
+If future complexity appears, prefer:
+
+1. keeping platform as the identity authority
+2. using scoped short-lived tokens for bounded Studio/realtime flows
+3. avoiding per-event database auth checks in live systems
+4. avoiding a separate auth service until there is a concrete operational reason
 
 ## Max-DevEx Rule
 
@@ -518,6 +799,55 @@ The current recommended V1 direction is:
 4. Vercel AI SDK `ToolLoopAgent` as an internal execution engine
 5. Air Jam-owned persistence, eventing, patching, preview, and publish boundaries
 
+## Observability Integration
+
+Air Jam Studio should integrate directly with Air Jam's canonical observability system.
+
+This is important because Air Jam bugs often span multiple boundaries:
+
+1. server behavior
+2. host runtime behavior
+3. controller behavior
+4. embedded runtime or bridge behavior
+5. preview-session behavior inside the Studio
+
+The Studio agent should not rely only on code inspection or terminal output when a structured runtime event stream already exists.
+
+### Why This Matters
+
+The canonical logging system gives Air Jam one reliable debugging surface across server and browser/runtime boundaries.
+
+Studio should use that system so the agent can:
+
+1. inspect real runtime behavior instead of guessing from code alone
+2. correlate failures across multiple Air Jam surfaces
+3. understand preview/runtime outcomes after edits
+4. debug faster with less hallucination and less trial-and-error
+
+This should make agent-assisted iteration more reliable than a normal code-only loop.
+
+### Integration Rule
+
+The Studio should treat observability as a first-class tool surface for agents.
+
+That means:
+
+1. the Studio service should be able to query the canonical runtime/dev event stream
+2. agent tools should use filtered, structured observability queries rather than raw log dumps
+3. the system should prefer scoped correlation-aware access over unbounded log ingestion
+
+The point is not to turn the Studio into a full observability product.
+
+The point is to give the agent fast access to the exact runtime evidence it needs to understand what actually happened.
+
+### Architecture Boundary
+
+The logging system remains the canonical source of runtime diagnostics.
+
+The Studio should integrate with it through a bounded query/tool layer, not by inventing a second parallel logging system.
+
+This preserves one observability model across Air Jam while making that model directly useful inside the AI-native creation workflow.
+
 ## Agent Guardrails
 
 Agent correctness should not depend on prompting alone.
@@ -543,11 +873,13 @@ These concepts must not collapse into one lifecycle.
 
 Preview is:
 
-1. local by default
+1. local by default (browser-local edit loop and dev tooling)
 2. fast
 3. warm
 4. tolerant of temporary errors
 5. optimized for iteration
+
+**Modes:** The default preview is **browser-local**. For real controller-device testing, the preferred path is a **relay-backed preview session** that exposes the local-first runtime through a temporary reachable URL. When needed, Studio may also attach the workspace to a **hosted preview runtime** (runtime server + reachable URLs). Both remain **preview**, not publish: they do not create deploy truth or replace sealed builds.
 
 ### Build
 
@@ -845,7 +1177,18 @@ Ship the minimal browser-local runtime:
 4. show preview
 5. autosave in background
 
-### Phase 3. Agent-Native Editing
+### Phase 3. Relay-Backed Controller Testing
+
+Add the primary cross-device testing path:
+
+1. create a scoped preview relay session
+2. expose a temporary controller/device URL
+3. allow phones to connect into the active local-first preview loop
+4. keep this flow fast enough to remain part of normal editing and tuning
+
+This is a core requirement for Air Jam Studio because controller-device testing is part of the default development loop.
+
+### Phase 4. Agent-Native Editing
 
 Add agent flows that:
 
@@ -854,7 +1197,7 @@ Add agent flows that:
 3. explain changes
 4. reuse the same running preview loop
 
-### Phase 4. Trusted Publish Pipeline
+### Phase 5. Trusted Publish Pipeline
 
 Add the hosted publish path:
 
@@ -863,14 +1206,15 @@ Add the hosted publish path:
 3. `Game Version` creation
 4. managed deploy target
 
-### Phase 5. Cloud Escalation Paths
+### Phase 6. Cloud Escalation Paths
 
 Add cloud execution only where needed:
 
 1. heavier agent jobs
 2. builds beyond local limits
 3. policy-gated operations
-4. future team or managed workflows
+4. hosted preview runtimes when relay-backed preview is not the right mode
+5. future team or managed workflows
 
 ## Non-Goals
 

@@ -1,4 +1,8 @@
-import type { RoomCode } from "../protocol";
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  type RoomCode,
+} from "../protocol";
+import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import {
   createControllerBridgeCloseMessage,
   createControllerBridgeEmitMessage,
@@ -20,6 +24,7 @@ import { readEmbeddedControllerRuntimeParams } from "./runtime-session-params";
 import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach";
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
+const CONTROLLER_BRIDGE_RUNTIME_KIND = "arcade-controller-runtime";
 
 class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   public connected = false;
@@ -34,7 +39,9 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   connect(): this {
     const runtimeParams = readEmbeddedControllerRuntimeParams();
     if (!runtimeParams || typeof window === "undefined") {
-      this.fail("Embedded controller bridge runtime params missing.");
+      this.fail("Embedded controller bridge runtime params missing.", {
+        reason: "runtime_params_missing",
+      });
       return this;
     }
 
@@ -53,7 +60,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
     this.port.start?.();
 
     this.connectTimeout = setTimeout(() => {
-      this.fail("Embedded controller bridge handshake timed out.");
+      this.fail("Embedded controller bridge handshake timed out.", {
+        reason: "handshake_timeout",
+        runtimeParams,
+      });
     }, BRIDGE_HANDSHAKE_TIMEOUT_MS);
 
     window.parent.postMessage(
@@ -64,6 +74,17 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       }),
       "*",
       [channel.port2],
+    );
+
+    this.emitRuntimeEvent(
+      AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRequested,
+      "Embedded controller bridge requested",
+      "info",
+      runtimeParams,
+      {
+        gameId: runtimeParams.arcadeSurface.gameId,
+        surfaceKind: runtimeParams.arcadeSurface.kind,
+      },
     );
 
     return this;
@@ -128,7 +149,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
         attachMessage.payload.handshake.capabilityFlags.controllerBridge !==
           true
       ) {
-        this.fail("Embedded controller bridge handshake rejected.");
+        this.fail("Embedded controller bridge handshake rejected.", {
+          reason: "handshake_rejected",
+          runtimeParams: readEmbeddedControllerRuntimeParams(),
+        });
         return;
       }
 
@@ -140,10 +164,34 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       if (!epochResult.ok) {
         this.fail(
           "Embedded controller bridge attach rejected: stale arcade surface epoch.",
+          {
+            reason: "stale_arcade_surface_epoch",
+            runtimeParams: readEmbeddedControllerRuntimeParams(),
+            data: {
+              attachedEpoch: snapshot.arcadeSurface.epoch,
+              previousEpoch: this.lastAttachedArcadeEpoch,
+            },
+          },
         );
         return;
       }
       this.lastAttachedArcadeEpoch = epochResult.nextLast;
+
+      this.emitRuntimeEvent(
+        AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeAttached,
+        "Embedded controller bridge attached",
+        "info",
+        {
+          room: snapshot.roomId,
+          controllerId: snapshot.controllerId,
+          arcadeSurface: snapshot.arcadeSurface,
+        },
+        {
+          connected: snapshot.connected,
+          socketId: snapshot.socketId,
+          hasPlayer: Boolean(snapshot.player),
+        },
+      );
 
       this.id = snapshot.socketId ?? snapshot.controllerId;
       this.requested = false;
@@ -195,11 +243,35 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
 
     const closeMessage = parseControllerBridgeCloseMessage(message);
     if (closeMessage) {
+      this.emitRuntimeEvent(
+        AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeClosed,
+        "Embedded controller bridge closed",
+        "info",
+        readEmbeddedControllerRuntimeParams(),
+        { reason: closeMessage.payload.reason },
+      );
       this.clearPort(true, closeMessage.payload.reason);
     }
   }
 
-  private fail(reason: string): void {
+  private fail(
+    reason: string,
+    options?: {
+      reason?: string;
+      runtimeParams?: ReturnType<typeof readEmbeddedControllerRuntimeParams>;
+      data?: Record<string, unknown>;
+    },
+  ): void {
+    this.emitRuntimeEvent(
+      AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRejected,
+      reason,
+      "warn",
+      options?.runtimeParams ?? readEmbeddedControllerRuntimeParams(),
+      {
+        reason: options?.reason ?? reason,
+        ...options?.data,
+      },
+    );
     this.clearPort(false);
     this.notify("disconnect", reason);
   }
@@ -230,6 +302,26 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
 
     clearTimeout(this.connectTimeout);
     this.connectTimeout = null;
+  }
+
+  private emitRuntimeEvent(
+    event: (typeof AIRJAM_DEV_LOG_EVENTS.runtime)[keyof typeof AIRJAM_DEV_LOG_EVENTS.runtime],
+    message: string,
+    level: "info" | "warn" | "error",
+    runtimeParams: ReturnType<typeof readEmbeddedControllerRuntimeParams>,
+    data?: Record<string, unknown>,
+  ): void {
+    emitAirJamDevRuntimeEvent({
+      event,
+      message,
+      level,
+      role: "controller",
+      roomId: runtimeParams?.room,
+      controllerId: runtimeParams?.controllerId,
+      runtimeEpoch: runtimeParams?.arcadeSurface.epoch,
+      runtimeKind: CONTROLLER_BRIDGE_RUNTIME_KIND,
+      data,
+    });
   }
 
   private notify<TEvent extends ControllerBridgeServerEventName>(

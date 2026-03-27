@@ -163,6 +163,7 @@ type RuntimeAction =
     }
   | { type: "launch-failure" }
   | { type: "exit-game"; exitedAt: number }
+  | { type: "reset-session" }
   | { type: "consume-auto-launch"; requestKey: string };
 
 export const createInitialArcadeRuntimeState = ({
@@ -230,6 +231,15 @@ export const reduceArcadeRuntimeState = (
         launchCapability: null,
         isLaunching: false,
         lastExitAt: action.exitedAt,
+      };
+
+    case "reset-session":
+      return {
+        ...state,
+        normalizedGameUrl: "",
+        launchCapability: null,
+        isLaunching: false,
+        consumedAutoLaunchRequestKey: null,
       };
 
     case "consume-auto-launch":
@@ -322,6 +332,10 @@ export const useArcadeRuntimeManager = ({
     dispatch({ type: "launch-failure" });
   }, []);
 
+  const resetSession = useCallback(() => {
+    dispatch({ type: "reset-session" });
+  }, []);
+
   const exitGame = useCallback(() => {
     dispatch({ type: "exit-game", exitedAt: Date.now() });
     if (mode === "preview") {
@@ -342,6 +356,7 @@ export const useArcadeRuntimeManager = ({
     beginLaunch,
     completeLaunch,
     failLaunch,
+    resetSession,
     exitGame,
     consumeAutoLaunch,
   };

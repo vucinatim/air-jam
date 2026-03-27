@@ -1,3 +1,4 @@
+import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import {
   beginRoomClosing,
   getChildHostDisconnectTeardownMs,
@@ -8,13 +9,36 @@ import type { SocketHandlerContext } from "../socket-handler-context.js";
 export const registerDisconnectHandler = (
   context: SocketHandlerContext,
 ): void => {
-  const { io, socket, roomManager, logger } = context;
+  const { io, socket, roomManager } = context;
+  const logger = context.logger.child({ component: "disconnect" });
+
+  const getDisconnectLogger = (bindings: Record<string, unknown> = {}) => {
+    const mergedBindings = {
+      ...(socket.data.hostAuthority?.traceId
+        ? { traceId: socket.data.hostAuthority.traceId }
+        : {}),
+      ...(socket.data.controllerAuthority
+        ? {
+            roomId: socket.data.controllerAuthority.roomId,
+            controllerId: socket.data.controllerAuthority.controllerId,
+          }
+        : {}),
+      ...bindings,
+    };
+
+    return Object.keys(mergedBindings).length > 0
+      ? logger.child(mergedBindings)
+      : logger;
+  };
 
   socket.on("disconnect", (reason) => {
     logger.debug(
       {
+        event: AIRJAM_DEV_LOG_EVENTS.socket.disconnected,
         reason,
         traceId: socket.data.hostAuthority?.traceId,
+        roomId: socket.data.controllerAuthority?.roomId,
+        controllerId: socket.data.controllerAuthority?.controllerId,
       },
       "Socket disconnected",
     );
@@ -30,6 +54,15 @@ export const registerDisconnectHandler = (
         if (session.pendingChildTeardownTimer) {
           clearTimeout(session.pendingChildTeardownTimer);
         }
+        getDisconnectLogger({ roomId }).info(
+          {
+            event:
+              AIRJAM_DEV_LOG_EVENTS.childHost.disconnectPendingSystemFocus,
+            reason,
+            teardownMs: getChildHostDisconnectTeardownMs(),
+          },
+          "Child host disconnected; scheduled system focus restore",
+        );
         session.childHostSocketId = undefined;
         session.pendingChildTeardownTimer = setTimeout(() => {
           session.pendingChildTeardownTimer = undefined;
@@ -47,13 +80,36 @@ export const registerDisconnectHandler = (
           transitionToSystemFocus(io, current, {
             resyncPlayersToMaster: true,
           });
+          getDisconnectLogger({ roomId }).info(
+            {
+              event:
+                AIRJAM_DEV_LOG_EVENTS.childHost.disconnectSystemFocusRestored,
+              reason,
+            },
+            "Child host teardown restored system focus",
+          );
         }, getChildHostDisconnectTeardownMs());
         roomManager.deleteHost(socket.id);
         return;
       } else if (socket.id === session.masterHostSocketId) {
+        getDisconnectLogger({ roomId }).info(
+          {
+            event: AIRJAM_DEV_LOG_EVENTS.host.disconnectPendingRoomClose,
+            reason,
+            teardownMs: 3000,
+          },
+          "Master host disconnected; scheduled room close",
+        );
         setTimeout(() => {
           const currentSession = roomManager.getRoom(roomId);
           if (currentSession && currentSession.masterHostSocketId === socket.id) {
+            getDisconnectLogger({ roomId }).info(
+              {
+                event: AIRJAM_DEV_LOG_EVENTS.host.disconnectRoomClosed,
+                reason,
+              },
+              "Room closed after master host disconnect",
+            );
             roomManager.removeRoom(roomId, io, "Host disconnected");
           }
         }, 3000);
@@ -74,7 +130,18 @@ export const registerDisconnectHandler = (
       io.to(roomManager.getActiveHostId(session)).emit("server:controllerLeft", {
         controllerId: controller.controllerId,
       });
+      getDisconnectLogger({
+        roomId: controller.roomId,
+        controllerId: controller.controllerId,
+      }).info(
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectApplied,
+          reason,
+        },
+        "Controller disconnected and was removed from room",
+      );
     }
     roomManager.deleteController(socket.id);
+    delete socket.data.controllerAuthority;
   });
 };

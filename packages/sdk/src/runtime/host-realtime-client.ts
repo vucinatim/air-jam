@@ -1,4 +1,8 @@
-import type { RoomCode } from "../protocol";
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  type RoomCode,
+} from "../protocol";
+import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import {
   createHostBridgeCloseMessage,
   createHostBridgeEmitMessage,
@@ -20,6 +24,7 @@ import { readChildHostRuntimeParams } from "./runtime-session-params";
 import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach";
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
+const HOST_BRIDGE_RUNTIME_KIND = "arcade-host-runtime";
 
 class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
   public connected = false;
@@ -34,7 +39,9 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
   connect(): this {
     const runtimeParams = readChildHostRuntimeParams();
     if (!runtimeParams || typeof window === "undefined") {
-      this.fail("Embedded host bridge runtime params missing.");
+      this.fail("Embedded host bridge runtime params missing.", {
+        reason: "runtime_params_missing",
+      });
       return this;
     }
 
@@ -53,7 +60,10 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
     this.port.start?.();
 
     this.connectTimeout = setTimeout(() => {
-      this.fail("Embedded host bridge handshake timed out.");
+      this.fail("Embedded host bridge handshake timed out.", {
+        reason: "handshake_timeout",
+        runtimeParams,
+      });
     }, BRIDGE_HANDSHAKE_TIMEOUT_MS);
 
     window.parent.postMessage(
@@ -64,6 +74,18 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
       }),
       "*",
       [channel.port2],
+    );
+
+    this.emitRuntimeEvent(
+      AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRequested,
+      "Embedded host bridge requested",
+      "info",
+      runtimeParams,
+      {
+        capabilityExpiresAt: runtimeParams.capabilityExpiresAt,
+        gameId: runtimeParams.arcadeSurface.gameId,
+        surfaceKind: runtimeParams.arcadeSurface.kind,
+      },
     );
 
     return this;
@@ -126,7 +148,10 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
         attachMessage.payload.handshake.runtimeKind !== "arcade-host-runtime" ||
         attachMessage.payload.handshake.capabilityFlags.hostBridge !== true
       ) {
-        this.fail("Embedded host bridge handshake rejected.");
+        this.fail("Embedded host bridge handshake rejected.", {
+          reason: "handshake_rejected",
+          runtimeParams: readChildHostRuntimeParams(),
+        });
         return;
       }
 
@@ -136,12 +161,33 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
         snapshot.arcadeSurface,
       );
       if (!epochResult.ok) {
-        this.fail(
-          "Embedded host bridge attach rejected: stale arcade surface epoch.",
-        );
+        this.fail("Embedded host bridge attach rejected: stale arcade surface epoch.", {
+          reason: "stale_arcade_surface_epoch",
+          runtimeParams: readChildHostRuntimeParams(),
+          data: {
+            attachedEpoch: snapshot.arcadeSurface.epoch,
+            previousEpoch: this.lastAttachedArcadeEpoch,
+          },
+        });
         return;
       }
       this.lastAttachedArcadeEpoch = epochResult.nextLast;
+
+      this.emitRuntimeEvent(
+        AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeAttached,
+        "Embedded host bridge attached",
+        "info",
+        {
+          room: snapshot.roomId,
+          capabilityToken: snapshot.capabilityToken,
+          arcadeSurface: snapshot.arcadeSurface,
+        },
+        {
+          connected: snapshot.connected,
+          socketId: snapshot.socketId,
+          playerCount: snapshot.players.length,
+        },
+      );
 
       this.id = snapshot.socketId ?? snapshot.roomId;
       this.requested = false;
@@ -186,11 +232,35 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 
     const closeMessage = parseHostBridgeCloseMessage(message);
     if (closeMessage) {
+      this.emitRuntimeEvent(
+        AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeClosed,
+        "Embedded host bridge closed",
+        "info",
+        readChildHostRuntimeParams(),
+        { reason: closeMessage.payload.reason },
+      );
       this.clearPort(true, closeMessage.payload.reason);
     }
   }
 
-  private fail(reason: string): void {
+  private fail(
+    reason: string,
+    options?: {
+      reason?: string;
+      runtimeParams?: ReturnType<typeof readChildHostRuntimeParams>;
+      data?: Record<string, unknown>;
+    },
+  ): void {
+    this.emitRuntimeEvent(
+      AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRejected,
+      reason,
+      "warn",
+      options?.runtimeParams ?? readChildHostRuntimeParams(),
+      {
+        reason: options?.reason ?? reason,
+        ...options?.data,
+      },
+    );
     this.clearPort(false);
     this.notify("disconnect", reason);
   }
@@ -221,6 +291,25 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 
     clearTimeout(this.connectTimeout);
     this.connectTimeout = null;
+  }
+
+  private emitRuntimeEvent(
+    event: (typeof AIRJAM_DEV_LOG_EVENTS.runtime)[keyof typeof AIRJAM_DEV_LOG_EVENTS.runtime],
+    message: string,
+    level: "info" | "warn" | "error",
+    runtimeParams: ReturnType<typeof readChildHostRuntimeParams>,
+    data?: Record<string, unknown>,
+  ): void {
+    emitAirJamDevRuntimeEvent({
+      event,
+      message,
+      level,
+      role: "host",
+      roomId: runtimeParams?.room,
+      runtimeEpoch: runtimeParams?.arcadeSurface.epoch,
+      runtimeKind: HOST_BRIDGE_RUNTIME_KIND,
+      data,
+    });
   }
 
   private notify<TEvent extends HostBridgeServerEventName>(

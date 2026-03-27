@@ -296,27 +296,6 @@ const EndedOverlay = ({
   );
 };
 
-interface MatchBackdropProps {
-  children: JSX.Element;
-  topRightSlot?: JSX.Element;
-}
-
-const MatchBackdrop = ({
-  children,
-  topRightSlot,
-}: MatchBackdropProps): JSX.Element => {
-  return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black">
-      <div className="absolute inset-0 [&>canvas]:scale-110 [&>canvas]:blur-lg [&>canvas]:brightness-40">
-        <GameScene mode="spectator" paused={true} />
-      </div>
-      <div className="absolute inset-0 bg-radial from-transparent to-black/70" />
-      {topRightSlot}
-      {children}
-    </div>
-  );
-};
-
 const PausedOverlay = ({
   roomId,
   joinQrValue,
@@ -587,6 +566,8 @@ const HostViewContent = (): JSX.Element => {
   const showPausedOverlay = matchPhase === "playing" && gameState !== "playing";
   const controllerOrientation =
     matchPhase === "playing" ? "landscape" : "portrait";
+  const sceneMode = matchPhase === "playing" ? "match" : "spectator";
+  const scenePaused = matchPhase !== "playing" || gameState !== "playing";
 
   useEffect(() => {
     if (connectionStatus !== "connected") {
@@ -611,11 +592,21 @@ const HostViewContent = (): JSX.Element => {
   >("flag");
 
   useEffect(() => {
-    const canvas = document.querySelector("canvas");
-    if (canvas) {
-      canvasRef.current = canvas;
+    if (sceneMode !== "match") {
+      setCameras([]);
     }
-  }, [matchPhase]);
+  }, [sceneMode]);
+
+  const scene = (
+    <GameScene
+      mode={sceneMode}
+      paused={scenePaused}
+      onCamerasReady={setCameras}
+      onCanvasReady={(canvas) => {
+        canvasRef.current = canvas;
+      }}
+    />
+  );
 
   const muteSlot = (
     <div className="pointer-events-auto absolute top-4 right-4 z-80">
@@ -625,105 +616,29 @@ const HostViewContent = (): JSX.Element => {
       />
     </div>
   );
-
-  if (matchPhase === "lobby") {
-    return (
-      <MatchBackdrop topRightSlot={muteSlot}>
-        <LobbyOverlay
-          joinQrValue={joinQrValue}
-          roomId={roomId}
-          pointsToWin={pointsToWin}
-          botCounts={botCounts}
-          connectionStatus={connectionStatus}
-          lastError={lastError}
-          connectedPlayers={connectedPlayers}
-          teamPlayers={teamPlayers}
-        />
-      </MatchBackdrop>
-    );
-  }
-
-  if (matchPhase === "ended") {
-    return (
-      <MatchBackdrop topRightSlot={muteSlot}>
-        <EndedOverlay
-          roomId={roomId}
-          matchSummary={matchSummary}
-          botCounts={botCounts}
-          teamPlayers={teamPlayers}
-        />
-      </MatchBackdrop>
-    );
-  }
+  const showBackdrop = matchPhase !== "playing";
+  const showGameplayChrome = matchPhase === "playing";
 
   return (
     <div className="bg-background relative h-screen w-screen overflow-hidden">
-      <ScoreDisplay />
-
-      <DebugOverlay>
-        <PlayersSection />
-        <BotsSection />
-        <CTFDebugSection />
-        <SceneInfoSection />
-      </DebugOverlay>
-
-      <div className="absolute top-4 right-4 left-4 z-50 flex items-center justify-end gap-3 text-xs uppercase">
-        <div className="mr-auto flex items-center gap-3">
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              connectionStatus === "connected"
-                ? "bg-emerald-400"
-                : connectionStatus === "connecting" ||
-                    connectionStatus === "reconnecting"
-                  ? "bg-amber-300"
-                  : "bg-rose-400"
-            }`}
-          />
-          <span className="text-white/90">
-            Room{" "}
-            <span className="font-semibold tracking-wider">
-              {roomId || "----"}
-            </span>
-          </span>
-        </div>
-        <HostMuteButton
-          muted={audioMuted}
-          onToggle={() => setAudioMuted((current) => !current)}
-        />
-      </div>
-
-      <div className="absolute top-14 right-4 z-50">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setIsEditorOpen(!isEditorOpen)}
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          {isEditorOpen ? (
-            <X className="h-4 w-4" />
-          ) : (
-            <Settings2 className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-
-      <div className="relative flex h-full w-full">
+      <div className="relative h-full w-full">
         <div
-          className={`relative h-full transition-all duration-300 ${
-            isEditorOpen ? "w-1/2" : "w-full"
+          className={`absolute inset-0 transition-all duration-300 ${
+            showBackdrop
+              ? "[&>canvas]:scale-110 [&>canvas]:blur-lg [&>canvas]:brightness-40"
+              : isEditorOpen
+                ? "right-1/2"
+                : ""
           }`}
         >
-          <GameScene
-            onCamerasReady={setCameras}
-            paused={gameState !== "playing"}
-          />
-          {cameras.length > 0 && canvasRef.current && (
+          {scene}
+          {showGameplayChrome && cameras.length > 0 && canvasRef.current && (
             <PlayerHUDOverlay
               canvasElement={canvasRef.current}
               cameras={cameras}
             />
           )}
-          {showPausedOverlay ? (
+          {showGameplayChrome && showPausedOverlay ? (
             <PausedOverlay
               roomId={roomId}
               joinQrValue={joinQrValue}
@@ -733,27 +648,104 @@ const HostViewContent = (): JSX.Element => {
           ) : null}
         </div>
 
-        {isEditorOpen && (
-          <div className="border-border bg-background flex h-full w-1/2 flex-col border-l">
-            <div className="border-border shrink-0 border-b px-6 py-4">
-              <h2 className="text-lg font-semibold">
-                Game Object Editor -{" "}
-                {editorObjectType.charAt(0).toUpperCase() +
-                  editorObjectType.slice(1)}
-              </h2>
+        {showBackdrop ? (
+          <>
+            <div className="absolute inset-0 bg-radial from-transparent to-black/70" />
+            {muteSlot}
+            {matchPhase === "lobby" ? (
+              <LobbyOverlay
+                joinQrValue={joinQrValue}
+                roomId={roomId}
+                pointsToWin={pointsToWin}
+                botCounts={botCounts}
+                connectionStatus={connectionStatus}
+                lastError={lastError}
+                connectedPlayers={connectedPlayers}
+                teamPlayers={teamPlayers}
+              />
+            ) : (
+              <EndedOverlay
+                roomId={roomId}
+                matchSummary={matchSummary}
+                botCounts={botCounts}
+                teamPlayers={teamPlayers}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <ScoreDisplay />
+
+            <DebugOverlay>
+              <PlayersSection />
+              <BotsSection />
+              <CTFDebugSection />
+              <SceneInfoSection />
+            </DebugOverlay>
+
+            <div className="absolute top-4 right-4 left-4 z-50 flex items-center justify-end gap-3 text-xs uppercase">
+              <div className="mr-auto flex items-center gap-3">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    connectionStatus === "connected"
+                      ? "bg-emerald-400"
+                      : connectionStatus === "connecting" ||
+                          connectionStatus === "reconnecting"
+                        ? "bg-amber-300"
+                        : "bg-rose-400"
+                  }`}
+                />
+                <span className="text-white/90">
+                  Room{" "}
+                  <span className="font-semibold tracking-wider">
+                    {roomId || "----"}
+                  </span>
+                </span>
+              </div>
+              <HostMuteButton
+                muted={audioMuted}
+                onToggle={() => setAudioMuted((current) => !current)}
+              />
             </div>
-            <div className="min-h-0 flex-1">
-              <Suspense
-                fallback={
-                  <div className="flex h-full items-center justify-center text-sm text-zinc-400">
-                    Loading editor…
-                  </div>
-                }
+
+            <div className="absolute top-14 right-4 z-50">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsEditorOpen(!isEditorOpen)}
+                className="bg-background/80 backdrop-blur-sm"
               >
-                <GameObjectEditor objectType={editorObjectType} />
-              </Suspense>
+                {isEditorOpen ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Settings2 className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-          </div>
+
+            {isEditorOpen ? (
+              <div className="border-border bg-background absolute top-0 right-0 z-40 flex h-full w-1/2 flex-col border-l">
+                <div className="border-border shrink-0 border-b px-6 py-4">
+                  <h2 className="text-lg font-semibold">
+                    Game Object Editor -{" "}
+                    {editorObjectType.charAt(0).toUpperCase() +
+                      editorObjectType.slice(1)}
+                  </h2>
+                </div>
+                <div className="min-h-0 flex-1">
+                  <Suspense
+                    fallback={
+                      <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+                        Loading editor…
+                      </div>
+                    }
+                  >
+                    <GameObjectEditor objectType={editorObjectType} />
+                  </Suspense>
+                </div>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </div>

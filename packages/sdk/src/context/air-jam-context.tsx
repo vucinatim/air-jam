@@ -57,10 +57,14 @@ import { useShallow } from "zustand/react/shallow";
 import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { InputManager, type InputConfig } from "../internal/input-manager";
+import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import type { ConnectionRole } from "../protocol";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
-import { AIRJAM_DEV_PROVIDER_MOUNTED } from "../runtime/dev-runtime-events";
+import {
+  AIRJAM_DEV_PROVIDER_MOUNTED,
+  emitAirJamDevRuntimeEvent,
+} from "../runtime/dev-runtime-events";
 import { createAirJamStore, type AirJamStore } from "../state/connection-store";
 import { SocketManager, type AirJamSocket } from "./socket-manager";
 
@@ -307,47 +311,77 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      socketManager.disconnectAll();
-    };
-  }, [socketManager]);
-
-  useEffect(() => {
-    const devWindow =
-      typeof window !== "undefined"
-        ? (window as unknown as DevProviderMountWindow)
-        : undefined;
-
-    if (
-      devWindow &&
-      isDevelopmentRuntime() &&
-      devWindow.parent &&
-      devWindow.parent !== devWindow &&
-      !devWindow.__airJamDevProviderMountSent__
-    ) {
-      try {
-        devWindow.__airJamDevProviderMountSent__ = true;
-        devWindow.parent.postMessage(
-          {
-            type: AIRJAM_DEV_PROVIDER_MOUNTED,
-            payload: {
+      const devWindow =
+        typeof window !== "undefined"
+          ? (window as unknown as DevProviderMountWindow)
+          : undefined;
+      if (devWindow && isDevelopmentRuntime()) {
+        try {
+          emitAirJamDevRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.providerUnmounted,
+            level: "info",
+            message: "Air Jam provider unmounted",
+            data: {
               appId: config.appId,
               serverUrl: config.serverUrl,
               href: devWindow.location.href,
               origin: devWindow.location.origin,
               pathname: devWindow.location.pathname,
             },
-          },
-          "*",
-        );
-      } catch {
-        // Best effort only
+          });
+        } catch {
+          // Best effort only
+        }
       }
-    }
+      socketManager.disconnectAll();
+    };
+  }, [config.appId, config.serverUrl, socketManager]);
 
+  useEffect(() => {
     ensureDevBrowserLogSink({
       serverUrl: config.serverUrl,
       appId: config.appId,
     });
+
+    const devWindow =
+      typeof window !== "undefined"
+        ? (window as unknown as DevProviderMountWindow)
+        : undefined;
+
+    if (devWindow && isDevelopmentRuntime() && !devWindow.__airJamDevProviderMountSent__) {
+      try {
+        devWindow.__airJamDevProviderMountSent__ = true;
+        emitAirJamDevRuntimeEvent({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.providerMounted,
+          level: "info",
+          message: "Air Jam provider mounted",
+          data: {
+            appId: config.appId,
+            serverUrl: config.serverUrl,
+            href: devWindow.location.href,
+            origin: devWindow.location.origin,
+            pathname: devWindow.location.pathname,
+          },
+        });
+        if (devWindow.parent && devWindow.parent !== devWindow) {
+          devWindow.parent.postMessage(
+            {
+              type: AIRJAM_DEV_PROVIDER_MOUNTED,
+              payload: {
+                appId: config.appId,
+                serverUrl: config.serverUrl,
+                href: devWindow.location.href,
+                origin: devWindow.location.origin,
+                pathname: devWindow.location.pathname,
+              },
+            },
+            "*",
+          );
+        }
+      } catch {
+        // Best effort only
+      }
+    }
   }, [config.serverUrl, config.appId]);
 
   // Stable function references - don't recreate when config changes

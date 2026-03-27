@@ -1,10 +1,12 @@
 import {
+  AIRJAM_DEV_LOG_EVENTS,
   controllerInputSchema,
   controllerJoinSchema,
   controllerLeaveSchema,
   controllerSystemSchema,
   controllerUpdatePlayerProfileSchema,
   ErrorCode,
+  type AirJamDevLogEventName,
   type ControllerInputEvent,
   type ControllerJoinPayload,
   type ControllerLeavePayload,
@@ -19,6 +21,7 @@ import {
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
+import { createWindowedEventSummary } from "../../logging/create-windowed-event-summary.js";
 import type { ControllerSession } from "../../types.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
 
@@ -48,10 +51,85 @@ const PLAYER_COLORS = [
 export const registerControllerHandlers = (
   context: SocketHandlerContext,
 ): void => {
-  const { io, socket, roomManager, isControllerAuthorizedForRoom, emitError } =
-    context;
-  let lastServerInputLogTime = 0;
+  const {
+    io,
+    socket,
+    roomManager,
+    isControllerAuthorizedForRoom,
+    emitError,
+  } = context;
+  const logger = context.logger.child({ component: "controller" });
   let lastServerInputFailLogTime = 0;
+  const controllerInputSummary = createWindowedEventSummary({
+    logger,
+    event: AIRJAM_DEV_LOG_EVENTS.controller.inputSummary,
+    msg: "Controller input activity summary",
+    shouldEmit: (next, previous) => {
+      const nextInputCount =
+        typeof next.data.inputCount === "number" ? next.data.inputCount : 0;
+      const nextActiveInputCount =
+        typeof next.data.activeInputCount === "number"
+          ? next.data.activeInputCount
+          : 0;
+      if (nextActiveInputCount > 0 || !previous) {
+        return true;
+      }
+
+      const previousInputCount =
+        typeof previous.data.inputCount === "number"
+          ? previous.data.inputCount
+          : 0;
+      const previousActiveInputCount =
+        typeof previous.data.activeInputCount === "number"
+          ? previous.data.activeInputCount
+          : 0;
+
+      if (previousActiveInputCount > 0) {
+        return true;
+      }
+
+      return Math.abs(nextInputCount - previousInputCount) > 2;
+    },
+  });
+
+  const getControllerLogger = (bindings: Record<string, unknown> = {}) => {
+    const authority = socket.data.controllerAuthority;
+    const mergedBindings = {
+      ...(authority
+        ? {
+            roomId: authority.roomId,
+            controllerId: authority.controllerId,
+          }
+        : {}),
+      ...bindings,
+    };
+
+    return Object.keys(mergedBindings).length > 0
+      ? logger.child(mergedBindings)
+      : logger;
+  };
+
+  const logControllerEvent = (
+    level: "debug" | "info" | "warn",
+    event: AirJamDevLogEventName,
+    msg: string,
+    bindings: Record<string, unknown> = {},
+  ): void => {
+    const target = getControllerLogger(bindings);
+    if (level === "debug") {
+      target.debug({ event }, msg);
+      return;
+    }
+    if (level === "warn") {
+      target.warn({ event }, msg);
+      return;
+    }
+    target.info({ event }, msg);
+  };
+
+  socket.on("disconnect", () => {
+    controllerInputSummary.flushAll();
+  });
 
   socket.on("controller:join", (payload: ControllerJoinPayload, callback) => {
     if (
@@ -60,6 +138,12 @@ export const registerControllerHandlers = (
         context.controllerJoinRateLimitMax,
       )
     ) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
+        "Rejected controller join due to socket rate limit",
+        { reason: "rate_limited" },
+      );
       callback({
         ok: false,
         message: "Too many join attempts. Please try again.",
@@ -70,6 +154,15 @@ export const registerControllerHandlers = (
 
     const parsed = controllerJoinSchema.safeParse(payload);
     if (!parsed.success) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
+        "Rejected controller join with invalid payload",
+        {
+          reason: "invalid_payload",
+          issues: parsed.error.issues,
+        },
+      );
       callback({
         ok: false,
         message: parsed.error.message,
@@ -81,6 +174,16 @@ export const registerControllerHandlers = (
     const { roomId, controllerId, nickname, avatarId } = parsed.data;
     const session = roomManager.getRoom(roomId);
     if (!session) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
+        "Rejected controller join because room was not found",
+        {
+          roomId,
+          controllerId,
+          reason: "room_not_found",
+        },
+      );
       callback({
         ok: false,
         message: "Room not found",
@@ -116,6 +219,17 @@ export const registerControllerHandlers = (
     }
 
     if (session.controllers.size >= session.maxPlayers) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
+        "Rejected controller join because room is full",
+        {
+          roomId,
+          controllerId,
+          reason: "room_full",
+          maxPlayers: session.maxPlayers,
+        },
+      );
       callback({
         ok: false,
         message: "Room full",
@@ -158,12 +272,23 @@ export const registerControllerHandlers = (
 
     session.controllers.set(controllerId, controllerSession);
     roomManager.setController(socket.id, { roomId, controllerId });
+    socket.data.controllerAuthority = {
+      roomId,
+      controllerId,
+      joinedAt: Date.now(),
+    };
     socket.join(roomId);
 
     io.to(roomManager.getActiveHostId(session)).emit(
       "server:controllerJoined",
       toControllerJoinedNotice(controllerSession),
     );
+
+    logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.joinAccepted, "Controller joined room", {
+      roomId,
+      controllerId,
+      nickname: nickname ?? undefined,
+    });
 
     callback({ ok: true, controllerId, roomId });
     socket.emit("server:welcome", {
@@ -192,6 +317,15 @@ export const registerControllerHandlers = (
 
       const parsed = controllerUpdatePlayerProfileSchema.safeParse(payload);
       if (!parsed.success) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.profileUpdateRejected,
+          "Rejected controller profile update with invalid payload",
+          {
+            reason: "invalid_payload",
+            issues: parsed.error.issues,
+          },
+        );
         respond({
           ok: false,
           message: parsed.error.message,
@@ -201,6 +335,16 @@ export const registerControllerHandlers = (
 
       const { roomId, controllerId, patch } = parsed.data;
       if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.profileUpdateRejected,
+          "Rejected controller profile update because socket is unauthorized",
+          {
+            roomId,
+            controllerId,
+            reason: "unauthorized",
+          },
+        );
         respond({
           ok: false,
           message: "Not authorized",
@@ -211,6 +355,16 @@ export const registerControllerHandlers = (
 
       const session = roomManager.getRoom(roomId);
       if (!session) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.profileUpdateRejected,
+          "Rejected controller profile update because room was not found",
+          {
+            roomId,
+            controllerId,
+            reason: "room_not_found",
+          },
+        );
         respond({
           ok: false,
           message: "Room not found",
@@ -221,6 +375,16 @@ export const registerControllerHandlers = (
 
       const controllerSession = session.controllers.get(controllerId);
       if (!controllerSession) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.profileUpdateRejected,
+          "Rejected controller profile update because controller is not in room",
+          {
+            roomId,
+            controllerId,
+            reason: "controller_not_in_room",
+          },
+        );
         respond({
           ok: false,
           message: "Controller not in room",
@@ -247,6 +411,17 @@ export const registerControllerHandlers = (
       );
       socket.emit("server:playerUpdated", notice);
 
+      logControllerEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.controller.profileUpdateAccepted,
+        "Controller profile updated",
+        {
+          roomId,
+          controllerId,
+          patch: parsed.data.patch,
+        },
+      );
+
       respond({ ok: true, player: nextProfile });
     },
   );
@@ -254,25 +429,59 @@ export const registerControllerHandlers = (
   socket.on("controller:leave", (payload: ControllerLeavePayload) => {
     const parsed = controllerLeaveSchema.safeParse(payload);
     if (!parsed.success) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
+        "Rejected controller leave with invalid payload",
+        {
+          reason: "invalid_payload",
+          issues: parsed.error.issues,
+        },
+      );
       return;
     }
 
     const { roomId, controllerId } = parsed.data;
     if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
+        "Rejected controller leave because socket is unauthorized",
+        {
+          roomId,
+          controllerId,
+          reason: "unauthorized",
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
+        "Rejected controller leave because room was not found",
+        {
+          roomId,
+          controllerId,
+          reason: "room_not_found",
+        },
+      );
       return;
     }
 
     session.controllers.delete(controllerId);
     roomManager.deleteController(socket.id);
+    delete socket.data.controllerAuthority;
     io.to(roomManager.getActiveHostId(session)).emit("server:controllerLeft", {
       controllerId,
     });
     socket.leave(roomId);
+    logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.leaveAccepted, "Controller left room", {
+      roomId,
+      controllerId,
+    });
   });
 
   socket.on("controller:input", (payload: ControllerInputEvent) => {
@@ -288,13 +497,6 @@ export const registerControllerHandlers = (
             Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
               0.01)));
 
-    if (
-      hasActiveInput &&
-      (!lastServerInputLogTime || now - lastServerInputLogTime > 1000)
-    ) {
-      lastServerInputLogTime = now;
-    }
-
     const result = controllerInputSchema.safeParse(payload);
     if (!result.success) {
       if (
@@ -302,12 +504,37 @@ export const registerControllerHandlers = (
         now - lastServerInputFailLogTime > 1000
       ) {
         lastServerInputFailLogTime = now;
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.inputRejected,
+          "Rejected controller input with invalid payload",
+          {
+            reason: "invalid_payload",
+            issues: result.error.issues,
+          },
+        );
       }
       return;
     }
 
     const { roomId, controllerId } = result.data;
     if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+      if (
+        !lastServerInputFailLogTime ||
+        now - lastServerInputFailLogTime > 1000
+      ) {
+        lastServerInputFailLogTime = now;
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.inputRejected,
+          "Rejected controller input because socket is unauthorized",
+          {
+            roomId,
+            controllerId,
+            reason: "unauthorized",
+          },
+        );
+      }
       return;
     }
 
@@ -318,41 +545,102 @@ export const registerControllerHandlers = (
         now - lastServerInputFailLogTime > 1000
       ) {
         lastServerInputFailLogTime = now;
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.inputRejected,
+          "Rejected controller input because room was not found",
+          {
+            roomId,
+            controllerId,
+            reason: "room_not_found",
+          },
+        );
       }
       return;
     }
 
     const targetHostId = roomManager.getActiveHostId(session);
     if (targetHostId) {
-      if (!lastServerInputLogTime || now - lastServerInputLogTime > 1000) {
-        lastServerInputLogTime = now;
-      }
       io.to(targetHostId).emit("server:input", result.data);
+      controllerInputSummary.record({
+        key: `${roomId}:${controllerId}`,
+        bindings: {
+          roomId,
+          controllerId,
+        },
+        metrics: {
+          inputCount: 1,
+          activeInputCount: hasActiveInput ? 1 : 0,
+        },
+      });
     } else if (
       !lastServerInputFailLogTime ||
       now - lastServerInputFailLogTime > 1000
     ) {
       lastServerInputFailLogTime = now;
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.inputRejected,
+        "Rejected controller input because no active host was available",
+        {
+          roomId,
+          controllerId,
+          reason: "active_host_missing",
+        },
+      );
     }
   });
 
   socket.on("controller:system", (payload) => {
     const parsed = controllerSystemSchema.safeParse(payload);
     if (!parsed.success) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.systemRejected,
+        "Rejected controller system command with invalid payload",
+        {
+          reason: "invalid_payload",
+          issues: parsed.error.issues,
+        },
+      );
       return;
     }
 
     const { roomId, command } = parsed.data;
     if (!isControllerAuthorizedForRoom(roomId)) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.systemRejected,
+        "Rejected controller system command because socket is unauthorized",
+        {
+          roomId,
+          reason: "unauthorized",
+          command,
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.systemRejected,
+        "Rejected controller system command because room was not found",
+        {
+          roomId,
+          reason: "room_not_found",
+          command,
+        },
+      );
       return;
     }
 
     if (command === "exit") {
+      logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted, "Controller requested room exit", {
+        roomId,
+        command,
+      });
       beginRoomClosing(session);
       disconnectChildHostIfPresent(io, session);
       transitionToSystemFocus(io, session, {
@@ -363,6 +651,10 @@ export const registerControllerHandlers = (
     }
 
     if (command === "toggle_pause") {
+      logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted, "Controller toggled pause state", {
+        roomId,
+        command,
+      });
       session.gameState =
         session.gameState === "playing" ? "paused" : "playing";
       emitRoomState(

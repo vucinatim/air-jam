@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
+import {
+  AIRJAM_DEV_RUNTIME_EVENT,
+  type AirJamDevRuntimeEventDetail,
+} from "../src/runtime/dev-runtime-events";
 import {
   getControllerRealtimeClient,
   resetControllerRealtimeClientForTests,
@@ -21,11 +26,24 @@ describe("embedded controller bridge runtime", () => {
     vi.restoreAllMocks();
   });
 
+  const captureRuntimeEvents = () => {
+    const events: AirJamDevRuntimeEventDetail[] = [];
+    const handler = (event: Event) => {
+      events.push((event as CustomEvent<AirJamDevRuntimeEventDetail>).detail);
+    };
+    window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler);
+    return {
+      events,
+      cleanup: () => window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler),
+    };
+  };
+
   it("bootstraps a message-channel bridge and forwards child emits to the parent port", async () => {
     const directSocketGetter = vi.fn(() => {
       throw new Error("direct socket should not be requested in embedded mode");
     });
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+    const runtimeEvents = captureRuntimeEvents();
 
     const client = getControllerRealtimeClient(directSocketGetter);
     const connectSpy = vi.fn();
@@ -71,6 +89,24 @@ describe("embedded controller bridge runtime", () => {
 
     expect(client.connected).toBe(true);
     expect(connectSpy).toHaveBeenCalledTimes(1);
+    expect(runtimeEvents.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRequested,
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          runtimeEpoch: 2,
+          runtimeKind: "arcade-controller-runtime",
+        }),
+        expect.objectContaining({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeAttached,
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          runtimeEpoch: 2,
+          runtimeKind: "arcade-controller-runtime",
+        }),
+      ]),
+    );
 
     client.emit("controller:system", {
       roomId: "ROOM1",
@@ -91,10 +127,13 @@ describe("embedded controller bridge runtime", () => {
         ],
       },
     });
+
+    runtimeEvents.cleanup();
   });
 
   it("fails closed when the parent never attaches the bridge", () => {
     vi.useFakeTimers();
+    const runtimeEvents = captureRuntimeEvents();
 
     const client = getControllerRealtimeClient(
       vi.fn(() => {
@@ -113,7 +152,19 @@ describe("embedded controller bridge runtime", () => {
     expect(disconnectSpy).toHaveBeenCalledWith(
       "Embedded controller bridge handshake timed out.",
     );
+    expect(runtimeEvents.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRejected,
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          runtimeEpoch: 2,
+          runtimeKind: "arcade-controller-runtime",
+        }),
+      ]),
+    );
 
+    runtimeEvents.cleanup();
     vi.useRealTimers();
   });
 
@@ -173,6 +224,7 @@ describe("embedded controller bridge runtime", () => {
       throw new Error("direct socket should not be requested in embedded mode");
     });
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+    const runtimeEvents = captureRuntimeEvents();
 
     const client = getControllerRealtimeClient(directSocketGetter);
     const disconnectSpy = vi.fn();
@@ -223,5 +275,18 @@ describe("embedded controller bridge runtime", () => {
     expect(disconnectSpy).toHaveBeenCalledWith(
       "Embedded controller bridge attach rejected: stale arcade surface epoch.",
     );
+    expect(runtimeEvents.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRejected,
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          runtimeEpoch: 2,
+          runtimeKind: "arcade-controller-runtime",
+        }),
+      ]),
+    );
+
+    runtimeEvents.cleanup();
   });
 });

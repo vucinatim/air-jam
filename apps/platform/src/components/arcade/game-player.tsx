@@ -22,6 +22,7 @@ import type {
   PlayerUpdatedNotice,
   ServerErrorPayload,
 } from "@air-jam/sdk/protocol";
+import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import {
   AIRJAM_HOST_BRIDGE_EVENT,
   createHostBridgeAttachMessage,
@@ -41,6 +42,7 @@ import {
   AIRJAM_DEV_PROVIDER_MOUNTED,
   createArcadeBridgeInitMessage,
   createArcadeSettingsSyncMessage,
+  emitAirJamDevRuntimeEvent,
 } from "@air-jam/sdk/arcade/bridge/iframe";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -119,6 +121,10 @@ export const GamePlayer = ({
     arcadeSurface: arcadeSurfaceRuntimeIdentity,
   });
   const iframeTargetOrigin = getRuntimeUrlOrigin(normalizedUrl);
+
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [iframeSrc]);
 
   const establishBridgeChannel = useCallback(() => {
     const contentWindow = iframeRef.current?.contentWindow;
@@ -329,10 +335,17 @@ export const GamePlayer = ({
         "type" in event.data &&
         event.data.type === AIRJAM_DEV_LOG_SINK_FAILURE
       ) {
-        console.error(
-          "[Arcade][AJ_EMBEDDED_BROWSER_LOG_SINK_FAILED]",
-          (event.data as { payload?: unknown }).payload,
-        );
+        emitAirJamDevRuntimeEvent({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.browserLogSinkFailure,
+          level: "error",
+          message: "Embedded browser log sink reported transport failure",
+          role: "host",
+          roomId: hostBridgeStateRef.current.roomId,
+          runtimeEpoch: arcadeIdentityRef.current.epoch,
+          runtimeKind: "arcade-host-iframe",
+          data:
+            (event.data as { payload?: Record<string, unknown> }).payload ?? {},
+        });
         return;
       }
 

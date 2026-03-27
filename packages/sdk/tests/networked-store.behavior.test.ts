@@ -23,6 +23,7 @@ const mockedContext = vi.hoisted(() => {
   const state = {
     role: "controller" as Role,
     roomId: "ROOM1",
+    registeredRoomId: "ROOM1",
     controllerId: "ctrl_1",
     players: [
       { id: "ctrl_1", label: "Player 1" },
@@ -152,6 +153,7 @@ describe("createAirJamStore networked behavior", () => {
 
     mockedContext.state.role = "controller";
     mockedContext.state.roomId = "ROOM1";
+    mockedContext.state.registeredRoomId = "ROOM1";
     mockedContext.state.controllerId = "ctrl_1";
     mockedContext.state.players = [
       { id: "ctrl_1", label: "Player 1" },
@@ -357,6 +359,31 @@ describe("createAirJamStore networked behavior", () => {
       data: { phase: "lobby" },
       storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
     });
+
+    unmount();
+  });
+
+  it("suppresses host:state_sync until the registered room matches the active room", () => {
+    mockedContext.state.role = "host";
+    mockedContext.state.registeredRoomId = "ROOM_OLD";
+
+    const useStore = createTestStore();
+    const { rerender, unmount } = renderHook(() =>
+      useStore((state) => state.phase),
+    );
+
+    expect(
+      hostSocket.emitted.filter((call) => call.event === "host:state_sync"),
+    ).toHaveLength(0);
+
+    act(() => {
+      mockedContext.state.registeredRoomId = "ROOM1";
+      rerender();
+    });
+
+    expect(
+      hostSocket.emitted.some((call) => call.event === "host:state_sync"),
+    ).toBe(true);
 
     unmount();
   });

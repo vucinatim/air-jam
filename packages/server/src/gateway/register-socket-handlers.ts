@@ -1,4 +1,7 @@
-import type { ServerErrorPayload } from "@air-jam/sdk/protocol";
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  type ServerErrorPayload,
+} from "@air-jam/sdk/protocol";
 import {
   createRateLimitGuard,
   createScopedRateLimitGuard,
@@ -88,7 +91,10 @@ export const registerSocketHandlers = ({
     isControllerAuthorizedForRoom,
   };
 
-  socketLogger.debug("Socket connected");
+  socketLogger.debug(
+    { event: AIRJAM_DEV_LOG_EVENTS.socket.connected },
+    "Socket connected",
+  );
 
   registerHostLifecycleHandlers(context);
   registerControllerHandlers(context);

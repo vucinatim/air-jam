@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import {
+  AIRJAM_DEV_LOG_EVENTS,
   verifyHostGrant,
   type HostGrantClaims,
 } from "@air-jam/sdk/protocol";
@@ -74,24 +75,32 @@ export class AuthService {
 
     if (this.authMode === "disabled") {
       this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled },
         "Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce app identity checks)",
       );
     } else if (this.masterKey && !this.databaseUrl && !this.hostGrantSecret) {
       this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeMasterKey },
         "Running with master key authentication (no database required)",
       );
     } else if (this.databaseUrl && this.hostGrantSecret) {
       this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDatabaseAndHostGrant },
         "Running with database authentication and signed host-grant verification",
       );
     } else if (this.databaseUrl) {
-      this.logger.info("Running with database authentication");
+      this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDatabase },
+        "Running with database authentication",
+      );
     } else if (this.hostGrantSecret) {
       this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeHostGrantOnly },
         "Running with signed host-grant authentication only (app ID bootstrap disabled because DATABASE_URL is not configured)",
       );
     } else {
       this.logger.warn(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.backendMissing },
         "Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
       );
     }
@@ -246,7 +255,13 @@ export class AuthService {
           .set({ lastUsedAt: new Date() })
           .where(eq(appIds.id, keyRecord.id))
           .catch((err: unknown) => {
-            this.logger.warn({ err }, "Failed to update app ID lastUsedAt");
+            this.logger.warn(
+              {
+                event: AIRJAM_DEV_LOG_EVENTS.auth.appIdLastUsedAtUpdateFailed,
+                err,
+              },
+              "Failed to update app ID lastUsedAt",
+            );
           });
 
         return { isVerified: true };
@@ -257,7 +272,13 @@ export class AuthService {
         error: "Unauthorized: Invalid or Missing App ID",
       };
     } catch (error) {
-      this.logger.error({ err: error }, "Database error during app ID verification");
+      this.logger.error(
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.appIdVerificationDatabaseError,
+          err: error,
+        },
+        "Database error during app ID verification",
+      );
       return {
         isVerified: false,
         error: "Internal Server Error",

@@ -120,6 +120,7 @@ export const ArcadeSystem = ({
     beginLaunch,
     completeLaunch,
     failLaunch,
+    resetSession,
     exitGame: resetRuntimeAfterExit,
     consumeAutoLaunch,
   } = runtime;
@@ -189,6 +190,7 @@ export const ArcadeSystem = ({
 
     const previousRoomId = lastRoomIdForSurfaceRef.current;
     lastRoomIdForSurfaceRef.current = host.roomId;
+    resetSession();
 
     if (previousRoomId !== null && previousRoomId !== host.roomId) {
       surfaceActions.resetHostSurfaceForMode({ mode });
@@ -204,6 +206,7 @@ export const ArcadeSystem = ({
     host.roomId,
     host.socket?.connected,
     mode,
+    resetSession,
     surfaceActions,
     hostArcadeRestore.phase,
   ]);
@@ -795,20 +798,26 @@ export const ArcadeSystem = ({
 
         {/* Game View — surface kind is authoritative for shell; runtime holds iframe credentials */}
         {surfaceKind === "game" && activeGame && state.launchCapability && (
-          <GamePlayer
-            game={activeGame}
-            normalizedUrl={state.normalizedGameUrl}
-            launchCapability={state.launchCapability}
-            roomId={host.roomId!}
-            joinUrl={arcadeJoinUrl}
-            hostSocket={host.socket}
-            players={host.players}
-            gameState={host.gameState}
-            isVisible={surfaceKind === "game"}
-            arcadeSurfaceRuntimeIdentity={arcadeSurfaceRuntimeIdentity}
-            onExit={exitGame}
-            showExitOverlay={showGameExitOverlay}
-          />
+          joinQrStatus === "loading" ? (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black text-sm font-medium text-white/80">
+              Preparing game…
+            </div>
+          ) : (
+            <GamePlayer
+              game={activeGame}
+              normalizedUrl={state.normalizedGameUrl}
+              launchCapability={state.launchCapability}
+              roomId={host.roomId!}
+              joinUrl={joinQrStatus === "ready" ? arcadeJoinUrl : null}
+              hostSocket={host.socket}
+              players={host.players}
+              gameState={host.gameState}
+              isVisible={surfaceKind === "game"}
+              arcadeSurfaceRuntimeIdentity={arcadeSurfaceRuntimeIdentity}
+              onExit={exitGame}
+              showExitOverlay={showGameExitOverlay}
+            />
+          )
         )}
       </div>
     </div>

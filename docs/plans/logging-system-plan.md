@@ -1,5 +1,7 @@
 # Air Jam Logging System Plan
 
+Last updated: 2026-03-27
+
 ## Goal
 
 Define one clean, canonical observability system for Air Jam that:
@@ -10,6 +12,21 @@ Define one clean, canonical observability system for Air Jam that:
 - avoids ad hoc console output and scattered debug files
 
 The logging system should feel invisible during normal use and invaluable during debugging.
+
+## Direction Decision
+
+Air Jam should deliberately move further toward one canonical automatic development observability path.
+
+That means:
+
+- keep production logging simple and standard
+- make development observability first-class and automatic
+- treat server, host, controller, and embedded-runtime diagnostics as one system
+- avoid pushing logging setup work onto game or platform developers
+
+This is the right direction because Air Jam is a multi-surface runtime, not a single-process app.
+When bugs cross server, host, controller, and iframe boundaries, fragmented logs become the complexity tax.
+One canonical dev stream reduces that tax without turning the framework into a heavy ops platform.
 
 ## Current Foundation
 
@@ -26,8 +43,114 @@ This foundation is now implemented:
 - the default file path is workspace-root stable: `.airjam/logs/dev-latest.ndjson`
 - `traceId` correlates host bootstrap and lifecycle logs across browser and server
 - a small CLI exists to tail and filter the canonical file: `pnpm dev:logs`
+- a shared runtime event catalog now lives in `@air-jam/sdk/protocol` so server, browser collector, and tests use one canonical event vocabulary
+- embedded host/controller bridge runtimes now emit canonical browser runtime events with `runtimeKind` and `runtimeEpoch`, so stale-epoch and handshake failures land in the same dev stream
+- high-frequency server channels now emit compact summary events instead of requiring raw spam or manual guesswork
+- disconnect-driven recovery edges now emit canonical lifecycle events for controller removal, child-host recovery, and room teardown
+- the dev log CLI can filter entries by `controllerId`, `event`, `runtimeKind`, and `runtimeEpoch`
+- canonical dev events now carry ordering metadata so append order, source event time, and per-session browser order are all explicit instead of conflated
+- browser console entries now carry a canonical category (`airjam`, `app`, `framework`, `browser`) so query tools can separate framework/browser noise from useful runtime logs
+- repeated browser console warnings are collapsed within the sink before transport instead of flooding the canonical file with identical short-burst duplicates
+- `pnpm dev:logs` now supports a practical `--view=signal` mode that hides plumbing chatter and low-value framework/browser console noise
+- repeated idle `controller.input.summary` windows are now suppressed once the signal stops changing, so long-running idle sessions do not dominate the stream
 
 What remains is polish and broader coverage, not a logging-system rewrite.
+
+## Real Session Findings
+
+A real local host/controller/game session was reviewed against the canonical file and `pnpm dev:logs`.
+
+The result was positive:
+
+- the stream is now genuinely usable for debugging
+- controller-scoped views are readable and coherent
+- runtime epoch transitions, room lifecycle, and controller action flow are easy to follow
+- the ordering model is doing its job and makes mixed browser/server ingest understandable
+
+The main remaining issue is not missing architecture. It is signal-to-noise.
+
+Observed strengths:
+
+- `--controller`, `--room`, `--event`, `--runtime`, and `--epoch` already make the CLI useful in practice
+- canonical lifecycle events are easy to scan
+- high-frequency transport activity is much more understandable as summaries than as raw message spam
+- dual timestamps plus sequence ids make browser/server merge behavior legible
+
+Observed noise and ergonomics gaps were addressed in the next pass:
+
+- browser console entries are now categorized so framework/browser noise is queryable and suppressible
+- infrastructure events can be hidden via signal-oriented CLI filtering
+- repeated idle controller summaries are suppressed once they stop carrying new information
+- repeated browser-console warnings are coalesced before transport when they occur in short bursts
+
+This means the current remaining work is refinement, not another core logging pass.
+
+## Ordering Model
+
+The canonical dev file is append-only by collector ingest order.
+
+That is intentional. The file should preserve what the server learned and when it learned it.
+
+To avoid fake chronology, each event now carries separate ordering fields:
+
+- `time`: compatibility alias for `occurredAt`
+- `occurredAt`: when the source says the event happened
+- `ingestedAt`: when the dev collector accepted the event
+- `sourceSeq`: monotonic sequence within one browser logging session
+- `collectorSeq`: monotonic append order in the canonical file
+
+The reading rule is:
+
+1. `collectorSeq` explains raw file order
+2. `occurredAt` plus `sourceSeq` explains browser-local event order
+3. `traceId`, `roomId`, and `controllerId` explain correlation scope
+
+This avoids pretending that one mixed-process file can always be read as a perfectly synchronized wall-clock timeline.
+
+One additional real-world note matters here: browser and server clocks are not guaranteed to agree.
+
+In a real session, browser/controller events were observed where `ingestedAt` was slightly earlier than `occurredAt`.
+That is expected cross-device clock skew, not a collector bug.
+The correct interpretation is:
+
+- `collectorSeq` is append truth
+- `occurredAt` is source-local event time
+- `sourceSeq` is source-local ordering truth within a browser session
+
+The system should continue to treat those as distinct concepts.
+
+## Canonical Event Glossary
+
+These are the main events developers should expect to use during day-to-day debugging.
+
+- `host.bootstrap.verified`: the host runtime was authenticated and got a canonical `traceId`
+- `host.create_room.accepted`: the host now owns a room
+- `controller.join.accepted`: a controller successfully entered a room
+- `controller.leave.accepted`: a controller exited normally through the explicit leave path
+- `controller.disconnect.applied`: a controller disappeared implicitly and the server removed it from room state
+- `system.launch_game.accepted`: the room moved from system focus toward game launch
+- `child_host.join.accepted`: a game runtime joined as the active child host
+- `embedded_game.activate.accepted`: the embedded-game activation path succeeded
+- `runtime.embedded_bridge.requested`, `runtime.embedded_bridge.attached`, `runtime.embedded_bridge.rejected`: the embedded bridge handshake path from browser runtime to parent shell
+- `controller.input.summary`: compact summary of forwarded controller input over a short dev window
+- `controller.action_rpc.summary`: compact summary of forwarded controller action RPC traffic over a short dev window
+- `host.state_sync.summary`: compact summary of forwarded host state sync traffic over a short dev window
+- `child_host.disconnect.pending_system_focus`: the active child host disappeared and the server scheduled system-focus recovery
+- `child_host.disconnect.system_focus_restored`: the scheduled child-host teardown completed and room focus moved back to the system host
+- `host.disconnect.pending_room_close`: the master host disappeared and the server scheduled room teardown
+- `host.disconnect.room_closed`: the room was actually torn down after the master host disconnect grace window elapsed
+
+The intended reading model is simple:
+
+1. lifecycle edges use accepted/rejected or pending/completed events
+2. high-frequency channels use summary events
+3. one `traceId` or `roomId` should be enough to follow the whole story
+
+The next refinement target is equally simple:
+
+1. infra events should stay available, but fade into the background
+2. idle summary events should stop repeating when they no longer add information
+3. browser console events should become easier to separate into app, framework, browser, and Air Jam internal categories
 
 ## Canonical Direction
 
@@ -53,8 +176,24 @@ Development should have one canonical unified log stream:
 - one chronological stream
 - reset/truncated when the server starts
 - searchable by `traceId`, `roomId`, `socketId`, `controllerId`, `appIdHint`
+- tail/filterable by `event`, `controllerId`, `runtimeKind`, and `runtimeEpoch` through `pnpm dev:logs`
 
 This is the main debugging path for local work and LLM-assisted diagnosis.
+
+The intended default local workflow should eventually have two practical reading modes:
+
+- full fidelity: everything in the canonical stream
+- signal view: hide plumbing chatter and show the events most developers actually need first
+
+That signal-oriented view is now available through `pnpm dev:logs -- --view=signal`.
+
+The intended default developer experience is:
+
+1. run Air Jam locally
+2. reproduce the issue
+3. inspect exactly one canonical log stream
+
+No extra SDK setup, custom sink wiring, or per-app logging ceremony should be required.
 
 ## Design Principles
 
@@ -108,6 +247,8 @@ The primary debugging experience should be:
 2. copy the `traceId`
 3. search the same file for the rest of the session
 
+This should expand beyond the current host-first coverage. Controller and embedded-runtime paths should correlate just as cleanly.
+
 ### Dev-Only Browser Mirroring
 
 Browser log mirroring is a dev observability feature, not a production logging feature.
@@ -124,6 +265,13 @@ That means:
 Games and platform views should not need to manually “set up logging” for the default experience.
 
 The framework/runtime should do the right thing automatically in development.
+
+The default rule should be:
+
+- if a developer uses the standard Air Jam providers/runtime entry points in development, canonical local diagnostics are already on
+
+That should include sane defaults for noise suppression.
+Developers should not need to learn which internal events to mentally ignore before the stream becomes useful.
 
 ## Target Architecture
 
@@ -163,8 +311,53 @@ Responsibilities:
 - capture `unhandledrejection`
 - capture Air Jam diagnostics
 - forward structured batches to the server
+- send `pagehide` / `beforeunload` through an immediate beacon-style path instead of relying on the normal batch timer
 
 The browser sink should not know about files. It should only know how to send structured events to the server collector.
+
+### Automatic Runtime Instrumentation
+
+Dev observability should attach at framework boundaries, not app boundaries.
+
+That means:
+
+- session providers auto-enable browser diagnostics in development
+- session providers emit mount/unmount lifecycle events automatically
+- host runtime auto-publishes host correlation context
+- host outbound `host:state` / `host:state_sync` only emit when the active room is also the authoritative `registeredRoomId`
+- host runtime emits socket connect/disconnect/connect-error and reconnect/create-room attempt events
+- controller runtime auto-publishes controller correlation context
+- controller runtime emits socket connect/disconnect/connect-error and join-attempt events, including room-source attribution
+- embedded bridge/runtime layers log lifecycle edges automatically
+- browser lifecycle edges like `pagehide` / `beforeunload` enter the canonical stream
+- server handlers create scoped child loggers once and reuse them consistently
+
+App code may still call `console.*`, but the default observability system should not depend on app authors remembering to do so.
+
+### Event-First Schema
+
+The unified log shape should keep `msg`, but also standardize stable event names.
+
+Recommended core fields:
+
+- `time`
+- `level`
+- `source`
+- `component`
+- `event`
+- `msg`
+- `traceId`
+- `roomId`
+- `controllerId`
+- `socketId`
+- `sessionId`
+- `runtimeEpoch`
+- `data`
+- `err`
+
+Stable `event` names are what make grep, tooling, and future lightweight viewers reliable.
+
+The canonical source of truth for those names should live in a shared protocol-level catalog rather than scattered string literals in handlers and tests.
 
 ### Shared Dev Log File
 
@@ -273,6 +466,74 @@ Status:
 - `pnpm dev:logs` and the canonical file path are in place
 - optional overlay/debug UI remains future polish
 
+### Phase 5. Complete Runtime Coverage
+
+Goal:
+
+- make the unified dev stream trustworthy across the full runtime, not just host bootstrap and browser console capture
+
+Tasks:
+
+- add structured server logs for controller join/leave/update/reject paths
+- add structured server logs for realtime routing failures and important accepted transitions
+- log bridge attach/detach/reject flows consistently
+- ensure room/game lifecycle edges carry the same correlation fields
+
+Exit criteria:
+
+- controller, host, and bridge failures can be diagnosed from the canonical file alone
+- common server-side silent failures no longer require source inspection to explain
+
+Status:
+
+- not started
+
+### Phase 6. Finish Correlation Propagation
+
+Goal:
+
+- make correlation automatic across all Air Jam surfaces
+
+Tasks:
+
+- keep host `traceId` propagation as the baseline path
+- introduce controller-side correlation context where missing
+- include surface/runtime epoch identity for embedded runtime debugging
+- standardize child logger bindings for `traceId`, `roomId`, `controllerId`, and `socketId`
+
+Exit criteria:
+
+- one developer can pivot from one event into the full cross-surface flow without guesswork
+- host-only and controller-only sessions both have strong correlation coverage
+
+Status:
+
+- partially completed
+- host correlation is in place
+- controller/runtime-epoch correlation still needs canonical coverage
+
+### Phase 7. Reduce Noise Without Losing Signal
+
+Goal:
+
+- keep the dev log canonical and useful without turning it into input spam
+
+Tasks:
+
+- avoid raw per-frame input logging by default
+- summarize noisy channels where needed
+- keep accepted/rejected lifecycle edges and failures explicit
+- document what is intentionally not logged at full fidelity
+
+Exit criteria:
+
+- the canonical file stays readable during active multiplayer sessions
+- the default stream remains high-signal for both humans and LLMs
+
+Status:
+
+- not started
+
 ## Naming and Structure Rules
 
 ### Public Terms
@@ -309,6 +570,7 @@ The finished logging system should satisfy all of these:
 - structured logs, not ad hoc strings
 - `traceId`-based correlation
 - browser and server logs share one timeline
+- host, controller, and bridge/runtime paths share one correlation model
 - production logging stays clean and standard
 - dev tooling stays optional and invisible to game code
 - no secrets/raw sensitive values dumped casually
@@ -321,15 +583,17 @@ Do not turn this into:
 - a UI-first observability rewrite
 - a replacement for platform log ingestion
 - a requirement for games to manually configure logging
+- a giant SDK logging configuration surface
+- a per-event firehose of controller input noise
 
 The system should stay small, sharp, and local-first.
 
 ## Current Next Step
 
-Use the unified file to fix the actual runtime issues it exposes.
+The next concrete implementation slice should be:
 
-Near-term follow-up is small:
+- add canonical controller and realtime server logging
+- introduce stable `event` names in the unified schema
+- propagate controller/runtime correlation context automatically
 
-- add more coverage for controller-side routing/security logs if needed
-- optionally add a tiny in-browser debug overlay for current `traceId`
-- keep the schema disciplined as new log sources are added
+That is the smallest next step that materially improves the value of the existing one-file model without adding framework complexity.

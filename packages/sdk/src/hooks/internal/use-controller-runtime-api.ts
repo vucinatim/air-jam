@@ -6,6 +6,7 @@ import {
   useAssertSessionScope,
   useClaimSessionRuntimeOwner,
 } from "../../context/session-providers";
+import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import type {
   ControllerJoinAck,
   ControllerStateMessage,
@@ -17,6 +18,7 @@ import type {
   SignalPayload,
 } from "../../protocol";
 import {
+  AIRJAM_DEV_LOG_EVENTS,
   controllerJoinSchema,
   controllerSystemSchema,
   playerProfilePatchSchema,
@@ -24,6 +26,7 @@ import {
 } from "../../protocol";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
+import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readEmbeddedControllerChildSession } from "../../runtime/embedded-runtime-adapters";
 import { generateControllerId } from "../../utils/ids";
@@ -40,6 +43,27 @@ const getRoomFromLocation = (): string | null => {
   const params = new URLSearchParams(window.location.search);
   const code = params.get("room");
   return code ? code.toUpperCase() : null;
+};
+
+export const resolveControllerJoinSource = ({
+  embeddedRoomId,
+  optionRoomId,
+  urlRoomId,
+}: {
+  embeddedRoomId?: string | null;
+  optionRoomId?: string | null;
+  urlRoomId?: string | null;
+}): "embedded" | "options" | "url" | "unknown" => {
+  if (embeddedRoomId) {
+    return "embedded";
+  }
+  if (optionRoomId) {
+    return "options";
+  }
+  if (urlRoomId) {
+    return "url";
+  }
+  return "unknown";
 };
 
 export const useControllerRuntimeApi = (
@@ -65,17 +89,26 @@ export const useControllerRuntimeApi = (
     () => readEmbeddedControllerChildSession(),
     [],
   );
+  const urlRoomId = useMemo(() => getRoomFromLocation(), []);
+  const joinSource = useMemo(
+    () =>
+      resolveControllerJoinSource({
+        embeddedRoomId: embeddedController?.roomId,
+        optionRoomId: options.roomId ?? null,
+        urlRoomId,
+      }),
+    [embeddedController?.roomId, options.roomId, urlRoomId],
+  );
 
   const parsedRoomId = useMemo<RoomCode | null>(() => {
-    const code =
-      embeddedController?.roomId ?? options.roomId ?? getRoomFromLocation();
+    const code = embeddedController?.roomId ?? options.roomId ?? urlRoomId;
     if (!code) return null;
     try {
       return roomCodeSchema.parse(code.toUpperCase());
     } catch {
       return null;
     }
-  }, [options.roomId, embeddedController]);
+  }, [options.roomId, embeddedController, urlRoomId]);
 
   const controllerId = useMemo<string>(() => {
     if (embeddedController?.controllerId) {
@@ -121,7 +154,52 @@ export const useControllerRuntimeApi = (
     [connectionState.controllerId, connectionState.players],
   );
 
+  useEffect(() => {
+    updateDevBrowserLogContext({
+      role: "controller",
+      traceId: undefined,
+      roomId: parsedRoomId ?? undefined,
+      controllerId: connectionState.controllerId ?? controllerId ?? undefined,
+    });
+  }, [connectionState.controllerId, controllerId, parsedRoomId]);
+
+  useEffect(() => {
+    return () => {
+      updateDevBrowserLogContext({
+        role: undefined,
+        roomId: undefined,
+        controllerId: undefined,
+      });
+    };
+  }, []);
+
   const [reconnectKey, setReconnectKey] = useState(0);
+  const emitControllerRuntimeEvent = useCallback(
+    ({
+      event,
+      level = "info",
+      message,
+      roomId,
+      data,
+    }: {
+      event: (typeof AIRJAM_DEV_LOG_EVENTS.runtime)[keyof typeof AIRJAM_DEV_LOG_EVENTS.runtime];
+      level?: "info" | "warn" | "error";
+      message: string;
+      roomId?: string;
+      data?: Record<string, unknown>;
+    }) => {
+      emitAirJamDevRuntimeEvent({
+        event,
+        level,
+        message,
+        role: "controller",
+        roomId,
+        controllerId,
+        data,
+      });
+    },
+    [controllerId],
+  );
 
   const socket = useMemo<AirJamRealtimeClient | null>(
     () =>
@@ -209,6 +287,15 @@ export const useControllerRuntimeApi = (
     }
 
     const handleConnect = (): void => {
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnected,
+        message: "Controller socket connected",
+        roomId: parsedRoomId ?? undefined,
+        data: {
+          socketId: socket.id,
+          connected: socket.connected,
+        },
+      });
       store.getState().setStatus("connected");
 
       if (embeddedController) {
@@ -220,6 +307,17 @@ export const useControllerRuntimeApi = (
         controllerId,
         nickname: nicknameRef.current || undefined,
         avatarId: avatarIdRef.current || undefined,
+      });
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.controllerJoinRequested,
+        message: "Controller requested room join",
+        roomId: payload.roomId,
+        data: {
+          joinSource,
+          controllerId: payload.controllerId,
+          hasNickname: Boolean(payload.nickname),
+          hasAvatarId: Boolean(payload.avatarId),
+        },
       });
       socket.emit("controller:join", payload, (ack: ControllerJoinAck) => {
         const latestState = store.getState();
@@ -236,11 +334,33 @@ export const useControllerRuntimeApi = (
     };
 
     const handleDisconnect = (reason?: string): void => {
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketDisconnected,
+        message: "Controller socket disconnected",
+        roomId: parsedRoomId ?? undefined,
+        data: {
+          socketId: socket.id,
+          reason,
+        },
+      });
       const latestState = store.getState();
       if (reason) {
         latestState.setError(reason);
       }
       latestState.setStatus("disconnected");
+    };
+
+    const handleConnectError = (error: Error): void => {
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnectError,
+        level: "warn",
+        message: "Controller socket connect error",
+        roomId: parsedRoomId ?? undefined,
+        data: {
+          message: error.message,
+          name: error.name,
+        },
+      });
     };
 
     const handleWelcome = (payload: {
@@ -309,6 +429,7 @@ export const useControllerRuntimeApi = (
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
     socket.on("server:welcome", handleWelcome);
     socket.on("server:state", handleState);
     socket.on("server:hostLeft", handleHostLeft);
@@ -324,6 +445,7 @@ export const useControllerRuntimeApi = (
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
       socket.off("server:welcome", handleWelcome);
       socket.off("server:state", handleState);
       socket.off("server:hostLeft", handleHostLeft);
@@ -338,6 +460,8 @@ export const useControllerRuntimeApi = (
     embeddedController,
     store,
     disconnectSocket,
+    emitControllerRuntimeEvent,
+    joinSource,
   ]);
 
   const setNickname = useCallback((value: string) => {

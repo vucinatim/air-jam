@@ -138,6 +138,7 @@ function MultiCameraController({
 
 export function GameScene({
   onCamerasReady,
+  onCanvasReady,
   mode = "match",
   paused = false,
 }: {
@@ -147,13 +148,20 @@ export function GameScene({
       viewport: { x: number; y: number; width: number; height: number };
     }>,
   ) => void;
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   mode?: "match" | "spectator";
   paused?: boolean;
 }) {
   const isDebugPanelOpen = useDebugStore((state) => state.isOpen);
 
   return (
-    <Canvas shadows gl={{ antialias: true }}>
+    <Canvas
+      shadows
+      gl={{ antialias: true }}
+      onCreated={({ gl }) => {
+        onCanvasReady?.(gl.domElement);
+      }}
+    >
       <Physics
         paused={paused}
         gravity={[0, 0, 0]}

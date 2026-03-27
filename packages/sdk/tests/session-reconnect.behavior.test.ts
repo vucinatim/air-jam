@@ -150,6 +150,62 @@ describe("session reconnect behavior", () => {
     );
   });
 
+  it("blocks direct host state emits when the active room is no longer authoritative", async () => {
+    mocked.store?.getState().setRoomId("ROOM1");
+    mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    sessionStorage.setItem("airjam_room_id", "ROOM1");
+    mocked.hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        callback?: (ack: unknown) => void,
+      ) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+        }
+        if (event === "host:reconnect") {
+          callback?.({ ok: true, roomId: "ROOM1" });
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost());
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    expect(
+      result.current.sendState({
+        gameState: "playing",
+      }),
+    ).toBe(true);
+    expect(mocked.hostSocket.emit).toHaveBeenCalledWith(
+      "host:state",
+      {
+        roomId: "ROOM1",
+        state: {
+          gameState: "playing",
+        },
+      },
+    );
+
+    act(() => {
+      mocked.store?.getState().setRegisteredRoomId(null);
+    });
+
+    expect(
+      result.current.sendState({
+        gameState: "paused",
+      }),
+    ).toBe(false);
+    expect(
+      mocked.hostSocket.emit.mock.calls.filter(
+        ([event]: [string, ...unknown[]]) => event === "host:state",
+      ),
+    ).toHaveLength(1);
+  });
+
   it("fetches a signed host grant before bootstrap when a grant endpoint is configured", async () => {
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
@@ -290,6 +346,50 @@ describe("session reconnect behavior", () => {
         ([event]: [string, ...unknown[]]) => event === "host:reconnect",
       ),
     ).toHaveLength(0);
+  });
+
+  it("clears room authority before reconnect fallback creates a replacement room", async () => {
+    mocked.store?.getState().setRoomId("ROOM1");
+    mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    sessionStorage.setItem("airjam_room_id", "ROOM1");
+
+    mocked.hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        payload: unknown,
+        callback?: (ack: unknown) => void,
+      ) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+          return;
+        }
+        if (event === "host:reconnect") {
+          callback?.({
+            ok: false,
+            code: "ROOM_NOT_FOUND",
+            message: "Room missing",
+          });
+          return;
+        }
+        if (event === "host:createRoom") {
+          expect(mocked.store?.getState().registeredRoomId).toBeNull();
+          expect(payload).toMatchObject({
+            maxPlayers: 8,
+          });
+          callback?.({ ok: true, roomId: "ROOM2" });
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost());
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+      expect(result.current.roomId).toBe("ROOM2");
+    });
+
+    expect(mocked.store?.getState().registeredRoomId).toBe("ROOM2");
+    expect(sessionStorage.getItem("airjam_room_id")).toBe("ROOM2");
   });
 
   it("prefers the injected arcade join url in child-host mode", async () => {
