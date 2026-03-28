@@ -10,9 +10,10 @@ import type { ReactNode } from "react";
 
 type LandingPageProps = {
   sdkProofCodes: ReactNode[];
+  equationCodeBlock: ReactNode;
 };
 
-export const LandingPage = ({ sdkProofCodes }: LandingPageProps) => {
+export const LandingPage = ({ sdkProofCodes, equationCodeBlock }: LandingPageProps) => {
   return (
     <div className="min-h-screen">
       <LandingHero />
@@ -21,7 +22,7 @@ export const LandingPage = ({ sdkProofCodes }: LandingPageProps) => {
         <LandingGameShowcase />
         <LandingBatteries />
         <LandingSdkProofs proofCodes={sdkProofCodes} />
-        <LandingWhoFor />
+        <LandingWhoFor equationCodeBlock={equationCodeBlock} />
         <LandingFinalCta />
       </main>
       <LandingSiteFooter />

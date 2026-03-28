@@ -99,7 +99,7 @@ export default function PreBlock({
 
   return (
     <div className="border-border/50 my-6 overflow-hidden rounded-2xl border bg-zinc-950">
-      <div className="border-border/50 flex items-center justify-between border-b bg-zinc-500/30 px-4 py-2.5">
+      <div className="border-border/50 bg-sidebar flex items-center justify-between border-b px-4 py-2.5">
         <div className="flex items-center gap-2">
           {language && (
             <Badge variant="outline" className="text-xs">

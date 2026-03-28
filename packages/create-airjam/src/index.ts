@@ -145,23 +145,24 @@ async function main() {
   const depSpecs = parseNamedSpecs(options.depSpec);
   const overrideSpecs = parseNamedSpecs(options.overrideSpec);
 
-  let projectName = args[0];
+  let projectInput = args[0];
 
-  if (!projectName) {
+  if (!projectInput) {
     const response = await prompts({
       type: "text",
       name: "projectName",
       message: "Project name:",
       initial: "my-airjam-game",
     });
-    projectName = response.projectName;
-    if (!projectName) {
+    projectInput = response.projectName;
+    if (!projectInput) {
       console.log(kleur.red("Project name is required"));
       process.exit(1);
     }
   }
 
-  const targetDir = path.resolve(process.cwd(), projectName);
+  const targetDir = path.resolve(process.cwd(), projectInput);
+  const packageName = path.basename(targetDir);
   const templateDir = path.resolve(
     __dirname,
     "..",
@@ -178,7 +179,7 @@ async function main() {
     const response = await prompts({
       type: "confirm",
       name: "overwrite",
-      message: `Directory "${projectName}" already exists. Overwrite?`,
+      message: `Directory "${projectInput}" already exists. Overwrite?`,
       initial: false,
     });
     if (!response.overwrite) {
@@ -253,7 +254,7 @@ async function main() {
   const pkgPath = path.join(targetDir, "package.json");
   if (fs.existsSync(pkgPath)) {
     const pkg = await fs.readJson(pkgPath);
-    pkg.name = projectName;
+    pkg.name = packageName;
     pkg.dependencies = normalizeWorkspaceSpecs(pkg.dependencies, manifest);
     pkg.devDependencies = normalizeWorkspaceSpecs(pkg.devDependencies, manifest);
     applyNamedSpecs(pkg, depSpecs, overrideSpecs);
@@ -284,7 +285,7 @@ async function main() {
   }
 
   console.log("Next steps:\n");
-  console.log(kleur.cyan(`  cd ${projectName}`));
+  console.log(kleur.cyan(`  cd ${projectInput}`));
   console.log(kleur.cyan("  cp .env.example .env.local"));
   console.log(
     kleur.cyan("  pnpm run dev         # Recommended: start server + game"),

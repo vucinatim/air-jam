@@ -3,6 +3,7 @@ import { codeToHtml } from "shiki";
 type LandingCodeBlockProps = {
   code: string;
   lang?: string;
+  transparent?: boolean;
 };
 
 /**
@@ -12,6 +13,7 @@ type LandingCodeBlockProps = {
 export const LandingCodeBlock = async ({
   code,
   lang = "tsx",
+  transparent = false,
 }: LandingCodeBlockProps) => {
   const html = await codeToHtml(code, {
     lang,
@@ -20,7 +22,7 @@ export const LandingCodeBlock = async ({
 
   return (
     <div
-      className="landing-sdk-snippet w-full min-w-0 [&_pre]:m-0 [&_pre]:p-4 [&_pre]:font-mono [&_pre]:text-[11px] [&_pre]:leading-relaxed sm:[&_pre]:text-xs md:[&_pre]:text-[13px]"
+      className={`landing-sdk-snippet w-full min-w-0 [&_pre]:m-0 [&_pre]:p-4 ${transparent ? "[&_pre]:bg-transparent!" : ""} [&_pre]:font-mono [&_pre]:text-[11px] [&_pre]:leading-relaxed sm:[&_pre]:text-xs md:[&_pre]:text-[13px]`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

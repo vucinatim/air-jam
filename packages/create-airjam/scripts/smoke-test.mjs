@@ -67,13 +67,14 @@ const main = () => {
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-scaffold-smoke-"));
   const projectName = "smoke-airjam-app";
-  const projectDir = path.join(tempRoot, projectName);
+  const projectArg = path.join("nested", projectName);
+  const projectDir = path.join(tempRoot, projectArg);
 
   try {
     const cliArgs = [
       "node",
       JSON.stringify(cliEntry),
-      projectName,
+      JSON.stringify(projectArg),
       "--template",
       "pong",
     ];
@@ -118,6 +119,15 @@ const main = () => {
     }
 
     run(cliArgs.join(" "), tempRoot);
+
+    const scaffoldPkg = JSON.parse(
+      fs.readFileSync(path.join(projectDir, "package.json"), "utf-8"),
+    );
+    if (scaffoldPkg.name !== projectName) {
+      throw new Error(
+        `Expected scaffold package name "${projectName}", received "${scaffoldPkg.name}"`,
+      );
+    }
 
     if (source !== "registry") {
       run("pnpm install", projectDir);

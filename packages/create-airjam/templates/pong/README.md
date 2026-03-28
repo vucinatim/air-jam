@@ -30,6 +30,7 @@ pnpm run dev
 
 This starts both the local Air Jam server (`http://localhost:4000`) and the game (`http://localhost:5173`) in one command.
 It also auto-detects your LAN IP and sets `VITE_AIR_JAM_PUBLIC_HOST` so QR links are phone-friendly by default.
+For this mode, leave `VITE_AIR_JAM_SERVER_URL` blank so controllers connect back through the game origin and Vite websocket proxy.
 
 ### Use Official Air Jam Backend (No Local Server)
 
@@ -158,7 +159,7 @@ src/
 
 See `.env.example` for all available environment variables. Key variables:
 
-- `VITE_AIR_JAM_SERVER_URL` - Server URL (defaults to localhost:4000 for local dev)
+- `VITE_AIR_JAM_SERVER_URL` - Optional backend override. Leave blank for default local dev; set it for official/prod backends.
 - `VITE_AIR_JAM_APP_ID` - Public app ID (optional for local dev, required for production)
 - `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev -- --secure` for host/controller URLs
 - `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev -- --secure`
@@ -169,7 +170,7 @@ See `.env.example` for all available environment variables. Key variables:
 
 1. Ensure `pnpm run dev` is running.
 2. Verify server health at `http://localhost:4000/health`.
-3. Remove or correct `VITE_AIR_JAM_SERVER_URL` overrides in `.env.local`.
+3. Remove or correct `VITE_AIR_JAM_SERVER_URL` overrides in `.env.local`. `http://localhost:4000` is wrong for phone controllers because it resolves on the phone, not your laptop.
 
 ### App ID errors in deployed environments
 

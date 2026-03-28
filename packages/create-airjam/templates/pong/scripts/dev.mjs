@@ -79,8 +79,13 @@ const runDefaultDev = async ({ webOnly }) => {
     console.log("[dev] Web-only mode: skipping local Air Jam server startup.");
   }
 
+  // Default local dev should use the browser origin so phones hit the Vite proxy
+  // instead of trying to open `localhost:4000` on the controller device itself.
   await startGame({
     VITE_AIR_JAM_PUBLIC_HOST: publicHost,
+    VITE_AIR_JAM_SERVER_URL: webOnly
+      ? process.env.VITE_AIR_JAM_SERVER_URL ?? ""
+      : "",
   });
 };
 

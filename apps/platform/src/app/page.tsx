@@ -3,6 +3,8 @@ import { sdkSnippet, storeSnippet } from "@/components/landing/landing-content";
 import { LandingPage } from "@/components/landing/landing-page";
 import { redirect } from "next/navigation";
 
+const equationSnippet = `type AirJam = AirPlay & GameJam;`;
+
 export default async function Home({
   searchParams,
 }: {
@@ -18,6 +20,7 @@ export default async function Home({
 
   return (
     <LandingPage
+      equationCodeBlock={<LandingCodeBlock code={equationSnippet} lang="typescript" transparent />}
       sdkProofCodes={[
         <LandingCodeBlock key="sdk-config" code={sdkSnippet} />,
         <LandingCodeBlock key="sdk-store" code={storeSnippet} />,

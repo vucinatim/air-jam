@@ -8,7 +8,7 @@ const repoRoot = path.resolve(scriptDir, "..");
 const cliEntry = path.join(repoRoot, "packages", "create-airjam", "dist", "index.js");
 const tarballDir = path.join(repoRoot, ".airjam", "tarballs");
 
-const args = process.argv.slice(2);
+const args = process.argv.slice(2).filter((value) => value !== "--");
 const sourceArg = args.find((value) => value.startsWith("--source="));
 const templateArg = args.find((value) => value.startsWith("--template="));
 const source = sourceArg ? sourceArg.split("=")[1] : "tarball";

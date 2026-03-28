@@ -84,6 +84,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Shiki code panels (landing + anywhere we override pre.shiki) */
+  --shiki-code-bg: oklch(0.14 0.01 260);
 }
 
 .dark {
@@ -121,6 +123,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --shiki-code-bg: oklch(18.22% 0.00002 271.152);
 }
 
 @layer base {
@@ -153,7 +156,7 @@
 
   figure[data-rehype-pretty-code-figure] pre {
     @apply m-0 overflow-x-auto rounded-none border-0 px-4 py-4;
-    background-color: #111111 !important;
+    background-color: var(--shiki-code-bg) !important;
   }
 
   figure[data-rehype-pretty-code-figure] code {
@@ -182,9 +185,19 @@
     @apply mr-4 inline-block w-4 text-right text-gray-500;
   }
 
-  /* Allow Shiki (landing, etc.) to control `pre` background via theme + inline styles */
   pre:not(.shiki) {
     background-color: var(--sidebar) !important;
+  }
+
+  /*
+   * Shiki emits inline background-color on <pre>; override via token + !important.
+   * Docs use PreBlock (pre.shiki), not figure[data-rehype-pretty-code-figure].
+   */
+  .prose pre.shiki,
+  pre.shiki {
+    --shiki-dark-bg: var(--shiki-code-bg);
+    --shiki-light-bg: var(--shiki-code-bg);
+    background-color: var(--shiki-code-bg) !important;
   }
 
   /*
