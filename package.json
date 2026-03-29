@@ -13,6 +13,7 @@
     "dev:logs": "pnpm --filter @air-jam/server logs:dev",
     "analytics:rebuild": "pnpm --filter @air-jam/server analytics:rebuild",
     "dev:platform": "pnpm --filter platform dev",
+    "db:backup:platform": "node scripts/db-backup-platform.mjs",
     "pack:local": "node scripts/pack-local-airjam.mjs",
     "scaffold:tarball": "node scripts/scaffold-local-game.mjs --source=tarball",
     "scaffold:workspace": "node scripts/scaffold-local-game.mjs --source=workspace",

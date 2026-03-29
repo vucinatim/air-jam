@@ -275,6 +275,24 @@ cd apps/platform
 pnpm drizzle-kit push
 ```
 
+#### Minimal Backup Posture
+
+For prerelease use, Air Jam keeps the backup posture intentionally simple:
+
+```bash
+pnpm db:backup:platform
+```
+
+This writes a local custom-format `pg_dump` export into `backups/platform/`.
+
+It uses:
+
+1. `DATABASE_URL` from your shell, if set
+2. otherwise `apps/platform/.env.local`
+3. otherwise `apps/platform/.env`
+
+This is not a full backup system. It is the minimum reliable manual export path for the platform database until a stronger managed-backup posture is justified.
+
 #### Server Deployment
 
 The server can be deployed as a Node.js application:
