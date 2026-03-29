@@ -9,7 +9,7 @@ import {
 import { AIR_JAM_WORKSPACE_ROOT } from "./log-paths.js";
 
 type DevLogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
-type DevLogSource = "server" | "browser";
+type DevLogSource = "server" | "browser" | "workspace";
 
 interface DevLogEvent {
   time?: string;
@@ -118,7 +118,12 @@ export const coerceDevLogsCliOptions = (
     parsed.view === "signal" || parsed.view === "full"
       ? parsed.view
       : "full",
-  source: parsed.source === "server" || parsed.source === "browser" ? parsed.source : undefined,
+  source:
+    parsed.source === "server" ||
+    parsed.source === "browser" ||
+    parsed.source === "workspace"
+      ? parsed.source
+      : undefined,
   traceId:
     typeof parsed.traceId === "string"
       ? parsed.traceId
@@ -189,7 +194,7 @@ export const configureDevLogsCommand = (command: Command): Command => {
     .option(
       "--source <source>",
       "Limit entries by source",
-      validateChoice(["server", "browser"], "source"),
+      validateChoice(["server", "browser", "workspace"], "source"),
     )
     .option("--trace <id>", "Limit entries to one host trace id")
     .option("--room <id>", "Limit entries to one room id")
@@ -305,6 +310,14 @@ export const passesDevLogFilter = (
 };
 
 const passesSignalView = (event: DevLogEvent): boolean => {
+  if (event.source === "workspace") {
+    return (
+      event.level === "warn" ||
+      event.level === "error" ||
+      event.level === "fatal"
+    );
+  }
+
   if (
     event.event === "browser.log_batch.received" ||
     event.event === "browser.log_session.started"
@@ -353,6 +366,9 @@ const EXTRA_DETAIL_KEYS = [
   "reason",
   "command",
   "gameId",
+  "processName",
+  "stream",
+  "tool",
 ] as const;
 
 const formatScalarDetailValue = (value: unknown): string | null => {

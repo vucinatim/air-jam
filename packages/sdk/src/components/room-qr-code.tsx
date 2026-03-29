@@ -52,7 +52,7 @@ export const RoomQrCode = ({
         light: backgroundColor,
       },
     })
-      .then((nextUrl) => {
+      .then((nextUrl: string) => {
         if (!cancelled) {
           setQrState({
             key: qrKey,

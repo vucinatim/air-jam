@@ -55,4 +55,24 @@ describe("dev logs cli integration", () => {
     expect(output).not.toContain("Host bootstrap verified");
     expect(output).not.toContain("Air Jam provider mounted");
   });
+
+  it("shows workspace errors in signal view while hiding workspace info noise", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const exitCode = await executeDevLogsCli([
+      "--file",
+      FIXTURE_FILE,
+      "--view=signal",
+      "--source=workspace",
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    const output = logSpy.mock.calls.flat().join("\n");
+
+    expect(output).toContain('Failed to resolve import "react-icons/gi"');
+    expect(output).not.toContain("ready in 310 ms");
+  });
 });

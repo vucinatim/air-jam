@@ -128,7 +128,8 @@ What `dev -- --secure` does:
 - Host shows a dedicated lobby screen (QR + team readiness, no debug control bar).
 - Controllers pick a team (`SOLARIS` / `NEBULON`).
 - Controllers set `Points to Win` (`3`, `5`, `7`, `11`).
-- Optional: enable `Bot Opponent` from the controller lobby.
+- Optional: set per-team bot counts from the controller lobby.
+- Teams can mix humans and bots in any combination up to two slots per side.
 - Press `Start Match` to begin.
 - During a running match, use `Pause` / `Resume` and `Lobby` from controller.
 - Match transitions to an `ended` state automatically when one team reaches target points.
@@ -136,7 +137,7 @@ What `dev -- --secure` does:
 
 ### Feedback Pattern (Canonical)
 
-- Host feedback is centralized in `src/game/host/use-pong-feedback.ts`.
+- Host feedback is centralized in `src/host/hooks/use-pong-feedback.ts`.
 - Paddle collisions trigger:
   - controller-only `hit` sound (targeted to the player who touched the ball)
   - controller-only haptic pulse (`light`) for that same player
@@ -152,44 +153,114 @@ What `dev -- --secure` does:
 src/
   ├── app.tsx                     # Main app component with routing
   ├── airjam.config.ts            # Canonical runtime/game metadata
+  ├── host/
+  │   ├── index.tsx               # Host surface shell
+  │   ├── components/             # Lobby, overlay, ended, score host UI
+  │   └── hooks/                  # Host-owned feedback and side effects
+  ├── controller/
+  │   ├── index.tsx               # Controller surface shell
+  │   ├── components/             # Header, lobby, playing controls, ended panel
+  │   ├── hooks/                  # Controller connection guard/use-case hooks
+  │   └── constants.ts            # Controller-only presentation constants
   ├── ui/
   │   └── icons/                  # Local wrappers for general UI/system icons
   ├── game/
   │   ├── input.ts                # Input schema/types
-  │   ├── store.ts                # Shared networked state store
-  │   ├── controller/
-  │   │   ├── index.tsx           # Controller game view shell
-  │   │   ├── components/         # Header, lobby, playing controls, ended panel
-  │   │   └── hooks/              # Controller connection guard/use-case hooks
-  │   ├── host/
-  │   │   ├── index.tsx           # Host game view shell
-  │   │   ├── components/         # Lobby/ended/overlay host UI
-  │   │   ├── game-engine/        # Simulation modules (input/collision/render)
-  │   │   └── use-pong-feedback.ts # Canonical host-owned feedback policy
+  │   ├── domain/
+  │   │   ├── team.ts             # Team ids, labels, colors
+  │   │   ├── team-slots.ts       # Team occupancy and bot-slot rules
+  │   │   └── match-readiness.ts  # Lobby readiness/domain rules
+  │   ├── adapters/
+  │   │   └── controller-signals.ts # Host/controller signal payload mapping
+  │   ├── stores/
+  │   │   ├── pong-store-types.ts # Shared replicated state shapes
+  │   │   ├── pong-store-state.ts # Pure store transitions and defaults
+  │   │   └── pong-store.ts       # Air Jam store wiring and actions
+  │   ├── engine/
+  │   │   ├── simulation.ts       # Runtime orchestration loop
+  │   │   ├── runtime-state.ts    # Hot runtime values outside React state
+  │   │   ├── ball.ts             # Ball movement and scoring helpers
+  │   │   ├── render.ts           # Canvas draw layer
+  │   │   ├── collision.ts        # Focused collision helpers
+  │   │   └── paddles.ts          # Paddle movement helpers
+  │   ├── prefabs/
+  │   │   └── arena/
+  │   │       ├── prefab.ts       # Metadata and registry-facing prefab contract
+  │   │       ├── schema.ts       # Defaults and serializable config rules
+  │   │       ├── paint.ts        # Runtime scene composition helper
+  │   │       └── preview.ts      # Future catalog/preview descriptor
+  │   ├── debug/
+  │   │   └── field-debug.ts      # Isolated debug-only toggles
   │   ├── ui/
+  │   │   ├── team-name.tsx       # Shared game-facing team presentation
+  │   │   ├── match-score-display.tsx # Shared game-facing score rendering
   │   │   └── game-icons.tsx      # Curated gameplay icon wrappers
   │   └── shared/
-  │       ├── team.ts             # Team domain (ids/labels/colors)
-  │       ├── match-readiness.ts  # Canonical readiness logic/text
   │       └── sounds.ts           # Shared sound manifest
   └── main.tsx                    # Entry point
+tests/
+  └── game/
+      ├── adapters/               # Host/controller integration payload tests
+      ├── domain/                 # Pure rule tests
+      ├── engine/                 # Runtime helper tests
+      └── stores/                 # Pure transition tests
 ```
 
 ## Runtime Pattern (Canonical)
 
 - `airjam.config.ts` is the single source for runtime metadata + provider config.
-- `airjam.Host` wraps `HostView` from `src/game/host/index.tsx` and owns input schema + behavior defaults.
-- `airjam.Controller` wraps `ControllerView` from `src/game/controller/index.tsx`.
-- Controller input is published on a fixed 16ms cadence using `useInputWriter` in `src/game/controller/index.tsx`.
+- `airjam.Host` wraps `HostView` from `src/host/index.tsx` and owns input schema + behavior defaults.
+- `airjam.Controller` wraps `ControllerView` from `src/controller/index.tsx`.
+- Controller input is published on a fixed 16ms cadence using `useInputWriter` in `src/controller/index.tsx`.
 - Host input is consumed with `host.getInput(playerId)` in the game loop.
+
+## Starter Module Map
+
+When extending this template, inspect these modules before adding new code:
+
+- `src/host/index.tsx` for the host surface boundary and overlay composition
+- `src/controller/index.tsx` for controller flow, action publishing, and input cadence
+- `src/game/stores/pong-store.ts` for Air Jam store wiring and action ownership
+- `src/game/stores/pong-store-state.ts` for pure state transitions that should stay testable
+- `src/game/adapters/controller-signals.ts` for host-to-controller signal payloads and transport-facing mapping
+- `src/game/ui/team-name.tsx` and `src/game/ui/match-score-display.tsx` for shared game-facing UI primitives used by both host and controller surfaces
+- `src/game/engine/simulation.ts` for the main runtime orchestration loop
+- `src/game/engine/runtime-state.ts` for per-frame mutable runtime values that do not belong in React state
+- `src/game/prefabs/arena/prefab.ts` for metadata and registry-facing prefab shape
+- `src/game/prefabs/arena/schema.ts` for defaults and config validation
+- `src/game/prefabs/arena/paint.ts` for reusable scene composition owned by the prefab
+- `src/game/debug/field-debug.ts` for isolated debug-only helpers
+
+Use these as the default boundaries instead of introducing new mixed files.
+
+## Testing Pattern (Canonical)
+
+Start by testing the pure modules before adding render or transport-heavy tests:
+
+- `tests/game/adapters/` for host/controller payload and transport-facing adapter contracts
+- `tests/game/domain/` for pure gameplay rules
+- `tests/game/stores/` for store transitions that should work without React or networking
+- `tests/game/engine/` for focused runtime helpers
+- `tests/game/ui/` for render-safe shared game UI modules that do not depend on host/controller shells
+
+Run:
+
+```bash
+pnpm test
+```
+
+Use higher-level host/controller tests only after the pure boundary is already covered.
 
 ## Canonical Usage Rules
 
 - Keep game lifecycle in the networked store (`lobby`, `playing`, `ended`), not in transport state.
 - Treat `gameState` (`paused` / `playing`) as runtime pause only.
 - Host owns authority for simulation, scoring, and state transitions; controllers send input + actions.
+- Keep host shell code in `src/host/`, controller shell code in `src/controller/`, and gameplay logic in `src/game/`.
 - Keep feedback centralized in host feedback modules (`use-pong-feedback`): no scattered side-effects.
 - Target controller feedback explicitly when needed (e.g., hitter-only hit cue) and keep broad cues host-local by default.
+- Keep reusable authored content in `src/game/prefabs/` once it is meant to be scanned, configured, or reused.
+- Keep debug-only toggles and diagnostics isolated in `src/game/debug/`.
 - Prefer local icon wrappers in `src/ui/icons/` and `src/game/ui/` instead of importing vendor icon packages directly into arbitrary components.
 
 ## What SDK Handles For You

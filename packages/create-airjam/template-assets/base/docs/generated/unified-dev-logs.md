@@ -9,6 +9,7 @@ Air Jam has one canonical local observability stream for development:
 - host runtime logs
 - controller runtime logs
 - embedded runtime diagnostics
+- local dev-runner tool output such as Vite and other child-process failures
 
 That stream exists so you do not have to debug each surface in isolation.
 
@@ -39,6 +40,7 @@ During normal Air Jam development:
 
 1. the Air Jam server writes structured server events into the file
 2. the SDK browser log sink mirrors host and controller browser/runtime logs into the same file
+3. the standard dev runners mirror local child-process output into the same file as `workspace` events
 
 If you use the standard Air Jam server and standard SDK session providers in development, this happens automatically.
 
@@ -156,6 +158,7 @@ You should not assume full automatic coverage when:
 1. running `--web-only` without a local Air Jam server
 2. disabling the collector explicitly
 3. replacing the standard server/runtime path with custom infrastructure
+4. bypassing the standard dev runner and launching tools outside the Air Jam scripts
 
 ## Related Docs
 

@@ -15,12 +15,44 @@ That stack works well only when state ownership is explicit.
 4. keep store writes intentional and coarse
 5. keep per-frame mutable values out of React state when React rendering is not needed
 
+These are framework-level rules about ownership and performance.
+They do not require one exact store or engine file layout.
+
 ## React Rules
 
 1. do not run simulation through React rerenders
 2. keep business logic out of presentational components
 3. use refs for hot mutable runtime values
 4. keep component boundaries small and purposeful
+
+## Starter Template Reference
+
+The starter Pong template demonstrates one good starter implementation of the state/rendering split:
+
+1. `src/game/stores/pong-store.ts` owns Air Jam store wiring
+2. `src/game/stores/pong-store-state.ts` owns pure state transitions
+3. `src/game/engine/runtime-state.ts` owns per-frame mutable values
+4. `src/game/engine/simulation.ts` owns update ordering and orchestration
+5. `src/game/ui/` owns reusable game-facing presentation that host and controller surfaces can share
+
+That split is a recommended starter pattern, not a mandatory framework contract.
+If the game needs a different module layout, preserve the same ownership boundaries rather than copying the filenames literally.
+
+## Starter Testing Pattern
+
+The starter template also mirrors those boundaries in tests:
+
+1. `tests/game/domain/` for pure gameplay rules
+2. `tests/game/stores/` for pure state transitions
+3. `tests/game/engine/` for focused runtime helpers
+4. `tests/game/adapters/` for transport-facing mapping
+5. `tests/game/ui/` for shared game-facing UI modules that do not require full host/controller shells
+
+The default order is:
+
+1. test pure logic first
+2. test thin adapter boundaries second
+3. add heavier runtime or browser-facing coverage only where the integration boundary actually matters
 
 ## R3F and Three Rules
 

@@ -145,6 +145,28 @@ describe("dev logs cli", () => {
     expect(
       passesDevLogFilter(
         {
+          source: "workspace",
+          level: "info",
+          msg: "ready in 310 ms",
+        },
+        options,
+      ),
+    ).toBe(false);
+
+    expect(
+      passesDevLogFilter(
+        {
+          source: "workspace",
+          level: "error",
+          msg: 'Failed to resolve import "react-icons/gi"',
+        },
+        options,
+      ),
+    ).toBe(true);
+
+    expect(
+      passesDevLogFilter(
+        {
           event: "runtime.provider.mounted",
           source: "browser",
           level: "info",
@@ -171,6 +193,17 @@ describe("dev logs cli", () => {
         "focus=SYSTEM",
         "component=host-lifecycle",
       ]),
+    );
+
+    expect(
+      formatDevLogDetails({
+        source: "workspace",
+        processName: "pong",
+        stream: "stderr",
+        tool: "pnpm",
+      }),
+    ).toEqual(
+      expect.arrayContaining(["processName=pong", "stream=stderr", "tool=pnpm"]),
     );
   });
 

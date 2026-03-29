@@ -50,7 +50,7 @@ export const LandingHero = () => {
         <HeroScene />
 
         <div className="relative z-10 mb-16 flex max-w-4xl flex-col items-center gap-6 px-4 pb-16 text-center sm:mb-24 sm:pb-42">
-          <div className="from-airjam-cyan/12 via-airjam-cyan/6 absolute top-1/2 left-1/2 -z-10 h-72 w-136 -translate-x-1/2 -translate-y-1/2 rounded-full bg-radial to-transparent blur-3xl" />
+          <div className="from-airjam-cyan/12 via-airjam-cyan/6 absolute top-1/2 left-1/2 -z-10 h-72 w-full max-w-136 -translate-x-1/2 -translate-y-1/2 rounded-full bg-radial to-transparent blur-3xl" />
           <div className="flex flex-col items-center gap-4">
             <Badge
               variant="outline"
@@ -64,7 +64,7 @@ export const LandingHero = () => {
               </span>
             </h1>
           </div>
-          <p className="text-foreground/95 relative z-20 flex min-h-[3rem] w-full max-w-2xl items-center justify-center text-center text-base leading-relaxed font-medium [text-shadow:0_2px_12px_rgba(0,0,0,0.85)] sm:text-lg md:text-[1.35rem]">
+          <p className="text-foreground/95 relative z-20 flex min-h-12 w-full max-w-2xl items-center justify-center text-center text-base leading-relaxed font-medium [text-shadow:0_2px_12px_rgba(0,0,0,0.85)] sm:text-lg md:text-[1.35rem]">
             <TextCycle phrases={hero.subtitles} holdDuration={3500} />
           </p>
           <div className="flex flex-row flex-wrap items-center justify-center gap-3">

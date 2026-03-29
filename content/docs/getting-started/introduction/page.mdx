@@ -76,7 +76,10 @@ export const airjam = createAirJamApp({
 
 ### 3. Create Your Host View
 
-```tsx filename="src/game/host/index.tsx"
+The path below matches the current starter template layout.
+It is a good default, not a required framework filename.
+
+```tsx filename="src/host/index.tsx"
 import { useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
@@ -116,7 +119,10 @@ const HostView = () => {
 
 ### 4. Create Your Controller View
 
-```tsx filename="src/game/controller/index.tsx"
+The path below also matches the current starter template layout.
+If your project uses a different file shape, keep the same ownership boundary even if the filename changes.
+
+```tsx filename="src/controller/index.tsx"
 import {
   useAirJamController,
   useControllerTick,

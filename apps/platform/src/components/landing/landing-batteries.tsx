@@ -20,7 +20,7 @@ export const LandingBatteries = () => {
 
   return (
     <section className="relative py-20 sm:py-28">
-      <div className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-40 w-[40rem] rounded-full bg-cyan-500/6 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-40 w-full max-w-160 rounded-full bg-cyan-500/6 blur-3xl" />
       <div className="container mx-auto max-w-5xl px-4">
         <SectionHeader title={batteries.title} />
 

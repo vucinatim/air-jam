@@ -29,10 +29,11 @@ For broader public framework docs, use the hosted docs site after checking these
 
 1. [Development Loop](./development-loop.md)
 2. [Iconography](./iconography.md)
-3. [Debug And Testing](./debug-and-testing.md)
-4. [Prefab Authoring](./prefab-authoring.md)
-5. [R3F 3D Scene](./r3f-3d-scene.md)
-6. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
+3. [Visual System](./visual-system.md)
+4. [Debug And Testing](./debug-and-testing.md)
+5. [Prefab Authoring](./prefab-authoring.md)
+6. [R3F 3D Scene](./r3f-3d-scene.md)
+7. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
 
 ## Hosted Canonical Docs
 

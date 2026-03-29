@@ -17,13 +17,22 @@ processGroup.registerSignalHandlers();
 
 const hasFlag = (flag) => process.argv.slice(2).includes(flag);
 
+const holdProcessOpen = async () => {
+  await new Promise(() => {
+    setInterval(() => {}, 1 << 30);
+  });
+};
+
 const usage = () => {
-  console.log("Usage: pnpm dev [--secure] [--web-only]");
+  console.log("Usage: pnpm dev [--secure] [--web-only] [--allow-existing-game]");
   console.log("");
   console.log("Modes:");
-  console.log("  default      Start local server + game (recommended)");
-  console.log("  --secure     Start local server + game + Cloudflare tunnel");
-  console.log("  --web-only   Start only Vite game app (no local server)");
+  console.log("  default               Start local server + game (recommended)");
+  console.log("  --secure              Start local server + game + Cloudflare tunnel");
+  console.log("  --web-only            Start only Vite game app (no local server)");
+  console.log(
+    "  --allow-existing-game Reuse an already-running Vite server on the game port",
+  );
 };
 
 const getDefaultPublicHost = () => {
@@ -46,16 +55,22 @@ const startServerIfNeeded = async () => {
   const hasExistingServer = await isPortOpen(SERVER_PORT);
   if (hasExistingServer) {
     console.log(`[dev] Reusing existing server on :${SERVER_PORT}`);
-    return;
+    return false;
   }
 
   processGroup.run("server", "pnpm", ["exec", "air-jam-server"]);
   await waitForPort(SERVER_PORT, START_TIMEOUT_MS);
+  return true;
 };
 
-const startGame = async (env) => {
+const startGame = async (env, { allowExistingGame = false } = {}) => {
   const hasExistingGame = await isPortOpen(GAME_PORT);
   if (hasExistingGame) {
+    if (allowExistingGame) {
+      console.log(`[dev] Reusing existing game on :${GAME_PORT}`);
+      return false;
+    }
+
     throw new Error(
       `Port ${GAME_PORT} is already in use. Stop the existing Vite dev server and retry.`,
     );
@@ -67,29 +82,36 @@ const startGame = async (env) => {
       ...env,
     },
   });
+  return true;
 };
 
-const runDefaultDev = async ({ webOnly }) => {
+const runDefaultDev = async ({ webOnly, allowExistingGame }) => {
   const publicHost = getDefaultPublicHost();
   console.log(`[dev] Using public host: ${publicHost}`);
 
+  let startedServer = false;
   if (!webOnly) {
-    await startServerIfNeeded();
+    startedServer = await startServerIfNeeded();
   } else {
     console.log("[dev] Web-only mode: skipping local Air Jam server startup.");
   }
 
   // Default local dev should use the browser origin so phones hit the Vite proxy
   // instead of trying to open `localhost:4000` on the controller device itself.
-  await startGame({
-    VITE_AIR_JAM_PUBLIC_HOST: publicHost,
-    VITE_AIR_JAM_SERVER_URL: webOnly
-      ? process.env.VITE_AIR_JAM_SERVER_URL ?? ""
-      : "",
-  });
+  const startedGame = await startGame(
+    {
+      VITE_AIR_JAM_PUBLIC_HOST: publicHost,
+      VITE_AIR_JAM_SERVER_URL: webOnly
+        ? process.env.VITE_AIR_JAM_SERVER_URL ?? ""
+        : "",
+    },
+    { allowExistingGame },
+  );
+
+  return startedServer || startedGame;
 };
 
-const runSecureDev = async () => {
+const runSecureDev = async ({ allowExistingGame }) => {
   const publicHost =
     process.env.AIR_JAM_SECURE_PUBLIC_HOST || process.env.VITE_AIR_JAM_PUBLIC_HOST;
   const tunnelName = process.env.CLOUDFLARE_TUNNEL_NAME;
@@ -100,12 +122,15 @@ const runSecureDev = async () => {
     );
   }
 
-  await startServerIfNeeded();
+  const startedServer = await startServerIfNeeded();
 
-  await startGame({
-    VITE_AIR_JAM_PUBLIC_HOST: publicHost,
-    VITE_AIR_JAM_SERVER_URL: publicHost,
-  });
+  const startedGame = await startGame(
+    {
+      VITE_AIR_JAM_PUBLIC_HOST: publicHost,
+      VITE_AIR_JAM_SERVER_URL: publicHost,
+    },
+    { allowExistingGame },
+  );
   await waitForPort(GAME_PORT, START_TIMEOUT_MS);
 
   processGroup.run("cloudflared", "pnpm", [
@@ -123,6 +148,8 @@ const runSecureDev = async () => {
   console.log(`Cloudflare tunnel: ${tunnelName}`);
   console.log("Local server remains on http://localhost:4000 via Vite proxy.");
   console.log("QR codes use the secure host above.");
+
+  return startedServer || startedGame || true;
 };
 
 const main = async () => {
@@ -131,6 +158,7 @@ const main = async () => {
 
   const secure = hasFlag("--secure");
   const webOnly = hasFlag("--web-only");
+  const allowExistingGame = hasFlag("--allow-existing-game");
   const help = hasFlag("--help") || hasFlag("-h");
 
   if (help) {
@@ -143,11 +171,18 @@ const main = async () => {
   }
 
   if (secure) {
-    await runSecureDev();
+    await runSecureDev({ allowExistingGame });
     return;
   }
 
-  await runDefaultDev({ webOnly });
+  const startedManagedProcess = await runDefaultDev({
+    webOnly,
+    allowExistingGame,
+  });
+
+  if (!startedManagedProcess) {
+    await holdProcessOpen();
+  }
 };
 
 main().catch((error) => {

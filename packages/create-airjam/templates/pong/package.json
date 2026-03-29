@@ -9,7 +9,9 @@
     "secure:init": "node ./scripts/secure-init.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",
@@ -37,6 +39,7 @@
     "typescript": "~5.6.0",
     "typescript-eslint": "^8.46.4",
     "vite": "^6.0.0",
+    "vitest": "^3.2.4",
     "cloudflared": "^0.7.1"
   }
 }

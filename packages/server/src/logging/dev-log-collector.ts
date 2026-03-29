@@ -10,7 +10,7 @@ import { appendFile } from "node:fs/promises";
 import path from "node:path";
 
 export type DevLogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
-export type DevLogSource = "server" | "browser";
+export type DevLogSource = "server" | "browser" | "workspace";
 
 export interface BrowserLogEntry {
   time?: string;
@@ -90,6 +90,9 @@ export interface DevLogEvent {
   repeatCount?: number;
   sessionId?: string;
   metadata?: BrowserLogSessionMetadata;
+  processName?: string;
+  stream?: "stdout" | "stderr";
+  tool?: string;
   [key: string]: unknown;
 }
 

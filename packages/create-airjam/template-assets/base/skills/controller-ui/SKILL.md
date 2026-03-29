@@ -10,7 +10,8 @@ Use this skill for controller gameplay and lobby surfaces.
 ## Read First
 
 1. `docs/generated/controller-ui.md`
-2. `docs/iconography.md`
+2. `docs/visual-system.md`
+3. `docs/iconography.md`
 
 ## Gameplay Rules
 
@@ -32,6 +33,7 @@ Use this skill for controller gameplay and lobby surfaces.
 2. avoid card-heavy dashboards
 3. avoid tiny controls and dense text
 4. avoid emoji-as-icon UI
+5. if the template already defines semantic panel, shell, or touch-surface utilities, use those before inventing new visual patterns
 
 ## Icon Rule
 

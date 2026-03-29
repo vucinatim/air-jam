@@ -27,7 +27,10 @@ No trailing `controllerId` arguments and no multi-argument action payloads.
 
 ## Create a Store
 
-```tsx filename="src/game/store.ts"
+This example uses a starter-friendly `stores/` folder shape.
+The important contract is the action model and ownership boundary, not the exact filename.
+
+```tsx filename="src/game/stores/game-store.ts"
 import { createAirJamStore } from "@air-jam/sdk";
 
 type Team = "team1" | "team2";
@@ -78,9 +81,11 @@ export const useGameStore = createAirJamStore<GameState>((set) => ({
 
 ## Use on Controller
 
-```tsx filename="src/game/controller/index.tsx"
+This controller example matches the starter template surface layout.
+
+```tsx filename="src/controller/index.tsx"
 import { useAirJamController } from "@air-jam/sdk";
-import { useGameStore } from "./store";
+import { useGameStore } from "../game/stores/game-store";
 
 export const ControllerView = () => {
   const controller = useAirJamController();
@@ -104,8 +109,10 @@ export const ControllerView = () => {
 
 ## Use on Host
 
-```tsx filename="src/game/host/index.tsx"
-import { useGameStore } from "./store";
+This host example also matches the starter template surface layout.
+
+```tsx filename="src/host/index.tsx"
+import { useGameStore } from "../game/stores/game-store";
 
 export const HostView = () => {
   const phase = useGameStore((state) => state.phase);

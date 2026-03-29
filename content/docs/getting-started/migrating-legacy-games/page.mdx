@@ -187,7 +187,10 @@ actions: {
 
 The current action model is:
 
-```tsx filename="src/game/store.ts"
+The `src/game/stores/game-store.ts` path below is a starter-friendly example.
+If your project already uses a different store module layout, keep the same action contract and ownership rules while migrating.
+
+```tsx filename="src/game/stores/game-store.ts"
 actions: {
   joinTeam: ({ actorId, connectedPlayerIds }, { team }) =>
     set((state) => {

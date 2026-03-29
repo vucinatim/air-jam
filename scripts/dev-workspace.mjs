@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { createWorkspaceDevLogSink } from "./lib/workspace-dev-log-sink.mjs";
 
 const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const hasFlag = (flag) => args.includes(flag);
@@ -23,6 +24,7 @@ if (hasFlag("--help") || hasFlag("-h")) {
 const createProcessGroup = () => {
   const children = [];
   let isShuttingDown = false;
+  const logSink = createWorkspaceDevLogSink();
 
   const shutdown = (code = 0) => {
     if (isShuttingDown) {
@@ -52,15 +54,51 @@ const createProcessGroup = () => {
   };
 
   const run = (name, command, commandArgs) => {
+    const commandText = [command, ...commandArgs].join(" ");
     const child = spawn(command, commandArgs, {
       cwd: process.cwd(),
       env: process.env,
       stdio: ["inherit", "pipe", "pipe"],
     });
 
-    child.stdout.on("data", (data) => log(name, data));
-    child.stderr.on("data", (data) => log(name, data));
+    child.stdout.on("data", (data) => {
+      log(name, data);
+      logSink.captureChunk({
+        processName: name,
+        stream: "stdout",
+        chunk: data,
+        tool: command,
+        command: commandText,
+        cwd: process.cwd(),
+      });
+    });
+    child.stderr.on("data", (data) => {
+      log(name, data);
+      logSink.captureChunk({
+        processName: name,
+        stream: "stderr",
+        chunk: data,
+        tool: command,
+        command: commandText,
+        cwd: process.cwd(),
+      });
+    });
     child.on("exit", (code, signal) => {
+      logSink.flush({
+        processName: name,
+        tool: command,
+        command: commandText,
+        cwd: process.cwd(),
+      });
+      logSink.recordExit({
+        processName: name,
+        tool: command,
+        command: commandText,
+        cwd: process.cwd(),
+        code,
+        signal,
+      });
+
       if (isShuttingDown) {
         return;
       }
@@ -93,7 +131,15 @@ const processes =
         ["platform", ["pnpm", "--filter", "platform", "dev"]],
         [
           "pong",
-          ["pnpm", "--filter", "my-airjam-game", "dev", "--", "--web-only"],
+          [
+            "pnpm",
+            "--filter",
+            "my-airjam-game",
+            "dev",
+            "--",
+            "--web-only",
+            "--allow-existing-game",
+          ],
         ],
       ]
     : [

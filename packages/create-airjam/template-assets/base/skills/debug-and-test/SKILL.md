@@ -30,7 +30,8 @@ Key facts:
 2. it resets when the Air Jam server process restarts
 3. `pnpm logs` is the preferred path when the repo exposes it
 4. direct file reads are valid when you need the raw stream
-5. this should usually come before adding new temporary logs
+5. standard dev-runner failures from Vite and similar tools should also appear there as `workspace` events
+6. this should usually come before adding new temporary logs
 
 Query order:
 
@@ -46,6 +47,14 @@ Query order:
 1. pure domain logic with unit tests
 2. focused gameplay systems with behavior tests
 3. targeted integration coverage only where the boundary really matters
+
+If the starter testing layout exists, prefer:
+
+1. `tests/game/domain/`
+2. `tests/game/stores/`
+3. `tests/game/engine/`
+4. `tests/game/adapters/`
+5. `tests/game/ui/`
 
 ## Structure Rules
 

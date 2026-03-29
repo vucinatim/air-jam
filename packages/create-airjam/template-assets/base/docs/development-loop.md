@@ -13,12 +13,14 @@ Use this as the default implementation loop.
 1. read `plan.md`
 2. read the relevant local docs page
 3. read the matching skill only if the task fits that skill boundary
+4. if the scaffold template includes a concrete example map in its `README.md`, inspect the starter modules it points to before inventing a new location for the work
 
 ## 3. Implement Minimal Correct Changes
 
 1. prefer the smallest safe change
 2. do not layer hacks on top of weak structure
-3. refactor first when the current shape is the real problem
+3. keep using the established starter module boundaries when they already fit the task
+4. refactor first when the current shape is the real problem
 
 ## 4. Keep The Ledger Current
 

@@ -59,7 +59,7 @@ export const LandingSdkProofs = ({ proofCodes }: LandingSdkProofsProps) => {
 
   return (
     <section className="border-border/30 relative border-y bg-zinc-950/30 py-20 sm:py-28">
-      <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-48 w-[44rem] rounded-full bg-cyan-500/6 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-48 w-full max-w-176 rounded-full bg-cyan-500/6 blur-3xl" />
       <div className="container mx-auto max-w-5xl px-4">
         <div className="flex flex-col gap-20 lg:gap-24">
           {sdkProofs.map((proof, index) => {

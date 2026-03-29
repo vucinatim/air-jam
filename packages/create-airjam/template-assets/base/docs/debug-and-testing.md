@@ -27,7 +27,7 @@ Use:
 Important behavior:
 
 1. the file resets when the Air Jam server process restarts
-2. host, controller, and server events should land in the same stream on the normal development path
+2. host, controller, server, and standard dev-runner events should land in the same stream on the normal development path
 3. this should be the first place to look before adding ad hoc logs
 
 ## Query Strategy
@@ -60,6 +60,22 @@ Use direct file reads or broader filtering when you need:
 2. test important gameplay systems with behavior tests
 3. add focused tests when changing real behavior
 4. prefer observable behavior over implementation details
+
+## Starter Template Testing Pattern
+
+If the project ships the starter testing layout, keep using it:
+
+1. `tests/game/domain/` for pure gameplay rules
+2. `tests/game/stores/` for pure state transitions
+3. `tests/game/engine/` for focused runtime helpers
+4. `tests/game/adapters/` for host/controller or transport-facing mapping
+5. `tests/game/ui/` for shared game-facing UI primitives that can be validated without full app shells
+
+Default order:
+
+1. write the pure test first
+2. add adapter or shared UI coverage second
+3. add heavier integration tests only when the boundary really requires them
 
 ## Architecture Consequence
 

@@ -11,7 +11,8 @@ Use this skill for host presentation, overlays, room chrome, and game viewport c
 
 1. `docs/generated/host-system.md`
 2. `docs/generated/project-structure.md`
-3. `docs/generated/controller-ui.md` only if the host and controller should mirror a shared visual language
+3. `docs/visual-system.md` if the template already ships a shared visual language
+4. `docs/generated/controller-ui.md` only if the host and controller should mirror a shared visual language
 
 ## Surface Rules
 

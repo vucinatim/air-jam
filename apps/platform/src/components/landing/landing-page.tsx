@@ -15,7 +15,7 @@ type LandingPageProps = {
 
 export const LandingPage = ({ sdkProofCodes, equationCodeBlock }: LandingPageProps) => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <LandingHero />
       <main>
         <LandingCoreLoop />

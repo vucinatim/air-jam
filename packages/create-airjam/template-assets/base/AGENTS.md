@@ -14,6 +14,7 @@ For any non-trivial task, read these in order:
 2. `docs/docs-index.md`
 3. `skills/index.md`
 4. the relevant code you are about to change
+5. the template `README.md` if it includes a concrete starter module map
 
 Do not treat chat history as the source of truth for project state.
 
@@ -25,11 +26,12 @@ For meaningful work:
 2. inspect the existing structure before coding
 3. consult the smallest relevant local docs slice
 4. consult the matching skill only when the task fits that skill boundary
-5. refactor first if the requested change clearly does not fit the current structure
-6. implement the smallest correct change
-7. update `plan.md`
-8. record durable follow-ups in `suggestions.md`
-9. run relevant validation
+5. if the repo includes starter modules that already demonstrate the boundary, extend those before creating a new home for the work
+6. refactor first if the requested change clearly does not fit the current structure
+7. implement the smallest correct change
+8. update `plan.md`
+9. record durable follow-ups in `suggestions.md`
+10. run relevant validation
 
 ## Canonical Local Files
 
@@ -148,6 +150,7 @@ If the project uses canvas:
 2. avoid emoji-as-icon UI
 3. prefer fluid layouts over hard-coded sizes
 4. build reusable game UI modules instead of one-off markup
+5. when the template already ships a visual system, extend its theme tokens and semantic utilities before adding new ad hoc styling
 
 ### Icon Rule
 

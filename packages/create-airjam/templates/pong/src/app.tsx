@@ -3,12 +3,12 @@ import { Route, Routes } from "react-router-dom";
 import { airjam } from "./airjam.config";
 
 const HostView = lazy(async () => {
-  const module = await import("./game/host");
+  const module = await import("./host");
   return { default: module.HostView };
 });
 
 const ControllerView = lazy(async () => {
-  const module = await import("./game/controller");
+  const module = await import("./controller");
   return { default: module.ControllerView };
 });
 

@@ -7,7 +7,7 @@ Air Jam games should not grow as one large React surface.
 
 The clean default is a boundary-first structure where host logic, controller logic, pure game rules, and framework integration do not collapse into the same modules.
 
-## Recommended Shape
+## Framework Recommendation
 
 Move toward a structure like this:
 
@@ -26,6 +26,8 @@ src/
 ```
 
 The exact folder names can vary slightly, but the boundaries should stay clear.
+
+This is a framework-level recommendation about ownership boundaries, not a requirement that every Air Jam game use the exact same filenames.
 
 ### `src/host/`
 
@@ -109,6 +111,40 @@ Examples:
 2. status strips
 3. overlays
 4. icon wrappers
+
+### `tests/`
+
+Owns behavior-focused validation for the boundaries above.
+
+Examples:
+
+1. `tests/game/domain/` for pure rule tests
+2. `tests/game/stores/` for pure state-transition tests
+3. `tests/game/engine/` for focused runtime helper tests
+4. `tests/game/adapters/` for transport-facing mapping and boundary tests
+5. `tests/game/ui/` for shared game-facing UI primitives that can be validated without full app shells
+
+## Starter Template Reference
+
+The starter Pong template is the current best starter implementation of those boundaries.
+
+It is a recommended reference, not a framework API.
+
+Its useful starter modules look like:
+
+1. `src/host/index.tsx` for host surface composition
+2. `src/controller/index.tsx` for controller flow and input cadence
+3. `src/game/stores/pong-store.ts` for networked store wiring
+4. `src/game/stores/pong-store-state.ts` for pure state transitions
+5. `src/game/engine/simulation.ts` for runtime orchestration
+6. `src/game/engine/runtime-state.ts` for hot mutable runtime values
+7. `src/game/adapters/controller-signals.ts` for host-to-controller transport-facing mapping
+8. `src/game/ui/` for reusable game-facing presentation primitives shared by host and controller
+9. `src/game/prefabs/arena/` for a folder-per-prefab contract with metadata, schema, preview, and runtime composition helper
+10. `tests/game/` for the starter testing pattern that mirrors those same boundaries
+
+If a starter module already demonstrates the boundary you need, extend it instead of introducing a second competing pattern.
+If your game genuinely needs a different folder or module shape, preserve the boundary intent rather than copying Pong mechanically.
 
 ### `src/game/debug/`
 

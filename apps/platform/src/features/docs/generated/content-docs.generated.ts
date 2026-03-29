@@ -99,7 +99,7 @@ const generatedContentDocsDocuments = [
         slug: "quick-start",
         depth: 2,
         excerpt:
-          "1. Install the SDK 2. Wrap Your App 3. Create Your Host View 4. Create Your Controller View",
+          "1. Install the SDK 2. Wrap Your App 3. Create Your Host View The path below matches the current starter template layout. It is a good default, not a required framework filename. 4. Create Your Controller View The path…",
       },
       {
         title: "1. Install the SDK",
@@ -119,14 +119,14 @@ const generatedContentDocsDocuments = [
         slug: "3-create-your-host-view",
         depth: 3,
         excerpt:
-          'import { useAirJamHost } from "@air-jam/sdk"; const HostView = () => { const host = useAirJamHost({ onPlayerJoin: (player) => { console.log(`${player.label} joined!`); onPlayerLeave: (id) => { console.log(`Player ${id}…',
+          "The path below matches the current starter template layout. It is a good default, not a required framework filename.",
       },
       {
         title: "4. Create Your Controller View",
         slug: "4-create-your-controller-view",
         depth: 3,
         excerpt:
-          'import { useAirJamController, useControllerTick, useInputWriter, } from "@air-jam/sdk"; import { useRef } from "react"; const ControllerView = () => { const controller = useAirJamController(); const writeInput =…',
+          "The path below also matches the current starter template layout. If your project uses a different file shape, keep the same ownership boundary even if the filename changes.",
       },
       {
         title: "Canonical Architecture: Three Lanes",
@@ -191,7 +191,7 @@ const generatedContentDocsDocuments = [
         slug: "4-customize--build",
         depth: 2,
         excerpt:
-          'This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster. Check AGENTS.md: Project-wide coding contract and workflow for AI coding assistants. Check airjam-docs/: Local…',
+          'This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster. Check AGENTS.md: Project-wide coding contract and workflow for AI coding assistants. Check docs/docs-index.md:…',
       },
       {
         title: "Troubleshooting",
@@ -363,7 +363,7 @@ const generatedContentDocsDocuments = [
         slug: "unified-dev-logs",
         depth: 1,
         excerpt:
-          "Air Jam has one canonical local observability stream for development: server logs host runtime logs controller runtime logs embedded runtime diagnostics That stream exists so you do not have to debug each surface in…",
+          "Air Jam has one canonical local observability stream for development: server logs host runtime logs controller runtime logs embedded runtime diagnostics local dev-runner tool output such as Vite and other child-process…",
       },
       {
         title: "Canonical File",
@@ -377,7 +377,7 @@ const generatedContentDocsDocuments = [
         slug: "what-writes-into-it",
         depth: 2,
         excerpt:
-          "During normal Air Jam development: the Air Jam server writes structured server events into the file the SDK browser log sink mirrors host and controller browser/runtime logs into the same file If you use the standard…",
+          "During normal Air Jam development: the Air Jam server writes structured server events into the file the SDK browser log sink mirrors host and controller browser/runtime logs into the same file the standard dev runners…",
       },
       {
         title: "When It Resets",
@@ -646,7 +646,7 @@ const generatedContentDocsDocuments = [
         slug: "step-3-fix-store-actions-first",
         depth: 2,
         excerpt:
-          "This is the most important migration after bootstrap. Old actions often looked like this: The current action model is: Controller-side dispatch should always look like: Do not keep trailing playerId arguments around.…",
+          "This is the most important migration after bootstrap. Old actions often looked like this: The current action model is: The src/game/stores/game-store.ts path below is a starter-friendly example. If your project already…",
       },
       {
         title: "Step 4: Remove HostShell And ControllerShell",
@@ -1353,14 +1353,14 @@ const generatedContentDocsDocuments = [
         slug: "reading-input",
         depth: 2,
         excerpt:
-          "Main Host Loop Performance-Critical Components Use useGetInput() to avoid store-driven re-renders:",
+          "Main Host Loop This example uses the starter host surface path. Treat it as a recommended default, not a required filename. Performance-Critical Components Use useGetInput() to avoid store-driven re-renders:",
       },
       {
         title: "Main Host Loop",
         slug: "main-host-loop",
         depth: 3,
         excerpt:
-          "const host = useAirJamHost(); useFrame(() => { host.players.forEach((player) => { const input = host.getInput(player.id); if (!input) return; movePlayer(player.id, input.vector); if (input.action) {…",
+          "This example uses the starter host surface path. Treat it as a recommended default, not a required filename.",
       },
       {
         title: "Performance-Critical Components",
@@ -1373,7 +1373,7 @@ const generatedContentDocsDocuments = [
         slug: "controller-cadence",
         depth: 2,
         excerpt:
-          "Use useInputWriter() with useControllerTick() for fixed-cadence publishing:",
+          "Use useInputWriter() with useControllerTick() for fixed-cadence publishing: This example uses the starter controller surface path.",
       },
       {
         title: "Best Practices",
@@ -1465,21 +1465,21 @@ const generatedContentDocsDocuments = [
         slug: "create-a-store",
         depth: 2,
         excerpt:
-          'import { createAirJamStore } from "@air-jam/sdk"; type Team = "team1" | "team2"; interface GameState { phase: "lobby" | "playing"; teamAssignments: Record<string, Team>; scores: { team1: number; team2: number };…',
+          "This example uses a starter-friendly stores/ folder shape. The important contract is the action model and ownership boundary, not the exact filename.",
       },
       {
         title: "Use on Controller",
         slug: "use-on-controller",
         depth: 2,
         excerpt:
-          'import { useAirJamController } from "@air-jam/sdk"; import { useGameStore } from "./store"; export const ControllerView = () => { const controller = useAirJamController(); const actions = useGameStore.useActions();…',
+          "This controller example matches the starter template surface layout.",
       },
       {
         title: "Use on Host",
         slug: "use-on-host",
         depth: 2,
         excerpt:
-          'import { useGameStore } from "./store"; export const HostView = () => { const phase = useGameStore((state) => state.phase); const scores = useGameStore((state) => state.scores); const actions =…',
+          "This host example also matches the starter template surface layout.",
       },
       {
         title: "Action Flow",
@@ -1566,11 +1566,11 @@ const generatedContentDocsDocuments = [
           "Air Jam games should not grow as one large React surface. The clean default is a boundary-first structure where host logic, controller logic, pure game rules, and framework integration do not collapse into the same…",
       },
       {
-        title: "Recommended Shape",
-        slug: "recommended-shape",
+        title: "Framework Recommendation",
+        slug: "framework-recommendation",
         depth: 2,
         excerpt:
-          "Move toward a structure like this: The exact folder names can vary slightly, but the boundaries should stay clear.",
+          "Move toward a structure like this: The exact folder names can vary slightly, but the boundaries should stay clear. This is a framework-level recommendation about ownership boundaries, not a requirement that every Air…",
       },
       {
         title: "Boundary Rules",
@@ -1627,6 +1627,20 @@ const generatedContentDocsDocuments = [
         depth: 3,
         excerpt:
           "Owns reusable game-facing UI modules. Examples: score displays status strips overlays icon wrappers",
+      },
+      {
+        title: "tests/",
+        slug: "tests",
+        depth: 3,
+        excerpt:
+          "Owns behavior-focused validation for the boundaries above. Examples: tests/game/domain/ for pure rule tests tests/game/stores/ for pure state-transition tests tests/game/engine/ for focused runtime helper tests…",
+      },
+      {
+        title: "Starter Template Reference",
+        slug: "starter-template-reference",
+        depth: 2,
+        excerpt:
+          "The starter Pong template is the current best starter implementation of those boundaries. It is a recommended reference, not a framework API. Its useful starter modules look like: src/host/index.tsx for host surface…",
       },
       {
         title: "src/game/debug/",
@@ -1729,6 +1743,20 @@ const generatedContentDocsDocuments = [
         depth: 2,
         excerpt:
           "do not run simulation through React rerenders keep business logic out of presentational components use refs for hot mutable runtime values keep component boundaries small and purposeful",
+      },
+      {
+        title: "Starter Template Reference",
+        slug: "starter-template-reference",
+        depth: 2,
+        excerpt:
+          "The starter Pong template demonstrates one good starter implementation of the state/rendering split: src/game/stores/pong-store.ts owns Air Jam store wiring src/game/stores/pong-store-state.ts owns pure state…",
+      },
+      {
+        title: "Starter Testing Pattern",
+        slug: "starter-testing-pattern",
+        depth: 2,
+        excerpt:
+          "The starter template also mirrors those boundaries in tests: tests/game/domain/ for pure gameplay rules tests/game/stores/ for pure state transitions tests/game/engine/ for focused runtime helpers tests/game/adapters/…",
       },
       {
         title: "R3F and Three Rules",

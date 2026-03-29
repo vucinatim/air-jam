@@ -19,5 +19,5 @@
     },
     "types": ["node"]
   },
-  "include": ["src", "vite.config.ts", "../../../sdk/src/**/*"]
+  "include": ["src", "tests", "vite.config.ts", "../../../sdk/src/**/*"]
 }

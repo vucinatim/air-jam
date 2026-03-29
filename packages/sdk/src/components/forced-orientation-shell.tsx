@@ -9,6 +9,10 @@ import {
   useState,
 } from "react";
 import { cn } from "../utils/cn";
+import {
+  createForcedOrientationShellOuterStyle,
+  resolveForcedOrientationFrameStyle,
+} from "./forced-orientation-layout";
 
 export type ForcedOrientation = "portrait" | "landscape";
 
@@ -128,61 +132,22 @@ export const ForcedOrientationShell = ({
   const currentOrientation = viewport ? getOrientation(viewport) : desired;
   const needsRotation = viewport ? currentOrientation !== desired : false;
 
-  const shellStyle = useMemo<CSSProperties>(() => {
-    if (!needsRotation) {
-      return {
-        position: "fixed",
-        inset: 0,
-        width: "100dvw",
-        height: "100dvh",
-        overflow: "hidden",
-      };
-    }
-
-    if (!viewport) {
-      return {
-        position: "fixed",
-        inset: 0,
-        width: "100dvw",
-        height: "100dvh",
-        overflow: "hidden",
-      };
-    }
-
-    const { width, height } = viewport;
-
-    if (desired === "landscape") {
-      return {
-        position: "fixed",
-        inset: 0,
-        width: `${height}px`,
-        height: `${width}px`,
-        overflow: "hidden",
-        transformOrigin: "top left",
-        transform: `translateX(${width}px) rotate(90deg)`,
-      };
-    }
-
-    return {
-      position: "fixed",
-      inset: 0,
-      width: `${height}px`,
-      height: `${width}px`,
-      overflow: "hidden",
-      transformOrigin: "top left",
-      transform: `translateY(${height}px) rotate(-90deg)`,
-    };
-  }, [desired, needsRotation, viewport]);
+  const shellStyle = useMemo<CSSProperties>(
+    () => resolveForcedOrientationFrameStyle(desired, needsRotation),
+    [desired, needsRotation],
+  );
 
   return (
     <div
       className={cn("fixed inset-0 overflow-hidden", className)}
       style={{
-        ...shellStyle,
+        ...createForcedOrientationShellOuterStyle(),
         ...style,
       }}
     >
-      <div className={cn("h-full w-full", contentClassName)}>{children}</div>
+      <div style={shellStyle}>
+        <div className={cn("h-full w-full", contentClassName)}>{children}</div>
+      </div>
     </div>
   );
 };

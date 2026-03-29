@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
+import { createWorkspaceDevLogSink } from "./workspace-dev-log-sink.mjs";
 
 export const isPortOpen = (port) =>
   new Promise((resolve) => {
@@ -107,6 +108,7 @@ const log = (prefix, data) => {
 export const createProcessGroup = () => {
   const children = [];
   let isShuttingDown = false;
+  const logSink = createWorkspaceDevLogSink();
 
   const shutdown = (code = 0) => {
     if (isShuttingDown) return;
@@ -121,14 +123,50 @@ export const createProcessGroup = () => {
 
   const run = (name, command, args, options = {}) => {
     const { fatal = true, ...spawnOptions } = options;
+    const commandText = [command, ...args].join(" ");
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
       ...spawnOptions,
     });
 
-    child.stdout.on("data", (data) => log(name, data));
-    child.stderr.on("data", (data) => log(name, data));
-    child.on("exit", (code) => {
+    child.stdout.on("data", (data) => {
+      log(name, data);
+      logSink.captureChunk({
+        processName: name,
+        stream: "stdout",
+        chunk: data,
+        tool: command,
+        command: commandText,
+        cwd: spawnOptions.cwd ?? process.cwd(),
+      });
+    });
+    child.stderr.on("data", (data) => {
+      log(name, data);
+      logSink.captureChunk({
+        processName: name,
+        stream: "stderr",
+        chunk: data,
+        tool: command,
+        command: commandText,
+        cwd: spawnOptions.cwd ?? process.cwd(),
+      });
+    });
+    child.on("exit", (code, signal) => {
+      logSink.flush({
+        processName: name,
+        tool: command,
+        command: commandText,
+        cwd: spawnOptions.cwd ?? process.cwd(),
+      });
+      logSink.recordExit({
+        processName: name,
+        tool: command,
+        command: commandText,
+        cwd: spawnOptions.cwd ?? process.cwd(),
+        code,
+        signal,
+      });
+
       if (fatal && code !== 0) {
         console.error(`[${name}] exited with code ${code}`);
         shutdown(code ?? 1);

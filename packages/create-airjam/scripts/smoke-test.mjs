@@ -274,6 +274,7 @@ const main = async () => {
     run("pnpm logs -- --help", projectDir);
     await verifyGeneratedDevLogLifecycle(projectDir);
     run("pnpm typecheck", projectDir);
+    run("pnpm test", projectDir);
     run("pnpm build", projectDir);
   } finally {
     removeIfExists(tempRoot);

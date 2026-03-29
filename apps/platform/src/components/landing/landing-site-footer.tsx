@@ -1,6 +1,8 @@
 "use client";
 
 import { useDashboardAccess } from "@/hooks/use-dashboard-access";
+import { airJamDiscordInviteUrl } from "@/lib/social-links";
+import { IconBrandDiscord } from "@tabler/icons-react";
 import { Github } from "lucide-react";
 import Link from "next/link";
 
@@ -17,32 +19,34 @@ export const LandingSiteFooter = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-6">
-            <Link
-              href="/docs"
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              Docs
-            </Link>
-            <Link
-              href="/arcade"
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              Arcade
-            </Link>
-            <Link
-              href="/dashboard/games"
-              onClick={interceptDashboardNavigation}
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/blog"
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              Blog
-            </Link>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-6">
+              <Link
+                href="/docs"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Docs
+              </Link>
+              <Link
+                href="/arcade"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Arcade
+              </Link>
+              <Link
+                href="/dashboard/games"
+                onClick={interceptDashboardNavigation}
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/blog"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Blog
+              </Link>
+            </div>
+            <div className="border-border/50 ml-2 flex items-center gap-4 border-l pl-6">
               <Link
                 href="https://www.npmjs.com/package/@air-jam/sdk"
                 target="_blank"
@@ -51,7 +55,7 @@ export const LandingSiteFooter = () => {
                 aria-label="NPM Package"
               >
                 <svg
-                  className="h-5 w-5"
+                  className="h-6 w-6"
                   viewBox="0 0 18 7"
                   fill="currentColor"
                   xmlns="http://www.w3.org/2000/svg"
@@ -67,6 +71,15 @@ export const LandingSiteFooter = () => {
                 aria-label="GitHub Repository"
               >
                 <Github className="h-5 w-5" />
+              </Link>
+              <Link
+                href={airJamDiscordInviteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Discord community"
+              >
+                <IconBrandDiscord className="h-5 w-5" aria-hidden />
               </Link>
             </div>
           </div>

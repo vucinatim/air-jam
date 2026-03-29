@@ -125,7 +125,10 @@ Benefits:
 
 ### Main Host Loop
 
-```tsx filename="src/game/host/index.tsx"
+This example uses the starter host surface path.
+Treat it as a recommended default, not a required filename.
+
+```tsx filename="src/host/index.tsx"
 const host = useAirJamHost();
 
 useFrame(() => {
@@ -168,7 +171,9 @@ const Ship = ({ playerId }: { playerId: string }) => {
 
 Use `useInputWriter()` with `useControllerTick()` for fixed-cadence publishing:
 
-```tsx filename="src/game/controller/index.tsx"
+This example uses the starter controller surface path.
+
+```tsx filename="src/controller/index.tsx"
 import {
   useAirJamController,
   useControllerTick,

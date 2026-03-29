@@ -70,12 +70,17 @@ This keeps the local Air Jam server on `http://localhost:4000`, tunnels only the
 This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster.
 
 - **Check `AGENTS.md`**: Project-wide coding contract and workflow for AI coding assistants.
-- **Check `airjam-docs/`**: Local extracted docs bundled with the template.
+- **Check `docs/docs-index.md`**: Local docs pack bundled with the template.
 - **Modify `src/airjam.config.ts`**: Canonical runtime setup and input wiring.
 - **Modify `src/game/input.ts`**: Define your input schema.
-- **Modify `src/game/store.ts`**: Manage shared networked state.
-- **Modify `src/game/host/index.tsx`**: Main host/gameplay view.
-- **Modify `src/game/controller/index.tsx`**: Mobile controller interface.
+- **Use the starter module map in the template `README.md`**: Follow the current starter structure before creating new homes for code.
+- **Modify `src/game/stores/`**: Starter location for shared networked state and pure transitions.
+- **Modify `src/host/index.tsx`**: Starter host/gameplay surface.
+- **Modify `src/controller/index.tsx`**: Starter mobile controller surface.
+- **Use `tests/game/`**: Starter testing pattern for domain, stores, engine, adapters, and shared game UI.
+
+These paths are the current starter template shape.
+They are recommended defaults for new projects, not framework-mandated filenames.
 
 ### Server not connecting locally
 
@@ -119,6 +124,7 @@ If you want to lock production bootstrap to your deployed site only, set the opt
 Before publishing your scaffolded game, run the local checks:
 
 ```bash
+pnpm test
 pnpm run typecheck
 pnpm run build
 ```
