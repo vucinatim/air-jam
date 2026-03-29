@@ -36,6 +36,7 @@ Migration proof references:
 Active subsystem plans:
 
 1. [Auth Capability Plan](./plans/auth-capability-plan.md)
+2. [Platform Dashboard Account Auth Plan](./plans/platform-dashboard-account-auth-plan.md)
 
 Parked future architecture plans:
 

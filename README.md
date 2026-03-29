@@ -86,6 +86,8 @@ DATABASE_URL=postgresql://user:password@localhost:5432/airjam
 # Authentication (BetterAuth)
 BETTER_AUTH_SECRET=your-secret-key
 BETTER_AUTH_URL=http://localhost:3000
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
 
 # Server connection
 NEXT_PUBLIC_AIR_JAM_SERVER_URL=http://localhost:4000
@@ -244,6 +246,8 @@ The platform is a Next.js application that can be deployed to Vercel, Railway, o
    - `DATABASE_URL`: PostgreSQL connection string
    - `BETTER_AUTH_SECRET`: Random secret for authentication
    - `BETTER_AUTH_URL`: Your production URL (e.g., `https://your-domain.com`)
+   - `GITHUB_CLIENT_ID`: GitHub OAuth app client ID
+   - `GITHUB_CLIENT_SECRET`: GitHub OAuth app client secret
    - `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL (e.g., `https://server.your-domain.com`)
    - `NEXT_PUBLIC_AIR_JAM_APP_ID`: Your platform App ID
    - `NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT`: Optional signed host-grant endpoint for stricter host auth
@@ -302,6 +306,8 @@ The server can be deployed as a Node.js application:
 - `DATABASE_URL`: PostgreSQL connection
 - `BETTER_AUTH_SECRET`: Auth secret
 - `BETTER_AUTH_URL`: Production URL
+- `GITHUB_CLIENT_ID`: GitHub OAuth app client ID
+- `GITHUB_CLIENT_SECRET`: GitHub OAuth app client secret
 - `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Server URL
 - `NEXT_PUBLIC_AIR_JAM_APP_ID`: Public app ID for platform host bootstrap
 - `NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT`: Optional signed host-grant endpoint

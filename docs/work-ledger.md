@@ -125,7 +125,18 @@ Remaining:
 1. decide whether any stronger abuse posture is prerelease-critical
 2. otherwise move remaining policy-tier ideas to `docs/suggestions.md` post-release
 
-### 8. SDK Composability
+### 8. Platform Dashboard Account Auth
+
+Status: active  
+Plan: [Platform Dashboard Account Auth Plan](./plans/platform-dashboard-account-auth-plan.md)
+
+Current view:
+
+1. GitHub-first auth is now implemented as the correct v1 baseline
+2. production GitHub OAuth setup and the final fate of email/password still need to be decided explicitly
+3. this should stay clearly separate from runtime/framework auth hardening
+
+### 9. SDK Composability
 
 Status: parked  
 Plan: [SDK Composability Plan](./plans/sdk-composability-plan.md)
@@ -135,7 +146,7 @@ Current view:
 1. good architecture direction
 2. not on the immediate prerelease critical path unless it unblocks release UX
 
-### 9. RPC Action Contract Refactor
+### 10. RPC Action Contract Refactor
 
 Status: parked  
 Plan: [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)

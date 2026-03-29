@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { createLoginHref } from "@/lib/auth-redirect";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -26,7 +27,7 @@ export const useDashboardAccess = () => {
   const interceptDashboardNavigation = (e: React.MouseEvent) => {
     if (isAuthenticated === false) {
       e.preventDefault();
-      router.push("/login");
+      router.push(createLoginHref());
     }
   };
 
