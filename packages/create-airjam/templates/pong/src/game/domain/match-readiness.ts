@@ -1,5 +1,4 @@
 import type { TeamId } from "./team";
-import { getTeamLabel } from "./team";
 import { getEffectiveTeamCounts, type BotCounts, type TeamCounts } from "./team-slots";
 
 export interface MatchReadiness {
@@ -37,7 +36,9 @@ export const getLobbyReadinessText = (
   }
 
   if (readiness.missingTeam) {
-    return `Join ${getTeamLabel(readiness.missingTeam)} to start.`;
+    return context === "host"
+      ? "Join a team to start."
+      : "Join a team to start.";
   }
 
   return "Need one player per team.";

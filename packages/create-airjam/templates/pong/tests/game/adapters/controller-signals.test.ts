@@ -18,7 +18,7 @@ describe("controller signal adapters", () => {
         pointsToWin: 5,
       }),
     ).toEqual({
-      message: "Nebulon wins 3-5",
+      message: "Nebułon wins 3-5",
       color: "#38bdf8",
       duration: 2200,
     });

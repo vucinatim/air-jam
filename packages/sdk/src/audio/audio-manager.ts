@@ -211,6 +211,10 @@ export class AudioManager<T extends string = string> {
     sprite?: string,
     pitch?: number,
   ): number | null {
+    if (!this.isReady()) {
+      return null;
+    }
+
     const sound = this.sounds.get(id);
     if (!sound) {
       console.warn(`Sound "${id}" not found`);

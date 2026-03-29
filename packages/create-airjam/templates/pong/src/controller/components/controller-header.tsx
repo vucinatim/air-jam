@@ -13,12 +13,12 @@ interface ControllerHeaderProps {
   onReturnToLobby: () => void;
 }
 
-const statusColorByConnection = {
-  connected: "text-emerald-300",
-  connecting: "text-amber-300",
-  reconnecting: "text-amber-300",
-  disconnected: "text-rose-300",
-  idle: "text-zinc-400",
+const statusDotByConnection = {
+  connected: "bg-emerald-300",
+  connecting: "bg-amber-300",
+  reconnecting: "bg-amber-300",
+  disconnected: "bg-rose-300",
+  idle: "bg-zinc-500",
 } as const;
 
 export const ControllerHeader = ({
@@ -38,10 +38,10 @@ export const ControllerHeader = ({
           <PlayerAvatar
             player={myProfile}
             size="sm"
-            className="h-8 w-8 border-2"
+            className="h-10 w-10 border-2 ring-2 ring-white/12"
           />
         ) : (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-zinc-800/90 text-[10px] font-bold text-zinc-300">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-zinc-800/90 text-[10px] font-bold text-zinc-300">
             ME
           </span>
         )}
@@ -51,16 +51,18 @@ export const ControllerHeader = ({
               {myProfile.label}
             </div>
           ) : null}
-          <div className="pong-caption text-[0.62rem]">
-            Room {roomId ?? "----"}
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDotByConnection[connectionStatus]}`}
+              aria-hidden
+            />
+            <div className="text-[0.8rem] leading-tight font-semibold tracking-[0.22em] text-zinc-300 tabular-nums">
+              {roomId ?? "----"}
+            </div>
           </div>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className={`pong-status-pill px-3 py-2 ${statusColorByConnection[connectionStatus]}`}>
-          <span className="pong-status-dot" />
-          {connectionStatus}
-        </span>
         {matchPhase === "playing" ? (
           <>
             <button

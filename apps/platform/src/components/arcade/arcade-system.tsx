@@ -21,6 +21,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ArcadeChrome } from "./arcade-chrome";
+import {
+  readArcadeBrowserOverlayPreference,
+  writeArcadeBrowserOverlayPreference,
+} from "./arcade-browser-overlay-preference";
 import { ArcadeLoader } from "./arcade-loader";
 import {
   EXIT_COOLDOWN_MS,
@@ -175,6 +179,16 @@ export const ArcadeSystem = ({
   }, [host.joinUrl, host.roomId]);
 
   const joinQrStatus = host.joinUrlStatus;
+  const getPreferredBrowserOverlay = useCallback(
+    () => readArcadeBrowserOverlayPreference(mode),
+    [mode],
+  );
+  const writePreferredBrowserOverlay = useCallback(
+    (overlay: "hidden" | "qr") => {
+      writeArcadeBrowserOverlayPreference(mode, overlay);
+    },
+    [mode],
+  );
   const autoLaunchRequestKey = useMemo(
     () => getAutoLaunchRequestKey({ mode, autoLaunch, initialGameId }),
     [mode, autoLaunch, initialGameId],
@@ -194,6 +208,7 @@ export const ArcadeSystem = ({
 
     if (previousRoomId !== null && previousRoomId !== host.roomId) {
       surfaceActions.resetHostSurfaceForMode({ mode });
+      surfaceActions.setOverlay({ overlay: getPreferredBrowserOverlay() });
       return;
     }
 
@@ -202,7 +217,9 @@ export const ArcadeSystem = ({
     }
 
     surfaceActions.resetHostSurfaceForMode({ mode });
+    surfaceActions.setOverlay({ overlay: getPreferredBrowserOverlay() });
   }, [
+    getPreferredBrowserOverlay,
     host.roomId,
     host.socket?.connected,
     mode,
@@ -478,14 +495,22 @@ export const ArcadeSystem = ({
       window.history.replaceState(null, "", "/arcade");
     }
 
+    const preferredBrowserOverlay = getPreferredBrowserOverlay();
     surfaceActions.setBrowserSurface();
     surfaceActions.setOverlay({
-      overlay: mode === "arcade" ? "qr" : "hidden",
+      overlay: preferredBrowserOverlay,
     });
     resetRuntimeAfterExit();
 
     console.log("[Arcade] Game exit complete, state cleared");
-  }, [host.socket, host.roomId, mode, resetRuntimeAfterExit, surfaceActions]);
+  }, [
+    getPreferredBrowserOverlay,
+    host.socket,
+    host.roomId,
+    mode,
+    resetRuntimeAfterExit,
+    surfaceActions,
+  ]);
 
   const handleArcadeAction = useCallback(
     (event: AirJamActionRpcPayload) => {
@@ -493,14 +518,25 @@ export const ArcadeSystem = ({
         return;
       }
       switch (event.actionName) {
-        case airJamArcadePlatformActions.toggleQr:
-          surfaceActions.toggleQrOverlay();
+        case airJamArcadePlatformActions.toggleQr: {
+          const nextOverlay = qrVisible ? "hidden" : "qr";
+          surfaceActions.setOverlay({ overlay: nextOverlay });
+          if (surfaceKind === "browser") {
+            writePreferredBrowserOverlay(nextOverlay);
+          }
           return;
+        }
         case airJamArcadePlatformActions.showQr:
           surfaceActions.setOverlay({ overlay: "qr" });
+          if (surfaceKind === "browser") {
+            writePreferredBrowserOverlay("qr");
+          }
           return;
         case airJamArcadePlatformActions.hideQr:
           surfaceActions.setOverlay({ overlay: "hidden" });
+          if (surfaceKind === "browser") {
+            writePreferredBrowserOverlay("hidden");
+          }
           return;
         case airJamArcadePlatformActions.exitGame:
           if (surfaceKind === "game") {
@@ -511,8 +547,29 @@ export const ArcadeSystem = ({
           return;
       }
     },
-    [exitGame, surfaceKind, surfaceActions],
+    [
+      exitGame,
+      qrVisible,
+      surfaceKind,
+      surfaceActions,
+      writePreferredBrowserOverlay,
+    ],
   );
+
+  const handleBrowserQrToggle = useCallback(() => {
+    const nextOverlay = qrVisible ? "hidden" : "qr";
+    surfaceActions.setOverlay({ overlay: nextOverlay });
+    if (surfaceKind === "browser") {
+      writePreferredBrowserOverlay(nextOverlay);
+    }
+  }, [qrVisible, surfaceActions, surfaceKind, writePreferredBrowserOverlay]);
+
+  const handleQrOverlayDismiss = useCallback(() => {
+    surfaceActions.setOverlay({ overlay: "hidden" });
+    if (surfaceKind === "browser") {
+      writePreferredBrowserOverlay("hidden");
+    }
+  }, [surfaceActions, surfaceKind, writePreferredBrowserOverlay]);
 
   useEffect(() => {
     if (!host.socket) {
@@ -691,7 +748,7 @@ export const ArcadeSystem = ({
             connectionStatus={host.connectionStatus}
             lastError={host.lastError}
             qrVisible={qrVisible}
-            onToggleQr={() => surfaceActions.toggleQrOverlay()}
+            onToggleQr={handleBrowserQrToggle}
             listAtTop={browserListAtTop}
             className="absolute top-0 right-0 left-0 z-60"
           />
@@ -718,7 +775,7 @@ export const ArcadeSystem = ({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -14 }}
               transition={ARCADE_QR_OVERLAY_MOTION_TRANSITION}
-              onClick={() => surfaceActions.setOverlay({ overlay: "hidden" })}
+              onClick={handleQrOverlayDismiss}
             >
               <div
                 className="flex cursor-default flex-col items-center gap-6"

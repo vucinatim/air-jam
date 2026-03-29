@@ -25,7 +25,7 @@ describe("shared game ui", () => {
       <TeamName team="team2" uppercase={false} suffix="Wins" />,
     );
 
-    expect(markup).toContain("Nebulon Wins");
+    expect(markup).toContain("Nebułon Wins");
     expect(markup).toContain("#38bdf8");
   });
 });

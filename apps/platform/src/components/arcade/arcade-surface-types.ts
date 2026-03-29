@@ -28,5 +28,5 @@ export const createInitialArcadeSurfaceState = ({
   gameId: null,
   controllerUrl: null,
   orientation: "portrait",
-  overlay: mode === "arcade" ? "qr" : "hidden",
+  overlay: "hidden",
 });

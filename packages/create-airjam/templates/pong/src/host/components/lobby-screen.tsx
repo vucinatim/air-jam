@@ -1,10 +1,8 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
-import {
-  getLobbyReadinessText,
-} from "../../game/domain/match-readiness";
-import { getTeamCounts, type BotCounts } from "../../game/domain/team-slots";
+import { getLobbyReadinessText } from "../../game/domain/match-readiness";
 import { type TeamId } from "../../game/domain/team";
+import { getTeamCounts, type BotCounts } from "../../game/domain/team-slots";
 import { TeamName } from "../../game/ui";
 
 interface LobbyScreenProps {
@@ -19,48 +17,124 @@ interface LobbyScreenProps {
 
 interface TeamCardProps {
   team: TeamId;
-  count: number;
   players: PlayerProfile[];
   botCount: number;
 }
 
-const TeamCard = ({ team, count, players, botCount }: TeamCardProps) => (
-  <div className="pong-panel flex h-full w-full flex-col items-center justify-center gap-4 rounded-[28px] p-5 text-center">
-    <TeamName
-      team={team}
-      className="text-2xl font-black tracking-[0.14em]"
-    />
-    <div className="flex min-h-8 items-center justify-center gap-2">
-      {players.length > 0 ? (
-        players.map((player) => (
-          <PlayerAvatar
-            key={player.id}
-            player={player}
-            size="sm"
-            className="h-7 w-7 border-2"
-          />
-        ))
-      ) : (
-        <span className="text-xs tracking-[0.18em] text-zinc-500 uppercase">
-          Empty
-        </span>
-      )}
-      {botCount > 0
-        ? Array.from({ length: botCount }).map((_, index) => (
-            <span
-              key={`${team}-bot-${index}`}
-              className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/90"
+type TeamSlot =
+  | { kind: "human"; player: PlayerProfile }
+  | { kind: "bot" }
+  | { kind: "open" };
+
+const buildTeamSlots = (
+  players: PlayerProfile[],
+  botCount: number,
+): TeamSlot[] => {
+  const slots: TeamSlot[] = [];
+
+  for (let index = 0; index < 2; index += 1) {
+    const player = players[index];
+
+    if (player) {
+      slots.push({ kind: "human", player });
+      continue;
+    }
+
+    if (index < players.length + botCount) {
+      slots.push({ kind: "bot" });
+      continue;
+    }
+
+    slots.push({ kind: "open" });
+  }
+
+  return slots;
+};
+
+const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
+  const slots = buildTeamSlots(players, botCount);
+
+  return (
+    <div className="pong-panel flex h-full w-full flex-col gap-4 rounded-[28px] p-5 text-left">
+      <div className="flex items-center justify-between gap-3">
+        <TeamName
+          team={team}
+          className="text-2xl font-black tracking-[0.14em]"
+        />
+        <div className="text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase">
+          {players.length + botCount}/2 Ready
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        {slots.map((slot, index) => {
+          if (slot.kind === "human") {
+            return (
+              <div
+                key={`${team}-slot-${index}`}
+                className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/14 bg-white/8 px-4"
+              >
+                <PlayerAvatar
+                  player={slot.player}
+                  size="sm"
+                  className="h-10 w-10 border-2"
+                />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-black tracking-[0.14em] text-white uppercase">
+                    {slot.player.label}
+                  </div>
+                  <div className="text-[10px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
+                    Player Slot
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (slot.kind === "bot") {
+            return (
+              <div
+                key={`${team}-slot-${index}`}
+                className="flex h-[72px] items-center gap-3 rounded-[22px] border border-cyan-400/28 bg-cyan-400/10 px-4"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-cyan-300/35 bg-cyan-300/12 text-[11px] font-black tracking-[0.14em] text-cyan-100 uppercase">
+                  AI
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-black tracking-[0.14em] text-cyan-50 uppercase">
+                    Bot Slot
+                  </div>
+                  <div className="text-[10px] font-semibold tracking-[0.16em] text-cyan-200/72 uppercase">
+                    Auto-Assigned
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={`${team}-slot-${index}`}
+              className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/10 bg-white/4 px-4"
             >
-              BOT
-            </span>
-          ))
-        : null}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[11px] font-black tracking-[0.14em] text-zinc-500 uppercase">
+                --
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-black tracking-[0.14em] text-zinc-400 uppercase">
+                  Open Slot
+                </div>
+                <div className="text-[10px] font-semibold tracking-[0.16em] text-zinc-600 uppercase">
+                  Waiting On Phone
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
-    <div className="pong-status-pill">
-      {count} Human • {botCount} Bot
-    </div>
-  </div>
-);
+  );
+};
 
 export const LobbyScreen = ({
   joinQrValue,
@@ -81,97 +155,82 @@ export const LobbyScreen = ({
     pointsToWin,
     "host",
   );
+  const stagedPlayerIds = new Set([
+    ...team1Players.map((player) => player.id),
+    ...team2Players.map((player) => player.id),
+  ]);
+  const waitingPlayers = connectedPlayers.filter(
+    (player) => !stagedPlayerIds.has(player.id),
+  );
 
   return (
     <div className="pong-app-shell flex min-h-screen w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8">
-      <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="pong-panel-strong flex flex-col justify-between rounded-[34px] px-6 py-7 sm:px-8 sm:py-8">
-          <div className="space-y-4">
-            <div className="pong-caption">Pong Host Lobby</div>
-            <div className="max-w-2xl space-y-3">
-              <h1 className="text-5xl font-black uppercase tracking-[0.12em] text-white sm:text-6xl">
-                Stage The Match
-              </h1>
-              <p className="max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
-                Keep this host screen visible, let players scan in, pick a side, and launch the round from their phones.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="pong-status-pill">
-                Room {roomId ?? "----"}
-              </span>
-              <span className="pong-status-pill">
-                {readinessText}
-              </span>
+      <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <section className="pong-panel-strong flex flex-col rounded-[34px] px-6 py-6 sm:px-8 sm:py-7">
+          <div className="flex items-center justify-between gap-6">
+            <div className="pong-caption">Lobby</div>
+            <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 uppercase">
+              {readinessText}
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+          <div className="mt-6 grid flex-1 gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <TeamCard
               team="team1"
-              count={teamCounts.team1}
               players={team1Players}
               botCount={botCounts.team1}
             />
+            <div className="hidden items-center justify-center px-1 lg:flex">
+              <div className="rounded-full text-2xl font-black text-white/30 uppercase">
+                VS
+              </div>
+            </div>
             <TeamCard
               team="team2"
-              count={teamCounts.team2}
               players={team2Players}
               botCount={botCounts.team2}
             />
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <div className="pong-caption">Connected Players</div>
-            {connectedPlayers.length > 0 ? (
-              <div className="flex items-center gap-2">
-                {connectedPlayers.map((player) => (
-                  <PlayerAvatar
-                    key={player.id}
-                    player={player}
-                    size="sm"
-                    className="h-8 w-8 border-2"
-                  />
-                ))}
-              </div>
-            ) : (
-              <span className="text-xs tracking-[0.16em] text-zinc-500 uppercase">
-                Waiting For Players
-              </span>
-            )}
+          <div className="mt-5 flex flex-wrap items-center gap-3 pt-2">
+            <div className="text-sm font-semibold tracking-[0.16em] text-slate-300 uppercase">
+              First to {pointsToWin}
+            </div>
+            {waitingPlayers.length > 0 ? (
+              <>
+                <div className="h-1 w-1 rounded-full bg-white/24" />
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-semibold tracking-[0.16em] text-zinc-500 uppercase">
+                    Waiting
+                  </div>
+                  {waitingPlayers.map((player) => (
+                    <PlayerAvatar
+                      key={player.id}
+                      player={player}
+                      size="sm"
+                      className="h-7 w-7 border-2"
+                    />
+                  ))}
+                </div>
+              </>
+            ) : null}
           </div>
         </section>
 
         <section className="pong-panel flex flex-col items-center justify-center rounded-[34px] px-6 py-7 text-center sm:px-8">
           <div className="pong-caption">Join On Phone</div>
-          <div className="mt-3 text-3xl font-black uppercase tracking-[0.18em] text-white">
+          <div className="mt-2 text-4xl font-black tracking-[0.22em] text-white uppercase">
             {roomId ?? "----"}
           </div>
           <p className="mt-3 max-w-sm text-sm leading-6 text-slate-300">
-            Scan the code, choose a side, and use the controller to start, pause, and rematch.
+            Scan to join.
           </p>
-          <div className="pong-panel-strong mt-6 rounded-[28px] p-5">
-            <RoomQrCode
-              value={joinQrValue}
-              size={220}
-              className="rounded-xl bg-white"
-              alt="Join this Pong room"
-            />
-          </div>
-          <div className="mt-5 grid w-full gap-3 text-left sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/4 px-4 py-3">
-              <div className="pong-caption">Target Score</div>
-              <div className="mt-1 text-lg font-bold text-white">
-                First to {pointsToWin}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/4 px-4 py-3">
-              <div className="pong-caption">Start Flow</div>
-              <div className="mt-1 text-sm font-medium text-slate-300">
-                Launch from the controller once both sides are ready.
-              </div>
-            </div>
-          </div>
+          <RoomQrCode
+            value={joinQrValue}
+            size={220}
+            className="mt-4 rounded-xl bg-white"
+            alt="Join this Pong room"
+          />
         </section>
       </div>
     </div>

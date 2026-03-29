@@ -4,6 +4,7 @@ import { ControllerMenuNotch } from "@/components/controller-menu-notch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { triggerLocalHaptic } from "@/lib/local-haptics";
 import {
   getControllerLocalProfileClientSnapshot,
   getControllerLocalProfileServerSnapshot,
@@ -405,6 +406,7 @@ export function ControllerMenuSheet({
           variant={hostQrVisible ? "default" : "outline"}
           size="icon-touch"
           onClick={() => {
+            triggerLocalHaptic("selection");
             emitArcadeAction(airJamArcadePlatformActions.toggleQr);
           }}
           aria-label={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
@@ -495,7 +497,10 @@ export function ControllerMenuSheet({
               ? "shadow-md"
               : "bg-background/50 backdrop-blur-sm",
           )}
-          onClick={() => emitArcadeAction(airJamArcadePlatformActions.toggleQr)}
+          onClick={() => {
+            triggerLocalHaptic("selection");
+            emitArcadeAction(airJamArcadePlatformActions.toggleQr);
+          }}
           aria-label={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
           title={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
         >
@@ -684,7 +689,10 @@ export function ControllerMenuSheet({
                       size="touch"
                       className="w-full"
                       disabled={saveProfileSuccess}
-                      onClick={() => void saveProfile()}
+                      onClick={() => {
+                        triggerLocalHaptic("action");
+                        void saveProfile();
+                      }}
                     >
                       <span className="relative grid min-h-[1.25em] w-full place-items-center">
                         <AnimatePresence mode="wait" initial={false}>
@@ -745,7 +753,10 @@ export function ControllerMenuSheet({
                         size="touch"
                         className="w-full"
                         disabled={applyRoomSuccess}
-                        onClick={applyRoom}
+                        onClick={() => {
+                          triggerLocalHaptic("action");
+                          applyRoom();
+                        }}
                       >
                         <span className="relative grid min-h-[1.25em] w-full place-items-center">
                           <AnimatePresence mode="wait" initial={false}>
@@ -792,7 +803,10 @@ export function ControllerMenuSheet({
                         variant="outline"
                         size="touch"
                         className="w-full"
-                        onClick={() => setScanning(true)}
+                        onClick={() => {
+                          triggerLocalHaptic("action");
+                          setScanning(true);
+                        }}
                       >
                         <ScanLine className="mr-2 h-4 w-4" />
                         Scan QR

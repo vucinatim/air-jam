@@ -1,6 +1,12 @@
+import type { PlayerProfile } from "@air-jam/sdk/protocol";
+import { PlayerAvatar } from "@air-jam/sdk/ui";
 import type { TeamId } from "../../game/domain/team";
-import { MAX_TEAM_SLOTS, type BotCounts, type TeamCounts } from "../../game/domain/team-slots";
 import { getTeamColor } from "../../game/domain/team";
+import {
+  MAX_TEAM_SLOTS,
+  type BotCounts,
+  type TeamCounts,
+} from "../../game/domain/team-slots";
 import { TeamName } from "../../game/ui";
 import { POINTS_TO_WIN_OPTIONS, PRESS_FEEL_CLASS } from "../constants";
 
@@ -8,6 +14,8 @@ interface LobbyPanelProps {
   myTeam: TeamId | null;
   teamCounts: TeamCounts;
   botCounts: BotCounts;
+  team1Players: PlayerProfile[];
+  team2Players: PlayerProfile[];
   pointsToWin: number;
   canStartMatch: boolean;
   controlsDisabled: boolean;
@@ -18,133 +26,176 @@ interface LobbyPanelProps {
   onStartMatch: () => void;
 }
 
-const TeamJoinButton = ({
-  team,
-  myTeam,
-  isFull,
-  disabled,
-  onJoin,
-}: {
-  team: TeamId;
-  myTeam: TeamId | null;
-  isFull: boolean;
-  disabled: boolean;
-  onJoin: (team: TeamId) => void;
-}) => {
-  const selected = myTeam === team;
+type TeamSlotVisual =
+  | { kind: "human"; player: PlayerProfile }
+  | { kind: "bot" }
+  | { kind: "open" };
 
-  return (
-    <button
-      type="button"
-      className={`flex min-h-24 touch-none flex-1 items-center justify-center rounded-[24px] px-4 py-5 text-center text-2xl font-black tracking-[0.14em] text-white select-none ${PRESS_FEEL_CLASS} ${
-        selected
-          ? "ring-4 ring-white/70 ring-offset-2 ring-offset-transparent"
-          : "opacity-88"
-      }`}
-      style={{
-        background: selected
-          ? `linear-gradient(180deg, ${getTeamColor(team)}, color-mix(in srgb, ${getTeamColor(team)} 70%, black))`
-          : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)), rgba(12,18,33,0.92)",
-        border: `1px solid ${selected ? `${getTeamColor(team)}aa` : "rgba(255,255,255,0.12)"}`,
-        boxShadow: selected
-          ? `0 20px 40px color-mix(in srgb, ${getTeamColor(team)} 25%, transparent)`
-          : undefined,
-      }}
-      disabled={disabled}
-      onPointerDown={() => {
-        if (!disabled) {
-          onJoin(team);
-        }
-      }}
-    >
-      {isFull && !selected ? (
-        <TeamName team={team} suffix="Full" className="" />
-      ) : (
-        <TeamName team={team} className="" />
-      )}
-    </button>
-  );
+const SLOT_SHELL_CLASS =
+  "flex h-[68px] min-w-0 items-center gap-2 rounded-[18px] border px-2 py-3 text-left";
+
+const buildTeamSlots = (
+  players: PlayerProfile[],
+  botCount: number,
+): TeamSlotVisual[] => {
+  const slots: TeamSlotVisual[] = [];
+
+  for (let index = 0; index < MAX_TEAM_SLOTS; index += 1) {
+    const player = players[index];
+
+    if (player) {
+      slots.push({ kind: "human", player });
+      continue;
+    }
+
+    if (index < players.length + botCount) {
+      slots.push({ kind: "bot" });
+      continue;
+    }
+
+    slots.push({ kind: "open" });
+  }
+
+  return slots;
 };
 
 export const LobbyPanel = ({
   myTeam,
   teamCounts,
   botCounts,
+  team1Players,
+  team2Players,
   pointsToWin,
   canStartMatch,
   controlsDisabled,
-  readinessText,
   onJoinTeam,
   onSetBotCount,
   onSetPointsToWin,
   onStartMatch,
 }: LobbyPanelProps) => {
-  const team1IsFull = teamCounts.team1 + botCounts.team1 >= MAX_TEAM_SLOTS;
-  const team2IsFull = teamCounts.team2 + botCounts.team2 >= MAX_TEAM_SLOTS;
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 pt-3">
-        <div className="pong-panel rounded-[24px] px-4 py-3 text-center">
-          <div className="pong-caption">Lobby Setup</div>
-          <div className="mt-2 flex items-center justify-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-300">
-            <span>
-              Bots {botCounts.team1}:{botCounts.team2}
-            </span>
-            <span className="text-zinc-600">•</span>
-            <span className="text-zinc-500">{readinessText}</span>
-          </div>
-        </div>
-
-        <div className="grid gap-3">
-          <TeamJoinButton
-            team="team1"
-            myTeam={myTeam}
-            isFull={team1IsFull}
-            disabled={team1IsFull || controlsDisabled}
-            onJoin={onJoinTeam}
-          />
-          <TeamJoinButton
-            team="team2"
-            myTeam={myTeam}
-            isFull={team2IsFull}
-            disabled={team2IsFull || controlsDisabled}
-            onJoin={onJoinTeam}
-          />
-        </div>
-
+      <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pt-3 pb-3">
         <div className="grid gap-3 sm:grid-cols-2">
           {(["team1", "team2"] as const).map((team) => {
             const botCount = botCounts[team];
             const humanCount = teamCounts[team];
-            const maxBots = Math.max(0, MAX_TEAM_SLOTS - humanCount);
+            const teamPlayers = team === "team1" ? team1Players : team2Players;
+            const slots = buildTeamSlots(teamPlayers, botCount);
+            const teamIsFull = humanCount + botCount >= MAX_TEAM_SLOTS;
+            const joined = myTeam === team;
 
             return (
-              <div key={team} className="pong-panel rounded-[24px] px-4 py-4 text-center">
+              <div
+                key={team}
+                className="pong-panel rounded-[24px] px-4 py-4 text-center"
+              >
                 <div className="pong-caption">
                   <TeamName team={team} />
                 </div>
-                <div className="mt-2 text-2xl font-black text-white">{botCount}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-500">
-                  {humanCount} human • {maxBots} free bot slot{maxBots === 1 ? "" : "s"}
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
+                    style={{
+                      background: joined
+                        ? `linear-gradient(180deg, ${getTeamColor(team)}, color-mix(in srgb, ${getTeamColor(team)} 70%, black))`
+                        : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)), rgba(12,18,33,0.92)",
+                      borderColor: joined ? `${getTeamColor(team)}aa` : "rgba(255,255,255,0.12)",
+                      boxShadow: joined
+                        ? `0 16px 28px color-mix(in srgb, ${getTeamColor(team)} 22%, transparent)`
+                        : undefined,
+                    }}
+                    disabled={controlsDisabled || (teamIsFull && !joined)}
+                    onClick={() => onJoinTeam(team)}
+                  >
+                    {joined ? "Joined" : teamIsFull ? "Full" : "Join Team"}
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] uppercase ${
+                      teamIsFull
+                        ? "border-white/10 bg-white/4 text-zinc-500"
+                        : "border-cyan-400/40 bg-cyan-400/12 text-cyan-100"
+                    }`}
+                    disabled={controlsDisabled || teamIsFull}
+                    onClick={() => onSetBotCount(team, botCount + 1)}
+                  >
+                    Add Bot
+                  </button>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[0, 1, 2].map((value) => {
-                    const disabled = controlsDisabled || value > maxBots;
-                    const selected = botCount === value;
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {slots.map((slot, index) => {
+                    const canRemoveBot =
+                      slot.kind === "bot" && !controlsDisabled;
+
+                    if (slot.kind === "human") {
+                      return (
+                        <div
+                          key={`${team}-slot-${index}`}
+                          className={`${SLOT_SHELL_CLASS} border-white/16 bg-white/12 text-white`}
+                        >
+                          <PlayerAvatar
+                            player={slot.player}
+                            size="sm"
+                            className="h-8 w-8 border-2"
+                          />
+                          <div className="min-w-0">
+                            <div className="truncate text-[11px] font-black tracking-[0.14em] text-white uppercase">
+                              {slot.player.label}
+                            </div>
+                            <div className="text-[9px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
+                              Player
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (slot.kind === "open") {
+                      return (
+                        <div
+                          key={`${team}-slot-${index}`}
+                          className={`${SLOT_SHELL_CLASS} border-white/10 bg-white/4 text-zinc-500`}
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[9px] font-black tracking-[0.14em] uppercase text-zinc-500">
+                            --
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-[11px] font-black tracking-[0.14em] uppercase text-zinc-400">
+                              Open Slot
+                            </div>
+                            <div className="text-[9px] font-semibold tracking-[0.16em] uppercase text-zinc-600">
+                              Waiting
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <button
-                        key={value}
+                        key={`${team}-slot-${index}`}
                         type="button"
-                        className={`rounded-2xl border px-2 py-3 text-sm font-black ${
-                          selected
-                            ? "border-white/50 bg-white/14 text-white"
-                            : "border-white/10 bg-white/6 text-zinc-300 hover:bg-white/10"
-                        } disabled:cursor-not-allowed disabled:opacity-40`}
-                        disabled={disabled}
-                        onClick={() => onSetBotCount(team, value)}
+                        className={`${SLOT_SHELL_CLASS} border-cyan-400/40 bg-cyan-400/12 text-cyan-100 ${PRESS_FEEL_CLASS}`}
+                        disabled={!canRemoveBot}
+                        onClick={() => {
+                          if (canRemoveBot) {
+                            onSetBotCount(team, Math.max(0, botCount - 1));
+                          }
+                        }}
                       >
-                        {value}
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-cyan-300/35 bg-cyan-300/12 text-[9px] font-black tracking-[0.14em] uppercase text-cyan-100">
+                          AI
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-[11px] font-black tracking-[0.14em] uppercase text-cyan-50">
+                            Bot Slot
+                          </div>
+                          <div className="text-[9px] font-semibold tracking-[0.16em] uppercase text-cyan-200/72">
+                            Remove Bot
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
@@ -155,7 +206,7 @@ export const LobbyPanel = ({
         </div>
 
         <div className="pong-panel rounded-[24px] px-4 py-4">
-          <div className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+          <div className="mb-3 text-center text-[10px] font-semibold tracking-[0.18em] text-zinc-400 uppercase">
             Points to Win
           </div>
           <div className="grid grid-cols-4 gap-2">
@@ -181,10 +232,10 @@ export const LobbyPanel = ({
         </div>
       </div>
 
-      <div className="px-3 pb-3 pt-2">
+      <div className="px-3 pt-2 pb-3">
         <button
           type="button"
-          className={`w-full rounded-[22px] border border-white/16 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_40px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
+          className={`w-full rounded-[22px] border border-white/16 bg-white px-4 py-4 text-sm font-black tracking-[0.18em] text-black uppercase shadow-[0_18px_40px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
           disabled={!canStartMatch || controlsDisabled}
           onClick={onStartMatch}
         >

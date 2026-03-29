@@ -1,5 +1,6 @@
 "use client";
 
+import { triggerLocalHaptic } from "@/lib/local-haptics";
 import {
   ChevronDown,
   ChevronLeft,
@@ -37,11 +38,20 @@ export const RemoteDPad = ({
 
   const handleMove = useCallback(
     (direction: "up" | "down" | "left" | "right" | "none") => {
+      const previousDirection = moveDirRef.current;
+
       // Update ref immediately (no re-render)
       moveDirRef.current = direction;
 
       // Update visual state (causes re-render for UI feedback)
       setMoveDir(direction);
+
+      if (
+        direction !== "none" &&
+        previousDirection !== direction
+      ) {
+        triggerLocalHaptic("selection");
+      }
 
       // Call callback immediately with new value
       switch (direction) {
@@ -81,6 +91,7 @@ export const RemoteDPad = ({
       setConfirmPressed(pressed);
 
       if (pressed) {
+        triggerLocalHaptic("confirm");
         onConfirm();
       } else {
         onConfirmRelease();

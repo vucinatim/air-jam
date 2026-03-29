@@ -6,6 +6,7 @@ import {
   useInputWriter,
   useRemoteSound,
 } from "@air-jam/sdk";
+import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { ControllerHeader } from "./components/controller-header";
@@ -57,6 +58,28 @@ export function ControllerView() {
   const teamCounts = useMemo(
     () => getTeamCounts(connectedAssignments),
     [connectedAssignments],
+  );
+  const team1Players = useMemo(
+    () =>
+      controller.players
+        .filter((player) => teamAssignments[player.id]?.team === "team1")
+        .sort((left, right) => {
+          const leftPosition = teamAssignments[left.id]?.position === "front" ? 0 : 1;
+          const rightPosition = teamAssignments[right.id]?.position === "front" ? 0 : 1;
+          return leftPosition - rightPosition;
+        }),
+    [controller.players, teamAssignments],
+  );
+  const team2Players = useMemo(
+    () =>
+      controller.players
+        .filter((player) => teamAssignments[player.id]?.team === "team2")
+        .sort((left, right) => {
+          const leftPosition = teamAssignments[left.id]?.position === "front" ? 0 : 1;
+          const rightPosition = teamAssignments[right.id]?.position === "front" ? 0 : 1;
+          return leftPosition - rightPosition;
+        }),
+    [controller.players, teamAssignments],
   );
   const readiness = useMemo(
     () => getMatchReadiness(teamCounts, botCounts),
@@ -154,6 +177,8 @@ export function ControllerView() {
             myTeam={myTeam}
             teamCounts={teamCounts}
             botCounts={botCounts}
+            team1Players={team1Players}
+            team2Players={team2Players}
             pointsToWin={pointsToWin}
             canStartMatch={readiness.canStart}
             controlsDisabled={controlsDisabled}

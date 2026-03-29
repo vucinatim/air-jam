@@ -10,12 +10,12 @@ export const TEAMS: Record<
 > = {
   team1: {
     id: "team1",
-    label: "Solaris",
+    label: "Sołaris",
     color: "#f97316",
   },
   team2: {
     id: "team2",
-    label: "Nebulon",
+    label: "Nebułon",
     color: "#38bdf8",
   },
 };

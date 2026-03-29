@@ -67,12 +67,6 @@ export const PlayingControls = ({
         controlsDisabled={controlsDisabled}
         onDirectionChange={onDirectionChange}
       />
-      <div
-        className="pong-status-pill self-center px-4 py-2"
-        style={{ borderColor: `${teamColor}55`, color: teamColor }}
-      >
-        {myTeam ? `${getTeamLabel(myTeam)} Control` : "Waiting"}
-      </div>
       <DirectionButton
         label="DOWN"
         direction={1}

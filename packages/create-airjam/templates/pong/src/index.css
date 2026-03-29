@@ -174,10 +174,10 @@
 }
 
 @utility pong-safe-screen {
-  padding-top: max(0.5rem, var(--airjam-safe-area-top));
-  padding-right: max(0.5rem, var(--airjam-safe-area-right));
-  padding-bottom: max(0.75rem, var(--airjam-safe-area-bottom));
-  padding-left: max(0.5rem, var(--airjam-safe-area-left));
+  padding-top: var(--airjam-safe-area-top);
+  padding-right: var(--airjam-safe-area-right);
+  padding-bottom: var(--airjam-safe-area-bottom);
+  padding-left: var(--airjam-safe-area-left);
 }
 
 @utility pong-scroll-hidden {
