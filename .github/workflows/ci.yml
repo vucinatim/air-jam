@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Content Source Integrity
         run: pnpm --filter platform content:check-generated
 
@@ -39,8 +42,5 @@ jobs:
       - name: Canonical Guard
         run: pnpm guard:canonical
 
-      - name: Test
-        run: pnpm test
-
-      - name: Scaffold Smoke Test
-        run: pnpm test:scaffold
+      - name: Release Contract
+        run: pnpm check:release

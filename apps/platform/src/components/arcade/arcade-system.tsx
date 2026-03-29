@@ -402,34 +402,16 @@ export const ArcadeSystem = ({
   const launchGame = useCallback(
     async (game: ArcadeGame) => {
       if (!host.socket || !host.socket.connected) {
-        console.log("[Arcade] Launch blocked:", {
-          hasSocket: !!host.socket,
-          connected: host.socket?.connected,
-        });
         return;
       }
 
       if (!beginLaunch()) {
-        const snapshot = stateRef.current;
-        console.log("[Arcade] Launch blocked:", {
-          hasSocket: !!host.socket,
-          connected: host.socket?.connected,
-          isLaunching: snapshot.isLaunching,
-          hasLaunchCapability: !!snapshot.launchCapability,
-          surfaceKind,
-        });
         return;
       }
-
-      console.log("[Arcade] Launching game:", game.name);
 
       const normalizedHostUrl = normalizeRuntimeUrl(game.url);
       if (!normalizedHostUrl) {
         failLaunch();
-        console.error("[Arcade] Failed to launch game: invalid game URL", {
-          gameId: game.id,
-          gameUrl: game.url,
-        });
         return;
       }
 
@@ -445,7 +427,6 @@ export const ArcadeSystem = ({
         },
         (ack: SystemLaunchGameAck) => {
           if (ack.ok && ack.launchCapability) {
-            console.log("[Arcade] Game launch successful");
             surfaceActions.setGameSurface({
               gameId: game.id,
               controllerUrl: controllerUrl,
@@ -464,7 +445,6 @@ export const ArcadeSystem = ({
             }
           } else {
             failLaunch();
-            console.error("[Arcade] Failed to launch game:", ack.message);
           }
         },
       );
@@ -484,8 +464,6 @@ export const ArcadeSystem = ({
   );
 
   const exitGame = useCallback(() => {
-    console.log("[Arcade] Exiting game, clearing state");
-
     if (host.socket?.connected) {
       host.socket.emit("system:closeGame", { roomId: host.roomId });
     }
@@ -501,8 +479,6 @@ export const ArcadeSystem = ({
       overlay: preferredBrowserOverlay,
     });
     resetRuntimeAfterExit();
-
-    console.log("[Arcade] Game exit complete, state cleared");
   }, [
     getPreferredBrowserOverlay,
     host.socket,
@@ -589,7 +565,6 @@ export const ArcadeSystem = ({
   // Platform-owned child-host lifecycle event.
   useEffect(() => {
     const handleChildClose = () => {
-      console.log("[Arcade] server:closeChild received");
       exitGame();
     };
 
@@ -626,13 +601,6 @@ export const ArcadeSystem = ({
     if (!autoLaunchRequestKey) {
       return;
     }
-
-    console.log(
-      "[Arcade] Auto-launching game:",
-      gameToLaunch.name,
-      "in room:",
-      host.roomId,
-    );
 
     consumeAutoLaunch(autoLaunchRequestKey);
     // Use queueMicrotask to avoid synchronous setState in effect warning

@@ -132,9 +132,18 @@ export const GamePlayer = ({
       return;
     }
     if (!iframeTargetOrigin) {
-      console.warn("[GamePlayer] Bridge init blocked: invalid iframe origin", {
-        gameId: game.id,
-        url: normalizedUrl,
+      emitAirJamDevRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRejected,
+        level: "warn",
+        message: "Embedded host bridge init blocked: invalid iframe origin",
+        role: "host",
+        roomId: hostBridgeStateRef.current.roomId,
+        runtimeEpoch: arcadeIdentityRef.current.epoch,
+        runtimeKind: "arcade-host-iframe",
+        data: {
+          gameId: game.id,
+          url: normalizedUrl,
+        },
       });
       return;
     }
@@ -322,10 +331,6 @@ export const GamePlayer = ({
         "type" in event.data &&
         event.data.type === AIRJAM_DEV_PROVIDER_MOUNTED
       ) {
-        console.info(
-          "[Arcade][AJ_EMBEDDED_PROVIDER_MOUNTED]",
-          (event.data as { payload?: unknown }).payload,
-        );
         return;
       }
 
@@ -525,21 +530,31 @@ export const GamePlayer = ({
         <iframe
           ref={iframeRef}
           src={iframeSrc}
+          title={`Air Jam host game: ${game.name}`}
+          data-testid="arcade-host-game-frame"
           className="h-full w-full border-none bg-black"
           style={{ backgroundColor: "#000000" }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
           onLoad={() => {
-            console.log("[GamePlayer] Iframe loaded", {
-              gameId: game.id,
-              src: iframeRef.current?.src,
-            });
             establishBridgeChannel();
             setIframeLoaded(true);
             // Send initial settings after a small delay to ensure the game is ready
             setTimeout(sendSettingsToGame, 100);
           }}
-          onError={(e) => {
-            console.error("[GamePlayer] Iframe error", e);
+          onError={() => {
+            emitAirJamDevRuntimeEvent({
+              event: AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRejected,
+              level: "error",
+              message: "Embedded game iframe failed to load",
+              role: "host",
+              roomId: hostBridgeStateRef.current.roomId,
+              runtimeEpoch: arcadeIdentityRef.current.epoch,
+              runtimeKind: "arcade-host-iframe",
+              data: {
+                gameId: game.id,
+                src: iframeRef.current?.src ?? iframeSrc,
+              },
+            });
           }}
         />
       )}

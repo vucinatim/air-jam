@@ -19,7 +19,7 @@ import { useDecalsStore } from "../decals-store";
 import { useGameStore } from "../game-store";
 import { useHealthStore } from "../health-store";
 import { useLasersStore } from "../lasers-store";
-import { DebugSection } from "./debug-overlay";
+import { DebugSection } from "./debug-section";
 import { TeamBotControls } from "./team-bot-controls";
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx

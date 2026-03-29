@@ -506,6 +506,8 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
               <iframe
                 ref={iframeRef}
                 src={controllerIframeSrc}
+                title="Air Jam controller game"
+                data-testid="arcade-controller-game-frame"
                 className="h-full w-full border-none bg-black"
                 style={{ backgroundColor: "#000000" }}
                 allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"

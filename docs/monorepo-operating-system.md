@@ -175,7 +175,15 @@ When touching `create-airjam`, templates, or package-boundary behavior:
 4. Validate unpublished-package behavior with `pnpm test:scaffold:tarball`.
 5. If you need local artifacts for another repo, use `pnpm pack:local`.
 
-### 6. Update Docs In The Same Change
+### 6. Legacy Game Migration Proof
+
+When touching SDK/server package-consumer behavior or the release migration proof:
+
+1. Validate the legacy ZeroDays games with `pnpm test:legacy:tarball`.
+2. Treat failures there as real package-surface regressions, not as optional external-app noise.
+3. Keep the reusable migration recipe in `docs/systems/legacy-game-migration-guide.md`.
+
+### 7. Update Docs In The Same Change
 
 1. Update affected docs immediately when contracts or behavior change.
 2. Keep `docs/work-ledger.md` as the single active repo-wide execution ledger.
@@ -183,7 +191,7 @@ When touching `create-airjam`, templates, or package-boundary behavior:
 4. Archive detailed completed plans under `docs/archive/`.
 5. Track non-launch architecture follow-ups in `docs/suggestions.md`.
 
-### 7. Merge Discipline
+### 8. Merge Discipline
 
 1. Keep changes small and single-purpose when practical.
 2. Include what changed, why, and validation evidence.

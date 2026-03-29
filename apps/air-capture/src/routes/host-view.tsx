@@ -16,16 +16,12 @@ import {
   useCaptureTheFlagStore,
   type TeamId,
 } from "../game/capture-the-flag-store";
-import { DebugOverlay } from "../game/components/debug-overlay";
 import {
   BotsSection,
   CTFDebugSection,
   PlayersSection,
   SceneInfoSection,
 } from "../game/components/debug-sections";
-import { GameScene } from "../game/components/game-scene";
-import { PlayerHUDOverlay } from "../game/components/player-hud-overlay";
-import { ScoreDisplay } from "../game/components/score-display";
 import { useGameStore } from "../game/game-store";
 import { useBackgroundMusic } from "../game/hooks/use-background-music";
 import {
@@ -39,6 +35,26 @@ import { SOUND_MANIFEST } from "../game/sounds";
 const GameObjectEditor = lazy(async () => {
   const module = await import("../game/components/game-object-editor");
   return { default: module.GameObjectEditor };
+});
+
+const GameScene = lazy(async () => {
+  const module = await import("../game/components/game-scene");
+  return { default: module.GameScene };
+});
+
+const PlayerHUDOverlay = lazy(async () => {
+  const module = await import("../game/components/player-hud-overlay");
+  return { default: module.PlayerHUDOverlay };
+});
+
+const ScoreDisplay = lazy(async () => {
+  const module = await import("../game/components/score-display");
+  return { default: module.ScoreDisplay };
+});
+
+const DebugOverlay = lazy(async () => {
+  const module = await import("../game/components/debug-overlay");
+  return { default: module.DebugOverlay };
 });
 
 interface TeamCardProps {
@@ -212,6 +228,25 @@ const formatDuration = (durationMs: number): string => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
+const GameplayFallback = () => {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black text-sm font-semibold tracking-[0.18em] text-white/70 uppercase">
+      Loading Match
+    </div>
+  );
+};
+
+const StageBackdrop = () => {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-[#020611]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_bottom,rgba(249,115,22,0.18),transparent_34%),linear-gradient(180deg,rgba(6,11,21,0.9),rgba(2,6,17,1))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-size-[72px_72px] opacity-30" />
+      <div className="absolute inset-x-0 top-[16%] h-px bg-linear-to-r from-transparent via-cyan-300/35 to-transparent" />
+      <div className="absolute inset-x-0 bottom-[18%] h-px bg-linear-to-r from-transparent via-orange-300/35 to-transparent" />
+    </div>
+  );
 };
 
 interface EndedOverlayProps {
@@ -525,10 +560,7 @@ const HostViewContent = (): JSX.Element => {
     audio.play("success");
   }, [audio, ctfScores, matchActions, matchPhase, pointsToWin]);
 
-  const connectedPlayers = useMemo(
-    () => players,
-    [players],
-  );
+  const connectedPlayers = useMemo(() => players, [players]);
 
   const teamPlayers = useMemo(() => {
     const grouped: Record<TeamId, PlayerProfile[]> = {
@@ -597,17 +629,6 @@ const HostViewContent = (): JSX.Element => {
     }
   }, [sceneMode]);
 
-  const scene = (
-    <GameScene
-      mode={sceneMode}
-      paused={scenePaused}
-      onCamerasReady={setCameras}
-      onCanvasReady={(canvas) => {
-        canvasRef.current = canvas;
-      }}
-    />
-  );
-
   const muteSlot = (
     <div className="pointer-events-auto absolute top-4 right-4 z-80">
       <HostMuteButton
@@ -617,40 +638,48 @@ const HostViewContent = (): JSX.Element => {
     </div>
   );
   const showBackdrop = matchPhase !== "playing";
-  const showGameplayChrome = matchPhase === "playing";
 
   return (
     <div className="bg-background relative h-screen w-screen overflow-hidden">
       <div className="relative h-full w-full">
-        <div
-          className={`absolute inset-0 transition-all duration-300 ${
-            showBackdrop
-              ? "[&>canvas]:scale-110 [&>canvas]:blur-lg [&>canvas]:brightness-40"
-              : isEditorOpen
-                ? "right-1/2"
-                : ""
-          }`}
-        >
-          {scene}
-          {showGameplayChrome && cameras.length > 0 && canvasRef.current && (
-            <PlayerHUDOverlay
-              canvasElement={canvasRef.current}
-              cameras={cameras}
-            />
-          )}
-          {showGameplayChrome && showPausedOverlay ? (
-            <PausedOverlay
-              roomId={roomId}
-              joinQrValue={joinQrValue}
-              connectionStatus={connectionStatus}
-              lastError={lastError}
-            />
-          ) : null}
-        </div>
+        {showBackdrop ? (
+          <StageBackdrop />
+        ) : (
+          <div
+            className={`absolute inset-0 transition-all duration-300 ${
+              isEditorOpen ? "right-1/2" : ""
+            }`}
+          >
+            <Suspense fallback={<GameplayFallback />}>
+              <GameScene
+                mode={sceneMode}
+                paused={scenePaused}
+                onCamerasReady={setCameras}
+                onCanvasReady={(canvas) => {
+                  canvasRef.current = canvas;
+                }}
+              />
+              {cameras.length > 0 && canvasRef.current ? (
+                <PlayerHUDOverlay
+                  canvasElement={canvasRef.current}
+                  cameras={cameras}
+                />
+              ) : null}
+              {showPausedOverlay ? (
+                <PausedOverlay
+                  roomId={roomId}
+                  joinQrValue={joinQrValue}
+                  connectionStatus={connectionStatus}
+                  lastError={lastError}
+                />
+              ) : null}
+            </Suspense>
+          </div>
+        )}
 
         {showBackdrop ? (
           <>
-            <div className="absolute inset-0 bg-radial from-transparent to-black/70" />
+            <div className="absolute inset-0 bg-radial from-transparent to-black/55" />
             {muteSlot}
             {matchPhase === "lobby" ? (
               <LobbyOverlay
@@ -674,14 +703,16 @@ const HostViewContent = (): JSX.Element => {
           </>
         ) : (
           <>
-            <ScoreDisplay />
+            <Suspense fallback={null}>
+              <ScoreDisplay />
 
-            <DebugOverlay>
-              <PlayersSection />
-              <BotsSection />
-              <CTFDebugSection />
-              <SceneInfoSection />
-            </DebugOverlay>
+              <DebugOverlay>
+                <PlayersSection />
+                <BotsSection />
+                <CTFDebugSection />
+                <SceneInfoSection />
+              </DebugOverlay>
+            </Suspense>
 
             <div className="absolute top-4 right-4 left-4 z-50 flex items-center justify-end gap-3 text-xs uppercase">
               <div className="mr-auto flex items-center gap-3">

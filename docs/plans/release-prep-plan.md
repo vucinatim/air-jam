@@ -1,6 +1,6 @@
 # Air Jam Release Prep Plan
 
-Last updated: 2026-03-27
+Last updated: 2026-03-29
 Status: active
 
 Related docs:
@@ -44,9 +44,20 @@ The main risks now are:
 3. a few concentrated complexity hotspots
 4. reference-app weight and devex polish
 
+Recently completed:
+
+1. package publishing now resolves the selected package set explicitly and publishes only those package jobs
+2. CI now runs the same canonical `pnpm check:release` contract that release publishing depends on
+3. release-visible platform browser console noise was removed from arcade/controller-facing runtime surfaces
+4. one true browser-level Arcade happy-path smoke now runs inside `pnpm check:release`
+
 ## Must Fix Before Release
 
 ### 1. Fix publish workflow targeting
+
+Status:
+
+1. completed
 
 Current risk:
 
@@ -60,6 +71,10 @@ Required outcome:
 
 ### 2. Make CI enforce the real release contract
 
+Status:
+
+1. completed
+
 Current risk:
 
 1. CI does not run the same contract as `pnpm check:release`
@@ -71,6 +86,10 @@ Required outcome:
 2. publish workflows must depend on the same release-grade validation path
 
 ### 3. Remove runtime debug logging from user-facing paths
+
+Status:
+
+1. completed
 
 Current risk:
 
@@ -100,19 +119,25 @@ This is the clearest feature/optimization worth doing now rather than later.
 
 ### 5. Add one browser-level end-to-end smoke path
 
+Status:
+
+1. completed baseline
+
 Current gap:
 
-1. server and SDK are well tested
-2. platform and prototype orchestration still lean heavily on unit/integration confidence instead of one true user-path test
+1. resolved with one deterministic local Arcade happy-path smoke
 
-Recommended scope:
+Implemented scope:
 
 1. host boots
-2. controller joins
-3. basic input reaches host
-4. one Arcade launch path works
+2. controller joins the real room code from the host browser surface
+3. team join and bot staging cross the iframe boundary
+4. launch moves both host and controller into gameplay through the real Arcade path
 
-Only one happy-path smoke is needed initially.
+Notes:
+
+1. the smoke path uses a local `local-pong` Arcade reference fixture instead of depending on database-seeded public games
+2. this is intentionally one happy-path proof, not a broad browser test suite
 
 ### 6. Start decomposing the largest files at obvious seams
 
@@ -229,16 +254,13 @@ It should not be the canonical day-to-day release path.
 
 ### Release System
 
-1. fix package targeting in `.github/workflows/publish-packages.yml`
-2. decide one canonical release trigger shape
-3. document the release steps in a small maintainer-facing release doc
-4. migrate npm package auth to trusted publishing and revoke old npm publish tokens after validation
+1. keep one canonical release trigger shape
+2. document the release steps in a small maintainer-facing release doc
+3. validate npm trusted publishing live and revoke old npm publish tokens after validation
 
 ### Product Quality
 
-1. remove user-facing runtime debug logs
-2. add one browser-level smoke test
-3. reduce air-capture physics payload or split heavyweight demo concerns away from the default reference path
+1. reduce air-capture physics payload or split heavyweight demo concerns away from the default reference path
 
 ### Complexity Control
 

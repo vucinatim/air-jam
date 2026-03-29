@@ -1,12 +1,13 @@
 # Air Jam V1 Closeout Plan
 
-Last updated: 2026-03-27
+Last updated: 2026-03-29
 Status: active
 
 Related docs:
 
 1. [Release Prep Plan](./release-prep-plan.md)
 2. [Framework Paradigm](../framework-paradigm.md)
+3. [Legacy Game Migration Guide](../systems/legacy-game-migration-guide.md)
 4. [Monorepo Operating System](../monorepo-operating-system.md)
 5. [Release Article Outline](../content/v1-release-article-outline.md)
 6. [Docs Index](../docs-index.md)
@@ -40,6 +41,11 @@ The highest-value release proof is:
 3. a clear migration path from old architecture to new architecture
 4. local tarball validation
 5. a release PR and package publish that reflect a stable system
+
+Current proof update:
+
+1. the three legacy ZeroDays games are already on the current Air Jam bootstrap shape
+2. the migration proof is now captured by the guide plus tarball validation, not by a future in-place rewrite
 
 This proof matters more than polish alone.
 
@@ -126,10 +132,21 @@ Prove that Air Jam v1 is a real upgrade path, not just a new clean architecture 
 
 ### Required outcomes
 
-1. write a migration document by comparing three old-architecture games against the new `air-capture` and `pong`
+1. write a migration document by comparing three legacy games against the new `air-capture` and `pong`
 2. identify the minimal migration recipe that converts an old game to the current architecture
-3. migrate the three old games fully to the new architecture
-4. validate that each migrated game works correctly
+3. validate the three migrated games against local packaged dependencies
+
+### Current status
+
+Status:
+
+1. completed baseline
+
+Completed:
+
+1. [Legacy Game Migration Guide](../systems/legacy-game-migration-guide.md) now captures the reusable migration recipe
+2. `code-review`, `last-band-standing`, and `the-office` already match the current bootstrap and route shape
+3. `pnpm test:legacy:tarball` validates all three games against local SDK/server tarballs
 
 ### Why this phase matters
 
@@ -142,7 +159,7 @@ If older real games can be moved cleanly, Air Jam v1 becomes much easier to trus
 This phase is complete when:
 
 1. the migration guide is concrete and reusable
-2. all three target games are moved to the new architecture
+2. the three target games are on the current architecture
 3. the migrated games run successfully against local packaged dependencies
 
 ## Phase 4. Tarball Validation
@@ -236,8 +253,7 @@ The release-critical path is:
 1. top-level dev commands
 2. `pong` quality pass
 3. migration guide
-4. migration of the three old games
-5. local tarball validation
+4. local tarball validation for the three old games
 6. release PR
 7. package publish
 

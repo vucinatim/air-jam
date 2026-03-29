@@ -47,6 +47,8 @@ Already true:
 2. the docs system is canonical and stable
 3. the Pong template is materially stronger in structure, testing, and controller/host UX
 4. the landing page already has a clear visual identity
+5. `air-capture` host startup no longer eagerly loads the live 3D scene during lobby/end states; gameplay-heavy host modules are now deferred
+6. the landing page is good enough for release and no longer needs active redesign work
 
 The remaining work is mostly surface polish and clarity, not foundational architecture.
 
@@ -54,16 +56,11 @@ The remaining work is mostly surface polish and clarity, not foundational archit
 
 ## 1. Landing Page Tightening
 
+Status: completed baseline
+
 Goal:
 
 1. make the homepage feel like one intentional product surface instead of a strong hero plus generic sections
-
-Remaining:
-
-1. simplify the story around the actual creation-to-play loop
-2. keep the builder path stronger than the “toy/demo” read
-3. use real proof surfaces rather than generic feature-card language
-4. tighten route/component boundaries if the current implementation still mixes concerns awkwardly
 
 Done when:
 
@@ -80,9 +77,8 @@ Goal:
 Remaining:
 
 1. keep rendered-docs validation lightweight but reliable
-2. tighten metadata consistency where it materially helps release trust
+2. tighten metadata consistency only where it materially helps release trust
 3. keep contributor-facing docs guidance aligned with the canonical content model
-4. do only retrieval/index polish that clearly improves usefulness
 
 Done when:
 
@@ -100,8 +96,9 @@ Remaining:
 
 1. continue small Pong quality passes only where they improve release credibility
 2. keep host/controller surfaces game-like rather than dashboard-like
-3. make sure `air-capture` and `pong` still feel like real proof, not just technical demos
-4. avoid reopening clean architecture boundaries just to chase cosmetic churn
+3. defer the full `air-capture` cleanup until we can realign it to the template-style architecture in one deliberate pass
+4. make sure `pong` still feels like real proof, not just a technical demo
+5. avoid reopening clean architecture boundaries just to chase cosmetic churn
 
 Done when:
 

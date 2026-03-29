@@ -3,6 +3,7 @@
 import { ArcadeSystem, type ArcadeGame } from "@/components/arcade";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
+import { getLocalReferenceArcadeGame } from "@/lib/local-reference-games";
 import { api } from "@/trpc/react";
 import { HostSessionProvider } from "@air-jam/sdk";
 import { use } from "react";
@@ -32,25 +33,34 @@ export default function ArcadePage({
   const resolvedParams = use(params);
   // Extract slug from optional catch-all (e.g., /arcade/space-battle → ["space-battle"])
   const slugOrId = resolvedParams.slug?.[0];
+  const localReferenceGame = getLocalReferenceArcadeGame(slugOrId ?? null);
+  const usingLocalReferenceGame = localReferenceGame !== null;
 
   const { data: games, isLoading: gamesLoading } =
-    api.game.getAllPublic.useQuery();
+    api.game.getAllPublic.useQuery(undefined, {
+      enabled: !usingLocalReferenceGame,
+    });
 
   // If a slug is provided, look up that specific game for auto-launch
   const { data: targetGame, isLoading: targetLoading } =
     api.game.getBySlugOrId.useQuery(
       { slugOrId: slugOrId! },
-      { enabled: !!slugOrId },
+      { enabled: !!slugOrId && !usingLocalReferenceGame },
     );
 
-  const isLoading = gamesLoading || (slugOrId && targetLoading);
+  const isLoading =
+    !usingLocalReferenceGame && (gamesLoading || (!!slugOrId && targetLoading));
 
-  const arcadeGames = games
-    ? expandArcadeGamesForDev(toArcadeGames(games))
-    : [];
+  const arcadeGames = usingLocalReferenceGame
+    ? [localReferenceGame]
+    : games
+      ? expandArcadeGamesForDev(toArcadeGames(games))
+      : [];
 
-  const initialGameId = targetGame?.id;
-  const shouldAutoLaunch = !!slugOrId && !!targetGame;
+  const initialGameId = usingLocalReferenceGame
+    ? localReferenceGame.id
+    : targetGame?.id;
+  const shouldAutoLaunch = !!slugOrId && (usingLocalReferenceGame || !!targetGame);
   const hostRouteIntent = slugOrId
     ? { kind: "game" as const, gameId: initialGameId ?? null }
     : { kind: "browser" as const };

@@ -28,34 +28,35 @@ Anything outside that order should only move in parallel when it does not slow t
 
 ### Priority 1. Release Workflow And CI Hardening
 
-Status: active  
+Status: completed baseline  
 Plan: [Release Prep Plan](./plans/release-prep-plan.md)
 
-Remaining:
+Completed:
 
-1. fix publish workflow targeting
-2. make CI enforce the real release contract
-3. remove stray user-facing debug logging from release UX
+1. package publish targeting is explicit
+2. CI now enforces the canonical release contract
+3. release-visible platform browser console noise was removed from arcade/controller-facing runtime paths
 
 ### Priority 2. Browser-Level Product Proof
 
-Status: active  
+Status: completed baseline  
 Plan: [Release Prep Plan](./plans/release-prep-plan.md)
 
-Remaining:
+Completed:
 
-1. add one true browser-level host/controller/launch smoke path
+1. one true browser-level host/controller/join/launch smoke path now runs inside `pnpm check:release`
+2. the smoke path uses a deterministic local Arcade reference game instead of database-seeded public content
 
 ### Priority 3. Migration Proof
 
-Status: active  
+Status: completed baseline  
 Plan: [V1 Closeout Plan](./plans/v1-closeout-plan.md)
 
-Remaining:
+Completed:
 
-1. write the concrete migration guide
-2. migrate the three old games
-3. validate migrated games against local tarballs
+1. the concrete migration guide now exists in [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
+2. the three legacy ZeroDays games are already on the current bootstrap and route model
+3. repo-owned local tarball validation now proves `code-review`, `last-band-standing`, and `the-office` against packaged SDK/server dependencies via `pnpm test:legacy:tarball`
 
 ### Priority 4. Release-Facing Product Polish
 
@@ -64,9 +65,10 @@ Plan: [Release-Facing Polish Plan](./plans/release-polish-plan.md)
 
 Remaining:
 
-1. tighten landing-page clarity and proof
-2. finish the last meaningful docs polish
-3. keep only small reference-app quality passes that improve release credibility
+1. finish the last meaningful docs polish
+2. keep only small Pong/reference quality passes that improve release credibility
+3. defer the `air-capture` template-aligned refactor until the end of prerelease polish instead of continuing piecemeal changes
+4. move anything else non-essential to `docs/suggestions.md`
 
 Rule:
 
@@ -163,6 +165,8 @@ These are done enough that they should not drive the day-to-day work queue:
 3. controller-shell haptics baseline
 4. workspace-to-unified-log ingestion
 5. framework paradigm refresh across runtime, platform, AI-native workflow, analytics, and monetization direction
+6. browser-level Arcade happy-path smoke inside the canonical release gate
+7. legacy game migration guide plus tarball validation across the three ZeroDays reference games
 
 ## Rules
 

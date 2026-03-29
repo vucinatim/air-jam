@@ -55,7 +55,10 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
   const slots = buildTeamSlots(players, botCount);
 
   return (
-    <div className="pong-panel flex h-full w-full flex-col gap-4 rounded-[28px] p-5 text-left">
+    <div
+      className="pong-panel flex h-full w-full flex-col gap-4 rounded-[28px] p-5 text-left"
+      data-testid={`pong-host-team-card-${team}`}
+    >
       <div className="flex items-center justify-between gap-3">
         <TeamName
           team={team}
@@ -73,6 +76,7 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
               <div
                 key={`${team}-slot-${index}`}
                 className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/14 bg-white/8 px-4"
+                data-testid={`pong-host-team-slot-${team}-${index}`}
               >
                 <PlayerAvatar
                   player={slot.player}
@@ -96,6 +100,7 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
               <div
                 key={`${team}-slot-${index}`}
                 className="flex h-[72px] items-center gap-3 rounded-[22px] border border-cyan-400/28 bg-cyan-400/10 px-4"
+                data-testid={`pong-host-team-slot-${team}-${index}`}
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-cyan-300/35 bg-cyan-300/12 text-[11px] font-black tracking-[0.14em] text-cyan-100 uppercase">
                   AI
@@ -116,6 +121,7 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
             <div
               key={`${team}-slot-${index}`}
               className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/10 bg-white/4 px-4"
+              data-testid={`pong-host-team-slot-${team}-${index}`}
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[11px] font-black tracking-[0.14em] text-zinc-500 uppercase">
                 --
@@ -164,7 +170,10 @@ export const LobbyScreen = ({
   );
 
   return (
-    <div className="pong-app-shell flex min-h-screen w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8">
+    <div
+      className="pong-app-shell flex min-h-screen w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8"
+      data-testid="pong-host-lobby-screen"
+    >
       <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="pong-panel-strong flex flex-col rounded-[34px] px-6 py-6 sm:px-8 sm:py-7">
           <div className="flex items-center justify-between gap-6">
@@ -219,7 +228,10 @@ export const LobbyScreen = ({
 
         <section className="pong-panel flex flex-col items-center justify-center rounded-[34px] px-6 py-7 text-center sm:px-8">
           <div className="pong-caption">Join On Phone</div>
-          <div className="mt-2 text-4xl font-black tracking-[0.22em] text-white uppercase">
+          <div
+            className="mt-2 text-4xl font-black tracking-[0.22em] text-white uppercase"
+            data-testid="pong-host-room-code"
+          >
             {roomId ?? "----"}
           </div>
           <p className="mt-3 max-w-sm text-sm leading-6 text-slate-300">

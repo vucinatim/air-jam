@@ -20,7 +20,9 @@ export default async function Home({
 
   return (
     <LandingPage
-      equationCodeBlock={<LandingCodeBlock code={equationSnippet} lang="typescript" transparent />}
+      equationCodeBlock={
+        <LandingCodeBlock code={equationSnippet} lang="typescript" transparent />
+      }
       sdkProofCodes={[
         <LandingCodeBlock key="sdk-config" code={sdkSnippet} />,
         <LandingCodeBlock key="sdk-store" code={storeSnippet} />,

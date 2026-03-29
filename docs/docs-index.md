@@ -15,6 +15,7 @@ Core system docs:
 4. [Analytics Architecture](./systems/analytics-architecture.md)
 5. [AI Studio Architecture](./systems/ai-studio-architecture.md)
 6. [Platform Controller Presentation](./systems/platform-controller-presentation.md)
+7. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 
 Strategy and operations:
 
@@ -26,8 +27,11 @@ Release-critical plans:
 
 1. [Release Prep Plan](./plans/release-prep-plan.md)
 2. [V1 Closeout Plan](./plans/v1-closeout-plan.md)
-3. [Legacy Game Migration Working Notes](./plans/legacy-game-migration-working-notes.md)
-4. [Release-Facing Polish Plan](./plans/release-polish-plan.md)
+3. [Release-Facing Polish Plan](./plans/release-polish-plan.md)
+
+Migration proof references:
+
+1. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 
 Active subsystem plans:
 
@@ -47,6 +51,7 @@ Completed transitions / reference plans:
 5. [Analytics Implementation Plan](./archive/analytics-implementation-plan-2026-03-27.md)
 6. [Documentation Hardening Plan (Archived)](./archive/documentation-hardening-plan-2026-03-29.md)
 7. [Landing Page Polish Plan (Archived)](./archive/landing-page-polish-plan-2026-03-29.md)
+8. [Legacy Game Migration Working Notes (Archived)](./archive/legacy-game-migration-working-notes-2026-03-29.md)
 
 Content drafts:
 

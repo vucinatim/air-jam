@@ -103,9 +103,11 @@ The workflow:
 
 1. installs dependencies
 2. runs `pnpm check:release`
-3. publishes the selected package(s) to npm via trusted publishing
-4. creates package-specific git tag(s)
-5. creates package-specific GitHub release(s)
+3. validates the browser-level Arcade happy-path smoke inside that gate
+4. resolves the selected package set explicitly
+5. publishes only the selected package job(s) to npm via trusted publishing
+6. creates matching package-specific git tag(s)
+7. creates matching package-specific GitHub release(s)
 
 ## Tag Format
 

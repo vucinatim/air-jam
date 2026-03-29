@@ -1,18 +1,19 @@
 # Legacy Game Migration Working Notes
 
-Last updated: 2026-03-27
-Status: active working doc
+Last updated: 2026-03-29
+Status: archived reference
 
 Related docs:
 
-1. [V1 Closeout Plan](./v1-closeout-plan.md)
+1. [V1 Closeout Plan](../plans/v1-closeout-plan.md)
 2. [Framework Paradigm](../framework-paradigm.md)
 3. [Monorepo Operating System](../monorepo-operating-system.md)
 4. [Documentation Architecture](../systems/documentation-architecture.md)
+5. [Legacy Game Migration Guide](../systems/legacy-game-migration-guide.md)
 
 ## Purpose
 
-This document is the working dataset for migrating the three legacy ZeroDays Air Jam games onto the current Air Jam v1 architecture.
+This document is the archived working dataset used while deriving the final migration recipe for the three legacy ZeroDays Air Jam games.
 
 It exists to capture:
 
@@ -23,7 +24,9 @@ It exists to capture:
 
 This is not the final public migration guide.
 
-This is the internal observation log that should make the final guide concrete.
+That guide now lives in [Legacy Game Migration Guide](../systems/legacy-game-migration-guide.md).
+
+Keep this file as supporting historical detail, not as an active execution plan.
 
 ## Legacy Game Set
 

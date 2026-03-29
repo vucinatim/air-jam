@@ -74,7 +74,7 @@ export const LobbyPanel = ({
   onStartMatch,
 }: LobbyPanelProps) => {
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col" data-testid="pong-controller-lobby-panel">
       <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pt-3 pb-3">
         <div className="grid gap-3 sm:grid-cols-2">
           {(["team1", "team2"] as const).map((team) => {
@@ -89,6 +89,7 @@ export const LobbyPanel = ({
               <div
                 key={team}
                 className="pong-panel rounded-[24px] px-4 py-4 text-center"
+                data-testid={`pong-controller-team-card-${team}`}
               >
                 <div className="pong-caption">
                   <TeamName team={team} />
@@ -96,6 +97,7 @@ export const LobbyPanel = ({
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    data-testid={`pong-controller-join-team-${team}`}
                     className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
                     style={{
                       background: joined
@@ -113,6 +115,7 @@ export const LobbyPanel = ({
                   </button>
                   <button
                     type="button"
+                    data-testid={`pong-controller-add-bot-${team}`}
                     className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] uppercase ${
                       teamIsFull
                         ? "border-white/10 bg-white/4 text-zinc-500"
@@ -134,6 +137,7 @@ export const LobbyPanel = ({
                         <div
                           key={`${team}-slot-${index}`}
                           className={`${SLOT_SHELL_CLASS} border-white/16 bg-white/12 text-white`}
+                          data-testid={`pong-controller-team-slot-${team}-${index}`}
                         >
                           <PlayerAvatar
                             player={slot.player}
@@ -157,6 +161,7 @@ export const LobbyPanel = ({
                         <div
                           key={`${team}-slot-${index}`}
                           className={`${SLOT_SHELL_CLASS} border-white/10 bg-white/4 text-zinc-500`}
+                          data-testid={`pong-controller-team-slot-${team}-${index}`}
                         >
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[9px] font-black tracking-[0.14em] uppercase text-zinc-500">
                             --
@@ -177,6 +182,7 @@ export const LobbyPanel = ({
                       <button
                         key={`${team}-slot-${index}`}
                         type="button"
+                        data-testid={`pong-controller-team-slot-${team}-${index}`}
                         className={`${SLOT_SHELL_CLASS} border-cyan-400/40 bg-cyan-400/12 text-cyan-100 ${PRESS_FEEL_CLASS}`}
                         disabled={!canRemoveBot}
                         onClick={() => {
@@ -235,6 +241,7 @@ export const LobbyPanel = ({
       <div className="px-3 pt-2 pb-3">
         <button
           type="button"
+          data-testid="pong-controller-start-match"
           className={`w-full rounded-[22px] border border-white/16 bg-white px-4 py-4 text-sm font-black tracking-[0.18em] text-black uppercase shadow-[0_18px_40px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
           disabled={!canStartMatch || controlsDisabled}
           onClick={onStartMatch}

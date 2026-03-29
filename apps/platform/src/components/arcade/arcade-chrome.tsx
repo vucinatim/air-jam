@@ -61,7 +61,10 @@ export const ArcadeChrome = ({
             <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
               Room
             </p>
-            <p className="text-lg leading-tight font-semibold text-white">
+            <p
+              className="text-lg leading-tight font-semibold text-white"
+              data-testid="arcade-room-code"
+            >
               {roomId || "----"}
             </p>
             {lastError ? (

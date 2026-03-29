@@ -19,7 +19,10 @@ export const ScoreStrip = ({
   scores,
 }: ScoreStripProps) => {
   return (
-    <div className="pong-panel mx-auto mt-4 flex w-full max-w-5xl items-center gap-3 rounded-[28px] px-4 py-3 sm:mt-6 sm:px-5">
+    <div
+      className="pong-panel mx-auto mt-4 flex w-full max-w-5xl items-center gap-3 rounded-[28px] px-4 py-3 sm:mt-6 sm:px-5"
+      data-testid="pong-host-score-strip"
+    >
       <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
         <div className="hidden text-right sm:block">
           <div className="pong-caption">

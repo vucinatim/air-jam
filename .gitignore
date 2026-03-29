@@ -29,3 +29,7 @@ dist-ssr
 
 # Generated hosted AI pack artifacts
 apps/platform/public/ai-pack/
+
+# Playwright smoke artifacts
+test-results/
+playwright-report/
