@@ -1,6 +1,7 @@
 # Air Jam Logging System Plan
 
 Last updated: 2026-03-29
+Status: mostly complete
 
 ## Goal
 
@@ -238,18 +239,17 @@ What is true today:
 3. browser logs are shipped automatically through the standard SDK provider path
 4. scaffolded games already use the standard server package by default
 5. the monorepo has a practical log viewer via `pnpm dev:logs`
+6. scaffolded projects now also get an obvious `pnpm logs` path
+7. the published server CLI exposes the log viewer as `air-jam-server logs`
+8. public docs and the AI pack now teach the unified log workflow directly
+9. scaffold validation proves the generated-project sink path and reset behavior
+10. workspace dev-runner toolchain logs can now land in the same canonical stream
 
-What is still incomplete:
+What remains is refinement, not productization:
 
-1. scaffolded projects do not yet get an equally obvious `pnpm logs` path
-2. the published server CLI does not yet expose the log viewer as a first-class command
-3. the AI pack does not yet teach this system clearly enough
-4. the public docs do not yet elevate this to a canonical Air Jam debugging workflow
-5. scaffold validation does not yet prove the end-to-end sink behavior in a generated project
-
-So the remaining work is not a logging-system rewrite.
-
-It is productization and teaching.
+1. keep the docs and plan surface aligned with the shipped workflow
+2. improve signal-to-noise only when real debugging sessions justify it
+3. avoid turning the system into a heavy observability platform
 
 ## AI-Native Rollout Plan
 
@@ -774,11 +774,8 @@ The system should stay small, sharp, and local-first.
 
 ## Current Next Step
 
-The next concrete implementation slice should be:
+The next concrete work here should be small and evidence-driven:
 
-1. add the canonical public docs page for the unified dev log system
-2. update the scaffold AI pack and `debug-and-test` skill to teach it explicitly
-3. promote the log viewer into the published server CLI
-4. add a scaffold `pnpm logs` script
-
-That is now the highest-value next step because the underlying collector path already exists.
+1. keep the plan and docs surface aligned with the shipped workflow
+2. make targeted noise-reduction improvements only when real sessions expose them
+3. preserve the local-first sharpness of the system instead of adding more logging surface by default

@@ -22,4 +22,4 @@ These are still useful post–Arcade reset, but they should be handled as small 
 
 1. **Single bootstrap owner:** Centralize embedded-vs-standalone runtime resolution and URL parsing into one module so room/join/arcade bootstrap does not stay split across runtime params, embedded adapters, realtime clients, and runtime hooks.
 2. **Reconnect seam narrowing:** Revisit `hostArcadeRestore` and move it behind a host-only adapter if we can do so cleanly, so `AirJamStore` stays room/session shaped instead of carrying host-shell restore state forever.
-3. **Protocol change recipe:** Funnel schema/protocol changes through `packages/sdk/src/protocol` more deliberately and document the change path in `docs/development-loop.md` so transport updates stop fanning out loosely.
+3. **Protocol change recipe:** Funnel schema/protocol changes through `packages/sdk/src/protocol` more deliberately and document the change path in `docs/monorepo-operating-system.md` so transport updates stop fanning out loosely.

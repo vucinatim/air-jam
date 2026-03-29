@@ -5,11 +5,11 @@ Status: active direction
 
 Related docs:
 
-1. [Framework Paradigm](./framework-paradigm.md)
+1. [Framework Paradigm](../framework-paradigm.md)
 2. [Documentation Architecture](./documentation-architecture.md)
-3. [Development Loop](./development-loop.md)
+3. [Monorepo Operating System](../monorepo-operating-system.md)
 4. [AI Studio Architecture](./ai-studio-architecture.md)
-5. [Docs Index](./docs-index.md)
+5. [Docs Index](../docs-index.md)
 
 ## Purpose
 
@@ -848,4 +848,4 @@ This model is working when all of these are true:
 
 This document should stay focused on the operating model for AI-native Air Jam development.
 
-If a future implementation phase starts, that execution tracker should live in `docs/implementation-plan.md` or a dedicated plan document, not here.
+If a future implementation phase starts, that execution tracker should live in `docs/work-ledger.md` plus a dedicated bounded plan document, not here.

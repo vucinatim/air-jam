@@ -371,7 +371,7 @@ Air Jam does not manage media uploads yet. That is intentional for v1 so game pu
 ## Documentation
 
 - **[Project Docs Index](./docs/docs-index.md)**: Planning, workflow, and supporting docs
-- **[Performance Baseline](./docs/performance-baseline.md)**: Optional local perf sanity snapshots
+- **[Performance Baseline](./docs/strategy/performance-baseline.md)**: Optional local perf sanity snapshots
 - **[SDK Documentation](./packages/sdk/README.md)**: Complete SDK reference
 - **[Platform Docs](./apps/platform/src/app/docs/)**: Full documentation in the platform app
 - **[Architecture Guide](./apps/platform/src/app/docs/how-it-works/architecture/page.mdx)**: System design overview

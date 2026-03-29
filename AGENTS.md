@@ -35,11 +35,21 @@ Run relevant checks before considering work complete:
 
 ## Documentation Discipline
 
-1. Keep intended architecture in `docs/framework-paradigm.md` and the active implementation tracker in `docs/implementation-plan.md`.
-2. Keep workflow guidance in `docs/development-loop.md`.
-3. Keep navigation pointers in `docs/docs-index.md`.
-4. Move completed/superseded plan snapshots to `docs/archive/done/`.
-5. Update docs in the same change when contracts or behavior change.
+1. Keep intended architecture in `docs/framework-paradigm.md`.
+2. Keep the single active repo-wide execution ledger in `docs/work-ledger.md`.
+3. Keep the durable follow-up backlog in `docs/suggestions.md`.
+4. Keep monorepo workflow guidance in `docs/monorepo-operating-system.md`.
+5. Keep navigation pointers in `docs/docs-index.md`.
+6. Treat `docs/plans/*.md` as bounded system plans, not duplicate global trackers.
+7. Move completed/superseded plan snapshots to `docs/archive/`.
+8. Update docs in the same change when contracts or behavior change.
+
+## Follow-Up Tracking Rule
+
+1. Put current work and status changes in `docs/work-ledger.md`.
+2. Put multi-step active tracks in `docs/plans/`.
+3. Put only durable non-critical follow-ups in `docs/suggestions.md`.
+4. Do not turn `docs/suggestions.md` into a second active task tracker.
 
 ## Decision Rule
 

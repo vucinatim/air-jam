@@ -1,31 +1,28 @@
 # Air Jam AI-Native Template System Plan
 
 Last updated: 2026-03-29  
-Status: active
+Status: mostly complete
 
 Implementation status:
 
-1. Phases 1 through 4 are implemented.
-2. Phase 5 is partially implemented:
-   1. the platform now publishes a hosted AI pack manifest at `/ai-pack/manifest.json`
-   2. channel and version manifests now exist under `/ai-pack/<channel>/...`
-   3. the scaffold AI/dev files are now published as stable hosted artifacts under `/ai-pack/<channel>/<packVersion>/files/...`
-   4. those hosted files are generated build output, not canonical tracked source
-3. Phase 7 is partially implemented:
+1. Phases 1 through 6 are implemented.
+2. Phase 7 is substantially implemented:
    1. scaffold smoke coverage exists
    2. generated project file presence is validated
-   3. the local docs export is now freshness-checked through `create-airjam` AI pack validation
-4. Phase 6 is partially implemented:
-   1. `create-airjam ai-pack status` exists
-   2. `create-airjam ai-pack diff` exists
-   3. both commands compare local managed files against the hosted AI pack
-5. the remaining Phase 6 work is the explicit update write path
+   3. the local docs export is freshness-checked
+   4. AI pack completeness is checked before release-oriented scaffold validation
+3. the platform publishes hosted AI pack manifests and hosted file artifacts under `/ai-pack/...`
+4. `create-airjam ai-pack status`, `diff`, and `update` all exist
+5. hosted AI-pack files are generated build output, not canonical tracked source
+6. the remaining work is closeout and hygiene, not core architecture:
+   1. keep the plan aligned with shipped reality
+   2. continue improving template quality without reopening the distribution model
 
 Related docs:
 
-1. [AI-Native Development Workflow](../ai-native-development-workflow.md)
-2. [Documentation Architecture](../documentation-architecture.md)
-3. [Development Loop](../development-loop.md)
+1. [AI-Native Development Workflow](../systems/ai-native-development-workflow.md)
+2. [Documentation Architecture](../systems/documentation-architecture.md)
+3. [Monorepo Operating System](../monorepo-operating-system.md)
 4. [Docs Index](../docs-index.md)
 
 ## Purpose
@@ -241,7 +238,7 @@ Goal:
 
 Tasks:
 
-1. keep [AI-Native Development Workflow](../ai-native-development-workflow.md) as the core architecture doc
+1. keep [AI-Native Development Workflow](../systems/ai-native-development-workflow.md) as the core architecture doc
 2. capture this implementation plan as the active rollout tracker
 3. freeze the source split:
    1. `content/docs/`

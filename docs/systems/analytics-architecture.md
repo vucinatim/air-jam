@@ -5,11 +5,10 @@ Status: implemented foundation
 
 Related docs:
 
-1. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-2. [Framework Paradigm](./framework-paradigm.md)
-3. [Implementation Plan](./implementation-plan.md)
-4. [AI Studio Architecture](./ai-studio-architecture.md)
-5. [Docs Index](./docs-index.md)
+1. [Deployment and Monetization Strategy](../strategy/deployment-and-monetization-strategy.md)
+2. [Framework Paradigm](../framework-paradigm.md)
+3. [AI Studio Architecture](./ai-studio-architecture.md)
+4. [Docs Index](../docs-index.md)
 
 ## Purpose
 

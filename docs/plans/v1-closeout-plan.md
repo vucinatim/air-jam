@@ -7,9 +7,8 @@ Related docs:
 
 1. [Release Prep Plan](./release-prep-plan.md)
 2. [Framework Paradigm](../framework-paradigm.md)
-3. [Implementation Plan](../implementation-plan.md)
-4. [Development Loop](../development-loop.md)
-5. [Blog Article Plan](./blog-article-plan.md)
+4. [Monorepo Operating System](../monorepo-operating-system.md)
+5. [Release Article Outline](../content/v1-release-article-outline.md)
 6. [Docs Index](../docs-index.md)
 
 ## Purpose
@@ -277,5 +276,5 @@ This plan should remain the active v1 tracker until the public release is out.
 After the release:
 
 1. archive this document
-2. move leftover non-release-critical follow-ups into `suggestions.md`
+2. move leftover non-release-critical follow-ups into `docs/suggestions.md`
 3. start a fresh post-v1 roadmap instead of stretching this plan forward indefinitely

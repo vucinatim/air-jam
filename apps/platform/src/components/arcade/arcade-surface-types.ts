@@ -1,5 +1,5 @@
 /**
- * Canonical Arcade surface shape (see docs/arcade-surface-contract.md).
+ * Canonical Arcade surface shape (see docs/systems/arcade-surface-contract.md).
  * Owned by Arcade host replicated state and synced to controllers.
  */
 

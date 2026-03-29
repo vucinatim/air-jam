@@ -5,11 +5,11 @@ Status: implemented foundation
 
 Related docs:
 
-1. [Analytics Architecture](../analytics-architecture.md)
-2. [Deployment and Monetization Strategy](../deployment-and-monetization-strategy.md)
+1. [Analytics Architecture](../../systems/analytics-architecture.md)
+2. [Deployment and Monetization Strategy](../../strategy/deployment-and-monetization-strategy.md)
 3. [Framework Paradigm](../framework-paradigm.md)
-4. [Implementation Plan](../implementation-plan.md)
-5. [AI Studio Architecture](../ai-studio-architecture.md)
+4. [Arcade Architecture Reset Summary](./arcade-architecture-reset-summary.md)
+5. [AI Studio Architecture](../../systems/ai-studio-architecture.md)
 6. [Docs Index](../docs-index.md)
 
 ## Purpose
@@ -477,5 +477,5 @@ This plan is complete when all of these are true:
 When the first production-worthy analytics slice ships:
 
 1. move completed implementation detail out of this plan
-2. keep the long-term architecture in `docs/analytics-architecture.md`
+2. keep the long-term architecture in `docs/systems/analytics-architecture.md`
 3. archive this plan when it is no longer the active tracker

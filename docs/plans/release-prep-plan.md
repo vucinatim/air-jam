@@ -6,10 +6,9 @@ Status: active
 Related docs:
 
 1. [Framework Paradigm](../framework-paradigm.md)
-2. [Implementation Plan](../implementation-plan.md)
-3. [Development Loop](../development-loop.md)
-4. [Performance Baseline](../performance-baseline.md)
-5. [Docs Index](../docs-index.md)
+2. [Monorepo Operating System](../monorepo-operating-system.md)
+3. [Performance Baseline](../strategy/performance-baseline.md)
+4. [Docs Index](../docs-index.md)
 
 ## Purpose
 
@@ -252,5 +251,5 @@ This document should stay practical and short.
 
 When these items are completed:
 
-1. move remaining architectural follow-ups back to `suggestions.md`
+1. move remaining architectural follow-ups back to `docs/suggestions.md`
 2. archive this plan if release prep is no longer an active concern

@@ -1,4 +1,4 @@
-# Air Jam Implementation Plan
+# Arcade Architecture Reset Tracker
 
 Last updated: 2026-03-25  
 Status: active
@@ -306,7 +306,7 @@ There is currently nowhere canonical in the app model for the state we need to k
 
 Goal: replace transient UI truth with a replayable replicated surface snapshot.
 
-Reference spec: [Arcade Surface Contract](./arcade-surface-contract.md)
+Reference spec: [Arcade Surface Contract](../../systems/arcade-surface-contract.md)
 
 ### Tasks
 
@@ -340,7 +340,7 @@ Phase 4 progress: redundant `view` field removed from `ArcadeRuntimeState`; shel
 
 ### Contract Decision (2026-03-25)
 
-The concrete target contract now exists in [Arcade Surface Contract](./arcade-surface-contract.md).
+The concrete target contract now exists in [Arcade Surface Contract](../../systems/arcade-surface-contract.md).
 
 Locked decisions:
 

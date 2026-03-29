@@ -5,9 +5,9 @@ Status: active
 
 Related docs:
 
-1. [Release Prep Plan](./plans/release-prep-plan.md)
-2. [Development Loop](./development-loop.md)
-3. [Docs Index](./docs-index.md)
+1. [Release Prep Plan](../plans/release-prep-plan.md)
+2. [Monorepo Operating System](../monorepo-operating-system.md)
+3. [Docs Index](../docs-index.md)
 
 ## Canonical Release Model
 

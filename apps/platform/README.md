@@ -25,5 +25,5 @@ Related local services:
 
 ## Notes
 
-1. Controller chrome in Arcade embedded-game mode follows host-driven session orientation, not just the arcade surface launch hint. See [docs/platform-controller-presentation.md](../../docs/platform-controller-presentation.md).
-2. Product architecture and strategy live in [docs/framework-paradigm.md](../../docs/framework-paradigm.md) and [docs/deployment-and-monetization-strategy.md](../../docs/deployment-and-monetization-strategy.md).
+1. Controller chrome in Arcade embedded-game mode follows host-driven session orientation, not just the arcade surface launch hint. See [docs/platform-controller-presentation.md](../../docs/systems/platform-controller-presentation.md).
+2. Product architecture and strategy live in [docs/framework-paradigm.md](../../docs/framework-paradigm.md) and [docs/deployment-and-monetization-strategy.md](../../docs/strategy/deployment-and-monetization-strategy.md).

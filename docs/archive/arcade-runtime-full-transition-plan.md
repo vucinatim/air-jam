@@ -1,6 +1,6 @@
 # Arcade Runtime Full Transition + Purge Plan
 
-> **Canonical architecture:** [`docs/framework-paradigm.md`](../framework-paradigm.md) and [`docs/implementation-plan.md`](../implementation-plan.md).  
+> **Canonical architecture:** [`docs/framework-paradigm.md`](../framework-paradigm.md) and [`docs/archive/arcade-architecture-reset-summary.md`](./arcade-architecture-reset-summary.md).  
 > This file is a **tactical backlog** (file paths, phases, purge list). If anything below conflicts with the framework paradigm—especially **server-owned Arcade UI** or **“separate runtime product”**—**the paradigm wins**.
 
 ## Decision
@@ -138,7 +138,7 @@ Purge/Align:
 
 ### B1. Invariants vs Arcade UI state
 
-**Canonical model:** scene/overlay/pause guard for the Arcade shell live in **Arcade host replicated state** (see `docs/arcade-surface-contract.md`). The server carries **routing/auth/session invariants** and may mirror or relay snapshots for migration, but must **not** become the long-term owner of app-level Arcade UI truth.
+**Canonical model:** scene/overlay/pause guard for the Arcade shell live in **Arcade host replicated state** (see `docs/systems/arcade-surface-contract.md`). The server carries **routing/auth/session invariants** and may mirror or relay snapshots for migration, but must **not** become the long-term owner of app-level Arcade UI truth.
 
 Refactor as needed:
 
@@ -270,7 +270,7 @@ Delete when replacement lands:
 Edit docs/spec first:
 
 1. `docs/framework-paradigm.md` (canonical)
-2. `docs/archive/done/arcade-controller-overlay-plan.md`
+2. `docs/archive/arcade-controller-overlay-plan.md`
 3. this file (tactical backlog)
 
 Freeze:

@@ -5,11 +5,11 @@ Status: complete
 
 Related docs:
 
-1. [Documentation Architecture](../documentation-architecture.md)
-2. [Framework Paradigm](../framework-paradigm.md)
-3. [Development Loop](../development-loop.md)
-4. [Docs Index](../docs-index.md)
-5. [Documentation Hardening Plan](./documentation-hardening-plan.md)
+1. [Documentation Architecture](../../systems/documentation-architecture.md)
+2. [Framework Paradigm](../../framework-paradigm.md)
+3. [Monorepo Operating System](../monorepo-operating-system.md)
+4. [Docs Index](../../docs-index.md)
+5. [Release-Facing Polish Plan](../plans/release-polish-plan.md)
 
 ## Purpose
 
@@ -36,7 +36,7 @@ Completed:
 4. generated docs source registration is reproducible and CI-verified
 5. the old in-app docs content source has been removed
 
-Remaining work is now hardening work, not migration work. That follow-up is tracked in [Documentation Hardening Plan](./documentation-hardening-plan.md).
+Remaining work is now hardening work, not migration work. That follow-up is tracked in [Release-Facing Polish Plan](../plans/release-polish-plan.md).
 
 Contributor-facing guidance should now treat this plan as reference material, not an active work queue.
 
@@ -56,10 +56,12 @@ The intended end state is:
 ```text
 docs/
   framework-paradigm.md
-  documentation-architecture.md
-  development-loop.md
-  release-workflow.md
-  implementation-plan.md
+  work-ledger.md
+  monorepo-operating-system.md
+  systems/
+    documentation-architecture.md
+  strategy/
+    release-workflow.md
   plans/
   archive/
   internal/
@@ -290,7 +292,7 @@ Tasks:
 
 Implementation targets:
 
-1. `docs/documentation-architecture.md`
+1. `docs/systems/documentation-architecture.md`
 2. new metadata helper module in platform or shared docs tooling
 3. contributor-facing guidance docs if needed
 4. choose the exact MDX compilation bridge approach for the extracted-content system
@@ -585,4 +587,4 @@ This migration is complete only when:
 3. old public docs source and fallback indexing structures are removed
 4. contributor guidance references only the new system
 
-All structural conditions above are now satisfied. Remaining follow-up should be treated as hardening and quality work under [Documentation Hardening Plan](./documentation-hardening-plan.md).
+All structural conditions above are now satisfied. Remaining follow-up should be treated as hardening and quality work under [Release-Facing Polish Plan](../plans/release-polish-plan.md).

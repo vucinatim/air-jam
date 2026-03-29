@@ -1,11 +1,11 @@
-# Air Jam Implementation Plan
+# Arcade Architecture Reset Summary
 
 Last updated: 2026-03-25  
 Status: completed
 
-Architecture baseline: [Framework Paradigm](./framework-paradigm.md)
+Architecture baseline: [Framework Paradigm](../framework-paradigm.md)
 
-This is the active summary for the completed Arcade architecture reset. The detailed execution tracker is archived at [docs/archive/done/arcade-architecture-reset-2026-03-26.md](./archive/done/arcade-architecture-reset-2026-03-26.md).
+This is the short summary for the completed Arcade architecture reset. The detailed execution tracker is archived at [Arcade Architecture Reset Tracker (2026-03-26)](./arcade-architecture-reset-tracker-2026-03-26.md).
 
 ## What Shipped
 
@@ -112,7 +112,7 @@ Manual QA passed for the highest-risk flows:
 
 There is no active migration work left for this reset.
 
-Optional follow-up hardening is tracked in [suggestions.md](../suggestions.md), especially:
+Optional follow-up hardening is tracked in [docs/suggestions.md](../suggestions.md), especially:
 
 1. bridge transport deduplication
 2. single bootstrap owner
@@ -123,4 +123,4 @@ Optional follow-up hardening is tracked in [suggestions.md](../suggestions.md), 
 
 This plan should stay short and current.
 
-If a future architectural reset starts, create a new active tracker here and move any detailed execution history into `docs/archive/done/`.
+If a future architectural reset starts, create a clearly named summary or tracker and place completed history in `docs/archive/`.

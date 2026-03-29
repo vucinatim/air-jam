@@ -5,10 +5,10 @@ Status: active direction
 
 Related docs:
 
-1. [Framework Paradigm](./framework-paradigm.md)
-2. [Development Loop](./development-loop.md)
-3. [Release Workflow](./release-workflow.md)
-4. [Docs Index](./docs-index.md)
+1. [Framework Paradigm](../framework-paradigm.md)
+2. [Monorepo Operating System](../monorepo-operating-system.md)
+3. [Release Workflow](../strategy/release-workflow.md)
+4. [Docs Index](../docs-index.md)
 
 ## Purpose
 
@@ -254,10 +254,12 @@ The preferred future-proof structure is:
 ```text
 docs/
   framework-paradigm.md
-  documentation-architecture.md
-  development-loop.md
-  release-workflow.md
-  implementation-plan.md
+  work-ledger.md
+  monorepo-operating-system.md
+  systems/
+    documentation-architecture.md
+  strategy/
+    release-workflow.md
   plans/
   archive/
   internal/

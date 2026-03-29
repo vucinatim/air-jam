@@ -3,46 +3,61 @@
 Current core docs:
 
 1. [Framework Paradigm](./framework-paradigm.md)
-2. [Arcade Surface Contract](./arcade-surface-contract.md)
-3. [AI-Native Development Workflow](./ai-native-development-workflow.md)
-4. [Implementation Plan](./implementation-plan.md)
-5. [Documentation Architecture](./documentation-architecture.md)
-6. [Development Loop](./development-loop.md)
-7. [Release Workflow](./release-workflow.md)
-8. [Performance Baseline](./performance-baseline.md)
-9. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-10. [Analytics Architecture](./analytics-architecture.md)
-11. [AI Studio Architecture](./ai-studio-architecture.md)
-12. [Platform Controller Presentation](./platform-controller-presentation.md)
+2. [Work Ledger](./work-ledger.md)
+3. [Monorepo Operating System](./monorepo-operating-system.md)
+4. [Suggestions](./suggestions.md)
 
-Active supporting plans:
+Core system docs:
 
-1. [AI-Native Template System Plan](./plans/ai-native-template-system-plan.md)
-2. [Documentation Hardening Plan](./plans/documentation-hardening-plan.md)
-3. [SDK Composability Plan](./plans/sdk-composability-plan.md)
-4. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
-5. [Auth Capability Plan](./plans/auth-capability-plan.md)
-6. [Logging System Plan](./plans/logging-system-plan.md)
-7. [Release Prep Plan](./plans/release-prep-plan.md)
-8. [V1 Closeout Plan](./plans/v1-closeout-plan.md)
-9. [Legacy Game Migration Observations](./plans/legacy-game-migration-observations.md)
-10. [Blog Article Plan](./plans/blog-article-plan.md)
-11. [Landing Page Polish Plan](./plans/landing-page-polish-plan.md)
+1. [Arcade Surface Contract](./systems/arcade-surface-contract.md)
+2. [AI-Native Development Workflow](./systems/ai-native-development-workflow.md)
+3. [Documentation Architecture](./systems/documentation-architecture.md)
+4. [Analytics Architecture](./systems/analytics-architecture.md)
+5. [AI Studio Architecture](./systems/ai-studio-architecture.md)
+6. [Platform Controller Presentation](./systems/platform-controller-presentation.md)
+
+Strategy and operations:
+
+1. [Release Workflow](./strategy/release-workflow.md)
+2. [Performance Baseline](./strategy/performance-baseline.md)
+3. [Deployment and Monetization Strategy](./strategy/deployment-and-monetization-strategy.md)
+
+Release-critical plans:
+
+1. [Release Prep Plan](./plans/release-prep-plan.md)
+2. [V1 Closeout Plan](./plans/v1-closeout-plan.md)
+3. [Legacy Game Migration Working Notes](./plans/legacy-game-migration-working-notes.md)
+4. [Release-Facing Polish Plan](./plans/release-polish-plan.md)
+
+Active subsystem plans:
+
+1. [Auth Capability Plan](./plans/auth-capability-plan.md)
+
+Parked future architecture plans:
+
+1. [SDK Composability Plan](./plans/sdk-composability-plan.md)
+2. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
 
 Completed transitions / reference plans:
 
-1. [Documentation Migration Plan](./plans/documentation-migration-plan.md)
-2. [Analytics Implementation Plan](./archive/done/analytics-implementation-plan-2026-03-27.md)
+1. [Arcade Architecture Reset Summary](./archive/arcade-architecture-reset-summary.md)
+2. [AI-Native Template System Rollout](./archive/ai-native-template-system-rollout-2026-03-29.md)
+3. [Logging System Rollout](./archive/logging-system-rollout-2026-03-29.md)
+4. [Documentation Migration Plan](./archive/documentation-migration-plan-2026-03-27.md)
+5. [Analytics Implementation Plan](./archive/analytics-implementation-plan-2026-03-27.md)
+6. [Documentation Hardening Plan (Archived)](./archive/documentation-hardening-plan-2026-03-29.md)
+7. [Landing Page Polish Plan (Archived)](./archive/landing-page-polish-plan-2026-03-29.md)
 
 Content drafts:
 
 1. [Blog Article Draft](./content/blog-article-draft.md)
+2. [V1 Release Article Outline](./content/v1-release-article-outline.md)
 
 Archived / historical docs:
 
-1. [Arcade Architecture Reset (2026-03-26)](./archive/done/arcade-architecture-reset-2026-03-26.md)
-2. [Arcade Runtime Full Transition Plan](./archive/done/arcade-runtime-full-transition-plan.md)
-3. [Arcade Controller Overlay Plan](./archive/done/arcade-controller-overlay-plan.md)
-4. [SDK Surface Plan](./archive/done/sdk-surface-plan.md)
-5. [Framework Usage Review (2026-03-21)](./archive/done/framework-usage-review-2026-03-21.md)
-6. [Archive Notes](./archive/done/archive-notes.md)
+1. [Arcade Architecture Reset Tracker (2026-03-26)](./archive/arcade-architecture-reset-tracker-2026-03-26.md)
+2. [Arcade Runtime Full Transition Plan](./archive/arcade-runtime-full-transition-plan.md)
+3. [Arcade Controller Overlay Plan](./archive/arcade-controller-overlay-plan.md)
+4. [SDK Surface Plan](./archive/sdk-surface-plan.md)
+5. [Framework Usage Review (2026-03-21)](./archive/framework-usage-review-2026-03-21.md)
+6. [Archive README](./archive/README.md)

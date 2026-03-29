@@ -5,11 +5,10 @@ Status: active direction
 
 Related docs:
 
-1. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-2. [Framework Paradigm](./framework-paradigm.md)
-3. [Implementation Plan](./implementation-plan.md)
-4. [Logging System Plan](./plans/logging-system-plan.md)
-5. [Docs Index](./docs-index.md)
+1. [Deployment and Monetization Strategy](../strategy/deployment-and-monetization-strategy.md)
+2. [Framework Paradigm](../framework-paradigm.md)
+3. [Logging System Rollout](../archive/logging-system-rollout-2026-03-29.md)
+4. [Docs Index](../docs-index.md)
 
 ## Purpose
 

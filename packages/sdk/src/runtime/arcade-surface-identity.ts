@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Minimum Arcade surface identity for embedded runtime bridge attach (see docs/arcade-surface-contract.md).
+ * Minimum Arcade surface identity for embedded runtime bridge attach (see docs/systems/arcade-surface-contract.md).
  */
 export const arcadeSurfaceRuntimeIdentitySchema = z
   .object({
