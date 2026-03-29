@@ -9,7 +9,8 @@ Related docs:
 2. [Release Prep Plan](./release-prep-plan.md)
 3. [Framework Paradigm](../framework-paradigm.md)
 4. [Monorepo Operating System](../monorepo-operating-system.md)
-5. [Docs Index](../docs-index.md)
+5. [Air Capture Reference Refactor Plan](./air-capture-reference-refactor-plan.md)
+6. [Docs Index](../docs-index.md)
 
 ## Purpose
 
@@ -93,7 +94,7 @@ Remaining:
 
 1. continue small Pong quality passes only where they improve release credibility
 2. keep host/controller surfaces game-like rather than dashboard-like
-3. defer the full `air-capture` cleanup until we can realign it to the template-style architecture in one deliberate pass
+3. execute the full `air-capture` cleanup through [Air Capture Reference Refactor Plan](./air-capture-reference-refactor-plan.md)
 4. make sure `pong` still feels like real proof, not just a technical demo
 5. avoid reopening clean architecture boundaries just to chase cosmetic churn
 

@@ -22,12 +22,15 @@ Strategy and operations:
 1. [Release Workflow](./strategy/release-workflow.md)
 2. [Performance Baseline](./strategy/performance-baseline.md)
 3. [Deployment and Monetization Strategy](./strategy/deployment-and-monetization-strategy.md)
+4. [Production Observability Baseline](./strategy/production-observability-baseline.md)
 
 Release-critical plans:
 
 1. [Release Prep Plan](./plans/release-prep-plan.md)
 2. [V1 Closeout Plan](./plans/v1-closeout-plan.md)
 3. [Release-Facing Polish Plan](./plans/release-polish-plan.md)
+4. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
+5. [Air Capture Reference Refactor Plan](./plans/air-capture-reference-refactor-plan.md)
 
 Migration proof references:
 

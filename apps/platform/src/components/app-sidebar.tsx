@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Bug,
   ChevronLeft,
   LayoutDashboard,
   LineChart,
@@ -27,6 +28,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { airJamGithubIssuesUrl } from "@/lib/social-links";
 import { api } from "@/trpc/react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -132,6 +134,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>Resources</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/docs" target="_blank">
+                      <BookOpen />
+                      <span>Documentation</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href={airJamGithubIssuesUrl} target="_blank">
+                      <Bug />
+                      <span>Report a Bug</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
           </>
         ) : (
           // GLOBAL CONTEXT SIDEBAR
@@ -179,6 +202,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <Link href="/docs" target="_blank">
                       <BookOpen />
                       <span>Documentation</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href={airJamGithubIssuesUrl} target="_blank">
+                      <Bug />
+                      <span>Report a Bug</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

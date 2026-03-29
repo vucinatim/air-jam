@@ -1,9 +1,8 @@
 "use client";
 
 import { useDashboardAccess } from "@/hooks/use-dashboard-access";
-import { airJamDiscordInviteUrl } from "@/lib/social-links";
-import { IconBrandDiscord } from "@tabler/icons-react";
-import { Github } from "lucide-react";
+import { airJamGithubDiscussionsUrl } from "@/lib/social-links";
+import { Github, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 
 export const LandingSiteFooter = () => {
@@ -73,13 +72,13 @@ export const LandingSiteFooter = () => {
                 <Github className="h-5 w-5" />
               </Link>
               <Link
-                href={airJamDiscordInviteUrl}
+                href={airJamGithubDiscussionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Discord community"
+                aria-label="GitHub Discussions"
               >
-                <IconBrandDiscord className="h-5 w-5" aria-hidden />
+                <MessagesSquare className="h-5 w-5" aria-hidden />
               </Link>
             </div>
           </div>

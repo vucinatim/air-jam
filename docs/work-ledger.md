@@ -62,12 +62,15 @@ Completed:
 
 Status: active  
 Plan: [Release-Facing Polish Plan](./plans/release-polish-plan.md)
+Reference: [Air Capture Reference Refactor Plan](./plans/air-capture-reference-refactor-plan.md)
 
 Remaining:
 
-1. keep only small Pong/reference quality passes that improve release credibility
-2. defer the `air-capture` template-aligned refactor until the end of prerelease polish instead of continuing piecemeal changes
-3. move anything else non-essential to `docs/suggestions.md`
+1. keep the email/password fallback for the initial release while GitHub remains the primary auth path
+2. complete the deliberate `air-capture` template-aligned refactor
+3. decide which legacy showcase games need full modern reference alignment instead of migration-proof only
+4. get the five-game public launch set working locally through Arcade
+5. move anything else non-essential to `docs/suggestions.md`
 
 Rule:
 
@@ -76,14 +79,17 @@ Rule:
 
 ### Priority 5. Release PR And Publish
 
-Status: parked behind migration proof  
-Plan: [V1 Closeout Plan](./plans/v1-closeout-plan.md)
+Status: active  
+Plan: [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
 Remaining:
 
-1. prepare the v1 release PR
-2. finalize versions and release notes
-3. publish packages
+1. create final release media for the five-game launch set
+2. connect and deploy all public games on official hosting
+3. validate all five games against the official servers
+4. merge the release PR and deploy the platform
+5. publish the release and ZeroDays articles
+6. execute the first GTM and community rollout
 
 ## Active Product Tracks
 
@@ -133,8 +139,9 @@ Plan: [Platform Dashboard Account Auth Plan](./plans/platform-dashboard-account-
 Current view:
 
 1. GitHub-first auth is now implemented as the correct v1 baseline
-2. production GitHub OAuth setup and the final fate of email/password still need to be decided explicitly
-3. this should stay clearly separate from runtime/framework auth hardening
+2. production GitHub OAuth is configured and working
+3. the email/password fallback is intentionally kept for the initial release
+4. this should stay clearly separate from runtime/framework auth hardening
 
 ### 9. SDK Composability
 
@@ -177,6 +184,8 @@ These are done enough that they should not drive the day-to-day work queue:
 5. framework paradigm refresh across runtime, platform, AI-native workflow, analytics, and monetization direction
 6. browser-level Arcade happy-path smoke inside the canonical release gate
 7. legacy game migration guide plus tarball validation across the three ZeroDays reference games
+8. prerelease production observability baseline is now explicit across Better Stack uptime, Vercel Web Analytics, Vercel Speed Insights, and Air Jam's own runtime analytics
+9. the platform dashboard now exposes a direct bug-report path to the official GitHub issues surface
 
 ## Rules
 

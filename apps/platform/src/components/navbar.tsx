@@ -7,11 +7,11 @@ import {
 } from "@/components/ui/tooltip";
 import { useDashboardAccess } from "@/hooks/use-dashboard-access";
 import {
-  airJamDiscordInviteUrl,
+  airJamGithubDiscussionsUrl,
   airJamGithubRepoUrl,
 } from "@/lib/social-links";
-import { IconBrandDiscord, IconBrandGithub } from "@tabler/icons-react";
-import { Menu, X } from "lucide-react";
+import { IconBrandGithub } from "@tabler/icons-react";
+import { Menu, MessagesSquare, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -60,10 +60,10 @@ const socialNavItems = [
     Icon: IconBrandGithub,
   },
   {
-    key: "discord",
-    label: "Discord",
-    href: airJamDiscordInviteUrl,
-    Icon: IconBrandDiscord,
+    key: "discussions",
+    label: "GitHub Discussions",
+    href: airJamGithubDiscussionsUrl,
+    Icon: MessagesSquare,
   },
 ];
 

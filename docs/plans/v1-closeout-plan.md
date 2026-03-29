@@ -10,7 +10,8 @@ Related docs:
 3. [Legacy Game Migration Guide](../systems/legacy-game-migration-guide.md)
 4. [Monorepo Operating System](../monorepo-operating-system.md)
 5. [Release Article Outline](../content/v1-release-article-outline.md)
-6. [Docs Index](../docs-index.md)
+6. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+7. [Docs Index](../docs-index.md)
 
 ## Purpose
 
@@ -76,8 +77,9 @@ Air Jam should close out v1 in this order:
 3. validate migration path on real legacy games
 4. run tarball-based package validation
 5. publish the v1 release PR and packages
-6. publish the games and release content
-7. execute the visibility and launch-distribution plan
+6. execute the concrete launch sequence in [V1 Release Launch Plan](./v1-release-launch-plan.md)
+7. publish the games and release content
+8. execute the visibility and launch-distribution plan
 
 ## Phase 1. Dev Experience And Runtime Readiness
 
@@ -199,6 +201,8 @@ This phase should happen only after the migration and tarball proof is complete.
 
 ## Phase 6. Platform Publishing And Release Assets
 
+This phase is now tracked in concrete detail by [V1 Release Launch Plan](./v1-release-launch-plan.md).
+
 ### Goal
 
 Make the platform and release presentation feel complete and real.
@@ -216,6 +220,8 @@ This makes the release visible as a living platform, not only as packages and do
 
 ## Phase 7. Release Content
 
+This phase is now tracked in concrete detail by [V1 Release Launch Plan](./v1-release-launch-plan.md).
+
 ### Goal
 
 Support the v1 launch with clear written context.
@@ -227,6 +233,8 @@ Support the v1 launch with clear written context.
 3. make the story legible both for new users and for people who followed the early work
 
 ## Phase 8. Visibility And Distribution
+
+This phase is now tracked in concrete detail by [V1 Release Launch Plan](./v1-release-launch-plan.md).
 
 ### Goal
 
