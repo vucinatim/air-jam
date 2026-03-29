@@ -5,16 +5,15 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 ## High-Impact Follow-Ups
 
 1. Promote the current docs render validation to a built-route crawl so docs HTML is verified through actual route output instead of only the canonical render path.
-2. Fill `sinceVersion` and `lastVerifiedVersion` on public docs pages once the first real release cadence exists, so manifest consumers can match docs claims to shipped versions instead of only `stability`/`audience`.
-3. Add RSS and Atom feeds for the new blog slice once the first real release/article cadence starts, so release posts can be subscribed to without scraping the site or overloading docs endpoints.
-4. Consolidate host bootstrap verification into one dedicated auth middleware or bootstrap service boundary so static app ID mode, signed host-grant mode, and future managed-mode policy do not stay split across handlers.
-5. Add dedicated room capability tokens for controller actions (`controller:system`, `controller:play_sound`, `controller:action_rpc`) so room-code knowledge is not enough to issue privileged commands.
-6. Add a dedicated server performance harness with committed baseline metrics and threshold-based CI checks for input latency and reconnect churn regressions.
-7. Extract the parallel host/controller bridge clients into a small generic bridge transport base so handshake, timeout, port lifecycle, and event fanout do not stay duplicated.
-8. Replace or reconfigure the prototype game’s physics runtime so the host build no longer ships `@dimforge/rapier3d-compat` as a 2 MB+ JS chunk; the easy route/editor/template splits are already done, so the remaining warning is now a real physics-runtime cost rather than loose app structure.
-9. Add optional causal message IDs for key cross-surface hops so some failure stories can be followed by direct cause/effect links instead of correlation by `traceId`, `roomId`, `collectorSeq`, and per-session `sourceSeq` alone.
-10. Move destructive runtime analytics DB integration tests onto a dedicated test database URL instead of relying on an opt-in guard against the shared dev/prod-connected database.
-11. Productize the unified dev log sink for scaffolded projects by exposing a published `air-jam-server logs` command, adding a template `pnpm logs` script, and teaching the workflow clearly in the AI pack.
+2. Add RSS and Atom feeds for the new blog slice once the first real release/article cadence starts, so release posts can be subscribed to without scraping the site or overloading docs endpoints.
+3. Consolidate host bootstrap verification into one dedicated auth middleware or bootstrap service boundary so static app ID mode, signed host-grant mode, and future managed-mode policy do not stay split across handlers.
+4. Add dedicated room capability tokens for controller actions (`controller:system`, `controller:play_sound`, `controller:action_rpc`) so room-code knowledge is not enough to issue privileged commands.
+5. Add a dedicated server performance harness with committed baseline metrics and threshold-based CI checks for input latency and reconnect churn regressions.
+6. Extract the parallel host/controller bridge clients into a small generic bridge transport base so handshake, timeout, port lifecycle, and event fanout do not stay duplicated.
+7. Replace or reconfigure the prototype game’s physics runtime so the host build no longer ships `@dimforge/rapier3d-compat` as a 2 MB+ JS chunk; the easy route/editor/template splits are already done, so the remaining warning is now a real physics-runtime cost rather than loose app structure.
+8. Add optional causal message IDs for key cross-surface hops so some failure stories can be followed by direct cause/effect links instead of correlation by `traceId`, `roomId`, `collectorSeq`, and per-session `sourceSeq` alone.
+9. Move destructive runtime analytics DB integration tests onto a dedicated test database URL instead of relying on an opt-in guard against the shared dev/prod-connected database.
+10. Productize the unified dev log sink for scaffolded projects by exposing a published `air-jam-server logs` command, adding a template `pnpm logs` script, and teaching the workflow clearly in the AI pack.
 
 ## Framework Boundary Follow-Ups
 

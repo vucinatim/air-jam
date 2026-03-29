@@ -49,6 +49,7 @@ Already true:
 4. the landing page already has a clear visual identity
 5. `air-capture` host startup no longer eagerly loads the live 3D scene during lobby/end states; gameplay-heavy host modules are now deferred
 6. the landing page is good enough for release and no longer needs active redesign work
+7. public docs metadata is now consistent enough for release manifests and search consumers, including version fields and clean section ordering
 
 The remaining work is mostly surface polish and clarity, not foundational architecture.
 
@@ -70,15 +71,11 @@ Done when:
 
 ## 2. Public Docs Release Polish
 
+Status: completed baseline
+
 Goal:
 
 1. make the public docs set feel release-ready without reopening the docs architecture
-
-Remaining:
-
-1. keep rendered-docs validation lightweight but reliable
-2. tighten metadata consistency only where it materially helps release trust
-3. keep contributor-facing docs guidance aligned with the canonical content model
 
 Done when:
 

@@ -23,6 +23,8 @@ export const stateAndRenderingDocsPage = defineDocsPage({
   order: 3,
   stability: "evolving",
   audience: "agent",
+  sinceVersion: "1.0.0",
+  lastVerifiedVersion: "1.0.0",
 });
 
 export const metadata = createDocsPageMetadata(stateAndRenderingDocsPage);

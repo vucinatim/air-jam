@@ -23,6 +23,8 @@ export const projectStructureDocsPage = defineDocsPage({
   order: 1,
   stability: "evolving",
   audience: "agent",
+  sinceVersion: "1.0.0",
+  lastVerifiedVersion: "1.0.0",
 });
 
 export const metadata = createDocsPageMetadata(projectStructureDocsPage);

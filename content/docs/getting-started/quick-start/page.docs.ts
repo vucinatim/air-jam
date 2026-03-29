@@ -14,6 +14,8 @@ export const quickStartDocsPage = defineDocsPage({
   order: 1,
   stability: "evolving",
   audience: "user",
+  sinceVersion: "1.0.0",
+  lastVerifiedVersion: "1.0.0",
 });
 
 export const metadata = createDocsPageMetadata(quickStartDocsPage);

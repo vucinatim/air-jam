@@ -14,6 +14,8 @@ export const forAgentsDocsPage = defineDocsPage({
   order: 0,
   stability: "evolving",
   audience: "agent",
+  sinceVersion: "1.0.0",
+  lastVerifiedVersion: "1.0.0",
 });
 
 export const metadata = createDocsPageMetadata(forAgentsDocsPage);

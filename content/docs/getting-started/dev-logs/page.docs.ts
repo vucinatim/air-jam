@@ -23,6 +23,8 @@ export const devLogsDocsPage = defineDocsPage({
   order: 3,
   stability: "evolving",
   audience: "user",
+  sinceVersion: "1.0.0",
+  lastVerifiedVersion: "1.0.0",
 });
 
 export const metadata = createDocsPageMetadata(devLogsDocsPage);

@@ -65,10 +65,9 @@ Plan: [Release-Facing Polish Plan](./plans/release-polish-plan.md)
 
 Remaining:
 
-1. finish the last meaningful docs polish
-2. keep only small Pong/reference quality passes that improve release credibility
-3. defer the `air-capture` template-aligned refactor until the end of prerelease polish instead of continuing piecemeal changes
-4. move anything else non-essential to `docs/suggestions.md`
+1. keep only small Pong/reference quality passes that improve release credibility
+2. defer the `air-capture` template-aligned refactor until the end of prerelease polish instead of continuing piecemeal changes
+3. move anything else non-essential to `docs/suggestions.md`
 
 Rule:
 

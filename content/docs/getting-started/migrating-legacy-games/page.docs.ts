@@ -18,9 +18,11 @@ export const migratingLegacyGamesDocsPage = defineDocsPage({
     "createAirJamStore",
   ],
   docType: "migration",
-  order: 4,
+  order: 5,
   stability: "evolving",
   audience: "user",
+  sinceVersion: "1.0.0",
+  lastVerifiedVersion: "1.0.0",
 });
 
 export const metadata = createDocsPageMetadata(
