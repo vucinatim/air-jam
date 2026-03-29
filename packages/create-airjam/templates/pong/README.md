@@ -174,7 +174,9 @@ src/
   │   │   └── controller-signals.ts # Host/controller signal payload mapping
   │   ├── stores/
   │   │   ├── pong-store-types.ts # Shared replicated state shapes
-  │   │   ├── pong-store-state.ts # Pure store transitions and defaults
+  │   │   ├── pong-store-state.ts # Thin state entrypoint + shared defaults
+  │   │   ├── pong-store-lobby.ts # Lobby-phase reducers and team setup rules
+  │   │   ├── pong-store-match.ts # Playing/ended reducers and scoring rules
   │   │   └── pong-store.ts       # Air Jam store wiring and actions
   │   ├── engine/
   │   │   ├── simulation.ts       # Runtime orchestration loop
@@ -194,6 +196,7 @@ src/
   │   ├── ui/
   │   │   ├── team-name.tsx       # Shared game-facing team presentation
   │   │   ├── match-score-display.tsx # Shared game-facing score rendering
+  │   │   ├── team-slot-tile.tsx  # Shared team-slot surface used by host and controller
   │   │   └── game-icons.tsx      # Curated gameplay icon wrappers
   │   └── shared/
   │       └── sounds.ts           # Shared sound manifest
@@ -221,9 +224,13 @@ When extending this template, inspect these modules before adding new code:
 - `src/host/index.tsx` for the host surface boundary and overlay composition
 - `src/controller/index.tsx` for controller flow, action publishing, and input cadence
 - `src/game/stores/pong-store.ts` for Air Jam store wiring and action ownership
-- `src/game/stores/pong-store-state.ts` for pure state transitions that should stay testable
+- `src/game/stores/pong-store-state.ts` for the thin state entrypoint and initial defaults
+- `src/game/stores/pong-store-lobby.ts` for lobby-phase transitions and team setup rules
+- `src/game/stores/pong-store-match.ts` for match lifecycle and scoring reducers
 - `src/game/adapters/controller-signals.ts` for host-to-controller signal payloads and transport-facing mapping
+- `src/game/domain/team-slots.ts` for the canonical mixed human/bot slot model used by both surfaces
 - `src/game/ui/team-name.tsx` and `src/game/ui/match-score-display.tsx` for shared game-facing UI primitives used by both host and controller surfaces
+- `src/game/ui/team-slot-tile.tsx` for the shared team-slot presentation used by both host and controller lobbies
 - `src/game/engine/simulation.ts` for the main runtime orchestration loop
 - `src/game/engine/runtime-state.ts` for per-frame mutable runtime values that do not belong in React state
 - `src/game/prefabs/arena/prefab.ts` for metadata and registry-facing prefab shape

@@ -1,3 +1,4 @@
+import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import type { TeamId } from "./team";
 import type { TeamAssignment } from "../stores";
 
@@ -12,6 +13,11 @@ export interface BotCounts {
   team1: number;
   team2: number;
 }
+
+export type TeamSlotVisual =
+  | { kind: "human"; player: PlayerProfile }
+  | { kind: "bot" }
+  | { kind: "open" };
 
 export const MAX_TEAM_SLOTS = 2;
 export const TEAM_SLOT_POSITIONS: PaddleSlotPosition[] = ["front", "back"];
@@ -118,3 +124,28 @@ export const getBotPositions = (
   team: TeamId,
 ): PaddleSlotPosition[] =>
   getAvailableTeamSlots(assignments, team).slice(0, clampBotCount(botCounts[team]));
+
+export const buildTeamSlots = (
+  players: PlayerProfile[],
+  botCount: number,
+): TeamSlotVisual[] => {
+  const slots: TeamSlotVisual[] = [];
+
+  for (let index = 0; index < MAX_TEAM_SLOTS; index += 1) {
+    const player = players[index];
+
+    if (player) {
+      slots.push({ kind: "human", player });
+      continue;
+    }
+
+    if (index < players.length + botCount) {
+      slots.push({ kind: "bot" });
+      continue;
+    }
+
+    slots.push({ kind: "open" });
+  }
+
+  return slots;
+};

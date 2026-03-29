@@ -6,7 +6,6 @@ import {
   useInputWriter,
   useRemoteSound,
 } from "@air-jam/sdk";
-import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { ControllerHeader } from "./components/controller-header";

@@ -10,14 +10,7 @@ export default defineConfig([
   globalIgnores(["dist", "node_modules", "**/*.json", "**/*.css"]),
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: [
-      "dist",
-      "node_modules",
-      "src/routes/host-view.tsx",
-      "src/routes/controller-view.tsx",
-      "src/game/host/index.tsx",
-      "src/game/controller/index.tsx",
-    ],
+    ignores: ["dist", "node_modules"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -45,6 +38,20 @@ export default defineConfig([
           ignoreRestSiblings: true,
         },
       ],
+      ...prettierConfig.rules,
+    },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "dist",
+      "node_modules",
+      "src/routes/host-view.tsx",
+      "src/routes/controller-view.tsx",
+      "src/host/index.tsx",
+      "src/controller/index.tsx",
+    ],
+    rules: {
       "no-restricted-imports": [
         "error",
         {
@@ -58,7 +65,6 @@ export default defineConfig([
           ],
         },
       ],
-      ...prettierConfig.rules,
     },
   },
 ]);

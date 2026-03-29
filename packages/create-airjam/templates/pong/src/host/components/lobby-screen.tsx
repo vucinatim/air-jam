@@ -2,8 +2,13 @@ import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
 import { getLobbyReadinessText } from "../../game/domain/match-readiness";
 import { type TeamId } from "../../game/domain/team";
-import { getTeamCounts, type BotCounts } from "../../game/domain/team-slots";
+import {
+  buildTeamSlots,
+  getTeamCounts,
+  type BotCounts,
+} from "../../game/domain/team-slots";
 import { TeamName } from "../../game/ui";
+import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 
 interface LobbyScreenProps {
   joinQrValue: string;
@@ -20,36 +25,6 @@ interface TeamCardProps {
   players: PlayerProfile[];
   botCount: number;
 }
-
-type TeamSlot =
-  | { kind: "human"; player: PlayerProfile }
-  | { kind: "bot" }
-  | { kind: "open" };
-
-const buildTeamSlots = (
-  players: PlayerProfile[],
-  botCount: number,
-): TeamSlot[] => {
-  const slots: TeamSlot[] = [];
-
-  for (let index = 0; index < 2; index += 1) {
-    const player = players[index];
-
-    if (player) {
-      slots.push({ kind: "human", player });
-      continue;
-    }
-
-    if (index < players.length + botCount) {
-      slots.push({ kind: "bot" });
-      continue;
-    }
-
-    slots.push({ kind: "open" });
-  }
-
-  return slots;
-};
 
 const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
   const slots = buildTeamSlots(players, botCount);
@@ -70,73 +45,14 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
       </div>
 
       <div className="grid gap-3">
-        {slots.map((slot, index) => {
-          if (slot.kind === "human") {
-            return (
-              <div
-                key={`${team}-slot-${index}`}
-                className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/14 bg-white/8 px-4"
-                data-testid={`pong-host-team-slot-${team}-${index}`}
-              >
-                <PlayerAvatar
-                  player={slot.player}
-                  size="sm"
-                  className="h-10 w-10 border-2"
-                />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-black tracking-[0.14em] text-white uppercase">
-                    {slot.player.label}
-                  </div>
-                  <div className="text-[10px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
-                    Player Slot
-                  </div>
-                </div>
-              </div>
-            );
-          }
-
-          if (slot.kind === "bot") {
-            return (
-              <div
-                key={`${team}-slot-${index}`}
-                className="flex h-[72px] items-center gap-3 rounded-[22px] border border-cyan-400/28 bg-cyan-400/10 px-4"
-                data-testid={`pong-host-team-slot-${team}-${index}`}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-cyan-300/35 bg-cyan-300/12 text-[11px] font-black tracking-[0.14em] text-cyan-100 uppercase">
-                  AI
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-black tracking-[0.14em] text-cyan-50 uppercase">
-                    Bot Slot
-                  </div>
-                  <div className="text-[10px] font-semibold tracking-[0.16em] text-cyan-200/72 uppercase">
-                    Auto-Assigned
-                  </div>
-                </div>
-              </div>
-            );
-          }
-
-          return (
-            <div
-              key={`${team}-slot-${index}`}
-              className="flex h-[72px] items-center gap-3 rounded-[22px] border border-white/10 bg-white/4 px-4"
-              data-testid={`pong-host-team-slot-${team}-${index}`}
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[11px] font-black tracking-[0.14em] text-zinc-500 uppercase">
-                --
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-black tracking-[0.14em] text-zinc-400 uppercase">
-                  Open Slot
-                </div>
-                <div className="text-[10px] font-semibold tracking-[0.16em] text-zinc-600 uppercase">
-                  Waiting On Phone
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {slots.map((slot, index) => (
+          <TeamSlotTile
+            key={`${team}-slot-${index}`}
+            slot={slot}
+            surface="host"
+            testId={`pong-host-team-slot-${team}-${index}`}
+          />
+        ))}
       </div>
     </div>
   );

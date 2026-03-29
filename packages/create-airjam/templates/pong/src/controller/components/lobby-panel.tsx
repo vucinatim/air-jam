@@ -1,13 +1,14 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
-import { PlayerAvatar } from "@air-jam/sdk/ui";
 import type { TeamId } from "../../game/domain/team";
 import { getTeamColor } from "../../game/domain/team";
 import {
   MAX_TEAM_SLOTS,
   type BotCounts,
   type TeamCounts,
+  buildTeamSlots,
 } from "../../game/domain/team-slots";
 import { TeamName } from "../../game/ui";
+import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { POINTS_TO_WIN_OPTIONS, PRESS_FEEL_CLASS } from "../constants";
 
 interface LobbyPanelProps {
@@ -25,39 +26,6 @@ interface LobbyPanelProps {
   onSetPointsToWin: (pointsToWin: number) => void;
   onStartMatch: () => void;
 }
-
-type TeamSlotVisual =
-  | { kind: "human"; player: PlayerProfile }
-  | { kind: "bot" }
-  | { kind: "open" };
-
-const SLOT_SHELL_CLASS =
-  "flex h-[68px] min-w-0 items-center gap-2 rounded-[18px] border px-2 py-3 text-left";
-
-const buildTeamSlots = (
-  players: PlayerProfile[],
-  botCount: number,
-): TeamSlotVisual[] => {
-  const slots: TeamSlotVisual[] = [];
-
-  for (let index = 0; index < MAX_TEAM_SLOTS; index += 1) {
-    const player = players[index];
-
-    if (player) {
-      slots.push({ kind: "human", player });
-      continue;
-    }
-
-    if (index < players.length + botCount) {
-      slots.push({ kind: "bot" });
-      continue;
-    }
-
-    slots.push({ kind: "open" });
-  }
-
-  return slots;
-};
 
 export const LobbyPanel = ({
   myTeam,
@@ -131,78 +99,19 @@ export const LobbyPanel = ({
                   {slots.map((slot, index) => {
                     const canRemoveBot =
                       slot.kind === "bot" && !controlsDisabled;
-
-                    if (slot.kind === "human") {
-                      return (
-                        <div
-                          key={`${team}-slot-${index}`}
-                          className={`${SLOT_SHELL_CLASS} border-white/16 bg-white/12 text-white`}
-                          data-testid={`pong-controller-team-slot-${team}-${index}`}
-                        >
-                          <PlayerAvatar
-                            player={slot.player}
-                            size="sm"
-                            className="h-8 w-8 border-2"
-                          />
-                          <div className="min-w-0">
-                            <div className="truncate text-[11px] font-black tracking-[0.14em] text-white uppercase">
-                              {slot.player.label}
-                            </div>
-                            <div className="text-[9px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
-                              Player
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (slot.kind === "open") {
-                      return (
-                        <div
-                          key={`${team}-slot-${index}`}
-                          className={`${SLOT_SHELL_CLASS} border-white/10 bg-white/4 text-zinc-500`}
-                          data-testid={`pong-controller-team-slot-${team}-${index}`}
-                        >
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[9px] font-black tracking-[0.14em] uppercase text-zinc-500">
-                            --
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate text-[11px] font-black tracking-[0.14em] uppercase text-zinc-400">
-                              Open Slot
-                            </div>
-                            <div className="text-[9px] font-semibold tracking-[0.16em] uppercase text-zinc-600">
-                              Waiting
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
                     return (
-                      <button
+                      <TeamSlotTile
                         key={`${team}-slot-${index}`}
-                        type="button"
-                        data-testid={`pong-controller-team-slot-${team}-${index}`}
-                        className={`${SLOT_SHELL_CLASS} border-cyan-400/40 bg-cyan-400/12 text-cyan-100 ${PRESS_FEEL_CLASS}`}
+                        slot={slot}
+                        surface="controller"
+                        testId={`pong-controller-team-slot-${team}-${index}`}
                         disabled={!canRemoveBot}
-                        onClick={() => {
+                        onBotAction={() => {
                           if (canRemoveBot) {
                             onSetBotCount(team, Math.max(0, botCount - 1));
                           }
                         }}
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-cyan-300/35 bg-cyan-300/12 text-[9px] font-black tracking-[0.14em] uppercase text-cyan-100">
-                          AI
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-[11px] font-black tracking-[0.14em] uppercase text-cyan-50">
-                            Bot Slot
-                          </div>
-                          <div className="text-[9px] font-semibold tracking-[0.16em] uppercase text-cyan-200/72">
-                            Remove Bot
-                          </div>
-                        </div>
-                      </button>
+                      />
                     );
                   })}
                 </div>
