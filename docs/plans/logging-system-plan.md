@@ -1,6 +1,6 @@
 # Air Jam Logging System Plan
 
-Last updated: 2026-03-27
+Last updated: 2026-03-29
 
 ## Goal
 
@@ -194,6 +194,189 @@ The intended default developer experience is:
 3. inspect exactly one canonical log stream
 
 No extra SDK setup, custom sink wiring, or per-app logging ceremony should be required.
+
+## AI-Native Contract
+
+The unified dev log system is not just a maintainer convenience.
+
+It should be treated as one of the core Air Jam framework features for human and agent workflows.
+
+The intended contract is:
+
+1. if a developer uses the standard Air Jam server in development, the collector is on by default
+2. if a game uses the normal Air Jam session providers/runtime entry points in development, browser logs are mirrored automatically
+3. the canonical local file is `.airjam/logs/dev-latest.ndjson`
+4. that file is reset when the local Air Jam server process starts
+5. developers and agents should be able to inspect the same stream either:
+   1. by reading the file directly
+   2. by using a supported CLI query/view command
+
+This matters because Air Jam bugs often span:
+
+1. server lifecycle
+2. host runtime
+3. controller runtime
+4. embedded bridge/runtime edges
+
+If agents are not explicitly taught that one canonical stream exists, they will fall back to:
+
+1. random browser console output
+2. one-surface debugging
+3. ad hoc temporary logging
+4. much slower diagnosis loops
+
+That is exactly the failure mode Air Jam should prevent.
+
+## Current Truth And Gaps
+
+The current implementation is already close to the right shape.
+
+What is true today:
+
+1. the server collector is enabled by default outside production
+2. the collector truncates `dev-latest.ndjson` on server startup
+3. browser logs are shipped automatically through the standard SDK provider path
+4. scaffolded games already use the standard server package by default
+5. the monorepo has a practical log viewer via `pnpm dev:logs`
+
+What is still incomplete:
+
+1. scaffolded projects do not yet get an equally obvious `pnpm logs` path
+2. the published server CLI does not yet expose the log viewer as a first-class command
+3. the AI pack does not yet teach this system clearly enough
+4. the public docs do not yet elevate this to a canonical Air Jam debugging workflow
+5. scaffold validation does not yet prove the end-to-end sink behavior in a generated project
+
+So the remaining work is not a logging-system rewrite.
+
+It is productization and teaching.
+
+## AI-Native Rollout Plan
+
+The next implementation work should follow this order.
+
+### Phase A: Freeze The Framework Contract
+
+Goal:
+
+1. make the observability model explicit before more docs or skills drift around it
+
+Tasks:
+
+1. define the canonical developer-facing contract in docs:
+   1. the unified stream covers server + host + controller + runtime diagnostics
+   2. the canonical file is `.airjam/logs/dev-latest.ndjson`
+   3. the file resets on server restart
+   4. direct file reads are valid
+   5. CLI querying is the preferred ergonomic path when available
+2. define the support boundary:
+   1. standard server path
+   2. standard SDK provider/runtime path
+   3. non-production/dev default behavior
+3. define the exceptions clearly:
+   1. `--web-only`
+   2. collector explicitly disabled
+   3. custom server/runtime setups that bypass the standard path
+
+Exit criteria:
+
+1. docs stop describing this as a vague debugging helper
+2. the feature is described as a first-class framework contract
+
+### Phase B: Teach The Workflow Canonically
+
+Goal:
+
+1. ensure humans and LLMs both learn the same debugging path
+
+Tasks:
+
+1. add or expand a canonical public docs page for the unified dev log system
+2. update the AI-native workflow docs to call out the log sink as part of the standard agent debugging loop
+3. update the scaffold local docs pack so generated projects carry the same guidance offline
+4. strengthen the `debug-and-test` skill so it explicitly teaches:
+   1. when to inspect the unified file
+   2. when to use the CLI
+   3. that the file resets on server restart
+   4. that direct file reads are valid
+   5. that this should come before adding ad hoc logs
+5. update `AGENTS.md` guidance so non-trivial debugging work consults the canonical log stream early
+
+Exit criteria:
+
+1. an agent opening a fresh Air Jam repo can discover this workflow locally without guesswork
+2. the debugging guidance no longer relies on monorepo-only tribal knowledge
+
+### Phase C: Productize The Access Surface
+
+Goal:
+
+1. make the unified log stream equally usable in scaffolded repos and in the monorepo
+
+Tasks:
+
+1. promote the existing log viewer into the published server CLI
+2. support a first-class command shape such as:
+   1. `air-jam-server logs`
+   2. `air-jam-server logs --follow`
+   3. `air-jam-server logs --trace=<id>`
+3. add a scaffolded project script such as:
+   1. `pnpm logs`
+4. keep direct file access documented as the zero-dependency fallback
+5. preserve the current filter model for:
+   1. `traceId`
+   2. `roomId`
+   3. `controllerId`
+   4. `event`
+   5. `runtimeKind`
+   6. `runtimeEpoch`
+   7. `source`
+   8. `level`
+
+Exit criteria:
+
+1. scaffold users do not need monorepo-specific commands to inspect logs
+2. agents have one obvious ergonomic query path in generated projects
+
+### Phase D: Validate The Scaffold Contract
+
+Goal:
+
+1. prove that generated projects actually receive the observability system we claim they do
+
+Tasks:
+
+1. add scaffold smoke coverage that verifies:
+   1. the generated project contains the docs/skill guidance
+   2. the generated project exposes the intended logs command
+2. add an integration test for the published server CLI logs command
+3. add an end-to-end scaffold test that:
+   1. starts the generated dev server
+   2. confirms `.airjam/logs/dev-latest.ndjson` is created
+   3. confirms the file resets on server restart
+4. keep the validation narrow and high-signal rather than building a heavy test harness
+
+Exit criteria:
+
+1. the observability contract is enforced by tests instead of trust
+2. future template changes cannot silently break log access for generated projects
+
+### Phase E: Future Hosted Integration
+
+Goal:
+
+1. keep the local-first model while enabling richer future tooling
+
+Tasks:
+
+1. keep local file and local CLI access as the default debugging path
+2. later expose filtered observability queries to Studio/agent tools using the same canonical event model
+3. avoid turning the local debugging story into a hosted dependency
+
+Exit criteria:
+
+1. local debugging remains self-contained
+2. future hosted tooling layers on top of the same canonical event model instead of replacing it
 
 ## Design Principles
 
@@ -593,8 +776,9 @@ The system should stay small, sharp, and local-first.
 
 The next concrete implementation slice should be:
 
-- add canonical controller and realtime server logging
-- introduce stable `event` names in the unified schema
-- propagate controller/runtime correlation context automatically
+1. add the canonical public docs page for the unified dev log system
+2. update the scaffold AI pack and `debug-and-test` skill to teach it explicitly
+3. promote the log viewer into the published server CLI
+4. add a scaffold `pnpm logs` script
 
-That is the smallest next step that materially improves the value of the existing one-file model without adding framework complexity.
+That is now the highest-value next step because the underlying collector path already exists.

@@ -2,13 +2,29 @@
 // Do not edit it manually.
 
 import {
+  controllerUiDocsPage,
+  metadata as controllerUiMetadata,
+} from "@content/docs/for-agents/controller-ui/page.docs";
+import {
   forAgentsDocsPage,
   metadata as forAgentsMetadata,
 } from "@content/docs/for-agents/page.docs";
 import {
+  projectStructureDocsPage,
+  metadata as projectStructureMetadata,
+} from "@content/docs/for-agents/project-structure/page.docs";
+import {
+  stateAndRenderingDocsPage,
+  metadata as stateAndRenderingMetadata,
+} from "@content/docs/for-agents/state-and-rendering/page.docs";
+import {
   debuggingDocsPage,
   metadata as debuggingMetadata,
 } from "@content/docs/getting-started/debugging/page.docs";
+import {
+  devLogsDocsPage,
+  metadata as devLogsMetadata,
+} from "@content/docs/getting-started/dev-logs/page.docs";
 import {
   gameIdeasDocsPage,
   metadata as gameIdeasMetadata,
@@ -243,6 +259,13 @@ const generatedContentDocsDocuments = [
           "When local Air Jam development breaks, the fastest fix is usually knowing which surface is failing: game host controller local Air Jam server Arcade embed/runtime wiring This page explains the practical debugging loop.…",
       },
       {
+        title: "The Canonical Stream",
+        slug: "the-canonical-stream",
+        depth: 2,
+        excerpt:
+          "Before you start jumping between browser tabs and terminals, remember that Air Jam has one canonical local dev stream: .airjam/logs/dev-latest.ndjson That stream is the intended first place to inspect issues that cross:…",
+      },
+      {
         title: "1. Start With The Canonical Local Loop",
         slug: "1-start-with-the-canonical-local-loop",
         depth: 2,
@@ -320,15 +343,114 @@ const generatedContentDocsDocuments = [
           "If you are unsure whether the framework or your game is the problem, compare your approach against: pong for the small canonical starter path air-capture for the heavier reference-app path If your code disagrees with…",
       },
       {
-        title: "7. Monorepo Maintainer Note",
-        slug: "7-monorepo-maintainer-note",
+        title: "7. Query The Unified Stream",
+        slug: "7-query-the-unified-stream",
         depth: 2,
         excerpt:
-          "If you are working inside the Air Jam monorepo itself rather than a scaffolded game, the repo also includes a dev log viewer: That is a repo-maintainer convenience, not a normal requirement for scaffold users.",
+          "Scaffolded games should expose: Inside the Air Jam monorepo, the equivalent maintainer command is: Both commands read the same canonical local observability model.",
       },
     ],
     loadComponent: () =>
       import("@content/docs/getting-started/debugging/page.mdx"),
+  },
+  {
+    page: devLogsDocsPage,
+    metadata: devLogsMetadata,
+    sourcePath: "content/docs/getting-started/dev-logs/page.mdx",
+    headings: [
+      {
+        title: "Unified Dev Logs",
+        slug: "unified-dev-logs",
+        depth: 1,
+        excerpt:
+          "Air Jam has one canonical local observability stream for development: server logs host runtime logs controller runtime logs embedded runtime diagnostics That stream exists so you do not have to debug each surface in…",
+      },
+      {
+        title: "Canonical File",
+        slug: "canonical-file",
+        depth: 2,
+        excerpt:
+          "The canonical file is: This file is: local-first append-only for the current server run reset when the Air Jam server process starts That means it is the right place to inspect: room lifecycle host bootstrap and…",
+      },
+      {
+        title: "What Writes Into It",
+        slug: "what-writes-into-it",
+        depth: 2,
+        excerpt:
+          "During normal Air Jam development: the Air Jam server writes structured server events into the file the SDK browser log sink mirrors host and controller browser/runtime logs into the same file If you use the standard…",
+      },
+      {
+        title: "When It Resets",
+        slug: "when-it-resets",
+        depth: 2,
+        excerpt:
+          "The file resets when the Air Jam server process starts. That gives you a clean current-session stream by default. One nuance matters: If your dev workflow reuses an already-running local server process, the file will…",
+      },
+      {
+        title: "Read It Two Ways",
+        slug: "read-it-two-ways",
+        depth: 2,
+        excerpt:
+          "1. Preferred: CLI Querying If the project exposes the log viewer command, use it first. Examples: The exact command may vary slightly by repo, but the intended Air Jam workflow is: query the canonical stream with…",
+      },
+      {
+        title: "1. Preferred: CLI Querying",
+        slug: "1-preferred-cli-querying",
+        depth: 3,
+        excerpt:
+          "If the project exposes the log viewer command, use it first. Examples: The exact command may vary slightly by repo, but the intended Air Jam workflow is: query the canonical stream with filters narrow to the failing…",
+      },
+      {
+        title: "2. Fallback: Read The File Directly",
+        slug: "2-fallback-read-the-file-directly",
+        depth: 3,
+        excerpt:
+          "Direct file reads are also valid. That is useful when: the repo does not yet expose the convenience CLI you are using your own tooling an LLM or script wants the raw NDJSON stream",
+      },
+      {
+        title: "Best Filters",
+        slug: "best-filters",
+        depth: 2,
+        excerpt:
+          "The most useful filters are: traceId for one host session story roomId for one multiplayer room controllerId for one player/controller path event for one lifecycle edge runtimeKind and runtimeEpoch for embedded…",
+      },
+      {
+        title: "Which Identifier To Reach For First",
+        slug: "which-identifier-to-reach-for-first",
+        depth: 2,
+        excerpt:
+          "Use the narrowest identifier that matches the failure: use traceId when the problem is mainly one host session story: host bootstrap, reconnect, room ownership, launch flow use roomId when multiple surfaces are involved…",
+      },
+      {
+        title: "Signal View Vs Raw NDJSON",
+        slug: "signal-view-vs-raw-ndjson",
+        depth: 2,
+        excerpt:
+          "Use --view=signal when: you want the fastest first read of the session you care about lifecycle edges, accepted/rejected outcomes, and high-signal runtime events you want to suppress low-value framework/browser console…",
+      },
+      {
+        title: "Recommended Debug Order",
+        slug: "recommended-debug-order",
+        depth: 2,
+        excerpt:
+          "When something breaks: inspect the canonical dev log stream first use SDK diagnostics second add temporary custom logs only if the canonical stream still leaves a gap Do not default to scattered console.log calls across…",
+      },
+      {
+        title: "Important Exceptions",
+        slug: "important-exceptions",
+        depth: 2,
+        excerpt:
+          "The automatic unified stream depends on the standard development path. You should not assume full automatic coverage when: running --web-only without a local Air Jam server disabling the collector explicitly replacing…",
+      },
+      {
+        title: "Related Docs",
+        slug: "related-docs",
+        depth: 2,
+        excerpt: "Debugging and Logs For Agents Host System",
+      },
+    ],
+    loadComponent: () =>
+      import("@content/docs/getting-started/dev-logs/page.mdx"),
   },
   {
     page: gameIdeasDocsPage,
@@ -1414,7 +1536,7 @@ const generatedContentDocsDocuments = [
         slug: "read-these-first",
         depth: 2,
         excerpt:
-          "Introduction Quick Start Architecture Host System SDK Hooks Debugging and Logs",
+          "Introduction Quick Start Architecture Host System Project Structure Controller UI State and Rendering SDK Hooks Debugging and Logs Unified Dev Logs",
       },
       {
         title: "SDK Focus Areas",
@@ -1426,10 +1548,212 @@ const generatedContentDocsDocuments = [
         title: "Machine Discovery",
         slug: "machine-discovery",
         depth: 2,
-        excerpt: "LLMs Index Sitemap Robots",
+        excerpt: "AI Pack Manifest LLMs Index Sitemap Robots",
       },
     ],
     loadComponent: () => import("@content/docs/for-agents/page.mdx"),
+  },
+  {
+    page: projectStructureDocsPage,
+    metadata: projectStructureMetadata,
+    sourcePath: "content/docs/for-agents/project-structure/page.mdx",
+    headings: [
+      {
+        title: "Project Structure",
+        slug: "project-structure",
+        depth: 1,
+        excerpt:
+          "Air Jam games should not grow as one large React surface. The clean default is a boundary-first structure where host logic, controller logic, pure game rules, and framework integration do not collapse into the same…",
+      },
+      {
+        title: "Recommended Shape",
+        slug: "recommended-shape",
+        depth: 2,
+        excerpt:
+          "Move toward a structure like this: The exact folder names can vary slightly, but the boundaries should stay clear.",
+      },
+      {
+        title: "Boundary Rules",
+        slug: "boundary-rules",
+        depth: 2,
+        excerpt:
+          "src/host/ Owns host-only composition and shell behavior. Examples: host screens room and join presentation host-facing overlays host runtime composition src/controller/ Owns controller-only composition and touch…",
+      },
+      {
+        title: "src/host/",
+        slug: "srchost",
+        depth: 3,
+        excerpt:
+          "Owns host-only composition and shell behavior. Examples: host screens room and join presentation host-facing overlays host runtime composition",
+      },
+      {
+        title: "src/controller/",
+        slug: "srccontroller",
+        depth: 3,
+        excerpt:
+          "Owns controller-only composition and touch interactions. Examples: lobby controls gameplay controls controller status surfaces controller-specific UI hooks",
+      },
+      {
+        title: "src/game/domain/",
+        slug: "srcgamedomain",
+        depth: 3,
+        excerpt:
+          "Owns pure gameplay rules, math, and types. Examples: score rules win conditions team assignment helpers deterministic state transitions This layer should stay testable without React or rendering.",
+      },
+      {
+        title: "src/game/engine/",
+        slug: "srcgameengine",
+        depth: 3,
+        excerpt:
+          "Owns runtime orchestration. Examples: ticking lifecycle transitions update ordering system composition",
+      },
+      {
+        title: "src/game/systems/",
+        slug: "srcgamesystems",
+        depth: 3,
+        excerpt:
+          "Owns focused gameplay systems when the game has enough scope to justify them. Examples: spawning combat pickups abilities scoring",
+      },
+      {
+        title: "src/game/adapters/",
+        slug: "srcgameadapters",
+        depth: 3,
+        excerpt:
+          "Owns integration with frameworks and runtime services. Examples: Air Jam SDK integration R3F integration physics integration audio integration network and runtime bridges Keep adapters thin. They should connect systems,…",
+      },
+      {
+        title: "src/game/ui/",
+        slug: "srcgameui",
+        depth: 3,
+        excerpt:
+          "Owns reusable game-facing UI modules. Examples: score displays status strips overlays icon wrappers",
+      },
+      {
+        title: "src/game/debug/",
+        slug: "srcgamedebug",
+        depth: 3,
+        excerpt:
+          "Owns debug helpers and overlays. Keep debug features removable and out of gameplay hot paths.",
+      },
+      {
+        title: "Decision Rule",
+        slug: "decision-rule",
+        depth: 2,
+        excerpt:
+          "When adding code, ask: is this pure game logic is this runtime orchestration is this framework integration is this host-only or controller-only Put the code where the answer is clearest.",
+      },
+      {
+        title: "Refactor Rule",
+        slug: "refactor-rule",
+        depth: 2,
+        excerpt:
+          "If a new feature would force host, controller, domain, and rendering concerns into one file, fix the boundary first or split the work into: structural cleanup feature implementation",
+      },
+    ],
+    loadComponent: () =>
+      import("@content/docs/for-agents/project-structure/page.mdx"),
+  },
+  {
+    page: controllerUiDocsPage,
+    metadata: controllerUiMetadata,
+    sourcePath: "content/docs/for-agents/controller-ui/page.mdx",
+    headings: [
+      {
+        title: "Controller UI",
+        slug: "controller-ui",
+        depth: 1,
+        excerpt:
+          "Controller UI should feel like a game controller first and a webpage second. The main failure mode is borrowing desktop web-app patterns for active gameplay surfaces. Gameplay Controller Rules For active gameplay: use…",
+      },
+      {
+        title: "Gameplay Controller Rules",
+        slug: "gameplay-controller-rules",
+        depth: 2,
+        excerpt:
+          "For active gameplay: use an absolute inset-0 root avoid scroll disable accidental text selection use large touch targets keep controls visually obvious and single-purpose minimize text and dense hierarchy",
+      },
+      {
+        title: "Lobby Rules",
+        slug: "lobby-rules",
+        depth: 2,
+        excerpt:
+          "Lobby screens can be slightly more flexible, but should still prefer: simple layout large controls minimal friction scroll only when it actually helps the flow",
+      },
+      {
+        title: "Interaction Rules",
+        slug: "interaction-rules",
+        depth: 2,
+        excerpt:
+          "Avoid: tiny toggles multi-purpose buttons with unclear affordance deeply nested control groups layouts that assume precise pointer interaction",
+      },
+      {
+        title: "Visual Rules",
+        slug: "visual-rules",
+        depth: 2,
+        excerpt:
+          "Prefer: sparse game-like hierarchy fluid layout over hard-coded widths and heights obvious action grouping strong contrast and immediate readability Avoid: card-heavy dashboard styling for active gameplay emoji-as-icon…",
+      },
+      {
+        title: "Icon Rule",
+        slug: "icon-rule",
+        depth: 2,
+        excerpt:
+          "For template and starter work, a practical split is: a general UI and system icon pack for shell actions a gameplay-oriented icon set for abilities, pickups, and status effects Keep icon usage behind local wrappers…",
+      },
+    ],
+    loadComponent: () =>
+      import("@content/docs/for-agents/controller-ui/page.mdx"),
+  },
+  {
+    page: stateAndRenderingDocsPage,
+    metadata: stateAndRenderingMetadata,
+    sourcePath: "content/docs/for-agents/state-and-rendering/page.mdx",
+    headings: [
+      {
+        title: "State and Rendering",
+        slug: "state-and-rendering",
+        depth: 1,
+        excerpt:
+          "Air Jam projects often combine React, Zustand, per-frame gameplay logic, and sometimes R3F or Three. That stack works well only when state ownership is explicit. Core State Rules keep authoritative gameplay state…",
+      },
+      {
+        title: "Core State Rules",
+        slug: "core-state-rules",
+        depth: 2,
+        excerpt:
+          "keep authoritative gameplay state separate from local UI state avoid one mega store for unrelated concerns use narrow selectors when consuming Zustand state keep store writes intentional and coarse keep per-frame…",
+      },
+      {
+        title: "React Rules",
+        slug: "react-rules",
+        depth: 2,
+        excerpt:
+          "do not run simulation through React rerenders keep business logic out of presentational components use refs for hot mutable runtime values keep component boundaries small and purposeful",
+      },
+      {
+        title: "R3F and Three Rules",
+        slug: "r3f-and-three-rules",
+        depth: 2,
+        excerpt:
+          "avoid rerendering scene components on every frame mutate refs in frame loops when visual updates do not require React state keep rendering integration separate from pure game rules use instancing when repeated objects…",
+      },
+      {
+        title: "Air Jam Lane Rules",
+        slug: "air-jam-lane-rules",
+        depth: 2,
+        excerpt:
+          "Keep the framework lanes separate: input lane for high-frequency player control input replicated state lane for replayable shared truth signal lane for coarse UX and system events Do not use replicated store actions as…",
+      },
+      {
+        title: "Common Pitfalls",
+        slug: "common-pitfalls",
+        depth: 2,
+        excerpt:
+          "putting gameplay logic directly in render components using React state as the simulation engine selecting whole stores across many components mixing debug state into hot runtime paths solving every state problem with…",
+      },
+    ],
+    loadComponent: () =>
+      import("@content/docs/for-agents/state-and-rendering/page.mdx"),
   },
 ];
 

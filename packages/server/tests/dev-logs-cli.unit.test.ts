@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { formatDetails, parseCliArgs, passesFilter } from "../scripts/dev-logs";
+import {
+  formatDevLogDetails,
+  formatDevLogsHelp,
+  parseDevLogsCliArgs,
+  passesDevLogFilter,
+} from "../src/logging/dev-logs-cli";
 
 describe("dev logs cli", () => {
   it("parses runtime filters", () => {
-    const options = parseCliArgs([
+    const options = parseDevLogsCliArgs([
       "--view=signal",
       "--controller=ctrl_dev_1",
       "--event=runtime.embedded_bridge.attached",
@@ -21,7 +26,7 @@ describe("dev logs cli", () => {
   });
 
   it("filters events by controller, event, runtime kind, and epoch", () => {
-    const options = parseCliArgs([
+    const options = parseDevLogsCliArgs([
       "--controller=ctrl_dev_1",
       "--event=runtime.embedded_bridge.attached",
       "--runtime=arcade-host-runtime",
@@ -29,7 +34,7 @@ describe("dev logs cli", () => {
     ]);
 
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           controllerId: "ctrl_dev_1",
           event: "runtime.embedded_bridge.attached",
@@ -40,7 +45,7 @@ describe("dev logs cli", () => {
       ),
     ).toBe(true);
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           controllerId: "ctrl_dev_1",
           event: "runtime.embedded_bridge.attached",
@@ -51,7 +56,7 @@ describe("dev logs cli", () => {
       ),
     ).toBe(false);
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           controllerId: "ctrl_dev_1",
           event: "runtime.embedded_bridge.attached",
@@ -62,7 +67,7 @@ describe("dev logs cli", () => {
       ),
     ).toBe(false);
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           controllerId: "ctrl_other",
           event: "runtime.embedded_bridge.attached",
@@ -73,7 +78,7 @@ describe("dev logs cli", () => {
       ),
     ).toBe(false);
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           controllerId: "ctrl_dev_1",
           event: "runtime.embedded_bridge.rejected",
@@ -86,10 +91,10 @@ describe("dev logs cli", () => {
   });
 
   it("uses signal view to hide infrastructure and low-value framework/browser console chatter", () => {
-    const options = parseCliArgs(["--view=signal"]);
+    const options = parseDevLogsCliArgs(["--view=signal"]);
 
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           event: "browser.log_batch.received",
           source: "browser",
@@ -99,7 +104,7 @@ describe("dev logs cli", () => {
     ).toBe(false);
 
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           event: "browser.console",
           source: "browser",
@@ -112,7 +117,7 @@ describe("dev logs cli", () => {
     ).toBe(false);
 
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           event: "browser.console",
           source: "browser",
@@ -125,7 +130,7 @@ describe("dev logs cli", () => {
     ).toBe(false);
 
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           event: "browser.console",
           source: "browser",
@@ -138,7 +143,7 @@ describe("dev logs cli", () => {
     ).toBe(true);
 
     expect(
-      passesFilter(
+      passesDevLogFilter(
         {
           event: "runtime.provider.mounted",
           source: "browser",
@@ -151,7 +156,7 @@ describe("dev logs cli", () => {
 
   it("surfaces important scalar event fields in formatted details", () => {
     expect(
-      formatDetails({
+      formatDevLogDetails({
         event: "host.reconnect.accepted",
         roomId: "ROOM1",
         controllerCount: 1,
@@ -167,5 +172,10 @@ describe("dev logs cli", () => {
         "component=host-lifecycle",
       ]),
     );
+  });
+
+  it("renders published cli help", () => {
+    expect(formatDevLogsHelp()).toContain("air-jam-server logs");
+    expect(formatDevLogsHelp()).toContain("--trace=host_abc123");
   });
 });

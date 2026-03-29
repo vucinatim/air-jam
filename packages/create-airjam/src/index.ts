@@ -5,10 +5,18 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
+import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const manifestPath = path.resolve(__dirname, "..", "template-version-manifest.json");
+const packageJsonPath = path.resolve(__dirname, "..", "package.json");
+const templateAssetsBaseDir = path.resolve(
+  __dirname,
+  "..",
+  "template-assets",
+  "base",
+);
 
 type TemplateVersionManifest = Record<string, string>;
 
@@ -20,6 +28,19 @@ const loadTemplateVersionManifest = (): TemplateVersionManifest => {
   }
 
   return fs.readJsonSync(manifestPath) as TemplateVersionManifest;
+};
+
+const loadCreateAirJamPackageVersion = (): string => {
+  if (!fs.existsSync(packageJsonPath)) {
+    throw new Error("Missing create-airjam package.json");
+  }
+
+  const pkg = fs.readJsonSync(packageJsonPath) as { version?: string };
+  if (!pkg.version || typeof pkg.version !== "string") {
+    throw new Error("Invalid create-airjam package version");
+  }
+
+  return pkg.version;
 };
 
 const normalizeWorkspaceSpecs = (
@@ -113,7 +134,86 @@ const applyNamedSpecs = (
   };
 };
 
-async function main() {
+const writeAiPackManifest = async ({
+  targetDir,
+  templateName,
+  createAirJamVersion,
+}: {
+  targetDir: string;
+  templateName: string;
+  createAirJamVersion: string;
+}): Promise<void> => {
+  const manifestFilePath = path.join(targetDir, ".airjam", "ai-pack.json");
+  if (!fs.existsSync(manifestFilePath)) {
+    return;
+  }
+
+  const manifest = await fs.readJson(manifestFilePath);
+  manifest.scaffold = {
+    ...(manifest.scaffold ?? {}),
+    template: templateName,
+    createAirjamVersion: createAirJamVersion,
+  };
+  await fs.writeJson(manifestFilePath, manifest, { spaces: 2 });
+};
+
+const getOptionValue = (argv: string[], optionName: string): string | undefined => {
+  const flagIndex = argv.indexOf(optionName);
+  if (flagIndex !== -1) {
+    return argv[flagIndex + 1];
+  }
+
+  const inlineArg = argv.find((value) => value.startsWith(`${optionName}=`));
+  return inlineArg ? inlineArg.slice(optionName.length + 1) : undefined;
+};
+
+const printAiPackHelp = () => {
+  console.log("Usage: create-airjam ai-pack <status|diff|update> [options]");
+  console.log("");
+  console.log("Options:");
+  console.log("  --dir <path>            Project directory to inspect (default: current working directory)");
+  console.log("  --manifest-url <url>    Override the hosted AI pack root manifest URL");
+  console.log("  --manifest-file <path>  Read the AI pack root manifest from a local file");
+  console.log("  --force                 Overwrite same-version managed file drift during update");
+};
+
+const runAiPackCommand = async (argv: string[]) => {
+  const subcommand = argv[3];
+  if (!subcommand || subcommand === "--help" || subcommand === "-h") {
+    printAiPackHelp();
+    return;
+  }
+
+  if (argv.includes("--help") || argv.includes("-h")) {
+    printAiPackHelp();
+    return;
+  }
+
+  const dir = getOptionValue(argv, "--dir");
+  const manifestUrl = getOptionValue(argv, "--manifest-url");
+  const manifestFile = getOptionValue(argv, "--manifest-file");
+  const force = argv.includes("--force");
+
+  if (subcommand === "status") {
+    await runAiPackStatus({ dir, manifestUrl, manifestFile });
+    return;
+  }
+
+  if (subcommand === "diff") {
+    await runAiPackDiff({ dir, manifestUrl, manifestFile });
+    return;
+  }
+
+  if (subcommand === "update") {
+    await runAiPackUpdate({ dir, manifestUrl, manifestFile, force });
+    return;
+  }
+
+  printAiPackHelp();
+  process.exitCode = 1;
+};
+
+async function runScaffoldCli() {
   program
     .name("create-airjam")
     .description("Scaffold a new Air Jam game project")
@@ -142,6 +242,7 @@ async function main() {
     overrideSpec: string[];
   }>();
   const manifest = loadTemplateVersionManifest();
+  const createAirJamVersion = loadCreateAirJamPackageVersion();
   const depSpecs = parseNamedSpecs(options.depSpec);
   const overrideSpecs = parseNamedSpecs(options.overrideSpec);
 
@@ -242,6 +343,12 @@ async function main() {
     },
   });
 
+  if (!fs.existsSync(templateAssetsBaseDir)) {
+    throw new Error("Missing create-airjam base template assets");
+  }
+
+  await fs.copy(templateAssetsBaseDir, targetDir, { overwrite: true });
+
   // npm packaging can strip/transform template dotfiles like .gitignore.
   // Keep publish-safe filenames in templates and restore real dotfiles here.
   const gitignorePlaceholderPath = path.join(targetDir, "_gitignore");
@@ -260,6 +367,12 @@ async function main() {
     applyNamedSpecs(pkg, depSpecs, overrideSpecs);
     await fs.writeJson(pkgPath, pkg, { spaces: 2 });
   }
+
+  await writeAiPackManifest({
+    targetDir,
+    templateName: options.template,
+    createAirJamVersion,
+  });
 
   console.log(kleur.green("✓ Project created successfully!\n"));
 
@@ -312,6 +425,15 @@ async function main() {
       "Then open http://localhost:5173 and scan the QR code with your phone!",
     ),
   );
+}
+
+async function main() {
+  if (process.argv[2] === "ai-pack") {
+    await runAiPackCommand(process.argv);
+    return;
+  }
+
+  await runScaffoldCli();
 }
 
 main().catch((err) => {

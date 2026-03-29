@@ -76,6 +76,7 @@ export function buildLlmsTxt(siteUrl: string): string {
     "## Machine-Readable Endpoints",
     `- Docs Manifest: ${siteUrl}/docs-manifest`,
     `- Docs Search Index: ${siteUrl}/docs-search-index`,
+    `- AI Pack Manifest: ${siteUrl}/ai-pack/manifest.json`,
     `- Sitemap: ${siteUrl}/sitemap.xml`,
     `- Robots: ${siteUrl}/robots.txt`,
     "",

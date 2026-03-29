@@ -1,0 +1,66 @@
+# Debug And Testing
+
+Debuggability and testability should be designed in from the start.
+
+## Debug Workflow
+
+Use this order:
+
+1. inspect the canonical Air Jam dev log stream first
+2. use framework diagnostics second
+3. use domain-level debug helpers third
+4. add custom logs only where they add real value
+
+## Canonical Dev Log Stream
+
+The standard Air Jam development path writes one unified local stream to:
+
+```text
+.airjam/logs/dev-latest.ndjson
+```
+
+Use:
+
+1. `pnpm logs` when the repo exposes it
+2. direct file reads when you need the raw NDJSON stream
+
+Important behavior:
+
+1. the file resets when the Air Jam server process restarts
+2. host, controller, and server events should land in the same stream on the normal development path
+3. this should be the first place to look before adding ad hoc logs
+
+## Query Strategy
+
+Start with the narrowest useful identifier:
+
+1. `traceId` for host bootstrap, reconnect, and room ownership stories
+2. `roomId` for one full multiplayer room story
+3. `controllerId` for one player/controller failure path
+4. `runtimeKind` and `runtimeEpoch` for embedded runtime issues
+
+Use `pnpm logs -- --view=signal` first when you want the quickest high-signal read.
+
+Use direct file reads or broader filtering when you need:
+
+1. exact append order
+2. full raw payloads
+3. plumbing events that signal view intentionally hides
+
+## Structure Rules
+
+1. keep debug helpers under `src/game/debug/`
+2. keep debug-only code isolated from hot gameplay paths
+3. use structured logs instead of random console spam
+4. make debug overlays removable without destabilizing core code
+
+## Testing Rules
+
+1. test pure domain logic with unit tests
+2. test important gameplay systems with behavior tests
+3. add focused tests when changing real behavior
+4. prefer observable behavior over implementation details
+
+## Architecture Consequence
+
+If game logic is too entangled with React, rendering, or transport to test cleanly, that usually means the structure should be improved.

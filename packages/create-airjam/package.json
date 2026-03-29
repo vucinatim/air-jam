@@ -29,17 +29,20 @@
   },
   "files": [
     "dist",
+    "template-assets",
     "templates",
     "template-version-manifest.json"
   ],
   "scripts": {
-    "build": "node scripts/generate-template-version-manifest.mjs && tsup",
+    "ai-pack:check": "node scripts/check-ai-pack.mjs",
+    "docs-pack:generate": "node scripts/generate-base-docs-pack.mjs",
+    "build": "pnpm docs-pack:generate && node scripts/generate-template-version-manifest.mjs && tsup",
     "dev": "tsup --watch",
     "smoke": "node scripts/smoke-test.mjs",
     "smoke:registry": "node scripts/smoke-test.mjs --source=registry",
     "smoke:tarball": "node scripts/smoke-test.mjs --source=tarball",
     "smoke:workspace": "node scripts/smoke-test.mjs --source=workspace",
-    "prepublishOnly": "node scripts/prepublish.js && pnpm build"
+    "prepublishOnly": "node scripts/prepublish.js && pnpm ai-pack:check && pnpm build"
   },
   "dependencies": {
     "commander": "^14.0.0",

@@ -2,6 +2,22 @@
 
 A starter template for building multiplayer games with Air Jam. This template includes a simple Pong game that demonstrates the core Air Jam features.
 
+## AI-Native Workflow
+
+This template ships with a local project operating pack for humans and coding agents.
+
+Start here:
+
+1. `AGENTS.md` for the repo contract
+2. `plan.md` for the active work ledger
+3. `suggestions.md` for durable follow-ups
+4. `docs/docs-index.md` for the local docs pack
+5. `skills/index.md` for task-specific workflow modules
+
+Use local files first.
+
+Use the hosted docs site when you need broader or newer canonical Air Jam docs.
+
 ## Getting Started
 
 ### Installation
@@ -31,6 +47,29 @@ pnpm run dev
 This starts both the local Air Jam server (`http://localhost:4000`) and the game (`http://localhost:5173`) in one command.
 It also auto-detects your LAN IP and sets `VITE_AIR_JAM_PUBLIC_HOST` so QR links are phone-friendly by default.
 For this mode, leave `VITE_AIR_JAM_SERVER_URL` blank so controllers connect back through the game origin and Vite websocket proxy.
+
+### Unified Dev Logs
+
+Air Jam writes the canonical local debug stream to:
+
+```text
+.airjam/logs/dev-latest.ndjson
+```
+
+Use:
+
+```bash
+pnpm logs
+pnpm logs -- --follow
+pnpm logs -- --trace=host_abc123
+pnpm logs -- --view=signal
+```
+
+Important:
+
+- this file resets when the Air Jam server process restarts
+- host, controller, and server events should converge into the same stream on the normal dev path
+- direct file reads are also valid if you want raw NDJSON
 
 ### Use Official Air Jam Backend (No Local Server)
 
@@ -113,6 +152,8 @@ What `dev -- --secure` does:
 src/
   ├── app.tsx                     # Main app component with routing
   ├── airjam.config.ts            # Canonical runtime/game metadata
+  ├── ui/
+  │   └── icons/                  # Local wrappers for general UI/system icons
   ├── game/
   │   ├── input.ts                # Input schema/types
   │   ├── store.ts                # Shared networked state store
@@ -125,6 +166,8 @@ src/
   │   │   ├── components/         # Lobby/ended/overlay host UI
   │   │   ├── game-engine/        # Simulation modules (input/collision/render)
   │   │   └── use-pong-feedback.ts # Canonical host-owned feedback policy
+  │   ├── ui/
+  │   │   └── game-icons.tsx      # Curated gameplay icon wrappers
   │   └── shared/
   │       ├── team.ts             # Team domain (ids/labels/colors)
   │       ├── match-readiness.ts  # Canonical readiness logic/text
@@ -147,6 +190,7 @@ src/
 - Host owns authority for simulation, scoring, and state transitions; controllers send input + actions.
 - Keep feedback centralized in host feedback modules (`use-pong-feedback`): no scattered side-effects.
 - Target controller feedback explicitly when needed (e.g., hitter-only hit cue) and keep broad cues host-local by default.
+- Prefer local icon wrappers in `src/ui/icons/` and `src/game/ui/` instead of importing vendor icon packages directly into arbitrary components.
 
 ## What SDK Handles For You
 

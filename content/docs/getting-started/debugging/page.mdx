@@ -13,6 +13,23 @@ When local Air Jam development breaks, the fastest fix is usually knowing which 
 
 This page explains the practical debugging loop.
 
+## The Canonical Stream
+
+Before you start jumping between browser tabs and terminals, remember that Air Jam has one canonical local dev stream:
+
+- [.airjam/logs/dev-latest.ndjson](/docs/getting-started/dev-logs)
+
+That stream is the intended first place to inspect issues that cross:
+
+1. server lifecycle
+2. host runtime
+3. controller runtime
+4. embedded runtime edges
+
+Read the dedicated guide here:
+
+1. [Unified Dev Logs](/docs/getting-started/dev-logs)
+
 ## 1. Start With The Canonical Local Loop
 
 For scaffolded games, the default local command is:
@@ -136,12 +153,18 @@ If you are unsure whether the framework or your game is the problem, compare you
 
 If your code disagrees with both patterns, your code is probably the outlier.
 
-## 7. Monorepo Maintainer Note
+## 7. Query The Unified Stream
 
-If you are working inside the Air Jam monorepo itself rather than a scaffolded game, the repo also includes a dev log viewer:
+Scaffolded games should expose:
+
+```bash
+pnpm logs
+```
+
+Inside the Air Jam monorepo, the equivalent maintainer command is:
 
 ```bash
 pnpm dev:logs
 ```
 
-That is a repo-maintainer convenience, not a normal requirement for scaffold users.
+Both commands read the same canonical local observability model.

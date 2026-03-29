@@ -3,6 +3,13 @@ export const landingCopy = {
     badge: "Free & open source",
     title: "Air Jam",
     subtitle: "Build multiplayer games. Phones are the controllers.",
+    subtitles: [
+      "Multiplayer games. Phones are the controllers.",
+      "No downloads. No hardware. Scan and play.",
+      "Your game, their phones, zero friction.",
+      "Turn any screen into an arcade.",
+      "Ship a game. Share a link. Fill a room.",
+    ],
     primaryCta: {
       label: "Start building",
       href: "/docs/getting-started/quick-start",

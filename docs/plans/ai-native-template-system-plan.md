@@ -1,7 +1,25 @@
 # Air Jam AI-Native Template System Plan
 
-Last updated: 2026-03-28  
+Last updated: 2026-03-29  
 Status: active
+
+Implementation status:
+
+1. Phases 1 through 4 are implemented.
+2. Phase 5 is partially implemented:
+   1. the platform now publishes a hosted AI pack manifest at `/ai-pack/manifest.json`
+   2. channel and version manifests now exist under `/ai-pack/<channel>/...`
+   3. the scaffold AI/dev files are now published as stable hosted artifacts under `/ai-pack/<channel>/<packVersion>/files/...`
+   4. those hosted files are generated build output, not canonical tracked source
+3. Phase 7 is partially implemented:
+   1. scaffold smoke coverage exists
+   2. generated project file presence is validated
+   3. the local docs export is now freshness-checked through `create-airjam` AI pack validation
+4. Phase 6 is partially implemented:
+   1. `create-airjam ai-pack status` exists
+   2. `create-airjam ai-pack diff` exists
+   3. both commands compare local managed files against the hosted AI pack
+5. the remaining Phase 6 work is the explicit update write path
 
 Related docs:
 
@@ -366,6 +384,18 @@ Acceptance criteria:
 1. older repos can inspect whether their local pack is outdated
 2. pack upgrades can be intentional instead of ad hoc copy-paste
 
+Current status:
+
+1. implemented:
+   1. hosted root manifest at `/ai-pack/manifest.json`
+   2. hosted channel manifest at `/ai-pack/stable/manifest.json`
+   3. hosted version manifest and file surface under `/ai-pack/stable/<packVersion>/...`
+   4. deterministic hosted artifact generation and freshness checking
+2. still remaining:
+   1. richer compatibility rules beyond the current package/version metadata
+   2. multi-version retention beyond the single current stable pack
+   3. consumer logic that actually uses the hosted manifest for status/diff/update flows
+
 ### Phase 6: Update CLI
 
 Goal:
@@ -390,6 +420,19 @@ Acceptance criteria:
 2. updates are visible and controlled
 3. local customization is not casually destroyed
 
+Current status:
+
+1. implemented:
+   1. `create-airjam ai-pack status`
+   2. `create-airjam ai-pack diff`
+   3. `create-airjam ai-pack update`
+   4. local vs hosted file-level comparison against the latest published pack
+   5. explicit overwrite-only replacement of managed AI pack files
+2. still remaining:
+   1. richer conflict policy for locally modified older packs
+   2. clearer user-facing guidance for when to overwrite vs preserve drift
+   3. optional preview/dry-run UX if it proves necessary
+
 ### Phase 7: Validation And Release Hardening
 
 Goal:
@@ -408,6 +451,16 @@ Acceptance criteria:
 
 1. the AI/dev pack is release-validated, not manually assumed
 2. scaffolds do not regress silently
+
+Current status:
+
+1. implemented:
+   1. scaffold smoke coverage for generated AI/dev files
+   2. tarball/workspace validation through `smoke-test.mjs`
+   3. `ai-pack:check` for AI pack completeness and generated docs freshness
+2. still worth adding later:
+   1. stronger registry-path validation in release automation
+   2. broader manifest/schema validation once hosted manifests exist
 
 ## Recommended Build Order
 
@@ -445,4 +498,3 @@ This plan is complete when:
 3. projects remain fully usable even with no network access
 4. old projects have a future path to inspect and adopt newer pack versions
 5. the system stays simple enough that maintainers can actually keep it current
-

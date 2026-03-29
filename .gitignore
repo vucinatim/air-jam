@@ -26,3 +26,6 @@ dist-ssr
 
 # Local package artifacts and disposable validation copies
 .airjam/
+
+# Generated hosted AI pack artifacts
+apps/platform/public/ai-pack/

@@ -253,6 +253,8 @@ The platform is a Next.js application that can be deployed to Vercel, Railway, o
    - Build Command: `cd ../.. && pnpm install && pnpm --filter platform build`
    - Output Directory: `.next`
 
+Use the package build command, not raw `next build`. The platform build generates content sources and hosted AI-pack artifacts as part of the build.
+
 #### Database Setup
 
 The platform requires PostgreSQL. You can use:

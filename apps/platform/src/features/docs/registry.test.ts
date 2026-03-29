@@ -22,7 +22,7 @@ describe("docs registry", () => {
     const searchEntries = getDocsSearchEntries();
 
     expect(sections).toHaveLength(4);
-    expect(pages).toHaveLength(10);
+    expect(pages.length).toBeGreaterThan(10);
     expect(manifestEntries).toHaveLength(pages.length);
     expect(searchEntries.length).toBeGreaterThan(pages.length);
   });
@@ -41,21 +41,22 @@ describe("docs registry", () => {
 
     expect(llmsTxt).toContain("https://air-jam.test/docs-manifest");
     expect(llmsTxt).toContain("https://air-jam.test/docs-search-index");
+    expect(llmsTxt).toContain("https://air-jam.test/ai-pack/manifest.json");
   });
 
   it("loads docs through the content source adapter", () => {
     const docsCollection = loadDocsCollection(contentDocsSource);
 
     expect(contentDocsSource.name).toBe("content-docs");
-    expect(docsCollection.pages).toHaveLength(10);
-    expect(docsCollection.sections).toHaveLength(4);
+    expect(docsCollection.pages).toHaveLength(getDocsPages().length);
+    expect(docsCollection.sections).toHaveLength(getDocsSections().length);
     expect(docsCollection.defaultHref).toBe(
       "/docs/getting-started/introduction",
     );
   });
 
   it("resolves documents and static params from docs hrefs", () => {
-    expect(getDocsDocuments()).toHaveLength(10);
+    expect(getDocsDocuments()).toHaveLength(getDocsPages().length);
     expect(getDocsStaticParams()).toContainEqual({
       slug: ["getting-started", "introduction"],
     });

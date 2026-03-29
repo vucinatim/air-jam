@@ -14,6 +14,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 8. Replace or reconfigure the prototype game’s physics runtime so the host build no longer ships `@dimforge/rapier3d-compat` as a 2 MB+ JS chunk; the easy route/editor/template splits are already done, so the remaining warning is now a real physics-runtime cost rather than loose app structure.
 9. Add optional causal message IDs for key cross-surface hops so some failure stories can be followed by direct cause/effect links instead of correlation by `traceId`, `roomId`, `collectorSeq`, and per-session `sourceSeq` alone.
 10. Move destructive runtime analytics DB integration tests onto a dedicated test database URL instead of relying on an opt-in guard against the shared dev/prod-connected database.
+11. Productize the unified dev log sink for scaffolded projects by exposing a published `air-jam-server logs` command, adding a template `pnpm logs` script, and teaching the workflow clearly in the AI pack.
 
 ## Framework Boundary Follow-Ups
 

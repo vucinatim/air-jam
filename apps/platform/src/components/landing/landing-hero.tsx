@@ -3,6 +3,7 @@
 import { HeroScene } from "@/components/hero-scene/hero-scene";
 import { landingCopy } from "@/components/landing/landing-content";
 import { LandingScrollChevron } from "@/components/landing/landing-scroll-chevron";
+import { TextCycle } from "@/components/landing/text-cycle";
 import { Navbar } from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,8 +64,8 @@ export const LandingHero = () => {
               </span>
             </h1>
           </div>
-          <p className="text-foreground/95 relative z-20 max-w-2xl text-base leading-relaxed font-medium text-pretty [text-shadow:0_2px_12px_rgba(0,0,0,0.85)] sm:text-lg md:text-[1.35rem]">
-            {hero.subtitle}
+          <p className="text-foreground/95 relative z-20 flex min-h-[3rem] w-full max-w-2xl items-center justify-center text-center text-base leading-relaxed font-medium [text-shadow:0_2px_12px_rgba(0,0,0,0.85)] sm:text-lg md:text-[1.35rem]">
+            <TextCycle phrases={hero.subtitles} holdDuration={3500} />
           </p>
           <div className="flex flex-row flex-wrap items-center justify-center gap-3">
             <Button
