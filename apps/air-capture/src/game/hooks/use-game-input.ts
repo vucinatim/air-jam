@@ -5,7 +5,7 @@ import {
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { useBotManager } from "../bot-system/bot-manager";
-import { usePrototypeMatchStore } from "../match-store";
+import { usePrototypeMatchStore } from "../stores/match/match-store";
 import { type GameLoopInput, gameInputSchema } from "../types";
 
 export const useGameInput = () => {

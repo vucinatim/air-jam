@@ -1,0 +1,352 @@
+import type { PlayerProfile } from "@air-jam/sdk";
+import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
+import { Volume2, VolumeX } from "lucide-react";
+import type { JSX } from "react";
+import { Button } from "../../components/ui/button";
+import {
+  getLobbyReadinessText,
+  getTeamCounts,
+  type TeamCounts,
+} from "../../game/domain/match-readiness";
+import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
+import type { MatchSummary } from "../../game/stores/match/match-store";
+
+export type HostConnectionStatus =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "reconnecting";
+
+interface TeamCardProps {
+  teamId: TeamId;
+  players: PlayerProfile[];
+  botCount: number;
+}
+
+const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
+  const team = TEAM_CONFIG[teamId];
+  const totalCount = players.length + botCount;
+
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
+      <div
+        className="text-2xl font-black tracking-wide uppercase"
+        style={{ color: team.color }}
+      >
+        {team.label}
+      </div>
+      <div className="flex min-h-8 items-center justify-center gap-2">
+        {players.length > 0 ? (
+          players.map((player) => (
+            <PlayerAvatar
+              key={player.id}
+              player={player}
+              size="sm"
+              className="h-7 w-7 border-2"
+            />
+          ))
+        ) : (
+          <span className="text-xs tracking-wide text-zinc-500 uppercase">
+            Empty
+          </span>
+        )}
+        {botCount > 0 ? (
+          <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wide text-cyan-200 uppercase">
+            BOT x{botCount}
+          </span>
+        ) : null}
+      </div>
+      <div className="text-sm font-bold tracking-wide text-zinc-300 uppercase">
+        {totalCount}
+      </div>
+    </div>
+  );
+};
+
+interface LobbyOverlayProps {
+  joinQrValue: string;
+  roomId: string | null;
+  pointsToWin: number;
+  botCounts: TeamCounts;
+  connectionStatus: HostConnectionStatus;
+  lastError?: string;
+  connectedPlayers: PlayerProfile[];
+  teamPlayers: Record<TeamId, PlayerProfile[]>;
+}
+
+export const LobbyOverlay = ({
+  joinQrValue,
+  roomId,
+  pointsToWin,
+  botCounts,
+  connectionStatus,
+  lastError,
+  connectedPlayers,
+  teamPlayers,
+}: LobbyOverlayProps): JSX.Element => {
+  const humanCounts = getTeamCounts([
+    ...teamPlayers.solaris.map(() => ({ teamId: "solaris" as const })),
+    ...teamPlayers.nebulon.map(() => ({ teamId: "nebulon" as const })),
+  ]);
+
+  const readinessText = getLobbyReadinessText(
+    humanCounts,
+    botCounts,
+    pointsToWin,
+  );
+
+  const hasJoinQr = joinQrValue.trim().length > 0;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6 py-10 text-white">
+      <div className="pointer-events-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
+        <div className="space-y-1">
+          <div className="text-xs tracking-[0.22em] text-zinc-400 uppercase">
+            Prototype Lobby
+          </div>
+          <h1 className="text-5xl font-black tracking-tight uppercase">
+            Join Room
+          </h1>
+          <div className="text-xl font-bold tracking-[0.2em] text-zinc-200 uppercase">
+            {roomId ?? "----"}
+          </div>
+        </div>
+
+        {hasJoinQr ? (
+          <RoomQrCode
+            value={joinQrValue}
+            size={220}
+            className="rounded-md bg-white"
+            alt="Join this prototype room"
+          />
+        ) : (
+          <div className="flex h-[220px] w-[220px] flex-col items-center justify-center gap-2 rounded-md border border-white/20 bg-black/40 px-4 text-center">
+            <div className="text-[11px] font-semibold tracking-[0.18em] text-zinc-300 uppercase">
+              Join URL unavailable
+            </div>
+            <div className="text-[11px] text-zinc-400">
+              {connectionStatus === "connected"
+                ? "Room is not ready yet."
+                : `Host status: ${connectionStatus}`}
+            </div>
+            {lastError ? (
+              <div className="text-[11px] text-rose-300">{lastError}</div>
+            ) : null}
+          </div>
+        )}
+
+        <div className="text-xs tracking-[0.14em] text-zinc-300 uppercase">
+          {readinessText}
+        </div>
+
+        <div className="grid w-full max-w-3xl grid-cols-2 gap-3">
+          <TeamCard
+            teamId="solaris"
+            players={teamPlayers.solaris}
+            botCount={botCounts.solaris}
+          />
+          <TeamCard
+            teamId="nebulon"
+            players={teamPlayers.nebulon}
+            botCount={botCounts.nebulon}
+          />
+        </div>
+
+        <div className="flex min-h-9 flex-col items-center justify-center gap-3">
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-zinc-400 uppercase">
+            Connected
+          </div>
+          {connectedPlayers.length > 0 ? (
+            <div className="flex items-center justify-center gap-2">
+              {connectedPlayers.map((player) => (
+                <PlayerAvatar
+                  key={player.id}
+                  player={player}
+                  size="sm"
+                  className="h-7 w-7 border-2"
+                />
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs tracking-wide text-zinc-500 uppercase">
+              Waiting for players
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const formatDuration = (durationMs: number): string => {
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
+interface EndedOverlayProps {
+  roomId: string | null;
+  matchSummary: MatchSummary | null;
+  botCounts: TeamCounts;
+  teamPlayers: Record<
+    TeamId,
+    Array<{ id: string; label: string; color?: string }>
+  >;
+}
+
+export const EndedOverlay = ({
+  roomId,
+  matchSummary,
+  botCounts,
+  teamPlayers,
+}: EndedOverlayProps): JSX.Element => {
+  const winner = matchSummary?.winner;
+  const winnerLabel = winner
+    ? `${TEAM_CONFIG[winner].label} Wins`
+    : "Match Ended";
+  const winnerColor = winner ? TEAM_CONFIG[winner].color : "#ffffff";
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6 py-10 text-white">
+      <div className="pointer-events-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
+        <div className="space-y-1">
+          <div className="text-xs tracking-[0.22em] text-zinc-400 uppercase">
+            Match Ended
+          </div>
+          <h1
+            className="text-5xl font-black tracking-tight uppercase"
+            style={{ color: winnerColor }}
+          >
+            {winnerLabel}
+          </h1>
+          <div className="text-xl font-bold tracking-[0.2em] text-zinc-200 uppercase">
+            {roomId ?? "----"}
+          </div>
+        </div>
+
+        <div className="text-6xl font-black tracking-tight text-white">
+          {matchSummary ? (
+            <>
+              <span style={{ color: TEAM_CONFIG.solaris.color }}>
+                {matchSummary.finalScores.solaris}
+              </span>
+              <span className="px-2 text-zinc-500">:</span>
+              <span style={{ color: TEAM_CONFIG.nebulon.color }}>
+                {matchSummary.finalScores.nebulon}
+              </span>
+            </>
+          ) : (
+            "0:0"
+          )}
+        </div>
+
+        <div className="grid w-full max-w-3xl grid-cols-2 gap-3">
+          <TeamCard
+            teamId="solaris"
+            players={teamPlayers.solaris as PlayerProfile[]}
+            botCount={botCounts.solaris}
+          />
+          <TeamCard
+            teamId="nebulon"
+            players={teamPlayers.nebulon as PlayerProfile[]}
+            botCount={botCounts.nebulon}
+          />
+        </div>
+
+        <div className="text-xs tracking-[0.14em] text-zinc-300 uppercase">
+          {matchSummary
+            ? `First to ${matchSummary.pointsToWin}. Duration ${formatDuration(matchSummary.durationMs)}.`
+            : "Match complete."}
+        </div>
+        <div className="text-xs tracking-[0.14em] text-zinc-500 uppercase">
+          Restart or return to lobby from controller.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface PausedOverlayProps {
+  roomId: string | null;
+  joinQrValue: string;
+  connectionStatus: HostConnectionStatus;
+  lastError?: string;
+}
+
+export const PausedOverlay = ({
+  roomId,
+  joinQrValue,
+  connectionStatus,
+  lastError,
+}: PausedOverlayProps) => (
+  <div className="pointer-events-none absolute inset-0 z-70 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="pointer-events-auto flex flex-col items-center gap-4 rounded-xl border border-white/15 bg-black/70 px-6 py-5 text-center text-white">
+      <div className="text-xs tracking-[0.2em] text-zinc-400 uppercase">
+        Paused
+      </div>
+      <div className="text-2xl font-black tracking-wide uppercase">
+        Room {roomId ?? "----"}
+      </div>
+      {joinQrValue.trim().length > 0 ? (
+        <RoomQrCode
+          value={joinQrValue}
+          size={140}
+          className="rounded-md bg-white"
+          alt="Join this prototype room"
+        />
+      ) : (
+        <div className="flex h-[140px] w-[140px] items-center justify-center rounded-md border border-white/20 bg-black/40 px-3 text-center text-[11px] text-zinc-300">
+          {lastError
+            ? lastError
+            : connectionStatus === "connected"
+              ? "Room not ready"
+              : `Host ${connectionStatus}`}
+        </div>
+      )}
+      <div className="text-[11px] tracking-[0.14em] text-zinc-300 uppercase">
+        Resume from any controller
+      </div>
+    </div>
+  </div>
+);
+
+export const HostMuteButton = ({
+  muted,
+  onToggle,
+}: {
+  muted: boolean;
+  onToggle: () => void;
+}): JSX.Element => (
+  <Button
+    type="button"
+    variant="outline"
+    size="icon"
+    onClick={onToggle}
+    aria-label={muted ? "Unmute audio" : "Mute audio"}
+    title={muted ? "Unmute" : "Mute"}
+    className="border-white/20 bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+  >
+    {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+  </Button>
+);
+
+export const GameplayFallback = () => {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black text-sm font-semibold tracking-[0.18em] text-white/70 uppercase">
+      Loading Match
+    </div>
+  );
+};
+
+export const StageBackdrop = () => {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-[#020611]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_bottom,rgba(249,115,22,0.18),transparent_34%),linear-gradient(180deg,rgba(6,11,21,0.9),rgba(2,6,17,1))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-size-[72px_72px] opacity-30" />
+      <div className="absolute inset-x-0 top-[16%] h-px bg-linear-to-r from-transparent via-cyan-300/35 to-transparent" />
+      <div className="absolute inset-x-0 bottom-[18%] h-px bg-linear-to-r from-transparent via-orange-300/35 to-transparent" />
+    </div>
+  );
+};

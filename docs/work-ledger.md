@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-03-29  
+Last updated: 2026-03-30  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -143,7 +143,20 @@ Current view:
 3. the email/password fallback is intentionally kept for the initial release
 4. this should stay clearly separate from runtime/framework auth hardening
 
-### 9. SDK Composability
+### 9. Public Arcade Artifact Release Model
+
+Status: active  
+Plan: [Public Arcade Artifact Release Plan](./plans/public-arcade-artifact-release-plan.md)  
+Strategy: [Public Arcade Release Strategy](./strategy/public-arcade-release-strategy.md)
+
+Current view:
+
+1. self-hosting should remain first-class for framework adoption and external runtime use
+2. public Arcade should move away from mutable creator-controlled URLs toward immutable Air Jam-hosted releases
+3. this is a substantial platform product slice, but it meaningfully reduces long-term moderation, trust, and release-management complexity
+4. the first implementation should stay static-artifact focused and should not become a general-purpose Vercel clone
+
+### 10. SDK Composability
 
 Status: parked  
 Plan: [SDK Composability Plan](./plans/sdk-composability-plan.md)
@@ -153,7 +166,7 @@ Current view:
 1. good architecture direction
 2. not on the immediate prerelease critical path unless it unblocks release UX
 
-### 10. RPC Action Contract Refactor
+### 11. RPC Action Contract Refactor
 
 Status: parked  
 Plan: [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)

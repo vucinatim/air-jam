@@ -2,7 +2,7 @@ import {
   registerAbilityImplementation,
   type AbilityImplementation,
 } from "../abilities-store";
-import { useHealthStore } from "../health-store";
+import { useHealthStore } from "../stores/players/health-store";
 
 /**
  * Health Pack Ability (Common)

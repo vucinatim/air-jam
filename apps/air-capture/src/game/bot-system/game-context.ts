@@ -1,14 +1,13 @@
 import { Vector3 } from "three";
+import { TEAM_IDS, type TeamId } from "../domain/team";
 import {
-  TEAM_CONFIG,
   useCaptureTheFlagStore,
-  type TeamId,
-} from "../capture-the-flag-store";
+} from "../stores/match/capture-the-flag-store";
 import {
   useCollectiblesStore,
   type CollectibleData,
-} from "../collectibles-store";
-import { shipPositions, shipRotations } from "../components/ship";
+} from "../stores/world/collectibles-store";
+import { shipPositions, shipRotations } from "../components/entities/ship";
 import {
   JUMP_FORCE,
   JUMP_PADS,
@@ -16,8 +15,8 @@ import {
   OBSTACLES,
   type ObstacleData,
 } from "../constants";
-import { useGameStore } from "../game-store";
-import { useHealthStore } from "../health-store";
+import { useGameStore } from "../stores/players/game-store";
+import { useHealthStore } from "../stores/players/health-store";
 import type { JumpPadInfo } from "./reachability-checker";
 
 export interface BotSelf {
@@ -183,7 +182,7 @@ export class GameContext {
     const self = this.getSelf(botId);
     if (!self) return null;
 
-    const teams = Object.keys(TEAM_CONFIG) as TeamId[];
+    const teams = TEAM_IDS;
     return teams.find((team) => team !== self.teamId) ?? null;
   }
 

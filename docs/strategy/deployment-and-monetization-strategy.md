@@ -1,12 +1,13 @@
 # Air Jam Deployment and Monetization Strategy
 
-Last updated: 2026-03-26  
+Last updated: 2026-03-30  
 Status: active strategy
 
 Related docs:
 
 1. [Framework Paradigm](./framework-paradigm.md)
 2. [Auth Capability Plan](../plans/auth-capability-plan.md)
+3. [Public Arcade Release Strategy](./public-arcade-release-strategy.md)
 4. [AI Studio Architecture](../systems/ai-studio-architecture.md)
 5. [Docs Index](../docs-index.md)
 
@@ -174,6 +175,19 @@ Recommended conceptual shape:
 
 The source may differ, but the published object should feel the same.
 
+## Public Arcade Rule
+
+Air Jam should distinguish between:
+
+1. framework-level self-hosting
+2. trusted public Arcade distribution
+
+Self-hosting should stay open and URL-friendly.
+
+Public Arcade should increasingly prefer immutable Air Jam-controlled releases over mutable third-party URLs.
+
+That split keeps the framework honest while giving the hosted product a defensible trust model.
+
 ### Deployment Input A. External URL
 
 This remains the default and most open path.
@@ -182,7 +196,7 @@ Flow:
 
 1. developer deploys on Vercel / Netlify / Cloudflare / custom hosting
 2. developer enters the URL in Air Jam
-3. Air Jam uses that URL for play and arcade publishing
+3. Air Jam uses that URL for self-hosted play, external distribution, and non-hosted platform integrations
 
 Why this must stay:
 
@@ -252,7 +266,7 @@ Keep improving the current model:
 
 1. self-hosted game URL in dashboard
 2. app ID issuance
-3. publish to arcade
+3. external and private play flows remain easy
 
 This remains the lowest-friction open path.
 
@@ -266,6 +280,7 @@ Why first:
 2. useful for advanced users immediately
 3. necessary foundation for future AI studio publishing
 4. avoids needing Git provider integration as the first step
+5. gives public Arcade a trusted immutable release primitive instead of relying on mutable third-party URLs
 
 ### Phase 3. Git-Connected Deploy
 

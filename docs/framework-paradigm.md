@@ -1,6 +1,6 @@
 # Air Jam Framework Paradigm
 
-Last updated: 2026-03-29  
+Last updated: 2026-03-30  
 Status: active
 
 ## Purpose
@@ -190,6 +190,11 @@ Hosted product concerns:
 3. deploy/version metadata
 4. analytics aggregation and dashboard APIs
 5. future billing/quota/moderation policy
+
+Platform rule:
+
+1. self-hosted external URLs remain a first-class framework path
+2. trusted public Arcade distribution should converge on immutable Air Jam-controlled releases rather than mutable third-party URLs
 
 ### Studio Will Own
 

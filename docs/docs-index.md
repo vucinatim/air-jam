@@ -23,6 +23,7 @@ Strategy and operations:
 2. [Performance Baseline](./strategy/performance-baseline.md)
 3. [Deployment and Monetization Strategy](./strategy/deployment-and-monetization-strategy.md)
 4. [Production Observability Baseline](./strategy/production-observability-baseline.md)
+5. [Public Arcade Release Strategy](./strategy/public-arcade-release-strategy.md)
 
 Release-critical plans:
 
@@ -40,6 +41,7 @@ Active subsystem plans:
 
 1. [Auth Capability Plan](./plans/auth-capability-plan.md)
 2. [Platform Dashboard Account Auth Plan](./plans/platform-dashboard-account-auth-plan.md)
+3. [Public Arcade Artifact Release Plan](./plans/public-arcade-artifact-release-plan.md)
 
 Parked future architecture plans:
 

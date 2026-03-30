@@ -58,7 +58,7 @@ export const LandingHero = () => {
             >
               {hero.badge}
             </Badge>
-            <h1 className="text-5xl font-bold tracking-tight text-balance sm:text-6xl md:text-7xl lg:text-[5.5rem]">
+            <h1 className="-mb-4 text-5xl font-bold tracking-tight text-balance sm:text-6xl md:text-7xl lg:text-[5.5rem]">
               <span className="from-foreground to-foreground/75 bg-linear-to-r bg-clip-text text-transparent">
                 {hero.title}
               </span>

@@ -95,6 +95,14 @@ Compared to `pong`, `air-capture` is missing the clear starter/reference shape f
 8. `game/debug/`
 9. `tests/`
 
+### 5. Team And Slot Presentation Is Weaker Than Pong
+
+Problem:
+
+1. `air-capture` already has team assignment and readiness logic, but it does not present or structure it as cleanly as the newer Pong slot model
+2. the current team/player surface is functional, but it is not yet a strong reusable reference for mixed players, bots, and occupancy
+3. the launch set would benefit from one clearer canonical team-slot model across both reference games
+
 ## Refactor Principles
 
 ### 1. Preserve Healthy Game Logic
@@ -163,6 +171,31 @@ tests/
 
 This does not mean every current file needs a one-to-one new home immediately.
 It means the public architecture should converge on this model.
+
+## Pong Parity Target
+
+The goal is not to make `air-capture` identical to `pong`.
+
+The goal is to make it comparably clean and comparably teachable.
+
+That means `air-capture` should end this refactor with the same kind of visible architectural guarantees that `pong` already provides:
+
+1. top-level `host/` and `controller/` entry surfaces
+2. explicit `game/domain/`, `game/stores/`, `game/engine/`, `game/prefabs/`, `game/ui/`, and `game/debug/` layers
+3. runtime owner hooks used only in the top-level host/controller entry files
+4. shared game-facing UI isolated from host/controller shells
+5. a clearer team-slot/occupancy model comparable to Pong where that improves lobby readability and mixed human/bot staging
+6. tests focused on pure rules and state transitions rather than browser-heavy scene behavior
+7. a README structure section that teaches the final file layout clearly
+
+Comparable to `pong` does not mean:
+
+1. every module count must match
+2. every subsystem needs the same depth
+3. the 3D runtime must be flattened into a toy starter shape
+
+`air-capture` is naturally larger and more simulation-heavy.
+It should stay richer than `pong`, but it should no longer be structurally older than `pong`.
 
 ## Proposed Mapping
 
@@ -237,6 +270,120 @@ The current `sounds.ts` and background-music hook should move toward:
 2. `game/audio/use-background-music.ts`
 
 This keeps audio out of generic `game/` root clutter.
+
+## Current File Mapping
+
+This is the intended first-pass mapping for the highest-value current files.
+
+### Entry And Surface Files
+
+1. `src/routes/host-view.tsx` -> `src/host/index.tsx`
+2. `src/routes/controller-view.tsx` -> `src/controller/index.tsx`
+3. host-only overlays and host UI extracted from `host-view.tsx` -> `src/host/components/`
+4. controller-only lobby/gameplay UI extracted from `controller-view.tsx` -> `src/controller/components/`
+
+### Domain And Shared Rules
+
+1. `src/game/match-readiness.ts` -> `src/game/domain/match-readiness.ts`
+2. `TEAM_CONFIG` and `TeamId` from `src/game/capture-the-flag-store.ts` -> `src/game/domain/team.ts`
+3. capture/flag rule helpers extracted from `src/game/capture-the-flag-store.ts` -> `src/game/domain/flag-rules.ts` if the seam is clean
+4. ability metadata shape from `src/game/abilities-store.ts` -> `src/game/domain/abilities.ts` or `src/game/shared/abilities.ts` if it is not runtime-specific
+5. if the current player/team occupancy rules are still too ad hoc, create an explicit slot-oriented domain helper comparable to the Pong team-slot model
+
+### Store Layer
+
+1. `src/game/match-store.ts` -> `src/game/stores/match/`
+2. `src/game/game-store.ts` -> `src/game/stores/players/` or a more explicit coordinating store module
+3. `src/game/capture-the-flag-store.ts` -> `src/game/stores/match/` plus domain extraction
+4. `src/game/health-store.ts` and `src/game/player-stats-store.ts` -> `src/game/stores/players/`
+5. `src/game/collectibles-store.ts`, `src/game/lasers-store.ts`, and `src/game/rockets-store.ts` -> `src/game/stores/world/` or `src/game/stores/projectiles/`
+6. `src/game/debug-store.ts` and `src/game/physics-store.ts` -> `src/game/stores/debug/`
+
+### Engine, Prefabs, UI, And Debug
+
+1. `src/game/components/game-scene.tsx` -> `src/game/engine/scene.tsx` or `src/game/engine/game-scene.tsx`
+2. camera/render hooks from `src/game/hooks/` -> `src/game/engine/` when they are runtime orchestration concerns
+3. arena/environment/world pieces from `src/game/components/` -> `src/game/prefabs/`
+4. HUD and score overlays -> `src/game/ui/`
+5. debug overlays, recorder/report surfaces, and editor panels -> `src/game/debug/`
+6. `src/game/sounds.ts` and `src/game/hooks/use-background-music.ts` -> `src/game/audio/`
+
+### Gameplay Debug Surfaces That Should Stay
+
+The practical host cheat/debug panel is still valuable and should remain as part of the public internal-development story.
+
+Keep and refactor as needed:
+
+1. bot controls
+2. item/health/debug toggles
+3. host-only gameplay cheat surfaces that help validate the game quickly
+
+The goal is to move these into a clearer `game/debug/` and `host/components/` structure, not to remove them.
+
+### Temporary Tooling We Intentionally Do Not Preserve
+
+The current ad hoc model/viewer/editor surface should not survive this refactor as a first-class public pattern.
+
+This includes:
+
+1. `src/game/components/game-object-editor.tsx`
+2. the editor panel and object-type switcher currently embedded in `src/routes/host-view.tsx`
+3. `src/components/physics-recorder-ui.tsx`
+4. `src/game/components/physics-report-dialog.tsx`
+5. `src/game/components/physics-recorder.tsx`
+
+These may remain temporarily during transition, but the refactor should treat them as replaceable debug tooling.
+
+Rule:
+
+1. do not restructure the new `prefabs/` layer around the needs of the current editor panel
+2. do not preserve the current model-viewer/editor UX as if it were the canonical prefab workflow
+3. assume a future standardized prefab/editor surface will replace it
+
+This does not apply to the practical gameplay cheat/debug panel.
+That panel should survive, but in a cleaner home.
+
+## Phase Exit Criteria
+
+Each phase should have a stronger exit bar than “the code moved.”
+
+### Phase 1 Exit Criteria
+
+1. `src/routes/host-view.tsx` and `src/routes/controller-view.tsx` no longer exist as runtime owner files
+2. `src/host/index.tsx` and `src/controller/index.tsx` are the only runtime owner entry files
+3. behavior is unchanged
+4. `pnpm --filter air-capture typecheck` and `pnpm --filter air-capture build` still pass
+
+### Phase 2 Exit Criteria
+
+1. team/readiness rules are readable without opening UI or scene modules
+2. `match-store`, `capture-the-flag-store`, and `game-store` have explicit and non-overlapping roles
+3. the top-level `src/game/*.ts` store sprawl is materially reduced
+4. no new generic catch-all store is introduced just to preserve old ambiguity
+5. the player/team occupancy model is clearer and can support a cleaner slot-oriented lobby surface if needed
+
+### Phase 3 Exit Criteria
+
+1. the giant `src/game/components/` bucket is materially reduced or removed as the primary architecture surface
+2. debug/editor tooling is isolated under `game/debug/`
+3. world composition is visible under `game/prefabs/`
+4. HUD/shared game-facing presentation is visible under `game/ui/`
+5. the current model-viewer/editor surface is no longer shaping the public architecture
+6. the practical host cheat/debug panel still exists and is easier to locate and maintain
+
+### Phase 4 Exit Criteria
+
+1. `tests/` exists
+2. at least the most important domain/store seams are covered
+3. the test surface teaches the same “pure rules first” philosophy as `pong`
+4. `pnpm --filter air-capture test` exists and passes
+
+### Phase 5 Exit Criteria
+
+1. `air-capture` runs locally through Arcade after the refactor
+2. host/controller/lobby/match/return flows still work
+3. the game is credible enough to stand beside `pong` in the public launch set
+4. the README reflects the final architecture
 
 ## Testing Plan
 

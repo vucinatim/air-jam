@@ -1,6 +1,6 @@
 import { useAbilitiesStore } from "./abilities-store";
 import "./abilities/speed-boost"; // Register the ability
-import { usePlayerStatsStore } from "./player-stats-store";
+import { usePlayerStatsStore } from "./stores/players/player-stats-store";
 
 const controllerId = "test-controller";
 

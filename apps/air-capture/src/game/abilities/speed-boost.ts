@@ -2,7 +2,7 @@ import {
   registerAbilityImplementation,
   type AbilityImplementation,
 } from "../abilities-store";
-import { usePlayerStatsStore } from "../player-stats-store";
+import { usePlayerStatsStore } from "../stores/players/player-stats-store";
 
 /**
  * Speed Boost Ability
