@@ -1,9 +1,7 @@
 import {
   useAirJamController,
-  useAudio,
   useControllerTick,
   useInputWriter,
-  useRemoteSound,
 } from "@air-jam/sdk";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
@@ -15,8 +13,14 @@ import {
   getTeamCounts,
   type TeamCounts,
 } from "../game/domain/match-readiness";
+import {
+  getEffectiveTeamCounts,
+  getMaxBotsForTeam,
+} from "../game/domain/team-slots";
 import { usePrototypeMatchStore } from "../game/stores/match/match-store";
-import { SOUND_MANIFEST } from "../game/audio/sounds";
+import {
+  ControllerAudioProvider,
+} from "../game/audio/controller-audio";
 import { ControllerHeader } from "./components/controller-header";
 import {
   ControllerEndedPanel,
@@ -24,9 +28,11 @@ import {
   ControllerPlayingControls,
 } from "./components/controller-phase-panels";
 
-const ControllerContent = () => {
-  const controller = useAirJamController();
-  const audio = useAudio(SOUND_MANIFEST);
+const ControllerScreen = ({
+  controller,
+}: {
+  controller: ReturnType<typeof useAirJamController>;
+}) => {
   const writeInput = useInputWriter();
   const [store] = useState(() => createControllerStore());
 
@@ -36,10 +42,6 @@ const ControllerContent = () => {
   const teamAssignments = usePrototypeMatchStore((state) => state.teamAssignments);
   const matchSummary = usePrototypeMatchStore((state) => state.matchSummary);
   const actions = usePrototypeMatchStore.useActions();
-
-  useRemoteSound(SOUND_MANIFEST, audio, {
-    enabled: controller.connectionStatus === "connected",
-  });
 
   const controlsDisabled = controller.connectionStatus !== "connected";
   const canSendSystemCommand = controller.connectionStatus === "connected";
@@ -99,17 +101,14 @@ const ControllerContent = () => {
   );
 
   const effectiveCounts: TeamCounts = useMemo(
-    () => ({
-      solaris: teamCounts.solaris + botCounts.solaris,
-      nebulon: teamCounts.nebulon + botCounts.nebulon,
-    }),
+    () => getEffectiveTeamCounts(teamCounts, botCounts),
     [botCounts, teamCounts],
   );
 
   const maxBotsByTeam: TeamCounts = useMemo(
     () => ({
-      solaris: Math.max(0, 2 - teamCounts.solaris),
-      nebulon: Math.max(0, 2 - teamCounts.nebulon),
+      solaris: getMaxBotsForTeam(teamCounts.solaris),
+      nebulon: getMaxBotsForTeam(teamCounts.nebulon),
     }),
     [teamCounts],
   );
@@ -166,5 +165,13 @@ const ControllerContent = () => {
 };
 
 export const ControllerView = (): JSX.Element => {
-  return <ControllerContent />;
+  const controller = useAirJamController();
+
+  return (
+    <ControllerAudioProvider
+      remoteEnabled={controller.connectionStatus === "connected"}
+    >
+      <ControllerScreen controller={controller} />
+    </ControllerAudioProvider>
+  );
 };

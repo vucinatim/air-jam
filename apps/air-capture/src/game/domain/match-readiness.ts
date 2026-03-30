@@ -1,5 +1,6 @@
 import type { TeamAssignment } from "../stores/match/match-store-types";
 import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "./team";
+import { getEffectiveTeamCounts } from "./team-slots";
 
 export type TeamCounts = Record<TeamId, number>;
 
@@ -21,24 +22,11 @@ export const getTeamCounts = (
   }, createEmptyTeamCounts());
 };
 
-const getEffectiveCounts = (
-  humanCounts: TeamCounts,
-  botCounts: TeamCounts,
-): TeamCounts => {
-  return TEAM_IDS.reduce(
-    (acc, teamId) => {
-      acc[teamId] = humanCounts[teamId] + botCounts[teamId];
-      return acc;
-    },
-    createEmptyTeamCounts(),
-  );
-};
-
 export const getMatchReadiness = (
   humanCounts: TeamCounts,
   botCounts: TeamCounts,
 ): { canStart: boolean } => {
-  const effectiveCounts = getEffectiveCounts(humanCounts, botCounts);
+  const effectiveCounts = getEffectiveTeamCounts(humanCounts, botCounts);
   const hasBothTeams = TEAM_IDS.every((teamId) => effectiveCounts[teamId] > 0);
   const humanCount = TEAM_IDS.reduce((total, teamId) => {
     return total + humanCounts[teamId];

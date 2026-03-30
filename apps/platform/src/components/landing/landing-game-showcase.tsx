@@ -157,8 +157,8 @@ export const LandingGameShowcase = () => {
             <div className="border-border/40 bg-muted/10 flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed py-20 text-center">
               <Gamepad2 className="text-muted-foreground h-12 w-12" />
               <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
-                Published games will show up here. Jump into the arcade to play
-                what&apos;s live now.
+                Listed Arcade games will show up here. Jump into the arcade to
+                play what&apos;s live now.
               </p>
               <Button asChild variant="secondary">
                 <Link href={gameShowcase.footerCta.href}>

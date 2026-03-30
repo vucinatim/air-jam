@@ -1,6 +1,6 @@
 # Air Jam V1 Release Launch Plan
 
-Last updated: 2026-03-29  
+Last updated: 2026-03-30  
 Status: active
 
 Related docs:
@@ -96,6 +96,8 @@ Give dashboard users one obvious path to report product bugs during release.
 
 ## Phase 2. `air-capture` Reference Refactor
 
+Status: active
+
 Reference: [Air Capture Reference Refactor Plan](./air-capture-reference-refactor-plan.md)
 
 ### Goal
@@ -118,6 +120,15 @@ Do not keep nibbling at `air-capture` through isolated UI-only patches.
 1. `air-capture` matches the intended architecture well enough to teach from
 2. it runs cleanly locally through Arcade
 3. it no longer feels structurally behind the template direction
+
+Current truth:
+
+1. `air-capture` now has the modern host/controller/domain/store/engine/prefab/ui/debug/audio structure
+2. the host/controller owner files were reduced into cleaner shell owners with extracted surface components
+3. team-slot and arena prefab contracts now exist as explicit reusable seams
+4. focused domain/prefab/store/engine tests now exist and pass
+5. local Arcade manual validation confirmed host, controller, lobby, match, and return flows
+6. one more engine-boundary pass is still warranted before this phase should be called complete
 
 ## Phase 3. Legacy Showcase Game Alignment
 

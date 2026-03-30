@@ -14,6 +14,9 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 8. Add optional causal message IDs for key cross-surface hops so some failure stories can be followed by direct cause/effect links instead of correlation by `traceId`, `roomId`, `collectorSeq`, and per-session `sourceSeq` alone.
 9. Move destructive runtime analytics DB integration tests onto a dedicated test database URL instead of relying on an opt-in guard against the shared dev/prod-connected database.
 10. Productize the unified dev log sink for scaffolded projects by exposing a published `air-jam-server logs` command, adding a template `pnpm logs` script, and teaching the workflow clearly in the AI pack.
+11. Finish narrowing `air-capture` entity components after the release push by moving remaining scene traversal, Rapier body lookup, and other per-frame runtime plumbing behind explicit engine/adapters seams so the 3D runtime keeps converging toward pure-step helpers plus thin render adapters.
+12. Move release moderation off the synchronous publish request path onto a small background job or workflow once real publish volume exists, so browser startup and third-party moderation latency do not stay coupled to the creator-facing publish click forever.
+13. Rename the internal `games.url` column and related server field names to `preview_url` / `previewUrl` once the release push settles, so the persisted data model matches the now-honest dashboard contract instead of carrying the old self-hosted naming forever.
 
 ## Framework Boundary Follow-Ups
 

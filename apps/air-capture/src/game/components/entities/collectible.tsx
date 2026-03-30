@@ -1,4 +1,4 @@
-import { useAudio, useSendSignal } from "@air-jam/sdk";
+import { useSendSignal } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -22,7 +22,7 @@ import {
   CollectibleData,
   useCollectiblesStore,
 } from "../../stores/world/collectibles-store";
-import { SOUND_MANIFEST } from "../../audio/sounds";
+import { useHostAudio } from "../../audio/host-audio";
 
 interface CollectibleProps {
   collectible: CollectibleData;
@@ -204,7 +204,7 @@ const CollectibleComponent = ({ collectible }: CollectibleProps) => {
     (state) => state.removeCollectible,
   );
   const collectAbility = useAbilitiesStore((state) => state.collectAbility);
-  const audio = useAudio(SOUND_MANIFEST);
+  const audio = useHostAudio();
   const sendSignal = useSendSignal();
 
   // Light pillar geometry - cone shape, wide at base, point at top

@@ -53,6 +53,8 @@ export interface GamePlayerGame {
   ownerName?: string | null;
   thumbnailUrl?: string | null;
   videoUrl?: string | null;
+  catalogSource?: "public_arcade" | "local_dev";
+  catalogBadgeLabel?: string | null;
 }
 
 interface GamePlayerProps {
@@ -104,7 +106,7 @@ export const GamePlayer = ({
     gameState,
   });
   const arcadeIdentityRef = useRef(arcadeSurfaceRuntimeIdentity);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [loadedIframeSrc, setLoadedIframeSrc] = useState<string | null>(null);
 
   useEffect(() => {
     arcadeIdentityRef.current = arcadeSurfaceRuntimeIdentity;
@@ -122,9 +124,7 @@ export const GamePlayer = ({
   });
   const iframeTargetOrigin = getRuntimeUrlOrigin(normalizedUrl);
 
-  useEffect(() => {
-    setIframeLoaded(false);
-  }, [iframeSrc]);
+  const iframeLoaded = loadedIframeSrc === iframeSrc;
 
   const establishBridgeChannel = useCallback(() => {
     const contentWindow = iframeRef.current?.contentWindow;
@@ -537,7 +537,7 @@ export const GamePlayer = ({
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
           onLoad={() => {
             establishBridgeChannel();
-            setIframeLoaded(true);
+            setLoadedIframeSrc(iframeSrc);
             // Send initial settings after a small delay to ensure the game is ready
             setTimeout(sendSettingsToGame, 100);
           }}

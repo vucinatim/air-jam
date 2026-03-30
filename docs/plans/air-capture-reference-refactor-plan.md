@@ -1,6 +1,6 @@
 # Air Capture Reference Refactor Plan
 
-Last updated: 2026-03-29  
+Last updated: 2026-03-30  
 Status: active
 
 Related docs:
@@ -493,6 +493,33 @@ This refactor is complete when:
 3. the game has a real minimal test surface
 4. the app still feels like the same game, not a broken rewrite
 5. it is good enough to include in the five-game public launch set
+
+## Progress So Far
+
+Completed in this pass:
+
+1. host and controller runtime owners moved to top-level `src/host/` and `src/controller/`
+2. team, readiness, and CTF rule seams were extracted into `game/domain/` and pure store-state reducers
+3. flat store sprawl was regrouped under `game/stores/`, with the remaining large match store logic pushed behind explicit reducers
+4. runtime scene code was separated into `game/engine/`, `game/prefabs/`, `game/ui/`, `game/debug/`, and `game/audio/`
+5. host and controller entry files were reduced into clearer shell owners with extracted surface components
+6. the remaining render leaf layer was narrowed into `game/components/entities/`, `models/`, and `effects/`
+7. team-slot and arena prefab contracts were standardized into explicit domain and prefab seams
+8. hot ship stepping, weapon geometry, lifecycle timing, ship runtime state/tracking, ship and projectile frame orchestration hooks, engine-audio transitions, and shared projectile impact/runtime logic now have explicit `game/engine/` seams instead of living only inside entity components
+9. a real `tests/` surface now exists for domain, prefab, store, and focused engine coverage
+10. the current `air-capture` baseline now includes 69 passing tests across those pure seams
+11. `pnpm --filter air-capture typecheck`, `test`, and `build` pass
+12. local Arcade manual validation confirmed host, controller, lobby, match, and return flows still work
+
+## Remaining To Fully Close
+
+This plan should stay open until the remaining architecture truth is actually done.
+
+Remaining:
+
+1. keep shrinking component-owned simulation where a clean engine or adapter seam exists, especially around entity-level scene/world queries and other per-frame coordination
+2. keep adding focused pure tests whenever a new engine/domain seam is introduced so the runtime components do not become the only safety net again
+3. rerun local Arcade validation after the final engine-boundary pass and only then mark the plan complete
 
 ## Anti-Goals
 

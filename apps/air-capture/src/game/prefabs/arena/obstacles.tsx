@@ -1,7 +1,7 @@
 import { RigidBody } from "@react-three/rapier";
 import { useMemo } from "react";
 import { BoxGeometry, MeshStandardMaterial } from "three";
-import { OBSTACLES } from "../constants";
+import { OBSTACLES } from "../../constants";
 
 interface ObstacleProps {
   position: [number, number, number];

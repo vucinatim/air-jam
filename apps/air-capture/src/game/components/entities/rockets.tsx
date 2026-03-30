@@ -1,5 +1,5 @@
 import { useRocketsStore } from "../../stores/projectiles/rockets-store";
-import { Rocket } from "./rocket";
+import { RocketEntity } from "./rocket";
 
 export function Rockets() {
   const rockets = useRocketsStore((state) => state.rockets);
@@ -7,7 +7,7 @@ export function Rockets() {
   return (
     <>
       {rockets.map((rocket) => (
-        <Rocket
+        <RocketEntity
           key={rocket.id}
           id={rocket.id}
           position={rocket.position}

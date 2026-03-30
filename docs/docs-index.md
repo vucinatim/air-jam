@@ -42,6 +42,7 @@ Active subsystem plans:
 1. [Auth Capability Plan](./plans/auth-capability-plan.md)
 2. [Platform Dashboard Account Auth Plan](./plans/platform-dashboard-account-auth-plan.md)
 3. [Public Arcade Artifact Release Plan](./plans/public-arcade-artifact-release-plan.md)
+4. [SDK Runtime Ownership Reset Plan](./plans/sdk-runtime-ownership-plan.md)
 
 Parked future architecture plans:
 

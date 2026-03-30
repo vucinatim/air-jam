@@ -4,9 +4,11 @@ import {
   BookOpen,
   Bug,
   ChevronLeft,
+  ImageIcon,
   LayoutDashboard,
   LineChart,
-  Settings,
+  Package,
+  Shield,
   UserRound,
   Variable,
 } from "lucide-react";
@@ -105,11 +107,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname.includes("/settings")}
+                    isActive={pathname.includes("/releases")}
                   >
-                    <Link href={`/dashboard/games/${gameId}/settings`}>
-                      <Settings />
-                      <span>Configuration</span>
+                    <Link href={`/dashboard/games/${gameId}/releases`}>
+                      <Package />
+                      <span>Arcade Releases</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.includes("/media")}
+                  >
+                    <Link href={`/dashboard/games/${gameId}/media`}>
+                      <ImageIcon />
+                      <span>Media</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.includes("/security")}
+                  >
+                    <Link href={`/dashboard/games/${gameId}/security`}>
+                      <Shield />
+                      <span>Security</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

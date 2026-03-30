@@ -18,16 +18,8 @@ import { useMultiViewportRenderer } from "./use-multi-viewport-renderer";
 import { ArenaBounds } from "./arena-bounds";
 import { FreeFlyCamera } from "./free-fly-camera";
 import { Collectibles } from "../prefabs/collectibles";
-import { Flags } from "../prefabs/flags";
-import { JumpPads } from "../prefabs/jump-pads";
-import { Obstacles } from "../prefabs/obstacles";
-import { PlayerBases } from "../prefabs/player-bases";
+import { AirCaptureArena } from "../prefabs/arena";
 import { Ships } from "../prefabs/ships";
-import { SpaceEnvironment } from "../prefabs/space-environment";
-// Import abilities to register them
-import "../abilities/health-pack";
-import "../abilities/rocket";
-import "../abilities/speed-boost";
 
 function SpectatorCamera() {
   const cameraRef = useRef<ThreePerspectiveCamera>(null);
@@ -169,18 +161,14 @@ export function GameScene({
         timeStep="vary"
         debug={mode === "match" ? isDebugPanelOpen : false}
       >
-        <SpaceEnvironment />
+        <AirCaptureArena />
         <Ships />
-        <Obstacles />
         <Lasers />
         <Rockets />
         <Decals />
         <ArenaBounds />
         <Collectibles />
         <CollectibleSpawner />
-        <PlayerBases />
-        <Flags />
-        <JumpPads />
         {mode === "spectator" ? (
           <SpectatorCamera />
         ) : (

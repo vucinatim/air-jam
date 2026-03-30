@@ -7,7 +7,7 @@ import {
   useCollectiblesStore,
   type CollectibleData,
 } from "../stores/world/collectibles-store";
-import { shipPositions, shipRotations } from "../components/entities/ship";
+import { shipPositions, shipRotations } from "../engine/ships/runtime";
 import {
   JUMP_FORCE,
   JUMP_PADS,

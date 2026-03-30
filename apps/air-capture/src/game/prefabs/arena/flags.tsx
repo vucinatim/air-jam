@@ -1,4 +1,4 @@
-import { useAudio, useSendSignal } from "@air-jam/sdk";
+import { useSendSignal } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import {
   CylinderCollider,
@@ -8,11 +8,11 @@ import {
 } from "@react-three/rapier";
 import { useRef } from "react";
 import type { Group } from "three";
-import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../domain/team";
-import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
-import { SOUND_MANIFEST } from "../audio/sounds";
-import { FlagModel } from "../components/models/flag-model";
-import { shipPositions } from "../components/entities/ship";
+import { useHostAudio } from "../../audio/host-audio";
+import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../../domain/team";
+import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
+import { FlagModel } from "../../components/models/flag-model";
+import { shipPositions } from "../../engine/ships/runtime";
 
 function FlagCarrierTrail({
   teamId,
@@ -55,10 +55,9 @@ function FlagCarrierTrail({
 function GroundFlag({ teamId }: { teamId: TeamId }) {
   const flagState = useCaptureTheFlagStore((state) => state.flags[teamId]);
   const tryPickup = useCaptureTheFlagStore((state) => state.tryPickupFlag);
-  const getPlayerTeam = useCaptureTheFlagStore((state) => state.getPlayerTeam);
   const color = TEAM_CONFIG[teamId].color;
   const pulseRef = useRef(0);
-  const audio = useAudio(SOUND_MANIFEST);
+  const audio = useHostAudio();
   const sendSignal = useSendSignal();
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const groupRef = useRef<Group>(null);
@@ -70,36 +69,13 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
       | undefined;
     if (!userData?.controllerId) return;
 
-    // Check flag state before pickup attempt
-    const store = useCaptureTheFlagStore.getState();
-    const flagBefore = store.flags[teamId];
-    const playerTeam = getPlayerTeam(userData.controllerId);
+    const outcome = tryPickup(userData.controllerId, teamId);
 
-    // Only proceed if player has a team
-    if (!playerTeam) return;
-
-    // Call tryPickupFlag
-    tryPickup(userData.controllerId, teamId);
-
-    // Check flag state after pickup attempt
-    const flagAfter = useCaptureTheFlagStore.getState().flags[teamId];
-
-    // Check if flag was recovered (same-team player returning dropped flag to base)
-    if (
-      flagBefore.status === "dropped" &&
-      flagAfter.status === "atBase" &&
-      playerTeam === teamId
-    ) {
+    if (outcome === "returnedFriendlyFlag") {
       pulseRef.current = 1;
       audio.play("success");
       sendSignal?.("HAPTIC", { pattern: "success" }, userData.controllerId);
-    }
-    // Check if flag was picked up by enemy (status changed to "carried")
-    else if (
-      flagBefore.status !== "carried" &&
-      flagAfter.status === "carried" &&
-      flagAfter.carrierId === userData.controllerId
-    ) {
+    } else if (outcome === "pickedUpEnemyFlag") {
       pulseRef.current = 1;
       audio.play("pickup_flag");
       sendSignal?.("HAPTIC", { pattern: "medium" }, userData.controllerId);

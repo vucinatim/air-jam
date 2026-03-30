@@ -139,7 +139,8 @@ export const GameBrowser = ({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {games.length === 0 ? (
           <div className="col-span-full py-20 text-center text-slate-500">
-            No games found. Create one in the dashboard!
+            No live Arcade releases are listed yet. Upload a release, make it
+            live, then list the game in Arcade from the dashboard.
           </div>
         ) : (
           games.map((game, idx) => {
@@ -240,6 +241,13 @@ export const GameBrowser = ({
                   <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/5" />
 
                   <div className="absolute right-0 bottom-0 left-0 p-4">
+                    {game.catalogBadgeLabel ? (
+                      <div className="mb-3">
+                        <span className="inline-flex rounded-full border border-airjam-cyan/40 bg-airjam-cyan/12 px-2.5 py-1 text-[11px] font-semibold tracking-[0.18em] text-airjam-cyan uppercase">
+                          {game.catalogBadgeLabel}
+                        </span>
+                      </div>
+                    ) : null}
                     <h3 className="line-clamp-2 text-left text-2xl font-bold text-white md:text-3xl">
                       {game.name}
                     </h3>

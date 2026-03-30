@@ -4,7 +4,7 @@ import {
   type AbilityImplementation,
 } from "../abilities-store";
 import { RocketModel } from "../components/models/rocket-model";
-import { shipPositions, shipRotations } from "../components/entities/ship";
+import { shipPositions, shipRotations } from "../engine/ships/runtime";
 import { useRocketsStore } from "../stores/projectiles/rockets-store";
 
 /**

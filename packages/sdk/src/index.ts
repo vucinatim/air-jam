@@ -12,7 +12,10 @@ export {
   type SoundManifest,
 } from "./audio/audio-manager";
 export {
+  AudioProvider,
   useAudio,
+  useAudioManager,
+  useProvidedAudio,
   useRemoteSound,
   type UseRemoteSoundOptions,
 } from "./audio/hooks";

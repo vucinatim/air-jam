@@ -33,6 +33,7 @@ interface AbilitiesState {
   collectAbility: (controllerId: string, abilityId: AbilityId) => void; // Adds ability to queue (cancels active if present)
   activateAbility: (controllerId: string, abilityId: AbilityId) => void; // Activates queued ability (starts timer)
   clearAbility: (controllerId: string) => void; // Clears active ability only
+  resetAbility: (controllerId: string) => void; // Clears both active and queued ability
   clearAllAbilities: () => void;
   getAbility: (controllerId: string) => AbilityData | null; // Returns active if present, otherwise queued (for UI)
   getQueuedAbility: (controllerId: string) => AbilityData | null; // Returns queued ability specifically
@@ -240,6 +241,37 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
         [controllerId]: {
           activeAbility: null,
           queuedAbility: currentState.queuedAbility, // Preserve queued
+        },
+      },
+    }));
+  },
+  resetAbility: (controllerId) => {
+    const currentState = get().abilities[controllerId] ?? {
+      activeAbility: null,
+      queuedAbility: null,
+    };
+
+    const timer = activeTimers.get(controllerId);
+    if (timer) {
+      clearTimeout(timer);
+      activeTimers.delete(controllerId);
+    }
+
+    if (currentState.activeAbility) {
+      const abilityImpl = getAbilityImplementation(
+        currentState.activeAbility.id,
+      );
+      if (abilityImpl?.onDeactivate) {
+        abilityImpl.onDeactivate(controllerId);
+      }
+    }
+
+    set((state) => ({
+      abilities: {
+        ...state.abilities,
+        [controllerId]: {
+          activeAbility: null,
+          queuedAbility: null,
         },
       },
     }));

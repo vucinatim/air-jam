@@ -8,6 +8,8 @@ type ArcadeGameSource = {
   thumbnailUrl?: string | null;
   videoUrl?: string | null;
   slug?: string | null;
+  catalogSource?: "public_arcade" | "local_dev";
+  catalogBadgeLabel?: string | null;
 };
 
 export const toArcadeGame = (game: ArcadeGameSource): ArcadeGame => ({
@@ -18,6 +20,8 @@ export const toArcadeGame = (game: ArcadeGameSource): ArcadeGame => ({
   thumbnailUrl: game.thumbnailUrl,
   videoUrl: game.videoUrl,
   slug: game.slug,
+  catalogSource: game.catalogSource ?? "public_arcade",
+  catalogBadgeLabel: game.catalogBadgeLabel ?? null,
 });
 
 export const toArcadeGames = (

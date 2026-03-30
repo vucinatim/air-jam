@@ -24,11 +24,12 @@ src/
     index.tsx                 # controller-owned shell and input publishing
     components/               # header and per-phase controller UI
   game/
-    audio/                    # sound manifest and background music hook
-    domain/                   # pure team and readiness rules
+    audio/                    # runtime audio owners, manifests, and music orchestration
+    domain/                   # pure team, slot, readiness, and CTF rule helpers
     stores/                   # replicated match/player/world/debug state
-    engine/                   # runtime scene orchestration and camera systems
-    prefabs/                  # arena/world composition surfaces
+    engine/                   # runtime orchestration hooks plus pure ship/projectile/lifecycle/runtime helpers
+    prefabs/
+      arena/                  # canonical arena prefab contract and composition
     ui/                       # shared game-facing HUD overlays
     debug/                    # host/debug tooling and cheat surfaces
     components/
@@ -48,11 +49,13 @@ tests/
 
 - `src/host/index.tsx` and `src/controller/index.tsx` are the only runtime owner entry files.
 - `src/game/domain/` should stay readable without React, rendering, or store wiring.
-- `src/game/stores/` owns replicated state and pure transition helpers.
-- `src/game/engine/` owns hot runtime orchestration, not lobby or shell UI.
-- `src/game/prefabs/` owns world composition, not debug/editor concerns.
+- `src/game/audio/` owns runtime audio once per surface; entities, prefabs, and engine hooks consume local audio facades instead of calling `useAudio(...)` directly.
+- `src/game/stores/` owns replicated state and thin store wiring around pure transition helpers and explicit interaction outcomes.
+- `src/game/engine/` owns hot runtime orchestration hooks plus pure ship/projectile/lifecycle/runtime stepping helpers, not lobby or shell UI.
+- `src/game/prefabs/arena/` owns the canonical arena prefab contract (`schema`, `preview`, `prefab`, `paint`).
+- `src/game/prefabs/` owns world composition entry surfaces, not debug/editor concerns.
 - `src/game/debug/` is where host-only cheat, recorder, and inspection surfaces belong.
-- `src/game/components/entities/` owns runtime leaf gameplay actors.
+- `src/game/components/entities/` owns runtime leaf gameplay actors, not their primary frame orchestration.
 - `src/game/components/models/` owns reusable render models.
 - `src/game/components/effects/` owns reusable render effects and explosions.
 
@@ -62,5 +65,7 @@ The test surface is intentionally small and high-value. Add tests to pure domain
 
 Current baseline:
 
-- `tests/game/domain/` for readiness and team rule coverage
+- `tests/game/domain/` for readiness, slot, team, and CTF rule coverage
+- `tests/game/engine/` for pure ship/projectile flight, lifecycle, runtime, weapon, audio, and impact helpers
+- `tests/game/prefabs/` for prefab contract and schema coverage
 - `tests/game/stores/` for match transitions and assignment behavior

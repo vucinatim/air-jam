@@ -1,4 +1,17 @@
 import { sql } from "drizzle-orm";
+import type { ArcadeVisibility } from "@/lib/games/arcade-visibility";
+import type {
+  GameMediaKind,
+  GameMediaStatus,
+} from "@/lib/games/game-media-contract";
+import type {
+  GameReleaseSourceKind,
+  GameReleaseStatus,
+  ReleaseCheckKind,
+  ReleaseCheckStatus,
+  ReleaseReportSource,
+  ReleaseReportStatus,
+} from "@/lib/releases/release-contract";
 import {
   boolean,
   date,
@@ -68,11 +81,14 @@ export const games = pgTable("games", {
   name: text("name").notNull(),
   slug: text("slug").unique(), // For pretty URLs
   description: text("description"),
-  url: text("url").notNull(), // The URL where the game is hosted
-  thumbnailUrl: text("thumbnail_url"),
-  videoUrl: text("video_url"),
-  coverUrl: text("cover_url"),
-  isPublished: boolean("is_published").default(false).notNull(),
+  url: text("url"), // Optional creator-only preview URL used for local/external iframe testing
+  thumbnailMediaAssetId: text("thumbnail_media_asset_id"),
+  coverMediaAssetId: text("cover_media_asset_id"),
+  previewVideoMediaAssetId: text("preview_video_media_asset_id"),
+  arcadeVisibility: text("arcade_visibility")
+    .$type<ArcadeVisibility>()
+    .default("hidden")
+    .notNull(),
   config: jsonb("config").default(sql`'{}'::jsonb`).notNull(), // Game specific configuration variables
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -90,6 +106,137 @@ export const appIds = pgTable("app_ids", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastUsedAt: timestamp("last_used_at"),
 });
+
+export const gameReleases = pgTable(
+  "game_releases",
+  {
+    id: text("id").primaryKey(),
+    gameId: text("game_id")
+      .references(() => games.id, { onDelete: "cascade" })
+      .notNull(),
+    sourceKind: text("source_kind").$type<GameReleaseSourceKind>().notNull(),
+    status: text("status").$type<GameReleaseStatus>().notNull(),
+    versionLabel: text("version_label"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    uploadedAt: timestamp("uploaded_at"),
+    checkedAt: timestamp("checked_at"),
+    publishedAt: timestamp("published_at"),
+    quarantinedAt: timestamp("quarantined_at"),
+    archivedAt: timestamp("archived_at"),
+  },
+  (table) => ({
+    gameIdx: index("game_releases_game_id_idx").on(table.gameId),
+    statusIdx: index("game_releases_status_idx").on(table.status),
+    createdAtIdx: index("game_releases_created_at_idx").on(table.createdAt),
+  }),
+);
+
+export const gameReleaseArtifacts = pgTable(
+  "game_release_artifacts",
+  {
+    id: text("id").primaryKey(),
+    releaseId: text("release_id")
+      .references(() => gameReleases.id, { onDelete: "cascade" })
+      .notNull()
+      .unique(),
+    originalFilename: text("original_filename").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    extractedSizeBytes: integer("extracted_size_bytes"),
+    fileCount: integer("file_count"),
+    zipObjectKey: text("zip_object_key").notNull(),
+    siteRootKey: text("site_root_key").notNull(),
+    entryPath: text("entry_path").notNull(),
+    contentHash: text("content_hash"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    releaseIdx: index("game_release_artifacts_release_id_idx").on(
+      table.releaseId,
+    ),
+    createdAtIdx: index("game_release_artifacts_created_at_idx").on(
+      table.createdAt,
+    ),
+  }),
+);
+
+export const gameReleaseChecks = pgTable(
+  "game_release_checks",
+  {
+    id: text("id").primaryKey(),
+    releaseId: text("release_id")
+      .references(() => gameReleases.id, { onDelete: "cascade" })
+      .notNull(),
+    kind: text("kind").$type<ReleaseCheckKind>().notNull(),
+    status: text("status").$type<ReleaseCheckStatus>().notNull(),
+    summary: text("summary"),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    releaseIdx: index("game_release_checks_release_id_idx").on(table.releaseId),
+    kindIdx: index("game_release_checks_kind_idx").on(table.kind),
+    statusIdx: index("game_release_checks_status_idx").on(table.status),
+    createdAtIdx: index("game_release_checks_created_at_idx").on(
+      table.createdAt,
+    ),
+  }),
+);
+
+export const gameReleaseReports = pgTable(
+  "game_release_reports",
+  {
+    id: text("id").primaryKey(),
+    releaseId: text("release_id")
+      .references(() => gameReleases.id, { onDelete: "cascade" })
+      .notNull(),
+    status: text("status").$type<ReleaseReportStatus>().notNull(),
+    source: text("source").$type<ReleaseReportSource>().notNull(),
+    reason: text("reason").notNull(),
+    details: text("details"),
+    reporterEmail: text("reporter_email"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    reviewedAt: timestamp("reviewed_at"),
+  },
+  (table) => ({
+    releaseIdx: index("game_release_reports_release_id_idx").on(table.releaseId),
+    statusIdx: index("game_release_reports_status_idx").on(table.status),
+    createdAtIdx: index("game_release_reports_created_at_idx").on(
+      table.createdAt,
+    ),
+  }),
+);
+
+export const gameMediaAssets = pgTable(
+  "game_media_assets",
+  {
+    id: text("id").primaryKey(),
+    gameId: text("game_id")
+      .references(() => games.id, { onDelete: "cascade" })
+      .notNull(),
+    kind: text("kind").$type<GameMediaKind>().notNull(),
+    status: text("status").$type<GameMediaStatus>().notNull(),
+    originalFilename: text("original_filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    checksum: text("checksum"),
+    storageKey: text("storage_key").notNull().unique(),
+    width: integer("width"),
+    height: integer("height"),
+    durationSeconds: integer("duration_seconds"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    gameIdx: index("game_media_assets_game_id_idx").on(table.gameId),
+    kindIdx: index("game_media_assets_kind_idx").on(table.kind),
+    statusIdx: index("game_media_assets_status_idx").on(table.status),
+    createdAtIdx: index("game_media_assets_created_at_idx").on(table.createdAt),
+  }),
+);
 
 export const runtimeUsageSessions = pgTable(
   "runtime_usage_sessions",

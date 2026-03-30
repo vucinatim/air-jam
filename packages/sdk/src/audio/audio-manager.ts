@@ -139,10 +139,20 @@ export class AudioManager<T extends string = string> {
    * and can only be resumed in response to a user gesture. The useAudio hook
    * handles this automatically, and play() also calls init() internally.
    */
-  public init() {
-    if (Howler.ctx && Howler.ctx.state === "suspended") {
-      Howler.ctx.resume();
+  public async init(): Promise<boolean> {
+    if (!Howler.ctx) {
+      return false;
     }
+
+    if (Howler.ctx.state === "suspended") {
+      try {
+        await Howler.ctx.resume();
+      } catch {
+        return false;
+      }
+    }
+
+    return Howler.ctx.state === "running";
   }
 
   /**
@@ -194,7 +204,7 @@ export class AudioManager<T extends string = string> {
     } = options || {};
 
     // Auto-init audio context on play (handles browser autoplay policy)
-    this.init();
+    void this.init();
 
     if (remote) {
       this.playRemote(id, target, volume, loop);
@@ -296,7 +306,7 @@ export class AudioManager<T extends string = string> {
     sprite?: string,
   ): number | null {
     // Auto-init audio context on play
-    this.init();
+    void this.init();
 
     const soundId = this.playLocal(id, undefined, undefined, sprite);
     if (soundId !== null) {

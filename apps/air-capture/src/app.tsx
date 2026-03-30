@@ -2,6 +2,7 @@ import type { JSX } from "react";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { airjam } from "./airjam.config";
+import "./game/register-abilities";
 
 const HostView = lazy(async () => {
   const module = await import("./host");

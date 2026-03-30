@@ -1,4 +1,3 @@
-import { useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, type CollisionPayload } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
@@ -11,8 +10,8 @@ import {
   type Mesh,
 } from "three";
 import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../../constants";
-import { SOUND_MANIFEST } from "../../audio/sounds";
-import { shipPositions } from "./ship";
+import { useHostAudio } from "../../audio/host-audio";
+import { shipPositions } from "../../engine/ships/runtime";
 
 interface JumpPadProps {
   position: [number, number, number];
@@ -51,7 +50,7 @@ export function JumpPad({ position, id }: JumpPadProps) {
   const activatedRef = useRef(false);
   const activationTimeRef = useRef(0);
   const COOLDOWN_TIME = 0.5; // Cooldown before can activate again (seconds)
-  const audio = useAudio(SOUND_MANIFEST);
+  const audio = useHostAudio();
 
   // Visual geometry and materials
   const gradientGeometry = useMemo(

@@ -1,5 +1,5 @@
 import { useHostSession } from "@air-jam/sdk";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -86,15 +86,28 @@ export function PlayersSection() {
   const players = useGameStore((state) => state.players);
   const health = useHealthStore((state) => state.health);
   const setHealth = useHealthStore((state) => state.setHealth);
+  const abilityStates = useAbilitiesStore((state) => state.abilities);
   const collectAbility = useAbilitiesStore((state) => state.collectAbility);
-  const clearAbility = useAbilitiesStore((state) => state.clearAbility);
-  const getAbility = useAbilitiesStore((state) => state.getAbility);
-  const isAbilityActive = useAbilitiesStore((state) => state.isAbilityActive);
-  const getRemainingDuration = useAbilitiesStore(
-    (state) => state.getRemainingDuration,
-  );
-
+  const resetAbility = useAbilitiesStore((state) => state.resetAbility);
   const allAbilities = getAllAbilityDefinitions();
+  const [, setClockTick] = useState(0);
+
+  useEffect(() => {
+    const hasActiveAbility = Object.values(abilityStates).some(
+      (state) => state?.activeAbility?.startTime !== null,
+    );
+    if (!hasActiveAbility) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setClockTick((value) => value + 1);
+    }, 200);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [abilityStates]);
 
   const adjustHealth = (controllerId: string, delta: number) => {
     const currentHealth = health[controllerId] ?? 100;
@@ -116,11 +129,19 @@ export function PlayersSection() {
         {players.map((player) => {
           const playerHealth = health[player.controllerId] ?? 100;
           const healthPercentage = (playerHealth / 100) * 100;
-          const currentAbility = getAbility(player.controllerId);
-          const abilityActive = isAbilityActive(player.controllerId);
-          const remainingDuration = abilityActive
-            ? getRemainingDuration(player.controllerId)
-            : 0;
+          const playerAbilityState = abilityStates[player.controllerId] ?? null;
+          const activeAbility = playerAbilityState?.activeAbility ?? null;
+          const currentAbility =
+            activeAbility ?? playerAbilityState?.queuedAbility ?? null;
+          const remainingDuration =
+            activeAbility?.startTime !== null && activeAbility !== null
+              ? Math.max(
+                  0,
+                  activeAbility.duration -
+                    (Date.now() - activeAbility.startTime) / 1000,
+                )
+              : 0;
+          const abilityActive = remainingDuration > 0;
 
           return (
             <div
@@ -238,7 +259,7 @@ export function PlayersSection() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => clearAbility(player.controllerId)}
+                        onClick={() => resetAbility(player.controllerId)}
                         className="ml-auto h-6 text-xs"
                       >
                         Clear

@@ -67,10 +67,17 @@ Reference: [Air Capture Reference Refactor Plan](./plans/air-capture-reference-r
 Remaining:
 
 1. keep the email/password fallback for the initial release while GitHub remains the primary auth path
-2. complete the deliberate `air-capture` template-aligned refactor
+2. finish the last `air-capture` engine-boundary pass so simulation-heavy logic keeps moving out of entity components where a pure seam exists
 3. decide which legacy showcase games need full modern reference alignment instead of migration-proof only
 4. get the five-game public launch set working locally through Arcade
 5. move anything else non-essential to `docs/suggestions.md`
+
+Completed in this track:
+
+1. `air-capture` now has a modern host/controller/domain/store/engine/prefab/ui/debug/audio structure
+2. `air-capture` now has explicit team-slot and arena prefab contracts instead of looser mixed seams
+3. `air-capture` now has focused domain/prefab/store/engine tests with a 71-test passing baseline
+4. local Arcade manual validation confirmed the refactor preserved host/controller/lobby/match/return flows
 
 Rule:
 
@@ -155,6 +162,27 @@ Current view:
 2. public Arcade should move away from mutable creator-controlled URLs toward immutable Air Jam-hosted releases
 3. this is a substantial platform product slice, but it meaningfully reduces long-term moderation, trust, and release-management complexity
 4. the first implementation should stay static-artifact focused and should not become a general-purpose Vercel clone
+5. the schema, release router baseline, and R2-backed artifact upload/finalization boundary now exist in the platform app
+6. structural archive validation is now implemented as the first blocking release check
+7. the dashboard now has a dedicated Releases surface and overview/sidebar entry points for the hosted release lane
+8. public Arcade and public play now resolve only live hosted releases, while owner preview can still use an optional preview URL when configured
+9. publish-time screenshot capture and image moderation now run against the canonical hosted release before it can go live
+10. public play can now file abuse reports against the hosted release itself, and the release dashboard now surfaces checks plus incoming reports
+11. the dashboard IA has now been reset around `Overview`, `Arcade Releases`, `Media`, `Security`, and `Analytics`
+12. the old `isPublished` contract has now been replaced by `arcadeVisibility: hidden | listed` across schema, public filters, and dashboard controls
+13. old `/settings` and `/self-hosted` now redirect back into `Overview`, and release actions now use `Make Live` / `Listed in Arcade` language instead of the old overloaded publish wording
+14. the game URL field is now an optional creator-only preview URL, not a required game primitive, and owner play falls back to the live hosted release when no preview URL exists
+15. `Listed in Arcade` is now enforced as a dependent state of a live hosted release instead of a free toggle, and legacy rows without a live release have been reset back to `hidden`
+16. local platform development now has a dev-only local Arcade catalog seam so repo reference games can appear in the Arcade browser without weakening the real hosted-release contract
+17. game media is now a managed subsystem with `game_media_assets`, active media slots on `games`, a dedicated `Media` page, and stable `/media/g/{gameId}/{kind}` serving routes
+18. the old raw `thumbnail_url`, `cover_url`, and `video_url` columns have now been removed from `games`
+
+Remaining:
+
+1. run one end-to-end hosted release smoke path through the dashboard against the new R2-backed flow
+2. decide whether browser-backed screenshot moderation stays optional for v1 or becomes required before launch infra is frozen
+3. do one end-to-end managed media smoke path through the new dashboard page and public catalog surfaces
+4. add an internal ops review surface only if report volume or moderation triage actually demands it before release
 
 ### 10. SDK Composability
 
@@ -166,7 +194,18 @@ Current view:
 1. good architecture direction
 2. not on the immediate prerelease critical path unless it unblocks release UX
 
-### 11. RPC Action Contract Refactor
+### 11. SDK Runtime Ownership Reset
+
+Status: active  
+Plan: [SDK Runtime Ownership Reset Plan](./plans/sdk-runtime-ownership-plan.md)
+
+Current view:
+
+1. prerelease should not ship with abuse-prone owner-hook patterns for singleton runtime systems
+2. explicit runtime ownership is now the preferred direction for host, controller, and audio
+3. Pong, `air-capture`, template output, and docs should converge on one canonical runtime pattern
+4. deprecated compatibility surface should not be left behind here
+### 12. RPC Action Contract Refactor
 
 Status: parked  
 Plan: [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
@@ -199,6 +238,7 @@ These are done enough that they should not drive the day-to-day work queue:
 7. legacy game migration guide plus tarball validation across the three ZeroDays reference games
 8. prerelease production observability baseline is now explicit across Better Stack uptime, Vercel Web Analytics, Vercel Speed Insights, and Air Jam's own runtime analytics
 9. the platform dashboard now exposes a direct bug-report path to the official GitHub issues surface
+10. `air-capture` now teaches the modern reference architecture and has passed manual Arcade validation after the current refactor phases
 
 ## Rules
 

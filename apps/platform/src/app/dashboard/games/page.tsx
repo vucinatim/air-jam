@@ -125,7 +125,9 @@ export default function GamesPage() {
                         : "line-clamp-1"
                     }
                   >
-                    {game.url}
+                    {game.url
+                      ? `Preview URL: ${game.url}`
+                      : "No preview URL configured"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="relative z-20">
@@ -143,14 +145,16 @@ export default function GamesPage() {
                       <p className="inline-flex items-center gap-2 font-medium">
                         <span
                           className={
-                            game.isPublished
+                            game.arcadeVisibility === "listed"
                               ? "h-2 w-2 rounded-full bg-emerald-400"
                               : hasThumbnail
                                 ? "h-2 w-2 rounded-full bg-white/60"
                                 : "h-2 w-2 rounded-full bg-muted-foreground"
                           }
                         />
-                        {game.isPublished ? "Live" : "Development"}
+                        {game.arcadeVisibility === "listed"
+                          ? "Listed in Arcade"
+                          : "Hidden from Arcade"}
                       </p>
                     </div>
                     <div>

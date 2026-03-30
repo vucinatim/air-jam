@@ -5,14 +5,17 @@ import {
   type TeamCounts,
 } from "../../domain/match-readiness";
 import { TEAM_IDS, type TeamId } from "../../domain/team";
+import {
+  MAX_TEAM_SLOTS,
+  clampBotCount,
+  getMaxBotsForTeam,
+} from "../../domain/team-slots";
 import type {
   MatchActionContext,
   MatchStateSnapshot,
   MatchSummary,
   TeamAssignment,
 } from "./match-store-types";
-
-const MAX_TEAM_SIZE = 2;
 
 const toConnectedPlayerIdSet = (
   connectedPlayerIds: string[],
@@ -72,7 +75,7 @@ export const isTeamFull = (
   teamId: TeamId,
 ): boolean => {
   return (
-    getEffectiveCountForTeam(humanCounts, botCounts, teamId) >= MAX_TEAM_SIZE
+    getEffectiveCountForTeam(humanCounts, botCounts, teamId) >= MAX_TEAM_SLOTS
   );
 };
 
@@ -81,8 +84,8 @@ export const clampBotCounts = (
   humanCounts: TeamCounts,
 ): TeamCounts => {
   return TEAM_IDS.reduce((acc, teamId) => {
-    const maxBotsForTeam = Math.max(0, MAX_TEAM_SIZE - humanCounts[teamId]);
-    acc[teamId] = Math.max(0, Math.min(maxBotsForTeam, botCounts[teamId]));
+    const maxBotsForTeam = getMaxBotsForTeam(humanCounts[teamId]);
+    acc[teamId] = Math.min(maxBotsForTeam, clampBotCount(botCounts[teamId]));
     return acc;
   }, createEmptyTeamCounts());
 };
@@ -243,11 +246,8 @@ export const reduceSetBotCount = (
   );
   const humanCounts = getHumanCounts(completedAssignments);
 
-  const maxBotsForTeam = Math.max(0, MAX_TEAM_SIZE - humanCounts[teamId]);
-  const clampedRequested = Math.max(
-    0,
-    Math.min(maxBotsForTeam, Math.round(count)),
-  );
+  const maxBotsForTeam = getMaxBotsForTeam(humanCounts[teamId]);
+  const clampedRequested = Math.min(maxBotsForTeam, clampBotCount(count));
 
   const proposedBotCounts: TeamCounts = {
     ...state.botCounts,

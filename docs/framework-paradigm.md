@@ -145,6 +145,7 @@ Rules:
 1. commands stay explicit
 2. signals do not own gameplay truth
 3. avoid hidden toggle-heavy platform behavior when a direct command is clearer
+4. audio ownership still follows the owner rule: create one runtime audio owner per surface, then pass explicit callbacks/drivers downward instead of letting leaf modules load manifests ad hoc
 
 ## Ownership Model
 

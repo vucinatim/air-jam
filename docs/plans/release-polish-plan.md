@@ -94,7 +94,7 @@ Remaining:
 
 1. continue small Pong quality passes only where they improve release credibility
 2. keep host/controller surfaces game-like rather than dashboard-like
-3. execute the full `air-capture` cleanup through [Air Capture Reference Refactor Plan](./air-capture-reference-refactor-plan.md)
+3. decide which remaining showcase games need anything beyond migration-proof quality before launch
 4. make sure `pong` still feels like real proof, not just a technical demo
 5. avoid reopening clean architecture boundaries just to chase cosmetic churn
 

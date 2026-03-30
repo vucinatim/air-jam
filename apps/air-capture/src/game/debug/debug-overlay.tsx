@@ -18,7 +18,7 @@ export function DebugOverlay({ children }: DebugOverlayProps) {
       <button
         onClick={toggle}
         className={cn(
-          "fixed top-14 left-4 z-50",
+          "fixed top-14 left-4 z-80 pointer-events-auto",
           "size-10 rounded-md",
           "bg-background/90 border-border border",
           "flex items-center justify-center",
@@ -37,7 +37,7 @@ export function DebugOverlay({ children }: DebugOverlayProps) {
       {/* Sidebar Overlay */}
       <div
         className={cn(
-          "bg-background/40 fixed top-0 left-0 z-40 h-full",
+          "bg-background/90 fixed top-0 left-0 z-80 h-full pointer-events-auto",
           "border-border/50 rounded-r-2xl border-r",
           "shadow-2xl",
           "transition-transform duration-300 ease-in-out",
@@ -70,7 +70,7 @@ export function DebugOverlay({ children }: DebugOverlayProps) {
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-30"
+          className="fixed inset-0 z-70"
           onClick={toggle}
           aria-hidden="true"
         />

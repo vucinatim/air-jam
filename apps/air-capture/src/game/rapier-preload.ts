@@ -1,11 +1,5 @@
 import { init as initRapier } from "@dimforge/rapier3d-compat";
 
-type RapierInitOptions = {
-  module_or_path?: unknown;
-};
-
-type RapierInitCompat = (options?: RapierInitOptions) => Promise<void>;
-
 let rapierInitPromise: Promise<void> | null = null;
 
 /**
@@ -15,9 +9,7 @@ let rapierInitPromise: Promise<void> | null = null;
  */
 export const preloadRapier = (): Promise<void> => {
   if (!rapierInitPromise) {
-    rapierInitPromise = (
-      initRapier as unknown as RapierInitCompat
-    )({ module_or_path: undefined });
+    rapierInitPromise = initRapier();
   }
 
   return rapierInitPromise;

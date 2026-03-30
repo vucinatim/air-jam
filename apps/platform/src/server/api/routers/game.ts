@@ -1,7 +1,21 @@
 import { db } from "@/db";
-import { appIds, games, users } from "@/db/schema";
+import {
+  appIds,
+  gameReleaseArtifacts,
+  gameReleases,
+  games,
+  users,
+} from "@/db/schema";
+import { arcadeVisibilitySchema } from "@/lib/games/arcade-visibility";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
-import { eq } from "drizzle-orm";
+import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
+import {
+  buildHostedReleaseSnapshot,
+  findPublicReleaseBySlugOrId,
+  getLiveReleaseForGame,
+} from "@/server/releases/public-release-record";
+import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 
@@ -14,9 +28,42 @@ const normalizeAllowedOrigins = (values: string[]): string[] => {
   return Array.from(new Set(normalized));
 };
 
+const addManagedGameMediaUrls = <
+  T extends {
+    id: string;
+    thumbnailMediaAssetId: string | null;
+    coverMediaAssetId: string | null;
+    previewVideoMediaAssetId: string | null;
+  },
+>(
+  game: T,
+) => ({
+  ...game,
+  thumbnailUrl: buildManagedGameMediaUrl({
+    gameId: game.id,
+    assetId: game.thumbnailMediaAssetId,
+    kind: "thumbnail",
+  }),
+  coverUrl: buildManagedGameMediaUrl({
+    gameId: game.id,
+    assetId: game.coverMediaAssetId,
+    kind: "cover",
+  }),
+  videoUrl: buildManagedGameMediaUrl({
+    gameId: game.id,
+    assetId: game.previewVideoMediaAssetId,
+    kind: "preview_video",
+  }),
+});
+
 export const gameRouter = createTRPCRouter({
   create: protectedProcedure
-    .input(z.object({ name: z.string().min(1), url: z.string().url() }))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        url: z.string().url().optional(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       const gameId = crypto.randomUUID();
 
@@ -26,7 +73,7 @@ export const gameRouter = createTRPCRouter({
         .values({
           id: gameId,
           name: input.name,
-          url: input.url,
+          url: input.url ?? null,
           userId: ctx.user.id,
         })
         .returning();
@@ -43,48 +90,138 @@ export const gameRouter = createTRPCRouter({
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
-    return await db.select().from(games).where(eq(games.userId, ctx.user.id));
+    const ownedGames = await db
+      .select()
+      .from(games)
+      .where(eq(games.userId, ctx.user.id));
+
+    return ownedGames.map(addManagedGameMediaUrls);
   }),
 
   getAllPublic: publicProcedure.query(async () => {
-    return await db
+    const rows = await db
       .select({
         id: games.id,
         name: games.name,
         slug: games.slug,
-        url: games.url,
-        thumbnailUrl: games.thumbnailUrl,
-        videoUrl: games.videoUrl,
-        coverUrl: games.coverUrl,
+        thumbnailMediaAssetId: games.thumbnailMediaAssetId,
+        previewVideoMediaAssetId: games.previewVideoMediaAssetId,
+        coverMediaAssetId: games.coverMediaAssetId,
         ownerName: users.name,
+        releaseId: gameReleases.id,
+        releaseVersionLabel: gameReleases.versionLabel,
+        releasePublishedAt: gameReleases.publishedAt,
+        releaseEntryPath: gameReleaseArtifacts.entryPath,
       })
       .from(games)
       .innerJoin(users, eq(games.userId, users.id))
-      .where(eq(games.isPublished, true));
+      .innerJoin(
+        gameReleases,
+        and(eq(gameReleases.gameId, games.id), eq(gameReleases.status, "live")),
+      )
+      .innerJoin(
+        gameReleaseArtifacts,
+        eq(gameReleaseArtifacts.releaseId, gameReleases.id),
+      )
+      .where(eq(games.arcadeVisibility, "listed"));
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      url: buildHostedReleaseAssetUrl({
+        gameId: row.id,
+        releaseId: row.releaseId,
+        assetPath: row.releaseEntryPath,
+      }),
+      thumbnailUrl: buildManagedGameMediaUrl({
+        gameId: row.id,
+        assetId: row.thumbnailMediaAssetId,
+        kind: "thumbnail",
+      }),
+      videoUrl: buildManagedGameMediaUrl({
+        gameId: row.id,
+        assetId: row.previewVideoMediaAssetId,
+        kind: "preview_video",
+      }),
+      coverUrl: buildManagedGameMediaUrl({
+        gameId: row.id,
+        assetId: row.coverMediaAssetId,
+        kind: "cover",
+      }),
+      ownerName: row.ownerName,
+      liveRelease: buildHostedReleaseSnapshot({
+        gameId: row.id,
+        releaseId: row.releaseId,
+        versionLabel: row.releaseVersionLabel,
+        publishedAt: row.releasePublishedAt,
+        entryPath: row.releaseEntryPath,
+      }),
+    }));
   }),
 
   /** Look up a game by slug first, then fall back to ID. Public for shareable URLs. */
   getBySlugOrId: publicProcedure
     .input(z.object({ slugOrId: z.string() }))
-    .query(async ({ input }) => {
-      // Try slug first
+    .query(async ({ input, ctx }) => {
       let game = await db.query.games.findFirst({
-        where: (games, { eq }) => eq(games.slug, input.slugOrId),
+        where: (table, { eq }) => eq(table.slug, input.slugOrId),
       });
-      // Fall back to ID
       if (!game) {
         game = await db.query.games.findFirst({
-          where: (games, { eq }) => eq(games.id, input.slugOrId),
+          where: (table, { eq }) => eq(table.id, input.slugOrId),
         });
       }
-      if (!game) throw new Error("Game not found");
-      return game;
+
+      if (!game) {
+        throw new Error("Game not found");
+      }
+
+      const isOwner = ctx.user?.id === game.userId;
+      const liveRelease = await getLiveReleaseForGame(game.id);
+
+      if (isOwner) {
+        if (game.url) {
+          return {
+            ...addManagedGameMediaUrls(game),
+            url: game.url,
+            selfHostedUrl: game.url,
+            launchSource: "self_hosted" as const,
+            liveRelease,
+          };
+        }
+
+        if (liveRelease) {
+          return {
+            ...addManagedGameMediaUrls(game),
+            url: liveRelease.url,
+            selfHostedUrl: game.url,
+            launchSource: "hosted_release" as const,
+            liveRelease,
+          };
+        }
+
+        throw new Error(
+          "This game does not have a preview URL or a live hosted release yet.",
+        );
+      }
+
+      const publicRelease = await findPublicReleaseBySlugOrId(input.slugOrId);
+
+      return {
+        ...addManagedGameMediaUrls(publicRelease.game),
+        url: publicRelease.liveRelease.url,
+        selfHostedUrl: publicRelease.game.url,
+        launchSource: "hosted_release" as const,
+        liveRelease: publicRelease.liveRelease,
+      };
     }),
 
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      return await assertOwnedGame(input.id, ctx.user.id);
+      const game = await assertOwnedGame(input.id, ctx.user.id);
+      return addManagedGameMediaUrls(game);
     }),
 
   update: protectedProcedure
@@ -94,17 +231,27 @@ export const gameRouter = createTRPCRouter({
         name: z.string().min(1).optional(),
         slug: z.string().min(1).optional(),
         description: z.string().optional(),
-        url: z.string().url().optional(),
-        thumbnailUrl: z.string().url().optional().or(z.literal("")),
-        videoUrl: z.string().url().optional().or(z.literal("")),
-        coverUrl: z.string().url().optional().or(z.literal("")),
-        isPublished: z.boolean().optional(),
+        url: z.string().url().nullable().optional(),
+        arcadeVisibility: arcadeVisibilitySchema.optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
 
       await assertOwnedGame(id, ctx.user.id);
+
+      if (data.arcadeVisibility === "listed") {
+        const liveRelease = await db.query.gameReleases.findFirst({
+          where: (table, { and, eq }) =>
+            and(eq(table.gameId, id), eq(table.status, "live")),
+        });
+
+        if (!liveRelease) {
+          throw new Error(
+            "A game can only be listed in Arcade after a hosted release is made live.",
+          );
+        }
+      }
 
       try {
         const [updatedGame] = await db

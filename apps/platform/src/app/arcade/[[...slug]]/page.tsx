@@ -3,7 +3,10 @@
 import { ArcadeSystem, type ArcadeGame } from "@/components/arcade";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
-import { getLocalReferenceArcadeGame } from "@/lib/local-reference-games";
+import {
+  getLocalReferenceArcadeGame,
+  getLocalReferenceArcadeGames,
+} from "@/lib/local-reference-games";
 import { api } from "@/trpc/react";
 import { HostSessionProvider } from "@air-jam/sdk";
 import { use } from "react";
@@ -16,12 +19,14 @@ function expandArcadeGamesForDev(games: ArcadeGame[]): ArcadeGame[] {
   if (ARCADE_DEV_GRID_REPEAT < 2) return games;
 
   return games.flatMap((game) =>
-    Array.from({ length: ARCADE_DEV_GRID_REPEAT }, (_, row) => ({
-      ...game,
-      id: row === 0 ? game.id : `${game.id}__arcade-dev-${row}`,
-      name: row === 0 ? game.name : `${game.name} · ${row + 1}`,
-      slug: row === 0 ? game.slug : undefined,
-    })),
+    game.catalogSource === "local_dev"
+      ? [game]
+      : Array.from({ length: ARCADE_DEV_GRID_REPEAT }, (_, row) => ({
+          ...game,
+          id: row === 0 ? game.id : `${game.id}__arcade-dev-${row}`,
+          name: row === 0 ? game.name : `${game.name} · ${row + 1}`,
+          slug: row === 0 ? game.slug : undefined,
+        })),
   );
 }
 
@@ -33,34 +38,23 @@ export default function ArcadePage({
   const resolvedParams = use(params);
   // Extract slug from optional catch-all (e.g., /arcade/space-battle → ["space-battle"])
   const slugOrId = resolvedParams.slug?.[0];
+  const localReferenceGames = getLocalReferenceArcadeGames();
   const localReferenceGame = getLocalReferenceArcadeGame(slugOrId ?? null);
-  const usingLocalReferenceGame = localReferenceGame !== null;
+  const { data: games, isLoading: gamesLoading } = api.game.getAllPublic.useQuery();
+  const publicArcadeGames = games ? toArcadeGames(games) : [];
+  const arcadeGames = expandArcadeGamesForDev([
+    ...localReferenceGames,
+    ...publicArcadeGames,
+  ]);
 
-  const { data: games, isLoading: gamesLoading } =
-    api.game.getAllPublic.useQuery(undefined, {
-      enabled: !usingLocalReferenceGame,
-    });
+  const targetGame = slugOrId
+    ? arcadeGames.find(
+        (game) => game.slug === slugOrId || game.id === slugOrId,
+      ) ?? null
+    : null;
 
-  // If a slug is provided, look up that specific game for auto-launch
-  const { data: targetGame, isLoading: targetLoading } =
-    api.game.getBySlugOrId.useQuery(
-      { slugOrId: slugOrId! },
-      { enabled: !!slugOrId && !usingLocalReferenceGame },
-    );
-
-  const isLoading =
-    !usingLocalReferenceGame && (gamesLoading || (!!slugOrId && targetLoading));
-
-  const arcadeGames = usingLocalReferenceGame
-    ? [localReferenceGame]
-    : games
-      ? expandArcadeGamesForDev(toArcadeGames(games))
-      : [];
-
-  const initialGameId = usingLocalReferenceGame
-    ? localReferenceGame.id
-    : targetGame?.id;
-  const shouldAutoLaunch = !!slugOrId && (usingLocalReferenceGame || !!targetGame);
+  const initialGameId = localReferenceGame?.id ?? targetGame?.id;
+  const shouldAutoLaunch = !!slugOrId && !!targetGame;
   const hostRouteIntent = slugOrId
     ? { kind: "game" as const, gameId: initialGameId ?? null }
     : { kind: "browser" as const };
@@ -69,7 +63,7 @@ export default function ArcadePage({
     <HostSessionProvider {...platformArcadeHostSessionConfig}>
       <ArcadeSystem
         games={arcadeGames}
-        gamesCatalogReady={!isLoading}
+        gamesCatalogReady={!gamesLoading}
         mode="arcade"
         initialGameId={initialGameId}
         hostRouteIntent={hostRouteIntent}

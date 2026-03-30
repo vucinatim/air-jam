@@ -52,6 +52,33 @@ It should instead publish and launch:
 
 This lane provides trusted public distribution.
 
+## Product Surface Model
+
+The product should expose three separate creator-facing concepts, not one overloaded "published game" concept:
+
+1. `Preview URL`
+2. `Arcade Release`
+3. `Arcade Visibility`
+
+These answer different questions:
+
+1. `Preview URL`
+   Which optional creator-only URL should Air Jam iframe for private localhost, staging, or external preview?
+2. `Arcade Release`
+   Which immutable Air Jam-hosted artifact should the platform load for trusted hosted distribution?
+3. `Arcade Visibility`
+   Should the game appear in the public Arcade catalog?
+
+This separation is important because public discovery and hosted artifact selection are no longer the same action.
+
+The same boundary should also apply to catalog media:
+
+1. thumbnails
+2. covers
+3. preview videos
+
+Those public-facing assets should not stay as arbitrary third-party URLs long-term.
+
 ## Why External URLs Are Not The Right Public Arcade Primitive
 
 Mutable external URLs are acceptable for drafts and self-hosted play, but they are the wrong primitive for a public catalog.
@@ -111,6 +138,13 @@ That is a coherent split:
 1. open framework and optional official runtime
 2. trusted hosted distribution layer
 
+That split should be obvious in the dashboard IA too:
+
+1. `Self-Hosted` for localhost and external hosting
+2. `Arcade Releases` for immutable public-distribution artifacts
+3. `Arcade visibility` as a separate listing control
+4. `Media` for Air Jam-managed catalog assets
+
 ### 3. Better Creator UX Over Time
 
 Once releases are first-class objects, the platform can add:
@@ -123,6 +157,8 @@ Once releases are first-class objects, the platform can add:
 6. future Git-connected deploys
 
 Without artifact releases, all of those stay awkward.
+
+The same is true for game media. If thumbnails, covers, and preview videos stay as raw URLs, the catalog remains visually dependent on infrastructure Air Jam does not control.
 
 ### 4. A Real Foundation For AI Studio
 
@@ -162,6 +198,11 @@ This strategy should not accidentally turn Air Jam into a general-purpose hostin
 5. public Arcade serving for those releases
 6. future Git and AI publishing against the same release model
 
+For the first hosted release slice, the intended storage split is:
+
+1. Postgres for release metadata and state
+2. Cloudflare R2 for uploaded artifacts, extracted static release assets, and managed game media assets
+
 ### What Air Jam Should Not Build Yet
 
 1. arbitrary build runners
@@ -175,6 +216,7 @@ The public product boundary should stay:
 
 1. Air Jam-compatible static games
 2. trusted hosted release and discovery
+3. trusted managed catalog media
 
 ## Professional Security Position
 
@@ -191,6 +233,13 @@ The professional trust target is:
 
 This is more honest and more enforceable than trying to fingerprint browser code.
 
+The same principle should apply to media:
+
+1. this thumbnail, cover, or preview video was uploaded through Air Jam
+2. this asset passed basic validation
+3. this asset is the one assigned to the game
+4. public surfaces render this exact managed asset
+
 ## Release State Model
 
 Public distribution should revolve around explicit release states.
@@ -206,7 +255,44 @@ Recommended baseline:
 7. `quarantined`
 8. `archived`
 
+## Visibility Model
+
+The old boolean `isPublished` no longer describes the real system well enough.
+
+The product now has:
+
+1. release promotion
+2. public listing
+
+Those should not share one ambiguous label.
+
+The intended replacement is:
+
+1. `arcadeVisibility: hidden | listed`
+
+This is a better long-term contract because it describes catalog visibility directly instead of implying that one publish action controls everything.
+
 This is the minimum professional shape for moderation, support, and future rollback.
+
+This contract is now the implemented platform direction rather than a deferred rename.
+
+In the implemented platform contract, `listed` is only valid when a game also has a live hosted release. Public catalog visibility is not an independent promise without a live Arcade release behind it.
+
+## Media Position
+
+Public game media should become a first-class managed subsystem.
+
+Air Jam should stop relying on raw external `thumbnailUrl`, `coverUrl`, and `videoUrl` fields for public catalog surfaces.
+
+The right product model is:
+
+1. game media assets are uploaded into Air Jam-managed storage
+2. games reference managed assets, not arbitrary third-party URLs
+3. public catalog and landing surfaces render stable Air Jam media URLs
+
+For the first version, this should use the same Cloudflare R2 bucket as hosted releases with separate object-key prefixes, not a second bucket.
+
+This is now the implemented platform direction as well: managed media uses the same R2 bucket with separate prefixes and the public platform serves stable `/media/...` URLs.
 
 ## Moderation Position
 

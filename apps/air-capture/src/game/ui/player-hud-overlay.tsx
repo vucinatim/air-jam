@@ -2,9 +2,9 @@ import { memo, useEffect, useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { cn } from "../../lib/utils";
 import { getAbilityIconPath, useAbilitiesStore } from "../abilities-store";
+import { shipPositions } from "../components/entities/ship";
 import { useGameStore } from "../stores/players/game-store";
 import { useHealthStore } from "../stores/players/health-store";
-import { shipPositions } from "../components/entities/ship";
 
 // --- CONFIGURATION ---
 const HUD_CONFIG = {

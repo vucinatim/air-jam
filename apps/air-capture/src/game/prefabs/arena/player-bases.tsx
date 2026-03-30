@@ -1,4 +1,3 @@
-import { useAudio } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import {
   RigidBody,
@@ -7,11 +6,11 @@ import {
 } from "@react-three/rapier";
 import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, Color, CylinderGeometry, DoubleSide } from "three";
-import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../domain/team";
+import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../../domain/team";
 import {
   useCaptureTheFlagStore,
-} from "../stores/match/capture-the-flag-store";
-import { SOUND_MANIFEST } from "../audio/sounds";
+} from "../../stores/match/capture-the-flag-store";
+import { useHostAudio } from "../../audio/host-audio";
 
 const BASE_RADIUS = 10;
 const BASE_HEIGHT = 8;
@@ -50,7 +49,7 @@ function TeamBase({ teamId }: TeamBaseProps) {
     (state) => state.basePositions[teamId],
   );
   const team = TEAM_CONFIG[teamId];
-  const audio = useAudio(SOUND_MANIFEST);
+  const audio = useHostAudio();
 
   const playersInsideRef = useRef<Set<string>>(new Set());
   const rigidBodyRef = useRef<RapierRigidBody>(null);
@@ -108,38 +107,14 @@ function TeamBase({ teamId }: TeamBaseProps) {
 
     playersInsideRef.current.add(userData.controllerId);
     audio.play("touch_base");
-
-    const store = useCaptureTheFlagStore.getState();
-    const playerTeam = store.getPlayerTeam(userData.controllerId);
-
-    if (playerTeam) {
-      if (playerTeam === teamId) {
-        const enemyTeam = TEAM_IDS.find(
-          (id) => id !== playerTeam,
-        ) as TeamId;
-        const enemyFlag = store.flags[enemyTeam];
-
-        if (
-          enemyFlag &&
-          enemyFlag.status === "carried" &&
-          enemyFlag.carrierId === userData.controllerId
-        ) {
-          audio.play("score_point");
-        }
-
-        const ownFlag = store.flags[playerTeam];
-        if (ownFlag && ownFlag.status === "dropped") {
-          audio.play("success");
-        }
-      } else {
-        const enemyFlag = store.flags[teamId];
-        if (enemyFlag && enemyFlag.status === "atBase") {
-          audio.play("pickup_flag");
-        }
-      }
+    const outcome = handleBaseEntry(userData.controllerId, teamId);
+    if (outcome === "scoredPoint") {
+      audio.play("score_point");
+    } else if (outcome === "returnedFriendlyFlag") {
+      audio.play("success");
+    } else if (outcome === "pickedUpEnemyFlag") {
+      audio.play("pickup_flag");
     }
-
-    handleBaseEntry(userData.controllerId, teamId);
   };
 
   const handleIntersectionExit = (payload: CollisionPayload) => {

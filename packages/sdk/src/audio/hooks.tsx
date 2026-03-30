@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-providers";
@@ -14,10 +21,45 @@ import { initializeParentSettingsSync } from "./volume-store";
 const managerCache = new WeakMap<SoundManifest, AudioManager<string>>();
 let globalInitialized = false;
 let settingsSyncInitialized = false;
+const audioManagerContext = createContext<AudioManager<string> | null>(null);
+
+export interface AudioProviderProps<T extends string = string> {
+  manager: AudioManager<T>;
+  children: ReactNode;
+}
+
+/**
+ * Provide a runtime-owned AudioManager to descendant hooks/components.
+ * Use this after creating the manager once at the host/controller boundary.
+ */
+export function AudioProvider<T extends string = string>({
+  manager,
+  children,
+}: AudioProviderProps<T>) {
+  return (
+    <audioManagerContext.Provider value={manager as AudioManager<string>}>
+      {children}
+    </audioManagerContext.Provider>
+  );
+}
+
+/**
+ * Consume the runtime-owned AudioManager from AudioProvider.
+ */
+export function useProvidedAudio<T extends string = string>(): AudioManager<T> {
+  const manager = useContext(audioManagerContext);
+
+  if (!manager) {
+    throw new Error("useProvidedAudio must be used within an AudioProvider");
+  }
+
+  return manager as AudioManager<T>;
+}
 
 /**
  * Hook to use audio with a sound manifest
- * Creates a singleton AudioManager for the manifest and handles socket injection
+ * Creates a singleton AudioManager for the manifest and handles socket injection.
+ * This is the owner-level primitive and should be called once per runtime surface.
  * @param manifest The sound manifest configuration
  * @returns The AudioManager instance with type-safe sound IDs
  */
@@ -60,22 +102,33 @@ export function useAudio<M extends SoundManifest>(
     if (initRef.current || globalInitialized) return;
 
     const handleInteraction = () => {
-      manager.init();
-      globalInitialized = true;
-      initRef.current = true;
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
+      void manager.init().then((ready) => {
+        if (!ready) {
+          return;
+        }
+
+        globalInitialized = true;
+        initRef.current = true;
+        window.removeEventListener("click", handleInteraction);
+        window.removeEventListener("touchstart", handleInteraction);
+        window.removeEventListener("keydown", handleInteraction);
+        window.removeEventListener("pointerdown", handleInteraction);
+        window.removeEventListener("mousedown", handleInteraction);
+      });
     };
 
     window.addEventListener("click", handleInteraction);
     window.addEventListener("touchstart", handleInteraction);
     window.addEventListener("keydown", handleInteraction);
+    window.addEventListener("pointerdown", handleInteraction);
+    window.addEventListener("mousedown", handleInteraction);
 
     return () => {
       window.removeEventListener("click", handleInteraction);
       window.removeEventListener("touchstart", handleInteraction);
       window.removeEventListener("keydown", handleInteraction);
+      window.removeEventListener("pointerdown", handleInteraction);
+      window.removeEventListener("mousedown", handleInteraction);
     };
   }, [manager]);
 
@@ -86,7 +139,7 @@ export function useAudio<M extends SoundManifest>(
  * Hook to create a stable AudioManager instance
  */
 export const useAudioManager = <T extends string = string>(
-  manifest: SoundManifest,
+  manifest?: SoundManifest,
 ) => {
   const managerRef = useRef<AudioManager<T> | null>(null);
 

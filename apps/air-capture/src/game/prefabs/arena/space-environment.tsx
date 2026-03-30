@@ -5,12 +5,13 @@ import { useRef } from "react";
 import {
   AdditiveBlending,
   BackSide,
+  Color,
   ShaderMaterial,
   type DirectionalLight,
 } from "three";
-import { ARENA_RADIUS } from "../constants";
+import type { AirCaptureArenaPrefabProps } from "./schema";
 
-function Forcefield() {
+function Forcefield({ arenaRadius, forcefieldColor }: AirCaptureArenaPrefabProps) {
   const materialRef = useRef<ShaderMaterial>(null);
 
   useFrame((state) => {
@@ -21,11 +22,12 @@ function Forcefield() {
 
   return (
     <mesh>
-      <sphereGeometry args={[ARENA_RADIUS, 64, 64]} />
+      <sphereGeometry args={[arenaRadius, 64, 64]} />
       <shaderMaterial
         ref={materialRef}
         uniforms={{
           uTime: { value: 0 },
+          uColor: { value: new Color(forcefieldColor) },
         }}
         vertexShader={forcefieldVertex}
         fragmentShader={forcefieldFragment}
@@ -50,6 +52,7 @@ const forcefieldVertex = `
 
 const forcefieldFragment = `
   uniform float uTime;
+  uniform vec3 uColor;
   varying vec2 vUv;
   varying vec3 vWorldNormal;
 
@@ -62,13 +65,17 @@ const forcefieldFragment = `
     float energy = sin(vUv.y * 40.0 - uTime * 1.0) * 0.5 + 0.5;
 
     float alpha = verticalFade * 0.1 + (verticalFade * energy * 0.15);
-    vec3 color = vec3(0.0, 0.9, 1.0);
+    vec3 color = uColor;
 
     gl_FragColor = vec4(color, alpha);
   }
 `;
 
-export function SpaceEnvironment() {
+export function SpaceEnvironment({
+  props,
+}: {
+  props: AirCaptureArenaPrefabProps;
+}) {
   const lightRef = useRef<DirectionalLight>(null);
 
   useFrame(() => {
@@ -84,11 +91,11 @@ export function SpaceEnvironment() {
     <>
       {/* Scene settings */}
       <color args={[0x000000]} attach="background" />
-      <fogExp2 args={[0x000000, 0.0005]} />
+      <fogExp2 args={[0x000000, props.fogDensity]} />
 
       {/* Space skybox with stars */}
       <Stars
-        radius={ARENA_RADIUS * 5}
+        radius={props.arenaRadius * 5}
         depth={100}
         count={10000}
         factor={8}
@@ -98,20 +105,24 @@ export function SpaceEnvironment() {
       />
 
       {/* Lighting */}
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={props.ambientLightIntensity} />
       <directionalLight
         ref={lightRef}
-        position={[60, 100, 60]}
-        intensity={2}
+        position={[
+          props.directionalLightPosition.x,
+          props.directionalLightPosition.y,
+          props.directionalLightPosition.z,
+        ]}
+        intensity={props.directionalLightIntensity}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={0.5}
         shadow-camera-far={500}
-        shadow-camera-left={-ARENA_RADIUS * 2}
-        shadow-camera-right={ARENA_RADIUS * 2}
-        shadow-camera-top={ARENA_RADIUS * 2}
-        shadow-camera-bottom={-ARENA_RADIUS * 2}
+        shadow-camera-left={-props.arenaRadius * 2}
+        shadow-camera-right={props.arenaRadius * 2}
+        shadow-camera-top={props.arenaRadius * 2}
+        shadow-camera-bottom={-props.arenaRadius * 2}
       />
 
       {/* Ground plane */}
@@ -122,9 +133,9 @@ export function SpaceEnvironment() {
         userData={{ type: "ground" }}
       >
         <mesh receiveShadow userData={{ type: "ground" }}>
-          <planeGeometry args={[ARENA_RADIUS * 3, ARENA_RADIUS * 3]} />
+          <planeGeometry args={[props.arenaRadius * 3, props.arenaRadius * 3]} />
           <meshStandardMaterial
-            color={0x222222}
+            color={props.groundColor}
             roughness={0.8}
             metalness={0.2}
           />
@@ -132,10 +143,17 @@ export function SpaceEnvironment() {
       </RigidBody>
 
       {/* Grid helper */}
-      <gridHelper args={[ARENA_RADIUS * 2.5, 40, 0x555555, 0x333333]} />
+      <gridHelper
+        args={[
+          props.arenaRadius * 2.5,
+          40,
+          props.gridColorMajor,
+          props.gridColorMinor,
+        ]}
+      />
 
       {/* Forcefield */}
-      <Forcefield />
+      <Forcefield {...props} />
     </>
   );
 }

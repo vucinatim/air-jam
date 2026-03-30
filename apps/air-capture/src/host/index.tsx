@@ -1,11 +1,10 @@
 import {
   useAirJamHost,
-  useAudio,
   useHostGameStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import type { JSX } from "react";
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, JSX, SetStateAction } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { useBotManager } from "../game/bot-system/bot-manager";
 import { TEAM_IDS, type TeamId } from "../game/domain/team";
@@ -19,11 +18,10 @@ import {
   SceneInfoSection,
 } from "../game/debug/debug-sections";
 import { useGameStore } from "../game/stores/players/game-store";
-import { useBackgroundMusic } from "../game/audio/use-background-music";
 import {
   usePrototypeMatchStore,
 } from "../game/stores/match/match-store";
-import { SOUND_MANIFEST } from "../game/audio/sounds";
+import { HostAudioProvider, useHostAudio } from "../game/audio/host-audio";
 import {
   EndedOverlay,
   GameplayFallback,
@@ -32,24 +30,12 @@ import {
   PausedOverlay,
   StageBackdrop,
 } from "./components/host-overlays";
-import {
-  HostEditorPanel,
-  HostLiveChrome,
-} from "./components/host-live-chrome";
-
-const GameObjectEditor = lazy(async () => {
-  const module = await import("../game/debug/game-object-editor");
-  return { default: module.GameObjectEditor };
-});
+import { HostLiveChrome } from "./components/host-live-chrome";
+import { PlayerHUDOverlay } from "../game/ui/player-hud-overlay";
 
 const GameScene = lazy(async () => {
   const module = await import("../game/engine/game-scene");
   return { default: module.GameScene };
-});
-
-const PlayerHUDOverlay = lazy(async () => {
-  const module = await import("../game/ui/player-hud-overlay");
-  return { default: module.PlayerHUDOverlay };
 });
 
 const ScoreDisplay = lazy(async () => {
@@ -62,15 +48,14 @@ const DebugOverlay = lazy(async () => {
   return { default: module.DebugOverlay };
 });
 
-const HostViewContent = (): JSX.Element => {
-  const audio = useAudio(SOUND_MANIFEST);
-  const [audioMuted, setAudioMuted] = useState(false);
-
-  useEffect(() => {
-    audio.mute(audioMuted);
-  }, [audio, audioMuted]);
-
-  useBackgroundMusic(!audioMuted);
+const HostViewContent = ({
+  audioMuted,
+  setAudioMuted,
+}: {
+  audioMuted: boolean;
+  setAudioMuted: Dispatch<SetStateAction<boolean>>;
+}): JSX.Element => {
+  const audio = useHostAudio();
 
   const host = useAirJamHost();
   const {
@@ -144,10 +129,14 @@ const HostViewContent = (): JSX.Element => {
   }, [players, audio]);
 
   useEffect(() => {
+    if (connectionStatus !== "connected") {
+      return;
+    }
+
     matchActions.syncConnectedPlayers({
       connectedPlayerIds: players.map((player) => player.id),
     });
-  }, [matchActions, players]);
+  }, [connectionStatus, matchActions, players]);
 
   useEffect(() => {
     const currentBotIdsByTeam: Record<TeamId, string[]> = {
@@ -281,20 +270,19 @@ const HostViewContent = (): JSX.Element => {
       viewport: { x: number; y: number; width: number; height: number };
     }>
   >([]);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editorObjectType] = useState<
-    "rocket" | "laser" | "ship" | "collectible" | "flag"
-  >("flag");
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(
+    null,
+  );
 
   useEffect(() => {
     if (sceneMode !== "match") {
       setCameras([]);
+      setCanvasElement(null);
     }
   }, [sceneMode]);
 
   const muteSlot = (
-    <div className="pointer-events-auto absolute top-4 right-4 z-80">
+    <div className="pointer-events-auto absolute top-4 right-4 z-90">
       <HostMuteButton
         muted={audioMuted}
         onToggle={() => setAudioMuted((current) => !current)}
@@ -309,23 +297,17 @@ const HostViewContent = (): JSX.Element => {
         {showBackdrop ? (
           <StageBackdrop />
         ) : (
-          <div
-            className={`absolute inset-0 transition-all duration-300 ${
-              isEditorOpen ? "right-1/2" : ""
-            }`}
-          >
+          <div className="absolute inset-0 transition-all duration-300">
             <Suspense fallback={<GameplayFallback />}>
               <GameScene
                 mode={sceneMode}
                 paused={scenePaused}
                 onCamerasReady={setCameras}
-                onCanvasReady={(canvas) => {
-                  canvasRef.current = canvas;
-                }}
+                onCanvasReady={setCanvasElement}
               />
-              {cameras.length > 0 && canvasRef.current ? (
+              {cameras.length > 0 && canvasElement ? (
                 <PlayerHUDOverlay
-                  canvasElement={canvasRef.current}
+                  canvasElement={canvasElement}
                   cameras={cameras}
                 />
               ) : null}
@@ -382,24 +364,7 @@ const HostViewContent = (): JSX.Element => {
               connectionStatus={connectionStatus}
               audioMuted={audioMuted}
               onToggleAudio={() => setAudioMuted((current) => !current)}
-              isEditorOpen={isEditorOpen}
-              onToggleEditor={() => setIsEditorOpen((current) => !current)}
             />
-
-            <HostEditorPanel
-              isOpen={isEditorOpen}
-              title={`Game Object Editor - ${editorObjectType.charAt(0).toUpperCase()}${editorObjectType.slice(1)}`}
-            >
-              <Suspense
-                fallback={
-                  <div className="flex h-full items-center justify-center text-sm text-zinc-400">
-                    Loading editor…
-                  </div>
-                }
-              >
-                <GameObjectEditor objectType={editorObjectType} />
-              </Suspense>
-            </HostEditorPanel>
           </>
         )}
       </div>
@@ -408,5 +373,14 @@ const HostViewContent = (): JSX.Element => {
 };
 
 export const HostView = (): JSX.Element => {
-  return <HostViewContent />;
+  const [audioMuted, setAudioMuted] = useState(false);
+
+  return (
+    <HostAudioProvider muted={audioMuted}>
+      <HostViewContent
+        audioMuted={audioMuted}
+        setAudioMuted={setAudioMuted}
+      />
+    </HostAudioProvider>
+  );
 };

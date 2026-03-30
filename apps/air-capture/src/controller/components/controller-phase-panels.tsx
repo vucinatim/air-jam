@@ -1,3 +1,4 @@
+import type { PointerEvent } from "react";
 import type { TeamCounts } from "../../game/domain/match-readiness";
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import { createControllerStore } from "../../game/controller-store";
@@ -13,7 +14,6 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import type { PointerEvent } from "react";
 import type { MatchSummary } from "../../game/stores/match/match-store";
 
 const POINTS_TO_WIN_OPTIONS = [1, 3, 5, 7] as const;
