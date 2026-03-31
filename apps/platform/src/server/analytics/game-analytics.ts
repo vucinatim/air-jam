@@ -17,7 +17,7 @@ export interface GameAnalyticsDailyRow {
   lastActivityAt: Date | null;
 }
 
-export interface GameAnalyticsDailyPoint extends GameAnalyticsDailyRow {}
+export type GameAnalyticsDailyPoint = GameAnalyticsDailyRow;
 
 export interface GameAnalyticsOverviewTotals {
   sessionCount: number;

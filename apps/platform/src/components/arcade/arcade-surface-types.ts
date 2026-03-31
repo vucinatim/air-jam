@@ -18,11 +18,7 @@ export interface ArcadeSurfaceState {
   overlay: ArcadeOverlayKind;
 }
 
-export const createInitialArcadeSurfaceState = ({
-  mode,
-}: {
-  mode: "arcade" | "preview";
-}): ArcadeSurfaceState => ({
+export const createInitialArcadeSurfaceState = (): ArcadeSurfaceState => ({
   epoch: 1,
   kind: "browser",
   gameId: null,

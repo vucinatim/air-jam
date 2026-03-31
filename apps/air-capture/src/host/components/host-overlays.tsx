@@ -99,7 +99,10 @@ export const LobbyOverlay = ({
   const hasJoinQr = joinQrValue.trim().length > 0;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6 py-10 text-white">
+    <div
+      data-testid="air-capture-host-lobby-overlay"
+      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6 py-10 text-white"
+    >
       <div className="pointer-events-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
         <div className="space-y-1">
           <div className="text-xs tracking-[0.22em] text-zinc-400 uppercase">
@@ -108,7 +111,10 @@ export const LobbyOverlay = ({
           <h1 className="text-5xl font-black tracking-tight uppercase">
             Join Room
           </h1>
-          <div className="text-xl font-bold tracking-[0.2em] text-zinc-200 uppercase">
+          <div
+            data-testid="air-capture-room-code"
+            className="text-xl font-bold tracking-[0.2em] text-zinc-200 uppercase"
+          >
             {roomId ?? "----"}
           </div>
         </div>
@@ -337,7 +343,10 @@ export const AudioBlockedPrompt = ({
 }: {
   onEnable: () => void;
 }): JSX.Element => (
-  <div className="pointer-events-auto absolute right-4 bottom-4 z-90 max-w-sm rounded-xl border border-amber-300/30 bg-black/80 p-4 text-white shadow-2xl backdrop-blur-md">
+  <div
+    data-testid="air-capture-audio-blocked-prompt"
+    className="pointer-events-auto absolute right-4 bottom-4 z-90 max-w-sm rounded-xl border border-amber-300/30 bg-black/80 p-4 text-white shadow-2xl backdrop-blur-md"
+  >
     <div className="text-[10px] font-semibold tracking-[0.18em] text-amber-200 uppercase">
       Audio Blocked
     </div>
@@ -347,6 +356,7 @@ export const AudioBlockedPrompt = ({
     </div>
     <Button
       type="button"
+      data-testid="air-capture-enable-audio-button"
       onClick={onEnable}
       className="mt-3 h-9 bg-amber-300 px-4 text-xs font-black tracking-[0.16em] text-black uppercase hover:bg-amber-200"
     >

@@ -82,7 +82,10 @@ export const ControllerLobbyPanel = ({
   onStartMatch: () => void;
 }) => {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+    <div
+      data-testid="air-capture-controller-lobby-panel"
+      className="flex min-h-0 flex-1 flex-col gap-2 p-2"
+    >
       <div className="rounded-lg border border-white/10 bg-zinc-900/80 p-3 text-center">
         <div className="text-sm font-semibold uppercase tracking-wide text-white">
           Choose Team

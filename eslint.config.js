@@ -69,11 +69,37 @@ export default defineConfig([
     },
   },
   {
+    files: ["tests/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: globals.node,
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+  {
     files: ["apps/**/*.{ts,tsx}"],
     ignores: [
       "**/dist/**",
       "**/src/routes/host-view.tsx",
       "**/src/routes/controller-view.tsx",
+      "**/src/host/index.tsx",
+      "**/src/controller/index.tsx",
       "**/src/game/host/index.tsx",
       "**/src/game/controller/index.tsx",
     ],

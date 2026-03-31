@@ -74,7 +74,7 @@ export const RemoteDPad = ({
           break;
       }
     },
-    [onMove],
+    [hapticsEnabled, onMove],
   );
 
   const handleMoveEnd = useCallback(
@@ -99,7 +99,7 @@ export const RemoteDPad = ({
         onConfirmRelease();
       }
     },
-    [onConfirm, onConfirmRelease],
+    [hapticsEnabled, onConfirm, onConfirmRelease],
   );
 
   // SVG Geometry Config

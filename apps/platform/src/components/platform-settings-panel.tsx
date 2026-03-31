@@ -99,6 +99,7 @@ function PlatformSettingsPanelBody({
 
   return (
     <section
+      data-testid="platform-settings-panel"
       className={cn(
         "rounded-2xl border bg-black/40 p-4 backdrop-blur-sm sm:p-5",
         highContrast ? "border-white/30" : "border-white/10",

@@ -1,10 +1,37 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { rmSync } from "node:fs";
 import net from "node:net";
+import path from "node:path";
 
 const repoRoot = process.cwd();
-const STACK_PORTS = [3000, 4000, 5173];
+const platformDistDir = ".next-smoke";
+
+const readPort = (name, fallback) => {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${name}="${raw}". Expected a positive integer port.`);
+  }
+
+  return parsed;
+};
+
+const platformPort = readPort("AIRJAM_SMOKE_PLATFORM_PORT", 3000);
+const serverPort = readPort("AIRJAM_SMOKE_SERVER_PORT", 4000);
+const pongPort = readPort("AIRJAM_SMOKE_PONG_PORT", 5173);
+const airCapturePort = readPort("AIRJAM_SMOKE_AIR_CAPTURE_PORT", 5174);
+const STACK_PORTS = [platformPort, serverPort, pongPort, airCapturePort];
+
+const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
+const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
+const pongBaseUrl = `http://127.0.0.1:${pongPort}`;
+const airCaptureBaseUrl = `http://127.0.0.1:${airCapturePort}`;
 
 const baseEnv = {
   ...process.env,
@@ -116,32 +143,58 @@ const startProcess = (name, args, env = {}) => {
 
 const main = async () => {
   await assertPortsFree();
+  rmSync(path.join(repoRoot, "apps/platform", platformDistDir), {
+    force: true,
+    recursive: true,
+  });
 
   startProcess("sdk", ["pnpm", "--filter", "@air-jam/sdk", "dev"]);
   startProcess("server", ["pnpm", "--filter", "@air-jam/server", "dev"], {
-    PORT: "4000",
+    PORT: String(serverPort),
   });
-  await waitForUrl("http://127.0.0.1:4000/health", "Air Jam server");
+  await waitForUrl(`${serverBaseUrl}/health`, "Air Jam server");
+
+  startProcess(
+    "air-capture",
+    ["pnpm", "--filter", "air-capture", "dev", "--host", "--port", String(airCapturePort)],
+    {
+      VITE_AIR_JAM_PUBLIC_HOST: airCaptureBaseUrl,
+      VITE_AIR_JAM_SERVER_URL: serverBaseUrl,
+    },
+  );
+  await waitForUrl(airCaptureBaseUrl, "Air Capture", 90_000);
 
   startProcess(
     "pong",
-    ["pnpm", "--filter", "my-airjam-game", "dev", "--", "--web-only"],
+    [
+      "pnpm",
+      "--dir",
+      "packages/create-airjam/templates/pong",
+      "exec",
+      "vite",
+      "--host",
+      "--port",
+      String(pongPort),
+    ],
     {
-      VITE_AIR_JAM_PUBLIC_HOST: "http://127.0.0.1:5173",
-      VITE_AIR_JAM_SERVER_URL: "http://127.0.0.1:4000",
+      VITE_AIR_JAM_PUBLIC_HOST: pongBaseUrl,
+      VITE_AIR_JAM_SERVER_URL: serverBaseUrl,
     },
   );
-  await waitForUrl("http://127.0.0.1:5173", "Pong template");
+  await waitForUrl(pongBaseUrl, "Pong template");
 
   startProcess("platform", ["pnpm", "--filter", "platform", "dev:no-db"], {
-    NEXT_PUBLIC_AIR_JAM_SERVER_URL: "http://127.0.0.1:4000",
-    NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "http://127.0.0.1:3000",
-    NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: "http://127.0.0.1:5173",
+    PORT: String(platformPort),
+    NEXT_DIST_DIR: platformDistDir,
+    NEXT_PUBLIC_AIR_JAM_SERVER_URL: serverBaseUrl,
+    NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: platformBaseUrl,
+    NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL: airCaptureBaseUrl,
+    NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: pongBaseUrl,
   });
   await waitForUrl(
-    "http://127.0.0.1:3000/arcade/local-pong",
-    "platform local arcade fixture",
-    60_000,
+    platformBaseUrl,
+    "platform root",
+    120_000,
   );
 
   console.log("[browser-smoke] Local browser smoke stack is ready.");

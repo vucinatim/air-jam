@@ -28,7 +28,7 @@ export function resolveShipEngineAudioTransition(params: {
 }): ShipEngineAudioTransition {
   const { audioState, isThrusting, isDead } = params;
   const actions: ShipEngineAudioAction[] = [];
-  let nextState: ShipEngineAudioState = { ...audioState };
+  const nextState: ShipEngineAudioState = { ...audioState };
 
   if (isDead) {
     if (audioState.idleSoundId !== null) {

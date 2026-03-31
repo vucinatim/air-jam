@@ -1,4 +1,4 @@
-import { paintAirCaptureArena } from "./paint";
+import { paintAirCaptureArena } from "./paint-arena";
 import { AIR_CAPTURE_ARENA_PREVIEW } from "./preview";
 import {
   AIR_CAPTURE_ARENA_DEFAULT_PROPS,

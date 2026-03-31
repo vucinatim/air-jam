@@ -45,13 +45,13 @@ const assertHost = (ctx: AirJamActionContext): boolean =>
 
 export const useArcadeSurfaceStore = createAirJamStore<ArcadeSurfaceStoreState>(
   (set) => ({
-    ...createInitialArcadeSurfaceState({ mode: "arcade" }),
+    ...createInitialArcadeSurfaceState(),
     actions: {
-      resetHostSurfaceForMode: (ctx, { mode }) => {
+      resetHostSurfaceForMode: (ctx, _payload) => {
         if (!assertHost(ctx)) {
           return;
         }
-        set(() => createInitialArcadeSurfaceState({ mode }));
+        set(() => createInitialArcadeSurfaceState());
       },
 
       setBrowserSurface: (ctx, _payload) => {

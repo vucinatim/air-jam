@@ -95,6 +95,8 @@ export const GamePlayer = ({
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hostBridgePortRef = useRef<MessagePort | null>(null);
+  // Subscribe to the platform-owned shared settings snapshot.
+  const platformSettings = useInheritedPlatformSettings();
   const settingsBridgeRef = useRef(
     createParentPlatformSettingsBridge({
       onEvent: (event, payload) => {
@@ -105,7 +107,7 @@ export const GamePlayer = ({
             message: "Arcade host attached embedded platform settings bridge",
             level: "info",
             role: "host",
-            roomId: hostBridgeStateRef.current.roomId,
+            roomId,
             runtimeEpoch: arcadeIdentityRef.current.epoch,
             runtimeKind: "arcade-host-runtime",
             data: {
@@ -123,7 +125,7 @@ export const GamePlayer = ({
             message: "Arcade host received embedded settings-ready request",
             level: "info",
             role: "host",
-            roomId: hostBridgeStateRef.current.roomId,
+            roomId,
             runtimeEpoch: arcadeIdentityRef.current.epoch,
             runtimeKind: "arcade-host-runtime",
             data: {
@@ -152,7 +154,7 @@ export const GamePlayer = ({
               : "Arcade host flushed updated platform settings snapshot to embedded game",
           level: "info",
           role: "host",
-          roomId: hostBridgeStateRef.current.roomId,
+          roomId,
           runtimeEpoch: arcadeIdentityRef.current.epoch,
           runtimeKind: "arcade-host-runtime",
           data: {
@@ -169,22 +171,12 @@ export const GamePlayer = ({
   /** Identity frozen at last host bridge attach; drop forwards if parent surface drifts first. */
   const hostBridgeAttachedIdentityRef =
     useRef<ArcadeSurfaceRuntimeIdentity | null>(null);
-  const hostSocketRef = useRef(hostSocket);
-  const hostBridgeStateRef = useRef({
-    roomId,
-    capabilityToken: launchCapability.token,
-    players,
-    gameState,
-  });
   const arcadeIdentityRef = useRef(arcadeSurfaceRuntimeIdentity);
   const [loadedIframeSrc, setLoadedIframeSrc] = useState<string | null>(null);
 
   useEffect(() => {
     arcadeIdentityRef.current = arcadeSurfaceRuntimeIdentity;
   }, [arcadeSurfaceRuntimeIdentity]);
-
-  // Subscribe to the platform-owned shared settings snapshot.
-  const platformSettings = useInheritedPlatformSettings();
 
   const iframeSrc = buildArcadeGameIframeSrc({
     normalizedUrl,
@@ -208,7 +200,7 @@ export const GamePlayer = ({
         level: "warn",
         message: "Embedded host bridge init blocked: invalid iframe origin",
         role: "host",
-        roomId: hostBridgeStateRef.current.roomId,
+        roomId,
         runtimeEpoch: arcadeIdentityRef.current.epoch,
         runtimeKind: "arcade-host-iframe",
         data: {
@@ -220,7 +212,7 @@ export const GamePlayer = ({
     }
 
     settingsBridgeRef.current.attach(contentWindow, iframeTargetOrigin);
-  }, [game.id, iframeTargetOrigin, normalizedUrl]);
+  }, [game.id, iframeTargetOrigin, normalizedUrl, roomId]);
 
   useEffect(() => {
     if (!iframeLoaded || !isVisible) {
@@ -246,18 +238,10 @@ export const GamePlayer = ({
   }, [iframeTargetOrigin]);
 
   useEffect(() => {
-    hostSocketRef.current = hostSocket;
-    hostBridgeStateRef.current = {
-      roomId,
-      capabilityToken: launchCapability.token,
-      players,
-      gameState,
-    };
-  }, [gameState, hostSocket, launchCapability.token, players, roomId]);
+    const settingsBridge = settingsBridgeRef.current;
 
-  useEffect(() => {
     return () => {
-      settingsBridgeRef.current.detach();
+      settingsBridge.detach();
       try {
         hostBridgePortRef.current?.postMessage(
           createHostBridgeCloseMessage("game_unloaded"),
@@ -297,17 +281,14 @@ export const GamePlayer = ({
 
       port.onmessage = (event) => {
         const message = parseHostBridgeEmitMessage(event.data);
-        const socket = hostSocketRef.current;
         if (!message) {
           return;
         }
 
-        socket.emit(message.payload.event, ...(message.payload.args as never[]));
+        hostSocket.emit(message.payload.event, ...(message.payload.args as never[]));
       };
 
-      const state = hostBridgeStateRef.current;
-      const socket = hostSocketRef.current;
-      const playerNotices: ControllerJoinedNotice[] = state.players.map((player) => ({
+      const playerNotices: ControllerJoinedNotice[] = players.map((player) => ({
         controllerId: player.id,
         nickname: player.label,
         player,
@@ -315,19 +296,27 @@ export const GamePlayer = ({
 
       port.postMessage(
         createHostBridgeAttachMessage({
-          roomId: state.roomId,
-          capabilityToken: state.capabilityToken,
-          connected: socket.connected,
-          socketId: socket.id,
+          roomId,
+          capabilityToken: launchCapability.token,
+          connected: hostSocket.connected,
+          socketId: hostSocket.id,
           players: playerNotices,
           state: {
-            gameState: state.gameState,
+            gameState,
           },
           arcadeSurface: arcadeSurfaceRuntimeIdentity,
         }),
       );
     },
-    [arcadeSurfaceRuntimeIdentity, closeHostBridge],
+    [
+      arcadeSurfaceRuntimeIdentity,
+      closeHostBridge,
+      gameState,
+      hostSocket,
+      launchCapability.token,
+      players,
+      roomId,
+    ],
   );
 
   const forwardHostBridgeEvent = useCallback(
@@ -387,7 +376,7 @@ export const GamePlayer = ({
           level: "error",
           message: "Embedded browser log sink reported transport failure",
           role: "host",
-          roomId: hostBridgeStateRef.current.roomId,
+          roomId,
           runtimeEpoch: arcadeIdentityRef.current.epoch,
           runtimeKind: "arcade-host-iframe",
           data:
@@ -413,12 +402,9 @@ export const GamePlayer = ({
         return;
       }
 
-      const state = hostBridgeStateRef.current;
-      const socket = hostSocketRef.current;
-
       if (
-        request.payload.roomId !== state.roomId ||
-        request.payload.capabilityToken !== state.capabilityToken
+        request.payload.roomId !== roomId ||
+        request.payload.capabilityToken !== launchCapability.token
       ) {
         port.postMessage(
           createHostBridgeCloseMessage("Embedded host bridge session mismatch."),
@@ -442,7 +428,7 @@ export const GamePlayer = ({
         return;
       }
 
-      if (!socket.connected) {
+      if (!hostSocket.connected) {
         port.postMessage(
           createHostBridgeCloseMessage("Parent host runtime is disconnected."),
         );
@@ -450,11 +436,11 @@ export const GamePlayer = ({
         return;
       }
 
-      socket.emit(
+      hostSocket.emit(
         "host:activateEmbeddedGame",
         {
-          roomId: state.roomId,
-          capabilityToken: state.capabilityToken,
+          roomId,
+          capabilityToken: launchCapability.token,
         },
         (ack: HostRegistrationAck) => {
           if (!ack.ok) {
@@ -480,7 +466,10 @@ export const GamePlayer = ({
   }, [
     attachHostBridgePort,
     closeHostBridge,
+    hostSocket,
     iframeTargetOrigin,
+    launchCapability.token,
+    roomId,
   ]);
 
   useEffect(() => {
@@ -590,7 +579,7 @@ export const GamePlayer = ({
               level: "error",
               message: "Embedded game iframe failed to load",
               role: "host",
-              roomId: hostBridgeStateRef.current.roomId,
+              roomId,
               runtimeEpoch: arcadeIdentityRef.current.epoch,
               runtimeKind: "arcade-host-iframe",
               data: {

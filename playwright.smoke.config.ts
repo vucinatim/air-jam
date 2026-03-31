@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const platformPort = process.env.AIRJAM_SMOKE_PLATFORM_PORT ?? "3000";
+const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
+
 export default defineConfig({
   testDir: "./tests/browser",
   fullyParallel: false,
@@ -9,14 +12,14 @@ export default defineConfig({
     timeout: 20_000,
   },
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: platformBaseUrl,
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },
   webServer: {
     command: "node ./scripts/browser-smoke-stack.mjs",
-    url: "http://127.0.0.1:3000/arcade/local-pong",
-    reuseExistingServer: false,
+    url: platformBaseUrl,
+    reuseExistingServer: true,
     timeout: 120_000,
   },
   projects: [

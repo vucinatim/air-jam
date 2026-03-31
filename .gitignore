@@ -34,3 +34,4 @@ apps/platform/public/ai-pack/
 # Playwright smoke artifacts
 test-results/
 playwright-report/
+apps/platform/.next-smoke/

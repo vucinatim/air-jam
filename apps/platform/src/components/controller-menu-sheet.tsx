@@ -32,6 +32,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
+  type CSSProperties,
   useCallback,
   useEffect,
   useMemo,
@@ -374,19 +375,17 @@ export function ControllerMenuSheet({
     };
   }, [scanning]);
 
-  const topChromePadding = documentFullscreen
-    ? "pt-2"
-    : "pt-[max(0.5rem,env(safe-area-inset-top))]";
+  const topChromeStyle: CSSProperties | undefined = documentFullscreen
+    ? undefined
+    : { paddingTop: "max(0.5rem, env(safe-area-inset-top))" };
   const notchPlacement =
     activeUrl && controllerOrientation === "landscape" ? "right" : "top";
   const landscapeMenu = notchPlacement === "right";
-  const notchOffsetClass = documentFullscreen
-    ? landscapeMenu
-      ? "mr-0"
-      : "mt-0"
+  const notchOffsetStyle: CSSProperties | undefined = documentFullscreen
+    ? undefined
     : landscapeMenu
-      ? "mr-[env(safe-area-inset-right)]"
-      : "mt-[env(safe-area-inset-top)]";
+      ? { marginRight: "env(safe-area-inset-right)" }
+      : { marginTop: "env(safe-area-inset-top)" };
   const overlayFrameClass = landscapeMenu
     ? cn(
         "items-stretch justify-end backdrop-blur-sm",
@@ -416,10 +415,8 @@ export function ControllerMenuSheet({
 
   const overlayChrome = (
     <header
-      className={cn(
-        "relative flex w-full shrink-0 items-center px-3 pb-2",
-        topChromePadding,
-      )}
+      className="relative flex w-full shrink-0 items-center px-3 pt-2 pb-2"
+      style={topChromeStyle}
     >
       <span className="sr-only" aria-live="polite">
         {`Connection ${connectionLabel}`}
@@ -505,10 +502,8 @@ export function ControllerMenuSheet({
 
   const closedChrome = (
     <header
-      className={cn(
-        "pointer-events-none fixed top-0 right-0 left-0 z-50 flex w-full shrink-0 items-center px-3 pb-2",
-        topChromePadding,
-      )}
+      className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex w-full shrink-0 items-center px-3 pt-2 pb-2"
+      style={topChromeStyle}
     >
       <ControllerMenuLeadingChrome
         selfProfileForAvatar={selfProfileForAvatar}
@@ -585,7 +580,8 @@ export function ControllerMenuSheet({
       <ControllerMenuNotch
         position="fixed"
         placement={notchPlacement}
-        className={cn("z-60", notchOffsetClass)}
+        className="z-60"
+        style={notchOffsetStyle}
         strokeClassName="stroke-zinc-700"
         pulse={connectionNotchPulse}
         onClick={toggleOverlay}

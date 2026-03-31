@@ -85,6 +85,7 @@ function ControlledVolumeControls({
           </span>
         </div>
         <Slider
+          data-testid="platform-settings-master-volume"
           value={[masterVolume * 100]}
           onValueChange={(sliderValues) =>
             onMasterVolumeChange?.(sliderValues[0] / 100)
@@ -110,6 +111,7 @@ function ControlledVolumeControls({
           </span>
         </div>
         <Slider
+          data-testid="platform-settings-music-volume"
           value={[musicVolume * 100]}
           onValueChange={(sliderValues) =>
             onMusicVolumeChange?.(sliderValues[0] / 100)
@@ -135,6 +137,7 @@ function ControlledVolumeControls({
           </span>
         </div>
         <Slider
+          data-testid="platform-settings-sfx-volume"
           value={[sfxVolume * 100]}
           onValueChange={(sliderValues) =>
             onSfxVolumeChange?.(sliderValues[0] / 100)

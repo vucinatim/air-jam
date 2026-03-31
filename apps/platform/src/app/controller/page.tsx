@@ -57,6 +57,7 @@ import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import { CornerDownLeft } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
+  type CSSProperties,
   Suspense,
   useCallback,
   useEffect,
@@ -159,11 +160,12 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
     activeUrl && arcadeSurface.kind === "game"
       ? controller.controllerOrientation
       : "portrait";
-  const controllerChromeInsetClass = !documentFullscreen
-    ? activeUrl && controllerPresentationOrientation === "landscape"
-      ? "pr-[env(safe-area-inset-right)]"
-      : "pt-[env(safe-area-inset-top)]"
-    : undefined;
+  const controllerChromeInsetStyle: CSSProperties | undefined =
+    !documentFullscreen
+      ? activeUrl && controllerPresentationOrientation === "landscape"
+        ? { paddingRight: "env(safe-area-inset-right)" }
+        : { paddingTop: "env(safe-area-inset-top)" }
+      : undefined;
 
   const controllerIframeSrc = useMemo(() => {
     if (!activeUrl || !controller.controllerId || !controller.roomId) {
@@ -530,15 +532,15 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
       <main
         className={cn(
           "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden sm:p-4",
-          controllerChromeInsetClass,
         )}
+        style={controllerChromeInsetStyle}
       >
         {activeUrl && (
           <div
             className={cn(
               "bg-background absolute inset-0 z-20",
-              controllerChromeInsetClass,
             )}
+            style={controllerChromeInsetStyle}
           >
             {controllerIframeSrc ? (
               <iframe

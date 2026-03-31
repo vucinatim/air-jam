@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 /**
  * Phone-style waterdrop notch: flat top, concave sides curving inward
@@ -28,6 +28,7 @@ const NOTCH_PATH = [
 
 type ControllerMenuNotchProps = {
   className?: string;
+  style?: CSSProperties;
   strokeClassName: string;
   pulse?: boolean;
   onClick: () => void;
@@ -40,6 +41,7 @@ type ControllerMenuNotchProps = {
 
 export const ControllerMenuNotch = ({
   className,
+  style,
   strokeClassName,
   pulse,
   onClick,
@@ -72,6 +74,7 @@ export const ControllerMenuNotch = ({
       style={{
         width: isRightPlacement ? NOTCH_H : NOTCH_W,
         height: isRightPlacement ? NOTCH_W : NOTCH_H,
+        ...style,
       }}
       onClick={onClick}
       aria-label={ariaLabel}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createControllerAudioFacade } from "../../../src/game/audio/controller-audio";
+import { createControllerAudioFacade } from "../../../src/game/audio/controller-audio-facade";
 
 describe("controller audio", () => {
   it("routes facade calls to the runtime-owned manager", async () => {
