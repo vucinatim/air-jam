@@ -1,348 +1,287 @@
-# Air Jam SDK Plan: Contract-First Networked Actions (Event-Safe by Design)
+# Air Jam SDK Plan: Narrow Network Action Contract
 
-## Context
+Last updated: 2026-03-31  
+Status: parked
 
-Current networked action flow in `createAirJamStore` is permissive:
+Related docs:
 
-- Controller side proxies actions as `(...args) => emit("controller:action_rpc", { actionName, args, controllerId })`
-- Server forwards payload as-is to host (`airjam:action_rpc`)
-- Host executes `actionFn(...args, controllerId)`
+1. [Framework Paradigm](../framework-paradigm.md)
+2. [Work Ledger](../work-ledger.md)
+3. [SDK Runtime Ownership Reset Plan (Archived)](../archive/sdk-runtime-ownership-plan-2026-03-31.md)
 
-Relevant files:
+## Purpose
 
-- `packages/sdk/src/store/create-air-jam-store.ts`
-- `packages/sdk/src/protocol.ts`
-- `packages/server/src/index.ts`
+Tighten the controller-to-host action RPC boundary without overcomplicating the whole store system.
 
-This design is flexible but allows non-intended arguments (for example React click events) to leak into RPC payloads and break logic during refactors.
+The goal is not to redesign all store actions.
 
-## Problem
+The goal is:
 
-With extracted UI components, developers naturally write:
+1. make networked actions harder to misuse
+2. stop accidental UI/framework objects from leaking over the wire
+3. give LLMs a more obvious and safer action shape
+4. keep local store ergonomics simple
+
+This should be a narrow transport-contract improvement, not a large abstract action framework.
+
+## Why This Matters
+
+The current action transport is still too permissive at the network boundary.
+
+Today it is too easy for code like this to become a bug:
 
 ```tsx
 <button onClick={actions.startMatch}>Start</button>
 ```
 
-React passes the click event as the first argument. The SDK currently forwards it over RPC as an action arg. This is a system-design hole, not just an app bug.
+If the transport accepts loose variadic args, React event objects or other accidental values can cross the network even though the developer never intended that.
 
-## Goals
+That is a system-design problem, not just an app bug.
 
-1. Prevent UI-event arg leakage by design (not only by warnings).
-2. Keep API ergonomic for fast game prototyping.
-3. Preserve backward compatibility during migration.
-4. Improve debuggability when action invocation payloads are invalid.
-5. Keep runtime overhead low.
+This matters more in an LLM-heavy workflow because models naturally:
 
-## Non-goals
+1. pass raw actions directly to DOM handlers
+2. invent positional arguments casually
+3. do not reliably distinguish local function calls from network contracts unless the API makes that obvious
 
-1. Rewriting the whole networking model.
-2. Introducing complex codegen as a hard requirement.
-3. Breaking existing games in one release.
+## Core Decision
 
-## Design Options Considered
+If this work is done, the SDK should adopt one narrow rule for controller-to-host RPC actions:
 
-## Option A: Keep current `...args` model + better warnings
+1. a networked action accepts either no payload or exactly one payload object
+2. payloads must be plain JSON-serializable objects
+3. variadic positional arguments are not allowed at the network boundary
+4. event-like and non-serializable values are rejected
+5. runtime context like `controllerId` remains host-side context, not payload
 
-Pros:
+This is the smallest contract that solves the real problem without making the whole SDK feel bureaucratic.
 
-- Minimal implementation effort.
-- No API changes.
+## Important Scope Boundary
 
-Cons:
+This plan is only about the network crossing.
 
-- Core issue still possible in production.
-- Relies on discipline and linting.
+It is **not** proposing that every local store action become schema-driven or wrapped in extra ceremony.
 
-Verdict: Useful as immediate safety layer, not final architecture.
+The intended split is:
 
-## Option B: Auto-drop event-like first arg heuristically
+### Local Actions
 
-Pros:
+Keep simple.
 
-- Fixes common `onClick={action}` class immediately.
-- Mostly non-breaking.
+Examples:
 
-Cons:
+1. local UI state
+2. internal derived-state transitions
+3. host-only local actions that never cross the network
 
-- Heuristic and implicit behavior.
-- Still allows other invalid payload shapes.
+These do not need a special contract system.
 
-Verdict: Good transitional guardrail, not final contract model.
+### Networked Controller Actions
 
-## Option C (Recommended): Contract-first action transport
+Make strict.
 
-Define each action’s network contract explicitly:
+Examples:
 
-- `void` action (no payload), or
-- single typed payload object validated by Zod.
+1. `startMatch()`
+2. `joinTeam({ team: "solaris" })`
+3. `setReady({ ready: true })`
 
-Transport becomes payload-oriented, not raw variadic args.
+These should follow the zero-or-one-payload-object rule.
 
-Pros:
+## What This Should Not Become
 
-- Eliminates event leakage class at architecture level.
-- Clear, explicit, and validateable contracts.
-- Better docs, tooling, and testability.
+Do not turn this into:
 
-Cons:
+1. a heavy enterprise command framework
+2. mandatory Zod schemas for every action on day one
+3. a separate complex store-creation API unless it is truly necessary
+4. broad compatibility machinery designed around post-v1 migration comfort
 
-- Requires incremental migration path.
-- Slightly more upfront typing for action definitions.
+Air Jam should stay minimal.
 
-Verdict: Best long-term architecture.
+The point is to make the network boundary honest, not to make game code ceremonious.
 
-## Recommended Architecture
+## Recommended Target Shape
 
-## 1) Introduce action contracts in SDK
+### Baseline Transport Contract
 
-Add a new API variant (non-breaking addition first):
+For networked controller actions:
+
+1. `() => void`
+2. `(payload: Record<string, unknown>) => void`
+
+Rules:
+
+1. no second positional arg
+2. no array/tuple payloads
+3. no event-like payloads
+4. no functions, class instances, DOM nodes, or other non-serializable values
+
+### Optional Validation Layer
+
+Schema validation should be supported, but not required for the whole feature to be useful.
+
+Good default:
+
+1. strict payload-shape rule by transport
+2. optional per-action schema validation where a game wants it
+
+That keeps prototyping light while still improving safety materially.
+
+## Candidate Public API Direction
+
+The simplest acceptable public contract would look like one of these:
+
+### Option A. Keep action definitions mostly as they are, but enforce transport shape
+
+The SDK internally treats networked controller actions as:
+
+1. void
+2. single payload object
+
+This is the least disruptive approach.
+
+### Option B. Add a small explicit marker for networked actions
+
+Example shape:
 
 ```ts
-const useGameStore = createAirJamStoreWithContracts({
-  state: { phase: "lobby" },
-  actions: {
-    startMatch: action.void(({ set, controllerId }) => {
-      // host-only mutation
-    }),
-    joinTeam: action.payload(
-      z.object({ team: z.enum(["team1", "team2"]) }),
-      ({ payload, set, controllerId }) => {
-        // payload.team available and validated
-      },
-    ),
-  },
-});
-```
-
-Design rules:
-
-1. Networked action input is either `void` or exactly one payload object.
-2. `controllerId` is context, not part of payload.
-3. Controller proxy only serializes validated payload, never raw callback args.
-
-## 2) Update protocol for typed payload mode
-
-Current:
-
-```ts
-{ actionName: string; args: unknown[]; controllerId: string }
-```
-
-Planned addition:
-
-```ts
-{
-  actionName: string;
-  payload?: unknown; // absent for void
-  controllerId: string;
-  version: 2;
+actions: {
+  startMatch: networkAction(() => { ... }),
+  joinTeam: networkAction<{ team: TeamId }>((payload) => { ... }),
 }
 ```
 
-Keep legacy `args` support temporarily for backward compatibility.
+This is acceptable only if it stays small and clear.
 
-## 3) Host execution path uses contract registry
+### Option C. Full contract helper system
 
-Host resolver logic:
-
-1. Find action by `actionName`.
-2. Resolve action mode: `void` or `payload(schema)`.
-3. Parse payload with Zod when schema exists.
-4. Execute handler with `{ payload?, controllerId, set, get }`.
-5. Emit actionable error telemetry in dev when parse fails.
-
-## 4) Controller proxy behavior
-
-For `void` actions:
-
-- Always emit no payload.
-- Ignore all accidental runtime args.
-
-For `payload` actions:
-
-- Require one payload object.
-- Validate before emitting.
-- Reject non-object/event-like values with descriptive dev error.
-
-## 5) Transitional compatibility layer
-
-Maintain `createAirJamStore` (legacy) during migration:
-
-1. Add strict dev warnings in legacy mode:
-   - Non-serializable arg values
-   - Event-like values (`nativeEvent`, `preventDefault`, etc.)
-2. Add optional guard:
-   - If action arity is 0 and first arg is event-like, drop arg and warn.
-3. Keep legacy server path accepting `args`.
-
-## Concrete Implementation Plan
-
-## Phase 0: Safety now (fast patch)
-
-Files:
-
-- `packages/sdk/src/store/create-air-jam-store.ts`
-
-Tasks:
-
-1. Add `isEventLikeArg` utility.
-2. Add `isSerializable` utility (safe JSON-ish check).
-3. Legacy proxy warnings for bad args.
-4. Zero-arity + event-like first arg auto-drop (dev warning).
-
-Outcome:
-
-- Immediate protection for current users with minimal risk.
-
-## Phase 1: Introduce contract-based API (additive)
-
-Files:
-
-- `packages/sdk/src/store/` (new files: `action-contracts.ts`, `create-air-jam-store-contract.ts`)
-- `packages/sdk/src/index.ts`
-- `packages/sdk/src/protocol.ts` (versioned RPC payload type)
-
-Tasks:
-
-1. Add `action.void` and `action.payload(schema, handler)` helpers.
-2. Add `createAirJamStoreWithContracts`.
-3. Add new v2 RPC envelope (`payload`, `version`).
-4. Keep backward compatibility with legacy envelopes.
-
-Outcome:
-
-- New games use safe-by-default architecture.
-
-## Phase 2: Server compatibility + validation plumbing
-
-Files:
-
-- `packages/server/src/index.ts`
-
-Tasks:
-
-1. Forward v2 payload unchanged.
-2. Keep v1 `args` forwarding for legacy games.
-3. Add dev logs for malformed envelopes.
-
-Outcome:
-
-- No breakage; both modes supported.
-
-## Phase 3: Migrate templates and docs
-
-Files:
-
-- `packages/create-airjam/templates/pong/src/store.ts`
-- `packages/create-airjam/templates/pong/airjam-docs/sdk/networked-state/page.md`
-- `apps/platform/src/app/docs/sdk/networked-state/page.mdx`
-
-Tasks:
-
-1. Convert template store to contract API.
-2. Document payload-only action design.
-3. Add explicit “don’t pass raw actions directly as DOM handlers in legacy mode” note.
-
-Outcome:
-
-- New developers land on correct model immediately.
-
-## Phase 4: Deprecation strategy
-
-Tasks:
-
-1. Mark legacy `createAirJamStore` as deprecated in docs (not removed yet).
-2. Emit dev-only deprecation warning when legacy RPC args contain non-serializable values.
-3. After adoption window, decide if hard deprecation/removal is needed.
-
-Outcome:
-
-- Controlled migration without forced churn.
-
-## API Details (Recommended)
-
-## Action helper types
+Example:
 
 ```ts
-type ActionContext<TState> = {
-  set: (updater: Partial<TState> | ((state: TState) => Partial<TState>)) => void;
-  get: () => TState;
-  controllerId: string;
-};
-
-const action = {
-  void: <TState>(handler: (ctx: ActionContext<TState>) => void) => ...,
-  payload: <TSchema extends z.ZodTypeAny, TState>(
-    schema: TSchema,
-    handler: (args: {
-      payload: z.infer<TSchema>;
-      context: ActionContext<TState>;
-    }) => void,
-  ) => ...,
-};
+action.void(...)
+action.payload(schema, ...)
 ```
 
-## Developer ergonomics
+This should only be chosen if the simpler options prove insufficient.
 
-1. `void` actions are always called as `actions.startMatch()`.
-2. Payload actions are always called with exactly one object:
-   - `actions.joinTeam({ team: "team1" })`
-3. `controllerId` never appears in controller call sites; it is host context.
+Current recommendation:
 
-## Testing Plan
+1. start with Option A or a very small Option B
+2. do not jump straight to a large helper taxonomy unless there is a concrete need
 
-## SDK unit/integration tests
+## Future-Proofing Value
 
-1. Legacy mode: `onClick={action}` sends event arg -> warning + safe handling.
-2. Contract mode void action: extraneous arg is ignored and does not travel.
-3. Contract mode payload action: invalid payload rejected before emit.
-4. Host side: invalid v2 payload fails schema parse and does not mutate state.
-5. Cross-version: v1 and v2 payloads can coexist in same runtime.
+Even the narrow version unlocks real long-term value:
 
-## Server tests
+1. safer LLM-generated code
+2. clearer docs and examples
+3. better transport logs and validation errors
+4. cleaner future permissions/policy around action classes
+5. easier analytics or inspection of intent-shaped actions later
 
-1. v1 envelope pass-through remains stable.
-2. v2 envelope pass-through remains stable.
-3. Malformed envelope rejected safely.
+So this is not just about React click events.
+It improves the honesty of the RPC boundary itself.
 
-## Migration Risks and Mitigations
+## Why This Is Still Parked
 
-Risk: Dev confusion between legacy and contract APIs.
-Mitigation:
+This is a good architecture improvement, but it is not currently the highest-value prerelease task compared with:
 
-1. Name new API clearly (`createAirJamStoreWithContracts` initially).
-2. Provide before/after examples in docs.
-3. Add migration checklist.
+1. finishing the launch-set proof
+2. running the remaining hosted-release/media product proof
+3. preparing the real release
 
-Risk: Runtime overhead from schema parsing.
-Mitigation:
+So the right status for now is:
 
-1. Parse only on action invocation (not render).
-2. Keep payload schemas small and focused.
+1. good idea
+2. meaningful future value
+3. not currently on the critical path
 
-Risk: Subtle behavior differences for legacy actions.
-Mitigation:
+## Implementation Plan
 
-1. Keep legacy unchanged except guarded dev behavior.
-2. Gate aggressive sanitation behind dev-only path first.
+### Phase 1. Freeze The Narrow Contract
 
-## Rollout Recommendation
+Decide and document:
 
-1. Ship Phase 0 immediately in next patch release.
-2. Ship Phase 1–2 behind additive API in minor release.
-3. Migrate templates/docs in same minor.
-4. Reassess legacy deprecation after 1-2 release cycles.
+1. networked controller actions are zero-arg or one plain-object payload
+2. local-only actions are unaffected
+3. `controllerId` stays runtime context, never payload
 
-## Success Criteria
+Done when:
 
-1. No reported “button click passed event and broke RPC action” regressions in contract mode.
-2. Template apps use contract mode by default.
-3. Legacy mode emits actionable warnings for invalid args.
-4. RPC action failures become explicit and diagnosable.
+1. the contract is clear enough to document in one short section
+2. there is no ambiguity about arrays, tuples, events, or extra args
 
-## Suggested Next Steps
+### Phase 2. Enforce The Transport Boundary
 
-1. Implement Phase 0 now (small, high-impact guardrails).
-2. Open an RFC PR for Phase 1 API shape with 2-3 example stores.
-3. Migrate `create-airjam` template once API is approved.
+Update the RPC transport so controller-side action forwarding:
+
+1. accepts no payload or one plain object only
+2. rejects event-like values
+3. rejects non-serializable payloads
+4. rejects extra positional args
+
+Done when:
+
+1. accidental DOM event leakage can no longer cross the network
+2. controller-to-host RPC is payload-shaped rather than variadic
+
+### Phase 3. Improve Developer Errors
+
+Add high-signal dev diagnostics for:
+
+1. extra positional arguments
+2. event-like payloads
+3. non-serializable payloads
+4. malformed network action invocation
+
+Done when:
+
+1. the error makes it obvious what the developer should do instead
+2. debugging does not require reading transport internals
+
+### Phase 4. Add Optional Schema Validation Only If It Stays Small
+
+If it still feels worthwhile after the narrow contract exists:
+
+1. allow optional schema validation for specific networked actions
+2. do not require schemas for all actions
+3. do not let validation helpers become the dominant public API story
+
+Done when:
+
+1. games that want stronger validation can opt in
+2. simple games still feel simple
+
+### Phase 5. Update Template And Docs
+
+Only after the transport contract is stable:
+
+1. update the template to teach void-or-payload-object actions
+2. update docs examples accordingly
+3. explicitly show correct DOM handler wrapping where needed
+
+Done when:
+
+1. new projects learn the safer pattern by default
+2. LLM surface cues point toward the right shape
+
+## Validation
+
+If this work is picked up, the validation bar should include:
+
+1. void network action ignores accidental DOM event args
+2. payload network action rejects non-object payloads
+3. payload network action rejects event-like payloads
+4. malformed payloads do not mutate host state
+5. template examples still feel simple and readable
+
+## Closeout Rule
+
+This plan should only move forward if we decide the transport boundary is important enough to tighten before or soon after v1.
+
+If it moves forward, keep it narrow:
+
+1. fix the real network-boundary problem
+2. preserve simple local store ergonomics
+3. avoid turning the SDK into a more abstract system than the product actually needs

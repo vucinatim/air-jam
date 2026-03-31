@@ -5,7 +5,7 @@ Status: archived reference
 
 Related docs:
 
-1. [V1 Closeout Plan](../plans/v1-closeout-plan.md)
+1. [V1 Closeout Plan (Archived)](../archive/v1-closeout-plan-2026-03-31.md)
 2. [Framework Paradigm](../framework-paradigm.md)
 3. [Monorepo Operating System](../monorepo-operating-system.md)
 4. [Documentation Architecture](../systems/documentation-architecture.md)

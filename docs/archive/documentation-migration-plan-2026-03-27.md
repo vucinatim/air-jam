@@ -9,7 +9,7 @@ Related docs:
 2. [Framework Paradigm](../../framework-paradigm.md)
 3. [Monorepo Operating System](../monorepo-operating-system.md)
 4. [Docs Index](../../docs-index.md)
-5. [Release-Facing Polish Plan](../plans/release-polish-plan.md)
+5. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
 
 ## Purpose
 
@@ -36,7 +36,7 @@ Completed:
 4. generated docs source registration is reproducible and CI-verified
 5. the old in-app docs content source has been removed
 
-Remaining work is now hardening work, not migration work. That follow-up is tracked in [Release-Facing Polish Plan](../plans/release-polish-plan.md).
+Remaining work is now release-facing closeout work, tracked in the canonical [V1 Release Launch Plan](../plans/v1-release-launch-plan.md).
 
 Contributor-facing guidance should now treat this plan as reference material, not an active work queue.
 
@@ -587,4 +587,4 @@ This migration is complete only when:
 3. old public docs source and fallback indexing structures are removed
 4. contributor guidance references only the new system
 
-All structural conditions above are now satisfied. Remaining follow-up should be treated as hardening and quality work under [Release-Facing Polish Plan](../plans/release-polish-plan.md).
+All structural conditions above are now satisfied. Remaining follow-up should be treated as release-facing quality work under the canonical [V1 Release Launch Plan](../plans/v1-release-launch-plan.md).

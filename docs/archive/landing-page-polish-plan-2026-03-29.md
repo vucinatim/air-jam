@@ -3,7 +3,7 @@
 Archived on: 2026-03-29  
 Final status: mostly complete direction
 
-This plan was folded into the active [Release-Facing Polish Plan](../plans/release-polish-plan.md).
+This plan was folded into the canonical [V1 Release Launch Plan](../plans/v1-release-launch-plan.md).
 
 Why it was archived:
 

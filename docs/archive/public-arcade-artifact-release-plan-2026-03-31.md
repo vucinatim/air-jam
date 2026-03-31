@@ -8,7 +8,7 @@ Related docs:
 1. [Public Arcade Release Strategy](../strategy/public-arcade-release-strategy.md)
 2. [Deployment and Monetization Strategy](../strategy/deployment-and-monetization-strategy.md)
 3. [Framework Paradigm](../framework-paradigm.md)
-4. [Auth Capability Plan](./auth-capability-plan.md)
+4. [Auth Capability Plan (Archived)](./auth-capability-plan-2026-03-31.md)
 
 ## Goal
 

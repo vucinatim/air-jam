@@ -8,7 +8,7 @@ Related docs:
 1. [Work Ledger](../work-ledger.md)
 2. [Framework Paradigm](../framework-paradigm.md)
 3. [Monorepo Operating System](../monorepo-operating-system.md)
-4. [Auth Capability Plan](./auth-capability-plan.md)
+4. [Auth Capability Plan (Archived)](./auth-capability-plan-2026-03-31.md)
 5. [Release-Facing Polish Plan](./release-polish-plan.md)
 
 ## Purpose

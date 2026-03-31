@@ -18,6 +18,10 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 12. Move release moderation off the synchronous publish request path onto a small background job or workflow once real publish volume exists, so browser startup and third-party moderation latency do not stay coupled to the creator-facing publish click forever.
 13. Rename the internal `games.url` column and related server field names to `preview_url` / `previewUrl` once the release push settles, so the persisted data model matches the now-honest dashboard contract instead of carrying the old self-hosted naming forever.
 14. Add a follow-on `GameSettingsRuntime` layered on top of the new platform settings model once prerelease stabilizes, so game-specific preferences can be schema-owned and namespaced without polluting the shared platform settings contract.
+15. Revisit the platform dashboard auth surface after v1 and remove the email/password fallback entirely if GitHub-first usage proves sufficient, so the public auth posture does not carry a knowingly secondary password UX longer than needed.
+16. Add an internal ops review surface for hosted release abuse reports only if report volume or moderation triage actually demands more than the current creator-facing release dashboard.
+17. Add stronger managed-service abuse posture after v1 only if real usage demands it, for example quotas, analytics-backed anomaly handling, or service-tier policy controls beyond the current app-scoped bootstrap and lifecycle rate limits.
+18. Revisit SDK package ergonomics after v1 only if it still materially helps adoption, but do it under the explicit runtime-ownership model rather than reopening the older headless-first singleton-owner direction.
 
 ## Framework Boundary Follow-Ups
 

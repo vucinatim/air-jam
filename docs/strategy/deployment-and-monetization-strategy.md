@@ -6,7 +6,7 @@ Status: active strategy
 Related docs:
 
 1. [Framework Paradigm](./framework-paradigm.md)
-2. [Auth Capability Plan](../plans/auth-capability-plan.md)
+2. [Auth Capability Plan (Archived)](../archive/auth-capability-plan-2026-03-31.md)
 3. [Public Arcade Release Strategy](./public-arcade-release-strategy.md)
 4. [AI Studio Architecture](../systems/ai-studio-architecture.md)
 5. [Docs Index](../docs-index.md)

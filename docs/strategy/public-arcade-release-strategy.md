@@ -7,9 +7,9 @@ Related docs:
 
 1. [Framework Paradigm](../framework-paradigm.md)
 2. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-3. [Auth Capability Plan](../plans/auth-capability-plan.md)
+3. [Auth Capability Plan (Archived)](../archive/auth-capability-plan-2026-03-31.md)
 4. [AI Studio Architecture](../systems/ai-studio-architecture.md)
-5. [Public Arcade Artifact Release Plan](../plans/public-arcade-artifact-release-plan.md)
+5. [Public Arcade Artifact Release Plan (Archived)](../archive/public-arcade-artifact-release-plan-2026-03-31.md)
 
 ## Purpose
 

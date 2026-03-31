@@ -1,17 +1,16 @@
 # Air Jam V1 Release Launch Plan
 
-Last updated: 2026-03-30  
+Last updated: 2026-03-31  
 Status: active
 
 Related docs:
 
-1. [V1 Closeout Plan](./v1-closeout-plan.md)
-2. [Release-Facing Polish Plan](./release-polish-plan.md)
-3. [Platform Dashboard Account Auth Plan](./platform-dashboard-account-auth-plan.md)
-4. [Air Capture Reference Refactor Plan](./air-capture-reference-refactor-plan.md)
-5. [Release Workflow](../strategy/release-workflow.md)
-6. [Production Observability Baseline](../strategy/production-observability-baseline.md)
-7. [Docs Index](../docs-index.md)
+1. [Work Ledger](../work-ledger.md)
+2. [Framework Paradigm](../framework-paradigm.md)
+3. [Public Arcade Release Strategy](../strategy/public-arcade-release-strategy.md)
+4. [Release Workflow](../strategy/release-workflow.md)
+5. [Production Observability Baseline](../strategy/production-observability-baseline.md)
+6. [Docs Index](../docs-index.md)
 
 ## Purpose
 
@@ -23,6 +22,9 @@ This plan captures the concrete path from the current prerelease state to a publ
 4. a simple go-to-market sequence
 
 It exists so launch execution stays ordered and does not fragment across chat notes, polish plans, and content drafts.
+
+This is now the single canonical prerelease execution plan.
+If a remaining item materially affects the v1 release, it should be tracked here instead of staying in a parallel active prerelease plan.
 
 ## Core Position
 
@@ -59,21 +61,36 @@ This plan is not for:
 2. keep GitHub auth as the primary platform sign-in path
 3. treat `air-capture` as the final major reference-app refactor, not an endless polish stream
 4. use the five-game launch set above as the real product proof bar
+5. runtime ownership and shared platform settings are now considered settled prerelease baselines, not active framework tracks
+6. the hosted release lane, managed media lane, and dashboard IA reset are now considered implemented baselines; the remaining v1 work is end-to-end proof, not more product architecture
 
 ## Execution Order
 
 Air Jam should move through launch execution in this order:
 
 1. add the platform dashboard bug-report path
-2. align `air-capture` to the template-style architecture and validate it
+2. close the last `air-capture` reference-quality engine-boundary work
 3. decide which legacy games need full template-aligned structure upgrades
 4. get all five games running locally through Arcade
-5. create release media assets
-6. connect and deploy all public games on official hosting
-7. validate all public games against the official servers
-8. merge the release PR and deploy the platform
-9. publish release content
-10. execute the launch distribution plan
+5. run the final dashboard-level hosted release and managed media proof paths
+6. create release media assets
+7. connect and deploy all public games on official hosting
+8. validate all public games against the official servers
+9. merge the release PR and deploy the platform
+10. publish release content
+11. execute the launch distribution plan
+
+## Completed Baselines That No Longer Need Separate Active Plans
+
+These are already done enough that they should not stay as parallel prerelease tracks:
+
+1. release workflow and CI hardening
+2. browser-level host/controller/join/launch smoke proof
+3. migration proof on the three legacy ZeroDays games
+4. SDK runtime ownership reset for host, controller, and audio
+5. platform settings runtime, inherited iframe sync, and blocked-audio UX
+6. GitHub-first dashboard auth baseline with email/password kept as intentional fallback
+7. public Arcade hosted release lane, managed media lane, moderation/reporting hooks, and dashboard IA reset baseline
 
 ## Phase 1. Platform Feedback Path
 
@@ -97,8 +114,6 @@ Give dashboard users one obvious path to report product bugs during release.
 ## Phase 2. `air-capture` Reference Refactor
 
 Status: active
-
-Reference: [Air Capture Reference Refactor Plan](./air-capture-reference-refactor-plan.md)
 
 ### Goal
 
@@ -171,7 +186,24 @@ Prove the real launch set locally before touching production hosting.
 1. all five games are locally published in Arcade
 2. all five games run cleanly enough to record and present publicly
 
-## Phase 5. Release Media Assets
+## Phase 5. Dashboard Hosted Release And Managed Media Proof
+
+### Goal
+
+Finish the last end-to-end product-proof work on the hosted release lane before public deploy work begins.
+
+### Required outcomes
+
+1. run one dashboard-level hosted release upload → checks → make-live → listed-in-Arcade smoke
+2. run one dashboard-level managed media upload/assignment → public catalog render smoke
+3. confirm these flows against the now-final dashboard IA and hosted release contract
+
+### Done when
+
+1. hosted releases are proven through the real dashboard flow, not only by lower-level implementation confidence
+2. managed media is proven through the real dashboard and public catalog path
+
+## Phase 6. Release Media Assets
 
 ### Goal
 
@@ -193,7 +225,7 @@ The media should clarify the game, not oversell it.
 2. every public game has a cover image
 3. every public game has a preview video where appropriate
 
-## Phase 6. Official Hosting And Platform Connection
+## Phase 7. Official Hosting And Platform Connection
 
 ### Goal
 
@@ -211,7 +243,7 @@ Get the public game set connected to the real hosted platform.
 1. all five games are deployed on official hosting
 2. all five games are connected to the official platform configuration
 
-## Phase 7. Official Server Validation
+## Phase 8. Official Server Validation
 
 ### Goal
 
@@ -227,7 +259,7 @@ Prove the public game set against the actual official backend path.
 
 1. all five games are confirmed working against the official hosted runtime path
 
-## Phase 8. Release Merge And Platform Deploy
+## Phase 9. Release Merge And Platform Deploy
 
 ### Goal
 
@@ -239,7 +271,7 @@ Turn the validated prerelease state into the public platform state.
 2. deploy the new platform
 3. confirm the deployed platform reflects the intended public release surface
 
-## Phase 9. Release Content
+## Phase 10. Release Content
 
 ### Goal
 
@@ -254,7 +286,7 @@ Support the launch with clear public writing.
 
 Content should follow validated product proof, not race ahead of it.
 
-## Phase 10. GTM And Community Setup
+## Phase 11. GTM And Community Setup
 
 ### Goal
 

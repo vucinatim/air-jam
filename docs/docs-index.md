@@ -27,11 +27,7 @@ Strategy and operations:
 
 Release-critical plans:
 
-1. [Release Prep Plan](./plans/release-prep-plan.md)
-2. [V1 Closeout Plan](./plans/v1-closeout-plan.md)
-3. [Release-Facing Polish Plan](./plans/release-polish-plan.md)
-4. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
-5. [Air Capture Reference Refactor Plan](./plans/air-capture-reference-refactor-plan.md)
+1. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
 Migration proof references:
 
@@ -39,16 +35,11 @@ Migration proof references:
 
 Active subsystem plans:
 
-1. [Auth Capability Plan](./plans/auth-capability-plan.md)
-2. [Platform Dashboard Account Auth Plan](./plans/platform-dashboard-account-auth-plan.md)
-3. [Public Arcade Artifact Release Plan](./plans/public-arcade-artifact-release-plan.md)
-4. [SDK Runtime Ownership Reset Plan](./plans/sdk-runtime-ownership-plan.md)
-5. [Platform Settings Runtime Plan](./plans/platform-settings-runtime-plan.md)
+1. none beyond the canonical release plan
 
 Parked future architecture plans:
 
-1. [SDK Composability Plan](./plans/sdk-composability-plan.md)
-2. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
+1. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
 
 Completed transitions / reference plans:
 
@@ -60,6 +51,16 @@ Completed transitions / reference plans:
 6. [Documentation Hardening Plan (Archived)](./archive/documentation-hardening-plan-2026-03-29.md)
 7. [Landing Page Polish Plan (Archived)](./archive/landing-page-polish-plan-2026-03-29.md)
 8. [Legacy Game Migration Working Notes (Archived)](./archive/legacy-game-migration-working-notes-2026-03-29.md)
+9. [Release Prep Plan (Archived)](./archive/release-prep-plan-2026-03-31.md)
+10. [V1 Closeout Plan (Archived)](./archive/v1-closeout-plan-2026-03-31.md)
+11. [Release-Facing Polish Plan (Archived)](./archive/release-polish-plan-2026-03-31.md)
+12. [Air Capture Reference Refactor Plan (Archived)](./archive/air-capture-reference-refactor-plan-2026-03-31.md)
+13. [Platform Dashboard Account Auth Plan (Archived)](./archive/platform-dashboard-account-auth-plan-2026-03-31.md)
+14. [Platform Settings Runtime Plan (Archived)](./archive/platform-settings-runtime-plan-2026-03-31.md)
+15. [SDK Runtime Ownership Reset Plan (Archived)](./archive/sdk-runtime-ownership-plan-2026-03-31.md)
+16. [Public Arcade Artifact Release Plan (Archived)](./archive/public-arcade-artifact-release-plan-2026-03-31.md)
+17. [Auth Capability Plan (Archived)](./archive/auth-capability-plan-2026-03-31.md)
+18. [SDK Composability Plan (Archived)](./archive/sdk-composability-plan-2026-03-31.md)
 
 Content drafts:
 

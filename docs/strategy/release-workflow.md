@@ -5,7 +5,7 @@ Status: active
 
 Related docs:
 
-1. [Release Prep Plan](../plans/release-prep-plan.md)
+1. [Release Prep Plan (Archived)](../archive/release-prep-plan-2026-03-31.md)
 2. [Monorepo Operating System](../monorepo-operating-system.md)
 3. [Docs Index](../docs-index.md)
 
