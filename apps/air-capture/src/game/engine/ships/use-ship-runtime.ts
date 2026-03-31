@@ -5,7 +5,7 @@ import { Euler, MathUtils, Vector3, type Group } from "three";
 
 import { useSendSignal } from "@air-jam/sdk";
 import { useAbilitiesStore } from "../../abilities-store";
-import { useHostAudio } from "../../audio/host-audio";
+import { useHostAudio } from "../../audio/use-host-audio";
 import { useGameInput } from "../../hooks/use-game-input";
 import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
 import { useLasersStore } from "../../stores/projectiles/lasers-store";
@@ -79,17 +79,18 @@ export function useShipRuntime({
   }, [controllerId]);
 
   useEffect(() => {
+    const runtime = runtimeRef.current;
     return () => {
       clearTrackedShipPose(controllerId);
       const nextAudioState = stopShipEngineAudio(
         {
-          idleSoundId: runtimeRef.current.idleSoundId,
-          thrustSoundId: runtimeRef.current.thrustSoundId,
+          idleSoundId: runtime.idleSoundId,
+          thrustSoundId: runtime.thrustSoundId,
         },
         createAudioDriver(audio),
       );
-      runtimeRef.current.idleSoundId = nextAudioState.idleSoundId;
-      runtimeRef.current.thrustSoundId = nextAudioState.thrustSoundId;
+      runtime.idleSoundId = nextAudioState.idleSoundId;
+      runtime.thrustSoundId = nextAudioState.thrustSoundId;
     };
   }, [audio, controllerId]);
 

@@ -78,17 +78,37 @@ describe("arcade embed helpers", () => {
 
   it("creates settings sync message payload", () => {
     const message = createArcadeSettingsSyncMessage({
-      masterVolume: 0.8,
-      musicVolume: 0.6,
-      sfxVolume: 0.4,
+      audio: {
+        masterVolume: 0.8,
+        musicVolume: 0.6,
+        sfxVolume: 0.4,
+      },
+      accessibility: {
+        reducedMotion: true,
+        highContrast: false,
+      },
+      feedback: {
+        hapticsEnabled: true,
+      },
     });
 
     expect(message).toEqual({
       type: "AIRJAM_SETTINGS_SYNC",
       payload: {
-        masterVolume: 0.8,
-        musicVolume: 0.6,
-        sfxVolume: 0.4,
+        settings: {
+          audio: {
+            masterVolume: 0.8,
+            musicVolume: 0.6,
+            sfxVolume: 0.4,
+          },
+          accessibility: {
+            reducedMotion: true,
+            highContrast: false,
+          },
+          feedback: {
+            hapticsEnabled: true,
+          },
+        },
       },
     });
   });

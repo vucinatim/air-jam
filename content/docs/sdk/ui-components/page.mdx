@@ -122,13 +122,15 @@ Avoid:
 
 ### `VolumeControls`
 
-Ready-made control block for master/music/sfx sliders bound to SDK volume store.
+Ready-made control block for master/music/sfx sliders bound to the shared platform settings runtime.
 
 ```tsx
 import { VolumeControls } from "@air-jam/sdk/ui";
 
 <VolumeControls className="w-full max-w-xs" compact />;
 ```
+
+Mount it below `PlatformSettingsRuntime` when you want slider changes to persist in Arcade and inherit into embedded games.
 
 Props:
 
@@ -139,6 +141,7 @@ Use it for:
 
 - in-game settings overlays
 - pause/settings drawers
+- Arcade- or platform-owned settings panels
 
 ---
 

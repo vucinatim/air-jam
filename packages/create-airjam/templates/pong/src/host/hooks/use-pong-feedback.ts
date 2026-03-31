@@ -21,7 +21,7 @@ export const usePongFeedback = ({
   matchSummaryWinner,
   matchSummary,
 }: UsePongFeedbackOptions) => {
-  const audio = useAudio(PONG_SOUND_MANIFEST);
+  const audio = useAudio<keyof typeof PONG_SOUND_MANIFEST & string>();
   const sendSignal = useSendSignal();
   const lastHitAtRef = useRef(0);
   const previousPhaseRef = useRef(matchPhase);

@@ -18,6 +18,7 @@
  * platform-injected sub-controller; see
  * {@link ../runtime/embedded-runtime-adapters.readEmbeddedControllerChildSession}.
  */
+import { useContext } from "react";
 import type {
   ConnectionStatus,
   ControllerOrientation,
@@ -29,26 +30,31 @@ import type {
   RoomCode,
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import { useControllerRuntimeApi } from "./internal/use-controller-runtime-api";
+import { useAssertSessionScope } from "../context/session-providers";
+import { createAirJamDiagnosticError } from "../diagnostics";
+import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
 
 /**
- * Options for configuring the controller connection.
+ * Options for configuring the controller runtime boundary.
  *
- * @example Basic usage (room from URL)
+ * @example Basic runtime boundary usage (room from URL)
  * ```tsx
  * // URL: https://yourgame.com/controller?room=ABCD
- * const controller = useAirJamController();
- * // Automatically joins room ABCD
+ * <AirJamControllerRuntime>
+ *   <ControllerView />
+ * </AirJamControllerRuntime>
  * ```
  *
  * @example With nickname
  * ```tsx
- * const controller = useAirJamController({
- *   nickname: playerName,
- *   onState: (state) => {
+ * <AirJamControllerRuntime
+ *   nickname={playerName}
+ *   onState={(state) => {
  *     if (state.gameState === "playing") startGame();
- *   },
- * });
+ *   }}
+ * >
+ *   <ControllerView />
+ * </AirJamControllerRuntime>
  * ```
  */
 export interface AirJamControllerOptions {
@@ -132,19 +138,11 @@ export interface AirJamControllerApi {
 }
 
 /**
- * Hook for building mobile/web controllers that connect to AirJam hosts.
+ * Read the mounted controller runtime API.
  *
- * This hook handles all the complexity of connecting a mobile controller to a game:
- * - Automatic room joining from URL parameters
- * - Input runtime/session state for `useInputWriter`
- * - Haptic feedback on signal receipt (vibration)
- * - Game state synchronization
- * - Auto-reconnection on disconnect
- *
- * This hook automatically adapts between standalone and arcade iframe runtimes.
- *
- * Mount this once near the top of your controller provider tree. Child components that only need
- * session state should use `useControllerSession()` instead of mounting another runtime owner.
+ * Use this inside `AirJamControllerRuntime` or another explicit controller runtime
+ * boundary such as `airjam.Controller`. Runtime ownership is mounted once at the
+ * boundary; child code reads from that runtime through this hook.
  *
  * **Typical usage flow:**
  * 1. Player scans QR code on game screen
@@ -153,7 +151,6 @@ export interface AirJamControllerApi {
  * 4. Player uses joystick/buttons to send input
  * 5. Receives haptic feedback on game events
  *
- * @param options - Configuration options
  * @returns Controller API with state and functions
  *
  * @example Basic controller setup
@@ -176,17 +173,32 @@ export interface AirJamControllerApi {
  *
  * @example With state callback
  * ```tsx
- * const controller = useAirJamController({
- *   onState: (state) => {
+ * <AirJamControllerRuntime
+ *   onState={(state) => {
  *     if (state.message) {
  *       showNotification(state.message);
  *     }
- *   },
- * });
+ *   }}
+ * >
+ *   <ControllerView />
+ * </AirJamControllerRuntime>
  * ```
  */
-export const useAirJamController = (
-  options: AirJamControllerOptions = {},
-): AirJamControllerApi => {
-  return useControllerRuntimeApi(options, "useAirJamController");
+export const useAirJamController = (): AirJamControllerApi => {
+  useAssertSessionScope("controller", "useAirJamController");
+
+  const runtime = useContext(controllerRuntimeContext);
+  if (!runtime) {
+    throw createAirJamDiagnosticError(
+      "AJ_SCOPE_MISMATCH",
+      "useAirJamController requires a mounted controller runtime boundary. Wrap the controller tree with <AirJamControllerRuntime> or <airjam.Controller> before reading controller state.",
+      {
+        hookName: "useAirJamController",
+        expectedScope: "controller",
+        receivedScope: "controller",
+      },
+    );
+  }
+
+  return runtime as AirJamControllerApi;
 };

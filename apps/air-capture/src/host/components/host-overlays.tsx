@@ -332,6 +332,29 @@ export const HostMuteButton = ({
   </Button>
 );
 
+export const AudioBlockedPrompt = ({
+  onEnable,
+}: {
+  onEnable: () => void;
+}): JSX.Element => (
+  <div className="pointer-events-auto absolute right-4 bottom-4 z-90 max-w-sm rounded-xl border border-amber-300/30 bg-black/80 p-4 text-white shadow-2xl backdrop-blur-md">
+    <div className="text-[10px] font-semibold tracking-[0.18em] text-amber-200 uppercase">
+      Audio Blocked
+    </div>
+    <div className="mt-2 text-sm leading-5 text-zinc-200">
+      Your browser blocked game audio on startup. Enable it once here so music
+      and sound effects can play without clicking inside the game.
+    </div>
+    <Button
+      type="button"
+      onClick={onEnable}
+      className="mt-3 h-9 bg-amber-300 px-4 text-xs font-black tracking-[0.16em] text-black uppercase hover:bg-amber-200"
+    >
+      Enable Audio
+    </Button>
+  </div>
+);
+
 export const GameplayFallback = () => {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black text-sm font-semibold tracking-[0.18em] text-white/70 uppercase">

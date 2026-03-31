@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { onAirJamDiagnostic } from "../src/diagnostics";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
 import { resetControllerRealtimeClientForTests } from "../src/runtime/controller-realtime-client";
 import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
+import {
+  AirJamControllerRuntime,
+  AirJamHostRuntime,
+} from "../src/runtime/session-runtimes";
 import { createAirJamStore } from "../src/state/connection-store";
 
 const mocked = vi.hoisted(() => ({
@@ -51,14 +57,58 @@ const mocked = vi.hoisted(() => ({
   useClaimSessionRuntimeOwner: vi.fn(),
 }));
 
-vi.mock("../src/context/air-jam-context", () => ({
-  useAirJamContext: mocked.useAirJamContext,
-}));
+vi.mock("../src/context/air-jam-context", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/context/air-jam-context")
+  >("../src/context/air-jam-context");
 
-vi.mock("../src/context/session-providers", () => ({
-  useAssertSessionScope: mocked.useAssertSessionScope,
-  useClaimSessionRuntimeOwner: mocked.useClaimSessionRuntimeOwner,
-}));
+  return {
+    ...actual,
+    useAirJamContext: mocked.useAirJamContext,
+  };
+});
+
+vi.mock("../src/context/session-providers", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/context/session-providers")
+  >("../src/context/session-providers");
+
+  return {
+    ...actual,
+    useAssertSessionScope: mocked.useAssertSessionScope,
+    useClaimSessionRuntimeOwner: mocked.useClaimSessionRuntimeOwner,
+  };
+});
+
+const PROVIDER_CONFIG = {
+  serverUrl: "http://localhost:3001",
+  appId: "test_app_id",
+};
+
+const createHostWrapper =
+  () =>
+  ({ children }: { children: ReactNode }) =>
+    React.createElement(AirJamHostRuntime, {
+      ...PROVIDER_CONFIG,
+      children,
+    });
+
+const createControllerWrapper =
+  (options: {
+    roomId?: string;
+    controllerId?: string;
+    nickname?: string;
+    avatarId?: string;
+  } = {}) =>
+  ({ children }: { children: ReactNode }) =>
+    React.createElement(
+      AirJamControllerRuntime,
+      {
+        ...PROVIDER_CONFIG,
+        ...options,
+        children,
+      },
+    );
 
 describe("session reconnect behavior", () => {
   beforeEach(() => {
@@ -95,12 +145,12 @@ describe("session reconnect behavior", () => {
   });
 
   it("recovers controller status when the cached socket is already connected", async () => {
-    const { result } = renderHook(() =>
-      useAirJamController({
+    const { result } = renderHook(() => useAirJamController(), {
+      wrapper: createControllerWrapper({
         roomId: "ROOM1",
         controllerId: "ctrl_1",
       }),
-    );
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
@@ -137,7 +187,9 @@ describe("session reconnect behavior", () => {
       },
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
@@ -180,7 +232,9 @@ describe("session reconnect behavior", () => {
       },
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
@@ -214,7 +268,9 @@ describe("session reconnect behavior", () => {
       },
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
@@ -292,7 +348,9 @@ describe("session reconnect behavior", () => {
       },
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
@@ -335,7 +393,9 @@ describe("session reconnect behavior", () => {
       },
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("disconnected");
@@ -367,7 +427,9 @@ describe("session reconnect behavior", () => {
       },
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
@@ -427,7 +489,9 @@ describe("session reconnect behavior", () => {
       },
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.connectionStatus).toBe("connected");
@@ -445,7 +509,9 @@ describe("session reconnect behavior", () => {
       "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.joinUrl).toBe(
@@ -462,7 +528,9 @@ describe("session reconnect behavior", () => {
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
-    const { result, unmount } = renderHook(() => useAirJamHost());
+    const { result, unmount } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
     const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
     const bridgePort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
     expect(bridgePort).toBeDefined();
@@ -512,7 +580,9 @@ describe("session reconnect behavior", () => {
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
-    const { result, unmount } = renderHook(() => useAirJamController());
+    const { result, unmount } = renderHook(() => useAirJamController(), {
+      wrapper: createControllerWrapper(),
+    });
     const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
     const bridgePort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
     expect(bridgePort).toBeDefined();

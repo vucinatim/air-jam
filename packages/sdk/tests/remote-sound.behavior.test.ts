@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AudioManager } from "../src/audio/audio-manager";
-import { isManifestSoundId, useRemoteSound } from "../src/audio/hooks";
+import {
+  ControllerRemoteAudioRuntime,
+  useAudio,
+} from "../src/audio/hooks";
+import { ControllerSessionProvider } from "../src/context/session-providers";
 
 const mocked = vi.hoisted(() => {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -36,37 +40,84 @@ const mocked = vi.hoisted(() => {
     },
   };
 
+  const howlPlay = vi.fn(() => 101);
+
+  class MockHowl {
+    play = howlPlay;
+    volume = vi.fn();
+    loop = vi.fn();
+    rate = vi.fn();
+    once = vi.fn();
+    stop = vi.fn();
+    pos = vi.fn();
+    pannerAttr = vi.fn();
+    mute = vi.fn();
+  }
+
   return {
     socket,
     listeners,
+    howlPlay,
     useAirJamContext: vi.fn(),
     useAssertSessionScope: vi.fn(),
+    MockHowl,
   };
 });
 
-vi.mock("../src/context/air-jam-context", () => ({
-  useAirJamContext: mocked.useAirJamContext,
+vi.mock("howler", () => ({
+  Howl: mocked.MockHowl,
+  Howler: {
+    ctx: {
+      state: "running",
+      resume: vi.fn(),
+    },
+    stop: vi.fn(),
+    volume: vi.fn(),
+    mute: vi.fn(),
+    pos: vi.fn(),
+    orientation: vi.fn(),
+  },
 }));
 
-vi.mock("../src/context/session-providers", () => ({
-  useAssertSessionScope: mocked.useAssertSessionScope,
-}));
+vi.mock("../src/context/air-jam-context", async () => {
+  const actual =
+    await vi.importActual<typeof import("../src/context/air-jam-context")>(
+      "../src/context/air-jam-context",
+    );
 
-describe("useRemoteSound", () => {
+  return {
+    ...actual,
+    useAirJamContext: mocked.useAirJamContext,
+  };
+});
+
+vi.mock("../src/context/session-providers", async () => {
+  const actual =
+    await vi.importActual<typeof import("../src/context/session-providers")>(
+      "../src/context/session-providers",
+    );
+
+  return {
+    ...actual,
+    useAssertSessionScope: mocked.useAssertSessionScope,
+  };
+});
+
+describe("ControllerRemoteAudioRuntime", () => {
   const manifest: Record<"hit" | "score", { src: string[] }> = {
     hit: { src: ["/sounds/hit.wav"] },
     score: { src: ["/sounds/score.wav"] },
   };
-  const playSpy = vi.fn();
-  const audio = {
-    play: playSpy,
-  } as unknown as AudioManager<"hit" | "score">;
 
   beforeEach(() => {
     mocked.useAirJamContext.mockReturnValue({
       getSocket: () => mocked.socket,
+      store: {
+        getState: () => ({ role: "controller", roomId: "room-1" }),
+        subscribe: () => () => {},
+      },
     });
-    playSpy.mockReset();
+    mocked.howlPlay.mockClear();
   });
 
   afterEach(() => {
@@ -75,7 +126,14 @@ describe("useRemoteSound", () => {
   });
 
   it("plays only manifest-known remote sounds", () => {
-    renderHook(() => useRemoteSound(manifest, audio));
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(
+        ControllerSessionProvider,
+        null,
+        createElement(ControllerRemoteAudioRuntime, { manifest, children }),
+      );
+
+    renderHook(() => useAudio<"hit" | "score">(), { wrapper });
 
     act(() => {
       mocked.socket.trigger("server:playSound", {
@@ -83,10 +141,7 @@ describe("useRemoteSound", () => {
         volume: 0.5,
       });
     });
-    expect(audio.play).toHaveBeenCalledWith("hit", {
-      volume: 0.5,
-      loop: undefined,
-    });
+    expect(mocked.howlPlay).toHaveBeenCalledTimes(1);
 
     act(() => {
       mocked.socket.trigger("server:playSound", {
@@ -94,12 +149,6 @@ describe("useRemoteSound", () => {
         volume: 0.8,
       });
     });
-    expect(audio.play).toHaveBeenCalledTimes(1);
-  });
-
-  it("provides a runtime sound ID guard helper", () => {
-    expect(isManifestSoundId(manifest, "hit")).toBe(true);
-    expect(isManifestSoundId(manifest, "missing")).toBe(false);
-    expect(isManifestSoundId(manifest, 123)).toBe(false);
+    expect(mocked.howlPlay).toHaveBeenCalledTimes(1);
   });
 });

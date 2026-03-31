@@ -43,14 +43,35 @@ describe("iframe bridge contracts", () => {
     expect(
       isAirJamSettingsSyncMessage({
         type: AIRJAM_SETTINGS_SYNC,
-        payload: { masterVolume: 0.5, musicVolume: 0.8, sfxVolume: 1 },
+        payload: {
+          settings: {
+            audio: {
+              masterVolume: 0.5,
+              musicVolume: 0.8,
+              sfxVolume: 1,
+            },
+            accessibility: {
+              reducedMotion: false,
+              highContrast: true,
+            },
+            feedback: {
+              hapticsEnabled: true,
+            },
+          },
+        },
       }),
     ).toBe(true);
 
     expect(
       isAirJamSettingsSyncMessage({
         type: AIRJAM_SETTINGS_SYNC,
-        payload: { masterVolume: "loud" },
+        payload: {
+          settings: {
+            audio: {
+              masterVolume: "loud",
+            },
+          },
+        },
       }),
     ).toBe(false);
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { ControllerMenuNotch } from "@/components/controller-menu-notch";
+import { PlatformSettingsPanel } from "@/components/platform-settings-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import {
   type ControllerOrientation,
   type DocumentWithFullscreen,
   type ElementWithFullscreen,
+  type PlatformSettingsSnapshot,
   type PlayerProfile,
 } from "@air-jam/sdk";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
@@ -47,6 +49,15 @@ interface ControllerMenuSheetProps {
   documentFullscreen: boolean;
   /** Host arcade join QR overlay is visible (replicated `ArcadeSurfaceState.overlay === "qr"`). */
   hostQrVisible: boolean;
+  hapticsEnabled: boolean;
+  reducedMotion: boolean;
+  highContrast: boolean;
+  sharedPlatformSettings: PlatformSettingsSnapshot | null;
+  onUpdateSharedPlatformSettings: (patch: {
+    audio?: Partial<PlatformSettingsSnapshot["audio"]>;
+    accessibility?: Partial<PlatformSettingsSnapshot["accessibility"]>;
+    feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
+  }) => void;
 }
 
 /** Shared top-left: avatar + “Room” label, status dot, room code (sheet + floating bar). */
@@ -106,6 +117,11 @@ export function ControllerMenuSheet({
   controllerOrientation,
   documentFullscreen,
   hostQrVisible,
+  hapticsEnabled,
+  reducedMotion,
+  highContrast,
+  sharedPlatformSettings,
+  onUpdateSharedPlatformSettings,
 }: ControllerMenuSheetProps) {
   const router = useRouter();
 
@@ -372,14 +388,31 @@ export function ControllerMenuSheet({
       ? "mr-[env(safe-area-inset-right)]"
       : "mt-[env(safe-area-inset-top)]";
   const overlayFrameClass = landscapeMenu
-    ? "items-stretch justify-end bg-black/72 backdrop-blur-sm"
-    : "flex-col bg-black/97";
+    ? cn(
+        "items-stretch justify-end backdrop-blur-sm",
+        highContrast ? "bg-black/82" : "bg-black/72",
+      )
+    : highContrast
+      ? "flex-col bg-black"
+      : "flex-col bg-black/97";
   const overlayPanelClass = landscapeMenu
-    ? "flex h-full w-full max-w-md flex-col bg-black/97 shadow-2xl"
-    : "flex h-full w-full flex-col bg-black/97";
+    ? cn(
+        "flex h-full w-full max-w-md flex-col shadow-2xl",
+        highContrast ? "border-l border-white/20 bg-black" : "bg-black/97",
+      )
+    : cn(
+        "flex h-full w-full flex-col",
+        highContrast ? "border-t border-white/15 bg-black" : "bg-black/97",
+      );
   const overlayBodyClass = landscapeMenu
     ? "min-h-0 flex-1 overflow-y-auto px-4 py-5"
     : "min-h-0 flex-1 overflow-y-auto px-4 py-6";
+  const notchIconTransition = reducedMotion
+    ? { duration: 0.01 }
+    : { duration: 0.15 };
+  const overlayTransition = reducedMotion
+    ? { duration: 0.01 }
+    : { type: "spring" as const, stiffness: 420, damping: 38 };
 
   const overlayChrome = (
     <header
@@ -406,7 +439,7 @@ export function ControllerMenuSheet({
           variant={hostQrVisible ? "default" : "outline"}
           size="icon-touch"
           onClick={() => {
-            triggerLocalHaptic("selection");
+            if (hapticsEnabled) triggerLocalHaptic("selection");
             emitArcadeAction(airJamArcadePlatformActions.toggleQr);
           }}
           aria-label={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
@@ -498,7 +531,7 @@ export function ControllerMenuSheet({
               : "bg-background/50 backdrop-blur-sm",
           )}
           onClick={() => {
-            triggerLocalHaptic("selection");
+            if (hapticsEnabled) triggerLocalHaptic("selection");
             emitArcadeAction(airJamArcadePlatformActions.toggleQr);
           }}
           aria-label={hostQrVisible ? "Hide host join QR" : "Show host join QR"}
@@ -567,7 +600,7 @@ export function ControllerMenuSheet({
                 initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
                 exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
-                transition={{ duration: 0.15 }}
+                transition={notchIconTransition}
                 className="absolute flex items-center justify-center"
               >
                 <X
@@ -582,17 +615,21 @@ export function ControllerMenuSheet({
                 initial={{ opacity: 0, scale: 0.5, rotate: 90 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
                 exit={{ opacity: 0, scale: 0.5, rotate: -90 }}
-                transition={{ duration: 0.15 }}
+                transition={notchIconTransition}
                 className="absolute flex items-center justify-center"
               >
                 <motion.div
                   className="flex items-center justify-center"
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{
-                    repeat: Infinity,
-                    duration: 3.2,
-                    ease: "easeInOut",
-                  }}
+                  animate={reducedMotion ? undefined : { scale: [1, 1.1, 1] }}
+                  transition={
+                    reducedMotion
+                      ? undefined
+                      : {
+                          repeat: Infinity,
+                          duration: 3.2,
+                          ease: "easeInOut",
+                        }
+                  }
                 >
                   <Image
                     src="/images/airjam-logo.png"
@@ -613,10 +650,22 @@ export function ControllerMenuSheet({
           <motion.div
             key="controller-overlay"
             className={cn("fixed inset-0 z-50 flex", overlayFrameClass)}
-            initial={landscapeMenu ? { x: "100%" } : { y: "-100%" }}
-            animate={landscapeMenu ? { x: 0 } : { y: 0 }}
-            exit={landscapeMenu ? { x: "100%" } : { y: "-100%" }}
-            transition={{ type: "spring", stiffness: 420, damping: 38 }}
+            initial={
+              reducedMotion
+                ? { opacity: 0 }
+                : landscapeMenu
+                  ? { x: "100%" }
+                  : { y: "-100%" }
+            }
+            animate={reducedMotion ? { opacity: 1 } : landscapeMenu ? { x: 0 } : { y: 0 }}
+            exit={
+              reducedMotion
+                ? { opacity: 0 }
+                : landscapeMenu
+                  ? { x: "100%" }
+                  : { y: "-100%" }
+            }
+            transition={overlayTransition}
           >
             <div className={overlayPanelClass}>
               {overlayChrome}
@@ -690,7 +739,7 @@ export function ControllerMenuSheet({
                       className="w-full"
                       disabled={saveProfileSuccess}
                       onClick={() => {
-                        triggerLocalHaptic("action");
+                        if (hapticsEnabled) triggerLocalHaptic("action");
                         void saveProfile();
                       }}
                     >
@@ -754,7 +803,7 @@ export function ControllerMenuSheet({
                         className="w-full"
                         disabled={applyRoomSuccess}
                         onClick={() => {
-                          triggerLocalHaptic("action");
+                          if (hapticsEnabled) triggerLocalHaptic("action");
                           applyRoom();
                         }}
                       >
@@ -804,7 +853,7 @@ export function ControllerMenuSheet({
                         size="touch"
                         className="w-full"
                         onClick={() => {
-                          triggerLocalHaptic("action");
+                          if (hapticsEnabled) triggerLocalHaptic("action");
                           setScanning(true);
                         }}
                       >
@@ -813,6 +862,23 @@ export function ControllerMenuSheet({
                       </Button>
                     </div>
                   </section>
+
+                  {sharedPlatformSettings ? (
+                    <PlatformSettingsPanel
+                      settings={sharedPlatformSettings}
+                      onUpdateAudio={(audio) =>
+                        onUpdateSharedPlatformSettings({ audio })
+                      }
+                      onUpdateAccessibility={(accessibility) =>
+                        onUpdateSharedPlatformSettings({ accessibility })
+                      }
+                      onUpdateFeedback={(feedback) =>
+                        onUpdateSharedPlatformSettings({ feedback })
+                      }
+                    />
+                  ) : (
+                    <PlatformSettingsPanel />
+                  )}
                 </div>
               </div>
             </div>

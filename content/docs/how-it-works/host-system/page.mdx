@@ -19,13 +19,20 @@ import { StandaloneHostDiagram } from "@/components/docs/figures/standalone-host
 **Usage:**
 
 ```tsx filename="src/components/HostView.tsx"
-import { useAirJamHost } from "@air-jam/sdk";
+import { AirJamHostRuntime, useAirJamHost } from "@air-jam/sdk";
+
+const HostShell = () => (
+  <AirJamHostRuntime
+    input={{ schema: gameInputSchema }}
+    onPlayerJoin={(player) => spawnPlayer(player)}
+    onPlayerLeave={(id) => removePlayer(id)}
+  >
+    <HostView />
+  </AirJamHostRuntime>
+);
 
 const HostView = () => {
-  const host = useAirJamHost({
-    onPlayerJoin: (player) => spawnPlayer(player),
-    onPlayerLeave: (id) => removePlayer(id),
-  });
+  const host = useAirJamHost();
 
   // Host receives all input directly
   useFrame(() => {
@@ -123,14 +130,8 @@ This focus system does not replace the normal Air Jam model. It only decides whi
 With focus set to `GAME`, all controller input routes to your game:
 
 ```tsx
-// Your game receives input normally
-const host = useAirJamHost({
-  onPlayerJoin: (player) => {
-    // Existing players synced on launch
-    // New players join during gameplay
-    spawnPlayer(player);
-  },
-});
+// Your game receives input normally inside the mounted host runtime.
+const host = useAirJamHost();
 
 useFrame(() => {
   host.players.forEach((player) => {
@@ -164,11 +165,15 @@ useFrame(() => {
 ### Standalone Mode
 
 ```tsx
-// Automatic registration when useAirJamHost is called
-const host = useAirJamHost({
-  roomId: "GAME", // Optional custom room code
-});
+<AirJamHostRuntime
+  roomId="GAME"
+  input={{ schema: gameInputSchema }}
+>
+  <HostView />
+</AirJamHostRuntime>
 
+// Inside HostView:
+const host = useAirJamHost();
 // host.roomId contains the room code
 // host.joinUrl contains full URL for QR code
 ```
@@ -186,11 +191,7 @@ Game code does not change between those modes.
 ```tsx
 // SDK auto-detects embedded runtime context from platform-injected params.
 // Game code should not parse those params directly.
-const host = useAirJamHost({
-  onPlayerJoin: (player) => {
-    // Existing players synced automatically
-  },
-});
+const host = useAirJamHost();
 
 // Embedded close/lifecycle handling is owned by the arcade platform adapter.
 // Game hosts should keep gameplay logic in host callbacks/input loops only.
@@ -201,27 +202,24 @@ const host = useAirJamHost({
 ### Player Lifecycle
 
 ```tsx
-const host = useAirJamHost({
-  onPlayerJoin: (player) => {
-    // player.id - Unique identifier
-    // player.label - Display name ("Player 1", etc.)
-    // player.color - Assigned color ("#FF5733")
-    // player.nickname - Optional custom name
-
-    spawnPlayerEntity(player);
-    host.sendSignal(
-      "TOAST",
-      {
-        title: `Welcome ${player.label}!`,
-      },
-      player.id,
-    );
-  },
-
-  onPlayerLeave: (controllerId) => {
-    removePlayerEntity(controllerId);
-  },
-});
+const HostShell = () => (
+  <AirJamHostRuntime
+    input={{ schema: gameInputSchema }}
+    onPlayerJoin={(player) => {
+      // player.id - Unique identifier
+      // player.label - Display name ("Player 1", etc.)
+      // player.color - Assigned color ("#FF5733")
+      // player.nickname - Optional custom name
+      spawnPlayerEntity(player);
+      announceJoin(player.label);
+    }}
+    onPlayerLeave={(controllerId) => {
+      removePlayerEntity(controllerId);
+    }}
+  >
+    <HostView />
+  </AirJamHostRuntime>
+);
 ```
 
 ### Accessing Players

@@ -1,14 +1,36 @@
 import { Headphones, Music, Volume2 } from "lucide-react";
-import { useVolumeStore } from "../audio/volume-store";
+import {
+  usePlatformAudioSettings,
+  type PlatformAudioSettingsApi,
+} from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import { Slider } from "./ui/slider";
 
 interface VolumeControlsProps {
   className?: string;
   compact?: boolean;
+  values?: Pick<
+    PlatformAudioSettingsApi,
+    "masterVolume" | "musicVolume" | "sfxVolume"
+  >;
+  readOnly?: boolean;
+  onMasterVolumeChange?: (volume: number) => void;
+  onMusicVolumeChange?: (volume: number) => void;
+  onSfxVolumeChange?: (volume: number) => void;
 }
 
-export function VolumeControls({ className, compact }: VolumeControlsProps) {
+export function VolumeControls(props: VolumeControlsProps) {
+  if (props.values) {
+    return <ControlledVolumeControls {...props} />;
+  }
+
+  return <OwnedVolumeControls {...props} />;
+}
+
+function OwnedVolumeControls({
+  className,
+  compact,
+}: VolumeControlsProps) {
   const {
     masterVolume,
     musicVolume,
@@ -16,7 +38,35 @@ export function VolumeControls({ className, compact }: VolumeControlsProps) {
     setMasterVolume,
     setMusicVolume,
     setSfxVolume,
-  } = useVolumeStore();
+  } = usePlatformAudioSettings();
+
+  return (
+    <ControlledVolumeControls
+      className={className}
+      compact={compact}
+      values={{ masterVolume, musicVolume, sfxVolume }}
+      onMasterVolumeChange={setMasterVolume}
+      onMusicVolumeChange={setMusicVolume}
+      onSfxVolumeChange={setSfxVolume}
+      readOnly={false}
+    />
+  );
+}
+
+function ControlledVolumeControls({
+  className,
+  compact,
+  values,
+  readOnly = false,
+  onMasterVolumeChange,
+  onMusicVolumeChange,
+  onSfxVolumeChange,
+}: VolumeControlsProps) {
+  if (!values) {
+    throw new Error("ControlledVolumeControls requires values");
+  }
+
+  const { masterVolume, musicVolume, sfxVolume } = values;
 
   return (
     <div className={cn("flex flex-col gap-3", compact && "gap-1", className)}>
@@ -36,12 +86,15 @@ export function VolumeControls({ className, compact }: VolumeControlsProps) {
         </div>
         <Slider
           value={[masterVolume * 100]}
-          onValueChange={(values) => setMasterVolume(values[0] / 100)}
+          onValueChange={(sliderValues) =>
+            onMasterVolumeChange?.(sliderValues[0] / 100)
+          }
           min={0}
           max={100}
           step={1}
           className="w-full"
           aria-label="Master volume"
+          disabled={readOnly}
         />
       </div>
 
@@ -58,12 +111,15 @@ export function VolumeControls({ className, compact }: VolumeControlsProps) {
         </div>
         <Slider
           value={[musicVolume * 100]}
-          onValueChange={(values) => setMusicVolume(values[0] / 100)}
+          onValueChange={(sliderValues) =>
+            onMusicVolumeChange?.(sliderValues[0] / 100)
+          }
           min={0}
           max={100}
           step={1}
           className="w-full"
           aria-label="Music volume"
+          disabled={readOnly}
         />
       </div>
 
@@ -80,12 +136,15 @@ export function VolumeControls({ className, compact }: VolumeControlsProps) {
         </div>
         <Slider
           value={[sfxVolume * 100]}
-          onValueChange={(values) => setSfxVolume(values[0] / 100)}
+          onValueChange={(sliderValues) =>
+            onSfxVolumeChange?.(sliderValues[0] / 100)
+          }
           min={0}
           max={100}
           step={1}
           className="w-full"
           aria-label="SFX volume"
+          disabled={readOnly}
         />
       </div>
     </div>

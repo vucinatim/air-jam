@@ -1,9 +1,8 @@
 import {
-  AudioProvider,
+  ControllerRemoteAudioRuntime,
+  PlatformSettingsRuntime,
   useAudio,
-  useProvidedAudio,
-  useRemoteSound,
-  type AudioManager,
+  type AudioHandle,
   type PlayOptions,
 } from "@air-jam/sdk";
 import { useMemo, type ReactNode } from "react";
@@ -13,7 +12,7 @@ import {
 } from "./sounds";
 
 type ControllerAudioDriver = Pick<
-  AudioManager<ControllerSoundId>,
+  AudioHandle<ControllerSoundId>,
   "init" | "isMuted" | "mute" | "play" | "stop"
 >;
 
@@ -44,16 +43,19 @@ export function ControllerAudioProvider({
   children: ReactNode;
   remoteEnabled: boolean;
 }) {
-  const audio = useAudio(CONTROLLER_SOUND_MANIFEST);
-
-  useRemoteSound(CONTROLLER_SOUND_MANIFEST, audio, {
-    enabled: remoteEnabled,
-  });
-
-  return <AudioProvider manager={audio}>{children}</AudioProvider>;
+  return (
+    <PlatformSettingsRuntime>
+      <ControllerRemoteAudioRuntime
+        manifest={CONTROLLER_SOUND_MANIFEST}
+        enabled={remoteEnabled}
+      >
+        {children}
+      </ControllerRemoteAudioRuntime>
+    </PlatformSettingsRuntime>
+  );
 }
 
 export function useControllerAudio(): ControllerAudioFacade {
-  const audio = useProvidedAudio<ControllerSoundId>();
+  const audio = useAudio<ControllerSoundId>();
   return useMemo(() => createControllerAudioFacade(audio), [audio]);
 }

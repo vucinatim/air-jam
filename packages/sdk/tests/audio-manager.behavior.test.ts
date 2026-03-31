@@ -85,4 +85,29 @@ describe("AudioManager", () => {
     expect(mocked.howlPlay).toHaveBeenCalledTimes(1);
     expect(mocked.howlVolume).toHaveBeenCalled();
   });
+
+  it("recomputes loaded sound volume from platform settings", () => {
+    mocked.howler.ctx.state = "running";
+
+    const audio = new AudioManager({
+      hit: { src: ["/sounds/hit.wav"], volume: 0.5 },
+      music: {
+        src: ["/sounds/music.mp3"],
+        volume: 0.75,
+        category: "music",
+      },
+    });
+
+    audio.applyPlatformAudioSettings({
+      masterVolume: 0.4,
+      musicVolume: 0.5,
+      sfxVolume: 0.25,
+    });
+
+    expect(mocked.howlVolume).toHaveBeenNthCalledWith(1, 0.05);
+    expect(mocked.howlVolume).toHaveBeenNthCalledWith(
+      2,
+      expect.closeTo(0.15, 5),
+    );
+  });
 });

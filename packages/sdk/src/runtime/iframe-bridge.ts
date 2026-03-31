@@ -5,14 +5,17 @@ import {
   type V2Handshake,
   v2HandshakeSchema,
 } from "../contracts/v2";
+import {
+  normalizePlatformSettings,
+  type PlatformSettingsSnapshot,
+} from "../settings/platform-settings";
 
 export const AIRJAM_BRIDGE_INIT = "AIRJAM_BRIDGE_INIT" as const;
 export const AIRJAM_SETTINGS_SYNC = "AIRJAM_SETTINGS_SYNC" as const;
+export const AIRJAM_SETTINGS_READY = "AIRJAM_SETTINGS_READY" as const;
 
 export interface AirJamSettingsSyncPayload {
-  masterVolume?: number;
-  musicVolume?: number;
-  sfxVolume?: number;
+  settings: PlatformSettingsSnapshot;
 }
 
 export interface AirJamSettingsSyncMessage {
@@ -27,14 +30,40 @@ export interface AirJamBridgeInitMessage {
   };
 }
 
+export interface AirJamSettingsReadyMessage {
+  type: typeof AIRJAM_SETTINGS_READY;
+  payload: {
+    ready: true;
+  };
+}
+
 const airJamSettingsSyncSchema = z
   .object({
     type: z.literal(AIRJAM_SETTINGS_SYNC),
     payload: z
       .object({
-        masterVolume: z.number().optional(),
-        musicVolume: z.number().optional(),
-        sfxVolume: z.number().optional(),
+        settings: z
+          .object({
+            audio: z
+              .object({
+                masterVolume: z.number(),
+                musicVolume: z.number(),
+                sfxVolume: z.number(),
+              })
+              .strict(),
+            accessibility: z
+              .object({
+                reducedMotion: z.boolean(),
+                highContrast: z.boolean(),
+              })
+              .strict(),
+            feedback: z
+              .object({
+                hapticsEnabled: z.boolean(),
+              })
+              .strict(),
+          })
+          .strict(),
       })
       .strict(),
   })
@@ -51,6 +80,17 @@ const airJamBridgeInitSchema = z
   })
   .strict();
 
+const airJamSettingsReadySchema = z
+  .object({
+    type: z.literal(AIRJAM_SETTINGS_READY),
+    payload: z
+      .object({
+        ready: z.literal(true),
+      })
+      .strict(),
+  })
+  .strict();
+
 export const createBridgeHandshake = ({
   sdkVersion,
   runtimeKind,
@@ -59,19 +99,19 @@ export const createBridgeHandshake = ({
   sdkVersion: string;
   runtimeKind: RuntimeKind;
   capabilityFlags?: Record<string, boolean>;
-}): V2Handshake => {
-  return v2HandshakeSchema.parse({
+}): V2Handshake =>
+  v2HandshakeSchema.parse({
     protocolVersion: AIR_JAM_PROTOCOL_V2,
     sdkVersion,
     runtimeKind,
     capabilityFlags,
   });
-};
 
 export const isAirJamSettingsSyncMessage = (
   value: unknown,
 ): value is AirJamSettingsSyncMessage => {
-  return airJamSettingsSyncSchema.safeParse(value).success;
+  const result = airJamSettingsSyncSchema.safeParse(value);
+  return result.success && !!normalizePlatformSettings(result.data.payload.settings);
 };
 
 export const parseAirJamBridgeInitMessage = (
@@ -79,4 +119,10 @@ export const parseAirJamBridgeInitMessage = (
 ): AirJamBridgeInitMessage | null => {
   const result = airJamBridgeInitSchema.safeParse(value);
   return result.success ? result.data : null;
+};
+
+export const isAirJamSettingsReadyMessage = (
+  value: unknown,
+): value is AirJamSettingsReadyMessage => {
+  return airJamSettingsReadySchema.safeParse(value).success;
 };

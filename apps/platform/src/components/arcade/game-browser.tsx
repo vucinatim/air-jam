@@ -2,8 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { SoundManifest } from "@air-jam/sdk";
-import { useAudio } from "@air-jam/sdk";
+import { AudioRuntime, useAudio, type SoundManifest } from "@air-jam/sdk";
 import { Gamepad2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GamePlayerGame } from "./game-player";
@@ -22,6 +21,7 @@ interface GameBrowserProps {
   games: GamePlayerGame[];
   selectedIndex: number;
   isVisible: boolean;
+  reducedMotion?: boolean;
   onSelectGame: (game: GamePlayerGame, index: number) => void;
   header?: React.ReactNode;
   /** Fires when the browser list is scrolled to / away from the top (for chrome styling). */
@@ -36,6 +36,31 @@ export const GameBrowser = ({
   games,
   selectedIndex,
   isVisible,
+  reducedMotion = false,
+  onSelectGame,
+  header,
+  onScrollTopChange,
+}: GameBrowserProps) => {
+  return (
+    <AudioRuntime manifest={ARCADE_SOUND_MANIFEST}>
+      <GameBrowserContent
+        games={games}
+        selectedIndex={selectedIndex}
+        isVisible={isVisible}
+        reducedMotion={reducedMotion}
+        onSelectGame={onSelectGame}
+        header={header}
+        onScrollTopChange={onScrollTopChange}
+      />
+    </AudioRuntime>
+  );
+};
+
+const GameBrowserContent = ({
+  games,
+  selectedIndex,
+  isVisible,
+  reducedMotion = false,
   onSelectGame,
   header,
   onScrollTopChange,
@@ -43,7 +68,7 @@ export const GameBrowser = ({
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
-  const audio = useAudio(ARCADE_SOUND_MANIFEST);
+  const audio = useAudio<"select">();
   const prevSelectedIndexRef = useRef<number | null>(null);
   const [imageLoadErrors, setImageLoadErrors] = useState<
     Record<string, boolean>
@@ -58,12 +83,12 @@ export const GameBrowser = ({
     const selectedCard = cardRefs.current[selectedIndex];
     if (selectedCard) {
       selectedCard.scrollIntoView({
-        behavior: "smooth",
+        behavior: reducedMotion ? "auto" : "smooth",
         block: "center",
         inline: "nearest",
       });
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, reducedMotion]);
 
   // Play sound when selection changes
   useEffect(() => {
@@ -118,6 +143,7 @@ export const GameBrowser = ({
         isVisible
           ? "scale-100 opacity-100"
           : "pointer-events-none scale-95 opacity-0",
+        reducedMotion && "transition-none",
       )}
     >
       {/* Custom header positioned at top */}

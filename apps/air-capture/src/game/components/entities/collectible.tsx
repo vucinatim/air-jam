@@ -22,7 +22,7 @@ import {
   CollectibleData,
   useCollectiblesStore,
 } from "../../stores/world/collectibles-store";
-import { useHostAudio } from "../../audio/host-audio";
+import { useHostAudio } from "../../audio/use-host-audio";
 
 interface CollectibleProps {
   collectible: CollectibleData;

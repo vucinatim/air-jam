@@ -27,7 +27,7 @@ export interface AirJamControllerSessionState {
  * Read controller session state without owning controller runtime side effects.
  *
  * Use this in child UI components that only need to observe the current session.
- * Mount `useAirJamController()` once near the top of the controller provider tree.
+ * Mount `AirJamControllerRuntime` or `airjam.Controller` once near the top of the controller tree.
  */
 export const useControllerSession = (): AirJamControllerSessionState => {
   useAssertSessionScope("controller", "useControllerSession");

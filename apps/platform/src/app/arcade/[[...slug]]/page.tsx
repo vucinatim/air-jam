@@ -8,7 +8,7 @@ import {
   getLocalReferenceArcadeGames,
 } from "@/lib/local-reference-games";
 import { api } from "@/trpc/react";
-import { HostSessionProvider } from "@air-jam/sdk";
+import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
 import { use } from "react";
 
 /** In development, repeat each game N times to stress-test the grid (unique ids). */
@@ -60,16 +60,18 @@ export default function ArcadePage({
     : { kind: "browser" as const };
 
   return (
-    <HostSessionProvider {...platformArcadeHostSessionConfig}>
-      <ArcadeSystem
-        games={arcadeGames}
-        gamesCatalogReady={!gamesLoading}
-        mode="arcade"
-        initialGameId={initialGameId}
-        hostRouteIntent={hostRouteIntent}
-        autoLaunch={shouldAutoLaunch}
-        className="h-screen"
-      />
-    </HostSessionProvider>
+    <PlatformSettingsRuntime persistence="local">
+      <AirJamHostRuntime {...platformArcadeHostSessionConfig}>
+        <ArcadeSystem
+          games={arcadeGames}
+          gamesCatalogReady={!gamesLoading}
+          mode="arcade"
+          initialGameId={initialGameId}
+          hostRouteIntent={hostRouteIntent}
+          autoLaunch={shouldAutoLaunch}
+          className="h-screen"
+        />
+      </AirJamHostRuntime>
+    </PlatformSettingsRuntime>
   );
 }

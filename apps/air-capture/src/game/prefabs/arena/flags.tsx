@@ -8,7 +8,7 @@ import {
 } from "@react-three/rapier";
 import { useRef } from "react";
 import type { Group } from "three";
-import { useHostAudio } from "../../audio/host-audio";
+import { useHostAudio } from "../../audio/use-host-audio";
 import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../../domain/team";
 import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
 import { FlagModel } from "../../components/models/flag-model";

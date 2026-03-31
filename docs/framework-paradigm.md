@@ -189,13 +189,16 @@ Hosted product concerns:
 1. app identities
 2. publish and discovery surfaces
 3. deploy/version metadata
-4. analytics aggregation and dashboard APIs
-5. future billing/quota/moderation policy
+4. shared platform settings for audio, accessibility, and feedback
+5. analytics aggregation and dashboard APIs
+6. future billing/quota/moderation policy
 
 Platform rule:
 
 1. self-hosted external URLs remain a first-class framework path
 2. trusted public Arcade distribution should converge on immutable Air Jam-controlled releases rather than mutable third-party URLs
+3. shared platform settings are parent-authoritative and inherited read-only by embedded games
+4. embedded games do not mutate shared settings directly; controller surfaces act as remote controls for host-owned settings through the room/host command path
 
 ### Studio Will Own
 
@@ -240,8 +243,36 @@ Only transport adaptation:
 1. iframe transport forwarding
 2. capability and epoch validation
 3. stale-runtime rejection
+4. deterministic shared-settings bootstrap between parent and embedded runtime
 
 The bridge is plumbing, not a second architecture.
+
+### Shared Settings Bootstrap
+
+The shared platform settings bridge has one explicit contract:
+
+1. parent opens the bridge and enters `waiting_ready`
+2. child installs listeners first, then emits `AIRJAM_SETTINGS_READY`
+3. parent flushes the latest full settings snapshot immediately after ready
+4. later parent changes keep sending full snapshots
+5. embedded games apply snapshots atomically and remain read-only
+
+Rules:
+
+1. parent is authoritative
+2. full-snapshot sync beats patch complexity for this layer
+3. bridge-port transport is preferred, but direct `window.postMessage` remains the intentional bootstrap fallback
+4. controller changes must travel through host-owned state, not same-origin local storage assumptions
+
+### Audio Runtime Policy
+
+Audio now follows one explicit runtime policy:
+
+1. runtime-owned audio attempts startup on mount
+2. if the browser blocks startup, runtime status becomes `blocked`
+3. the first successful user interaction retries startup and transitions status to `ready`
+4. product surfaces should expose an explicit enable-audio affordance when status is `blocked`
+5. games should subscribe to runtime status; they should not invent local unlock state machines in feature code
 
 ## Deterministic Shell Sync
 

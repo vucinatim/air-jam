@@ -10,7 +10,7 @@ export const SdkArchitectureDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
-      data-figure-description="SDK architecture diagram: createAirJamApp composes scoped session providers around the app. The realtime client manages socket or bridge-backed connections. Session state is stored in Zustand-backed runtime state. InputManager handles input validation with Zod schemas and applies input behavior semantics (pulse/hold/latest). Hooks expose host, controller, input, and signal access."
+      data-figure-description="SDK architecture diagram: createAirJamApp composes explicit runtime boundaries around the app. Those runtime owners mount scoped session providers internally. The realtime client manages socket or bridge-backed connections. Session state is stored in Zustand-backed runtime state. InputManager handles input validation with Zod schemas and applies input behavior semantics (pulse/hold/latest). Consumer hooks expose host, controller, input, and signal access below the mounted runtime."
     >
       <svg
         viewBox="0 0 700 400"
@@ -34,7 +34,7 @@ export const SdkArchitectureDiagram = () => {
           </marker>
         </defs>
 
-        {/* Scoped session runtime container */}
+        {/* Runtime boundary container */}
         <rect
           x="50"
           y="20"
@@ -53,7 +53,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="18"
           fontWeight="600"
         >
-          createAirJamApp / Scoped Sessions
+          createAirJamApp / Runtime Boundaries
         </text>
 
         {/* Realtime client */}
@@ -186,7 +186,7 @@ export const SdkArchitectureDiagram = () => {
         </text>
 
         {/* Arrows down from InputManager to hooks */}
-        {/* useAirJamHost center: x=170 (80 + 180/2), top: y=355 */}
+        {/* host consumer hook center: x=170 (80 + 180/2), top: y=355 */}
         <line
           x1="170"
           y1="320"
@@ -206,7 +206,7 @@ export const SdkArchitectureDiagram = () => {
           strokeWidth="2"
           markerEnd="url(#arrowhead-down)"
         />
-        {/* useAirJamController center: x=520 (440 + 160/2), top: y=355 */}
+        {/* controller consumer hook center: x=520 (440 + 160/2), top: y=355 */}
         <line
           x1="520"
           y1="320"
@@ -236,7 +236,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="12"
           fontWeight="600"
         >
-          useAirJamHost
+          useAirJamHost()
         </text>
         <text
           x="170"
@@ -245,7 +245,7 @@ export const SdkArchitectureDiagram = () => {
           fill={diagramColors.textTertiary}
           fontSize="9"
         >
-          (Full API)
+          (consumer)
         </text>
 
         <rect
@@ -296,7 +296,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="12"
           fontWeight="600"
         >
-          useAirJamController
+          useAirJamController()
         </text>
         <text
           x="520"

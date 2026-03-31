@@ -68,7 +68,7 @@ export const resolveControllerJoinSource = ({
 
 export const useControllerRuntimeApi = (
   options: AirJamControllerOptions,
-  hookName: "useAirJamController",
+  hookName: string,
 ): AirJamControllerApi => {
   useAssertSessionScope("controller", hookName);
   useClaimSessionRuntimeOwner("controller-runtime", hookName);

@@ -2,7 +2,13 @@
 
 import { arcadeInputSchema } from "@/lib/airjam-session-config";
 import { cn } from "@/lib/utils";
-import { useAirJamHost, useHostTick } from "@air-jam/sdk";
+import {
+  useAirJamHost,
+  useHostTick,
+  useInheritedPlatformSettings,
+  usePlatformSettings,
+  type PlatformSettingsSnapshot,
+} from "@air-jam/sdk";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import type {
   AirJamActionRpcPayload,
@@ -35,6 +41,8 @@ import {
 import { useArcadeSurfaceStore } from "./arcade-surface-store";
 import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
+import { PlatformSettingsPanel } from "../platform-settings-panel";
+import { useArcadePlatformSettingsStore } from "./arcade-platform-settings-store";
 
 // Calculate grid columns based on window width
 const getGridColumns = (): number => {
@@ -140,6 +148,7 @@ export const ArcadeSystem = ({
   const lastArcadeInputLogTimeRef = useRef(0);
   /** Scroll position for chrome styling only; not part of surface authority. */
   const [browserListAtTop, setBrowserListAtTop] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const qrVisible = useArcadeSurfaceStore((s) => s.overlay === "qr");
   const surfaceKind = useArcadeSurfaceStore((s) => s.kind);
@@ -160,15 +169,21 @@ export const ArcadeSystem = ({
     [games, arcadeSurfaceRuntimeIdentity.gameId],
   );
   const surfaceActions = useArcadeSurfaceStore.useActions();
+  const platformSettingsActions = useArcadePlatformSettingsStore.useActions();
   const lastRoomIdForSurfaceRef = useRef<string | null>(null);
   const hostArcadeRestore = useHostArcadeRestore();
   const pendingHostArcadeRestoreSession = hostArcadeRestore.session;
+  const { accessibility } = useInheritedPlatformSettings();
+  const {
+    settings: platformSettings,
+    updateAudio,
+    updateAccessibility,
+    updateFeedback,
+  } = usePlatformSettings();
+  const reducedMotion = accessibility.reducedMotion;
+  const highContrast = accessibility.highContrast;
 
-  const host = useAirJamHost<typeof arcadeInputSchema>({
-    onPlayerJoin: () => {
-      // Broadcast will be handled by effect below
-    },
-  });
+  const host = useAirJamHost<typeof arcadeInputSchema>();
 
   const arcadeJoinUrl = useMemo(() => {
     if (host.joinUrl) {
@@ -519,6 +534,26 @@ export const ArcadeSystem = ({
             exitGame();
           }
           return;
+        case airJamArcadePlatformActions.updatePlatformSettings: {
+          const patch = event.payload as {
+            audio?: Partial<PlatformSettingsSnapshot["audio"]>;
+            accessibility?: Partial<PlatformSettingsSnapshot["accessibility"]>;
+            feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
+          } | null;
+          if (!patch) {
+            return;
+          }
+          if (patch.audio) {
+            updateAudio(patch.audio);
+          }
+          if (patch.accessibility) {
+            updateAccessibility(patch.accessibility);
+          }
+          if (patch.feedback) {
+            updateFeedback(patch.feedback);
+          }
+          return;
+        }
         default:
           return;
       }
@@ -528,17 +563,40 @@ export const ArcadeSystem = ({
       qrVisible,
       surfaceKind,
       surfaceActions,
+      updateAccessibility,
+      updateAudio,
+      updateFeedback,
       writePreferredBrowserOverlay,
     ],
   );
 
   const handleBrowserQrToggle = useCallback(() => {
+    if (!qrVisible) {
+      setSettingsOpen(false);
+    }
     const nextOverlay = qrVisible ? "hidden" : "qr";
     surfaceActions.setOverlay({ overlay: nextOverlay });
     if (surfaceKind === "browser") {
       writePreferredBrowserOverlay(nextOverlay);
     }
   }, [qrVisible, surfaceActions, surfaceKind, writePreferredBrowserOverlay]);
+
+  const handleBrowserSettingsToggle = useCallback(() => {
+    const next = !settingsOpen;
+    if (next && qrVisible) {
+      surfaceActions.setOverlay({ overlay: "hidden" });
+      if (surfaceKind === "browser") {
+        writePreferredBrowserOverlay("hidden");
+      }
+    }
+    setSettingsOpen(next);
+  }, [
+    qrVisible,
+    settingsOpen,
+    surfaceActions,
+    surfaceKind,
+    writePreferredBrowserOverlay,
+  ]);
 
   const handleQrOverlayDismiss = useCallback(() => {
     surfaceActions.setOverlay({ overlay: "hidden" });
@@ -561,6 +619,16 @@ export const ArcadeSystem = ({
   useEffect(() => {
     launchGameRef.current = launchGame;
   }, [launchGame]);
+
+  useEffect(() => {
+    platformSettingsActions.setSettings(platformSettings);
+  }, [platformSettings, platformSettingsActions]);
+
+  useEffect(() => {
+    if (surfaceKind !== "browser" && settingsOpen) {
+      setSettingsOpen(false);
+    }
+  }, [settingsOpen, surfaceKind]);
 
   // Platform-owned child-host lifecycle event.
   useEffect(() => {
@@ -685,6 +753,7 @@ export const ArcadeSystem = ({
       <div
         className={cn(
           "relative min-h-0 flex-1 overflow-hidden bg-slate-950 font-sans text-slate-50",
+          highContrast && "contrast-125",
         )}
       >
         {/* Base — near-black void */}
@@ -716,8 +785,11 @@ export const ArcadeSystem = ({
             connectionStatus={host.connectionStatus}
             lastError={host.lastError}
             qrVisible={qrVisible}
+            settingsVisible={settingsOpen}
             onToggleQr={handleBrowserQrToggle}
+            onToggleSettings={handleBrowserSettingsToggle}
             listAtTop={browserListAtTop}
+            highContrast={highContrast}
             className="absolute top-0 right-0 left-0 z-60"
           />
         )}
@@ -728,6 +800,45 @@ export const ArcadeSystem = ({
         )}
 
         <AnimatePresence>
+          {surfaceKind === "browser" && settingsOpen && (
+            <motion.div
+              key="arcade-settings-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Platform settings"
+              className="absolute inset-0 z-[55] flex justify-end bg-black/45 px-4 py-16 backdrop-blur-sm sm:px-6"
+              initial={{
+                opacity: 0,
+                x: reducedMotion ? 0 : 12,
+              }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{
+                opacity: 0,
+                x: reducedMotion ? 0 : 12,
+              }}
+              transition={
+                reducedMotion
+                  ? { duration: 0.01 }
+                  : ARCADE_QR_OVERLAY_MOTION_TRANSITION
+              }
+              onClick={() => setSettingsOpen(false)}
+            >
+              <motion.div
+                className="w-full max-w-md"
+                initial={{ opacity: 0, y: reducedMotion ? 0 : -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: reducedMotion ? 0 : -8 }}
+                transition={
+                  reducedMotion
+                    ? { duration: 0.01 }
+                    : ARCADE_QR_OVERLAY_MOTION_TRANSITION
+                }
+                onClick={(event) => event.stopPropagation()}
+              >
+                <PlatformSettingsPanel className="shadow-2xl" />
+              </motion.div>
+            </motion.div>
+          )}
           {qrVisible && (
             <motion.div
               key="arcade-join-qr-overlay"
@@ -742,7 +853,11 @@ export const ArcadeSystem = ({
               initial={{ opacity: 0, y: -18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -14 }}
-              transition={ARCADE_QR_OVERLAY_MOTION_TRANSITION}
+              transition={
+                reducedMotion
+                  ? { duration: 0.01 }
+                  : ARCADE_QR_OVERLAY_MOTION_TRANSITION
+              }
               onClick={handleQrOverlayDismiss}
             >
               <div
@@ -811,6 +926,7 @@ export const ArcadeSystem = ({
               games={games}
               selectedIndex={state.selectedIndex}
               isVisible={surfaceKind === "browser"}
+              reducedMotion={reducedMotion}
               onSelectGame={(game, idx) => {
                 setSelectedIndex(idx);
                 launchGame(game);
@@ -838,6 +954,7 @@ export const ArcadeSystem = ({
               players={host.players}
               gameState={host.gameState}
               isVisible={surfaceKind === "game"}
+              reducedMotion={reducedMotion}
               arcadeSurfaceRuntimeIdentity={arcadeSurfaceRuntimeIdentity}
               onExit={exitGame}
               showExitOverlay={showGameExitOverlay}

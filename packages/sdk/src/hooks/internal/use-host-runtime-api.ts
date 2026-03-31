@@ -9,6 +9,7 @@ import {
   useAssertSessionScope,
   useClaimSessionRuntimeOwner,
 } from "../../context/session-providers";
+import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import { emitAirJamDiagnostic } from "../../diagnostics";
 import type {
   ControllerInputEvent,
@@ -34,12 +35,11 @@ import {
   hostReconnectSchema,
   roomCodeSchema,
 } from "../../protocol";
-import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
+import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
+import { readEmbeddedHostChildSession } from "../../runtime/embedded-runtime-adapters";
 import { getHostRealtimeClient } from "../../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
-import { readEmbeddedHostChildSession } from "../../runtime/embedded-runtime-adapters";
-import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
 import { detectRunMode } from "../../utils/mode";
 import { urlBuilder } from "../../utils/url-builder";
 import type {
@@ -50,7 +50,7 @@ import type {
 
 export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   options: AirJamHostOptions,
-  hookName: "useAirJamHost",
+  hookName: string,
 ): AirJamHostApi<TSchema> => {
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
@@ -370,41 +370,40 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         return;
       }
 
-      const resolveBootstrapPayload = async (): Promise<HostBootstrapPayload> => {
-        if (!config.hostGrantEndpoint) {
+      const resolveBootstrapPayload =
+        async (): Promise<HostBootstrapPayload> => {
+          if (!config.hostGrantEndpoint) {
+            return hostBootstrapSchema.parse({
+              appId: config.appId,
+              hostSessionKind: config.hostSessionKind,
+            });
+          }
+
+          const response = await fetch(config.hostGrantEndpoint, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(config.appId ? { appId: config.appId } : {}),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch host grant (${response.status})`);
+          }
+
+          const parsed = hostGrantResponseSchema.safeParse(
+            await response.json(),
+          );
+          if (!parsed.success) {
+            throw new Error("Invalid host grant response");
+          }
+
           return hostBootstrapSchema.parse({
-            appId: config.appId,
+            hostGrant: parsed.data.hostGrant,
             hostSessionKind: config.hostSessionKind,
           });
-        }
-
-        const response = await fetch(config.hostGrantEndpoint, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(
-            config.appId ? { appId: config.appId } : {},
-          ),
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch host grant (${response.status})`,
-          );
-        }
-
-        const parsed = hostGrantResponseSchema.safeParse(await response.json());
-        if (!parsed.success) {
-          throw new Error("Invalid host grant response");
-        }
-
-        return hostBootstrapSchema.parse({
-          hostGrant: parsed.data.hostGrant,
-          hostSessionKind: config.hostSessionKind,
-        });
-      };
+        };
 
       let bootstrapPayload: HostBootstrapPayload;
       try {
@@ -425,9 +424,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             hasHostGrantEndpoint: Boolean(config.hostGrantEndpoint),
           },
         });
-        latestState.setError(
-          message,
-        );
+        latestState.setError(message);
         latestState.setStatus("disconnected");
         latestState.clearHostArcadeRestore();
         setRegisteredRoomId(null);
@@ -734,6 +731,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     config.maxPlayers,
     config.appId,
     config.hostGrantEndpoint,
+    config.hostSessionKind,
     embeddedHost,
     shouldConnect,
     socket,

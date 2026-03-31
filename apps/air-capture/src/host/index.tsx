@@ -1,4 +1,6 @@
 import {
+  useAudioRuntimeControls,
+  useAudioRuntimeStatus,
   useAirJamHost,
   useHostGameStateBridge,
   type PlayerProfile,
@@ -21,8 +23,10 @@ import { useGameStore } from "../game/stores/players/game-store";
 import {
   usePrototypeMatchStore,
 } from "../game/stores/match/match-store";
-import { HostAudioProvider, useHostAudio } from "../game/audio/host-audio";
+import { HostAudioProvider } from "../game/audio/host-audio";
+import { useHostAudio } from "../game/audio/use-host-audio";
 import {
+  AudioBlockedPrompt,
   EndedOverlay,
   GameplayFallback,
   HostMuteButton,
@@ -56,6 +60,8 @@ const HostViewContent = ({
   setAudioMuted: Dispatch<SetStateAction<boolean>>;
 }): JSX.Element => {
   const audio = useHostAudio();
+  const audioRuntimeStatus = useAudioRuntimeStatus();
+  const audioRuntimeControls = useAudioRuntimeControls();
 
   const host = useAirJamHost();
   const {
@@ -327,6 +333,13 @@ const HostViewContent = ({
           <>
             <div className="absolute inset-0 bg-radial from-transparent to-black/55" />
             {muteSlot}
+            {audioRuntimeStatus === "blocked" ? (
+              <AudioBlockedPrompt
+                onEnable={() => {
+                  void audioRuntimeControls.retry();
+                }}
+              />
+            ) : null}
             {matchPhase === "lobby" ? (
               <LobbyOverlay
                 joinQrValue={joinQrValue}
@@ -359,6 +372,13 @@ const HostViewContent = ({
                 <SceneInfoSection />
               </DebugOverlay>
             </Suspense>
+            {audioRuntimeStatus === "blocked" ? (
+              <AudioBlockedPrompt
+                onEnable={() => {
+                  void audioRuntimeControls.retry();
+                }}
+              />
+            ) : null}
             <HostLiveChrome
               roomId={roomId}
               connectionStatus={connectionStatus}

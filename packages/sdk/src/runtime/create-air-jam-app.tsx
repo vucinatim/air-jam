@@ -2,10 +2,14 @@ import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
 import { CONTROLLER_PATH } from "../constants";
 import {
-  ControllerSessionProvider,
-  HostSessionProvider,
   type AirJamProviderProps,
 } from "../context/session-providers";
+import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
+import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
+import {
+  AirJamControllerRuntime,
+  AirJamHostRuntime,
+} from "./session-runtimes";
 import type { ResolveAirJamConfigInput } from "./air-jam-config";
 
 type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
@@ -32,8 +36,10 @@ export interface CreateAirJamAppOptions<
 }
 
 export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
-  Host: (props: { children: ReactNode }) => JSX.Element;
-  Controller: (props: { children: ReactNode }) => JSX.Element;
+  Host: (props: AirJamHostOptions & { children: ReactNode }) => JSX.Element;
+  Controller: (
+    props: AirJamControllerOptions & { children: ReactNode },
+  ) => JSX.Element;
   paths: {
     controller: string;
   };
@@ -138,19 +144,25 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     ...runtime,
   };
 
-  const Host = ({ children }: { children: ReactNode }): JSX.Element => {
+  const Host = ({
+    children,
+    ...runtimeOptions
+  }: AirJamHostOptions & { children: ReactNode }): JSX.Element => {
     return (
-      <HostSessionProvider<TSchema> {...hostSession}>
+      <AirJamHostRuntime<TSchema> {...hostSession} {...runtimeOptions}>
         {children}
-      </HostSessionProvider>
+      </AirJamHostRuntime>
     );
   };
 
-  const Controller = ({ children }: { children: ReactNode }): JSX.Element => {
+  const Controller = ({
+    children,
+    ...runtimeOptions
+  }: AirJamControllerOptions & { children: ReactNode }): JSX.Element => {
     return (
-      <ControllerSessionProvider {...controllerSession}>
+      <AirJamControllerRuntime {...controllerSession} {...runtimeOptions}>
         {children}
-      </ControllerSessionProvider>
+      </AirJamControllerRuntime>
     );
   };
 

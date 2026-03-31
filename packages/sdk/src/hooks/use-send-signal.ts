@@ -12,7 +12,7 @@
  *
  * **When to use this vs useAirJamHost().sendSignal:**
  * - Use `useSendSignal()` in components that render frequently (projectiles, collectibles)
- * - Use `useAirJamHost().sendSignal` when you already need other host state
+ * - Use `useAirJamHost().sendSignal` when you already read host runtime state for other reasons
  */
 import { useCallback } from "react";
 import { useAirJamContext } from "../context/air-jam-context";

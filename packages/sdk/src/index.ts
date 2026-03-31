@@ -1,25 +1,39 @@
-export {
-  ControllerSessionProvider,
-  HostSessionProvider,
-  type AirJamProviderProps,
-} from "./context/session-providers";
-
-export {
-  AudioManager,
-  type PlayOptions,
-  type SoundCategory,
-  type SoundConfig,
-  type SoundManifest,
+export type {
+  AudioHandle,
+  PlayOptions,
+  SoundCategory,
+  SoundConfig,
+  SoundManifest,
 } from "./audio/audio-manager";
 export {
-  AudioProvider,
+  AudioRuntime,
+  ControllerRemoteAudioRuntime,
   useAudio,
-  useAudioManager,
-  useProvidedAudio,
-  useRemoteSound,
-  type UseRemoteSoundOptions,
+  useAudioRuntimeControls,
+  useAudioRuntimeStatus,
+  type AudioRuntimeControls,
+  type AudioRuntimeProps,
+  type AudioRuntimeStatus,
+  type ControllerRemoteAudioRuntimeProps,
 } from "./audio/hooks";
-export { useVolumeStore } from "./audio/volume-store";
+export type {
+  PlatformAudioSettings,
+  PlatformAccessibilitySettings,
+  PlatformFeedbackSettings,
+  PlatformSettings,
+  PlatformSettingsPersistence,
+  PlatformSettingsSnapshot,
+} from "./settings/platform-settings";
+export { getEffectiveAudioVolume } from "./settings/platform-settings";
+export {
+  PlatformSettingsRuntime,
+  useInheritedPlatformSettings,
+  usePlatformAudioSettings,
+  usePlatformSettings,
+  type PlatformAudioSettingsApi,
+  type PlatformSettingsOwnerApi,
+  type PlatformSettingsRuntimeProps,
+} from "./settings/platform-settings-runtime";
 
 export {
   onAirJamDiagnostic,
@@ -40,6 +54,12 @@ export {
   type AirJamHostOptions,
   type JoinUrlStatus,
 } from "./hooks/use-air-jam-host";
+export {
+  AirJamControllerRuntime,
+  AirJamHostRuntime,
+  type AirJamControllerRuntimeProps,
+  type AirJamHostRuntimeProps,
+} from "./runtime/session-runtimes";
 export { useConnectionStatus } from "./hooks/use-connection-status";
 export {
   useControllerSession,

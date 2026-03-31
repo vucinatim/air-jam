@@ -10,7 +10,7 @@ import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../../domain/team";
 import {
   useCaptureTheFlagStore,
 } from "../../stores/match/capture-the-flag-store";
-import { useHostAudio } from "../../audio/host-audio";
+import { useHostAudio } from "../../audio/use-host-audio";
 
 const BASE_RADIUS = 10;
 const BASE_HEIGHT = 8;

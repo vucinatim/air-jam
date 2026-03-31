@@ -23,7 +23,7 @@ export interface AirJamHostSessionState {
  * Read host session state without owning host runtime side effects.
  *
  * Use this in child UI components that only need current host session state.
- * Mount `useAirJamHost()` once near the top of the host provider tree.
+ * Mount `AirJamHostRuntime` or `airjam.Host` once near the top of the host tree.
  */
 export const useHostSession = (): AirJamHostSessionState => {
   useAssertSessionScope("host", "useHostSession");

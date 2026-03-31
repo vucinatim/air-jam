@@ -127,8 +127,11 @@ Benefits:
 
 This example uses the starter host surface path.
 Treat it as a recommended default, not a required filename.
+It assumes your app has already mounted `airjam.Host` or `AirJamHostRuntime` above this view.
 
 ```tsx filename="src/host/index.tsx"
+import { useAirJamHost } from "@air-jam/sdk";
+
 const host = useAirJamHost();
 
 useFrame(() => {
@@ -172,6 +175,7 @@ const Ship = ({ playerId }: { playerId: string }) => {
 Use `useInputWriter()` with `useControllerTick()` for fixed-cadence publishing:
 
 This example uses the starter controller surface path.
+It assumes your app has already mounted `airjam.Controller` or `AirJamControllerRuntime` above this view.
 
 ```tsx filename="src/controller/index.tsx"
 import {

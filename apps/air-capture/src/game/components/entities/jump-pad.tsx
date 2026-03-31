@@ -10,7 +10,7 @@ import {
   type Mesh,
 } from "three";
 import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../../constants";
-import { useHostAudio } from "../../audio/host-audio";
+import { useHostAudio } from "../../audio/use-host-audio";
 import { shipPositions } from "../../engine/ships/runtime";
 
 interface JumpPadProps {

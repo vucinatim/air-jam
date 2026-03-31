@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { AudioManager } from "../src/audio/audio-manager";
-import { AudioProvider, useProvidedAudio } from "../src/audio/hooks";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HostSessionProvider } from "../src/context/session-providers";
+
+const howlerCtx = {
+  state: "running" as "running" | "suspended",
+  resume: vi.fn(async () => {
+    howlerCtx.state = "running";
+  }),
+};
 
 vi.mock("howler", () => ({
   Howl: class MockHowl {
@@ -19,10 +25,7 @@ vi.mock("howler", () => ({
     mute = vi.fn();
   },
   Howler: {
-    ctx: {
-      state: "running",
-      resume: vi.fn(),
-    },
+    ctx: howlerCtx,
     stop: vi.fn(),
     volume: vi.fn(),
     mute: vi.fn(),
@@ -31,24 +34,99 @@ vi.mock("howler", () => ({
   },
 }));
 
-describe("AudioProvider", () => {
-  it("returns the runtime-owned manager to consumers", () => {
-    const manager = new AudioManager({
-      hit: { src: ["/sounds/hit.wav"] },
-    });
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(AudioProvider, { manager, children });
+const mocked = vi.hoisted(() => ({
+  useAirJamContext: vi.fn(),
+}));
 
-    const { result } = renderHook(() => useProvidedAudio<"hit">(), {
-      wrapper,
-    });
+vi.mock("../src/context/air-jam-context", async () => {
+  const actual =
+    await vi.importActual<typeof import("../src/context/air-jam-context")>(
+      "../src/context/air-jam-context",
+    );
 
-    expect(result.current).toBe(manager);
+  return {
+    ...actual,
+    useAirJamContext: mocked.useAirJamContext,
+  };
+});
+
+const manifest = {
+  hit: { src: ["/sounds/hit.wav"] },
+};
+
+const createWrapper = async () => {
+  const hooks = await import("../src/audio/hooks");
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(
+      HostSessionProvider,
+      null,
+      createElement(hooks.AudioRuntime, { manifest, children }),
+    );
+
+  return { hooks, wrapper };
+};
+
+describe("AudioRuntime", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    howlerCtx.state = "running";
+    mocked.useAirJamContext.mockReturnValue({
+      getSocket: () => null,
+      store: {
+        getState: () => ({ role: "host", roomId: "room-1" }),
+        subscribe: () => () => {},
+      },
+    });
   });
 
-  it("throws outside an audio provider", () => {
-    expect(() => renderHook(() => useProvidedAudio())).toThrow(
-      "useProvidedAudio must be used within an AudioProvider",
+  it("returns the runtime-owned manager to consumers", async () => {
+    const { hooks, wrapper } = await createWrapper();
+    const { result } = renderHook(() => hooks.useAudio<"hit">(), {
+      wrapper,
+    });
+    await act(async () => {});
+
+    expect(typeof result.current.play).toBe("function");
+  });
+
+  it("throws outside an audio runtime", async () => {
+    const hooks = await import("../src/audio/hooks");
+    expect(() => renderHook(() => hooks.useAudio())).toThrow(
+      "useAudio must be used within an AudioRuntime or ControllerRemoteAudioRuntime",
     );
+  });
+
+  it("exposes blocked and ready runtime states with an explicit retry path", async () => {
+    howlerCtx.state = "suspended";
+    howlerCtx.resume.mockImplementationOnce(async () => {
+      throw new Error("blocked");
+    });
+    howlerCtx.resume.mockImplementationOnce(async () => {
+      howlerCtx.state = "running";
+    });
+
+    const { hooks, wrapper } = await createWrapper();
+    const runtime = renderHook(
+      () => ({
+        status: hooks.useAudioRuntimeStatus(),
+        controls: hooks.useAudioRuntimeControls(),
+      }),
+      {
+        wrapper,
+      },
+    );
+
+    await waitFor(() => {
+      expect(runtime.result.current.status).toBe("blocked");
+    });
+
+    await act(async () => {
+      await runtime.result.current.controls.retry();
+    });
+
+    await waitFor(() => {
+      expect(runtime.result.current.status).toBe("ready");
+    });
   });
 });

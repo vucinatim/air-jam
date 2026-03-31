@@ -1,7 +1,11 @@
 import { Howl, Howler } from "howler";
 import type { ConnectionRole } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import { useVolumeStore } from "./volume-store";
+import {
+  DEFAULT_PLATFORM_SETTINGS,
+  type PlatformAudioSettings,
+  getEffectiveAudioVolume,
+} from "../settings/platform-settings";
 
 export type SoundCategory = "music" | "sfx";
 
@@ -9,27 +13,20 @@ export interface SoundConfig {
   src: string[];
   volume?: number;
   loop?: boolean;
-  html5?: boolean; // Force HTML5 Audio (good for large files/music)
+  html5?: boolean;
   sprite?: {
     [key: string]: [number, number];
   };
-  category?: SoundCategory; // Optional category for volume control grouping
+  category?: SoundCategory;
 }
 
 export type SoundManifest = Record<string, SoundConfig>;
 
-/**
- * Auto-detect sound category based on config heuristics
- * - If explicitly set, use it
- * - If loop=true and html5=true, likely music
- * - Otherwise, default to sfx
- */
 export function detectSoundCategory(config: SoundConfig): SoundCategory {
   if (config.category) {
     return config.category;
   }
 
-  // Heuristic: loop + html5 typically indicates music
   if (config.loop && config.html5) {
     return "music";
   }
@@ -38,19 +35,28 @@ export function detectSoundCategory(config: SoundConfig): SoundCategory {
 }
 
 export interface PlayOptions {
-  remote?: boolean; // If true, send to network (Host->Controller or Controller->Host)
-  target?: string; // Optional: Specific controller ID (only used if Host sending to Controller)
+  remote?: boolean;
+  target?: string;
   volume?: number;
   loop?: boolean;
   sprite?: string;
   pitch?: number;
 }
 
-export class AudioManager<T extends string = string> {
+export interface AudioHandle<T extends string = string> {
+  init(): Promise<boolean>;
+  isReady(): boolean;
+  play(id: T, options?: PlayOptions): number | null;
+  stop(id?: T, soundId?: number): void;
+  mute(muted: boolean, id?: T, soundId?: number): void;
+  isMuted(): boolean;
+}
+
+export class AudioManager<T extends string = string> implements AudioHandle<T> {
   private sounds: Map<string, Howl> = new Map();
   private categories: Map<string, SoundCategory> = new Map();
   private manifest: SoundManifest = {};
-  private _muted: boolean = false;
+  private _muted = false;
   private socket: AirJamRealtimeClient | null = null;
   private roomId: string | null = null;
   private role: ConnectionRole | null = null;
@@ -58,65 +64,19 @@ export class AudioManager<T extends string = string> {
     number,
     { soundId: string; category: SoundCategory }
   > = new Map();
-  private volumeUnsubscribe: (() => void) | null = null;
+  private audioSettings: PlatformAudioSettings =
+    DEFAULT_PLATFORM_SETTINGS.audio;
 
   constructor(manifest?: SoundManifest) {
-    // Initialize volume store FIRST to ensure values are loaded from localStorage
-    // This must happen before loading sounds so they can use the stored volumes
-    const initialState = useVolumeStore.getState();
-
-    // Set up volume change subscription
-    const updateAllSounds = (
-      state: ReturnType<typeof useVolumeStore.getState>,
-    ) => {
-      // Update all currently playing sounds
-      this.activeSoundIds.forEach((info, howlSoundId) => {
-        const sound = this.sounds.get(info.soundId);
-        if (sound) {
-          const config = this.manifest[info.soundId];
-          const baseVolume = config?.volume ?? 1.0;
-          const effectiveVolume = state.getEffectiveVolume(info.category);
-          const finalVolume = baseVolume * effectiveVolume;
-          sound.volume(finalVolume, howlSoundId);
-        }
-      });
-
-      // Also update the default volume for all loaded sounds (for future plays)
-      this.sounds.forEach((sound, soundId) => {
-        const category = this.categories.get(soundId) ?? "sfx";
-        const config = this.manifest[soundId];
-        const baseVolume = config?.volume ?? 1.0;
-        const effectiveVolume = state.getEffectiveVolume(category);
-        const newVolume = baseVolume * effectiveVolume;
-        // Update default volume for the sound
-        sound.volume(newVolume);
-      });
-    };
-
-    // Subscribe to future changes
-    this.volumeUnsubscribe = useVolumeStore.subscribe(updateAllSounds);
-
-    // Now load sounds - they will use the stored volumes from the start
     if (manifest) {
       this.load(manifest);
-      // Apply initial volumes to all loaded sounds immediately
-      updateAllSounds(initialState);
     }
   }
 
-  /**
-   * Cleanup method to unsubscribe from volume changes
-   */
   public destroy() {
-    if (this.volumeUnsubscribe) {
-      this.volumeUnsubscribe();
-      this.volumeUnsubscribe = null;
-    }
+    // No-op for now; retained for cleanup symmetry with other runtime owners.
   }
 
-  /**
-   * Get the category for a sound (with auto-detection)
-   */
   public getCategory(soundId: string): SoundCategory {
     return this.categories.get(soundId) ?? "sfx";
   }
@@ -131,14 +91,6 @@ export class AudioManager<T extends string = string> {
     if (role) this.role = role;
   }
 
-  /**
-   * Resume audio context if suspended. This is automatically called by play(),
-   * so you typically don't need to call this manually.
-   *
-   * Note: Due to browser autoplay policies, audio context starts suspended
-   * and can only be resumed in response to a user gesture. The useAudio hook
-   * handles this automatically, and play() also calls init() internally.
-   */
   public async init(): Promise<boolean> {
     if (!Howler.ctx) {
       return false;
@@ -155,9 +107,6 @@ export class AudioManager<T extends string = string> {
     return Howler.ctx.state === "running";
   }
 
-  /**
-   * Check if audio context is ready to play sounds
-   */
   public isReady(): boolean {
     return Howler.ctx !== null && Howler.ctx.state === "running";
   }
@@ -165,24 +114,21 @@ export class AudioManager<T extends string = string> {
   public load(manifest: SoundManifest) {
     this.manifest = { ...this.manifest, ...manifest };
 
-    // Get current volume store state to apply to new sounds
-    const volumeStore = useVolumeStore.getState();
-
     Object.entries(manifest).forEach(([key, config]) => {
       if (this.sounds.has(key)) return;
 
-      // Detect and store category
       const category = detectSoundCategory(config);
       this.categories.set(key, category);
 
-      // Calculate effective volume for this sound
-      const baseVolume = config.volume ?? 1.0;
-      const effectiveVolume = volumeStore.getEffectiveVolume(category);
-      const initialVolume = baseVolume * effectiveVolume;
+      const baseVolume = config.volume ?? 1;
+      const effectiveVolume = getEffectiveAudioVolume(
+        this.audioSettings,
+        category,
+      );
 
       const sound = new Howl({
         src: config.src,
-        volume: initialVolume, // Use effective volume from the start
+        volume: baseVolume * effectiveVolume,
         loop: config.loop ?? false,
         html5: config.html5 ?? false,
         sprite: config.sprite,
@@ -190,6 +136,30 @@ export class AudioManager<T extends string = string> {
       });
 
       this.sounds.set(key, sound);
+    });
+  }
+
+  public applyPlatformAudioSettings(settings: PlatformAudioSettings) {
+    this.audioSettings = settings;
+
+    this.activeSoundIds.forEach((info, howlSoundId) => {
+      const sound = this.sounds.get(info.soundId);
+      if (!sound) {
+        return;
+      }
+
+      const config = this.manifest[info.soundId];
+      const baseVolume = config?.volume ?? 1;
+      const effectiveVolume = getEffectiveAudioVolume(settings, info.category);
+      sound.volume(baseVolume * effectiveVolume, howlSoundId);
+    });
+
+    this.sounds.forEach((sound, soundId) => {
+      const category = this.categories.get(soundId) ?? "sfx";
+      const config = this.manifest[soundId];
+      const baseVolume = config?.volume ?? 1;
+      const effectiveVolume = getEffectiveAudioVolume(settings, category);
+      sound.volume(baseVolume * effectiveVolume);
     });
   }
 
@@ -203,15 +173,14 @@ export class AudioManager<T extends string = string> {
       pitch,
     } = options || {};
 
-    // Auto-init audio context on play (handles browser autoplay policy)
     void this.init();
 
     if (remote) {
       this.playRemote(id, target, volume, loop);
-      return null; // Remote play doesn't return a local sound ID
-    } else {
-      return this.playLocal(id, volume, loop, sprite, pitch);
+      return null;
     }
+
+    return this.playLocal(id, volume, loop, sprite, pitch);
   }
 
   private playLocal(
@@ -233,30 +202,20 @@ export class AudioManager<T extends string = string> {
 
     const category = this.getCategory(id);
     const config = this.manifest[id];
-    const baseVolume = config?.volume ?? 1.0;
-
-    // Get effective volume from volume store (always get fresh state)
-    const volumeStore = useVolumeStore.getState();
-    const effectiveVolume = volumeStore.getEffectiveVolume(category);
-
-    // Calculate final volume BEFORE playing
+    const baseVolume = config?.volume ?? 1;
+    const effectiveVolume = getEffectiveAudioVolume(this.audioSettings, category);
     const finalVolume =
       volume !== undefined
         ? volume * effectiveVolume
         : baseVolume * effectiveVolume;
 
-    // Play the sound
     const soundId = sound.play(sprite);
-
-    // Store active sound ID for volume updates (do this before setting volume)
     this.activeSoundIds.set(soundId, { soundId: id, category });
 
-    // Clean up when sound ends
     sound.once("end", () => {
       this.activeSoundIds.delete(soundId);
     });
 
-    // Apply volume immediately after play (this overrides any default volume)
     sound.volume(finalVolume, soundId);
 
     if (loop !== undefined) sound.loop(loop, soundId);
@@ -274,38 +233,33 @@ export class AudioManager<T extends string = string> {
     if (!this.socket || !this.roomId) return;
 
     if (this.isHost()) {
-      // Host -> Controller(s)
       this.socket.emit("host:play_sound", {
         roomId: this.roomId,
-        targetControllerId: target, // If undefined, broadcasts to all
+        targetControllerId: target,
         soundId: id,
         volume,
         loop,
       });
-    } else {
-      // Controller -> Host
-      this.socket.emit("controller:play_sound", {
-        roomId: this.roomId,
-        soundId: id,
-        volume,
-        loop,
-      });
+      return;
     }
+
+    this.socket.emit("controller:play_sound", {
+      roomId: this.roomId,
+      soundId: id,
+      volume,
+      loop,
+    });
   }
 
   private isHost(): boolean {
     return this.role === "host";
   }
 
-  /**
-   * Play a sound at a specific 3D position
-   */
   public playSpatial(
     id: T,
     pos: { x: number; y: number; z: number },
     sprite?: string,
   ): number | null {
-    // Auto-init audio context on play
     void this.init();
 
     const soundId = this.playLocal(id, undefined, undefined, sprite);
@@ -313,7 +267,6 @@ export class AudioManager<T extends string = string> {
       const sound = this.sounds.get(id);
       if (sound) {
         sound.pos(pos.x, pos.y, pos.z, soundId);
-        // Enable 3D spatialization for this sound instance
         sound.pannerAttr(
           {
             panningModel: "HRTF",
@@ -333,63 +286,58 @@ export class AudioManager<T extends string = string> {
     if (id) {
       const sound = this.sounds.get(id);
       sound?.stop(soundId);
-      // Clean up active sound tracking
       if (soundId !== undefined) {
         this.activeSoundIds.delete(soundId);
       } else {
-        // Remove all instances of this sound
         this.activeSoundIds.forEach((info, howlSoundId) => {
           if (info.soundId === id) {
             this.activeSoundIds.delete(howlSoundId);
           }
         });
       }
-    } else {
-      // Stop all
-      Howler.stop();
-      this.activeSoundIds.clear();
+      return;
     }
+
+    Howler.stop();
+    this.activeSoundIds.clear();
   }
 
   public volume(vol: number, id?: T, soundId?: number) {
     if (id) {
       const sound = this.sounds.get(id);
-      if (sound) {
-        if (soundId !== undefined) {
-          sound.volume(vol, soundId);
-        } else {
-          sound.volume(vol);
-        }
+      if (!sound) {
+        return;
       }
-    } else {
-      Howler.volume(vol);
+      if (soundId !== undefined) {
+        sound.volume(vol, soundId);
+      } else {
+        sound.volume(vol);
+      }
+      return;
     }
+
+    Howler.volume(vol);
   }
 
   public mute(muted: boolean, id?: T, soundId?: number) {
     if (id) {
       const sound = this.sounds.get(id);
       sound?.mute(muted, soundId);
-    } else {
-      this._muted = muted;
-      Howler.mute(muted);
+      return;
     }
+
+    this._muted = muted;
+    Howler.mute(muted);
   }
 
   public isMuted(): boolean {
     return this._muted;
   }
 
-  /**
-   * Update the listener position for spatial audio
-   */
   public setListenerPos(x: number, y: number, z: number) {
     Howler.pos(x, y, z);
   }
 
-  /**
-   * Update the listener orientation for spatial audio
-   */
   public setListenerOrientation(
     x: number,
     y: number,
@@ -401,7 +349,3 @@ export class AudioManager<T extends string = string> {
     Howler.orientation(x, y, z, xUp, yUp, zUp);
   }
 }
-
-export const createAudioManager = <T extends string = string>(
-  manifest?: SoundManifest,
-) => new AudioManager<T>(manifest);

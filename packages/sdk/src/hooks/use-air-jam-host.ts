@@ -17,6 +17,7 @@
  * {@link ../runtime/embedded-runtime-adapters.readEmbeddedHostChildSession}.
  */
 import type { z } from "zod";
+import { useContext } from "react";
 import type {
   ConnectionStatus,
   ControllerStatePayload,
@@ -28,33 +29,36 @@ import type {
   ToastSignalPayload,
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import { useHostRuntimeApi } from "./internal/use-host-runtime-api";
+import { useAssertSessionScope } from "../context/session-providers";
+import { createAirJamDiagnosticError } from "../diagnostics";
+import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
 
 export type JoinUrlStatus = "loading" | "ready" | "unavailable";
 
 /**
- * Options for configuring the host connection.
+ * Options for configuring the host runtime boundary.
  *
- * @example Basic usage with callbacks
+ * @example Runtime boundary usage with callbacks
  * ```tsx
- * const host = useAirJamHost({
- *   onPlayerJoin: (player) => {
+ * <AirJamHostRuntime
+ *   onPlayerJoin={(player) => {
  *     console.log(`${player.label} joined!`);
  *     spawnPlayerShip(player.id);
- *   },
- *   onPlayerLeave: (controllerId) => {
+ *   }}
+ *   onPlayerLeave={(controllerId) => {
  *     console.log(`Player ${controllerId} left`);
  *     removePlayerShip(controllerId);
- *   },
- * });
+ *   }}
+ * >
+ *   <HostView />
+ * </AirJamHostRuntime>
  * ```
  *
  * @example With custom room ID
  * ```tsx
- * const host = useAirJamHost({
- *   roomId: "GAME1",  // Custom 4-character room code
- *   maxPlayers: 4,    // Override provider's maxPlayers
- * });
+ * <AirJamHostRuntime roomId="GAME1">
+ *   <HostView />
+ * </AirJamHostRuntime>
  * ```
  */
 export interface AirJamHostOptions {
@@ -155,17 +159,17 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
 }
 
 /**
- * Primary hook for host/game functionality.
+ * Read the mounted host runtime API.
  *
- * Connects to the AirJam server as a host and provides everything needed
- * to manage a multiplayer game session. Must be used within an AirJamProvider.
+ * Use this inside `AirJamHostRuntime` or another explicit host runtime boundary
+ * such as `airjam.Host`. Runtime ownership is mounted once at the boundary; child
+ * code reads from that runtime through this hook.
  *
  * This hook is runtime-aware:
  * - standalone: creates/reconnects host rooms directly
  * - arcade iframe runtime: auto-detects `aj_room` + `aj_cap` and bridges through the platform-owned host session
  *
- * Mount this once near the top of your host provider tree. Child components that only need
- * session state should use `useHostSession()` instead of mounting another runtime owner.
+ * This hook no longer creates host runtime side effects.
  *
  * **Features:**
  * - Automatic room creation and management
@@ -175,16 +179,12 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * - Game state synchronization
  *
  * @template TSchema - Zod schema for input validation (from provider)
- * @param options - Configuration options for the host
  * @returns API object with state and functions
  *
  * @example Basic usage
  * ```tsx
  * const HostView = () => {
- *   const host = useAirJamHost({
- *     onPlayerJoin: (player) => console.log(`${player.label} joined`),
- *     onPlayerLeave: (id) => console.log(`${id} left`),
- *   });
+ *   const host = useAirJamHost();
  *
  *   return (
  *     <div>
@@ -230,8 +230,21 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * };
  * ```
  */
-export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
-  options: AirJamHostOptions = {},
-): AirJamHostApi<TSchema> => {
-  return useHostRuntimeApi<TSchema>(options, "useAirJamHost");
+export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(): AirJamHostApi<TSchema> => {
+  useAssertSessionScope("host", "useAirJamHost");
+
+  const runtime = useContext(hostRuntimeContext);
+  if (!runtime) {
+    throw createAirJamDiagnosticError(
+      "AJ_SCOPE_MISMATCH",
+      "useAirJamHost requires a mounted host runtime boundary. Wrap the host tree with <AirJamHostRuntime> or <airjam.Host> before reading host state.",
+      {
+        hookName: "useAirJamHost",
+        expectedScope: "host",
+        receivedScope: "host",
+      },
+    );
+  }
+
+  return runtime as AirJamHostApi<TSchema>;
 };

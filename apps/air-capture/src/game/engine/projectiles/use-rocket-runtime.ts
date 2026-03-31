@@ -3,7 +3,7 @@ import { useRapier } from "@react-three/rapier";
 import { useRef, type RefObject } from "react";
 import { Raycaster, Vector3, type Group } from "three";
 
-import { useHostAudio } from "../../audio/host-audio";
+import { useHostAudio } from "../../audio/use-host-audio";
 import {
   buildProjectileDecalPlacement,
   calculateExplosionDamage,

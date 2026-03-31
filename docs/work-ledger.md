@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-03-30  
+Last updated: 2026-03-31  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -205,7 +205,24 @@ Current view:
 2. explicit runtime ownership is now the preferred direction for host, controller, and audio
 3. Pong, `air-capture`, template output, and docs should converge on one canonical runtime pattern
 4. deprecated compatibility surface should not be left behind here
-### 12. RPC Action Contract Refactor
+
+### 12. Platform Settings Runtime
+
+Status: completed baseline  
+Plan: [Platform Settings Runtime Plan](./plans/platform-settings-runtime-plan.md)
+
+Current view:
+
+1. shared user settings should be a platform-owned runtime, not an audio-only global store
+2. Arcade/platform should persist shared settings locally and inherit them into child game iframes
+3. embedded games should consume platform settings read-only
+4. the initial shared schema should stay intentionally small: audio, accessibility, and feedback
+5. Arcade browser chrome and controller menu are now the canonical product surfaces for shared settings instead of leaving the runtime as latent plumbing only
+6. initial iframe settings delivery is now deterministic via explicit `AIRJAM_SETTINGS_READY` handshake and SDK-owned bridge helpers
+7. controller-side setting changes now flow through host-owned room authority, not same-origin storage assumptions
+8. audio startup is now explicit and observable with runtime `idle | blocked | ready` state plus a host-facing enable-audio prompt when the browser blocks autoplay
+
+### 13. RPC Action Contract Refactor
 
 Status: parked  
 Plan: [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)

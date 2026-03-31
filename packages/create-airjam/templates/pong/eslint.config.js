@@ -58,9 +58,14 @@ export default defineConfig([
           paths: [
             {
               name: "@air-jam/sdk",
-              importNames: ["useAirJamHost", "useAirJamController"],
+              importNames: [
+                "AirJamHostRuntime",
+                "AirJamControllerRuntime",
+                "HostSessionProvider",
+                "ControllerSessionProvider",
+              ],
               message:
-                "Mount runtime owner hooks only in the host/controller entry files. Child components should use useHostSession() or useControllerSession() instead.",
+                "Mount runtime ownership only at the app boundary. Child components should consume session hooks instead of importing runtime owners directly.",
             },
           ],
         },

@@ -7,7 +7,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   type PlayerProfile,
-  useVolumeStore,
+  useInheritedPlatformSettings,
 } from "@air-jam/sdk";
 import type {
   AirJamActionRpcPayload,
@@ -40,8 +40,7 @@ import {
 import {
   AIRJAM_DEV_LOG_SINK_FAILURE,
   AIRJAM_DEV_PROVIDER_MOUNTED,
-  createArcadeBridgeInitMessage,
-  createArcadeSettingsSyncMessage,
+  createParentPlatformSettingsBridge,
   emitAirJamDevRuntimeEvent,
 } from "@air-jam/sdk/arcade/bridge/iframe";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -72,6 +71,7 @@ interface GamePlayerProps {
   onExit: () => void;
   /** Whether to show the default exit button overlay */
   showExitOverlay?: boolean;
+  reducedMotion?: boolean;
 }
 
 /**
@@ -91,10 +91,81 @@ export const GamePlayer = ({
   arcadeSurfaceRuntimeIdentity,
   onExit,
   showExitOverlay = false,
+  reducedMotion = false,
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const settingsBridgePortRef = useRef<MessagePort | null>(null);
   const hostBridgePortRef = useRef<MessagePort | null>(null);
+  const settingsBridgeRef = useRef(
+    createParentPlatformSettingsBridge({
+      onEvent: (event, payload) => {
+        if (event === "bridgeAttached") {
+          const data = payload as { state: "unbound" | "waiting_ready" | "ready" };
+          emitAirJamDevRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
+            message: "Arcade host attached embedded platform settings bridge",
+            level: "info",
+            role: "host",
+            roomId: hostBridgeStateRef.current.roomId,
+            runtimeEpoch: arcadeIdentityRef.current.epoch,
+            runtimeKind: "arcade-host-runtime",
+            data: {
+              gameId: game.id,
+              state: data.state,
+            },
+          });
+          return;
+        }
+
+        if (event === "settingsReady") {
+          const data = payload as { state: "unbound" | "waiting_ready" | "ready" };
+          emitAirJamDevRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
+            message: "Arcade host received embedded settings-ready request",
+            level: "info",
+            role: "host",
+            roomId: hostBridgeStateRef.current.roomId,
+            runtimeEpoch: arcadeIdentityRef.current.epoch,
+            runtimeKind: "arcade-host-runtime",
+            data: {
+              gameId: game.id,
+              state: data.state,
+            },
+          });
+          return;
+        }
+
+        if (event !== "snapshotFlushed") {
+          return;
+        }
+
+        const data = payload as {
+          phase: "initial" | "update";
+          transports: Array<"bridge_port" | "window_postmessage">;
+          settings: typeof platformSettings;
+        };
+
+        emitAirJamDevRuntimeEvent({
+          event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
+          message:
+            data.phase === "initial"
+              ? "Arcade host flushed initial platform settings snapshot to embedded game"
+              : "Arcade host flushed updated platform settings snapshot to embedded game",
+          level: "info",
+          role: "host",
+          roomId: hostBridgeStateRef.current.roomId,
+          runtimeEpoch: arcadeIdentityRef.current.epoch,
+          runtimeKind: "arcade-host-runtime",
+          data: {
+            gameId: game.id,
+            phase: data.phase,
+            state: settingsBridgeRef.current.getState(),
+            transports: data.transports,
+            settings: data.settings,
+          },
+        });
+      },
+    }),
+  );
   /** Identity frozen at last host bridge attach; drop forwards if parent surface drifts first. */
   const hostBridgeAttachedIdentityRef =
     useRef<ArcadeSurfaceRuntimeIdentity | null>(null);
@@ -112,8 +183,8 @@ export const GamePlayer = ({
     arcadeIdentityRef.current = arcadeSurfaceRuntimeIdentity;
   }, [arcadeSurfaceRuntimeIdentity]);
 
-  // Subscribe to volume settings from the arcade overlay
-  const { masterVolume, musicVolume, sfxVolume } = useVolumeStore();
+  // Subscribe to the platform-owned shared settings snapshot.
+  const platformSettings = useInheritedPlatformSettings();
 
   const iframeSrc = buildArcadeGameIframeSrc({
     normalizedUrl,
@@ -148,55 +219,31 @@ export const GamePlayer = ({
       return;
     }
 
-    const channel = new MessageChannel();
-
-    // Reset previous bridge channel if present.
-    try {
-      settingsBridgePortRef.current?.close();
-    } catch {
-      // Ignore close errors
-    }
-
-    settingsBridgePortRef.current = channel.port1;
-    settingsBridgePortRef.current.start();
-
-    contentWindow.postMessage(
-      createArcadeBridgeInitMessage(),
-      iframeTargetOrigin,
-      [channel.port2],
-    );
+    settingsBridgeRef.current.attach(contentWindow, iframeTargetOrigin);
   }, [game.id, iframeTargetOrigin, normalizedUrl]);
 
-  /**
-   * Send current volume settings to the game iframe via postMessage.
-   * The SDK's volume store in the game will listen for these messages.
-   */
-  const sendSettingsToGame = useCallback(() => {
-    const payload = createArcadeSettingsSyncMessage({
-      masterVolume,
-      musicVolume,
-      sfxVolume,
-    });
-
-    const bridgePort = settingsBridgePortRef.current;
-    if (bridgePort) {
-      bridgePort.postMessage(payload);
-      return;
-    }
-
-    if (!iframeTargetOrigin) {
-      return;
-    }
-
-    iframeRef.current?.contentWindow?.postMessage(payload, iframeTargetOrigin);
-  }, [masterVolume, musicVolume, sfxVolume, iframeTargetOrigin]);
-
-  // Send settings whenever they change (and iframe is loaded)
   useEffect(() => {
-    if (iframeLoaded && isVisible) {
-      sendSettingsToGame();
+    if (!iframeLoaded || !isVisible) {
+      return;
     }
-  }, [iframeLoaded, isVisible, sendSettingsToGame]);
+
+    settingsBridgeRef.current.updateSettings(platformSettings);
+  }, [iframeLoaded, isVisible, platformSettings]);
+
+  useEffect(() => {
+    const handleSettingsReady = (event: MessageEvent<unknown>) => {
+      settingsBridgeRef.current.handleMessage(
+        event,
+        iframeRef.current?.contentWindow ?? null,
+        iframeTargetOrigin,
+      );
+    };
+
+    window.addEventListener("message", handleSettingsReady);
+    return () => {
+      window.removeEventListener("message", handleSettingsReady);
+    };
+  }, [iframeTargetOrigin]);
 
   useEffect(() => {
     hostSocketRef.current = hostSocket;
@@ -210,12 +257,7 @@ export const GamePlayer = ({
 
   useEffect(() => {
     return () => {
-      try {
-        settingsBridgePortRef.current?.close();
-      } catch {
-        // Ignore close errors
-      }
-      settingsBridgePortRef.current = null;
+      settingsBridgeRef.current.detach();
       try {
         hostBridgePortRef.current?.postMessage(
           createHostBridgeCloseMessage("game_unloaded"),
@@ -511,7 +553,10 @@ export const GamePlayer = ({
   return (
     <div
       className={cn(
-        "absolute inset-0 z-20 bg-black transition-transform duration-500",
+        "absolute inset-0 z-20 bg-black",
+        reducedMotion
+          ? "transition-none"
+          : "transition-transform duration-500",
         isVisible ? "translate-y-0" : "translate-y-full",
       )}
     >
@@ -538,8 +583,6 @@ export const GamePlayer = ({
           onLoad={() => {
             establishBridgeChannel();
             setLoadedIframeSrc(iframeSrc);
-            // Send initial settings after a small delay to ensure the game is ready
-            setTimeout(sendSettingsToGame, 100);
           }}
           onError={() => {
             emitAirJamDevRuntimeEvent({

@@ -13,7 +13,7 @@
  *
  * **When to use this vs useAirJamHost().getInput:**
  * - Use `useGetInput()` in components that render frequently (game objects, particles)
- * - Use `useAirJamHost().getInput` when you already need other host state
+ * - Use `useAirJamHost().getInput` in host-facing UI or child components that already read host runtime state
  */
 import { useCallback } from "react";
 import type { z } from "zod";
@@ -25,10 +25,10 @@ import { useAssertSessionScope } from "../context/session-providers";
  *
  * Returns a stable `getInput` function that retrieves the latest input for a
  * given controller ID. Unlike `useAirJamHost()`, this hook does NOT subscribe
- * to the store, so it won't cause re-renders when connection state changes.
+ * to host session state, so it won't cause re-renders when connection state changes.
  *
  * **Requirements:**
- * - Must be used within an `AirJamProvider`
+ * - Must be used within `AirJamHostRuntime`, `airjam.Host`, or the underlying scoped host runtime
  * - Input configuration must be provided to the provider
  *
  * @template TSchema - Zod schema type for input (from provider)

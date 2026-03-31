@@ -2,7 +2,9 @@ import {
   AIRJAM_BRIDGE_INIT,
   AIRJAM_SETTINGS_SYNC,
   createBridgeHandshake,
+  isAirJamSettingsReadyMessage,
   type AirJamBridgeInitMessage,
+  type AirJamSettingsReadyMessage,
   type AirJamSettingsSyncMessage,
 } from "../../runtime/iframe-bridge";
 import {
@@ -13,12 +15,14 @@ import {
   type AirJamDevRuntimeEventDetail,
 } from "../../runtime/dev-runtime-events";
 import { AIR_JAM_SDK_VERSION } from "../../runtime/sdk-version";
-
-export interface ArcadeVolumeSettings {
-  masterVolume?: number;
-  musicVolume?: number;
-  sfxVolume?: number;
-}
+import type { PlatformSettingsSnapshot } from "../../settings/platform-settings";
+export {
+  createParentPlatformSettingsBridge,
+  type ParentPlatformSettingsBridgeController,
+  type ParentPlatformSettingsBridgeEventMap,
+  type PlatformSettingsBridgeState,
+  type PlatformSettingsBridgeTransport,
+} from "../../settings/platform-settings-bridge";
 
 export const createArcadeBridgeInitMessage = (): AirJamBridgeInitMessage => ({
   type: AIRJAM_BRIDGE_INIT,
@@ -33,24 +37,25 @@ export const createArcadeBridgeInitMessage = (): AirJamBridgeInitMessage => ({
   },
 });
 
-export const createArcadeSettingsSyncMessage = ({
-  masterVolume,
-  musicVolume,
-  sfxVolume,
-}: ArcadeVolumeSettings): AirJamSettingsSyncMessage => ({
+export const createArcadeSettingsSyncMessage = (
+  settings: PlatformSettingsSnapshot,
+): AirJamSettingsSyncMessage => ({
   type: AIRJAM_SETTINGS_SYNC,
   payload: {
-    masterVolume,
-    musicVolume,
-    sfxVolume,
+    settings,
   },
 });
 
-export type { AirJamBridgeInitMessage, AirJamSettingsSyncMessage };
+export type {
+  AirJamBridgeInitMessage,
+  AirJamSettingsReadyMessage,
+  AirJamSettingsSyncMessage,
+};
 export {
   AIRJAM_DEV_LOG_SINK_FAILURE,
   AIRJAM_DEV_PROVIDER_MOUNTED,
   AIRJAM_DEV_RUNTIME_EVENT,
   emitAirJamDevRuntimeEvent,
+  isAirJamSettingsReadyMessage,
 };
 export type { AirJamDevRuntimeEventDetail };

@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
-import { HostSessionProvider } from "@air-jam/sdk";
+import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
 import { AlertCircle, ArrowLeft, ExternalLink, Flag, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -116,8 +116,9 @@ export default function PlayGamePage({
   };
 
   return (
-    <HostSessionProvider {...platformArcadeHostSessionConfig}>
-      <div className="flex h-screen flex-col bg-slate-950">
+    <PlatformSettingsRuntime persistence="local">
+      <AirJamHostRuntime {...platformArcadeHostSessionConfig}>
+        <div className="flex h-screen flex-col bg-slate-950">
         {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
         <div className="relative z-100">
           <PreviewHeader
@@ -153,8 +154,8 @@ export default function PlayGamePage({
             className="flex-1"
           />
         </div>
-      </div>
-      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        </div>
+        <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Report this hosted release</DialogTitle>
@@ -221,8 +222,9 @@ export default function PlayGamePage({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-    </HostSessionProvider>
+        </Dialog>
+      </AirJamHostRuntime>
+    </PlatformSettingsRuntime>
   );
 }
 

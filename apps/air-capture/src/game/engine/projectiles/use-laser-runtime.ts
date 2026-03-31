@@ -5,7 +5,7 @@ import type { Mesh } from "three";
 import { Raycaster, Vector3 } from "three";
 
 import { useSendSignal } from "@air-jam/sdk";
-import { useHostAudio } from "../../audio/host-audio";
+import { useHostAudio } from "../../audio/use-host-audio";
 import {
   buildProjectileDecalPlacement,
   calculateLaserKnockbackImpulse,

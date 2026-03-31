@@ -5,6 +5,7 @@ import * as sdk from "../src/index";
 describe("sdk export surface", () => {
   it("does not expose unscoped lifecycle primitives on root export", () => {
     expect("AirJamProvider" in sdk).toBe(false);
+    expect("AirJamProviderProps" in sdk).toBe(false);
     expect("useAirJamContext" in sdk).toBe(false);
     expect("useAirJamConfig" in sdk).toBe(false);
     expect("useAirJamState" in sdk).toBe(false);
@@ -47,12 +48,31 @@ describe("sdk export surface", () => {
     expect("ServerErrorPayload" in sdk).toBe(false);
     expect("HostRegistrationAck" in sdk).toBe(false);
     expect("SystemLaunchGameAck" in sdk).toBe(false);
+    expect("AudioManager" in sdk).toBe(false);
     expect("useAudioManager" in sdk).toBe(false);
+    expect("AudioProvider" in sdk).toBe(false);
+    expect("useProvidedAudio" in sdk).toBe(false);
+    expect("useRemoteSound" in sdk).toBe(false);
+    expect("useVolumeStore" in sdk).toBe(false);
     expect("isManifestSoundId" in sdk).toBe(false);
     expect("detectSoundCategory" in sdk).toBe(false);
     expect("initializeParentSettingsSync" in sdk).toBe(false);
     expect("disposeParentSettingsSync" in sdk).toBe(false);
     expect("isInternalActionName" in sdk).toBe(false);
+  });
+
+  it("exposes explicit audio runtimes and consumer hooks on root export", () => {
+    expect("AudioRuntime" in sdk).toBe(true);
+    expect("ControllerRemoteAudioRuntime" in sdk).toBe(true);
+    expect("useAudio" in sdk).toBe(true);
+    expect("useAudioRuntimeStatus" in sdk).toBe(true);
+    expect("useAudioRuntimeControls" in sdk).toBe(true);
+    expect("PlatformSettingsRuntime" in sdk).toBe(true);
+    expect("usePlatformSettings" in sdk).toBe(true);
+    expect("useInheritedPlatformSettings" in sdk).toBe(true);
+    expect("usePlatformAudioSettings" in sdk).toBe(true);
+    expect("getEffectiveAudioVolume" in sdk).toBe(true);
+    expect("useAudioSettings" in sdk).toBe(false);
   });
 
   it("keeps package subpath exports limited to public entrypoints", () => {

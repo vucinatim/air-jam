@@ -1,4 +1,5 @@
 import type {
+  AudioHandle,
   AirJamControllerApi,
   PlayerProfile,
   SignalPayload,
@@ -10,11 +11,43 @@ type Has<K extends string> = K extends keyof SDK ? true : false;
 type AssertTrue<T extends true> = T;
 type AssertFalse<T extends false> = T;
 
-export type __assert_host_provider_exported = AssertTrue<
+export type __assert_host_provider_not_exported = AssertFalse<
   Has<"HostSessionProvider">
 >;
-export type __assert_controller_provider_exported = AssertTrue<
+export type __assert_controller_provider_not_exported = AssertFalse<
   Has<"ControllerSessionProvider">
+>;
+export type __assert_host_runtime_exported = AssertTrue<
+  Has<"AirJamHostRuntime">
+>;
+export type __assert_controller_runtime_exported = AssertTrue<
+  Has<"AirJamControllerRuntime">
+>;
+export type __assert_audio_runtime_exported = AssertTrue<Has<"AudioRuntime">>;
+export type __assert_controller_remote_audio_runtime_exported = AssertTrue<
+  Has<"ControllerRemoteAudioRuntime">
+>;
+export type __assert_use_audio_exported = AssertTrue<Has<"useAudio">>;
+export type __assert_use_audio_runtime_status_exported = AssertTrue<
+  Has<"useAudioRuntimeStatus">
+>;
+export type __assert_use_audio_runtime_controls_exported = AssertTrue<
+  Has<"useAudioRuntimeControls">
+>;
+export type __assert_platform_settings_runtime_exported = AssertTrue<
+  Has<"PlatformSettingsRuntime">
+>;
+export type __assert_use_platform_settings_exported = AssertTrue<
+  Has<"usePlatformSettings">
+>;
+export type __assert_use_inherited_platform_settings_exported = AssertTrue<
+  Has<"useInheritedPlatformSettings">
+>;
+export type __assert_use_platform_audio_settings_exported = AssertTrue<
+  Has<"usePlatformAudioSettings">
+>;
+export type __assert_get_effective_audio_volume_exported = AssertTrue<
+  Has<"getEffectiveAudioVolume">
 >;
 export type __assert_controller_session_hook_exported = AssertTrue<
   Has<"useControllerSession">
@@ -37,11 +70,17 @@ export type __assert_signal_payload_importable = AssertTrue<
 export type __assert_sound_manifest_importable = AssertTrue<
   SoundManifest extends Record<string, unknown> ? true : false
 >;
+export type __assert_audio_handle_importable = AssertTrue<
+  AudioHandle extends object ? true : false
+>;
 export type __assert_define_airjam_config_not_exported = AssertFalse<
   Has<"defineAirJamConfig">
 >;
 export type __assert_airjam_provider_not_exported = AssertFalse<
   Has<"AirJamProvider">
+>;
+export type __assert_airjam_provider_props_not_exported = AssertFalse<
+  Has<"AirJamProviderProps">
 >;
 export type __assert_context_hooks_not_exported = AssertFalse<
   Has<"useAirJamContext">
@@ -115,8 +154,26 @@ export type __assert_action_rpc_payload_not_exported = AssertFalse<
 export type __assert_controller_welcome_not_exported = AssertFalse<
   Has<"ControllerWelcomePayload">
 >;
+export type __assert_audio_manager_not_exported = AssertFalse<
+  Has<"AudioManager">
+>;
 export type __assert_use_audio_manager_not_exported = AssertFalse<
   Has<"useAudioManager">
+>;
+export type __assert_audio_provider_not_exported = AssertFalse<
+  Has<"AudioProvider">
+>;
+export type __assert_use_provided_audio_not_exported = AssertFalse<
+  Has<"useProvidedAudio">
+>;
+export type __assert_use_remote_sound_not_exported = AssertFalse<
+  Has<"useRemoteSound">
+>;
+export type __assert_use_volume_store_not_exported = AssertFalse<
+  Has<"useVolumeStore">
+>;
+export type __assert_use_audio_settings_not_exported = AssertFalse<
+  Has<"useAudioSettings">
 >;
 export type __assert_settings_sync_init_not_exported = AssertFalse<
   Has<"initializeParentSettingsSync">

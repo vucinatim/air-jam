@@ -99,7 +99,7 @@ const generatedContentDocsDocuments = [
         slug: "quick-start",
         depth: 2,
         excerpt:
-          "1. Install the SDK 2. Wrap Your App 3. Create Your Host View The path below matches the current starter template layout. It is a good default, not a required framework filename. 4. Create Your Controller View The path…",
+          "1. Install the SDK 2. Wrap Your App 3. Create Your Host View The path below matches the current starter template layout. It is a good default, not a required framework filename. Mount host ownership once at , then use…",
       },
       {
         title: "1. Install the SDK",
@@ -112,14 +112,14 @@ const generatedContentDocsDocuments = [
         slug: "2-wrap-your-app",
         depth: 3,
         excerpt:
-          'import { airjam } from "./airjam.config"; export const App = () => ( <Routes> <Route path="/" element={ <airjam.Host> <HostView /> </airjam.Host> /> <Route path={airjam.paths.controller} element={ <airjam.Controller>…',
+          'import { airjam } from "./airjam.config"; export const App = () => ( <Routes> <Route path="/" element={ <airjam.Host onPlayerJoin={(player) => { console.log(`${player.label} joined!`); onPlayerLeave={(id) => {…',
       },
       {
         title: "3. Create Your Host View",
         slug: "3-create-your-host-view",
         depth: 3,
         excerpt:
-          "The path below matches the current starter template layout. It is a good default, not a required framework filename.",
+          "The path below matches the current starter template layout. It is a good default, not a required framework filename. Mount host ownership once at , then use useAirJamHost() only as a consumer hook inside that boundary.",
       },
       {
         title: "4. Create Your Controller View",
@@ -998,7 +998,7 @@ const generatedContentDocsDocuments = [
         title: "Embedded Game Mode (Arcade)",
         slug: "embedded-game-mode-arcade",
         depth: 3,
-        excerpt: "const host = useAirJamHost({ onPlayerJoin: (player) => {",
+        excerpt: "const host = useAirJamHost();",
       },
       {
         title: "Player Management",
@@ -1011,7 +1011,7 @@ const generatedContentDocsDocuments = [
         slug: "player-lifecycle",
         depth: 3,
         excerpt:
-          'const host = useAirJamHost({ onPlayerJoin: (player) => { spawnPlayerEntity(player); host.sendSignal( "TOAST", title: `Welcome ${player.label}!`, player.id, onPlayerLeave: (controllerId) => {…',
+          "const HostShell = () => ( <AirJamHostRuntime input={{ schema: gameInputSchema }} onPlayerJoin={(player) => { spawnPlayerEntity(player); announceJoin(player.label); onPlayerLeave={(controllerId) => {…",
       },
       {
         title: "Accessing Players",
@@ -1047,11 +1047,11 @@ const generatedContentDocsDocuments = [
         slug: "sdk-hooks",
         depth: 1,
         excerpt:
-          "The Air Jam SDK provides React hooks for building multiplayer games. This page documents all available hooks and their usage. Provider createAirJamApp Use createAirJamApp as the canonical runtime setup. It wires scoped…",
+          "The Air Jam SDK provides React hooks for building multiplayer games. This page documents all available hooks and their usage. Runtime Boundaries createAirJamApp Use createAirJamApp as the canonical runtime setup. It…",
       },
       {
-        title: "Provider",
-        slug: "provider",
+        title: "Runtime Boundaries",
+        slug: "runtime-boundaries",
         depth: 2,
         excerpt:
           "createAirJamApp Use createAirJamApp as the canonical runtime setup. It wires scoped providers, route paths, and typed input schema in one place. Environment Variables: The provider automatically reads from these…",
@@ -1068,14 +1068,14 @@ const generatedContentDocsDocuments = [
         slug: "host-hooks",
         depth: 2,
         excerpt:
-          "useAirJamHost The primary hook for game hosts. Connects to the server, manages players, and provides input access. Reading Input in Game Loops: Sending Haptic Feedback: Sending Toast Notifications: useGetInput…",
+          "useAirJamHost Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Reading Input in Game Loops: Sending Haptic…",
       },
       {
         title: "useAirJamHost",
         slug: "useairjamhost",
         depth: 3,
         excerpt:
-          "The primary hook for game hosts. Connects to the server, manages players, and provides input access. Reading Input in Game Loops: Sending Haptic Feedback: Sending Toast Notifications:",
+          "Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Reading Input in Game Loops: Sending Haptic Feedback: Sending…",
       },
       {
         title: "useGetInput",
@@ -1096,14 +1096,14 @@ const generatedContentDocsDocuments = [
         slug: "controller-hooks",
         depth: 2,
         excerpt:
-          "useAirJamController Hook for building mobile controllers that connect to game hosts. useControllerTick Fixed-cadence helper for controller loops. Use it with useInputWriter instead of hand-rolled setInterval loops.…",
+          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. useControllerTick…",
       },
       {
         title: "useAirJamController",
         slug: "useairjamcontroller",
         depth: 3,
         excerpt:
-          "Hook for building mobile controllers that connect to game hosts.",
+          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it.",
       },
       {
         title: "useControllerTick",
@@ -1243,7 +1243,7 @@ const generatedContentDocsDocuments = [
         slug: "volumecontrols",
         depth: 3,
         excerpt:
-          "Ready-made control block for master/music/sfx sliders bound to SDK volume store. Props: className?: string compact?: boolean Use it for: in-game settings overlays pause/settings drawers",
+          "Ready-made control block for master/music/sfx sliders bound to the shared platform settings runtime. Mount it below PlatformSettingsRuntime when you want slider changes to persist in Arcade and inherit into embedded…",
       },
       {
         title: "Base Primitives",
@@ -1353,14 +1353,14 @@ const generatedContentDocsDocuments = [
         slug: "reading-input",
         depth: 2,
         excerpt:
-          "Main Host Loop This example uses the starter host surface path. Treat it as a recommended default, not a required filename. Performance-Critical Components Use useGetInput() to avoid store-driven re-renders:",
+          "Main Host Loop This example uses the starter host surface path. Treat it as a recommended default, not a required filename. It assumes your app has already mounted airjam.Host or AirJamHostRuntime above this view.…",
       },
       {
         title: "Main Host Loop",
         slug: "main-host-loop",
         depth: 3,
         excerpt:
-          "This example uses the starter host surface path. Treat it as a recommended default, not a required filename.",
+          "This example uses the starter host surface path. Treat it as a recommended default, not a required filename. It assumes your app has already mounted airjam.Host or AirJamHostRuntime above this view.",
       },
       {
         title: "Performance-Critical Components",
@@ -1373,7 +1373,7 @@ const generatedContentDocsDocuments = [
         slug: "controller-cadence",
         depth: 2,
         excerpt:
-          "Use useInputWriter() with useControllerTick() for fixed-cadence publishing: This example uses the starter controller surface path.",
+          "Use useInputWriter() with useControllerTick() for fixed-cadence publishing: This example uses the starter controller surface path. It assumes your app has already mounted airjam.Controller or AirJamControllerRuntime…",
       },
       {
         title: "Best Practices",
@@ -1472,14 +1472,14 @@ const generatedContentDocsDocuments = [
         slug: "use-on-controller",
         depth: 2,
         excerpt:
-          "This controller example matches the starter template surface layout.",
+          "This controller example matches the starter template surface layout. It assumes your app has already mounted airjam.Controller or AirJamControllerRuntime.",
       },
       {
         title: "Use on Host",
         slug: "use-on-host",
         depth: 2,
         excerpt:
-          "This host example also matches the starter template surface layout.",
+          "This host example also matches the starter template surface layout. It assumes your app has already mounted airjam.Host or AirJamHostRuntime.",
       },
       {
         title: "Action Flow",

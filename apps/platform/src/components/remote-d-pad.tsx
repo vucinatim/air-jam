@@ -14,6 +14,7 @@ interface RemoteDPadProps {
   onMove: (vector: { x: number; y: number }) => void;
   onConfirm: () => void;
   onConfirmRelease: () => void;
+  hapticsEnabled: boolean;
 }
 
 /**
@@ -25,6 +26,7 @@ export const RemoteDPad = ({
   onMove,
   onConfirm,
   onConfirmRelease,
+  hapticsEnabled,
 }: RemoteDPadProps) => {
   // Use refs to track state without causing re-renders
   const moveDirRef = useRef<"up" | "down" | "left" | "right" | "none">("none");
@@ -50,7 +52,7 @@ export const RemoteDPad = ({
         direction !== "none" &&
         previousDirection !== direction
       ) {
-        triggerLocalHaptic("selection");
+        if (hapticsEnabled) triggerLocalHaptic("selection");
       }
 
       // Call callback immediately with new value
@@ -91,7 +93,7 @@ export const RemoteDPad = ({
       setConfirmPressed(pressed);
 
       if (pressed) {
-        triggerLocalHaptic("confirm");
+        if (hapticsEnabled) triggerLocalHaptic("confirm");
         onConfirm();
       } else {
         onConfirmRelease();

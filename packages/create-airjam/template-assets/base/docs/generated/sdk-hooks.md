@@ -57,26 +57,28 @@ The provider automatically reads from these environment variables if props aren'
 
 ### `useAirJamHost`
 
-The primary hook for game hosts. Connects to the server, manages players, and provides input access.
+Consumer hook for host runtime state and actions. Mount `airjam.Host` or `AirJamHostRuntime` once at the boundary, then call `useAirJamHost()` anywhere below it.
 
 ```tsx
-import { useAirJamHost } from "@air-jam/sdk";
+import { AirJamHostRuntime, useAirJamHost } from "@air-jam/sdk";
+
+const HostShell = () => (
+  <AirJamHostRuntime
+    roomId="GAME"
+    input={{ schema: inputSchema }}
+    onPlayerJoin={(player) => {
+      console.log(`${player.label} joined with color ${player.color}`);
+    }}
+    onPlayerLeave={(controllerId) => {
+      console.log(`Player ${controllerId} left`);
+    }}
+  >
+    <HostView />
+  </AirJamHostRuntime>
+);
 
 const HostView = () => {
-  const host = useAirJamHost({
-    // Optional: Custom room code (auto-generated if not provided)
-    roomId: "GAME",
-
-    // Called when a player joins
-    onPlayerJoin: (player) => {
-      console.log(`${player.label} joined with color ${player.color}`);
-    },
-
-    // Called when a player leaves
-    onPlayerLeave: (controllerId) => {
-      console.log(`Player ${controllerId} left`);
-    },
-  });
+  const host = useAirJamHost();
 
   // Return values
   const {
@@ -224,31 +226,33 @@ const Laser = ({ ownerId }: { ownerId: string }) => {
 
 ### `useAirJamController`
 
-Hook for building mobile controllers that connect to game hosts.
+Consumer hook for controller runtime state and actions. Mount `airjam.Controller` or `AirJamControllerRuntime` once at the boundary, then call `useAirJamController()` below it.
 
 ```tsx
 import {
+  AirJamControllerRuntime,
   useAirJamController,
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
 import { useRef } from "react";
 
-const ControllerView = () => {
-  const controller = useAirJamController({
-    // Optional: room from URL query param still takes precedence
-    roomId: "ABCD",
-
-    // Optional: Player nickname
-    nickname: "Player1",
-
-    // Optional: Called when host sends state updates
-    onState: (state) => {
+const ControllerShell = () => (
+  <AirJamControllerRuntime
+    roomId="ABCD"
+    nickname="Player1"
+    onState={(state) => {
       if (state.message) {
         showNotification(state.message);
       }
-    },
-  });
+    }}
+  >
+    <ControllerView />
+  </AirJamControllerRuntime>
+);
+
+const ControllerView = () => {
+  const controller = useAirJamController();
   const writeInput = useInputWriter();
   const vectorRef = useRef({ x: 0, y: 0 });
   const actionRef = useRef(false);

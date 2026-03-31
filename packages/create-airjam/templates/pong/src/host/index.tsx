@@ -1,4 +1,9 @@
-import { useAirJamHost, useHostGameStateBridge } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  PlatformSettingsRuntime,
+  useAirJamHost,
+  useHostGameStateBridge,
+} from "@air-jam/sdk";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
@@ -14,9 +19,20 @@ import {
 } from "../game/engine";
 import { usePongFeedback } from "./hooks/use-pong-feedback";
 import { gameInputSchema } from "../game/input";
+import { PONG_SOUND_MANIFEST } from "../game/shared/sounds";
 import { usePongStore } from "../game/stores";
 
 export function HostView() {
+  return (
+    <PlatformSettingsRuntime>
+      <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
+        <HostScreen />
+      </AudioRuntime>
+    </PlatformSettingsRuntime>
+  );
+}
+
+function HostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
   const { gameState, toggleGameState } = host;
   const canvasRef = useRef<HTMLCanvasElement>(null);

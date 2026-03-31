@@ -265,7 +265,8 @@ Use higher-level host/controller tests only after the pure boundary is already c
 - Host owns authority for simulation, scoring, and state transitions; controllers send input + actions.
 - Keep host shell code in `src/host/`, controller shell code in `src/controller/`, and gameplay logic in `src/game/`.
 - Keep feedback centralized in host feedback modules (`use-pong-feedback`): no scattered side-effects.
-- Treat `useAudio(...)` as a runtime-owner primitive: call it once per host/controller surface, then pass local audio callbacks or facades downward instead of loading manifests in leaf modules.
+- Mount `PlatformSettingsRuntime` once per host/controller surface so shared platform audio, accessibility, and feedback settings have one owner.
+- Mount `AudioRuntime` / `ControllerRemoteAudioRuntime` once per host/controller surface, then use `useAudio()` only below that boundary.
 - Target controller feedback explicitly when needed (e.g., hitter-only hit cue) and keep broad cues host-local by default.
 - Keep reusable authored content in `src/game/prefabs/` once it is meant to be scanned, configured, or reused.
 - Keep debug-only toggles and diagnostics isolated in `src/game/debug/`.
@@ -273,7 +274,7 @@ Use higher-level host/controller tests only after the pure boundary is already c
 
 ## What SDK Handles For You
 
-- Remote controller sound playback: use `useRemoteSound(manifest, audio)` instead of manual `server:playSound` socket subscriptions.
+- Remote controller sound playback: use `ControllerRemoteAudioRuntime` instead of manual `server:playSound` socket subscriptions or leaf-level audio ownership.
 - Controller toast signaling: use `useControllerToasts()` to consume host `sendSignal("TOAST", ...)`.
 - Presence-aware action context: every store action receives `ctx.connectedPlayerIds` (no custom presence sync action needed).
 - Host phase/runtime bridge: use `useHostGameStateBridge(...)` for canonical lifecycle-to-pause/play synchronization.

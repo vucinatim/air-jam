@@ -1,6 +1,7 @@
 "use client";
 
 import { useArcadeSurfaceStore } from "@/components/arcade";
+import { useArcadePlatformSettingsStore } from "@/components/arcade/arcade-platform-settings-store";
 import {
   embeddedBridgeForwardShouldClose,
   shouldRejectControllerBridgeHandshake,
@@ -16,10 +17,13 @@ import {
 import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import { cn } from "@/lib/utils";
 import {
-  ControllerSessionProvider,
+  AirJamControllerRuntime,
+  PlatformSettingsRuntime,
+  useInheritedPlatformSettings,
   useAirJamController,
   useControllerTick,
   useInputWriter,
+  type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
 import type {
   AirJamStateSyncPayload,
@@ -31,6 +35,7 @@ import type {
   ServerErrorPayload,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
+import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
   type ControllerBridgeServerEventName,
@@ -61,19 +66,18 @@ import {
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
+function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) {
   const documentFullscreen = useDocumentFullscreen();
   const localProfile = useSyncExternalStore(
     subscribeControllerLocalProfile,
     getControllerLocalProfileClientSnapshot,
     getControllerLocalProfileServerSnapshot,
   );
-
-  const controller = useAirJamController({
-    roomId: routeRoomId ?? undefined,
-    nickname: localProfile.label,
-    avatarId: localProfile.avatarId,
-  });
+  const controller = useAirJamController();
+  const localPlatformSettings = useInheritedPlatformSettings();
+  const sharedPlatformSettings = useArcadePlatformSettingsStore(
+    (state) => state.settings,
+  );
   const writeInput = useInputWriter();
 
   const arcadeSurface = useArcadeSurfaceStore(
@@ -196,7 +200,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
   ]);
 
   const emitArcadeAction = useCallback(
-    (actionName: string) => {
+    (actionName: string, payload: unknown = null) => {
       if (
         !controller.socket ||
         !controller.socket.connected ||
@@ -208,11 +212,33 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
       controller.socket.emit("controller:action_rpc", {
         roomId: controller.roomId,
         actionName,
-        payload: null,
+        payload,
         storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
       });
     },
     [controller.socket, controller.roomId],
+  );
+
+  const usesRemotePlatformSettings =
+    controller.connectionStatus === "connected" && !!controller.roomId;
+  const effectivePlatformSettings = usesRemotePlatformSettings
+    ? sharedPlatformSettings
+    : localPlatformSettings;
+  const accessibility = effectivePlatformSettings.accessibility;
+  const feedback = effectivePlatformSettings.feedback;
+
+  const handleRemotePlatformSettingsPatch = useCallback(
+    (patch: {
+      audio?: Partial<PlatformSettingsSnapshot["audio"]>;
+      accessibility?: Partial<PlatformSettingsSnapshot["accessibility"]>;
+      feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
+    }) => {
+      emitArcadeAction(
+        airJamArcadePlatformActions.updatePlatformSettings,
+        patch,
+      );
+    },
+    [emitArcadeAction],
   );
 
   const closeBridge = useCallback((reason?: string) => {
@@ -478,7 +504,12 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
   }, [closeBridge, controller.socket, forwardBridgeEvent]);
 
   const layout = (
-    <div className="text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-black select-none">
+    <div
+      className={cn(
+        "text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-black select-none",
+        accessibility.highContrast && "contrast-125",
+      )}
+    >
       <ControllerMenuSheet
         routeRoomId={routeRoomId}
         activeUrl={activeUrl}
@@ -487,6 +518,13 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
         controllerOrientation={controllerPresentationOrientation}
         documentFullscreen={documentFullscreen}
         hostQrVisible={hostQrVisible}
+        hapticsEnabled={feedback.hapticsEnabled}
+        reducedMotion={accessibility.reducedMotion}
+        highContrast={accessibility.highContrast}
+        sharedPlatformSettings={
+          usesRemotePlatformSettings ? sharedPlatformSettings : null
+        }
+        onUpdateSharedPlatformSettings={handleRemotePlatformSettingsPatch}
       />
 
       <main
@@ -545,6 +583,7 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
                 onConfirmRelease={() => {
                   actionRef.current = false;
                 }}
+                hapticsEnabled={feedback.hapticsEnabled}
               />
             </div>
 
@@ -583,6 +622,27 @@ function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
   );
 }
 
+function ControllerPageInner({ routeRoomId }: { routeRoomId: string | null }) {
+  const localProfile = useSyncExternalStore(
+    subscribeControllerLocalProfile,
+    getControllerLocalProfileClientSnapshot,
+    getControllerLocalProfileServerSnapshot,
+  );
+
+  return (
+    <PlatformSettingsRuntime persistence="local">
+      <AirJamControllerRuntime
+        {...platformControllerSessionConfig}
+        roomId={routeRoomId ?? undefined}
+        nickname={localProfile.label}
+        avatarId={localProfile.avatarId}
+      >
+        <ControllerPageContent routeRoomId={routeRoomId} />
+      </AirJamControllerRuntime>
+    </PlatformSettingsRuntime>
+  );
+}
+
 function ControllerRoomKeyedInner() {
   const searchParams = useSearchParams();
   const roomKey = searchParams.get("room");
@@ -605,16 +665,14 @@ function ControllerRoomKeyedInner() {
 
 export default function ControllerPage() {
   return (
-    <ControllerSessionProvider {...platformControllerSessionConfig}>
-      <Suspense
-        fallback={
-          <div className="flex h-dvh items-center justify-center bg-black text-white">
-            Loading…
-          </div>
-        }
-      >
-        <ControllerRoomKeyedInner />
-      </Suspense>
-    </ControllerSessionProvider>
+    <Suspense
+      fallback={
+        <div className="flex h-dvh items-center justify-center bg-black text-white">
+          Loading…
+        </div>
+      }
+    >
+      <ControllerRoomKeyedInner />
+    </Suspense>
   );
 }

@@ -1,10 +1,10 @@
 import {
-  useAudio,
   useAirJamController,
+  ControllerRemoteAudioRuntime,
+  PlatformSettingsRuntime,
   useControllerToasts,
   useControllerTick,
   useInputWriter,
-  useRemoteSound,
 } from "@air-jam/sdk";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
@@ -23,7 +23,24 @@ import { PONG_SOUND_MANIFEST } from "../game/shared/sounds";
 
 export function ControllerView() {
   const controller = useAirJamController();
-  const audio = useAudio(PONG_SOUND_MANIFEST);
+
+  return (
+    <PlatformSettingsRuntime>
+      <ControllerRemoteAudioRuntime
+        manifest={PONG_SOUND_MANIFEST}
+        enabled={controller.connectionStatus === "connected"}
+      >
+        <ControllerScreen controller={controller} />
+      </ControllerRemoteAudioRuntime>
+    </PlatformSettingsRuntime>
+  );
+}
+
+function ControllerScreen({
+  controller,
+}: {
+  controller: ReturnType<typeof useAirJamController>;
+}) {
   const { latestToast } = useControllerToasts();
   const writeInput = useInputWriter();
   const directionRef = useRef(0);
@@ -100,10 +117,6 @@ export function ControllerView() {
     controlsDisabled,
     connectionNotice,
   } = useControllerConnectionNotice(controller.connectionStatus);
-
-  useRemoteSound(PONG_SOUND_MANIFEST, audio, {
-    enabled: controller.connectionStatus === "connected",
-  });
 
   useControllerTick(
     () => {

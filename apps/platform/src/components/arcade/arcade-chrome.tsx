@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PlayerProfile } from "@air-jam/sdk";
 import { PlayerAvatarStrip } from "@air-jam/sdk/ui";
-import { QrCode, Users } from "lucide-react";
+import { QrCode, SlidersHorizontal, Users } from "lucide-react";
 import Image from "next/image";
 
 interface ArcadeChromeProps {
@@ -18,10 +18,13 @@ interface ArcadeChromeProps {
     | "reconnecting";
   lastError?: string;
   qrVisible: boolean;
+  settingsVisible: boolean;
   onToggleQr: () => void;
+  onToggleSettings: () => void;
   className?: string;
   /** When false, the game list is scrolled down — show bar background and border. */
   listAtTop: boolean;
+  highContrast?: boolean;
 }
 
 export const ArcadeChrome = ({
@@ -30,9 +33,12 @@ export const ArcadeChrome = ({
   connectionStatus,
   lastError,
   qrVisible,
+  settingsVisible,
   onToggleQr,
+  onToggleSettings,
   className,
   listAtTop,
+  highContrast = false,
 }: ArcadeChromeProps) => {
   const showElevatedBar = !listAtTop;
 
@@ -41,8 +47,12 @@ export const ArcadeChrome = ({
       className={cn(
         "px-4 py-2 transition-[background-color,backdrop-filter,border-color] duration-200 ease-out",
         showElevatedBar
-          ? "border-b border-white/10 bg-black/80 backdrop-blur-md"
-          : "border-b border-transparent",
+          ? highContrast
+            ? "border-b border-white/20 bg-black/90 backdrop-blur-md"
+            : "border-b border-white/10 bg-black/80 backdrop-blur-md"
+          : highContrast
+            ? "border-b border-white/10"
+            : "border-b border-transparent",
         className,
       )}
     >
@@ -94,6 +104,17 @@ export const ArcadeChrome = ({
               </span>
             </div>
           </div>
+
+          <Button
+            type="button"
+            variant={settingsVisible ? "default" : "outline"}
+            className="h-8 w-10 shrink-0 gap-1 border-white/20 bg-black/20 px-0 text-xs text-white hover:bg-white/10"
+            onClick={onToggleSettings}
+            aria-label={settingsVisible ? "Hide settings" : "Show settings"}
+            title={settingsVisible ? "Hide settings" : "Show settings"}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
 
           <Button
             type="button"

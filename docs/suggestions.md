@@ -17,6 +17,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 11. Finish narrowing `air-capture` entity components after the release push by moving remaining scene traversal, Rapier body lookup, and other per-frame runtime plumbing behind explicit engine/adapters seams so the 3D runtime keeps converging toward pure-step helpers plus thin render adapters.
 12. Move release moderation off the synchronous publish request path onto a small background job or workflow once real publish volume exists, so browser startup and third-party moderation latency do not stay coupled to the creator-facing publish click forever.
 13. Rename the internal `games.url` column and related server field names to `preview_url` / `previewUrl` once the release push settles, so the persisted data model matches the now-honest dashboard contract instead of carrying the old self-hosted naming forever.
+14. Add a follow-on `GameSettingsRuntime` layered on top of the new platform settings model once prerelease stabilizes, so game-specific preferences can be schema-owned and namespaced without polluting the shared platform settings contract.
 
 ## Framework Boundary Follow-Ups
 

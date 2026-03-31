@@ -82,6 +82,7 @@ export const useGameStore = createAirJamStore<GameState>((set) => ({
 ## Use on Controller
 
 This controller example matches the starter template surface layout.
+It assumes your app has already mounted `airjam.Controller` or `AirJamControllerRuntime`.
 
 ```tsx filename="src/controller/index.tsx"
 import { useAirJamController } from "@air-jam/sdk";
@@ -110,6 +111,7 @@ export const ControllerView = () => {
 ## Use on Host
 
 This host example also matches the starter template surface layout.
+It assumes your app has already mounted `airjam.Host` or `AirJamHostRuntime`.
 
 ```tsx filename="src/host/index.tsx"
 import { useGameStore } from "../game/stores/game-store";

@@ -2,10 +2,11 @@
 
 import { render, screen, waitFor } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoomQrCode } from "../src/components/room-qr-code";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
+import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
 import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
 import { createAirJamStore } from "../src/state/connection-store";
 import { urlBuilder } from "../src/utils/url-builder";
@@ -51,14 +52,39 @@ const mocked = vi.hoisted(() => ({
   useClaimSessionRuntimeOwner: vi.fn(),
 }));
 
-vi.mock("../src/context/air-jam-context", () => ({
-  useAirJamContext: mocked.useAirJamContext,
-}));
+vi.mock("../src/context/air-jam-context", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/context/air-jam-context")
+  >("../src/context/air-jam-context");
 
-vi.mock("../src/context/session-providers", () => ({
-  useAssertSessionScope: mocked.useAssertSessionScope,
-  useClaimSessionRuntimeOwner: mocked.useClaimSessionRuntimeOwner,
-}));
+  return {
+    ...actual,
+    useAirJamContext: mocked.useAirJamContext,
+  };
+});
+
+vi.mock("../src/context/session-providers", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/context/session-providers")
+  >("../src/context/session-providers");
+
+  return {
+    ...actual,
+    useAssertSessionScope: mocked.useAssertSessionScope,
+    useClaimSessionRuntimeOwner: mocked.useClaimSessionRuntimeOwner,
+  };
+});
+
+const PROVIDER_CONFIG = {
+  serverUrl: "http://localhost:3001",
+  appId: "test_app_id",
+};
+
+const HostRuntimeWrapper = ({ children }: { children: ReactNode }) =>
+  createElement(AirJamHostRuntime, {
+    ...PROVIDER_CONFIG,
+    children,
+  });
 
 describe("host join url behavior", () => {
   beforeEach(() => {
@@ -100,7 +126,9 @@ describe("host join url behavior", () => {
         }),
     );
 
-    const { result } = renderHook(() => useAirJamHost());
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: HostRuntimeWrapper,
+    });
 
     expect(result.current.joinUrlStatus).toBe("loading");
     expect(result.current.joinUrl).toBe("");

@@ -39,7 +39,14 @@ export const App = () => (
     <Route
       path="/"
       element={
-        <airjam.Host>
+        <airjam.Host
+          onPlayerJoin={(player) => {
+            console.log(`${player.label} joined!`);
+          }}
+          onPlayerLeave={(id) => {
+            console.log(`Player ${id} left`);
+          }}
+        >
           <HostView />
         </airjam.Host>
       }
@@ -83,16 +90,7 @@ It is a good default, not a required framework filename.
 import { useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
-  const host = useAirJamHost({
-    onPlayerJoin: (player) => {
-      console.log(`${player.label} joined!`);
-      // Spawn player logic...
-    },
-    onPlayerLeave: (id) => {
-      console.log(`Player ${id} left`);
-      // Despawn player logic...
-    },
-  });
+  const host = useAirJamHost();
 
   // In your game loop (e.g., useFrame or requestAnimationFrame):
   // host.players.forEach(p => {
@@ -116,6 +114,8 @@ const HostView = () => {
   );
 };
 ```
+
+Mount host ownership once at `<airjam.Host ...>`, then use `useAirJamHost()` only as a consumer hook inside that boundary.
 
 ### 4. Create Your Controller View
 

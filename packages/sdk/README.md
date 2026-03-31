@@ -73,17 +73,25 @@ The SDK fetches the host grant automatically before `host:bootstrap`. Game code 
 
 ## Host Usage
 
-Use `useAirJamHost` in your host/game view.
+Mount runtime ownership explicitly at the host boundary, then read it from child code with `useAirJamHost()`.
 
 ```tsx
-import { useAirJamHost } from "@air-jam/sdk";
+import { AirJamHostRuntime, useAirJamHost } from "@air-jam/sdk";
+
+const HostShell = () => (
+  <AirJamHostRuntime
+    serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
+    appId={import.meta.env.VITE_AIR_JAM_APP_ID}
+    input={{ schema: inputSchema }}
+    onPlayerJoin={(player) => console.log("joined", player.id)}
+    onPlayerLeave={(controllerId) => console.log("left", controllerId)}
+  >
+    <HostView />
+  </AirJamHostRuntime>
+);
 
 export const HostView = () => {
-  const host = useAirJamHost({
-    onPlayerJoin: (player) => console.log("joined", player.id),
-    onPlayerLeave: (controllerId) => console.log("left", controllerId),
-  });
-
+  const host = useAirJamHost();
   return (
     <section>
       <h1>Room: {host.roomId}</h1>
@@ -136,17 +144,28 @@ Notes:
 
 ## Controller Usage
 
-Use `useAirJamController` in your controller view.
+Mount runtime ownership explicitly at the controller boundary, then read it from child code with `useAirJamController()`.
 
 ```tsx
 import {
+  AirJamControllerRuntime,
   useAirJamController,
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
 
+const ControllerShell = () => (
+  <AirJamControllerRuntime
+    serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
+    appId={import.meta.env.VITE_AIR_JAM_APP_ID}
+    nickname="Player 1"
+  >
+    <ControllerView />
+  </AirJamControllerRuntime>
+);
+
 export const ControllerView = () => {
-  const controller = useAirJamController({ nickname: "Player 1" });
+  const controller = useAirJamController();
   const writeInput = useInputWriter();
 
   useControllerTick(
@@ -184,37 +203,95 @@ export const ControllerView = () => {
 
 Controllers usually join via URL query param: `/controller?room=ABCD`.
 
+The important rule is:
+
+1. mount `AirJamHostRuntime` / `AirJamControllerRuntime` once per runtime surface
+2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
+
 Hosts can also broadcast the intended controller layout orientation with
 `host.sendState({ orientation: "portrait" | "landscape" })`, which controllers
 receive as `controller.controllerOrientation`.
 
 ## Controller Feedback Helpers
 
-Use SDK hooks for canonical feedback wiring instead of manual socket listeners.
+Use explicit audio ownership at the controller boundary, then consume that runtime-owned manager below it.
 
 ```tsx
-import { useAudio, useControllerToasts, useRemoteSound } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  ControllerRemoteAudioRuntime,
+  useAudio,
+  useControllerToasts,
+} from "@air-jam/sdk";
 
 const manifest = {
   hit: { src: ["/sounds/hit.wav"] },
 };
 
 const ControllerHud = () => {
-  const audio = useAudio(manifest);
+  const audio = useAudio();
   const { latestToast } = useControllerToasts();
-
-  useRemoteSound(manifest, audio);
 
   return latestToast ? <p>{latestToast.message}</p> : null;
 };
+
+const ControllerShell = () => (
+  <ControllerRemoteAudioRuntime manifest={manifest}>
+    <ControllerHud />
+  </ControllerRemoteAudioRuntime>
+);
 ```
 
 Host-side `sendSignal("TOAST", ...)` now pairs directly with `useControllerToasts()`.
+Mount `AudioRuntime` / `ControllerRemoteAudioRuntime` once per runtime surface, then call `useAudio()` only below that boundary.
+
+## Shared Platform Settings
+
+Shared user settings are platform-owned and inherited by embedded games.
+
+Mount `PlatformSettingsRuntime` once in the platform shell, then use the narrow settings hooks below that boundary.
+
+```tsx
+import {
+  PlatformSettingsRuntime,
+  useInheritedPlatformSettings,
+  usePlatformAudioSettings,
+} from "@air-jam/sdk";
+
+const ArcadeShell = () => (
+  <PlatformSettingsRuntime persistence="local">
+    <SettingsPanel />
+    <EmbeddedGame />
+  </PlatformSettingsRuntime>
+);
+
+const SettingsPanel = () => {
+  const { masterVolume, setMasterVolume } = usePlatformAudioSettings();
+  return (
+    <button onClick={() => setMasterVolume(masterVolume === 0 ? 1 : 0)}>
+      Toggle Master
+    </button>
+  );
+};
+
+const EmbeddedGame = () => {
+  const settings = useInheritedPlatformSettings();
+  return <pre>{JSON.stringify(settings.audio, null, 2)}</pre>;
+};
+```
+
+Rules:
+
+1. mount `PlatformSettingsRuntime persistence="local"` once in the platform shell
+2. embedded games inherit platform settings read-only
+3. keep platform settings limited to shared cross-game concerns like audio, accessibility, and feedback
+4. do not recreate feature-specific global settings stores alongside this runtime
 
 ## Optional UI Primitives
 
 `@air-jam/sdk/ui` exports optional presentational primitives (`Button`, `Slider`, `PlayerAvatar`, `VolumeControls`).
 These components are lifecycle-free: they do not create sockets or own host/controller session state.
+`VolumeControls` reads and writes the shared audio slice through `PlatformSettingsRuntime`.
 
 ## Networked State (Host Source of Truth)
 
