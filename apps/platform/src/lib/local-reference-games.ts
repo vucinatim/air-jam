@@ -1,19 +1,39 @@
 import type { ArcadeGame } from "@/components/arcade";
 
-type LocalReferenceGameKey = "air-capture" | "pong";
+type LocalReferenceGameKey =
+  | "air-capture"
+  | "pong"
+  | "code-review"
+  | "last-band-standing"
+  | "the-office";
 
 type LocalReferenceGameConfig = {
   key: LocalReferenceGameKey;
   id: string;
   slug: string;
   name: string;
-  envVar: string;
-  defaultDevUrl: string;
+  defaultDevUrl?: string;
 };
 
 type LocalReferenceGameOptions = {
   env?: NodeJS.ProcessEnv;
   nodeEnv?: string | undefined;
+};
+
+const CLIENT_LOCAL_REFERENCE_ENV: NodeJS.ProcessEnv = {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_URL,
 };
 
 const DEFAULT_LOCAL_REFERENCE_GAME: LocalReferenceGameKey = "air-capture";
@@ -24,7 +44,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
     id: "local-reference-air-capture",
     slug: "local-air-capture",
     name: "Air Capture",
-    envVar: "NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL",
     defaultDevUrl: "http://127.0.0.1:5173",
   },
   {
@@ -32,8 +51,25 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
     id: "local-reference-pong",
     slug: "local-pong",
     name: "Pong",
-    envVar: "NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL",
     defaultDevUrl: "http://127.0.0.1:5173",
+  },
+  {
+    key: "code-review",
+    id: "local-reference-code-review",
+    slug: "local-code-review",
+    name: "Code Review",
+  },
+  {
+    key: "last-band-standing",
+    id: "local-reference-last-band-standing",
+    slug: "local-last-band-standing",
+    name: "Last Band Standing",
+  },
+  {
+    key: "the-office",
+    id: "local-reference-the-office",
+    slug: "local-the-office",
+    name: "The Office",
   },
 ] as const;
 
@@ -43,6 +79,36 @@ const LOCAL_REFERENCE_BADGE_LABEL = "Local Dev";
 const normalizeLocalReferenceUrl = (value: string | undefined): string | null => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+};
+
+const readConfiguredLocalReferenceUrl = (
+  gameKey: LocalReferenceGameKey,
+  env: NodeJS.ProcessEnv,
+): string | null => {
+  switch (gameKey) {
+    case "air-capture":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL,
+      );
+    case "pong":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL,
+      );
+    case "code-review":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL,
+      );
+    case "last-band-standing":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_URL,
+      );
+    case "the-office":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_URL,
+      );
+    default:
+      return null;
+  }
 };
 
 const resolveDefaultLocalReferenceKey = (
@@ -75,7 +141,7 @@ const toLocalReferenceArcadeGame = (
 export const getLocalReferenceArcadeGames = (
   options: LocalReferenceGameOptions = {},
 ): ArcadeGame[] => {
-  const env = options.env ?? process.env;
+  const env = options.env ?? CLIENT_LOCAL_REFERENCE_ENV;
   const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV;
 
   if (nodeEnv === "production") {
@@ -85,9 +151,11 @@ export const getLocalReferenceArcadeGames = (
   const defaultGameKey = resolveDefaultLocalReferenceKey(env);
 
   return LOCAL_REFERENCE_GAMES.flatMap((config) => {
-    const explicitUrl = normalizeLocalReferenceUrl(env[config.envVar]);
+    const explicitUrl = readConfiguredLocalReferenceUrl(config.key, env);
     const fallbackUrl =
-      explicitUrl === null && config.key === defaultGameKey
+      explicitUrl === null &&
+      config.key === defaultGameKey &&
+      typeof config.defaultDevUrl === "string"
         ? config.defaultDevUrl
         : null;
     const resolvedUrl = explicitUrl ?? fallbackUrl;

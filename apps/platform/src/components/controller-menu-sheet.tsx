@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { triggerLocalHaptic } from "@/lib/local-haptics";
+import { toggleDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import {
   getControllerLocalProfileClientSnapshot,
   getControllerLocalProfileServerSnapshot,
@@ -20,8 +21,6 @@ import { cn } from "@/lib/utils";
 import {
   type AirJamControllerApi,
   type ControllerOrientation,
-  type DocumentWithFullscreen,
-  type ElementWithFullscreen,
   type PlatformSettingsSnapshot,
   type PlayerProfile,
 } from "@air-jam/sdk";
@@ -449,29 +448,7 @@ export function ControllerMenuSheet({
           variant="outline"
           size="icon-touch"
           onClick={() => {
-            const doc = document as DocumentWithFullscreen;
-            const root = document.documentElement;
-            if (!root) return;
-            const el = root as ElementWithFullscreen;
-
-            if (
-              doc.fullscreenElement ||
-              doc.webkitFullscreenElement ||
-              doc.mozFullScreenElement ||
-              doc.msFullscreenElement
-            ) {
-              if (doc.exitFullscreen) void doc.exitFullscreen();
-              else if (doc.webkitExitFullscreen)
-                void doc.webkitExitFullscreen();
-              else if (doc.mozCancelFullScreen) void doc.mozCancelFullScreen();
-              else if (doc.msExitFullscreen) void doc.msExitFullscreen();
-            } else {
-              if (el.requestFullscreen) void el.requestFullscreen();
-              else if (el.webkitRequestFullscreen)
-                void el.webkitRequestFullscreen();
-              else if (el.mozRequestFullScreen) void el.mozRequestFullScreen();
-              else if (el.msRequestFullscreen) void el.msRequestFullscreen();
-            }
+            void toggleDocumentFullscreen();
           }}
           aria-label="Toggle fullscreen"
           title="Toggle fullscreen"
@@ -540,29 +517,7 @@ export function ControllerMenuSheet({
           size="icon-touch"
           className="bg-background/50 pointer-events-auto backdrop-blur-sm"
           onClick={() => {
-            const doc = document as DocumentWithFullscreen;
-            const root = document.documentElement;
-            if (!root) return;
-            const el = root as ElementWithFullscreen;
-
-            if (
-              doc.fullscreenElement ||
-              doc.webkitFullscreenElement ||
-              doc.mozFullScreenElement ||
-              doc.msFullscreenElement
-            ) {
-              if (doc.exitFullscreen) void doc.exitFullscreen();
-              else if (doc.webkitExitFullscreen)
-                void doc.webkitExitFullscreen();
-              else if (doc.mozCancelFullScreen) void doc.mozCancelFullScreen();
-              else if (doc.msExitFullscreen) void doc.msExitFullscreen();
-            } else {
-              if (el.requestFullscreen) void el.requestFullscreen();
-              else if (el.webkitRequestFullscreen)
-                void el.webkitRequestFullscreen();
-              else if (el.mozRequestFullScreen) void el.mozRequestFullScreen();
-              else if (el.msRequestFullscreen) void el.msRequestFullscreen();
-            }
+            void toggleDocumentFullscreen();
           }}
           aria-label="Toggle fullscreen"
           title="Toggle fullscreen"

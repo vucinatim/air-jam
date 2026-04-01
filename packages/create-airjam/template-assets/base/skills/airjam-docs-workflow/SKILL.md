@@ -16,6 +16,13 @@ Use this skill when a task touches framework contracts, architecture, canonical 
 
 Use local docs first.
 
+When a canonical docs contract changes, keep the derivative surfaces aligned in the same pass:
+
+1. source docs under `content/docs/`
+2. generated scaffold docs under `packages/create-airjam/template-assets/base/docs/generated/`
+3. repo-local skills under `packages/create-airjam/template-assets/base/skills/`
+4. hosted AI pack files if they are generated from those sources
+
 Use hosted Air Jam docs only when:
 
 1. the local docs pack does not cover the topic
@@ -39,3 +46,4 @@ Read local docs when:
 1. reading the entire docs tree for a small task
 2. skipping local docs and jumping straight to remote sources
 3. treating hosted docs as the only source of truth for a scaffolded project
+4. updating source docs but forgetting the generated scaffold/AI-pack surfaces

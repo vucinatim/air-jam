@@ -18,6 +18,16 @@ Use local files first.
 
 Use the hosted docs site when you need broader or newer canonical Air Jam docs.
 
+If you want to refresh the scaffold-managed docs and skills later, use:
+
+```bash
+pnpm ai-pack:status
+pnpm ai-pack:diff
+pnpm ai-pack:update
+```
+
+`ai-pack:update` replaces canonical AI-pack-managed files. It is intentionally not a merge tool.
+
 ## Getting Started
 
 ### Installation
@@ -324,29 +334,41 @@ See `.env.example` for all available environment variables. Key variables:
 The game will connect to the official Air Jam server - no local server needed!
 `vercel.json` is included in this template so `/controller?room=XXXX` and other SPA routes resolve correctly.
 
-### Listing Media For The Air Jam Dashboard
+### Building A Hosted Arcade Release Artifact
 
-For v1, Air Jam expects you to host your own thumbnail, cover, and preview video assets.
+The public Arcade hosting lane uses an uploaded hosted release artifact instead of a raw deployed URL.
 
-The simplest path is:
+From your project root:
 
-1. add those files to this project under `public/media/`
-2. deploy the game normally
-3. paste the deployed absolute URLs into the Air Jam dashboard game settings
+```bash
+pnpm release:bundle
+```
 
-Example deployed URLs:
+That command:
 
-- `https://your-game.vercel.app/media/thumbnail.jpg`
-- `https://your-game.vercel.app/media/cover.jpg`
-- `https://your-game.vercel.app/media/preview.mp4`
+1. runs your `build` script
+2. bundles the contents of `dist/`
+3. injects the hosted release manifest at `.airjam/release-manifest.json`
+4. writes the uploadable zip to `.airjam/releases/<version>/`
 
-Recommended conventions:
+The template ships that as a script over `create-airjam release bundle --dir .`, so you do not need a global install.
 
-1. keep listing media in one stable folder such as `public/media/`
-2. use public absolute HTTPS URLs only
-3. avoid renaming files after publishing so dashboard links stay stable
+The hosted artifact contract is fixed:
 
-This keeps the v1 publishing flow simple and avoids needing a separate upload/storage system before release.
+- host entry at `/`
+- controller entry at `/controller`
+
+If you want custom routes or a marketing site at `/`, keep using self-hosted mode. The dashboard-uploaded hosted lane is intentionally stricter.
+
+### Publishing Through The Dashboard
+
+1. Open your game's **Arcade Releases** page in the Air Jam Dashboard.
+2. Upload the zip created by `pnpm release:bundle`.
+3. Make the validated release live.
+4. Upload managed thumbnail, cover, and preview media in the Dashboard.
+5. Set Arcade visibility to listed.
+
+Use your self-hosted deployment URL only for private preview, staging, or custom route setups. Use the hosted artifact lane for the public Arcade.
 
 ### Optional: Stronger Signed Host Bootstrap
 

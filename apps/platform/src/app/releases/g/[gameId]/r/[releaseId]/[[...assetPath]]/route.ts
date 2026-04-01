@@ -1,3 +1,4 @@
+import { isHostedReleaseSpaFallbackPath } from "@/lib/releases/hosted-release-artifact";
 import { normalizeRequestedReleaseAssetPath } from "@/lib/releases/release-url";
 import { getReleaseAssetCacheControl } from "@/server/releases/release-artifact-validation";
 import { RELEASE_INSPECTION_ACCESS_HEADER } from "@/server/releases/release-inspection-access";
@@ -73,24 +74,32 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const objectKey = buildReleaseSiteObjectKey(
-    artifact.siteRootKey,
-    resolvedAssetPath,
-  );
   const storage = getReleaseStorage();
-  const objectHead = await storage.headObject(objectKey);
+  let servedAssetPath = resolvedAssetPath;
+  let objectHead = await storage.headObject(
+    buildReleaseSiteObjectKey(artifact.siteRootKey, servedAssetPath),
+  );
+
+  if (!objectHead && isHostedReleaseSpaFallbackPath(resolvedAssetPath)) {
+    servedAssetPath = artifact.entryPath;
+    objectHead = await storage.headObject(
+      buildReleaseSiteObjectKey(artifact.siteRootKey, servedAssetPath),
+    );
+  }
 
   if (!objectHead) {
     return new Response("Not found", { status: 404 });
   }
 
-  const body = await storage.readObject(objectKey);
+  const body = await storage.readObject(
+    buildReleaseSiteObjectKey(artifact.siteRootKey, servedAssetPath),
+  );
 
   return new Response(new Uint8Array(body), {
     status: 200,
     headers: {
       "content-type": objectHead.contentType || "application/octet-stream",
-      "cache-control": getReleaseAssetCacheControl(resolvedAssetPath),
+      "cache-control": getReleaseAssetCacheControl(servedAssetPath),
     },
   });
 }

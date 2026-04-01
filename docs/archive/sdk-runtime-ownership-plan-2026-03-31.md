@@ -8,7 +8,7 @@ Related docs:
 1. [Framework Paradigm](../framework-paradigm.md)
 2. [Work Ledger](../work-ledger.md)
 3. [SDK Composability Plan (Archived)](./sdk-composability-plan-2026-03-31.md)
-4. [SDK RPC Action Contract Plan](./sdk-rpc-action-contract-plan.md)
+4. [SDK RPC Action Contract Plan](./sdk-rpc-action-contract-plan-2026-03-31.md)
 5. [Air Capture Reference Refactor Plan](./air-capture-reference-refactor-plan.md)
 
 ## Purpose

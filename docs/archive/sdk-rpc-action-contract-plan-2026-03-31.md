@@ -1,7 +1,7 @@
 # Air Jam SDK Plan: Narrow Network Action Contract
 
 Last updated: 2026-03-31  
-Status: parked
+Status: completed baseline
 
 Related docs:
 
@@ -183,19 +183,21 @@ Even the narrow version unlocks real long-term value:
 So this is not just about React click events.
 It improves the honesty of the RPC boundary itself.
 
-## Why This Is Still Parked
+## Outcome
 
-This is a good architecture improvement, but it is not currently the highest-value prerelease task compared with:
+The narrow contract is now implemented.
 
-1. finishing the launch-set proof
-2. running the remaining hosted-release/media product proof
-3. preparing the real release
+Completed baseline:
 
-So the right status for now is:
+1. controller-to-host RPC actions are now `() => void` or `(payloadObject) => void`
+2. controller dispatch rejects event-like payloads, primitive roots, array roots, and non-serializable payloads
+3. protocol validation mirrors the same plain-object-or-undefined contract
+4. store definitions with primitive or array root payloads now fail at typecheck time
+5. SDK docs and diagnostics now teach the same contract explicitly
 
-1. good idea
-2. meaningful future value
-3. not currently on the critical path
+Remaining future-only idea:
+
+1. optional per-action schema validation can still be explored later if real game usage proves the narrow transport contract is not enough
 
 ## Implementation Plan
 

@@ -82,6 +82,20 @@ This project is "vibecode friendly"—it includes documentation and AI instructi
 These paths are the current starter template shape.
 They are recommended defaults for new projects, not framework-mandated filenames.
 
+### Refresh Managed Docs And Skills
+
+Scaffolded projects include an AI pack that owns the canonical local docs, skills, and related guidance files.
+
+Use these commands from your project root:
+
+```bash
+pnpm ai-pack:status
+pnpm ai-pack:diff
+pnpm ai-pack:update
+```
+
+`ai-pack:update` replaces AI-pack-managed files with the current canonical versions. It is intentionally a replace operation, not a merge tool.
+
 ### Server not connecting locally
 
 1. Verify `pnpm run dev` is running.
@@ -100,17 +114,18 @@ They are recommended defaults for new projects, not framework-mandated filenames
 2. If testing on phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` (or use `pnpm run dev -- --secure`).
 3. For SPA hosting, ensure rewrites route `/controller?room=XXXX` to your app entry.
 
-## 5. Deploy Your Game
+## 5. Connect Your Game To The Cloud
 
-When you're ready to share your game, you'll need to deploy it and connect it to the official Air Jam cloud.
+When you're ready to share your game, first connect it to the official Air Jam cloud.
 
 1.  **Create a Game Profile**:
     - Go to the [Platform Dashboard](/dashboard)
     - Create a profile and a new game
     - Copy your **App ID**
 
-2.  **Deploy the Client**:
+2.  **Deploy the Client Or Keep A Preview URL**:
     - Deploy your game to a static hosting provider like Vercel, Netlify, or GitHub Pages.
+    - Or keep using a creator-only preview URL in the Dashboard while you are iterating.
     - Set the following environment variables in your deployment settings:
 
     ```bash
@@ -128,6 +143,8 @@ pnpm test
 pnpm run typecheck
 pnpm run build
 ```
+
+If you are self-hosting the client, keep SPA rewrites enabled so `/controller?room=XXXX` resolves to your app entry.
 
 ### Optional: Stronger Signed Host Bootstrap
 
@@ -170,13 +187,34 @@ export async function POST(request: Request) {
 
 That endpoint is also where you can add your own rules, for example checking the signed-in user or limiting which app IDs they are allowed to bootstrap.
 
-## 6. Publish to Arcade
+## 6. Publish A Hosted Arcade Release
 
-To list your game in the official Air Jam Arcade:
+The official Arcade hosting lane is now artifact-based. Self-hosted URLs are still useful for private preview, but public Arcade hosting should use a hosted release artifact.
 
-1.  Go to your game's settings in the [Dashboard](/dashboard).
-2.  Enter your **deployed game URL** (e.g., `https://my-game.vercel.app`).
-3.  Optionally add a self-hosted thumbnail, cover image, and preview video URL.
-4.  Toggle the **Publish** switch.
+1. Build a hosted bundle from your project root:
 
-Your game is now live and playable by anyone in the Arcade!
+```bash
+pnpm release:bundle
+```
+
+That command:
+
+- runs your build script
+- bundles the static output from `dist/`
+- writes `.airjam/release-manifest.json`
+- creates a hosted release zip under `.airjam/releases/<version>/`
+
+The scaffolded `release:bundle` script wraps `create-airjam release bundle --dir .` for you.
+
+The hosted artifact contract is fixed:
+
+- host entry at `/`
+- controller entry at `/controller`
+
+2. Go to your game's **Arcade Releases** page in the [Dashboard](/dashboard).
+3. Upload the generated zip artifact.
+4. Make the validated release live.
+5. Upload managed thumbnail, cover, and preview media in the Dashboard.
+6. Set the game's Arcade visibility to listed.
+
+Your game is now live in the public Arcade on Air Jam-hosted infrastructure.

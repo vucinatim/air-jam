@@ -95,6 +95,9 @@ export const GamePlayer = ({
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hostBridgePortRef = useRef<MessagePort | null>(null);
+  const pendingBridgeTeardownRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   // Subscribe to the platform-owned shared settings snapshot.
   const platformSettings = useInheritedPlatformSettings();
   const settingsBridgeRef = useRef(
@@ -237,23 +240,6 @@ export const GamePlayer = ({
     };
   }, [iframeTargetOrigin]);
 
-  useEffect(() => {
-    const settingsBridge = settingsBridgeRef.current;
-
-    return () => {
-      settingsBridge.detach();
-      try {
-        hostBridgePortRef.current?.postMessage(
-          createHostBridgeCloseMessage("game_unloaded"),
-        );
-        hostBridgePortRef.current?.close();
-      } catch {
-        // Ignore close errors
-      }
-      hostBridgePortRef.current = null;
-    };
-  }, []);
-
   const closeHostBridge = useCallback((reason?: string) => {
     const currentPort = hostBridgePortRef.current;
     if (!currentPort) {
@@ -271,6 +257,24 @@ export const GamePlayer = ({
     hostBridgePortRef.current = null;
     hostBridgeAttachedIdentityRef.current = null;
   }, []);
+
+  useEffect(() => {
+    const settingsBridge = settingsBridgeRef.current;
+
+    if (pendingBridgeTeardownRef.current) {
+      clearTimeout(pendingBridgeTeardownRef.current);
+      pendingBridgeTeardownRef.current = null;
+    }
+
+    return () => {
+      // Defer teardown so React dev effect replay does not permanently sever a live iframe bridge.
+      pendingBridgeTeardownRef.current = setTimeout(() => {
+        settingsBridge.detach();
+        closeHostBridge("game_unloaded");
+        pendingBridgeTeardownRef.current = null;
+      }, 0);
+    };
+  }, [closeHostBridge]);
 
   const attachHostBridgePort = useCallback(
     (port: MessagePort) => {
@@ -461,11 +465,9 @@ export const GamePlayer = ({
     window.addEventListener("message", handleMessage);
     return () => {
       window.removeEventListener("message", handleMessage);
-      closeHostBridge("game_unloaded");
     };
   }, [
     attachHostBridgePort,
-    closeHostBridge,
     hostSocket,
     iframeTargetOrigin,
     launchCapability.token,

@@ -327,6 +327,12 @@ actions.setPhase({ phase: "playing" });
 
 Use `useGameStore.useActions()` for action dispatch. On controllers, action calls are proxied to the host automatically and actor identity is attached by the server.
 
+Networked action contract:
+
+1. `() => void` for no-payload actions
+2. `(payloadObject) => void` for payload actions
+3. payload roots must be plain objects, not primitives, arrays, or DOM events
+
 Action context includes `connectedPlayerIds`, so host actions can prune stale assignments without custom presence-sync actions.
 
 ## Host Lifecycle Bridge
@@ -350,7 +356,7 @@ useHostGameStateBridge({
 2. On controllers, publish input with `useControllerTick` + `useInputWriter`.
 3. On hosts, read input with `getInput` / `useGetInput`.
 4. Keep replicated gameplay state in `createAirJamStore`.
-5. Dispatch all store actions through `useActions()` payload calls.
+5. Dispatch all store actions through `useActions()` zero-arg or payload-object calls.
 
 ## Canonical `airjam.config.ts`
 

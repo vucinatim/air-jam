@@ -27,14 +27,22 @@ Render a room join QR code from any URL string.
 import { RoomQrCode } from "@air-jam/sdk/ui";
 import { useAirJamHost } from "@air-jam/sdk";
 
-const host = useAirJamHost();
+const LobbyQr = () => {
+  const host = useAirJamHost();
 
-<RoomQrCode
-  value={host.joinUrl}
-  size={180}
-  padding={1}
-  className="rounded-xl border border-white/20 bg-black/50 p-2"
-/>;
+  if (host.joinUrlStatus !== "ready") {
+    return null;
+  }
+
+  return (
+    <RoomQrCode
+      value={host.joinUrl}
+      size={180}
+      padding={1}
+      className="rounded-xl border border-white/20 bg-black/50 p-2"
+    />
+  );
+};
 ```
 
 If you are rendering before the join URL has been resolved, prefer gating with `host.joinUrlStatus === "ready"` and show your own loading state until then.

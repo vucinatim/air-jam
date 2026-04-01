@@ -7,6 +7,7 @@ import {
   users,
 } from "@/db/schema";
 import { arcadeVisibilitySchema } from "@/lib/games/arcade-visibility";
+import { HOSTED_RELEASE_HOST_PATH } from "@/lib/releases/hosted-release-artifact";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
 import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import {
@@ -111,7 +112,6 @@ export const gameRouter = createTRPCRouter({
         releaseId: gameReleases.id,
         releaseVersionLabel: gameReleases.versionLabel,
         releasePublishedAt: gameReleases.publishedAt,
-        releaseEntryPath: gameReleaseArtifacts.entryPath,
       })
       .from(games)
       .innerJoin(users, eq(games.userId, users.id))
@@ -132,7 +132,7 @@ export const gameRouter = createTRPCRouter({
       url: buildHostedReleaseAssetUrl({
         gameId: row.id,
         releaseId: row.releaseId,
-        assetPath: row.releaseEntryPath,
+        assetPath: HOSTED_RELEASE_HOST_PATH,
       }),
       thumbnailUrl: buildManagedGameMediaUrl({
         gameId: row.id,
@@ -155,7 +155,6 @@ export const gameRouter = createTRPCRouter({
         releaseId: row.releaseId,
         versionLabel: row.releaseVersionLabel,
         publishedAt: row.releasePublishedAt,
-        entryPath: row.releaseEntryPath,
       }),
     }));
   }),

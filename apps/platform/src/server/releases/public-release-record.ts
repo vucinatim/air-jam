@@ -1,4 +1,8 @@
 import { db } from "@/db";
+import {
+  HOSTED_RELEASE_CONTROLLER_PATH,
+  HOSTED_RELEASE_HOST_PATH,
+} from "@/lib/releases/hosted-release-artifact";
 import { gameReleaseArtifacts, gameReleases } from "@/db/schema";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { and, eq } from "drizzle-orm";
@@ -8,22 +12,26 @@ export const buildHostedReleaseSnapshot = ({
   releaseId,
   versionLabel,
   publishedAt,
-  entryPath,
 }: {
   gameId: string;
   releaseId: string;
   versionLabel: string | null;
   publishedAt: Date | null;
-  entryPath: string;
 }) => ({
   id: releaseId,
   versionLabel,
   publishedAt,
-  entryPath,
+  hostPath: HOSTED_RELEASE_HOST_PATH,
+  controllerPath: HOSTED_RELEASE_CONTROLLER_PATH,
   url: buildHostedReleaseAssetUrl({
     gameId,
     releaseId,
-    assetPath: entryPath,
+    assetPath: HOSTED_RELEASE_HOST_PATH,
+  }),
+  controllerUrl: buildHostedReleaseAssetUrl({
+    gameId,
+    releaseId,
+    assetPath: HOSTED_RELEASE_CONTROLLER_PATH,
   }),
 });
 
@@ -33,7 +41,6 @@ export const getLiveReleaseForGame = async (gameId: string) => {
       releaseId: gameReleases.id,
       versionLabel: gameReleases.versionLabel,
       publishedAt: gameReleases.publishedAt,
-      entryPath: gameReleaseArtifacts.entryPath,
     })
     .from(gameReleases)
     .innerJoin(
@@ -53,7 +60,6 @@ export const getLiveReleaseForGame = async (gameId: string) => {
     releaseId: match.releaseId,
     versionLabel: match.versionLabel,
     publishedAt: match.publishedAt,
-    entryPath: match.entryPath,
   });
 };
 

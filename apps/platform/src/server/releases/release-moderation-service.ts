@@ -147,7 +147,6 @@ export const runReleaseModeration = async ({
     screenshot = await captureReleaseScreenshot({
       gameId: release.gameId,
       releaseId: release.id,
-      entryPath: artifact.entryPath,
     });
   } catch (error) {
     await insertFailedReleaseCheck({

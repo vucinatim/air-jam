@@ -1,3 +1,4 @@
+import { HOSTED_RELEASE_HOST_PATH } from "@/lib/releases/hosted-release-artifact";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { getReleaseModerationConfig } from "@/server/releases/release-moderation-config";
 import { getReleaseStorage } from "@/server/releases/release-storage";
@@ -16,18 +17,16 @@ export type ReleaseScreenshotCaptureResult = {
 export const captureReleaseScreenshot = async ({
   gameId,
   releaseId,
-  entryPath,
 }: {
   gameId: string;
   releaseId: string;
-  entryPath: string;
 }): Promise<ReleaseScreenshotCaptureResult> => {
   const config = getReleaseModerationConfig();
   const storage = getReleaseStorage();
   const targetUrl = buildHostedReleaseAssetUrl({
     gameId,
     releaseId,
-    assetPath: entryPath,
+    assetPath: HOSTED_RELEASE_HOST_PATH,
   });
 
   const browser = config.browserLaunch.wsEndpoint

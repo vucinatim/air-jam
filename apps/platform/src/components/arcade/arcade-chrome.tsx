@@ -4,7 +4,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PlayerProfile } from "@air-jam/sdk";
 import { PlayerAvatarStrip } from "@air-jam/sdk/ui";
-import { QrCode, SlidersHorizontal, Users } from "lucide-react";
+import {
+  Maximize,
+  Minimize2,
+  QrCode,
+  SlidersHorizontal,
+  Users,
+} from "lucide-react";
 import Image from "next/image";
 
 interface ArcadeChromeProps {
@@ -19,8 +25,10 @@ interface ArcadeChromeProps {
   lastError?: string;
   qrVisible: boolean;
   settingsVisible: boolean;
+  documentFullscreen: boolean;
   onToggleQr: () => void;
   onToggleSettings: () => void;
+  onToggleFullscreen: () => void;
   className?: string;
   /** When false, the game list is scrolled down — show bar background and border. */
   listAtTop: boolean;
@@ -34,13 +42,17 @@ export const ArcadeChrome = ({
   lastError,
   qrVisible,
   settingsVisible,
+  documentFullscreen,
   onToggleQr,
   onToggleSettings,
+  onToggleFullscreen,
   className,
   listAtTop,
   highContrast = false,
 }: ArcadeChromeProps) => {
   const showElevatedBar = !listAtTop;
+  const iconButtonClassName =
+    "size-8 shrink-0 border-white/20 bg-black/20 p-0 text-white hover:bg-white/10";
 
   return (
     <header
@@ -108,12 +120,29 @@ export const ArcadeChrome = ({
           <Button
             type="button"
             variant={settingsVisible ? "default" : "outline"}
-            className="h-8 w-10 shrink-0 gap-1 border-white/20 bg-black/20 px-0 text-xs text-white hover:bg-white/10"
+            size="icon-sm"
+            className={iconButtonClassName}
             onClick={onToggleSettings}
             aria-label={settingsVisible ? "Hide settings" : "Show settings"}
             title={settingsVisible ? "Hide settings" : "Show settings"}
           >
             <SlidersHorizontal className="h-4 w-4" />
+          </Button>
+
+          <Button
+            type="button"
+            variant={documentFullscreen ? "default" : "outline"}
+            size="icon-sm"
+            className={iconButtonClassName}
+            onClick={onToggleFullscreen}
+            aria-label={documentFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            title={documentFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {documentFullscreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize className="h-4 w-4" />
+            )}
           </Button>
 
           <Button

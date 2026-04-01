@@ -15,10 +15,14 @@ export interface AirJamActionActor {
   role: AirJamActionActorRole;
 }
 
+export type AirJamActionPayload = Record<string, unknown>;
+
+export const airJamActionPayloadSchema = z.record(z.string(), z.unknown());
+
 export interface ControllerActionRpcPayload {
   roomId: string;
   actionName: string;
-  payload: unknown;
+  payload: AirJamActionPayload | undefined;
   storeDomain: string;
 }
 
@@ -30,7 +34,7 @@ export interface AirJamStateSyncPayload {
 
 export interface AirJamActionRpcPayload {
   actionName: string;
-  payload: unknown;
+  payload: AirJamActionPayload | undefined;
   actor: AirJamActionActor;
   storeDomain: string;
 }
@@ -39,7 +43,7 @@ export const controllerActionRpcSchema = z
   .object({
     roomId: roomCodeSchema,
     actionName: z.string().trim().min(1),
-    payload: z.unknown(),
+    payload: z.union([airJamActionPayloadSchema, z.undefined()]),
     storeDomain: z.string().trim().min(1).max(128),
   })
   .strict();

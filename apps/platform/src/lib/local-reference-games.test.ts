@@ -42,6 +42,8 @@ describe("local reference games", () => {
       env: {
         NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: "air-capture",
         NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: "http://127.0.0.1:4173",
+        NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL:
+          "http://127.0.0.1:4174",
       },
       nodeEnv: "development",
     });
@@ -49,8 +51,10 @@ describe("local reference games", () => {
     expect(games.map((game) => game.slug)).toEqual([
       "local-air-capture",
       "local-pong",
+      "local-code-review",
     ]);
     expect(games[1]?.url).toBe("http://127.0.0.1:4173");
+    expect(games[2]?.url).toBe("http://127.0.0.1:4174");
   });
 
   it("does not expose local reference games in production", () => {
@@ -76,5 +80,18 @@ describe("local reference games", () => {
 
     expect(bySlug?.name).toBe("Air Capture");
     expect(byId?.slug).toBe("local-air-capture");
+  });
+
+  it("does not include showcase games unless explicitly configured", () => {
+    const games = getLocalReferenceArcadeGames({
+      env: {},
+      nodeEnv: "development",
+    });
+
+    expect(games.map((game) => game.slug)).not.toContain("local-code-review");
+    expect(games.map((game) => game.slug)).not.toContain(
+      "local-last-band-standing",
+    );
+    expect(games.map((game) => game.slug)).not.toContain("local-the-office");
   });
 });

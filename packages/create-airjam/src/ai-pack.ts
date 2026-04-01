@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import fs from "fs-extra";
 import kleur from "kleur";
 
@@ -38,10 +39,11 @@ type HostedAiPackVersionManifest = {
 
 type HostedAiPackFile = {
   path: string;
+  artifactPath?: string;
   kind: string;
   size: number;
   sha256: string;
-  url: string;
+  url?: string;
 };
 
 type AiPackComparison = {
@@ -49,6 +51,7 @@ type AiPackComparison = {
   localManifestPath: string;
   resolvedManifestUrl: string;
   manifestFile?: string;
+  manifestSource: "remote" | "manifest-file" | "packaged-snapshot";
   localManifest: LocalAiPackManifest;
   latestManifest: HostedAiPackVersionManifest;
   latestPackVersion: string;
@@ -63,7 +66,16 @@ type AiPackComparison = {
   differentCount: number;
 };
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const DEFAULT_AI_PACK_ROOT_MANIFEST_URL = "https://air-jam.app/ai-pack/manifest.json";
+const PACKAGED_AI_PACK_ROOT = path.resolve(
+  __dirname,
+  "..",
+  "template-assets",
+  "base",
+);
 
 const normalizeManifestForComparison = (
   manifest: LocalAiPackManifest,
@@ -80,6 +92,64 @@ const sha256ForFile = async (filePath: string): Promise<string> => {
 
 const readJsonFile = async <T>(filePath: string): Promise<T> =>
   (await fs.readJson(filePath)) as T;
+
+const classifyAiPackFileKind = (relativePath: string): string => {
+  if (relativePath === ".airjam/ai-pack.json") return "manifest";
+  if (relativePath.startsWith("docs/generated/")) return "docs-generated";
+  if (relativePath.startsWith("docs/")) return "docs-local";
+  if (relativePath.startsWith("skills/")) return "skill";
+  return "root";
+};
+
+const collectPackagedAiPackFiles = async (sourceDir: string): Promise<string[]> => {
+  const entries = await fs.readdir(sourceDir);
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const absolutePath = path.join(sourceDir, entry);
+    const stats = await fs.stat(absolutePath);
+
+    if (stats.isDirectory()) {
+      files.push(...(await collectPackagedAiPackFiles(absolutePath)));
+      continue;
+    }
+
+    files.push(absolutePath);
+  }
+
+  return files;
+};
+
+const loadPackagedAiPackVersionManifest =
+  async (): Promise<HostedAiPackVersionManifest> => {
+    const manifest = await readJsonFile<LocalAiPackManifest>(
+      path.join(PACKAGED_AI_PACK_ROOT, ".airjam", "ai-pack.json"),
+    );
+    const absoluteFiles = await collectPackagedAiPackFiles(PACKAGED_AI_PACK_ROOT);
+    const files = await Promise.all(
+      absoluteFiles.map(async (absolutePath) => {
+        const relativePath = path
+          .relative(PACKAGED_AI_PACK_ROOT, absolutePath)
+          .replace(/\\/g, "/");
+        const stats = await fs.stat(absolutePath);
+
+        return {
+          path: relativePath,
+          artifactPath: relativePath,
+          kind: classifyAiPackFileKind(relativePath),
+          size: stats.size,
+          sha256: await sha256ForFile(absolutePath),
+        } satisfies HostedAiPackFile;
+      }),
+    );
+
+    return {
+      schemaVersion: manifest.schemaVersion,
+      channel: manifest.channel,
+      packVersion: manifest.packVersion,
+      files,
+    };
+  };
 
 const fetchJson = async <T>(url: string): Promise<T> => {
   const response = await fetch(url, {
@@ -155,6 +225,9 @@ const loadHostedText = async ({
   return fetchText(`${baseUrl}/${relativePath.replace(/\\/g, "/")}`);
 };
 
+const loadPackagedText = async (relativePath: string): Promise<string> =>
+  fs.readFile(path.join(PACKAGED_AI_PACK_ROOT, relativePath), "utf8");
+
 const loadLocalAiPackManifest = async (projectDir: string) => {
   const localManifestPath = path.join(projectDir, ".airjam", "ai-pack.json");
 
@@ -184,28 +257,52 @@ const compareAgainstLatestPack = async ({
     manifestUrl ??
     localManifest.update?.manifestUrl ??
     DEFAULT_AI_PACK_ROOT_MANIFEST_URL;
+  let latestPackVersion: string;
+  let latestManifest: HostedAiPackVersionManifest;
+  let manifestSource: AiPackComparison["manifestSource"];
 
-  const rootManifest = await (manifestFile
-    ? loadHostedJson<HostedAiPackRootManifest>({
-        manifestFile,
+  if (manifestFile) {
+    const rootManifest = await loadHostedJson<HostedAiPackRootManifest>({
+      manifestFile,
+      manifestUrl: resolvedManifestUrl,
+      relativePath: "manifest.json",
+    });
+    const latestChannel = rootManifest.channels[localManifest.channel];
+    if (!latestChannel) {
+      throw new Error(
+        `Hosted AI pack manifest does not expose channel "${localManifest.channel}".`,
+      );
+    }
+
+    latestPackVersion = latestChannel.latestPackVersion;
+    latestManifest = await loadHostedJson<HostedAiPackVersionManifest>({
+      manifestFile,
+      manifestUrl: resolvedManifestUrl,
+      relativePath: `${localManifest.channel}/${latestPackVersion}/manifest.json`,
+    });
+    manifestSource = "manifest-file";
+  } else {
+    try {
+      const rootManifest = await fetchJson<HostedAiPackRootManifest>(resolvedManifestUrl);
+      const latestChannel = rootManifest.channels[localManifest.channel];
+      if (!latestChannel) {
+        throw new Error(
+          `Hosted AI pack manifest does not expose channel "${localManifest.channel}".`,
+        );
+      }
+
+      latestPackVersion = latestChannel.latestPackVersion;
+      latestManifest = await loadHostedJson<HostedAiPackVersionManifest>({
         manifestUrl: resolvedManifestUrl,
-        relativePath: "manifest.json",
-      })
-    : fetchJson<HostedAiPackRootManifest>(resolvedManifestUrl));
-
-  const latestChannel = rootManifest.channels[localManifest.channel];
-  if (!latestChannel) {
-    throw new Error(
-      `Hosted AI pack manifest does not expose channel "${localManifest.channel}".`,
-    );
+        relativePath: `${localManifest.channel}/${latestPackVersion}/manifest.json`,
+      });
+      manifestSource = "remote";
+    } catch {
+      latestManifest = await loadPackagedAiPackVersionManifest();
+      latestPackVersion = latestManifest.packVersion;
+      manifestSource = "packaged-snapshot";
+    }
   }
-
-  const latestPackVersion = latestChannel.latestPackVersion;
-  const latestManifest = await loadHostedJson<HostedAiPackVersionManifest>({
-    manifestFile,
-    manifestUrl: resolvedManifestUrl,
-    relativePath: `${localManifest.channel}/${latestPackVersion}/manifest.json`,
-  });
 
   const differingFiles: AiPackComparison["differingFiles"] = [];
 
@@ -227,11 +324,13 @@ const compareAgainstLatestPack = async ({
       );
       const hostedManifestForComparison = normalizeManifestForComparison(
         JSON.parse(
-          await loadHostedText({
-            manifestFile,
-            manifestUrl: resolvedManifestUrl,
-            relativePath: file.artifactPath,
-          }),
+          manifestSource === "packaged-snapshot"
+            ? await loadPackagedText(file.artifactPath ?? file.path)
+            : await loadHostedText({
+                manifestFile,
+                manifestUrl: resolvedManifestUrl,
+                relativePath: file.artifactPath ?? file.path,
+              }),
         ) as LocalAiPackManifest,
       );
 
@@ -267,6 +366,7 @@ const compareAgainstLatestPack = async ({
     localManifestPath,
     resolvedManifestUrl,
     manifestFile,
+    manifestSource,
     localManifest,
     latestManifest,
     latestPackVersion,
@@ -286,6 +386,7 @@ const printComparisonSummary = (comparison: AiPackComparison) => {
   console.log(
     `Latest pack: ${comparison.latestManifest.channel}@${comparison.latestPackVersion}`,
   );
+  console.log(`Manifest source: ${comparison.manifestSource}`);
   console.log(`Managed files in latest pack: ${comparison.latestManifest.files.length}`);
 };
 
@@ -457,17 +558,20 @@ export async function runAiPackUpdate({
       throw new Error(`Missing hosted AI pack file metadata for ${differingFile.path}`);
     }
 
-    const hostedContents = await loadHostedText({
-      manifestFile: comparison.manifestFile,
-      manifestUrl: comparison.resolvedManifestUrl,
-      relativePath: latestFile.artifactPath,
-    });
+    const latestContents =
+      comparison.manifestSource === "packaged-snapshot"
+        ? await loadPackagedText(latestFile.artifactPath ?? latestFile.path)
+        : await loadHostedText({
+            manifestFile: comparison.manifestFile,
+            manifestUrl: comparison.resolvedManifestUrl,
+            relativePath: latestFile.artifactPath ?? latestFile.path,
+          });
 
     const localFilePath = path.join(projectDir, latestFile.path);
     await fs.ensureDir(path.dirname(localFilePath));
 
     if (latestFile.path === ".airjam/ai-pack.json") {
-      const hostedManifest = JSON.parse(hostedContents) as LocalAiPackManifest;
+      const hostedManifest = JSON.parse(latestContents) as LocalAiPackManifest;
       hostedManifest.scaffold = {
         ...(hostedManifest.scaffold ?? {}),
         ...(comparison.localManifest.scaffold ?? {}),
@@ -476,7 +580,7 @@ export async function runAiPackUpdate({
       continue;
     }
 
-    await fs.writeFile(localFilePath, hostedContents, "utf8");
+    await fs.writeFile(localFilePath, latestContents, "utf8");
   }
 
   const refreshed = await compareAgainstLatestPack({

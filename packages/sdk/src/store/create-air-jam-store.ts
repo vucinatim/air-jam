@@ -4,6 +4,7 @@ import { useAirJamContext, useAirJamState } from "../context/air-jam-context";
 import { emitAirJamDiagnostic } from "../diagnostics";
 import type {
   AirJamActionActorRole,
+  AirJamActionPayload,
   AirJamActionRpcPayload,
   AirJamStateSyncPayload,
 } from "../protocol";
@@ -40,6 +41,17 @@ const isEventLikePayload = (payload: unknown): boolean => {
   );
 };
 
+const isPlainActionPayload = (
+  payload: unknown,
+): payload is AirJamActionPayload => {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(payload);
+  return prototype === Object.prototype || prototype === null;
+};
+
 export interface AirJamActionContext {
   actorId: string;
   role: AirJamActionActorRole;
@@ -49,6 +61,27 @@ export interface AirJamActionContext {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AirJamActionHandler = (ctx: AirJamActionContext, payload: any) => unknown;
 type AirJamActionMap = Record<string, AirJamActionHandler>;
+
+type IsValidActionPayloadType<TPayload> =
+  [TPayload] extends [undefined]
+    ? true
+    : TPayload extends readonly unknown[]
+      ? false
+      : TPayload extends object
+        ? true
+        : false;
+
+type InvalidActionPayloadKeys<TActions extends AirJamActionMap> = {
+  [K in keyof TActions]:
+    TActions[K] extends (
+      ctx: AirJamActionContext,
+      payload: infer TPayload,
+    ) => unknown
+      ? IsValidActionPayloadType<TPayload> extends true
+        ? never
+        : K
+      : K;
+}[keyof TActions];
 
 type AirJamNetworkedState<TActions extends AirJamActionMap = AirJamActionMap> = {
   actions: TActions;
@@ -61,7 +94,11 @@ type AirJamActionDispatchMap<TActions extends AirJamActionMap> = {
   ) => infer TResult
     ? [TPayload] extends [undefined]
       ? () => TResult
-      : (payload: TPayload) => TResult
+      : TPayload extends readonly unknown[]
+        ? never
+        : TPayload extends object
+        ? (payload: TPayload) => TResult
+        : never
     : never;
 };
 
@@ -105,7 +142,9 @@ const toActionContext = (
 export function createAirJamStore<
   T extends AirJamNetworkedState,
 >(
-  initializer: StateCreator<T>,
+  initializer: InvalidActionPayloadKeys<T["actions"]> extends never
+    ? StateCreator<T>
+    : never,
   options?: CreateAirJamStoreOptions,
 ): AirJamSyncedStoreHook<T> {
   const store = create<T>((set, get, api) => initializer(set, get, api));
@@ -332,6 +371,19 @@ export function createAirJamStore<
               code: "AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE",
               severity: "warn",
               message: `[AirJamStore] Action "${actionName}" blocked: payload must be RPC-serializable.`,
+              details: { actionName },
+            });
+            return;
+          }
+
+          if (
+            normalizedPayload !== undefined &&
+            !isPlainActionPayload(normalizedPayload)
+          ) {
+            emitAirJamDiagnostic({
+              code: "AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE",
+              severity: "warn",
+              message: `[AirJamStore] Action "${actionName}" blocked: payload must be omitted or a plain object.`,
               details: { actionName },
             });
             return;

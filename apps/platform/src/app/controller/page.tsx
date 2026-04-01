@@ -142,6 +142,9 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgePortRef = useRef<MessagePort | null>(null);
+  const pendingBridgeTeardownRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   /** Snapshot of `ArcadeSurfaceRuntimeIdentity` at last successful bridge attach; used to drop stale forwards after a surface switch. */
   const bridgeAttachedIdentityRef = useRef<ArcadeSurfaceRuntimeIdentity | null>(
     null,
@@ -202,7 +205,7 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
   ]);
 
   const emitArcadeAction = useCallback(
-    (actionName: string, payload: unknown = null) => {
+    (actionName: string, payload?: Record<string, unknown>) => {
       if (
         !controller.socket ||
         !controller.socket.connected ||
@@ -260,6 +263,21 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
     bridgePortRef.current = null;
     bridgeAttachedIdentityRef.current = null;
   }, []);
+
+  useEffect(() => {
+    if (pendingBridgeTeardownRef.current) {
+      clearTimeout(pendingBridgeTeardownRef.current);
+      pendingBridgeTeardownRef.current = null;
+    }
+
+    return () => {
+      // Defer teardown so React dev effect replay does not permanently sever a live iframe bridge.
+      pendingBridgeTeardownRef.current = setTimeout(() => {
+        closeBridge("game_unloaded");
+        pendingBridgeTeardownRef.current = null;
+      }, 0);
+    };
+  }, [closeBridge]);
 
   useEffect(() => {
     controllerSocketRef.current = controller.socket;
@@ -439,7 +457,6 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
     window.addEventListener("message", handleMessage);
     return () => {
       window.removeEventListener("message", handleMessage);
-      closeBridge("game_unloaded");
     };
   }, [activeUrl, attachBridgePort, closeBridge]);
 

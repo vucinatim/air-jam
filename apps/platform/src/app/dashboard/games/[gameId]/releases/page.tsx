@@ -17,6 +17,11 @@ import {
   MAX_RELEASE_FILE_COUNT,
   MAX_RELEASE_ZIP_BYTES,
 } from "@/lib/releases/release-policy";
+import {
+  HOSTED_RELEASE_CONTROLLER_PATH,
+  HOSTED_RELEASE_HOST_PATH,
+  HOSTED_RELEASE_MANIFEST_PATH,
+} from "@/lib/releases/hosted-release-artifact";
 import { api } from "@/trpc/react";
 import {
   AlertCircle,
@@ -291,8 +296,9 @@ export default function GameReleasesPage() {
             <CardTitle>Upload a new release</CardTitle>
             <CardDescription>
               Create a new immutable artifact release. The archive must contain a
-              root `index.html` or one single wrapper directory with `index.html`
-              inside it.
+              root <code>index.html</code>, the hosted release manifest at{" "}
+              <code>{HOSTED_RELEASE_MANIFEST_PATH}</code>, or one single wrapper
+              directory containing both.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -386,7 +392,10 @@ export default function GameReleasesPage() {
               <div className="mb-1 font-medium">What is allowed</div>
               <p className="text-muted-foreground">
                 One ZIP containing built static output. The release must be
-                hostable as plain files with a valid `index.html` entry point.
+                hostable as a static SPA with a valid `index.html` entry point,
+                the Air Jam hosted manifest, host at{" "}
+                <code>{HOSTED_RELEASE_HOST_PATH}</code>, and controller at{" "}
+                <code>{HOSTED_RELEASE_CONTROLLER_PATH}</code>.
               </p>
             </div>
             <div className="rounded-lg border p-3">
@@ -609,9 +618,12 @@ export default function GameReleasesPage() {
                             </div>
                             <div className="flex items-center justify-between gap-3">
                               <span className="text-muted-foreground">
-                                Entry path
+                                Hosted routes
                               </span>
-                              <span>{release.artifact.entryPath}</span>
+                              <span>
+                                {HOSTED_RELEASE_HOST_PATH} and{" "}
+                                {HOSTED_RELEASE_CONTROLLER_PATH}
+                              </span>
                             </div>
                             <div className="flex items-start justify-between gap-3">
                               <span className="text-muted-foreground">

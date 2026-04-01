@@ -1,6 +1,6 @@
 # Air Jam V1 Release Launch Plan
 
-Last updated: 2026-03-31  
+Last updated: 2026-04-01  
 Status: active
 
 Related docs:
@@ -69,16 +69,15 @@ This plan is not for:
 Air Jam should move through launch execution in this order:
 
 1. add the platform dashboard bug-report path
-2. close the last `air-capture` reference-quality engine-boundary work
-3. decide which legacy games need full template-aligned structure upgrades
-4. get all five games running locally through Arcade
-5. run the final dashboard-level hosted release and managed media proof paths
-6. create release media assets
-7. connect and deploy all public games on official hosting
-8. validate all public games against the official servers
-9. merge the release PR and deploy the platform
-10. publish release content
-11. execute the launch distribution plan
+2. decide which legacy games need full template-aligned structure upgrades
+3. get all five games running locally through Arcade
+4. run the final dashboard-level hosted release and managed media proof paths
+5. create release media assets
+6. connect and deploy all public games on official hosting
+7. validate all public games against the official servers
+8. merge the release PR and deploy the platform
+9. publish release content
+10. execute the launch distribution plan
 
 ## Completed Baselines That No Longer Need Separate Active Plans
 
@@ -113,7 +112,7 @@ Give dashboard users one obvious path to report product bugs during release.
 
 ## Phase 2. `air-capture` Reference Refactor
 
-Status: active
+Status: completed baseline
 
 ### Goal
 
@@ -143,9 +142,11 @@ Current truth:
 3. team-slot and arena prefab contracts now exist as explicit reusable seams
 4. focused domain/prefab/store/engine tests now exist and pass
 5. local Arcade manual validation confirmed host, controller, lobby, match, and return flows
-6. one more engine-boundary pass is still warranted before this phase should be called complete
+6. the remaining scene-traversal and Rapier-lookup narrowing is now explicitly tracked as post-release cleanup, not prerelease launch work
 
 ## Phase 3. Legacy Showcase Game Alignment
+
+Status: completed baseline
 
 ### Goal
 
@@ -169,7 +170,93 @@ Only do deeper refactors when they improve long-term public maintainability.
    2. migration-proof only
 2. any chosen reference game has clean enough structure and tests for public trust
 
-## Phase 4. Local Arcade Proof Across All Five Games
+Current truth:
+
+1. `pong` and `air-capture` are the only canonical first-party reference games for v1
+2. `code-review`, `last-band-standing`, and `the-office` should be treated as migration-proof showcase games, not template-aligned reference implementations
+3. `code-review` is the lowest-risk legacy launch candidate and should stay in the launch set if the Arcade proof is clean
+4. `last-band-standing` still uses the older direct audio-owner pattern and should only stay in the launch set if the Arcade proof is clean enough without further framework churn
+5. `the-office` keeps a heavier custom host runtime and should only stay in the launch set if the Arcade proof is smooth enough without forcing it into template purity
+6. the next decision gate for all three is the five-game local Arcade proof, not more prerelease architecture work
+
+## Phase 4. Docs, Template, And Skills Alignment
+
+Status: completed baseline
+
+### Goal
+
+Make the public docs, generated template docs pack, template README, and local skills teach the current SDK and platform truth instead of older prerelease slices.
+
+### Required outcomes
+
+1. audit `content/docs` for stale guidance around runtime ownership, shared settings/audio, auth, hosted releases, managed media, and the networked action contract
+2. regenerate `packages/create-airjam/template-assets/base/docs/generated` from the corrected source docs
+3. update `packages/create-airjam/templates/pong/README.md` to match the current SDK/platform model
+4. update any template-local skills or AGENTS guidance that still teach stale framework or release patterns
+5. make the final creator-facing story explicit:
+   1. how to build a game
+   2. how to produce a release artifact
+   3. how to upload it in the dashboard
+   4. how managed media fits into the release flow
+
+### Done when
+
+1. source docs and scaffolded generated docs tell the same story
+2. the template README no longer teaches the stale self-hosted-only media/release path as the primary public flow
+3. local skills and template guidance no longer contradict the current runtime/platform model
+
+Current truth:
+
+1. source docs now reflect explicit runtime ownership, shared platform settings/audio, and the narrowed networked action contract
+2. quick-start now teaches the hosted artifact lane with `pnpm release:bundle` instead of the older public self-hosted URL flow
+3. the scaffolded generated docs pack has been regenerated from the corrected source docs
+4. the Pong template README now teaches the hosted artifact + managed media workflow
+5. the template-local docs workflow and game architecture skills now explicitly cover generated-surface alignment and visible runtime boundaries
+
+## Phase 5. Release Artifact Bundle Command
+
+Status: completed baseline
+
+### Goal
+
+Give developers one clean local command that produces the exact static artifact they upload to the dashboard hosted-release flow.
+
+### Required outcomes
+
+1. add a developer-facing `create-airjam` command for building a release artifact bundle
+2. make the output location and naming deterministic and obvious
+3. define and document the hosted release artifact contract separately from flexible self-hosted routing
+4. make the hosted artifact contract explicit:
+   1. host entry is `/`
+   2. controller entry is `/controller`
+   3. the bundle carries an explicit release manifest for hosted-mode validation
+5. add the corresponding platform-side validation and hosted serving behavior needed for that fixed contract
+6. document the expected artifact contents and static-hosting constraints
+7. add a smoke or validation check for the artifact-bundling path
+
+### Rule
+
+Do not build a full dashboard publish CLI unless the auth/token and publish workflow truly need it for v1.
+The important prerelease need is a clean bundle command, not a second release surface.
+Keep self-hosted mode flexible; only the dashboard-uploaded hosted artifact lane should be strict about route shape.
+
+### Done when
+
+1. a developer can run one documented command and get the dashboard-upload zip artifact
+2. the hosted artifact contract is explicit and enforceable without affecting self-hosted routing freedom
+3. platform hosted serving can reliably resolve the fixed hosted host/controller paths
+4. the command is simple enough to recommend in the template README and docs
+5. the artifact shape is proven enough that it does not feel like an undocumented manual packaging step
+
+Current truth:
+
+1. `create-airjam release bundle` now builds a hosted release zip with `.airjam/release-manifest.json`
+2. the hosted dashboard lane now enforces the fixed `/` host and `/controller` controller contract without changing self-hosted routing freedom
+3. platform hosted serving now resolves `/controller` through explicit SPA fallback instead of relying on artifact-specific hacks
+4. the scaffolded Pong template now exposes `pnpm release:bundle` as the recommended creator-facing entrypoint
+5. the quick-start docs and template README now teach the hosted artifact workflow instead of the older self-hosted-only public release path
+
+## Phase 6. Local Arcade Proof Across All Five Games
 
 ### Goal
 
@@ -181,12 +268,110 @@ Prove the real launch set locally before touching production hosting.
 2. host/controller flows work for each
 3. obvious runtime or integration failures are resolved before deploy work begins
 
+### Execution order
+
+Run the proof in this exact order:
+
+1. `pong`
+2. `air-capture`
+3. `code-review`
+4. `last-band-standing`
+5. `the-office`
+
+Reason:
+
+1. start with the two canonical first-party reference games to prove the current framework/platform baseline first
+2. then move through the three migration-proof showcase games in ascending risk order
+
+### Local source of truth
+
+Use these project roots for the proof:
+
+1. repo-local template/reference games:
+   1. `packages/create-airjam/templates/pong`
+   2. `apps/air-capture`
+2. external ZeroDays showcase games:
+   1. `/Users/timvucina/Desktop/zerodays/air-jam-games/code-review`
+   2. `/Users/timvucina/Desktop/zerodays/air-jam-games/last-band-standing`
+   3. `/Users/timvucina/Desktop/zerodays/air-jam-games/the-office`
+
+Each legacy game already exposes the same local entrypoint shape:
+
+1. `pnpm dev`
+2. `pnpm typecheck`
+3. `pnpm build`
+
+### Per-game proof checklist
+
+Each game should be judged with the same checklist:
+
+1. host route opens from local Arcade without manual patching
+2. controller join works from QR/join flow
+3. controller reaches the intended controller UI cleanly
+4. game can start from its normal lobby or ready flow
+5. core gameplay loop works for at least one short session
+6. host return/lobby/reset path works if the game exposes one
+7. no obvious launch-blocking runtime error appears in the browser/log sink
+8. shared platform settings do not break the game surface
+9. the game feels publicly presentable enough for v1
+
+### Evidence to record
+
+Record one outcome per game:
+
+1. `pass`
+2. `pass with note`
+3. `blocker`
+
+For each `pass with note` or `blocker`, capture:
+
+1. short issue summary
+2. whether it is a prerelease fix or launch-set cut decision
+3. whether it affects only polish or actual product trust
+
+### Decision policy
+
+Use these rules during the proof:
+
+1. `pong` and `air-capture` are canonical first-party references and should be fixed unless the issue is clearly outside the v1 scope
+2. `code-review`, `last-band-standing`, and `the-office` are migration-proof showcase games only; do not refactor them toward template purity during this phase
+3. if a legacy game has only polish notes, keep it
+4. if a legacy game has a small, isolated prerelease fix, do that fix
+5. if a legacy game has structural or trust-damaging issues, cut it from the v1 launch set instead of opening a new architecture stream
+
+### Logging and validation aids
+
+Use the repo log sink and existing local workflows during the proof:
+
+1. repo workspace dev path:
+   1. `pnpm dev` for `air-capture`
+   2. `pnpm dev -- --pong` for Pong
+2. per-game legacy proof path from each external project root:
+   1. `pnpm dev`
+3. canonical local logs:
+   1. `.airjam/logs/dev-latest.ndjson`
+   2. `pnpm dev:logs`
+
 ### Done when
 
 1. all five games are locally published in Arcade
-2. all five games run cleanly enough to record and present publicly
+2. each game has a recorded outcome: `pass`, `pass with note`, or `blocker`
+3. any launch-set cuts are made explicitly instead of staying implied
+4. the launch set is small enough and clean enough to move into hosted-release proof with confidence
 
-## Phase 5. Dashboard Hosted Release And Managed Media Proof
+Current proof progress:
+
+1. `pong`: `pass`
+   1. host/controller happy path now passes through local Arcade browser smoke
+   2. root cause fixed: embedded host bridge was being torn down on normal dependency churn in the Arcade host shell
+2. `air-capture`: `pass`
+   1. local Arcade settings/audio smoke now passes
+3. remaining to prove:
+   1. `code-review`
+   2. `last-band-standing`
+   3. `the-office`
+
+## Phase 7. Dashboard Hosted Release And Managed Media Proof
 
 ### Goal
 
@@ -203,7 +388,7 @@ Finish the last end-to-end product-proof work on the hosted release lane before 
 1. hosted releases are proven through the real dashboard flow, not only by lower-level implementation confidence
 2. managed media is proven through the real dashboard and public catalog path
 
-## Phase 6. Release Media Assets
+## Phase 8. Release Media Assets
 
 ### Goal
 
@@ -225,7 +410,7 @@ The media should clarify the game, not oversell it.
 2. every public game has a cover image
 3. every public game has a preview video where appropriate
 
-## Phase 7. Official Hosting And Platform Connection
+## Phase 9. Official Hosting And Platform Connection
 
 ### Goal
 
@@ -243,7 +428,7 @@ Get the public game set connected to the real hosted platform.
 1. all five games are deployed on official hosting
 2. all five games are connected to the official platform configuration
 
-## Phase 8. Official Server Validation
+## Phase 10. Official Server Validation
 
 ### Goal
 
@@ -259,7 +444,7 @@ Prove the public game set against the actual official backend path.
 
 1. all five games are confirmed working against the official hosted runtime path
 
-## Phase 9. Release Merge And Platform Deploy
+## Phase 11. Release Merge And Platform Deploy
 
 ### Goal
 
@@ -271,7 +456,7 @@ Turn the validated prerelease state into the public platform state.
 2. deploy the new platform
 3. confirm the deployed platform reflects the intended public release surface
 
-## Phase 10. Release Content
+## Phase 12. Release Content
 
 ### Goal
 
@@ -286,7 +471,7 @@ Support the launch with clear public writing.
 
 Content should follow validated product proof, not race ahead of it.
 
-## Phase 11. GTM And Community Setup
+## Phase 13. GTM And Community Setup
 
 ### Goal
 

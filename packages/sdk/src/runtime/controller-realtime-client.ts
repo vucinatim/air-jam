@@ -1,7 +1,9 @@
 import {
   AIRJAM_DEV_LOG_EVENTS,
+  type ControllerActionRpcPayload,
   type RoomCode,
 } from "../protocol";
+import type { AirJamSocket } from "../context/socket-manager";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import {
   createControllerBridgeCloseMessage,
@@ -25,6 +27,82 @@ import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
 const CONTROLLER_BRIDGE_RUNTIME_KIND = "arcade-controller-runtime";
+
+type LegacyControllerActionRpcPayload = Omit<
+  ControllerActionRpcPayload,
+  "payload"
+> & {
+  payload: ControllerActionRpcPayload["payload"] | null;
+};
+
+const normalizeControllerEmitArgs = (
+  event: string,
+  args: unknown[],
+): unknown[] => {
+  if (event !== "controller:action_rpc") {
+    return args;
+  }
+
+  const [payload, ...rest] = args;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return args;
+  }
+
+  const actionPayload = payload as LegacyControllerActionRpcPayload;
+  if (actionPayload.payload !== null) {
+    return args;
+  }
+
+  return [{ ...actionPayload, payload: undefined }, ...rest];
+};
+
+class DirectControllerRealtimeClient implements AirJamRealtimeClient {
+  constructor(private readonly socket: AirJamSocket) {}
+
+  get connected(): boolean {
+    return this.socket.connected;
+  }
+
+  get id(): string | undefined {
+    return this.socket.id;
+  }
+
+  connect(): this {
+    this.socket.connect();
+    return this;
+  }
+
+  disconnect(): this {
+    this.socket.disconnect();
+    return this;
+  }
+
+  on(event: string, listener: BridgeListener): this {
+    this.socket.on(event as never, listener as never);
+    return this;
+  }
+
+  off(event: string, listener?: BridgeListener): this {
+    if (!listener) {
+      this.socket.off(event as never);
+      return this;
+    }
+
+    this.socket.off(event as never, listener as never);
+    return this;
+  }
+
+  emit(event: string, ...args: unknown[]): this {
+    (
+      this.socket.emit as unknown as (
+        this: AirJamSocket,
+        event: string,
+        ...args: unknown[]
+      ) => void
+    ).call(this.socket, event, ...normalizeControllerEmitArgs(event, args));
+    return this;
+  }
+}
 
 class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   public connected = false;
@@ -131,10 +209,11 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
     }
 
     const bridgeEvent = event as ControllerBridgeClientEventName;
+    const normalizedArgs = normalizeControllerEmitArgs(event, args);
     this.port.postMessage(
       createControllerBridgeEmitMessage(
         bridgeEvent,
-        ...(args as ControllerBridgeClientEventArgs[typeof bridgeEvent]),
+        ...(normalizedArgs as ControllerBridgeClientEventArgs[typeof bridgeEvent]),
       ),
     );
     return this;
@@ -340,6 +419,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
 }
 
 let embeddedControllerClient: EmbeddedControllerBridgeClient | null = null;
+const directControllerClients = new WeakMap<
+  AirJamSocket,
+  DirectControllerRealtimeClient
+>();
 
 export const isEmbeddedControllerRuntime = (): boolean =>
   readEmbeddedControllerRuntimeParams() !== null;
@@ -348,7 +431,15 @@ export const getControllerRealtimeClient = (
   getSocket: DirectSocketGetter<"controller">,
 ): AirJamRealtimeClient => {
   if (!isEmbeddedControllerRuntime()) {
-    return getSocket("controller") as unknown as AirJamRealtimeClient;
+    const socket = getSocket("controller");
+    const existing = directControllerClients.get(socket);
+    if (existing) {
+      return existing;
+    }
+
+    const client = new DirectControllerRealtimeClient(socket);
+    directControllerClients.set(socket, client);
+    return client;
   }
 
   if (!embeddedControllerClient) {

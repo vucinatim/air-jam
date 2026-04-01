@@ -10,7 +10,6 @@ import { useHealthStore } from "../../stores/players/health-store";
 import { ShipExplosion } from "../effects/ship-explosion";
 import { ShipModel } from "../models/ship-model";
 import { useShipRuntime } from "../../engine/ships/use-ship-runtime";
-export { shipPositions, shipRotations } from "../../engine/ships/runtime";
 
 interface ShipProps {
   controllerId: string;

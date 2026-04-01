@@ -313,6 +313,7 @@ export const finalizeReleaseUpload = async ({
           fileCount: manifest.fileCount,
           extractedSizeBytes: manifest.extractedSizeBytes,
           entryPath: manifest.entryPath,
+          hostedManifest: manifest.hostedManifest,
           contentHash,
         },
       });

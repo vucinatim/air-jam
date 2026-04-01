@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-03-31  
+Last updated: 2026-04-01  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -16,11 +16,10 @@ Use it to answer:
 
 Air Jam should now move through prerelease work in one canonical plan:
 
-1. finish the last reference-quality closeout work on `air-capture`
-2. decide the final launch posture of the three legacy showcase games
-3. prove the five-game launch set locally through Arcade
-4. prove the hosted release and managed media dashboard flows end to end
-5. produce release media, connect official hosting, validate on official servers, and publish
+1. decide the final launch posture of the three legacy showcase games
+2. prove the five-game launch set locally through Arcade
+3. prove the hosted release and managed media dashboard flows end to end
+4. produce release media, connect official hosting, validate on official servers, and publish
 
 Canonical prerelease plan: [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
@@ -67,14 +66,12 @@ Plan: [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
 Remaining:
 
-1. finish the last `air-capture` engine-boundary pass that still materially improves public reference quality
-2. decide which legacy showcase games need full modern reference alignment instead of migration-proof only
-3. get the five-game public launch set working locally through Arcade
-4. run the final hosted release and managed media dashboard proof paths
-5. create release media assets
-6. connect and deploy all public games on official hosting
-7. validate all five games against the official servers
-8. merge the release PR, deploy the platform, and publish the launch content
+1. finish the local Arcade proof for the three remaining showcase games: `code-review`, `last-band-standing`, and `the-office`
+2. run the final hosted release and managed media dashboard proof paths
+3. create release media assets
+4. connect and deploy all public games on official hosting
+5. validate all five games against the official servers
+6. merge the release PR, deploy the platform, and publish the launch content
 
 Completed baselines now folded into this phase:
 
@@ -83,6 +80,13 @@ Completed baselines now folded into this phase:
 3. SDK runtime ownership is now explicit for host, controller, and audio
 4. shared platform settings now propagate cleanly from Arcade/controller surfaces into embedded games
 5. public Arcade hosted releases, managed media, and dashboard IA are already implemented at the product-foundation level
+6. the strict hosted-artifact route contract and developer-facing release bundle command now exist as real prerelease baselines
+7. source docs, generated scaffold docs, template README, and template-local skills are now aligned with the current SDK/runtime/release model
+8. `air-capture` has now passed its final prerelease reference-quality audit; the remaining runtime seam narrowing is post-release cleanup, not launch-critical work
+9. the three legacy ZeroDays games now have an explicit prerelease posture: migration-proof showcase games only, with `pong` and `air-capture` remaining the only canonical first-party reference implementations
+10. the baseline pair now has real local Arcade proof coverage:
+   1. `pong` host/controller happy path passes through the local Arcade browser smoke
+   2. `air-capture` settings/audio Arcade smoke passes through the local Arcade browser smoke
 
 ### Priority 5. Release PR And Publish
 
@@ -125,15 +129,7 @@ Current truth:
 
 ## Active Framework Tracks
 
-### 7. RPC Action Contract Refactor
-
-Status: parked  
-Plan: [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
-
-Current view:
-
-1. still a good safety architecture track
-2. should only move forward now if we decide it is required before v1
+Status: none beyond the canonical release plan
 
 ## Documentation Hygiene Tasks
 
@@ -164,6 +160,9 @@ These are done enough that they should not drive the day-to-day work queue:
 13. the public Arcade hosted release lane, managed media lane, and dashboard IA reset are implemented at the baseline product level
 14. auth capability hardening is complete enough for prerelease and no longer needs active plan tracking
 15. the old SDK composability direction has been superseded by the explicit runtime-ownership model and no longer needs active plan tracking
+16. controller-to-host RPC actions now enforce the narrow network contract: zero args or one plain-object payload, with runtime diagnostics and protocol validation backing the type surface
+17. the dashboard-hosted artifact lane now has an explicit `.airjam/release-manifest.json` contract, fixed `/` + `/controller` route behavior, and a creator-facing `release:bundle` workflow through `create-airjam`
+18. the source docs, generated docs pack, Pong template README, and template-local skills now tell the same current prerelease story
 
 ## Rules
 

@@ -1,6 +1,9 @@
 "use client";
 
-import type { DocumentWithFullscreen } from "@air-jam/sdk";
+import type {
+  DocumentWithFullscreen,
+  ElementWithFullscreen,
+} from "@air-jam/sdk";
 import { useSyncExternalStore } from "react";
 
 function readDocumentFullscreen(): boolean {
@@ -26,6 +29,58 @@ function subscribeFullscreen(onStoreChange: () => void) {
     document.removeEventListener("mozfullscreenchange", onChange);
     document.removeEventListener("MSFullscreenChange", onChange);
   };
+}
+
+export async function toggleDocumentFullscreen(
+  target: HTMLElement | null =
+    typeof document !== "undefined" ? document.documentElement : null,
+): Promise<void> {
+  if (typeof document === "undefined" || !target) {
+    return;
+  }
+
+  const doc = document as DocumentWithFullscreen;
+  const element = target as ElementWithFullscreen;
+
+  if (
+    doc.fullscreenElement ||
+    doc.webkitFullscreenElement ||
+    doc.mozFullScreenElement ||
+    doc.msFullscreenElement
+  ) {
+    if (doc.exitFullscreen) {
+      await doc.exitFullscreen();
+      return;
+    }
+    if (doc.webkitExitFullscreen) {
+      await doc.webkitExitFullscreen();
+      return;
+    }
+    if (doc.mozCancelFullScreen) {
+      await doc.mozCancelFullScreen();
+      return;
+    }
+    if (doc.msExitFullscreen) {
+      await doc.msExitFullscreen();
+    }
+    return;
+  }
+
+  if (element.requestFullscreen) {
+    await element.requestFullscreen();
+    return;
+  }
+  if (element.webkitRequestFullscreen) {
+    await element.webkitRequestFullscreen();
+    return;
+  }
+  if (element.mozRequestFullScreen) {
+    await element.mozRequestFullScreen();
+    return;
+  }
+  if (element.msRequestFullscreen) {
+    await element.msRequestFullscreen();
+  }
 }
 
 /**

@@ -37,10 +37,6 @@ Active subsystem plans:
 
 1. none beyond the canonical release plan
 
-Parked future architecture plans:
-
-1. [SDK RPC Action Contract Plan](./plans/sdk-rpc-action-contract-plan.md)
-
 Completed transitions / reference plans:
 
 1. [Arcade Architecture Reset Summary](./archive/arcade-architecture-reset-summary.md)
@@ -61,6 +57,7 @@ Completed transitions / reference plans:
 16. [Public Arcade Artifact Release Plan (Archived)](./archive/public-arcade-artifact-release-plan-2026-03-31.md)
 17. [Auth Capability Plan (Archived)](./archive/auth-capability-plan-2026-03-31.md)
 18. [SDK Composability Plan (Archived)](./archive/sdk-composability-plan-2026-03-31.md)
+19. [SDK RPC Action Contract Plan (Archived)](./archive/sdk-rpc-action-contract-plan-2026-03-31.md)
 
 Content drafts:
 

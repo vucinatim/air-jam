@@ -1,6 +1,10 @@
 "use client";
 
 import { arcadeInputSchema } from "@/lib/airjam-session-config";
+import {
+  toggleDocumentFullscreen,
+  useDocumentFullscreen,
+} from "@/lib/use-document-fullscreen";
 import { cn } from "@/lib/utils";
 import {
   useAirJamHost,
@@ -149,6 +153,7 @@ export const ArcadeSystem = ({
   /** Scroll position for chrome styling only; not part of surface authority. */
   const [browserListAtTop, setBrowserListAtTop] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const documentFullscreen = useDocumentFullscreen();
 
   const qrVisible = useArcadeSurfaceStore((s) => s.overlay === "qr");
   const surfaceKind = useArcadeSurfaceStore((s) => s.kind);
@@ -598,6 +603,10 @@ export const ArcadeSystem = ({
     writePreferredBrowserOverlay,
   ]);
 
+  const handleToggleFullscreen = useCallback(() => {
+    void toggleDocumentFullscreen();
+  }, []);
+
   const handleQrOverlayDismiss = useCallback(() => {
     surfaceActions.setOverlay({ overlay: "hidden" });
     if (surfaceKind === "browser") {
@@ -786,8 +795,10 @@ export const ArcadeSystem = ({
             lastError={host.lastError}
             qrVisible={qrVisible}
             settingsVisible={settingsOpen}
+            documentFullscreen={documentFullscreen}
             onToggleQr={handleBrowserQrToggle}
             onToggleSettings={handleBrowserSettingsToggle}
+            onToggleFullscreen={handleToggleFullscreen}
             listAtTop={browserListAtTop}
             highContrast={highContrast}
             className="absolute top-0 right-0 left-0 z-60"

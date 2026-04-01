@@ -231,7 +231,7 @@ describe("server routing and security", () => {
     controller.emit("controller:action_rpc", {
       roomId,
       actionName: "airjam.arcade.toggle_qr",
-      payload: null,
+      payload: undefined,
       storeDomain: "arcade.surface",
     });
 
@@ -248,7 +248,7 @@ describe("server routing and security", () => {
       id: "ctrl_arcade_1",
       role: "controller",
     });
-    expect(forwarded.payload).toBeNull();
+    expect(forwarded.payload).toBeUndefined();
 
     await harness.expectNoEvent(childHost, "airjam:action_rpc");
   });

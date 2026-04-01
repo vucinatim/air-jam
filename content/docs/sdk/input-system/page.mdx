@@ -34,7 +34,7 @@ export const airjam = createAirJamApp({
   game: {
     controllerPath: "/controller",
   },
-  input={{
+  input: {
     schema: gameInputSchema,
   },
 });
@@ -60,15 +60,15 @@ export const airjam = createAirJamApp({
   game: {
     controllerPath: "/controller",
   },
-  input={{
+  input: {
     schema: gameInputSchema,
     behavior: {
       pulse: ["action", "ability"],
       latest: ["vector"],
       hold: ["menuVector"],
     },
-  }}
-})
+  },
+});
 ```
 
 Behavior modes:
@@ -82,24 +82,25 @@ Behavior modes:
 Old config:
 
 ```tsx
-input={{
+input: {
   schema: gameInputSchema,
   latch: {
     booleanFields: ["action"],
     vectorFields: ["vector"],
   },
-}}
+}
 ```
 
 New config:
 
 ```tsx
-input={{
+input: {
   schema: gameInputSchema,
   behavior: {
-    pulse: ["action", "vector"],
+    pulse: ["action"],
+    latest: ["vector"],
   },
-}}
+}
 ```
 
 For most games, remove the override entirely and keep `input: { schema }`.
@@ -140,21 +141,26 @@ It assumes your app has already mounted `airjam.Host` or `AirJamHostRuntime` abo
 
 ```tsx filename="src/host/index.tsx"
 import { useAirJamHost } from "@air-jam/sdk";
+import { useFrame } from "@react-three/fiber";
 
-const host = useAirJamHost();
+const HostView = () => {
+  const host = useAirJamHost();
 
-useFrame(() => {
-  host.players.forEach((player) => {
-    const input = host.getInput(player.id);
-    if (!input) return;
+  useFrame(() => {
+    host.players.forEach((player) => {
+      const input = host.getInput(player.id);
+      if (!input) return;
 
-    movePlayer(player.id, input.vector);
+      movePlayer(player.id, input.vector);
 
-    if (input.action) {
-      playerShoot(player.id);
-    }
+      if (input.action) {
+        playerShoot(player.id);
+      }
+    });
   });
-});
+
+  return <GameScene />;
+};
 ```
 
 ### Performance-Critical Components

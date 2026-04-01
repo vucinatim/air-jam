@@ -16,14 +16,22 @@ Use this skill when adding new systems or moving code between boundaries.
 
 Prefer this split:
 
-1. `src/host/` for host-only composition
-2. `src/controller/` for controller-only composition
-3. `src/game/domain/` for pure rules
-4. `src/game/engine/` for orchestration
-5. `src/game/systems/` for focused gameplay systems
-6. `src/game/adapters/` for framework integration
-7. `src/game/ui/` for reusable game-facing UI
-8. `src/game/debug/` for debug helpers
+1. `src/airjam.config.ts` for runtime metadata such as `controllerPath` and input schema
+2. `src/app.tsx` for mounting explicit host/controller runtime boundaries
+3. `src/host/` for host-only composition
+4. `src/controller/` for controller-only composition
+5. `src/game/domain/` for pure rules
+6. `src/game/engine/` for orchestration
+7. `src/game/systems/` for focused gameplay systems
+8. `src/game/adapters/` for framework integration
+9. `src/game/ui/` for reusable game-facing UI
+10. `src/game/debug/` for debug helpers
+
+Keep runtime ownership explicit:
+
+1. mount `airjam.Host` / `airjam.Controller` once at the boundary
+2. use consumer hooks like `useAirJamHost()` and `useAirJamController()` only below that boundary
+3. keep gameplay code out of runtime setup and transport bootstrap
 
 ## Decision Rule
 

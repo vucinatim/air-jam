@@ -5,6 +5,7 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
+import yazl from "yazl";
 import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +20,21 @@ const templateAssetsBaseDir = path.resolve(
 );
 
 type TemplateVersionManifest = Record<string, string>;
+type SupportedPackageManager = "pnpm" | "npm" | "yarn" | "bun";
+
+const HOSTED_RELEASE_MANIFEST_PATH = ".airjam/release-manifest.json" as const;
+const HOSTED_RELEASE_ENTRY_PATH = "index.html" as const;
+const HOSTED_RELEASE_HOST_PATH = "/" as const;
+const HOSTED_RELEASE_CONTROLLER_PATH = "/controller" as const;
+
+type HostedReleaseBundleManifest = {
+  schemaVersion: 1;
+  kind: "airjam-hosted-release";
+  routes: {
+    host: typeof HOSTED_RELEASE_HOST_PATH;
+    controller: typeof HOSTED_RELEASE_CONTROLLER_PATH;
+  };
+};
 
 const loadTemplateVersionManifest = (): TemplateVersionManifest => {
   if (!fs.existsSync(manifestPath)) {
@@ -42,6 +58,15 @@ const loadCreateAirJamPackageVersion = (): string => {
 
   return pkg.version;
 };
+
+const createHostedReleaseBundleManifest = (): HostedReleaseBundleManifest => ({
+  schemaVersion: 1,
+  kind: "airjam-hosted-release",
+  routes: {
+    host: HOSTED_RELEASE_HOST_PATH,
+    controller: HOSTED_RELEASE_CONTROLLER_PATH,
+  },
+});
 
 const normalizeWorkspaceSpecs = (
   deps: Record<string, string> | undefined,
@@ -175,6 +200,271 @@ const printAiPackHelp = () => {
   console.log("  --manifest-url <url>    Override the hosted AI pack root manifest URL");
   console.log("  --manifest-file <path>  Read the AI pack root manifest from a local file");
   console.log("  --force                 Overwrite same-version managed file drift during update");
+};
+
+const printReleaseHelp = () => {
+  console.log("Usage: create-airjam release bundle [options]");
+  console.log("");
+  console.log("Options:");
+  console.log("  --dir <path>       Project directory to bundle (default: current working directory)");
+  console.log("  --dist-dir <path>  Built static output directory (default: dist)");
+  console.log("  --out <path>       Output zip file path");
+  console.log("  --skip-build       Reuse the existing dist directory without running the build script");
+};
+
+const loadProjectPackageJson = async (
+  targetDir: string,
+): Promise<{
+  name?: string;
+  version?: string;
+  packageManager?: string;
+  scripts?: Record<string, string>;
+}> => {
+  const targetPackageJsonPath = path.join(targetDir, "package.json");
+  if (!(await fs.pathExists(targetPackageJsonPath))) {
+    throw new Error(`Missing package.json in ${targetDir}`);
+  }
+
+  return fs.readJson(targetPackageJsonPath);
+};
+
+const detectPackageManager = async (
+  targetDir: string,
+  packageManagerField?: string,
+): Promise<SupportedPackageManager> => {
+  const configuredPackageManager = packageManagerField?.split("@")[0];
+  if (
+    configuredPackageManager === "pnpm" ||
+    configuredPackageManager === "npm" ||
+    configuredPackageManager === "yarn" ||
+    configuredPackageManager === "bun"
+  ) {
+    return configuredPackageManager;
+  }
+
+  if (await fs.pathExists(path.join(targetDir, "pnpm-lock.yaml"))) {
+    return "pnpm";
+  }
+
+  if (await fs.pathExists(path.join(targetDir, "bun.lockb"))) {
+    return "bun";
+  }
+
+  if (await fs.pathExists(path.join(targetDir, "yarn.lock"))) {
+    return "yarn";
+  }
+
+  return "npm";
+};
+
+const runBuildScript = ({
+  targetDir,
+  packageManager,
+  scripts,
+}: {
+  targetDir: string;
+  packageManager: SupportedPackageManager;
+  scripts: Record<string, string> | undefined;
+}) => {
+  if (!scripts?.build) {
+    throw new Error(
+      `Project at ${targetDir} does not define a build script. Add one or pass --skip-build.`,
+    );
+  }
+
+  const command =
+    packageManager === "npm" ? "npm run build" : `${packageManager} build`;
+
+  execSync(command, {
+    cwd: targetDir,
+    stdio: "inherit",
+  });
+};
+
+const sanitizePathSegment = (value: string): string =>
+  value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
+
+const getDefaultReleaseBundlePath = ({
+  targetDir,
+  packageName,
+  packageVersion,
+}: {
+  targetDir: string;
+  packageName?: string;
+  packageVersion?: string;
+}): string => {
+  const normalizedReleaseLabel = sanitizePathSegment(packageVersion || "dev");
+  const normalizedPackageName = sanitizePathSegment(packageName || "airjam-game");
+
+  return path.join(
+    targetDir,
+    ".airjam",
+    "releases",
+    normalizedReleaseLabel,
+    `${normalizedPackageName}-hosted-release.zip`,
+  );
+};
+
+const readConfiguredControllerPath = async (
+  targetDir: string,
+): Promise<string | null> => {
+  const configPath = path.join(targetDir, "src", "airjam.config.ts");
+  if (!(await fs.pathExists(configPath))) {
+    return null;
+  }
+
+  const source = await fs.readFile(configPath, "utf8");
+  const match = source.match(/controllerPath\s*:\s*["'`](?<path>[^"'`]+)["'`]/);
+  return match?.groups?.path?.trim() || null;
+};
+
+const assertHostedReleaseControllerPath = async (
+  targetDir: string,
+): Promise<void> => {
+  const configuredControllerPath = await readConfiguredControllerPath(targetDir);
+  if (
+    configuredControllerPath &&
+    configuredControllerPath !== HOSTED_RELEASE_CONTROLLER_PATH
+  ) {
+    throw new Error(
+      `Hosted Air Jam bundles require controllerPath to be ${HOSTED_RELEASE_CONTROLLER_PATH}. This project is configured for ${configuredControllerPath}. Self-hosted mode can keep custom routes; the hosted dashboard lane cannot.`,
+    );
+  }
+};
+
+const collectBundleFiles = async (sourceDir: string): Promise<string[]> => {
+  const entries = await fs.readdir(sourceDir);
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const absolutePath = path.join(sourceDir, entry);
+    const stats = await fs.stat(absolutePath);
+
+    if (stats.isDirectory()) {
+      files.push(...(await collectBundleFiles(absolutePath)));
+      continue;
+    }
+
+    files.push(absolutePath);
+  }
+
+  return files;
+};
+
+const writeHostedReleaseBundle = async ({
+  sourceDir,
+  outputFile,
+}: {
+  sourceDir: string;
+  outputFile: string;
+}): Promise<void> => {
+  const files = await collectBundleFiles(sourceDir);
+  const zipFile = new yazl.ZipFile();
+
+  await fs.ensureDir(path.dirname(outputFile));
+
+  const output = fs.createWriteStream(outputFile);
+  const closePromise = new Promise<void>((resolve, reject) => {
+    output.on("close", resolve);
+    output.on("error", reject);
+    zipFile.outputStream.on("error", reject);
+  });
+
+  zipFile.outputStream.pipe(output);
+
+  for (const filePath of files) {
+    const relativePath = path.relative(sourceDir, filePath).replace(/\\/g, "/");
+    if (!relativePath || relativePath === HOSTED_RELEASE_MANIFEST_PATH) {
+      continue;
+    }
+
+    zipFile.addFile(filePath, relativePath);
+  }
+
+  zipFile.addBuffer(
+    Buffer.from(
+      `${JSON.stringify(createHostedReleaseBundleManifest(), null, 2)}\n`,
+      "utf8",
+    ),
+    HOSTED_RELEASE_MANIFEST_PATH,
+  );
+  zipFile.end();
+
+  await closePromise;
+};
+
+const runReleaseCommand = async (argv: string[]) => {
+  const subcommand = argv[3];
+  if (!subcommand || subcommand === "--help" || subcommand === "-h") {
+    printReleaseHelp();
+    return;
+  }
+
+  if (subcommand !== "bundle" || argv.includes("--help") || argv.includes("-h")) {
+    printReleaseHelp();
+    if (subcommand !== "bundle") {
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  const targetDir = path.resolve(getOptionValue(argv, "--dir") || process.cwd());
+  const distDir = path.resolve(
+    targetDir,
+    getOptionValue(argv, "--dist-dir") || "dist",
+  );
+  const outputOverride = getOptionValue(argv, "--out");
+  const skipBuild = argv.includes("--skip-build");
+
+  const projectPackageJson = await loadProjectPackageJson(targetDir);
+  const packageManager = await detectPackageManager(
+    targetDir,
+    projectPackageJson.packageManager,
+  );
+
+  await assertHostedReleaseControllerPath(targetDir);
+
+  if (!skipBuild) {
+    console.log(kleur.cyan(`Building project in ${targetDir}...\n`));
+    runBuildScript({
+      targetDir,
+      packageManager,
+      scripts: projectPackageJson.scripts,
+    });
+  }
+
+  if (!(await fs.pathExists(distDir))) {
+    throw new Error(
+      `Build output directory not found at ${distDir}. Run the build first or pass --dist-dir.`,
+    );
+  }
+
+  if (!(await fs.pathExists(path.join(distDir, HOSTED_RELEASE_ENTRY_PATH)))) {
+    throw new Error(
+      `Hosted bundle build output must contain ${HOSTED_RELEASE_ENTRY_PATH} at ${distDir}.`,
+    );
+  }
+
+  const outputFile = outputOverride
+    ? path.resolve(targetDir, outputOverride)
+    : getDefaultReleaseBundlePath({
+        targetDir,
+        packageName: projectPackageJson.name,
+        packageVersion: projectPackageJson.version,
+      });
+
+  await writeHostedReleaseBundle({
+    sourceDir: distDir,
+    outputFile,
+  });
+
+  console.log(kleur.green("\n✓ Hosted release bundle created\n"));
+  console.log(`Artifact: ${kleur.cyan(outputFile)}`);
+  console.log(
+    kleur.dim(
+      `Hosted contract: ${HOSTED_RELEASE_HOST_PATH} (host), ${HOSTED_RELEASE_CONTROLLER_PATH} (controller), ${HOSTED_RELEASE_MANIFEST_PATH} manifest`,
+    ),
+  );
 };
 
 const runAiPackCommand = async (argv: string[]) => {
@@ -430,6 +720,11 @@ async function runScaffoldCli() {
 async function main() {
   if (process.argv[2] === "ai-pack") {
     await runAiPackCommand(process.argv);
+    return;
+  }
+
+  if (process.argv[2] === "release") {
+    await runReleaseCommand(process.argv);
     return;
   }
 

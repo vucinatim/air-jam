@@ -1,4 +1,10 @@
 import {
+  HOSTED_RELEASE_ENTRY_PATH,
+  HOSTED_RELEASE_MANIFEST_PATH,
+  hostedReleaseArtifactManifestSchema,
+  type HostedReleaseArtifactManifest,
+} from "@/lib/releases/hosted-release-artifact";
+import {
   MAX_RELEASE_EXTRACTED_BYTES,
   MAX_RELEASE_FILE_BYTES,
   MAX_RELEASE_FILE_COUNT,
@@ -19,8 +25,9 @@ export type ValidatedReleaseArchiveFile = {
 export type ValidatedReleaseArchiveManifest = {
   fileCount: number;
   extractedSizeBytes: number;
-  entryPath: "index.html";
+  entryPath: typeof HOSTED_RELEASE_ENTRY_PATH;
   wrapperDirectory: string | null;
+  hostedManifest: HostedReleaseArtifactManifest;
   files: ValidatedReleaseArchiveFile[];
 };
 
@@ -186,10 +193,10 @@ export const getReleaseAssetCacheControl = (relativePath: string): string => {
 
 export const resolveReleaseArchiveRoot = (
   archivePaths: readonly string[],
-): { entryPath: "index.html"; wrapperDirectory: string | null } => {
-  if (archivePaths.includes("index.html")) {
+): { entryPath: typeof HOSTED_RELEASE_ENTRY_PATH; wrapperDirectory: string | null } => {
+  if (archivePaths.includes(HOSTED_RELEASE_ENTRY_PATH)) {
     return {
-      entryPath: "index.html",
+      entryPath: HOSTED_RELEASE_ENTRY_PATH,
       wrapperDirectory: null,
     };
   }
@@ -205,16 +212,143 @@ export const resolveReleaseArchiveRoot = (
   }
 
   const [wrapperDirectory] = [...topLevelSegments];
-  if (!archivePaths.includes(`${wrapperDirectory}/index.html`)) {
+  if (!archivePaths.includes(`${wrapperDirectory}/${HOSTED_RELEASE_ENTRY_PATH}`)) {
     throw new Error(
       "Release archive wrapper directory must contain an index.html entry.",
     );
   }
 
   return {
-    entryPath: "index.html",
+    entryPath: HOSTED_RELEASE_ENTRY_PATH,
     wrapperDirectory,
   };
+};
+
+const readReleaseArchiveEntryBuffer = async ({
+  archiveBuffer,
+  archivePath,
+  maxBytes,
+}: {
+  archiveBuffer: Buffer;
+  archivePath: string;
+  maxBytes: number;
+}): Promise<Buffer> => {
+  const zipFile = await openZipFile(archiveBuffer);
+
+  try {
+    return await new Promise<Buffer>((resolve, reject) => {
+      let settled = false;
+
+      const fail = (error: unknown) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        zipFile.close();
+        reject(error);
+      };
+
+      zipFile.on("entry", (entry) => {
+        let normalizedEntry: NormalizedArchiveEntryPath;
+        try {
+          normalizedEntry = normalizeReleaseArchiveEntryPath(entry.fileName);
+        } catch (error) {
+          fail(error);
+          return;
+        }
+
+        if (
+          normalizedEntry.isDirectory ||
+          isIgnoredReleaseArchiveEntry(normalizedEntry.archivePath)
+        ) {
+          zipFile.readEntry();
+          return;
+        }
+
+        if (normalizedEntry.archivePath !== archivePath) {
+          zipFile.readEntry();
+          return;
+        }
+
+        void openZipEntryReadStream(zipFile, entry)
+          .then(async (stream) => {
+            const chunks: Buffer[] = [];
+            let totalBytes = 0;
+
+            for await (const chunk of stream) {
+              const bufferChunk = Buffer.isBuffer(chunk)
+                ? chunk
+                : Buffer.from(chunk);
+              totalBytes += bufferChunk.length;
+
+              if (totalBytes > maxBytes) {
+                throw new Error(
+                  `Release archive entry exceeded the ${maxBytes} byte validation limit: ${archivePath}`,
+                );
+              }
+
+              chunks.push(bufferChunk);
+            }
+
+            return Buffer.concat(chunks);
+          })
+          .then((buffer) => {
+            if (settled) {
+              return;
+            }
+
+            settled = true;
+            zipFile.close();
+            resolve(buffer);
+          })
+          .catch(fail);
+      });
+
+      zipFile.once("end", () => {
+        fail(
+          new Error(`Release archive is missing required entry: ${archivePath}`),
+        );
+      });
+
+      zipFile.once("error", fail);
+      zipFile.readEntry();
+    });
+  } finally {
+    zipFile.removeAllListeners();
+  }
+};
+
+const readHostedReleaseArtifactManifest = async ({
+  archiveBuffer,
+  archivePath,
+}: {
+  archiveBuffer: Buffer;
+  archivePath: string;
+}): Promise<HostedReleaseArtifactManifest> => {
+  const manifestBuffer = await readReleaseArchiveEntryBuffer({
+    archiveBuffer,
+    archivePath,
+    maxBytes: 64 * 1024,
+  });
+
+  let parsedManifest: unknown;
+  try {
+    parsedManifest = JSON.parse(manifestBuffer.toString("utf8"));
+  } catch {
+    throw new Error(
+      `Hosted release manifest must be valid JSON at ${HOSTED_RELEASE_MANIFEST_PATH}.`,
+    );
+  }
+
+  const result = hostedReleaseArtifactManifestSchema.safeParse(parsedManifest);
+  if (!result.success) {
+    throw new Error(
+      `Hosted release manifest must match the Air Jam hosted artifact contract at ${HOSTED_RELEASE_MANIFEST_PATH}.`,
+    );
+  }
+
+  return result.data;
 };
 
 export const readReleaseArchiveManifest = async (
@@ -335,11 +469,26 @@ export const readReleaseArchiveManifest = async (
     };
   });
 
+  const hostedManifestFile = files.find(
+    (file) => file.relativePath === HOSTED_RELEASE_MANIFEST_PATH,
+  );
+  if (!hostedManifestFile) {
+    throw new Error(
+      `Release archive must include ${HOSTED_RELEASE_MANIFEST_PATH} for Air Jam hosted releases.`,
+    );
+  }
+
+  const hostedManifest = await readHostedReleaseArtifactManifest({
+    archiveBuffer,
+    archivePath: hostedManifestFile.archivePath,
+  });
+
   return {
     fileCount: files.length,
     extractedSizeBytes,
     entryPath,
     wrapperDirectory,
+    hostedManifest,
     files,
   };
 };

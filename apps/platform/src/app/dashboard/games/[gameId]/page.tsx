@@ -47,7 +47,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 const overviewSchema = z.object({
   name: z.string().min(1, "Name is required"),

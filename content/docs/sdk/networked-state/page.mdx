@@ -17,14 +17,15 @@ Use this lane for replicated game state, not per-frame input.
 Actions always use this shape on the host:
 
 1. First argument: `ctx` (identity and role)
-2. Second argument: `payload` (single typed payload object)
+2. Second argument: `payload` (either `undefined` or one typed plain-object payload)
 
 Controller-side dispatch always uses:
 
 1. `const actions = useGameStore.useActions()`
-2. `actions.someAction(payload)`
+2. `actions.someAction()` or `actions.someAction({ ...payload })`
 
 No trailing `controllerId` arguments and no multi-argument action payloads.
+No primitive, array, or event-like root payloads.
 
 ## Create a Store
 
@@ -141,7 +142,7 @@ export const HostView = () => {
 
 ## Action Flow
 
-1. Controller calls `actions.someAction(payload)`.
+1. Controller calls `actions.someAction()` or `actions.someAction({ ...payload })`.
 2. SDK emits `controller:action_rpc`.
 3. Server validates and injects actor identity from socket ownership.
 4. Host receives `airjam:action_rpc` with `{ actor, payload }`.
@@ -153,8 +154,10 @@ export const HostView = () => {
 1. Keep all networked mutations inside `actions`.
 2. Always dispatch via `useActions()`; do not call `state.actions.*` directly.
 3. Use one payload object per action for stable evolution.
-4. Use `ctx.actorId` for identity-aware actions (team join, ownership, etc.).
-5. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
+4. Root payloads must be omitted or plain objects.
+5. Nested values must stay RPC-serializable.
+6. Use `ctx.actorId` for identity-aware actions (team join, ownership, etc.).
+7. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
 
 ## Embedded Arcade Runtimes
 
@@ -171,6 +174,6 @@ The SDK/runtime automatically resolves the correct replicated store domain from 
 `createAirJamStore<T>(initializer)` returns:
 
 1. Zustand-compatible hook for selectors.
-2. `useActions()` dispatch map with payload-only signatures.
+2. `useActions()` dispatch map with `() => void` or `(payloadObject) => void` signatures.
 
-`T` must include an `actions` object with host handlers `(ctx, payload) => void`.
+`T` must include an `actions` object with host handlers `(ctx, payload) => void`, where `payload` is `undefined` or a plain object.

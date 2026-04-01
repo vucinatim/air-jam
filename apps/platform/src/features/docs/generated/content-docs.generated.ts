@@ -194,6 +194,13 @@ const generatedContentDocsDocuments = [
           'This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster. Check AGENTS.md: Project-wide coding contract and workflow for AI coding assistants. Check docs/docs-index.md:…',
       },
       {
+        title: "Refresh Managed Docs And Skills",
+        slug: "refresh-managed-docs-and-skills",
+        depth: 3,
+        excerpt:
+          "Scaffolded projects include an AI pack that owns the canonical local docs, skills, and related guidance files. Use these commands from your project root: ai-pack:update replaces AI-pack-managed files with the current…",
+      },
+      {
         title: "Troubleshooting",
         slug: "troubleshooting",
         depth: 2,
@@ -222,11 +229,11 @@ const generatedContentDocsDocuments = [
           "Confirm host and controller are on the same room code. If testing on phone outside localhost, set VITEAIRJAMPUBLICHOST (or use pnpm run dev -- --secure). For SPA hosting, ensure rewrites route /controller?room=XXXX to…",
       },
       {
-        title: "5. Deploy Your Game",
-        slug: "5-deploy-your-game",
+        title: "5. Connect Your Game To The Cloud",
+        slug: "5-connect-your-game-to-the-cloud",
         depth: 2,
         excerpt:
-          "When you're ready to share your game, you'll need to deploy it and connect it to the official Air Jam cloud. Create a Game Profile: Go to the Platform Dashboard Create a profile and a new game Copy your App ID Deploy…",
+          "When you're ready to share your game, first connect it to the official Air Jam cloud. Create a Game Profile: Go to the Platform Dashboard Create a profile and a new game Copy your App ID Deploy the Client Or Keep A…",
       },
       {
         title: "Optional: Stronger Signed Host Bootstrap",
@@ -236,11 +243,11 @@ const generatedContentDocsDocuments = [
           "If you want stricter production ownership guarantees, you can keep the game static and add one small backend or edge endpoint that returns a signed host grant. Frontend env: Server env: The SDK will fetch the host grant…",
       },
       {
-        title: "6. Publish to Arcade",
-        slug: "6-publish-to-arcade",
+        title: "6. Publish A Hosted Arcade Release",
+        slug: "6-publish-a-hosted-arcade-release",
         depth: 2,
         excerpt:
-          "To list your game in the official Air Jam Arcade: Go to your game's settings in the Dashboard. Enter your deployed game URL (e.g., https://my-game.vercel.app). Optionally add a self-hosted thumbnail, cover image, and…",
+          "The official Arcade hosting lane is now artifact-based. Self-hosted URLs are still useful for private preview, but public Arcade hosting should use a hosted release artifact. Build a hosted bundle from your project…",
       },
     ],
     loadComponent: () =>
@@ -1458,7 +1465,7 @@ const generatedContentDocsDocuments = [
         slug: "canonical-action-model",
         depth: 2,
         excerpt:
-          "Actions always use this shape on the host: First argument: ctx (identity and role) Second argument: payload (single typed payload object) Controller-side dispatch always uses: const actions = useGameStore.useActions()…",
+          "Actions always use this shape on the host: First argument: ctx (identity and role) Second argument: payload (either undefined or one typed plain-object payload) Controller-side dispatch always uses: const actions =…",
       },
       {
         title: "Create a Store",
@@ -1486,14 +1493,14 @@ const generatedContentDocsDocuments = [
         slug: "action-flow",
         depth: 2,
         excerpt:
-          "Controller calls actions.someAction(payload). SDK emits controller:actionrpc. Server validates and injects actor identity from socket ownership. Host receives airjam:actionrpc with . Host executes action handler (ctx,…",
+          "Controller calls actions.someAction() or actions.someAction(). SDK emits controller:actionrpc. Server validates and injects actor identity from socket ownership. Host receives airjam:actionrpc with . Host executes…",
       },
       {
         title: "Rules",
         slug: "rules",
         depth: 2,
         excerpt:
-          "Keep all networked mutations inside actions. Always dispatch via useActions(); do not call state.actions. directly. Use one payload object per action for stable evolution. Use ctx.actorId for identity-aware actions…",
+          "Keep all networked mutations inside actions. Always dispatch via useActions(); do not call state.actions. directly. Use one payload object per action for stable evolution. Root payloads must be omitted or plain objects.…",
       },
       {
         title: "Embedded Arcade Runtimes",
@@ -1507,7 +1514,7 @@ const generatedContentDocsDocuments = [
         slug: "api-summary",
         depth: 2,
         excerpt:
-          "createAirJamStore(initializer) returns: Zustand-compatible hook for selectors. useActions() dispatch map with payload-only signatures. T must include an actions object with host handlers (ctx, payload) => void.",
+          "createAirJamStore(initializer) returns: Zustand-compatible hook for selectors. useActions() dispatch map with () => void or (payloadObject) => void signatures. T must include an actions object with host handlers (ctx,…",
       },
     ],
     loadComponent: () => import("@content/docs/sdk/networked-state/page.mdx"),

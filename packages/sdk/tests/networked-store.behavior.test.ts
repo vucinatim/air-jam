@@ -303,6 +303,49 @@ describe("createAirJamStore networked behavior", () => {
     unsubscribe();
   });
 
+  it("blocks controller action RPC payloads that are not plain objects", () => {
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      diagnostics.push(diagnostic.code);
+    });
+
+    const useStore = createTestStore();
+    const { result, unmount } = renderHook(() => useStore.useActions());
+
+    act(() => {
+      (
+        result.current.joinTeam as unknown as (payload: unknown) => void
+      )(["red", "blue"]);
+    });
+
+    expect(
+      controllerSocket.emitted.filter((call) => call.event === "controller:action_rpc")
+        .length,
+    ).toBe(0);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[AirJamStore] Action "joinTeam" blocked: payload must be omitted or a plain object.',
+      ),
+      expect.objectContaining({ actionName: "joinTeam" }),
+    );
+    expect(diagnostics).toContain("AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE");
+
+    act(() => {
+      (
+        result.current.joinTeam as unknown as (payload: unknown) => void
+      )(null);
+    });
+
+    expect(
+      controllerSocket.emitted.filter((call) => call.event === "controller:action_rpc")
+        .length,
+    ).toBe(0);
+    expect(diagnostics).toContain("AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE");
+
+    unmount();
+    unsubscribe();
+  });
+
   it("drops event-like payloads and continues action RPC with undefined payload", () => {
     const diagnostics: string[] = [];
     const unsubscribe = onAirJamDiagnostic((diagnostic) => {
