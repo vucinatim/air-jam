@@ -17,9 +17,10 @@ Use it to answer:
 Air Jam should now move through prerelease work in one canonical plan:
 
 1. decide the final launch posture of the three legacy showcase games
-2. prove the five-game launch set locally through Arcade
-3. prove the hosted release and managed media dashboard flows end to end
-4. produce release media, connect official hosting, validate on official servers, and publish
+2. finish the five-game launch-set proof locally through Arcade
+3. resolve the release-critical issues surfaced by real multiplayer playtests
+4. prove the hosted release and managed media dashboard flows end to end
+5. produce release media, connect official hosting, validate on official servers, and publish
 
 Canonical prerelease plan: [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
@@ -67,11 +68,16 @@ Plan: [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 Remaining:
 
 1. finish the local Arcade proof for the three remaining showcase games: `code-review`, `last-band-standing`, and `the-office`
-2. run the final hosted release and managed media dashboard proof paths
-3. create release media assets
-4. connect and deploy all public games on official hosting
-5. validate all five games against the official servers
-6. merge the release PR, deploy the platform, and publish the launch content
+2. land the release-critical playtest hardening stack:
+   1. controller reconnect/resume baseline
+   2. controller-open fullscreen prompt
+   3. `air-capture` high-priority gameplay fixes
+3. rerun the baseline pair after those fixes and confirm they remain launch-trustworthy
+4. run the final hosted release and managed media dashboard proof paths
+5. create release media assets
+6. connect and deploy all public games on official hosting
+7. validate all five games against the official servers
+8. merge the release PR, deploy the platform, and publish the launch content
 
 Completed baselines now folded into this phase:
 
@@ -87,6 +93,11 @@ Completed baselines now folded into this phase:
 10. the baseline pair now has real local Arcade proof coverage:
    1. `pong` host/controller happy path passes through the local Arcade browser smoke
    2. `air-capture` settings/audio Arcade smoke passes through the local Arcade browser smoke
+11. a longer real playtest of `air-capture` and `last-band-standing` surfaced the next honest prerelease gate:
+   1. reconnect/resume robustness is not good enough yet
+   2. controller fullscreen prompting should be explicit and consistent
+   3. couch-readability and Arcade waiting-state polish need explicit prioritization
+   4. `air-capture` still has several gameplay-level fixes that matter before launch
 
 ### Priority 5. Release PR And Publish
 

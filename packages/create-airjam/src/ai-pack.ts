@@ -76,6 +76,7 @@ const PACKAGED_AI_PACK_ROOT = path.resolve(
   "template-assets",
   "base",
 );
+const AI_PACK_UNMANAGED_ROOT_FILES = new Set(["plan.md", "suggestions.md"]);
 
 const normalizeManifestForComparison = (
   manifest: LocalAiPackManifest,
@@ -117,7 +118,7 @@ const collectPackagedAiPackFiles = async (sourceDir: string): Promise<string[]> 
     files.push(absolutePath);
   }
 
-  return files;
+  return files.filter((relativePath) => !AI_PACK_UNMANAGED_ROOT_FILES.has(relativePath));
 };
 
 const loadPackagedAiPackVersionManifest =

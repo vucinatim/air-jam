@@ -71,13 +71,14 @@ Air Jam should move through launch execution in this order:
 1. add the platform dashboard bug-report path
 2. decide which legacy games need full template-aligned structure upgrades
 3. get all five games running locally through Arcade
-4. run the final dashboard-level hosted release and managed media proof paths
-5. create release media assets
-6. connect and deploy all public games on official hosting
-7. validate all public games against the official servers
-8. merge the release PR and deploy the platform
-9. publish release content
-10. execute the launch distribution plan
+4. resolve the critical issues surfaced by real multiplayer playtests
+5. run the final dashboard-level hosted release and managed media proof paths
+6. create release media assets
+7. connect and deploy all public games on official hosting
+8. validate all public games against the official servers
+9. merge the release PR and deploy the platform
+10. publish release content
+11. execute the launch distribution plan
 
 ## Completed Baselines That No Longer Need Separate Active Plans
 
@@ -371,7 +372,73 @@ Current proof progress:
    2. `last-band-standing`
    3. `the-office`
 
-## Phase 7. Dashboard Hosted Release And Managed Media Proof
+## Phase 7. Playtest-Driven Launch Hardening
+
+### Goal
+
+Turn the issues found in real multi-player couch-style playtests into one explicit prerelease decision stack instead of letting them drift across chat.
+
+### Release-critical before v1
+
+These should be handled before public launch because they affect trust, recoverability, or the core play loop:
+
+1. add a proper controller reconnect/resume baseline so a dropped player can rejoin safely during live gameplay without corrupting host state
+   1. minimum acceptable v1 shape:
+      1. stable controller device identity
+      2. resumable player-slot lease where appropriate
+      3. host/runtime robustness when reconnect attempts happen mid-match
+   2. broader "continuous player device save system" can remain a later expansion if the smaller resume baseline solves the trust problem cleanly
+2. add a consistent controller-open fullscreen prompt for Arcade and game controller surfaces
+   1. this should be a user-gesture-driven prompt, not a silent forced fullscreen call
+3. improve `air-capture`'s high-priority gameplay clarity and correctness:
+   1. left joystick controls movement, right-side controls stay focused on actions
+   2. a team cannot pick up the opponent flag while its own flag is already being carried
+   3. rocket damage is verified and fixed if the current blast logic is weak or broken
+   4. player names are visible in the lobby
+   5. add a clean opening countdown where players can rotate but not move
+4. rerun `air-capture` and `last-band-standing` local Arcade proof after the above fixes and record whether they remain in the launch set without qualification
+5. if any SDK/platform work lands here, realign:
+   1. `pong`
+   2. `air-capture`
+   3. `code-review`
+   4. `last-band-standing`
+   5. `the-office`
+   6. source docs
+   7. generated template docs
+   8. template skills / AI pack guidance
+
+### Important prerelease polish if time allows
+
+These are meaningful launch-quality improvements, but they should not displace the release-critical items above:
+
+1. add clearer TV/couch readability guidance for game UIs
+   1. prefer docs, skills, and a small reusable pattern over a heavy framework-level auto-scaling abstraction
+   2. if a tiny helper emerges naturally, keep it minimal and optional
+2. improve the Arcade waiting-state experience
+   1. start with a small social interaction like a host horn / ping / cheer
+   2. do not open a side quest for a full waiting mini-game unless the first-pass interaction feels insufficient
+3. make the Arcade menu affordance more obvious
+   1. e.g. animate the ship/logo notch so it reads as an interactive upward arrow
+4. improve `air-capture` clarity polish:
+   1. add subtle in-game floating player names
+   2. revisit any remaining readability issues surfaced during the next playtest
+
+### Explicitly post-release
+
+These ideas are worth keeping, but they should not muddy the v1 path:
+
+1. a broader continuous player-device save / long-lived resume system beyond the smaller reconnect baseline above
+2. a richer waiting-state background activity or mini-game for Arcade
+3. a generalized framework-level UI scaling system if docs + patterns prove insufficient after launch
+4. deeper `air-capture` flight-feel tuning such as additional air maneuverability once correctness and readability are settled
+
+### Done when
+
+1. the release-critical playtest issues have explicit fixes or explicit deferrals
+2. the baseline pair (`pong`, `air-capture`) still feel trustworthy after the fixes
+3. the launch path is not carrying vague playtest TODOs outside this plan
+
+## Phase 8. Dashboard Hosted Release And Managed Media Proof
 
 ### Goal
 
@@ -388,7 +455,7 @@ Finish the last end-to-end product-proof work on the hosted release lane before 
 1. hosted releases are proven through the real dashboard flow, not only by lower-level implementation confidence
 2. managed media is proven through the real dashboard and public catalog path
 
-## Phase 8. Release Media Assets
+## Phase 9. Release Media Assets
 
 ### Goal
 
@@ -410,7 +477,7 @@ The media should clarify the game, not oversell it.
 2. every public game has a cover image
 3. every public game has a preview video where appropriate
 
-## Phase 9. Official Hosting And Platform Connection
+## Phase 10. Official Hosting And Platform Connection
 
 ### Goal
 
@@ -428,7 +495,7 @@ Get the public game set connected to the real hosted platform.
 1. all five games are deployed on official hosting
 2. all five games are connected to the official platform configuration
 
-## Phase 10. Official Server Validation
+## Phase 11. Official Server Validation
 
 ### Goal
 
@@ -444,7 +511,7 @@ Prove the public game set against the actual official backend path.
 
 1. all five games are confirmed working against the official hosted runtime path
 
-## Phase 11. Release Merge And Platform Deploy
+## Phase 12. Release Merge And Platform Deploy
 
 ### Goal
 
@@ -456,7 +523,7 @@ Turn the validated prerelease state into the public platform state.
 2. deploy the new platform
 3. confirm the deployed platform reflects the intended public release surface
 
-## Phase 12. Release Content
+## Phase 13. Release Content
 
 ### Goal
 
@@ -471,7 +538,7 @@ Support the launch with clear public writing.
 
 Content should follow validated product proof, not race ahead of it.
 
-## Phase 13. GTM And Community Setup
+## Phase 14. GTM And Community Setup
 
 ### Goal
 

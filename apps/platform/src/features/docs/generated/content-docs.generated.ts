@@ -198,7 +198,7 @@ const generatedContentDocsDocuments = [
         slug: "refresh-managed-docs-and-skills",
         depth: 3,
         excerpt:
-          "Scaffolded projects include an AI pack that owns the canonical local docs, skills, and related guidance files. Use these commands from your project root: ai-pack:update replaces AI-pack-managed files with the current…",
+          "Scaffolded projects include an AI pack that owns the canonical local docs, skills, and related guidance files. Use these commands from your project root: ai-pack:update replaces AI-pack-managed files such as local docs,…",
       },
       {
         title: "Troubleshooting",

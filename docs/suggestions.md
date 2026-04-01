@@ -23,6 +23,10 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 17. Add stronger managed-service abuse posture after v1 only if real usage demands it, for example quotas, analytics-backed anomaly handling, or service-tier policy controls beyond the current app-scoped bootstrap and lifecycle rate limits.
 18. Revisit SDK package ergonomics after v1 only if it still materially helps adoption, but do it under the explicit runtime-ownership model rather than reopening the older headless-first singleton-owner direction.
 19. Add optional per-action schema validation for networked store actions only if real game usage proves the new zero-or-one plain-object RPC contract still needs stronger validation; keep it additive and narrow rather than turning the whole store layer into a schema-first framework.
+20. If the smaller v1 reconnect/resume baseline still feels too fragile after launch, design a broader controller identity and continuous player-device save system that can preserve player state more aggressively across disconnects, refreshes, and device swaps without pushing that larger persistence model into the prerelease path.
+21. If the first-pass Arcade waiting interaction lands well, revisit a richer waiting-state background activity or mini-game after launch instead of turning the prerelease polish pass into a second game project.
+22. If couch-readability remains inconsistent after docs guidance and a small optional pattern, revisit whether a more formal framework-level UI scaling helper is justified post-release rather than forcing a premature global abstraction now.
+23. Revisit `air-capture` flight-feel tuning after launch, especially additional air maneuverability, only after the prerelease control split, flag rules, countdown flow, and damage clarity are settled.
 
 ## Framework Boundary Follow-Ups
 
