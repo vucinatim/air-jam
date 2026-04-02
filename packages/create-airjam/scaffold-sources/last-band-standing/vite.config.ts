@@ -7,17 +7,71 @@ import { defineConfig } from "vite";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.VITE_PORT || 5173);
 
+const resolveManualChunk = (id: string): string | undefined => {
+  if (
+    id.includes("/packages/sdk/") ||
+    id.includes("/@air-jam/sdk/")
+  ) {
+    return "airjam-sdk";
+  }
+
+  if (!id.includes("node_modules")) {
+    return undefined;
+  }
+
+  if (
+    id.includes("/react/") ||
+    id.includes("/react-dom/") ||
+    id.includes("react-router-dom") ||
+    id.includes("/zod/")
+  ) {
+    return "vendor-runtime";
+  }
+
+  if (
+    id.includes("/framer-motion/") ||
+    id.includes("/motion/") ||
+    id.includes("/@lottiefiles/")
+  ) {
+    return "motion-runtime";
+  }
+
+  if (
+    id.includes("/radix-ui/") ||
+    id.includes("/lucide-react/") ||
+    id.includes("/lucide-animated/") ||
+    id.includes("/class-variance-authority/") ||
+    id.includes("/clsx/") ||
+    id.includes("/tailwind-merge/") ||
+    id.includes("/tw-animate-css/") ||
+    id.includes("/shadcn/")
+  ) {
+    return "ui-runtime";
+  }
+
+  return undefined;
+};
+
 export default defineConfig({
+  base: "./",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: resolveManualChunk,
+      },
+    },
+  },
   server: {
     host: true,
     allowedHosts: true,
     port,
+    strictPort: true,
     proxy: {
       "/socket.io": {
         target: "http://127.0.0.1:4000",
@@ -35,6 +89,7 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     port,
+    strictPort: true,
     headers: {
       "Content-Security-Policy": "frame-ancestors *;",
     },

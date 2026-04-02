@@ -84,7 +84,7 @@ So the remaining work is not "can we import them?"
 The remaining work is:
 
 1. keep `code-review`, `last-band-standing`, and `the-office` healthy through the shared scaffold gate now that they are public
-2. decide later whether any of the three need deeper architecture polish beyond the export contract
+2. decide later whether any of the three need deeper architecture polish beyond the current reference-quality export/build contract
 
 ## Non-Goals
 

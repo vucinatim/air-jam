@@ -225,6 +225,11 @@ Current truth:
    6. `pnpm --filter create-airjam smoke -- --source=workspace --template=the-office` is green
    7. `pnpm --filter create-airjam smoke:tarball -- --template=the-office` is green
 12. the imported ZeroDays promotion track is now functionally complete; the remaining obligation is keeping the shared five-template scaffold gate green
+13. the imported template trio now has a second reference-quality polish pass:
+   1. all three now use Pong-style Vite build defaults with `base: "./"` and explicit vendor chunking
+   2. the large Vite chunk warnings were reduced below the warning threshold in targeted local builds for `code-review`, `last-band-standing`, and `the-office`
+   3. `last-band-standing` now hoists lazy route imports out of the component body so its app entry matches the teaching pattern we want
+   4. `the-office` now has a small pure helper seam around store mutation logic instead of keeping every store detail trapped inside the zustand wrapper
 
 ## Active Framework Tracks
 

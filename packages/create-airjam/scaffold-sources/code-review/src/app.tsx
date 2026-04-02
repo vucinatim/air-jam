@@ -14,7 +14,13 @@ const ControllerView = lazy(async () => {
 });
 
 const RouteFallback = () => {
-  return <div className="h-screen w-screen bg-neutral-950" />;
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-neutral-950 text-neutral-200">
+      <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+        Loading match surface
+      </div>
+    </div>
+  );
 };
 
 export function App() {
