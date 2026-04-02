@@ -15,7 +15,7 @@ interface RocketProps {
 
 const ROCKET_SPEED = 70; // Slightly slower so the blast reads clearly in play
 const ROCKET_LIFETIME = 5; // Longer lifetime
-const ROCKET_DAMAGE = 85; // Strong enough that direct hits feel decisive
+const ROCKET_DAMAGE = 85; // Splash damage still falls off, direct hits are lethal in runtime
 const ROCKET_KNOCKBACK = 900; // Forceful blast so nearby ships feel the impact
 const EXPLOSION_RADIUS = 18; // Large radius with distance falloff
 

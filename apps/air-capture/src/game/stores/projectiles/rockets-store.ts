@@ -11,20 +11,76 @@ export interface RocketData {
 
 interface RocketsState {
   rockets: RocketData[];
+  activeRocketIdsByController: Record<string, string>;
+  detonationRequests: Record<string, true>;
   addRocket: (rocket: RocketData) => void;
   removeRocket: (id: string) => void;
+  getActiveRocketId: (controllerId: string) => string | null;
+  requestDetonateRocket: (id: string) => void;
+  consumeDetonationRequest: (id: string) => boolean;
   clearRockets: () => void;
 }
 
-export const useRocketsStore = create<RocketsState>((set) => ({
+export const useRocketsStore = create<RocketsState>((set, get) => ({
   rockets: [],
+  activeRocketIdsByController: {},
+  detonationRequests: {},
   addRocket: (rocket) =>
     set((state) => ({
       rockets: [...state.rockets, rocket],
+      activeRocketIdsByController: {
+        ...state.activeRocketIdsByController,
+        [rocket.controllerId]: rocket.id,
+      },
     })),
   removeRocket: (id) =>
+    set((state) => {
+      const rocketToRemove = state.rockets.find((rocket) => rocket.id === id);
+      const nextActiveRocketIdsByController = {
+        ...state.activeRocketIdsByController,
+      };
+      const nextDetonationRequests = { ...state.detonationRequests };
+
+      if (
+        rocketToRemove &&
+        nextActiveRocketIdsByController[rocketToRemove.controllerId] === id
+      ) {
+        delete nextActiveRocketIdsByController[rocketToRemove.controllerId];
+      }
+      delete nextDetonationRequests[id];
+
+      return {
+        rockets: state.rockets.filter((r) => r.id !== id),
+        activeRocketIdsByController: nextActiveRocketIdsByController,
+        detonationRequests: nextDetonationRequests,
+      };
+    }),
+  getActiveRocketId: (controllerId): string | null =>
+    get().activeRocketIdsByController[controllerId] ?? null,
+  requestDetonateRocket: (id) =>
     set((state) => ({
-      rockets: state.rockets.filter((r) => r.id !== id),
+      detonationRequests: {
+        ...state.detonationRequests,
+        [id]: true,
+      },
     })),
-  clearRockets: () => set({ rockets: [] }),
+  consumeDetonationRequest: (id) => {
+    const requested = get().detonationRequests[id] === true;
+
+    if (requested) {
+      set((state) => {
+        const nextDetonationRequests = { ...state.detonationRequests };
+        delete nextDetonationRequests[id];
+        return { detonationRequests: nextDetonationRequests };
+      });
+    }
+
+    return requested;
+  },
+  clearRockets: () =>
+    set({
+      rockets: [],
+      activeRocketIdsByController: {},
+      detonationRequests: {},
+    }),
 }));

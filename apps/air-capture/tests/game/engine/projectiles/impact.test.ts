@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Object3D, Vector3 } from "three";
 import {
   buildProjectileDecalPlacement,
+  calculateDirectHitDamage,
   calculateExplosionDamage,
   calculateExplosionImpulse,
   calculateLaserKnockbackImpulse,
@@ -38,6 +39,11 @@ describe("air-capture projectile impact engine", () => {
     expect(calculateExplosionDamage(0, 5, 50)).toBe(50);
     expect(calculateExplosionDamage(2.5, 5, 50)).toBe(25);
     expect(calculateExplosionDamage(6, 5, 50)).toBe(0);
+  });
+
+  it("treats direct hits as lethal regardless of remaining health", () => {
+    expect(calculateDirectHitDamage(100)).toBe(100);
+    expect(calculateDirectHitDamage(37)).toBe(37);
   });
 
   it("returns zero impulse outside the blast radius", () => {

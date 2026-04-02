@@ -11,6 +11,8 @@ import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-stor
 import { useLasersStore } from "../../stores/projectiles/lasers-store";
 import { useHealthStore } from "../../stores/players/health-store";
 import { usePlayerStatsStore } from "../../stores/players/player-stats-store";
+import { useFlightStateStore } from "../../stores/players/flight-state-store";
+import { useRocketsStore } from "../../stores/projectiles/rockets-store";
 import { stepShipAbility } from "./abilities";
 import {
   executeShipEngineAudioTransition,
@@ -26,6 +28,7 @@ import {
   calculateShipYawVelocity,
   resolveShipControls,
   smoothShipInput,
+  stepAirControlEnergy,
 } from "./flight";
 import {
   buildShipRespawnPosition,
@@ -67,14 +70,20 @@ export function useShipRuntime({
   const addLaser = useLasersStore((state) => state.addLaser);
   const abilitiesStore = useAbilitiesStore.getState();
   const playerStatsStore = usePlayerStatsStore.getState();
+  const flightStateStore = useFlightStateStore.getState();
   const healthStore = useHealthStore.getState();
+  const rocketsStore = useRocketsStore.getState();
   const audio = useHostAudio();
   const sendSignal = useSendSignal();
   const { popInput } = useGameInput();
 
   useEffect(() => {
     playerStatsStore.initializeStats(controllerId);
-    return () => playerStatsStore.removeStats(controllerId);
+    flightStateStore.initializeFlightState(controllerId);
+    return () => {
+      playerStatsStore.removeStats(controllerId);
+      flightStateStore.removeFlightState(controllerId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controllerId]);
 
@@ -204,7 +213,13 @@ export function useShipRuntime({
 
     runtime.smoothedInput = smoothShipInput(runtime.smoothedInput, input.vector, delta);
 
-    const controls = resolveShipControls(physicsPos.y, runtime.smoothedInput);
+    const currentFlightState = flightStateStore.getFlightState(controllerId);
+    const controls = resolveShipControls(
+      physicsPos.y,
+      physicsVel.y,
+      runtime.smoothedInput,
+      currentFlightState,
+    );
     thrustInputRef.current = controls.thrustInput;
 
     const nextAudioState = executeShipEngineAudioTransition(
@@ -224,10 +239,13 @@ export function useShipRuntime({
     stepShipAbility({
       controllerId,
       abilityPressed: input.ability,
+      wasAbilityPressed: runtime.lastAbilityPressed,
       currentAbility: abilitiesStore.getAbility(controllerId),
       delta,
       activateAbility: (targetId, abilityId) =>
         abilitiesStore.activateAbility(targetId, abilityId),
+      getActiveRocketId: (targetId) => rocketsStore.getActiveRocketId(targetId),
+      requestDetonateRocket: (id) => rocketsStore.requestDetonateRocket(id),
       updateActiveAbilities: (targetId, stepDelta) =>
         abilitiesStore.updateActiveAbilities(targetId, stepDelta),
       playSound: (sound) => audio.play(sound),
@@ -235,6 +253,7 @@ export function useShipRuntime({
         sendSignal?.("HAPTIC", { pattern }, targetId),
       log: (message) => console.log(message),
     });
+    runtime.lastAbilityPressed = input.ability ?? false;
 
     const speedMultiplier = playerStatsStore.getSpeedMultiplier(controllerId);
     const actionPressed = input.action ?? false;
@@ -263,15 +282,15 @@ export function useShipRuntime({
 
     const forward = new Vector3(0, 0, -1).applyQuaternion(runtime.rotation);
     const newVelocity = calculateShipVelocity(
-      runtime.velocity,
+      new Vector3(physicsVel.x, physicsVel.y, physicsVel.z),
       forward,
       controls.thrustInput,
       speedMultiplier,
       delta,
+      controls.isInAir,
     );
     runtime.velocity.copy(newVelocity);
 
-    const currentForwardSpeed = newVelocity.dot(forward);
     const newYawVel = calculateShipYawVelocity(
       runtime.angularVelocity,
       controls.turnInput,
@@ -282,10 +301,9 @@ export function useShipRuntime({
     const newPitchVel = calculateShipPitchVelocity(
       controls.isInAir,
       physicsPos.y,
-      physicsVel.y,
-      currentForwardSpeed,
       runtime.rotation,
       runtime.pitchAngularVelocity,
+      controls.pitchInput,
       delta,
     );
     runtime.pitchAngularVelocity = newPitchVel;
@@ -301,16 +319,21 @@ export function useShipRuntime({
     );
 
     const currentEuler = new Euler().setFromQuaternion(runtime.rotation, "YXZ");
-    const finalVelocity = new Vector3(
-      newVelocity.x,
-      physicsVel.y,
-      newVelocity.z,
+    const nextFlightState = stepAirControlEnergy(
+      currentFlightState,
+      controls,
+      currentEuler.x,
+      delta,
     );
+    flightStateStore.setFlightState(controllerId, nextFlightState);
+    const forwardSpeed = Math.max(0, newVelocity.dot(forward));
+    const finalVelocity = newVelocity.clone();
     finalVelocity.y += calculateShipVerticalVelocityDelta(
       controls.isInAir,
       physicsPos.y,
-      physicsVel.y,
+      newVelocity.y,
       currentEuler.x,
+      forwardSpeed,
       delta,
     );
 

@@ -262,8 +262,6 @@ const clampUnit = (value: number) => {
 };
 
 const TURN_DEADZONE = 0.08;
-const THRUST_ACTIVATION_THRESHOLD = 0.14;
-
 const resolveViewportOrientation = (): "portrait" | "landscape" => {
   if (typeof window === "undefined") {
     return "landscape";
@@ -280,7 +278,7 @@ const resolveStickInputFromPointer = (
   target: HTMLDivElement,
   clientX: number,
   clientY: number,
-): { turn: number; thrust: number } => {
+): { turn: number; verticalIntent: number } => {
   const rect = target.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
@@ -289,14 +287,14 @@ const resolveStickInputFromPointer = (
   const deltaY = clientY - centerY;
 
   let turn = 0;
-  let thrust = 0;
+  let verticalIntent = 0;
 
   if (resolveViewportOrientation() === "portrait") {
     turn = clampUnit(deltaY / radius);
-    thrust = deltaX / radius;
+    verticalIntent = deltaX / radius;
   } else {
     turn = clampUnit(deltaX / radius);
-    thrust = -deltaY / radius;
+    verticalIntent = -deltaY / radius;
   }
 
   if (Math.abs(turn) < TURN_DEADZONE) {
@@ -305,7 +303,7 @@ const resolveStickInputFromPointer = (
 
   return {
     turn,
-    thrust: thrust >= THRUST_ACTIVATION_THRESHOLD ? 1 : 0,
+    verticalIntent: clampUnit(verticalIntent),
   };
 };
 
@@ -325,18 +323,21 @@ const MovementStick = ({
     clientX: number,
     clientY: number,
   ) => {
-    const { turn, thrust } = resolveStickInputFromPointer(
+    const { turn, verticalIntent } = resolveStickInputFromPointer(
       target,
       clientX,
       clientY,
     );
     store.getState().setVector({
       x: Number(turn.toFixed(3)),
-      y: countdownActive ? 0 : thrust,
+      y: countdownActive ? 0 : Number(verticalIntent.toFixed(3)),
     });
   };
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (activePointerIdRef.current !== null) {
+      return;
+    }
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
     activePointerIdRef.current = e.pointerId;
@@ -393,7 +394,7 @@ const MovementStick = ({
               : "transition-transform duration-150 ease-out"
           }`}
           style={{
-            transform: `translate(${vector.x * 62}px, 0px)`,
+            transform: `translate(${vector.x * 62}px, ${-vector.y * 62}px)`,
           }}
         >
           <div className="h-10 w-10 rounded-full bg-white/25" />
@@ -504,7 +505,7 @@ export const ControllerPlayingControls = memo(function ControllerPlayingControls
           <div className="mt-1 text-[10px] tracking-[0.14em] text-zinc-500 uppercase">
             {countdownActive
               ? "Touch and steer only"
-              : "Touch to thrust, drag to steer"}
+              : "Up to thrust, drag to steer"}
           </div>
         </div>
         <ActionControl

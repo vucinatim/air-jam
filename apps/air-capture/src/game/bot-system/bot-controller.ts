@@ -719,32 +719,22 @@ class BotBody {
     // Calculate turn input with smoothing to prevent oscillation
     const turnInput = Math.max(-1, Math.min(1, localForce.x * 3)); // Reduced multiplier from 5 to 3 for smoother turning
 
-    // Thrust logic:
-    // - If in air, ship automatically uses full thrust, so we just need to control direction
-    // - If force is forward (negative Z), use full thrust
-    // - If force is backward, on ground: stop moving forward to allow turning in place
+    // Ground input uses Y as a forward-thrust gate.
+    // Air input reuses Y as pitch intent while thrust stays automatic.
     const isInAir = position.y > 5.5;
-    let thrustInput = 0;
+    let verticalInput = 0;
 
     if (isInAir) {
-      // In air mode, ship uses full thrust automatically
-      // We still want to provide some input to maintain control
-      thrustInput = localForce.z < 0 ? 1.0 : 0.3; // Less thrust when turning around
+      verticalInput = Math.max(-1, Math.min(1, localForce.y * 2));
     } else {
-      // On ground, normal thrust control
       if (localForce.z < 0) {
-        // Force is forward, use full thrust
-        thrustInput = 1.0;
+        verticalInput = 1.0;
       } else {
-        // Force is backward (target is behind us)
-        // Stop moving forward to allow turning in place when we need to turn
         const needsSignificantTurn = Math.abs(turnInput) > 0.3;
         if (needsSignificantTurn) {
-          // Stop moving forward so we can turn in place
-          thrustInput = 0;
+          verticalInput = -0.4;
         } else {
-          // Small adjustment, can move forward slightly
-          thrustInput = 0.5;
+          verticalInput = 0.25;
         }
       }
     }
@@ -752,10 +742,10 @@ class BotBody {
     // Prevent extreme turning that could cause loops
     // If we're turning too hard, reduce it slightly
     if (Math.abs(turnInput) > 0.9) {
-      return { x: turnInput * 0.8, y: thrustInput };
+      return { x: turnInput * 0.8, y: verticalInput };
     }
 
-    return { x: turnInput, y: thrustInput };
+    return { x: turnInput, y: verticalInput };
   }
 
   /**

@@ -3,6 +3,7 @@ import { PerspectiveCamera, Vector3 } from "three";
 import { cn } from "../../lib/utils";
 import { getAbilityIconPath, useAbilitiesStore } from "../abilities-store";
 import { shipPositions } from "../engine/ships/runtime";
+import { useFlightStateStore } from "../stores/players/flight-state-store";
 import { useGameStore } from "../stores/players/game-store";
 import { useHealthStore } from "../stores/players/health-store";
 
@@ -23,6 +24,8 @@ interface HUDVisualsProps {
   maxHealth: number;
   abilityId?: string;
   isAbilityActive: boolean;
+  energyBarRef?: React.RefObject<HTMLDivElement | null>;
+  energyFillRef?: React.RefObject<HTMLDivElement | null>;
   // Refs for direct DOM manipulation (no re-renders)
   countdownCircleRef?: React.RefObject<SVGCircleElement | null>;
   durationTextRef?: React.RefObject<HTMLDivElement | null>;
@@ -45,6 +48,8 @@ const HUDVisuals = memo(
     maxHealth,
     abilityId,
     isAbilityActive,
+    energyBarRef,
+    energyFillRef,
     countdownCircleRef,
     durationTextRef,
   }: HUDVisualsProps) => {
@@ -65,6 +70,17 @@ const HUDVisuals = memo(
 
     return (
       <div className="pointer-events-none w-full select-none">
+        <div
+          ref={energyBarRef}
+          className="relative mb-1 h-1.5 w-full overflow-hidden rounded-full bg-cyan-300/18 backdrop-blur-sm"
+          style={{ display: "none" }}
+        >
+          <div
+            ref={energyFillRef}
+            className="absolute inset-y-0 left-0 rounded-full bg-linear-to-r from-cyan-300 via-sky-300 to-white shadow-[0_0_8px_rgba(125,211,252,0.8)]"
+            style={{ width: "100%" }}
+          />
+        </div>
         {/* Health Bar */}
         <div className="relative mb-1.5 h-5 w-full overflow-hidden rounded bg-white/20 backdrop-blur-sm">
           <div
@@ -163,6 +179,8 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   camera: PerspectiveCamera;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const energyBarRef = useRef<HTMLDivElement | null>(null);
+  const energyFillRef = useRef<HTMLDivElement | null>(null);
   const countdownCircleRef = useRef<SVGCircleElement | null>(null);
   const durationTextRef = useRef<HTMLDivElement | null>(null);
   const countdownAnimationRef = useRef<number | undefined>(undefined);
@@ -271,7 +289,19 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     let animId: number;
     const updatePosition = () => {
       const element = containerRef.current;
+      const energyBar = energyBarRef.current;
       const shipPos = shipPositions.get(controllerId);
+      const energyFill = energyFillRef.current;
+      const flightState = useFlightStateStore.getState().getFlightState(controllerId);
+
+      if (energyBar) {
+        energyBar.style.display =
+          flightState.mode === "airborne" ? "block" : "none";
+      }
+      if (energyFill) {
+        energyFill.style.width = `${Math.round(flightState.airControlEnergy * 100)}%`;
+        energyFill.style.opacity = flightState.isAirControlDepleted ? "0.55" : "1";
+      }
 
       if (!element || !shipPos) {
         if (element) element.style.display = "none";
@@ -333,6 +363,8 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         maxHealth={maxHealth}
         abilityId={ability?.id}
         isAbilityActive={isAbilityActive}
+        energyBarRef={energyBarRef}
+        energyFillRef={energyFillRef}
         countdownCircleRef={countdownCircleRef}
         durationTextRef={durationTextRef}
       />

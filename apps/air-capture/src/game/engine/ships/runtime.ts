@@ -15,6 +15,7 @@ export interface ShipRuntimeState {
   pitchAngularVelocity: number;
   rotation: Quaternion;
   lastActionPressed: boolean;
+  lastAbilityPressed: boolean;
   lastShotAt: number;
   respawnAt: number;
   pendingRespawnPosition: [number, number, number] | null;
@@ -37,6 +38,7 @@ export function createShipRuntimeState(): ShipRuntimeState {
     pitchAngularVelocity: 0,
     rotation: new Quaternion(),
     lastActionPressed: false,
+    lastAbilityPressed: false,
     lastShotAt: 0,
     respawnAt: 0,
     pendingRespawnPosition: null,

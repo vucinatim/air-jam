@@ -65,6 +65,10 @@ export function calculateExplosionDamage(
   return Math.ceil(maxDamage * (1 - distance / radius));
 }
 
+export function calculateDirectHitDamage(currentHealth: number): number {
+  return Math.max(0, currentHealth);
+}
+
 export function calculateExplosionImpulse(params: {
   explosionOrigin: Vector3;
   targetPosition: Vector3;

@@ -6,6 +6,7 @@ import { Raycaster, Vector3, type Group } from "three";
 import { useHostAudio } from "../../audio/use-host-audio";
 import {
   buildProjectileDecalPlacement,
+  calculateDirectHitDamage,
   calculateExplosionDamage,
   calculateExplosionImpulse,
   findHitControllerId,
@@ -62,9 +63,10 @@ export function useRocketRuntime({
   const previousPositionRef = useRef(new Vector3(...position));
   const lifetimeRef = useRef(0);
   const audio = useHostAudio();
+  const rocketsStore = useRocketsStore.getState();
   const removeRocket = useRocketsStore((state) => state.removeRocket);
   const addDecal = useDecalsStore((state) => state.addDecal);
-  const reduceHealth = useHealthStore((state) => state.reduceHealth);
+  const healthStore = useHealthStore.getState();
   const raycasterRef = useRef(new Raycaster());
 
   useFrame((_state, delta) => {
@@ -80,6 +82,47 @@ export function useRocketRuntime({
       speed,
       delta,
     );
+    if (rocketsStore.consumeDetonationRequest(id)) {
+      setExplosionPosition([
+        currentPositionRef.current.x,
+        currentPositionRef.current.y,
+        currentPositionRef.current.z,
+      ]);
+
+      forEachControllerRigidBody(world, ({ body, controllerId: targetId }) => {
+        if (targetId === controllerId) {
+          return;
+        }
+
+        const shipPos = body.translation();
+        const shipWorldPos = new Vector3(shipPos.x, shipPos.y, shipPos.z);
+        const distance = currentPositionRef.current.distanceTo(shipWorldPos);
+        if (distance > explosionRadius) {
+          return;
+        }
+
+        healthStore.reduceHealth(
+          targetId,
+          calculateExplosionDamage(distance, explosionRadius, damage),
+        );
+
+        const knockback = calculateExplosionImpulse({
+          explosionOrigin: currentPositionRef.current,
+          targetPosition: shipWorldPos,
+          radius: explosionRadius,
+          maxForce: knockbackForce,
+        });
+        body.applyImpulse(
+          { x: knockback.x, y: knockback.y, z: knockback.z },
+          true,
+        );
+      });
+
+      audio.play("rocket_explosion");
+      setHasHit(true);
+      return;
+    }
+
     const raySegment = buildProjectileRaySegment(
       previousPositionRef.current,
       nextPosition,
@@ -116,10 +159,12 @@ export function useRocketRuntime({
               return;
             }
 
-            reduceHealth(
-              targetId,
-              calculateExplosionDamage(distance, explosionRadius, damage),
-            );
+            const damageAmount =
+              targetId === hitControllerId
+                ? calculateDirectHitDamage(healthStore.getHealth(targetId))
+                : calculateExplosionDamage(distance, explosionRadius, damage);
+
+            healthStore.reduceHealth(targetId, damageAmount);
 
             const knockback = calculateExplosionImpulse({
               explosionOrigin: hitPosition,
