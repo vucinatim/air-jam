@@ -1237,7 +1237,7 @@ const generatedContentDocsDocuments = [
         slug: "playeravatar",
         depth: 3,
         excerpt:
-          'Render a stable avatar ringed by player color from PlayerProfile. Props: player: PlayerProfile (required) size?: "sm" | "md" | "lg" default "md" className?: string Use it for: team strips connected player rows…',
+          "Render a stable avatar ringed by player color from PlayerProfile. Set isBot when you want the same shell to represent an AI-controlled slot with a bot icon instead of player artwork. Props: player: PlayerProfile…",
       },
       {
         title: "ForcedOrientationShell",

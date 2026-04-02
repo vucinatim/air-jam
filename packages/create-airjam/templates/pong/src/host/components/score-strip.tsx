@@ -1,5 +1,6 @@
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
+import { getTeamColor, type TeamId } from "../../game/domain/team";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
 import type { BotCounts } from "../../game/domain/team-slots";
 
@@ -10,6 +11,12 @@ interface ScoreStripProps {
   pointsToWin: number;
   scores: { team1: number; team2: number };
 }
+
+const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
+  id: `bot-${team}-${index}`,
+  label: `Bot ${index + 1}`,
+  color: getTeamColor(team),
+});
 
 export const ScoreStrip = ({
   team1Players,
@@ -33,11 +40,15 @@ export const ScoreStrip = ({
           </div>
         </div>
 
-        {botCounts.team1 > 0 ? (
-          <span className="rounded-full border border-orange-400/50 bg-orange-400/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-orange-200">
-            {botCounts.team1} BOT
-          </span>
-        ) : null}
+        {Array.from({ length: botCounts.team1 }, (_, index) => (
+          <PlayerAvatar
+            key={`team1-bot-${index}`}
+            player={buildBotAvatarPlayer("team1", index)}
+            isBot
+            size="sm"
+            className="h-7 w-7 border-2"
+          />
+        ))}
         {team1Players.map((player) => (
           <PlayerAvatar
             key={player.id}
@@ -62,11 +73,15 @@ export const ScoreStrip = ({
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        {botCounts.team2 > 0 ? (
-          <span className="rounded-full border border-cyan-400/50 bg-cyan-400/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-cyan-200">
-            {botCounts.team2} BOT
-          </span>
-        ) : null}
+        {Array.from({ length: botCounts.team2 }, (_, index) => (
+          <PlayerAvatar
+            key={`team2-bot-${index}`}
+            player={buildBotAvatarPlayer("team2", index)}
+            isBot
+            size="sm"
+            className="h-7 w-7 border-2"
+          />
+        ))}
         {team2Players.map((player) => (
           <PlayerAvatar
             key={player.id}

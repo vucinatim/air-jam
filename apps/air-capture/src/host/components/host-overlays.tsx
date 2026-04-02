@@ -8,6 +8,7 @@ import {
   getTeamCounts,
   type TeamCounts,
 } from "../../game/domain/match-readiness";
+import { buildTeamSlots } from "../../game/domain/team-slots";
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import type { MatchSummary } from "../../game/stores/match/match-store";
 
@@ -27,6 +28,7 @@ interface TeamCardProps {
 const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
   const team = TEAM_CONFIG[teamId];
   const totalCount = players.length + botCount;
+  const slots = buildTeamSlots(players, botCount);
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
@@ -37,32 +39,48 @@ const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
         {team.label}
       </div>
       <div className="flex min-h-8 flex-wrap items-center justify-center gap-2">
-        {players.length > 0 ? (
-          players.map((player) => (
+        {slots.some((slot) => slot.kind !== "open") ? (
+          slots.map((slot, index) =>
+            slot.kind === "human" ? (
             <div
-              key={player.id}
+              key={slot.player.id}
               className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
             >
               <PlayerAvatar
-                player={player}
+                player={slot.player}
                 size="sm"
                 className="h-7 w-7 border-2"
               />
               <span className="text-xs font-semibold text-zinc-100 normal-case">
-                {player.label}
+                {slot.player.label}
               </span>
             </div>
-          ))
+            ) : slot.kind === "bot" ? (
+              <div
+                key={`${teamId}-bot-${index}`}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
+              >
+                <PlayerAvatar
+                  player={{
+                    id: `${teamId}-bot-${index}`,
+                    label: `Bot ${index + 1}`,
+                    color: team.color,
+                  }}
+                  isBot
+                  size="sm"
+                  className="h-7 w-7 border-2"
+                />
+                <span className="text-xs font-semibold text-zinc-100 normal-case">
+                  Bot
+                </span>
+              </div>
+            ) : null,
+          )
         ) : (
           <span className="text-xs tracking-wide text-zinc-500 uppercase">
             Empty
           </span>
         )}
-        {botCount > 0 ? (
-          <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wide text-cyan-200 uppercase">
-            BOT x{botCount}
-          </span>
-        ) : null}
       </div>
       <div className="text-sm font-bold tracking-wide text-zinc-300 uppercase">
         {totalCount}

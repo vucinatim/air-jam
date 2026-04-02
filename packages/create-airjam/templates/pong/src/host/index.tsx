@@ -200,6 +200,7 @@ function HostScreen() {
         matchSummary={matchSummary}
         team1Players={team1Players}
         team2Players={team2Players}
+        botCounts={botCounts}
       />
     );
   }

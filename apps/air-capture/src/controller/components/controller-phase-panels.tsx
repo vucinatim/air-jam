@@ -1,4 +1,5 @@
 import type { PlayerProfile } from "@air-jam/sdk";
+import { PlayerAvatar } from "@air-jam/sdk/ui";
 import {
   Target,
   Zap,
@@ -9,6 +10,7 @@ import { useStore } from "zustand";
 import { Button } from "../../components/ui/button";
 import { createControllerStore } from "../../game/controller-store";
 import { TeamBotControls } from "../../game/debug/team-bot-controls";
+import { buildTeamSlots } from "../../game/domain/team-slots";
 import type { TeamCounts } from "../../game/domain/match-readiness";
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import type { MatchSummary } from "../../game/stores/match/match-store";
@@ -108,7 +110,11 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
             }
             onSelect={onSelectTeam}
           />
-          <TeamRoster players={teamPlayers.solaris} />
+          <TeamRoster
+            teamId="solaris"
+            players={teamPlayers.solaris}
+            botCount={botCounts.solaris}
+          />
         </div>
         <div className="flex flex-1 flex-col gap-2">
           <TeamButton
@@ -120,7 +126,11 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
             }
             onSelect={onSelectTeam}
           />
-          <TeamRoster players={teamPlayers.nebulon} />
+          <TeamRoster
+            teamId="nebulon"
+            players={teamPlayers.nebulon}
+            botCount={botCounts.nebulon}
+          />
         </div>
       </div>
 
@@ -230,8 +240,19 @@ export const ControllerEndedPanel = memo(function ControllerEndedPanel({
   );
 });
 
-const TeamRoster = ({ players }: { players: PlayerProfile[] }) => {
-  if (players.length === 0) {
+const TeamRoster = ({
+  teamId,
+  players,
+  botCount,
+}: {
+  teamId: TeamId;
+  players: PlayerProfile[];
+  botCount: number;
+}) => {
+  const team = TEAM_CONFIG[teamId];
+  const slots = buildTeamSlots(players, botCount);
+
+  if (!slots.some((slot) => slot.kind !== "open")) {
     return (
       <div className="rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-[11px] tracking-[0.16em] text-zinc-500 uppercase">
         No pilots yet
@@ -242,14 +263,42 @@ const TeamRoster = ({ players }: { players: PlayerProfile[] }) => {
   return (
     <div className="rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2">
       <div className="flex flex-wrap gap-1.5">
-        {players.map((player) => (
-          <span
-            key={player.id}
-            className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-zinc-200 normal-case"
-          >
-            {player.label}
-          </span>
-        ))}
+        {slots.map((slot, index) =>
+          slot.kind === "human" ? (
+            <div
+              key={slot.player.id}
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
+            >
+              <PlayerAvatar
+                player={slot.player}
+                size="sm"
+                className="h-6 w-6 border-2"
+              />
+              <span className="text-[11px] font-semibold text-zinc-200 normal-case">
+                {slot.player.label}
+              </span>
+            </div>
+          ) : slot.kind === "bot" ? (
+            <div
+              key={`${teamId}-bot-${index}`}
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
+            >
+              <PlayerAvatar
+                player={{
+                  id: `${teamId}-bot-${index}`,
+                  label: `Bot ${index + 1}`,
+                  color: team.color,
+                }}
+                isBot
+                size="sm"
+                className="h-6 w-6 border-2"
+              />
+              <span className="text-[11px] font-semibold text-zinc-200 normal-case">
+                Bot
+              </span>
+            </div>
+          ) : null,
+        )}
       </div>
     </div>
   );

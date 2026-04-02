@@ -4,6 +4,12 @@ import type { TeamSlotVisual } from "../domain/team-slots";
 const cx = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(" ");
 
+const BOT_AVATAR_PLAYER = {
+  id: "bot-slot",
+  label: "Bot Slot",
+  color: "#22d3ee",
+} as const;
+
 type TeamSlotTileProps = {
   slot: TeamSlotVisual;
   testId: string;
@@ -78,14 +84,12 @@ const tileContent = (slot: TeamSlotVisual, surface: "controller" | "host") => {
   if (slot.kind === "bot") {
     return (
       <>
-        <div
-          className={cx(
-            badgeClassBySurface[surface],
-            "border-cyan-300/35 bg-cyan-300/12 text-cyan-100",
-          )}
-        >
-          AI
-        </div>
+        <PlayerAvatar
+          player={BOT_AVATAR_PLAYER}
+          isBot
+          size="sm"
+          className={avatarClassBySurface[surface]}
+        />
         <div className="min-w-0">
           <div className={cx(text.title, "text-cyan-50")}>Bot Slot</div>
           <div className={cx(text.subtitle, "text-cyan-200/72")}>

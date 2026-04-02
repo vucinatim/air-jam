@@ -2,11 +2,19 @@
 
 import { ControllerMenuNotch } from "@/components/controller-menu-notch";
 import { PlatformSettingsPanel } from "@/components/platform-settings-panel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { triggerLocalHaptic } from "@/lib/local-haptics";
-import { toggleDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import {
   getControllerLocalProfileClientSnapshot,
   getControllerLocalProfileServerSnapshot,
@@ -16,7 +24,9 @@ import {
   type ControllerPersistedProfile,
 } from "@/lib/controller-local-profile";
 import { CONTROLLER_AVATAR_PRESETS } from "@/lib/controller-profile-presets";
+import { triggerLocalHaptic } from "@/lib/local-haptics";
 import { parseRoomFromQrText } from "@/lib/parse-room-from-qr-text";
+import { toggleDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import { cn } from "@/lib/utils";
 import {
   type AirJamControllerApi,
@@ -31,13 +41,14 @@ import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  type CSSProperties,
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
 } from "react";
 
 interface ControllerMenuSheetProps {
@@ -92,10 +103,7 @@ const ControllerMenuLeadingChrome = ({
           Room
         </p>
         <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            statusDotClass,
-          )}
+          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotClass)}
           aria-hidden
         />
       </div>
@@ -132,6 +140,7 @@ export function ControllerMenuSheet({
   );
 
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [exitGameConfirmOpen, setExitGameConfirmOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState<ControllerPersistedProfile>({
     label: "",
     avatarId: "",
@@ -140,8 +149,12 @@ export function ControllerMenuSheet({
   const [scanning, setScanning] = useState(false);
   const [saveProfileSuccess, setSaveProfileSuccess] = useState(false);
   const [applyRoomSuccess, setApplyRoomSuccess] = useState(false);
-  const saveSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const applySuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const applySuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const applyNavTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -158,6 +171,14 @@ export function ControllerMenuSheet({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeUrl) {
+      startTransition(() => {
+        setExitGameConfirmOpen(false);
+      });
+    }
+  }, [activeUrl]);
 
   const displayedRoomId = controller.roomId ?? routeRoomId;
 
@@ -225,12 +246,7 @@ export function ControllerMenuSheet({
       setRoomDraft(displayedRoomId ?? "");
     }
     setOverlayOpen((prev) => !prev);
-  }, [
-    controller.selfPlayer,
-    displayedRoomId,
-    localProfile,
-    overlayOpen,
-  ]);
+  }, [controller.selfPlayer, displayedRoomId, localProfile, overlayOpen]);
 
   const applyRoom = useCallback(() => {
     const code = roomDraft
@@ -461,12 +477,7 @@ export function ControllerMenuSheet({
             variant="outline"
             size="icon-touch"
             className="border-red-500 hover:border-red-600"
-            onClick={() => {
-              if (confirm("Exit game and return to arcade?")) {
-                controller.sendSystemCommand("exit");
-                setOverlayOpen(false);
-              }
-            }}
+            onClick={() => setExitGameConfirmOpen(true)}
             aria-label="Exit game"
             title="Exit game"
           >
@@ -498,9 +509,7 @@ export function ControllerMenuSheet({
           size="icon-touch"
           className={cn(
             "pointer-events-auto",
-            hostQrVisible
-              ? "shadow-md"
-              : "bg-background/50 backdrop-blur-sm",
+            hostQrVisible ? "shadow-md" : "bg-background/50 backdrop-blur-sm",
           )}
           onClick={() => {
             if (hapticsEnabled) triggerLocalHaptic("selection");
@@ -530,6 +539,38 @@ export function ControllerMenuSheet({
 
   return (
     <>
+      <AlertDialog
+        open={exitGameConfirmOpen}
+        onOpenChange={setExitGameConfirmOpen}
+      >
+        <AlertDialogContent
+          overlayClassName="z-[70]"
+          className="z-80 sm:max-w-md"
+          data-testid="controller-exit-game-confirm"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Exit game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will leave this game and return to the arcade menu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex w-full flex-row flex-nowrap gap-3">
+            <AlertDialogCancel className="h-14 min-h-14 flex-1 touch-manipulation rounded-xl text-base">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="h-14 min-h-14 flex-1 touch-manipulation rounded-xl bg-destructive text-base text-white hover:bg-destructive/90"
+              onClick={() => {
+                controller.sendSystemCommand("exit");
+                setOverlayOpen(false);
+              }}
+            >
+              Exit to arcade
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {!overlayOpen && !activeUrl ? closedChrome : null}
 
       <ControllerMenuNotch
@@ -571,16 +612,14 @@ export function ControllerMenuSheet({
               >
                 <motion.div
                   className="flex items-center justify-center"
-                  animate={reducedMotion ? undefined : { scale: [1, 1.1, 1] }}
-                  transition={
-                    reducedMotion
-                      ? undefined
-                      : {
-                          repeat: Infinity,
-                          duration: 3.2,
-                          ease: "easeInOut",
-                        }
-                  }
+                  initial={{ y: -2 }}
+                  animate={{ y: [-2, 2] }}
+                  transition={{
+                    repeat: Infinity,
+                    repeatType: "reverse",
+                    duration: 1.375,
+                    ease: "easeInOut",
+                  }}
                 >
                   <Image
                     src="/images/airjam-logo.png"
@@ -608,7 +647,13 @@ export function ControllerMenuSheet({
                   ? { x: "100%" }
                   : { y: "-100%" }
             }
-            animate={reducedMotion ? { opacity: 1 } : landscapeMenu ? { x: 0 } : { y: 0 }}
+            animate={
+              reducedMotion
+                ? { opacity: 1 }
+                : landscapeMenu
+                  ? { x: 0 }
+                  : { y: 0 }
+            }
             exit={
               reducedMotion
                 ? { opacity: 0 }
@@ -699,8 +744,16 @@ export function ControllerMenuSheet({
                           {saveProfileSuccess ? (
                             <motion.span
                               key="saved"
-                              initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-                              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                              initial={{
+                                opacity: 0,
+                                y: 10,
+                                filter: "blur(4px)",
+                              }}
+                              animate={{
+                                opacity: 1,
+                                y: 0,
+                                filter: "blur(0px)",
+                              }}
                               exit={{ opacity: 0, y: -8 }}
                               transition={{
                                 type: "spring",

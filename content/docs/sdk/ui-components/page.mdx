@@ -73,17 +73,19 @@ Avoid:
 
 ### `PlayerAvatar`
 
-Render a stable avatar ringed by player color from `PlayerProfile`.
+Render a stable avatar ringed by player color from `PlayerProfile`. Set `isBot` when you want the same shell to represent an AI-controlled slot with a bot icon instead of player artwork.
 
 ```tsx
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 
 <PlayerAvatar player={player} size="md" />;
+<PlayerAvatar player={player} isBot size="md" />;
 ```
 
 Props:
 
 - `player: PlayerProfile` (required)
+- `isBot?: boolean` render the shared bot icon instead of the player avatar image
 - `size?: "sm" | "md" | "lg"` default `"md"`
 - `className?: string`
 

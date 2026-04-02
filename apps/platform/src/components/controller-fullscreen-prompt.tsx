@@ -23,17 +23,25 @@ export function ControllerFullscreenPrompt({
   documentFullscreen,
 }: ControllerFullscreenPromptProps) {
   const [open, setOpen] = useState(false);
-  const promptedRef = useRef(false);
+  const acknowledgedRef = useRef(false);
 
   useEffect(() => {
-    if (!roomId || documentFullscreen || promptedRef.current) {
-      if (documentFullscreen) {
-        setOpen(false);
-      }
+    if (!roomId) {
+      setOpen(false);
       return;
     }
 
-    promptedRef.current = true;
+    if (documentFullscreen) {
+      acknowledgedRef.current = true;
+      setOpen(false);
+      return;
+    }
+
+    if (acknowledgedRef.current) {
+      return;
+    }
+
+    acknowledgedRef.current = true;
     setOpen(true);
   }, [documentFullscreen, roomId]);
 
@@ -59,21 +67,30 @@ export function ControllerFullscreenPrompt({
             easy to hit from the couch.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <DialogFooter className="flex w-full flex-row flex-nowrap gap-3">
           <Button
+            type="button"
             variant="outline"
-            onClick={() => setOpen(false)}
+            size="touch"
+            className="h-14 min-h-14 flex-1 rounded-xl text-base"
+            onClick={() => {
+              acknowledgedRef.current = true;
+              setOpen(false);
+            }}
             data-testid="controller-fullscreen-prompt-dismiss"
           >
             Not now
           </Button>
           <Button
+            type="button"
+            size="touch"
+            className="h-14 min-h-14 flex-1 rounded-xl text-base"
             onClick={() => {
               void handleEnterFullscreen();
             }}
             data-testid="controller-fullscreen-prompt-enable"
           >
-            <Maximize className="mr-2 h-4 w-4" />
+            <Maximize className="size-5 shrink-0" />
             Go fullscreen
           </Button>
         </DialogFooter>

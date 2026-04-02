@@ -1,6 +1,7 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
-import { getTeamColor } from "../../game/domain/team";
+import { getTeamColor, type TeamId } from "../../game/domain/team";
+import { buildTeamSlots, type BotCounts } from "../../game/domain/team-slots";
 import type { MatchSummary } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
 
@@ -9,7 +10,14 @@ interface EndedScreenProps {
   matchSummary: MatchSummary | null;
   team1Players: PlayerProfile[];
   team2Players: PlayerProfile[];
+  botCounts: BotCounts;
 }
+
+const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
+  id: `bot-${team}-${index}`,
+  label: `Bot ${index + 1}`,
+  color: getTeamColor(team),
+});
 
 const formatDuration = (durationMs: number): string => {
   const totalSeconds = Math.floor(durationMs / 1000);
@@ -23,9 +31,12 @@ export const EndedScreen = ({
   matchSummary,
   team1Players,
   team2Players,
+  botCounts,
 }: EndedScreenProps) => {
   const winner = matchSummary?.winner;
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";
+  const team1Slots = buildTeamSlots(team1Players, botCounts.team1);
+  const team2Slots = buildTeamSlots(team2Players, botCounts.team2);
 
   return (
     <div className="pong-app-shell flex min-h-screen w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8">
@@ -64,15 +75,25 @@ export const EndedScreen = ({
                 className="text-xl font-black tracking-[0.14em]"
               />
               <div className="flex min-h-8 items-center justify-center gap-2">
-                {team1Players.length > 0 ? (
-                  team1Players.map((player) => (
+                {team1Slots.some((slot) => slot.kind !== "open") ? (
+                  team1Slots.map((slot, index) =>
+                    slot.kind === "human" ? (
                     <PlayerAvatar
-                      key={player.id}
-                      player={player}
+                      key={slot.player.id}
+                      player={slot.player}
                       size="sm"
                       className="h-8 w-8 border-2"
                     />
-                  ))
+                    ) : slot.kind === "bot" ? (
+                      <PlayerAvatar
+                        key={`team1-bot-${index}`}
+                        player={buildBotAvatarPlayer("team1", index)}
+                        isBot
+                        size="sm"
+                        className="h-8 w-8 border-2"
+                      />
+                    ) : null,
+                  )
                 ) : (
                   <span className="text-xs tracking-[0.18em] text-zinc-500 uppercase">
                     No Players
@@ -86,15 +107,25 @@ export const EndedScreen = ({
                 className="text-xl font-black tracking-[0.14em]"
               />
               <div className="flex min-h-8 items-center justify-center gap-2">
-                {team2Players.length > 0 ? (
-                  team2Players.map((player) => (
+                {team2Slots.some((slot) => slot.kind !== "open") ? (
+                  team2Slots.map((slot, index) =>
+                    slot.kind === "human" ? (
                     <PlayerAvatar
-                      key={player.id}
-                      player={player}
+                      key={slot.player.id}
+                      player={slot.player}
                       size="sm"
                       className="h-8 w-8 border-2"
                     />
-                  ))
+                    ) : slot.kind === "bot" ? (
+                      <PlayerAvatar
+                        key={`team2-bot-${index}`}
+                        player={buildBotAvatarPlayer("team2", index)}
+                        isBot
+                        size="sm"
+                        className="h-8 w-8 border-2"
+                      />
+                    ) : null,
+                  )
                 ) : (
                   <span className="text-xs tracking-[0.18em] text-zinc-500 uppercase">
                     No Players
