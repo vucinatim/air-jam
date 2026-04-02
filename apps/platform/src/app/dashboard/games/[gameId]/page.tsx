@@ -309,29 +309,60 @@ export default function GameOverviewPage() {
       {/* ------------------------------------------------------------ */}
       {/*  Header                                                       */}
       {/* ------------------------------------------------------------ */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{game.name}</h1>
           <p className="text-muted-foreground">
             Configure your game and track its launch progress.
           </p>
         </div>
-        {hasPlayableSource ? (
-          <Link href={playHref}>
-            <Button
-              variant="outline"
-              className="border-airjam-cyan text-airjam-cyan hover:bg-airjam-cyan/10"
-            >
+        <div className="flex flex-wrap items-center justify-start gap-3 sm:justify-end">
+          {canListInArcade ? (
+            <div className="border-border/60 bg-muted/30 flex h-9 items-center gap-2 rounded-md border px-3">
+              <Globe
+                className="text-muted-foreground size-4 shrink-0"
+                aria-hidden
+              />
+              <span className="text-sm font-medium whitespace-nowrap">
+                Public in Arcade
+              </span>
+              <span className="text-muted-foreground hidden text-xs sm:inline">
+                {game.arcadeVisibility === "listed" ? "Listed" : "Hidden"}
+              </span>
+              <Switch
+                checked={game.arcadeVisibility === "listed"}
+                onCheckedChange={(checked) =>
+                  updateArcadeVisibility.mutate({
+                    id: gameId,
+                    arcadeVisibility: checked ? "listed" : "hidden",
+                  })
+                }
+                disabled={updateArcadeVisibility.isPending}
+                aria-label={
+                  game.arcadeVisibility === "listed"
+                    ? "Listed in public Arcade — tap to hide"
+                    : "Hidden from public Arcade — tap to list"
+                }
+              />
+            </div>
+          ) : null}
+          {hasPlayableSource ? (
+            <Link href={playHref}>
+              <Button
+                variant="outline"
+                className="border-airjam-cyan text-airjam-cyan hover:bg-airjam-cyan/10"
+              >
+                <Gamepad2 className="mr-2 h-4 w-4" />
+                Test Play
+              </Button>
+            </Link>
+          ) : (
+            <Button variant="outline" disabled>
               <Gamepad2 className="mr-2 h-4 w-4" />
-              Test Play
+              No Playable Source
             </Button>
-          </Link>
-        ) : (
-          <Button variant="outline" disabled>
-            <Gamepad2 className="mr-2 h-4 w-4" />
-            No Playable Source
-          </Button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ------------------------------------------------------------ */}

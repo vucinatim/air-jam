@@ -1,5 +1,9 @@
 import { isHostedReleaseSpaFallbackPath } from "@/lib/releases/hosted-release-artifact";
-import { normalizeRequestedReleaseAssetPath } from "@/lib/releases/release-url";
+import {
+  injectHostedReleaseHtmlRuntimeBase,
+  normalizeRequestedReleaseAssetPath,
+  rewriteHostedReleaseHtmlAssetUrls,
+} from "@/lib/releases/release-url";
 import { getReleaseAssetCacheControl } from "@/server/releases/release-artifact-validation";
 import { RELEASE_INSPECTION_ACCESS_HEADER } from "@/server/releases/release-inspection-access";
 import { getReleaseStorage } from "@/server/releases/release-storage";
@@ -95,10 +99,38 @@ export async function GET(
     buildReleaseSiteObjectKey(artifact.siteRootKey, servedAssetPath),
   );
 
+  const contentType = objectHead.contentType || "application/octet-stream";
+  const isHtmlDocument =
+    contentType.includes("text/html") &&
+    servedAssetPath === artifact.entryPath;
+
+  if (isHtmlDocument) {
+    const htmlWithScopedAssets = rewriteHostedReleaseHtmlAssetUrls({
+      html: body.toString("utf8"),
+      gameId,
+      releaseId,
+    });
+    const html = injectHostedReleaseHtmlRuntimeBase({
+      html: htmlWithScopedAssets,
+      gameId,
+      releaseId,
+      requestedAssetPath: resolvedAssetPath,
+      entryPath: artifact.entryPath,
+    });
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        "content-type": contentType,
+        "cache-control": getReleaseAssetCacheControl(servedAssetPath),
+      },
+    });
+  }
+
   return new Response(new Uint8Array(body), {
     status: 200,
     headers: {
-      "content-type": objectHead.contentType || "application/octet-stream",
+      "content-type": contentType,
       "cache-control": getReleaseAssetCacheControl(servedAssetPath),
     },
   });

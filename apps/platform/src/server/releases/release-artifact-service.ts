@@ -21,6 +21,7 @@ import {
   buildReleaseSiteObjectKey,
   buildReleaseStorageKeys,
 } from "./release-storage-keys";
+import { runReleaseModeration } from "./release-moderation-service";
 import { getReleaseStorage } from "./release-storage";
 
 type OwnedRelease = Awaited<ReturnType<typeof assertOwnedRelease>>;
@@ -36,6 +37,8 @@ type FinalizeReleaseUploadInput = {
 };
 
 const ARTIFACT_VALIDATION_CHECK_KIND = "artifact_validation";
+const RELEASE_UPLOAD_VISIBILITY_ATTEMPTS = 8;
+const RELEASE_UPLOAD_VISIBILITY_DELAY_MS = 250;
 
 const trimFilename = (value: string): string => value.trim();
 
@@ -85,6 +88,36 @@ const readStreamToBuffer = async (
   }
 
   return Buffer.concat(chunks);
+};
+
+const wait = async (durationMs: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, durationMs);
+  });
+
+const waitForUploadedArtifact = async ({
+  storage,
+  zipObjectKey,
+}: {
+  storage: ReturnType<typeof getReleaseStorage>;
+  zipObjectKey: string;
+}) => {
+  for (
+    let attempt = 0;
+    attempt < RELEASE_UPLOAD_VISIBILITY_ATTEMPTS;
+    attempt += 1
+  ) {
+    const uploadedObject = await storage.headObject(zipObjectKey);
+    if (uploadedObject) {
+      return uploadedObject;
+    }
+
+    if (attempt < RELEASE_UPLOAD_VISIBILITY_ATTEMPTS - 1) {
+      await wait(RELEASE_UPLOAD_VISIBILITY_DELAY_MS);
+    }
+  }
+
+  return null;
 };
 
 const markReleaseUploadFailure = async ({
@@ -197,7 +230,10 @@ export const finalizeReleaseUpload = async ({
     throw new Error("Release changed while finalizing upload.");
   }
 
-  const uploadedObject = await storage.headObject(zipObjectKey);
+  const uploadedObject = await waitForUploadedArtifact({
+    storage,
+    zipObjectKey,
+  });
   if (!uploadedObject) {
     await markReleaseUploadFailure({
       releaseId: release.id,
@@ -206,6 +242,8 @@ export const finalizeReleaseUpload = async ({
       payload: {
         reason: "missing_upload",
         zipObjectKey,
+        attempts: RELEASE_UPLOAD_VISIBILITY_ATTEMPTS,
+        retryDelayMs: RELEASE_UPLOAD_VISIBILITY_DELAY_MS,
       },
     });
     throw new Error("Uploaded artifact was not found in release storage.");
@@ -263,9 +301,9 @@ export const finalizeReleaseUpload = async ({
       await tx
         .update(gameReleases)
         .set({
-          status: "ready",
+          status: "checking",
           uploadedAt,
-          checkedAt,
+          checkedAt: null,
         })
         .where(eq(gameReleases.id, release.id));
 
@@ -318,6 +356,33 @@ export const finalizeReleaseUpload = async ({
         },
       });
     });
+
+    try {
+      const moderation = await runReleaseModeration({
+        releaseId: release.id,
+      });
+
+      if (moderation.outcome !== "flagged") {
+        await db
+          .update(gameReleases)
+          .set({
+            status: "ready",
+            checkedAt,
+            quarantinedAt: null,
+          })
+          .where(eq(gameReleases.id, release.id));
+      }
+    } catch (error) {
+      await db
+        .update(gameReleases)
+        .set({
+          status: "failed",
+          checkedAt: new Date(),
+        })
+        .where(eq(gameReleases.id, release.id));
+
+      throw error;
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Release artifact validation failed.";

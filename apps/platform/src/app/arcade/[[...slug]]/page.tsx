@@ -15,25 +15,6 @@ import { api } from "@/trpc/react";
 import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
 import { use } from "react";
 
-/** In development, repeat each game N times to stress-test the grid (unique ids). */
-const ARCADE_DEV_GRID_REPEAT = 3;
-
-function expandArcadeGamesForDev(games: ArcadeGame[]): ArcadeGame[] {
-  if (process.env.NODE_ENV !== "development") return games;
-  if (ARCADE_DEV_GRID_REPEAT < 2) return games;
-
-  return games.flatMap((game) =>
-    game.catalogSource === "local_dev"
-      ? [game]
-      : Array.from({ length: ARCADE_DEV_GRID_REPEAT }, (_, row) => ({
-          ...game,
-          id: row === 0 ? game.id : `${game.id}__arcade-dev-${row}`,
-          name: row === 0 ? game.name : `${game.name} · ${row + 1}`,
-          slug: row === 0 ? game.slug : undefined,
-        })),
-  );
-}
-
 export default function ArcadePage({
   params,
 }: {
@@ -46,14 +27,14 @@ export default function ArcadePage({
   const localReferenceGame = getLocalReferenceArcadeGame(slugOrId ?? null);
   const { data: games, isLoading: gamesLoading } = api.game.getAllPublic.useQuery();
   const publicArcadeGames = games ? toArcadeGames(games) : [];
-  const arcadeGames = expandArcadeGamesForDev([
+  const arcadeGames: ArcadeGame[] = [
     ...(localReferenceGame &&
     !localReferenceGames.some((game) => game.id === localReferenceGame.id)
       ? [localReferenceGame]
       : []),
     ...localReferenceGames,
     ...publicArcadeGames,
-  ]);
+  ];
 
   const targetGame = slugOrId
     ? arcadeGames.find(

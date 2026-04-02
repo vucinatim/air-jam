@@ -43,6 +43,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { id: gameId! },
     { enabled: !!gameId },
   );
+  const { data: viewer } = api.user.me.useQuery();
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -179,6 +180,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
+
+            {viewer?.role === "ops_admin" && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Internal</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith("/dashboard/ops/releases")}
+                      tooltip="Internal release moderation and enforcement."
+                    >
+                      <Link href="/dashboard/ops/releases">
+                        <Shield />
+                        <span>Release Ops</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </>
         ) : (
           // GLOBAL CONTEXT SIDEBAR
@@ -239,6 +260,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
+
+            {viewer?.role === "ops_admin" && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Internal</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith("/dashboard/ops/releases")}
+                      tooltip="Internal release moderation and enforcement."
+                    >
+                      <Link href="/dashboard/ops/releases">
+                        <Shield />
+                        <span>Release Ops</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </>
         )}
       </SidebarContent>

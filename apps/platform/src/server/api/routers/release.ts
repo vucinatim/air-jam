@@ -16,16 +16,23 @@ import {
   canTransitionReleaseStatus,
 } from "@/lib/releases/release-policy";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
+import { assertReleaseExists } from "@/server/releases/assert-release-exists";
 import {
   finalizeReleaseUpload,
   requestReleaseUploadTarget,
 } from "@/server/releases/release-artifact-service";
 import { assertOwnedRelease } from "@/server/releases/assert-owned-release";
 import { runReleaseModeration } from "@/server/releases/release-moderation-service";
+import { quarantineRelease } from "@/server/releases/release-status-service";
 import { findPublicReleaseBySlugOrId } from "@/server/releases/public-release-record";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  opsProcedure,
+  protectedProcedure,
+  publicProcedure,
+} from "../trpc";
 
 const createDraftReleaseInput = z.object({
   gameId: z.string(),
@@ -138,6 +145,107 @@ export const releaseRouter = createTRPCRouter({
     return gameReleaseStatusValues;
   }),
 
+  listOps: opsProcedure.query(async () => {
+    const releases = await db.query.gameReleases.findMany({
+      where: (gameReleases, { notInArray }) =>
+        notInArray(gameReleases.status, ["draft"]),
+      orderBy: (gameReleases, { desc }) => [desc(gameReleases.createdAt)],
+      limit: 100,
+    });
+
+    const releaseIds = releases.map((release) => release.id);
+    if (releaseIds.length === 0) {
+      return [];
+    }
+
+    const [artifacts, checks, reports, releaseGames] = await Promise.all([
+      db
+        .select()
+        .from(gameReleaseArtifacts)
+        .where(inArray(gameReleaseArtifacts.releaseId, releaseIds)),
+      db
+        .select()
+        .from(gameReleaseChecks)
+        .where(inArray(gameReleaseChecks.releaseId, releaseIds))
+        .orderBy(desc(gameReleaseChecks.createdAt)),
+      db
+        .select()
+        .from(gameReleaseReports)
+        .where(inArray(gameReleaseReports.releaseId, releaseIds))
+        .orderBy(desc(gameReleaseReports.createdAt)),
+      db
+        .select({
+          id: games.id,
+          name: games.name,
+          slug: games.slug,
+          userId: games.userId,
+        })
+        .from(games)
+        .where(
+          inArray(
+            games.id,
+            releases.map((release) => release.gameId),
+          ),
+        ),
+    ]);
+
+    const ownerIds = Array.from(new Set(releaseGames.map((game) => game.userId)));
+    const releaseOwners =
+      ownerIds.length === 0
+        ? []
+        : await db.query.users.findMany({
+            where: (users, { inArray }) => inArray(users.id, ownerIds),
+          });
+
+    const artifactByReleaseId = new Map(
+      artifacts.map((artifact) => [artifact.releaseId, artifact]),
+    );
+    const checksByReleaseId = new Map<string, (typeof checks)[number][]>();
+    const reportsByReleaseId = new Map<string, (typeof reports)[number][]>();
+    const gameById = new Map(releaseGames.map((game) => [game.id, game]));
+    const ownerById = new Map(
+      releaseOwners.map((owner) => [
+        owner.id,
+        {
+          id: owner.id,
+          name: owner.name,
+          email: owner.email,
+          role: owner.role,
+        },
+      ]),
+    );
+
+    for (const check of checks) {
+      const existingChecks = checksByReleaseId.get(check.releaseId) ?? [];
+      existingChecks.push(check);
+      checksByReleaseId.set(check.releaseId, existingChecks);
+    }
+
+    for (const report of reports) {
+      const existingReports = reportsByReleaseId.get(report.releaseId) ?? [];
+      existingReports.push(report);
+      reportsByReleaseId.set(report.releaseId, existingReports);
+    }
+
+    return releases.map((release) => {
+      const game = gameById.get(release.gameId);
+
+      return {
+        ...release,
+        game:
+          game === undefined
+            ? null
+            : {
+                ...game,
+                owner: ownerById.get(game.userId) ?? null,
+              },
+        artifact: artifactByReleaseId.get(release.id) ?? null,
+        checks: checksByReleaseId.get(release.id) ?? [],
+        reports: reportsByReleaseId.get(release.id) ?? [],
+      };
+    });
+  }),
+
   requestUploadTarget: protectedProcedure
     .input(requestUploadTargetInput)
     .mutation(async ({ input, ctx }) => {
@@ -168,10 +276,6 @@ export const releaseRouter = createTRPCRouter({
       if (release.status !== "ready") {
         throw new Error("Only ready releases can be published.");
       }
-
-      await runReleaseModeration({
-        releaseId: release.id,
-      });
 
       const now = new Date();
       return db.transaction(async (tx) => {
@@ -243,47 +347,28 @@ export const releaseRouter = createTRPCRouter({
       });
     }),
 
-  quarantine: protectedProcedure
+  quarantine: opsProcedure
     .input(releaseStatusMutationInput)
-    .mutation(async ({ input, ctx }) => {
-      const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
+    .mutation(async ({ input }) => {
+      const release = await assertReleaseExists(input.releaseId);
       if (release.status === "quarantined") {
         return release;
       }
 
-      return db.transaction(async (tx) => {
-        const [quarantinedRelease] = await tx
-          .update(gameReleases)
-          .set({
-            status: "quarantined",
-            quarantinedAt: new Date(),
-          })
-          .where(eq(gameReleases.id, input.releaseId))
-          .returning();
-
-        if (release.status === "live") {
-          await tx
-            .update(games)
-            .set({
-              arcadeVisibility: "hidden",
-              updatedAt: new Date(),
-            })
-            .where(eq(games.id, release.gameId));
-        }
-
-        return quarantinedRelease;
+      return quarantineRelease({
+        releaseId: input.releaseId,
       });
     }),
 
-  runModeration: protectedProcedure
+  runModeration: opsProcedure
     .input(releaseStatusMutationInput)
-    .mutation(async ({ input, ctx }) => {
-      const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
+    .mutation(async ({ input }) => {
+      const release = await assertReleaseExists(input.releaseId);
       await runReleaseModeration({
         releaseId: release.id,
       });
 
-      return assertOwnedRelease(input.releaseId, ctx.user.id);
+      return assertReleaseExists(input.releaseId);
     }),
 
   reportPublic: publicProcedure

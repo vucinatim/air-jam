@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-01  
+Last updated: 2026-04-02  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -116,6 +116,10 @@ Completed baselines now folded into this phase:
       2. Arcade host plays a dedicated `piing` SFX with a small visual acknowledgment
       3. the action is host-cooled-down so one controller cannot spam the shell
    7. couch-readability and menu-affordance polish still need explicit prioritization after the next proof pass
+12. release moderation and enforcement are now split cleanly by audience:
+   1. upload finalization now runs automated screenshot + image moderation before a release settles into `ready`
+   2. creator release pages keep upload/publish/archive plus release history, but no longer expose moderation or quarantine controls
+   3. internal moderation and quarantine actions now live behind a database-backed `ops_admin` role on `/dashboard/ops/releases`
 
 ### Priority 5. Release PR And Publish
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { ReleaseStatusBadge } from "@/components/releases/release-status-badge";
+import { ReleaseDetailPanels } from "@/components/releases/release-detail-panels";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,11 +29,9 @@ import {
   Archive,
   CheckCircle2,
   ChevronDown,
-  FileText,
   Loader2,
   Package,
   Rocket,
-  ShieldAlert,
   Upload,
 } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -72,12 +71,6 @@ const formatBytes = (value?: number | null): string => {
   return `${size.toFixed(digits)} ${units[unitIndex]}`;
 };
 
-const formatCheckKind = (value: string): string =>
-  value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
@@ -109,8 +102,6 @@ export default function GameReleasesPage() {
   const finalizeUpload = api.release.finalizeUpload.useMutation();
   const publishRelease = api.release.publish.useMutation();
   const archiveRelease = api.release.archive.useMutation();
-  const quarantineRelease = api.release.quarantine.useMutation();
-  const runModeration = api.release.runModeration.useMutation();
 
   const refreshReleaseData = async () => {
     await Promise.all([
@@ -171,7 +162,7 @@ export default function GameReleasesPage() {
         );
       }
 
-      await finalizeUpload.mutateAsync({
+      const finalizedRelease = await finalizeUpload.mutateAsync({
         releaseId: createdRelease.id,
       });
 
@@ -183,9 +174,14 @@ export default function GameReleasesPage() {
 
       setFeedback({
         variant: "default",
-        title: "Release uploaded",
+        title:
+          finalizedRelease.status === "quarantined"
+            ? "Release quarantined"
+            : "Release uploaded",
         description:
-          "The artifact passed structural validation and is now ready to publish.",
+          finalizedRelease.status === "quarantined"
+            ? "The artifact uploaded successfully, but automated moderation quarantined the release."
+            : "The artifact was validated and the release checks were recorded.",
       });
       await refreshReleaseData();
     } catch (error) {
@@ -478,35 +474,6 @@ export default function GameReleasesPage() {
                           </Button>
                         )}
 
-                        {["ready", "quarantined", "live"].includes(
-                          release.status,
-                        ) && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              void runReleaseAction({
-                                releaseId: release.id,
-                                action: () =>
-                                  runModeration.mutateAsync({
-                                    releaseId: release.id,
-                                  }),
-                                successTitle: "Moderation completed",
-                                successDescription:
-                                  "Screenshot and image moderation checks were refreshed.",
-                              })
-                            }
-                            disabled={isActionPending}
-                          >
-                            {isActionPending ? (
-                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
-                            )}
-                            Moderate
-                          </Button>
-                        )}
-
                         {release.status !== "archived" && (
                           <Button
                             size="sm"
@@ -530,32 +497,6 @@ export default function GameReleasesPage() {
                           </Button>
                         )}
 
-                        {["checking", "ready", "live"].includes(
-                          release.status,
-                        ) && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() =>
-                              void runReleaseAction({
-                                releaseId: release.id,
-                                action: () =>
-                                  quarantineRelease.mutateAsync({
-                                    releaseId: release.id,
-                                  }),
-                                successTitle: "Release quarantined",
-                                successDescription:
-                                  "The release is now blocked from the public deployment lane.",
-                              })
-                            }
-                            disabled={isActionPending}
-                          >
-                            <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
-                            Quarantine
-                          </Button>
-                        )}
-
                         {hasDetails && (
                           <CollapsibleTrigger asChild>
                             <Button size="sm" variant="ghost">
@@ -570,164 +511,11 @@ export default function GameReleasesPage() {
                     {hasDetails && (
                       <CollapsibleContent>
                         <div className="border-t px-4 pt-4 pb-4">
-                          <div className="grid gap-4 lg:grid-cols-3">
-                            {/* Artifact */}
-                            <div className="space-y-2">
-                              <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
-                                <Package className="h-3 w-3" />
-                                Artifact
-                              </div>
-                              {release.artifact ? (
-                                <div className="space-y-1.5 text-sm">
-                                  <div className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground">
-                                      File
-                                    </span>
-                                    <span className="max-w-[65%] truncate text-right">
-                                      {release.artifact.originalFilename}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground">
-                                      Uploaded
-                                    </span>
-                                    <span>
-                                      {formatBytes(release.artifact.sizeBytes)}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground">
-                                      Extracted
-                                    </span>
-                                    <span>
-                                      {formatBytes(
-                                        release.artifact.extractedSizeBytes,
-                                      )}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground">
-                                      Files
-                                    </span>
-                                    <span>
-                                      {release.artifact.fileCount?.toLocaleString() ??
-                                        "Unknown"}
-                                    </span>
-                                  </div>
-                                  {release.artifact.contentHash && (
-                                    <div className="flex justify-between gap-2">
-                                      <span className="text-muted-foreground">
-                                        Hash
-                                      </span>
-                                      <code className="max-w-[65%] truncate text-right text-[11px]">
-                                        {release.artifact.contentHash}
-                                      </code>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="text-muted-foreground text-sm">
-                                  No artifact metadata yet.
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Checks */}
-                            <div className="space-y-2">
-                              <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Checks
-                              </div>
-                              {release.checks.length > 0 ? (
-                                <div className="space-y-2">
-                                  {release.checks.map((check) => (
-                                    <div
-                                      key={check.id}
-                                      className="rounded-md border p-2.5 text-sm"
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <span className="font-medium">
-                                          {formatCheckKind(check.kind)}
-                                        </span>
-                                        <Badge
-                                          variant={
-                                            check.status === "passed"
-                                              ? "default"
-                                              : check.status === "failed"
-                                                ? "destructive"
-                                                : "secondary"
-                                          }
-                                          className="text-[10px]"
-                                        >
-                                          {check.status}
-                                        </Badge>
-                                      </div>
-                                      {check.summary && (
-                                        <p className="text-muted-foreground mt-1 text-xs">
-                                          {check.summary}
-                                        </p>
-                                      )}
-                                      <p className="text-muted-foreground mt-1 text-[10px]">
-                                        {formatDateTime(check.createdAt)}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-muted-foreground text-sm">
-                                  No checks recorded yet.
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Reports */}
-                            <div className="space-y-2">
-                              <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
-                                <FileText className="h-3 w-3" />
-                                Reports
-                              </div>
-                              {release.reports.length > 0 ? (
-                                <div className="space-y-2">
-                                  {release.reports.map((report) => (
-                                    <div
-                                      key={report.id}
-                                      className="rounded-md border p-2.5 text-sm"
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <span className="font-medium">
-                                          {report.reason}
-                                        </span>
-                                        <Badge
-                                          variant={
-                                            report.status === "open"
-                                              ? "destructive"
-                                              : "secondary"
-                                          }
-                                          className="text-[10px]"
-                                        >
-                                          {report.status}
-                                        </Badge>
-                                      </div>
-                                      {report.details && (
-                                        <p className="text-muted-foreground mt-1 text-xs">
-                                          {report.details}
-                                        </p>
-                                      )}
-                                      <p className="text-muted-foreground mt-1 text-[10px]">
-                                        {formatDateTime(report.createdAt)}
-                                        {report.reporterEmail &&
-                                          ` \u00B7 ${report.reporterEmail}`}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-muted-foreground text-sm">
-                                  No reports filed.
-                                </p>
-                              )}
-                            </div>
-                          </div>
+                          <ReleaseDetailPanels
+                            artifact={release.artifact}
+                            checks={release.checks}
+                            reports={release.reports}
+                          />
                         </div>
                       </CollapsibleContent>
                     )}

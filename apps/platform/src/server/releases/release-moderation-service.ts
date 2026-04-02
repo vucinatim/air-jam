@@ -10,6 +10,7 @@ import {
 } from "@/server/releases/release-image-moderation-service";
 import { eq } from "drizzle-orm";
 import { getReleaseModerationAvailability } from "./release-moderation-config";
+import { quarantineRelease } from "./release-status-service";
 import { getReleaseStorage } from "./release-storage";
 
 const SCREENSHOT_CAPTURE_KIND = "screenshot_capture";
@@ -20,6 +21,7 @@ type ReleaseModerationSummary = {
   moderation: ReleaseImageModerationResult | null;
   skipped: boolean;
   reason: string | null;
+  outcome: "passed" | "skipped" | "flagged";
 };
 
 const insertReleaseCheck = async ({
@@ -105,9 +107,9 @@ export const runReleaseModeration = async ({
     throw new Error("Release not found.");
   }
 
-  if (!["ready", "quarantined", "live"].includes(release.status)) {
+  if (!["checking", "ready", "quarantined", "live"].includes(release.status)) {
     throw new Error(
-      "Release moderation can only run against ready, quarantined, or live releases.",
+      "Release moderation can only run against checking, ready, quarantined, or live releases.",
     );
   }
 
@@ -139,6 +141,7 @@ export const runReleaseModeration = async ({
       moderation: null,
       skipped: true,
       reason: moderationAvailability.reason,
+      outcome: "skipped",
     };
   }
 
@@ -189,34 +192,35 @@ export const runReleaseModeration = async ({
   }
 
   if (moderation.flagged) {
-    await db.transaction(async (tx) => {
-      await tx.insert(gameReleaseChecks).values({
-        id: crypto.randomUUID(),
-        releaseId,
-        kind: IMAGE_MODERATION_KIND,
-        status: "failed",
-        summary:
-          "Automated image moderation flagged the canonical release screenshot.",
-        payload: {
-          flagged: moderation.flagged,
-          categories: moderation.categories,
-          categoryScores: moderation.categoryScores,
-          screenshotObjectKey: screenshot.screenshotObjectKey,
-        },
-      });
+    const checkedAt = new Date();
 
-      await tx
-        .update(gameReleases)
-        .set({
-          status: "quarantined",
-          quarantinedAt: new Date(),
-        })
-        .where(eq(gameReleases.id, releaseId));
+    await db.insert(gameReleaseChecks).values({
+      id: crypto.randomUUID(),
+      releaseId,
+      kind: IMAGE_MODERATION_KIND,
+      status: "failed",
+      summary:
+        "Automated image moderation flagged the canonical release screenshot.",
+      payload: {
+        flagged: moderation.flagged,
+        categories: moderation.categories,
+        categoryScores: moderation.categoryScores,
+        screenshotObjectKey: screenshot.screenshotObjectKey,
+      },
     });
 
-    throw new Error(
-      "Automated image moderation flagged this release. It has been quarantined.",
-    );
+    await quarantineRelease({
+      releaseId,
+      checkedAt,
+    });
+
+    return {
+      screenshot,
+      moderation,
+      skipped: false,
+      reason: null,
+      outcome: "flagged",
+    };
   }
 
   await insertReleaseCheck({
@@ -237,5 +241,6 @@ export const runReleaseModeration = async ({
     moderation,
     skipped: false,
     reason: null,
+    outcome: "passed",
   };
 };

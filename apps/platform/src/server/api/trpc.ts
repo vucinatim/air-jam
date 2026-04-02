@@ -1,5 +1,9 @@
 import { auth } from "@/lib/auth";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { assertOpsAdmin } from "@/server/auth/assert-ops-admin";
 import { initTRPC, TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
@@ -8,10 +12,16 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     headers: opts.headers,
   });
 
+  const user = session?.user?.id
+    ? await db.query.users.findFirst({
+        where: eq(users.id, session.user.id),
+      })
+    : null;
+
   return {
     ...opts,
     session,
-    user: session?.user,
+    user,
   };
 };
 
@@ -43,5 +53,13 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
       session: ctx.session,
       user: ctx.user,
     },
+  });
+});
+
+export const opsProcedure = protectedProcedure.use(({ ctx, next }) => {
+  assertOpsAdmin(ctx.user);
+
+  return next({
+    ctx,
   });
 });

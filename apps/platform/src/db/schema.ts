@@ -17,11 +17,14 @@ import {
   date,
   index,
   integer,
+  pgEnum,
   jsonb,
   pgTable,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+
+export const userRoleEnum = pgEnum("user_role", ["creator", "ops_admin"]);
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -29,6 +32,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull(),
   image: text("image"),
+  role: userRoleEnum("role").default("creator").notNull(),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });

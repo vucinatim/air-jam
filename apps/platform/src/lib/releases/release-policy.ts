@@ -15,7 +15,7 @@ export const allowedReleaseStatusTransitions: Record<
   draft: ["uploading", "archived"],
   uploading: ["checking", "failed", "archived"],
   checking: ["ready", "failed", "quarantined", "archived"],
-  ready: ["archived"],
+  ready: ["quarantined", "archived"],
   live: ["quarantined", "archived"],
   failed: ["archived"],
   quarantined: ["archived"],
