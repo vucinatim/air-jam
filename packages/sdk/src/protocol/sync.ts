@@ -8,6 +8,11 @@ export interface HostStateSyncPayload {
   storeDomain: string;
 }
 
+export interface ControllerStateSyncRequestPayload {
+  roomId: string;
+  storeDomain: string;
+}
+
 export type AirJamActionActorRole = "controller" | "host";
 
 export interface AirJamActionActor {
@@ -32,6 +37,11 @@ export interface AirJamStateSyncPayload {
   storeDomain: string;
 }
 
+export interface AirJamStateSyncRequestPayload {
+  roomId: string;
+  storeDomain: string;
+}
+
 export interface AirJamActionRpcPayload {
   actionName: string;
   payload: AirJamActionPayload | undefined;
@@ -52,6 +62,13 @@ export const hostStateSyncSchema = z
   .object({
     roomId: roomCodeSchema,
     data: z.record(z.string(), z.unknown()),
+    storeDomain: z.string().trim().min(1).max(128),
+  })
+  .strict();
+
+export const controllerStateSyncRequestSchema = z
+  .object({
+    roomId: roomCodeSchema,
     storeDomain: z.string().trim().min(1).max(128),
   })
   .strict();

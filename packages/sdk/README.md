@@ -75,6 +75,9 @@ The SDK fetches the host grant automatically before `host:bootstrap`. Game code 
 
 Mount runtime ownership explicitly at the host boundary, then read it from child code with `useAirJamHost()`.
 
+If a component only needs replicated host session state, prefer
+`useAirJamHostState(selector)` to avoid rerendering on unrelated runtime fields.
+
 ```tsx
 import { AirJamHostRuntime, useAirJamHost } from "@air-jam/sdk";
 
@@ -146,6 +149,10 @@ Notes:
 
 Mount runtime ownership explicitly at the controller boundary, then read it from child code with `useAirJamController()`.
 
+If a component only needs replicated controller session state, prefer
+`useAirJamControllerState(selector)` to avoid rerendering on unrelated runtime
+updates.
+
 ```tsx
 import {
   AirJamControllerRuntime,
@@ -202,6 +209,11 @@ export const ControllerView = () => {
 ```
 
 Controllers usually join via URL query param: `/controller?room=ABCD`.
+
+Standalone controllers also keep one stable local device identity and the last
+room-scoped controller binding. If the same phone refreshes or briefly
+disconnects, the SDK automatically attempts to resume that controller binding
+instead of creating a duplicate player.
 
 The important rule is:
 

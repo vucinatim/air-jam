@@ -2,6 +2,7 @@ import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
 import type {
   AirJamActionRpcPayload,
+  AirJamStateSyncRequestPayload,
   ControllerInputEvent,
   ControllerJoinedNotice,
   ControllerLeftNotice,
@@ -40,6 +41,7 @@ export const hostBridgeClientEvents = [
 export const hostBridgeServerEvents = [
   "connect",
   "disconnect",
+  "airjam:state_sync_request",
   "server:controllerJoined",
   "server:controllerLeft",
   "server:playerUpdated",
@@ -66,6 +68,7 @@ export type HostBridgeClientEventArgs = {
 export type HostBridgeServerEventArgs = {
   connect: [];
   disconnect: [reason?: string];
+  "airjam:state_sync_request": [payload: AirJamStateSyncRequestPayload];
   "server:controllerJoined": [payload: ControllerJoinedNotice];
   "server:controllerLeft": [payload: ControllerLeftNotice];
   "server:playerUpdated": [payload: PlayerUpdatedNotice];

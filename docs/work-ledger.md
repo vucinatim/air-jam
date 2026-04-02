@@ -69,15 +69,18 @@ Remaining:
 
 1. finish the local Arcade proof for the three remaining showcase games: `code-review`, `last-band-standing`, and `the-office`
 2. land the release-critical playtest hardening stack:
-   1. controller reconnect/resume baseline
-   2. controller-open fullscreen prompt
-   3. `air-capture` high-priority gameplay fixes
+   1. prove the controller reconnect/resume baseline in real launch-set gameplay
+   2. `air-capture` high-priority gameplay fixes
 3. rerun the baseline pair after those fixes and confirm they remain launch-trustworthy
 4. run the final hosted release and managed media dashboard proof paths
 5. create release media assets
 6. connect and deploy all public games on official hosting
 7. validate all five games against the official servers
 8. merge the release PR, deploy the platform, and publish the launch content
+
+Active subsystem plan linked from this phase:
+
+1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
 
 Completed baselines now folded into this phase:
 
@@ -94,10 +97,25 @@ Completed baselines now folded into this phase:
    1. `pong` host/controller happy path passes through the local Arcade browser smoke
    2. `air-capture` settings/audio Arcade smoke passes through the local Arcade browser smoke
 11. a longer real playtest of `air-capture` and `last-band-standing` surfaced the next honest prerelease gate:
-   1. reconnect/resume robustness is not good enough yet
-   2. controller fullscreen prompting should be explicit and consistent
-   3. couch-readability and Arcade waiting-state polish need explicit prioritization
-   4. `air-capture` still has several gameplay-level fixes that matter before launch
+   1. reconnect/resume now has a real SDK/server baseline:
+      1. stable controller device identity
+      2. room-scoped resumable controller lease
+      3. same-device automatic resume
+      4. conflicting-device rejection
+   2. Pong now has local Arcade browser proof for reconnect/resume after controller refresh; the remaining reconnect gate is live gameplay proof in `air-capture` and `last-band-standing`
+   3. controller fullscreen prompting is now explicit and productized at the controller shell boundary, with dedicated browser smoke coverage
+   4. `air-capture`'s first gameplay hardening pass is now in:
+      1. analog left-stick movement with right-side actions only
+      2. own-flag-carried enemy pickup lockout
+      3. stronger large-radius rocket blast tuning
+      4. lobby name visibility on host and controller
+      5. 3-second rotation-only opening countdown
+   5. the remaining gate for that slice is another real Arcade playtest, not more blind refactoring
+   6. Arcade waiting-state now has a first-pass platform-owned `ping` interaction:
+      1. controller waiting shell exposes a `Ping host` action
+      2. Arcade host plays a dedicated `piing` SFX with a small visual acknowledgment
+      3. the action is host-cooled-down so one controller cannot spam the shell
+   7. couch-readability and menu-affordance polish still need explicit prioritization after the next proof pass
 
 ### Priority 5. Release PR And Publish
 

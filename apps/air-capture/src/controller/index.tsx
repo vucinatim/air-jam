@@ -1,12 +1,16 @@
 import {
   useAirJamController,
+  useAirJamControllerState,
   useControllerTick,
   useInputWriter,
+  type PlayerProfile,
 } from "@air-jam/sdk";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { createControllerStore } from "../game/controller-store";
+import { useMatchCountdown } from "../game/hooks/use-match-countdown";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
@@ -21,30 +25,79 @@ import { usePrototypeMatchStore } from "../game/stores/match/match-store";
 import {
   ControllerAudioProvider,
 } from "../game/audio/controller-audio";
-import { ControllerHeader } from "./components/controller-header";
+import {
+  ControllerHeader,
+  type ControllerConnectionStatus,
+  type ControllerMatchPhase,
+} from "./components/controller-header";
 import {
   ControllerEndedPanel,
   ControllerLobbyPanel,
   ControllerPlayingControls,
 } from "./components/controller-phase-panels";
 
-const ControllerScreen = ({
-  controller,
+const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
+  myProfile,
+  roomId,
+  connectionStatus,
+  matchPhase,
+  gameState,
+  canSendSystemCommand,
+  controlsDisabled,
+  onReturnToLobby,
 }: {
-  controller: ReturnType<typeof useAirJamController>;
-}) => {
+  myProfile: PlayerProfile | null;
+  roomId: string | null;
+  connectionStatus: ControllerConnectionStatus;
+  matchPhase: ControllerMatchPhase;
+  gameState: "lobby" | "playing" | "paused" | "ended";
+  canSendSystemCommand: boolean;
+  controlsDisabled: boolean;
+  onReturnToLobby: () => void;
+}) {
+  const controller = useAirJamController();
+
+  return (
+    <ControllerHeader
+      myProfile={myProfile}
+      roomId={roomId}
+      connectionStatus={connectionStatus}
+      matchPhase={matchPhase}
+      gameState={gameState}
+      canSendSystemCommand={canSendSystemCommand}
+      controlsDisabled={controlsDisabled}
+      onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
+      onReturnToLobby={onReturnToLobby}
+    />
+  );
+});
+
+const ControllerScreen = () => {
   const writeInput = useInputWriter();
   const [store] = useState(() => createControllerStore());
+  const controllerState = useAirJamControllerState(
+    useShallow((state) => ({
+      roomId: state.roomId,
+      controllerId: state.controllerId,
+      connectionStatus: state.connectionStatus,
+      gameState: state.gameState,
+      players: state.players,
+    })),
+  );
 
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
   const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);
   const botCounts = usePrototypeMatchStore((state) => state.botCounts);
   const teamAssignments = usePrototypeMatchStore((state) => state.teamAssignments);
   const matchSummary = usePrototypeMatchStore((state) => state.matchSummary);
+  const countdownEndsAtMs = usePrototypeMatchStore(
+    (state) => state.countdownEndsAtMs,
+  );
   const actions = usePrototypeMatchStore.useActions();
+  const countdownRemainingSeconds = useMatchCountdown(countdownEndsAtMs);
 
-  const controlsDisabled = controller.connectionStatus !== "connected";
-  const canSendSystemCommand = controller.connectionStatus === "connected";
+  const controlsDisabled = controllerState.connectionStatus !== "connected";
+  const canSendSystemCommand = controllerState.connectionStatus === "connected";
 
   useControllerTick(
     () => {
@@ -58,29 +111,45 @@ const ControllerScreen = ({
     },
     {
       enabled:
-        controller.connectionStatus === "connected" &&
-        matchPhase === "playing" &&
-        controller.gameState === "playing",
+        controllerState.connectionStatus === "connected" &&
+        (matchPhase === "countdown" || matchPhase === "playing") &&
+        controllerState.gameState === "playing",
       intervalMs: 16,
     },
   );
 
-  const myAssignment = controller.controllerId
-    ? teamAssignments[controller.controllerId]
+  const myAssignment = controllerState.controllerId
+    ? teamAssignments[controllerState.controllerId]
     : undefined;
   const myTeam = myAssignment?.teamId ?? null;
 
-  const myProfile = controller.selfPlayer;
+  const myProfile = useAirJamControllerState((state) =>
+    state.controllerId
+      ? state.players.find((player) => player.id === state.controllerId) ?? null
+      : null,
+  );
 
   const connectedAssignments = useMemo(() => {
     const connectedPlayerIdSet = new Set(
-      controller.players.map((player) => player.id),
+      controllerState.players.map((player) => player.id),
     );
 
     return Object.entries(teamAssignments)
       .filter(([controllerId]) => connectedPlayerIdSet.has(controllerId))
       .map(([, assignment]) => assignment);
-  }, [controller.players, teamAssignments]);
+  }, [controllerState.players, teamAssignments]);
+
+  const teamPlayers = useMemo(
+    () => ({
+      solaris: controllerState.players.filter(
+        (player) => teamAssignments[player.id]?.teamId === "solaris",
+      ),
+      nebulon: controllerState.players.filter(
+        (player) => teamAssignments[player.id]?.teamId === "nebulon",
+      ),
+    }),
+    [controllerState.players, teamAssignments],
+  );
 
   const teamCounts = useMemo(
     () => getTeamCounts(connectedAssignments),
@@ -113,20 +182,22 @@ const ControllerScreen = ({
     [teamCounts],
   );
 
-  const desiredOrientation = matchPhase === "playing" ? "landscape" : "portrait";
+  const desiredOrientation =
+    matchPhase === "countdown" || matchPhase === "playing"
+      ? "landscape"
+      : "portrait";
 
   return (
     <ForcedOrientationShell desired={desiredOrientation}>
       <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-white">
-        <ControllerHeader
+        <ControllerHeaderRuntime
           myProfile={myProfile}
-          roomId={controller.roomId}
-          connectionStatus={controller.connectionStatus}
+          roomId={controllerState.roomId}
+          connectionStatus={controllerState.connectionStatus}
           matchPhase={matchPhase}
-          gameState={controller.gameState}
+          gameState={controllerState.gameState}
           canSendSystemCommand={canSendSystemCommand}
           controlsDisabled={controlsDisabled}
-          onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
           onReturnToLobby={() => actions.returnToLobby()}
         />
 
@@ -140,6 +211,7 @@ const ControllerScreen = ({
             pointsToWin={pointsToWin}
             readinessText={readinessText}
             canStart={readiness.canStart}
+            teamPlayers={teamPlayers}
             onSelectTeam={(teamId) => actions.joinTeam({ teamId })}
             onSetTeamBotCount={(teamId, count) =>
               actions.setTeamBotCount({ teamId, count })
@@ -157,7 +229,10 @@ const ControllerScreen = ({
             onReturnToLobby={() => actions.returnToLobby()}
           />
         ) : (
-          <ControllerPlayingControls store={store} />
+          <ControllerPlayingControls
+            store={store}
+            countdownRemainingSeconds={countdownRemainingSeconds}
+          />
         )}
       </div>
     </ForcedOrientationShell>
@@ -165,13 +240,15 @@ const ControllerScreen = ({
 };
 
 export const ControllerView = (): JSX.Element => {
-  const controller = useAirJamController();
+  const connectionStatus = useAirJamControllerState(
+    (state) => state.connectionStatus,
+  );
 
   return (
     <ControllerAudioProvider
-      remoteEnabled={controller.connectionStatus === "connected"}
+      remoteEnabled={connectionStatus === "connected"}
     >
-      <ControllerScreen controller={controller} />
+      <ControllerScreen />
     </ControllerAudioProvider>
   );
 };

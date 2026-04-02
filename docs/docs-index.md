@@ -35,7 +35,7 @@ Migration proof references:
 
 Active subsystem plans:
 
-1. none beyond the canonical release plan
+1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
 
 Completed transitions / reference plans:
 

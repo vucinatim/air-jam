@@ -164,7 +164,8 @@ The most important Air Jam rule is still:
 
 1. local input publishing
 2. local-only shell affordances
-3. rendering of whatever the authoritative snapshot says is active
+3. stable local controller device identity as a reconnect hint
+4. rendering of whatever the authoritative snapshot says is active
 
 Controllers do not own room or gameplay truth.
 
@@ -173,7 +174,7 @@ Controllers do not own room or gameplay truth.
 Only hard runtime invariants:
 
 1. room membership
-2. controller identity
+2. controller binding identity and room-scoped resume leases
 3. host authorization
 4. child-host attach authorization
 5. routing and focus

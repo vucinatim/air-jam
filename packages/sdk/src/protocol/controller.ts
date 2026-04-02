@@ -38,6 +38,11 @@ export type ControllerStatePayload = z.infer<
 export const controllerJoinSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),
+  /**
+   * Stable local controller device identity used as a reconnect hint.
+   * Older clients may omit this and fall back to controllerId-only behavior.
+   */
+  deviceId: z.string().min(8).max(128).optional(),
   nickname: z.string().trim().min(1).max(24).optional(),
   /** Preset avatar key (platform-defined); optional at join. */
   avatarId: z.string().trim().min(1).max(48).optional(),
@@ -103,6 +108,7 @@ export interface ControllerJoinAck {
   ok: boolean;
   controllerId?: string;
   roomId?: RoomCode;
+  resumed?: boolean;
   message?: string;
   code?: ErrorCode | string;
 }
@@ -110,5 +116,6 @@ export interface ControllerJoinAck {
 export interface ControllerSocketAuthority {
   roomId: RoomCode;
   controllerId: string;
+  deviceId: string;
   joinedAt: number;
 }

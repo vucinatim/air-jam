@@ -36,15 +36,22 @@ const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
       >
         {team.label}
       </div>
-      <div className="flex min-h-8 items-center justify-center gap-2">
+      <div className="flex min-h-8 flex-wrap items-center justify-center gap-2">
         {players.length > 0 ? (
           players.map((player) => (
-            <PlayerAvatar
+            <div
               key={player.id}
-              player={player}
-              size="sm"
-              className="h-7 w-7 border-2"
-            />
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
+            >
+              <PlayerAvatar
+                player={player}
+                size="sm"
+                className="h-7 w-7 border-2"
+              />
+              <span className="text-xs font-semibold text-zinc-100 normal-case">
+                {player.label}
+              </span>
+            </div>
           ))
         ) : (
           <span className="text-xs tracking-wide text-zinc-500 uppercase">
@@ -164,14 +171,21 @@ export const LobbyOverlay = ({
             Connected
           </div>
           {connectedPlayers.length > 0 ? (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {connectedPlayers.map((player) => (
-                <PlayerAvatar
+                <div
                   key={player.id}
-                  player={player}
-                  size="sm"
-                  className="h-7 w-7 border-2"
-                />
+                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
+                >
+                  <PlayerAvatar
+                    player={player}
+                    size="sm"
+                    className="h-7 w-7 border-2"
+                  />
+                  <span className="text-xs font-semibold text-zinc-100 normal-case">
+                    {player.label}
+                  </span>
+                </div>
               ))}
             </div>
           ) : (
@@ -313,6 +327,26 @@ export const PausedOverlay = ({
       )}
       <div className="text-[11px] tracking-[0.14em] text-zinc-300 uppercase">
         Resume from any controller
+      </div>
+    </div>
+  </div>
+);
+
+export const CountdownOverlay = ({
+  remainingSeconds,
+}: {
+  remainingSeconds: number;
+}): JSX.Element => (
+  <div className="pointer-events-none absolute inset-0 z-80 flex items-center justify-center">
+    <div className="rounded-4xl border border-cyan-300/25 bg-black/55 px-10 py-8 text-center text-white shadow-2xl backdrop-blur-md">
+      <div className="text-xs font-semibold tracking-[0.24em] text-cyan-200 uppercase">
+        Pilots ready
+      </div>
+      <div className="mt-2 text-7xl leading-none font-black">
+        {remainingSeconds}
+      </div>
+      <div className="mt-2 text-sm tracking-[0.14em] text-zinc-200 uppercase">
+        Rotate now. Thrust unlocks on go.
       </div>
     </div>
   </div>

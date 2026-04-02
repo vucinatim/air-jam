@@ -80,6 +80,33 @@ describe("air-capture capture-the-flag store state", () => {
     });
   });
 
+  it("blocks enemy flag pickup while your own flag is being carried", () => {
+    const result = reduceTryPickupFlag(
+      createState({
+        playerTeams: { p1: "solaris", enemy: "nebulon" },
+        flags: {
+          solaris: {
+            teamId: "solaris",
+            status: "carried",
+            position: [10, 0, 0],
+            carrierId: "enemy",
+          },
+          nebulon: {
+            teamId: "nebulon",
+            status: "atBase",
+            position: [-10, 0, 0],
+          },
+        },
+      }),
+      "p1",
+      "nebulon",
+    );
+
+    expect(result.flags.nebulon).toMatchObject({
+      status: "atBase",
+    });
+  });
+
   it("reports enemy flag pickups as an explicit interaction outcome", () => {
     const result = transitionTryPickupFlag(
       createState({

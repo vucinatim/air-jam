@@ -6,10 +6,19 @@ import {
   type PlayerProfile,
 } from "@air-jam/sdk";
 import type { Dispatch, JSX, SetStateAction } from "react";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { useBotManager } from "../game/bot-system/bot-manager";
 import { TEAM_IDS, type TeamId } from "../game/domain/team";
+import { useMatchCountdown } from "../game/hooks/use-match-countdown";
 import {
   useCaptureTheFlagStore,
 } from "../game/stores/match/capture-the-flag-store";
@@ -27,8 +36,10 @@ import { HostAudioProvider } from "../game/audio/host-audio";
 import { useHostAudio } from "../game/audio/use-host-audio";
 import {
   AudioBlockedPrompt,
+  CountdownOverlay,
   EndedOverlay,
   GameplayFallback,
+  type HostConnectionStatus,
   HostMuteButton,
   LobbyOverlay,
   PausedOverlay,
@@ -50,6 +61,65 @@ const ScoreDisplay = lazy(async () => {
 const DebugOverlay = lazy(async () => {
   const module = await import("../game/debug/debug-overlay");
   return { default: module.DebugOverlay };
+});
+
+const GameplayStage = memo(function GameplayStage({
+  sceneMode,
+  scenePaused,
+  showPausedOverlay,
+  roomId,
+  joinQrValue,
+  connectionStatus,
+  lastError,
+  matchPhase,
+  countdownRemainingSeconds,
+}: {
+  sceneMode: "match" | "spectator";
+  scenePaused: boolean;
+  showPausedOverlay: boolean;
+  roomId: string;
+  joinQrValue: string;
+  connectionStatus: HostConnectionStatus;
+  lastError?: string;
+  matchPhase: string;
+  countdownRemainingSeconds: number;
+}) {
+  const [cameras, setCameras] = useState<
+    Array<{
+      camera: ThreePerspectiveCamera;
+      viewport: { x: number; y: number; width: number; height: number };
+    }>
+  >([]);
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(
+    null,
+  );
+
+  return (
+    <div className="absolute inset-0 transition-all duration-300">
+      <Suspense fallback={<GameplayFallback />}>
+        <GameScene
+          mode={sceneMode}
+          paused={scenePaused}
+          onCamerasReady={setCameras}
+          onCanvasReady={setCanvasElement}
+        />
+        {cameras.length > 0 && canvasElement ? (
+          <PlayerHUDOverlay canvasElement={canvasElement} cameras={cameras} />
+        ) : null}
+        {showPausedOverlay ? (
+          <PausedOverlay
+            roomId={roomId}
+            joinQrValue={joinQrValue}
+            connectionStatus={connectionStatus}
+            lastError={lastError}
+          />
+        ) : null}
+        {matchPhase === "countdown" && countdownRemainingSeconds > 0 ? (
+          <CountdownOverlay remainingSeconds={countdownRemainingSeconds} />
+        ) : null}
+      </Suspense>
+    </div>
+  );
 });
 
 const HostViewContent = ({
@@ -81,7 +151,13 @@ const HostViewContent = ({
     (state) => state.teamAssignments,
   );
   const matchSummary = usePrototypeMatchStore((state) => state.matchSummary);
+  const countdownEndsAtMs = usePrototypeMatchStore(
+    (state) => state.countdownEndsAtMs,
+  );
   const matchActions = usePrototypeMatchStore.useActions();
+  const countdownRemainingSeconds = useMatchCountdown(countdownEndsAtMs);
+  const bridgedMatchPhase =
+    matchPhase === "countdown" ? "playing" : matchPhase;
 
   const ctfScores = useCaptureTheFlagStore((state) => state.scores);
   const resetMatch = useCaptureTheFlagStore((state) => state.resetMatch);
@@ -94,7 +170,7 @@ const HostViewContent = ({
   const removeBot = useBotManager((state) => state.removeBot);
 
   useHostGameStateBridge({
-    phase: matchPhase,
+    phase: bridgedMatchPhase,
     playingPhase: "playing",
     gameState,
     toggleGameState,
@@ -108,6 +184,26 @@ const HostViewContent = ({
       }
     },
   });
+
+  useEffect(() => {
+    if (matchPhase !== "countdown" || !countdownEndsAtMs) {
+      return;
+    }
+
+    const remainingMs = countdownEndsAtMs - Date.now();
+    if (remainingMs <= 0) {
+      matchActions.finishCountdown();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      matchActions.finishCountdown();
+    }, remainingMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [countdownEndsAtMs, matchActions, matchPhase]);
 
   useEffect(() => {
     const store = useGameStore.getState();
@@ -219,8 +315,6 @@ const HostViewContent = ({
     audio.play("success");
   }, [audio, ctfScores, matchActions, matchPhase, pointsToWin]);
 
-  const connectedPlayers = useMemo(() => players, [players]);
-
   const teamPlayers = useMemo(() => {
     const grouped: Record<TeamId, PlayerProfile[]> = {
       solaris: [],
@@ -254,11 +348,20 @@ const HostViewContent = ({
     ).toString();
   }, [host.joinUrl, host.roomId]);
 
-  const showPausedOverlay = matchPhase === "playing" && gameState !== "playing";
+  const showPausedOverlay =
+    (matchPhase === "countdown" || matchPhase === "playing") &&
+    gameState !== "playing";
   const controllerOrientation =
-    matchPhase === "playing" ? "landscape" : "portrait";
-  const sceneMode = matchPhase === "playing" ? "match" : "spectator";
-  const scenePaused = matchPhase !== "playing" || gameState !== "playing";
+    matchPhase === "countdown" || matchPhase === "playing"
+      ? "landscape"
+      : "portrait";
+  const sceneMode =
+    matchPhase === "countdown" || matchPhase === "playing"
+      ? "match"
+      : "spectator";
+  const scenePaused =
+    (matchPhase !== "countdown" && matchPhase !== "playing") ||
+    gameState !== "playing";
 
   useEffect(() => {
     if (connectionStatus !== "connected") {
@@ -269,33 +372,16 @@ const HostViewContent = ({
       orientation: controllerOrientation,
     });
   }, [connectionStatus, controllerOrientation, sendState]);
-
-  const [cameras, setCameras] = useState<
-    Array<{
-      camera: ThreePerspectiveCamera;
-      viewport: { x: number; y: number; width: number; height: number };
-    }>
-  >([]);
-  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (sceneMode !== "match") {
-      setCameras([]);
-      setCanvasElement(null);
-    }
-  }, [sceneMode]);
+  const toggleAudio = useCallback(() => {
+    setAudioMuted((current) => !current);
+  }, [setAudioMuted]);
 
   const muteSlot = (
     <div className="pointer-events-auto absolute top-4 right-4 z-90">
-      <HostMuteButton
-        muted={audioMuted}
-        onToggle={() => setAudioMuted((current) => !current)}
-      />
+      <HostMuteButton muted={audioMuted} onToggle={toggleAudio} />
     </div>
   );
-  const showBackdrop = matchPhase !== "playing";
+  const showBackdrop = matchPhase === "lobby" || matchPhase === "ended";
 
   return (
     <div className="bg-background relative h-screen w-screen overflow-hidden">
@@ -303,30 +389,17 @@ const HostViewContent = ({
         {showBackdrop ? (
           <StageBackdrop />
         ) : (
-          <div className="absolute inset-0 transition-all duration-300">
-            <Suspense fallback={<GameplayFallback />}>
-              <GameScene
-                mode={sceneMode}
-                paused={scenePaused}
-                onCamerasReady={setCameras}
-                onCanvasReady={setCanvasElement}
-              />
-              {cameras.length > 0 && canvasElement ? (
-                <PlayerHUDOverlay
-                  canvasElement={canvasElement}
-                  cameras={cameras}
-                />
-              ) : null}
-              {showPausedOverlay ? (
-                <PausedOverlay
-                  roomId={roomId}
-                  joinQrValue={joinQrValue}
-                  connectionStatus={connectionStatus}
-                  lastError={lastError}
-                />
-              ) : null}
-            </Suspense>
-          </div>
+          <GameplayStage
+            sceneMode={sceneMode}
+            scenePaused={scenePaused}
+            showPausedOverlay={showPausedOverlay}
+            roomId={roomId}
+            joinQrValue={joinQrValue}
+            connectionStatus={connectionStatus}
+            lastError={lastError}
+            matchPhase={matchPhase}
+            countdownRemainingSeconds={countdownRemainingSeconds}
+          />
         )}
 
         {showBackdrop ? (
@@ -348,7 +421,7 @@ const HostViewContent = ({
                 botCounts={botCounts}
                 connectionStatus={connectionStatus}
                 lastError={lastError}
-                connectedPlayers={connectedPlayers}
+                connectedPlayers={players}
                 teamPlayers={teamPlayers}
               />
             ) : (
@@ -383,7 +456,7 @@ const HostViewContent = ({
               roomId={roomId}
               connectionStatus={connectionStatus}
               audioMuted={audioMuted}
-              onToggleAudio={() => setAudioMuted((current) => !current)}
+              onToggleAudio={toggleAudio}
             />
           </>
         )}

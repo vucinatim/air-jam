@@ -1,6 +1,6 @@
 "use client";
 
-import { ArcadeSystem } from "@/components/arcade";
+import { ArcadeAudioRuntime, ArcadeSystem } from "@/components/arcade";
 import { toArcadeGame } from "@/lib/arcade-game-mapper";
 import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -146,13 +146,15 @@ export default function PlayGamePage({
         </div>
         <div className="relative flex-1">
           {/* Game Container - Takes remaining space */}
-          <ArcadeSystem
-            games={[arcadeGame]}
-            mode="preview"
-            initialGameId={game.id}
-            onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
-            className="flex-1"
-          />
+          <ArcadeAudioRuntime>
+            <ArcadeSystem
+              games={[arcadeGame]}
+              mode="preview"
+              initialGameId={game.id}
+              onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
+              className="flex-1"
+            />
+          </ArcadeAudioRuntime>
         </div>
         </div>
         <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>

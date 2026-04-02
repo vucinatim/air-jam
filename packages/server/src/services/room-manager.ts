@@ -103,7 +103,13 @@ export class RoomManager {
 
     // Clean up controller indices
     session.controllers.forEach((controller) => {
-      this.controllerIndex.delete(controller.socketId);
+      if (controller.pendingDisconnectTimer) {
+        clearTimeout(controller.pendingDisconnectTimer);
+        controller.pendingDisconnectTimer = undefined;
+      }
+      if (controller.socketId) {
+        this.controllerIndex.delete(controller.socketId);
+      }
     });
 
     // Clean up host indices

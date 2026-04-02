@@ -23,7 +23,6 @@ import {
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
 import { createWindowedEventSummary } from "../../logging/create-windowed-event-summary.js";
-import type { ControllerSession } from "../../types.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
 
 const PLAYER_COLORS = [
@@ -173,7 +172,14 @@ export const registerControllerHandlers = (
       return;
     }
 
-    const { roomId, controllerId, nickname, avatarId } = parsed.data;
+    const {
+      roomId,
+      controllerId,
+      deviceId: rawDeviceId,
+      nickname,
+      avatarId,
+    } = parsed.data;
+    const deviceId = rawDeviceId ?? controllerId;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       logControllerEvent(
@@ -245,9 +251,34 @@ export const registerControllerHandlers = (
     }
 
     const existing = session.controllers.get(controllerId);
-    const rejoined = Boolean(existing);
+    const resumed = Boolean(existing);
     if (existing) {
-      roomManager.deleteController(existing.socketId);
+      if (existing.deviceId !== deviceId) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
+          "Rejected controller join because resume binding belongs to another device",
+          {
+            roomId,
+            controllerId,
+            reason: "resume_device_mismatch",
+          },
+        );
+        callback({
+          ok: false,
+          message: "Controller slot is unavailable",
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      if (existing.pendingDisconnectTimer) {
+        clearTimeout(existing.pendingDisconnectTimer);
+        existing.pendingDisconnectTimer = undefined;
+      }
+      if (existing.socketId && existing.socketId !== socket.id) {
+        roomManager.deleteController(existing.socketId);
+      }
     }
 
     const colorHex =
@@ -259,54 +290,92 @@ export const registerControllerHandlers = (
       color = Color("#38bdf8").hex();
     }
 
-    const playerProfile: PlayerProfile = {
-      id: controllerId,
-      label: nickname ?? `Player ${session.controllers.size}`,
-      color,
-      ...(avatarId ? { avatarId } : {}),
-    };
+    let controllerSession = existing;
+    if (controllerSession) {
+      controllerSession.nickname = nickname ?? controllerSession.nickname;
+      controllerSession.connected = true;
+      controllerSession.resumeLeaseExpiresAt = null;
+      controllerSession.socketId = socket.id;
+      controllerSession.playerProfile = {
+        ...controllerSession.playerProfile,
+        label:
+          nickname ?? controllerSession.nickname ?? controllerSession.playerProfile.label,
+        ...(avatarId !== undefined
+          ? { avatarId }
+          : controllerSession.playerProfile.avatarId
+            ? { avatarId: controllerSession.playerProfile.avatarId }
+            : {}),
+      };
+    } else {
+      const playerProfile: PlayerProfile = {
+        id: controllerId,
+        label: nickname ?? `Player ${session.controllers.size}`,
+        color,
+        ...(avatarId ? { avatarId } : {}),
+      };
 
-    const controllerSession: ControllerSession = {
-      controllerId,
-      nickname,
-      socketId: socket.id,
-      playerProfile,
-    };
+      controllerSession = {
+        controllerId,
+        deviceId,
+        nickname,
+        socketId: socket.id,
+        connected: true,
+        resumeLeaseExpiresAt: null,
+        playerProfile,
+      };
+      session.controllers.set(controllerId, controllerSession);
+    }
 
-    session.controllers.set(controllerId, controllerSession);
     roomManager.setController(socket.id, { roomId, controllerId });
     socket.data.controllerAuthority = {
       roomId,
       controllerId,
+      deviceId,
       joinedAt: Date.now(),
     };
     socket.join(roomId);
 
     io.to(roomManager.getActiveHostId(session)).emit(
       "server:controllerJoined",
-      toControllerJoinedNotice(controllerSession),
+      toControllerJoinedNotice(controllerSession, { resumed }),
     );
+
+    if (resumed) {
+      logControllerEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.controller.resumeAccepted,
+        "Controller resumed existing room binding",
+        {
+          roomId,
+          controllerId,
+          nickname: nickname ?? undefined,
+        },
+      );
+    }
 
     logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.joinAccepted, "Controller joined room", {
       roomId,
       controllerId,
       nickname: nickname ?? undefined,
+      resumed,
     });
     runtimeUsagePublisher.publish(
       createRoomRuntimeUsageEvent(session, {
         kind: "controller_joined",
         payload: {
           controllerId,
-          rejoined,
+          rejoined: resumed,
+          resumed,
         },
       }),
     );
 
-    callback({ ok: true, controllerId, roomId });
+    callback({ ok: true, controllerId, roomId, resumed });
     socket.emit("server:welcome", {
       controllerId,
       roomId,
-      player: playerProfile,
+      resumed,
+      player: controllerSession.playerProfile,
     });
     socket.emit("server:state", {
       roomId,
@@ -483,6 +552,11 @@ export const registerControllerHandlers = (
       return;
     }
 
+    const controllerSession = session.controllers.get(controllerId);
+    if (controllerSession?.pendingDisconnectTimer) {
+      clearTimeout(controllerSession.pendingDisconnectTimer);
+      controllerSession.pendingDisconnectTimer = undefined;
+    }
     session.controllers.delete(controllerId);
     roomManager.deleteController(socket.id);
     delete socket.data.controllerAuthority;

@@ -26,6 +26,12 @@ import {
 } from "../../protocol";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
+import {
+  clearControllerRoomBinding,
+  getOrCreateControllerDeviceId,
+  readControllerRoomBinding,
+  writeControllerRoomBinding,
+} from "../../runtime/controller-identity";
 import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readEmbeddedControllerChildSession } from "../../runtime/embedded-runtime-adapters";
@@ -110,6 +116,13 @@ export const useControllerRuntimeApi = (
     }
   }, [options.roomId, embeddedController, urlRoomId]);
 
+  const deviceId = useMemo<string | null>(() => {
+    if (embeddedController) {
+      return null;
+    }
+    return getOrCreateControllerDeviceId();
+  }, [embeddedController]);
+
   const controllerId = useMemo<string>(() => {
     if (embeddedController?.controllerId) {
       return embeddedController.controllerId;
@@ -122,8 +135,14 @@ export const useControllerRuntimeApi = (
       const urlControllerId = params.get("controllerId");
       if (urlControllerId) return urlControllerId;
     }
+    if (parsedRoomId) {
+      const persistedControllerId = readControllerRoomBinding(parsedRoomId);
+      if (persistedControllerId) {
+        return persistedControllerId;
+      }
+    }
     return generateControllerId();
-  }, [options.controllerId, embeddedController]);
+  }, [options.controllerId, embeddedController, parsedRoomId]);
 
   const onStateRef = useRef<AirJamControllerOptions["onState"]>(
     options.onState,
@@ -305,6 +324,7 @@ export const useControllerRuntimeApi = (
       const payload = controllerJoinSchema.parse({
         roomId: parsedRoomId,
         controllerId,
+        deviceId: deviceId ?? undefined,
         nickname: nicknameRef.current || undefined,
         avatarId: avatarIdRef.current || undefined,
       });
@@ -322,12 +342,16 @@ export const useControllerRuntimeApi = (
       socket.emit("controller:join", payload, (ack: ControllerJoinAck) => {
         const latestState = store.getState();
         if (!ack.ok) {
+          if (ack.code === "ROOM_NOT_FOUND") {
+            clearControllerRoomBinding(parsedRoomId);
+          }
           latestState.setError(ack.message ?? "Unable to join room");
           latestState.setStatus("disconnected");
           return;
         }
         if (ack.controllerId) {
           latestState.setControllerId(ack.controllerId);
+          writeControllerRoomBinding(parsedRoomId, ack.controllerId);
         }
         latestState.setStatus("connected");
       });
@@ -379,6 +403,7 @@ export const useControllerRuntimeApi = (
       if (!storeRoomId && payload.roomId) {
         latestState.setRoomId(payload.roomId);
       }
+      writeControllerRoomBinding(payload.roomId, payload.controllerId);
       if (!payload.player) {
         latestState.setError(
           "Welcome message received but no player profile included.",
@@ -406,6 +431,9 @@ export const useControllerRuntimeApi = (
 
     const handleHostLeft = (payload: { reason: string }): void => {
       const latestState = store.getState();
+      if (parsedRoomId) {
+        clearControllerRoomBinding(parsedRoomId);
+      }
       latestState.setError(payload.reason);
       latestState.setStatus("disconnected");
       latestState.resetGameState();
@@ -461,6 +489,7 @@ export const useControllerRuntimeApi = (
     store,
     disconnectSocket,
     emitControllerRuntimeEvent,
+    deviceId,
     joinSource,
   ]);
 

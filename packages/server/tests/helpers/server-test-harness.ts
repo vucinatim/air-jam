@@ -53,10 +53,14 @@ export const setupServerTestHarness = (
   const sockets: GenericSocket[] = [];
   let baseUrl = "";
   let previousChildTeardownMs: string | undefined;
+  let previousControllerResumeLeaseMs: string | undefined;
 
   beforeEach(async () => {
     previousChildTeardownMs = process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
+    previousControllerResumeLeaseMs =
+      process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS;
     process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = "50";
+    process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS = "100";
     roomManager = new RoomManager();
     const rateLimitService = new RateLimitService();
     runtime = createAirJamServer({
@@ -84,6 +88,12 @@ export const setupServerTestHarness = (
       delete process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
     } else {
       process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = previousChildTeardownMs;
+    }
+    if (previousControllerResumeLeaseMs === undefined) {
+      delete process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS;
+    } else {
+      process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS =
+        previousControllerResumeLeaseMs;
     }
   });
 

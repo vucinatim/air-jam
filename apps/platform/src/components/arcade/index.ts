@@ -1,3 +1,4 @@
+export { ArcadeAudioRuntime, type ArcadeAudioId } from "./arcade-audio-runtime";
 export { ArcadeChrome } from "./arcade-chrome";
 export { ArcadeLoader } from "./arcade-loader";
 export { useArcadeSurfaceStore } from "./arcade-surface-store";

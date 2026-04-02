@@ -161,7 +161,7 @@ describe("dev disconnect lifecycle logs", () => {
     );
 
     expect(latestContents).toContain(
-      `"event":"${AIRJAM_DEV_LOG_EVENTS.controller.disconnectApplied}"`,
+      `"event":"${AIRJAM_DEV_LOG_EVENTS.controller.disconnectPendingResume}"`,
     );
     expect(latestContents).toContain(
       `"event":"${AIRJAM_DEV_LOG_EVENTS.childHost.disconnectPendingSystemFocus}"`,

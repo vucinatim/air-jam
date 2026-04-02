@@ -48,12 +48,14 @@ export {
   type AirJamControllerApi,
   type AirJamControllerOptions,
 } from "./hooks/use-air-jam-controller";
+export { useAirJamControllerState } from "./hooks/use-air-jam-controller-state";
 export {
   useAirJamHost,
   type AirJamHostApi,
   type AirJamHostOptions,
   type JoinUrlStatus,
 } from "./hooks/use-air-jam-host";
+export { useAirJamHostState } from "./hooks/use-air-jam-host-state";
 export {
   AirJamControllerRuntime,
   AirJamHostRuntime,

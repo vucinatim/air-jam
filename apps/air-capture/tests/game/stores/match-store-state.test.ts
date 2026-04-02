@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEmptyTeamCounts } from "../../../src/game/domain/match-readiness";
 import {
+  MATCH_COUNTDOWN_DURATION_MS,
   createInitialMatchState,
   reduceEndMatch,
+  reduceFinishCountdown,
   reduceJoinTeam,
   reduceSetBotCount,
   reduceStartMatch,
@@ -145,8 +147,9 @@ describe("air-capture match store state", () => {
     );
 
     expect(result).toMatchObject({
-      matchPhase: "playing",
-      matchStartedAtMs: 42_000,
+      matchPhase: "countdown",
+      countdownEndsAtMs: 42_000 + MATCH_COUNTDOWN_DURATION_MS,
+      matchStartedAtMs: null,
       botCounts: {
         solaris: 0,
         nebulon: 1,
@@ -154,6 +157,23 @@ describe("air-capture match store state", () => {
       teamAssignments: {
         p1: { teamId: "solaris" },
       },
+    });
+  });
+
+  it("finishes countdown into live play and stamps match start time", () => {
+    vi.spyOn(Date, "now").mockReturnValue(45_000);
+
+    const result = reduceFinishCountdown(
+      createState({
+        matchPhase: "countdown",
+        countdownEndsAtMs: 45_000,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      matchPhase: "playing",
+      countdownEndsAtMs: null,
+      matchStartedAtMs: 45_000,
     });
   });
 
@@ -202,6 +222,7 @@ describe("air-capture match store state", () => {
       botCounts: createEmptyTeamCounts(),
       teamAssignments: {},
       matchSummary: null,
+      countdownEndsAtMs: null,
       matchStartedAtMs: null,
     });
   });

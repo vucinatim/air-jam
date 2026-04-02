@@ -44,6 +44,28 @@ let shuttingDown = false;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const runCommand = (name, args, env = {}) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(args[0], args.slice(1), {
+      cwd: repoRoot,
+      env: {
+        ...baseEnv,
+        ...env,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    child.stdout.on("data", (chunk) => logChunk(name, chunk));
+    child.stderr.on("data", (chunk) => logChunk(name, chunk));
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`[${name}] exited with code ${code ?? "null"}`));
+    });
+  });
+
 const isPortOpen = (port) =>
   new Promise((resolve) => {
     const socket = net.createConnection({ host: "127.0.0.1", port });
@@ -148,6 +170,7 @@ const main = async () => {
     recursive: true,
   });
 
+  await runCommand("sdk:build", ["pnpm", "--filter", "@air-jam/sdk", "build"]);
   startProcess("sdk", ["pnpm", "--filter", "@air-jam/sdk", "dev"]);
   startProcess("server", ["pnpm", "--filter", "@air-jam/server", "dev"], {
     PORT: String(serverPort),

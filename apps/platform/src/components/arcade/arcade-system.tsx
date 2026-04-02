@@ -8,9 +8,12 @@ import {
 import { cn } from "@/lib/utils";
 import {
   useAirJamHost,
+  useAudio,
+  useAudioRuntimeControls,
   useHostTick,
   useInheritedPlatformSettings,
   usePlatformSettings,
+  type PlayerProfile,
   type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
@@ -26,10 +29,11 @@ import {
   normalizeRuntimeUrl,
   urlBuilder,
 } from "@air-jam/sdk/arcade/url";
-import { RoomQrCode } from "@air-jam/sdk/ui";
+import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import type { ArcadeAudioId } from "./arcade-audio-runtime";
 import { ArcadeChrome } from "./arcade-chrome";
 import {
   readArcadeBrowserOverlayPreference,
@@ -73,6 +77,20 @@ const ARCADE_QR_OVERLAY_MOTION_TRANSITION = {
   duration: 0.18,
   ease: [0.22, 1, 0.36, 1] as const,
 };
+
+const ARCADE_PING_AVATAR_LIFETIME_MS = 850;
+const ARCADE_MAX_ACTIVE_PINGS = 3;
+const ARCADE_PING_STACK_OFFSET_PX = 38;
+
+interface ActiveArcadePing {
+  id: string;
+  player: PlayerProfile;
+}
+
+interface ActiveArcadePingLane {
+  playerId: string;
+  pings: ActiveArcadePing[];
+}
 
 interface ArcadeSystemProps {
   games: ArcadeGame[];
@@ -153,7 +171,10 @@ export const ArcadeSystem = ({
   /** Scroll position for chrome styling only; not part of surface authority. */
   const [browserListAtTop, setBrowserListAtTop] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activePings, setActivePings] = useState<ActiveArcadePing[]>([]);
   const documentFullscreen = useDocumentFullscreen();
+  const audio = useAudio<ArcadeAudioId>();
+  const audioControls = useAudioRuntimeControls();
 
   const qrVisible = useArcadeSurfaceStore((s) => s.overlay === "qr");
   const surfaceKind = useArcadeSurfaceStore((s) => s.kind);
@@ -173,9 +194,30 @@ export const ArcadeSystem = ({
         : null,
     [games, arcadeSurfaceRuntimeIdentity.gameId],
   );
+  const activePingLanes = useMemo<ActiveArcadePingLane[]>(() => {
+    const lanes = new Map<string, ActiveArcadePingLane>();
+
+    activePings.forEach((ping) => {
+      const existing = lanes.get(ping.player.id);
+      if (existing) {
+        existing.pings.push(ping);
+        return;
+      }
+
+      lanes.set(ping.player.id, {
+        playerId: ping.player.id,
+        pings: [ping],
+      });
+    });
+
+    return Array.from(lanes.values());
+  }, [activePings]);
   const surfaceActions = useArcadeSurfaceStore.useActions();
   const platformSettingsActions = useArcadePlatformSettingsStore.useActions();
   const lastRoomIdForSurfaceRef = useRef<string | null>(null);
+  const pingRemovalTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
   const hostArcadeRestore = useHostArcadeRestore();
   const pendingHostArcadeRestoreSession = hostArcadeRestore.session;
   const { accessibility } = useInheritedPlatformSettings();
@@ -514,6 +556,28 @@ export const ArcadeSystem = ({
         return;
       }
       switch (event.actionName) {
+        case airJamArcadePlatformActions.ping: {
+          if (surfaceKind !== "browser") {
+            return;
+          }
+          const player = host.players.find((candidate) => candidate.id === event.actor.id);
+          if (!player) {
+            return;
+          }
+          const pingId = `${event.actor.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          void audioControls.retry().finally(() => {
+            audio.play("ping");
+          });
+          setActivePings((current) =>
+            [...current, { id: pingId, player }].slice(-ARCADE_MAX_ACTIVE_PINGS),
+          );
+          const timeoutId = setTimeout(() => {
+            setActivePings((current) => current.filter((ping) => ping.id !== pingId));
+            pingRemovalTimeoutsRef.current.delete(pingId);
+          }, ARCADE_PING_AVATAR_LIFETIME_MS);
+          pingRemovalTimeoutsRef.current.set(pingId, timeoutId);
+          return;
+        }
         case airJamArcadePlatformActions.toggleQr: {
           const nextOverlay = qrVisible ? "hidden" : "qr";
           surfaceActions.setOverlay({ overlay: nextOverlay });
@@ -564,7 +628,10 @@ export const ArcadeSystem = ({
       }
     },
     [
+      audio,
+      audioControls,
       exitGame,
+      host.players,
       qrVisible,
       surfaceKind,
       surfaceActions,
@@ -624,6 +691,16 @@ export const ArcadeSystem = ({
       host.socket?.off("airjam:action_rpc", handleArcadeAction);
     };
   }, [host.socket, handleArcadeAction]);
+
+  useEffect(() => {
+    const pingTimeouts = pingRemovalTimeoutsRef.current;
+    return () => {
+      pingTimeouts.forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
+      pingTimeouts.clear();
+    };
+  }, []);
 
   useEffect(() => {
     launchGameRef.current = launchGame;
@@ -809,6 +886,53 @@ export const ArcadeSystem = ({
         {header && (
           <div className="absolute top-0 right-0 left-0 z-70 p-4">{header}</div>
         )}
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-8 z-70 flex justify-center px-6">
+          <div className="flex w-full max-w-2xl items-end justify-around">
+            <AnimatePresence initial={false}>
+              {activePingLanes.map((lane) => (
+                <div
+                  key={lane.playerId}
+                  className="relative h-36 w-28 shrink-0"
+                >
+                  {lane.pings.map((ping, index) => {
+                    const ageFromNewest = lane.pings.length - 1 - index;
+                    return (
+                      <motion.div
+                        key={ping.id}
+                        initial={{ opacity: 0, y: 84, scale: 0.92 }}
+                        animate={{
+                          opacity: 1,
+                          y: -(ageFromNewest * ARCADE_PING_STACK_OFFSET_PX),
+                          scale: 1 - ageFromNewest * 0.04,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: -(ARCADE_MAX_ACTIVE_PINGS * ARCADE_PING_STACK_OFFSET_PX),
+                          scale: 0.9,
+                        }}
+                        transition={{
+                          duration: reducedMotion ? 0.01 : 0.28,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2"
+                        style={{ zIndex: ARCADE_MAX_ACTIVE_PINGS - ageFromNewest }}
+                      >
+                        <div className="rounded-full border border-airjam-cyan/30 bg-black/55 p-2 shadow-[0_0_28px_rgba(34,211,238,0.18)] backdrop-blur-sm">
+                          <PlayerAvatar
+                            player={ping.player}
+                            size="lg"
+                            className="ring-2 ring-black/70"
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
 
         <AnimatePresence>
           {surfaceKind === "browser" && settingsOpen && (

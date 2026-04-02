@@ -104,6 +104,50 @@ describe("server state sync", () => {
     await harness.expectNoEvent(controller, "airjam:state_sync");
   });
 
+  it("routes controller state sync requests to the active host only", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const controller = await harness.connectSocket();
+    const attacker = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_sync_request_1", nickname: "Requester" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const hostRequestPromise = harness.waitForEvent<{
+      roomId: string;
+      storeDomain: string;
+    }>(host, "airjam:state_sync_request");
+
+    controller.emit("controller:state_sync_request", {
+      roomId,
+      storeDomain: "default",
+    });
+
+    await expect(hostRequestPromise).resolves.toEqual({
+      roomId,
+      storeDomain: "default",
+    });
+
+    attacker.emit("controller:state_sync_request", {
+      roomId,
+      storeDomain: "default",
+    });
+
+    await harness.expectNoEvent(host, "airjam:state_sync_request", 50);
+  });
+
   it("updates player profile and notifies host + controller", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);

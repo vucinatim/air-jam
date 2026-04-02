@@ -16,8 +16,12 @@ type ControllerOrientation = NonNullable<
  */
 export interface ControllerSession {
   controllerId: string;
+  deviceId: string;
   nickname?: string;
-  socketId: string;
+  socketId?: string;
+  connected: boolean;
+  resumeLeaseExpiresAt: number | null;
+  pendingDisconnectTimer?: ReturnType<typeof setTimeout>;
   playerProfile: PlayerProfile;
 }
 

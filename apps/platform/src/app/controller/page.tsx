@@ -6,9 +6,12 @@ import {
   embeddedBridgeForwardShouldClose,
   shouldRejectControllerBridgeHandshake,
 } from "@/components/arcade/embedded-bridge-surface-guard";
+import { ControllerFullscreenPrompt } from "@/components/controller-fullscreen-prompt";
 import { ControllerMenuSheet } from "@/components/controller-menu-sheet";
 import { RemoteDPad } from "@/components/remote-d-pad";
+import { Button } from "@/components/ui/button";
 import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
+import { triggerLocalHaptic } from "@/lib/local-haptics";
 import {
   getControllerLocalProfileClientSnapshot,
   getControllerLocalProfileServerSnapshot,
@@ -19,12 +22,29 @@ import { cn } from "@/lib/utils";
 import {
   AirJamControllerRuntime,
   PlatformSettingsRuntime,
-  useInheritedPlatformSettings,
   useAirJamController,
   useControllerTick,
+  useInheritedPlatformSettings,
   useInputWriter,
   type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
+import {
+  AIRJAM_CONTROLLER_BRIDGE_EVENT,
+  createControllerBridgeAttachMessage,
+  createControllerBridgeCloseMessage,
+  parseControllerBridgeEmitMessage,
+  parseControllerBridgeRequestMessage,
+  type ControllerBridgeServerEventName,
+} from "@air-jam/sdk/arcade/bridge/controller";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  arcadeSurfaceRuntimeUrlParams,
+  type ArcadeSurfaceRuntimeIdentity,
+} from "@air-jam/sdk/arcade/surface";
+import {
+  appendRuntimeQueryParams,
+  normalizeRuntimeUrl,
+} from "@air-jam/sdk/arcade/url";
 import type {
   AirJamStateSyncPayload,
   ControllerStateMessage,
@@ -36,38 +56,25 @@ import type {
   SignalPayload,
 } from "@air-jam/sdk/protocol";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
-import {
-  AIRJAM_CONTROLLER_BRIDGE_EVENT,
-  type ControllerBridgeServerEventName,
-  createControllerBridgeAttachMessage,
-  createControllerBridgeCloseMessage,
-  parseControllerBridgeEmitMessage,
-  parseControllerBridgeRequestMessage,
-} from "@air-jam/sdk/arcade/bridge/controller";
-import {
-  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-  arcadeSurfaceRuntimeUrlParams,
-  type ArcadeSurfaceRuntimeIdentity,
-} from "@air-jam/sdk/arcade/surface";
-import {
-  appendRuntimeQueryParams,
-  normalizeRuntimeUrl,
-} from "@air-jam/sdk/arcade/url";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
-import { CornerDownLeft } from "lucide-react";
+import { BellRing, CornerDownLeft } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
-  type CSSProperties,
   Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
+  type CSSProperties,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) {
+function ControllerPageContent({
+  routeRoomId,
+}: {
+  routeRoomId: string | null;
+}) {
   const documentFullscreen = useDocumentFullscreen();
   const localProfile = useSyncExternalStore(
     subscribeControllerLocalProfile,
@@ -246,6 +253,13 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
     [emitArcadeAction],
   );
 
+  const handleArcadePing = useCallback(() => {
+    if (feedback.hapticsEnabled) {
+      triggerLocalHaptic("tap");
+    }
+    emitArcadeAction(airJamArcadePlatformActions.ping);
+  }, [emitArcadeAction, feedback.hapticsEnabled]);
+
   const closeBridge = useCallback((reason?: string) => {
     const currentPort = bridgePortRef.current;
     if (!currentPort) {
@@ -383,7 +397,12 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
         }),
       );
     },
-    [arcadeSurface.epoch, arcadeSurface.gameId, arcadeSurface.kind, closeBridge],
+    [
+      arcadeSurface.epoch,
+      arcadeSurface.gameId,
+      arcadeSurface.kind,
+      closeBridge,
+    ],
   );
 
   useEffect(() => {
@@ -440,7 +459,10 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
 
       const surface = arcadeSurfaceRef.current;
       if (
-        shouldRejectControllerBridgeHandshake(surface, request.payload.arcadeSurface)
+        shouldRejectControllerBridgeHandshake(
+          surface,
+          request.payload.arcadeSurface,
+        )
       ) {
         port.postMessage(
           createControllerBridgeCloseMessage(
@@ -529,6 +551,11 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
         accessibility.highContrast && "contrast-125",
       )}
     >
+      <ControllerFullscreenPrompt
+        roomId={routeRoomId}
+        documentFullscreen={documentFullscreen}
+      />
+
       <ControllerMenuSheet
         routeRoomId={routeRoomId}
         activeUrl={activeUrl}
@@ -554,9 +581,7 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
       >
         {activeUrl && (
           <div
-            className={cn(
-              "bg-background absolute inset-0 z-20",
-            )}
+            className={cn("bg-background absolute inset-0 z-20")}
             style={controllerChromeInsetStyle}
           >
             {controllerIframeSrc ? (
@@ -605,6 +630,21 @@ function ControllerPageContent({ routeRoomId }: { routeRoomId: string | null }) 
                 hapticsEnabled={feedback.hapticsEnabled}
               />
             </div>
+
+            {controller.connectionStatus === "connected" &&
+            controller.roomId ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                className="min-w-48 border-airjam-cyan/40 bg-airjam-cyan/8 px-6 text-airjam-cyan transition-all duration-150 hover:bg-airjam-cyan/14 focus-visible:border-airjam-cyan focus-visible:bg-airjam-cyan/14 focus-visible:ring-airjam-cyan/35 active:border-airjam-cyan active:bg-airjam-cyan/20 active:scale-[0.98] active:shadow-[0_0_24px_rgba(34,211,238,0.22)]"
+                data-testid="controller-arcade-ping"
+                onClick={handleArcadePing}
+              >
+                <BellRing className="mr-2 h-4 w-4" />
+                Ping host
+              </Button>
+            ) : null}
 
             <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm opacity-50">
               <p>Use the remote to navigate</p>

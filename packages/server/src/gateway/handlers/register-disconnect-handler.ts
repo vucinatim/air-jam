@@ -2,6 +2,7 @@ import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
+  getControllerResumeLeaseMs,
   getChildHostDisconnectTeardownMs,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
@@ -145,16 +146,69 @@ export const registerDisconnectHandler = (
 
     const session = roomManager.getRoom(controller.roomId);
     if (session) {
-      session.controllers.delete(controller.controllerId);
-      io.to(roomManager.getActiveHostId(session)).emit("server:controllerLeft", {
-        controllerId: controller.controllerId,
-      });
+      const controllerSession = session.controllers.get(controller.controllerId);
+      const resumeLeaseMs = getControllerResumeLeaseMs();
+      const resumeLeaseExpiresAt = Date.now() + resumeLeaseMs;
+
+      if (controllerSession) {
+        if (controllerSession.pendingDisconnectTimer) {
+          clearTimeout(controllerSession.pendingDisconnectTimer);
+        }
+        controllerSession.connected = false;
+        controllerSession.socketId = undefined;
+        controllerSession.resumeLeaseExpiresAt = resumeLeaseExpiresAt;
+        controllerSession.pendingDisconnectTimer = setTimeout(() => {
+          const currentSession = roomManager.getRoom(controller.roomId);
+          const currentController = currentSession?.controllers.get(
+            controller.controllerId,
+          );
+          if (
+            !currentSession ||
+            !currentController ||
+            currentController.connected ||
+            currentController.resumeLeaseExpiresAt !== resumeLeaseExpiresAt
+          ) {
+            return;
+          }
+          currentController.pendingDisconnectTimer = undefined;
+          currentSession.controllers.delete(controller.controllerId);
+          io.to(roomManager.getActiveHostId(currentSession)).emit(
+            "server:controllerLeft",
+            {
+              controllerId: controller.controllerId,
+            },
+          );
+          runtimeUsagePublisher.publish(
+            createRoomRuntimeUsageEvent(currentSession, {
+              kind: "controller_left",
+              payload: {
+                controllerId: controller.controllerId,
+                reason: "resume_lease_expired",
+              },
+            }),
+          );
+          getDisconnectLogger({
+            roomId: controller.roomId,
+            controllerId: controller.controllerId,
+          }).info(
+            {
+              event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectLeaseExpired,
+              reason,
+              resumeLeaseMs,
+            },
+            "Controller resume lease expired and was removed from room",
+          );
+        }, resumeLeaseMs);
+      }
+
       runtimeUsagePublisher.publish(
         createRoomRuntimeUsageEvent(session, {
           kind: "controller_disconnected",
           payload: {
             controllerId: controller.controllerId,
             reason,
+            resumable: true,
+            resumeLeaseMs,
           },
         }),
       );
@@ -163,10 +217,11 @@ export const registerDisconnectHandler = (
         controllerId: controller.controllerId,
       }).info(
         {
-          event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectApplied,
+          event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectPendingResume,
           reason,
+          resumeLeaseMs,
         },
-        "Controller disconnected and was removed from room",
+        "Controller disconnected and entered resume lease window",
       );
     }
     roomManager.deleteController(socket.id);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
 import type {
+  AirJamStateSyncRequestPayload,
   AirJamStateSyncPayload,
   ControllerActionRpcPayload,
   ControllerInputEvent,
@@ -39,6 +40,7 @@ export const AIRJAM_CONTROLLER_BRIDGE_CLOSE =
 export const controllerBridgeClientEvents = [
   "controller:input",
   "controller:action_rpc",
+  "controller:state_sync_request",
   "controller:system",
   "controller:play_sound",
 ] as const;
@@ -64,6 +66,7 @@ export type ControllerBridgeServerEventName =
 export type ControllerBridgeClientEventArgs = {
   "controller:input": [payload: ControllerInputEvent];
   "controller:action_rpc": [payload: ControllerActionRpcPayload];
+  "controller:state_sync_request": [payload: AirJamStateSyncRequestPayload];
   "controller:system": [payload: ControllerSystemPayload];
   "controller:play_sound": [payload: PlaySoundEventPayload];
 };

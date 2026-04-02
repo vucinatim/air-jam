@@ -351,6 +351,11 @@ export function reduceTryPickupFlag(
     };
   }
 
+  const ownFlag = state.flags[playerTeam];
+  if (ownFlag.status === "carried") {
+    return state;
+  }
+
   return {
     ...state,
     flags: {

@@ -1,8 +1,9 @@
 "use client";
 
-export type LocalHapticPattern = "selection" | "action" | "confirm";
+export type LocalHapticPattern = "tap" | "selection" | "action" | "confirm";
 
 const localHapticSequences: Record<LocalHapticPattern, number | number[]> = {
+  tap: 4,
   selection: 8,
   action: 14,
   confirm: 22,

@@ -23,31 +23,41 @@ export const useGameInput = () => {
   });
 
   const popInput = (controllerId: string): GameLoopInput | undefined => {
-    if (gameState !== "playing" || matchPhase !== "playing") {
+    if (
+      gameState !== "playing" ||
+      (matchPhase !== "countdown" && matchPhase !== "playing")
+    ) {
       return undefined;
     }
 
-    if (controllerId.startsWith("bot-")) {
-      // It's a bot!
-      const delta = 1 / 60;
-      return botManager.getBotInput(controllerId, delta, timeRef.current);
-    }
-
-    // Get input from host (already validated, typed, and latched)
-    const input = getInputFromHost(controllerId);
+    const input = controllerId.startsWith("bot-")
+      ? botManager.getBotInput(controllerId, 1 / 60, timeRef.current)
+      : getInputFromHost(controllerId);
 
     if (!input) {
       return undefined;
     }
 
-    // Input is fully typed! No manual type guards needed
-    // Just ensure defaults for missing fields
-    return {
+    const baseInput = {
       vector: input.vector ?? { x: 0, y: 0 },
       action: input.action ?? false,
       ability: input.ability ?? false,
       timestamp: input.timestamp ?? Date.now(),
     };
+
+    if (matchPhase === "countdown") {
+      return {
+        ...baseInput,
+        vector: {
+          x: baseInput.vector.x,
+          y: 0,
+        },
+        action: false,
+        ability: false,
+      };
+    }
+
+    return baseInput;
   };
 
   return { popInput };

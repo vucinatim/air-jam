@@ -8,7 +8,7 @@ export type ControllerConnectionStatus =
   | "disconnected"
   | "idle";
 
-export type ControllerMatchPhase = "lobby" | "playing" | "ended";
+export type ControllerMatchPhase = "lobby" | "countdown" | "playing" | "ended";
 
 const statusColorByConnection = {
   connected: "text-emerald-300",
@@ -67,7 +67,7 @@ export const ControllerHeader = ({
         <span className={statusColorByConnection[connectionStatus]}>
           {connectionStatus}
         </span>
-        {matchPhase === "playing" ? (
+        {matchPhase === "countdown" || matchPhase === "playing" ? (
           <>
             <button
               type="button"

@@ -1,6 +1,10 @@
 "use client";
 
-import { ArcadeSystem, type ArcadeGame } from "@/components/arcade";
+import {
+  ArcadeAudioRuntime,
+  ArcadeSystem,
+  type ArcadeGame,
+} from "@/components/arcade";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import {
@@ -62,15 +66,17 @@ export default function ArcadePage({
   return (
     <PlatformSettingsRuntime persistence="local">
       <AirJamHostRuntime {...platformArcadeHostSessionConfig}>
-        <ArcadeSystem
-          games={arcadeGames}
-          gamesCatalogReady={!gamesLoading}
-          mode="arcade"
-          initialGameId={initialGameId}
-          hostRouteIntent={hostRouteIntent}
-          autoLaunch={shouldAutoLaunch}
-          className="h-screen"
-        />
+        <ArcadeAudioRuntime>
+          <ArcadeSystem
+            games={arcadeGames}
+            gamesCatalogReady={!gamesLoading}
+            mode="arcade"
+            initialGameId={initialGameId}
+            hostRouteIntent={hostRouteIntent}
+            autoLaunch={shouldAutoLaunch}
+            className="h-screen"
+          />
+        </ArcadeAudioRuntime>
       </AirJamHostRuntime>
     </PlatformSettingsRuntime>
   );

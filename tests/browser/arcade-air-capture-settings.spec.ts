@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { dismissControllerFullscreenPrompt } from "./helpers/controller-fullscreen";
 
 const PLATFORM_SETTINGS_STORAGE_KEY = "air-jam-platform-settings";
 const TRACK_BASE_VOLUME = 0.4;
@@ -152,6 +153,7 @@ test("arcade local air-capture inherits initial settings and applies controller 
   await controllerPage.goto(
     `${baseURL}/controller?room=${encodeURIComponent(roomCode)}`,
   );
+  await dismissControllerFullscreenPrompt(controllerPage);
 
   const controllerGame = getControllerGameFrame(controllerPage);
   await expect(

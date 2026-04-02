@@ -13,11 +13,11 @@ interface RocketProps {
   controllerId: string;
 }
 
-const ROCKET_SPEED = 80; // Slower than lasers
+const ROCKET_SPEED = 70; // Slightly slower so the blast reads clearly in play
 const ROCKET_LIFETIME = 5; // Longer lifetime
-const ROCKET_DAMAGE = 50; // More damage than lasers
-const ROCKET_KNOCKBACK = 500; // More knockback
-const EXPLOSION_RADIUS = 5; // Explosion radius for area damage
+const ROCKET_DAMAGE = 85; // Strong enough that direct hits feel decisive
+const ROCKET_KNOCKBACK = 900; // Forceful blast so nearby ships feel the impact
+const EXPLOSION_RADIUS = 18; // Large radius with distance falloff
 
 export function Rocket({ id, position, direction, controllerId }: RocketProps) {
   const [hasHit, setHasHit] = useState(false);

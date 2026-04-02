@@ -119,6 +119,19 @@ export const getChildHostCapabilityTtlMs = (): number => {
     : 24 * 60 * 60 * 1000;
 };
 
+/**
+ * Grace window for controller refresh/reconnect before the player binding is
+ * removed from the room. Override in tests with `AIR_JAM_CONTROLLER_RESUME_LEASE_MS`.
+ */
+export const getControllerResumeLeaseMs = (): number => {
+  const raw = process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS;
+  if (raw === undefined || raw === "") {
+    return 30_000;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 30_000;
+};
+
 export const issueChildHostCapability = (
   token: string,
   now = Date.now(),
@@ -292,9 +305,15 @@ export const markRoomTeardown = (
   return transitionRoomLifecycle(session, "TEARDOWN");
 };
 
-export const toControllerJoinedNotice = (controller: ControllerSession) => ({
+export const toControllerJoinedNotice = (
+  controller: ControllerSession,
+  options: {
+    resumed?: boolean;
+  } = {},
+) => ({
   controllerId: controller.controllerId,
   nickname: controller.nickname,
+  resumed: options.resumed,
   player: controller.playerProfile,
 });
 

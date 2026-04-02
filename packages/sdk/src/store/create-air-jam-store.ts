@@ -168,6 +168,7 @@ export function createAirJamStore<
     const role = useAirJamState((state) => state.role);
     const roomId = useAirJamState((state) => state.roomId);
     const registeredRoomId = useAirJamState((state) => state.registeredRoomId);
+    const connectionStatus = useAirJamState((state) => state.connectionStatus);
     const players = useAirJamState((state) => state.players);
     const hostArcadeRestore = useAirJamState(
       (state) => state.hostArcadeRestore,
@@ -250,12 +251,27 @@ export function createAirJamStore<
           }
         };
 
+        const handleStateSyncRequest = (payload: {
+          roomId: string;
+          storeDomain: string;
+        }): void => {
+          if (payload.roomId !== roomId) {
+            return;
+          }
+          if (payload.storeDomain !== resolvedStoreDomain) {
+            return;
+          }
+          flushHostStateSync();
+        };
+
         socket.on("server:controllerJoined", flushHostStateSync);
+        socket.on("airjam:state_sync_request", handleStateSyncRequest);
         socket.on("airjam:action_rpc", handleAction);
 
         return () => {
           unsubscribe();
           socket.off("server:controllerJoined", flushHostStateSync);
+          socket.off("airjam:state_sync_request", handleStateSyncRequest);
           socket.off("airjam:action_rpc", handleAction);
         };
       }
@@ -271,6 +287,13 @@ export function createAirJamStore<
 
         socket.on("airjam:state_sync", handleSync);
 
+        if (roomId && connectionStatus === "connected") {
+          socket.emit("controller:state_sync_request", {
+            roomId,
+            storeDomain: resolvedStoreDomain,
+          });
+        }
+
         return () => {
           socket.off("airjam:state_sync", handleSync);
         };
@@ -280,6 +303,7 @@ export function createAirJamStore<
       role,
       roomId,
       registeredRoomId,
+      connectionStatus,
       socket?.id,
       resolvedStoreDomain,
       canBroadcastHostState,

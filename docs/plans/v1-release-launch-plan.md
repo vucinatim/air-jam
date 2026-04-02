@@ -11,6 +11,7 @@ Related docs:
 4. [Release Workflow](../strategy/release-workflow.md)
 5. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 6. [Docs Index](../docs-index.md)
+7. [Controller Reconnect And Resume Plan](./controller-reconnect-resume-plan.md)
 
 ## Purpose
 
@@ -382,20 +383,33 @@ Turn the issues found in real multi-player couch-style playtests into one explic
 
 These should be handled before public launch because they affect trust, recoverability, or the core play loop:
 
-1. add a proper controller reconnect/resume baseline so a dropped player can rejoin safely during live gameplay without corrupting host state
-   1. minimum acceptable v1 shape:
+1. finish product-proof of the controller reconnect/resume baseline so a dropped player can rejoin safely during live gameplay without corrupting host state
+   1. implemented baseline:
       1. stable controller device identity
-      2. resumable player-slot lease where appropriate
-      3. host/runtime robustness when reconnect attempts happen mid-match
-   2. broader "continuous player device save system" can remain a later expansion if the smaller resume baseline solves the trust problem cleanly
+      2. room-scoped resumable player-slot lease
+      3. same-device automatic resume attempt
+      4. conflicting-device resume rejection
+   2. remaining release gate:
+      1. `pong` now has local Arcade browser proof for reconnect/resume after controller refresh
+      2. prove the same trust bar in real Arcade gameplay for `air-capture` and `last-band-standing`
+      3. confirm host/runtime behavior stays stable when reconnect attempts happen mid-match
+   3. broader "continuous player device save system" can remain a later expansion if the smaller resume baseline solves the trust problem cleanly
+   4. implementation details live in [Controller Reconnect And Resume Plan](./controller-reconnect-resume-plan.md)
 2. add a consistent controller-open fullscreen prompt for Arcade and game controller surfaces
    1. this should be a user-gesture-driven prompt, not a silent forced fullscreen call
+   2. current truth:
+      1. the prompt now appears on room-backed controller open
+      2. controller-local browser smoke covers the prompt explicitly
+      3. existing Pong and `air-capture` controller smokes now dismiss it as part of the product contract
 3. improve `air-capture`'s high-priority gameplay clarity and correctness:
-   1. left joystick controls movement, right-side controls stay focused on actions
-   2. a team cannot pick up the opponent flag while its own flag is already being carried
-   3. rocket damage is verified and fixed if the current blast logic is weak or broken
-   4. player names are visible in the lobby
-   5. add a clean opening countdown where players can rotate but not move
+   1. current truth:
+      1. controller playing UI now uses a real left-side analog movement stick and keeps the right side focused on `Ability` + `Shoot`
+      2. a team can no longer pick up the enemy flag while its own flag is already being carried
+      3. rocket blast was tuned into a larger distance-scaled AOE so it reads clearly in live play
+      4. player names are now visible in the lobby on both host and controller surfaces
+      5. match start now goes through a 3-second countdown phase where pilots can rotate but cannot thrust or fire
+   2. remaining release gate:
+      1. rerun real Arcade playtests for `air-capture` and confirm these fixes actually improve the trust/readability bar in live play
 4. rerun `air-capture` and `last-band-standing` local Arcade proof after the above fixes and record whether they remain in the launch set without qualification
 5. if any SDK/platform work lands here, realign:
    1. `pong`
@@ -415,8 +429,9 @@ These are meaningful launch-quality improvements, but they should not displace t
    1. prefer docs, skills, and a small reusable pattern over a heavy framework-level auto-scaling abstraction
    2. if a tiny helper emerges naturally, keep it minimal and optional
 2. improve the Arcade waiting-state experience
-   1. start with a small social interaction like a host horn / ping / cheer
-   2. do not open a side quest for a full waiting mini-game unless the first-pass interaction feels insufficient
+   1. done baseline: a small social interaction called `ping` now exists in the controller waiting shell
+   2. done baseline: `ping` triggers a satisfying host-side `piing` sound effect plus a small Arcade chrome acknowledgment
+   3. keep the first pass intentionally small; do not open a side quest for a full waiting mini-game unless the shipped interaction feels insufficient
 3. make the Arcade menu affordance more obvious
    1. e.g. animate the ship/logo notch so it reads as an interactive upward arrow
 4. improve `air-capture` clarity polish:

@@ -1103,14 +1103,14 @@ const generatedContentDocsDocuments = [
         slug: "controller-hooks",
         depth: 2,
         excerpt:
-          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. useControllerTick…",
+          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Standalone controller…",
       },
       {
         title: "useAirJamController",
         slug: "useairjamcontroller",
         depth: 3,
         excerpt:
-          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it.",
+          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Standalone controller runtimes also keep one…",
       },
       {
         title: "useControllerTick",

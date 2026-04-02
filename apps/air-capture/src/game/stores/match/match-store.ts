@@ -4,6 +4,7 @@ import type { TeamId } from "../../domain/team";
 import {
   createInitialMatchState,
   reduceEndMatch,
+  reduceFinishCountdown,
   reduceJoinTeam,
   reduceRestartMatch,
   reduceReturnToLobby,
@@ -25,6 +26,7 @@ interface PrototypeMatchState {
   botCounts: TeamCounts;
   teamAssignments: Record<string, TeamAssignment>;
   matchSummary: MatchSummary | null;
+  countdownEndsAtMs: number | null;
   matchStartedAtMs: number | null;
 
   actions: {
@@ -42,6 +44,7 @@ interface PrototypeMatchState {
       payload: { pointsToWin: number },
     ) => void;
     startMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
+    finishCountdown: (_ctx: AirJamActionContext, _payload: undefined) => void;
     restartMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
     returnToLobby: (_ctx: AirJamActionContext, _payload: undefined) => void;
     endMatch: (
@@ -90,6 +93,9 @@ export const usePrototypeMatchStore = createAirJamStore<PrototypeMatchState>(
         set((state) =>
           reduceStartMatch(state as MatchStateSnapshot, { connectedPlayerIds }),
         ),
+
+      finishCountdown: () =>
+        set((state) => reduceFinishCountdown(state as MatchStateSnapshot)),
 
       restartMatch: () =>
         set((state) => reduceRestartMatch(state as MatchStateSnapshot)),

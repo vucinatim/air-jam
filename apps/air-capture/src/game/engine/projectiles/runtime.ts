@@ -39,6 +39,7 @@ export function collectProjectileRuntimeTargets(
     }
 
     if (
+      object.userData?.gameplayHitbox === true &&
       object.userData?.controllerId &&
       object.userData.controllerId !== excludedControllerId
     ) {

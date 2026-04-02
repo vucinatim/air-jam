@@ -1,19 +1,16 @@
-import type { PointerEvent } from "react";
-import type { TeamCounts } from "../../game/domain/match-readiness";
-import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
-import { createControllerStore } from "../../game/controller-store";
-import { TeamBotControls } from "../../game/debug/team-bot-controls";
-import { Button } from "../../components/ui/button";
-import { useStore } from "zustand";
+import type { PlayerProfile } from "@air-jam/sdk";
 import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
   Target,
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import { memo, useRef, useState, type PointerEvent } from "react";
+import { useStore } from "zustand";
+import { Button } from "../../components/ui/button";
+import { createControllerStore } from "../../game/controller-store";
+import { TeamBotControls } from "../../game/debug/team-bot-controls";
+import type { TeamCounts } from "../../game/domain/match-readiness";
+import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import type { MatchSummary } from "../../game/stores/match/match-store";
 
 const POINTS_TO_WIN_OPTIONS = [1, 3, 5, 7] as const;
@@ -54,7 +51,7 @@ const TeamButton = ({
   );
 };
 
-export const ControllerLobbyPanel = ({
+export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
   myTeam,
   controlsDisabled,
   effectiveCounts,
@@ -63,6 +60,7 @@ export const ControllerLobbyPanel = ({
   pointsToWin,
   readinessText,
   canStart,
+  teamPlayers,
   onSelectTeam,
   onSetTeamBotCount,
   onSetPointsToWin,
@@ -76,47 +74,54 @@ export const ControllerLobbyPanel = ({
   pointsToWin: number;
   readinessText: string;
   canStart: boolean;
+  teamPlayers: Record<TeamId, PlayerProfile[]>;
   onSelectTeam: (teamId: TeamId) => void;
   onSetTeamBotCount: (teamId: TeamId, count: number) => void;
   onSetPointsToWin: (pointsToWin: number) => void;
   onStartMatch: () => void;
-}) => {
+}) {
   return (
     <div
       data-testid="air-capture-controller-lobby-panel"
       className="flex min-h-0 flex-1 flex-col gap-2 p-2"
     >
       <div className="rounded-lg border border-white/10 bg-zinc-900/80 p-3 text-center">
-        <div className="text-sm font-semibold uppercase tracking-wide text-white">
+        <div className="text-sm font-semibold tracking-wide text-white uppercase">
           Choose Team
         </div>
-        <div className="mt-1 text-[11px] uppercase text-zinc-400">
+        <div className="mt-1 text-[11px] text-zinc-400 uppercase">
           Up to 2 members per team (humans + bots)
         </div>
-        <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+        <div className="mt-1 text-[10px] tracking-[0.14em] text-zinc-500 uppercase">
           {readinessText}
         </div>
       </div>
 
       <div className="flex items-stretch gap-2">
-        <TeamButton
-          teamId="solaris"
-          selected={myTeam === "solaris"}
-          disabled={
-            controlsDisabled ||
-            (effectiveCounts.solaris >= 2 && myTeam !== "solaris")
-          }
-          onSelect={onSelectTeam}
-        />
-        <TeamButton
-          teamId="nebulon"
-          selected={myTeam === "nebulon"}
-          disabled={
-            controlsDisabled ||
-            (effectiveCounts.nebulon >= 2 && myTeam !== "nebulon")
-          }
-          onSelect={onSelectTeam}
-        />
+        <div className="flex flex-1 flex-col gap-2">
+          <TeamButton
+            teamId="solaris"
+            selected={myTeam === "solaris"}
+            disabled={
+              controlsDisabled ||
+              (effectiveCounts.solaris >= 2 && myTeam !== "solaris")
+            }
+            onSelect={onSelectTeam}
+          />
+          <TeamRoster players={teamPlayers.solaris} />
+        </div>
+        <div className="flex flex-1 flex-col gap-2">
+          <TeamButton
+            teamId="nebulon"
+            selected={myTeam === "nebulon"}
+            disabled={
+              controlsDisabled ||
+              (effectiveCounts.nebulon >= 2 && myTeam !== "nebulon")
+            }
+            onSelect={onSelectTeam}
+          />
+          <TeamRoster players={teamPlayers.nebulon} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -137,7 +142,7 @@ export const ControllerLobbyPanel = ({
       </div>
 
       <div className="rounded-lg border border-white/10 bg-zinc-900/80 p-3">
-        <div className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+        <div className="mb-2 text-center text-[10px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
           Points to Win
         </div>
         <div className="grid grid-cols-4 gap-2">
@@ -164,7 +169,7 @@ export const ControllerLobbyPanel = ({
 
       <button
         type="button"
-        className="rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold tracking-wide text-white uppercase hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!canStart || controlsDisabled}
         onClick={onStartMatch}
       >
@@ -172,9 +177,9 @@ export const ControllerLobbyPanel = ({
       </button>
     </div>
   );
-};
+});
 
-export const ControllerEndedPanel = ({
+export const ControllerEndedPanel = memo(function ControllerEndedPanel({
   matchSummary,
   controlsDisabled,
   onRestartMatch,
@@ -184,7 +189,7 @@ export const ControllerEndedPanel = ({
   controlsDisabled: boolean;
   onRestartMatch: () => void;
   onReturnToLobby: () => void;
-}) => {
+}) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-3 text-center">
       <div className="text-xs tracking-[0.2em] text-zinc-400 uppercase">
@@ -207,7 +212,7 @@ export const ControllerEndedPanel = ({
       </div>
       <button
         type="button"
-        className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold tracking-wide text-white uppercase hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={controlsDisabled}
         onClick={onRestartMatch}
       >
@@ -215,7 +220,7 @@ export const ControllerEndedPanel = ({
       </button>
       <button
         type="button"
-        className="w-full rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold tracking-wide text-white uppercase hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={controlsDisabled}
         onClick={onReturnToLobby}
       >
@@ -223,58 +228,178 @@ export const ControllerEndedPanel = ({
       </button>
     </div>
   );
+});
+
+const TeamRoster = ({ players }: { players: PlayerProfile[] }) => {
+  if (players.length === 0) {
+    return (
+      <div className="rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-[11px] tracking-[0.16em] text-zinc-500 uppercase">
+        No pilots yet
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2">
+      <div className="flex flex-wrap gap-1.5">
+        {players.map((player) => (
+          <span
+            key={player.id}
+            className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-zinc-200 normal-case"
+          >
+            {player.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-interface DirectionControlProps {
-  store: ReturnType<typeof createControllerStore>;
-  axis: "x" | "y";
-  value: number;
-  icon: LucideIcon;
-  label: string;
-}
+const clampUnit = (value: number) => {
+  if (value > 1) return 1;
+  if (value < -1) return -1;
+  return value;
+};
 
-const DirectionControl = ({
+const TURN_DEADZONE = 0.08;
+const THRUST_ACTIVATION_THRESHOLD = 0.14;
+
+const resolveViewportOrientation = (): "portrait" | "landscape" => {
+  if (typeof window === "undefined") {
+    return "landscape";
+  }
+
+  const viewport = window.visualViewport;
+  const width = viewport?.width ?? window.innerWidth;
+  const height = viewport?.height ?? window.innerHeight;
+
+  return width >= height ? "landscape" : "portrait";
+};
+
+const resolveStickInputFromPointer = (
+  target: HTMLDivElement,
+  clientX: number,
+  clientY: number,
+): { turn: number; thrust: number } => {
+  const rect = target.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const radius = Math.min(rect.width, rect.height) / 2;
+  const deltaX = clientX - centerX;
+  const deltaY = clientY - centerY;
+
+  let turn = 0;
+  let thrust = 0;
+
+  if (resolveViewportOrientation() === "portrait") {
+    turn = clampUnit(deltaY / radius);
+    thrust = deltaX / radius;
+  } else {
+    turn = clampUnit(deltaX / radius);
+    thrust = -deltaY / radius;
+  }
+
+  if (Math.abs(turn) < TURN_DEADZONE) {
+    turn = 0;
+  }
+
+  return {
+    turn,
+    thrust: thrust >= THRUST_ACTIVATION_THRESHOLD ? 1 : 0,
+  };
+};
+
+const MovementStick = ({
   store,
-  axis,
-  value,
-  icon: Icon,
-  label,
-}: DirectionControlProps) => {
-  const isActive = useStore(store, (state) => state.vector[axis] === value);
+  countdownActive,
+}: {
+  store: ReturnType<typeof createControllerStore>;
+  countdownActive: boolean;
+}) => {
+  const vector = useStore(store, (state) => state.vector);
+  const [isDragging, setIsDragging] = useState(false);
+  const activePointerIdRef = useRef<number | null>(null);
 
-  const handlePointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+  const writeVectorFromPointer = (
+    target: HTMLDivElement,
+    clientX: number,
+    clientY: number,
+  ) => {
+    const { turn, thrust } = resolveStickInputFromPointer(
+      target,
+      clientX,
+      clientY,
+    );
+    store.getState().setVector({
+      x: Number(turn.toFixed(3)),
+      y: countdownActive ? 0 : thrust,
+    });
+  };
+
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
-
-    const currentVector = store.getState().vector;
-    store.getState().setVector({ ...currentVector, [axis]: value });
+    activePointerIdRef.current = e.pointerId;
+    setIsDragging(true);
+    writeVectorFromPointer(e.currentTarget, e.clientX, e.clientY);
     vibrate(10);
   };
 
-  const handlePointerEnd = (e: PointerEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    const currentVector = store.getState().vector;
-    if (currentVector[axis] === value) {
-      store.getState().setVector({ ...currentVector, [axis]: 0 });
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (
+      activePointerIdRef.current !== e.pointerId ||
+      !e.currentTarget.hasPointerCapture(e.pointerId)
+    ) {
+      return;
     }
+    e.preventDefault();
+    writeVectorFromPointer(e.currentTarget, e.clientX, e.clientY);
+  };
+
+  const handlePointerEnd = (e: PointerEvent<HTMLDivElement>) => {
+    if (activePointerIdRef.current !== e.pointerId) {
+      return;
+    }
+    e.preventDefault();
+    activePointerIdRef.current = null;
+    setIsDragging(false);
+    store.getState().setVector({ x: 0, y: 0 });
   };
 
   return (
-    <Button
-      type="button"
-      variant="secondary"
-      className={`h-full flex-1 touch-none rounded-xl bg-slate-800 text-4xl font-semibold text-slate-100 shadow-lg transition-colors hover:bg-slate-700 sm:text-5xl md:text-6xl ${
-        isActive ? "bg-slate-700 ring-2 ring-slate-500" : ""
-      }`}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-      onLostPointerCapture={handlePointerEnd}
-      onContextMenu={(e) => e.preventDefault()}
-      aria-label={label}
-    >
-      <Icon className="h-8 w-8 sm:h-12 sm:w-12 md:h-16 md:w-16" />
-    </Button>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="text-center text-[11px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
+        {countdownActive ? "Rotate into position" : "Flight stick"}
+      </div>
+      <div
+        className={`relative flex flex-1 touch-none items-center justify-center overflow-hidden rounded-4xl border border-white/10 bg-radial from-slate-800 via-slate-900 to-black shadow-[inset_0_0_30px_rgba(255,255,255,0.06)] ${isDragging ? "ring-2 ring-cyan-300/60" : ""} `}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onLostPointerCapture={handlePointerEnd}
+        onContextMenu={(e) => e.preventDefault()}
+        aria-label="Movement stick"
+        data-testid="air-capture-movement-stick"
+      >
+        <div className="absolute h-44 w-44 rounded-full border border-white/10 bg-white/3" />
+        <div className="absolute h-28 w-28 rounded-full border border-white/8" />
+        <div className="absolute h-px w-32 bg-white/10" />
+        <div className="absolute h-32 w-px bg-white/10" />
+        <div
+          className={`absolute flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/15 shadow-[0_10px_35px_rgba(0,0,0,0.35)] backdrop-blur-sm ${
+            isDragging
+              ? "transition-none"
+              : "transition-transform duration-150 ease-out"
+          }`}
+          style={{
+            transform: `translate(${vector.x * 62}px, 0px)`,
+          }}
+        >
+          <div className="h-10 w-10 rounded-full bg-white/25" />
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -285,6 +410,7 @@ interface ActionControlProps {
   label: string;
   colorClass: string;
   activeRingClass: string;
+  disabled?: boolean;
 }
 
 const ActionControl = ({
@@ -294,10 +420,14 @@ const ActionControl = ({
   label,
   colorClass,
   activeRingClass,
+  disabled = false,
 }: ActionControlProps) => {
   const isActive = useStore(store, (state) => state[action]);
 
   const handlePointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+    if (disabled) {
+      return;
+    }
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
 
@@ -325,7 +455,8 @@ const ActionControl = ({
       type="button"
       className={`h-full flex-1 touch-none rounded-xl border-0 text-lg font-bold text-white shadow-lg transition-colors sm:text-xl md:text-2xl ${colorClass} ${
         isActive ? `ring-2 brightness-110 ${activeRingClass}` : ""
-      }`}
+      } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+      disabled={disabled}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
@@ -339,31 +470,43 @@ const ActionControl = ({
   );
 };
 
-export const ControllerPlayingControls = ({
+export const ControllerPlayingControls = memo(function ControllerPlayingControls({
   store,
+  countdownRemainingSeconds = 0,
 }: {
   store: ReturnType<typeof createControllerStore>;
-}) => {
+  countdownRemainingSeconds?: number;
+}) {
+  const countdownActive = countdownRemainingSeconds > 0;
+
   return (
-    <div className="flex min-h-0 flex-1 touch-none items-stretch gap-2 p-2 select-none">
-      <div className="flex flex-1 items-center justify-center gap-2">
-        <DirectionControl
-          store={store}
-          axis="x"
-          value={-1}
-          icon={ArrowLeft}
-          label="Left"
-        />
-        <DirectionControl
-          store={store}
-          axis="x"
-          value={1}
-          icon={ArrowRight}
-          label="Right"
-        />
-      </div>
+    <div className="relative flex min-h-0 flex-1 touch-none items-stretch gap-2 p-2 select-none">
+      {countdownActive ? (
+        <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex justify-center">
+          <div className="rounded-full border border-cyan-300/40 bg-black/65 px-4 py-2 text-center shadow-lg backdrop-blur-sm">
+            <div className="text-[10px] font-semibold tracking-[0.22em] text-cyan-200 uppercase">
+              Match starts in
+            </div>
+            <div className="text-4xl font-black text-white">
+              {countdownRemainingSeconds}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <MovementStick store={store} countdownActive={countdownActive} />
 
       <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 px-3 py-2 text-center">
+          <div className="text-[11px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
+            {countdownActive ? "Aim your launch" : "Flight stick"}
+          </div>
+          <div className="mt-1 text-[10px] tracking-[0.14em] text-zinc-500 uppercase">
+            {countdownActive
+              ? "Touch and steer only"
+              : "Touch to thrust, drag to steer"}
+          </div>
+        </div>
         <ActionControl
           store={store}
           action="ability"
@@ -371,6 +514,7 @@ export const ControllerPlayingControls = ({
           label="Ability"
           colorClass="bg-linear-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
           activeRingClass="ring-purple-300"
+          disabled={countdownActive}
         />
         <ActionControl
           store={store}
@@ -379,25 +523,9 @@ export const ControllerPlayingControls = ({
           label="Shoot"
           colorClass="bg-linear-to-br from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
           activeRingClass="ring-red-300"
-        />
-      </div>
-
-      <div className="flex flex-1 flex-col items-stretch justify-stretch gap-2">
-        <DirectionControl
-          store={store}
-          axis="y"
-          value={1}
-          icon={ArrowUp}
-          label="Forward"
-        />
-        <DirectionControl
-          store={store}
-          axis="y"
-          value={-1}
-          icon={ArrowDown}
-          label="Backward"
+          disabled={countdownActive}
         />
       </div>
     </div>
   );
-};
+});

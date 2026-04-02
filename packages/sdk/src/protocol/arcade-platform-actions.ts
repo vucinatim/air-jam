@@ -9,6 +9,7 @@ export const AIRJAM_ARCADE_PLATFORM_ACTION_PREFIX = "airjam.arcade." as const;
 
 /** Canonical action names for QR overlay and game exit from the controller shell. */
 export const airJamArcadePlatformActions = {
+  ping: "airjam.arcade.ping",
   toggleQr: "airjam.arcade.toggle_qr",
   showQr: "airjam.arcade.show_qr",
   hideQr: "airjam.arcade.hide_qr",

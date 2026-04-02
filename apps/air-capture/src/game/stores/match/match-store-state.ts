@@ -17,6 +17,8 @@ import type {
   TeamAssignment,
 } from "./match-store-types";
 
+export const MATCH_COUNTDOWN_DURATION_MS = 3_000;
+
 const toConnectedPlayerIdSet = (
   connectedPlayerIds: string[],
   actorId?: string,
@@ -34,6 +36,7 @@ export const createInitialMatchState = (): MatchStateSnapshot => ({
   botCounts: createEmptyTeamCounts(),
   teamAssignments: {},
   matchSummary: null,
+  countdownEndsAtMs: null,
   matchStartedAtMs: null,
 });
 
@@ -329,10 +332,26 @@ export const reduceStartMatch = (
 
   return {
     ...state,
-    matchPhase: "playing",
+    matchPhase: "countdown",
     teamAssignments: completedAssignments,
     botCounts: normalizedBotCounts,
     matchSummary: null,
+    countdownEndsAtMs: Date.now() + MATCH_COUNTDOWN_DURATION_MS,
+    matchStartedAtMs: null,
+  };
+};
+
+export const reduceFinishCountdown = (
+  state: MatchStateSnapshot,
+): MatchStateSnapshot => {
+  if (state.matchPhase !== "countdown") {
+    return state;
+  }
+
+  return {
+    ...state,
+    matchPhase: "playing",
+    countdownEndsAtMs: null,
     matchStartedAtMs: Date.now(),
   };
 };
@@ -346,9 +365,10 @@ export const reduceRestartMatch = (
 
   return {
     ...state,
-    matchPhase: "playing",
+    matchPhase: "countdown",
     matchSummary: null,
-    matchStartedAtMs: Date.now(),
+    countdownEndsAtMs: Date.now() + MATCH_COUNTDOWN_DURATION_MS,
+    matchStartedAtMs: null,
   };
 };
 
@@ -358,6 +378,7 @@ export const reduceReturnToLobby = (
   return {
     ...state,
     matchPhase: "lobby",
+    countdownEndsAtMs: null,
     matchSummary: null,
     matchStartedAtMs: null,
   };
@@ -391,6 +412,7 @@ export const reduceEndMatch = (
   return {
     ...state,
     matchPhase: "ended",
+    countdownEndsAtMs: null,
     matchStartedAtMs: null,
     matchSummary,
   };

@@ -8,6 +8,8 @@ export interface ControllerState {
 
 export interface ControllerActions {
   setVector: (vector: { x: number; y: number }) => void;
+  setTurn: (x: number) => void;
+  setThrust: (y: number) => void;
   setAbility: (active: boolean) => void;
   setAction: (active: boolean) => void;
   reset: () => void;
@@ -21,6 +23,14 @@ export const createControllerStore = () => {
     ability: false,
     action: false,
     setVector: (vector) => set({ vector }),
+    setTurn: (x) =>
+      set((state) => ({
+        vector: { x, y: state.vector.y },
+      })),
+    setThrust: (y) =>
+      set((state) => ({
+        vector: { x: state.vector.x, y },
+      })),
     setAbility: (ability) => set({ ability }),
     setAction: (action) => set({ action }),
     reset: () =>

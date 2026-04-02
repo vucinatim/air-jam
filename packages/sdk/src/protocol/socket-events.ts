@@ -32,7 +32,9 @@ import type { ServerErrorPayload } from "./errors";
 import type { PlaySoundEventPayload, PlaySoundPayload, SignalPayload } from "./signals";
 import type {
   AirJamActionRpcPayload,
+  AirJamStateSyncRequestPayload,
   AirJamStateSyncPayload,
+  ControllerStateSyncRequestPayload,
   ControllerActionRpcPayload,
   HostStateSyncPayload,
 } from "./sync";
@@ -85,6 +87,9 @@ export interface ClientToServerEvents {
   "controller:play_sound": (payload: PlaySoundEventPayload) => void;
   "host:state_sync": (payload: HostStateSyncPayload) => void;
   "controller:action_rpc": (payload: ControllerActionRpcPayload) => void;
+  "controller:state_sync_request": (
+    payload: ControllerStateSyncRequestPayload,
+  ) => void;
 }
 
 export interface ServerToClientEvents {
@@ -103,6 +108,9 @@ export interface ServerToClientEvents {
   "server:closeChild": () => void;
   "airjam:state_sync": (payload: AirJamStateSyncPayload) => void;
   "airjam:action_rpc": (payload: AirJamActionRpcPayload) => void;
+  "airjam:state_sync_request": (
+    payload: AirJamStateSyncRequestPayload,
+  ) => void;
 }
 
 export interface InterServerEvents {

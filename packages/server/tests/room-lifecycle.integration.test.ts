@@ -20,6 +20,7 @@ type ControllerJoinAck = {
   ok: boolean;
   controllerId?: string;
   roomId?: string;
+  resumed?: boolean;
   message?: string;
   code?: ErrorCode | string;
 };
@@ -159,6 +160,121 @@ describe("server room lifecycle", () => {
     expect(rejoinedNotice.controllerId).toBe("ctrl_rejoin_1");
   });
 
+  it("resumes the same controller binding after disconnect when the device id matches", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+    const deviceId = "device_resume_same_1";
+
+    const controllerA = await harness.connectSocket();
+    const firstJoinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controllerA,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_resume_1",
+        deviceId,
+        nickname: "Resume Me",
+      },
+    );
+    expect(firstJoinAck.ok).toBe(true);
+    controllerA.disconnect();
+
+    await harness.expectNoEvent(host, "server:controllerLeft", 15);
+
+    const controllerB = await harness.connectSocket();
+    const resumedNoticePromise = harness.waitForEvent<{
+      controllerId: string;
+      resumed?: boolean;
+    }>(host, "server:controllerJoined");
+    const resumeAck = await harness.emitWithAck<ControllerJoinAck>(
+      controllerB,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_resume_1",
+        deviceId,
+        nickname: "Resume Me",
+      },
+    );
+
+    expect(resumeAck).toEqual(
+      expect.objectContaining({
+        ok: true,
+        controllerId: "ctrl_resume_1",
+        resumed: true,
+      }),
+    );
+    expect(await resumedNoticePromise).toEqual(
+      expect.objectContaining({
+        controllerId: "ctrl_resume_1",
+        resumed: true,
+      }),
+    );
+
+    const session = harness.getRoomManager().getRoom(roomId)!;
+    expect(session.controllers.get("ctrl_resume_1")).toEqual(
+      expect.objectContaining({
+        deviceId,
+        connected: true,
+      }),
+    );
+  });
+
+  it("rejects resume attempts when a different device id tries to claim an existing controller binding", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const controllerA = await harness.connectSocket();
+    const firstJoinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controllerA,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_resume_conflict_1",
+        deviceId: "device_a_conflict",
+        nickname: "Owner",
+      },
+    );
+    expect(firstJoinAck.ok).toBe(true);
+    controllerA.disconnect();
+
+    const controllerB = await harness.connectSocket();
+    const conflictAck = await harness.emitWithAck<ControllerJoinAck>(
+      controllerB,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_resume_conflict_1",
+        deviceId: "device_b_conflict",
+        nickname: "Intruder",
+      },
+    );
+
+    expect(conflictAck).toEqual(
+      expect.objectContaining({
+        ok: false,
+        code: ErrorCode.INVALID_PAYLOAD,
+      }),
+    );
+    await harness.expectNoEvent(host, "server:controllerJoined", 50);
+  });
+
   it("replaces the previous controller identity when the same socket rejoins with a new controller id", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
@@ -198,6 +314,13 @@ describe("server room lifecycle", () => {
 
     controller.disconnect();
     await harness.delay(30);
+    expect(session.controllers.get("ctrl_new_1")).toEqual(
+      expect.objectContaining({
+        connected: false,
+      }),
+    );
+
+    await harness.delay(90);
     expect(Array.from(session.controllers.keys())).toEqual([]);
   });
 

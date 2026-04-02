@@ -508,6 +508,12 @@ export const GamePlayer = ({
     const handleActionRpc = (payload: AirJamActionRpcPayload) => {
       forwardHostBridgeEvent("airjam:action_rpc", payload);
     };
+    const handleStateSyncRequest = (payload: {
+      roomId: string;
+      storeDomain: string;
+    }) => {
+      forwardHostBridgeEvent("airjam:state_sync_request", payload);
+    };
     const handleCloseChild = () => {
       forwardHostBridgeEvent("server:closeChild");
     };
@@ -523,6 +529,7 @@ export const GamePlayer = ({
     hostSocket.on("server:hostLeft", handleHostLeft);
     hostSocket.on("server:playSound", handlePlaySound);
     hostSocket.on("airjam:action_rpc", handleActionRpc);
+    hostSocket.on("airjam:state_sync_request", handleStateSyncRequest);
     hostSocket.on("server:closeChild", handleCloseChild);
 
     return () => {
@@ -537,6 +544,7 @@ export const GamePlayer = ({
       hostSocket.off("server:hostLeft", handleHostLeft);
       hostSocket.off("server:playSound", handlePlaySound);
       hostSocket.off("airjam:action_rpc", handleActionRpc);
+      hostSocket.off("airjam:state_sync_request", handleStateSyncRequest);
       hostSocket.off("server:closeChild", handleCloseChild);
     };
   }, [forwardHostBridgeEvent, hostSocket]);

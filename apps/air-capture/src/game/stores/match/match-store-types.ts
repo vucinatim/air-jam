@@ -1,7 +1,7 @@
 import type { TeamCounts } from "../../domain/match-readiness";
 import type { TeamId } from "../../domain/team";
 
-export type MatchPhase = "lobby" | "playing" | "ended";
+export type MatchPhase = "lobby" | "countdown" | "playing" | "ended";
 
 export interface TeamAssignment {
   teamId: TeamId;
@@ -20,6 +20,7 @@ export interface MatchStateSnapshot {
   botCounts: TeamCounts;
   teamAssignments: Record<string, TeamAssignment>;
   matchSummary: MatchSummary | null;
+  countdownEndsAtMs: number | null;
   matchStartedAtMs: number | null;
 }
 

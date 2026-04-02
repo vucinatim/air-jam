@@ -24,6 +24,7 @@ const mockedContext = vi.hoisted(() => {
     role: "controller" as Role,
     roomId: "ROOM1",
     registeredRoomId: "ROOM1",
+    connectionStatus: "connected" as const,
     controllerId: "ctrl_1",
     players: [
       { id: "ctrl_1", label: "Player 1" },
@@ -154,6 +155,7 @@ describe("createAirJamStore networked behavior", () => {
     mockedContext.state.role = "controller";
     mockedContext.state.roomId = "ROOM1";
     mockedContext.state.registeredRoomId = "ROOM1";
+    mockedContext.state.connectionStatus = "connected";
     mockedContext.state.controllerId = "ctrl_1";
     mockedContext.state.players = [
       { id: "ctrl_1", label: "Player 1" },
@@ -475,6 +477,49 @@ describe("createAirJamStore networked behavior", () => {
         controllerId: "ctrl_1",
         nickname: "Player 1",
         player: { id: "ctrl_1", label: "Player 1" },
+      });
+    });
+
+    const countAfter = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    ).length;
+
+    expect(countAfter).toBeGreaterThan(countBefore);
+
+    unmount();
+  });
+
+  it("requests the latest host snapshot when a controller store mounts connected", () => {
+    const useStore = createTestStore();
+    const { unmount } = renderHook(() => useStore((state) => state.phase));
+
+    const requestCalls = controllerSocket.emitted.filter(
+      (call) => call.event === "controller:state_sync_request",
+    );
+
+    expect(requestCalls).toHaveLength(1);
+    expect(requestCalls[0]?.args[0]).toEqual({
+      roomId: "ROOM1",
+      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+    });
+
+    unmount();
+  });
+
+  it("flushes host state when a controller requests the latest snapshot for the matching store domain", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const { unmount } = renderHook(() => useStore((state) => state.phase));
+
+    const countBefore = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    ).length;
+
+    act(() => {
+      hostSocket.trigger("airjam:state_sync_request", {
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
       });
     });
 

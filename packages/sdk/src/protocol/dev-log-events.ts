@@ -155,6 +155,9 @@ export const AIRJAM_DEV_LOG_EVENTS = {
   controller: {
     joinAccepted: "controller.join.accepted",
     joinRejected: "controller.join.rejected",
+    resumeAccepted: "controller.resume.accepted",
+    disconnectPendingResume: "controller.disconnect.pending_resume",
+    disconnectLeaseExpired: "controller.disconnect.lease_expired",
     disconnectApplied: "controller.disconnect.applied",
     profileUpdateAccepted: "controller.profile_update.accepted",
     profileUpdateRejected: "controller.profile_update.rejected",
