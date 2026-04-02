@@ -37,6 +37,10 @@ Active subsystem plans:
 
 1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
 
+Planned follow-on system plans:
+
+1. [Game Source Scaffolding Plan](./plans/game-source-scaffolding-plan.md)
+
 Completed transitions / reference plans:
 
 1. [Arcade Architecture Reset Summary](./archive/arcade-architecture-reset-summary.md)

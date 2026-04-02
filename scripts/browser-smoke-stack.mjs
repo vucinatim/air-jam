@@ -195,7 +195,7 @@ const main = async () => {
     [
       "pnpm",
       "--dir",
-      "packages/create-airjam/templates/pong",
+      "games/pong",
       "exec",
       "vite",
       "--host",

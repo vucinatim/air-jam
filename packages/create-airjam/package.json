@@ -29,24 +29,27 @@
   },
   "files": [
     "dist",
+    "scaffold-sources",
     "template-assets",
-    "templates",
     "template-version-manifest.json"
   ],
   "scripts": {
     "ai-pack:check": "node scripts/check-ai-pack.mjs",
     "docs-pack:generate": "node scripts/generate-base-docs-pack.mjs",
-    "build": "pnpm docs-pack:generate && node scripts/generate-template-version-manifest.mjs && tsup",
+    "scaffold-sources:generate": "node scripts/generate-scaffold-sources.mjs",
+    "scaffold-sources:check": "node scripts/check-scaffold-sources.mjs",
+    "build": "pnpm docs-pack:generate && pnpm scaffold-sources:generate && node scripts/generate-template-version-manifest.mjs && pnpm scaffold-sources:check && tsup",
     "dev": "tsup --watch",
-    "smoke": "node scripts/smoke-test.mjs",
-    "smoke:registry": "node scripts/smoke-test.mjs --source=registry",
-    "smoke:tarball": "node scripts/smoke-test.mjs --source=tarball",
-    "smoke:workspace": "node scripts/smoke-test.mjs --source=workspace",
+    "smoke": "node scripts/smoke-test.mjs --source=workspace --template=all",
+    "smoke:registry": "node scripts/smoke-test.mjs --source=registry --template=all",
+    "smoke:tarball": "node scripts/smoke-test.mjs --source=tarball --template=all",
+    "smoke:workspace": "node scripts/smoke-test.mjs --source=workspace --template=all",
     "prepublishOnly": "node scripts/prepublish.js && pnpm ai-pack:check && pnpm build"
   },
   "dependencies": {
     "commander": "^14.0.0",
     "fs-extra": "^11.3.0",
+    "json5": "^2.2.3",
     "kleur": "^4.1.5",
     "prompts": "^2.4.2",
     "yazl": "^3.3.1"

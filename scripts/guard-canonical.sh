@@ -31,15 +31,15 @@ RUNTIME_PATHS=(
   "apps/platform/src/app/play"
   "apps/platform/src/components/arcade"
   "games/air-capture/src"
-  "packages/create-airjam/templates/pong/src"
+  "games/pong/src"
 )
 
 DOC_PATHS=(
   "apps/platform/src/app/docs"
   "apps/platform/src/components/docs"
-  "packages/create-airjam/templates/pong/airjam-docs"
+  "games/pong"
   "packages/sdk/README.md"
-  "packages/create-airjam/templates/pong/README.md"
+  "games/pong/README.md"
 )
 
 check_forbidden \

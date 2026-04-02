@@ -377,48 +377,11 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.30.2)(tsx@4.20.6)
 
-  packages/create-airjam:
-    dependencies:
-      commander:
-        specifier: ^14.0.0
-        version: 14.0.2
-      fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.3
-      kleur:
-        specifier: ^4.1.5
-        version: 4.1.5
-      prompts:
-        specifier: ^2.4.2
-        version: 2.4.2
-      yazl:
-        specifier: ^3.3.1
-        version: 3.3.1
-    devDependencies:
-      '@types/fs-extra':
-        specifier: ^11.0.4
-        version: 11.0.4
-      '@types/prompts':
-        specifier: ^2.4.9
-        version: 2.4.9
-      '@types/yazl':
-        specifier: ^2.4.5
-        version: 2.4.6
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)
-      tsx:
-        specifier: ^4.19.2
-        version: 4.20.6
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-
-  packages/create-airjam/templates/pong:
+  games/pong:
     dependencies:
       '@air-jam/sdk':
         specifier: workspace:*
-        version: link:../../../sdk
+        version: link:../../packages/sdk
       '@tabler/icons-react':
         specifier: ^3.41.0
         version: 3.41.0(react@19.2.0)
@@ -440,7 +403,7 @@ importers:
     devDependencies:
       '@air-jam/server':
         specifier: workspace:*
-        version: link:../../../server
+        version: link:../../packages/server
       '@eslint/js':
         specifier: ^9.39.1
         version: 9.39.1
@@ -464,7 +427,7 @@ importers:
         version: 0.7.1
       create-airjam:
         specifier: workspace:*
-        version: link:../..
+        version: link:../../packages/create-airjam
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.6.1)
@@ -495,6 +458,46 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.3)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.30.2)(tsx@4.20.6)
+
+  packages/create-airjam:
+    dependencies:
+      commander:
+        specifier: ^14.0.0
+        version: 14.0.2
+      fs-extra:
+        specifier: ^11.3.0
+        version: 11.3.3
+      json5:
+        specifier: ^2.2.3
+        version: 2.2.3
+      kleur:
+        specifier: ^4.1.5
+        version: 4.1.5
+      prompts:
+        specifier: ^2.4.2
+        version: 2.4.2
+      yazl:
+        specifier: ^3.3.1
+        version: 3.3.1
+    devDependencies:
+      '@types/fs-extra':
+        specifier: ^11.0.4
+        version: 11.0.4
+      '@types/prompts':
+        specifier: ^2.4.9
+        version: 2.4.9
+      '@types/yazl':
+        specifier: ^2.4.5
+        version: 2.4.6
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.20.6
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   packages/sdk:
     dependencies:
@@ -9601,8 +9604,8 @@ snapshots:
 
   '@typescript-eslint/project-service@8.47.0(typescript@5.9.3)':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.47.0(typescript@5.9.3)
-      '@typescript-eslint/types': 8.47.0
+      '@typescript-eslint/tsconfig-utils': 8.50.1(typescript@5.9.3)
+      '@typescript-eslint/types': 8.50.1
       debug: 4.4.3
       typescript: 5.9.3
     transitivePeerDependencies:

@@ -5,6 +5,7 @@ export const basePackRoot = path.join(createAirjamRoot, "template-assets", "base
 
 export const requiredBasePackPaths = [
   "AGENTS.md",
+  ".gitignore",
   "plan.md",
   "suggestions.md",
   ".airjam/ai-pack.json",
@@ -12,6 +13,10 @@ export const requiredBasePackPaths = [
   "docs/development-loop.md",
   "docs/docs-index.md",
   "docs/iconography.md",
+  "scripts/dev.mjs",
+  "scripts/dev-utils.mjs",
+  "scripts/secure-init.mjs",
+  "scripts/workspace-dev-log-sink.mjs",
   "skills/index.md",
   "skills/plan-ledger/SKILL.md",
   "skills/airjam-docs-workflow/SKILL.md",

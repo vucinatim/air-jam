@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const packageRoot = path.resolve(__dirname, "..");
+const createAirJamPackageJsonPath = path.resolve(packageRoot, "package.json");
 const sdkPackageJsonPath = path.resolve(packageRoot, "../sdk/package.json");
 const serverPackageJsonPath = path.resolve(packageRoot, "../server/package.json");
 const manifestPath = path.join(packageRoot, "template-version-manifest.json");
@@ -21,6 +22,7 @@ const readPackageVersion = (filePath) => {
 };
 
 const manifest = {
+  "create-airjam": readPackageVersion(createAirJamPackageJsonPath),
   "@air-jam/sdk": readPackageVersion(sdkPackageJsonPath),
   "@air-jam/server": readPackageVersion(serverPackageJsonPath),
 };

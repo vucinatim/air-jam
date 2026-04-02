@@ -193,7 +193,7 @@ Make the public docs, generated template docs pack, template README, and local s
 
 1. audit `content/docs` for stale guidance around runtime ownership, shared settings/audio, auth, hosted releases, managed media, and the networked action contract
 2. regenerate `packages/create-airjam/template-assets/base/docs/generated` from the corrected source docs
-3. update `packages/create-airjam/templates/pong/README.md` to match the current SDK/platform model
+3. update `games/pong/README.md` to match the current SDK/platform model
 4. update any template-local skills or AGENTS guidance that still teach stale framework or release patterns
 5. make the final creator-facing story explicit:
    1. how to build a game
@@ -290,7 +290,7 @@ Reason:
 Use these project roots for the proof:
 
 1. repo-local template/reference games:
-   1. `packages/create-airjam/templates/pong`
+   1. `games/pong`
    2. `games/air-capture`
 2. external ZeroDays showcase games:
    1. `/Users/timvucina/Desktop/zerodays/air-jam-games/code-review`

@@ -9,7 +9,7 @@ Related docs:
 2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
 3. [Framework Paradigm](../framework-paradigm.md)
 4. [Monorepo Operating System](../monorepo-operating-system.md)
-5. [Pong Template README](../../packages/create-airjam/templates/pong/README.md)
+5. [Pong Template README](../../games/pong/README.md)
 6. [Docs Index](../docs-index.md)
 
 ## Purpose

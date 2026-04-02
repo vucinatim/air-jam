@@ -166,6 +166,31 @@ const parseSource = () => {
   return source;
 };
 
+const parseTemplate = () => {
+  const arg = process.argv.find((value) => value.startsWith("--template="));
+  return arg ? arg.split("=")[1] : "pong";
+};
+
+const loadScaffoldTemplateIds = (repoRoot) => {
+  const scaffoldSourcesDir = path.join(
+    repoRoot,
+    "packages",
+    "create-airjam",
+    "scaffold-sources",
+  );
+
+  return fs
+    .readdirSync(scaffoldSourcesDir)
+    .map((entry) => path.join(scaffoldSourcesDir, entry))
+    .filter((entryPath) => fs.statSync(entryPath).isDirectory())
+    .map((dir) =>
+      JSON.parse(fs.readFileSync(path.join(dir, "airjam-template.json"), "utf8")),
+    )
+    .filter((manifest) => manifest?.scaffold === true && typeof manifest.id === "string")
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((manifest) => manifest.id);
+};
+
 const toExactVersion = (value) => {
   if (!value) return undefined;
   return value.replace(/^[~^]/, "");
@@ -184,11 +209,8 @@ const packWorkspacePackage = ({ packageDir, outDir }) => {
   return path.join(outDir, created[created.length - 1]);
 };
 
-const main = async () => {
-  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-  const repoRoot = path.resolve(scriptDir, "../../..");
+const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
   const cliEntry = path.join(repoRoot, "packages", "create-airjam", "dist", "index.js");
-  const source = parseSource();
 
   if (!fs.existsSync(cliEntry)) {
     throw new Error(
@@ -202,12 +224,13 @@ const main = async () => {
   const projectDir = path.join(tempRoot, projectArg);
 
   try {
+    console.log(`\n[scaffold smoke] template=${template} source=${source}`);
     const cliArgs = [
       "node",
       JSON.stringify(cliEntry),
       JSON.stringify(projectArg),
       "--template",
-      "pong",
+      template,
     ];
 
     if (source !== "registry") {
@@ -216,6 +239,10 @@ const main = async () => {
 
     if (source === "tarball") {
       const tarballDir = path.join(tempRoot, "tarballs");
+      const createAirJamTarball = packWorkspacePackage({
+        packageDir: path.join(repoRoot, "packages", "create-airjam"),
+        outDir: tarballDir,
+      });
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
 
@@ -229,6 +256,7 @@ const main = async () => {
       });
       cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
+      cliArgs.push(`--dep-spec=create-airjam=file:${createAirJamTarball}`);
       cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
     } else if (source === "workspace") {
       run("pnpm --filter sdk build", repoRoot);
@@ -242,6 +270,9 @@ const main = async () => {
       );
       cliArgs.push(
         `--dep-spec=@air-jam/server=link:${path.join(repoRoot, "packages", "server")}`,
+      );
+      cliArgs.push(
+        `--dep-spec=create-airjam=link:${path.join(repoRoot, "packages", "create-airjam")}`,
       );
       cliArgs.push(`--dep-spec=zod=${toExactVersion(sdkPkg.dependencies?.zod)}`);
       cliArgs.push(
@@ -278,6 +309,19 @@ const main = async () => {
     run("pnpm build", projectDir);
   } finally {
     removeIfExists(tempRoot);
+  }
+};
+
+const main = async () => {
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(scriptDir, "../../..");
+  const source = parseSource();
+  const template = parseTemplate();
+  const templates =
+    template === "all" ? loadScaffoldTemplateIds(repoRoot) : [template];
+
+  for (const templateId of templates) {
+    await runScaffoldSmoke({ repoRoot, source, template: templateId });
   }
 };
 

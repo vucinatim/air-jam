@@ -7,6 +7,14 @@ import { fileURLToPath } from "node:url";
 import prompts from "prompts";
 import yazl from "yazl";
 import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
+import {
+  findScaffoldTemplate,
+  loadAvailableScaffoldTemplates,
+  normalizeScaffoldPackageJson,
+  normalizeStandaloneProjectFiles,
+  type ScaffoldPackageJson,
+  type ScaffoldTemplateSource,
+} from "./scaffold";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -118,13 +126,7 @@ const parseNamedSpecs = (values: string[] | undefined): Map<string, string> => {
 };
 
 const applyNamedSpecs = (
-  pkg: {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-    pnpm?: {
-      overrides?: Record<string, string>;
-    };
-  },
+  pkg: ScaffoldPackageJson,
   depSpecs: Map<string, string>,
   overrideSpecs: Map<string, string>,
 ) => {
@@ -508,7 +510,7 @@ async function runScaffoldCli() {
     .name("create-airjam")
     .description("Scaffold a new Air Jam game project")
     .argument("[project-name]", "Name of the project directory")
-    .option("-t, --template <template>", "Template to use", "pong")
+    .option("-t, --template <template>", "Template to use")
     .option("--skip-install", "Skip dependency installation", false)
     .option(
       "--dep-spec <name=spec>",
@@ -526,7 +528,7 @@ async function runScaffoldCli() {
 
   const args = program.args;
   const options = program.opts<{
-    template: string;
+    template?: string;
     skipInstall: boolean;
     depSpec: string[];
     overrideSpec: string[];
@@ -535,6 +537,7 @@ async function runScaffoldCli() {
   const createAirJamVersion = loadCreateAirJamPackageVersion();
   const depSpecs = parseNamedSpecs(options.depSpec);
   const overrideSpecs = parseNamedSpecs(options.overrideSpec);
+  const templates = loadAvailableScaffoldTemplates();
 
   let projectInput = args[0];
 
@@ -554,17 +557,45 @@ async function runScaffoldCli() {
 
   const targetDir = path.resolve(process.cwd(), projectInput);
   const packageName = path.basename(targetDir);
-  const templateDir = path.resolve(
-    __dirname,
-    "..",
-    "templates",
-    options.template,
-  );
+  let selectedTemplate: ScaffoldTemplateSource | undefined;
 
-  if (!fs.existsSync(templateDir)) {
-    console.log(kleur.red(`Template "${options.template}" not found`));
-    process.exit(1);
+  if (options.template) {
+    selectedTemplate = findScaffoldTemplate(templates, options.template);
+    if (!selectedTemplate) {
+      console.log(kleur.red(`Template "${options.template}" not found`));
+      console.log(
+        kleur.dim(
+          `Available templates: ${templates.map((entry) => entry.manifest.id).join(", ")}`,
+        ),
+      );
+      process.exit(1);
+    }
+  } else {
+    const response = await prompts({
+      type: "select",
+      name: "templateId",
+      message: "Choose a template:",
+      choices: templates.map((entry) => ({
+        title: `${entry.manifest.name} (${entry.manifest.category})`,
+        description: entry.manifest.description,
+        value: entry.manifest.id,
+      })),
+      initial: 0,
+    });
+
+    if (!response.templateId) {
+      console.log(kleur.yellow("Aborted"));
+      process.exit(0);
+    }
+
+    selectedTemplate = findScaffoldTemplate(templates, response.templateId);
   }
+
+  if (!selectedTemplate) {
+    throw new Error("Unable to resolve scaffold template.");
+  }
+
+  const templateDir = selectedTemplate.dir;
 
   if (fs.existsSync(targetDir)) {
     const response = await prompts({
@@ -582,7 +613,8 @@ async function runScaffoldCli() {
 
   console.log(kleur.cyan(`\nCreating project in ${targetDir}...\n`));
 
-  // Copy template, excluding development files and gitignored files
+  // Copy the packaged scaffold source. Repo-only artifacts were already stripped
+  // during the create-airjam build step that generated these snapshots.
   await fs.copy(templateDir, targetDir, {
     filter: (src) => {
       const relativePath = path.relative(templateDir, src);
@@ -638,6 +670,7 @@ async function runScaffoldCli() {
   }
 
   await fs.copy(templateAssetsBaseDir, targetDir, { overwrite: true });
+  await normalizeStandaloneProjectFiles(targetDir);
 
   // npm packaging can strip/transform template dotfiles like .gitignore.
   // Keep publish-safe filenames in templates and restore real dotfiles here.
@@ -651,16 +684,27 @@ async function runScaffoldCli() {
   const pkgPath = path.join(targetDir, "package.json");
   if (fs.existsSync(pkgPath)) {
     const pkg = await fs.readJson(pkgPath);
-    pkg.name = packageName;
-    pkg.dependencies = normalizeWorkspaceSpecs(pkg.dependencies, manifest);
-    pkg.devDependencies = normalizeWorkspaceSpecs(pkg.devDependencies, manifest);
-    applyNamedSpecs(pkg, depSpecs, overrideSpecs);
-    await fs.writeJson(pkgPath, pkg, { spaces: 2 });
+    const normalizedPkg = normalizeScaffoldPackageJson({
+      pkg,
+      serverVersion: manifest["@air-jam/server"],
+      createAirJamVersion,
+    });
+    normalizedPkg.name = packageName;
+    normalizedPkg.dependencies = normalizeWorkspaceSpecs(
+      normalizedPkg.dependencies,
+      manifest,
+    );
+    normalizedPkg.devDependencies = normalizeWorkspaceSpecs(
+      normalizedPkg.devDependencies,
+      manifest,
+    );
+    applyNamedSpecs(normalizedPkg, depSpecs, overrideSpecs);
+    await fs.writeJson(pkgPath, normalizedPkg, { spaces: 2 });
   }
 
   await writeAiPackManifest({
     targetDir,
-    templateName: options.template,
+    templateName: selectedTemplate.manifest.id,
     createAirJamVersion,
   });
 

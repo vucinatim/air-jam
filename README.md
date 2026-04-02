@@ -148,26 +148,28 @@ The easiest way to create a new game is using the CLI:
 
 ```bash
 npx create-airjam my-game
+npx create-airjam my-game --template=pong
+npx create-airjam my-game --template=air-capture
 cd my-game
 pnpm install
 ```
 
 This scaffolds a complete project with:
 
-- Working Pong game template
+- A real source-game template such as `pong` or `air-capture`
 - Local development server setup
 - SDK configuration
 - Documentation and AI instructions
 
 ### Internal Template Workflow
 
-Inside this monorepo, template games stay as real workspace packages. We do not
-mutate template dependency files at publish time anymore.
+Inside this monorepo, scaffoldable games now live under `games/` as normal source
+games, and `create-airjam` exports them through one shared pipeline.
 
 The canonical workflow is:
 
-- Develop templates in-place against workspace packages.
-- Use `pnpm test:scaffold:workspace` to prove scaffolds work against local packages.
+- Develop scaffoldable games in-place under `games/`.
+- Use `pnpm test:scaffold` to prove all scaffoldable games export cleanly against local packages.
 - Use `pnpm test:scaffold:tarball` to prove scaffolds work against packed unpublished artifacts.
 - Use `pnpm pack:local` to produce local tarballs under `.airjam/tarballs/`.
 
@@ -175,11 +177,13 @@ Useful local scaffold helpers:
 
 ```bash
 pnpm scaffold:workspace -- my-local-game
+pnpm scaffold:workspace -- my-local-game --template=air-capture
 pnpm scaffold:tarball -- ../scratch/my-airjam-game
 ```
 
-That keeps template source, workspace development, and pre-publish verification on
-the same path instead of relying on hidden publish-time rewrites.
+That keeps game source, scaffold generation, workspace development, and pre-publish
+verification on one path instead of relying on duplicate template trees or hidden
+publish-time rewrites.
 
 See the [SDK README](./packages/sdk/README.md) for detailed usage.
 

@@ -164,6 +164,19 @@ Current truth:
 4. generated-project sink behavior is validated
 5. workspace toolchain logs now also land in the unified stream
 
+### 7. Game-Source Scaffolding
+
+Status: completed baseline  
+Reference: [Game Source Scaffolding Plan](./plans/game-source-scaffolding-plan.md)
+
+Current truth:
+
+1. `games/` is now the honest home for repo-owned games
+2. `games/pong` and `games/air-capture` now declare scaffold manifests and serve as the first real source-of-truth scaffoldable games
+3. `create-airjam` now snapshots scaffold sources from `games/`, supports `--template=<id>`, and offers interactive template selection when no template is provided
+4. the duplicated Pong template source tree has been retired in favor of `games/pong`
+5. `pnpm test:scaffold` now proves every scaffoldable game through the shared export path, install, typecheck, test, and build flow
+
 ## Active Framework Tracks
 
 Status: none beyond the canonical release plan

@@ -30,7 +30,7 @@
     "test:scaffold": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke",
     "test:scaffold:registry": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:registry",
     "test:scaffold:tarball": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:tarball",
-    "test:scaffold:workspace": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:workspace",
+    "test:scaffold:workspace": "pnpm test:scaffold",
     "typecheck": "pnpm --filter sdk build && pnpm -r --filter \"!sdk\" typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

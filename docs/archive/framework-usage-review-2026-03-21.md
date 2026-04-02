@@ -79,8 +79,8 @@ Impact:
 Evidence:
 - SDK docs and templates show `useAirJamHost()` + `<HostShell>` together:
   - `packages/sdk/README.md:41`
-  - `packages/create-airjam/templates/pong/airjam-docs/getting-started/introduction/page.md:57`
-  - `packages/create-airjam/templates/pong/src/host-view.tsx:18`
+  - `games/pong/README.md:57`
+  - `games/pong/src/host/index.tsx:18`
 
 Impact:
 - Current guidance normalizes patterns that create the issues above.

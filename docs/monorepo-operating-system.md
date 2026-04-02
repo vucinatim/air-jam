@@ -167,11 +167,11 @@ This is the default day-to-day execution loop for work in this monorepo.
 
 ### 5. Template And Scaffold Validation
 
-When touching `create-airjam`, templates, or package-boundary behavior:
+When touching `create-airjam`, scaffoldable games, or package-boundary behavior:
 
-1. Keep template files canonical for workspace development.
+1. Keep `games/` as the source of truth for scaffoldable game templates.
 2. Do not rely on publish-time mutation of template dependencies or Vite config.
-3. Validate workspace scaffolds with `pnpm test:scaffold:workspace`.
+3. Validate scaffoldable games with `pnpm test:scaffold`.
 4. Validate unpublished-package behavior with `pnpm test:scaffold:tarball`.
 5. If you need local artifacts for another repo, use `pnpm pack:local`.
 

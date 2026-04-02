@@ -21,7 +21,7 @@ const projectName = forwardedArgs[0];
 
 if (!projectName) {
   console.error(
-    "Usage: pnpm scaffold:tarball -- <project-name> [--template=pong]",
+    "Usage: pnpm scaffold:tarball -- <project-name> [--template=<id>]",
   );
   process.exit(1);
 }
