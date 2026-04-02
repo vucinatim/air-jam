@@ -26,6 +26,10 @@ Canonical prerelease plan: [V1 Release Launch Plan](./plans/v1-release-launch-pl
 
 Anything outside that order should only move in parallel when it does not slow the critical path.
 
+User-directed active parallel track:
+
+1. import the three ZeroDays showcase games into `games/`, normalize them to the modern workspace contract, and promote them toward template quality using [ZeroDays Game Import And Template Promotion Plan](./plans/zerodays-game-import-template-promotion-plan.md)
+
 ## Release-Critical Path
 
 ### Priority 1. Release Workflow And CI Hardening
@@ -176,6 +180,51 @@ Current truth:
 3. `create-airjam` now snapshots scaffold sources from `games/`, supports `--template=<id>`, and offers interactive template selection when no template is provided
 4. the duplicated Pong template source tree has been retired in favor of `games/pong`
 5. `pnpm test:scaffold` now proves every scaffoldable game through the shared export path, install, typecheck, test, and build flow
+
+### 8. ZeroDays Game Import And Template Promotion
+
+Status: active  
+Reference: [ZeroDays Game Import And Template Promotion Plan](./plans/zerodays-game-import-template-promotion-plan.md)
+
+Current truth:
+
+1. `code-review`, `last-band-standing`, and `the-office` now live under `games/` as workspace-native source games
+2. obvious standalone clutter and repo-backlink `file:` dependencies were removed on import
+3. the root workspace and TS project graph now include all three imported games
+4. baseline validation is green for the imported games:
+   1. `pnpm --filter code-review typecheck && pnpm --filter code-review build`
+   2. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test:run && pnpm --filter last-band-standing build`
+   3. `pnpm --filter the-office typecheck && pnpm --filter the-office build`
+5. repo-owned games now declare a tiny `airjam-template.json` manifest even before template promotion, with `scaffold: false` keeping non-template games out of `create-airjam`
+6. the shared workspace launcher now supports `pnpm dev -- --game=<id>` and can boot any current repo-owned game through the platform/server/sdk stack
+7. `code-review` has already been proven through that shared launcher path with platform on `:3000`, server on `:4000`, and the game on `:5173`
+8. all three imported games now have a first-pass repo-native ownership cleanup:
+   1. explicit `host/` and `controller/` entry ownership
+   2. clearer `game/domain` or `game/stores` seams where they previously leaked through root-level files
+   3. thin compatibility re-exports only where they reduce churn during migration
+9. `code-review` is now the first promoted imported template:
+   1. obvious imported garbage such as nested `.git`, `dist`, and local release artifacts was removed
+   2. the game now carries a clean README and a minimal domain test seam
+   3. `airjam-template.json` is now `scaffold: true`
+   4. `pnpm --filter code-review typecheck && pnpm --filter code-review test && pnpm --filter code-review build` is green
+   5. `pnpm --filter create-airjam smoke -- --source=workspace --template=code-review` is green
+   6. `pnpm --filter create-airjam smoke:tarball -- --template=code-review` is green
+10. `last-band-standing` is now the second promoted imported template:
+   1. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
+   2. the imported README was replaced with a repo-native template-safe README
+   3. `airjam-template.json` is now `scaffold: true`
+   4. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test:run && pnpm --filter last-band-standing build` is green
+   5. `pnpm --filter create-airjam smoke -- --source=workspace --template=last-band-standing` is green
+   6. `pnpm --filter create-airjam smoke:tarball -- --template=last-band-standing` is green
+11. `the-office` is now the third promoted imported template:
+   1. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
+   2. the imported README was replaced with a repo-native template-safe README
+   3. a minimal pure helper seam and helper test now exist around the office game store
+   4. `airjam-template.json` is now `scaffold: true`
+   5. `pnpm --filter the-office typecheck && pnpm --filter the-office test && pnpm --filter the-office build` is green
+   6. `pnpm --filter create-airjam smoke -- --source=workspace --template=the-office` is green
+   7. `pnpm --filter create-airjam smoke:tarball -- --template=the-office` is green
+12. the imported ZeroDays promotion track is now functionally complete; the remaining obligation is keeping the shared five-template scaffold gate green
 
 ## Active Framework Tracks
 

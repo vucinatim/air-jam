@@ -4,26 +4,68 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import {
+  defaultWorkspaceGameId,
+  findRepoGame,
+  loadRepoGames,
+  toLocalReferenceUrlEnvKey,
+} from "./lib/repo-games.mjs";
 import { createWorkspaceDevLogSink } from "./lib/workspace-dev-log-sink.mjs";
 
 const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const hasFlag = (flag) => args.includes(flag);
+const getFlagValue = (flag) => {
+  const index = args.indexOf(flag);
+  if (index === -1) {
+    return null;
+  }
 
-const selectedGame = hasFlag("--pong") ? "pong" : "air-capture";
+  return args[index + 1] ?? null;
+};
+
+const getOptionValue = (flag) => {
+  const inlineArg = args.find((arg) => arg.startsWith(`${flag}=`));
+  if (inlineArg) {
+    return inlineArg.slice(flag.length + 1);
+  }
+
+  return getFlagValue(flag);
+};
+
+const availableGames = loadRepoGames();
+const selectedGame =
+  getOptionValue("--game") ??
+  (hasFlag("--pong") ? "pong" : defaultWorkspaceGameId);
 const startDbStudio = hasFlag("--db-studio");
+const activeGame = findRepoGame(selectedGame);
 
 const usage = () => {
-  console.log("Usage: pnpm dev [--pong] [--db-studio]");
+  console.log("Usage: pnpm dev [--game=<id>] [--db-studio]");
   console.log("");
   console.log("Modes:");
-  console.log("  default      Start sdk watch, server, platform app, and air-capture");
-  console.log("  --pong       Start sdk watch, server, platform app, and the pong template");
+  console.log(
+    `  default      Start sdk watch, server, platform app, and ${defaultWorkspaceGameId}`,
+  );
+  console.log("  --game=<id>  Start sdk watch, server, platform app, and a repo game");
+  console.log("  --pong       Legacy alias for --game=pong");
   console.log("  --db-studio  Also start Drizzle Studio for the platform database");
+  console.log("");
+  console.log("Available games:");
+  for (const game of availableGames) {
+    console.log(`  - ${game.id}`);
+  }
 };
 
 if (hasFlag("--help") || hasFlag("-h")) {
   usage();
   process.exit(0);
+}
+
+if (!activeGame) {
+  console.error(`[dev] Unknown game "${selectedGame}".`);
+  console.error("");
+  usage();
+  process.exit(1);
 }
 
 const rootDir = process.cwd();
@@ -185,11 +227,14 @@ const createProcessGroup = () => {
     }
   };
 
-  const run = (name, command, commandArgs) => {
+  const run = (name, command, commandArgs, options = {}) => {
     const commandText = [command, ...commandArgs].join(" ");
     const child = spawn(command, commandArgs, {
-      cwd: process.cwd(),
-      env: process.env,
+      cwd: options.cwd ?? process.cwd(),
+      env: {
+        ...process.env,
+        ...(options.env ?? {}),
+      },
       stdio: ["inherit", "pipe", "pipe"],
     });
 
@@ -201,7 +246,7 @@ const createProcessGroup = () => {
         chunk: data,
         tool: command,
         command: commandText,
-        cwd: process.cwd(),
+        cwd: options.cwd ?? process.cwd(),
       });
     });
     child.stderr.on("data", (data) => {
@@ -212,7 +257,7 @@ const createProcessGroup = () => {
         chunk: data,
         tool: command,
         command: commandText,
-        cwd: process.cwd(),
+        cwd: options.cwd ?? process.cwd(),
       });
     });
     child.on("exit", (code, signal) => {
@@ -220,13 +265,13 @@ const createProcessGroup = () => {
         processName: name,
         tool: command,
         command: commandText,
-        cwd: process.cwd(),
+        cwd: options.cwd ?? process.cwd(),
       });
       logSink.recordExit({
         processName: name,
         tool: command,
         command: commandText,
-        cwd: process.cwd(),
+        cwd: options.cwd ?? process.cwd(),
         code,
         signal,
       });
@@ -255,42 +300,58 @@ const createProcessGroup = () => {
 
 const processGroup = createProcessGroup();
 const platformCommand = startDbStudio ? "dev" : "dev:no-db";
+const localGameUrl = "http://127.0.0.1:5173";
+const platformEnv = {
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: activeGame.id,
+  [toLocalReferenceUrlEnvKey(activeGame.id)]: localGameUrl,
+};
 
-const processes =
-  selectedGame === "pong"
-    ? [
-        ["sdk", ["pnpm", "--filter", "@air-jam/sdk", "dev"]],
-        ["server", ["pnpm", "--filter", "@air-jam/server", "dev"]],
-        ["platform", ["pnpm", "--filter", "platform", platformCommand]],
-        [
-          "pong",
-          [
-            "pnpm",
-            "--filter",
-            "my-airjam-game",
-            "dev",
-            "--",
-            "--web-only",
-            "--allow-existing-game",
-          ],
+const processes = [
+  {
+    name: "sdk",
+    command: ["pnpm", "--filter", "@air-jam/sdk", "dev"],
+  },
+  {
+    name: "server",
+    command: ["pnpm", "--filter", "@air-jam/server", "dev"],
+  },
+  {
+    name: "platform",
+    command: ["pnpm", "--filter", "platform", platformCommand],
+    env: platformEnv,
+  },
+  activeGame.id === "air-capture"
+    ? {
+        name: "air-capture",
+        command: ["pnpm", "--filter", "air-capture", "dev", "--", "--host"],
+      }
+    : {
+        name: activeGame.id,
+        command: [
+          "pnpm",
+          "--dir",
+          activeGame.dir,
+          "dev",
+          "--",
+          "--web-only",
+          "--allow-existing-game",
         ],
-      ]
-    : [
-        ["sdk", ["pnpm", "--filter", "@air-jam/sdk", "dev"]],
-        ["server", ["pnpm", "--filter", "@air-jam/server", "dev"]],
-        ["platform", ["pnpm", "--filter", "platform", platformCommand]],
-        [
-          "air-capture",
-          ["pnpm", "--filter", "air-capture", "dev", "--", "--host"],
-        ],
-      ];
+      },
+];
 
 console.log(
-  `[dev] Starting workspace stack with ${selectedGame} as the active reference game${startDbStudio ? " and Drizzle Studio enabled" : ""}.`,
+  `[dev] Starting workspace stack with ${activeGame.id} as the active reference game${startDbStudio ? " and Drizzle Studio enabled" : ""}.`,
 );
 
 await reserveWorkspaceResources();
 
-for (const [name, command] of processes) {
-  processGroup.run(name, command[0], command.slice(1));
+for (const processSpec of processes) {
+  processGroup.run(
+    processSpec.name,
+    processSpec.command[0],
+    processSpec.command.slice(1),
+    {
+      env: processSpec.env,
+    },
+  );
 }

@@ -1,0 +1,67 @@
+import { cn } from "@/lib/utils";
+import { FullLogo } from "@/assets/full-logo";
+import { getRoundPrompt } from "@/features/round/round-prompt";
+import { type ActiveRound, type RoundReveal } from "@/store/types";
+import { type GamePhase } from "@/types";
+
+interface HostTopBarProps {
+  phase: GamePhase;
+  currentRound: ActiveRound | null;
+  roundReveal: RoundReveal | null;
+  totalRounds: number;
+  answeredCount: number;
+  countdownSeconds: number;
+  revealCountdownSeconds: number;
+}
+
+export const HostTopBar = ({
+  phase,
+  currentRound,
+  roundReveal,
+  totalRounds,
+  answeredCount,
+  countdownSeconds,
+  revealCountdownSeconds,
+}: HostTopBarProps) => {
+  const isPlaying = phase === "round-active" || phase === "round-reveal";
+
+  return (
+    <header className="flex shrink-0 items-center justify-between py-3 px-5">
+      <div className="flex items-center gap-3 w-40 overflow-visible">
+        <FullLogo size={160} className="text-foreground" />
+      </div>
+
+      {isPlaying && currentRound && (
+        <div className="flex items-center gap-6">
+          <span className="text-sm text-muted-foreground">
+            Round {currentRound.roundNumber}/{totalRounds}
+          </span>
+          <span className="text-sm uppercase tracking-wider text-muted-foreground">
+            {getRoundPrompt(currentRound.guessKind)}
+          </span>
+        </div>
+      )}
+      <div className="w-40 h-full flex justify-end items-center">
+        {phase === "round-active" && currentRound && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {answeredCount}/{currentRound.expectedPlayerIds.length} answered
+            </span>
+            <span className={cn(
+              "min-w-[2ch] text-right text-xl font-bold tabular-nums",
+              countdownSeconds <= 5 ? "text-destructive" : "text-foreground",
+            )}>
+              {countdownSeconds}
+            </span>
+          </div>
+        )}
+
+        {phase === "round-reveal" && roundReveal && (
+          <span className="text-sm text-muted-foreground">
+            Next in {revealCountdownSeconds}s
+          </span>
+        )}
+      </div>
+    </header>
+  );
+};

@@ -3,6 +3,9 @@
   "references": [
     { "path": "./apps/platform" },
     { "path": "./games/air-capture" },
+    { "path": "./games/code-review" },
+    { "path": "./games/last-band-standing" },
+    { "path": "./games/the-office" },
     { "path": "./content" },
     { "path": "./packages/server" },
     { "path": "./packages/sdk" }

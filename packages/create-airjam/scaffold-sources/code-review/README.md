@@ -1,0 +1,69 @@
+# Code Review
+
+![Air Jam Boxing Arena cover](public/sprites/cover.png)
+
+`code-review` is a fast local-multiplayer boxing game built on the Air Jam host/controller model.
+Players join from their phones, pick a team slot, and control fighters inside a shared ring on the host screen.
+
+## What This Game Teaches
+
+- explicit host and controller runtime ownership
+- a small Air Jam store with domain logic separated from presentation
+- a simple browser-first party-game loop that is easy to extend
+- hosted release bundling through `create-airjam release bundle`
+
+## Local Development
+
+```bash
+pnpm install
+cp .env.example .env.local
+pnpm dev
+```
+
+To run this game inside the shared monorepo stack:
+
+```bash
+pnpm dev -- --game=code-review
+```
+
+To run only this game locally:
+
+```bash
+pnpm --dir games/code-review dev -- --web-only
+```
+
+## Scripts
+
+- `pnpm dev` starts the local Air Jam server and Vite app
+- `pnpm dev:server` starts only the local Air Jam server
+- `pnpm dev:secure` runs the game through a Cloudflare tunnel for HTTPS sensor/device testing
+- `pnpm secure:init` prepares the local secure dev config
+- `pnpm typecheck` runs the TypeScript project check
+- `pnpm test` runs the lightweight domain tests
+- `pnpm build` creates the production web build
+- `pnpm release:bundle` produces the hosted Arcade release zip
+
+## Project Structure
+
+```text
+src/
+  host/
+  controller/
+  game/
+    domain/
+    stores/
+    input.ts
+  routes/
+  airjam.config.ts
+  app.tsx
+  main.tsx
+public/
+  sounds/
+  sprites/
+```
+
+## Notes
+
+- Public runtime art and audio live under `public/`.
+- Source Photoshop/export helper files are intentionally not included in scaffolded projects.
+- The scaffolded template keeps the same runtime structure as this source game.

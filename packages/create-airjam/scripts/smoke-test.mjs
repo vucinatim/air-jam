@@ -155,8 +155,19 @@ const removeIfExists = (targetPath) => {
   }
 };
 
+const findLastArg = (prefix) => {
+  for (let index = process.argv.length - 1; index >= 0; index -= 1) {
+    const value = process.argv[index];
+    if (value.startsWith(prefix)) {
+      return value;
+    }
+  }
+
+  return undefined;
+};
+
 const parseSource = () => {
-  const arg = process.argv.find((value) => value.startsWith("--source="));
+  const arg = findLastArg("--source=");
   const source = arg ? arg.split("=")[1] : "tarball";
   if (!SMOKE_SOURCES.includes(source)) {
     throw new Error(
@@ -167,7 +178,7 @@ const parseSource = () => {
 };
 
 const parseTemplate = () => {
-  const arg = process.argv.find((value) => value.startsWith("--template="));
+  const arg = findLastArg("--template=");
   return arg ? arg.split("=")[1] : "pong";
 };
 

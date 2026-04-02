@@ -2,4 +2,3 @@ packages:
   - "packages/*"
   - "apps/*"
   - "games/*"
-  - "packages/create-airjam/templates/*"

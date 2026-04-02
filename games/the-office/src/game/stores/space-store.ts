@@ -1,0 +1,236 @@
+import {
+  createAirJamStore,
+  type AirJamActionContext,
+} from "@air-jam/sdk";
+import type { SpaceGameState } from "./types";
+import {
+  clearPlayerTaskState,
+  createDefaultPlayerStats,
+  markPlayerDead,
+  pruneRecord,
+  restorePlayerStat,
+} from "./space-store-helpers";
+
+const hostOnly = (
+  role: AirJamActionContext["role"],
+): boolean => role === "host";
+
+export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
+  money: {},
+  totalMoneyPenalty: 0,
+  gameStartTime: 0,
+  gameDurationMs: 300000,
+  playerPositions: {},
+  playerAssignments: {},
+  busyPlayers: {},
+  taskProgress: {},
+  playerStats: {},
+  gameOver: false,
+
+  actions: {
+    syncConnectedPlayers: ({ role }, { connectedPlayerIds }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        const connectedSet = new Set(connectedPlayerIds);
+
+        return {
+          money: pruneRecord(state.money, connectedSet),
+          playerPositions: pruneRecord(state.playerPositions, connectedSet),
+          playerAssignments: pruneRecord(state.playerAssignments, connectedSet),
+          busyPlayers: pruneRecord(state.busyPlayers, connectedSet),
+          taskProgress: pruneRecord(state.taskProgress, connectedSet),
+          playerStats: pruneRecord(state.playerStats, connectedSet),
+        };
+      }),
+
+    completeTask: ({ role }, { playerId, reward }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return {
+          money: {
+            ...state.money,
+            [playerId]: (state.money[playerId] || 0) + reward,
+          },
+        };
+      }),
+
+    applyPenalty: ({ role }, { amount }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return {
+          totalMoneyPenalty: state.totalMoneyPenalty + amount,
+        };
+      }),
+
+    resetGame: ({ role }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return {
+          money: {},
+          totalMoneyPenalty: 0,
+          gameStartTime: Date.now(),
+          playerPositions: {},
+          playerAssignments: {},
+          busyPlayers: {},
+          taskProgress: {},
+          playerStats: {},
+          gameOver: false,
+        };
+      }),
+
+    assignPlayer: ({ role }, { controllerId, playerId }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return {
+          playerAssignments: {
+            ...state.playerAssignments,
+            [controllerId]: playerId,
+          },
+          playerStats: {
+            ...state.playerStats,
+            [controllerId]:
+              state.playerStats[controllerId] || createDefaultPlayerStats(),
+          },
+        };
+      }),
+
+    setBusy: ({ role }, { playerId, taskName }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return {
+          busyPlayers: taskName
+            ? { ...state.busyPlayers, [playerId]: taskName }
+            : clearPlayerTaskState(
+                state.busyPlayers,
+                state.taskProgress,
+                playerId,
+              ).busyPlayers,
+          taskProgress: taskName
+            ? state.taskProgress
+            : clearPlayerTaskState(
+                state.busyPlayers,
+                state.taskProgress,
+                playerId,
+              ).taskProgress,
+        };
+      }),
+
+    setTaskProgress: ({ role }, { playerId, progress }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return {
+          taskProgress: {
+            ...state.taskProgress,
+            [playerId]: progress,
+          },
+        };
+      }),
+
+    updatePlayerStats: ({ role }, { playerId, updates }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return {
+          playerStats: {
+            ...state.playerStats,
+            [playerId]: {
+              ...(state.playerStats[playerId] || createDefaultPlayerStats()),
+              ...updates,
+            },
+          },
+        };
+      }),
+
+    restoreEnergy: ({ role }, { playerId, amount }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        const currentStats =
+          state.playerStats[playerId] || createDefaultPlayerStats();
+
+        return {
+          playerStats: {
+            ...state.playerStats,
+            [playerId]: restorePlayerStat(currentStats, "energy", amount),
+          },
+        };
+      }),
+
+    restoreBoredom: ({ role }, { playerId, amount }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        const currentStats =
+          state.playerStats[playerId] || createDefaultPlayerStats();
+
+        return {
+          playerStats: {
+            ...state.playerStats,
+            [playerId]: restorePlayerStat(currentStats, "boredom", amount),
+          },
+        };
+      }),
+
+    killPlayer: ({ role }, { playerId }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        const currentStats =
+          state.playerStats[playerId] || createDefaultPlayerStats();
+
+        return {
+          playerStats: {
+            ...state.playerStats,
+            [playerId]: markPlayerDead(currentStats),
+          },
+        };
+      }),
+
+    setGameOver: ({ role }, { gameOver }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return { gameOver };
+      }),
+
+    setGameStartTime: ({ role }, { startTime }) =>
+      set((state) => {
+        if (!hostOnly(role)) {
+          return state;
+        }
+
+        return { gameStartTime: startTime };
+      }),
+  },
+}));

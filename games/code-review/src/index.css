@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "@fontsource/press-start-2p/400.css";
+
+:root {
+  --ring-mat-color: #e5e7eb;
+  --ring-markings-color: #9ca3af;
+  --ring-rope-primary-color: #dc2626;
+  --ring-rope-secondary-color: #1d4ed8;
+  --ring-corner-red-color: #dc2626;
+  --ring-corner-blue-color: #2563eb;
+  --ring-post-body-color: #94a3b8;
+  --ring-post-top-color: #e2e8f0;
+  --team-1-color: #f97316;
+  --team-2-color: #38bdf8;
+  --fighter-head-color: #111827;
+  --fighter-gloves-color: #f8fafc;
+  --fighter-shadow-color: rgba(0, 0, 0, 0.35);
+  --fighter-highlight-color: rgba(255, 255, 255, 0.32);
+}
+
+.pixel-font {
+  font-family: "Press Start 2P", "Courier New", monospace;
+}
+
+.controller-view-shell > .dark > .text-foreground > header {
+  display: none;
+}
+
+.controller-view-shell > .dark > .text-foreground > main {
+  padding: 0 !important;
+}
+
+.host-view-shell > .dark > .pointer-events-none.absolute {
+  display: none;
+}
+
+.host-view-shell > .dark > .pointer-events-none.fixed {
+  display: none;
+}

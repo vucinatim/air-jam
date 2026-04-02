@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-workspace.mjs",
-    "dev:pong": "node scripts/dev-workspace.mjs --pong",
+    "dev:pong": "node scripts/dev-workspace.mjs --game=pong",
+    "dev:code-review": "node scripts/dev-workspace.mjs --game=code-review",
+    "dev:last-band-standing": "node scripts/dev-workspace.mjs --game=last-band-standing",
+    "dev:the-office": "node scripts/dev-workspace.mjs --game=the-office",
     "dev:template:pong": "pnpm dev:pong",
     "dev:air-capture": "pnpm --filter air-capture dev -- --host",
     "dev:server": "pnpm --filter server dev",

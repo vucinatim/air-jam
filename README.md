@@ -30,7 +30,9 @@ air-jam/
 ├── apps/
 │   └── platform/           # Next.js platform web app (developer portal, game catalog)
 ├── games/
-│   └── air-capture/        # First-party reference game implementation
+│   ├── air-capture/        # Advanced first-party reference game
+│   ├── pong/               # Canonical starter game
+│   └── ...                 # Additional repo-owned games and showcase imports
 ├── packages/
 │   ├── sdk/                # Core SDK for building games (@air-jam/sdk)
 │   ├── server/             # WebSocket server for game connections
@@ -60,14 +62,16 @@ Use the top-level workspace launcher for the common local flow:
 # Start sdk watch, server, platform app, and air-capture
 pnpm dev
 
-# Start the same stack with pong instead
-pnpm dev -- --pong
+# Start the same stack with a specific repo-owned game
+pnpm dev -- --game=pong
+pnpm dev -- --game=code-review
 
 # Start the stack and also open Drizzle Studio
 pnpm dev -- --db-studio
 
-# Shortcut alias for pong mode
+# Shortcut aliases for common game modes
 pnpm dev:pong
+pnpm dev:code-review
 ```
 
 The output is prefixed by process name, so server logs remain visible in the shared terminal.

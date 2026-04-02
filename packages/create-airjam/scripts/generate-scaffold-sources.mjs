@@ -82,8 +82,12 @@ const main = async () => {
     }
 
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-    if (manifest.scaffold !== true || typeof manifest.id !== "string") {
+    if (typeof manifest.id !== "string" || typeof manifest.scaffold !== "boolean") {
       throw new Error(`Invalid scaffold manifest at ${manifestPath}`);
+    }
+
+    if (manifest.scaffold !== true) {
+      continue;
     }
 
     const outputDir = path.join(outputRoot, manifest.id);
@@ -111,4 +115,3 @@ const main = async () => {
 };
 
 await main();
-
