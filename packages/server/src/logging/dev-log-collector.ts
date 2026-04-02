@@ -306,6 +306,14 @@ export class DevLogCollector {
     });
   }
 
+  async flush(): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+
+    await this.writeQueue;
+  }
+
   private appendEvent(event: DevLogEventDraft): void {
     const ingestedAt =
       typeof event.ingestedAt === "string"

@@ -22,16 +22,19 @@ const readPort = (name, fallback) => {
   return parsed;
 };
 
-const platformPort = readPort("AIRJAM_SMOKE_PLATFORM_PORT", 3000);
-const serverPort = readPort("AIRJAM_SMOKE_SERVER_PORT", 4000);
-const pongPort = readPort("AIRJAM_SMOKE_PONG_PORT", 5173);
-const airCapturePort = readPort("AIRJAM_SMOKE_AIR_CAPTURE_PORT", 5174);
+// Keep smoke ports isolated from the default dev workspace so Playwright never
+// attaches to a user's normal local stack by accident.
+const platformPort = readPort("AIRJAM_SMOKE_PLATFORM_PORT", 3400);
+const serverPort = readPort("AIRJAM_SMOKE_SERVER_PORT", 4400);
+const pongPort = readPort("AIRJAM_SMOKE_PONG_PORT", 5400);
+const airCapturePort = readPort("AIRJAM_SMOKE_AIR_CAPTURE_PORT", 5401);
 const STACK_PORTS = [platformPort, serverPort, pongPort, airCapturePort];
 
 const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
 const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
 const pongBaseUrl = `http://127.0.0.1:${pongPort}`;
 const airCaptureBaseUrl = `http://127.0.0.1:${airCapturePort}`;
+const publicGamesQueryUrl = `${platformBaseUrl}/api/trpc/game.getAllPublic?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D`;
 
 const baseEnv = {
   ...process.env,
@@ -211,6 +214,7 @@ const main = async () => {
     NEXT_DIST_DIR: platformDistDir,
     NEXT_PUBLIC_AIR_JAM_SERVER_URL: serverBaseUrl,
     NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: platformBaseUrl,
+    NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: "pong",
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL: airCaptureBaseUrl,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: pongBaseUrl,
   });
@@ -219,6 +223,14 @@ const main = async () => {
     "platform root",
     120_000,
   );
+  await waitForUrl(`${platformBaseUrl}/arcade/local-pong`, "platform local pong", 120_000);
+  await waitForUrl(
+    `${platformBaseUrl}/arcade/local-air-capture`,
+    "platform local air capture",
+    120_000,
+  );
+  await waitForUrl(`${platformBaseUrl}/controller`, "platform controller", 120_000);
+  await waitForUrl(publicGamesQueryUrl, "platform public games query", 120_000);
 
   console.log("[browser-smoke] Local browser smoke stack is ready.");
 };

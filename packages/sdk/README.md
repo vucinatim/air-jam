@@ -220,9 +220,13 @@ The important rule is:
 1. mount `AirJamHostRuntime` / `AirJamControllerRuntime` once per runtime surface
 2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
 
-Hosts can also broadcast the intended controller layout orientation with
+Hosts can also publish lightweight controller presentation state with
 `host.sendState({ orientation: "portrait" | "landscape" })`, which controllers
 receive as `controller.controllerOrientation`.
+
+This path is intentionally narrow. Use it for controller layout and short
+presentation metadata, not for authoritative gameplay state. Multiplayer game
+state should live in the networked stores and replicate automatically.
 
 ## Controller Feedback Helpers
 

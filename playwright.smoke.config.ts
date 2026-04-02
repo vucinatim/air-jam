@@ -1,11 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const platformPort = process.env.AIRJAM_SMOKE_PLATFORM_PORT ?? "3000";
+const platformPort = process.env.AIRJAM_SMOKE_PLATFORM_PORT ?? "3400";
 const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
 
 export default defineConfig({
   testDir: "./tests/browser",
   fullyParallel: false,
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   timeout: 90_000,
   expect: {
@@ -19,7 +20,7 @@ export default defineConfig({
   webServer: {
     command: "node ./scripts/browser-smoke-stack.mjs",
     url: platformBaseUrl,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [

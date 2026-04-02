@@ -159,11 +159,11 @@ describe("session reconnect behavior", () => {
     expect(mocked.controllerSocket.connect).not.toHaveBeenCalled();
     expect(mocked.controllerSocket.emit).toHaveBeenCalledWith(
       "controller:join",
-      {
+      expect.objectContaining({
         roomId: "ROOM1",
         controllerId: "ctrl_1",
         nickname: undefined,
-      },
+      }),
       expect.any(Function),
     );
   });

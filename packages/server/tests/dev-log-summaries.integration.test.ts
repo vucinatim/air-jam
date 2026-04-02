@@ -148,6 +148,7 @@ describe("dev log summaries", () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 80));
+    await runtime?.flushDevLogs();
 
     const latestContents = await readFile(
       path.join(tempDir, "dev-latest.ndjson"),
@@ -242,6 +243,7 @@ describe("dev log summaries", () => {
     await new Promise((resolve) => setTimeout(resolve, 80));
     emitNeutralInputs(2);
     await new Promise((resolve) => setTimeout(resolve, 80));
+    await runtime?.flushDevLogs();
 
     const latestContents = await readFile(
       path.join(tempDir, "dev-latest.ndjson"),

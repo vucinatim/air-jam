@@ -26,7 +26,7 @@ When no game iframe is shown (Arcade browser surface or disconnected), the shell
 
 ## Game integration
 
-Games do not configure the **platform** notch directly. They drive presentation by reporting orientation from the **host** runtime via the existing `host:state` / `sendState({ orientation })` path (see prototype host: phase-based portrait vs landscape).
+Games do not configure the **platform** notch directly. They drive presentation by reporting orientation from the **host** runtime via the existing `host:state` / `sendState({ orientation })` path. That channel is only for lightweight controller presentation metadata, not authoritative game sync (see prototype host: phase-based portrait vs landscape).
 
 ## Related code
 

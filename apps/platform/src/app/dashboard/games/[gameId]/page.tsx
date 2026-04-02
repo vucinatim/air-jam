@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  GameAnalyticsActivityCard,
   type GameAnalyticsDailyPoint,
   type GameAnalyticsTotals,
 } from "@/components/game-analytics/game-analytics-panels";
@@ -14,6 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Form,
   FormControl,
@@ -33,10 +37,15 @@ import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Check,
+  ChevronDown,
+  Copy,
+  Eye,
+  EyeOff,
   Gamepad2,
   Globe,
   ImageIcon,
   Key,
+  LineChart,
   Loader2,
   Package,
   Save,
@@ -48,6 +57,10 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
+
+/* ------------------------------------------------------------------ */
+/*  Schema                                                             */
+/* ------------------------------------------------------------------ */
 
 const overviewSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -68,11 +81,43 @@ type DistributionStep = {
   cta: string;
 };
 
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function formatCompactDuration(seconds: number): string {
+  if (seconds <= 0) return "0s";
+  if (seconds < 60) return `${seconds}s`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
+}
+
+function formatCompactTimestamp(value?: Date | null): string {
+  if (!value) return "No activity yet";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(value);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
+
 export default function GameOverviewPage() {
   const params = useParams();
   const gameId = params.gameId as string;
   const [debouncedSlug, setDebouncedSlug] = useState("");
+  const [appIdCopied, setAppIdCopied] = useState(false);
+  const [showAppIdKey, setShowAppIdKey] = useState(false);
   const utils = api.useUtils();
+
+  /* ---- queries --------------------------------------------------- */
 
   const { data: game, isLoading } = api.game.get.useQuery({ id: gameId });
   const { data: appId } = api.game.getAppId.useQuery(
@@ -80,7 +125,7 @@ export default function GameOverviewPage() {
     { enabled: !!gameId },
   );
   const { data: analyticsOverview } = api.analytics.getGameOverview.useQuery(
-    { gameId, days: 14 },
+    { gameId, days: 30 },
     { enabled: !!gameId },
   );
   const { data: releases } = api.release.listByGame.useQuery(
@@ -95,25 +140,17 @@ export default function GameOverviewPage() {
       },
     );
 
+  /* ---- form ------------------------------------------------------ */
+
   const form = useForm<OverviewForm>({
     resolver: zodResolver(overviewSchema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      description: "",
-      previewUrl: "",
-    },
+    defaultValues: { name: "", slug: "", description: "", previewUrl: "" },
   });
 
-  const watchedSlug = useWatch({
-    control: form.control,
-    name: "slug",
-  });
+  const watchedSlug = useWatch({ control: form.control, name: "slug" });
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSlug(watchedSlug || "");
-    }, 300);
+    const timer = setTimeout(() => setDebouncedSlug(watchedSlug || ""), 300);
     return () => clearTimeout(timer);
   }, [watchedSlug]);
 
@@ -126,6 +163,8 @@ export default function GameOverviewPage() {
       previewUrl: game.url ?? "",
     });
   }, [form, game]);
+
+  /* ---- mutations ------------------------------------------------- */
 
   const updateGameDetails = api.game.update.useMutation({
     onSuccess: async () => {
@@ -176,19 +215,23 @@ export default function GameOverviewPage() {
         description: data.description,
         url: data.previewUrl.trim() ? data.previewUrl.trim() : null,
       })
-      .then(() => {
-        alert("Overview saved successfully.");
-      })
+      .then(() => alert("Overview saved successfully."))
       .catch(() => {});
   };
 
-  if (isLoading) {
-    return <Skeleton className="h-[500px] w-full" />;
-  }
+  const handleCopyAppId = async () => {
+    if (!appId?.key) return;
+    await navigator.clipboard.writeText(appId.key);
+    setAppIdCopied(true);
+    setTimeout(() => setAppIdCopied(false), 2000);
+  };
 
-  if (!game) {
-    return <div>Game not found</div>;
-  }
+  /* ---- loading / not-found --------------------------------------- */
+
+  if (isLoading) return <Skeleton className="h-[500px] w-full" />;
+  if (!game) return <div>Game not found</div>;
+
+  /* ---- derived state --------------------------------------------- */
 
   const dailyAnalytics: GameAnalyticsDailyPoint[] =
     analyticsOverview?.daily ?? [];
@@ -202,14 +245,12 @@ export default function GameOverviewPage() {
     peakConcurrentControllers: 0,
     lastActivityAt: null,
   };
-  const liveRelease =
-    releases?.find((release) => release.status === "live") ?? null;
-  const readyRelease =
-    releases?.find((release) => release.status === "ready") ?? null;
+
+  const liveRelease = releases?.find((r) => r.status === "live") ?? null;
+  const readyRelease = releases?.find((r) => r.status === "ready") ?? null;
   const canListInArcade = Boolean(liveRelease);
   const hasPlayableSource = Boolean(game.url || liveRelease);
   const playHref = `/play/${game.slug || game.id}`;
-  const shareablePlayPath = `/play/${game.slug || game.id}`;
 
   const steps: DistributionStep[] = [
     {
@@ -237,121 +278,150 @@ export default function GameOverviewPage() {
     },
   ];
 
-  const nextIncompleteStep = steps.find((step) => !step.complete) ?? null;
+  const allStepsComplete = steps.every((s) => s.complete);
+  const nextIncompleteStep = steps.find((s) => !s.complete) ?? null;
   const isSlugFormatValid = /^[a-z0-9-]+$/.test(watchedSlug || "");
   const showSlugStatus =
     (watchedSlug?.length ?? 0) > 0 &&
     isSlugFormatValid &&
     debouncedSlug === watchedSlug;
   const isSlugAvailable = slugCheck?.available ?? false;
-  const previewStatusLabel = game.url ? "Configured" : "Optional";
+
+  const mediaConfigured = [
+    game.thumbnailUrl,
+    game.coverUrl,
+    game.videoUrl,
+  ].filter(Boolean).length;
+
+  const hasActivity = dailyAnalytics.some(
+    (d) => d.sessionCount > 0 || d.totalEligiblePlaytimeSeconds > 0,
+  );
+
+  const peakEligible = Math.max(
+    1,
+    ...dailyAnalytics.map((d) => d.totalEligiblePlaytimeSeconds),
+  );
+
+  /* ---- render ---------------------------------------------------- */
 
   return (
-    <div className="relative space-y-6">
+    <div className="space-y-6">
+      {/* ------------------------------------------------------------ */}
+      {/*  Header                                                       */}
+      {/* ------------------------------------------------------------ */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{game.name}</h1>
-          <p className="text-muted-foreground max-w-3xl">
-            Identity, distribution state, and the optional creator preview URL
-            all live here. Public Arcade always runs hosted releases, not the
-            preview URL.
+          <p className="text-muted-foreground">
+            Configure your game and track its launch progress.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {hasPlayableSource ? (
-            <Link href={playHref}>
-              <Button
-                variant="outline"
-                className="border-airjam-cyan text-airjam-cyan hover:bg-airjam-cyan/10"
-              >
-                <Gamepad2 className="mr-2 h-4 w-4" />
-                Test Play
-              </Button>
-            </Link>
-          ) : (
-            <Button variant="outline" disabled>
+        {hasPlayableSource ? (
+          <Link href={playHref}>
+            <Button
+              variant="outline"
+              className="border-airjam-cyan text-airjam-cyan hover:bg-airjam-cyan/10"
+            >
               <Gamepad2 className="mr-2 h-4 w-4" />
-              Add Preview URL Or Release
-            </Button>
-          )}
-          <Link href={`/dashboard/games/${gameId}/releases`}>
-            <Button variant="outline">Arcade Releases</Button>
-          </Link>
-          <Link href={`/dashboard/games/${gameId}/media`}>
-            <Button variant="outline">
-              <ImageIcon className="mr-2 h-4 w-4" />
-              Media
+              Test Play
             </Button>
           </Link>
-          <Link href={`/dashboard/games/${gameId}/security`}>
-            <Button variant="outline">
-              <Shield className="mr-2 h-4 w-4" />
-              Security
-            </Button>
-          </Link>
-        </div>
+        ) : (
+          <Button variant="outline" disabled>
+            <Gamepad2 className="mr-2 h-4 w-4" />
+            No Playable Source
+          </Button>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Arcade Path</CardTitle>
-          <CardDescription>
-            The public Arcade path is simple: upload a release, make it live,
-            then list it. The preview URL below is only for private creator
-            testing.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            {steps.map((step, index) => (
-              <div key={step.label} className="rounded-lg border p-4">
-                <div className="text-muted-foreground mb-2 text-xs font-medium uppercase">
-                  Step {index + 1}
+      {/* ------------------------------------------------------------ */}
+      {/*  Launch Checklist                                              */}
+      {/* ------------------------------------------------------------ */}
+      <Collapsible defaultOpen={!allStepsComplete}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer select-none">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Launch Checklist
+                    {allStepsComplete && (
+                      <span className="inline-flex h-5 items-center rounded-full bg-emerald-500/10 px-2 text-xs font-medium text-emerald-600">
+                        Complete
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Upload a release, make it live, then list in the Arcade.
+                  </CardDescription>
                 </div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="font-medium">{step.label}</div>
-                  <span
-                    className={
-                      step.complete
-                        ? "inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"
-                        : "bg-muted-foreground/40 inline-flex h-2.5 w-2.5 rounded-full"
-                    }
-                  />
-                </div>
-                <div className="text-muted-foreground text-sm">
-                  {step.complete ? "Complete" : "Needs attention"}
-                </div>
+                <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0 transition-transform in-data-[state=open]:rotate-180" />
               </div>
-            ))}
-          </div>
-          {nextIncompleteStep ? (
-            <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
-              <div>
-                <div className="font-medium">Next recommended step</div>
-                <div className="text-muted-foreground text-sm">
-                  {nextIncompleteStep.label}
-                </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-0">
+              <div className="grid gap-3 md:grid-cols-3">
+                {steps.map((step, i) => (
+                  <div
+                    key={step.label}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg border p-3",
+                      step.complete && "border-emerald-500/30 bg-emerald-500/5",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium",
+                        step.complete
+                          ? "bg-emerald-500 text-white"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {step.complete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        i + 1
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{step.label}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {step.complete ? "Done" : "Pending"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Link href={nextIncompleteStep.href}>
-                <Button>{nextIncompleteStep.cta}</Button>
-              </Link>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+              {nextIncompleteStep && (
+                <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
+                  <div>
+                    <div className="text-sm font-medium">Next step</div>
+                    <div className="text-muted-foreground text-sm">
+                      {nextIncompleteStep.label}
+                    </div>
+                  </div>
+                  <Link href={nextIncompleteStep.href}>
+                    <Button size="sm">{nextIncompleteStep.cta}</Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-      <Form {...form}>
-        <form
-          id="game-overview-form"
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6"
-        >
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Card>
+      {/* ------------------------------------------------------------ */}
+      {/*  Game Profile + App ID                                          */}
+      {/* ------------------------------------------------------------ */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle>Game Profile</CardTitle>
                 <CardDescription>
-                  Catalog identity and the shareable play URL for this game.
+                  Identity, shareable URL, and the optional development preview.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -422,6 +492,7 @@ export default function GameOverviewPage() {
                     )}
                   />
                 </div>
+
                 <FormField
                   control={form.control}
                   name="description"
@@ -431,286 +502,346 @@ export default function GameOverviewPage() {
                       <FormControl>
                         <Textarea
                           {...field}
-                          rows={5}
-                          placeholder="A short public description for the Arcade and dashboard."
+                          rows={3}
+                          placeholder="A short public description for the Arcade catalog."
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
 
-            <Card id="distribution">
-              <CardHeader>
-                <CardTitle>Distribution</CardTitle>
-                <CardDescription>
-                  Preview is optional. Hosted releases control public Arcade.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="rounded-lg border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="font-medium">Preview URL</div>
-                      <div className="text-muted-foreground text-sm">
-                        {game.url || "No preview URL configured"}
-                      </div>
-                    </div>
-                    <div className="text-sm font-medium">
-                      {previewStatusLabel}
-                    </div>
-                  </div>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="previewUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preview URL</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="http://localhost:5173 or https://your-site.com"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Optional. For private creator testing only -- never used
+                        for the public Arcade catalog.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-                  <div>
-                    <div className="font-medium">Live Arcade release</div>
-                    <div className="text-muted-foreground text-sm">
-                      {liveRelease ? (
-                        <>
-                          <span className="mr-2 inline-flex align-middle">
-                            <ReleaseStatusBadge status={liveRelease.status} />
-                          </span>
-                          {liveRelease.versionLabel?.trim() || liveRelease.id}
-                        </>
-                      ) : readyRelease ? (
-                        "Ready release available but not live yet"
-                      ) : (
-                        "No live Arcade release"
-                      )}
-                    </div>
-                  </div>
-                  <Link href={`/dashboard/games/${gameId}/releases`}>
-                    <Button variant="outline">Manage Releases</Button>
-                  </Link>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-                  <div>
-                    <div className="font-medium">Arcade visibility</div>
-                    <div className="text-muted-foreground text-sm">
-                      {canListInArcade
-                        ? getArcadeVisibilityLabel(game.arcadeVisibility)
-                        : "Requires a live Arcade release before it can appear in the public catalog"}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm font-medium">
-                      {game.arcadeVisibility === "listed" && canListInArcade
-                        ? "Listed in Arcade"
-                        : "Hidden"}
-                    </div>
-                    <Switch
-                      checked={game.arcadeVisibility === "listed"}
-                      onCheckedChange={(checked) =>
-                        updateArcadeVisibility.mutate({
-                          id: gameId,
-                          arcadeVisibility: checked ? "listed" : "hidden",
-                        })
-                      }
-                      disabled={
-                        updateArcadeVisibility.isPending || !canListInArcade
-                      }
-                    />
-                  </div>
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="submit"
+                    disabled={
+                      updateGameDetails.isPending ||
+                      (slugCheck ? !slugCheck.available : false)
+                    }
+                  >
+                    {updateGameDetails.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Save Profile
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </form>
+        </Form>
 
-          <Card id="development-preview">
-            <CardHeader>
-              <CardTitle>Development Preview</CardTitle>
-              <CardDescription>
-                Optional creator-only URL for localhost, staging, or your own
-                deployment when you want Air Jam to iframe an external build for
-                private preview.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="previewUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preview URL</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="http://localhost:5173 or https://your-site.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Never used for the public Arcade catalog. Leave this blank
-                      if you only use hosted releases.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-        </form>
-      </Form>
-
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card>
+        {/* App ID */}
+        <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle>Security Snapshot</CardTitle>
-            <CardDescription>
-              Runtime identity and bootstrap policy for this game.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">App ID</span>
-                <span>{appId?.isActive ? "Active" : "Unavailable"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Allowed origins</span>
-                <span>
-                  {appId?.allowedOrigins?.length
-                    ? `${appId.allowedOrigins.length} configured`
-                    : "Any origin allowed"}
-                </span>
-              </div>
-            </div>
-            <Link href={`/dashboard/games/${gameId}/security`}>
-              <Button variant="outline" className="w-full">
-                <Shield className="mr-2 h-4 w-4" />
-                Open Security
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Media Snapshot</CardTitle>
-            <CardDescription>
-              Public catalog visuals now live in managed media.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Thumbnail</span>
-                <span>{game.thumbnailUrl ? "Configured" : "Missing"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Cover</span>
-                <span>{game.coverUrl ? "Configured" : "Missing"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Preview video</span>
-                <span>{game.videoUrl ? "Configured" : "Missing"}</span>
-              </div>
-            </div>
-            <Link href={`/dashboard/games/${gameId}/media`}>
-              <Button variant="outline" className="w-full">
-                <ImageIcon className="mr-2 h-4 w-4" />
-                Manage Media
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Visibility</CardTitle>
-            <Globe className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {game.arcadeVisibility === "listed" ? "Listed" : "Hidden"}
-            </div>
-            <p className="text-muted-foreground text-xs">
-              {game.arcadeVisibility === "listed"
-                ? "Visible in the public Arcade catalog"
-                : "Not shown in the public Arcade catalog"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Play Path</CardTitle>
-            <Globe className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div
-              className="truncate text-2xl font-bold"
-              title={game.slug || game.id}
-            >
-              {game.slug || (
-                <span className="text-muted-foreground text-sm">Using ID</span>
-              )}
-            </div>
-            <p className="text-muted-foreground text-xs">{shareablePlayPath}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Hosted Release
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              App ID
             </CardTitle>
-            <Package className="text-muted-foreground h-4 w-4" />
+            <CardDescription>
+              Pass this to the SDK when your game connects to Air Jam.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {liveRelease ? "Live" : "None"}
+          <CardContent className="flex flex-1 flex-col gap-4">
+            <div>
+              <div className="bg-muted relative rounded-lg p-3 pr-10 font-mono text-xs break-all">
+                {appId?.key
+                  ? showAppIdKey
+                    ? appId.key
+                    : "\u2022".repeat(Math.min(appId.key.length, 32))
+                  : "No App ID found"}
+                <button
+                  type="button"
+                  onClick={() => setShowAppIdKey((v) => !v)}
+                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 transition-colors"
+                >
+                  {showAppIdKey ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={handleCopyAppId}
+                disabled={!appId?.key}
+              >
+                {appIdCopied ? (
+                  <Check className="mr-2 h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="mr-2 h-3.5 w-3.5" />
+                )}
+                {appIdCopied ? "Copied" : "Copy App ID"}
+              </Button>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {liveRelease
-                ? liveRelease.versionLabel?.trim() || "Hosted release active"
-                : "No live Arcade release yet"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">App ID</CardTitle>
-            <Key className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {appId?.isActive ? "Active" : "Inactive"}
+
+            <div className="bg-muted/50 rounded-lg border border-dashed p-3">
+              <div className="text-muted-foreground mb-1.5 text-[10px] font-medium tracking-wider uppercase">
+                Usage
+              </div>
+              <code className="text-[11px] leading-relaxed">
+                <span className="text-muted-foreground">AIR_JAM_APP_ID</span>
+                <span className="text-muted-foreground">=</span>
+                <span className="text-foreground/70">
+                  {appId?.key
+                    ? `"${showAppIdKey ? appId.key : appId.key.slice(0, 8) + "..."}"`
+                    : '"your-app-id"'}
+                </span>
+              </code>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {appId?.isActive ? "Ready to use" : "Not available"}
-            </p>
+
+            <div className="mt-auto">
+              <Link href={`/dashboard/games/${gameId}/security`}>
+                <Button variant="ghost" size="sm" className="w-full">
+                  <Shield className="mr-2 h-3.5 w-3.5" />
+                  Security Settings
+                </Button>
+              </Link>
+              <p className="text-muted-foreground mt-1 text-center text-[11px]">
+                Regenerate key or configure allowed origins
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <GameAnalyticsActivityCard
-        daily={dailyAnalytics}
-        totals={analyticsTotals}
-      />
+      {/* ------------------------------------------------------------ */}
+      {/*  Status & Distribution                                         */}
+      {/* ------------------------------------------------------------ */}
+      <div
+        id="distribution"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        {/* Arcade Visibility */}
+        <Card className="gap-0 py-0">
+          <div className="flex h-full flex-col justify-between p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
+                <Globe className="h-3.5 w-3.5" />
+                Arcade
+              </div>
+              <Switch
+                checked={game.arcadeVisibility === "listed"}
+                onCheckedChange={(checked) =>
+                  updateArcadeVisibility.mutate({
+                    id: gameId,
+                    arcadeVisibility: checked ? "listed" : "hidden",
+                  })
+                }
+                disabled={updateArcadeVisibility.isPending || !canListInArcade}
+              />
+            </div>
+            <div className="mt-3">
+              <div className="text-lg font-semibold">
+                {game.arcadeVisibility === "listed" && canListInArcade
+                  ? "Listed"
+                  : "Hidden"}
+              </div>
+              <div className="text-muted-foreground text-xs">
+                {canListInArcade
+                  ? getArcadeVisibilityLabel(game.arcadeVisibility)
+                  : "Needs a live release"}
+              </div>
+            </div>
+          </div>
+        </Card>
 
-      <div className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky bottom-0 -mx-4 border-t px-4 py-4 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            form="game-overview-form"
-            disabled={
-              updateGameDetails.isPending ||
-              (slugCheck ? !slugCheck.available : false)
-            }
-          >
-            {updateGameDetails.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save Overview
-          </Button>
-        </div>
+        {/* Live Release */}
+        <Link
+          href={`/dashboard/games/${gameId}/releases`}
+          className="group block"
+        >
+          <Card className="group-hover:border-foreground/20 h-full gap-0 py-0 transition-colors">
+            <div className="flex h-full flex-col justify-between p-4">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
+                <Package className="h-3.5 w-3.5" />
+                Release
+              </div>
+              <div className="mt-3">
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  {liveRelease ? (
+                    <>
+                      <ReleaseStatusBadge status={liveRelease.status} />
+                      <span className="truncate">
+                        {liveRelease.versionLabel?.trim() || "Live"}
+                      </span>
+                    </>
+                  ) : (
+                    "None"
+                  )}
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {liveRelease
+                    ? "Hosted release active"
+                    : readyRelease
+                      ? "Ready release waiting"
+                      : "No release uploaded"}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
+        {/* Media */}
+        <Link href={`/dashboard/games/${gameId}/media`} className="group block">
+          <Card className="group-hover:border-foreground/20 h-full gap-0 py-0 transition-colors">
+            <div className="flex h-full flex-col justify-between p-4">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
+                <ImageIcon className="h-3.5 w-3.5" />
+                Media
+              </div>
+              <div className="mt-3">
+                <div className="text-lg font-semibold">{mediaConfigured}/3</div>
+                <div className="text-muted-foreground text-xs">
+                  {mediaConfigured === 3
+                    ? "All assets configured"
+                    : `Missing: ${[
+                        !game.thumbnailUrl && "thumbnail",
+                        !game.coverUrl && "cover",
+                        !game.videoUrl && "video",
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}`}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
+        {/* Security */}
+        <Link
+          href={`/dashboard/games/${gameId}/security`}
+          className="group block"
+        >
+          <Card className="group-hover:border-foreground/20 h-full gap-0 py-0 transition-colors">
+            <div className="flex h-full flex-col justify-between p-4">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
+                <Shield className="h-3.5 w-3.5" />
+                Security
+              </div>
+              <div className="mt-3">
+                <div className="text-lg font-semibold">
+                  {appId?.isActive ? "Active" : "Inactive"}
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {appId?.allowedOrigins?.length
+                    ? `${appId.allowedOrigins.length} origin${appId.allowedOrigins.length === 1 ? "" : "s"} allowed`
+                    : "Any origin"}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </Link>
       </div>
+
+      {/* ------------------------------------------------------------ */}
+      {/*  Recent Activity                                               */}
+      {/* ------------------------------------------------------------ */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription className="mt-1">
+                Last 30 days of eligible playtime.
+              </CardDescription>
+            </div>
+            <Link href={`/dashboard/games/${gameId}/analytics`}>
+              <Button variant="ghost" size="sm">
+                <LineChart className="mr-2 h-4 w-4" />
+                Full Analytics
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {hasActivity ? (
+            <div className="space-y-4">
+              <div className="flex items-end gap-1">
+                {dailyAnalytics.map((day) => {
+                  const height = Math.max(
+                    8,
+                    Math.round(
+                      (day.totalEligiblePlaytimeSeconds / peakEligible) * 100,
+                    ),
+                  );
+                  return (
+                    <div
+                      key={day.bucketDate}
+                      className="flex min-w-0 flex-1 flex-col items-center gap-1"
+                    >
+                      <div className="bg-airjam-cyan/15 flex h-16 w-full items-end rounded-sm">
+                        <div
+                          className="bg-airjam-cyan w-full rounded-sm transition-all"
+                          style={{ height: `${height}%` }}
+                        />
+                      </div>
+                      <span className="text-muted-foreground text-[9px]">
+                        {day.bucketDate.slice(8)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border p-3">
+                  <div className="text-muted-foreground text-xs">Sessions</div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {analyticsTotals.sessionCount}
+                  </div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="text-muted-foreground text-xs">
+                    Active Time
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {formatCompactDuration(
+                      analyticsTotals.totalGameActiveSeconds,
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="text-muted-foreground text-xs">
+                    Last Activity
+                  </div>
+                  <div className="mt-1 text-sm font-semibold">
+                    {formatCompactTimestamp(analyticsTotals.lastActivityAt)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-muted-foreground flex h-24 items-center justify-center rounded-lg border border-dashed text-sm">
+              No activity yet. Start a session to see analytics here.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

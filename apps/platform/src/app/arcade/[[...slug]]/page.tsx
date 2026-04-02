@@ -47,6 +47,10 @@ export default function ArcadePage({
   const { data: games, isLoading: gamesLoading } = api.game.getAllPublic.useQuery();
   const publicArcadeGames = games ? toArcadeGames(games) : [];
   const arcadeGames = expandArcadeGamesForDev([
+    ...(localReferenceGame &&
+    !localReferenceGames.some((game) => game.id === localReferenceGame.id)
+      ? [localReferenceGame]
+      : []),
     ...localReferenceGames,
     ...publicArcadeGames,
   ]);
@@ -57,8 +61,9 @@ export default function ArcadePage({
       ) ?? null
     : null;
 
-  const initialGameId = localReferenceGame?.id ?? targetGame?.id;
-  const shouldAutoLaunch = !!slugOrId && !!targetGame;
+  const routeGame = localReferenceGame ?? targetGame;
+  const initialGameId = routeGame?.id;
+  const shouldAutoLaunch = !!slugOrId && !!initialGameId;
   const hostRouteIntent = slugOrId
     ? { kind: "game" as const, gameId: initialGameId ?? null }
     : { kind: "browser" as const };

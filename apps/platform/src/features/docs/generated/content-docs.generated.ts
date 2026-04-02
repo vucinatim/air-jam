@@ -604,7 +604,7 @@ const generatedContentDocsDocuments = [
         slug: "migrating-legacy-games",
         depth: 1,
         excerpt:
-          "This guide is for older Air Jam games that still use the pre-v1 app shape. If you are starting fresh, use Quick Start instead. Tip: if you are using an LLM to help with the migration, copy this guide into the…",
+          "This guide is for older Air Jam games that still use the pre-v1 app shape. If you are starting fresh, use Quick Start instead. If you are using an LLM to help with the migration, copy this guide into the conversation…",
       },
       {
         title: "When You Need This Guide",
@@ -1028,10 +1028,11 @@ const generatedContentDocsDocuments = [
           "host.players.forEach((player) => { console.log(player.label, player.color); const playerCount = host.players.length; const player = host.players.find((p) => p.id === targetId);",
       },
       {
-        title: "State Broadcasting",
-        slug: "state-broadcasting",
+        title: "Controller Presentation State",
+        slug: "controller-presentation-state",
         depth: 2,
-        excerpt: "Send state updates to all controllers:",
+        excerpt:
+          "Use sendState for lightweight controller presentation metadata, not authoritative gameplay sync. Networked stores should own the real multiplayer state; this path is for controller-facing hints such as orientation,…",
       },
       {
         title: "Error Handling",
@@ -1075,14 +1076,14 @@ const generatedContentDocsDocuments = [
         slug: "host-hooks",
         depth: 2,
         excerpt:
-          "useAirJamHost Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Reading Input in Game Loops: Sending Haptic…",
+          "useAirJamHost Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Use useAirJamHostState(selector) when a component…",
       },
       {
         title: "useAirJamHost",
         slug: "useairjamhost",
         depth: 3,
         excerpt:
-          "Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Reading Input in Game Loops: Sending Haptic Feedback: Sending…",
+          "Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Use useAirJamHostState(selector) when a component only needs a…",
       },
       {
         title: "useGetInput",
@@ -1103,14 +1104,14 @@ const generatedContentDocsDocuments = [
         slug: "controller-hooks",
         depth: 2,
         excerpt:
-          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Standalone controller…",
+          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Use…",
       },
       {
         title: "useAirJamController",
         slug: "useairjamcontroller",
         depth: 3,
         excerpt:
-          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Standalone controller runtimes also keep one…",
+          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Use useAirJamControllerState(selector) when a…",
       },
       {
         title: "useControllerTick",

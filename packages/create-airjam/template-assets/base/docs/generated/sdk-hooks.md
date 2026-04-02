@@ -59,6 +59,10 @@ The provider automatically reads from these environment variables if props aren'
 
 Consumer hook for host runtime state and actions. Mount `airjam.Host` or `AirJamHostRuntime` once at the boundary, then call `useAirJamHost()` anywhere below it.
 
+Use `useAirJamHostState(selector)` when a component only needs a narrow slice
+of replicated host session state and you want to avoid rerendering on unrelated
+runtime fields.
+
 ```tsx
 import { AirJamHostRuntime, useAirJamHost } from "@air-jam/sdk";
 
@@ -94,7 +98,7 @@ const HostView = () => {
     // Functions
     getInput, // (controllerId: string) => Input | undefined
     sendSignal, // Send haptics/toasts to controllers
-    sendState, // Broadcast state to all controllers
+    sendState, // Publish lightweight controller presentation state
     toggleGameState, // Toggle between playing/paused
     reconnect, // Force reconnection
   } = host;
@@ -132,6 +136,11 @@ useFrame(() => {
   });
 });
 ```
+
+`sendState` is only for lightweight controller presentation metadata such as
+orientation, pause/play status, or short UI messages. It is not the primary
+gameplay sync channel. Authoritative multiplayer state should live in the
+networked stores and flow automatically through those boundaries.
 
 **Sending Haptic Feedback:**
 
@@ -227,6 +236,13 @@ const Laser = ({ ownerId }: { ownerId: string }) => {
 ### `useAirJamController`
 
 Consumer hook for controller runtime state and actions. Mount `airjam.Controller` or `AirJamControllerRuntime` once at the boundary, then call `useAirJamController()` below it.
+
+Use `useAirJamControllerState(selector)` when a component only needs a narrow
+slice of controller session state and should not rerender on unrelated runtime
+updates.
+
+Standalone controller runtimes also keep one stable local device identity and
+automatically attempt same-device resume when reconnecting to the same room.
 
 ```tsx
 import {

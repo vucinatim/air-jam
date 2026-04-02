@@ -82,6 +82,19 @@ describe("local reference games", () => {
     expect(byId?.slug).toBe("local-air-capture");
   });
 
+  it("resolves direct local reference routes through per-game fallback URLs", () => {
+    const pong = getLocalReferenceArcadeGame("local-pong", {
+      env: {},
+      nodeEnv: "development",
+    });
+
+    expect(pong).toMatchObject({
+      slug: "local-pong",
+      name: "Pong",
+      url: "http://127.0.0.1:5173",
+    });
+  });
+
   it("does not include showcase games unless explicitly configured", () => {
     const games = getLocalReferenceArcadeGames({
       env: {},

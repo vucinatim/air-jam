@@ -103,7 +103,7 @@ const HostView = () => {
     // Functions
     getInput, // (controllerId: string) => Input | undefined
     sendSignal, // Send haptics/toasts to controllers
-    sendState, // Broadcast state to all controllers
+    sendState, // Publish lightweight controller presentation state
     toggleGameState, // Toggle between playing/paused
     reconnect, // Force reconnection
   } = host;
@@ -141,6 +141,11 @@ useFrame(() => {
   });
 });
 ```
+
+`sendState` is only for lightweight controller presentation metadata such as
+orientation, pause/play status, or short UI messages. It is not the primary
+gameplay sync channel. Authoritative multiplayer state should live in the
+networked stores and flow automatically through those boundaries.
 
 **Sending Haptic Feedback:**
 

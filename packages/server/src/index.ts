@@ -67,6 +67,7 @@ export interface AirJamServerRuntime {
   io: AirJamIoServer;
   start: (portOverride?: number) => Promise<number>;
   stop: () => Promise<void>;
+  flushDevLogs: () => Promise<void>;
   getPort: () => number | null;
 }
 
@@ -301,6 +302,11 @@ export const createAirJamServer = (
     });
 
     activePort = null;
+    await devLogCollector?.flush();
+  };
+
+  const flushDevLogs = async (): Promise<void> => {
+    await devLogCollector?.flush();
   };
 
   const getPort = (): number | null => activePort;
@@ -311,6 +317,7 @@ export const createAirJamServer = (
     io,
     start,
     stop,
+    flushDevLogs,
     getPort,
   };
 };

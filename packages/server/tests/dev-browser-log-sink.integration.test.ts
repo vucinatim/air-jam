@@ -207,6 +207,7 @@ describe("dev browser log sink", () => {
     expect(unloadBeforeResponse.status).toBe(204);
 
     await new Promise((resolve) => setTimeout(resolve, 75));
+    await runtime?.flushDevLogs();
 
     const latestContents = await readFile(path.join(tempDir, "dev-latest.ndjson"), "utf8");
     const events = parseEvents(latestContents);

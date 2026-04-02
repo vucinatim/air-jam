@@ -237,12 +237,15 @@ const playerCount = host.players.length;
 const player = host.players.find((p) => p.id === targetId);
 ```
 
-## State Broadcasting
+## Controller Presentation State
 
-Send state updates to all controllers:
+Use `sendState` for lightweight controller presentation metadata, not
+authoritative gameplay sync. Networked stores should own the real multiplayer
+state; this path is for controller-facing hints such as orientation, pause/play
+status, and short messages.
 
 ```tsx
-// Update game state display
+// Update controller presentation
 host.sendState({
   gameState: "playing", // "playing" | "paused"
   orientation: "landscape", // "portrait" | "landscape"
