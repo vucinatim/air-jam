@@ -57,7 +57,7 @@ Arcade is an Air Jam app around another Air Jam app.
 3. **Input Latching** - Ensures rapid button taps are never missed
 4. **Schema Validation** - Type-safe input with runtime validation
 
-### 4. Air Capture (`apps/air-capture`)
+### 4. Air Capture (`games/air-capture`)
 
 **Role:** Reference implementation showcasing SDK capabilities
 

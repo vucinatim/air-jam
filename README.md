@@ -28,8 +28,9 @@ This is a monorepo managed with pnpm workspaces:
 ```
 air-jam/
 ├── apps/
-│   ├── platform/           # Next.js platform web app (developer portal, game catalog)
-│   └── air-capture/        # Reference game implementation
+│   └── platform/           # Next.js platform web app (developer portal, game catalog)
+├── games/
+│   └── air-capture/        # First-party reference game implementation
 ├── packages/
 │   ├── sdk/                # Core SDK for building games (@air-jam/sdk)
 │   ├── server/             # WebSocket server for game connections
@@ -56,25 +57,35 @@ pnpm install
 Use the top-level workspace launcher for the common local flow:
 
 ```bash
-# Start sdk watch, server, platform, and air-capture
+# Start sdk watch, server, platform app, and air-capture
 pnpm dev
 
-# Start sdk watch, server, platform, and pong instead
+# Start the same stack with pong instead
 pnpm dev -- --pong
+
+# Start the stack and also open Drizzle Studio
+pnpm dev -- --db-studio
 
 # Shortcut alias for pong mode
 pnpm dev:pong
 ```
 
 The output is prefixed by process name, so server logs remain visible in the shared terminal.
+`pnpm dev` intentionally starts the platform app only; run Drizzle Studio explicitly when you need database inspection.
 
 #### Running the Platform
 
 The platform includes the developer portal, game catalog, and documentation:
 
 ```bash
-# Start the platform (runs on http://localhost:3000)
+# Start the platform app plus Drizzle Studio
 pnpm dev:platform
+
+# Start only the platform app
+pnpm --filter platform dev:no-db
+
+# Start only Drizzle Studio
+pnpm --filter platform dev:db
 ```
 
 **Environment Variables** (create `.env.local` in `apps/platform/`):

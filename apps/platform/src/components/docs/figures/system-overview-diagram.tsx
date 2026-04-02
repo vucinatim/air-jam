@@ -10,7 +10,7 @@ export const SystemOverviewDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
-      data-figure-description="System overview diagram showing the four main components: 1) Platform (apps/platform) - Next.js app with developer portal, game catalog, arcade mode, and controller runtime. 2) Server (packages/server) - Node.js with Express and Socket.IO for real-time communication, manages rooms and routes signals. 3) SDK (packages/sdk) - React toolkit with hooks, Zustand state, input behavior semantics, and Zod validation. 4) Air Capture (apps/air-capture) - Reference implementation with React Three Fiber and Rapier physics."
+      data-figure-description="System overview diagram showing the four main components: 1) Platform (apps/platform) - Next.js app with developer portal, game catalog, arcade mode, and controller runtime. 2) Server (packages/server) - Node.js with Express and Socket.IO for real-time communication, manages rooms and routes signals. 3) SDK (packages/sdk) - React toolkit with hooks, Zustand state, input behavior semantics, and Zod validation. 4) Air Capture (games/air-capture) - Reference implementation with React Three Fiber and Rapier physics."
     >
       <svg
         viewBox="0 0 800 600"

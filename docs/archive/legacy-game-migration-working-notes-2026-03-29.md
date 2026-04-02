@@ -42,7 +42,7 @@ The migration target is not “make the old code compile against the new package
 
 The migration target is the current Air Jam app shape represented by:
 
-1. [air-capture](/Users/timvucina/Desktop/MyProjects/air-jam/apps/air-capture)
+1. [air-capture](/Users/timvucina/Desktop/MyProjects/air-jam/games/air-capture)
 2. [pong template](/Users/timvucina/Desktop/MyProjects/air-jam/packages/create-airjam/templates/pong)
 
 The most important target traits are:

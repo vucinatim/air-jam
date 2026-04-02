@@ -27,9 +27,11 @@ describe("air-capture projectile runtime helpers", () => {
 
     const shooter = new Object3D();
     shooter.userData.controllerId = "pilot-1";
+    shooter.userData.gameplayHitbox = true;
 
     const target = new Object3D();
     target.userData.controllerId = "pilot-2";
+    target.userData.gameplayHitbox = true;
 
     scene.add(obstacle, shooter, target);
 

@@ -148,8 +148,8 @@ It is a pressure-relief pass on files that are already expensive to reason about
 1. `packages/server/src/gateway/handlers/register-host-lifecycle-handlers.ts`
 2. `apps/platform/src/components/arcade/arcade-system.tsx`
 3. `apps/platform/src/components/controller-menu-sheet.tsx`
-4. `apps/air-capture/src/routes/host-view.tsx`
-5. `apps/air-capture/src/game/bot-system/bot-controller.ts`
+4. `games/air-capture/src/routes/host-view.tsx`
+5. `games/air-capture/src/game/bot-system/bot-controller.ts`
 
 The rule should be:
 

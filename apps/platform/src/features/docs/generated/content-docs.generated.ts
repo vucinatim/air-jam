@@ -804,8 +804,8 @@ const generatedContentDocsDocuments = [
           "Role: Developer toolkit for building Air Jam games Technology: React, TypeScript, Socket.IO Client, Zustand, Zod Architecture: Key Design Decisions: Provider Pattern - Single provider for configuration, multiple hooks…",
       },
       {
-        title: "4. Air Capture (apps/air-capture)",
-        slug: "4-air-capture-appsair-capture",
+        title: "4. Air Capture (games/air-capture)",
+        slug: "4-air-capture-gamesair-capture",
         depth: 3,
         excerpt:
           "Role: Reference implementation showcasing SDK capabilities Technology: React, Vite, React Three Fiber, Rapier Physics Demonstrates: Host-side game logic with physics Controller UI with joystick and buttons Player…",

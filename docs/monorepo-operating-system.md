@@ -329,7 +329,7 @@ When working in this repo, maintainers and agents should think in these ownershi
 2. `packages/server`: runtime invariants, transport, diagnostics, policy
 3. `packages/create-airjam`: scaffold, template system, AI pack, generated-project DX
 4. `apps/platform`: first-party product shell, docs/blog delivery, arcade/browser/controller UX
-5. `apps/air-capture`: reference app and real framework proof
+5. `games/air-capture`: reference game and real framework proof
 6. `content/docs` and `content/blog`: canonical public content sources
 7. `docs/`: maintainer-only architecture, plans, and internal operating docs
 

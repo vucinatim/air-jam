@@ -30,7 +30,7 @@ RUNTIME_PATHS=(
   "apps/platform/src/app/controller"
   "apps/platform/src/app/play"
   "apps/platform/src/components/arcade"
-  "apps/air-capture/src"
+  "games/air-capture/src"
   "packages/create-airjam/templates/pong/src"
 )
 

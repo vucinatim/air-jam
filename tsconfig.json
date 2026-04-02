@@ -2,9 +2,9 @@
   "files": [],
   "references": [
     { "path": "./apps/platform" },
+    { "path": "./games/air-capture" },
     { "path": "./content" },
     { "path": "./packages/server" },
-    { "path": "./packages/sdk" },
-    { "path": "./apps/air-capture" }
+    { "path": "./packages/sdk" }
   ]
 }

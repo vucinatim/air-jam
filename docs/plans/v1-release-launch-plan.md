@@ -291,7 +291,7 @@ Use these project roots for the proof:
 
 1. repo-local template/reference games:
    1. `packages/create-airjam/templates/pong`
-   2. `apps/air-capture`
+   2. `games/air-capture`
 2. external ZeroDays showcase games:
    1. `/Users/timvucina/Desktop/zerodays/air-jam-games/code-review`
    2. `/Users/timvucina/Desktop/zerodays/air-jam-games/last-band-standing`

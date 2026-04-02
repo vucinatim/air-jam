@@ -120,6 +120,10 @@ Completed baselines now folded into this phase:
    1. upload finalization now runs automated screenshot + image moderation before a release settles into `ready`
    2. creator release pages keep upload/publish/archive plus release history, but no longer expose moderation or quarantine controls
    3. internal moderation and quarantine actions now live behind a database-backed `ops_admin` role on `/dashboard/ops/releases`
+13. the monorepo root now reflects the real product boundary more honestly:
+   1. platform-owned product surfaces remain under `apps/`
+   2. repo-owned first-party games can now live under `games/`
+   3. `air-capture` has been moved from `apps/air-capture` to `games/air-capture` as the first clean example of that split
 
 ### Priority 5. Release PR And Publish
 

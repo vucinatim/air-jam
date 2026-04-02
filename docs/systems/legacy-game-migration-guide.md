@@ -43,7 +43,7 @@ Air Jam v1 should be trusted because older real games work against packaged depe
 The canonical target is the current Air Jam app pattern used by:
 
 1. [Pong template](/Users/timvucina/Desktop/MyProjects/air-jam/packages/create-airjam/templates/pong)
-2. [air-capture](/Users/timvucina/Desktop/MyProjects/air-jam/apps/air-capture)
+2. [air-capture](/Users/timvucina/Desktop/MyProjects/air-jam/games/air-capture)
 
 The most important traits are:
 

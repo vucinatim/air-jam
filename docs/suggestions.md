@@ -27,6 +27,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 21. If the first-pass Arcade waiting interaction lands well, revisit a richer waiting-state background activity or mini-game after launch instead of turning the prerelease polish pass into a second game project.
 22. If couch-readability remains inconsistent after docs guidance and a small optional pattern, revisit whether a more formal framework-level UI scaling helper is justified post-release rather than forcing a premature global abstraction now.
 23. Revisit `air-capture` flight-feel tuning after launch, especially additional air maneuverability, only after the prerelease control split, flag rules, countdown flow, and damage clarity are settled.
+24. After release, decide whether the remaining repo-owned showcase/reference games should also move under `games/` so the new `apps/` versus `games/` root split becomes fully consistent instead of leaving `air-capture` as a one-off.
 
 ## Framework Boundary Follow-Ups
 
