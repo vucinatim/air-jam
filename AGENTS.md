@@ -33,6 +33,18 @@ Run relevant checks before considering work complete:
 3. Tests
 4. Build validation
 
+## Debugging Rule
+
+When debugging uncertain behavior, inspect the unified dev log stream first.
+
+Preferred order:
+
+1. run `pnpm exec air-jam-server logs --view=signal`
+2. narrow with `--trace`, `--room`, `--controller`, `--runtime`, `--process`, or `--source`
+3. only add temporary ad hoc logging if the unified stream still leaves a real gap
+
+Treat `.airjam/logs/dev-latest.ndjson` as the canonical local debugging stream for server, browser/runtime, platform/Arcade, and workspace-process stories.
+
 ## Documentation Discipline
 
 1. Keep intended architecture in `docs/framework-paradigm.md`.

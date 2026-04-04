@@ -26,6 +26,24 @@ const resolveLevel = (line, stream) => {
   return stream === "stderr" ? "warn" : "info";
 };
 
+const isStructuredServerLogLine = (line) => {
+  if (!line.startsWith("{") || !line.endsWith("}")) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(line);
+    return (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof parsed.level === "string" &&
+      typeof parsed.msg === "string"
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const createWorkspaceDevLogSink = (options = {}) => {
   const logFilePath =
     options.logFilePath ??
@@ -39,6 +57,22 @@ export const createWorkspaceDevLogSink = (options = {}) => {
     fs.appendFileSync(logFilePath, toLine(event), "utf8");
   };
 
+  const createBaseEvent = ({ occurredAt, level, event, processName, tool, command, cwd }) => ({
+    time: occurredAt,
+    occurredAt,
+    ingestedAt: occurredAt,
+    level,
+    source: "workspace",
+    service,
+    component,
+    scope: "workspace",
+    event,
+    processName,
+    tool,
+    command,
+    cwd,
+  });
+
   const emitOutput = ({ processName, stream, line, tool, command, cwd }) => {
     const trimmed = line.trim();
     if (!trimmed) {
@@ -47,20 +81,16 @@ export const createWorkspaceDevLogSink = (options = {}) => {
 
     const occurredAt = new Date().toISOString();
     appendLine({
-      time: occurredAt,
-      occurredAt,
-      ingestedAt: occurredAt,
-      level: resolveLevel(trimmed, stream),
-      source: "workspace",
-      service,
-      component,
-      scope: "workspace",
-      event: "workspace.process.output",
-      processName,
+      ...createBaseEvent({
+        occurredAt,
+        level: resolveLevel(trimmed, stream),
+        event: "workspace.process.output",
+        processName,
+        tool,
+        command,
+        cwd,
+      }),
       stream,
-      tool,
-      command,
-      cwd,
       msg: trimmed,
     });
   };
@@ -92,6 +122,13 @@ export const createWorkspaceDevLogSink = (options = {}) => {
       const trailing = parts.pop() ?? "";
 
       for (const line of parts) {
+        if (
+          metadata.suppressStructuredServerLogs === true &&
+          isStructuredServerLogLine(line.trim())
+        ) {
+          continue;
+        }
+
         emitOutput({
           ...metadata,
           line,
@@ -99,6 +136,26 @@ export const createWorkspaceDevLogSink = (options = {}) => {
       }
 
       partials.set(key, trailing);
+    },
+
+    recordStart(metadata) {
+      const occurredAt = new Date().toISOString();
+      appendLine({
+        ...createBaseEvent({
+          occurredAt,
+          level: "info",
+          event: "workspace.process.started",
+          processName: metadata.processName,
+          tool: metadata.tool,
+          command: metadata.command,
+          cwd: metadata.cwd,
+        }),
+        data: {
+          pid:
+            Number.isInteger(metadata.pid) && metadata.pid > 0 ? metadata.pid : null,
+        },
+        msg: `Process ${metadata.processName} started`,
+      });
     },
 
     flush(metadata) {
@@ -115,21 +172,19 @@ export const createWorkspaceDevLogSink = (options = {}) => {
     recordExit(metadata) {
       const occurredAt = new Date().toISOString();
       appendLine({
-        time: occurredAt,
-        occurredAt,
-        ingestedAt: occurredAt,
-        level:
-          typeof metadata.code === "number" && metadata.code !== 0 ? "error" : "info",
-        source: "workspace",
-        service,
-        component,
-        scope: "workspace",
-        event: "workspace.process.exit",
-        processName: metadata.processName,
-        tool: metadata.tool,
-        command: metadata.command,
-        cwd: metadata.cwd,
+        ...createBaseEvent({
+          occurredAt,
+          level:
+            typeof metadata.code === "number" && metadata.code !== 0 ? "error" : "info",
+          event: "workspace.process.exit",
+          processName: metadata.processName,
+          tool: metadata.tool,
+          command: metadata.command,
+          cwd: metadata.cwd,
+        }),
         data: {
+          pid:
+            Number.isInteger(metadata.pid) && metadata.pid > 0 ? metadata.pid : null,
           code: metadata.code ?? null,
           signal: metadata.signal ?? null,
         },

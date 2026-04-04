@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fileURLToPath } from "node:url";
-import { executeDevLogsCli } from "../src/logging/dev-logs-cli";
+import {
+  executeDevLogsCli,
+  formatDevLogsHelp,
+} from "../src/logging/dev-logs-cli";
 
 const FIXTURE_FILE = fileURLToPath(
   new URL("./fixtures/dev-logs-cli-sample.ndjson", import.meta.url),
@@ -74,5 +77,37 @@ describe("dev logs cli integration", () => {
 
     expect(output).toContain('Failed to resolve import "react-icons/gi"');
     expect(output).not.toContain("ready in 310 ms");
+    expect(output).not.toContain("Process platform started");
+  });
+
+  it("filters workspace entries by process name and keeps exit failures in signal view", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const exitCode = await executeDevLogsCli([
+      "--file",
+      FIXTURE_FILE,
+      "--view=signal",
+      "--source=workspace",
+      "--process=platform",
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    const output = logSpy.mock.calls.flat().join("\n");
+
+    expect(output).toContain("Process platform exited with code 1");
+    expect(output).not.toContain("Process platform started");
+    expect(output).not.toContain('Failed to resolve import "react-icons/gi"');
+  });
+
+  it("documents process filtering in the help output", () => {
+    const output = formatDevLogsHelp();
+
+    expect(output).toContain("--process <name>");
+    expect(output).toContain(
+      "air-jam-server logs --source=workspace --process=platform --view=signal",
+    );
   });
 });

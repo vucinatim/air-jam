@@ -91,8 +91,19 @@ export const registerWorkspaceCommands = (program) => {
   workspaceCommand
     .command("logs")
     .description("Stream the Air Jam server development logs")
-    .action(() => {
-      runCommand("pnpm", ["--filter", "@air-jam/server", "logs:dev"]);
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .argument("[logArgs...]", "Arguments to forward to air-jam-server logs")
+    .action((logArgs = []) => {
+      runCommand("pnpm", [
+        "--filter",
+        "@air-jam/server",
+        "exec",
+        "tsx",
+        "src/cli.ts",
+        "logs",
+        ...logArgs,
+      ]);
     });
 
   const analyticsCommand = workspaceCommand

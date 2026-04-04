@@ -174,13 +174,15 @@ Wrap icon usage behind local UI/game icon modules where practical so the project
 
 1. keep gameplay logic testable without full rendering where practical
 2. add unit or behavior tests when changing real behavior
-3. inspect the canonical Air Jam dev log stream early for multiplayer/runtime issues
-4. prefer `pnpm exec air-jam-server logs`, or read `.airjam/logs/dev-latest.ndjson` directly
-5. remember that `dev-latest.ndjson` resets when the Air Jam server process restarts
-6. use framework diagnostics after the canonical log stream, not instead of it
-7. keep debug helpers isolated from hot gameplay paths
-8. if the local AI workflow files look stale or inconsistent, inspect them with `pnpm exec airjam ai-pack status --dir .` and `pnpm exec airjam ai-pack diff --dir .`
-9. only use `pnpm exec airjam ai-pack update --dir .` when you want to replace managed AI pack files explicitly; it does not merge local customizations
+3. inspect the canonical Air Jam dev log stream first for multiplayer/runtime issues
+4. start with `pnpm exec air-jam-server logs --view=signal`
+5. narrow with `--trace`, `--room`, `--controller`, `--runtime`, `--process`, or `--source`
+6. prefer `pnpm exec air-jam-server logs`, or read `.airjam/logs/dev-latest.ndjson` directly
+7. remember that `dev-latest.ndjson` resets when the Air Jam server process restarts
+8. use framework diagnostics after the canonical log stream, not instead of it
+9. keep debug helpers isolated from hot gameplay paths
+10. if the local AI workflow files look stale or inconsistent, inspect them with `pnpm exec airjam ai-pack status --dir .` and `pnpm exec airjam ai-pack diff --dir .`
+11. only use `pnpm exec airjam ai-pack update --dir .` when you want to replace managed AI pack files explicitly; it does not merge local customizations
 
 ## Escalation Rule
 

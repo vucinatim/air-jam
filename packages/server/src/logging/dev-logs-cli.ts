@@ -33,6 +33,9 @@ interface DevLogEvent {
   browserSource?: string;
   consoleCategory?: AirJamDevBrowserConsoleCategory;
   repeatCount?: number;
+  processName?: string;
+  stream?: "stdout" | "stderr";
+  tool?: string;
   data?: unknown;
   err?: unknown;
   [key: string]: unknown;
@@ -51,6 +54,7 @@ export interface DevLogsCliOptions {
   runtimeKind?: string;
   runtimeEpoch?: number;
   consoleCategory?: AirJamDevBrowserConsoleCategory;
+  processName?: string;
 }
 
 const LEVEL_PRIORITY: Record<DevLogLevel, number> = {
@@ -79,6 +83,7 @@ const DEV_LOGS_EXAMPLES = [
   "  air-jam-server logs --runtime=arcade-host-runtime --epoch=2",
   "  air-jam-server logs --view=signal --room=ROOM1",
   "  air-jam-server logs --source=browser --console-category=framework",
+  "  air-jam-server logs --source=workspace --process=platform --view=signal",
 ].join("\n");
 
 const validateChoice =
@@ -171,6 +176,12 @@ export const coerceDevLogsCliOptions = (
     parsed.consoleCategory === "browser"
       ? parsed.consoleCategory
       : undefined,
+  processName:
+    typeof parsed.processName === "string"
+      ? parsed.processName
+      : typeof parsed.process === "string"
+        ? parsed.process
+        : undefined,
 });
 
 const addDevLogsHelpText = (command: Command): Command => {
@@ -200,6 +211,7 @@ export const configureDevLogsCommand = (command: Command): Command => {
     .option("--room <id>", "Limit entries to one room id")
     .option("--controller <id>", "Limit entries to one controller id")
     .option("--event <name>", "Limit entries to one event name")
+    .option("--process <name>", "Limit workspace entries to one process name")
     .option(
       "--level <level>",
       "Only show entries at or above this level",
@@ -280,6 +292,9 @@ export const passesDevLogFilter = (
   if (options.event && event.event !== options.event) {
     return false;
   }
+  if (options.processName && event.processName !== options.processName) {
+    return false;
+  }
   if (options.runtimeKind && event.runtimeKind !== options.runtimeKind) {
     return false;
   }
@@ -311,11 +326,19 @@ export const passesDevLogFilter = (
 
 const passesSignalView = (event: DevLogEvent): boolean => {
   if (event.source === "workspace") {
-    return (
-      event.level === "warn" ||
-      event.level === "error" ||
-      event.level === "fatal"
-    );
+    if (event.event === "workspace.process.started") {
+      return false;
+    }
+
+    if (event.event === "workspace.process.exit") {
+      return (
+        event.level === "warn" ||
+        event.level === "error" ||
+        event.level === "fatal"
+      );
+    }
+
+    return event.level === "warn" || event.level === "error" || event.level === "fatal";
   }
 
   if (

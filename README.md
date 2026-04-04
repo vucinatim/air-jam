@@ -390,10 +390,12 @@ When the dev log collector is enabled, the server writes the canonical local deb
 Use the built-in viewer to inspect it:
 
 ```bash
+pnpm exec air-jam-server logs --view=signal
 pnpm run repo -- workspace logs
 pnpm exec air-jam-server logs --follow
 pnpm exec air-jam-server logs --trace=host_abc123
 pnpm exec air-jam-server logs --source=browser --level=warn
+pnpm exec air-jam-server logs --source=workspace --process=platform --view=signal
 ```
 
 ### Game Deployment

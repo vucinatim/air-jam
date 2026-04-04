@@ -165,6 +165,16 @@ This is the default day-to-day execution loop for work in this monorepo.
 4. `pnpm build`
 5. When touching networking or perf-sensitive server paths, run `pnpm run repo -- perf sanity` when relevant.
 
+### 4.5. Debugging Order
+
+When behavior is unclear across the server, browser runtime, controller, Arcade shell, or workspace tools:
+
+1. start with `pnpm exec air-jam-server logs --view=signal`
+2. narrow with `--trace`, `--room`, `--controller`, `--runtime`, `--process`, or `--source`
+3. only add temporary ad hoc logging if the unified stream still leaves a real gap
+
+`pnpm run repo -- workspace logs` is only a maintainer convenience passthrough to the same canonical reader.
+
 ### 5. Template And Scaffold Validation
 
 When touching `create-airjam`, scaffoldable games, or package-boundary behavior:

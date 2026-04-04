@@ -100,6 +100,43 @@
     "dist",
     "src"
   ],
+  "typesVersions": {
+    "*": {
+      "ui": [
+        "dist/ui.d.ts"
+      ],
+      "arcade": [
+        "dist/arcade.d.ts"
+      ],
+      "arcade/bridge": [
+        "dist/arcade/bridge.d.ts"
+      ],
+      "arcade/bridge/controller": [
+        "dist/arcade/bridge/controller.d.ts"
+      ],
+      "arcade/bridge/host": [
+        "dist/arcade/bridge/host.d.ts"
+      ],
+      "arcade/bridge/iframe": [
+        "dist/arcade/bridge/iframe.d.ts"
+      ],
+      "arcade/host": [
+        "dist/arcade/host.d.ts"
+      ],
+      "arcade/surface": [
+        "dist/arcade/surface.d.ts"
+      ],
+      "arcade/url": [
+        "dist/arcade/url.d.ts"
+      ],
+      "protocol": [
+        "dist/protocol.d.ts"
+      ],
+      "contracts/v2": [
+        "dist/contracts/v2/index.d.ts"
+      ]
+    }
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run --config vitest.config.ts",

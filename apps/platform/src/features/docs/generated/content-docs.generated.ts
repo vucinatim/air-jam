@@ -398,14 +398,14 @@ const generatedContentDocsDocuments = [
         slug: "read-it-two-ways",
         depth: 2,
         excerpt:
-          "1. Preferred: CLI Querying Use the published server CLI first. Examples: The intended Air Jam workflow is: query the canonical stream with filters narrow to the failing trace, room, controller, or runtime only add…",
+          "1. Preferred: CLI Querying Use the published server CLI first. Examples: The intended Air Jam workflow is: start with pnpm exec air-jam-server logs --view=signal narrow to the failing trace, room, controller, runtime,…",
       },
       {
         title: "1. Preferred: CLI Querying",
         slug: "1-preferred-cli-querying",
         depth: 3,
         excerpt:
-          "Use the published server CLI first. Examples: The intended Air Jam workflow is: query the canonical stream with filters narrow to the failing trace, room, controller, or runtime only add custom logging if the stream…",
+          "Use the published server CLI first. Examples: The intended Air Jam workflow is: start with pnpm exec air-jam-server logs --view=signal narrow to the failing trace, room, controller, runtime, or process only add custom…",
       },
       {
         title: "2. Fallback: Read The File Directly",

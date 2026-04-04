@@ -40,7 +40,9 @@ Query order:
 3. use `--room` for one multiplayer room story
 4. use `--controller` for one player/controller path
 5. use `--runtime` and `--epoch` for embedded runtime problems
-6. fall back to raw NDJSON when signal view is still not enough
+6. use `--process` when the likely failure is in one local dev process such as `platform`, `server`, or the active game
+7. use `--source` when you already know which producer layer you need
+8. fall back to raw NDJSON when signal view is still not enough
 
 ## Test Order
 

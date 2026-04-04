@@ -63,17 +63,19 @@ Use the published server CLI first.
 Examples:
 
 ```bash
+pnpm exec air-jam-server logs --view=signal
 pnpm exec air-jam-server logs
 pnpm exec air-jam-server logs --follow
 pnpm exec air-jam-server logs --trace=host_abc123
 pnpm exec air-jam-server logs --source=browser --level=warn
 pnpm exec air-jam-server logs --view=signal --room=ROOM1
+pnpm exec air-jam-server logs --source=workspace --process=platform --view=signal
 ```
 
 The intended Air Jam workflow is:
 
-1. query the canonical stream with filters
-2. narrow to the failing trace, room, controller, or runtime
+1. start with `pnpm exec air-jam-server logs --view=signal`
+2. narrow to the failing trace, room, controller, runtime, or process
 3. only add custom logging if the stream still does not explain the issue
 
 ### 2. Fallback: Read The File Directly
@@ -95,6 +97,7 @@ The most useful filters are:
 3. `controllerId` for one player/controller path
 4. `event` for one lifecycle edge
 5. `runtimeKind` and `runtimeEpoch` for embedded bridge/runtime issues
+6. `processName` via `--process` for one local dev process such as `platform`, `server`, or the active game
 
 In practice, the fastest loop is usually:
 
@@ -134,7 +137,7 @@ Read raw NDJSON or use broader CLI filters when:
 The practical rule is:
 
 1. start with `pnpm exec air-jam-server logs --view=signal`
-2. narrow with `--trace`, `--room`, `--controller`, or `--runtime`
+2. narrow with `--trace`, `--room`, `--controller`, `--runtime`, `--process`, or `--source`
 3. fall back to raw NDJSON only when the signal view is still insufficient
 
 ## Recommended Debug Order

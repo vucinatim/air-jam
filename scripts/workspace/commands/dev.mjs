@@ -68,6 +68,7 @@ export const runWorkspaceDevCommand = async ({
     {
       name: "server",
       command: ["pnpm", "--filter", "@air-jam/server", "dev"],
+      suppressStructuredServerLogs: true,
     },
     {
       name: "platform",
@@ -95,6 +96,7 @@ export const runWorkspaceDevCommand = async ({
       processSpec.command.slice(1),
       {
         env: processSpec.env,
+        suppressStructuredServerLogs: processSpec.suppressStructuredServerLogs,
       },
     );
   }

@@ -162,13 +162,24 @@ export const createWorkspaceProcessGroup = ({ rootDir = process.cwd() } = {}) =>
 
   const run = (name, command, commandArgs, options = {}) => {
     const commandText = [command, ...commandArgs].join(" ");
+    const childCwd = options.cwd ?? rootDir;
+    const suppressStructuredServerLogs =
+      options.suppressStructuredServerLogs === true;
     const child = spawn(command, commandArgs, {
-      cwd: options.cwd ?? rootDir,
+      cwd: childCwd,
       env: {
         ...process.env,
         ...(options.env ?? {}),
       },
       stdio: ["inherit", "pipe", "pipe"],
+    });
+
+    logSink.recordStart({
+      processName: name,
+      tool: command,
+      command: commandText,
+      cwd: childCwd,
+      pid: child.pid ?? null,
     });
 
     child.stdout.on("data", (data) => {
@@ -179,7 +190,8 @@ export const createWorkspaceProcessGroup = ({ rootDir = process.cwd() } = {}) =>
         chunk: data,
         tool: command,
         command: commandText,
-        cwd: options.cwd ?? rootDir,
+        cwd: childCwd,
+        suppressStructuredServerLogs,
       });
     });
     child.stderr.on("data", (data) => {
@@ -190,7 +202,8 @@ export const createWorkspaceProcessGroup = ({ rootDir = process.cwd() } = {}) =>
         chunk: data,
         tool: command,
         command: commandText,
-        cwd: options.cwd ?? rootDir,
+        cwd: childCwd,
+        suppressStructuredServerLogs,
       });
     });
     child.on("exit", (code, signal) => {
@@ -198,13 +211,14 @@ export const createWorkspaceProcessGroup = ({ rootDir = process.cwd() } = {}) =>
         processName: name,
         tool: command,
         command: commandText,
-        cwd: options.cwd ?? rootDir,
+        cwd: childCwd,
       });
       logSink.recordExit({
         processName: name,
         tool: command,
         command: commandText,
-        cwd: options.cwd ?? rootDir,
+        cwd: childCwd,
+        pid: child.pid ?? null,
         code,
         signal,
       });

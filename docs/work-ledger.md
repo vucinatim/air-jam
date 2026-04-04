@@ -172,6 +172,8 @@ Current truth:
 3. published CLI log command exists
 4. generated-project sink behavior is validated
 5. workspace toolchain logs now also land in the unified stream
+6. `pnpm exec air-jam-server logs` is now the canonical reader across repo and scaffolded projects, with `pnpm run repo -- workspace logs` kept only as a maintainer passthrough
+7. workspace process events are now normalized as `workspace.process.started`, `workspace.process.output`, and `workspace.process.exit`, with structured server runtime output no longer duplicated through the workspace sink
 
 ### 7. Game-Source Scaffolding
 
