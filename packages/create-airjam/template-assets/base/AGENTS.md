@@ -175,7 +175,7 @@ Wrap icon usage behind local UI/game icon modules where practical so the project
 1. keep gameplay logic testable without full rendering where practical
 2. add unit or behavior tests when changing real behavior
 3. inspect the canonical Air Jam dev log stream early for multiplayer/runtime issues
-4. prefer `pnpm logs` when available, or read `.airjam/logs/dev-latest.ndjson` directly
+4. prefer `pnpm exec air-jam-server logs`, or read `.airjam/logs/dev-latest.ndjson` directly
 5. remember that `dev-latest.ndjson` resets when the Air Jam server process restarts
 6. use framework diagnostics after the canonical log stream, not instead of it
 7. keep debug helpers isolated from hot gameplay paths

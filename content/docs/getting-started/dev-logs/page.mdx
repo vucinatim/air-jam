@@ -61,19 +61,19 @@ If your dev workflow reuses an already-running local server process, the file wi
 
 ### 1. Preferred: CLI Querying
 
-If the project exposes the log viewer command, use it first.
+Use the published server CLI first.
 
 Examples:
 
 ```bash
-pnpm logs
-pnpm logs -- --follow
-pnpm logs -- --trace=host_abc123
-pnpm logs -- --source=browser --level=warn
-pnpm logs -- --view=signal --room=ROOM1
+pnpm exec air-jam-server logs
+pnpm exec air-jam-server logs --follow
+pnpm exec air-jam-server logs --trace=host_abc123
+pnpm exec air-jam-server logs --source=browser --level=warn
+pnpm exec air-jam-server logs --view=signal --room=ROOM1
 ```
 
-The exact command may vary slightly by repo, but the intended Air Jam workflow is:
+The intended Air Jam workflow is:
 
 1. query the canonical stream with filters
 2. narrow to the failing trace, room, controller, or runtime
@@ -136,7 +136,7 @@ Read raw NDJSON or use broader CLI filters when:
 
 The practical rule is:
 
-1. start with `pnpm logs -- --view=signal`
+1. start with `pnpm exec air-jam-server logs --view=signal`
 2. narrow with `--trace`, `--room`, `--controller`, or `--runtime`
 3. fall back to raw NDJSON only when the signal view is still insufficient
 

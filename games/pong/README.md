@@ -21,9 +21,9 @@ Use the hosted docs site when you need broader or newer canonical Air Jam docs.
 If you want to refresh the scaffold-managed docs and skills later, use:
 
 ```bash
-pnpm ai-pack:status
-pnpm ai-pack:diff
-pnpm ai-pack:update
+pnpm exec create-airjam ai-pack status --dir .
+pnpm exec create-airjam ai-pack diff --dir .
+pnpm exec create-airjam ai-pack update --dir .
 ```
 
 `ai-pack:update` replaces canonical AI-pack-managed files. It is intentionally not a merge tool.
@@ -69,10 +69,10 @@ Air Jam writes the canonical local debug stream to:
 Use:
 
 ```bash
-pnpm logs
-pnpm logs -- --follow
-pnpm logs -- --trace=host_abc123
-pnpm logs -- --view=signal
+pnpm exec air-jam-server logs
+pnpm exec air-jam-server logs --follow
+pnpm exec air-jam-server logs --trace=host_abc123
+pnpm exec air-jam-server logs --view=signal
 ```
 
 Important:
@@ -345,7 +345,7 @@ The public Arcade hosting lane uses an uploaded hosted release artifact instead 
 From your project root:
 
 ```bash
-pnpm release:bundle
+pnpm exec create-airjam release bundle --dir .
 ```
 
 That command:
@@ -367,7 +367,7 @@ If you want custom routes or a marketing site at `/`, keep using self-hosted mod
 ### Publishing Through The Dashboard
 
 1. Open your game's **Arcade Releases** page in the Air Jam Dashboard.
-2. Upload the zip created by `pnpm release:bundle`.
+2. Upload the zip created by `pnpm exec create-airjam release bundle --dir .`.
 3. Make the validated release live.
 4. Upload managed thumbnail, cover, and preview media in the Dashboard.
 5. Set Arcade visibility to listed.

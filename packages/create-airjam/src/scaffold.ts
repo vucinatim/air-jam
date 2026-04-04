@@ -118,17 +118,30 @@ export const normalizeScaffoldPackageJson = ({
   serverVersion?: string;
   createAirJamVersion: string;
 }): ScaffoldPackageJson => {
+  const existingScripts =
+    typeof pkg.scripts === "object" && pkg.scripts
+      ? { ...(pkg.scripts as Record<string, string>) }
+      : {};
+
+  for (const redundantScript of [
+    "dev:server",
+    "dev:secure",
+    "logs",
+    "ai-pack:status",
+    "ai-pack:diff",
+    "ai-pack:update",
+    "release:bundle",
+    "test:watch",
+    "test:run",
+    "lint",
+  ]) {
+    delete existingScripts[redundantScript];
+  }
+
   const nextScripts = {
-    ...(typeof pkg.scripts === "object" && pkg.scripts ? (pkg.scripts as Record<string, string>) : {}),
+    ...existingScripts,
     dev: "create-airjam dev",
-    "dev:server": "create-airjam dev --server-only",
-    "dev:secure": "create-airjam dev --secure",
-    logs: "air-jam-server logs",
     "secure:init": "create-airjam secure:init",
-    "ai-pack:status": "create-airjam ai-pack status --dir .",
-    "ai-pack:diff": "create-airjam ai-pack diff --dir .",
-    "ai-pack:update": "create-airjam ai-pack update --dir .",
-    "release:bundle": "create-airjam release bundle --dir .",
   };
 
   const nextDevDependencies = {

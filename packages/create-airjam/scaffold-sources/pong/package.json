@@ -5,19 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "create-airjam dev",
-    "dev:server": "create-airjam dev --server-only",
-    "dev:secure": "create-airjam dev --secure",
-    "logs": "air-jam-server logs",
     "secure:init": "create-airjam secure:init",
     "build": "tsc && vite build",
-    "ai-pack:status": "create-airjam ai-pack status --dir .",
-    "ai-pack:diff": "create-airjam ai-pack diff --dir .",
-    "ai-pack:update": "create-airjam ai-pack update --dir .",
-    "release:bundle": "create-airjam release bundle --dir .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",

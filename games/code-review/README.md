@@ -35,14 +35,13 @@ pnpm --dir games/code-review dev -- --web-only
 ## Scripts
 
 - `pnpm dev` starts the local Air Jam server and Vite app
-- `pnpm dev:server` starts only the local Air Jam server
 - `pnpm secure:init` prepares local trusted HTTPS for secure browser APIs
-- `pnpm dev:secure` runs the game in secure mode
-- `pnpm secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev` enables the optional tunnel fallback
+- `pnpm dev -- --secure` runs the game in secure mode
+- `pnpm exec create-airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev` enables the optional tunnel fallback
 - `pnpm typecheck` runs the TypeScript project check
 - `pnpm test` runs the lightweight domain tests
 - `pnpm build` creates the production web build
-- `pnpm release:bundle` produces the hosted Arcade release zip
+- `pnpm exec create-airjam release bundle --dir .` produces the hosted Arcade release zip
 
 ## Project Structure
 

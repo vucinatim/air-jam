@@ -35,19 +35,18 @@ pnpm dev -- --secure
 Optional tunnel fallback:
 
 ```bash
-pnpm secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm exec create-airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
 pnpm dev -- --secure --secure-mode=tunnel
 ```
 
 ## Scripts
 
 - `pnpm dev` starts the local game plus Air Jam server
-- `pnpm dev:server` starts only the local Air Jam server
-- `pnpm logs` reads the canonical unified dev log
+- `pnpm exec air-jam-server logs` reads the canonical unified dev log
 - `pnpm typecheck` runs TypeScript without emitting
-- `pnpm test:run` runs Vitest once
+- `pnpm test` runs Vitest once
 - `pnpm build` creates the production build
-- `pnpm release:bundle` creates the hosted release zip for the dashboard
+- `pnpm exec create-airjam release bundle --dir .` creates the hosted release zip for the dashboard
 
 ## Project Shape
 

@@ -313,7 +313,7 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       run("pnpm install", projectDir);
     }
 
-    run("pnpm logs -- --help", projectDir);
+    run("pnpm exec air-jam-server logs --help", projectDir);
     await verifyGeneratedDevLogLifecycle(projectDir);
     run("pnpm typecheck", projectDir);
     run("pnpm test", projectDir);

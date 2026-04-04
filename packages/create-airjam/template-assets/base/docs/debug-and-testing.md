@@ -21,7 +21,7 @@ The standard Air Jam development path writes one unified local stream to:
 
 Use:
 
-1. `pnpm logs` when the repo exposes it
+1. `pnpm exec air-jam-server logs`
 2. direct file reads when you need the raw NDJSON stream
 
 Important behavior:
@@ -39,7 +39,7 @@ Start with the narrowest useful identifier:
 3. `controllerId` for one player/controller failure path
 4. `runtimeKind` and `runtimeEpoch` for embedded runtime issues
 
-Use `pnpm logs -- --view=signal` first when you want the quickest high-signal read.
+Use `pnpm exec air-jam-server logs --view=signal` first when you want the quickest high-signal read.
 
 Use direct file reads or broader filtering when you need:
 

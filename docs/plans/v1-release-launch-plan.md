@@ -210,7 +210,7 @@ Make the public docs, generated template docs pack, template README, and local s
 Current truth:
 
 1. source docs now reflect explicit runtime ownership, shared platform settings/audio, and the narrowed networked action contract
-2. quick-start now teaches the hosted artifact lane with `pnpm release:bundle` instead of the older public self-hosted URL flow
+2. quick-start now teaches the hosted artifact lane with `pnpm exec create-airjam release bundle --dir .` instead of the older public self-hosted URL flow
 3. the scaffolded generated docs pack has been regenerated from the corrected source docs
 4. the Pong template README now teaches the hosted artifact + managed media workflow
 5. the template-local docs workflow and game architecture skills now explicitly cover generated-surface alignment and visible runtime boundaries
@@ -255,7 +255,7 @@ Current truth:
 1. `create-airjam release bundle` now builds a hosted release zip with `.airjam/release-manifest.json`
 2. the hosted dashboard lane now enforces the fixed `/` host and `/controller` controller contract without changing self-hosted routing freedom
 3. platform hosted serving now resolves `/controller` through explicit SPA fallback instead of relying on artifact-specific hacks
-4. the scaffolded Pong template now exposes `pnpm release:bundle` as the recommended creator-facing entrypoint
+4. the scaffolded Pong template now teaches `pnpm exec create-airjam release bundle --dir .` as the creator-facing entrypoint
 5. the quick-start docs and template README now teach the hosted artifact workflow instead of the older self-hosted-only public release path
 
 ## Phase 6. Local Arcade Proof Across All Five Games

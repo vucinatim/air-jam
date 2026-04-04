@@ -191,7 +191,7 @@ When touching shared secure-dev behavior, local Arcade launch paths, or generate
 2. keep the repo workflow split explicit:
    1. `pnpm dev` for fast direct game iteration
    2. `pnpm arcade:test -- --secure` for stable local Arcade integration
-3. keep exported projects on the direct secure-game contract (`pnpm secure:init` plus `pnpm dev:secure`)
+3. keep exported projects on the direct secure-game contract (`pnpm secure:init` plus `pnpm dev -- --secure`)
 4. keep Cloudflare tunnel support explicit fallback only, not the default docs path
 5. validate scaffolded secure-dev contract changes with `pnpm test:scaffold`
 

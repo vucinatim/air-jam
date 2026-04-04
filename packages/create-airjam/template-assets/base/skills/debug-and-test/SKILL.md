@@ -28,14 +28,14 @@ Key facts:
 
 1. the canonical file is `.airjam/logs/dev-latest.ndjson`
 2. it resets when the Air Jam server process restarts
-3. `pnpm logs` is the preferred path when the repo exposes it
+3. `pnpm exec air-jam-server logs` is the preferred path
 4. direct file reads are valid when you need the raw stream
 5. standard dev-runner failures from Vite and similar tools should also appear there as `workspace` events
 6. this should usually come before adding new temporary logs
 
 Query order:
 
-1. start with `pnpm logs -- --view=signal`
+1. start with `pnpm exec air-jam-server logs --view=signal`
 2. use `--trace` for host-session stories
 3. use `--room` for one multiplayer room story
 4. use `--controller` for one player/controller path

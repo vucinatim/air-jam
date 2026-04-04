@@ -198,7 +198,7 @@ Current truth:
 3. the root workspace and TS project graph now include all three imported games
 4. baseline validation is green for the imported games:
    1. `pnpm --filter code-review typecheck && pnpm --filter code-review build`
-   2. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test:run && pnpm --filter last-band-standing build`
+   2. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build`
    3. `pnpm --filter the-office typecheck && pnpm --filter the-office build`
 5. repo-owned games now declare a tiny `airjam-template.json` manifest even before template promotion, with `scaffold: false` keeping non-template games out of `create-airjam`
 6. the shared workspace launcher now supports `pnpm dev -- --game=<id>` and can boot any current repo-owned game through the platform/server/sdk stack
@@ -218,7 +218,7 @@ Current truth:
    1. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
    2. the imported README was replaced with a repo-native template-safe README
    3. `airjam-template.json` is now `scaffold: true`
-   4. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test:run && pnpm --filter last-band-standing build` is green
+   4. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build` is green
    5. `pnpm --filter create-airjam smoke -- --source=workspace --template=last-band-standing` is green
    6. `pnpm --filter create-airjam smoke:tarball -- --template=last-band-standing` is green
 11. `the-office` is now the third promoted imported template:

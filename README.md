@@ -91,7 +91,7 @@ If you need tunnel fallback for a standalone game dev server, use the game-local
 ```bash
 cd games/code-review
 pnpm secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
-pnpm dev:secure -- --secure-mode=tunnel
+pnpm dev -- --secure --secure-mode=tunnel
 ```
 
 #### Running the Platform
