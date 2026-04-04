@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { repoRoot } from "../lib/paths.mjs";
 import { packWorkspacePackage } from "../lib/packaging.mjs";
+import { repoRoot } from "../lib/paths.mjs";
 import { runCommand } from "../lib/shell.mjs";
 const legacyGamesRoot = "/Users/timvucina/Desktop/zerodays/air-jam-games";
 
@@ -89,7 +89,7 @@ const validateLegacyGame = ({ game, sdkTarball, serverTarball, tempRoot }) => {
   runCommand("pnpm", ["build"], { cwd: projectDir });
 };
 
-export const runWorkspaceLegacyValidateTarballCommand = () => {
+export const runRepoLegacyValidateTarballCommand = () => {
   const missing = legacyGames
     .filter((game) => !fs.existsSync(game.sourceDir))
     .map((game) => `${game.name}: ${game.sourceDir}`);

@@ -1,9 +1,9 @@
 import path from "node:path";
-import { repoRoot } from "../lib/paths.mjs";
 import { packWorkspacePackage } from "../lib/packaging.mjs";
+import { repoRoot } from "../lib/paths.mjs";
 import { runCommand } from "../lib/shell.mjs";
 
-export const runWorkspacePackLocalCommand = () => {
+export const runRepoPackLocalCommand = () => {
   runCommand("pnpm", ["--filter", "sdk", "build"]);
   runCommand("pnpm", ["--filter", "server", "build"]);
   runCommand("pnpm", ["--filter", "create-airjam", "build"]);

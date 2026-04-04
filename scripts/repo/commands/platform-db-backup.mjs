@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { runCommandResult } from "../lib/shell.mjs";
 import { repoRoot } from "../lib/paths.mjs";
+import { runCommandResult } from "../lib/shell.mjs";
 
 function parseDotenvValue(rawValue) {
   const trimmed = rawValue.trim();
@@ -87,7 +87,7 @@ function hasDocker() {
   return result.status === 0;
 }
 
-export const runWorkspacePlatformDbBackupCommand = () => {
+export const runRepoPlatformDbBackupCommand = () => {
   const backupDir = path.join(repoRoot, "backups", "platform");
   const databaseUrl = resolveDatabaseUrl();
 

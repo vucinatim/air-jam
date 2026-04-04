@@ -5,9 +5,10 @@
   "packageManager": "pnpm@9.9.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/workspace/cli.mjs dev",
-    "arcade:test": "node scripts/workspace/cli.mjs arcade:test",
-    "secure:init": "node scripts/workspace/cli.mjs secure:init",
+    "repo": "node scripts/repo/cli.mjs",
+    "dev": "node scripts/repo/cli.mjs workspace dev",
+    "arcade:test": "node scripts/repo/cli.mjs workspace arcade:test",
+    "secure:init": "node scripts/repo/cli.mjs workspace secure:init",
     "build": "pnpm -r build",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke:happy-path",
     "lint": "pnpm -r lint",

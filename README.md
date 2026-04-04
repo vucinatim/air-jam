@@ -95,8 +95,8 @@ pnpm dev -- --secure --secure-mode=tunnel
 The platform includes the developer portal, game catalog, and documentation:
 
 ```bash
-# Run only the platform app through the internal workspace CLI
-node scripts/workspace/cli.mjs service platform
+# Run only the platform app through the repo CLI
+pnpm run repo -- workspace service platform
 
 # Or run platform-specific commands directly
 pnpm --filter platform dev:no-db
@@ -129,7 +129,7 @@ The server handles WebSocket connections for games:
 
 ```bash
 # Start only the server (runs on http://localhost:4000)
-node scripts/workspace/cli.mjs service server
+pnpm run repo -- workspace service server
 ```
 
 **Environment Variables** (create `.env` in `packages/server/`):
@@ -186,20 +186,20 @@ The canonical workflow is:
 - Develop scaffoldable games in-place under `games/`.
 - Use `pnpm test:scaffold` to prove all scaffoldable games export cleanly against local packages.
 - Use `pnpm test:scaffold:tarball` to prove scaffolds work against packed unpublished artifacts.
-- Use `node scripts/workspace/cli.mjs pack-local` to produce local tarballs under `.airjam/tarballs/`.
+- Use `pnpm run repo -- pack local` to produce local tarballs under `.airjam/tarballs/`.
 
 Useful local scaffold helpers:
 
 ```bash
-node scripts/workspace/cli.mjs scaffold-local my-local-game --source workspace
-node scripts/workspace/cli.mjs scaffold-local my-local-game --source workspace --template air-capture
-node scripts/workspace/cli.mjs scaffold-local ../scratch/my-airjam-game --source tarball
+pnpm run repo -- scaffold local my-local-game --source workspace
+pnpm run repo -- scaffold local my-local-game --source workspace --template air-capture
+pnpm run repo -- scaffold local ../scratch/my-airjam-game --source tarball
 ```
 
 Repo-only maintenance helpers now live behind the internal workspace CLI:
 
 ```bash
-node scripts/workspace/cli.mjs --help
+pnpm run repo -- --help
 ```
 
 That keeps game source, scaffold generation, workspace development, and pre-publish
@@ -247,7 +247,7 @@ pnpm smoke:happy-path
 Run a lightweight server benchmark locally (not CI-gated):
 
 ```bash
-node scripts/workspace/cli.mjs perf sanity
+pnpm run repo -- perf sanity
 ```
 
 Optional flags:
@@ -316,7 +316,7 @@ pnpm drizzle-kit push
 For prerelease use, Air Jam keeps the backup posture intentionally simple:
 
 ```bash
-node scripts/workspace/cli.mjs platform db-backup
+pnpm run repo -- platform db-backup
 ```
 
 This writes a local custom-format `pg_dump` export into `backups/platform/`.
@@ -390,7 +390,7 @@ When the dev log collector is enabled, the server writes the canonical local deb
 Use the built-in viewer to inspect it:
 
 ```bash
-node scripts/workspace/cli.mjs logs
+pnpm run repo -- workspace logs
 pnpm exec air-jam-server logs --follow
 pnpm exec air-jam-server logs --trace=host_abc123
 pnpm exec air-jam-server logs --source=browser --level=warn

@@ -62,7 +62,7 @@ Completed:
 
 1. the concrete migration guide now exists in [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 2. the three legacy ZeroDays games are already on the current bootstrap and route model
-3. repo-owned local tarball validation now proves `code-review`, `last-band-standing`, and `the-office` against packaged SDK/server dependencies via `node scripts/workspace/cli.mjs legacy validate-tarball`
+3. repo-owned local tarball validation now proves `code-review`, `last-band-standing`, and `the-office` against packaged SDK/server dependencies via `pnpm run repo -- legacy validate-tarball`
 
 ### Priority 4. Canonical Prerelease Execution
 
@@ -228,7 +228,7 @@ Current truth:
 
 1. the root `package.json` script surface is reduced to the canonical repo lifecycle and validation commands
 2. per-game root aliases and other redundant maintenance aliases were removed
-3. monorepo-only orchestration now lives behind one repo-local CLI at `node scripts/workspace/cli.mjs`
+3. monorepo-only orchestration now lives behind one repo-local CLI at `pnpm run repo -- ...`
 4. workspace-specific scripts and helpers now live under `scripts/workspace/`
 5. `create-airjam` remains focused on public and project-local workflows instead of absorbing monorepo-only commands
    4. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build` is green

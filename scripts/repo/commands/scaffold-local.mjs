@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createAirjamCliEntry, repoRoot } from "../lib/paths.mjs";
 import { packWorkspacePackage } from "../lib/packaging.mjs";
+import { createAirjamCliEntry, repoRoot } from "../lib/paths.mjs";
 import { runCommand } from "../lib/shell.mjs";
 
-export const runWorkspaceScaffoldLocalCommand = ({
+export const runRepoScaffoldLocalCommand = ({
   projectName,
   source = "tarball",
   template = "pong",
@@ -12,7 +12,7 @@ export const runWorkspaceScaffoldLocalCommand = ({
 } = {}) => {
   if (!projectName) {
     throw new Error(
-      "Usage: node scripts/workspace/cli.mjs scaffold-local <project-name> [--source <tarball|workspace|registry>] [--template <id>]",
+      "Usage: pnpm run repo -- scaffold local <project-name> [--source <tarball|workspace|registry>] [--template <id>]",
     );
   }
 

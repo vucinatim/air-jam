@@ -2,10 +2,10 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { basePackRoot } from "../../packages/create-airjam/scripts/ai-pack-contract.mjs";
+import { basePackRoot } from "../../../packages/create-airjam/scripts/ai-pack-contract.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "..", "..");
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 export const platformPublicAiPackRoot = path.join(
   repoRoot,

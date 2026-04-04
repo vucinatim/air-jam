@@ -8,7 +8,7 @@ This document tracks lightweight local performance sanity runs.
 ## Default Command
 
 ```bash
-node scripts/workspace/cli.mjs perf sanity
+pnpm run repo -- perf sanity
 ```
 
 ## Latest Result (2026-03-21, default profile)
@@ -33,7 +33,7 @@ node scripts/workspace/cli.mjs perf sanity
 Command:
 
 ```bash
-node scripts/workspace/cli.mjs perf sanity --durationMs=12000 --warmupMs=1000 --controllers=6 --hz=25
+pnpm run repo -- perf sanity --durationMs=12000 --warmupMs=1000 --controllers=6 --hz=25
 ```
 
 - controllers: `6`
