@@ -12,7 +12,7 @@
     "build": "pnpm -r build",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke:happy-path",
     "lint": "pnpm -r lint",
-    "guard:canonical": "bash ./scripts/guard-canonical.sh",
+    "guard:canonical": "node scripts/repo/cli.mjs standards canonical",
     "smoke:browser": "playwright test --config playwright.smoke.config.ts",
     "playwright:install": "playwright install --with-deps chromium",
     "smoke:happy-path": "pnpm --filter @air-jam/server test -- --run tests/game-lifecycle.integration.test.ts tests/routing-security.integration.test.ts && pnpm smoke:browser && pnpm test:scaffold",

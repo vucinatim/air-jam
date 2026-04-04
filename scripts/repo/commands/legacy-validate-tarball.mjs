@@ -4,22 +4,29 @@ import path from "node:path";
 import { packWorkspacePackage } from "../lib/packaging.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 import { runCommand } from "../lib/shell.mjs";
-const legacyGamesRoot = "/Users/timvucina/Desktop/zerodays/air-jam-games";
 
-const legacyGames = [
-  {
-    name: "code-review",
-    sourceDir: path.join(legacyGamesRoot, "code-review"),
-  },
-  {
-    name: "last-band-standing",
-    sourceDir: path.join(legacyGamesRoot, "last-band-standing"),
-  },
-  {
-    name: "the-office",
-    sourceDir: path.join(legacyGamesRoot, "the-office"),
-  },
+const legacyGameNames = [
+  "code-review",
+  "last-band-standing",
+  "the-office",
 ];
+
+const resolveLegacyGamesRoot = (explicitRoot) => {
+  const root = explicitRoot?.trim() || process.env.AIRJAM_LEGACY_GAMES_ROOT?.trim();
+  if (!root) {
+    throw new Error(
+      'Missing legacy game root. Pass `--root <path>` or set `AIRJAM_LEGACY_GAMES_ROOT`.',
+    );
+  }
+
+  return path.resolve(root);
+};
+
+const createLegacyGames = (legacyGamesRoot) =>
+  legacyGameNames.map((name) => ({
+    name,
+    sourceDir: path.join(legacyGamesRoot, name),
+  }));
 
 const rewritePackageJsonForTarballs = ({ projectDir, sdkTarball, serverTarball }) => {
   const packageJsonPath = path.join(projectDir, "package.json");
@@ -80,23 +87,23 @@ const validateLegacyGame = ({ game, sdkTarball, serverTarball, tempRoot }) => {
   runCommand("pnpm", ["exec", "air-jam-server", "logs", "--help"], { cwd: projectDir });
   runCommand("pnpm", ["typecheck"], { cwd: projectDir });
 
-  if (packageJson.scripts?.["test:run"]) {
-    runCommand("pnpm", ["test:run"], { cwd: projectDir });
-  } else if (packageJson.scripts?.test) {
+  if (packageJson.scripts?.test) {
     runCommand("pnpm", ["test"], { cwd: projectDir });
   }
 
   runCommand("pnpm", ["build"], { cwd: projectDir });
 };
 
-export const runRepoLegacyValidateTarballCommand = () => {
+export const runRepoLegacyValidateTarballCommand = ({ root } = {}) => {
+  const legacyGamesRoot = resolveLegacyGamesRoot(root);
+  const legacyGames = createLegacyGames(legacyGamesRoot);
   const missing = legacyGames
     .filter((game) => !fs.existsSync(game.sourceDir))
     .map((game) => `${game.name}: ${game.sourceDir}`);
 
   if (missing.length > 0) {
     throw new Error(
-      `Missing legacy game directories:\n${missing.join("\n")}`,
+      `Missing legacy game directories under ${legacyGamesRoot}:\n${missing.join("\n")}`,
     );
   }
 
@@ -112,7 +119,7 @@ export const runRepoLegacyValidateTarballCommand = () => {
   });
 
   console.log("");
-  console.log("Legacy game tarball validation passed:");
+  console.log(`Legacy game tarball validation passed from ${legacyGamesRoot}:`);
   legacyGames.forEach((game) => {
     console.log(`- ${game.name}`);
   });

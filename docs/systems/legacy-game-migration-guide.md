@@ -181,7 +181,7 @@ Migration proof is not complete until the migrated game works against local pack
 In this repo the canonical validation command is:
 
 ```bash
-pnpm run repo -- legacy validate-tarball
+pnpm run repo -- legacy validate-tarball --root /absolute/path/to/air-jam-games
 ```
 
 What it does:

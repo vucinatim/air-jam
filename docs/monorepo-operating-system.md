@@ -189,7 +189,7 @@ When touching `create-airjam`, scaffoldable games, or package-boundary behavior:
 
 When touching SDK/server package-consumer behavior or the release migration proof:
 
-1. Validate the legacy ZeroDays games with `pnpm run repo -- legacy validate-tarball`.
+1. Validate the legacy ZeroDays games with `pnpm run repo -- legacy validate-tarball --root /absolute/path/to/air-jam-games` or set `AIRJAM_LEGACY_GAMES_ROOT`.
 2. Treat failures there as real package-surface regressions, not as optional external-app noise.
 3. Keep the reusable migration recipe in `docs/systems/legacy-game-migration-guide.md`.
 

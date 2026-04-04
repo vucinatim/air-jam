@@ -4,8 +4,8 @@ import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
+import { repoRoot } from "../lib/paths.mjs";
 
-const repoRoot = process.cwd();
 const platformDistDir = ".next-smoke";
 
 const readPort = (name, fallback) => {
@@ -22,13 +22,11 @@ const readPort = (name, fallback) => {
   return parsed;
 };
 
-// Keep smoke ports isolated from the default dev workspace so Playwright never
-// attaches to a user's normal local stack by accident.
 const platformPort = readPort("AIRJAM_SMOKE_PLATFORM_PORT", 3400);
 const serverPort = readPort("AIRJAM_SMOKE_SERVER_PORT", 4400);
 const pongPort = readPort("AIRJAM_SMOKE_PONG_PORT", 5400);
 const airCapturePort = readPort("AIRJAM_SMOKE_AIR_CAPTURE_PORT", 5401);
-const STACK_PORTS = [platformPort, serverPort, pongPort, airCapturePort];
+const stackPorts = [platformPort, serverPort, pongPort, airCapturePort];
 
 const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
 const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
@@ -46,6 +44,16 @@ const processes = [];
 let shuttingDown = false;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const logChunk = (name, chunk) => {
+  const text = chunk.toString();
+  for (const line of text.split("\n")) {
+    if (!line.trim()) {
+      continue;
+    }
+    console.log(`[${name}] ${line}`);
+  }
+};
 
 const runCommand = (name, args, env = {}) =>
   new Promise((resolve, reject) => {
@@ -80,7 +88,7 @@ const isPortOpen = (port) =>
   });
 
 const assertPortsFree = async () => {
-  for (const port of STACK_PORTS) {
+  for (const port of stackPorts) {
     if (await isPortOpen(port)) {
       throw new Error(
         `Browser smoke requires port ${port} to be free. Stop the existing process and retry.`,
@@ -106,16 +114,6 @@ const waitForUrl = async (url, label, timeoutMs = 45_000) => {
   }
 
   throw new Error(`Timed out waiting for ${label} at ${url}`);
-};
-
-const logChunk = (name, chunk) => {
-  const text = chunk.toString();
-  for (const line of text.split("\n")) {
-    if (!line.trim()) {
-      continue;
-    }
-    console.log(`[${name}] ${line}`);
-  }
 };
 
 const shutdown = (code = 0) => {
@@ -218,11 +216,7 @@ const main = async () => {
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL: airCaptureBaseUrl,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: pongBaseUrl,
   });
-  await waitForUrl(
-    platformBaseUrl,
-    "platform root",
-    120_000,
-  );
+  await waitForUrl(platformBaseUrl, "platform root", 120_000);
   await waitForUrl(`${platformBaseUrl}/arcade/local-pong`, "platform local pong", 120_000);
   await waitForUrl(
     `${platformBaseUrl}/arcade/local-air-capture`,
@@ -238,7 +232,9 @@ const main = async () => {
 process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
-main().catch((error) => {
-  console.error(error.message || error);
+try {
+  await main();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
   shutdown(1);
-});
+}

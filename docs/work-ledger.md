@@ -62,7 +62,7 @@ Completed:
 
 1. the concrete migration guide now exists in [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 2. the three legacy ZeroDays games are already on the current bootstrap and route model
-3. repo-owned local tarball validation now proves `code-review`, `last-band-standing`, and `the-office` against packaged SDK/server dependencies via `pnpm run repo -- legacy validate-tarball`
+3. repo-owned local tarball validation now proves `code-review`, `last-band-standing`, and `the-office` against packaged SDK/server dependencies via `pnpm run repo -- legacy validate-tarball --root /absolute/path/to/air-jam-games` or `AIRJAM_LEGACY_GAMES_ROOT`
 
 ### Priority 4. Canonical Prerelease Execution
 

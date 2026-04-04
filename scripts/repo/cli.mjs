@@ -7,6 +7,8 @@ import { registerPackCommands } from "./commands/pack.mjs";
 import { registerPerfCommands } from "./commands/perf.mjs";
 import { registerPlatformCommands } from "./commands/platform.mjs";
 import { registerScaffoldCommands } from "./commands/scaffold.mjs";
+import { registerSmokeCommands } from "./commands/smoke.mjs";
+import { registerStandardsCommands } from "./commands/standards.mjs";
 import { registerWorkspaceCommands } from "./commands/workspace.mjs";
 
 const program = new Command();
@@ -22,5 +24,7 @@ registerLegacyCommands(program);
 registerPerfCommands(program);
 registerPackCommands(program);
 registerScaffoldCommands(program);
+registerSmokeCommands(program);
+registerStandardsCommands(program);
 
 await program.parseAsync(process.argv.filter((value) => value !== "--"));

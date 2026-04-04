@@ -18,7 +18,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "node ./scripts/browser-smoke-stack.mjs",
+    command: "node ./scripts/repo/cli.mjs smoke browser-stack",
     url: platformBaseUrl,
     reuseExistingServer: false,
     timeout: 120_000,

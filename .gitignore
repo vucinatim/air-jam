@@ -35,3 +35,6 @@ apps/platform/public/ai-pack/
 test-results/
 playwright-report/
 apps/platform/.next-smoke/
+
+# TypeScript incremental build artifacts
+*.tsbuildinfo
