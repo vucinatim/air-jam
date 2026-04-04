@@ -51,6 +51,14 @@ const getRoomFromLocation = (): string | null => {
   return code ? code.toUpperCase() : null;
 };
 
+const getControllerCapabilityTokenFromLocation = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.search);
+  return params.get("aj_controller_cap");
+};
+
 export const resolveControllerJoinSource = ({
   embeddedRoomId,
   optionRoomId,
@@ -96,6 +104,10 @@ export const useControllerRuntimeApi = (
     [],
   );
   const urlRoomId = useMemo(() => getRoomFromLocation(), []);
+  const capabilityToken = useMemo(
+    () => getControllerCapabilityTokenFromLocation(),
+    [],
+  );
   const joinSource = useMemo(
     () =>
       resolveControllerJoinSource({
@@ -327,6 +339,7 @@ export const useControllerRuntimeApi = (
         deviceId: deviceId ?? undefined,
         nickname: nicknameRef.current || undefined,
         avatarId: avatarIdRef.current || undefined,
+        capabilityToken: capabilityToken ?? undefined,
       });
       emitControllerRuntimeEvent({
         event: AIRJAM_DEV_LOG_EVENTS.runtime.controllerJoinRequested,
@@ -337,6 +350,7 @@ export const useControllerRuntimeApi = (
           controllerId: payload.controllerId,
           hasNickname: Boolean(payload.nickname),
           hasAvatarId: Boolean(payload.avatarId),
+          hasCapabilityToken: Boolean(payload.capabilityToken),
         },
       });
       socket.emit("controller:join", payload, (ack: ControllerJoinAck) => {
@@ -491,6 +505,7 @@ export const useControllerRuntimeApi = (
     emitControllerRuntimeEvent,
     deviceId,
     joinSource,
+    capabilityToken,
   ]);
 
   const setNickname = useCallback((value: string) => {

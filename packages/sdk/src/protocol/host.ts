@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
-import type { PlayerProfile } from "./controller";
+import type {
+  ControllerPrivilegedCapability,
+  PlayerProfile,
+} from "./controller";
 
 export const hostSessionKindSchema = z.enum(["game", "system"]);
 export type HostSessionKind = z.infer<typeof hostSessionKindSchema>;
@@ -31,6 +34,8 @@ export interface HostRegistrationAck {
   arcadeSession?: HostArcadeSessionSnapshot;
   /** Authoritative controller roster snapshot for the connected room. */
   players?: PlayerProfile[];
+  /** Official Air Jam controller capability bundle for privileged controller channels. */
+  controllerCapability?: ControllerPrivilegedCapability;
 }
 
 export interface HostBootstrapAck {

@@ -205,7 +205,26 @@ When touching shared secure-dev behavior, local Arcade launch paths, or generate
 4. keep Cloudflare tunnel support explicit fallback only, not the default docs path
 5. validate scaffolded secure-dev contract changes with `pnpm test:scaffold`
 
-### 8. Update Docs In The Same Change
+### 8. Database Modes
+
+Keep the repo DB stories explicit:
+
+1. `pnpm run repo -- db up` manages the optional persistent local dev Postgres
+2. its data lives under `.airjam/postgres/dev/`
+3. destructive analytics tests must never rely on the shared runtime `DATABASE_URL`
+4. destructive analytics tests should use the dedicated analytics test DB path
+5. prerelease may intentionally continue using a production-connected `DATABASE_URL`, but that should stay an explicit maintainer choice rather than an accidental default forever
+
+Operationally:
+
+1. before release, it is acceptable for `apps/platform/.env.local` and `packages/server/.env` to keep `DATABASE_URL` pointed at the production-connected database intentionally
+2. when switching normal development to local Postgres, boot it with `pnpm run repo -- db up`
+3. print the connection string with `pnpm run repo -- db url`
+4. copy that value into the package env files that own `DATABASE_URL`
+5. restart the affected processes after changing env values
+6. use `pnpm run repo -- db reset` when you intentionally want a clean local database
+
+### 9. Update Docs In The Same Change
 
 1. Update affected docs immediately when contracts or behavior change.
 2. Keep `docs/work-ledger.md` as the single active repo-wide execution ledger.
@@ -213,7 +232,7 @@ When touching shared secure-dev behavior, local Arcade launch paths, or generate
 4. Archive detailed completed plans under `docs/archive/`.
 5. Track non-launch architecture follow-ups in `docs/suggestions.md`.
 
-### 9. Merge Discipline
+### 10. Merge Discipline
 
 1. Keep changes small and single-purpose when practical.
 2. Include what changed, why, and validation evidence.

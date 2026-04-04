@@ -87,6 +87,7 @@ describe("dev log summaries", () => {
     const createRoomAck = await new Promise<{
       ok: boolean;
       roomId?: string;
+      controllerCapability?: { token: string };
     }>((resolve) => {
       host!.emit("host:createRoom", { maxPlayers: 4 }, resolve);
     });
@@ -102,6 +103,7 @@ describe("dev log summaries", () => {
           roomId,
           controllerId: "ctrl_summary_1",
           nickname: "Summary Controller",
+          capabilityToken: createRoomAck.controllerCapability?.token,
         },
         resolve,
       );
@@ -203,6 +205,7 @@ describe("dev log summaries", () => {
     const createRoomAck = await new Promise<{
       ok: boolean;
       roomId?: string;
+      controllerCapability?: { token: string };
     }>((resolve) => {
       host!.emit("host:createRoom", { maxPlayers: 4 }, resolve);
     });
@@ -218,6 +221,7 @@ describe("dev log summaries", () => {
           roomId,
           controllerId: "ctrl_idle_1",
           nickname: "Idle Controller",
+          capabilityToken: createRoomAck.controllerCapability?.token,
         },
         resolve,
       );

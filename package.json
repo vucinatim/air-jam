@@ -10,7 +10,7 @@
     "arcade:test": "node scripts/repo/cli.mjs workspace arcade:test",
     "secure:init": "node scripts/repo/cli.mjs workspace secure:init",
     "build": "pnpm -r build",
-    "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke:happy-path",
+    "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:happy-path",
     "lint": "pnpm -r lint",
     "guard:canonical": "node scripts/repo/cli.mjs standards canonical",
     "smoke:browser": "playwright test --config playwright.smoke.config.ts",

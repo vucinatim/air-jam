@@ -103,6 +103,66 @@ pnpm --filter platform dev:no-db
 pnpm --filter platform dev:db
 ```
 
+#### Local Dev Postgres
+
+Air Jam now ships one optional repo-owned local Postgres for development:
+
+```bash
+pnpm run repo -- db up
+pnpm run repo -- db url
+pnpm run repo -- db down
+pnpm run repo -- db reset
+```
+
+Details:
+
+1. data lives under `.airjam/postgres/dev/`
+2. `db reset` is the explicit “wipe local state” path
+3. prerelease can continue pointing `DATABASE_URL` at production intentionally
+4. after release, the intended default is to point local development at this repo-owned Postgres
+
+#### Switching Between Prod-Connected And Local DB
+
+Current prerelease default:
+
+1. `apps/platform/.env.local` and `packages/server/.env` may intentionally keep `DATABASE_URL` pointed at the production-connected database
+2. that is acceptable before release when you want to inspect or shape the real prerelease state
+3. destructive analytics tests are already isolated and do not rely on that shared `DATABASE_URL`
+
+When you want to switch normal development to the repo-owned local Postgres:
+
+1. start the database:
+
+```bash
+pnpm run repo -- db up
+```
+
+2. print the local connection string:
+
+```bash
+pnpm run repo -- db url
+```
+
+3. copy that value into:
+   1. `apps/platform/.env.local`
+   2. `packages/server/.env`
+
+With the current defaults, the local URL is:
+
+```env
+postgresql://postgres:postgres@127.0.0.1:55432/airjam
+```
+
+4. restart the platform/server processes after changing `DATABASE_URL`
+
+If you want to wipe local DB state completely:
+
+```bash
+pnpm run repo -- db reset
+```
+
+That removes the local Postgres data under `.airjam/postgres/dev/` and recreates a clean database on next boot.
+
 **Environment Variables** (create `.env.local` in `apps/platform/`):
 
 ```env
@@ -234,6 +294,7 @@ That includes:
 - workspace typechecks
 - automated tests
 - workspace builds
+- strict server perf sanity, including reconnect churn
 - a lightweight happy-path smoke flow
 
 If you only want the smoke flow:
@@ -242,9 +303,9 @@ If you only want the smoke flow:
 pnpm smoke:happy-path
 ```
 
-### Optional Local Perf Sanity
+### Server Perf Sanity
 
-Run a lightweight server benchmark locally (not CI-gated):
+Run the canonical local server perf benchmark:
 
 ```bash
 pnpm run repo -- perf sanity
@@ -256,7 +317,13 @@ Optional flags:
 - `--hz=<n>` events/sec per controller (default `30`)
 - `--durationMs=<n>` measurement duration in ms (default `90000`)
 - `--warmupMs=<n>` warmup duration in ms (default `3000`)
-- `--strict` to return non-zero exit when soft thresholds are exceeded
+- `--reconnectControllers=<n>` reconnect-churn controller count (default `4`, capped by `--controllers`)
+- `--reconnectCycles=<n>` reconnect-churn cycle count (default `10`)
+- `--reconnectPauseMs=<n>` pause between disconnect and reconnect (default `25`)
+- `--strict` to return non-zero exit when committed thresholds are exceeded
+
+`pnpm check:release` now runs `pnpm run repo -- perf sanity --strict`, so the
+baseline input path and reconnect churn both participate in release confidence.
 
 ### Areas for Contribution
 
@@ -369,6 +436,7 @@ The server can be deployed as a Node.js application:
 **Server** (`packages/server`):
 
 - `DATABASE_URL`: PostgreSQL connection (enables app ID lookup and optional origin policy)
+- `AIR_JAM_ANALYTICS_TEST_DATABASE_URL`: Optional override for destructive analytics integration tests (default: disposable Docker Postgres)
 - `AIR_JAM_AUTH_MODE`: `disabled` | `required` (default auto: disabled in local dev, required in production)
 - `AIR_JAM_HOST_GRANT_SECRET`: Optional secret for stronger signed host-grant mode
 - `AIR_JAM_ALLOWED_ORIGINS`: Optional comma-separated CORS allowlist (default `*`)

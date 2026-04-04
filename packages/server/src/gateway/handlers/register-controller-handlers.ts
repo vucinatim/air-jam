@@ -19,6 +19,7 @@ import {
   beginRoomClosing,
   disconnectChildHostIfPresent,
   emitRoomState,
+  isControllerPrivilegedCapabilityExpired,
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
@@ -57,6 +58,7 @@ export const registerControllerHandlers = (
     roomManager,
     runtimeUsagePublisher,
     isControllerAuthorizedForRoom,
+    hasControllerPrivilegeForRoom,
     emitError,
   } = context;
   const logger = context.logger.child({ component: "controller" });
@@ -178,6 +180,7 @@ export const registerControllerHandlers = (
       deviceId: rawDeviceId,
       nickname,
       avatarId,
+      capabilityToken,
     } = parsed.data;
     const deviceId = rawDeviceId ?? controllerId;
     const session = roomManager.getRoom(roomId);
@@ -204,6 +207,41 @@ export const registerControllerHandlers = (
       return;
     }
 
+    const existing = session.controllers.get(controllerId);
+    const isResumedJoin = Boolean(existing);
+    const isResumeCandidate =
+      Boolean(existing) && existing?.deviceId === deviceId;
+    const roomCapability = session.controllerCapability;
+    const hasProvidedCapability = typeof capabilityToken === "string";
+    const capabilityExpired = roomCapability
+      ? isControllerPrivilegedCapabilityExpired(roomCapability)
+      : false;
+    const hasValidCapability =
+      Boolean(roomCapability) &&
+      !capabilityExpired &&
+      roomCapability?.token === capabilityToken;
+
+    if (hasProvidedCapability && !hasValidCapability && !isResumeCandidate) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
+        "Rejected controller join because privileged capability was invalid",
+        {
+          roomId,
+          controllerId,
+          reason: capabilityExpired ? "capability_expired" : "invalid_capability",
+        },
+      );
+      callback({
+        ok: false,
+        message: capabilityExpired
+          ? "Controller link expired. Please re-open it from the host."
+          : "Invalid controller link",
+        code: ErrorCode.UNAUTHORIZED,
+      });
+      return;
+    }
+
     const previousController = roomManager.getControllerInfo(socket.id);
     if (
       previousController &&
@@ -226,7 +264,7 @@ export const registerControllerHandlers = (
       roomManager.deleteController(socket.id);
     }
 
-    if (session.controllers.size >= session.maxPlayers) {
+    if (!existing && session.controllers.size >= session.maxPlayers) {
       logControllerEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
@@ -250,8 +288,10 @@ export const registerControllerHandlers = (
       return;
     }
 
-    const existing = session.controllers.get(controllerId);
-    const resumed = Boolean(existing);
+    const grantedPrivileges = hasValidCapability
+      ? roomCapability!.grants
+      : existing?.privilegedGrants ?? [];
+    const resumed = isResumedJoin;
     if (existing) {
       if (existing.deviceId !== deviceId) {
         logControllerEvent(
@@ -296,6 +336,7 @@ export const registerControllerHandlers = (
       controllerSession.connected = true;
       controllerSession.resumeLeaseExpiresAt = null;
       controllerSession.socketId = socket.id;
+      controllerSession.privilegedGrants = grantedPrivileges;
       controllerSession.playerProfile = {
         ...controllerSession.playerProfile,
         label:
@@ -322,6 +363,7 @@ export const registerControllerHandlers = (
         connected: true,
         resumeLeaseExpiresAt: null,
         playerProfile,
+        privilegedGrants: grantedPrivileges,
       };
       session.controllers.set(controllerId, controllerSession);
     }
@@ -332,6 +374,7 @@ export const registerControllerHandlers = (
       controllerId,
       deviceId,
       joinedAt: Date.now(),
+      privilegedGrants: grantedPrivileges,
     };
     socket.join(roomId);
 
@@ -345,12 +388,13 @@ export const registerControllerHandlers = (
         "info",
         AIRJAM_DEV_LOG_EVENTS.controller.resumeAccepted,
         "Controller resumed existing room binding",
-        {
-          roomId,
-          controllerId,
-          nickname: nickname ?? undefined,
-        },
-      );
+      {
+        roomId,
+        controllerId,
+        nickname: nickname ?? undefined,
+        privilegedGrantCount: grantedPrivileges.length,
+      },
+    );
     }
 
     logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.joinAccepted, "Controller joined room", {
@@ -358,6 +402,8 @@ export const registerControllerHandlers = (
       controllerId,
       nickname: nickname ?? undefined,
       resumed,
+      privilegedGrantCount: grantedPrivileges.length,
+      hasCapability: hasValidCapability,
     });
     runtimeUsagePublisher.publish(
       createRoomRuntimeUsageEvent(session, {
@@ -709,6 +755,20 @@ export const registerControllerHandlers = (
         {
           roomId,
           reason: "unauthorized",
+          command,
+        },
+      );
+      return;
+    }
+
+    if (!hasControllerPrivilegeForRoom(roomId, "system")) {
+      logControllerEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.systemRejected,
+        "Rejected controller system command because privileged capability is missing",
+        {
+          roomId,
+          reason: "missing_capability",
           command,
         },
       );

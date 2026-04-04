@@ -117,6 +117,7 @@ describe("host join url behavior", () => {
   it("reports loading until the host join url resolves", async () => {
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    (mocked.hostSocket as { connected: boolean }).connected = false;
 
     let resolveUrl: ((value: string) => void) | null = null;
     vi.spyOn(urlBuilder, "buildControllerUrl").mockImplementation(
@@ -155,5 +156,53 @@ describe("host join url behavior", () => {
     );
 
     expect(screen.getByText("Generating QR…")).toBeTruthy();
+  });
+
+  it("includes the controller capability token in official host join urls", async () => {
+    const hostSocket = mocked.hostSocket as {
+      emit: ReturnType<typeof vi.fn>;
+    };
+    hostSocket.emit.mockImplementation(
+      (
+        event: string,
+        _payload?: unknown,
+        callback?: (ack: Record<string, unknown>) => void,
+      ) => {
+        if (event === "host:bootstrap" && callback) {
+          callback({ ok: true, traceId: "trace_host_1" });
+          return;
+        }
+        if (event === "host:createRoom" && callback) {
+          callback({
+            ok: true,
+            roomId: "ROOM2",
+            players: [],
+            controllerCapability: {
+              token: "cap_123",
+              expiresAt: Date.now() + 60_000,
+              grants: ["system", "play_sound", "action_rpc"],
+            },
+          });
+        }
+      },
+    );
+    const buildControllerUrlSpy = vi
+      .spyOn(urlBuilder, "buildControllerUrl")
+      .mockResolvedValue(
+        "https://platform.example/controller?room=ROOM2&aj_controller_cap=cap_123",
+      );
+
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: HostRuntimeWrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.joinUrlStatus).toBe("ready");
+    });
+    expect(result.current.joinUrl).toContain("aj_controller_cap=cap_123");
+    expect(buildControllerUrlSpy).toHaveBeenCalledWith("ROOM2", {
+      host: "http://localhost:3000",
+      capabilityToken: "cap_123",
+    });
   });
 });

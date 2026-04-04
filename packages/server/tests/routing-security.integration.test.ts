@@ -6,6 +6,11 @@ import { setupServerTestHarness } from "./helpers/server-test-harness";
 type HostCreateRoomAck = {
   ok: boolean;
   roomId?: string;
+  controllerCapability?: {
+    token: string;
+    expiresAt: number;
+    grants: string[];
+  };
 };
 
 type ControllerJoinAck = {
@@ -119,7 +124,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       legitController,
       "controller:join",
-      { roomId, controllerId: "ctrl_legit_1", nickname: "Legit" },
+      {
+        roomId,
+        controllerId: "ctrl_legit_1",
+        nickname: "Legit",
+        capabilityToken: createAck.controllerCapability?.token,
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -172,7 +182,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_internal_1", nickname: "Internal" },
+      {
+        roomId,
+        controllerId: "ctrl_internal_1",
+        nickname: "Internal",
+        capabilityToken: createAck.controllerCapability?.token,
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -202,7 +217,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_arcade_1", nickname: "ArcadeCtrl" },
+      {
+        roomId,
+        controllerId: "ctrl_arcade_1",
+        nickname: "ArcadeCtrl",
+        capabilityToken: createAck.controllerCapability?.token,
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -298,6 +318,96 @@ describe("server routing and security", () => {
     );
 
     expect(received.id).toBe("valid_sound");
+  });
+
+  it("blocks privileged controller channels for room-code-only joins", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+
+    const roomId = createAck.roomId!;
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_basic_1", nickname: "Basic" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    controller.emit("controller:play_sound", {
+      roomId,
+      soundId: "blocked_sound",
+      volume: 0.4,
+      loop: false,
+    });
+    controller.emit("controller:action_rpc", {
+      roomId,
+      actionName: "joinTeam",
+      payload: { team: "team1" },
+      storeDomain: "default",
+    });
+    controller.emit("controller:system", {
+      roomId,
+      command: "toggle_pause",
+    });
+
+    await harness.expectNoEvent(host, "server:playSound");
+    await harness.expectNoEvent(host, "airjam:action_rpc");
+    await harness.delay(50);
+    expect(harness.getRoomManager().getRoom(roomId)?.gameState).toBe("paused");
+  });
+
+  it("allows privileged controller system and sound events with the official capability", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+
+    const roomId = createAck.roomId!;
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_priv_1",
+        nickname: "Privileged",
+        capabilityToken: createAck.controllerCapability?.token,
+      },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    controller.emit("controller:play_sound", {
+      roomId,
+      soundId: "ok_sound",
+      volume: 0.4,
+      loop: false,
+    });
+
+    const sound = await harness.waitForEvent<{ id: string }>(
+      host,
+      "server:playSound",
+    );
+    expect(sound.id).toBe("ok_sound");
+
+    controller.emit("controller:system", {
+      roomId,
+      command: "toggle_pause",
+    });
+
+    await harness.delay(50);
+    expect(harness.getRoomManager().getRoom(roomId)?.gameState).toBe("playing");
   });
 
   it("blocks unauthorized launch and close transitions", async () => {

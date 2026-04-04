@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      POSTGRES_DB: ${AIR_JAM_DEV_POSTGRES_DB:-airjam}
+      POSTGRES_USER: ${AIR_JAM_DEV_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${AIR_JAM_DEV_POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${AIR_JAM_DEV_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - ./.airjam/postgres/dev:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${AIR_JAM_DEV_POSTGRES_USER:-postgres} -d ${AIR_JAM_DEV_POSTGRES_DB:-airjam}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10

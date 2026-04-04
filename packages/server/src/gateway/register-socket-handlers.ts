@@ -47,7 +47,11 @@ export const registerSocketHandlers = ({
   controllerJoinRateLimitMax,
   staticAppRateLimitMax,
 }: RegisterSocketHandlersOptions): void => {
-  const { isHostAuthorizedForRoom, isControllerAuthorizedForRoom } =
+  const {
+    isHostAuthorizedForRoom,
+    isControllerAuthorizedForRoom,
+    hasControllerPrivilegeForRoom,
+  } =
     createSocketAuthorization(socket.id, roomManager);
 
   const socketIdentifier = resolveSocketIdentifier(
@@ -93,6 +97,7 @@ export const registerSocketHandlers = ({
     isScopedRateLimited,
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
+    hasControllerPrivilegeForRoom,
   };
 
   socketLogger.debug(

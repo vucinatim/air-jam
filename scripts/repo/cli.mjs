@@ -2,6 +2,7 @@
 
 import { Command } from "commander";
 import { registerContentCommands } from "./commands/content.mjs";
+import { registerDbCommands } from "./commands/db.mjs";
 import { registerLegacyCommands } from "./commands/legacy.mjs";
 import { registerPackCommands } from "./commands/pack.mjs";
 import { registerPerfCommands } from "./commands/perf.mjs";
@@ -18,6 +19,7 @@ program
   .description("Repo-local Air Jam maintainer CLI");
 
 registerWorkspaceCommands(program);
+registerDbCommands(program);
 registerContentCommands(program);
 registerPlatformCommands(program);
 registerLegacyCommands(program);

@@ -12,6 +12,7 @@ import {
 import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import { emitAirJamDiagnostic } from "../../diagnostics";
 import type {
+  ControllerPrivilegedCapability,
   ControllerInputEvent,
   ControllerStateMessage,
   ControllerStatePayload,
@@ -88,9 +89,15 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     return null;
   }, [options.roomId, storeRoomId, embeddedHost]);
 
+  const [controllerCapability, setControllerCapability] =
+    useState<ControllerPrivilegedCapability | null>(null);
+
   const joinUrlBuildKey = useMemo(
-    () => (parsedRoomId ? `${parsedRoomId}\0${config.publicHost ?? ""}` : null),
-    [config.publicHost, parsedRoomId],
+    () =>
+      parsedRoomId
+        ? `${parsedRoomId}\0${config.publicHost ?? ""}\0${controllerCapability?.token ?? ""}`
+        : null,
+    [config.publicHost, controllerCapability?.token, parsedRoomId],
   );
   const [computedJoinUrl, setComputedJoinUrl] = useState<{
     key: string | null;
@@ -267,6 +274,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       try {
         const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
           host: config.publicHost,
+          capabilityToken: controllerCapability?.token,
         });
         if (!cancelled) {
           setComputedJoinUrl({
@@ -289,7 +297,13 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     return () => {
       cancelled = true;
     };
-  }, [parsedRoomId, embeddedHost?.joinUrl, config.publicHost, joinUrlBuildKey]);
+  }, [
+    parsedRoomId,
+    embeddedHost?.joinUrl,
+    config.publicHost,
+    controllerCapability?.token,
+    joinUrlBuildKey,
+  ]);
 
   const joinUrl = embeddedHost?.joinUrl
     ? embeddedHost.joinUrl
@@ -367,6 +381,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         latestState.setRoomId(childRoomId);
         hydrateHostPlayers();
         setRegisteredRoomId(childRoomId);
+        setControllerCapability(null);
         return;
       }
 
@@ -429,6 +444,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         latestState.clearHostArcadeRestore();
         setRegisteredRoomId(null);
         setDevHostTraceId(undefined);
+        setControllerCapability(null);
         return;
       }
 
@@ -455,6 +471,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         latestState.clearHostArcadeRestore();
         setRegisteredRoomId(null);
         setDevHostTraceId(undefined);
+        setControllerCapability(null);
         return;
       }
 
@@ -468,6 +485,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         latestState.clearHostArcadeRestore();
         latestState.resetPlayers();
         setRegisteredRoomId(null);
+        setControllerCapability(null);
         const payload = hostCreateRoomSchema.parse({
           maxPlayers: config.maxPlayers,
         });
@@ -488,6 +506,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             latestState.setStatus("disconnected");
             setRegisteredRoomId(null);
             setDevHostTraceId(undefined);
+            setControllerCapability(null);
             return;
           }
 
@@ -497,6 +516,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             latestState.clearHostArcadeRestore();
             hydrateHostPlayers(ack.players);
             setRegisteredRoomId(ack.roomId);
+            setControllerCapability(ack.controllerCapability ?? null);
 
             if (typeof window !== "undefined") {
               sessionStorage.setItem("airjam_room_id", ack.roomId);
@@ -507,6 +527,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           latestState.setError("Server did not return room ID");
           latestState.setStatus("disconnected");
           setDevHostTraceId(undefined);
+          setControllerCapability(null);
         });
       };
 
@@ -542,8 +563,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                 if (ack.ok && ack.roomId) {
                   latestState.setStatus("connected");
                   latestState.setRoomId(ack.roomId);
-                  hydrateHostPlayers(ack.players);
-                  latestState.setHostArcadeRestore(
+                hydrateHostPlayers(ack.players);
+                setControllerCapability(ack.controllerCapability ?? null);
+                latestState.setHostArcadeRestore(
                     ack.arcadeSession
                       ? {
                           phase: "pending_restore",
@@ -585,6 +607,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                 if (typeof window !== "undefined") {
                   sessionStorage.removeItem("airjam_room_id");
                 }
+                setControllerCapability(null);
                 createNewRoom("reconnect_fallback", {
                   attempt,
                   ackCode: ack.code,

@@ -36,10 +36,12 @@ import {
   beginGameLaunch,
   beginRoomClosing,
   buildArcadeSessionForHostAck,
+  buildControllerCapabilityForHostAck,
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
   getRoomLifecyclePhase,
   isChildHostCapabilityExpired,
+  issueControllerPrivilegedCapability,
   issueChildHostCapability,
   toControllerJoinedNotice,
   transitionToSystemFocus,
@@ -94,6 +96,7 @@ export const registerHostLifecycleHandlers = (
       analytics,
       focus: startsInGameFocus ? "GAME" : "SYSTEM",
       launchCapability: undefined,
+      controllerCapability: issueControllerPrivilegedCapability(uuidv4()),
       activeGameId: startsInGameFocus ? analytics.gameId : undefined,
       controllers: new Map(),
       maxPlayers,
@@ -105,6 +108,10 @@ export const registerHostLifecycleHandlers = (
 
   const buildHostRosterSnapshot = (session: RoomSession): PlayerProfile[] =>
     Array.from(session.controllers.values(), (controller) => controller.playerProfile);
+
+  const getControllerCapabilityForAck = (
+    session: RoomSession,
+  ) => buildControllerCapabilityForHostAck(session, uuidv4);
 
   const getHostLogger = (bindings: Record<string, unknown> = {}) => {
     const traceId = socket.data.hostAuthority?.traceId;
@@ -383,7 +390,11 @@ export const registerHostLifecycleHandlers = (
           kind: "room_registered",
         }),
       );
-      callback({ ok: true, roomId });
+      callback({
+        ok: true,
+        roomId,
+        controllerCapability: getControllerCapabilityForAck(session),
+      });
       io.to(roomId).emit("server:roomReady", { roomId });
     },
   );
@@ -475,6 +486,7 @@ export const registerHostLifecycleHandlers = (
             ok: true,
             roomId: existingRoomId,
             players: buildHostRosterSnapshot(existingSession),
+            controllerCapability: getControllerCapabilityForAck(existingSession),
           });
           return;
         }
@@ -539,6 +551,7 @@ export const registerHostLifecycleHandlers = (
         ok: true,
         roomId,
         players: buildHostRosterSnapshot(session),
+        controllerCapability: getControllerCapabilityForAck(session),
       });
       io.to(roomId).emit("server:roomReady", { roomId });
     },
@@ -653,6 +666,7 @@ export const registerHostLifecycleHandlers = (
           roomId,
           arcadeSession: buildArcadeSessionForHostAck(session, uuidv4),
           players: buildHostRosterSnapshot(session),
+          controllerCapability: getControllerCapabilityForAck(session),
         });
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {

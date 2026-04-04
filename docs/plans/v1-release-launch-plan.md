@@ -12,6 +12,8 @@ Related docs:
 5. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 6. [Docs Index](../docs-index.md)
 7. [Controller Reconnect And Resume Plan](./controller-reconnect-resume-plan.md)
+8. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
+9. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
 
 ## Purpose
 
@@ -395,13 +397,26 @@ These should be handled before public launch because they affect trust, recovera
       3. confirm host/runtime behavior stays stable when reconnect attempts happen mid-match
    3. broader "continuous player device save system" can remain a later expansion if the smaller resume baseline solves the trust problem cleanly
    4. implementation details live in [Controller Reconnect And Resume Plan](./controller-reconnect-resume-plan.md)
-2. add a consistent controller-open fullscreen prompt for Arcade and game controller surfaces
+2. done baseline: isolate destructive runtime analytics tests onto a dedicated Postgres path and add a repo-owned local development Postgres workflow
+   1. local development should have one persistent repo-owned Postgres with visible local state under `.airjam/`
+   2. destructive analytics tests must use an isolated database path and never fall back to the normal runtime `DATABASE_URL`
+   3. implementation details live in [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
+3. gate privileged controller channels behind an explicit controller capability instead of only room membership
+   1. this applies only to elevated controller channels such as `controller:system`, `controller:play_sound`, and `controller:action_rpc`
+   2. normal controller gameplay/input should remain available to ordinary room joins
+   3. implementation details live in [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+4. turn the existing server perf sanity harness into a real release-confidence gate
+   1. keep the current baseline path
+   2. add reconnect-churn coverage
+   3. enforce committed thresholds through strict mode in the release-confidence path
+   4. implementation details live in [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+5. add a consistent controller-open fullscreen prompt for Arcade and game controller surfaces
    1. this should be a user-gesture-driven prompt, not a silent forced fullscreen call
    2. current truth:
       1. the prompt now appears on room-backed controller open
       2. controller-local browser smoke covers the prompt explicitly
       3. existing Pong and `air-capture` controller smokes now dismiss it as part of the product contract
-3. improve `air-capture`'s high-priority gameplay clarity and correctness:
+6. improve `air-capture`'s high-priority gameplay clarity and correctness:
    1. current truth:
       1. controller playing UI now uses a real left-side analog movement stick and keeps the right side focused on `Ability` + `Shoot`
       2. a team can no longer pick up the enemy flag while its own flag is already being carried
@@ -410,8 +425,8 @@ These should be handled before public launch because they affect trust, recovera
       5. match start now goes through a 3-second countdown phase where pilots can rotate but cannot thrust or fire
    2. remaining release gate:
       1. rerun real Arcade playtests for `air-capture` and confirm these fixes actually improve the trust/readability bar in live play
-4. rerun `air-capture` and `last-band-standing` local Arcade proof after the above fixes and record whether they remain in the launch set without qualification
-5. if any SDK/platform work lands here, realign:
+7. rerun `air-capture` and `last-band-standing` local Arcade proof after the above fixes and record whether they remain in the launch set without qualification
+8. if any SDK/platform work lands here, realign:
    1. `pong`
    2. `air-capture`
    3. `code-review`

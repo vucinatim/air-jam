@@ -28,6 +28,7 @@ export const registerRealtimeHandlers = (
     roomManager,
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
+    hasControllerPrivilegeForRoom,
   } = context;
   const hostStateSyncSummary = createWindowedEventSummary({
     logger,
@@ -267,6 +268,15 @@ export const registerRealtimeHandlers = (
       return;
     }
 
+    if (!hasControllerPrivilegeForRoom(roomId, "play_sound")) {
+      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected, "Rejected controller sound playback because privileged capability is missing", {
+        roomId,
+        soundId,
+        reason: "missing_capability",
+      });
+      return;
+    }
+
     const session = roomManager.getRoom(roomId);
     if (!session) {
       logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected, "Rejected controller sound playback because room was not found", {
@@ -406,6 +416,16 @@ export const registerRealtimeHandlers = (
         actionName,
         storeDomain,
         reason: "unauthorized",
+      });
+      return;
+    }
+
+    if (!hasControllerPrivilegeForRoom(roomId, "action_rpc")) {
+      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because privileged capability is missing", {
+        roomId,
+        actionName,
+        storeDomain,
+        reason: "missing_capability",
       });
       return;
     }

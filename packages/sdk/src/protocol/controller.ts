@@ -46,6 +46,7 @@ export const controllerJoinSchema = z.object({
   nickname: z.string().trim().min(1).max(24).optional(),
   /** Preset avatar key (platform-defined); optional at join. */
   avatarId: z.string().trim().min(1).max(48).optional(),
+  capabilityToken: z.string().min(1).optional(),
 });
 
 export type ControllerJoinPayload = z.infer<typeof controllerJoinSchema>;
@@ -113,9 +114,30 @@ export interface ControllerJoinAck {
   code?: ErrorCode | string;
 }
 
+export const controllerPrivilegedGrantSchema = z.enum([
+  "system",
+  "play_sound",
+  "action_rpc",
+]);
+
+export type ControllerPrivilegedGrant = z.infer<
+  typeof controllerPrivilegedGrantSchema
+>;
+
+export const controllerPrivilegedCapabilitySchema = z.object({
+  token: z.string().min(1),
+  expiresAt: z.number().int().positive(),
+  grants: z.array(controllerPrivilegedGrantSchema).min(1),
+});
+
+export type ControllerPrivilegedCapability = z.infer<
+  typeof controllerPrivilegedCapabilitySchema
+>;
+
 export interface ControllerSocketAuthority {
   roomId: RoomCode;
   controllerId: string;
   deviceId: string;
   joinedAt: number;
+  privilegedGrants: ControllerPrivilegedGrant[];
 }

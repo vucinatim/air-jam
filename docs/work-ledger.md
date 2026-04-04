@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-03  
+Last updated: 2026-04-04  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -108,6 +108,16 @@ Completed baselines now folded into this phase:
       4. conflicting-device rejection
    2. Pong now has local Arcade browser proof for reconnect/resume after controller refresh; the remaining reconnect gate is live gameplay proof in `air-capture` and `last-band-standing`
    3. controller fullscreen prompting is now explicit and productized at the controller shell boundary, with dedicated browser smoke coverage
+12. controller privileged channels now have an explicit room-scoped capability baseline:
+   1. official host/controller links carry the capability automatically
+   2. `controller:system`, `controller:play_sound`, and `controller:action_rpc` now require it after join
+   3. room-code-only joins still work for ordinary play/input flows without those elevated powers
+   4. implementation details live in [Controller Capability And Perf Hardening Plan](./archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+13. server perf sanity is now a real release-confidence gate:
+   1. the canonical perf harness now runs both the input baseline and reconnect churn
+   2. committed strict thresholds now back the release path instead of ad hoc warning-only output
+   3. `pnpm check:release` now includes `pnpm run repo -- perf sanity --strict`
+   4. implementation details live in [Controller Capability And Perf Hardening Plan](./archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
    4. `air-capture`'s first gameplay hardening pass is now in:
       1. analog left-stick movement with right-side actions only
       2. own-flag-carried enemy pickup lockout
@@ -133,6 +143,10 @@ Completed baselines now folded into this phase:
    2. `pnpm arcade:test -- --game=<id>` builds the selected game once and serves it through the platform under `/airjam-local-builds/<game>/`
    3. secure Arcade validation now means `pnpm secure:init` plus `pnpm arcade:test -- --game=<id> --secure`
    4. repo games still share the SDK router-basename contract so platform-served local build routes stay honest without per-game hacks
+15. Postgres safety and local-dev DB posture are now explicit prerelease baselines:
+   1. the repo owns an optional persistent local dev Postgres via `pnpm run repo -- db up`, with data under `.airjam/postgres/dev/`
+   2. prerelease can still intentionally point `DATABASE_URL` at production for release-state validation
+   3. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
 
 ### Priority 5. Release PR And Publish
 

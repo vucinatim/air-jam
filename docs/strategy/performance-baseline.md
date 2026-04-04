@@ -1,9 +1,9 @@
 # Air Jam Performance Baseline
 
-Last updated: 2026-03-21
-Status: active baseline (non-CI)
+Last updated: 2026-04-04
+Status: active release gate
 
-This document tracks lightweight local performance sanity runs.
+This document tracks the committed local server perf sanity contract.
 
 ## Default Command
 
@@ -11,7 +11,58 @@ This document tracks lightweight local performance sanity runs.
 pnpm run repo -- perf sanity
 ```
 
-## Latest Result (2026-03-21, default profile)
+Strict release gate:
+
+```bash
+pnpm run repo -- perf sanity --strict
+```
+
+The canonical perf pass now has two scenarios:
+
+1. input baseline
+2. controller reconnect churn
+
+Committed thresholds:
+
+1. baseline drop rate must stay at or below `2.00%`
+2. baseline p95 latency must stay at or below `50.00 ms`
+3. reconnect failure rate must stay at `0.00%`
+4. reconnect resume failure rate must stay at `0.00%`
+5. reconnect p95 latency must stay at or below `150.00 ms`
+
+## Latest Snapshot (2026-04-04, short validation profile)
+
+Command:
+
+```bash
+pnpm run repo -- perf sanity --durationMs=2000 --warmupMs=200 --controllers=2 --reconnectControllers=2 --reconnectCycles=2 --reconnectPauseMs=20
+```
+
+Baseline:
+
+- sent events: `112`
+- received events: `112`
+- drop rate: `0.00%`
+- latency p50: `0.61 ms`
+- latency p95: `2.43 ms`
+- latency p99: `3.35 ms`
+- latency avg: `0.79 ms`
+- latency max: `3.73 ms`
+
+Reconnect churn:
+
+- reconnect attempts: `4`
+- failed reconnects: `0`
+- resume misses: `0`
+- failure rate: `0.00%`
+- resume failure rate: `0.00%`
+- reconnect latency p50: `1.03 ms`
+- reconnect latency p95: `1.42 ms`
+- reconnect latency p99: `1.42 ms`
+- reconnect latency avg: `1.15 ms`
+- reconnect latency max: `1.42 ms`
+
+## Earlier Baseline Snapshot (2026-03-21, default profile)
 
 - controllers: `8`
 - target hz/controller: `30`
@@ -53,7 +104,7 @@ pnpm run repo -- perf sanity --durationMs=12000 --warmupMs=1000 --controllers=6 
 
 ## Notes
 
-- This is a local sanity benchmark for regression spotting.
-- It is intentionally **not CI-gated** yet.
-- Use `--strict` for optional non-zero exit on soft threshold warnings.
+- This remains a local release-confidence benchmark, not a general observability system.
+- `pnpm check:release` now includes the strict mode gate.
+- The committed thresholds are intentionally narrow and local-machine oriented.
 - Soak and long-duration benchmarks remain deferred until traction justifies nightly perf investment.

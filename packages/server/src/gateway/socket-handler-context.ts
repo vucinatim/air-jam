@@ -1,4 +1,8 @@
-import type { RoomCode, ServerErrorPayload } from "@air-jam/sdk/protocol";
+import type {
+  ControllerPrivilegedGrant,
+  RoomCode,
+  ServerErrorPayload,
+} from "@air-jam/sdk/protocol";
 import type { RuntimeUsagePublisher } from "../analytics/runtime-usage.js";
 import type { ServerLogger } from "../logging/logger.js";
 import type { HostBootstrapAuthService } from "../services/auth-service.js";
@@ -21,6 +25,11 @@ export interface SocketHandlerContext {
   isHostAuthorizedForRoom: (roomId: RoomCode) => boolean;
   isControllerAuthorizedForRoom: (
     roomId: RoomCode,
+    controllerId?: string,
+  ) => boolean;
+  hasControllerPrivilegeForRoom: (
+    roomId: RoomCode,
+    grant: ControllerPrivilegedGrant,
     controllerId?: string,
   ) => boolean;
 }

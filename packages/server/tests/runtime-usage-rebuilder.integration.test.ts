@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { db } from "../src/db";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   runtimeUsageControllerSegments,
   runtimeUsageDailyGameMetrics,
@@ -11,16 +10,37 @@ import {
 } from "../src/db";
 import { rebuildRuntimeUsageSessionFromLedger } from "../src/analytics/runtime-usage-rebuilder";
 import { eq } from "drizzle-orm";
+import {
+  createAnalyticsTestDbHarness,
+  type AnalyticsTestDbHarness,
+} from "./helpers/analytics-test-db";
 
 const hasEnabledDbIntegrationTests =
-  db && process.env.AIR_JAM_ENABLE_DB_INTEGRATION_TESTS === "enabled";
+  process.env.AIR_JAM_ENABLE_DB_INTEGRATION_TESTS === "enabled";
 const maybeIt = hasEnabledDbIntegrationTests ? it : it.skip;
 
-const insertLedgerFixture = async (runtimeSessionId: string) => {
-  const runtimeDb = db;
-  if (!runtimeDb) {
+let analyticsHarness: AnalyticsTestDbHarness | null = null;
+
+const getRuntimeDb = () => {
+  if (!analyticsHarness) {
+    throw new Error(
+      "Analytics test database is not initialized. Set AIR_JAM_ENABLE_DB_INTEGRATION_TESTS=enabled to run these tests.",
+    );
+  }
+
+  return analyticsHarness.db;
+};
+
+beforeAll(async () => {
+  if (!hasEnabledDbIntegrationTests) {
     return;
   }
+
+  analyticsHarness = await createAnalyticsTestDbHarness();
+}, 120_000);
+
+const insertLedgerFixture = async (runtimeSessionId: string) => {
+  const runtimeDb = getRuntimeDb();
 
   await runtimeDb.insert(runtimeUsageSessions).values({
     id: runtimeSessionId,
@@ -74,11 +94,11 @@ const insertLedgerFixture = async (runtimeSessionId: string) => {
 };
 
 afterEach(async () => {
-  const runtimeDb = db;
-  if (!runtimeDb || !hasEnabledDbIntegrationTests) {
+  if (!hasEnabledDbIntegrationTests || !analyticsHarness) {
     return;
   }
 
+  const runtimeDb = getRuntimeDb();
   await runtimeDb.delete(runtimeUsageDailyGameMetrics);
   await runtimeDb.delete(runtimeUsageGameSessionMetrics);
   await runtimeDb.delete(runtimeUsageEligibleSegments);
@@ -88,9 +108,14 @@ afterEach(async () => {
   await runtimeDb.delete(runtimeUsageSessions);
 });
 
+afterAll(async () => {
+  await analyticsHarness?.dispose();
+  analyticsHarness = null;
+});
+
 describe("runtime usage rebuilder", () => {
   maybeIt("rebuilds session projections idempotently from the raw ledger", async () => {
-    const runtimeDb = db!;
+    const runtimeDb = getRuntimeDb();
     const runtimeSessionId = `runtime_rebuild_${crypto.randomUUID()}`;
     await insertLedgerFixture(runtimeSessionId);
 
@@ -144,7 +169,7 @@ describe("runtime usage rebuilder", () => {
   });
 
   maybeIt("removes stale session and daily metrics when replayed ledger no longer produces gameplay", async () => {
-    const runtimeDb = db!;
+    const runtimeDb = getRuntimeDb();
     const runtimeSessionId = `runtime_rebuild_${crypto.randomUUID()}`;
     await insertLedgerFixture(runtimeSessionId);
 

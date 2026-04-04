@@ -1,5 +1,7 @@
 import type {
   ChildHostCapability,
+  ControllerPrivilegedCapability,
+  ControllerPrivilegedGrant,
   ControllerStateMessage,
   GameState,
   HostArcadeSessionSnapshot,
@@ -145,6 +147,38 @@ export const isChildHostCapabilityExpired = (
   now = Date.now(),
 ): boolean => capability.expiresAt <= now;
 
+export const getControllerCapabilityTtlMs = (): number => {
+  const raw = process.env.AIR_JAM_CONTROLLER_CAPABILITY_TTL_MS;
+  if (raw === undefined || raw === "") {
+    return 24 * 60 * 60 * 1000;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : 24 * 60 * 60 * 1000;
+};
+
+const DEFAULT_CONTROLLER_PRIVILEGED_GRANTS: ControllerPrivilegedGrant[] = [
+  "system",
+  "play_sound",
+  "action_rpc",
+];
+
+export const issueControllerPrivilegedCapability = (
+  token: string,
+  grants: ControllerPrivilegedGrant[] = DEFAULT_CONTROLLER_PRIVILEGED_GRANTS,
+  now = Date.now(),
+): ControllerPrivilegedCapability => ({
+  token,
+  expiresAt: now + getControllerCapabilityTtlMs(),
+  grants,
+});
+
+export const isControllerPrivilegedCapabilityExpired = (
+  capability: ControllerPrivilegedCapability,
+  now = Date.now(),
+): boolean => capability.expiresAt <= now;
+
 export const canBeginGameLaunch = (
   session: RoomSession,
 ): LaunchAvailability => {
@@ -218,6 +252,25 @@ export const buildArcadeSessionForHostAck = (
     gameId: session.activeGameId,
     launchCapability: refreshedCapability,
   };
+};
+
+export const buildControllerCapabilityForHostAck = (
+  session: RoomSession,
+  issueToken?: () => string,
+): ControllerPrivilegedCapability | undefined => {
+  const currentCapability = session.controllerCapability;
+  if (
+    currentCapability &&
+    !isControllerPrivilegedCapabilityExpired(currentCapability)
+  ) {
+    return currentCapability;
+  }
+  if (!issueToken) {
+    return currentCapability;
+  }
+  const refreshedCapability = issueControllerPrivilegedCapability(issueToken());
+  session.controllerCapability = refreshedCapability;
+  return refreshedCapability;
 };
 
 export const canActivateChildHost = (

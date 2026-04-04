@@ -1,5 +1,7 @@
 import type {
   ChildHostCapability,
+  ControllerPrivilegedCapability,
+  ControllerPrivilegedGrant,
   ControllerStateMessage,
   GameState,
   HostSessionKind,
@@ -23,6 +25,7 @@ export interface ControllerSession {
   resumeLeaseExpiresAt: number | null;
   pendingDisconnectTimer?: ReturnType<typeof setTimeout>;
   playerProfile: PlayerProfile;
+  privilegedGrants: ControllerPrivilegedGrant[];
 }
 
 export interface RoomAnalyticsState {
@@ -60,6 +63,7 @@ export interface RoomSession {
   analytics: RoomAnalyticsState;
   focus: RoomFocus;
   launchCapability?: ChildHostCapability; // Capability required for a child host to join
+  controllerCapability?: ControllerPrivilegedCapability; // Capability required for privileged controller channels
   /** Set when a game is launched from the system host (`system:launchGame`). */
   activeGameId?: string;
   controllers: Map<string, ControllerSession>;
