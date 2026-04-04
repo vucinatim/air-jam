@@ -193,6 +193,6 @@ test("loadSecureDevState requires secure:init output first", () => {
         cwd,
         mode: SECURE_MODE_LOCAL,
       }),
-    /Run `create-airjam secure:init` first/,
+    /Run `airjam secure:init` first/,
   );
 });

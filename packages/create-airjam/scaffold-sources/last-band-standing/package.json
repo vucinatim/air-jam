@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "create-airjam dev",
-    "secure:init": "create-airjam secure:init",
+    "dev": "pnpm exec airjam dev",
+    "secure:init": "pnpm exec airjam secure:init",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -64,7 +64,7 @@ This keeps the local Air Jam server on `http://localhost:4000` and serves the ga
 Optional tunnel fallback:
 
 ```bash
-pnpm exec create-airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm exec airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
 pnpm run dev -- --secure --secure-mode=tunnel
 ```
 
@@ -92,9 +92,9 @@ Scaffolded projects include an AI pack that owns the canonical local docs, skill
 Use these commands from your project root:
 
 ```bash
-pnpm exec create-airjam ai-pack status --dir .
-pnpm exec create-airjam ai-pack diff --dir .
-pnpm exec create-airjam ai-pack update --dir .
+pnpm exec airjam ai-pack status --dir .
+pnpm exec airjam ai-pack diff --dir .
+pnpm exec airjam ai-pack update --dir .
 ```
 
 `ai-pack:update` replaces AI-pack-managed files such as local docs, skills, and `AGENTS.md` with the current canonical versions. It is intentionally a replace operation, not a merge tool, and it does not own your local `plan.md` or `suggestions.md`.
@@ -197,7 +197,7 @@ The official Arcade hosting lane is now artifact-based. Self-hosted URLs are sti
 1. Build a hosted bundle from your project root:
 
 ```bash
-pnpm exec create-airjam release bundle --dir .
+pnpm exec airjam release bundle --dir .
 ```
 
 That command:
@@ -207,7 +207,7 @@ That command:
 - writes `.airjam/release-manifest.json`
 - creates a hosted release zip under `.airjam/releases/<version>/`
 
-The scaffolded `release:bundle` script wraps `create-airjam release bundle --dir .` for you.
+The scaffolded `release:bundle` script wraps `airjam release bundle --dir .` for you.
 
 The hosted artifact contract is fixed:
 

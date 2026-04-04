@@ -21,7 +21,7 @@ const runCliHelp = (...args) =>
 test("create-airjam exposes dev help", () => {
   const output = runCliHelp("dev");
 
-  assert.match(output, /Usage: create-airjam dev/);
+  assert.match(output, /Usage: airjam dev/);
   assert.match(output, /--secure/);
   assert.match(output, /--server-only/);
 });
@@ -29,7 +29,7 @@ test("create-airjam exposes dev help", () => {
 test("create-airjam exposes secure:init help", () => {
   const output = runCliHelp("secure:init");
 
-  assert.match(output, /Usage: create-airjam secure:init/);
+  assert.match(output, /Usage: airjam secure:init/);
   assert.match(output, /--mode <mode>/);
   assert.match(output, /--hostname <hostname>/);
 });
@@ -37,13 +37,13 @@ test("create-airjam exposes secure:init help", () => {
 test("create-airjam keeps ai-pack help", () => {
   const output = runCliHelp("ai-pack", "status");
 
-  assert.match(output, /Usage: create-airjam ai-pack status/);
+  assert.match(output, /Usage: airjam ai-pack status/);
   assert.match(output, /--manifest-url <url>/);
 });
 
 test("create-airjam keeps release bundle help", () => {
   const output = runCliHelp("release", "bundle");
 
-  assert.match(output, /Usage: create-airjam release bundle/);
+  assert.match(output, /Usage: airjam release bundle/);
   assert.match(output, /--dist-dir <path>/);
 });

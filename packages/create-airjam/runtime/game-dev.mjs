@@ -25,7 +25,7 @@ const holdProcessOpen = async () => {
 
 const usage = () => {
   console.log(
-    "Usage: create-airjam dev [--secure] [--secure-mode=local|tunnel] [--web-only] [--server-only] [--allow-existing-game]",
+    "Usage: airjam dev [--secure] [--secure-mode=local|tunnel] [--web-only] [--server-only] [--allow-existing-game]",
   );
   console.log("");
   console.log("Modes:");

@@ -35,7 +35,7 @@ pnpm dev -- --secure
 Optional tunnel fallback:
 
 ```bash
-pnpm exec create-airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm exec airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
 pnpm dev -- --secure --secure-mode=tunnel
 ```
 
@@ -46,7 +46,7 @@ pnpm dev -- --secure --secure-mode=tunnel
 - `pnpm typecheck` runs TypeScript without emitting
 - `pnpm test` runs the minimal game-store test suite
 - `pnpm build` creates the production build
-- `pnpm exec create-airjam release bundle --dir .` creates the hosted release zip for the dashboard
+- `pnpm exec airjam release bundle --dir .` creates the hosted release zip for the dashboard
 
 ## Project Shape
 

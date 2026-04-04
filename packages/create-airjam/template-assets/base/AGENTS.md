@@ -73,7 +73,7 @@ Use hosted Air Jam docs only when:
 1. local docs do not cover the topic
 2. you need the latest canonical public guidance
 3. the task is explicitly about updating or syncing docs
-4. you need to inspect whether the local AI pack is behind the hosted canonical pack via `npx create-airjam ai-pack status --dir .`
+4. you need to inspect whether the local AI pack is behind the hosted canonical pack via `pnpm exec airjam ai-pack status --dir .`
 
 ### `skills/`
 
@@ -179,8 +179,8 @@ Wrap icon usage behind local UI/game icon modules where practical so the project
 5. remember that `dev-latest.ndjson` resets when the Air Jam server process restarts
 6. use framework diagnostics after the canonical log stream, not instead of it
 7. keep debug helpers isolated from hot gameplay paths
-8. if the local AI workflow files look stale or inconsistent, inspect them with `npx create-airjam ai-pack status --dir .` and `npx create-airjam ai-pack diff --dir .`
-9. only use `npx create-airjam ai-pack update --dir .` when you want to replace managed AI pack files explicitly; it does not merge local customizations
+8. if the local AI workflow files look stale or inconsistent, inspect them with `pnpm exec airjam ai-pack status --dir .` and `pnpm exec airjam ai-pack diff --dir .`
+9. only use `pnpm exec airjam ai-pack update --dir .` when you want to replace managed AI pack files explicitly; it does not merge local customizations
 
 ## Escalation Rule
 

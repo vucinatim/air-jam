@@ -140,8 +140,8 @@ export const normalizeScaffoldPackageJson = ({
 
   const nextScripts = {
     ...existingScripts,
-    dev: "create-airjam dev",
-    "secure:init": "create-airjam secure:init",
+    dev: "pnpm exec airjam dev",
+    "secure:init": "pnpm exec airjam secure:init",
   };
 
   const nextDevDependencies = {

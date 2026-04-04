@@ -10,7 +10,7 @@ Players join from their phones, pick a team slot, and control fighters inside a 
 - explicit host and controller runtime ownership
 - a small Air Jam store with domain logic separated from presentation
 - a simple browser-first party-game loop that is easy to extend
-- hosted release bundling through `create-airjam release bundle`
+- hosted release bundling through `airjam release bundle`
 
 ## Local Development
 
@@ -37,11 +37,11 @@ pnpm --dir games/code-review dev -- --web-only
 - `pnpm dev` starts the local Air Jam server and Vite app
 - `pnpm secure:init` prepares local trusted HTTPS for secure browser APIs
 - `pnpm dev -- --secure` runs the game in secure mode
-- `pnpm exec create-airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev` enables the optional tunnel fallback
+- `pnpm exec airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev` enables the optional tunnel fallback
 - `pnpm typecheck` runs the TypeScript project check
 - `pnpm test` runs the lightweight domain tests
 - `pnpm build` creates the production web build
-- `pnpm exec create-airjam release bundle --dir .` produces the hosted Arcade release zip
+- `pnpm exec airjam release bundle --dir .` produces the hosted Arcade release zip
 
 ## Project Structure
 

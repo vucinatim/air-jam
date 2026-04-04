@@ -697,7 +697,7 @@ const buildProgram = () => {
   const program = new Command();
 
   program
-    .name("create-airjam")
+    .name("airjam")
     .description("Scaffold and manage Air Jam game projects")
     .argument("[project-name]", "Name of the project directory")
     .option("-t, --template <template>", "Template to use")

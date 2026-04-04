@@ -25,7 +25,8 @@
     "starter"
   ],
   "bin": {
-    "create-airjam": "./dist/index.js"
+    "create-airjam": "./dist/index.js",
+    "airjam": "./dist/index.js"
   },
   "files": [
     "dist",

@@ -43,5 +43,5 @@ If behavior or canonical patterns changed:
 
 1. update docs in the same change
 2. keep examples and scaffolding aligned
-3. if you are unsure whether the local AI pack is still aligned with the hosted canonical pack, compare it with `pnpm exec create-airjam ai-pack status --dir .` or `pnpm exec create-airjam ai-pack diff --dir .`
-4. use `pnpm exec create-airjam ai-pack update --dir .` only when you explicitly want to replace managed AI pack files such as scaffolded docs, skills, `AGENTS.md`, and other AI-pack-owned guidance; it is not a merge tool and does not own your local `plan.md` or `suggestions.md`
+3. if you are unsure whether the local AI pack is still aligned with the hosted canonical pack, compare it with `pnpm exec airjam ai-pack status --dir .` or `pnpm exec airjam ai-pack diff --dir .`
+4. use `pnpm exec airjam ai-pack update --dir .` only when you explicitly want to replace managed AI pack files such as scaffolded docs, skills, `AGENTS.md`, and other AI-pack-owned guidance; it is not a merge tool and does not own your local `plan.md` or `suggestions.md`

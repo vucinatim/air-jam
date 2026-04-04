@@ -438,7 +438,7 @@ export async function runAiPackStatus({
 
   console.log(
     kleur.dim(
-      'Use "create-airjam ai-pack diff" to inspect the differing managed files.',
+      'Use "airjam ai-pack diff" to inspect the differing managed files.',
     ),
   );
 }
@@ -528,7 +528,7 @@ export async function runAiPackUpdate({
     );
     console.log(
       kleur.dim(
-        'Inspect drift first with "create-airjam ai-pack diff", then rerun with --force if you want to replace those managed files.',
+        'Inspect drift first with "airjam ai-pack diff", then rerun with --force if you want to replace those managed files.',
       ),
     );
     process.exitCode = 1;
