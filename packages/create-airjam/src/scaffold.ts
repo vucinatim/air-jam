@@ -120,11 +120,11 @@ export const normalizeScaffoldPackageJson = ({
 }): ScaffoldPackageJson => {
   const nextScripts = {
     ...(typeof pkg.scripts === "object" && pkg.scripts ? (pkg.scripts as Record<string, string>) : {}),
-    dev: "node ./scripts/dev.mjs",
-    "dev:server": "node ./scripts/dev.mjs --server-only",
-    "dev:secure": "node ./scripts/dev.mjs --secure",
+    dev: "create-airjam dev",
+    "dev:server": "create-airjam dev --server-only",
+    "dev:secure": "create-airjam dev --secure",
     logs: "air-jam-server logs",
-    "secure:init": "node ./scripts/secure-init.mjs",
+    "secure:init": "create-airjam secure:init",
     "ai-pack:status": "create-airjam ai-pack status --dir .",
     "ai-pack:diff": "create-airjam ai-pack diff --dir .",
     "ai-pack:update": "create-airjam ai-pack update --dir .",

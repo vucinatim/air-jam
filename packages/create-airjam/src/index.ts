@@ -1,4 +1,4 @@
-import { program } from "commander";
+import { Command } from "commander";
 import fs from "fs-extra";
 import kleur from "kleur";
 import { execSync } from "node:child_process";
@@ -6,6 +6,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
 import yazl from "yazl";
+import { runGameDevCli } from "../runtime/game-dev.mjs";
+import { runSecureInitCli } from "../runtime/secure-dev.mjs";
 import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
 import {
   findScaffoldTemplate,
@@ -184,36 +186,6 @@ const writeAiPackManifest = async ({
   await fs.writeJson(manifestFilePath, manifest, { spaces: 2 });
 };
 
-const getOptionValue = (argv: string[], optionName: string): string | undefined => {
-  const flagIndex = argv.indexOf(optionName);
-  if (flagIndex !== -1) {
-    return argv[flagIndex + 1];
-  }
-
-  const inlineArg = argv.find((value) => value.startsWith(`${optionName}=`));
-  return inlineArg ? inlineArg.slice(optionName.length + 1) : undefined;
-};
-
-const printAiPackHelp = () => {
-  console.log("Usage: create-airjam ai-pack <status|diff|update> [options]");
-  console.log("");
-  console.log("Options:");
-  console.log("  --dir <path>            Project directory to inspect (default: current working directory)");
-  console.log("  --manifest-url <url>    Override the hosted AI pack root manifest URL");
-  console.log("  --manifest-file <path>  Read the AI pack root manifest from a local file");
-  console.log("  --force                 Overwrite same-version managed file drift during update");
-};
-
-const printReleaseHelp = () => {
-  console.log("Usage: create-airjam release bundle [options]");
-  console.log("");
-  console.log("Options:");
-  console.log("  --dir <path>       Project directory to bundle (default: current working directory)");
-  console.log("  --dist-dir <path>  Built static output directory (default: dist)");
-  console.log("  --out <path>       Output zip file path");
-  console.log("  --skip-build       Reuse the existing dist directory without running the build script");
-};
-
 const loadProjectPackageJson = async (
   targetDir: string,
 ): Promise<{
@@ -334,6 +306,22 @@ const assertHostedReleaseControllerPath = async (
   }
 };
 
+const normalizeRuntimeCliArgv = (argv: string[]) =>
+  argv.filter((value) => value !== "--");
+
+const resolveActionOptions = <T>(value: unknown): T => {
+  if (
+    value &&
+    typeof value === "object" &&
+    "opts" in value &&
+    typeof (value as { opts?: unknown }).opts === "function"
+  ) {
+    return (value as Command).opts<T>();
+  }
+
+  return value as T;
+};
+
 const collectBundleFiles = async (sourceDir: string): Promise<string[]> => {
   const entries = await fs.readdir(sourceDir);
   const files: string[] = [];
@@ -395,28 +383,20 @@ const writeHostedReleaseBundle = async ({
   await closePromise;
 };
 
-const runReleaseCommand = async (argv: string[]) => {
-  const subcommand = argv[3];
-  if (!subcommand || subcommand === "--help" || subcommand === "-h") {
-    printReleaseHelp();
-    return;
-  }
-
-  if (subcommand !== "bundle" || argv.includes("--help") || argv.includes("-h")) {
-    printReleaseHelp();
-    if (subcommand !== "bundle") {
-      process.exitCode = 1;
-    }
-    return;
-  }
-
-  const targetDir = path.resolve(getOptionValue(argv, "--dir") || process.cwd());
-  const distDir = path.resolve(
-    targetDir,
-    getOptionValue(argv, "--dist-dir") || "dist",
-  );
-  const outputOverride = getOptionValue(argv, "--out");
-  const skipBuild = argv.includes("--skip-build");
+const runReleaseBundleCommand = async ({
+  dir,
+  distDir: configuredDistDir,
+  out,
+  skipBuild = false,
+}: {
+  dir?: string;
+  distDir?: string;
+  out?: string;
+  skipBuild?: boolean;
+}) => {
+  const targetDir = path.resolve(dir || process.cwd());
+  const distDir = path.resolve(targetDir, configuredDistDir || "dist");
+  const outputOverride = out;
 
   const projectPackageJson = await loadProjectPackageJson(targetDir);
   const packageManager = await detectPackageManager(
@@ -469,77 +449,24 @@ const runReleaseCommand = async (argv: string[]) => {
   );
 };
 
-const runAiPackCommand = async (argv: string[]) => {
-  const subcommand = argv[3];
-  if (!subcommand || subcommand === "--help" || subcommand === "-h") {
-    printAiPackHelp();
-    return;
-  }
-
-  if (argv.includes("--help") || argv.includes("-h")) {
-    printAiPackHelp();
-    return;
-  }
-
-  const dir = getOptionValue(argv, "--dir");
-  const manifestUrl = getOptionValue(argv, "--manifest-url");
-  const manifestFile = getOptionValue(argv, "--manifest-file");
-  const force = argv.includes("--force");
-
-  if (subcommand === "status") {
-    await runAiPackStatus({ dir, manifestUrl, manifestFile });
-    return;
-  }
-
-  if (subcommand === "diff") {
-    await runAiPackDiff({ dir, manifestUrl, manifestFile });
-    return;
-  }
-
-  if (subcommand === "update") {
-    await runAiPackUpdate({ dir, manifestUrl, manifestFile, force });
-    return;
-  }
-
-  printAiPackHelp();
-  process.exitCode = 1;
+type ScaffoldCommandOptions = {
+  template?: string;
+  skipInstall: boolean;
+  depSpec: string[];
+  overrideSpec: string[];
 };
 
-async function runScaffoldCli() {
-  program
-    .name("create-airjam")
-    .description("Scaffold a new Air Jam game project")
-    .argument("[project-name]", "Name of the project directory")
-    .option("-t, --template <template>", "Template to use")
-    .option("--skip-install", "Skip dependency installation", false)
-    .option(
-      "--dep-spec <name=spec>",
-      "Override a scaffold dependency spec (advanced/internal)",
-      (value, previous: string[] = []) => [...previous, value],
-      [],
-    )
-    .option(
-      "--override-spec <name=spec>",
-      "Add a pnpm override to the scaffolded project (advanced/internal)",
-      (value, previous: string[] = []) => [...previous, value],
-      [],
-    )
-    .parse();
-
-  const args = program.args;
-  const options = program.opts<{
-    template?: string;
-    skipInstall: boolean;
-    depSpec: string[];
-    overrideSpec: string[];
-  }>();
+const runScaffoldCommand = async (
+  projectName: string | undefined,
+  options: ScaffoldCommandOptions,
+) => {
   const manifest = loadTemplateVersionManifest();
   const createAirJamVersion = loadCreateAirJamPackageVersion();
   const depSpecs = parseNamedSpecs(options.depSpec);
   const overrideSpecs = parseNamedSpecs(options.overrideSpec);
   const templates = loadAvailableScaffoldTemplates();
 
-  let projectInput = args[0];
+  let projectInput = projectName;
 
   if (!projectInput) {
     const response = await prompts({
@@ -764,20 +691,161 @@ async function runScaffoldCli() {
       "Then open http://localhost:5173 (or https://localhost:5173 in secure mode) and scan the QR code with your phone!",
     ),
   );
-}
+};
+
+const buildProgram = () => {
+  const program = new Command();
+
+  program
+    .name("create-airjam")
+    .description("Scaffold and manage Air Jam game projects")
+    .argument("[project-name]", "Name of the project directory")
+    .option("-t, --template <template>", "Template to use")
+    .option("--skip-install", "Skip dependency installation", false)
+    .option(
+      "--dep-spec <name=spec>",
+      "Override a scaffold dependency spec (advanced/internal)",
+      (value, previous: string[] = []) => [...previous, value],
+      [],
+    )
+    .option(
+      "--override-spec <name=spec>",
+      "Add a pnpm override to the scaffolded project (advanced/internal)",
+      (value, previous: string[] = []) => [...previous, value],
+      [],
+    )
+    .action(async (projectName: string | undefined, options: unknown) => {
+      await runScaffoldCommand(
+        projectName,
+        resolveActionOptions<ScaffoldCommandOptions>(options),
+      );
+    });
+
+  const aiPackCommand = program
+    .command("ai-pack")
+    .description("Inspect or update hosted AI pack assets");
+
+  aiPackCommand
+    .command("status")
+    .description("Show AI pack status for a project")
+    .option("--dir <path>", "Project directory to inspect")
+    .option("--manifest-url <url>", "Override the hosted AI pack root manifest URL")
+    .option("--manifest-file <path>", "Read the AI pack root manifest from a local file")
+    .action(async (options: unknown) => {
+      await runAiPackStatus(
+        resolveActionOptions<{ dir?: string; manifestUrl?: string; manifestFile?: string }>(
+          options,
+        ),
+      );
+    });
+
+  aiPackCommand
+    .command("diff")
+    .description("Show AI pack file differences for a project")
+    .option("--dir <path>", "Project directory to inspect")
+    .option("--manifest-url <url>", "Override the hosted AI pack root manifest URL")
+    .option("--manifest-file <path>", "Read the AI pack root manifest from a local file")
+    .action(async (options: unknown) => {
+      await runAiPackDiff(
+        resolveActionOptions<{ dir?: string; manifestUrl?: string; manifestFile?: string }>(
+          options,
+        ),
+      );
+    });
+
+  aiPackCommand
+    .command("update")
+    .description("Update managed AI pack assets for a project")
+    .option("--dir <path>", "Project directory to inspect")
+    .option("--manifest-url <url>", "Override the hosted AI pack root manifest URL")
+    .option("--manifest-file <path>", "Read the AI pack root manifest from a local file")
+    .option("--force", "Overwrite same-version managed file drift during update", false)
+    .action(async (options: unknown) => {
+      await runAiPackUpdate(
+        resolveActionOptions<{
+          dir?: string;
+          manifestUrl?: string;
+          manifestFile?: string;
+          force?: boolean;
+        }>(options),
+      );
+    });
+
+  aiPackCommand.action(() => {
+    aiPackCommand.outputHelp();
+  });
+
+  const releaseCommand = program
+    .command("release")
+    .description("Work with hosted release bundles");
+
+  releaseCommand
+    .command("bundle")
+    .description("Create a hosted release zip from a built game project")
+    .option("--dir <path>", "Project directory to bundle")
+    .option("--dist-dir <path>", "Built static output directory")
+    .option("--out <path>", "Output zip file path")
+    .option("--skip-build", "Reuse the existing dist directory without building", false)
+    .action(async (options: unknown) => {
+      await runReleaseBundleCommand(
+        resolveActionOptions<{
+          dir?: string;
+          distDir?: string;
+          out?: string;
+          skipBuild?: boolean;
+        }>(options),
+      );
+    });
+
+  releaseCommand.action(() => {
+    releaseCommand.outputHelp();
+  });
+
+  program
+    .command("dev")
+    .description("Run project-local Air Jam game development")
+    .argument("[passthrough...]", "Additional runtime flags")
+    .allowExcessArguments(true)
+    .allowUnknownOption(false)
+    .option("--secure", "Start secure local game dev", false)
+    .option(
+      "--secure-mode <mode>",
+      "Secure mode to use when --secure is enabled (local or tunnel)",
+    )
+    .option("--web-only", "Start only the game app", false)
+    .option("--server-only", "Start only the local Air Jam server", false)
+    .option(
+      "--allow-existing-game",
+      "Reuse an already-running Vite server on the game port",
+      false,
+    )
+    .action(async () => {
+      await runGameDevCli({
+        argv: normalizeRuntimeCliArgv(process.argv.slice(3)),
+      });
+    });
+
+  program
+    .command("secure:init")
+    .description("Initialize local secure Air Jam game development")
+    .argument("[passthrough...]", "Additional runtime flags")
+    .allowExcessArguments(true)
+    .allowUnknownOption(false)
+    .option("--mode <mode>", "Secure mode to configure (local or tunnel)")
+    .option("--hostname <hostname>", "Tunnel hostname for secure tunnel mode")
+    .option("--tunnel <name>", "Cloudflare tunnel name for secure tunnel mode")
+    .action(async () => {
+      await runSecureInitCli({
+        argv: normalizeRuntimeCliArgv(process.argv.slice(3)),
+      });
+    });
+
+  return program;
+};
 
 async function main() {
-  if (process.argv[2] === "ai-pack") {
-    await runAiPackCommand(process.argv);
-    return;
-  }
-
-  if (process.argv[2] === "release") {
-    await runReleaseCommand(process.argv);
-    return;
-  }
-
-  await runScaffoldCli();
+  const program = buildProgram();
+  await program.parseAsync(process.argv);
 }
 
 main().catch((err) => {

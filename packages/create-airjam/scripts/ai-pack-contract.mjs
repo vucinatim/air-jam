@@ -13,8 +13,6 @@ export const requiredBasePackPaths = [
   "docs/development-loop.md",
   "docs/docs-index.md",
   "docs/iconography.md",
-  "scripts/dev.mjs",
-  "scripts/secure-init.mjs",
   "scripts/workspace-dev-log-sink.mjs",
   "skills/index.md",
   "skills/plan-ledger/SKILL.md",

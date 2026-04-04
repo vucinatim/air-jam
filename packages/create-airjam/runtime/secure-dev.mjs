@@ -131,7 +131,7 @@ const ensureMkcertInstalled = () => {
     throw new Error(
       [
         "mkcert is required for local secure dev.",
-        "Install it once, then rerun `pnpm secure:init`.",
+        "Install it once, then rerun `create-airjam secure:init`.",
         "macOS: brew install mkcert",
         "Windows: winget install FiloSottile.mkcert or choco install mkcert",
         "Linux: install mkcert from your package manager or https://github.com/FiloSottile/mkcert",
@@ -145,7 +145,7 @@ const ensureCloudflaredInstalled = () => {
     throw new Error(
       [
         "cloudflared is required for tunnel secure mode.",
-        "Install it once, then rerun `pnpm secure:init -- --mode=tunnel ...`.",
+        "Install it once, then rerun `create-airjam secure:init --mode=tunnel ...`.",
       ].join("\n"),
     );
   }
@@ -338,7 +338,7 @@ export const loadSecureDevState = ({
   const paths = getSecurePaths(cwd);
   const state = readSecureDevState(paths.secureDevStateFile);
   if (!state) {
-    throw new Error("Missing .airjam/secure-dev.json. Run `pnpm secure:init` first.");
+    throw new Error("Missing .airjam/secure-dev.json. Run `create-airjam secure:init` first.");
   }
 
   if (
@@ -354,7 +354,7 @@ export const loadSecureDevState = ({
     const currentLanIp = detectLocalIpv4();
     if ((state.lanIp ?? null) !== (currentLanIp ?? null)) {
       throw new Error(
-        "Your LAN IPv4 address changed since secure setup was created. Run `pnpm secure:init` again.",
+        "Your LAN IPv4 address changed since secure setup was created. Run `create-airjam secure:init` again.",
       );
     }
   }
@@ -371,7 +371,7 @@ export const loadSecureDevState = ({
     env.CLOUDFLARE_TUNNEL_NAME?.trim() || state.tunnelName || null;
   if (mode === SECURE_MODE_TUNNEL && !tunnelName) {
     throw new Error(
-      "Missing CLOUDFLARE_TUNNEL_NAME for tunnel secure mode. Run `pnpm secure:init -- --mode=tunnel ...` again.",
+      "Missing CLOUDFLARE_TUNNEL_NAME for tunnel secure mode. Run `create-airjam secure:init --mode=tunnel ...` again.",
     );
   }
 
@@ -435,7 +435,7 @@ export const runSecureInitCli = async ({
 } = {}) => {
   if (hasFlag(argv, "--help") || hasFlag(argv, "-h")) {
     console.log(
-      "Usage: pnpm secure:init [--mode=local|tunnel] [--hostname <dev.example.com>] [--tunnel <tunnel-name>]",
+      "Usage: create-airjam secure:init [--mode=local|tunnel] [--hostname <dev.example.com>] [--tunnel <tunnel-name>]",
     );
     console.log("");
     console.log("Modes:");

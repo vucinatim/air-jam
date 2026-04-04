@@ -193,6 +193,6 @@ test("loadSecureDevState requires secure:init output first", () => {
         cwd,
         mode: SECURE_MODE_LOCAL,
       }),
-    /Run `pnpm secure:init` first/,
+    /Run `create-airjam secure:init` first/,
   );
 });
