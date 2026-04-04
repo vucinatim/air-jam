@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-02  
+Last updated: 2026-04-03  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -128,6 +128,11 @@ Completed baselines now folded into this phase:
    1. platform-owned product surfaces remain under `apps/`
    2. repo-owned first-party games can now live under `games/`
    3. `air-capture` has been moved from `apps/air-capture` to `games/air-capture` as the first clean example of that split
+14. local Arcade now has a cleaner two-mode contract instead of the failed live gateway experiment:
+   1. `pnpm dev` is back to direct live game development with the selected repo game on `:5173`
+   2. `pnpm arcade:test -- --game=<id>` builds the selected game once and serves it through the platform under `/airjam-local-builds/<game>/`
+   3. secure Arcade validation now means `pnpm secure:init` plus `pnpm arcade:test -- --game=<id> --secure`
+   4. repo games still share the SDK router-basename contract so platform-served local build routes stay honest without per-game hacks
 
 ### Priority 5. Release PR And Publish
 
@@ -230,6 +235,21 @@ Current truth:
    2. the large Vite chunk warnings were reduced below the warning threshold in targeted local builds for `code-review`, `last-band-standing`, and `the-office`
    3. `last-band-standing` now hoists lazy route imports out of the component body so its app entry matches the teaching pattern we want
    4. `the-office` now has a small pure helper seam around store mutation logic instead of keeping every store detail trapped inside the zustand wrapper
+
+### 9. Shared Local Secure Dev
+
+Status: completed baseline  
+Reference: [Shared Local Secure Dev Plan](./archive/shared-local-secure-dev-plan-2026-04-03.md)
+
+Current truth:
+
+1. trusted local HTTPS via `mkcert` is now the canonical secure-dev path for the repo and exported projects
+2. the shared secure-dev runtime now lives in `packages/create-airjam/runtime/`, not in duplicated per-game helper scripts
+3. root workspace Arcade secure mode now supports `pnpm secure:init` followed by `pnpm arcade:test -- --game=<id> --secure`
+4. the platform dev app and all scaffoldable games now honor the same `AIR_JAM_DEV_CERT_FILE` / `AIR_JAM_DEV_KEY_FILE` contract
+5. Cloudflare tunnel remains supported only as an explicit fallback mode, not the default teaching path
+6. generated projects no longer ship with `cloudflared` as a default dependency
+7. the shared scaffold validation gate remains green after the secure-dev transition, so the repo and exported templates are still aligned
 
 ## Active Framework Tracks
 

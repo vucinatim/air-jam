@@ -14,7 +14,6 @@ export const requiredBasePackPaths = [
   "docs/docs-index.md",
   "docs/iconography.md",
   "scripts/dev.mjs",
-  "scripts/dev-utils.mjs",
   "scripts/secure-init.mjs",
   "scripts/workspace-dev-log-sink.mjs",
   "skills/index.md",

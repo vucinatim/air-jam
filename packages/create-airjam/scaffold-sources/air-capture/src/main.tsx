@@ -1,4 +1,5 @@
 import "@air-jam/sdk/styles.css";
+import { resolveAirJamBrowserRouterBasename } from "@air-jam/sdk";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./app";
@@ -37,6 +38,7 @@ await preloadRapier();
 
 ReactDOM.createRoot(rootElement).render(
   <BrowserRouter
+    basename={resolveAirJamBrowserRouterBasename()}
     future={{
       v7_startTransition: true,
       v7_relativeSplatPath: true,

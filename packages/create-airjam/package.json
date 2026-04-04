@@ -29,6 +29,7 @@
   },
   "files": [
     "dist",
+    "runtime",
     "scaffold-sources",
     "template-assets",
     "template-version-manifest.json"
@@ -44,6 +45,7 @@
     "smoke:registry": "node scripts/smoke-test.mjs --source=registry --template=all",
     "smoke:tarball": "node scripts/smoke-test.mjs --source=tarball --template=all",
     "smoke:workspace": "node scripts/smoke-test.mjs --source=workspace --template=all",
+    "test": "node --test runtime/*.test.mjs",
     "prepublishOnly": "node scripts/prepublish.js && pnpm ai-pack:check && pnpm build"
   },
   "dependencies": {

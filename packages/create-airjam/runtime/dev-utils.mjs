@@ -1,8 +1,7 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
-import { createWorkspaceDevLogSink } from "./workspace-dev-log-sink.mjs";
 
 export const isPortOpen = (port) =>
   new Promise((resolve) => {
@@ -37,6 +36,7 @@ export const waitForPort = (port, timeoutMs) =>
           reject(new Error(`Timed out waiting for localhost:${port}`));
           return;
         }
+
         setTimeout(tryConnect, 300);
       });
     };
@@ -44,18 +44,27 @@ export const waitForPort = (port, timeoutMs) =>
     tryConnect();
   });
 
-export const loadEnvFile = (filePath) => {
-  if (!fs.existsSync(filePath)) return;
+export const loadEnvFile = (filePath, env = process.env) => {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+
   const content = fs.readFileSync(filePath, "utf8");
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
     const eq = line.indexOf("=");
-    if (eq <= 0) continue;
+    if (eq <= 0) {
+      continue;
+    }
+
     const key = line.slice(0, eq).trim();
     const value = line.slice(eq + 1).trim();
-    if (!process.env[key]) {
-      process.env[key] = value;
+    if (!env[key]) {
+      env[key] = value;
     }
   }
 };
@@ -74,8 +83,15 @@ const scoreIp = (ip) => {
     const third = Number(parts[2] ?? "0");
     return third < 64 ? 300 - third : 200 - third;
   }
-  if (ip.startsWith("10.")) return 150;
-  if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)) return 100;
+
+  if (ip.startsWith("10.")) {
+    return 150;
+  }
+
+  if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)) {
+    return 100;
+  }
+
   return 0;
 };
 
@@ -84,11 +100,20 @@ export const detectLocalIpv4 = () => {
   const candidates = [];
 
   for (const [name, entries] of Object.entries(networks)) {
-    if (!entries || isVirtualInterface(name)) continue;
+    if (!entries || isVirtualInterface(name)) {
+      continue;
+    }
+
     for (const entry of entries) {
-      if (!entry || entry.internal || entry.family !== "IPv4") continue;
+      if (!entry || entry.internal || entry.family !== "IPv4") {
+        continue;
+      }
+
       const ip = entry.address;
-      if (!isPrivateIpv4(ip) || ip.startsWith("169.254.")) continue;
+      if (!isPrivateIpv4(ip) || ip.startsWith("169.254.")) {
+        continue;
+      }
+
       candidates.push({ ip, score: scoreIp(ip) });
     }
   }
@@ -97,10 +122,55 @@ export const detectLocalIpv4 = () => {
   return candidates[0]?.ip ?? null;
 };
 
-const log = (prefix, data) => {
+export const getFlagValue = (argv, flag) => {
+  const inlineArg = argv.find((arg) => arg.startsWith(`${flag}=`));
+  if (inlineArg) {
+    return inlineArg.slice(flag.length + 1);
+  }
+
+  const index = argv.indexOf(flag);
+  return index === -1 ? null : (argv[index + 1] ?? null);
+};
+
+export const hasFlag = (argv, flag) => argv.includes(flag);
+
+export const upsertEnv = (filePath, key, value) => {
+  let content = "";
+  if (fs.existsSync(filePath)) {
+    content = fs.readFileSync(filePath, "utf8");
+  }
+
+  const nextLine = `${key}=${value}`;
+  const pattern = new RegExp(`^${key}=.*$`, "m");
+
+  if (pattern.test(content)) {
+    content = content.replace(pattern, nextLine);
+  } else {
+    content += `${content.endsWith("\n") || content.length === 0 ? "" : "\n"}${nextLine}\n`;
+  }
+
+  fs.writeFileSync(filePath, content, "utf8");
+};
+
+export const commandExists = (command, args = ["--version"]) => {
+  try {
+    execFileSync(command, args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const logChunk = (prefix, data) => {
   const text = data.toString();
   for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      continue;
+    }
+
     console.log(`[${prefix}] ${line}`);
   }
 };
@@ -108,69 +178,42 @@ const log = (prefix, data) => {
 export const createProcessGroup = () => {
   const children = [];
   let isShuttingDown = false;
-  const logSink = createWorkspaceDevLogSink();
 
   const shutdown = (code = 0) => {
-    if (isShuttingDown) return;
+    if (isShuttingDown) {
+      return;
+    }
+
     isShuttingDown = true;
     for (const child of children) {
       if (!child.killed) {
         child.kill("SIGTERM");
       }
     }
+
     setTimeout(() => process.exit(code), 100);
   };
 
   const run = (name, command, args, options = {}) => {
     const { fatal = true, ...spawnOptions } = options;
-    const commandText = [command, ...args].join(" ");
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
       ...spawnOptions,
     });
 
-    child.stdout.on("data", (data) => {
-      log(name, data);
-      logSink.captureChunk({
-        processName: name,
-        stream: "stdout",
-        chunk: data,
-        tool: command,
-        command: commandText,
-        cwd: spawnOptions.cwd ?? process.cwd(),
-      });
-    });
-    child.stderr.on("data", (data) => {
-      log(name, data);
-      logSink.captureChunk({
-        processName: name,
-        stream: "stderr",
-        chunk: data,
-        tool: command,
-        command: commandText,
-        cwd: spawnOptions.cwd ?? process.cwd(),
-      });
-    });
+    child.stdout.on("data", (data) => logChunk(name, data));
+    child.stderr.on("data", (data) => logChunk(name, data));
     child.on("exit", (code, signal) => {
-      logSink.flush({
-        processName: name,
-        tool: command,
-        command: commandText,
-        cwd: spawnOptions.cwd ?? process.cwd(),
-      });
-      logSink.recordExit({
-        processName: name,
-        tool: command,
-        command: commandText,
-        cwd: spawnOptions.cwd ?? process.cwd(),
-        code,
-        signal,
-      });
-
-      if (fatal && code !== 0) {
-        console.error(`[${name}] exited with code ${code}`);
-        shutdown(code ?? 1);
+      if (!fatal) {
+        return;
       }
+
+      if (code === 0 || signal === "SIGTERM") {
+        return;
+      }
+
+      console.error(`[${name}] exited with code ${code ?? "null"}`);
+      shutdown(code ?? 1);
     });
 
     children.push(child);

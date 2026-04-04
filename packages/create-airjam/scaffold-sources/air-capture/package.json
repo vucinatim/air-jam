@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node ./scripts/dev.mjs",
+    "dev:server": "node ./scripts/dev.mjs --server-only",
+    "dev:secure": "node ./scripts/dev.mjs --secure",
+    "secure:init": "node ./scripts/secure-init.mjs",
+    "logs": "air-jam-server logs",
     "build": "tsc -p tsconfig.json && vite build",
     "lint": "eslint .",
     "test": "vitest run",
@@ -34,11 +38,13 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@air-jam/server": "workspace:*",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.172.0",
     "@vitejs/plugin-react": "^5.1.1",
+    "create-airjam": "workspace:*",
     "eslint": "^9.39.1",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3",

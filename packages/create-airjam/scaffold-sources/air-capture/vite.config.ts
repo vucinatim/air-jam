@@ -1,9 +1,17 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import {
+  getAirJamDevProxyOptions,
+  getAirJamHttpsServerOptions,
+} from "create-airjam/runtime/vite-https.mjs";
 import path from "node:path";
 import { defineConfig } from "vite";
 import topLevelAwait from "vite-plugin-top-level-await";
 import wasm from "vite-plugin-wasm";
+
+const port = Number(process.env.VITE_PORT || 5173);
+const https = getAirJamHttpsServerOptions();
+const proxy = getAirJamDevProxyOptions();
 
 const resolveManualChunk = (id: string): string | undefined => {
   if (id.includes("node_modules")) {
@@ -75,7 +83,10 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5173,
+    https,
+    port,
+    strictPort: true,
+    proxy,
     headers: {
       // Allow this app to be embedded in iframes from any origin
       // Note: X-Frame-Options doesn't support wildcards, so we use CSP instead
@@ -85,7 +96,9 @@ export default defineConfig({
   },
   preview: {
     host: true,
-    port: 5173,
+    https,
+    port,
+    strictPort: true,
     headers: {
       "Content-Security-Policy": "frame-ancestors *;",
     },

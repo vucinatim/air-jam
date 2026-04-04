@@ -747,16 +747,21 @@ async function runScaffoldCli() {
   );
   console.log(
     kleur.cyan(
-      "  pnpm run secure:init -- --hostname my-game-dev.example.com --tunnel my-game-dev",
+      "  pnpm run secure:init",
     ),
   );
   console.log(
-    kleur.cyan("  pnpm run dev -- --secure  # Optional HTTPS mode for sensors"),
+    kleur.cyan("  pnpm run dev -- --secure"),
+  );
+  console.log(
+    kleur.cyan(
+      "  # Optional Cloudflare fallback: pnpm run secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev",
+    ),
   );
   console.log("");
   console.log(
     kleur.dim(
-      "Then open http://localhost:5173 and scan the QR code with your phone!",
+      "Then open http://localhost:5173 (or https://localhost:5173 in secure mode) and scan the QR code with your phone!",
     ),
   );
 }

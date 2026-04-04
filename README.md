@@ -72,10 +72,27 @@ pnpm dev -- --db-studio
 # Shortcut aliases for common game modes
 pnpm dev:pong
 pnpm dev:code-review
+
+# Stable local Arcade integration testing
+pnpm arcade:test -- --game=code-review
+
+# Secure local Arcade when a game needs secure browser APIs
+pnpm secure:init
+pnpm arcade:test -- --game=code-review --secure
 ```
 
 The output is prefixed by process name, so server logs remain visible in the shared terminal.
 `pnpm dev` intentionally starts the platform app only; run Drizzle Studio explicitly when you need database inspection.
+Use `pnpm dev` for fast direct Vite iteration. Use `pnpm arcade:test` when you need the game running inside real Arcade with host/controller validation.
+Secure local Arcade uses trusted local HTTPS via `mkcert`.
+
+If you need tunnel fallback for a standalone game dev server, use the game-local scripts instead:
+
+```bash
+cd games/code-review
+pnpm secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm dev:secure -- --secure-mode=tunnel
+```
 
 #### Running the Platform
 

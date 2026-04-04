@@ -12,7 +12,7 @@
     "docs:check-generated": "node ../../scripts/check-content-docs-source.mjs",
     "docs:generate": "node ../../scripts/generate-content-docs-source.mjs",
     "dev": "pnpm run dev:full",
-    "dev:app": "next dev",
+    "dev:app": "node ./scripts/dev-app.mjs",
     "dev:db": "drizzle-kit studio --config drizzle.config.ts",
     "dev:full": "bash -lc 'pnpm run dev:db & DB_PID=$!; trap \"kill $DB_PID 2>/dev/null || true\" EXIT INT TERM; pnpm run dev:app'",
     "dev:no-db": "pnpm run dev:app",

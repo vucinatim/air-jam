@@ -123,6 +123,7 @@ export {
   type AirJamGameMetadata,
   type CreateAirJamAppOptions,
 } from "./runtime/create-air-jam-app";
+export { resolveAirJamBrowserRouterBasename } from "./runtime/router-basename";
 
 export {
   createAirJamStore,

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node ./scripts/dev.mjs",
+    "dev:server": "node ./scripts/dev.mjs --server-only",
+    "dev:secure": "node ./scripts/dev.mjs --secure",
     "logs": "air-jam-server logs",
     "secure:init": "node ./scripts/secure-init.mjs",
     "build": "tsc && vite build",
@@ -44,7 +46,6 @@
     "typescript": "~5.6.0",
     "typescript-eslint": "^8.46.4",
     "vite": "^6.0.0",
-    "vitest": "^3.2.4",
-    "cloudflared": "^0.7.1"
+    "vitest": "^3.2.4"
   }
 }

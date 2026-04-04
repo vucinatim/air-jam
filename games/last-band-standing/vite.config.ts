@@ -1,11 +1,17 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import {
+  getAirJamDevProxyOptions,
+  getAirJamHttpsServerOptions,
+} from "create-airjam/runtime/vite-https.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.VITE_PORT || 5173);
+const https = getAirJamHttpsServerOptions();
+const proxy = getAirJamDevProxyOptions();
 
 const resolveManualChunk = (id: string): string | undefined => {
   if (
@@ -53,7 +59,6 @@ const resolveManualChunk = (id: string): string | undefined => {
 };
 
 export default defineConfig({
-  base: "./",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -70,15 +75,10 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: true,
+    https,
     port,
     strictPort: true,
-    proxy: {
-      "/socket.io": {
-        target: "http://127.0.0.1:4000",
-        ws: true,
-        changeOrigin: true,
-      },
-    },
+    proxy,
     headers: {
       // Required for embedding in Air Jam platform iframe
       "Content-Security-Policy": "frame-ancestors *;",
@@ -88,6 +88,7 @@ export default defineConfig({
   preview: {
     host: true,
     allowedHosts: true,
+    https,
     port,
     strictPort: true,
     headers: {

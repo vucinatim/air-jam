@@ -65,6 +65,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
   type CSSProperties,
 } from "react";
@@ -152,6 +153,10 @@ function ControllerPageContent({
   const pendingBridgeTeardownRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const controllerIframeHandshakeDeadlineRef = useRef<
+    ReturnType<typeof setTimeout> | null
+  >(null);
+  const [controllerIframeFailed, setControllerIframeFailed] = useState(false);
   /** Snapshot of `ArcadeSurfaceRuntimeIdentity` at last successful bridge attach; used to drop stale forwards after a surface switch. */
   const bridgeAttachedIdentityRef = useRef<ArcadeSurfaceRuntimeIdentity | null>(
     null,
@@ -276,6 +281,13 @@ function ControllerPageContent({
     currentPort.close();
     bridgePortRef.current = null;
     bridgeAttachedIdentityRef.current = null;
+  }, []);
+
+  const clearControllerIframeHandshakeDeadline = useCallback(() => {
+    if (controllerIframeHandshakeDeadlineRef.current) {
+      clearTimeout(controllerIframeHandshakeDeadlineRef.current);
+      controllerIframeHandshakeDeadlineRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -474,13 +486,48 @@ function ControllerPageContent({
       }
 
       attachBridgePort(port);
+      clearControllerIframeHandshakeDeadline();
+      setControllerIframeFailed(false);
     };
 
     window.addEventListener("message", handleMessage);
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [activeUrl, attachBridgePort, closeBridge]);
+  }, [activeUrl, attachBridgePort, clearControllerIframeHandshakeDeadline, closeBridge]);
+
+  useEffect(() => {
+    clearControllerIframeHandshakeDeadline();
+
+    if (!activeUrl || !controllerIframeSrc) {
+      setControllerIframeFailed(false);
+      return;
+    }
+
+    setControllerIframeFailed(false);
+    controllerIframeHandshakeDeadlineRef.current = setTimeout(() => {
+      if (bridgePortRef.current) {
+        return;
+      }
+      setControllerIframeFailed(true);
+      console.warn(
+        "Embedded controller iframe did not attach to the platform bridge.",
+        {
+          controllerIframeSrc,
+          likelyCause:
+            "controller game surface did not finish loading through the local Arcade test route",
+        },
+      );
+    }, 4000);
+
+    return () => {
+      clearControllerIframeHandshakeDeadline();
+    };
+  }, [
+    activeUrl,
+    clearControllerIframeHandshakeDeadline,
+    controllerIframeSrc,
+  ]);
 
   useEffect(() => {
     if (!controller.socket) {
@@ -602,6 +649,29 @@ function ControllerPageContent({
                 </p>
               </div>
             )}
+
+            {controllerIframeFailed ? (
+              <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/78 px-6 text-center">
+                <div className="max-w-sm rounded-3xl border border-amber-400/30 bg-zinc-950/95 px-5 py-6 text-left shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-amber-300/80">
+                    Controller Load Blocked
+                  </div>
+                  <div className="mt-3 text-sm font-semibold text-white">
+                    The game controller UI did not finish loading.
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                    The platform controller shell is connected, but the embedded
+                    game controller iframe never attached through the local
+                    Arcade test route.
+                  </p>
+                  <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+                    Reload the controller from a fresh room after the local
+                    Arcade test build finishes. If this keeps failing, inspect
+                    the local build route instead of the live game dev server.
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 

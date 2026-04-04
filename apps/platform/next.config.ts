@@ -32,6 +32,31 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    const backendUrl = process.env.AIR_JAM_DEV_PROXY_BACKEND_URL?.trim();
+    if (!backendUrl) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/socket.io",
+        destination: `${backendUrl}/socket.io/`,
+      },
+      {
+        source: "/socket.io/",
+        destination: `${backendUrl}/socket.io/`,
+      },
+      {
+        source: "/socket.io/:path*",
+        destination: `${backendUrl}/socket.io/:path*`,
+      },
+      {
+        source: "/__airjam/:path*",
+        destination: `${backendUrl}/__airjam/:path*`,
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.mdx": {

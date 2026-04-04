@@ -102,15 +102,12 @@ Most local development works on plain HTTP. Use this only when you need secure b
 
 One-time setup per project:
 
-1. Log in to Cloudflare Tunnel:
-   ```bash
-   cloudflared tunnel login
-   ```
+1. Install `mkcert` once on your machine.
 2. Initialize secure mode:
    ```bash
-   pnpm run secure:init -- --hostname my-game-dev.example.com --tunnel my-game-dev
+   pnpm run secure:init
    ```
-   This writes `.cloudflared/config.yml` and updates `.env.local`.
+   This writes `.airjam/secure-dev.json`, generates `.airjam/certs/`, and updates `.env.local`.
 
 Daily secure dev:
 
@@ -121,10 +118,16 @@ pnpm run dev -- --secure
 What `dev -- --secure` does:
 
 - starts local Air Jam server on `http://localhost:4000`
-- starts Vite on `http://localhost:5173`
-- runs your named Cloudflare tunnel
-- serves your host/controller over the configured HTTPS hostname
-- injects `VITE_AIR_JAM_SERVER_URL` and `VITE_AIR_JAM_PUBLIC_HOST` at runtime from `AIR_JAM_SECURE_PUBLIC_HOST`
+- starts Vite on trusted local HTTPS
+- serves your host/controller over the detected LAN HTTPS origin
+- keeps the backend on local HTTP behind the Vite proxy
+
+Optional tunnel fallback:
+
+```bash
+pnpm run secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm run dev -- --secure --secure-mode=tunnel
+```
 
 ## Playing the Game
 
@@ -295,8 +298,9 @@ See `.env.example` for all available environment variables. Key variables:
 
 - `VITE_AIR_JAM_SERVER_URL` - Optional backend override. Leave blank for default local dev; set it for official/prod backends.
 - `VITE_AIR_JAM_APP_ID` - Public app ID (optional for local dev, required for production)
-- `AIR_JAM_SECURE_PUBLIC_HOST` - HTTPS hostname used by `dev -- --secure` for host/controller URLs
-- `CLOUDFLARE_TUNNEL_NAME` - Named Cloudflare tunnel used by `dev -- --secure`
+- `AIR_JAM_SECURE_MODE` - Secure dev mode selected by `secure:init` (`local` by default, `tunnel` only when opted in)
+- `AIR_JAM_SECURE_PUBLIC_HOST` - Optional HTTPS host used only for tunnel fallback
+- `CLOUDFLARE_TUNNEL_NAME` - Optional Cloudflare tunnel name used only by `--secure --secure-mode=tunnel`
 
 ## Troubleshooting
 

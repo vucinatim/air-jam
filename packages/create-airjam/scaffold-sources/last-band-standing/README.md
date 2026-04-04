@@ -28,8 +28,15 @@ pnpm dev
 Optional HTTPS setup for mobile sensor/device testing:
 
 ```bash
-pnpm secure:init -- --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm secure:init
 pnpm dev -- --secure
+```
+
+Optional tunnel fallback:
+
+```bash
+pnpm secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm dev -- --secure --secure-mode=tunnel
 ```
 
 ## Scripts

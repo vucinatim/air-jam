@@ -49,7 +49,6 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
-    "cloudflared": "^0.7.1",
     "create-airjam": "workspace:*",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",

@@ -47,6 +47,7 @@ Completed transitions / reference plans:
 1. [Arcade Architecture Reset Summary](./archive/arcade-architecture-reset-summary.md)
 2. [AI-Native Template System Rollout](./archive/ai-native-template-system-rollout-2026-03-29.md)
 3. [Logging System Rollout](./archive/logging-system-rollout-2026-03-29.md)
+4. [Shared Local Secure Dev Plan](./archive/shared-local-secure-dev-plan-2026-04-03.md)
 4. [Documentation Migration Plan](./archive/documentation-migration-plan-2026-03-27.md)
 5. [Analytics Implementation Plan](./archive/analytics-implementation-plan-2026-03-27.md)
 6. [Documentation Hardening Plan (Archived)](./archive/documentation-hardening-plan-2026-03-29.md)

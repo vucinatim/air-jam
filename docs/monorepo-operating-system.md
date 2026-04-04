@@ -183,7 +183,19 @@ When touching SDK/server package-consumer behavior or the release migration proo
 2. Treat failures there as real package-surface regressions, not as optional external-app noise.
 3. Keep the reusable migration recipe in `docs/systems/legacy-game-migration-guide.md`.
 
-### 7. Update Docs In The Same Change
+### 7. Secure Local Arcade Validation
+
+When touching shared secure-dev behavior, local Arcade launch paths, or generated game dev scripts:
+
+1. treat `mkcert`-backed local HTTPS as the canonical path
+2. keep the repo workflow split explicit:
+   1. `pnpm dev` for fast direct game iteration
+   2. `pnpm arcade:test -- --secure` for stable local Arcade integration
+3. keep exported projects on the direct secure-game contract (`pnpm secure:init` plus `pnpm dev:secure`)
+4. keep Cloudflare tunnel support explicit fallback only, not the default docs path
+5. validate scaffolded secure-dev contract changes with `pnpm test:scaffold`
+
+### 8. Update Docs In The Same Change
 
 1. Update affected docs immediately when contracts or behavior change.
 2. Keep `docs/work-ledger.md` as the single active repo-wide execution ledger.
@@ -191,7 +203,7 @@ When touching SDK/server package-consumer behavior or the release migration proo
 4. Archive detailed completed plans under `docs/archive/`.
 5. Track non-launch architecture follow-ups in `docs/suggestions.md`.
 
-### 8. Merge Discipline
+### 9. Merge Discipline
 
 1. Keep changes small and single-purpose when practical.
 2. Include what changed, why, and validation evidence.
