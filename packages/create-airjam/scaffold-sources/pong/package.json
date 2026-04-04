@@ -1,5 +1,5 @@
 {
-  "name": "my-airjam-game",
+  "name": "pong",
   "version": "1.0.0",
   "private": true,
   "type": "module",
