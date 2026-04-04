@@ -1,0 +1,61 @@
+<!-- Generated from content/docs/for-agents/controller-ui/page.mdx. Do not edit directly. -->
+<!-- Canonical public doc: https://air-jam.app/docs/for-agents/controller-ui -->
+
+# Controller UI
+
+Controller UI should feel like a game controller first and a webpage second.
+
+The main failure mode is borrowing desktop web-app patterns for active gameplay surfaces.
+
+## Gameplay Controller Rules
+
+For active gameplay:
+
+1. use an absolute `inset-0` root
+2. avoid scroll
+3. disable accidental text selection
+4. use large touch targets
+5. keep controls visually obvious and single-purpose
+6. minimize text and dense hierarchy
+
+## Lobby Rules
+
+Lobby screens can be slightly more flexible, but should still prefer:
+
+1. simple layout
+2. large controls
+3. minimal friction
+4. scroll only when it actually helps the flow
+
+## Interaction Rules
+
+Avoid:
+
+1. tiny toggles
+2. multi-purpose buttons with unclear affordance
+3. deeply nested control groups
+4. layouts that assume precise pointer interaction
+
+## Visual Rules
+
+Prefer:
+
+1. sparse game-like hierarchy
+2. fluid layout over hard-coded widths and heights
+3. obvious action grouping
+4. strong contrast and immediate readability
+
+Avoid:
+
+1. card-heavy dashboard styling for active gameplay
+2. emoji-as-icon UI
+3. cluttered web-app chrome
+
+## Icon Rule
+
+For template and starter work, a practical split is:
+
+1. a general UI and system icon pack for shell actions
+2. a gameplay-oriented icon set for abilities, pickups, and status effects
+
+Keep icon usage behind local wrappers where practical so the project can curate or replace icons later.

@@ -1,37 +1,138 @@
-// Context & Provider (primary API)
-export * from "./context";
+export type {
+  AudioHandle,
+  PlayOptions,
+  SoundCategory,
+  SoundConfig,
+  SoundManifest,
+} from "./audio/audio-manager";
+export {
+  AudioRuntime,
+  ControllerRemoteAudioRuntime,
+  useAudio,
+  useAudioRuntimeControls,
+  useAudioRuntimeStatus,
+  type AudioRuntimeControls,
+  type AudioRuntimeProps,
+  type AudioRuntimeStatus,
+  type ControllerRemoteAudioRuntimeProps,
+} from "./audio/hooks";
+export type {
+  PlatformAudioSettings,
+  PlatformAccessibilitySettings,
+  PlatformFeedbackSettings,
+  PlatformSettings,
+  PlatformSettingsPersistence,
+  PlatformSettingsSnapshot,
+} from "./settings/platform-settings";
+export { getEffectiveAudioVolume } from "./settings/platform-settings";
+export {
+  PlatformSettingsRuntime,
+  useInheritedPlatformSettings,
+  usePlatformAudioSettings,
+  usePlatformSettings,
+  type PlatformAudioSettingsApi,
+  type PlatformSettingsOwnerApi,
+  type PlatformSettingsRuntimeProps,
+} from "./settings/platform-settings-runtime";
 
-// Audio
-export * from "./audio";
+export {
+  onAirJamDiagnostic,
+  setAirJamDiagnosticsEnabled,
+  type AirJamDiagnostic,
+  type AirJamDiagnosticCode,
+  type AirJamDiagnosticSeverity,
+} from "./diagnostics";
 
-// Components
-export * from "./components/controller-shell";
-export * from "./components/host-shell";
-export * from "./components/player-avatar";
-export * from "./components/ui/button";
-export * from "./components/ui/slider";
-export * from "./components/volume-controls";
+export {
+  useAirJamController,
+  type AirJamControllerApi,
+  type AirJamControllerOptions,
+} from "./hooks/use-air-jam-controller";
+export { useAirJamControllerState } from "./hooks/use-air-jam-controller-state";
+export {
+  useAirJamHost,
+  type AirJamHostApi,
+  type AirJamHostOptions,
+  type JoinUrlStatus,
+} from "./hooks/use-air-jam-host";
+export { useAirJamHostState } from "./hooks/use-air-jam-host-state";
+export {
+  AirJamControllerRuntime,
+  AirJamHostRuntime,
+  type AirJamControllerRuntimeProps,
+  type AirJamHostRuntimeProps,
+} from "./runtime/session-runtimes";
+export { useConnectionStatus } from "./hooks/use-connection-status";
+export {
+  useControllerSession,
+  type AirJamControllerSessionState,
+} from "./hooks/use-controller-session";
+export {
+  useControllerTick,
+  type ControllerTickInfo,
+  type ControllerTickOptions,
+} from "./hooks/use-controller-tick";
+export {
+  useControllerToasts,
+  type ControllerToast,
+  type UseControllerToastsOptions,
+} from "./hooks/use-controller-toasts";
+export { useGetInput } from "./hooks/use-get-input";
+export {
+  useHostGameStateBridge,
+  type UseHostGameStateBridgeOptions,
+} from "./hooks/use-host-game-state-bridge";
+export {
+  useHostSession,
+  type AirJamHostSessionState,
+} from "./hooks/use-host-session";
+export {
+  useHostTick,
+  type HostTickInfo,
+  type HostTickOptions,
+} from "./hooks/use-host-tick";
+export { useInputWriter } from "./hooks/use-input-writer";
+export { usePlayers } from "./hooks/use-players";
+export { useRoom, type RoomState } from "./hooks/use-room";
+export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
 
-// Constants
-export * from "./constants";
+export type {
+  ConnectionStatus,
+  GameState,
+  RoomCode,
+  RunMode,
+} from "./protocol/core";
+export type {
+  ControllerOrientation,
+  ControllerStatePayload,
+  ControllerUpdatePlayerProfileAck,
+  PlayerProfile,
+  PlayerProfilePatch,
+} from "./protocol/controller";
+export type {
+  HapticSignalPayload,
+  SignalPayload,
+  SignalType,
+  ToastSignalPayload,
+} from "./protocol/signals";
 
-// Events
-export * from "./events";
+export {
+  createAirJamApp,
+  env,
+  type AirJamApp,
+  type AirJamGameMetadata,
+  type CreateAirJamAppOptions,
+} from "./runtime/create-air-jam-app";
+export { resolveAirJamBrowserRouterBasename } from "./runtime/router-basename";
 
-// Hooks
-export * from "./hooks/use-air-jam-controller";
-export * from "./hooks/use-air-jam-host";
-export * from "./hooks/use-air-jam-shell";
-export * from "./hooks/use-get-input";
-export * from "./hooks/use-send-signal";
+export {
+  createAirJamStore,
+  type AirJamActionContext,
+  type AirJamSyncedStoreHook,
+  type CreateAirJamStoreOptions,
+} from "./store/create-air-jam-store";
 
-// Protocol types
-export * from "./protocol";
-
-// Store
-export * from "./store/create-air-jam-store";
-
-// Utilities
-export * from "./utils/ids";
-export * from "./utils/network-ip";
-export * from "./utils/url-builder";
+export type {
+  DocumentWithFullscreen,
+  ElementWithFullscreen,
+} from "./types/browser";

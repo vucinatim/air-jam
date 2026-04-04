@@ -1,6 +1,6 @@
 {
   "name": "create-airjam",
-  "version": "0.2.1",
+  "version": "1.0.0",
   "description": "CLI to scaffold Air Jam game projects",
   "type": "module",
   "license": "MIT",
@@ -25,28 +25,42 @@
     "starter"
   ],
   "bin": {
-    "create-airjam": "./dist/index.js"
+    "create-airjam": "./dist/index.js",
+    "airjam": "./dist/index.js"
   },
   "files": [
     "dist",
-    "templates"
+    "runtime",
+    "scaffold-sources",
+    "template-assets",
+    "template-version-manifest.json"
   ],
   "scripts": {
-    "extract-docs": "tsx scripts/extract-docs.ts",
-    "build": "pnpm extract-docs && tsup",
+    "ai-pack:check": "node scripts/check-ai-pack.mjs",
+    "docs-pack:generate": "node scripts/generate-base-docs-pack.mjs",
+    "scaffold-sources:generate": "node scripts/generate-scaffold-sources.mjs",
+    "scaffold-sources:check": "node scripts/check-scaffold-sources.mjs",
+    "build": "pnpm docs-pack:generate && pnpm scaffold-sources:generate && node scripts/generate-template-version-manifest.mjs && pnpm scaffold-sources:check && tsup",
     "dev": "tsup --watch",
-    "smoke": "node scripts/smoke-test.mjs",
-    "prepublishOnly": "node scripts/prepublish.js && pnpm build"
+    "smoke": "node scripts/smoke-test.mjs --source=workspace --template=all",
+    "smoke:registry": "node scripts/smoke-test.mjs --source=registry --template=all",
+    "smoke:tarball": "node scripts/smoke-test.mjs --source=tarball --template=all",
+    "smoke:workspace": "node scripts/smoke-test.mjs --source=workspace --template=all",
+    "test": "node --test runtime/*.test.mjs",
+    "prepublishOnly": "node scripts/prepublish.js && pnpm ai-pack:check && pnpm build"
   },
   "dependencies": {
     "commander": "^14.0.0",
     "fs-extra": "^11.3.0",
+    "json5": "^2.2.3",
     "kleur": "^4.1.5",
-    "prompts": "^2.4.2"
+    "prompts": "^2.4.2",
+    "yazl": "^3.3.1"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/prompts": "^2.4.9",
+    "@types/yazl": "^2.4.5",
     "tsup": "^8.5.1",
     "tsx": "^4.19.2",
     "typescript": "~5.9.3"

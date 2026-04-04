@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { createLoginHref } from "@/lib/auth-redirect";
 
 export async function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get("better-auth.session_token");
@@ -7,7 +8,8 @@ export async function proxy(request: NextRequest) {
   );
 
   if (!sessionCookie && !secureSessionCookie) {
-    return NextResponse.redirect(new URL("/", request.url));
+    const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+    return NextResponse.redirect(new URL(createLoginHref(nextPath), request.url));
   }
   return NextResponse.next();
 }

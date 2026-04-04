@@ -1,19 +1,19 @@
 "use client";
 
-import { ArcadeLoader, ArcadeSystem } from "@/components/arcade";
+import {
+  ArcadeAudioRuntime,
+  ArcadeSystem,
+  type ArcadeGame,
+} from "@/components/arcade";
+import { toArcadeGames } from "@/lib/arcade-game-mapper";
+import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
+import {
+  getLocalReferenceArcadeGame,
+  getLocalReferenceArcadeGames,
+} from "@/lib/local-reference-games";
 import { api } from "@/trpc/react";
-import { AirJamProvider } from "@air-jam/sdk";
-import { use, useState } from "react";
-import { z } from "zod";
-
-// Input schema for arcade navigation
-export const arcadeInputSchema = z.object({
-  vector: z.object({
-    x: z.number(),
-    y: z.number(),
-  }),
-  action: z.boolean(),
-});
+import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
+import { use } from "react";
 
 export default function ArcadePage({
   params,
@@ -23,75 +23,47 @@ export default function ArcadePage({
   const resolvedParams = use(params);
   // Extract slug from optional catch-all (e.g., /arcade/space-battle → ["space-battle"])
   const slugOrId = resolvedParams.slug?.[0];
+  const localReferenceGames = getLocalReferenceArcadeGames();
+  const localReferenceGame = getLocalReferenceArcadeGame(slugOrId ?? null);
+  const { data: games, isLoading: gamesLoading } = api.game.getAllPublic.useQuery();
+  const publicArcadeGames = games ? toArcadeGames(games) : [];
+  const arcadeGames: ArcadeGame[] = [
+    ...(localReferenceGame &&
+    !localReferenceGames.some((game) => game.id === localReferenceGame.id)
+      ? [localReferenceGame]
+      : []),
+    ...localReferenceGames,
+    ...publicArcadeGames,
+  ];
 
-  // Generate fresh room ID on each load (no persistence)
-  // This prevents stale controller connections from previous sessions
-  const [persistedRoomId] = useState(() => {
-    // Clear any existing sessionStorage entry to ensure fresh room ID
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem("airjam_platform_room_id");
-    }
-    return undefined;
-  });
+  const targetGame = slugOrId
+    ? arcadeGames.find(
+        (game) => game.slug === slugOrId || game.id === slugOrId,
+      ) ?? null
+    : null;
 
-  const { data: games, isLoading: gamesLoading } =
-    api.game.getAllPublic.useQuery();
-
-  // If a slug is provided, look up that specific game for auto-launch
-  const { data: targetGame, isLoading: targetLoading } =
-    api.game.getBySlugOrId.useQuery(
-      { slugOrId: slugOrId! },
-      { enabled: !!slugOrId },
-    );
-
-  const isLoading = gamesLoading || (slugOrId && targetLoading);
-
-  if (isLoading) {
-    return (
-      <div className="h-screen w-screen bg-black">
-        <ArcadeLoader />
-      </div>
-    );
-  }
-
-  // Convert games to ArcadeGame format (including slug for URL updates)
-  const arcadeGames = (games ?? []).map((game) => ({
-    id: game.id,
-    name: game.name,
-    url: game.url,
-    ownerName: game.ownerName,
-    thumbnailUrl: game.thumbnailUrl,
-    videoUrl: game.videoUrl,
-    slug: game.slug,
-  }));
-
-  // Determine if we should auto-launch a game
-  const initialGameId = targetGame?.id;
-  const shouldAutoLaunch = !!slugOrId && !!targetGame;
+  const routeGame = localReferenceGame ?? targetGame;
+  const initialGameId = routeGame?.id;
+  const shouldAutoLaunch = !!slugOrId && !!initialGameId;
+  const hostRouteIntent = slugOrId
+    ? { kind: "game" as const, gameId: initialGameId ?? null }
+    : { kind: "browser" as const };
 
   return (
-    <AirJamProvider
-      serverUrl={process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL}
-      input={{
-        schema: arcadeInputSchema,
-        latch: {
-          booleanFields: ["action"],
-          vectorFields: ["vector"],
-        },
-      }}
-    >
-      <ArcadeSystem
-        games={arcadeGames}
-        mode="arcade"
-        initialGameId={initialGameId}
-        autoLaunch={shouldAutoLaunch}
-        initialRoomId={persistedRoomId}
-        onRoomIdChange={() => {
-          // No longer persisting room ID to sessionStorage
-          // Each host reload generates a fresh room ID to prevent stale controller connections
-        }}
-        className="h-screen"
-      />
-    </AirJamProvider>
+    <PlatformSettingsRuntime persistence="local">
+      <AirJamHostRuntime {...platformArcadeHostSessionConfig}>
+        <ArcadeAudioRuntime>
+          <ArcadeSystem
+            games={arcadeGames}
+            gamesCatalogReady={!gamesLoading}
+            mode="arcade"
+            initialGameId={initialGameId}
+            hostRouteIntent={hostRouteIntent}
+            autoLaunch={shouldAutoLaunch}
+            className="h-screen"
+          />
+        </ArcadeAudioRuntime>
+      </AirJamHostRuntime>
+    </PlatformSettingsRuntime>
   );
 }

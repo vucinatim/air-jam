@@ -23,6 +23,16 @@ const eslintConfig = defineConfig([
       ...prettierConfig.rules,
       "react-hooks/purity": "off",
       "react-hooks/refs": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
 ]);

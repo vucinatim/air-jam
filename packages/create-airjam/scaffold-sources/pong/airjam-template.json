@@ -1,0 +1,17 @@
+{
+  "id": "pong",
+  "name": "Pong",
+  "description": "Small two-team starter game and canonical Air Jam scaffold baseline.",
+  "category": "starter",
+  "scaffold": true,
+  "export": {
+    "exclude": [
+      ".airjam",
+      "dist",
+      "dist-ssr",
+      "node_modules",
+      "coverage",
+      "tsconfig.tsbuildinfo"
+    ]
+  }
+}

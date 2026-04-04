@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../apps/platform/src/*"],
+      "@content/*": ["./*"],
+      "@air-jam/sdk": ["../packages/sdk/src/index.ts"],
+      "@air-jam/sdk/*": ["../packages/sdk/src/*"]
+    },
+    "types": ["react", "react-dom"],
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["docs/**/*.ts", "blog/**/*.ts"]
+}

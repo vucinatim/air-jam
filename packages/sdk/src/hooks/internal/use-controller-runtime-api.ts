@@ -1,0 +1,599 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { useAirJamContext } from "../../context/air-jam-context";
+import {
+  useAssertSessionScope,
+  useClaimSessionRuntimeOwner,
+} from "../../context/session-providers";
+import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
+import type {
+  ControllerJoinAck,
+  ControllerStateMessage,
+  ControllerUpdatePlayerProfileAck,
+  GameState,
+  PlayerProfile,
+  PlayerProfilePatch,
+  RoomCode,
+  SignalPayload,
+} from "../../protocol";
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  controllerJoinSchema,
+  controllerSystemSchema,
+  playerProfilePatchSchema,
+  roomCodeSchema,
+} from "../../protocol";
+import type { PlayerUpdatedNotice } from "../../protocol/notices";
+import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
+import {
+  clearControllerRoomBinding,
+  getOrCreateControllerDeviceId,
+  readControllerRoomBinding,
+  writeControllerRoomBinding,
+} from "../../runtime/controller-identity";
+import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
+import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
+import { readEmbeddedControllerChildSession } from "../../runtime/embedded-runtime-adapters";
+import { generateControllerId } from "../../utils/ids";
+import { detectRunMode } from "../../utils/mode";
+import type {
+  AirJamControllerApi,
+  AirJamControllerOptions,
+} from "../use-air-jam-controller";
+
+const getRoomFromLocation = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("room");
+  return code ? code.toUpperCase() : null;
+};
+
+const getControllerCapabilityTokenFromLocation = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.search);
+  return params.get("aj_controller_cap");
+};
+
+export const resolveControllerJoinSource = ({
+  embeddedRoomId,
+  optionRoomId,
+  urlRoomId,
+}: {
+  embeddedRoomId?: string | null;
+  optionRoomId?: string | null;
+  urlRoomId?: string | null;
+}): "embedded" | "options" | "url" | "unknown" => {
+  if (embeddedRoomId) {
+    return "embedded";
+  }
+  if (optionRoomId) {
+    return "options";
+  }
+  if (urlRoomId) {
+    return "url";
+  }
+  return "unknown";
+};
+
+export const useControllerRuntimeApi = (
+  options: AirJamControllerOptions,
+  hookName: string,
+): AirJamControllerApi => {
+  useAssertSessionScope("controller", hookName);
+  useClaimSessionRuntimeOwner("controller-runtime", hookName);
+
+  const { store, getSocket, disconnectSocket } = useAirJamContext();
+  const nicknameRef = useRef(options.nickname ?? "");
+  const avatarIdRef = useRef(options.avatarId ?? "");
+
+  useEffect(() => {
+    nicknameRef.current = options.nickname ?? "";
+  }, [options.nickname]);
+
+  useEffect(() => {
+    avatarIdRef.current = options.avatarId ?? "";
+  }, [options.avatarId]);
+
+  const embeddedController = useMemo(
+    () => readEmbeddedControllerChildSession(),
+    [],
+  );
+  const urlRoomId = useMemo(() => getRoomFromLocation(), []);
+  const capabilityToken = useMemo(
+    () => getControllerCapabilityTokenFromLocation(),
+    [],
+  );
+  const joinSource = useMemo(
+    () =>
+      resolveControllerJoinSource({
+        embeddedRoomId: embeddedController?.roomId,
+        optionRoomId: options.roomId ?? null,
+        urlRoomId,
+      }),
+    [embeddedController?.roomId, options.roomId, urlRoomId],
+  );
+
+  const parsedRoomId = useMemo<RoomCode | null>(() => {
+    const code = embeddedController?.roomId ?? options.roomId ?? urlRoomId;
+    if (!code) return null;
+    try {
+      return roomCodeSchema.parse(code.toUpperCase());
+    } catch {
+      return null;
+    }
+  }, [options.roomId, embeddedController, urlRoomId]);
+
+  const deviceId = useMemo<string | null>(() => {
+    if (embeddedController) {
+      return null;
+    }
+    return getOrCreateControllerDeviceId();
+  }, [embeddedController]);
+
+  const controllerId = useMemo<string>(() => {
+    if (embeddedController?.controllerId) {
+      return embeddedController.controllerId;
+    }
+    if (options.controllerId) {
+      return options.controllerId;
+    }
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlControllerId = params.get("controllerId");
+      if (urlControllerId) return urlControllerId;
+    }
+    if (parsedRoomId) {
+      const persistedControllerId = readControllerRoomBinding(parsedRoomId);
+      if (persistedControllerId) {
+        return persistedControllerId;
+      }
+    }
+    return generateControllerId();
+  }, [options.controllerId, embeddedController, parsedRoomId]);
+
+  const onStateRef = useRef<AirJamControllerOptions["onState"]>(
+    options.onState,
+  );
+  useEffect(() => {
+    onStateRef.current = options.onState;
+  }, [options.onState]);
+
+  const connectionState = useStore(
+    store,
+    useShallow((state) => ({
+      connectionStatus: state.connectionStatus,
+      lastError: state.lastError,
+      controllerId: state.controllerId,
+      players: state.players,
+      gameState: state.gameState,
+      controllerOrientation: state.controllerOrientation,
+      stateMessage: state.stateMessage,
+    })),
+  );
+  const selfPlayer = useMemo(
+    () =>
+      connectionState.controllerId
+        ? connectionState.players.find(
+            (player) => player.id === connectionState.controllerId,
+          ) ?? null
+        : null,
+    [connectionState.controllerId, connectionState.players],
+  );
+
+  useEffect(() => {
+    updateDevBrowserLogContext({
+      role: "controller",
+      traceId: undefined,
+      roomId: parsedRoomId ?? undefined,
+      controllerId: connectionState.controllerId ?? controllerId ?? undefined,
+    });
+  }, [connectionState.controllerId, controllerId, parsedRoomId]);
+
+  useEffect(() => {
+    return () => {
+      updateDevBrowserLogContext({
+        role: undefined,
+        roomId: undefined,
+        controllerId: undefined,
+      });
+    };
+  }, []);
+
+  const [reconnectKey, setReconnectKey] = useState(0);
+  const emitControllerRuntimeEvent = useCallback(
+    ({
+      event,
+      level = "info",
+      message,
+      roomId,
+      data,
+    }: {
+      event: (typeof AIRJAM_DEV_LOG_EVENTS.runtime)[keyof typeof AIRJAM_DEV_LOG_EVENTS.runtime];
+      level?: "info" | "warn" | "error";
+      message: string;
+      roomId?: string;
+      data?: Record<string, unknown>;
+    }) => {
+      emitAirJamDevRuntimeEvent({
+        event,
+        level,
+        message,
+        role: "controller",
+        roomId,
+        controllerId,
+        data,
+      });
+    },
+    [controllerId],
+  );
+
+  const socket = useMemo<AirJamRealtimeClient | null>(
+    () =>
+      parsedRoomId
+        ? getControllerRealtimeClient((role) => getSocket(role))
+        : null,
+    [parsedRoomId, getSocket],
+  );
+
+  const reconnect = useCallback(() => {
+    if (!parsedRoomId) return;
+    socket?.disconnect();
+    if (!embeddedController) {
+      disconnectSocket("controller");
+    }
+    setReconnectKey((prev) => prev + 1);
+  }, [parsedRoomId, disconnectSocket, socket, embeddedController]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSignal = (signal: SignalPayload) => {
+      if (signal.type !== "HAPTIC") return;
+      if (typeof navigator === "undefined" || !navigator.vibrate) return;
+
+      const payload = signal.payload;
+
+      switch (payload.pattern) {
+        case "light":
+          navigator.vibrate(10);
+          break;
+        case "medium":
+          navigator.vibrate(30);
+          break;
+        case "heavy":
+          navigator.vibrate([50, 20, 50]);
+          break;
+        case "success":
+          navigator.vibrate([10, 30, 10]);
+          break;
+        case "failure":
+          navigator.vibrate([50, 50, 50, 50]);
+          break;
+        case "custom":
+          if (Array.isArray(payload.sequence)) {
+            navigator.vibrate(payload.sequence);
+          } else if (typeof payload.sequence === "number") {
+            navigator.vibrate(payload.sequence);
+          }
+          break;
+      }
+    };
+
+    socket.on("server:signal", handleSignal);
+    return () => {
+      socket.off("server:signal", handleSignal);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    const storeState = store.getState();
+    storeState.setMode(detectRunMode());
+    storeState.setRole("controller");
+    storeState.setRoomId(parsedRoomId);
+    storeState.setStatus(parsedRoomId ? "connecting" : "idle");
+    storeState.setError(undefined);
+
+    if (!parsedRoomId || !socket || !controllerId) {
+      storeState.setStatus("idle");
+      return;
+    }
+
+    storeState.setControllerId(controllerId);
+    if (embeddedController?.playerProfile?.label || embeddedController?.playerProfile?.avatarId) {
+      const fallbackPlayer: PlayerProfile = {
+        id: controllerId,
+        label: embeddedController.playerProfile?.label || nicknameRef.current || "Player",
+        ...(embeddedController.playerProfile?.avatarId
+          ? { avatarId: embeddedController.playerProfile.avatarId }
+          : avatarIdRef.current
+            ? { avatarId: avatarIdRef.current }
+            : {}),
+      };
+      storeState.upsertPlayer(fallbackPlayer);
+    }
+
+    const handleConnect = (): void => {
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnected,
+        message: "Controller socket connected",
+        roomId: parsedRoomId ?? undefined,
+        data: {
+          socketId: socket.id,
+          connected: socket.connected,
+        },
+      });
+      store.getState().setStatus("connected");
+
+      if (embeddedController) {
+        return;
+      }
+
+      const payload = controllerJoinSchema.parse({
+        roomId: parsedRoomId,
+        controllerId,
+        deviceId: deviceId ?? undefined,
+        nickname: nicknameRef.current || undefined,
+        avatarId: avatarIdRef.current || undefined,
+        capabilityToken: capabilityToken ?? undefined,
+      });
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.controllerJoinRequested,
+        message: "Controller requested room join",
+        roomId: payload.roomId,
+        data: {
+          joinSource,
+          controllerId: payload.controllerId,
+          hasNickname: Boolean(payload.nickname),
+          hasAvatarId: Boolean(payload.avatarId),
+          hasCapabilityToken: Boolean(payload.capabilityToken),
+        },
+      });
+      socket.emit("controller:join", payload, (ack: ControllerJoinAck) => {
+        const latestState = store.getState();
+        if (!ack.ok) {
+          if (ack.code === "ROOM_NOT_FOUND") {
+            clearControllerRoomBinding(parsedRoomId);
+          }
+          latestState.setError(ack.message ?? "Unable to join room");
+          latestState.setStatus("disconnected");
+          return;
+        }
+        if (ack.controllerId) {
+          latestState.setControllerId(ack.controllerId);
+          writeControllerRoomBinding(parsedRoomId, ack.controllerId);
+        }
+        latestState.setStatus("connected");
+      });
+    };
+
+    const handleDisconnect = (reason?: string): void => {
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketDisconnected,
+        message: "Controller socket disconnected",
+        roomId: parsedRoomId ?? undefined,
+        data: {
+          socketId: socket.id,
+          reason,
+        },
+      });
+      const latestState = store.getState();
+      if (reason) {
+        latestState.setError(reason);
+      }
+      latestState.setStatus("disconnected");
+    };
+
+    const handleConnectError = (error: Error): void => {
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnectError,
+        level: "warn",
+        message: "Controller socket connect error",
+        roomId: parsedRoomId ?? undefined,
+        data: {
+          message: error.message,
+          name: error.name,
+        },
+      });
+    };
+
+    const handleWelcome = (payload: {
+      controllerId: string;
+      roomId: RoomCode;
+      player?: PlayerProfile;
+    }): void => {
+      const latestState = store.getState();
+      const storeRoomId = latestState.roomId;
+      if (
+        storeRoomId &&
+        payload.roomId.toUpperCase() !== storeRoomId.toUpperCase()
+      ) {
+        return;
+      }
+      if (!storeRoomId && payload.roomId) {
+        latestState.setRoomId(payload.roomId);
+      }
+      writeControllerRoomBinding(payload.roomId, payload.controllerId);
+      if (!payload.player) {
+        latestState.setError(
+          "Welcome message received but no player profile included.",
+        );
+        return;
+      }
+      latestState.upsertPlayer(payload.player);
+    };
+
+    const handleState = (payload: ControllerStateMessage): void => {
+      if (payload.roomId !== parsedRoomId) return;
+
+      const latestState = store.getState();
+      if (payload.state.gameState) {
+        latestState.setGameState(payload.state.gameState);
+      }
+      if (payload.state.orientation) {
+        latestState.setControllerOrientation(payload.state.orientation);
+      }
+      if (payload.state.message !== undefined) {
+        latestState.setStateMessage(payload.state.message);
+      }
+      onStateRef.current?.(payload.state);
+    };
+
+    const handleHostLeft = (payload: { reason: string }): void => {
+      const latestState = store.getState();
+      if (parsedRoomId) {
+        clearControllerRoomBinding(parsedRoomId);
+      }
+      latestState.setError(payload.reason);
+      latestState.setStatus("disconnected");
+      latestState.resetGameState();
+
+      setTimeout(() => {
+        socket.disconnect();
+        if (!embeddedController) {
+          disconnectSocket("controller");
+        }
+        setReconnectKey((prev) => prev + 1);
+      }, 1000);
+    };
+
+    const handleError = (payload: { message: string }): void => {
+      store.getState().setError(payload.message);
+    };
+
+    const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
+      store.getState().upsertPlayer(payload.player);
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("server:welcome", handleWelcome);
+    socket.on("server:state", handleState);
+    socket.on("server:hostLeft", handleHostLeft);
+    socket.on("server:error", handleError);
+    socket.on("server:playerUpdated", handlePlayerUpdated);
+
+    if (socket.connected) {
+      handleConnect();
+    } else {
+      socket.connect();
+    }
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("server:welcome", handleWelcome);
+      socket.off("server:state", handleState);
+      socket.off("server:hostLeft", handleHostLeft);
+      socket.off("server:error", handleError);
+      socket.off("server:playerUpdated", handlePlayerUpdated);
+    };
+  }, [
+    parsedRoomId,
+    reconnectKey,
+    socket,
+    controllerId,
+    embeddedController,
+    store,
+    disconnectSocket,
+    emitControllerRuntimeEvent,
+    deviceId,
+    joinSource,
+    capabilityToken,
+  ]);
+
+  const setNickname = useCallback((value: string) => {
+    nicknameRef.current = value;
+  }, []);
+
+  const setAvatarId = useCallback((value: string) => {
+    avatarIdRef.current = value;
+  }, []);
+
+  const updatePlayerProfile = useCallback(
+    (patch: PlayerProfilePatch): Promise<ControllerUpdatePlayerProfileAck> => {
+      const parsedPatch = playerProfilePatchSchema.safeParse(patch);
+      if (!parsedPatch.success) {
+        return Promise.resolve({
+          ok: false,
+          message: parsedPatch.error.message,
+        });
+      }
+
+      if (!socket || !parsedRoomId) {
+        return Promise.resolve({ ok: false, message: "Not connected" });
+      }
+
+      if (embeddedController) {
+        return Promise.resolve({
+          ok: false,
+          message:
+            "Profile updates are unavailable in embedded controller runtime",
+        });
+      }
+
+      const controllerIdForPatch = store.getState().controllerId;
+      if (!controllerIdForPatch) {
+        return Promise.resolve({ ok: false, message: "No controller id" });
+      }
+
+      return new Promise((resolve) => {
+        socket.emit(
+          "controller:updatePlayerProfile",
+          {
+            roomId: parsedRoomId,
+            controllerId: controllerIdForPatch,
+            patch: parsedPatch.data,
+          },
+          (ack: ControllerUpdatePlayerProfileAck) => {
+            resolve(ack);
+          },
+        );
+      });
+    },
+    [parsedRoomId, socket, store, embeddedController],
+  );
+
+  const sendSystemCommand = useCallback(
+    (command: "exit" | "toggle_pause") => {
+      const storeState = store.getState();
+
+      if (!parsedRoomId || !storeState.controllerId || !socket) return;
+      if (!socket.connected) return;
+
+      const payload = controllerSystemSchema.safeParse({
+        roomId: parsedRoomId,
+        command,
+      });
+
+      if (payload.success) {
+        socket.emit("controller:system", payload.data);
+      }
+    },
+    [parsedRoomId, socket, store],
+  );
+
+  return {
+    roomId: parsedRoomId,
+    controllerId: connectionState.controllerId,
+    connectionStatus: connectionState.connectionStatus,
+    lastError: connectionState.lastError,
+    gameState: connectionState.gameState as GameState,
+    controllerOrientation: connectionState.controllerOrientation,
+    stateMessage: connectionState.stateMessage,
+    sendSystemCommand,
+    setNickname,
+    setAvatarId,
+    updatePlayerProfile,
+    reconnect,
+    players: connectionState.players,
+    selfPlayer,
+    socket,
+  };
+};

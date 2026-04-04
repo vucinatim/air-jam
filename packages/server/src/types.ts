@@ -1,13 +1,41 @@
-import type { GameState, PlayerProfile, RoomCode } from "@air-jam/sdk/protocol";
+import type {
+  ChildHostCapability,
+  ControllerPrivilegedCapability,
+  ControllerPrivilegedGrant,
+  ControllerStateMessage,
+  GameState,
+  HostSessionKind,
+  PlayerProfile,
+  RoomCode,
+} from "@air-jam/sdk/protocol";
+
+type ControllerOrientation = NonNullable<
+  ControllerStateMessage["state"]["orientation"]
+>;
 
 /**
  * Controller session information
  */
 export interface ControllerSession {
   controllerId: string;
+  deviceId: string;
   nickname?: string;
-  socketId: string;
+  socketId?: string;
+  connected: boolean;
+  resumeLeaseExpiresAt: number | null;
+  pendingDisconnectTimer?: ReturnType<typeof setTimeout>;
   playerProfile: PlayerProfile;
+  privilegedGrants: ControllerPrivilegedGrant[];
+}
+
+export interface RoomAnalyticsState {
+  runtimeSessionId: string;
+  startedAt: number;
+  appId?: string;
+  gameId?: string;
+  hostVerifiedVia?: "appId" | "hostGrant";
+  hostVerifiedOrigin?: string;
+  hostSessionKind: HostSessionKind;
 }
 
 /**
@@ -16,18 +44,35 @@ export interface ControllerSession {
 export type RoomFocus = "SYSTEM" | "GAME";
 
 /**
+ * Explicit room lifecycle state
+ */
+export type RoomLifecycleState =
+  | "SYSTEM_IDLE"
+  | "GAME_LAUNCH_PENDING"
+  | "GAME_ACTIVE"
+  | "CLOSING"
+  | "TEARDOWN";
+
+/**
  * Room session state
  */
 export interface RoomSession {
   roomId: RoomCode;
-  masterHostSocketId: string; // The Arcade (System)
-  childHostSocketId?: string; // The Game (Child)
+  masterHostSocketId: string; // Primary host socket for the room
+  childHostSocketId?: string; // Secondary game host socket when launched from a system shell
+  analytics: RoomAnalyticsState;
   focus: RoomFocus;
-  joinToken?: string; // Token required for a child to join
-  activeControllerUrl?: string;
+  launchCapability?: ChildHostCapability; // Capability required for a child host to join
+  controllerCapability?: ControllerPrivilegedCapability; // Capability required for privileged controller channels
+  /** Set when a game is launched from the system host (`system:launchGame`). */
+  activeGameId?: string;
   controllers: Map<string, ControllerSession>;
   maxPlayers: number;
   gameState: GameState;
+  controllerOrientation: ControllerOrientation;
+  lifecycleState: RoomLifecycleState;
+  /** Deferred teardown when child host socket drops (Socket.IO reconnect grace). */
+  pendingChildTeardownTimer?: ReturnType<typeof setTimeout>;
 }
 
 /**

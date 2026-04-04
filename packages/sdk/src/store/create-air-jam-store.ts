@@ -1,286 +1,455 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { create, type StateCreator } from "zustand";
 import { useAirJamContext, useAirJamState } from "../context/air-jam-context";
+import { emitAirJamDiagnostic } from "../diagnostics";
 import type {
+  AirJamActionActorRole,
+  AirJamActionPayload,
   AirJamActionRpcPayload,
   AirJamStateSyncPayload,
 } from "../protocol";
+import {
+  getControllerRealtimeClient,
+} from "../runtime/controller-realtime-client";
+import { getHostRealtimeClient } from "../runtime/host-realtime-client";
+import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+import { isRpcSerializable } from "../utils/is-rpc-serializable";
+import { resolveImplicitReplicatedStoreDomainFromWindow } from "../runtime/arcade-runtime-url";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+} from "./air-jam-store-domain-constants";
 
 const INTERNAL_ACTION_PREFIX = "_";
+const UNRESOLVED_ACTOR_ID = "unknown";
+
+export interface CreateAirJamStoreOptions {
+  storeDomain?: string;
+}
+
+const isEventLikePayload = (payload: unknown): boolean => {
+  if (payload === null || typeof payload !== "object") {
+    return false;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  return (
+    typeof candidate.preventDefault === "function" ||
+    typeof candidate.stopPropagation === "function" ||
+    typeof candidate.persist === "function" ||
+    ("nativeEvent" in candidate &&
+      ("target" in candidate || "currentTarget" in candidate))
+  );
+};
+
+const isPlainActionPayload = (
+  payload: unknown,
+): payload is AirJamActionPayload => {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(payload);
+  return prototype === Object.prototype || prototype === null;
+};
+
+export interface AirJamActionContext {
+  actorId: string;
+  role: AirJamActionActorRole;
+  connectedPlayerIds: string[];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AirJamActionHandler = (ctx: AirJamActionContext, payload: any) => unknown;
+type AirJamActionMap = Record<string, AirJamActionHandler>;
+
+type IsValidActionPayloadType<TPayload> =
+  [TPayload] extends [undefined]
+    ? true
+    : TPayload extends readonly unknown[]
+      ? false
+      : TPayload extends object
+        ? true
+        : false;
+
+type InvalidActionPayloadKeys<TActions extends AirJamActionMap> = {
+  [K in keyof TActions]:
+    TActions[K] extends (
+      ctx: AirJamActionContext,
+      payload: infer TPayload,
+    ) => unknown
+      ? IsValidActionPayloadType<TPayload> extends true
+        ? never
+        : K
+      : K;
+}[keyof TActions];
+
+type AirJamNetworkedState<TActions extends AirJamActionMap = AirJamActionMap> = {
+  actions: TActions;
+};
+
+type AirJamActionDispatchMap<TActions extends AirJamActionMap> = {
+  [K in keyof TActions]: TActions[K] extends (
+    ctx: AirJamActionContext,
+    payload: infer TPayload,
+  ) => infer TResult
+    ? [TPayload] extends [undefined]
+      ? () => TResult
+      : TPayload extends readonly unknown[]
+        ? never
+        : TPayload extends object
+        ? (payload: TPayload) => TResult
+        : never
+    : never;
+};
+
+export type AirJamSyncedStoreHook<T extends AirJamNetworkedState> = {
+  <U>(selector?: (state: T) => U): U;
+  useActions: () => AirJamActionDispatchMap<T["actions"]>;
+};
 
 export const isInternalActionName = (actionName: string): boolean =>
   actionName.startsWith(INTERNAL_ACTION_PREFIX);
 
+const stripActionsFromState = <T extends AirJamNetworkedState>(
+  data: Partial<T>,
+): Partial<T> => {
+  const { actions: _ignored, ...stateData } = data as Partial<T> & {
+    actions?: unknown;
+  };
+  return stateData as Partial<T>;
+};
+
+const toActionContext = (
+  payload: AirJamActionRpcPayload,
+  connectedPlayerIds: string[],
+): AirJamActionContext => ({
+  actorId: payload.actor.id || UNRESOLVED_ACTOR_ID,
+  role: payload.actor.role,
+  connectedPlayerIds,
+});
+
 /**
- * Creates a networked Zustand store that automatically syncs state between host and controllers.
+ * Creates a networked Zustand store that syncs state from host to controllers.
  *
- * The store pattern works as follows:
- * - Host: Stores state locally and broadcasts changes to all controllers
- * - Controller: Sends action RPCs to host, receives state updates from host
+ * Host is the source of truth:
+ * - Host broadcasts state updates to all controllers.
+ * - Controllers invoke actions through RPC to host.
  *
- * @example
- * ```ts
- * interface GameState {
- *   phase: "lobby" | "playing" | "gameover";
- *   scores: { team1: number; team2: number };
- *   actions: {
- *     setPhase: (phase: "lobby" | "playing") => void;
- *     scorePoint: (team: "team1" | "team2") => void;
- *   };
- * }
- *
- * export const useGameStore = createAirJamStore<GameState>((set) => ({
- *   phase: "lobby",
- *   scores: { team1: 0, team2: 0 },
- *   actions: {
- *     setPhase: (phase) => set({ phase }),
- *     scorePoint: (team) => set((state) => ({
- *       scores: { ...state.scores, [team]: state.scores[team] + 1 }
- *     })),
- *   },
- * }));
- * ```
+ * `storeDomain` isolates sync and action RPC so multiple replicated stores can coexist in one room
+ * (e.g. arcade shell vs running game). When omitted, resolves from the runtime URL: explicit
+ * `aj_store_domain`, else embedded Arcade identity (`aj_arcade_*`), else the default domain.
  */
 export function createAirJamStore<
-  T extends {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    actions: Record<string, (...args: any[]) => any>;
-  },
->(initializer: StateCreator<T>) {
-  // 1. Create the Vanilla Zustand Store with an internal sync action
-  const store = create<T>((set, get, api) => {
-    const baseState = initializer(set, get, api);
-    // Add internal _syncState action for external updates
-    return {
-      ...baseState,
-      actions: {
-        ...baseState.actions,
-        _syncState: (partial: Partial<T>) => {
-          set(partial as T);
-        },
-      },
-    } as T;
-  });
-
-  // 2. The Hook Component
-  // Track if game UI is unloaded to disable proxy actions
-  const gameUiUnloadedRef = { current: false };
+  T extends AirJamNetworkedState,
+>(
+  initializer: InvalidActionPayloadKeys<T["actions"]> extends never
+    ? StateCreator<T>
+    : never,
+  options?: CreateAirJamStoreOptions,
+): AirJamSyncedStoreHook<T> {
+  const store = create<T>((set, get, api) => initializer(set, get, api));
 
   const useSyncedStore = <U>(
-    selector: (state: T) => U = (s) => s as unknown as U,
+    selector: (state: T) => U = (state) => state as unknown as U,
   ): U => {
-    // Standard Zustand selector behavior
     const slice = store(selector);
+
+    const explicitDomain = options?.storeDomain;
+    let resolvedStoreDomain: string;
+    if (typeof explicitDomain === "string" && explicitDomain.trim().length > 0) {
+      const trimmed = explicitDomain.trim();
+      resolvedStoreDomain =
+        trimmed.length > 128 ? trimmed.slice(0, 128) : trimmed;
+    } else {
+      resolvedStoreDomain = resolveImplicitReplicatedStoreDomainFromWindow();
+    }
 
     const { getSocket } = useAirJamContext();
     const role = useAirJamState((state) => state.role);
     const roomId = useAirJamState((state) => state.roomId);
-    const controllerId = useAirJamState((state) => state.controllerId);
-    const socket =
-      role === "host" ? getSocket("host") : getSocket("controller");
+    const registeredRoomId = useAirJamState((state) => state.registeredRoomId);
+    const connectionStatus = useAirJamState((state) => state.connectionStatus);
+    const players = useAirJamState((state) => state.players);
+    const hostArcadeRestore = useAirJamState(
+      (state) => state.hostArcadeRestore,
+    );
+    const blockArcadeShellHostBroadcast =
+      resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN &&
+      hostArcadeRestore.phase !== "idle";
+    const canBroadcastHostState =
+      role === "host" &&
+      !!roomId &&
+      registeredRoomId === roomId &&
+      !blockArcadeShellHostBroadcast;
+    const connectedPlayerIds = useMemo(
+      () => Array.from(new Set(players.map((player) => player.id))).sort(),
+      [players],
+    );
+    const playerRosterKey = useMemo(
+      () => players.map((player) => player.id).sort().join(","),
+      [players],
+    );
+    const socket: AirJamRealtimeClient =
+      role === "host"
+        ? getHostRealtimeClient((runtimeRole) => getSocket(runtimeRole))
+        : getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole));
 
-    // Keep a ref to the socket so we can access the LATEST one inside closures
     const socketRef = useRef(socket);
     useEffect(() => {
       socketRef.current = socket;
     }, [socket]);
+    const connectedPlayerIdsRef = useRef(connectedPlayerIds);
+    useEffect(() => {
+      connectedPlayerIdsRef.current = connectedPlayerIds;
+    }, [connectedPlayerIds]);
 
-    // --- NETWORKING LOGIC ---
     useEffect(() => {
       if (!socket || !roomId || !role) {
         return;
       }
 
-      // HOST: Broadcast changes to everyone
       if (role === "host") {
-        // Subscribe to store changes
+        const flushHostStateSync = (): void => {
+          if (!canBroadcastHostState) {
+            return;
+          }
+          const stateData = stripActionsFromState(store.getState());
+          socket.emit("host:state_sync", {
+            roomId,
+            data: stateData,
+            storeDomain: resolvedStoreDomain,
+          });
+        };
+
         const unsubscribe = store.subscribe((newState) => {
-          // Optimization: Don't broadcast 'actions' function
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          if (!canBroadcastHostState) {
+            return;
+          }
           const { actions, ...stateData } = newState;
-          socket.emit("host:state_sync", { roomId, data: stateData });
+          socket.emit("host:state_sync", {
+            roomId,
+            data: stateData,
+            storeDomain: resolvedStoreDomain,
+          });
         });
 
-        // Listen for Action Requests (RPCs) from controllers
         const handleAction = (payload: AirJamActionRpcPayload) => {
-          const { actionName, args, controllerId } = payload;
+          if (payload.storeDomain !== resolvedStoreDomain) {
+            return;
+          }
+          const { actionName } = payload;
           if (isInternalActionName(actionName)) {
             return;
           }
-          // Execute the action on the Host (Source of Truth)
-          // We can optionally pass controllerId as the last arg if the action expects it
+
           const actionFn = store.getState().actions[actionName];
-          if (actionFn) {
-            // Spread args and optionally append controllerId
-            actionFn(...args, controllerId);
+          if (typeof actionFn === "function") {
+            actionFn(
+              toActionContext(payload, connectedPlayerIdsRef.current),
+              payload.payload,
+            );
           }
         };
 
+        const handleStateSyncRequest = (payload: {
+          roomId: string;
+          storeDomain: string;
+        }): void => {
+          if (payload.roomId !== roomId) {
+            return;
+          }
+          if (payload.storeDomain !== resolvedStoreDomain) {
+            return;
+          }
+          flushHostStateSync();
+        };
+
+        socket.on("server:controllerJoined", flushHostStateSync);
+        socket.on("airjam:state_sync_request", handleStateSyncRequest);
         socket.on("airjam:action_rpc", handleAction);
 
         return () => {
           unsubscribe();
+          socket.off("server:controllerJoined", flushHostStateSync);
+          socket.off("airjam:state_sync_request", handleStateSyncRequest);
           socket.off("airjam:action_rpc", handleAction);
         };
       }
 
-      // CONTROLLER: Listen for state updates
       if (role === "controller") {
-        // Reset unloaded flag when we have a new room/socket (game is loading)
-        gameUiUnloadedRef.current = false;
-
         const handleSync = (payload: AirJamStateSyncPayload) => {
-          const { data } = payload;
-          // Merge incoming state, but KEEP the local actions
-          // Use the internal _syncState action to update state (triggers Zustand subscriptions)
-          const currentState = store.getState();
-          const actions = currentState.actions as T["actions"] & {
-            _syncState?: (partial: Partial<T>) => void;
-          };
-
-          // Update store using internal action - this triggers Zustand subscriptions properly
-          if (actions._syncState) {
-            actions._syncState(data as Partial<T>);
-          } else {
-            // Fallback to setState if _syncState not available
-            store.setState(data as Partial<T>);
+          if (payload.storeDomain !== resolvedStoreDomain) {
+            return;
           }
+          const stateData = stripActionsFromState(payload.data as Partial<T>);
+          store.setState(stateData);
         };
 
         socket.on("airjam:state_sync", handleSync);
 
-        // Also listen for client:unloadUi to clean up when game exits
-        // This ensures listeners are removed even if the component doesn't unmount
-        const handleUnloadUi = () => {
-          gameUiUnloadedRef.current = true; // Disable proxy actions
-          socket.off("airjam:state_sync", handleSync);
-        };
-
-        // Also listen for client:loadUi to re-enable proxy actions when new game loads
-        const handleLoadUi = () => {
-          gameUiUnloadedRef.current = false; // Re-enable proxy actions when game loads
-        };
-        socket.on("client:loadUi", handleLoadUi);
-
-        // Also listen for socket disconnect as a fallback to disable proxy actions
-        const handleDisconnect = () => {
-          gameUiUnloadedRef.current = true; // Disable proxy actions on disconnect
-        };
-        socket.on("disconnect", handleDisconnect);
-
-        // Register client:unloadUi listener
-        // Socket.IO listeners work even if registered before connection, but we include socket.id
-        // in dependencies to ensure the effect re-runs when socket connects (socket.id changes from undefined to a string)
-        socket.on("client:unloadUi", handleUnloadUi);
+        if (roomId && connectionStatus === "connected") {
+          socket.emit("controller:state_sync_request", {
+            roomId,
+            storeDomain: resolvedStoreDomain,
+          });
+        }
 
         return () => {
           socket.off("airjam:state_sync", handleSync);
-          socket.off("client:loadUi", handleLoadUi);
-          socket.off("client:unloadUi", handleUnloadUi);
-          socket.off("disconnect", handleDisconnect);
         };
       }
-    }, [socket, role, roomId, socket?.id]);
+    }, [
+      socket,
+      role,
+      roomId,
+      registeredRoomId,
+      connectionStatus,
+      socket?.id,
+      resolvedStoreDomain,
+      canBroadcastHostState,
+    ]);
 
-    // --- PROXY ACTIONS (The Magic) ---
-    // On the Controller, we replace actions with Network Calls
-    if (role === "controller" && socket && roomId) {
-      // We need to return a modified slice where the actions are proxied
-      // This handles two cases:
-      // 1. Selector returns full state: { actions: {...}, ... }
-      // 2. Selector returns just actions: { joinTeam: fn, ... }
-
-      let originalActions: T["actions"] | null = null;
-
-      // Case 1: Slice has "actions" property (full state)
-      if (typeof slice === "object" && slice !== null && "actions" in slice) {
-        originalActions = (slice as { actions: T["actions"] }).actions;
+    useEffect(() => {
+      if (!canBroadcastHostState || !socket || !roomId) {
+        return;
       }
-      // Case 2: Slice IS the actions object (selector returned state.actions)
-      else if (typeof slice === "object" && slice !== null) {
-        // Check if this looks like an actions object (has function properties matching store actions)
-        const fullState = store.getState();
-        if (fullState.actions) {
-          const sliceKeys = Object.keys(slice);
-          const actionKeys = Object.keys(fullState.actions);
-          // If slice keys match action keys and are all functions, it's the actions object
-          if (
-            sliceKeys.length > 0 &&
-            sliceKeys.every(
-              (key) =>
-                typeof (slice as Record<string, unknown>)[key] === "function" &&
-                actionKeys.includes(key),
-            )
-          ) {
-            originalActions = slice as T["actions"];
-          }
+      const stateData = stripActionsFromState(store.getState());
+      socket.emit("host:state_sync", {
+        roomId,
+        data: stateData,
+        storeDomain: resolvedStoreDomain,
+      });
+    }, [
+      role,
+      socket,
+      roomId,
+      registeredRoomId,
+      socket?.id,
+      playerRosterKey,
+      resolvedStoreDomain,
+      canBroadcastHostState,
+    ]);
+
+    const dispatchedActions = useMemo<AirJamActionDispatchMap<T["actions"]>>(() => {
+      const sourceActions = store.getState().actions;
+      const actionDispatch = {} as AirJamActionDispatchMap<T["actions"]>;
+
+      for (const actionName of Object.keys(sourceActions)) {
+        if (isInternalActionName(actionName)) {
+          continue;
         }
-      }
 
-      if (originalActions) {
-        // Use the same type as T["actions"] for proxy actions
-        const proxyActions = {} as T["actions"];
+        const sourceAction = sourceActions[actionName];
 
-        Object.keys(originalActions).forEach((key) => {
-          if (isInternalActionName(key)) {
+        (
+          actionDispatch as unknown as Record<string, (payload: unknown) => void>
+        )[actionName] = (payload: unknown): void => {
+          const normalizedPayload = isEventLikePayload(payload)
+            ? undefined
+            : payload;
+
+          if (normalizedPayload !== payload) {
+            emitAirJamDiagnostic({
+              code: "AJ_STORE_ACTION_EVENT_PAYLOAD_DROPPED",
+              severity: "warn",
+              message: `[AirJamStore] Action "${actionName}" received an event-like payload. Dropping payload and continuing.`,
+              details: { actionName },
+            });
+          }
+
+          if (role === "host") {
+            sourceAction(
+              {
+                actorId: "host",
+                role: "host",
+                connectedPlayerIds: connectedPlayerIdsRef.current,
+              },
+              normalizedPayload,
+            );
             return;
           }
 
-          // Type assertion needed because we're creating proxies dynamically
-          // We cast to the same type as T["actions"] to maintain type compatibility
-          (proxyActions as Record<string, (...args: unknown[]) => void>)[key] =
-            (...args: unknown[]) => {
-              // --- EXECUTION TIME GUARDS (THE FIX) ---
-              // Check guards at EXECUTION time, not creation time
-              // This ensures old closures are still safe even if they're called after game exit
+          if (role !== "controller" || !roomId) {
+            emitAirJamDiagnostic({
+              code: "AJ_STORE_ACTION_SESSION_NOT_READY",
+              severity: "warn",
+              message: `[AirJamStore] Action "${actionName}" blocked: session role not ready.`,
+              details: { actionName, role, roomId },
+            });
+            return;
+          }
 
-              // 1. Check if UI is unloaded right now (at execution time)
-              if (gameUiUnloadedRef.current) {
-                console.warn(
-                  `[AirJamStore] Action "${key}" blocked: Game UI unloaded.`,
-                );
-                return;
-              }
+          const activeSocket = socketRef.current;
+          if (!activeSocket || !activeSocket.connected) {
+            emitAirJamDiagnostic({
+              code: "AJ_STORE_ACTION_SOCKET_DISCONNECTED",
+              severity: "warn",
+              message: `[AirJamStore] Action "${actionName}" blocked: Socket disconnected.`,
+              details: { actionName },
+            });
+            return;
+          }
 
-              // 2. Check if we have a valid socket right now (at execution time)
-              const activeSocket = socketRef.current;
-              if (!activeSocket || !activeSocket.connected) {
-                console.warn(
-                  `[AirJamStore] Action "${key}" blocked: Socket disconnected.`,
-                );
-                return;
-              }
+          if (!isRpcSerializable(normalizedPayload)) {
+            emitAirJamDiagnostic({
+              code: "AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE",
+              severity: "warn",
+              message: `[AirJamStore] Action "${actionName}" blocked: payload must be RPC-serializable.`,
+              details: { actionName },
+            });
+            return;
+          }
 
-              // 3. Check controllerId
-              if (!controllerId) {
-                console.warn(
-                  "[AirJamStore] Cannot send action RPC: controllerId not set",
-                );
-                return;
-              }
+          if (
+            normalizedPayload !== undefined &&
+            !isPlainActionPayload(normalizedPayload)
+          ) {
+            emitAirJamDiagnostic({
+              code: "AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE",
+              severity: "warn",
+              message: `[AirJamStore] Action "${actionName}" blocked: payload must be omitted or a plain object.`,
+              details: { actionName },
+            });
+            return;
+          }
 
-              // 4. Send RPC to Host (include controllerId to handle reconnections)
-              activeSocket.emit("controller:action_rpc", {
-                roomId,
-                actionName: key,
-                args,
-                controllerId,
-              });
-            };
-        });
-
-        // Return proxied actions - if slice was the actions object, return proxyActions directly
-        // Otherwise, return slice with actions replaced
-        if (typeof slice === "object" && slice !== null && "actions" in slice) {
-          return { ...slice, actions: proxyActions } as U;
-        } else {
-          return proxyActions as U;
-        }
+          activeSocket.emit("controller:action_rpc", {
+            roomId,
+            actionName,
+            payload: normalizedPayload,
+            storeDomain: resolvedStoreDomain,
+          });
+        };
       }
+
+      return actionDispatch;
+    }, [role, roomId, resolvedStoreDomain]);
+
+    const stateActions = store.getState().actions;
+
+    if (slice === stateActions) {
+      return dispatchedActions as U;
+    }
+
+    if (
+      typeof slice === "object" &&
+      slice !== null &&
+      "actions" in slice &&
+      (slice as { actions: unknown }).actions === stateActions
+    ) {
+      return {
+        ...(slice as Record<string, unknown>),
+        actions: dispatchedActions,
+      } as U;
     }
 
     return slice;
   };
 
-  return useSyncedStore;
+  const syncedStore = useSyncedStore as AirJamSyncedStoreHook<T>;
+  const useActions = (): AirJamActionDispatchMap<T["actions"]> =>
+    useSyncedStore((state) => state.actions) as AirJamActionDispatchMap<T["actions"]>;
+  syncedStore.useActions = useActions;
+
+  return syncedStore;
 }

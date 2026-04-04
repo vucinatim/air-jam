@@ -12,7 +12,11 @@ type ControllerJoinAck = {
 };
 
 const allowAllAuthService = {
-  verifyApiKey: async () => ({ isVerified: true }),
+  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+    isVerified: true,
+    appId,
+    verifiedVia: "appId" as const,
+  }),
 } as AuthService;
 
 describe("server stability churn", () => {
@@ -22,6 +26,7 @@ describe("server stability churn", () => {
 
   it("handles repeated host reconnect cycles without losing room ownership", async () => {
     let host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
       host,
@@ -37,6 +42,7 @@ describe("server stability churn", () => {
       await harness.delay(25);
 
       host = await harness.connectSocket();
+      expect((await harness.bootstrapHost(host)).ok).toBe(true);
       const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
         host,
         "host:reconnect",
@@ -50,6 +56,7 @@ describe("server stability churn", () => {
 
   it("handles rapid controller join/leave churn without stale controller sessions", async () => {
     const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
 
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
       host,

@@ -6,64 +6,59 @@
  * all the functionality needed to manage a multiplayer session:
  * - Room management (create/join rooms)
  * - Player tracking (join/leave events, player list)
- * - Input handling (get validated, latched input from controllers)
+ * - Input handling (typed and behavior-aware controller input)
  * - Signaling (send haptic feedback, toast notifications to controllers)
  * - Game state management (pause/play, broadcast state)
+ *
+ * **Standalone (default):** creates or reconnects a room from session storage / options.
+ *
+ * **Embedded child host:** when `aj_room` + `aj_cap` are present, the hook binds to that
+ * room and skips create-room; resolution is centralized in
+ * {@link ../runtime/embedded-runtime-adapters.readEmbeddedHostChildSession}.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { z } from "zod";
-import { useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
-import { TOGGLE_DEBOUNCE_MS } from "../constants";
-import { useAirJamContext } from "../context/air-jam-context";
-import type { AirJamSocket } from "../context/socket-manager";
+import { useContext } from "react";
 import type {
   ConnectionStatus,
-  ControllerInputEvent,
-  ControllerStateMessage,
   ControllerStatePayload,
   GameState,
   HapticSignalPayload,
   PlayerProfile,
   RoomCode,
   RunMode,
-  SignalPayload,
-  SignalType,
   ToastSignalPayload,
 } from "../protocol";
-import {
-  controllerStateSchema,
-  controllerSystemSchema,
-  hostCreateRoomSchema,
-  hostReconnectSchema,
-  roomCodeSchema,
-} from "../protocol";
-import { detectRunMode } from "../utils/mode";
-import { urlBuilder } from "../utils/url-builder";
+import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+import { useAssertSessionScope } from "../context/session-providers";
+import { createAirJamDiagnosticError } from "../diagnostics";
+import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
+
+export type JoinUrlStatus = "loading" | "ready" | "unavailable";
 
 /**
- * Options for configuring the host connection.
+ * Options for configuring the host runtime boundary.
  *
- * @example Basic usage with callbacks
+ * @example Runtime boundary usage with callbacks
  * ```tsx
- * const host = useAirJamHost({
- *   onPlayerJoin: (player) => {
+ * <AirJamHostRuntime
+ *   onPlayerJoin={(player) => {
  *     console.log(`${player.label} joined!`);
  *     spawnPlayerShip(player.id);
- *   },
- *   onPlayerLeave: (controllerId) => {
+ *   }}
+ *   onPlayerLeave={(controllerId) => {
  *     console.log(`Player ${controllerId} left`);
  *     removePlayerShip(controllerId);
- *   },
- * });
+ *   }}
+ * >
+ *   <HostView />
+ * </AirJamHostRuntime>
  * ```
  *
  * @example With custom room ID
  * ```tsx
- * const host = useAirJamHost({
- *   roomId: "GAME1",  // Custom 4-character room code
- *   maxPlayers: 4,    // Override provider's maxPlayers
- * });
+ * <AirJamHostRuntime roomId="GAME1">
+ *   <HostView />
+ * </AirJamHostRuntime>
  * ```
  */
 export interface AirJamHostOptions {
@@ -83,26 +78,6 @@ export interface AirJamHostOptions {
    * Use this to remove player entities, handle cleanup.
    */
   onPlayerLeave?: (controllerId: string) => void;
-  /**
-   * Called when the child window closes in Arcade mode.
-   * Only relevant when running as part of the AirJam Platform.
-   */
-  onChildClose?: () => void;
-  /**
-   * Force connection even in non-standard modes.
-   * @default true
-   */
-  forceConnect?: boolean;
-  /**
-   * Override the API key from provider.
-   * Useful for per-game API keys in multi-game setups.
-   */
-  apiKey?: string;
-  /**
-   * Override the maximum players from provider.
-   * @default 8
-   */
-  maxPlayers?: number;
 }
 
 /**
@@ -117,6 +92,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   roomId: RoomCode;
   /** Full URL for controllers to join (display as QR code) */
   joinUrl: string;
+  /** Whether the join URL is still being resolved, ready to render, or unavailable */
+  joinUrlStatus: JoinUrlStatus;
   /** Current connection status to the server */
   connectionStatus: ConnectionStatus;
   /** List of currently connected players */
@@ -156,16 +133,14 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   };
   /** Reconnect to the server */
   reconnect: () => void;
-  /** Raw Socket.IO socket instance for advanced usage */
-  socket: AirJamSocket;
-  /** Whether running in child/arcade mode */
-  isChildMode: boolean;
+  /** Realtime client for host events (socket-backed standalone, bridge-backed in arcade embeds) */
+  socket: AirJamRealtimeClient;
   /**
    * Get the latest input from a specific controller.
    *
-   * Returns validated, typed input based on the schema provided to AirJamProvider.
-   * If latching is configured, automatically handles latch logic (button presses
-   * and stick flicks are "held" until consumed).
+   * Returns validated, typed input based on the schema provided to the session provider.
+   * Input behavior defaults are tap-safe booleans (`pulse`) and latest vectors (`latest`),
+   * with optional per-field overrides.
    *
    * @example In a game loop
    * ```ts
@@ -184,29 +159,32 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
 }
 
 /**
- * Primary hook for host/game functionality.
+ * Read the mounted host runtime API.
  *
- * Connects to the AirJam server as a host and provides everything needed
- * to manage a multiplayer game session. Must be used within an AirJamProvider.
+ * Use this inside `AirJamHostRuntime` or another explicit host runtime boundary
+ * such as `airjam.Host`. Runtime ownership is mounted once at the boundary; child
+ * code reads from that runtime through this hook.
+ *
+ * This hook is runtime-aware:
+ * - standalone: creates/reconnects host rooms directly
+ * - arcade iframe runtime: auto-detects `aj_room` + `aj_cap` and bridges through the platform-owned host session
+ *
+ * This hook no longer creates host runtime side effects.
  *
  * **Features:**
  * - Automatic room creation and management
  * - Real-time player join/leave events
- * - Typed input with validation and latching
+ * - Typed input with validation and behavior defaults
  * - Haptic feedback and toast notifications
  * - Game state synchronization
  *
  * @template TSchema - Zod schema for input validation (from provider)
- * @param options - Configuration options for the host
  * @returns API object with state and functions
  *
  * @example Basic usage
  * ```tsx
  * const HostView = () => {
- *   const host = useAirJamHost({
- *     onPlayerJoin: (player) => console.log(`${player.label} joined`),
- *     onPlayerLeave: (id) => console.log(`${id} left`),
- *   });
+ *   const host = useAirJamHost();
  *
  *   return (
  *     <div>
@@ -234,7 +212,7 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  *       // Move player based on joystick
  *       movePlayer(player.id, input.vector);
  *
- *       // Handle button press (auto-latched)
+ *       // Handle button press (tap-safe pulse default)
  *       if (input.action) {
  *         playerShoot(player.id);
  *       }
@@ -252,418 +230,21 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * };
  * ```
  */
-export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(
-  options: AirJamHostOptions = {},
-): AirJamHostApi<TSchema> => {
-  // Get context (includes inputManager from provider)
-  const { config, store, getSocket, disconnectSocket, inputManager } =
-    useAirJamContext();
+export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(): AirJamHostApi<TSchema> => {
+  useAssertSessionScope("host", "useAirJamHost");
 
-  // Detect if running in Arcade Mode (via URL params)
-  const arcadeParams = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get("aj_room");
-    const token = params.get("aj_token");
-    if (room && token) {
-      return { room, token };
-    }
-    return null;
-  }, []);
+  const runtime = useContext(hostRuntimeContext);
+  if (!runtime) {
+    throw createAirJamDiagnosticError(
+      "AJ_SCOPE_MISMATCH",
+      "useAirJamHost requires a mounted host runtime boundary. Wrap the host tree with <AirJamHostRuntime> or <airjam.Host> before reading host state.",
+      {
+        hookName: "useAirJamHost",
+        expectedScope: "host",
+        receivedScope: "host",
+      },
+    );
+  }
 
-  const isChildMode = !!arcadeParams;
-
-  // Always connect - forceConnect kept for API compatibility
-  const shouldConnect = true;
-
-  // Subscribe to store state to get roomId (server-issued for standalone mode)
-  const storeRoomId = useStore(store, (s) => s.roomId);
-
-  // Parse room ID from various sources
-  // For child mode: use arcadeParams.room (from URL)
-  // For standalone mode: use store.roomId (set after server responds)
-  const parsedRoomId = useMemo<RoomCode | null>(() => {
-    if (arcadeParams) {
-      // Child mode: room ID comes from URL params
-      return roomCodeSchema.parse(arcadeParams.room.toUpperCase());
-    }
-
-    // Standalone mode: use store.roomId (server-issued)
-    if (storeRoomId) {
-      return roomCodeSchema.parse(storeRoomId.toUpperCase());
-    }
-
-    // Fallback: check URL param or options (for reconnection scenarios)
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const paramRoom = params.get("room");
-      if (paramRoom) {
-        const result = roomCodeSchema.safeParse(paramRoom.toUpperCase());
-        if (result.success) return result.data;
-      }
-    }
-
-    if (options.roomId) {
-      return roomCodeSchema.parse(options.roomId.toUpperCase());
-    }
-
-    return null;
-  }, [options.roomId, storeRoomId, arcadeParams]);
-
-  const [joinUrl, setJoinUrl] = useState<string>("");
-
-  // Keep callback refs stable
-  const onPlayerJoinRef = useRef(options.onPlayerJoin);
-  const onPlayerLeaveRef = useRef(options.onPlayerLeave);
-  const onChildCloseRef = useRef(options.onChildClose);
-
-  useEffect(() => {
-    onPlayerJoinRef.current = options.onPlayerJoin;
-    onPlayerLeaveRef.current = options.onPlayerLeave;
-    onChildCloseRef.current = options.onChildClose;
-  }, [options.onPlayerJoin, options.onPlayerLeave, options.onChildClose]);
-
-  // Subscribe to store state
-  const connectionState = useStore(
-    store,
-    useShallow((state) => ({
-      connectionStatus: state.connectionStatus,
-      lastError: state.lastError,
-      players: state.players,
-      gameState: state.gameState,
-      mode: state.mode,
-      roomId: state.roomId,
-    })),
-  );
-
-  // Get socket from context
-  const socket = useMemo(
-    () => (shouldConnect ? getSocket("host") : null),
-    [shouldConnect, getSocket],
-  );
-
-  const [lastToggle, setLastToggle] = useState(0);
-
-  const toggleGameState = useCallback(() => {
-    const now = Date.now();
-    if (now - lastToggle < TOGGLE_DEBOUNCE_MS) {
-      return;
-    }
-    setLastToggle(now);
-
-    if (!socket || !socket.connected) {
-      return;
-    }
-
-    if (!parsedRoomId) return;
-
-    const payload = controllerSystemSchema.safeParse({
-      roomId: parsedRoomId,
-      command: "toggle_pause",
-    });
-    if (payload.success) {
-      socket.emit("host:system", payload.data);
-    }
-  }, [socket, parsedRoomId, lastToggle]);
-
-  const sendState = useCallback(
-    (state: ControllerStatePayload): boolean => {
-      if (!socket || !socket.connected || !parsedRoomId) {
-        return false;
-      }
-      const payload = controllerStateSchema.safeParse({
-        roomId: parsedRoomId,
-        state,
-      });
-      if (!payload.success) {
-        return false;
-      }
-      socket.emit("host:state", payload.data);
-      return true;
-    },
-    [socket, parsedRoomId],
-  );
-
-  const sendSignal = useCallback(
-    (
-      type: SignalType,
-      payload: HapticSignalPayload | ToastSignalPayload,
-      targetId?: string,
-    ): void => {
-      if (!socket || !socket.connected) {
-        return;
-      }
-      const signal: SignalPayload = {
-        targetId,
-        type,
-        payload,
-      } as SignalPayload;
-      socket.emit("host:signal", signal);
-    },
-    [socket],
-  ) as AirJamHostApi["sendSignal"];
-
-  const reconnect = useCallback(() => {
-    disconnectSocket("host");
-    if (socket) {
-      socket.connect();
-    }
-  }, [socket, disconnectSocket]);
-
-  // Build controller URL
-  useEffect(() => {
-    if (!parsedRoomId) return; // Don't build URL until we have a room ID
-
-    (async () => {
-      const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
-        host: config.publicHost,
-      });
-      setJoinUrl(url);
-    })();
-  }, [parsedRoomId, config.publicHost, options.roomId]);
-
-  // Get setRegisteredRoomId from store
-  const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
-
-  // Main connection effect
-  useEffect(() => {
-    const storeState = store.getState();
-    storeState.setMode(detectRunMode());
-    storeState.setRole("host");
-    // Don't set roomId here - it will be set after server responds
-    // Only set it if we have it (child mode or reconnection)
-    if (parsedRoomId) {
-      storeState.setRoomId(parsedRoomId);
-    }
-    storeState.setStatus("connecting");
-    storeState.setError(undefined);
-
-    if (!shouldConnect || !socket) {
-      storeState.setStatus("idle");
-      return;
-    }
-
-    const registerHost = async () => {
-      const storeState = store.getState();
-
-      // Prevent duplicate registration
-      const currentRegisteredRoomId = store.getState().registeredRoomId;
-      if (currentRegisteredRoomId && socket.connected) {
-        return;
-      }
-
-      if (arcadeParams) {
-        // Child Mode - join as child (unchanged)
-        const childRoomId = roomCodeSchema.parse(
-          arcadeParams.room.toUpperCase(),
-        );
-        const payload = {
-          roomId: childRoomId,
-          joinToken: arcadeParams.token,
-        };
-        socket.emit("host:joinAsChild", payload, (ack) => {
-          if (!ack.ok) {
-            storeState.setError(ack.message ?? "Failed to join as child");
-            storeState.setStatus("disconnected");
-            setRegisteredRoomId(null);
-            return;
-          }
-          storeState.setStatus("connected");
-          storeState.setRoomId(childRoomId);
-          setRegisteredRoomId(childRoomId);
-        });
-      } else {
-        // Standalone Mode - use server-issued room IDs
-        const createNewRoom = () => {
-          const payload = hostCreateRoomSchema.parse({
-            maxPlayers: options.maxPlayers ?? config.maxPlayers,
-            apiKey: options.apiKey ?? config.apiKey,
-          });
-
-          socket.emit("host:createRoom", payload, (ack) => {
-            if (!ack.ok) {
-              storeState.setError(ack.message ?? "Failed to create room");
-              storeState.setStatus("disconnected");
-              setRegisteredRoomId(null);
-              return;
-            }
-
-            if (ack.roomId) {
-              storeState.setStatus("connected");
-              storeState.setRoomId(ack.roomId);
-              setRegisteredRoomId(ack.roomId);
-
-              // Save room ID to sessionStorage for reconnection on reload
-              if (typeof window !== "undefined") {
-                sessionStorage.setItem("airjam_room_id", ack.roomId);
-              }
-            } else {
-              storeState.setError("Server did not return room ID");
-              storeState.setStatus("disconnected");
-            }
-          });
-        };
-
-        // Check for saved room ID in sessionStorage (for reconnection)
-        if (typeof window !== "undefined") {
-          const savedRoomId = sessionStorage.getItem("airjam_room_id");
-          if (savedRoomId) {
-            // Attempt to reconnect to existing room
-            const reconnectPayload = hostReconnectSchema.parse({
-              roomId: savedRoomId,
-              apiKey: options.apiKey ?? config.apiKey,
-            });
-
-            socket.emit("host:reconnect", reconnectPayload, (ack) => {
-              if (ack.ok && ack.roomId) {
-                storeState.setStatus("connected");
-                storeState.setRoomId(ack.roomId);
-                setRegisteredRoomId(ack.roomId);
-              } else {
-                // Reconnection failed (room expired), create new room
-                if (typeof window !== "undefined") {
-                  sessionStorage.removeItem("airjam_room_id");
-                }
-                createNewRoom();
-              }
-            });
-          } else {
-            // No saved room ID, create new room
-            createNewRoom();
-          }
-        } else {
-          // Not in browser environment, create new room
-          createNewRoom();
-        }
-      }
-    };
-
-    const handleConnect = (): void => {
-      store.getState().setStatus("connected");
-      registerHost();
-    };
-
-    const handleDisconnect = (): void => {
-      store.getState().setStatus("disconnected");
-    };
-
-    const handleJoin = (payload: {
-      controllerId: string;
-      nickname?: string;
-      player?: PlayerProfile;
-    }): void => {
-      if (payload.player) {
-        store.getState().upsertPlayer(payload.player);
-        setTimeout(() => {
-          onPlayerJoinRef.current?.(payload.player!);
-        }, 0);
-      }
-    };
-
-    const handleLeave = (payload: { controllerId: string }): void => {
-      store.getState().removePlayer(payload.controllerId);
-      onPlayerLeaveRef.current?.(payload.controllerId);
-    };
-
-    const handleInput = (payload: ControllerInputEvent): void => {
-      // Handle input via InputManager from context (if configured in provider)
-      if (inputManager) {
-        inputManager.handleInput(payload);
-      }
-    };
-
-    const handleChildClose = (): void => {
-      onChildCloseRef.current?.();
-    };
-
-    const handleState = (payload: ControllerStateMessage): void => {
-      if (!parsedRoomId || payload.roomId !== parsedRoomId) return;
-
-      const storeState = store.getState();
-      if (payload.state.gameState) {
-        storeState.setGameState(payload.state.gameState);
-      }
-      if (payload.state.message !== undefined) {
-        storeState.setStateMessage(payload.state.message);
-      }
-    };
-
-    const handleError = (payload: { message: string }): void => {
-      store.getState().setError(payload.message);
-    };
-
-    socket.on("connect", handleConnect);
-    socket.on("disconnect", handleDisconnect);
-    socket.on("server:controllerJoined", handleJoin);
-    socket.on("server:controllerLeft", handleLeave);
-    socket.on("server:input", handleInput);
-    socket.on("server:error", handleError);
-    socket.on("server:closeChild", handleChildClose);
-    socket.on("server:state", handleState);
-
-    // Connect the socket
-    socket.connect();
-
-    // If socket is already connected, register immediately
-    const currentRegisteredRoomId = store.getState().registeredRoomId;
-    if (socket.connected && !currentRegisteredRoomId) {
-      registerHost();
-    }
-
-    return () => {
-      socket.off("connect", handleConnect);
-      socket.off("disconnect", handleDisconnect);
-      socket.off("server:controllerJoined", handleJoin);
-      socket.off("server:controllerLeft", handleLeave);
-      socket.off("server:input", handleInput);
-      socket.off("server:error", handleError);
-      socket.off("server:closeChild", handleChildClose);
-      socket.off("server:state", handleState);
-    };
-  }, [
-    config.maxPlayers,
-    config.apiKey,
-    options.maxPlayers,
-    options.apiKey,
-    arcadeParams,
-    parsedRoomId, // Include parsedRoomId since it's used in handleState callback
-    shouldConnect,
-    socket,
-    store,
-    inputManager,
-    setRegisteredRoomId,
-  ]);
-
-  // Ensure we return a valid socket
-  const returnSocket = socket ?? getSocket("host");
-
-  // Create getInput function using InputManager from context
-  const getInput = useCallback(
-    (controllerId: string): z.infer<TSchema> | undefined => {
-      if (!inputManager) {
-        return undefined;
-      }
-      return inputManager.getInput(controllerId) as
-        | z.infer<TSchema>
-        | undefined;
-    },
-    [inputManager],
-  );
-
-  return {
-    roomId: parsedRoomId ?? ("" as RoomCode), // Return empty string as fallback if not yet available
-    joinUrl,
-    connectionStatus: connectionState.connectionStatus,
-    players: connectionState.players,
-    lastError: connectionState.lastError,
-    mode: connectionState.mode,
-    gameState: connectionState.gameState,
-    toggleGameState,
-    sendState,
-    sendSignal,
-    reconnect,
-    socket: returnSocket,
-    isChildMode,
-    getInput,
-  };
+  return runtime as AirJamHostApi<TSchema>;
 };

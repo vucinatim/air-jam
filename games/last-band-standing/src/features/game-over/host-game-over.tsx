@@ -1,0 +1,54 @@
+import { motion } from "framer-motion";
+import { getLabelForPlayer } from "@/utils/player-utils";
+
+const centerVariants = {
+  initial: { opacity: 0, scale: 0.96 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.96 },
+};
+
+interface HostGameOverProps {
+  rankingPlayerIds: string[];
+  playerLabelById: Record<string, string>;
+  totalRounds: number;
+  onResetLobby: () => void;
+}
+
+export const HostGameOver = ({
+  rankingPlayerIds,
+  playerLabelById,
+  totalRounds,
+  onResetLobby,
+}: HostGameOverProps) => {
+  return (
+    <motion.div
+      key="game-over"
+      className="flex flex-col items-center gap-8"
+      variants={centerVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.4 }}
+    >
+      <p className="text-sm uppercase tracking-widest text-muted-foreground">
+        Game Over
+      </p>
+      <h1 className="title text-5xl md:text-7xl">
+        {rankingPlayerIds[0]
+          ? getLabelForPlayer(rankingPlayerIds[0], playerLabelById)
+          : "Nobody"}{" "}
+        Wins!
+      </h1>
+      <p className="text-lg text-muted-foreground">
+        After {totalRounds} rounds
+      </p>
+      <button
+        type="button"
+        className="mt-4 rounded-full bg-primary px-8 py-3 text-lg font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+        onClick={onResetLobby}
+      >
+        Back To Lobby
+      </button>
+    </motion.div>
+  );
+};

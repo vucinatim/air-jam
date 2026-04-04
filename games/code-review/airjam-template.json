@@ -1,0 +1,21 @@
+{
+  "id": "code-review",
+  "name": "Code Review",
+  "description": "Fast social code-triage game imported from the ZeroDays showcase track.",
+  "category": "reference",
+  "scaffold": true,
+  "export": {
+    "exclude": [
+      ".airjam",
+      ".bundle-analyze",
+      ".cloudflared",
+      "dist",
+      "dist-ssr",
+      "node_modules",
+      "coverage",
+      "tsconfig.tsbuildinfo",
+      "sprites/export.jsx",
+      "sprites/sprites.psd"
+    ]
+  }
+}

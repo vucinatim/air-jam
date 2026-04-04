@@ -21,11 +21,12 @@ Thanks for contributing.
    pnpm lint
    pnpm test
    pnpm test:scaffold
-   pnpm perf:sanity
+   pnpm run repo -- perf sanity
    pnpm build
    ```
 4. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
-5. `pnpm perf:sanity` is optional and non-blocking (intended for local regression spotting, not CI gating).
+5. `pnpm run repo -- perf sanity` is the canonical local server perf check.
+6. `pnpm check:release` now includes the strict perf gate with reconnect churn coverage.
 
 ## Development Workflow
 
@@ -57,6 +58,8 @@ Thanks for contributing.
 
 ## Docs and Planning
 
-1. Active tracker: `docs/implementation-plan.md`
-2. Development loop: `docs/development-loop.md`
-3. Docs index: `docs/docs-index.md`
+1. Architecture: `docs/framework-paradigm.md`
+2. Active execution ledger: `docs/work-ledger.md`
+3. Durable follow-ups: `docs/suggestions.md`
+4. Monorepo workflows: `docs/monorepo-operating-system.md`
+5. Docs index: `docs/docs-index.md`

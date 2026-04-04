@@ -97,7 +97,7 @@ export const CodeBlock = ({ children, ...props }: CodeBlockProps) => {
     >
       {/* Header with file title and language badge */}
       {(fileName || language !== "text") && (
-        <div className="border-border/50 flex items-center justify-between border-b bg-zinc-900/50 px-4 py-2.5">
+        <div className="border-border/50 flex items-center justify-between border-b bg-zinc-800 px-4 py-2.5">
           <div className="flex items-center gap-2">
             {fileName && (
               <>

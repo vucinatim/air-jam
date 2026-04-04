@@ -1,0 +1,226 @@
+import { metadata } from "./page.docs";
+
+export { metadata };
+
+# Quick Start
+
+Get your first Air Jam game up and running in minutes using our project generator.
+
+## 1. Create a New Project
+
+The fastest way to start is using our CLI tool. This creates a ready-to-use workspace with a working Pong game, local development server, and SDK configuration.
+
+```bash
+npx create-airjam my-game
+```
+
+After the project is created, navigate into the directory and open it in your editor:
+
+```bash
+cd my-game
+code . # or your preferred editor
+```
+
+## 2. Start Local Development
+
+The scaffold uses one command for the normal local loop. It starts the local Air Jam server and the game together.
+
+```bash
+pnpm run dev
+```
+
+That command starts:
+
+1. the local Air Jam server on `http://localhost:4000`
+2. the game on `http://localhost:5173`
+
+## 3. Play the Game
+
+Open your browser and visit:
+
+[http://localhost:5173](http://localhost:5173)
+
+You should see the Pong template game. You can now:
+
+1.  Open the game in your browser (Host view)
+2.  Scan the QR code with your phone (Controller view)
+3.  Play the game!
+
+## Optional: HTTPS for Motion Sensors
+
+Most local Air Jam development works on HTTP. Enable HTTPS only when you need secure browser APIs such as gyroscope or motion sensors.
+
+1. Install `mkcert` once on your machine.
+2. Initialize secure mode:
+   ```bash
+   pnpm run secure:init
+   ```
+3. Run secure dev:
+   ```bash
+   pnpm run dev -- --secure
+   ```
+
+This keeps the local Air Jam server on `http://localhost:4000` and serves the game over trusted local HTTPS.
+
+Optional tunnel fallback:
+
+```bash
+pnpm exec airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm run dev -- --secure --secure-mode=tunnel
+```
+
+## 4. Customize & Build
+
+This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster.
+
+- **Check `AGENTS.md`**: Project-wide coding contract and workflow for AI coding assistants.
+- **Check `docs/docs-index.md`**: Local docs pack bundled with the template.
+- **Modify `src/airjam.config.ts`**: Canonical runtime setup and input wiring.
+- **Modify `src/game/input.ts`**: Define your input schema.
+- **Use the starter module map in the template `README.md`**: Follow the current starter structure before creating new homes for code.
+- **Modify `src/game/stores/`**: Starter location for shared networked state and pure transitions.
+- **Modify `src/host/index.tsx`**: Starter host/gameplay surface.
+- **Modify `src/controller/index.tsx`**: Starter mobile controller surface.
+- **Use `tests/game/`**: Starter testing pattern for domain, stores, engine, adapters, and shared game UI.
+
+These paths are the current starter template shape.
+They are recommended defaults for new projects, not framework-mandated filenames.
+
+### Refresh Managed Docs And Skills
+
+Scaffolded projects include an AI pack that owns the canonical local docs, skills, and related guidance files.
+
+Use these commands from your project root:
+
+```bash
+pnpm exec airjam ai-pack status --dir .
+pnpm exec airjam ai-pack diff --dir .
+pnpm exec airjam ai-pack update --dir .
+```
+
+`ai-pack:update` replaces AI-pack-managed files such as local docs, skills, and `AGENTS.md` with the current canonical versions. It is intentionally a replace operation, not a merge tool, and it does not own your local `plan.md` or `suggestions.md`.
+
+## Troubleshooting
+
+### Server not connecting locally
+
+1. Verify `pnpm run dev` is running.
+2. Confirm server health: [http://localhost:4000/health](http://localhost:4000/health).
+3. Confirm your game is using `http://localhost:4000` for `VITE_AIR_JAM_SERVER_URL` (or no override at all for local defaults).
+
+### App ID errors in deployed environments
+
+1. Ensure `VITE_AIR_JAM_APP_ID` is set in your host platform.
+2. Ensure the server URL points at your real Air Jam backend.
+3. Generate/re-copy the App ID from Dashboard if bootstrap fails.
+
+### QR / controller join URL issues
+
+1. Confirm host and controller are on the same room code.
+2. If testing on phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` (or use `pnpm run dev -- --secure`).
+3. For SPA hosting, ensure rewrites route `/controller?room=XXXX` to your app entry.
+
+## 5. Connect Your Game To The Cloud
+
+When you're ready to share your game, first connect it to the official Air Jam cloud.
+
+1.  **Create a Game Profile**:
+    - Go to the [Platform Dashboard](/dashboard)
+    - Create a profile and a new game
+    - Copy your **App ID**
+
+2.  **Deploy the Client Or Keep A Preview URL**:
+    - Deploy your game to a static hosting provider like Vercel, Netlify, or GitHub Pages.
+    - Or keep using a creator-only preview URL in the Dashboard while you are iterating.
+    - Set the following environment variables in your deployment settings:
+
+    ```bash
+    VITE_AIR_JAM_APP_ID=your_app_id_here
+    VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
+    ```
+
+The SDK handles production bootstrap automatically from that `appId`. You do not need to mint tokens or add auth code in your game.
+If you want to lock production bootstrap to your deployed site only, set the optional allowed-origin list for the App ID in the dashboard settings.
+
+Before publishing your scaffolded game, run the local checks:
+
+```bash
+pnpm test
+pnpm run typecheck
+pnpm run build
+```
+
+If you are self-hosting the client, keep SPA rewrites enabled so `/controller?room=XXXX` resolves to your app entry.
+
+### Optional: Stronger Signed Host Bootstrap
+
+If you want stricter production ownership guarantees, you can keep the game static and add one small backend or edge endpoint that returns a signed host grant.
+
+Frontend env:
+
+```bash
+VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
+```
+
+Server env:
+
+```bash
+AIR_JAM_HOST_GRANT_SECRET=your_signing_secret
+```
+
+The SDK will fetch the host grant automatically before `host:bootstrap`. Your game code stays unchanged.
+
+Example endpoint shape:
+
+```ts
+import { createHostGrant } from "@air-jam/sdk/protocol";
+
+export async function POST(request: Request) {
+  const { appId } = await request.json();
+
+  const hostGrant = await createHostGrant({
+    secret: process.env.AIR_JAM_HOST_GRANT_SECRET!,
+    claims: {
+      appId,
+      exp: Math.floor(Date.now() / 1000) + 60,
+      origins: ["https://your-game.example"],
+    },
+  });
+
+  return Response.json({ hostGrant });
+}
+```
+
+That endpoint is also where you can add your own rules, for example checking the signed-in user or limiting which app IDs they are allowed to bootstrap.
+
+## 6. Publish A Hosted Arcade Release
+
+The official Arcade hosting lane is now artifact-based. Self-hosted URLs are still useful for private preview, but public Arcade hosting should use a hosted release artifact.
+
+1. Build a hosted bundle from your project root:
+
+```bash
+pnpm exec airjam release bundle --dir .
+```
+
+That command:
+
+- runs your build script
+- bundles the static output from `dist/`
+- writes `.airjam/release-manifest.json`
+- creates a hosted release zip under `.airjam/releases/<version>/`
+
+The scaffolded `release:bundle` script wraps `airjam release bundle --dir .` for you.
+
+The hosted artifact contract is fixed:
+
+- host entry at `/`
+- controller entry at `/controller`
+
+2. Go to your game's **Arcade Releases** page in the [Dashboard](/dashboard).
+3. Upload the generated zip artifact.
+4. Make the validated release live.
+5. Upload managed thumbnail, cover, and preview media in the Dashboard.
+6. Set the game's Arcade visibility to listed.
+
+Your game is now live in the public Arcade on Air Jam-hosted infrastructure.

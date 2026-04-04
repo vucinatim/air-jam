@@ -23,6 +23,18 @@ export default defineConfig([
       },
     },
     extends: [js.configs.recommended, tseslint.configs.recommended],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
   },
   {
     files: ["apps/**/*.{ts,tsx}", "packages/sdk/**/*.{ts,tsx}"],
@@ -44,6 +56,67 @@ export default defineConfig([
     rules: {
       "react-hooks/refs": "off",
       "react-hooks/purity": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: globals.node,
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/**/*.{ts,tsx}"],
+    ignores: [
+      "**/dist/**",
+      "**/src/routes/host-view.tsx",
+      "**/src/routes/controller-view.tsx",
+      "**/src/host/index.tsx",
+      "**/src/controller/index.tsx",
+      "**/src/game/host/index.tsx",
+      "**/src/game/controller/index.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@air-jam/sdk",
+              importNames: ["useAirJamHost", "useAirJamController"],
+              message:
+                "Mount runtime owner hooks only in the host/controller entry files. Child components should use useHostSession() or useControllerSession() instead.",
+            },
+          ],
+        },
+      ],
     },
   },
   // Disable ESLint rules that conflict with Prettier

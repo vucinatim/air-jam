@@ -1,54 +1,34 @@
 import {
-  controllerInputSchema,
-  controllerJoinSchema,
-  controllerLeaveSchema,
-  controllerStateSchema,
-  controllerSystemSchema,
-  ErrorCode,
-  hostCreateRoomSchema,
-  hostJoinAsChildSchema,
-  hostReconnectSchema,
-  hostRegisterSystemSchema,
-  hostRegistrationSchema,
-  PlaySoundEventPayload,
-  SignalPayload,
-  systemLaunchGameSchema,
-  type AirJamActionRpcPayload,
-  type AirJamStateSyncPayload,
+  AIRJAM_DEV_LOG_EVENTS,
   type ClientToServerEvents,
-  type ControllerActionRpcPayload,
-  type ControllerInputEvent,
-  type ControllerJoinedNotice,
-  type ControllerJoinPayload,
-  type ControllerLeavePayload,
-  type ControllerLeftNotice,
-  type ControllerStateMessage,
-  type HostCreateRoomPayload,
-  type HostJoinAsChildPayload,
-  type HostReconnectPayload,
-  type HostRegisterSystemPayload,
-  type HostRegistrationPayload,
-  type HostStateSyncPayload,
   type InterServerEvents,
-  type PlayerProfile,
-  type ServerErrorPayload,
   type ServerToClientEvents,
   type SocketData,
-  type SystemLaunchGamePayload,
 } from "@air-jam/sdk/protocol";
-import Color from "color";
 import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Server, type Socket } from "socket.io";
-import { v4 as uuidv4 } from "uuid";
-import { AuthService, authService } from "./services/auth-service.js";
+import { Server } from "socket.io";
+import { registerSocketHandlers } from "./gateway/register-socket-handlers.js";
+import {
+  AuthService,
+  type HostBootstrapAuthService,
+} from "./services/auth-service.js";
+import { createServerLogger, type ServerLogger } from "./logging/logger.js";
+import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
+import {
+  DevLogCollector,
+  type BrowserLogBatchPayload,
+  type BrowserLogUnloadPayload,
+} from "./logging/dev-log-collector.js";
+import {
+  type RuntimeUsagePublisher,
+} from "./analytics/runtime-usage.js";
+import { createDatabaseRuntimeUsageLedgerPublisher } from "./analytics/runtime-usage-ledger.js";
 import { RateLimitService, rateLimitService } from "./services/rate-limit-service.js";
 import { RoomManager, roomManager } from "./services/room-manager.js";
-import type { ControllerSession, RoomSession } from "./types.js";
-import { generateRoomCode } from "./utils/ids.js";
 
 const parsePositiveInt = (
   value: string | undefined,
@@ -70,10 +50,15 @@ export interface CreateAirJamServerOptions {
   rateLimitWindowMs?: number;
   hostRegistrationRateLimitMax?: number;
   controllerJoinRateLimitMax?: number;
+  staticAppRateLimitMax?: number;
   allowedOrigins?: string[] | "*";
-  authService?: AuthService;
+  logger?: ServerLogger;
+  authService?: HostBootstrapAuthService;
+  runtimeUsagePublisher?: RuntimeUsagePublisher;
   rateLimitService?: RateLimitService;
   roomManager?: RoomManager;
+  devLogCollector?: DevLogCollector | false;
+  devLogDir?: string;
 }
 
 export interface AirJamServerRuntime {
@@ -82,6 +67,7 @@ export interface AirJamServerRuntime {
   io: AirJamIoServer;
   start: (portOverride?: number) => Promise<number>;
   stop: () => Promise<void>;
+  flushDevLogs: () => Promise<void>;
   getPort: () => number | null;
 }
 
@@ -109,29 +95,67 @@ const parseAllowedOrigins = (input?: string[] | "*"): string[] | "*" => {
   return allowedOrigins;
 };
 
+const isDevLogCollectorEnabled = (override?: DevLogCollector | false): boolean => {
+  if (override === false) {
+    return false;
+  }
+
+  if (process.env.AIR_JAM_DEV_LOG_COLLECTOR) {
+    return process.env.AIR_JAM_DEV_LOG_COLLECTOR === "enabled";
+  }
+
+  return process.env.NODE_ENV !== "production";
+};
+
 export const createAirJamServer = (
   options: CreateAirJamServerOptions = {},
 ): AirJamServerRuntime => {
   let activePort: number | null = null;
 
-  // Throttling variables for logging
-  let lastServerInputLogTime = 0;
-  let lastServerInputFailLogTime = 0;
-
+  const devLogCollector =
+    options.devLogCollector === false
+      ? null
+      : options.devLogCollector ??
+        new DevLogCollector({
+          enabled: isDevLogCollectorEnabled(options.devLogCollector),
+          logDir:
+            options.devLogDir ??
+            process.env.AIR_JAM_DEV_LOG_DIR ??
+            resolveDefaultDevLogDir(),
+        });
+  const logger =
+    options.logger ??
+    createServerLogger({ service: "air-jam-server" }, undefined, devLogCollector);
   const roomManagerInstance = options.roomManager ?? roomManager;
   const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
-  const authServiceInstance = options.authService ?? authService;
+  const authServiceInstance =
+    options.authService ?? new AuthService({ logger: logger.child({ component: "auth" }) });
+  const runtimeUsagePublisher =
+    options.runtimeUsagePublisher ??
+    createDatabaseRuntimeUsageLedgerPublisher(
+      logger.child({ component: "analytics" }),
+    );
+  const startupConfigurationError =
+    typeof authServiceInstance.getStartupConfigurationError === "function"
+      ? authServiceInstance.getStartupConfigurationError()
+      : null;
+  if (startupConfigurationError) {
+    throw new Error(startupConfigurationError);
+  }
 
   const defaultPort = Number(process.env.PORT ?? 4000);
-  const RATE_LIMIT_WINDOW_MS =
+  const rateLimitWindowMs =
     options.rateLimitWindowMs ??
     parsePositiveInt(process.env.AIR_JAM_RATE_LIMIT_WINDOW_MS, 60_000);
-  const HOST_REGISTRATION_RATE_LIMIT_MAX =
+  const hostRegistrationRateLimitMax =
     options.hostRegistrationRateLimitMax ??
     parsePositiveInt(process.env.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX, 30);
-  const CONTROLLER_JOIN_RATE_LIMIT_MAX =
+  const controllerJoinRateLimitMax =
     options.controllerJoinRateLimitMax ??
     parsePositiveInt(process.env.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX, 120);
+  const staticAppRateLimitMax =
+    options.staticAppRateLimitMax ??
+    parsePositiveInt(process.env.AIR_JAM_STATIC_APP_RATE_LIMIT_MAX, 120);
   const corsOrigin = parseAllowedOrigins(options.allowedOrigins);
 
   const app = express();
@@ -142,6 +166,71 @@ export const createAirJamServer = (
     res.json({ ok: true });
   });
 
+  app.post("/__airjam/dev/browser-logs", async (req, res) => {
+    if (!devLogCollector?.enabled) {
+      res.status(404).json({ ok: false });
+      return;
+    }
+
+    const payload = req.body as BrowserLogBatchPayload | undefined;
+    if (
+      !payload ||
+      (payload.mode !== "reset" && payload.mode !== "append") ||
+      typeof payload.sessionId !== "string" ||
+      !payload.sessionId ||
+      !Array.isArray(payload.entries) ||
+      payload.entries.length === 0 ||
+      typeof payload.metadata !== "object" ||
+      payload.metadata === null
+    ) {
+      res.status(400).json({ ok: false, message: "Invalid browser log payload" });
+      return;
+    }
+
+    devLogCollector.enqueueBrowserBatch(payload);
+    res.json({ ok: true });
+  });
+
+  app.post(
+    "/__airjam/dev/browser-unload",
+    express.text({ type: "*/*" }),
+    async (req, res) => {
+      if (!devLogCollector?.enabled) {
+        res.status(404).json({ ok: false });
+        return;
+      }
+
+      if (typeof req.body !== "string" || req.body.trim().length === 0) {
+        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        return;
+      }
+
+      let payload: BrowserLogUnloadPayload | null = null;
+      try {
+        payload = JSON.parse(req.body) as BrowserLogUnloadPayload;
+      } catch {
+        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        return;
+      }
+
+      if (
+        !payload ||
+        typeof payload.sessionId !== "string" ||
+        !payload.sessionId ||
+        typeof payload.metadata !== "object" ||
+        payload.metadata === null ||
+        typeof payload.entry !== "object" ||
+        payload.entry === null
+      ) {
+        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        return;
+      }
+
+      devLogCollector.enqueueBrowserUnload(payload);
+      res.status(204).end();
+    },
+  );
+
   const httpServer = createServer(app);
 
   const io = new Server<
@@ -150,1144 +239,27 @@ export const createAirJamServer = (
     InterServerEvents,
     SocketData
   >(httpServer, {
-    cors: {
-      origin: corsOrigin,
-    },
-    pingInterval: 2000,
-    pingTimeout: 5000,
+    cors: { origin: corsOrigin },
+    // Arcade tab: system host + game iframe share one event loop. Heavy WebGL /
+    // match start can stall the JS thread for several seconds; the default
+    // ~5s ping window drops the master host and tears down the room.
+    pingInterval: 10_000,
+    pingTimeout: 45_000,
   });
 
-  const emitError = (socketId: string, payload: ServerErrorPayload): void => {
-    io.to(socketId).emit("server:error", payload);
-  };
-
-  io.on(
-    "connection",
-    (
-      socket: Socket<
-        ClientToServerEvents,
-        ServerToClientEvents,
-        InterServerEvents,
-        SocketData
-      >,
-    ) => {
-    const isHostAuthorizedForRoom = (roomId: string): boolean => {
-      return roomManagerInstance.getRoomByHostId(socket.id) === roomId;
-    };
-
-    const isControllerAuthorizedForRoom = (
-      roomId: string,
-      controllerId?: string,
-    ): boolean => {
-      const controllerInfo = roomManagerInstance.getControllerInfo(socket.id);
-      if (!controllerInfo || controllerInfo.roomId !== roomId) {
-        return false;
-      }
-      if (controllerId && controllerInfo.controllerId !== controllerId) {
-        return false;
-      }
-      return true;
-    };
-
-    const forwardedFor = socket.handshake.headers["x-forwarded-for"];
-    const socketIdentifier =
-      (typeof forwardedFor === "string" &&
-        forwardedFor.split(",")[0]?.trim()) ||
-      (Array.isArray(forwardedFor) && forwardedFor[0]?.split(",")[0]?.trim()) ||
-      socket.handshake.address ||
-      socket.id;
-
-    const isRateLimited = (bucket: string, limit: number): boolean => {
-      const result = rateLimitServiceInstance.check(
-        `${bucket}:${socketIdentifier}`,
-        limit,
-        RATE_LIMIT_WINDOW_MS,
-      );
-      return !result.allowed;
-    };
-
-    // --- SYSTEM HOST REGISTRATION (Arcade) ---
-    socket.on(
-      "host:registerSystem",
-      async (payload: HostRegisterSystemPayload, callback) => {
-        if (
-          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
-        ) {
-          callback({
-            ok: false,
-            message: "Too many host registration attempts. Please try again.",
-            code: ErrorCode.SERVICE_UNAVAILABLE,
-          });
-          return;
-        }
-
-        const parsed = hostRegisterSystemSchema.safeParse(payload);
-        if (!parsed.success) {
-          callback({
-            ok: false,
-            message: parsed.error.message,
-            code: ErrorCode.INVALID_PAYLOAD,
-          });
-          return;
-        }
-
-        const { roomId, apiKey } = parsed.data;
-
-        // API Key Validation using authServiceInstance
-        const verification = await authServiceInstance.verifyApiKey(apiKey);
-        if (!verification.isVerified) {
-          console.warn(
-            `[server] Unauthorized host registration attempt for room ${roomId}`,
-          );
-          callback({
-            ok: false,
-            message: verification.error,
-            code: ErrorCode.INVALID_API_KEY,
-          });
-          return;
-        }
-
-        let session = roomManagerInstance.getRoom(roomId);
-
-        if (session) {
-          // Reconnect logic for System Host
-          session.masterHostSocketId = socket.id;
-          roomManagerInstance.setRoom(roomId, session);
-        } else {
-          // Create new room
-          console.log(`[server] Creating room ${roomId}`);
-          session = {
-            roomId,
-            masterHostSocketId: socket.id,
-            focus: "SYSTEM",
-            controllers: new Map(),
-            maxPlayers: 32, // Default increased to 32 to allow for observers/queue
-            gameState: "paused",
-          };
-          roomManagerInstance.setRoom(roomId, session);
-        }
-
-        roomManagerInstance.setHostRoom(socket.id, roomId);
-        socket.join(roomId);
-
-        callback({ ok: true, roomId });
-        io.to(roomId).emit("server:roomReady", { roomId });
-      },
-    );
-
-    // --- CREATE ROOM (Server-Issued Room ID) ---
-    socket.on(
-      "host:createRoom",
-      async (
-        payload: HostCreateRoomPayload,
-        callback: (ack: {
-          ok: boolean;
-          roomId?: string;
-          message?: string;
-          code?: ErrorCode | string;
-        }) => void,
-      ) => {
-        if (
-          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
-        ) {
-          callback({
-            ok: false,
-            message: "Too many host registration attempts. Please try again.",
-            code: ErrorCode.SERVICE_UNAVAILABLE,
-          });
-          return;
-        }
-
-        const parsed = hostCreateRoomSchema.safeParse(payload);
-        if (!parsed.success) {
-          callback({
-            ok: false,
-            message: parsed.error.message,
-            code: ErrorCode.INVALID_PAYLOAD,
-          });
-          return;
-        }
-
-        const { maxPlayers, apiKey } = parsed.data;
-
-        // API key validation is always executed; in local/dev mode auth is disabled.
-        const verification = await authServiceInstance.verifyApiKey(apiKey);
-        if (!verification.isVerified) {
-          callback({
-            ok: false,
-            message: verification.error,
-            code: ErrorCode.INVALID_API_KEY,
-          });
-          return;
-        }
-
-        // IDEMPOTENCY: Check if this socket already has a room
-        const existingRoomId = roomManagerInstance.getRoomByHostId(socket.id);
-        if (existingRoomId) {
-          const existingSession = roomManagerInstance.getRoom(existingRoomId);
-          // Verify the socket is still connected and is the master host
-          if (
-            existingSession &&
-            existingSession.masterHostSocketId === socket.id
-          ) {
-            console.log(
-              `[server] Host ${socket.id} already has room ${existingRoomId}, returning existing.`,
-            );
-            callback({ ok: true, roomId: existingRoomId });
-            return;
-          }
-        }
-
-        // Generate unique room ID
-        let roomId: string;
-        let attempts = 0;
-        do {
-          roomId = generateRoomCode();
-          attempts++;
-          if (attempts > 10) {
-            callback({
-              ok: false,
-              message: "Failed to generate unique room ID",
-              code: ErrorCode.CONNECTION_FAILED,
-            });
-            return;
-          }
-        } while (roomManagerInstance.getRoom(roomId));
-
-        // Create new room session
-        const session: RoomSession = {
-          roomId,
-          masterHostSocketId: socket.id,
-          focus: "SYSTEM",
-          controllers: new Map(),
-          maxPlayers: maxPlayers ?? 8,
-          gameState: "paused",
-        };
-
-        roomManagerInstance.setRoom(roomId, session);
-        roomManagerInstance.setHostRoom(socket.id, roomId);
-        socket.join(roomId);
-
-        console.log(`[server] Created room ${roomId} for host ${socket.id}`);
-        callback({ ok: true, roomId });
-        io.to(roomId).emit("server:roomReady", { roomId });
-      },
-    );
-
-    // --- RECONNECT TO ROOM ---
-    socket.on(
-      "host:reconnect",
-      async (
-        payload: HostReconnectPayload,
-        callback: (ack: {
-          ok: boolean;
-          roomId?: string;
-          message?: string;
-          code?: ErrorCode | string;
-        }) => void,
-      ) => {
-        if (
-          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
-        ) {
-          callback({
-            ok: false,
-            message: "Too many host registration attempts. Please try again.",
-            code: ErrorCode.SERVICE_UNAVAILABLE,
-          });
-          return;
-        }
-
-        const parsed = hostReconnectSchema.safeParse(payload);
-        if (!parsed.success) {
-          callback({
-            ok: false,
-            message: parsed.error.message,
-            code: ErrorCode.INVALID_PAYLOAD,
-          });
-          return;
-        }
-
-        const { roomId, apiKey } = parsed.data;
-
-        // API key validation is always executed; in local/dev mode auth is disabled.
-        const verification = await authServiceInstance.verifyApiKey(apiKey);
-        if (!verification.isVerified) {
-          callback({
-            ok: false,
-            message: verification.error,
-            code: ErrorCode.INVALID_API_KEY,
-          });
-          return;
-        }
-
-        const session = roomManagerInstance.getRoom(roomId);
-        if (!session) {
-          callback({
-            ok: false,
-            message: "Room not found",
-            code: ErrorCode.ROOM_NOT_FOUND,
-          });
-          return;
-        }
-
-        // Check if the previous master host socket is still connected
-        const previousMasterSocket = io.sockets.sockets.get(
-          session.masterHostSocketId,
-        );
-        const isPreviousHostConnected =
-          previousMasterSocket?.connected ?? false;
-
-        // Allow reconnect if:
-        // 1. Previous host is not connected (disconnected/reload)
-        // 2. OR this socket is already the master host (reconnection from same client)
-        if (
-          !isPreviousHostConnected ||
-          session.masterHostSocketId === socket.id
-        ) {
-          session.masterHostSocketId = socket.id;
-          roomManagerInstance.setRoom(roomId, session);
-          roomManagerInstance.setHostRoom(socket.id, roomId);
-          socket.join(roomId);
-
-          console.log(
-            `[server] Host ${socket.id} reconnected to room ${roomId}`,
-          );
-          callback({ ok: true, roomId });
-          io.to(roomId).emit("server:roomReady", { roomId });
-        } else {
-          callback({
-            ok: false,
-            message: "Room already has an active host",
-            code: ErrorCode.ALREADY_CONNECTED,
-          });
-        }
-      },
-    );
-
-    // --- LAUNCH GAME (System -> Server) ---
-    socket.on(
-      "system:launchGame",
-      (payload: SystemLaunchGamePayload, callback) => {
-        const parsed = systemLaunchGameSchema.safeParse(payload);
-        if (!parsed.success) {
-          callback({
-            ok: false,
-            message: parsed.error.message,
-            code: ErrorCode.INVALID_PAYLOAD,
-          });
-          return;
-        }
-
-        const { roomId, gameUrl } = parsed.data;
-        const session = roomManagerInstance.getRoom(roomId);
-
-        if (!session) {
-          callback({
-            ok: false,
-            message: "Room not found",
-            code: ErrorCode.ROOM_NOT_FOUND,
-          });
-          return;
-        }
-
-        if (session.masterHostSocketId !== socket.id) {
-          callback({
-            ok: false,
-            message: "Unauthorized: Not System Host",
-            code: ErrorCode.UNAUTHORIZED,
-          });
-          return;
-        }
-
-        // Check if game is already active
-        if (session.childHostSocketId) {
-          callback({
-            ok: false,
-            message: "Game already active",
-            code: ErrorCode.ALREADY_CONNECTED,
-          });
-          return;
-        }
-
-        // Check if a launch is already in progress (joinToken exists but child hasn't joined yet)
-        if (session.joinToken && !session.childHostSocketId) {
-          callback({ ok: true, joinToken: session.joinToken });
-          return;
-        }
-
-        // Generate Join Token
-        const joinToken = uuidv4();
-        session.joinToken = joinToken;
-        session.activeControllerUrl = gameUrl;
-
-        console.log(`[server] Launching game in room ${roomId}`);
-
-        // Broadcast to controllers to load UI
-        io.to(roomId).emit("client:loadUi", { url: gameUrl });
-
-        callback({ ok: true, joinToken });
-      },
-    );
-
-    // --- JOIN AS CHILD (Game -> Server) ---
-    socket.on(
-      "host:joinAsChild",
-      (payload: HostJoinAsChildPayload, callback) => {
-        const parsed = hostJoinAsChildSchema.safeParse(payload);
-        if (!parsed.success) {
-          callback({
-            ok: false,
-            message: parsed.error.message,
-            code: ErrorCode.INVALID_PAYLOAD,
-          });
-          return;
-        }
-
-        const { roomId, joinToken } = parsed.data;
-        const session = roomManagerInstance.getRoom(roomId);
-
-        if (!session) {
-          callback({
-            ok: false,
-            message: "Room not found",
-            code: ErrorCode.ROOM_NOT_FOUND,
-          });
-          return;
-        }
-
-        if (session.joinToken !== joinToken) {
-          console.warn(
-            `[server] Invalid join token for room ${roomId}. Expected ${session.joinToken}, got ${joinToken}`,
-          );
-          callback({
-            ok: false,
-            message: "Invalid Join Token",
-            code: ErrorCode.INVALID_TOKEN,
-          });
-          return;
-        }
-
-        console.log(`[server] Game host joined room ${roomId}`);
-        session.childHostSocketId = socket.id;
-        session.focus = "GAME"; // Auto-focus on join
-
-        roomManagerInstance.setHostRoom(socket.id, roomId);
-        socket.join(roomId);
-
-        // Send initial state to the game
-
-        // Small delay to ensure client is ready to receive events after ack
-        setTimeout(() => {
-          session.controllers.forEach((c) => {
-            const notice: ControllerJoinedNotice = {
-              controllerId: c.controllerId,
-              nickname: c.nickname,
-              player: c.playerProfile,
-            };
-            socket.emit("server:controllerJoined", notice);
-          });
-
-          // Send current game state to the child host
-          const statePayload = {
-            roomId,
-            state: {
-              gameState: session.gameState,
-            },
-          };
-          socket.emit("server:state", statePayload);
-        }, 100);
-
-        callback({ ok: true, roomId });
-      },
-    );
-
-    // --- CLOSE GAME (System -> Server) ---
-    socket.on("system:closeGame", (payload: { roomId: string }) => {
-      const { roomId } = payload;
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) {
-        return;
-      }
-
-      if (session.masterHostSocketId !== socket.id) {
-        return;
-      }
-
-      console.log(`[server] Closing game in room ${roomId}`);
-
-      // Disconnect child host if still connected
-      if (session.childHostSocketId) {
-        const childSocket = io.sockets.sockets.get(session.childHostSocketId);
-        if (childSocket) {
-          childSocket.disconnect(true);
-        }
-      }
-
-      session.focus = "SYSTEM";
-      session.childHostSocketId = undefined;
-      session.joinToken = undefined;
-      session.activeControllerUrl = undefined;
-
-      // Tell controllers to unload UI
-      io.to(roomId).emit("client:unloadUi");
-
-      // Resync player list to master host when returning to SYSTEM focus
-      // This ensures the master host has all players for arcade navigation
-      if (session.masterHostSocketId) {
-        const masterSocket = io.sockets.sockets.get(session.masterHostSocketId);
-        if (masterSocket) {
-          setTimeout(() => {
-            session.controllers.forEach((c) => {
-              const notice: ControllerJoinedNotice = {
-                controllerId: c.controllerId,
-                nickname: c.nickname,
-                player: c.playerProfile,
-              };
-              masterSocket.emit("server:controllerJoined", notice);
-            });
-          }, 100);
-        }
-      }
-    });
-
-    // --- LEGACY/STANDALONE HOST REGISTER ---
-    // Keeping this for standalone development where there is no "System"
-    socket.on(
-      "host:register",
-      async (payload: HostRegistrationPayload, callback) => {
-        if (
-          isRateLimited("host-registration", HOST_REGISTRATION_RATE_LIMIT_MAX)
-        ) {
-          callback({
-            ok: false,
-            message: "Too many host registration attempts. Please try again.",
-            code: ErrorCode.SERVICE_UNAVAILABLE,
-          });
-          return;
-        }
-
-        const parsed = hostRegistrationSchema.safeParse(payload);
-        if (!parsed.success) {
-          callback({
-            ok: false,
-            message: parsed.error.message,
-            code: ErrorCode.INVALID_PAYLOAD,
-          });
-          return;
-        }
-        const { roomId, maxPlayers, apiKey } = parsed.data;
-
-        // API key validation is always executed; in local/dev mode auth is disabled.
-        const verification = await authServiceInstance.verifyApiKey(apiKey);
-        if (!verification.isVerified) {
-          callback({
-            ok: false,
-            message: verification.error,
-            code: ErrorCode.INVALID_API_KEY,
-          });
-          return;
-        }
-
-        // If mode is 'child', we should redirect them to use host:join_as_child if possible,
-        // but for standalone dev, they might use this.
-        // For now, we treat 'host:register' as creating a STANDALONE room or joining as master.
-
-        let session = roomManagerInstance.getRoom(roomId);
-        if (session) {
-          // If room exists, we assume they are taking over or reconnecting as Master
-          session.masterHostSocketId = socket.id;
-          session.focus = "SYSTEM"; // Default to system/master focus
-        } else {
-          console.log(`[server] Creating standalone room ${roomId}`);
-          session = {
-            roomId,
-            masterHostSocketId: socket.id,
-            focus: "SYSTEM",
-            controllers: new Map(),
-            maxPlayers,
-            gameState: "paused",
-          };
-          roomManagerInstance.setRoom(roomId, session);
-        }
-
-        roomManagerInstance.setHostRoom(socket.id, roomId);
-        socket.join(roomId);
-        callback({ ok: true, roomId });
-        io.to(roomId).emit("server:roomReady", { roomId });
-      },
-    );
-
-    socket.on("controller:join", (payload: ControllerJoinPayload, callback) => {
-      if (isRateLimited("controller-join", CONTROLLER_JOIN_RATE_LIMIT_MAX)) {
-        callback({
-          ok: false,
-          message: "Too many join attempts. Please try again.",
-          code: ErrorCode.SERVICE_UNAVAILABLE,
-        });
-        return;
-      }
-
-      const parsed = controllerJoinSchema.safeParse(payload);
-      if (!parsed.success) {
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-      const { roomId, controllerId, nickname } = parsed.data;
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) {
-        callback({
-          ok: false,
-          message: "Room not found",
-          code: ErrorCode.ROOM_NOT_FOUND,
-        });
-        emitError(socket.id, {
-          code: ErrorCode.ROOM_NOT_FOUND,
-          message: "Room not found",
-        });
-        return;
-      }
-
-      // When a controller joins, we usually check maxPlayers.
-      // However, for the ARCADE room, we want to allow MORE players than the game might support,
-      // so they can queue up or watch.
-      // But the current logic enforces `session.maxPlayers`.
-      // If we want to allow "observers" or "queue", we should increase maxPlayers for the Arcade room itself.
-      // The GAME itself (Child Host) might enforce its own player limit logic by ignoring inputs from extra players.
-
-      // For now, let's keep the hard limit on the Room but maybe bump the default.
-      if (session.controllers.size >= session.maxPlayers) {
-        callback({
-          ok: false,
-          message: "Room full",
-          code: ErrorCode.ROOM_FULL,
-        });
-        emitError(socket.id, {
-          code: ErrorCode.ROOM_FULL,
-          message: "Room is full",
-        });
-        return;
-      }
-
-      const existing = session.controllers.get(controllerId);
-      if (existing) {
-        roomManagerInstance.deleteController(existing.socketId);
-      }
-
-      const PLAYER_COLORS = [
-        "#38bdf8",
-        "#a78bfa",
-        "#f472b6",
-        "#34d399",
-        "#fbbf24",
-        "#60a5fa",
-        "#c084fc",
-        "#fb7185",
-        "#4ade80",
-        "#f87171",
-        "#22d3ee",
-        "#a855f7",
-        "#ec4899",
-        "#10b981",
-        "#f59e0b",
-        "#3b82f6",
-        "#8b5cf6",
-        "#ef4444",
-        "#14b8a6",
-        "#f97316",
-      ];
-      const colorHex =
-        PLAYER_COLORS[session.controllers.size % PLAYER_COLORS.length];
-
-      let color: string;
-      try {
-        color = Color(colorHex).hex();
-      } catch {
-        color = Color("#38bdf8").hex();
-      }
-
-      const playerProfile: PlayerProfile = {
-        id: controllerId,
-        label: nickname ?? `Player ${session.controllers.size}`,
-        color,
-      };
-
-      const controllerSession: ControllerSession = {
-        controllerId,
-        nickname,
-        socketId: socket.id,
-        playerProfile,
-      };
-
-      session.controllers.set(controllerId, controllerSession);
-      roomManagerInstance.setController(socket.id, { roomId, controllerId });
-
-      socket.join(roomId);
-
-      const notice: ControllerJoinedNotice = {
-        controllerId,
-        nickname,
-        player: playerProfile,
-      };
-
-      // Emit to Active Host based on Focus
-      io.to(roomManagerInstance.getActiveHostId(session)).emit(
-        "server:controllerJoined",
-        notice,
-      );
-
-      callback({ ok: true, controllerId, roomId });
-
-      const welcomePayload = {
-        controllerId,
-        roomId,
-        player: playerProfile,
-      };
-
-      socket.emit("server:welcome", welcomePayload);
-
-      // Send current game state to the new controller
-      const statePayload = {
-        roomId,
-        state: {
-          gameState: session.gameState,
-        },
-      };
-      socket.emit("server:state", statePayload);
-
-      // IMPORTANT: If a game is already active (activeControllerUrl set),
-      // we must tell the new controller to load the game UI immediately.
-      // We check activeControllerUrl instead of childHostSocketId because the game might be
-      // in the process of loading (launched but not yet connected) or momentarily disconnected.
-      if (session.activeControllerUrl) {
-        socket.emit("client:loadUi", { url: session.activeControllerUrl });
-      }
-
-      console.log(
-        `[server] Controller joined room ${roomId} (${session.controllers.size}/${session.maxPlayers} players)`,
-      );
-    });
-
-    socket.on("controller:leave", (payload: ControllerLeavePayload) => {
-      const parsed = controllerLeaveSchema.safeParse(payload);
-      if (!parsed.success) {
-        return;
-      }
-      const { roomId, controllerId } = parsed.data;
-
-      // Prevent forged leave events from other sockets.
-      if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
-        return;
-      }
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) {
-        return;
-      }
-      session.controllers.delete(controllerId);
-      roomManagerInstance.deleteController(socket.id);
-      const notice: ControllerLeftNotice = { controllerId };
-      io.to(roomManagerInstance.getActiveHostId(session)).emit(
-        "server:controllerLeft",
-        notice,
-      );
-      socket.leave(roomId);
-    });
-
-    socket.on("controller:input", (payload: ControllerInputEvent) => {
-      const now = Date.now();
-
-      // Only log when there's actual user input (not just the loop sending zeros)
-      const input = payload?.input;
-      const hasActiveInput =
-        input &&
-        (input.action === true ||
-          (typeof input.vector === "object" &&
-            input.vector !== null &&
-            (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) >
-              0.01 ||
-              Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
-                0.01)));
-
-      // Throttled logging - only log active input, once per second max
-      if (
-        hasActiveInput &&
-        (!lastServerInputLogTime || now - lastServerInputLogTime > 1000)
-      ) {
-        lastServerInputLogTime = now;
-      }
-
-      // Validate roomId and controllerId, but accept arbitrary input structure
-      const result = controllerInputSchema.safeParse(payload);
-      if (!result.success) {
-        if (
-          !lastServerInputFailLogTime ||
-          now - lastServerInputFailLogTime > 1000
-        ) {
-          lastServerInputFailLogTime = now;
-        }
-        return;
-      }
-
-      const { roomId, controllerId } = result.data;
-
-      // Only the socket that joined this controller can send its input.
-      if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
-        return;
-      }
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) {
-        if (
-          !lastServerInputFailLogTime ||
-          now - lastServerInputFailLogTime > 1000
-        ) {
-          lastServerInputFailLogTime = now;
-        }
-        return;
-      }
-
-      // Route based on FOCUS - pass through arbitrary input to host
-      const targetHostId = roomManagerInstance.getActiveHostId(session);
-      if (targetHostId) {
-        // Only log routing success if throttled
-        if (!lastServerInputLogTime || now - lastServerInputLogTime > 1000) {
-          lastServerInputLogTime = now;
-        }
-        io.to(targetHostId).emit("server:input", result.data);
-      } else {
-        if (
-          !lastServerInputFailLogTime ||
-          now - lastServerInputFailLogTime > 1000
-        ) {
-          lastServerInputFailLogTime = now;
-        }
-      }
-    });
-
-    socket.on("controller:system", (payload) => {
-      const parsed = controllerSystemSchema.safeParse(payload);
-      if (!parsed.success) {
-        return;
-      }
-
-      const { roomId, command } = parsed.data;
-
-      // Only joined controllers from this room can trigger system commands.
-      if (!isControllerAuthorizedForRoom(roomId)) {
-        return;
-      }
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) {
-        return;
-      }
-
-      if (command === "exit") {
-        // Controller wants to exit the game - close the game on the server
-        console.log(`[server] Controller exit request in room ${roomId}`);
-
-        // Disconnect child host if still connected
-        if (session.childHostSocketId) {
-          const childSocket = io.sockets.sockets.get(session.childHostSocketId);
-          if (childSocket) {
-            childSocket.disconnect(true);
-          }
-        }
-
-        // Update session state
-        session.focus = "SYSTEM";
-        session.childHostSocketId = undefined;
-        session.joinToken = undefined;
-        session.activeControllerUrl = undefined;
-        session.gameState = "paused"; // Reset game state on exit
-
-        // Tell all controllers to unload UI
-        io.to(roomId).emit("client:unloadUi");
-
-        // Tell the system host (arcade) to return to browser view
-        if (session.masterHostSocketId) {
-          io.to(session.masterHostSocketId).emit("server:closeChild");
-        }
-      } else if (command === "toggle_pause") {
-        // Toggle game state
-        session.gameState =
-          session.gameState === "playing" ? "paused" : "playing";
-
-        // Broadcast new state to Room (Host + Controllers)
-        const statePayload = {
-          roomId,
-          state: {
-            gameState: session.gameState,
-          },
-        };
-
-        io.to(roomId).emit("server:state", statePayload);
-      }
-    });
-
-    socket.on("host:system", (payload) => {
-      const parsed = controllerSystemSchema.safeParse(payload);
-      if (!parsed.success) {
-        return;
-      }
-
-      const { roomId, command } = parsed.data;
-
-      // Only host sockets for this room can mutate host-controlled system state.
-      if (!isHostAuthorizedForRoom(roomId)) {
-        return;
-      }
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) {
-        return;
-      }
-
-      if (command === "toggle_pause") {
-        // Toggle game state - server is source of truth
-        session.gameState =
-          session.gameState === "playing" ? "paused" : "playing";
-
-        // Broadcast new state to Room (Host + Controllers)
-        const statePayload = {
-          roomId,
-          state: {
-            gameState: session.gameState,
-          },
-        };
-
-        io.to(roomId).emit("server:state", statePayload);
-      }
-    });
-
-    socket.on("host:state", (payload: ControllerStateMessage) => {
-      const result = controllerStateSchema.safeParse(payload);
-      if (!result.success) return;
-
-      const { roomId, state } = result.data;
-      if (!isHostAuthorizedForRoom(roomId)) {
-        return;
-      }
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (session) {
-        // Sync state if provided
-        if (state.gameState) {
-          session.gameState = state.gameState;
-        }
-
-        // Broadcast to all controllers
-        session.controllers.forEach((c) => {
-          io.to(c.socketId).emit("server:state", result.data);
-        });
-
-        // Broadcast to all hosts (system + child) to keep them in sync
-        if (session.masterHostSocketId) {
-          io.to(session.masterHostSocketId).emit("server:state", result.data);
-        }
-        if (session.childHostSocketId) {
-          io.to(session.childHostSocketId).emit("server:state", result.data);
-        }
-      }
-    });
-
-    socket.on("host:signal", (payload: SignalPayload) => {
-      const roomId = roomManagerInstance.getRoomByHostId(socket.id);
-      if (!roomId) return;
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) return;
-
-      if (payload.targetId) {
-        const controller = session.controllers.get(payload.targetId);
-        if (controller) {
-          io.to(controller.socketId).emit("server:signal", payload);
-        }
-      } else {
-        socket.to(roomId).emit("server:signal", payload);
-      }
-    });
-
-    socket.on("host:play_sound", (payload: PlaySoundEventPayload) => {
-      const { roomId, targetControllerId, soundId, volume, loop } = payload;
-
-      if (!isHostAuthorizedForRoom(roomId)) {
-        return;
-      }
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) return;
-
-      const message = { id: soundId, volume, loop };
-
-      if (targetControllerId) {
-        const controller = session.controllers.get(targetControllerId);
-        if (controller) {
-          io.to(controller.socketId).emit("server:playSound", message);
-        }
-      } else {
-        socket.to(roomId).emit("server:playSound", message);
-      }
-    });
-
-    socket.on("controller:play_sound", (payload: PlaySoundEventPayload) => {
-      const { roomId, soundId, volume, loop } = payload;
-
-      if (!isControllerAuthorizedForRoom(roomId)) {
-        return;
-      }
-
-      const session = roomManagerInstance.getRoom(roomId);
-      if (!session) return;
-
-      io.to(roomManagerInstance.getActiveHostId(session)).emit("server:playSound", {
-        id: soundId,
-        volume,
-        loop,
-      });
-    });
-
-    // --- STORE SYNC (Host -> Server -> All) ---
-    socket.on("host:state_sync", (payload: HostStateSyncPayload) => {
-      const { roomId, data } = payload;
-      const session = roomManagerInstance.getRoom(roomId);
-
-      // Security: Validate socket.id is a host for this room
-      if (!session) {
-        return;
-      }
-      if (
-        session.masterHostSocketId !== socket.id &&
-        session.childHostSocketId !== socket.id
-      ) {
-        return;
-      }
-
-      // Broadcast to room (Controllers + Other Hosts)
-      const syncPayload: AirJamStateSyncPayload = {
-        roomId,
-        data,
-      };
-      // Use io.to() instead of socket.to() to ensure all sockets in the room receive the broadcast
-      io.to(roomId).emit("airjam:state_sync", syncPayload);
-    });
-
-    // --- ACTION RPC (Controller -> Server -> Host) ---
-    socket.on(
-      "controller:action_rpc",
-      (payload: ControllerActionRpcPayload) => {
-        const { roomId, actionName, args, controllerId } = payload;
-
-        // Never allow internal action names over the network.
-        if (actionName.startsWith("_")) {
-          return;
-        }
-
-        // Only the controller that joined with this socket can call actions.
-        if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
-          return;
-        }
-
-        const session = roomManagerInstance.getRoom(roomId);
-        if (!session) return;
-
-        // Verify controller exists in session.
-        const controllerSession = session.controllers.get(controllerId);
-        if (!controllerSession) {
-          return;
-        }
-
-        // Find the active host.
-        const hostId = roomManagerInstance.getActiveHostId(session);
-        if (hostId) {
-          const rpcPayload: AirJamActionRpcPayload = {
-            actionName,
-            args,
-            controllerId,
-          };
-          io.to(hostId).emit("airjam:action_rpc", rpcPayload);
-        }
-      },
-    );
-
-    socket.on("disconnect", () => {
-      const roomId = roomManagerInstance.getRoomByHostId(socket.id);
-      if (roomId) {
-        const session = roomManagerInstance.getRoom(roomId);
-        if (!session) {
-          roomManagerInstance.deleteHost(socket.id);
-          return;
-        }
-
-        if (socket.id === session.childHostSocketId) {
-          // Child disconnected
-          console.log(`[server] Game host disconnected from room ${roomId}`);
-          session.childHostSocketId = undefined;
-          session.focus = "SYSTEM";
-          session.joinToken = undefined;
-          session.activeControllerUrl = undefined; // Clear active game URL
-
-          // Tell controllers to unload UI
-          io.to(roomId).emit("client:unloadUi");
-
-          // Resync player list to master host when returning to SYSTEM focus
-          // This ensures the master host has all players for arcade navigation
-          if (session.masterHostSocketId) {
-            const masterSocket = io.sockets.sockets.get(
-              session.masterHostSocketId,
-            );
-            if (masterSocket) {
-              setTimeout(() => {
-                session.controllers.forEach((c) => {
-                  const notice: ControllerJoinedNotice = {
-                    controllerId: c.controllerId,
-                    nickname: c.nickname,
-                    player: c.playerProfile,
-                  };
-                  masterSocket.emit("server:controllerJoined", notice);
-                });
-              }, 100);
-            }
-          }
-        } else if (socket.id === session.masterHostSocketId) {
-          // Master disconnected
-          console.log(`[server] Host disconnected from room ${roomId}`);
-
-          setTimeout(() => {
-            const currentSession = roomManagerInstance.getRoom(roomId);
-            if (
-              currentSession &&
-              currentSession.masterHostSocketId === socket.id
-            ) {
-              console.log(`[server] Removing room ${roomId}`);
-              roomManagerInstance.removeRoom(roomId, io, "Host disconnected");
-            }
-          }, 3000);
-        }
-
-        roomManagerInstance.deleteHost(socket.id);
-        return;
-      }
-
-      const controller = roomManagerInstance.getControllerInfo(socket.id);
-      if (controller) {
-        const session = roomManagerInstance.getRoom(controller.roomId);
-        if (session) {
-          session.controllers.delete(controller.controllerId);
-          const notice: ControllerLeftNotice = {
-            controllerId: controller.controllerId,
-          };
-          io.to(roomManagerInstance.getActiveHostId(session)).emit(
-            "server:controllerLeft",
-            notice,
-          );
-        }
-        roomManagerInstance.deleteController(socket.id);
-      }
+  io.on("connection", (socket) => {
+    registerSocketHandlers({
+      io,
+      socket,
+      logger,
+      roomManager: roomManagerInstance,
+      rateLimitService: rateLimitServiceInstance,
+      authService: authServiceInstance,
+      runtimeUsagePublisher,
+      rateLimitWindowMs,
+      hostRegistrationRateLimitMax,
+      controllerJoinRateLimitMax,
+      staticAppRateLimitMax,
     });
   });
 
@@ -1309,7 +281,14 @@ export const createAirJamServer = (
     activePort =
       typeof address === "object" && address?.port ? address.port : resolvedPort;
 
-    console.log(`[air-jam] server listening on http://localhost:${activePort}`);
+    logger.info(
+      {
+        event: AIRJAM_DEV_LOG_EVENTS.server.started,
+        port: activePort,
+        corsOrigin,
+      },
+      `Server listening on http://localhost:${activePort}`,
+    );
     return activePort;
   };
 
@@ -1323,6 +302,11 @@ export const createAirJamServer = (
     });
 
     activePort = null;
+    await devLogCollector?.flush();
+  };
+
+  const flushDevLogs = async (): Promise<void> => {
+    await devLogCollector?.flush();
   };
 
   const getPort = (): number | null => activePort;
@@ -1333,6 +317,7 @@ export const createAirJamServer = (
     io,
     start,
     stop,
+    flushDevLogs,
     getPort,
   };
 };
@@ -1348,7 +333,8 @@ const isMainModule = (() => {
 if (isMainModule) {
   const runtime = createAirJamServer();
   runtime.start().catch((error) => {
-    console.error("[air-jam] failed to start server", error);
+    const logger = createServerLogger({ service: "air-jam-server" });
+    logger.error({ err: error }, "Failed to start server");
     process.exitCode = 1;
   });
 }

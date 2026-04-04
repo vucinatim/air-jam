@@ -1,6 +1,6 @@
 {
   "name": "@air-jam/server",
-  "version": "0.1.4",
+  "version": "1.0.0",
   "description": "Air Jam game server for local development and production",
   "private": false,
   "type": "module",
@@ -26,6 +26,8 @@
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
+    "logs:dev": "tsx scripts/dev-logs.ts",
+    "analytics:rebuild": "tsx scripts/runtime-usage-rebuild.ts",
     "start": "node dist/cli.js",
     "build": "tsup",
     "test": "vitest run --config vitest.config.ts",
@@ -35,12 +37,14 @@
     "prepublishOnly": "node scripts/prepublish.js && pnpm build"
   },
   "dependencies": {
-    "@air-jam/sdk": "^0.1.4",
+    "@air-jam/sdk": "workspace:*",
     "color": "^5.0.3",
+    "commander": "^14.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.0",
     "express": "^4.21.2",
+    "pino": "^10.3.1",
     "postgres": "^3.4.7",
     "socket.io": "^4.8.1",
     "uuid": "^13.0.0",

@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,9 +23,18 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@air-jam/sdk": ["../../packages/sdk/src/index.ts"],
-      "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@content/*": [
+        "../../content/*"
+      ],
+      "@air-jam/sdk": [
+        "../../packages/sdk/src/index.ts"
+      ],
+      "@air-jam/sdk/*": [
+        "../../packages/sdk/src/*"
+      ]
     }
   },
   "include": [
@@ -30,7 +43,13 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-smoke/types/**/*.ts",
+    ".next-smoke/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts",
+    "vitest.config.ts"
+  ]
 }

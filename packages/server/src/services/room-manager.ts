@@ -1,5 +1,6 @@
 import type { RoomCode } from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
+import { markRoomTeardown } from "../domain/room-session-domain.js";
 import type { ControllerIndexEntry, RoomSession } from "../types.js";
 
 /**
@@ -90,12 +91,25 @@ export class RoomManager {
     const session = this.rooms.get(roomId);
     if (!session) return;
 
+    if (session.pendingChildTeardownTimer) {
+      clearTimeout(session.pendingChildTeardownTimer);
+      session.pendingChildTeardownTimer = undefined;
+    }
+
+    markRoomTeardown(session);
+
     // Notify all clients
     io.to(roomId).emit("server:hostLeft", { roomId, reason });
 
     // Clean up controller indices
     session.controllers.forEach((controller) => {
-      this.controllerIndex.delete(controller.socketId);
+      if (controller.pendingDisconnectTimer) {
+        clearTimeout(controller.pendingDisconnectTimer);
+        controller.pendingDisconnectTimer = undefined;
+      }
+      if (controller.socketId) {
+        this.controllerIndex.delete(controller.socketId);
+      }
     });
 
     // Clean up host indices

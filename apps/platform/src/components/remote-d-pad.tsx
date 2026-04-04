@@ -1,5 +1,6 @@
 "use client";
 
+import { triggerLocalHaptic } from "@/lib/local-haptics";
 import {
   ChevronDown,
   ChevronLeft,
@@ -13,6 +14,7 @@ interface RemoteDPadProps {
   onMove: (vector: { x: number; y: number }) => void;
   onConfirm: () => void;
   onConfirmRelease: () => void;
+  hapticsEnabled: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export const RemoteDPad = ({
   onMove,
   onConfirm,
   onConfirmRelease,
+  hapticsEnabled,
 }: RemoteDPadProps) => {
   // Use refs to track state without causing re-renders
   const moveDirRef = useRef<"up" | "down" | "left" | "right" | "none">("none");
@@ -37,11 +40,20 @@ export const RemoteDPad = ({
 
   const handleMove = useCallback(
     (direction: "up" | "down" | "left" | "right" | "none") => {
+      const previousDirection = moveDirRef.current;
+
       // Update ref immediately (no re-render)
       moveDirRef.current = direction;
 
       // Update visual state (causes re-render for UI feedback)
       setMoveDir(direction);
+
+      if (
+        direction !== "none" &&
+        previousDirection !== direction
+      ) {
+        if (hapticsEnabled) triggerLocalHaptic("selection");
+      }
 
       // Call callback immediately with new value
       switch (direction) {
@@ -62,7 +74,7 @@ export const RemoteDPad = ({
           break;
       }
     },
-    [onMove],
+    [hapticsEnabled, onMove],
   );
 
   const handleMoveEnd = useCallback(
@@ -81,12 +93,13 @@ export const RemoteDPad = ({
       setConfirmPressed(pressed);
 
       if (pressed) {
+        if (hapticsEnabled) triggerLocalHaptic("confirm");
         onConfirm();
       } else {
         onConfirmRelease();
       }
     },
-    [onConfirm, onConfirmRelease],
+    [hapticsEnabled, onConfirm, onConfirmRelease],
   );
 
   // SVG Geometry Config
