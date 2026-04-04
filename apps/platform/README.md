@@ -11,7 +11,7 @@ Next.js app for:
 Run the platform from the repo root:
 
 ```bash
-pnpm dev:platform
+node scripts/workspace/cli.mjs service platform
 ```
 
 Platform default URL:
@@ -20,9 +20,9 @@ Platform default URL:
 
 Related local services:
 
-1. `pnpm dev:server` for the realtime server
-2. `pnpm dev:air-capture` for the reference game
-3. `pnpm dev:pong` for the Pong template reference game
+1. `node scripts/workspace/cli.mjs service server` for the realtime server
+2. `pnpm dev -- --game=air-capture` for the reference game
+3. `pnpm dev -- --game=pong` for the Pong template reference game
 
 ## Local Arcade Dev Catalog
 

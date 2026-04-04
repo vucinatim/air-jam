@@ -163,7 +163,7 @@ This is the default day-to-day execution loop for work in this monorepo.
 2. `pnpm lint`
 3. `pnpm test`
 4. `pnpm build`
-5. When touching networking or perf-sensitive server paths, run `pnpm perf:sanity` when relevant.
+5. When touching networking or perf-sensitive server paths, run `node scripts/workspace/cli.mjs perf sanity` when relevant.
 
 ### 5. Template And Scaffold Validation
 
@@ -173,13 +173,13 @@ When touching `create-airjam`, scaffoldable games, or package-boundary behavior:
 2. Do not rely on publish-time mutation of template dependencies or Vite config.
 3. Validate scaffoldable games with `pnpm test:scaffold`.
 4. Validate unpublished-package behavior with `pnpm test:scaffold:tarball`.
-5. If you need local artifacts for another repo, use `pnpm pack:local`.
+5. If you need local artifacts for another repo, use `node scripts/workspace/cli.mjs pack-local`.
 
 ### 6. Legacy Game Migration Proof
 
 When touching SDK/server package-consumer behavior or the release migration proof:
 
-1. Validate the legacy ZeroDays games with `pnpm test:legacy:tarball`.
+1. Validate the legacy ZeroDays games with `node scripts/workspace/cli.mjs legacy validate-tarball`.
 2. Treat failures there as real package-surface regressions, not as optional external-app noise.
 3. Keep the reusable migration recipe in `docs/systems/legacy-game-migration-guide.md`.
 

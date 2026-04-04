@@ -188,7 +188,7 @@ Air Jam is fully open-source and free to use.
 npx create-airjam my-game
 ```
 
-This scaffolds a working Pong game with a local development server, the SDK, and documentation -- including instructions optimized for AI coding assistants. Run `pnpm run dev:server` and `pnpm run dev`, scan the QR code with your phone, and you're playing in under a minute.
+This scaffolds a working Pong game with a local development server, the SDK, and documentation -- including instructions optimized for AI coding assistants. Run `pnpm run dev`, scan the QR code with your phone, and you're playing in under a minute.
 
 **Deploy anywhere.** The free public server at `api.air-jam.app` means you can host your game on Vercel, Netlify, or anywhere that serves a static site. Sign up at [air-jam.app](https://air-jam.app), register your game in the dashboard, and you get an app ID automatically.
 

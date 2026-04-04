@@ -62,7 +62,7 @@ Completed:
 
 1. the concrete migration guide now exists in [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 2. the three legacy ZeroDays games are already on the current bootstrap and route model
-3. repo-owned local tarball validation now proves `code-review`, `last-band-standing`, and `the-office` against packaged SDK/server dependencies via `pnpm test:legacy:tarball`
+3. repo-owned local tarball validation now proves `code-review`, `last-band-standing`, and `the-office` against packaged SDK/server dependencies via `node scripts/workspace/cli.mjs legacy validate-tarball`
 
 ### Priority 4. Canonical Prerelease Execution
 
@@ -218,6 +218,19 @@ Current truth:
    1. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
    2. the imported README was replaced with a repo-native template-safe README
    3. `airjam-template.json` is now `scaffold: true`
+
+### 9. Root Workspace CLI Consolidation
+
+Status: completed baseline  
+Reference: [Root Workspace CLI Consolidation Plan](./archive/root-workspace-cli-consolidation-plan-2026-04-04.md)
+
+Current truth:
+
+1. the root `package.json` script surface is reduced to the canonical repo lifecycle and validation commands
+2. per-game root aliases and other redundant maintenance aliases were removed
+3. monorepo-only orchestration now lives behind one repo-local CLI at `node scripts/workspace/cli.mjs`
+4. workspace-specific scripts and helpers now live under `scripts/workspace/`
+5. `create-airjam` remains focused on public and project-local workflows instead of absorbing monorepo-only commands
    4. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build` is green
    5. `pnpm --filter create-airjam smoke -- --source=workspace --template=last-band-standing` is green
    6. `pnpm --filter create-airjam smoke:tarball -- --template=last-band-standing` is green

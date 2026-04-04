@@ -1,9 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-
-const repoRoot = process.cwd();
-const backupDir = path.join(repoRoot, "backups", "platform");
+import { runCommandResult } from "../lib/shell.mjs";
+import { repoRoot } from "../lib/paths.mjs";
 
 function parseDotenvValue(rawValue) {
   const trimmed = rawValue.trim();
@@ -65,25 +63,8 @@ function resolveDatabaseUrl() {
   return null;
 }
 
-const databaseUrl = resolveDatabaseUrl();
-
-if (!databaseUrl) {
-  console.error(
-    "No DATABASE_URL found. Set it in the environment or in apps/platform/.env.local.",
-  );
-  process.exit(1);
-}
-
-mkdirSync(backupDir, { recursive: true });
-
-const timestamp = new Date()
-  .toISOString()
-  .replace(/[:]/g, "-")
-  .replace(/\.\d{3}Z$/, "Z");
-const outputPath = path.join(backupDir, `platform-${timestamp}.dump`);
-
 function runPgDump(command, args) {
-  return spawnSync(command, args, {
+  return runCommandResult(command, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -99,56 +80,75 @@ function printProcessOutput(result) {
 }
 
 function hasDocker() {
-  const result = spawnSync("docker", ["--version"], {
+  const result = runCommandResult("docker", ["--version"], {
     encoding: "utf8",
     stdio: "ignore",
   });
   return result.status === 0;
 }
 
-let result = runPgDump(
-  "pg_dump",
-  [
-    "--format=custom",
-    "--no-owner",
-    "--no-privileges",
-    "--file",
-    outputPath,
-    databaseUrl,
-  ],
-);
+export const runWorkspacePlatformDbBackupCommand = () => {
+  const backupDir = path.join(repoRoot, "backups", "platform");
+  const databaseUrl = resolveDatabaseUrl();
 
-const versionMismatch =
-  result.status !== 0 &&
-  typeof result.stderr === "string" &&
-  result.stderr.includes("server version mismatch");
+  if (!databaseUrl) {
+    throw new Error(
+      "No DATABASE_URL found. Set it in the environment or in apps/platform/.env.local.",
+    );
+  }
 
-if (versionMismatch && hasDocker()) {
-  printProcessOutput(result);
-  console.log(
-    "Local pg_dump version does not match the server. Retrying with postgres:17 in Docker...",
+  mkdirSync(backupDir, { recursive: true });
+
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:]/g, "-")
+    .replace(/\.\d{3}Z$/, "Z");
+  const outputPath = path.join(backupDir, `platform-${timestamp}.dump`);
+
+  let result = runPgDump(
+    "pg_dump",
+    [
+      "--format=custom",
+      "--no-owner",
+      "--no-privileges",
+      "--file",
+      outputPath,
+      databaseUrl,
+    ],
   );
 
-  result = runPgDump("docker", [
-    "run",
-    "--rm",
-    "-v",
-    `${backupDir}:/backup`,
-    "postgres:17",
-    "pg_dump",
-    "--format=custom",
-    "--no-owner",
-    "--no-privileges",
-    "--file",
-    `/backup/${path.basename(outputPath)}`,
-    databaseUrl,
-  ]);
-}
+  const versionMismatch =
+    result.status !== 0 &&
+    typeof result.stderr === "string" &&
+    result.stderr.includes("server version mismatch");
 
-printProcessOutput(result);
+  if (versionMismatch && hasDocker()) {
+    printProcessOutput(result);
+    console.log(
+      "Local pg_dump version does not match the server. Retrying with postgres:17 in Docker...",
+    );
 
-if (result.status !== 0) {
-  process.exit(result.status ?? 1);
-}
+    result = runPgDump("docker", [
+      "run",
+      "--rm",
+      "-v",
+      `${backupDir}:/backup`,
+      "postgres:17",
+      "pg_dump",
+      "--format=custom",
+      "--no-owner",
+      "--no-privileges",
+      "--file",
+      `/backup/${path.basename(outputPath)}`,
+      databaseUrl,
+    ]);
+  }
 
-console.log(`Platform database backup written to ${outputPath}`);
+  printProcessOutput(result);
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+
+  console.log(`Platform database backup written to ${outputPath}`);
+};

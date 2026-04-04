@@ -161,7 +161,7 @@ pnpm exec air-jam-server logs
 Inside the Air Jam monorepo, the equivalent maintainer command is:
 
 ```bash
-pnpm dev:logs
+node scripts/workspace/cli.mjs logs
 ```
 
 Both commands read the same canonical local observability model.

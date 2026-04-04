@@ -69,10 +69,6 @@ pnpm dev -- --game=code-review
 # Start the stack and also open Drizzle Studio
 pnpm dev -- --db-studio
 
-# Shortcut aliases for common game modes
-pnpm dev:pong
-pnpm dev:code-review
-
 # Stable local Arcade integration testing
 pnpm arcade:test -- --game=code-review
 
@@ -99,13 +95,11 @@ pnpm dev -- --secure --secure-mode=tunnel
 The platform includes the developer portal, game catalog, and documentation:
 
 ```bash
-# Start the platform app plus Drizzle Studio
-pnpm dev:platform
+# Run only the platform app through the internal workspace CLI
+node scripts/workspace/cli.mjs service platform
 
-# Start only the platform app
+# Or run platform-specific commands directly
 pnpm --filter platform dev:no-db
-
-# Start only Drizzle Studio
 pnpm --filter platform dev:db
 ```
 
@@ -134,8 +128,8 @@ NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
 The server handles WebSocket connections for games:
 
 ```bash
-# Start the server (runs on http://localhost:4000)
-pnpm dev:server
+# Start only the server (runs on http://localhost:4000)
+node scripts/workspace/cli.mjs service server
 ```
 
 **Environment Variables** (create `.env` in `packages/server/`):
@@ -159,8 +153,8 @@ If you set `AIR_JAM_AUTH_MODE=required`, the server now fails fast on boot unles
 Reference implementation showcasing SDK capabilities:
 
 ```bash
-# Start the prototype game
-pnpm dev:air-capture
+# Start the workspace stack with air-capture selected
+pnpm dev -- --game=air-capture
 ```
 
 ### Building a Game
@@ -192,14 +186,20 @@ The canonical workflow is:
 - Develop scaffoldable games in-place under `games/`.
 - Use `pnpm test:scaffold` to prove all scaffoldable games export cleanly against local packages.
 - Use `pnpm test:scaffold:tarball` to prove scaffolds work against packed unpublished artifacts.
-- Use `pnpm pack:local` to produce local tarballs under `.airjam/tarballs/`.
+- Use `node scripts/workspace/cli.mjs pack-local` to produce local tarballs under `.airjam/tarballs/`.
 
 Useful local scaffold helpers:
 
 ```bash
-pnpm scaffold:workspace -- my-local-game
-pnpm scaffold:workspace -- my-local-game --template=air-capture
-pnpm scaffold:tarball -- ../scratch/my-airjam-game
+node scripts/workspace/cli.mjs scaffold-local my-local-game --source workspace
+node scripts/workspace/cli.mjs scaffold-local my-local-game --source workspace --template air-capture
+node scripts/workspace/cli.mjs scaffold-local ../scratch/my-airjam-game --source tarball
+```
+
+Repo-only maintenance helpers now live behind the internal workspace CLI:
+
+```bash
+node scripts/workspace/cli.mjs --help
 ```
 
 That keeps game source, scaffold generation, workspace development, and pre-publish
@@ -247,7 +247,7 @@ pnpm smoke:happy-path
 Run a lightweight server benchmark locally (not CI-gated):
 
 ```bash
-pnpm perf:sanity
+node scripts/workspace/cli.mjs perf sanity
 ```
 
 Optional flags:
@@ -316,7 +316,7 @@ pnpm drizzle-kit push
 For prerelease use, Air Jam keeps the backup posture intentionally simple:
 
 ```bash
-pnpm db:backup:platform
+node scripts/workspace/cli.mjs platform db-backup
 ```
 
 This writes a local custom-format `pg_dump` export into `backups/platform/`.
@@ -390,10 +390,10 @@ When the dev log collector is enabled, the server writes the canonical local deb
 Use the built-in viewer to inspect it:
 
 ```bash
-pnpm dev:logs
-pnpm dev:logs -- --follow
-pnpm dev:logs -- --trace=host_abc123
-pnpm dev:logs -- --source=browser --level=warn
+node scripts/workspace/cli.mjs logs
+pnpm exec air-jam-server logs --follow
+pnpm exec air-jam-server logs --trace=host_abc123
+pnpm exec air-jam-server logs --source=browser --level=warn
 ```
 
 ### Game Deployment

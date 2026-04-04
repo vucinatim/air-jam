@@ -352,7 +352,7 @@ Use the repo log sink and existing local workflows during the proof:
    1. `pnpm dev`
 3. canonical local logs:
    1. `.airjam/logs/dev-latest.ndjson`
-   2. `pnpm dev:logs`
+   2. `node scripts/workspace/cli.mjs logs`
 
 ### Done when
 

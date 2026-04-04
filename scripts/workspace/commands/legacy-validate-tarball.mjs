@@ -1,12 +1,9 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, "..");
-const tarballDir = path.join(repoRoot, ".airjam", "tarballs");
+import { repoRoot } from "../lib/paths.mjs";
+import { packWorkspacePackage } from "../lib/packaging.mjs";
+import { runCommand } from "../lib/shell.mjs";
 const legacyGamesRoot = "/Users/timvucina/Desktop/zerodays/air-jam-games";
 
 const legacyGames = [
@@ -23,44 +20,6 @@ const legacyGames = [
     sourceDir: path.join(legacyGamesRoot, "the-office"),
   },
 ];
-
-const run = (command, cwd = repoRoot) => {
-  execSync(command, {
-    cwd,
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      CI: process.env.CI ?? "1",
-      NO_UPDATE_NOTIFIER: "1",
-    },
-  });
-};
-
-const toTarballBaseName = (packageName) =>
-  packageName.replace(/^@/, "").replace(/\//g, "-");
-
-const packWorkspacePackage = (packageDir) => {
-  fs.mkdirSync(tarballDir, { recursive: true });
-
-  const packageJson = JSON.parse(
-    fs.readFileSync(path.join(packageDir, "package.json"), "utf8"),
-  );
-
-  const expectedTarball = `${toTarballBaseName(packageJson.name)}-${packageJson.version}.tgz`;
-  const tarballPath = path.join(tarballDir, expectedTarball);
-
-  if (fs.existsSync(tarballPath)) {
-    fs.unlinkSync(tarballPath);
-  }
-
-  run(`pnpm pack --pack-destination ${JSON.stringify(tarballDir)}`, packageDir);
-
-  if (!fs.existsSync(tarballPath)) {
-    throw new Error(`No tarball produced for package at ${packageDir}`);
-  }
-
-  return tarballPath;
-};
 
 const rewritePackageJsonForTarballs = ({ projectDir, sdkTarball, serverTarball }) => {
   const packageJsonPath = path.join(projectDir, "package.json");
@@ -117,20 +76,20 @@ const validateLegacyGame = ({ game, sdkTarball, serverTarball, tempRoot }) => {
     serverTarball,
   });
 
-  run("pnpm install --no-frozen-lockfile", projectDir);
-  run("pnpm exec air-jam-server logs --help", projectDir);
-  run("pnpm typecheck", projectDir);
+  runCommand("pnpm", ["install", "--no-frozen-lockfile"], { cwd: projectDir });
+  runCommand("pnpm", ["exec", "air-jam-server", "logs", "--help"], { cwd: projectDir });
+  runCommand("pnpm", ["typecheck"], { cwd: projectDir });
 
   if (packageJson.scripts?.["test:run"]) {
-    run("pnpm test:run", projectDir);
+    runCommand("pnpm", ["test:run"], { cwd: projectDir });
   } else if (packageJson.scripts?.test) {
-    run("pnpm test", projectDir);
+    runCommand("pnpm", ["test"], { cwd: projectDir });
   }
 
-  run("pnpm build", projectDir);
+  runCommand("pnpm", ["build"], { cwd: projectDir });
 };
 
-const main = () => {
+export const runWorkspaceLegacyValidateTarballCommand = () => {
   const missing = legacyGames
     .filter((game) => !fs.existsSync(game.sourceDir))
     .map((game) => `${game.name}: ${game.sourceDir}`);
@@ -141,8 +100,8 @@ const main = () => {
     );
   }
 
-  run("pnpm --filter sdk build");
-  run("pnpm --filter server build");
+  runCommand("pnpm", ["--filter", "sdk", "build"]);
+  runCommand("pnpm", ["--filter", "server", "build"]);
 
   const sdkTarball = packWorkspacePackage(path.join(repoRoot, "packages", "sdk"));
   const serverTarball = packWorkspacePackage(path.join(repoRoot, "packages", "server"));
@@ -158,5 +117,3 @@ const main = () => {
     console.log(`- ${game.name}`);
   });
 };
-
-main();

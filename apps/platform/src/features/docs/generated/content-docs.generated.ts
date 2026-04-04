@@ -184,7 +184,7 @@ const generatedContentDocsDocuments = [
         slug: "optional-https-for-motion-sensors",
         depth: 2,
         excerpt:
-          "Most local Air Jam development works on HTTP. Enable HTTPS only when you need secure browser APIs such as gyroscope or motion sensors. One-time Cloudflare login: One-time project secure setup: Run secure dev: This keeps…",
+          "Most local Air Jam development works on HTTP. Enable HTTPS only when you need secure browser APIs such as gyroscope or motion sensors. Install mkcert once on your machine. Initialize secure mode: Run secure dev: This…",
       },
       {
         title: "4. Customize & Build",
@@ -354,7 +354,7 @@ const generatedContentDocsDocuments = [
         slug: "7-query-the-unified-stream",
         depth: 2,
         excerpt:
-          "Scaffolded games should expose: Inside the Air Jam monorepo, the equivalent maintainer command is: Both commands read the same canonical local observability model.",
+          "Scaffolded games should use: Inside the Air Jam monorepo, the equivalent maintainer command is: Both commands read the same canonical local observability model.",
       },
     ],
     loadComponent: () =>
@@ -398,14 +398,14 @@ const generatedContentDocsDocuments = [
         slug: "read-it-two-ways",
         depth: 2,
         excerpt:
-          "1. Preferred: CLI Querying If the project exposes the log viewer command, use it first. Examples: The exact command may vary slightly by repo, but the intended Air Jam workflow is: query the canonical stream with…",
+          "1. Preferred: CLI Querying Use the published server CLI first. Examples: The intended Air Jam workflow is: query the canonical stream with filters narrow to the failing trace, room, controller, or runtime only add…",
       },
       {
         title: "1. Preferred: CLI Querying",
         slug: "1-preferred-cli-querying",
         depth: 3,
         excerpt:
-          "If the project exposes the log viewer command, use it first. Examples: The exact command may vary slightly by repo, but the intended Air Jam workflow is: query the canonical stream with filters narrow to the failing…",
+          "Use the published server CLI first. Examples: The intended Air Jam workflow is: query the canonical stream with filters narrow to the failing trace, room, controller, or runtime only add custom logging if the stream…",
       },
       {
         title: "2. Fallback: Read The File Directly",

@@ -181,7 +181,7 @@ Migration proof is not complete until the migrated game works against local pack
 In this repo the canonical validation command is:
 
 ```bash
-pnpm test:legacy:tarball
+node scripts/workspace/cli.mjs legacy validate-tarball
 ```
 
 What it does:
