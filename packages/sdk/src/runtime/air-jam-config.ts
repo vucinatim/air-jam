@@ -3,6 +3,7 @@ import {
   readRuntimeTopologyFromEnv,
   resolveProjectRuntimeTopology,
   resolveRuntimeTopology,
+  type ProxyStrategy,
   type ResolvedAirJamRuntimeTopology,
   type RuntimeTopologyInput,
   type SurfaceRole,
@@ -31,6 +32,7 @@ export interface AirJamConfig {
   backendOrigin: string;
   socketOrigin: string;
   appOrigin: string;
+  proxyStrategy: ProxyStrategy;
 }
 
 export interface ResolveAirJamConfigInput {
@@ -281,5 +283,6 @@ export const resolveAirJamConfig = ({
     backendOrigin: resolvedTopology.backendOrigin,
     socketOrigin: resolvedTopology.socketOrigin,
     appOrigin: resolvedTopology.appOrigin,
+    proxyStrategy: resolvedTopology.proxyStrategy,
   };
 };

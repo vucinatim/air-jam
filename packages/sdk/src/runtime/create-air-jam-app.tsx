@@ -166,7 +166,9 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   // Install the shared dev sink as early as possible so render-time browser
   // crashes are queued before the provider effect resolves config.
   primeDevBrowserLogSink({
+    appOrigin: initialConfig.appOrigin,
     backendOrigin: initialConfig.backendOrigin,
+    proxyStrategy: initialConfig.proxyStrategy,
     appId: initialConfig.appId,
   });
 

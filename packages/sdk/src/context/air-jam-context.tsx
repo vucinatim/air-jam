@@ -355,7 +355,9 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
 
   useEffect(() => {
     ensureDevBrowserLogSink({
+      appOrigin: config.appOrigin,
       backendOrigin: config.backendOrigin,
+      proxyStrategy: config.proxyStrategy,
       appId: config.appId,
     });
 

@@ -197,4 +197,28 @@ describe("browser log sink", () => {
       ]),
     );
   });
+
+  it("prefers the app origin for proxied runtimes instead of direct backend origin", async () => {
+    const fetchMock = vi.mocked(fetch);
+
+    ensureDevBrowserLogSink({
+      appOrigin: "http://192.168.0.33:3000",
+      backendOrigin: "http://127.0.0.1:4000",
+      proxyStrategy: "platform-proxy",
+      appId: "aj_app_test",
+    });
+
+    window.dispatchEvent(
+      new ErrorEvent("error", {
+        message: "Controller proxy log test",
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "http://192.168.0.33:3000/__airjam/dev/browser-logs",
+    );
+  });
 });

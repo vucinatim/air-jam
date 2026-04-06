@@ -17,6 +17,7 @@ import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
 } from "../runtime/dev-runtime-events";
+import type { ProxyStrategy } from "@air-jam/runtime-topology";
 
 type BrowserLogLevel = "debug" | "info" | "warn" | "error";
 type BrowserLogSource = AirJamDevBrowserLogSource;
@@ -70,6 +71,8 @@ type ConsoleMethodName = "debug" | "info" | "log" | "warn" | "error";
 interface BrowserLogSinkOptions {
   backendOrigin?: string;
   serverUrl?: string;
+  appOrigin?: string;
+  proxyStrategy?: ProxyStrategy;
   appId?: string;
 }
 
@@ -128,7 +131,16 @@ const isDevelopmentRuntime = (): boolean => {
 const resolveEndpointBase = ({
   backendOrigin,
   serverUrl,
-}: Pick<BrowserLogSinkOptions, "backendOrigin" | "serverUrl">): string | null => {
+  appOrigin,
+  proxyStrategy,
+}: Pick<
+  BrowserLogSinkOptions,
+  "backendOrigin" | "serverUrl" | "appOrigin" | "proxyStrategy"
+>): string | null => {
+  if (proxyStrategy && proxyStrategy !== "none") {
+    return (appOrigin ?? resolveDevProxyBaseUrl())?.replace(/\/$/, "") ?? null;
+  }
+
   const explicitOrigin = backendOrigin ?? serverUrl;
   if (!explicitOrigin) {
     return resolveDevProxyBaseUrl();
