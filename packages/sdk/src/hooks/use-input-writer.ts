@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useAirJamContext } from "../context/air-jam-context";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 import { emitAirJamDiagnostic } from "../diagnostics";
 import {
   controllerInputSchema,

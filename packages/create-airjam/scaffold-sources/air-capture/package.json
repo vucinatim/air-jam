@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm exec airjam dev",
+    "topology": "pnpm exec airjam topology",
     "secure:init": "pnpm exec airjam secure:init",
     "build": "tsc -p tsconfig.json && vite build",
     "test": "vitest run",

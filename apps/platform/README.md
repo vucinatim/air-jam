@@ -21,8 +21,8 @@ Platform default URL:
 Related local services:
 
 1. `pnpm run repo -- workspace service server` for the realtime server
-2. `pnpm dev -- --game=air-capture` for the reference game
-3. `pnpm dev -- --game=pong` for the Pong template reference game
+2. `pnpm arcade:dev --game=air-capture` for the live Arcade reference-game path
+3. `pnpm arcade:dev --game=pong` for the live Arcade Pong template path
 
 ## Local Arcade Dev Catalog
 

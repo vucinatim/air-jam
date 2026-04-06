@@ -1,14 +1,16 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { loadEnvFile } from "../../../packages/create-airjam/runtime/dev-utils.mjs";
 import {
-  detectLocalIpv4,
-  loadEnvFile,
-} from "../../../packages/create-airjam/runtime/dev-utils.mjs";
-import {
+  DEFAULT_GAME_PORT,
   DEFAULT_PLATFORM_PORT,
   loadSecureDevState,
   SECURE_MODE_LOCAL,
 } from "../../../packages/create-airjam/runtime/secure-dev.mjs";
+import {
+  buildPlatformShellTopology,
+  serializeResolvedTopology,
+} from "../../../packages/create-airjam/runtime/runtime-topology.mjs";
 import {
   defaultWorkspaceGameId,
   findRepoGame,
@@ -18,6 +20,7 @@ import {
   createWorkspaceProcessGroup,
   reserveWorkspaceResources,
 } from "../lib/workspace-stack.mjs";
+import { resolveWorkspaceArcadeOrigins } from "../lib/workspace-runtime-origins.mjs";
 
 export const runWorkspaceArcadeTestCommand = async ({
   rootDir = process.cwd(),
@@ -32,7 +35,7 @@ export const runWorkspaceArcadeTestCommand = async ({
 
   if (secure && secureMode !== SECURE_MODE_LOCAL) {
     throw new Error(
-      "Tunnel secure mode is not supported for local Arcade integration. Use `pnpm arcade:test -- --game=<id> --secure` for local HTTPS, or direct game dev for tunnel workflows.",
+      "Tunnel secure mode is not supported for local Arcade integration. Use `pnpm arcade:test --game=<id> --secure` for local HTTPS, or direct game dev for tunnel workflows.",
     );
   }
 
@@ -63,23 +66,43 @@ export const runWorkspaceArcadeTestCommand = async ({
         cwd: rootDir,
         mode: SECURE_MODE_LOCAL,
         env: process.env,
-        gamePort: DEFAULT_PLATFORM_PORT,
+        gamePort: DEFAULT_GAME_PORT,
       })
     : null;
-  const lanIp = detectLocalIpv4();
-  const platformUrl = secure
-    ? secureState.platformHost
-    : `http://${lanIp ?? "127.0.0.1"}:${DEFAULT_PLATFORM_PORT}`;
-  const localBuildUrl = `${platformUrl}/airjam-local-builds/${activeGame.id}`;
+  const arcadeOrigins = resolveWorkspaceArcadeOrigins({
+    secure,
+    secureState,
+    gamePort: DEFAULT_GAME_PORT,
+    platformPort: DEFAULT_PLATFORM_PORT,
+  });
+  const localBuildHostUrl = `${arcadeOrigins.hostPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
+  const platformHostTopology = buildPlatformShellTopology({
+    runtimeMode: "arcade-built",
+    surfaceRole: "platform-host",
+    appOrigin: arcadeOrigins.hostPlatformOrigin,
+    publicHost: arcadeOrigins.publicPlatformOrigin,
+    secureTransport: secure,
+  });
+  const platformControllerTopology = buildPlatformShellTopology({
+    runtimeMode: "arcade-built",
+    surfaceRole: "platform-controller",
+    appOrigin: arcadeOrigins.publicPlatformOrigin,
+    publicHost: arcadeOrigins.publicPlatformOrigin,
+    secureTransport: secure,
+  });
   const platformEnv = {
     AIR_JAM_DEV_PROXY_BACKEND_URL: "http://127.0.0.1:4000",
     AIR_JAM_LOCAL_BUILD_ACTIVE_GAME_ID: activeGame.id,
     AIR_JAM_LOCAL_BUILD_ACTIVE_DIST_DIR: path.join(activeGame.dir, "dist"),
-    NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: platformUrl,
+    NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY:
+      serializeResolvedTopology(platformHostTopology),
+    NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY:
+      serializeResolvedTopology(platformControllerTopology),
+    NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: arcadeOrigins.publicPlatformOrigin,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: activeGame.id,
-    NEXT_PUBLIC_APP_URL: platformUrl,
-    BETTER_AUTH_URL: platformUrl,
-    [toLocalReferenceUrlEnvKey(activeGame.id)]: localBuildUrl,
+    NEXT_PUBLIC_APP_URL: arcadeOrigins.publicPlatformOrigin,
+    BETTER_AUTH_URL: arcadeOrigins.publicPlatformOrigin,
+    [toLocalReferenceUrlEnvKey(activeGame.id)]: localBuildHostUrl,
     ...(secureState
       ? {
           AIR_JAM_SECURE_MODE: secureState.mode,

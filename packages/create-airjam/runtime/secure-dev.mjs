@@ -9,6 +9,10 @@ import {
   loadEnvFile,
   upsertEnv,
 } from "./dev-utils.mjs";
+import {
+  buildStandaloneGameTopology,
+  serializeResolvedTopology,
+} from "./runtime-topology.mjs";
 
 export const SECURE_MODE_LOCAL = "local";
 export const SECURE_MODE_TUNNEL = "tunnel";
@@ -396,15 +400,23 @@ export const loadSecureDevState = ({
 export const buildSecureGameEnv = ({
   secureState,
   webOnly,
-  serverUrl = "",
 } = {}) => ({
+  VITE_AIR_JAM_RUNTIME_TOPOLOGY: serializeResolvedTopology(
+    buildStandaloneGameTopology({
+      surfaceRole: "host",
+      publicHost: secureState.publicHost,
+      secureTransport: true,
+    }),
+  ),
   AIR_JAM_SECURE_MODE: secureState.mode,
   AIR_JAM_SECURE_PUBLIC_HOST: secureState.publicHost,
   AIR_JAM_DEV_CERT_FILE: secureState.certFile,
   AIR_JAM_DEV_KEY_FILE: secureState.keyFile,
   AIR_JAM_DEV_PROXY_BACKEND_URL: "http://127.0.0.1:4000",
   VITE_AIR_JAM_PUBLIC_HOST: secureState.publicHost,
-  VITE_AIR_JAM_SERVER_URL: webOnly ? process.env.VITE_AIR_JAM_SERVER_URL ?? serverUrl : serverUrl,
+  ...(webOnly && process.env.VITE_AIR_JAM_SERVER_URL
+    ? { VITE_AIR_JAM_SERVER_URL: process.env.VITE_AIR_JAM_SERVER_URL }
+    : {}),
 });
 
 export const appendNextHttpsArgs = ({

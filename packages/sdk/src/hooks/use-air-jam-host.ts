@@ -29,7 +29,7 @@ import type {
   ToastSignalPayload,
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
 

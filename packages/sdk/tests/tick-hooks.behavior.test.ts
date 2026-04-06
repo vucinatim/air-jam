@@ -9,7 +9,7 @@ const mockedScope = vi.hoisted(() => ({
   useAssertSessionScope: vi.fn(),
 }));
 
-vi.mock("../src/context/session-providers", () => ({
+vi.mock("../src/context/session-scope", () => ({
   useAssertSessionScope: mockedScope.useAssertSessionScope,
 }));
 

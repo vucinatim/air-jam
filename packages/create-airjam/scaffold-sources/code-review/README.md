@@ -20,16 +20,10 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-To run this game inside the shared monorepo stack:
-
-```bash
-pnpm dev -- --game=code-review
-```
-
 To run only this game locally:
 
 ```bash
-pnpm --dir games/code-review dev -- --web-only
+pnpm dev -- --web-only
 ```
 
 ## Scripts
@@ -37,6 +31,7 @@ pnpm --dir games/code-review dev -- --web-only
 - `pnpm dev` starts the local Air Jam server and Vite app
 - `pnpm secure:init` prepares local trusted HTTPS for secure browser APIs
 - `pnpm dev -- --secure` runs the game in secure mode
+- `pnpm topology --mode=standalone-dev` prints the resolved local runtime topology
 - `pnpm exec airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev` enables the optional tunnel fallback
 - `pnpm typecheck` runs the TypeScript project check
 - `pnpm test` runs the lightweight domain tests

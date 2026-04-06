@@ -91,10 +91,10 @@ vi.mock("../src/context/air-jam-context", async () => {
   };
 });
 
-vi.mock("../src/context/session-providers", async () => {
+vi.mock("../src/context/session-scope", async () => {
   const actual =
-    await vi.importActual<typeof import("../src/context/session-providers")>(
-      "../src/context/session-providers",
+    await vi.importActual<typeof import("../src/context/session-scope")>(
+      "../src/context/session-scope",
     );
 
   return {

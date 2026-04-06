@@ -33,7 +33,7 @@ vi.mock("../src/context/air-jam-context", () => ({
   useAirJamContext: mocked.useAirJamContext,
 }));
 
-vi.mock("../src/context/session-providers", () => ({
+vi.mock("../src/context/session-scope", () => ({
   useAssertSessionScope: mocked.useAssertSessionScope,
 }));
 

@@ -51,6 +51,11 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import type {
+  ResolvedAirJamRuntimeTopology,
+  RuntimeTopologyInput,
+  SurfaceRole,
+} from "@air-jam/runtime-topology";
 import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
@@ -88,7 +93,7 @@ import { SocketManager, type AirJamSocket } from "./socket-manager";
  * @example Full configuration
  * ```tsx
  * <HostSessionProvider
- *   serverUrl="wss://your-server.com"
+ *   topology={myTopology}
  *   appId="your-app-id"
  *   hostGrantEndpoint="/api/airjam/host-grant"
  *   maxPlayers={4}
@@ -106,11 +111,10 @@ export interface AirJamProviderProps<
 > {
   /** React children to render within the provider */
   children: ReactNode;
-  /**
-   * WebSocket server URL for AirJam connections.
-   * Falls back to VITE_AIR_JAM_SERVER_URL or NEXT_PUBLIC_AIR_JAM_SERVER_URL environment variables.
-   */
-  serverUrl?: string;
+  /** Explicit runtime topology for this surface. Prefer this over loose endpoint props. */
+  topology?: RuntimeTopologyInput | ResolvedAirJamRuntimeTopology;
+  /** Internal surface-role hint when normalizing legacy endpoint props into topology. */
+  surfaceRole?: SurfaceRole;
   /**
    * App ID for production bootstrap identity.
    * Falls back to VITE_AIR_JAM_APP_ID or NEXT_PUBLIC_AIR_JAM_APP_ID
@@ -134,13 +138,8 @@ export interface AirJamProviderProps<
    */
   hostSessionKind?: HostSessionKind;
   /**
-   * Public hostname for controller URLs.
-   * Useful when your app is behind a proxy or has a different public URL.
-   */
-  publicHost?: string;
-  /**
    * Enable environment-variable fallback resolution for config fields.
-   * Set to false to require explicit `serverUrl` / `appId` / `hostGrantEndpoint` / `publicHost`.
+   * Set to false to require explicit `topology` / `appId` / `hostGrantEndpoint`.
    * @default true
    */
   resolveEnv?: boolean;
@@ -274,12 +273,12 @@ const isDevelopmentRuntime = (): boolean => {
  */
 export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
-  serverUrl,
+  topology,
+  surfaceRole,
   appId,
   hostGrantEndpoint,
   maxPlayers,
   hostSessionKind,
-  publicHost,
   resolveEnv = true,
   input,
 }: AirJamProviderProps<TSchema>) => {
@@ -287,21 +286,21 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   const config = useMemo<AirJamConfig>(
     () =>
       resolveAirJamConfig({
-        serverUrl,
+        topology,
+        surfaceRole,
         appId,
         hostGrantEndpoint,
         maxPlayers,
         hostSessionKind,
-        publicHost,
         resolveEnv,
       }),
     [
-      serverUrl,
+      topology,
+      surfaceRole,
       appId,
       hostGrantEndpoint,
       maxPlayers,
       hostSessionKind,
-      publicHost,
       resolveEnv,
     ],
   );
@@ -319,10 +318,9 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
 
   // Create socket manager (once per provider)
   const socketManager = useMemo(
-    () => new SocketManager(config.serverUrl),
-    // Only recreate if serverUrl changes - intentionally omitting config
-
-    [config.serverUrl],
+    () => new SocketManager(config.socketOrigin),
+    // Only recreate if socketOrigin changes - intentionally omitting config
+    [config.socketOrigin],
   );
 
   // Cleanup on unmount
@@ -340,7 +338,8 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
             message: "Air Jam provider unmounted",
             data: {
               appId: config.appId,
-              serverUrl: config.serverUrl,
+              backendOrigin: config.backendOrigin,
+              socketOrigin: config.socketOrigin,
               href: devWindow.location.href,
               origin: devWindow.location.origin,
               pathname: devWindow.location.pathname,
@@ -352,11 +351,11 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       }
       socketManager.disconnectAll();
     };
-  }, [config.appId, config.serverUrl, socketManager]);
+  }, [config.appId, config.backendOrigin, config.socketOrigin, socketManager]);
 
   useEffect(() => {
     ensureDevBrowserLogSink({
-      serverUrl: config.serverUrl,
+      backendOrigin: config.backendOrigin,
       appId: config.appId,
     });
 
@@ -374,7 +373,8 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
           message: "Air Jam provider mounted",
           data: {
             appId: config.appId,
-            serverUrl: config.serverUrl,
+            backendOrigin: config.backendOrigin,
+            socketOrigin: config.socketOrigin,
             href: devWindow.location.href,
             origin: devWindow.location.origin,
             pathname: devWindow.location.pathname,
@@ -386,7 +386,8 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
               type: AIRJAM_DEV_PROVIDER_MOUNTED,
               payload: {
                 appId: config.appId,
-                serverUrl: config.serverUrl,
+                backendOrigin: config.backendOrigin,
+                socketOrigin: config.socketOrigin,
                 href: devWindow.location.href,
                 origin: devWindow.location.origin,
                 pathname: devWindow.location.pathname,
@@ -399,7 +400,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
         // Best effort only
       }
     }
-  }, [config.serverUrl, config.appId]);
+  }, [config.backendOrigin, config.socketOrigin, config.appId]);
 
   // Stable function references - don't recreate when config changes
   const getSocket = useCallback(

@@ -1,33 +1,22 @@
 import {
-  createContext,
   useCallback,
-  useContext,
-  useEffect,
   useRef,
   type JSX,
 } from "react";
 import type { z } from "zod";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import {
+  RuntimeOwnerRegistryContext,
+  type RuntimeOwnerKind,
+  SessionScopeContext,
+  type SessionScope,
+} from "./session-scope";
+import {
   AirJamProvider,
   type AirJamProviderProps,
 } from "./air-jam-context";
 
-export type SessionScope = "unscoped" | "host" | "controller";
-type RuntimeOwnerKind = "host-runtime" | "controller-runtime";
 type RuntimeOwnerToken = symbol;
-
-interface RuntimeOwnerRegistryValue {
-  claimOwner: (
-    kind: RuntimeOwnerKind,
-    token: RuntimeOwnerToken,
-    hookName: string,
-  ) => () => void;
-}
-
-const SessionScopeContext = createContext<SessionScope>("unscoped");
-const RuntimeOwnerRegistryContext =
-  createContext<RuntimeOwnerRegistryValue | null>(null);
 
 const createScopedSessionProvider = (
   scope: Exclude<SessionScope, "unscoped">,
@@ -48,9 +37,7 @@ const createScopedSessionProvider = (
       >
     >(new Map());
 
-    const claimOwner = useCallback<
-      RuntimeOwnerRegistryValue["claimOwner"]
-    >((kind, token, hookName) => {
+    const claimOwner = useCallback((kind: RuntimeOwnerKind, token: RuntimeOwnerToken, hookName: string) => {
       const existing = runtimeOwnersRef.current.get(kind);
       if (existing && existing.token !== token) {
         throw createAirJamDiagnosticError(
@@ -72,12 +59,17 @@ const createScopedSessionProvider = (
           runtimeOwnersRef.current.delete(kind);
         }
       };
-    }, [scope]);
+    }, []);
 
     return (
       <SessionScopeContext.Provider value={scope}>
         <RuntimeOwnerRegistryContext.Provider value={{ claimOwner }}>
-          <AirJamProvider<TSchema> {...providerProps}>{children}</AirJamProvider>
+          <AirJamProvider<TSchema>
+            {...providerProps}
+            surfaceRole={scope}
+          >
+            {children}
+          </AirJamProvider>
         </RuntimeOwnerRegistryContext.Provider>
       </SessionScopeContext.Provider>
     );
@@ -88,49 +80,5 @@ const createScopedSessionProvider = (
 export const HostSessionProvider = createScopedSessionProvider("host");
 export const ControllerSessionProvider =
   createScopedSessionProvider("controller");
-
-export const useSessionScope = (): SessionScope => {
-  return useContext(SessionScopeContext);
-};
-
-export const useAssertSessionScope = (
-  expectedScope: Exclude<SessionScope, "unscoped">,
-  hookName: string,
-): void => {
-  const scope = useSessionScope();
-  if (scope === expectedScope) {
-    return;
-  }
-
-  const expectedProviderName =
-    expectedScope === "host" ? "HostSessionProvider" : "ControllerSessionProvider";
-  throw createAirJamDiagnosticError(
-    "AJ_SCOPE_MISMATCH",
-    `${hookName} requires ${expectedProviderName} when using scoped providers. Received scope "${scope}".`,
-    {
-      hookName,
-      expectedScope,
-      receivedScope: scope,
-    },
-  );
-};
-
-export const useClaimSessionRuntimeOwner = (
-  kind: RuntimeOwnerKind,
-  hookName: string,
-): void => {
-  const registry = useContext(RuntimeOwnerRegistryContext);
-  const tokenRef = useRef<RuntimeOwnerToken | null>(null);
-  if (!tokenRef.current) {
-    tokenRef.current = Symbol(`${kind}:${hookName}`);
-  }
-
-  useEffect(() => {
-    if (!registry) {
-      return;
-    }
-    return registry.claimOwner(kind, tokenRef.current!, hookName);
-  }, [registry, kind, hookName]);
-};
 
 export type { AirJamProviderProps };

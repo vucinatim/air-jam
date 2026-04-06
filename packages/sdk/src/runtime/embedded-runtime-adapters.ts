@@ -1,3 +1,4 @@
+import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
 import type { RoomCode } from "../protocol";
 import { roomCodeSchema } from "../protocol";
 import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
@@ -13,6 +14,7 @@ import {
 export type EmbeddedHostChildSession = {
   roomId: RoomCode;
   joinUrl?: string;
+  topology: ResolvedAirJamRuntimeTopology;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 };
 
@@ -22,6 +24,7 @@ export type EmbeddedHostChildSession = {
 export type EmbeddedControllerChildSession = {
   roomId: RoomCode;
   controllerId: string;
+  topology: ResolvedAirJamRuntimeTopology;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   playerProfile?: {
     label?: string;
@@ -40,6 +43,7 @@ export const readEmbeddedHostChildSession = (): EmbeddedHostChildSession | null 
   return {
     roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
     joinUrl: raw.joinUrl,
+    topology: raw.topology,
     arcadeSurface: raw.arcadeSurface,
   };
 };
@@ -56,6 +60,7 @@ export const readEmbeddedControllerChildSession =
     return {
       roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
       controllerId: raw.controllerId,
+      topology: raw.topology,
       arcadeSurface: raw.arcadeSurface,
       ...(raw.playerProfile ? { playerProfile: raw.playerProfile } : {}),
     };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAirJamContext } from "../context/air-jam-context";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 import type { SignalPayload, ToastSignalPayload } from "../protocol";
 import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 

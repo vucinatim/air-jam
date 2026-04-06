@@ -177,11 +177,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
         AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeAttached,
         "Embedded host bridge attached",
         "info",
-        {
-          room: snapshot.roomId,
-          capabilityToken: snapshot.capabilityToken,
-          arcadeSurface: snapshot.arcadeSurface,
-        },
+        readChildHostRuntimeParams(),
         {
           connected: snapshot.connected,
           socketId: snapshot.socketId,

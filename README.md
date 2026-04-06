@@ -56,43 +56,61 @@ pnpm install
 
 #### Running The Full Local Stack
 
-The repo has three distinct local workflows:
+The repo has three explicit local workflows:
 
-1. `pnpm dev -- --game=<id>` runs the hybrid workspace stack:
-   SDK watch, server, platform, and the selected game's direct Vite dev server.
-   Use this for fast iteration while keeping the platform alongside the game.
-2. `pnpm arcade:test -- --game=<id>` runs the stable local Arcade integration stack:
+1. `pnpm standalone:dev --game=<id>` runs live standalone workspace dev:
+   SDK watch, server, and the selected game's direct Vite dev server.
+2. `pnpm arcade:dev --game=<id>` runs live Arcade workspace dev:
+   SDK watch, server, platform, and the selected game's direct Vite dev server embedded through Arcade.
+3. `pnpm arcade:test --game=<id>` runs built Arcade validation:
    it builds the selected game and serves that built output through the platform's
    local Arcade route.
-3. `cd games/<id> && pnpm dev -- --secure` runs standalone secure game dev:
-   use this when the game itself needs secure browser APIs outside the built Arcade path.
 
-Use the top-level workspace launcher for the common hybrid flow:
+All of these now resolve through one explicit runtime topology contract instead of each surface guessing from page origin. The canonical fields are:
+
+1. `appOrigin`
+2. `backendOrigin`
+3. `socketOrigin`
+4. `publicHost`
+5. `assetBasePath`
+6. `runtimeMode`
+7. `surfaceRole`
+8. `proxyStrategy`
+
+Use the top-level workspace launcher for the canonical repo flows:
 
 ```bash
-# Start sdk watch, server, platform app, and air-capture
-pnpm dev
+# Start live standalone workspace dev for one repo-owned game
+pnpm standalone:dev --game=pong
+pnpm standalone:dev --game=code-review --secure
 
-# Start the same hybrid workspace stack with a specific repo-owned game
-pnpm dev -- --game=pong
-pnpm dev -- --game=code-review
+# Start live Arcade workspace dev through the platform shell
+pnpm arcade:dev --game=air-capture
+pnpm arcade:dev --game=code-review --secure
 
-# Start the stack and also open Drizzle Studio
-pnpm dev -- --db-studio
+# Start live Arcade workspace dev and also open Drizzle Studio
+pnpm arcade:dev --game=pong --db-studio
 
 # Stable local Arcade integration testing with the built game
-pnpm arcade:test -- --game=code-review
+pnpm arcade:test --game=code-review
 
 # Secure local Arcade integration when a game needs secure browser APIs
 pnpm secure:init
-pnpm arcade:test -- --game=code-review --secure
+pnpm arcade:test --game=code-review --secure
+
+# Inspect the resolved topology for a run mode
+pnpm topology --game=code-review --mode=arcade-built
+
+# Read the canonical unified dev log
+pnpm logs --view=signal
 ```
 
 The output is prefixed by process name, so server logs remain visible in the shared terminal.
-`pnpm dev` intentionally starts the platform app only; run Drizzle Studio explicitly when you need database inspection.
-Use `pnpm dev` for fast hybrid workspace iteration.
+Use `pnpm standalone:dev` when you want the game without the platform shell.
+Use `pnpm arcade:dev` when you want live iteration through the real Arcade shell.
 Use `pnpm arcade:test` when you need the built game running inside real Arcade with host/controller validation.
 Secure local Arcade uses trusted local HTTPS via `mkcert`.
+Use `pnpm topology -- ...` when you need to inspect which origin each surface actually uses.
 
 If you need standalone secure game dev instead of Arcade integration, use the game-local scripts:
 
@@ -106,7 +124,7 @@ If you need tunnel fallback for a standalone game dev server, use the game-local
 
 ```bash
 cd games/code-review
-pnpm secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
+pnpm secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
 pnpm dev -- --secure --secure-mode=tunnel
 ```
 
@@ -233,8 +251,8 @@ If you set `AIR_JAM_AUTH_MODE=required`, the server now fails fast on boot unles
 Reference implementation showcasing SDK capabilities:
 
 ```bash
-# Start the workspace stack with air-capture selected
-pnpm dev -- --game=air-capture
+# Start live Arcade workspace dev with air-capture selected
+pnpm arcade:dev --game=air-capture
 ```
 
 ### Building a Game

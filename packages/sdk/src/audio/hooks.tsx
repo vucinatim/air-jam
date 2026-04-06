@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../context/air-jam-context";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 import type { PlaySoundPayload } from "../protocol";
 import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";

@@ -8,6 +8,7 @@ import prompts from "prompts";
 import yazl from "yazl";
 import { runGameDevCli } from "../runtime/game-dev.mjs";
 import { runSecureInitCli } from "../runtime/secure-dev.mjs";
+import { runProjectTopologyCli } from "../runtime/topology.mjs";
 import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
 import {
   findScaffoldTemplate,
@@ -836,6 +837,21 @@ const buildProgram = () => {
     .option("--tunnel <name>", "Cloudflare tunnel name for secure tunnel mode")
     .action(async () => {
       await runSecureInitCli({
+        argv: normalizeRuntimeCliArgv(process.argv.slice(3)),
+      });
+    });
+
+  program
+    .command("topology")
+    .description("Print the resolved project runtime topology for the current game")
+    .allowUnknownOption(false)
+    .requiredOption(
+      "--mode <mode>",
+      "Topology mode to inspect (standalone-dev, self-hosted-production, hosted-release)",
+    )
+    .option("--secure", "Resolve standalone local topology using trusted local HTTPS", false)
+    .action(async () => {
+      await runProjectTopologyCli({
         argv: normalizeRuntimeCliArgv(process.argv.slice(3)),
       });
     });

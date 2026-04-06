@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import {
   onAirJamDiagnostic,
   resetAirJamDiagnosticsForTests,
@@ -21,12 +22,12 @@ describe("runtime config validation", () => {
     resetAirJamDiagnosticsForTests();
   });
 
-  it("throws actionable error when resolveEnv is disabled and serverUrl is missing", () => {
+  it("throws actionable error when resolveEnv is disabled and topology is missing", () => {
     expect(() =>
       resolveAirJamConfig({
         resolveEnv: false,
       }),
-    ).toThrow("[AirJam][AJ_CONFIG_MISSING_SERVER_URL]");
+    ).toThrow("[AirJam][AJ_CONFIG_MISSING_RUNTIME_TOPOLOGY]");
   });
 
   it("emits actionable error diagnostic in production when app ID is missing", () => {
@@ -40,7 +41,12 @@ describe("runtime config validation", () => {
     });
 
     const resolved = resolveAirJamConfig({
-      serverUrl: "https://api.example.com",
+      topology: resolveRuntimeTopology({
+        runtimeMode: "self-hosted-production",
+        surfaceRole: "host",
+        appOrigin: "https://play.example.com",
+        backendOrigin: "https://api.example.com",
+      }),
     });
 
     expect(resolved.appId).toBeUndefined();
@@ -56,7 +62,12 @@ describe("runtime config validation", () => {
     delete process.env.VITE_AIR_JAM_APP_ID;
 
     const resolved = resolveAirJamConfig({
-      serverUrl: "https://api.example.com",
+      topology: resolveRuntimeTopology({
+        runtimeMode: "self-hosted-production",
+        surfaceRole: "host",
+        appOrigin: "https://play.example.com",
+        backendOrigin: "https://api.example.com",
+      }),
     });
 
     expect(resolved.appId).toBeUndefined();
@@ -68,7 +79,12 @@ describe("runtime config validation", () => {
       "https://example.com/api/airjam/host-grant";
 
     const resolved = resolveAirJamConfig({
-      serverUrl: "https://api.example.com",
+      topology: resolveRuntimeTopology({
+        runtimeMode: "self-hosted-production",
+        surfaceRole: "host",
+        appOrigin: "https://play.example.com",
+        backendOrigin: "https://api.example.com",
+      }),
     });
 
     expect(resolved.hostGrantEndpoint).toBe(
@@ -86,11 +102,16 @@ describe("runtime config validation", () => {
     });
 
     expect(runtime).toEqual({
-      serverUrl: "https://api.example.com",
+      topology: resolveRuntimeTopology({
+        runtimeMode: "self-hosted-production",
+        surfaceRole: "host",
+        appOrigin: "https://play.example.com",
+        backendOrigin: "https://api.example.com",
+        publicHost: "https://play.example.com",
+      }),
       appId: "aj_app_test",
       hostGrantEndpoint: "https://example.com/api/airjam/host-grant",
-      publicHost: "https://play.example.com",
-      resolveEnv: true,
+      resolveEnv: false,
     });
   });
 });

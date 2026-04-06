@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { onAirJamDiagnostic } from "../src/diagnostics";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
@@ -68,10 +69,10 @@ vi.mock("../src/context/air-jam-context", async () => {
   };
 });
 
-vi.mock("../src/context/session-providers", async () => {
+vi.mock("../src/context/session-scope", async () => {
   const actual = await vi.importActual<
-    typeof import("../src/context/session-providers")
-  >("../src/context/session-providers");
+    typeof import("../src/context/session-scope")
+  >("../src/context/session-scope");
 
   return {
     ...actual,
@@ -81,7 +82,13 @@ vi.mock("../src/context/session-providers", async () => {
 });
 
 const PROVIDER_CONFIG = {
-  serverUrl: "http://localhost:3001",
+  topology: resolveRuntimeTopology({
+    runtimeMode: "self-hosted-production",
+    surfaceRole: "host",
+    appOrigin: "http://localhost:3000",
+    backendOrigin: "http://localhost:3001",
+    publicHost: "http://localhost:3000",
+  }),
   appId: "test_app_id",
 };
 

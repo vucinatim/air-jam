@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 
 export interface HostTickInfo {
   now: number;

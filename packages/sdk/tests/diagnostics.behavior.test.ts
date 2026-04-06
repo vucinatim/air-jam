@@ -3,7 +3,7 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useAirJamContext } from "../src/context/air-jam-context";
-import { useAssertSessionScope } from "../src/context/session-providers";
+import { useAssertSessionScope } from "../src/context/session-scope";
 import {
   onAirJamDiagnostic,
   resetAirJamDiagnosticsForTests,

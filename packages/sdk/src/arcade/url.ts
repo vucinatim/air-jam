@@ -1,3 +1,5 @@
+import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
+import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
 import {
   arcadeSurfaceRuntimeUrlParams,
   type ArcadeSurfaceRuntimeIdentity,
@@ -21,12 +23,14 @@ export const buildArcadeGameIframeSrc = ({
   roomId,
   launchCapability,
   joinUrl,
+  topology,
   arcadeSurface,
 }: {
   normalizedUrl: string;
   roomId: string;
   launchCapability: ChildHostCapability;
   joinUrl?: string | null;
+  topology: ResolvedAirJamRuntimeTopology;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }): string | null =>
   appendRuntimeQueryParams(normalizedUrl, {
@@ -34,5 +38,6 @@ export const buildArcadeGameIframeSrc = ({
     aj_cap: launchCapability.token,
     aj_cap_exp: String(launchCapability.expiresAt),
     aj_join_url: joinUrl,
+    ...runtimeTopologyToQueryParams(topology),
     ...arcadeSurfaceRuntimeUrlParams(arcadeSurface),
   });

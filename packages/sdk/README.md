@@ -79,11 +79,11 @@ If a component only needs replicated host session state, prefer
 `useAirJamHostState(selector)` to avoid rerendering on unrelated runtime fields.
 
 ```tsx
-import { AirJamHostRuntime, useAirJamHost } from "@air-jam/sdk";
+import { AirJamHostRuntime, env, useAirJamHost } from "@air-jam/sdk";
 
 const HostShell = () => (
   <AirJamHostRuntime
-    serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
+    topology={env.vite(import.meta.env).topology}
     appId={import.meta.env.VITE_AIR_JAM_APP_ID}
     input={{ schema: inputSchema }}
     onPlayerJoin={(player) => console.log("joined", player.id)}
@@ -156,6 +156,7 @@ updates.
 ```tsx
 import {
   AirJamControllerRuntime,
+  env,
   useAirJamController,
   useControllerTick,
   useInputWriter,
@@ -163,7 +164,7 @@ import {
 
 const ControllerShell = () => (
   <AirJamControllerRuntime
-    serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
+    topology={env.vite(import.meta.env).topology}
     appId={import.meta.env.VITE_AIR_JAM_APP_ID}
     nickname="Player 1"
   >

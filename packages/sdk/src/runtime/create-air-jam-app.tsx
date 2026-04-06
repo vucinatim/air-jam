@@ -1,5 +1,9 @@
 import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
+import type {
+  ResolvedAirJamRuntimeTopology,
+} from "@air-jam/runtime-topology";
+import { resolveProjectRuntimeTopology } from "@air-jam/runtime-topology";
 import { CONTROLLER_PATH } from "../constants";
 import { primeDevBrowserLogSink } from "../dev/browser-log-sink";
 import {
@@ -60,6 +64,8 @@ const resolveControllerPath = (controllerPath?: string): string => {
 };
 
 export interface ViteEnvLike {
+  DEV?: boolean;
+  VITE_AIR_JAM_RUNTIME_TOPOLOGY?: string;
   VITE_AIR_JAM_SERVER_URL?: string;
   VITE_AIR_JAM_APP_ID?: string;
   VITE_AIR_JAM_HOST_GRANT_ENDPOINT?: string;
@@ -79,6 +85,8 @@ const toViteEnvLike = (source?: ViteEnvSource): ViteEnvLike | undefined => {
   };
 
   return {
+    DEV: source.DEV === true,
+    VITE_AIR_JAM_RUNTIME_TOPOLOGY: readString("VITE_AIR_JAM_RUNTIME_TOPOLOGY"),
     VITE_AIR_JAM_SERVER_URL: readString("VITE_AIR_JAM_SERVER_URL"),
     VITE_AIR_JAM_APP_ID: readString("VITE_AIR_JAM_APP_ID"),
     VITE_AIR_JAM_HOST_GRANT_ENDPOINT: readString(
@@ -107,12 +115,34 @@ export const env = {
   }),
   vite: (viteEnvInput?: ViteEnvSource): ResolveAirJamConfigInput => {
     const viteEnv = toViteEnvLike(viteEnvInput) ?? readViteEnv();
+    const explicitTopology = viteEnv?.VITE_AIR_JAM_RUNTIME_TOPOLOGY
+      ? (JSON.parse(viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY) as ResolvedAirJamRuntimeTopology)
+      : null;
+    const projectTopology =
+      !explicitTopology && viteEnv?.VITE_AIR_JAM_PUBLIC_HOST
+        ? resolveProjectRuntimeTopology({
+            runtimeMode: viteEnv.DEV
+              ? viteEnv.VITE_AIR_JAM_PUBLIC_HOST.startsWith("https://")
+                ? "standalone-secure"
+                : "standalone-dev"
+              : "self-hosted-production",
+            surfaceRole: "host",
+            appOrigin: viteEnv.VITE_AIR_JAM_PUBLIC_HOST,
+            backendOrigin:
+              viteEnv.VITE_AIR_JAM_SERVER_URL ||
+              viteEnv.VITE_AIR_JAM_PUBLIC_HOST,
+            publicHost: viteEnv.VITE_AIR_JAM_PUBLIC_HOST,
+            secureTransport:
+              viteEnv.VITE_AIR_JAM_PUBLIC_HOST.startsWith("https://"),
+          })
+        : null;
     return {
-      serverUrl: viteEnv?.VITE_AIR_JAM_SERVER_URL,
+      ...(explicitTopology || projectTopology
+        ? { topology: explicitTopology ?? projectTopology ?? undefined }
+        : {}),
       appId: viteEnv?.VITE_AIR_JAM_APP_ID,
       hostGrantEndpoint: viteEnv?.VITE_AIR_JAM_HOST_GRANT_ENDPOINT,
-      publicHost: viteEnv?.VITE_AIR_JAM_PUBLIC_HOST,
-      resolveEnv: true,
+      resolveEnv: explicitTopology || projectTopology ? false : true,
     };
   },
   next: (): ResolveAirJamConfigInput => ({
@@ -136,7 +166,7 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   // Install the shared dev sink as early as possible so render-time browser
   // crashes are queued before the provider effect resolves config.
   primeDevBrowserLogSink({
-    serverUrl: initialConfig.serverUrl,
+    backendOrigin: initialConfig.backendOrigin,
     appId: initialConfig.appId,
   });
 

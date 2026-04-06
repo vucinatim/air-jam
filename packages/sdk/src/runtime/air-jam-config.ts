@@ -1,3 +1,12 @@
+import {
+  parseRuntimeTopologyFromSearchParams,
+  readRuntimeTopologyFromEnv,
+  resolveProjectRuntimeTopology,
+  resolveRuntimeTopology,
+  type ResolvedAirJamRuntimeTopology,
+  type RuntimeTopologyInput,
+  type SurfaceRole,
+} from "@air-jam/runtime-topology";
 import { DEFAULT_MAX_PLAYERS } from "../constants";
 import {
   createAirJamDiagnosticError,
@@ -6,25 +15,37 @@ import {
 import type { HostSessionKind } from "../protocol/host";
 
 export interface AirJamConfig {
-  serverUrl?: string;
+  topology: ResolvedAirJamRuntimeTopology;
   appId?: string;
   hostGrantEndpoint?: string;
   maxPlayers: number;
   hostSessionKind: HostSessionKind;
-  publicHost?: string;
+  /**
+   * Deprecated compatibility alias. Prefer `topology.backendOrigin`.
+   */
+  serverUrl: string;
+  /**
+   * Deprecated compatibility alias. Prefer `topology.publicHost`.
+   */
+  publicHost: string;
+  backendOrigin: string;
+  socketOrigin: string;
+  appOrigin: string;
 }
 
 export interface ResolveAirJamConfigInput {
-  serverUrl?: string;
+  topology?: RuntimeTopologyInput | ResolvedAirJamRuntimeTopology;
+  surfaceRole?: SurfaceRole;
   appId?: string;
   hostGrantEndpoint?: string;
   maxPlayers?: number;
   hostSessionKind?: HostSessionKind;
-  publicHost?: string;
   resolveEnv?: boolean;
 }
 
 interface ImportMetaEnv {
+  DEV?: boolean;
+  VITE_AIR_JAM_RUNTIME_TOPOLOGY?: string;
   VITE_AIR_JAM_SERVER_URL?: string;
   VITE_AIR_JAM_APP_ID?: string;
   VITE_AIR_JAM_HOST_GRANT_ENDPOINT?: string;
@@ -56,6 +77,15 @@ const getViteEnv = (): ImportMetaEnv | undefined => {
 
 const getNodeEnvMode = (): string | undefined => {
   return getNodeEnv()?.NODE_ENV;
+};
+
+const isDevelopmentRuntime = (): boolean => {
+  const viteEnv = getViteEnv();
+  if (typeof viteEnv?.DEV === "boolean") {
+    return viteEnv.DEV;
+  }
+
+  return getNodeEnvMode() !== "production";
 };
 
 const getEnvServerUrl = (): string | undefined => {
@@ -126,30 +156,107 @@ const getEnvHostGrantEndpoint = (): string | undefined => {
   return undefined;
 };
 
+const readRuntimeTopologyFromViteEnv = ():
+  | ResolvedAirJamRuntimeTopology
+  | null => {
+  const viteEnv = getViteEnv();
+  if (!viteEnv?.VITE_AIR_JAM_RUNTIME_TOPOLOGY) {
+    return null;
+  }
+
+  return readRuntimeTopologyFromEnv({
+    VITE_AIR_JAM_RUNTIME_TOPOLOGY: viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY,
+  });
+};
+
+const readRuntimeTopologyFromWindow = ():
+  | ResolvedAirJamRuntimeTopology
+  | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return parseRuntimeTopologyFromSearchParams(
+    new URLSearchParams(window.location.search),
+  );
+};
+
+const applySurfaceRoleOverride = (
+  topology: ResolvedAirJamRuntimeTopology | null,
+  surfaceRole?: SurfaceRole,
+): ResolvedAirJamRuntimeTopology | null => {
+  if (!topology || !surfaceRole || topology.surfaceRole === surfaceRole) {
+    return topology;
+  }
+
+  return resolveRuntimeTopology({
+    ...topology,
+    surfaceRole,
+  });
+};
+
+const resolveProjectTopologyFromEnv = (
+  surfaceRole?: SurfaceRole,
+): ResolvedAirJamRuntimeTopology | null => {
+  const effectiveSurfaceRole = surfaceRole ?? "host";
+  if (
+    effectiveSurfaceRole !== "host" &&
+    effectiveSurfaceRole !== "controller"
+  ) {
+    return null;
+  }
+
+  const explicitPublicHost = getEnvPublicHost();
+  const appOrigin =
+    explicitPublicHost ??
+    (typeof window !== "undefined" ? window.location.origin : undefined);
+  if (!appOrigin) {
+    return null;
+  }
+
+  const secureTransport = appOrigin.startsWith("https://");
+  const runtimeMode = isDevelopmentRuntime()
+    ? secureTransport
+      ? "standalone-secure"
+      : "standalone-dev"
+    : "self-hosted-production";
+
+  return resolveProjectRuntimeTopology({
+    runtimeMode,
+    surfaceRole: effectiveSurfaceRole,
+    appOrigin,
+    backendOrigin: getEnvServerUrl() ?? appOrigin,
+    publicHost: explicitPublicHost ?? appOrigin,
+    secureTransport,
+  });
+};
+
 export const resolveAirJamConfig = ({
-  serverUrl,
+  topology,
+  surfaceRole,
   appId,
   hostGrantEndpoint,
   maxPlayers = DEFAULT_MAX_PLAYERS,
   hostSessionKind = "game",
-  publicHost,
   resolveEnv = true,
 }: ResolveAirJamConfigInput): AirJamConfig => {
-  if (!resolveEnv) {
-    if (!serverUrl) {
-      throw createAirJamDiagnosticError(
-        "AJ_CONFIG_MISSING_SERVER_URL",
-        "Missing server URL. Provide `serverUrl` when `resolveEnv` is disabled.",
-      );
-    }
-    return {
-      serverUrl,
-      appId,
-      hostGrantEndpoint,
-      maxPlayers,
-      hostSessionKind,
-      publicHost,
-    };
+  const resolvedTopology = topology
+    ? applySurfaceRoleOverride(resolveRuntimeTopology(topology), surfaceRole)
+    : resolveEnv
+      ? applySurfaceRoleOverride(
+          readRuntimeTopologyFromViteEnv() ??
+            readRuntimeTopologyFromEnv(getNodeEnv()) ??
+            readRuntimeTopologyFromWindow() ??
+            resolveProjectTopologyFromEnv(surfaceRole),
+          surfaceRole,
+        )
+      : null;
+
+  if (!resolvedTopology) {
+    throw createAirJamDiagnosticError(
+      "AJ_CONFIG_MISSING_RUNTIME_TOPOLOGY",
+      "Missing runtime topology. Provide `topology` directly, or enable env resolution with a supported project/runtime mode.",
+    );
   }
 
   const resolvedAppId = appId ?? getEnvAppId();
@@ -164,11 +271,15 @@ export const resolveAirJamConfig = ({
   }
 
   return {
-    serverUrl: serverUrl ?? getEnvServerUrl(),
+    topology: resolvedTopology,
     appId: resolvedAppId,
     hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
     maxPlayers,
     hostSessionKind,
-    publicHost: publicHost ?? getEnvPublicHost(),
+    serverUrl: resolvedTopology.backendOrigin,
+    publicHost: resolvedTopology.publicHost,
+    backendOrigin: resolvedTopology.backendOrigin,
+    socketOrigin: resolvedTopology.socketOrigin,
+    appOrigin: resolvedTopology.appOrigin,
   };
 };

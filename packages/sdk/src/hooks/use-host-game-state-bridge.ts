@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 import type { GameState } from "../protocol";
 
 export interface UseHostGameStateBridgeOptions<TPhase extends string> {

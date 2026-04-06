@@ -1,0 +1,34 @@
+{
+  "name": "@air-jam/runtime-topology",
+  "version": "1.0.0",
+  "description": "Shared Air Jam runtime topology model and resolver",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vucinatim/air-jam.git",
+    "directory": "packages/runtime-topology"
+  },
+  "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "bugs": {
+    "url": "https://github.com/vucinatim/air-jam/issues"
+  },
+  "files": [
+    "index.mjs",
+    "index.d.mts",
+    "index.test.mjs"
+  ],
+  "main": "./index.mjs",
+  "module": "./index.mjs",
+  "types": "./index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    }
+  },
+  "scripts": {
+    "test": "node --test index.test.mjs"
+  }
+}

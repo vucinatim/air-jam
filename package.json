@@ -6,9 +6,12 @@
   "type": "module",
   "scripts": {
     "repo": "node scripts/repo/cli.mjs",
-    "dev": "node scripts/repo/cli.mjs workspace dev",
+    "standalone:dev": "node scripts/repo/cli.mjs workspace standalone:dev",
+    "arcade:dev": "node scripts/repo/cli.mjs workspace arcade:dev",
     "arcade:test": "node scripts/repo/cli.mjs workspace arcade:test",
+    "topology": "node scripts/repo/cli.mjs workspace topology",
     "secure:init": "node scripts/repo/cli.mjs workspace secure:init",
+    "logs": "node scripts/repo/cli.mjs workspace logs",
     "build": "pnpm -r build",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:happy-path",
     "lint": "pnpm -r lint",
@@ -25,6 +28,7 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@air-jam/runtime-topology": "workspace:^",
     "commander": "^14.0.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",

@@ -1,9 +1,11 @@
 "use client";
 
+import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
 import {
   embeddedBridgeForwardShouldClose,
   shouldRejectHostBridgeHandshake,
 } from "@/components/arcade/embedded-bridge-surface-guard";
+import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { cn } from "@/lib/utils";
 import {
   type PlayerProfile,
@@ -72,6 +74,7 @@ interface GamePlayerProps {
   /** Whether to show the default exit button overlay */
   showExitOverlay?: boolean;
   reducedMotion?: boolean;
+  parentTopology: ResolvedAirJamRuntimeTopology;
 }
 
 /**
@@ -92,6 +95,7 @@ export const GamePlayer = ({
   onExit,
   showExitOverlay = false,
   reducedMotion = false,
+  parentTopology,
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hostBridgePortRef = useRef<MessagePort | null>(null);
@@ -186,6 +190,12 @@ export const GamePlayer = ({
     roomId,
     launchCapability,
     joinUrl,
+    topology: buildEmbeddedRuntimeTopology({
+      runtimeMode: parentTopology.runtimeMode as "arcade-live" | "arcade-built",
+      surfaceRole: "host",
+      runtimeUrl: normalizedUrl,
+      parentTopology,
+    }),
     arcadeSurface: arcadeSurfaceRuntimeIdentity,
   });
   const iframeTargetOrigin = getRuntimeUrlOrigin(normalizedUrl);

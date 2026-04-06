@@ -49,7 +49,7 @@ The app itself is a provider wrapping two routes:
 
 ```tsx
 <AirJamProvider
-  serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
+  topology={env.vite(import.meta.env).topology}
   input={{
     schema: gameInputSchema,
     latch: { booleanFields: ["action"] },

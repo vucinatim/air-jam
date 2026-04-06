@@ -1,6 +1,9 @@
 "use client";
 
-import { arcadeInputSchema } from "@/lib/airjam-session-config";
+import {
+  arcadeInputSchema,
+  platformArcadeHostSessionConfig,
+} from "@/lib/airjam-session-config";
 import {
   toggleDocumentFullscreen,
   useDocumentFullscreen,
@@ -1091,6 +1094,7 @@ export const ArcadeSystem = ({
               isVisible={surfaceKind === "game"}
               reducedMotion={reducedMotion}
               arcadeSurfaceRuntimeIdentity={arcadeSurfaceRuntimeIdentity}
+              parentTopology={platformArcadeHostSessionConfig.topology}
               onExit={exitGame}
               showExitOverlay={showGameExitOverlay}
             />

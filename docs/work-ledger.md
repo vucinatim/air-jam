@@ -86,6 +86,7 @@ Active subsystem plan linked from this phase:
 
 1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
 2. [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-modes-plan.md)
+3. [Runtime Topology And Endpoint Contract Plan](./plans/runtime-topology-and-endpoint-contract-plan.md)
 
 Completed baselines now folded into this phase:
 
@@ -139,11 +140,20 @@ Completed baselines now folded into this phase:
    1. platform-owned product surfaces remain under `apps/`
    2. repo-owned first-party games can now live under `games/`
    3. `air-capture` has been moved from `apps/air-capture` to `games/air-capture` as the first clean example of that split
-14. local Arcade now has a cleaner two-mode contract instead of the failed live gateway experiment:
-   1. `pnpm dev` is back to direct live game development with the selected repo game on `:5173`
-   2. `pnpm arcade:test -- --game=<id>` builds the selected game once and serves it through the platform under `/airjam-local-builds/<game>/`
-   3. secure Arcade validation now means `pnpm secure:init` plus `pnpm arcade:test -- --game=<id> --secure`
-   4. repo games still share the SDK router-basename contract so platform-served local build routes stay honest without per-game hacks
+14. repo runtime commands now reflect the real three-mode local contract:
+   1. `pnpm standalone:dev --game=<id>` runs live standalone workspace dev
+   2. `pnpm arcade:dev --game=<id>` runs live Arcade workspace dev
+   3. `pnpm arcade:test --game=<id>` builds the selected game once and serves it through the platform under `/airjam-local-builds/<game>/`
+   4. secure Arcade validation now means `pnpm secure:init` plus `pnpm arcade:test --game=<id> --secure`
+   5. repo games still share the SDK router-basename contract so platform-served local build routes stay honest without per-game hacks
+15. runtime endpoint handling now has one explicit shared contract instead of scattered origin guessing:
+   1. `@air-jam/runtime-topology` is now the shared source of truth for run-mode endpoint modeling
+   2. workspace commands emit explicit shell topologies for platform host/controller surfaces
+   3. embedded Arcade game iframes now receive explicit child-runtime topology in their URL contract
+   4. scaffold/runtime project mode resolution now produces explicit topology internally instead of relying on SDK-side legacy endpoint fallback
+   5. platform shell topology is now produced at boot and consumed as required env, instead of deriving a legacy fallback inside runtime code
+   6. the SDK now separates `backendOrigin` from `socketOrigin` internally instead of treating `serverUrl` as one ambiguous field
+   7. `pnpm topology --game=<id> --mode=<mode> [--secure]` now prints the resolved topology for trust/debugging
 15. Postgres safety and local-dev DB posture are now explicit prerelease baselines:
    1. the repo owns an optional persistent local dev Postgres via `pnpm run repo -- db up`, with data under `.airjam/postgres/dev/`
    2. prerelease can still intentionally point `DATABASE_URL` at production for release-state validation
@@ -218,8 +228,8 @@ Current truth:
    2. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build`
    3. `pnpm --filter the-office typecheck && pnpm --filter the-office build`
 5. repo-owned games now declare a tiny `airjam-template.json` manifest even before template promotion, with `scaffold: false` keeping non-template games out of `create-airjam`
-6. the shared workspace launcher now supports `pnpm dev -- --game=<id>` and can boot any current repo-owned game through the platform/server/sdk stack
-7. `code-review` has already been proven through that shared launcher path with platform on `:3000`, server on `:4000`, and the game on `:5173`
+6. the shared workspace launcher now supports explicit `pnpm standalone:dev --game=<id>` and `pnpm arcade:dev --game=<id>` flows for repo-owned games
+7. `code-review` has already been proven through the shared workspace launcher path with platform on `:3000`, server on `:4000`, and the game on `:5173`
 8. all three imported games now have a first-pass repo-native ownership cleanup:
    1. explicit `host/` and `controller/` entry ownership
    2. clearer `game/domain` or `game/stores` seams where they previously leaked through root-level files
@@ -242,13 +252,13 @@ Reference: [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-mo
 
 Current truth:
 
-1. the repo already has three partially overlapping local runtime stories:
-   1. hybrid workspace dev via `pnpm dev -- --game=<id>`
-   2. built Arcade validation via `pnpm arcade:test -- --game=<id>`
-   3. standalone secure game dev via `cd games/<id> && pnpm dev -- --secure`
+1. the repo now has three explicit local runtime stories:
+   1. live standalone workspace dev via `pnpm standalone:dev --game=<id>`
+   2. live Arcade workspace dev via `pnpm arcade:dev --game=<id>`
+   3. built Arcade validation via `pnpm arcade:test --game=<id>`
+   4. standalone secure game dev via `cd games/<id> && pnpm dev -- --secure`
 2. secure local HTTPS is already the canonical local secure path and already uses Next's `--experimental-https`; the remaining problem is workflow clarity, not basic HTTPS support
-3. the next honest gap is an explicit live Arcade dev mode that embeds the selected live game directly instead of forcing either standalone dev or built Arcade validation
-   3. `airjam-template.json` is now `scaffold: true`
+3. the command surface is now explicit enough that the remaining work is behavioral polish, not naming ambiguity
 
 ### 9. Root Workspace CLI Consolidation
 
@@ -289,7 +299,7 @@ Current truth:
 
 1. trusted local HTTPS via `mkcert` is now the canonical secure-dev path for the repo and exported projects
 2. the shared secure-dev runtime now lives in `packages/create-airjam/runtime/`, not in duplicated per-game helper scripts
-3. root workspace Arcade secure mode now supports `pnpm secure:init` followed by `pnpm arcade:test -- --game=<id> --secure`
+3. root workspace Arcade secure mode now supports `pnpm secure:init` followed by `pnpm arcade:test --game=<id> --secure`
 4. the platform dev app and all scaffoldable games now honor the same `AIR_JAM_DEV_CERT_FILE` / `AIR_JAM_DEV_KEY_FILE` contract
 5. Cloudflare tunnel remains supported only as an explicit fallback mode, not the default teaching path
 6. generated projects no longer ship with `cloudflared` as a default dependency

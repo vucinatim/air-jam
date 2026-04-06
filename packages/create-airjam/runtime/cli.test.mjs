@@ -34,6 +34,14 @@ test("create-airjam exposes secure:init help", () => {
   assert.match(output, /--hostname <hostname>/);
 });
 
+test("create-airjam exposes topology help", () => {
+  const output = runCliHelp("topology");
+
+  assert.match(output, /Usage: airjam topology/);
+  assert.match(output, /--mode <mode>/);
+  assert.match(output, /standalone-dev/);
+});
+
 test("create-airjam keeps ai-pack help", () => {
   const output = runCliHelp("ai-pack", "status");
 

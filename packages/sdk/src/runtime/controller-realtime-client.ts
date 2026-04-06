@@ -260,11 +260,7 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
         AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeAttached,
         "Embedded controller bridge attached",
         "info",
-        {
-          room: snapshot.roomId,
-          controllerId: snapshot.controllerId,
-          arcadeSurface: snapshot.arcadeSurface,
-        },
+        readEmbeddedControllerRuntimeParams(),
         {
           connected: snapshot.connected,
           socketId: snapshot.socketId,

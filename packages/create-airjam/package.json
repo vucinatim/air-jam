@@ -50,6 +50,7 @@
     "prepublishOnly": "node scripts/prepublish.js && pnpm ai-pack:check && pnpm build"
   },
   "dependencies": {
+    "@air-jam/runtime-topology": "workspace:^",
     "commander": "^14.0.0",
     "fs-extra": "^11.3.0",
     "json5": "^2.2.3",

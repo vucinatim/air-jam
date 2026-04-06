@@ -1,4 +1,38 @@
 import type { NextConfig } from "next";
+import {
+  resolveRuntimeTopology,
+  serializeRuntimeTopology,
+} from "@air-jam/runtime-topology";
+
+const resolvedAppUrl = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+const resolvePlatformShellTopologyEnv = (
+  surfaceRole: "platform-host" | "platform-controller",
+) => {
+  const envKey =
+    surfaceRole === "platform-host"
+      ? "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY"
+      : "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY";
+  const existing = process.env[envKey];
+  if (existing?.trim()) {
+    return existing;
+  }
+
+  return serializeRuntimeTopology(
+    resolveRuntimeTopology({
+      runtimeMode: "hosted-release",
+      surfaceRole,
+      appOrigin: resolvedAppUrl,
+      backendOrigin:
+        process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL?.trim() || resolvedAppUrl,
+      publicHost: resolvedAppUrl,
+      secureTransport: resolvedAppUrl.startsWith("https://"),
+      proxyStrategy: "none",
+    }),
+  );
+};
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
@@ -7,9 +41,11 @@ const nextConfig: NextConfig = {
   env: {
     // Expose VERCEL_URL to the client as NEXT_PUBLIC_APP_URL so we can auto-detect the domain
     // VERCEL_URL is automatically set by Vercel (includes custom domains like air-jam.app)
-    NEXT_PUBLIC_APP_URL: process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    NEXT_PUBLIC_APP_URL: resolvedAppUrl,
+    NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY:
+      resolvePlatformShellTopologyEnv("platform-host"),
+    NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY:
+      resolvePlatformShellTopologyEnv("platform-controller"),
     NEXT_PUBLIC_AUTH_GITHUB_ENABLED:
       process.env.NEXT_PUBLIC_AUTH_GITHUB_ENABLED ||
       (process.env.GITHUB_CLIENT_ID ? "true" : "false"),

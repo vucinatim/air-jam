@@ -1,3 +1,4 @@
+import { parseRuntimeTopology } from "@air-jam/runtime-topology";
 import { z } from "zod";
 
 export const arcadeInputSchema = z.object({
@@ -8,27 +9,32 @@ export const arcadeInputSchema = z.object({
   action: z.boolean(),
 });
 
-const resolvePlatformServerUrl = (): string | undefined => {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
+const resolvePlatformTopology = (
+  envKey: "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY" | "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
+) => {
+  const serialized =
+    envKey === "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY"
+      ? process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY
+      : process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY;
+  if (!serialized) {
+    throw new Error(`Missing required platform runtime topology env: ${envKey}.`);
   }
 
-  return process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL;
-};
-
-export const platformRuntimeConfig = {
-  serverUrl: resolvePlatformServerUrl(),
-  appId: process.env.NEXT_PUBLIC_AIR_JAM_APP_ID,
-  hostGrantEndpoint: process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT,
-  publicHost: process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST,
+  return parseRuntimeTopology(serialized);
 };
 
 export const platformControllerSessionConfig = {
-  ...platformRuntimeConfig,
+  topology: resolvePlatformTopology(
+    "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
+  ),
+  appId: process.env.NEXT_PUBLIC_AIR_JAM_APP_ID,
+  hostGrantEndpoint: process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT,
 };
 
 export const platformArcadeHostSessionConfig = {
-  ...platformRuntimeConfig,
+  topology: resolvePlatformTopology("NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY"),
+  appId: process.env.NEXT_PUBLIC_AIR_JAM_APP_ID,
+  hostGrantEndpoint: process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT,
   hostSessionKind: "system" as const,
   input: {
     schema: arcadeInputSchema,

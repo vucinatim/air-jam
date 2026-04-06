@@ -3,6 +3,7 @@
 import { render, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import {
   onAirJamDiagnostic,
   resetAirJamDiagnosticsForTests,
@@ -10,11 +11,17 @@ import {
 import {
   ControllerSessionProvider,
   HostSessionProvider,
-  useClaimSessionRuntimeOwner,
 } from "../src/context/session-providers";
+import { useClaimSessionRuntimeOwner } from "../src/context/session-scope";
 
 const PROVIDER_CONFIG = {
-  serverUrl: "http://localhost:3001",
+  topology: resolveRuntimeTopology({
+    runtimeMode: "self-hosted-production",
+    surfaceRole: "host",
+    appOrigin: "http://localhost:3000",
+    backendOrigin: "http://localhost:3001",
+    publicHost: "http://localhost:3000",
+  }),
   appId: "test_app_id",
 };
 

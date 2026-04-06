@@ -68,6 +68,7 @@ interface BrowserLogUnloadPayload {
 type ConsoleMethodName = "debug" | "info" | "log" | "warn" | "error";
 
 interface BrowserLogSinkOptions {
+  backendOrigin?: string;
   serverUrl?: string;
   appId?: string;
 }
@@ -124,14 +125,23 @@ const isDevelopmentRuntime = (): boolean => {
   return resolveNodeEnvMode() !== "production";
 };
 
-const normalizeServerUrlToHttp = (serverUrl: string): string => {
-  if (serverUrl.startsWith("ws://")) {
-    return `http://${serverUrl.slice(5)}`;
+const resolveEndpointBase = ({
+  backendOrigin,
+  serverUrl,
+}: Pick<BrowserLogSinkOptions, "backendOrigin" | "serverUrl">): string | null => {
+  const explicitOrigin = backendOrigin ?? serverUrl;
+  if (!explicitOrigin) {
+    return resolveDevProxyBaseUrl();
   }
-  if (serverUrl.startsWith("wss://")) {
-    return `https://${serverUrl.slice(6)}`;
+
+  if (explicitOrigin.startsWith("ws://")) {
+    return `http://${explicitOrigin.slice(5)}`.replace(/\/$/, "");
   }
-  return serverUrl;
+  if (explicitOrigin.startsWith("wss://")) {
+    return `https://${explicitOrigin.slice(6)}`.replace(/\/$/, "");
+  }
+
+  return explicitOrigin.replace(/\/$/, "");
 };
 
 const resolveDevProxyBaseUrl = (): string | null => {
@@ -142,23 +152,19 @@ const resolveDevProxyBaseUrl = (): string | null => {
   return window.location.origin.replace(/\/$/, "");
 };
 
-const resolveLogEndpoint = (serverUrl?: string): string | null => {
-  if (!serverUrl) {
-    const proxyBaseUrl = resolveDevProxyBaseUrl();
-    return proxyBaseUrl ? `${proxyBaseUrl}/__airjam/dev/browser-logs` : null;
+const resolveLogEndpoint = (options: BrowserLogSinkOptions): string | null => {
+  const baseUrl = resolveEndpointBase(options);
+  if (!baseUrl) {
+    return null;
   }
-
-  const baseUrl = normalizeServerUrlToHttp(serverUrl).replace(/\/$/, "");
   return `${baseUrl}/__airjam/dev/browser-logs`;
 };
 
-const resolveUnloadEndpoint = (serverUrl?: string): string | null => {
-  if (!serverUrl) {
-    const proxyBaseUrl = resolveDevProxyBaseUrl();
-    return proxyBaseUrl ? `${proxyBaseUrl}/__airjam/dev/browser-unload` : null;
+const resolveUnloadEndpoint = (options: BrowserLogSinkOptions): string | null => {
+  const baseUrl = resolveEndpointBase(options);
+  if (!baseUrl) {
+    return null;
   }
-
-  const baseUrl = normalizeServerUrlToHttp(serverUrl).replace(/\/$/, "");
   return `${baseUrl}/__airjam/dev/browser-unload`;
 };
 
@@ -311,8 +317,8 @@ class BrowserLogSinkRuntime {
 
   update(options: BrowserLogSinkOptions): void {
     const previousEndpoint = this.endpoint;
-    this.endpoint = resolveLogEndpoint(options.serverUrl);
-    this.unloadEndpoint = resolveUnloadEndpoint(options.serverUrl);
+    this.endpoint = resolveLogEndpoint(options);
+    this.unloadEndpoint = resolveUnloadEndpoint(options);
     this.appId = options.appId;
 
     if (

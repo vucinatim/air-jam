@@ -6,20 +6,7 @@ Players join as office workers, move around the floor, complete tasks, take brea
 
 ## Local Development
 
-From the monorepo root, run the shared workspace stack with this game active:
-
-```bash
-pnpm dev -- --game=the-office
-```
-
-That starts:
-
-- the Air Jam SDK watcher
-- the local Air Jam server
-- the platform app on `http://localhost:3000`
-- this game on `http://localhost:5173`
-
-If you want to work from the game directory only:
+Work from the game directory:
 
 ```bash
 pnpm dev
@@ -42,6 +29,7 @@ pnpm dev -- --secure --secure-mode=tunnel
 ## Scripts
 
 - `pnpm dev` starts the local game plus Air Jam server
+- `pnpm topology --mode=standalone-dev` prints the resolved local runtime topology
 - `pnpm exec air-jam-server logs` reads the canonical unified dev log
 - `pnpm typecheck` runs TypeScript without emitting
 - `pnpm test` runs the minimal game-store test suite

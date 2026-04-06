@@ -6,20 +6,7 @@ Players join on their controllers, ready up, and race through timed music rounds
 
 ## Local Development
 
-From this monorepo, run the shared workspace stack with this game active:
-
-```bash
-pnpm dev -- --game=last-band-standing
-```
-
-That starts:
-
-- the Air Jam SDK watcher
-- the local Air Jam server
-- the platform app on `http://localhost:3000`
-- this game on `http://localhost:5173`
-
-If you want to work from the game directory only:
+Work from the game directory:
 
 ```bash
 pnpm dev
@@ -42,6 +29,7 @@ pnpm dev -- --secure --secure-mode=tunnel
 ## Scripts
 
 - `pnpm dev` starts the local game plus Air Jam server
+- `pnpm topology --mode=standalone-dev` prints the resolved local runtime topology
 - `pnpm exec air-jam-server logs` reads the canonical unified dev log
 - `pnpm typecheck` runs TypeScript without emitting
 - `pnpm test` runs Vitest once

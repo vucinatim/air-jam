@@ -1,5 +1,6 @@
 "use client";
 
+import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
 import { useArcadeSurfaceStore } from "@/components/arcade";
 import { useArcadePlatformSettingsStore } from "@/components/arcade/arcade-platform-settings-store";
 import {
@@ -11,6 +12,7 @@ import { ControllerMenuSheet } from "@/components/controller-menu-sheet";
 import { RemoteDPad } from "@/components/remote-d-pad";
 import { Button } from "@/components/ui/button";
 import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
+import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { triggerLocalHaptic } from "@/lib/local-haptics";
 import {
   getControllerLocalProfileClientSnapshot,
@@ -196,6 +198,17 @@ function ControllerPageContent({
       aj_room: controller.roomId,
       ...(labelForEmbed ? { aj_player_label: labelForEmbed } : {}),
       ...(avatarIdForEmbed ? { aj_player_avatar: avatarIdForEmbed } : {}),
+      ...runtimeTopologyToQueryParams(
+        buildEmbeddedRuntimeTopology({
+          runtimeMode:
+            platformControllerSessionConfig.topology.runtimeMode as
+              | "arcade-live"
+              | "arcade-built",
+          surfaceRole: "controller",
+          runtimeUrl: activeUrl,
+          parentTopology: platformControllerSessionConfig.topology,
+        }),
+      ),
       ...(arcadeSurface.kind === "game"
         ? arcadeSurfaceRuntimeUrlParams({
             epoch: arcadeSurface.epoch,

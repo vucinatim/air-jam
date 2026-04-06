@@ -200,13 +200,17 @@ When touching shared secure-dev behavior, local Arcade launch paths, or generate
 
 1. treat `mkcert`-backed local HTTPS as the canonical path
 2. keep the repo workflow split explicit across three modes:
-   `pnpm dev -- --game=<id>` is hybrid workspace dev: sdk watch, server, platform, and the selected game's direct Vite dev server
-   `pnpm arcade:test -- --game=<id>` is built local Arcade integration validation
+   `pnpm standalone:dev --game=<id>` is live standalone workspace dev: sdk watch, server, and the selected game's direct Vite dev server
+   `pnpm arcade:dev --game=<id>` is live Arcade workspace dev: sdk watch, server, platform, and the selected game's direct Vite dev server embedded through Arcade
+   `pnpm arcade:test --game=<id>` is built local Arcade integration validation
    `cd games/<id> && pnpm dev -- --secure` is standalone secure game dev for browser APIs outside the built Arcade route
-3. keep `pnpm arcade:test -- --game=<id> --secure` as the stable secure Arcade integration path
+3. keep `pnpm arcade:test --game=<id> --secure` as the stable secure Arcade integration path
 4. keep exported projects on the direct secure-game contract (`pnpm secure:init` plus `pnpm dev -- --secure`)
 5. keep Cloudflare tunnel support explicit fallback only, not the default docs path
 6. validate scaffolded secure-dev contract changes with `pnpm test:scaffold`
+7. treat runtime topology as the canonical endpoint contract for every mode:
+   `appOrigin`, `backendOrigin`, `socketOrigin`, `publicHost`, `assetBasePath`, `runtimeMode`, `surfaceRole`, and `proxyStrategy`
+8. debug endpoint confusion with `pnpm topology --game=<id> --mode=<mode> [--secure]` before adding more ad hoc logging or new env variables
 
 ### 8. Database Modes
 

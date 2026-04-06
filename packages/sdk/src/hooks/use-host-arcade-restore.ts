@@ -1,7 +1,7 @@
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 import type { HostArcadeSessionSnapshot } from "../protocol";
 
 export interface HostArcadeRestoreStateView {

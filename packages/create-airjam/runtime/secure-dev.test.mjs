@@ -131,7 +131,6 @@ test("buildSecureGameEnv forwards the secure runtime contract", () => {
         keyFile: "/tmp/local-dev-key.pem",
       },
       webOnly: true,
-      serverUrl: "http://127.0.0.1:4000",
     }),
     {
       AIR_JAM_SECURE_MODE: SECURE_MODE_LOCAL,
@@ -140,7 +139,8 @@ test("buildSecureGameEnv forwards the secure runtime contract", () => {
       AIR_JAM_DEV_KEY_FILE: "/tmp/local-dev-key.pem",
       AIR_JAM_DEV_PROXY_BACKEND_URL: "http://127.0.0.1:4000",
       VITE_AIR_JAM_PUBLIC_HOST: "https://192.168.0.20:5173",
-      VITE_AIR_JAM_SERVER_URL: "http://127.0.0.1:4000",
+      VITE_AIR_JAM_RUNTIME_TOPOLOGY:
+        '{"runtimeMode":"standalone-secure","surfaceRole":"host","appOrigin":"https://192.168.0.20:5173","backendOrigin":"http://127.0.0.1:4000","socketOrigin":"https://192.168.0.20:5173","publicHost":"https://192.168.0.20:5173","assetBasePath":"/","secureTransport":true,"embedded":false,"proxyStrategy":"dev-proxy"}',
     },
   );
 });

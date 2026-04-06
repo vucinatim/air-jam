@@ -18,7 +18,7 @@
 import { useCallback } from "react";
 import type { z } from "zod";
 import { useAirJamContext } from "../context/air-jam-context";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 
 /**
  * Lightweight hook for accessing controller input without store subscriptions.

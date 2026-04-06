@@ -30,7 +30,7 @@ import type {
   RoomCode,
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import { useAssertSessionScope } from "../context/session-providers";
+import { useAssertSessionScope } from "../context/session-scope";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
 

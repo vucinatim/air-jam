@@ -5,7 +5,7 @@ import { useAirJamContext } from "../../context/air-jam-context";
 import {
   useAssertSessionScope,
   useClaimSessionRuntimeOwner,
-} from "../../context/session-providers";
+} from "../../context/session-scope";
 import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import type {
   ControllerJoinAck,

@@ -14,6 +14,10 @@ import {
   parseGameDevArgs,
   SECURE_MODE_TUNNEL,
 } from "./secure-dev.mjs";
+import {
+  buildStandaloneGameTopology,
+  serializeResolvedTopology,
+} from "./runtime-topology.mjs";
 
 const START_TIMEOUT_MS = 20_000;
 
@@ -153,16 +157,24 @@ export const runGameDevCli = async ({
           ? buildSecureGameEnv({
               secureState,
               webOnly: args.webOnly,
-              serverUrl: secureState.publicHost,
             })
           : {
+              VITE_AIR_JAM_RUNTIME_TOPOLOGY: serializeResolvedTopology(
+                buildStandaloneGameTopology({
+                  surfaceRole: "host",
+                  publicHost: getDefaultPublicHost(
+                    env,
+                    args.port || DEFAULT_GAME_PORT,
+                  ),
+                }),
+              ),
               VITE_AIR_JAM_PUBLIC_HOST: getDefaultPublicHost(
                 env,
                 args.port || DEFAULT_GAME_PORT,
               ),
-              VITE_AIR_JAM_SERVER_URL: args.webOnly
-                ? env.VITE_AIR_JAM_SERVER_URL ?? ""
-                : "",
+              ...(args.webOnly && env.VITE_AIR_JAM_SERVER_URL
+                ? { VITE_AIR_JAM_SERVER_URL: env.VITE_AIR_JAM_SERVER_URL }
+                : {}),
             },
         allowExistingGame: args.allowExistingGame,
       });
