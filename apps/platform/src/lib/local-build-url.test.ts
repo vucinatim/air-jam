@@ -5,6 +5,7 @@ import {
   isLocalBuildSpaFallbackPath,
   normalizeRequestedLocalBuildAssetPath,
   rewriteLocalBuildHtmlAssetUrls,
+  rewriteLocalBuildTextAssetUrls,
 } from "./local-build-url";
 
 describe("local build url helpers", () => {
@@ -21,6 +22,39 @@ describe("local build url helpers", () => {
         gameId: "code-review",
       }),
     ).toContain('/airjam-local-builds/code-review/assets/app.js');
+  });
+
+  it("rewrites root-relative asset urls inside built js and css text", () => {
+    const rewritten = rewriteLocalBuildTextAssetUrls({
+      content:
+        'const audio="/sounds/bell.mp3";const chunk="/assets/index-abc123.js";const sprite="/sprites/cover.png";body{background:url("/sprites/end.png")}',
+      gameId: "code-review",
+    });
+
+    expect(rewritten).toContain(
+      '"/airjam-local-builds/code-review/sounds/bell.mp3"',
+    );
+    expect(rewritten).toContain(
+      '"/airjam-local-builds/code-review/assets/index-abc123.js"',
+    );
+    expect(rewritten).toContain(
+      'url("/airjam-local-builds/code-review/sprites/end.png")',
+    );
+  });
+
+  it("rewrites bare relative Vite chunk asset paths inside built js text", () => {
+    const rewritten = rewriteLocalBuildTextAssetUrls({
+      content:
+        'const deps=["assets/index-DPOFnepx.js","assets/code-review-store-Jwj-6tv7.js"]',
+      gameId: "code-review",
+    });
+
+    expect(rewritten).toContain(
+      '"airjam-local-builds/code-review/assets/index-DPOFnepx.js"',
+    );
+    expect(rewritten).toContain(
+      '"airjam-local-builds/code-review/assets/code-review-store-Jwj-6tv7.js"',
+    );
   });
 
   it("injects the router basename bootstrap and base href", () => {

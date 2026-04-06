@@ -59,8 +59,10 @@ export const useHealthStore = create<HealthState>((set, get) => ({
   },
   removeHealth: (controllerId: string) => {
     set((state) => {
-      const { [controllerId]: _healthToRemove, ...restHealth } = state.health;
-      const { [controllerId]: _deadToRemove, ...restDead } = state.isDead;
+      const restHealth = { ...state.health };
+      delete restHealth[controllerId];
+      const restDead = { ...state.isDead };
+      delete restDead[controllerId];
       return { health: restHealth, isDead: restDead };
     });
   },

@@ -7,6 +7,7 @@ import {
   logicalHostedReleaseRoutePath,
   normalizeRequestedReleaseAssetPath,
   rewriteHostedReleaseHtmlAssetUrls,
+  rewriteHostedReleaseTextAssetUrls,
 } from "./release-url";
 
 describe("buildHostedReleaseAssetPath", () => {
@@ -71,6 +72,46 @@ describe("rewriteHostedReleaseHtmlAssetUrls", () => {
         releaseId: "release-1",
       }),
     ).toContain(`src="//cdn.example.com/app.js"`);
+  });
+});
+
+describe("rewriteHostedReleaseTextAssetUrls", () => {
+  it("rewrites root-relative asset urls inside built js and css text", () => {
+    const rewritten = rewriteHostedReleaseTextAssetUrls({
+      content:
+        'const audio="/sounds/bell.mp3";const chunk="/assets/index-abc123.js";const sprite="/sprites/cover.png";const model="/models/arena.glb";body{background:url("/sprites/end.png")}',
+      gameId: "game-1",
+      releaseId: "release-1",
+    });
+
+    expect(rewritten).toContain(
+      '"/releases/g/game-1/r/release-1/sounds/bell.mp3"',
+    );
+    expect(rewritten).toContain(
+      '"/releases/g/game-1/r/release-1/assets/index-abc123.js"',
+    );
+    expect(rewritten).toContain(
+      '"/releases/g/game-1/r/release-1/models/arena.glb"',
+    );
+    expect(rewritten).toContain(
+      'url("/releases/g/game-1/r/release-1/sprites/end.png")',
+    );
+  });
+
+  it("rewrites bare relative Vite chunk asset paths inside built js text", () => {
+    const rewritten = rewriteHostedReleaseTextAssetUrls({
+      content:
+        'const deps=["assets/index-DPOFnepx.js","assets/code-review-store-Jwj-6tv7.js"]',
+      gameId: "game-1",
+      releaseId: "release-1",
+    });
+
+    expect(rewritten).toContain(
+      '"releases/g/game-1/r/release-1/assets/index-DPOFnepx.js"',
+    );
+    expect(rewritten).toContain(
+      '"releases/g/game-1/r/release-1/assets/code-review-store-Jwj-6tv7.js"',
+    );
   });
 });
 

@@ -1,3 +1,5 @@
+import { rewriteRootRelativeAssetUrlsInText } from "@/lib/asset-url-rewrite";
+
 export const RELEASES_PATH_PREFIX = "/releases";
 
 const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
@@ -41,6 +43,26 @@ export const rewriteHostedReleaseHtmlAssetUrls = ({
   return html
     .replaceAll(/((?:src|href)=["'])\/(?!\/)/g, `$1${hostedBasePath}/`)
     .replaceAll(/(url\(["']?)\/(?!\/)/g, `$1${hostedBasePath}/`);
+};
+
+export const rewriteHostedReleaseTextAssetUrls = ({
+  content,
+  gameId,
+  releaseId,
+}: {
+  content: string;
+  gameId: string;
+  releaseId: string;
+}): string => {
+  const hostedBasePath = buildHostedReleaseBasePath({
+    gameId,
+    releaseId,
+  });
+
+  return rewriteRootRelativeAssetUrlsInText({
+    content,
+    basePath: hostedBasePath,
+  });
 };
 
 export const logicalHostedReleaseRoutePath = ({

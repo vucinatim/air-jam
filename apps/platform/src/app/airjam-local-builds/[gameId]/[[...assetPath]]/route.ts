@@ -6,6 +6,7 @@ import {
   LOCAL_BUILD_ENTRY_PATH,
   normalizeRequestedLocalBuildAssetPath,
   rewriteLocalBuildHtmlAssetUrls,
+  rewriteLocalBuildTextAssetUrls,
 } from "@/lib/local-build-url";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,8 @@ export async function GET(
   const contentType = getContentType(servedAssetPath);
   const isHtmlDocument =
     contentType.includes("text/html") && servedAssetPath === LOCAL_BUILD_ENTRY_PATH;
+  const isRewritableTextAsset =
+    contentType.includes("text/javascript") || contentType.includes("text/css");
 
   if (isHtmlDocument) {
     const htmlWithScopedAssets = rewriteLocalBuildHtmlAssetUrls({
@@ -105,6 +108,21 @@ export async function GET(
     });
 
     return new Response(html, {
+      status: 200,
+      headers: {
+        "cache-control": "no-store",
+        "content-type": contentType,
+      },
+    });
+  }
+
+  if (isRewritableTextAsset) {
+    const rewritten = rewriteLocalBuildTextAssetUrls({
+      content: body.toString("utf8"),
+      gameId,
+    });
+
+    return new Response(rewritten, {
       status: 200,
       headers: {
         "cache-control": "no-store",

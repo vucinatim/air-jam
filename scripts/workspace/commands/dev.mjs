@@ -168,7 +168,7 @@ export const runWorkspaceArcadeDevCommand = async ({
       serializeResolvedTopology(platformControllerTopology),
     NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: arcadeOrigins.publicPlatformOrigin,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: activeGame.id,
-    [toLocalReferenceUrlEnvKey(activeGame.id)]: arcadeOrigins.hostGameOrigin,
+    [toLocalReferenceUrlEnvKey(activeGame.id)]: arcadeOrigins.publicGameOrigin,
     ...(secureState
       ? {
           AIR_JAM_SECURE_MODE: secureState.mode,

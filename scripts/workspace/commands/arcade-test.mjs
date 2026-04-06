@@ -75,7 +75,7 @@ export const runWorkspaceArcadeTestCommand = async ({
     gamePort: DEFAULT_GAME_PORT,
     platformPort: DEFAULT_PLATFORM_PORT,
   });
-  const localBuildHostUrl = `${arcadeOrigins.hostPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
+  const publicBuildUrl = `${arcadeOrigins.publicPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
   const platformHostTopology = buildPlatformShellTopology({
     runtimeMode: "arcade-built",
     surfaceRole: "platform-host",
@@ -102,7 +102,7 @@ export const runWorkspaceArcadeTestCommand = async ({
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: activeGame.id,
     NEXT_PUBLIC_APP_URL: arcadeOrigins.publicPlatformOrigin,
     BETTER_AUTH_URL: arcadeOrigins.publicPlatformOrigin,
-    [toLocalReferenceUrlEnvKey(activeGame.id)]: localBuildHostUrl,
+    [toLocalReferenceUrlEnvKey(activeGame.id)]: publicBuildUrl,
     ...(secureState
       ? {
           AIR_JAM_SECURE_MODE: secureState.mode,

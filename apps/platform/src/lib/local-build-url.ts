@@ -1,4 +1,5 @@
 import path from "node:path";
+import { rewriteRootRelativeAssetUrlsInText } from "@/lib/asset-url-rewrite";
 
 export const LOCAL_BUILD_PATH_PREFIX = "/airjam-local-builds";
 export const LOCAL_BUILD_ENTRY_PATH = "index.html" as const;
@@ -20,6 +21,20 @@ export const rewriteLocalBuildHtmlAssetUrls = ({
   return html
     .replaceAll(/((?:src|href)=["'])\/(?!\/)/g, `$1${basePath}/`)
     .replaceAll(/(url\(["']?)\/(?!\/)/g, `$1${basePath}/`);
+};
+
+export const rewriteLocalBuildTextAssetUrls = ({
+  content,
+  gameId,
+}: {
+  content: string;
+  gameId: string;
+}): string => {
+  const basePath = buildLocalBuildBasePath(gameId);
+  return rewriteRootRelativeAssetUrlsInText({
+    content,
+    basePath,
+  });
 };
 
 export const injectLocalBuildHtmlRuntimeBase = ({

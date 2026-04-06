@@ -74,7 +74,8 @@ export const useFlightStateStore = create<FlightStateStore>((set, get) => ({
 
   removeFlightState: (controllerId) => {
     set((state) => {
-      const { [controllerId]: _removed, ...rest } = state.flightStates;
+      const rest = { ...state.flightStates };
+      delete rest[controllerId];
       return { flightStates: rest };
     });
   },

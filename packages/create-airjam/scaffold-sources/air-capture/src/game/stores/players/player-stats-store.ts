@@ -73,7 +73,8 @@ export const usePlayerStatsStore = create<PlayerStatsState>((set, get) => ({
   },
   removeStats: (controllerId: string) => {
     set((state) => {
-      const { [controllerId]: _, ...rest } = state.stats;
+      const rest = { ...state.stats };
+      delete rest[controllerId];
       return { stats: rest };
     });
   },

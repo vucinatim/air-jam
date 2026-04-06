@@ -3,6 +3,7 @@ import {
   injectHostedReleaseHtmlRuntimeBase,
   normalizeRequestedReleaseAssetPath,
   rewriteHostedReleaseHtmlAssetUrls,
+  rewriteHostedReleaseTextAssetUrls,
 } from "@/lib/releases/release-url";
 import { getReleaseAssetCacheControl } from "@/server/releases/release-artifact-validation";
 import { RELEASE_INSPECTION_ACCESS_HEADER } from "@/server/releases/release-inspection-access";
@@ -103,6 +104,8 @@ export async function GET(
   const isHtmlDocument =
     contentType.includes("text/html") &&
     servedAssetPath === artifact.entryPath;
+  const isRewritableTextAsset =
+    contentType.includes("javascript") || contentType.includes("text/css");
 
   if (isHtmlDocument) {
     const htmlWithScopedAssets = rewriteHostedReleaseHtmlAssetUrls({
@@ -119,6 +122,22 @@ export async function GET(
     });
 
     return new Response(html, {
+      status: 200,
+      headers: {
+        "content-type": contentType,
+        "cache-control": getReleaseAssetCacheControl(servedAssetPath),
+      },
+    });
+  }
+
+  if (isRewritableTextAsset) {
+    const rewritten = rewriteHostedReleaseTextAssetUrls({
+      content: body.toString("utf8"),
+      gameId,
+      releaseId,
+    });
+
+    return new Response(rewritten, {
       status: 200,
       headers: {
         "content-type": contentType,
