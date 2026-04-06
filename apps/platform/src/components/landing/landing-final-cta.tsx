@@ -3,6 +3,7 @@
 import { landingCopy } from "@/components/landing/landing-content";
 import { Reveal } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
+import { trackWebsiteEvent } from "@/lib/website-analytics";
 import Link from "next/link";
 
 export const LandingFinalCta = () => {
@@ -25,7 +26,12 @@ export const LandingFinalCta = () => {
               size="lg"
               className="h-10 bg-zinc-50 px-4 text-sm font-semibold text-zinc-900 shadow-md hover:bg-zinc-100 sm:h-12 sm:px-8 sm:text-base"
             >
-              <Link href={finalCta.primary.href}>{finalCta.primary.label}</Link>
+              <Link
+                href={finalCta.primary.href}
+                onClick={() => trackWebsiteEvent("landing_final_primary_cta_clicked")}
+              >
+                {finalCta.primary.label}
+              </Link>
             </Button>
             <Button
               asChild
@@ -33,7 +39,12 @@ export const LandingFinalCta = () => {
               variant="outline"
               className="h-10 px-4 text-sm font-semibold sm:h-12 sm:px-8 sm:text-base"
             >
-              <Link href={finalCta.secondary.href}>
+              <Link
+                href={finalCta.secondary.href}
+                onClick={() =>
+                  trackWebsiteEvent("landing_final_secondary_cta_clicked")
+                }
+              >
                 {finalCta.secondary.label}
               </Link>
             </Button>

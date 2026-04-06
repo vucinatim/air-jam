@@ -7,6 +7,7 @@ import { TextCycle } from "@/components/landing/text-cycle";
 import { Navbar } from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { trackWebsiteEvent } from "@/lib/website-analytics";
 import { Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -18,6 +19,7 @@ function CopyCommand() {
 
   const copy = useCallback(() => {
     void navigator.clipboard.writeText(COMMAND);
+    trackWebsiteEvent("landing_copy_command_clicked");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);
@@ -73,7 +75,12 @@ export const LandingHero = () => {
               size="lg"
               className="h-10 bg-zinc-50 px-4 text-sm font-semibold text-zinc-900 shadow-[0_16px_40px_rgba(0,0,0,0.35)] hover:bg-zinc-100 sm:h-12 sm:px-6 sm:text-base"
             >
-              <Link href={hero.primaryCta.href}>{hero.primaryCta.label}</Link>
+              <Link
+                href={hero.primaryCta.href}
+                onClick={() => trackWebsiteEvent("landing_primary_cta_clicked")}
+              >
+                {hero.primaryCta.label}
+              </Link>
             </Button>
             <Button
               asChild
@@ -81,7 +88,10 @@ export const LandingHero = () => {
               variant="outline"
               className="border-airjam-cyan/35 bg-background/45 hover:border-airjam-cyan/55 hover:bg-background/60 h-10 px-4 text-sm font-semibold shadow-[0_14px_32px_rgba(0,0,0,0.25)] backdrop-blur-sm sm:h-12 sm:px-6 sm:text-base"
             >
-              <Link href={hero.secondaryCta.href}>
+              <Link
+                href={hero.secondaryCta.href}
+                onClick={() => trackWebsiteEvent("landing_secondary_cta_clicked")}
+              >
                 {hero.secondaryCta.label}
               </Link>
             </Button>

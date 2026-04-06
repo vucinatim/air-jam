@@ -51,6 +51,18 @@ should auto-appear without an explicit override.
 1. Controller chrome in Arcade embedded-game mode follows host-driven session orientation, not just the arcade surface launch hint. See [docs/platform-controller-presentation.md](../../docs/systems/platform-controller-presentation.md).
 2. Product architecture and strategy live in [docs/framework-paradigm.md](../../docs/framework-paradigm.md) and [docs/deployment-and-monetization-strategy.md](../../docs/strategy/deployment-and-monetization-strategy.md).
 
+## Website Analytics (Optional)
+
+The platform supports an optional Umami integration for lightweight web analytics.
+
+Set these in `.env.local`:
+
+1. `NEXT_PUBLIC_WEBSITE_ANALYTICS_PROVIDER=umami`
+2. `NEXT_PUBLIC_UMAMI_WEBSITE_ID=<your-website-id>`
+3. Optional self-host/custom script URL: `NEXT_PUBLIC_UMAMI_SCRIPT_URL=<script-url>`
+
+If `NEXT_PUBLIC_WEBSITE_ANALYTICS_PROVIDER` is not `umami`, no analytics script is injected.
+
 ## Hosted Releases Setup
 
 The public Arcade hosted-release and managed-media lanes now share the same storage infrastructure.
