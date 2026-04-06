@@ -85,6 +85,7 @@ Remaining:
 Active subsystem plan linked from this phase:
 
 1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
+2. [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-modes-plan.md)
 
 Completed baselines now folded into this phase:
 
@@ -233,6 +234,20 @@ Current truth:
 10. `last-band-standing` is now the second promoted imported template:
    1. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
    2. the imported README was replaced with a repo-native template-safe README
+
+### 9. Local Runtime Workflow Modes
+
+Status: active  
+Reference: [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-modes-plan.md)
+
+Current truth:
+
+1. the repo already has three partially overlapping local runtime stories:
+   1. hybrid workspace dev via `pnpm dev -- --game=<id>`
+   2. built Arcade validation via `pnpm arcade:test -- --game=<id>`
+   3. standalone secure game dev via `cd games/<id> && pnpm dev -- --secure`
+2. secure local HTTPS is already the canonical local secure path and already uses Next's `--experimental-https`; the remaining problem is workflow clarity, not basic HTTPS support
+3. the next honest gap is an explicit live Arcade dev mode that embeds the selected live game directly instead of forcing either standalone dev or built Arcade validation
    3. `airjam-template.json` is now `scaffold: true`
 
 ### 9. Root Workspace CLI Consolidation

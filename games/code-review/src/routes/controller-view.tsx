@@ -50,6 +50,21 @@ const clamp = (v: number, min: number, max: number) =>
 const lerp = (current: number, target: number, factor: number) =>
   current + (target - current) * factor;
 
+type DeviceOrientationEventWithPermission = {
+  prototype: DeviceOrientationEvent;
+  requestPermission?: () => Promise<"granted" | "denied">;
+};
+
+const resolveDeviceOrientationEvent = (): DeviceOrientationEventWithPermission | null => {
+  const candidate = (
+    globalThis as {
+      DeviceOrientationEvent?: DeviceOrientationEventWithPermission;
+    }
+  ).DeviceOrientationEvent;
+
+  return candidate ?? null;
+};
+
 /** Maps a raw tilt angle (degrees) to a -1..1 direction value with dead zone. */
 const tiltToDirection = (tilt: number, invert: boolean) => {
   if (Math.abs(tilt) < GYRO_DEAD_ZONE) return 0;
@@ -180,23 +195,21 @@ export function ControllerView() {
     }
   });
 
+  const deviceOrientationEvent = resolveDeviceOrientationEvent();
+  const hasGyroscopeSupport = deviceOrientationEvent !== null;
   const needsPermission =
-    typeof (
-      DeviceOrientationEvent as unknown as {
-        requestPermission?: unknown;
-      }
-    ).requestPermission === "function";
+    typeof deviceOrientationEvent?.requestPermission === "function";
 
   // Always keep gyro listener attached when no permission prompt is needed (Android / non-Safari).
   useEffect(() => {
-    if (needsPermission) return;
+    if (!hasGyroscopeSupport || needsPermission) return;
     const orientationHandler = handleOrientation.current;
     window.addEventListener("deviceorientation", orientationHandler);
     gyroActiveRef.current = true;
     return () => {
       window.removeEventListener("deviceorientation", orientationHandler);
     };
-  }, [needsPermission]);
+  }, [hasGyroscopeSupport, needsPermission]);
 
   // Keep movement input centered on mount.
   useEffect(() => {
@@ -238,14 +251,9 @@ export function ControllerView() {
 
   // Request gyro permission — must be called from a user gesture on iOS.
   const requestGyroPermission = async () => {
-    if (gyroActiveRef.current) return;
-    const DeviceOrientationEventWithPermission =
-      DeviceOrientationEvent as unknown as {
-        requestPermission?: () => Promise<"granted" | "denied">;
-      };
-    if (DeviceOrientationEventWithPermission.requestPermission) {
-      const permission =
-        await DeviceOrientationEventWithPermission.requestPermission();
+    if (gyroActiveRef.current || !deviceOrientationEvent) return;
+    if (deviceOrientationEvent.requestPermission) {
+      const permission = await deviceOrientationEvent.requestPermission();
       if (permission !== "granted") return;
     }
     window.addEventListener("deviceorientation", handleOrientation.current);

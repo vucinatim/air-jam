@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
 import { CONTROLLER_PATH } from "../constants";
+import { primeDevBrowserLogSink } from "../dev/browser-log-sink";
 import {
   type AirJamProviderProps,
 } from "../context/session-providers";
@@ -10,7 +11,10 @@ import {
   AirJamControllerRuntime,
   AirJamHostRuntime,
 } from "./session-runtimes";
-import type { ResolveAirJamConfigInput } from "./air-jam-config";
+import {
+  resolveAirJamConfig,
+  type ResolveAirJamConfigInput,
+} from "./air-jam-config";
 
 type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
   AirJamProviderProps<TSchema>,
@@ -127,6 +131,15 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   game,
   input,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
+  const initialConfig = resolveAirJamConfig(runtime);
+
+  // Install the shared dev sink as early as possible so render-time browser
+  // crashes are queued before the provider effect resolves config.
+  primeDevBrowserLogSink({
+    serverUrl: initialConfig.serverUrl,
+    appId: initialConfig.appId,
+  });
+
   const controllerPath = resolveControllerPath(game?.controllerPath);
 
   const hostSession: HostSessionProps<TSchema> = input

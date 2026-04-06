@@ -56,31 +56,51 @@ pnpm install
 
 #### Running The Full Local Stack
 
-Use the top-level workspace launcher for the common local flow:
+The repo has three distinct local workflows:
+
+1. `pnpm dev -- --game=<id>` runs the hybrid workspace stack:
+   SDK watch, server, platform, and the selected game's direct Vite dev server.
+   Use this for fast iteration while keeping the platform alongside the game.
+2. `pnpm arcade:test -- --game=<id>` runs the stable local Arcade integration stack:
+   it builds the selected game and serves that built output through the platform's
+   local Arcade route.
+3. `cd games/<id> && pnpm dev -- --secure` runs standalone secure game dev:
+   use this when the game itself needs secure browser APIs outside the built Arcade path.
+
+Use the top-level workspace launcher for the common hybrid flow:
 
 ```bash
 # Start sdk watch, server, platform app, and air-capture
 pnpm dev
 
-# Start the same stack with a specific repo-owned game
+# Start the same hybrid workspace stack with a specific repo-owned game
 pnpm dev -- --game=pong
 pnpm dev -- --game=code-review
 
 # Start the stack and also open Drizzle Studio
 pnpm dev -- --db-studio
 
-# Stable local Arcade integration testing
+# Stable local Arcade integration testing with the built game
 pnpm arcade:test -- --game=code-review
 
-# Secure local Arcade when a game needs secure browser APIs
+# Secure local Arcade integration when a game needs secure browser APIs
 pnpm secure:init
 pnpm arcade:test -- --game=code-review --secure
 ```
 
 The output is prefixed by process name, so server logs remain visible in the shared terminal.
 `pnpm dev` intentionally starts the platform app only; run Drizzle Studio explicitly when you need database inspection.
-Use `pnpm dev` for fast direct Vite iteration. Use `pnpm arcade:test` when you need the game running inside real Arcade with host/controller validation.
+Use `pnpm dev` for fast hybrid workspace iteration.
+Use `pnpm arcade:test` when you need the built game running inside real Arcade with host/controller validation.
 Secure local Arcade uses trusted local HTTPS via `mkcert`.
+
+If you need standalone secure game dev instead of Arcade integration, use the game-local scripts:
+
+```bash
+cd games/code-review
+pnpm secure:init
+pnpm dev -- --secure
+```
 
 If you need tunnel fallback for a standalone game dev server, use the game-local scripts instead:
 
@@ -244,6 +264,7 @@ games, and `create-airjam` exports them through one shared pipeline.
 The canonical workflow is:
 
 - Develop scaffoldable games in-place under `games/`.
+- Keep Air Jam-specific Vite behavior in the shared `create-airjam/runtime/vite-config.mjs` helper rather than duplicating proxy, HTTPS, iframe, or chunk-policy logic per game.
 - Use `pnpm test:scaffold` to prove all scaffoldable games export cleanly against local packages.
 - Use `pnpm test:scaffold:tarball` to prove scaffolds work against packed unpublished artifacts.
 - Use `pnpm run repo -- pack local` to produce local tarballs under `.airjam/tarballs/`.

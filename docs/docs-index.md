@@ -37,6 +37,7 @@ Active subsystem plans:
 
 1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
 2. [ZeroDays Game Import And Template Promotion Plan](./plans/zerodays-game-import-template-promotion-plan.md)
+3. [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-modes-plan.md)
 
 Planned follow-on system plans:
 

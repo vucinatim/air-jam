@@ -180,10 +180,11 @@ When behavior is unclear across the server, browser runtime, controller, Arcade 
 When touching `create-airjam`, scaffoldable games, or package-boundary behavior:
 
 1. Keep `games/` as the source of truth for scaffoldable game templates.
-2. Do not rely on publish-time mutation of template dependencies or Vite config.
-3. Validate scaffoldable games with `pnpm test:scaffold`.
-4. Validate unpublished-package behavior with `pnpm test:scaffold:tarball`.
-5. If you need local artifacts for another repo, use `pnpm run repo -- pack local`.
+2. Keep Air Jam-specific Vite defaults centralized in `create-airjam/runtime/vite-config.mjs`; only add per-game Vite overrides when a game has a real runtime need.
+3. Do not rely on publish-time mutation of template dependencies or Vite config.
+4. Validate scaffoldable games with `pnpm test:scaffold`.
+5. Validate unpublished-package behavior with `pnpm test:scaffold:tarball`.
+6. If you need local artifacts for another repo, use `pnpm run repo -- pack local`.
 
 ### 6. Legacy Game Migration Proof
 
@@ -198,12 +199,14 @@ When touching SDK/server package-consumer behavior or the release migration proo
 When touching shared secure-dev behavior, local Arcade launch paths, or generated game dev scripts:
 
 1. treat `mkcert`-backed local HTTPS as the canonical path
-2. keep the repo workflow split explicit:
-   1. `pnpm dev` for fast direct game iteration
-   2. `pnpm arcade:test -- --secure` for stable local Arcade integration
-3. keep exported projects on the direct secure-game contract (`pnpm secure:init` plus `pnpm dev -- --secure`)
-4. keep Cloudflare tunnel support explicit fallback only, not the default docs path
-5. validate scaffolded secure-dev contract changes with `pnpm test:scaffold`
+2. keep the repo workflow split explicit across three modes:
+   `pnpm dev -- --game=<id>` is hybrid workspace dev: sdk watch, server, platform, and the selected game's direct Vite dev server
+   `pnpm arcade:test -- --game=<id>` is built local Arcade integration validation
+   `cd games/<id> && pnpm dev -- --secure` is standalone secure game dev for browser APIs outside the built Arcade route
+3. keep `pnpm arcade:test -- --game=<id> --secure` as the stable secure Arcade integration path
+4. keep exported projects on the direct secure-game contract (`pnpm secure:init` plus `pnpm dev -- --secure`)
+5. keep Cloudflare tunnel support explicit fallback only, not the default docs path
+6. validate scaffolded secure-dev contract changes with `pnpm test:scaffold`
 
 ### 8. Database Modes
 

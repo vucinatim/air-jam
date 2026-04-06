@@ -74,6 +74,7 @@ interface BrowserLogSinkOptions {
 
 interface BrowserLogSinkController {
   update: (options: BrowserLogSinkOptions) => void;
+  dispose?: () => void;
 }
 
 interface BrowserLogSinkGlobal {
@@ -133,9 +134,18 @@ const normalizeServerUrlToHttp = (serverUrl: string): string => {
   return serverUrl;
 };
 
+const resolveDevProxyBaseUrl = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.location.origin.replace(/\/$/, "");
+};
+
 const resolveLogEndpoint = (serverUrl?: string): string | null => {
   if (!serverUrl) {
-    return null;
+    const proxyBaseUrl = resolveDevProxyBaseUrl();
+    return proxyBaseUrl ? `${proxyBaseUrl}/__airjam/dev/browser-logs` : null;
   }
 
   const baseUrl = normalizeServerUrlToHttp(serverUrl).replace(/\/$/, "");
@@ -144,7 +154,8 @@ const resolveLogEndpoint = (serverUrl?: string): string | null => {
 
 const resolveUnloadEndpoint = (serverUrl?: string): string | null => {
   if (!serverUrl) {
-    return null;
+    const proxyBaseUrl = resolveDevProxyBaseUrl();
+    return proxyBaseUrl ? `${proxyBaseUrl}/__airjam/dev/browser-unload` : null;
   }
 
   const baseUrl = normalizeServerUrlToHttp(serverUrl).replace(/\/$/, "");
@@ -295,11 +306,25 @@ class BrowserLogSinkRuntime {
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private hasReset = false;
   private readonly originalConsole = new Map<ConsoleMethodName, Console[ConsoleMethodName]>();
+  private readonly disposers: Array<() => void> = [];
+  private installed = false;
 
   update(options: BrowserLogSinkOptions): void {
+    const previousEndpoint = this.endpoint;
     this.endpoint = resolveLogEndpoint(options.serverUrl);
     this.unloadEndpoint = resolveUnloadEndpoint(options.serverUrl);
     this.appId = options.appId;
+
+    if (
+      this.endpoint &&
+      this.endpoint !== previousEndpoint &&
+      this.queue.length > 0 &&
+      !this.flushTimer
+    ) {
+      this.flushTimer = setTimeout(() => {
+        void this.flush();
+      }, 0);
+    }
   }
 
   private allocateSourceSeq(explicitSourceSeq?: number): number {
@@ -355,9 +380,10 @@ class BrowserLogSinkRuntime {
   }
 
   install(): void {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || this.installed) {
       return;
     }
+    this.installed = true;
 
     const consoleMethods: ConsoleMethodName[] = [
       "debug",
@@ -381,9 +407,12 @@ class BrowserLogSinkRuntime {
           data: args.map((arg) => toSerializable(arg)),
         });
       }) as Console[ConsoleMethodName];
+      this.disposers.push(() => {
+        window.console[methodName] = original;
+      });
     }
 
-    window.addEventListener("error", (event) => {
+    const errorHandler = (event: ErrorEvent) => {
       this.enqueue({
         occurredAt: new Date().toISOString(),
         level: "error",
@@ -393,12 +422,16 @@ class BrowserLogSinkRuntime {
           event.error instanceof Error
             ? event.error.stack
             : typeof event.filename === "string"
-              ? `${event.filename}:${event.lineno}:${event.colno}`
-              : undefined,
+            ? `${event.filename}:${event.lineno}:${event.colno}`
+            : undefined,
       });
+    };
+    window.addEventListener("error", errorHandler);
+    this.disposers.push(() => {
+      window.removeEventListener("error", errorHandler);
     });
 
-    window.addEventListener("unhandledrejection", (event) => {
+    const rejectionHandler = (event: PromiseRejectionEvent) => {
       const reason =
         event.reason instanceof Error
           ? event.reason.message
@@ -410,22 +443,31 @@ class BrowserLogSinkRuntime {
         message: reason,
         stack: event.reason instanceof Error ? event.reason.stack : undefined,
       });
+    };
+    window.addEventListener("unhandledrejection", rejectionHandler);
+    this.disposers.push(() => {
+      window.removeEventListener("unhandledrejection", rejectionHandler);
     });
 
-    onAirJamDiagnostic((diagnostic) => {
+    const removeDiagnosticListener = onAirJamDiagnostic((diagnostic) => {
       this.enqueue(this.fromDiagnostic(diagnostic));
     });
+    this.disposers.push(removeDiagnosticListener);
 
-    window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, (event) => {
+    const runtimeEventHandler = (event: Event) => {
       const detail = (event as CustomEvent<AirJamDevRuntimeEventDetail>).detail;
       if (!detail) {
         return;
       }
 
       this.enqueue(this.fromRuntimeEvent(detail));
+    };
+    window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, runtimeEventHandler);
+    this.disposers.push(() => {
+      window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, runtimeEventHandler);
     });
 
-    window.addEventListener("pagehide", () => {
+    const pageHideHandler = () => {
       this.emitUnloadEvent(
         {
           occurredAt: new Date().toISOString(),
@@ -437,9 +479,13 @@ class BrowserLogSinkRuntime {
         { trigger: "pagehide" },
       );
       void this.flush(true);
+    };
+    window.addEventListener("pagehide", pageHideHandler);
+    this.disposers.push(() => {
+      window.removeEventListener("pagehide", pageHideHandler);
     });
 
-    window.addEventListener("beforeunload", () => {
+    const beforeUnloadHandler = () => {
       this.emitUnloadEvent(
         {
           occurredAt: new Date().toISOString(),
@@ -451,9 +497,13 @@ class BrowserLogSinkRuntime {
         { trigger: "beforeunload" },
       );
       void this.flush(true);
+    };
+    window.addEventListener("beforeunload", beforeUnloadHandler);
+    this.disposers.push(() => {
+      window.removeEventListener("beforeunload", beforeUnloadHandler);
     });
 
-    document.addEventListener("visibilitychange", () => {
+    const visibilityChangeHandler = () => {
       if (document.visibilityState !== "hidden") {
         return;
       }
@@ -469,6 +519,10 @@ class BrowserLogSinkRuntime {
         { trigger: "visibilitychange" },
       );
       void this.flush(true);
+    };
+    document.addEventListener("visibilitychange", visibilityChangeHandler);
+    this.disposers.push(() => {
+      document.removeEventListener("visibilitychange", visibilityChangeHandler);
     });
 
     this.enqueue({
@@ -485,6 +539,21 @@ class BrowserLogSinkRuntime {
         },
       ],
     });
+  }
+
+  dispose(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+
+    while (this.disposers.length > 0) {
+      const dispose = this.disposers.pop();
+      dispose?.();
+    }
+
+    this.originalConsole.clear();
+    this.installed = false;
   }
 
   private fromDiagnostic(diagnostic: AirJamDiagnostic): BrowserLogEntry {
@@ -777,9 +846,16 @@ export const ensureDevBrowserLogSink = (
     runtime.install();
     globalState.__airJamBrowserLogSink__ = {
       update: (nextOptions) => runtime.update(nextOptions),
+      dispose: () => runtime.dispose(),
     };
     return;
   }
 
   globalState.__airJamBrowserLogSink__.update(options);
+};
+
+export const primeDevBrowserLogSink = (
+  options: BrowserLogSinkOptions = {},
+): void => {
+  ensureDevBrowserLogSink(options);
 };

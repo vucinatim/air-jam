@@ -21,7 +21,7 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand
     .command("dev")
-    .description("Start the full local workspace stack for one repo game")
+    .description("Start the hybrid local workspace stack for one repo game")
     .option("--game <id>", "Repo game to launch", defaultWorkspaceGameId)
     .option("--db-studio", "Also start Drizzle Studio for the platform database", false)
     .option("--pong", "Legacy alias for --game=pong", false)
@@ -34,7 +34,7 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand
     .command("arcade:test")
-    .description("Run the stable local Arcade integration stack for one repo game")
+    .description("Run the stable built local Arcade integration stack for one repo game")
     .option("--game <id>", "Repo game to validate in Arcade", defaultWorkspaceGameId)
     .option("--secure", "Run the Arcade integration stack over trusted local HTTPS", false)
     .option(
@@ -52,7 +52,7 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand
     .command("secure:init")
-    .description("Initialize local secure Arcade testing for the workspace")
+    .description("Initialize trusted local HTTPS for secure Arcade and standalone game testing")
     .option("--mode <mode>", "Secure mode to configure (local or tunnel)")
     .option("--hostname <hostname>", "Tunnel hostname for secure tunnel mode")
     .option("--tunnel <name>", "Cloudflare tunnel name for secure tunnel mode")
@@ -119,7 +119,7 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand.addHelpText?.(
     "afterAll",
-    `\nNotes:\n  - Use \`pnpm dev -- --game=<id>\` for fast live development.\n  - Use \`pnpm arcade:test -- --game=<id> --secure\` for stable secure Arcade validation.\n${formatAvailableGames()}`,
+    `\nNotes:\n  - Use \`pnpm dev -- --game=<id>\` for hybrid workspace dev (sdk, server, platform, and the selected game's Vite dev server).\n  - Use \`pnpm arcade:test -- --game=<id>\` for built local Arcade integration validation.\n  - Use \`pnpm arcade:test -- --game=<id> --secure\` for secure Arcade validation.\n  - Use \`cd games/<id> && pnpm dev -- --secure\` for standalone secure game dev.\n${formatAvailableGames()}`,
   );
 
   return workspaceCommand;
