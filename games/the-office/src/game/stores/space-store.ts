@@ -35,14 +35,34 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
         }
 
         const connectedSet = new Set(connectedPlayerIds);
+        const nextMoney = pruneRecord(state.money, connectedSet);
+        const nextPlayerPositions = pruneRecord(state.playerPositions, connectedSet);
+        const nextPlayerAssignments = pruneRecord(
+          state.playerAssignments,
+          connectedSet,
+        );
+        const nextBusyPlayers = pruneRecord(state.busyPlayers, connectedSet);
+        const nextTaskProgress = pruneRecord(state.taskProgress, connectedSet);
+        const nextPlayerStats = pruneRecord(state.playerStats, connectedSet);
+
+        if (
+          nextMoney === state.money &&
+          nextPlayerPositions === state.playerPositions &&
+          nextPlayerAssignments === state.playerAssignments &&
+          nextBusyPlayers === state.busyPlayers &&
+          nextTaskProgress === state.taskProgress &&
+          nextPlayerStats === state.playerStats
+        ) {
+          return state;
+        }
 
         return {
-          money: pruneRecord(state.money, connectedSet),
-          playerPositions: pruneRecord(state.playerPositions, connectedSet),
-          playerAssignments: pruneRecord(state.playerAssignments, connectedSet),
-          busyPlayers: pruneRecord(state.busyPlayers, connectedSet),
-          taskProgress: pruneRecord(state.taskProgress, connectedSet),
-          playerStats: pruneRecord(state.playerStats, connectedSet),
+          money: nextMoney,
+          playerPositions: nextPlayerPositions,
+          playerAssignments: nextPlayerAssignments,
+          busyPlayers: nextBusyPlayers,
+          taskProgress: nextTaskProgress,
+          playerStats: nextPlayerStats,
         };
       }),
 

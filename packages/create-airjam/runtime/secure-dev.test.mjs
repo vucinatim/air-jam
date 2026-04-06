@@ -30,7 +30,7 @@ test("resolveRequestedSecureMode prefers explicit flag", () => {
 });
 
 test("parseSecureInitArgs defaults to local mode", () => {
-  assert.deepEqual(parseSecureInitArgs([]), {
+  assert.deepEqual(parseSecureInitArgs([], {}), {
     mode: SECURE_MODE_LOCAL,
     hostname: "",
     tunnel: "",

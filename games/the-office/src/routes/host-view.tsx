@@ -28,6 +28,8 @@ export function HostView() {
 
   const [pendingTasks, setPendingTasks] = useState(pendingTasksRef.current);
   const pendingTasksIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const initializedRosterKeyRef = useRef<string | null>(null);
+  const imagesPreloadedRef = useRef(false);
   const playerIds = useMemo(() => host.players.map((player) => player.id), [host.players]);
 
   const getInput = useCallback(
@@ -36,10 +38,22 @@ export function HostView() {
   );
 
   useEffect(() => {
+    const rosterKey = [...playerIds].sort().join(",");
+    if (initializedRosterKeyRef.current === rosterKey) {
+      return;
+    }
+    initializedRosterKeyRef.current = rosterKey;
     initializePlayers(playerIds);
+  }, [initializePlayers, playerIds]);
+
+  useEffect(() => {
+    if (imagesPreloadedRef.current) {
+      return;
+    }
+    imagesPreloadedRef.current = true;
     void loadPlayerImages();
     void loadLocationImages();
-  }, [initializePlayers, loadLocationImages, loadPlayerImages, playerIds]);
+  }, [loadLocationImages, loadPlayerImages]);
 
   useEffect(() => {
     pendingTasksIntervalRef.current = setInterval(() => {

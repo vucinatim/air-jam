@@ -6,6 +6,10 @@
  */
 
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
+import {
+  formatEnvValidationError,
+  isEnvValidationError,
+} from "@air-jam/env";
 import { Command } from "commander";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -24,6 +28,16 @@ const runServer = async (): Promise<number> => {
     await runtime.start();
     return 0;
   } catch (error) {
+    if (isEnvValidationError(error)) {
+      console.error(
+        formatEnvValidationError(error, {
+          docsHint:
+            "Fix the listed AIR_JAM_* variables and retry. For local dev, check .env.local.",
+        }),
+      );
+      return 1;
+    }
+
     const logger = createServerLogger({ service: "air-jam-server" });
     logger.error(
       { event: AIRJAM_DEV_LOG_EVENTS.server.startupFailed, err: error },

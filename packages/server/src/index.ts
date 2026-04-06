@@ -5,6 +5,10 @@ import {
   type ServerToClientEvents,
   type SocketData,
 } from "@air-jam/sdk/protocol";
+import {
+  formatEnvValidationError,
+  isEnvValidationError,
+} from "@air-jam/env";
 import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
@@ -29,14 +33,7 @@ import {
 import { createDatabaseRuntimeUsageLedgerPublisher } from "./analytics/runtime-usage-ledger.js";
 import { RateLimitService, rateLimitService } from "./services/rate-limit-service.js";
 import { RoomManager, roomManager } from "./services/room-manager.js";
-
-const parsePositiveInt = (
-  value: string | undefined,
-  fallback: number,
-): number => {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-};
+import { loadServerEnv, type ServerEnvConfig } from "./env/server-env.js";
 
 export type AirJamIoServer = Server<
   ClientToServerEvents,
@@ -59,6 +56,7 @@ export interface CreateAirJamServerOptions {
   roomManager?: RoomManager;
   devLogCollector?: DevLogCollector | false;
   devLogDir?: string;
+  envConfig?: ServerEnvConfig;
 }
 
 export interface AirJamServerRuntime {
@@ -71,7 +69,10 @@ export interface AirJamServerRuntime {
   getPort: () => number | null;
 }
 
-const parseAllowedOrigins = (input?: string[] | "*"): string[] | "*" => {
+const parseAllowedOrigins = (
+  input: string[] | "*" | undefined,
+  fallback: string[] | "*",
+): string[] | "*" => {
   if (input === "*") {
     return "*";
   }
@@ -80,36 +81,13 @@ const parseAllowedOrigins = (input?: string[] | "*"): string[] | "*" => {
     return input.includes("*") ? "*" : input;
   }
 
-  const allowedOrigins = process.env.AIR_JAM_ALLOWED_ORIGINS?.split(",")
-    .map((origin) => origin.trim().replace(/^['"]|['"]$/g, ""))
-    .filter(Boolean);
-
-  if (
-    !allowedOrigins ||
-    allowedOrigins.length === 0 ||
-    allowedOrigins.includes("*")
-  ) {
-    return "*";
-  }
-
-  return allowedOrigins;
-};
-
-const isDevLogCollectorEnabled = (override?: DevLogCollector | false): boolean => {
-  if (override === false) {
-    return false;
-  }
-
-  if (process.env.AIR_JAM_DEV_LOG_COLLECTOR) {
-    return process.env.AIR_JAM_DEV_LOG_COLLECTOR === "enabled";
-  }
-
-  return process.env.NODE_ENV !== "production";
+  return fallback;
 };
 
 export const createAirJamServer = (
   options: CreateAirJamServerOptions = {},
 ): AirJamServerRuntime => {
+  const envConfig = options.envConfig ?? loadServerEnv();
   let activePort: number | null = null;
 
   const devLogCollector =
@@ -117,19 +95,32 @@ export const createAirJamServer = (
       ? null
       : options.devLogCollector ??
         new DevLogCollector({
-          enabled: isDevLogCollectorEnabled(options.devLogCollector),
+          enabled: envConfig.devLogCollectorEnabled,
           logDir:
-            options.devLogDir ??
-            process.env.AIR_JAM_DEV_LOG_DIR ??
-            resolveDefaultDevLogDir(),
+            options.devLogDir ?? envConfig.devLogDir ?? resolveDefaultDevLogDir(),
         });
   const logger =
     options.logger ??
-    createServerLogger({ service: "air-jam-server" }, undefined, devLogCollector);
+    createServerLogger(
+      { service: "air-jam-server" },
+      undefined,
+      devLogCollector,
+      { level: envConfig.logLevel },
+    );
   const roomManagerInstance = options.roomManager ?? roomManager;
   const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
   const authServiceInstance =
-    options.authService ?? new AuthService({ logger: logger.child({ component: "auth" }) });
+    options.authService ??
+    new AuthService({
+      logger: logger.child({ component: "auth" }),
+      env: {
+        authMode: envConfig.authMode,
+        masterKey: envConfig.masterKey,
+        hostGrantSecret: envConfig.hostGrantSecret,
+        databaseUrl: envConfig.databaseUrl,
+        nodeEnv: envConfig.nodeEnv,
+      },
+    });
   const runtimeUsagePublisher =
     options.runtimeUsagePublisher ??
     createDatabaseRuntimeUsageLedgerPublisher(
@@ -143,20 +134,15 @@ export const createAirJamServer = (
     throw new Error(startupConfigurationError);
   }
 
-  const defaultPort = Number(process.env.PORT ?? 4000);
-  const rateLimitWindowMs =
-    options.rateLimitWindowMs ??
-    parsePositiveInt(process.env.AIR_JAM_RATE_LIMIT_WINDOW_MS, 60_000);
+  const defaultPort = envConfig.port;
+  const rateLimitWindowMs = options.rateLimitWindowMs ?? envConfig.rateLimitWindowMs;
   const hostRegistrationRateLimitMax =
-    options.hostRegistrationRateLimitMax ??
-    parsePositiveInt(process.env.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX, 30);
+    options.hostRegistrationRateLimitMax ?? envConfig.hostRegistrationRateLimitMax;
   const controllerJoinRateLimitMax =
-    options.controllerJoinRateLimitMax ??
-    parsePositiveInt(process.env.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX, 120);
+    options.controllerJoinRateLimitMax ?? envConfig.controllerJoinRateLimitMax;
   const staticAppRateLimitMax =
-    options.staticAppRateLimitMax ??
-    parsePositiveInt(process.env.AIR_JAM_STATIC_APP_RATE_LIMIT_MAX, 120);
-  const corsOrigin = parseAllowedOrigins(options.allowedOrigins);
+    options.staticAppRateLimitMax ?? envConfig.staticAppRateLimitMax;
+  const corsOrigin = parseAllowedOrigins(options.allowedOrigins, envConfig.allowedOrigins);
 
   const app = express();
   app.use(cors({ origin: corsOrigin }));
@@ -331,10 +317,23 @@ const isMainModule = (() => {
 })();
 
 if (isMainModule) {
-  const runtime = createAirJamServer();
-  runtime.start().catch((error) => {
-    const logger = createServerLogger({ service: "air-jam-server" });
-    logger.error({ err: error }, "Failed to start server");
-    process.exitCode = 1;
-  });
+  Promise.resolve()
+    .then(() => createAirJamServer())
+    .then((runtime) => runtime.start())
+    .catch((error) => {
+      if (isEnvValidationError(error)) {
+        console.error(
+          formatEnvValidationError(error, {
+            docsHint:
+              "Fix the listed AIR_JAM_* variables and retry. For local dev, check .env.local.",
+          }),
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      const logger = createServerLogger({ service: "air-jam-server" });
+      logger.error({ err: error }, "Failed to start server");
+      process.exitCode = 1;
+    });
 }

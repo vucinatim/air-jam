@@ -12,6 +12,7 @@ import {
   SECURE_MODE_LOCAL,
 } from "./secure-dev.mjs";
 import { DEFAULT_AIR_JAM_DEV_BACKEND_URL } from "./vite-https.mjs";
+import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 
 const SUPPORTED_MODES = new Set([
   "standalone-dev",
@@ -104,6 +105,10 @@ export const runProjectTopologyCli = async ({
 
   loadEnvFile(path.join(cwd, ".env"), env);
   loadEnvFile(path.join(cwd, ".env.local"), env);
+  const runtimeEnv = loadCreateAirJamRuntimeEnv({
+    env,
+    boundary: "create-airjam.topology",
+  });
 
   const mode = getFlagValue(argv, "--mode")?.trim();
   if (!mode || !SUPPORTED_MODES.has(mode)) {
@@ -125,7 +130,7 @@ export const runProjectTopologyCli = async ({
       createProjectSurfaceTopology({
         runtimeMode: mode,
         secure,
-        env,
+        env: runtimeEnv,
         surfaceRole,
         cwd,
       }),

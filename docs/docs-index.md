@@ -15,7 +15,8 @@ Core system docs:
 4. [Analytics Architecture](./systems/analytics-architecture.md)
 5. [AI Studio Architecture](./systems/ai-studio-architecture.md)
 6. [Platform Controller Presentation](./systems/platform-controller-presentation.md)
-7. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
+7. [Environment Contracts](./systems/env-contracts.md)
+8. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 
 Strategy and operations:
 

@@ -13,6 +13,7 @@ import {
   buildStandaloneGameTopology,
   serializeResolvedTopology,
 } from "./runtime-topology.mjs";
+import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 
 export const SECURE_MODE_LOCAL = "local";
 export const SECURE_MODE_TUNNEL = "tunnel";
@@ -40,20 +41,30 @@ export const resolveRequestedSecureMode = ({
   return rawValue;
 };
 
-export const parseSecureInitArgs = (argv = []) => ({
-  mode: resolveRequestedSecureMode({ argv }),
+export const parseSecureInitArgs = (argv = [], env = process.env) => ({
+  mode: resolveRequestedSecureMode({ argv, env }),
   hostname: getFlagValue(argv, "--hostname")?.trim() ?? "",
   tunnel: getFlagValue(argv, "--tunnel")?.trim() ?? "",
 });
 
-export const parseGameDevArgs = (argv = [], env = process.env) => ({
-  secure: hasFlag(argv, "--secure"),
-  secureMode: resolveRequestedSecureMode({ argv, env }),
-  webOnly: hasFlag(argv, "--web-only"),
-  serverOnly: hasFlag(argv, "--server-only"),
-  allowExistingGame: hasFlag(argv, "--allow-existing-game"),
-  port: Number.parseInt(env.VITE_PORT ?? `${DEFAULT_GAME_PORT}`, 10),
-});
+export const parseGameDevArgs = (argv = [], env = process.env) => {
+  const runtimeEnv =
+    typeof env.VITE_PORT === "number"
+      ? env
+      : loadCreateAirJamRuntimeEnv({
+          env,
+          boundary: "create-airjam.dev",
+        });
+
+  return {
+    secure: hasFlag(argv, "--secure"),
+    secureMode: resolveRequestedSecureMode({ argv, env: runtimeEnv }),
+    webOnly: hasFlag(argv, "--web-only"),
+    serverOnly: hasFlag(argv, "--server-only"),
+    allowExistingGame: hasFlag(argv, "--allow-existing-game"),
+    port: runtimeEnv.VITE_PORT ?? DEFAULT_GAME_PORT,
+  };
+};
 
 export const getSecurePaths = (cwd) => {
   const rootDir = cwd;
@@ -155,20 +166,26 @@ const ensureCloudflaredInstalled = () => {
   }
 };
 
-const ensureCloudflareLogin = () => {
-  const certPath = path.join(process.env.HOME || "", ".cloudflared", "cert.pem");
+const ensureCloudflareLogin = (env = process.env) => {
+  const certPath = path.join(env.HOME || "", ".cloudflared", "cert.pem");
   if (!fs.existsSync(certPath)) {
     throw new Error("Cloudflare login not found. Run: cloudflared tunnel login");
   }
 };
 
-const ensureLocalCertificate = ({ cwd, certFile, keyFile, lanIp }) => {
+const ensureLocalCertificate = ({
+  cwd,
+  certFile,
+  keyFile,
+  lanIp,
+  env,
+  runtimeEnv,
+}) => {
   ensureMkcertInstalled();
   fs.mkdirSync(path.dirname(certFile), { recursive: true });
-  const trustStores =
-    process.env.AIR_JAM_MKCERT_TRUST_STORES?.trim() || "system,nss";
+  const trustStores = runtimeEnv.AIR_JAM_MKCERT_TRUST_STORES || "system,nss";
   const mkcertEnv = {
-    ...process.env,
+    ...env,
     TRUST_STORES: trustStores,
   };
   run("mkcert", ["-install"], {
@@ -194,9 +211,10 @@ const configureCloudflareTunnel = ({
   hostname,
   tunnel,
   gamePort,
+  env,
 }) => {
   ensureCloudflaredInstalled();
-  ensureCloudflareLogin();
+  ensureCloudflareLogin(env);
 
   let tunnelExists = false;
   try {
@@ -229,7 +247,7 @@ const configureCloudflareTunnel = ({
 
   const tunnelId = idMatch[0];
   const credentialsFile = path.join(
-    process.env.HOME || "",
+    env.HOME || "",
     ".cloudflared",
     `${tunnelId}.json`,
   );
@@ -259,6 +277,11 @@ export const initializeSecureDev = ({
   mode,
   hostname,
   tunnel,
+  env = process.env,
+  runtimeEnv = loadCreateAirJamRuntimeEnv({
+    env,
+    boundary: "create-airjam.secure-init",
+  }),
   gamePort = DEFAULT_GAME_PORT,
   nextStepMessage = "pnpm run dev -- --secure",
 } = {}) => {
@@ -271,6 +294,8 @@ export const initializeSecureDev = ({
     certFile: paths.certFile,
     keyFile: paths.keyFile,
     lanIp,
+    env,
+    runtimeEnv,
   });
 
   if (mode === SECURE_MODE_TUNNEL) {
@@ -286,6 +311,7 @@ export const initializeSecureDev = ({
       hostname,
       tunnel,
       gamePort,
+      env,
     });
   }
 
@@ -339,6 +365,10 @@ export const loadSecureDevState = ({
   env = process.env,
   gamePort = DEFAULT_GAME_PORT,
 } = {}) => {
+  const runtimeEnv = loadCreateAirJamRuntimeEnv({
+    env,
+    boundary: "create-airjam.secure-state",
+  });
   const paths = getSecurePaths(cwd);
   const state = readSecureDevState(paths.secureDevStateFile);
   if (!state) {
@@ -367,12 +397,10 @@ export const loadSecureDevState = ({
     mode,
     port: gamePort,
     lanIp: state.lanIp ?? null,
-    tunnelHost:
-      env.AIR_JAM_SECURE_PUBLIC_HOST?.trim() || state.tunnelHost || null,
+    tunnelHost: runtimeEnv.AIR_JAM_SECURE_PUBLIC_HOST || state.tunnelHost || null,
   });
 
-  const tunnelName =
-    env.CLOUDFLARE_TUNNEL_NAME?.trim() || state.tunnelName || null;
+  const tunnelName = runtimeEnv.CLOUDFLARE_TUNNEL_NAME || state.tunnelName || null;
   if (mode === SECURE_MODE_TUNNEL && !tunnelName) {
     throw new Error(
       "Missing CLOUDFLARE_TUNNEL_NAME for tunnel secure mode. Run `airjam secure:init --mode=tunnel ...` again.",
@@ -390,8 +418,7 @@ export const loadSecureDevState = ({
     platformHost: resolveSecurePlatformHost({
       mode,
       lanIp: state.lanIp ?? null,
-      tunnelHost:
-        env.AIR_JAM_SECURE_PUBLIC_HOST?.trim() || state.tunnelHost || null,
+      tunnelHost: runtimeEnv.AIR_JAM_SECURE_PUBLIC_HOST || state.tunnelHost || null,
       port: DEFAULT_PLATFORM_PORT,
     }),
   };
@@ -400,6 +427,7 @@ export const loadSecureDevState = ({
 export const buildSecureGameEnv = ({
   secureState,
   webOnly,
+  env = process.env,
 } = {}) => ({
   VITE_AIR_JAM_RUNTIME_TOPOLOGY: serializeResolvedTopology(
     buildStandaloneGameTopology({
@@ -414,8 +442,8 @@ export const buildSecureGameEnv = ({
   AIR_JAM_DEV_KEY_FILE: secureState.keyFile,
   AIR_JAM_DEV_PROXY_BACKEND_URL: "http://127.0.0.1:4000",
   VITE_AIR_JAM_PUBLIC_HOST: secureState.publicHost,
-  ...(webOnly && process.env.VITE_AIR_JAM_SERVER_URL
-    ? { VITE_AIR_JAM_SERVER_URL: process.env.VITE_AIR_JAM_SERVER_URL }
+  ...(webOnly && env.VITE_AIR_JAM_SERVER_URL
+    ? { VITE_AIR_JAM_SERVER_URL: env.VITE_AIR_JAM_SERVER_URL }
     : {}),
 });
 
@@ -460,15 +488,21 @@ export const runSecureInitCli = async ({
 
   loadEnvFile(path.join(cwd, ".env"), env);
   loadEnvFile(path.join(cwd, ".env.local"), env);
+  const runtimeEnv = loadCreateAirJamRuntimeEnv({
+    env,
+    boundary: "create-airjam.secure-init",
+  });
 
-  const args = parseSecureInitArgs(argv);
+  const args = parseSecureInitArgs(argv, runtimeEnv);
   initializeSecureDev({
     cwd,
     envFilePath: path.join(cwd, ".env.local"),
     mode: args.mode,
     hostname: args.hostname,
     tunnel: args.tunnel,
-    gamePort: Number.parseInt(env.VITE_PORT ?? `${DEFAULT_GAME_PORT}`, 10),
+    env,
+    runtimeEnv,
+    gamePort: runtimeEnv.VITE_PORT ?? DEFAULT_GAME_PORT,
     nextStepMessage,
   });
 };

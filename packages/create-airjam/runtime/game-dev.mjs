@@ -18,6 +18,7 @@ import {
   buildStandaloneGameTopology,
   serializeResolvedTopology,
 } from "./runtime-topology.mjs";
+import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 
 const START_TIMEOUT_MS = 20_000;
 
@@ -111,8 +112,12 @@ export const runGameDevCli = async ({
 } = {}) => {
   loadEnvFile(path.join(cwd, ".env"), env);
   loadEnvFile(path.join(cwd, ".env.local"), env);
-  const secureRootDir = env.AIR_JAM_SECURE_ROOT
-    ? path.resolve(cwd, env.AIR_JAM_SECURE_ROOT)
+  const runtimeEnv = loadCreateAirJamRuntimeEnv({
+    env,
+    boundary: "create-airjam.dev",
+  });
+  const secureRootDir = runtimeEnv.AIR_JAM_SECURE_ROOT
+    ? path.resolve(cwd, runtimeEnv.AIR_JAM_SECURE_ROOT)
     : cwd;
 
   const help = hasFlag(argv, "--help") || hasFlag(argv, "-h");
@@ -121,7 +126,7 @@ export const runGameDevCli = async ({
     return;
   }
 
-  const args = parseGameDevArgs(argv, env);
+  const args = parseGameDevArgs(argv, runtimeEnv);
   if (args.webOnly && args.serverOnly) {
     throw new Error("Cannot combine --web-only and --server-only.");
   }
@@ -135,7 +140,7 @@ export const runGameDevCli = async ({
       secureState = loadSecureDevState({
         cwd: secureRootDir,
         mode: args.secureMode,
-        env,
+        env: runtimeEnv,
         gamePort: args.port,
       });
       console.log(`[dev] Secure mode: ${secureState.mode}`);
@@ -157,6 +162,7 @@ export const runGameDevCli = async ({
           ? buildSecureGameEnv({
               secureState,
               webOnly: args.webOnly,
+              env: runtimeEnv,
             })
           : {
               VITE_AIR_JAM_RUNTIME_TOPOLOGY: serializeResolvedTopology(
@@ -172,8 +178,10 @@ export const runGameDevCli = async ({
                 env,
                 args.port || DEFAULT_GAME_PORT,
               ),
-              ...(args.webOnly && env.VITE_AIR_JAM_SERVER_URL
-                ? { VITE_AIR_JAM_SERVER_URL: env.VITE_AIR_JAM_SERVER_URL }
+              ...(args.webOnly && runtimeEnv.VITE_AIR_JAM_SERVER_URL
+                ? {
+                    VITE_AIR_JAM_SERVER_URL: runtimeEnv.VITE_AIR_JAM_SERVER_URL,
+                  }
                 : {}),
             },
         allowExistingGame: args.allowExistingGame,

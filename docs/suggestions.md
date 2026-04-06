@@ -18,6 +18,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 12. Revisit SDK package ergonomics only if it still materially helps adoption, but do it under the explicit runtime-ownership model rather than reopening the older headless-first singleton-owner direction.
 13. Add optional per-action schema validation for networked store actions only if real game usage proves the zero-or-one plain-object RPC contract still needs stronger validation; keep it additive and narrow rather than turning the whole store layer into a schema-first framework.
 14. Split scaffold validation into a fast contract smoke and a full catalog sweep so routine local verification does not always require the heaviest `pnpm test:scaffold` path.
+15. Migrate workspace/repo command env parsing to `@air-jam/env` so runtime contract validation stays consistent beyond server/platform/create-airjam boundaries.
+16. Rework server DB bootstrap env lifecycle so module-load `DATABASE_URL` reads can be validated through one explicit startup env contract boundary.
 
 ## Framework Boundary Follow-Ups
 
@@ -26,3 +28,4 @@ These are still useful post–Arcade reset, but they should be handled as small 
 1. **Single bootstrap owner:** Centralize embedded-vs-standalone runtime resolution and URL parsing into one module so room/join/arcade bootstrap does not stay split across runtime params, embedded adapters, realtime clients, and runtime hooks.
 2. **Reconnect seam narrowing:** Revisit `hostArcadeRestore` and move it behind a host-only adapter if we can do so cleanly, so `AirJamStore` stays room/session shaped instead of carrying host-shell restore state forever.
 3. **Protocol change recipe:** Funnel schema/protocol changes through `packages/sdk/src/protocol` more deliberately and document the change path in `docs/monorepo-operating-system.md` so transport updates stop fanning out loosely.
+4. **Embedded crash-exit contract:** Add a first-class parent/child bridge contract for "exit embedded game after runtime crash" so iframe error fallback can request a clean Arcade return path without relying on manual host overlay exit.

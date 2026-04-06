@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-04  
+Last updated: 2026-04-06  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -304,6 +304,18 @@ Current truth:
 5. Cloudflare tunnel remains supported only as an explicit fallback mode, not the default teaching path
 6. generated projects no longer ship with `cloudflared` as a default dependency
 7. the shared scaffold validation gate remains green after the secure-dev transition, so the repo and exported templates are still aligned
+
+### 10. Environment Contract Hardening
+
+Status: active baseline
+
+Current truth:
+
+1. runtime-owning boundaries now share a small env validation core via `@air-jam/env`
+2. server startup/auth env now parses once and fails fast with actionable terminal errors
+3. platform release storage/moderation env now uses boundary-owned validated schemas
+4. create-airjam runtime commands (`dev`, `secure:init`, `topology`) now use one validated runtime env contract
+5. env contract documentation now lives in [Environment Contracts](./systems/env-contracts.md)
 
 ## Active Framework Tracks
 

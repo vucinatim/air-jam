@@ -10,28 +10,29 @@ import type { DevLogCollector } from "./dev-log-collector.js";
 
 export type ServerLogger = Logger;
 
-const resolveDefaultLogLevel = (): string => {
-  if (process.env.AIR_JAM_LOG_LEVEL) {
-    return process.env.AIR_JAM_LOG_LEVEL;
-  }
+const resolveDefaultLogLevel = (configuredLevel?: string): string =>
+  configuredLevel ?? process.env.AIR_JAM_LOG_LEVEL ?? "info";
 
-  return "info";
-};
-
-const baseLoggerOptions: LoggerOptions = {
-  level: resolveDefaultLogLevel(),
+const createBaseLoggerOptions = (configuredLevel?: string): LoggerOptions => ({
+  level: resolveDefaultLogLevel(configuredLevel),
   base: undefined,
   timestamp: pino.stdTimeFunctions.isoTime,
   formatters: {
     level: (label) => ({ level: label }),
   },
-};
+});
+
+interface CreateServerLoggerOptions {
+  level?: string;
+}
 
 export const createServerLogger = (
   bindings?: Bindings,
   parent?: ServerLogger,
   devLogCollector?: DevLogCollector | null,
+  options?: CreateServerLoggerOptions,
 ): ServerLogger => {
+  const baseLoggerOptions = createBaseLoggerOptions(options?.level);
   const logger =
     parent ??
     (devLogCollector?.enabled

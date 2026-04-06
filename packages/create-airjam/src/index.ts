@@ -6,6 +6,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
 import yazl from "yazl";
+import {
+  formatEnvValidationError,
+  isEnvValidationError,
+} from "@air-jam/env";
 import { runGameDevCli } from "../runtime/game-dev.mjs";
 import { runSecureInitCli } from "../runtime/secure-dev.mjs";
 import { runProjectTopologyCli } from "../runtime/topology.mjs";
@@ -865,6 +869,17 @@ async function main() {
 }
 
 main().catch((err) => {
+  if (isEnvValidationError(err)) {
+    console.error(
+      formatEnvValidationError(err, {
+        docsHint:
+          "Fix the listed env values in .env.local (or CI/deployment env) and retry.",
+      }),
+    );
+    process.exit(1);
+    return;
+  }
+
   console.error(kleur.red("Error:"), err);
   process.exit(1);
 });

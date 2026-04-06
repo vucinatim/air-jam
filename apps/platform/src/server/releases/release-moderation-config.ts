@@ -1,4 +1,9 @@
 import { getSiteUrl } from "@/lib/site-url";
+import {
+  loadReleaseModerationAvailabilityProbeEnv,
+  loadReleaseModerationEnv,
+  resolveConfiguredReleasesBaseUrl,
+} from "./release-env";
 
 export type ReleaseModerationConfig = {
   internalAccessToken: string;
@@ -31,20 +36,6 @@ let cachedReleaseModerationAvailability:
     }
   | null = null;
 
-const readPositiveIntegerEnv = (name: string, fallback: number): number => {
-  const rawValue = process.env[name]?.trim();
-  if (!rawValue) {
-    return fallback;
-  }
-
-  const parsedValue = Number.parseInt(rawValue, 10);
-  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
-    throw new Error(`Invalid positive integer env for ${name}: ${rawValue}`);
-  }
-
-  return parsedValue;
-};
-
 export const getReleaseModerationConfig = (): ReleaseModerationConfig => {
   const availability = getReleaseModerationAvailability();
   if (!availability.available) {
@@ -59,13 +50,11 @@ export const getReleaseModerationAvailability = () => {
     return cachedReleaseModerationAvailability;
   }
 
-  const wsEndpoint =
-    process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT?.trim() || null;
-  const executablePath =
-    process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH?.trim() || null;
-  const internalAccessToken =
-    process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN?.trim() || null;
-  const openAiApiKey = process.env.OPENAI_API_KEY?.trim() || null;
+  const probe = loadReleaseModerationAvailabilityProbeEnv();
+  const wsEndpoint = probe.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null;
+  const executablePath = probe.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null;
+  const internalAccessToken = probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
+  const openAiApiKey = probe.OPENAI_API_KEY ?? null;
 
   if (!wsEndpoint && !executablePath) {
     cachedReleaseModerationAvailability = {
@@ -94,46 +83,15 @@ export const getReleaseModerationAvailability = () => {
     return cachedReleaseModerationAvailability;
   }
 
+  const parsed = loadReleaseModerationEnv();
   cachedReleaseModerationConfig = {
-    internalAccessToken,
+    internalAccessToken: parsed.internalAccessToken,
     publicBaseUrl: (
-      process.env.NEXT_PUBLIC_RELEASES_BASE_URL?.trim() ||
-      process.env.AIRJAM_RELEASES_BASE_URL?.trim() ||
+      resolveConfiguredReleasesBaseUrl() ||
       getSiteUrl()
     ).replace(/\/$/, ""),
-    browserLaunch: {
-      wsEndpoint,
-      executablePath,
-      navigationTimeoutMs: readPositiveIntegerEnv(
-        "AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS",
-        20_000,
-      ),
-      waitAfterLoadMs: readPositiveIntegerEnv(
-        "AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS",
-        1_000,
-      ),
-      viewportWidth: readPositiveIntegerEnv(
-        "AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH",
-        1440,
-      ),
-      viewportHeight: readPositiveIntegerEnv(
-        "AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT",
-        900,
-      ),
-    },
-    openAi: {
-      apiKey: openAiApiKey,
-      model:
-        process.env.AIRJAM_RELEASES_OPENAI_MODERATION_MODEL?.trim() ||
-        "omni-moderation-latest",
-      baseUrl:
-        process.env.AIRJAM_RELEASES_OPENAI_BASE_URL?.trim() ||
-        "https://api.openai.com/v1",
-      timeoutMs: readPositiveIntegerEnv(
-        "AIRJAM_RELEASES_OPENAI_TIMEOUT_MS",
-        20_000,
-      ),
-    },
+    browserLaunch: parsed.browserLaunch,
+    openAi: parsed.openAi,
   };
 
   cachedReleaseModerationAvailability = {
@@ -142,4 +100,9 @@ export const getReleaseModerationAvailability = () => {
   };
 
   return cachedReleaseModerationAvailability;
+};
+
+export const resetReleaseModerationConfigForTests = (): void => {
+  cachedReleaseModerationConfig = null;
+  cachedReleaseModerationAvailability = null;
 };

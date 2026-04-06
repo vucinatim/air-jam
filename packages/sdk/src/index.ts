@@ -120,9 +120,18 @@ export {
   createAirJamApp,
   env,
   type AirJamApp,
+  type AirJamAppErrorBoundaryOptions,
   type AirJamGameMetadata,
+  type AirJamRuntimeErrorBoundaryOptions,
   type CreateAirJamAppOptions,
 } from "./runtime/create-air-jam-app";
+export {
+  AirJamErrorBoundary,
+  type AirJamErrorBoundaryProps,
+  type AirJamErrorFallbackRenderProps,
+  type AirJamErrorFallbackRenderer,
+  type AirJamRuntimeRole,
+} from "./runtime/air-jam-error-boundary";
 export { resolveAirJamBrowserRouterBasename } from "./runtime/router-basename";
 
 export {

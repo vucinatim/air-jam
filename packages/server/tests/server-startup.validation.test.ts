@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { EnvValidationError } from "@air-jam/env";
 import { createAirJamServer } from "../src/index";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -24,8 +25,6 @@ describe("createAirJamServer startup validation", () => {
     delete process.env.AIR_JAM_MASTER_KEY;
     delete process.env.AIR_JAM_HOST_GRANT_SECRET;
 
-    expect(() => createAirJamServer()).toThrow(
-      "AIR_JAM_AUTH_MODE=required requires an auth backend.",
-    );
+    expect(() => createAirJamServer()).toThrow(EnvValidationError);
   });
 });

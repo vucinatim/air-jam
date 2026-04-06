@@ -16,6 +16,11 @@ import {
   AirJamHostRuntime,
 } from "./session-runtimes";
 import {
+  AirJamErrorBoundary,
+  type AirJamErrorBoundaryProps,
+  type AirJamErrorFallbackRenderer,
+} from "./air-jam-error-boundary";
+import {
   resolveAirJamConfig,
   type ResolveAirJamConfigInput,
 } from "./air-jam-config";
@@ -35,12 +40,23 @@ export interface AirJamGameMetadata {
   controllerPath?: string;
 }
 
+export interface AirJamRuntimeErrorBoundaryOptions {
+  renderFallback?: AirJamErrorFallbackRenderer;
+  onError?: AirJamErrorBoundaryProps["onError"];
+}
+
+export interface AirJamAppErrorBoundaryOptions {
+  host?: AirJamRuntimeErrorBoundaryOptions;
+  controller?: AirJamRuntimeErrorBoundaryOptions;
+}
+
 export interface CreateAirJamAppOptions<
   TSchema extends z.ZodSchema = z.ZodSchema,
 > {
   runtime?: ResolveAirJamConfigInput;
   game?: AirJamGameMetadata;
   input?: AirJamProviderProps<TSchema>["input"];
+  errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
 
 export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
@@ -160,6 +176,7 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   runtime = {},
   game,
   input,
+  errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
   const initialConfig = resolveAirJamConfig(runtime);
 
@@ -193,10 +210,19 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     children,
     ...runtimeOptions
   }: AirJamHostOptions & { children: ReactNode }): JSX.Element => {
+    const hostErrorBoundary = errorBoundary?.host;
     return (
-      <AirJamHostRuntime<TSchema> {...hostSession} {...runtimeOptions}>
-        {children}
-      </AirJamHostRuntime>
+      <AirJamErrorBoundary
+        role="host"
+        roomId={runtimeOptions.roomId}
+        appId={hostSession.appId}
+        renderFallback={hostErrorBoundary?.renderFallback}
+        onError={hostErrorBoundary?.onError}
+      >
+        <AirJamHostRuntime<TSchema> {...hostSession} {...runtimeOptions}>
+          {children}
+        </AirJamHostRuntime>
+      </AirJamErrorBoundary>
     );
   };
 
@@ -204,10 +230,19 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     children,
     ...runtimeOptions
   }: AirJamControllerOptions & { children: ReactNode }): JSX.Element => {
+    const controllerErrorBoundary = errorBoundary?.controller;
     return (
-      <AirJamControllerRuntime {...controllerSession} {...runtimeOptions}>
-        {children}
-      </AirJamControllerRuntime>
+      <AirJamErrorBoundary
+        role="controller"
+        roomId={runtimeOptions.roomId}
+        appId={controllerSession.appId}
+        renderFallback={controllerErrorBoundary?.renderFallback}
+        onError={controllerErrorBoundary?.onError}
+      >
+        <AirJamControllerRuntime {...controllerSession} {...runtimeOptions}>
+          {children}
+        </AirJamControllerRuntime>
+      </AirJamErrorBoundary>
     );
   };
 

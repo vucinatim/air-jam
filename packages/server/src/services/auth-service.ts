@@ -42,6 +42,14 @@ export interface HostBootstrapAuthService {
   getStartupConfigurationError?: () => string | null;
 }
 
+export interface AuthServiceEnvironment {
+  authMode?: AuthMode;
+  masterKey?: string;
+  hostGrantSecret?: string;
+  databaseUrl?: string;
+  nodeEnv?: string;
+}
+
 const normalizeOrigin = (value?: string): string | null => {
   if (!value) {
     return null;
@@ -81,12 +89,15 @@ export class AuthService {
   private databaseUrl: string | undefined;
   private authMode: AuthMode;
 
-  constructor(options: { logger?: ServerLogger } = {}) {
+  constructor(
+    options: { logger?: ServerLogger; env?: AuthServiceEnvironment } = {},
+  ) {
     this.logger = options.logger ?? createServerLogger({ component: "auth" });
-    this.masterKey = process.env.AIR_JAM_MASTER_KEY;
-    this.hostGrantSecret = process.env.AIR_JAM_HOST_GRANT_SECRET;
-    this.databaseUrl = process.env.DATABASE_URL;
-    this.authMode = this.resolveAuthMode();
+    this.masterKey = options.env?.masterKey ?? process.env.AIR_JAM_MASTER_KEY;
+    this.hostGrantSecret =
+      options.env?.hostGrantSecret ?? process.env.AIR_JAM_HOST_GRANT_SECRET;
+    this.databaseUrl = options.env?.databaseUrl ?? process.env.DATABASE_URL;
+    this.authMode = this.resolveAuthMode(options.env);
 
     if (this.authMode === "disabled") {
       this.logger.info(
@@ -299,8 +310,9 @@ export class AuthService {
     }
   }
 
-  private resolveAuthMode(): AuthMode {
-    const configuredMode = process.env.AIR_JAM_AUTH_MODE?.toLowerCase();
+  private resolveAuthMode(env?: AuthServiceEnvironment): AuthMode {
+    const configuredMode =
+      env?.authMode ?? process.env.AIR_JAM_AUTH_MODE?.toLowerCase();
 
     if (configuredMode === "disabled") {
       return "disabled";
@@ -314,7 +326,7 @@ export class AuthService {
     // - Production defaults to required.
     // - Development defaults to disabled for friction-free local iteration.
     // - Use AIR_JAM_AUTH_MODE=required to enforce auth in development.
-    if (process.env.NODE_ENV === "production") {
+    if ((env?.nodeEnv ?? process.env.NODE_ENV) === "production") {
       return "required";
     }
 
