@@ -651,6 +651,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       });
       store.getState().setStatus("disconnected");
       store.getState().resetPlayers();
+      store.getState().resetGameState();
       setRegisteredRoomId(null);
       setDevHostTraceId(undefined);
     };
@@ -701,6 +702,17 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     const handleState = (payload: ControllerStateMessage): void => {
       const activeRoomId = parsedRoomIdRef.current;
       if (!activeRoomId || payload.roomId !== activeRoomId) return;
+
+      emitHostRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.hostStateReceived,
+        message: "Host received state update",
+        roomId: payload.roomId,
+        data: {
+          gameState: payload.state.gameState,
+          orientation: payload.state.orientation,
+          hasMessage: payload.state.message !== undefined,
+        },
+      });
 
       const latestState = store.getState();
       if (payload.state.gameState) {

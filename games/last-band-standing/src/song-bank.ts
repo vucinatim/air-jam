@@ -324,12 +324,6 @@ const rawSongBank = [
     "youtubeUrl": "https://youtu.be/Gs069dndIYk"
   },
   {
-    "id": "Dreams-Fleetwood Mac",
-    "title": "Dreams",
-    "artist": "Fleetwood Mac",
-    "youtubeUrl": "https://youtu.be/Y3ywicSN8HE"
-  },
-  {
     "id": "I Will Survive-Gloria Gaynor",
     "title": "I Will Survive",
     "artist": "Gloria Gaynor",
@@ -378,12 +372,6 @@ const rawSongBank = [
     "youtubeUrl": "https://youtu.be/79fzeNUqQbQ?t=25"
   },
   {
-    "id": "Don't Stop Believin'-Journey",
-    "title": "Don't Stop Believin'",
-    "artist": "Journey",
-    "youtubeUrl": "https://youtu.be/1k8craCGv14"
-  },
-  {
     "id": "Smells Like Teen Spirit-Nirvana",
     "title": "Smells Like Teen Spirit",
     "artist": "Nirvana",
@@ -400,12 +388,6 @@ const rawSongBank = [
     "title": "Wannabe",
     "artist": "Spice Girls",
     "youtubeUrl": "https://youtu.be/gJLIiF15wjQ?t=28"
-  },
-  {
-    "id": "No Scrubs-TLC",
-    "title": "No Scrubs",
-    "artist": "TLC",
-    "youtubeUrl": "https://youtu.be/FrLtePxc4ZU?t=26"
   },
   {
     "id": "...Baby One More Time-Britney Spears",

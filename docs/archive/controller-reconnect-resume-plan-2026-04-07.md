@@ -1,11 +1,14 @@
 # Controller Reconnect And Resume Plan
 
 Last updated: 2026-04-01  
-Status: active
+Status: archived completed baseline
+
+Archived on 2026-04-07 after the reconnect/resume baseline was validated through real local Arcade product flow in `pong`, `air-capture`, and `last-band-standing`.
+Current release execution now lives in [Work Ledger](../work-ledger.md) and [V1 Release Launch Plan](../plans/v1-release-launch-plan.md).
 
 Related docs:
 
-1. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+1. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
 2. [Work Ledger](../work-ledger.md)
 3. [Framework Paradigm](../framework-paradigm.md)
 4. [Arcade Surface Contract](../systems/arcade-surface-contract.md)
@@ -229,7 +232,7 @@ If a game still needs custom reconnect handling after this baseline lands, that 
 3. safe host/runtime rebinding for the common same-device reconnect case
    Status: landed
 4. no host-state corruption on failed or conflicting attempts
-   Status: landed in targeted SDK/server tests; still needs product proof in launch-set games
+   Status: landed and validated in real local Arcade product flow
 5. enough observability and tests to trust the feature
    Status: landed for the baseline server/runtime contract
 
@@ -247,6 +250,8 @@ If a game still needs custom reconnect handling after this baseline lands, that 
 3. explicit leave still removes a controller immediately
 4. room-scoped leases expire cleanly when no resume happens
 5. `pong`, `air-capture`, and `last-band-standing` prove the behavior in real local Arcade product flow
+6. the common refresh/disconnect/rejoin case works without game-specific plumbing
+7. the feature is simple enough that it becomes the obvious path for new games and LLM-generated code
 
 ## Current Baseline
 
@@ -265,6 +270,3 @@ What is intentionally not part of the baseline:
 2. long-lived cross-room player save
 3. account-linked player continuity
 4. a large per-game reconnect policy API
-2. the common refresh/disconnect/rejoin case works without game-specific plumbing
-3. the feature is simple enough that it becomes the obvious path for new games and LLM-generated code
-4. the baseline pair and at least one showcase game prove the behavior through real Arcade play

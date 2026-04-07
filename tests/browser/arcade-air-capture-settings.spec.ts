@@ -1,5 +1,12 @@
-import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { dismissControllerFullscreenPrompt } from "./helpers/controller-fullscreen";
+import { resolveControllerJoinUrl } from "./helpers/controller-join-url";
 
 const PLATFORM_SETTINGS_STORAGE_KEY = "air-jam-platform-settings";
 const TRACK_BASE_VOLUME = 0.4;
@@ -19,7 +26,10 @@ const seedPlatformSettings = {
   },
 };
 
-const installAudioProbe = async (context: BrowserContext, platformOrigin: string) => {
+const installAudioProbe = async (
+  context: BrowserContext,
+  platformOrigin: string,
+) => {
   await context.addInitScript(
     ({ platformOrigin, storageKey, settings }) => {
       if (window.location.origin === platformOrigin) {
@@ -66,7 +76,9 @@ const getHostGameFrame = (page: Page) =>
 const getControllerGameFrame = (page: Page) =>
   page.frameLocator('iframe[data-testid="arcade-controller-game-frame"]');
 
-const maybeEnableBlockedAudio = async (hostGame: ReturnType<typeof getHostGameFrame>) => {
+const maybeEnableBlockedAudio = async (
+  hostGame: ReturnType<typeof getHostGameFrame>,
+) => {
   const prompt = hostGame.getByTestId("air-capture-audio-blocked-prompt");
   if (await prompt.isVisible().catch(() => false)) {
     await hostGame.getByTestId("air-capture-enable-audio-button").click();
@@ -74,7 +86,9 @@ const maybeEnableBlockedAudio = async (hostGame: ReturnType<typeof getHostGameFr
   }
 };
 
-const readMusicTrackVolume = async (hostGame: ReturnType<typeof getHostGameFrame>) => {
+const readMusicTrackVolume = async (
+  hostGame: ReturnType<typeof getHostGameFrame>,
+) => {
   return hostGame.locator("body").evaluate(() => {
     const bucket = (
       window as typeof window & {
@@ -83,8 +97,9 @@ const readMusicTrackVolume = async (hostGame: ReturnType<typeof getHostGameFrame
     ).__airjamTestAudioElements;
 
     const musicTrack =
-      bucket?.filter((element) => element.src.includes("/music/track_")).at(-1) ??
-      null;
+      bucket
+        ?.filter((element) => element.src.includes("/music/track_"))
+        .at(-1) ?? null;
     return musicTrack ? musicTrack.volume : null;
   });
 };
@@ -112,6 +127,16 @@ const waitForMusicTrack = async (
 };
 
 const setSliderToMax = async (locator: Locator) => {
+  const bounds = await locator.boundingBox();
+  if (!bounds) {
+    throw new Error("Slider bounds were unavailable.");
+  }
+  await locator.click({
+    position: {
+      x: Math.max(1, bounds.width - 2),
+      y: Math.max(1, bounds.height / 2),
+    },
+  });
   const thumb = locator.locator('[data-slot="slider-thumb"]').first();
   await thumb.focus();
   await thumb.press("End");
@@ -138,21 +163,17 @@ test("arcade local air-capture inherits initial settings and applies controller 
     /[A-Z0-9]{4}/,
   );
 
-  const roomCode = (
-    await hostGame.getByTestId("air-capture-room-code").textContent()
-  )?.trim();
-  if (!roomCode) {
-    throw new Error("Air Capture room code was not available.");
-  }
+  const controllerJoinUrl = await resolveControllerJoinUrl({
+    hostGame,
+    baseURL,
+  });
 
   await maybeEnableBlockedAudio(hostGame);
   await waitForMusicTrack(hostGame);
   await waitForTrackVolume(hostGame, TRACK_BASE_VOLUME * 0.5 * 0.25);
 
   const controllerPage = await context.newPage();
-  await controllerPage.goto(
-    `${baseURL}/controller?room=${encodeURIComponent(roomCode)}`,
-  );
+  await controllerPage.goto(controllerJoinUrl);
   await dismissControllerFullscreenPrompt(controllerPage);
 
   const controllerGame = getControllerGameFrame(controllerPage);
@@ -161,11 +182,17 @@ test("arcade local air-capture inherits initial settings and applies controller 
   ).toBeVisible();
 
   await controllerPage.getByLabel("Open controller menu").click();
-  await expect(controllerPage.getByTestId("platform-settings-panel")).toBeVisible();
+  await expect(
+    controllerPage.getByTestId("platform-settings-panel"),
+  ).toBeVisible();
 
-  await setSliderToMax(controllerPage.getByTestId("platform-settings-music-volume"));
+  await setSliderToMax(
+    controllerPage.getByTestId("platform-settings-music-volume"),
+  );
   await waitForTrackVolume(hostGame, TRACK_BASE_VOLUME * 0.5 * 1);
 
-  await setSliderToMax(controllerPage.getByTestId("platform-settings-master-volume"));
+  await setSliderToMax(
+    controllerPage.getByTestId("platform-settings-master-volume"),
+  );
   await waitForTrackVolume(hostGame, TRACK_BASE_VOLUME);
 });

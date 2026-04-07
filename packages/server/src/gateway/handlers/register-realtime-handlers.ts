@@ -114,12 +114,16 @@ export const registerRealtimeHandlers = (
     }
 
     if (command === "toggle_pause") {
+      const previousGameState = session.gameState;
+      const nextGameState =
+        previousGameState === "playing" ? "paused" : "playing";
       logRealtimeEvent("info", AIRJAM_DEV_LOG_EVENTS.host.systemAccepted, "Host toggled pause state", {
         roomId,
         command,
+        previousGameState,
+        nextGameState,
       });
-      session.gameState =
-        session.gameState === "playing" ? "paused" : "playing";
+      session.gameState = nextGameState;
       emitRoomState(
         io,
         roomId,

@@ -17,6 +17,7 @@ import {
   readReleaseArchiveManifest,
   streamValidatedReleaseArchiveFiles,
 } from "./release-artifact-validation";
+import type { ReleaseModerationSummary } from "./release-moderation-service";
 import {
   buildReleaseSiteObjectKey,
   buildReleaseStorageKeys,
@@ -118,6 +119,43 @@ const waitForUploadedArtifact = async ({
   }
 
   return null;
+};
+
+const setReleaseFailedStatus = async ({
+  releaseId,
+  uploadedAt,
+  checkedAt = new Date(),
+}: {
+  releaseId: string;
+  uploadedAt: Date | null;
+  checkedAt?: Date;
+}) => {
+  await db
+    .update(gameReleases)
+    .set({
+      status: "failed",
+      uploadedAt: uploadedAt ?? undefined,
+      checkedAt,
+    })
+    .where(eq(gameReleases.id, releaseId));
+};
+
+export const resolveReleasePostModerationAction = (
+  moderation: Pick<ReleaseModerationSummary, "outcome" | "reason">,
+) => {
+  switch (moderation.outcome) {
+    case "passed":
+      return { kind: "ready" } as const;
+    case "flagged":
+      return { kind: "quarantined" } as const;
+    case "skipped":
+      return {
+        kind: "failed",
+        message:
+          moderation.reason ??
+          "Release moderation is required before a hosted release can become ready.",
+      } as const;
+  }
 };
 
 const markReleaseUploadFailure = async ({
@@ -356,33 +394,6 @@ export const finalizeReleaseUpload = async ({
         },
       });
     });
-
-    try {
-      const moderation = await runReleaseModeration({
-        releaseId: release.id,
-      });
-
-      if (moderation.outcome !== "flagged") {
-        await db
-          .update(gameReleases)
-          .set({
-            status: "ready",
-            checkedAt,
-            quarantinedAt: null,
-          })
-          .where(eq(gameReleases.id, release.id));
-      }
-    } catch (error) {
-      await db
-        .update(gameReleases)
-        .set({
-          status: "failed",
-          checkedAt: new Date(),
-        })
-        .where(eq(gameReleases.id, release.id));
-
-      throw error;
-    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Release artifact validation failed.";
@@ -397,6 +408,43 @@ export const finalizeReleaseUpload = async ({
       },
     });
 
+    throw error;
+  }
+
+  try {
+    const checkedAt = new Date();
+    const moderation = await runReleaseModeration({
+      releaseId: release.id,
+    });
+    const postModerationAction = resolveReleasePostModerationAction(moderation);
+
+    if (postModerationAction.kind === "ready") {
+      await db
+        .update(gameReleases)
+        .set({
+          status: "ready",
+          checkedAt,
+          quarantinedAt: null,
+        })
+        .where(eq(gameReleases.id, release.id));
+      return;
+    }
+
+    if (postModerationAction.kind === "quarantined") {
+      return;
+    }
+
+    await setReleaseFailedStatus({
+      releaseId: release.id,
+      uploadedAt,
+      checkedAt,
+    });
+    throw new Error(postModerationAction.message);
+  } catch (error) {
+    await setReleaseFailedStatus({
+      releaseId: release.id,
+      uploadedAt,
+    });
     throw error;
   }
 };

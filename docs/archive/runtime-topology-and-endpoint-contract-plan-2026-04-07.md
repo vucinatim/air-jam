@@ -1,14 +1,17 @@
 # Runtime Topology And Endpoint Contract Plan
 
 Last updated: 2026-04-06  
-Status: active baseline and purge implemented
+Status: archived completed baseline
+
+Archived on 2026-04-07 after the shared runtime-topology contract, explicit command wiring, and topology inspector landed.
+Current release execution now lives in [Work Ledger](../work-ledger.md) and [V1 Release Launch Plan](../plans/v1-release-launch-plan.md).
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
 2. [Framework Paradigm](../framework-paradigm.md)
 3. [Monorepo Operating System](../monorepo-operating-system.md)
-4. [Local Runtime Workflow Modes Plan](./local-runtime-workflow-modes-plan.md)
+4. [Local Runtime Workflow Modes Plan](./local-runtime-workflow-modes-plan-2026-04-07.md)
 5. [Arcade Surface Contract](../systems/arcade-surface-contract.md)
 
 ## Purpose

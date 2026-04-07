@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import {
+  type ServerDatabase,
   runtimeUsageControllerSegments,
   runtimeUsageDailyGameMetrics,
   runtimeUsageEligibleSegments,
@@ -12,10 +12,8 @@ import {
   buildRuntimeUsageGameSessionMetrics,
 } from "./runtime-usage-aggregates-domain.js";
 
-type RuntimeUsageDb = PostgresJsDatabase<Record<string, never>>;
-
 export const refreshRuntimeUsageAggregatesForSession = async (
-  db: RuntimeUsageDb,
+  db: ServerDatabase,
   runtimeSessionId: string,
   referenceTime: Date,
 ): Promise<void> => {

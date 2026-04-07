@@ -1,7 +1,5 @@
-import {
-  HostMuteButton,
-  type HostConnectionStatus,
-} from "./host-overlays";
+import { HostMuteButton } from "@air-jam/sdk/ui";
+import { type HostConnectionStatus } from "./host-overlays";
 
 export const HostLiveChrome = ({
   roomId,
@@ -31,7 +29,11 @@ export const HostLiveChrome = ({
           Room <span className="font-semibold tracking-wider">{roomId || "----"}</span>
         </span>
       </div>
-      <HostMuteButton muted={audioMuted} onToggle={onToggleAudio} />
+      <HostMuteButton
+        muted={audioMuted}
+        onToggle={onToggleAudio}
+        className="border-white/20 bg-black/50 text-white hover:bg-black/70"
+      />
     </div>
   );
 };

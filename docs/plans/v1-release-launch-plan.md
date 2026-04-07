@@ -1,6 +1,6 @@
 # Air Jam V1 Release Launch Plan
 
-Last updated: 2026-04-01  
+Last updated: 2026-04-07  
 Status: active
 
 Related docs:
@@ -11,9 +11,10 @@ Related docs:
 4. [Release Workflow](../strategy/release-workflow.md)
 5. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 6. [Docs Index](../docs-index.md)
-7. [Controller Reconnect And Resume Plan](./controller-reconnect-resume-plan.md)
-8. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
-9. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+7. [Showcase Games Release Readiness Plan](./showcase-games-release-readiness-plan.md)
+8. [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
+9. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
+10. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
 
 ## Purpose
 
@@ -291,19 +292,18 @@ Reason:
 
 Use these project roots for the proof:
 
-1. repo-local template/reference games:
-   1. `games/pong`
-   2. `games/air-capture`
-2. external ZeroDays showcase games:
-   1. `/Users/timvucina/Desktop/zerodays/air-jam-games/code-review`
-   2. `/Users/timvucina/Desktop/zerodays/air-jam-games/last-band-standing`
-   3. `/Users/timvucina/Desktop/zerodays/air-jam-games/the-office`
+1. `games/pong`
+2. `games/air-capture`
+3. `games/code-review`
+4. `games/last-band-standing`
+5. `games/the-office`
 
-Each legacy game already exposes the same local entrypoint shape:
+Use the repo-native workflow surface for proof and follow-up fixes:
 
-1. `pnpm dev`
-2. `pnpm typecheck`
-3. `pnpm build`
+1. prerelease confidence path: `pnpm arcade:test --game=<id>`
+2. fast Arcade iteration after a found issue: `pnpm arcade:dev --game=<id>`
+3. standalone workspace debugging when needed: `pnpm standalone:dev --game=<id>`
+4. standalone secure game debugging for browser-API-specific issues: `cd games/<id> && pnpm dev -- --secure`
 
 ### Per-game proof checklist
 
@@ -345,16 +345,14 @@ Use these rules during the proof:
 
 ### Logging and validation aids
 
-Use the repo log sink and existing local workflows during the proof:
+Use the canonical repo tooling during the proof:
 
-1. repo workspace dev path:
-   1. `pnpm dev` for `air-capture`
-   2. `pnpm dev -- --pong` for Pong
-2. per-game legacy proof path from each external project root:
-   1. `pnpm dev`
-3. canonical local logs:
+1. built local Arcade proof: `pnpm arcade:test --game=<id>`
+2. live Arcade iteration: `pnpm arcade:dev --game=<id>`
+3. resolved-topology inspection: `pnpm topology --game=<id> --mode=<mode> [--secure]`
+4. canonical local logs:
    1. `.airjam/logs/dev-latest.ndjson`
-   2. `pnpm run repo -- workspace logs`
+   2. `pnpm exec air-jam-server logs --view=signal`
 
 ### Done when
 
@@ -385,18 +383,18 @@ Turn the issues found in real multi-player couch-style playtests into one explic
 
 These should be handled before public launch because they affect trust, recoverability, or the core play loop:
 
-1. finish product-proof of the controller reconnect/resume baseline so a dropped player can rejoin safely during live gameplay without corrupting host state
+1. done baseline: the controller reconnect/resume contract is now product-proven so a dropped player can rejoin safely during live gameplay without corrupting host state
    1. implemented baseline:
       1. stable controller device identity
       2. room-scoped resumable player-slot lease
       3. same-device automatic resume attempt
       4. conflicting-device resume rejection
-   2. remaining release gate:
-      1. `pong` now has local Arcade browser proof for reconnect/resume after controller refresh
-      2. prove the same trust bar in real Arcade gameplay for `air-capture` and `last-band-standing`
-      3. confirm host/runtime behavior stays stable when reconnect attempts happen mid-match
+   2. validation now proven in real local Arcade flow for:
+      1. `pong`
+      2. `air-capture`
+      3. `last-band-standing`
    3. broader "continuous player device save system" can remain a later expansion if the smaller resume baseline solves the trust problem cleanly
-   4. implementation details live in [Controller Reconnect And Resume Plan](./controller-reconnect-resume-plan.md)
+   4. implementation details live in [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
 2. done baseline: isolate destructive runtime analytics tests onto a dedicated Postgres path and add a repo-owned local development Postgres workflow
    1. local development should have one persistent repo-owned Postgres with visible local state under `.airjam/`
    2. destructive analytics tests must use an isolated database path and never fall back to the normal runtime `DATABASE_URL`

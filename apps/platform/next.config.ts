@@ -58,11 +58,11 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "X-Frame-Options",
-            value: "SAMEORIGIN", // Allow embedding from same origin (for iframes within platform)
+            value: "SAMEORIGIN",
           },
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors 'self' *;", // Allow this platform to be embedded, and allow embedding games
+            value: "frame-ancestors 'self';",
           },
         ],
       },

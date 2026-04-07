@@ -3,7 +3,7 @@
  * Uses HTML5 Audio API for cross-browser compatibility.
  */
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 
 /** Available sound effect types */
 type SoundType =
@@ -21,12 +21,13 @@ const SOUND_URLS: Record<SoundType, string> = {
   "game-over": "/sounds/game-over.mp3",
   "order-timeout": "/sounds/order-timeout.mp3",
 };
+const SFX_VOLUME = 0.7;
 
 /**
  * Hook for managing game sound effects.
  * Returns functions to play specific sound types.
  */
-export function useSounds() {
+export function useSounds(muted = false) {
   // Store audio elements to reuse them
   const audioRefs = useRef<Record<SoundType, HTMLAudioElement | null>>({
     "task-start": null,
@@ -35,6 +36,14 @@ export function useSounds() {
     "game-over": null,
     "order-timeout": null,
   });
+
+  useEffect(() => {
+    const targetVolume = muted ? 0 : SFX_VOLUME;
+    Object.values(audioRefs.current).forEach((audio) => {
+      if (!audio) return;
+      audio.volume = targetVolume;
+    });
+  }, [muted]);
 
   /**
    * Play a sound effect by type.
@@ -45,8 +54,12 @@ export function useSounds() {
     let audio = audioRefs.current[type];
     if (!audio) {
       audio = new Audio(SOUND_URLS[type]);
-      audio.volume = 0.7;
+      audio.volume = muted ? 0 : SFX_VOLUME;
       audioRefs.current[type] = audio;
+    }
+
+    if (muted) {
+      return;
     }
 
     // Reset and play
@@ -59,7 +72,7 @@ export function useSounds() {
         // Autoplay blocked - ignore error
       });
     }
-  }, []);
+  }, [muted]);
 
   /**
    * Play task start sound

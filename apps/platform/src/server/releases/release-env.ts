@@ -116,7 +116,7 @@ const releaseModerationEnvSchema = z
     }
   })
   .transform((value) => ({
-    internalAccessToken: value.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN,
+    internalAccessSecret: value.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN,
     browserLaunch: {
       wsEndpoint: value.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null,
       executablePath: value.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null,

@@ -553,6 +553,13 @@ export const registerHostLifecycleHandlers = (
         players: buildHostRosterSnapshot(session),
         controllerCapability: getControllerCapabilityForAck(session),
       });
+      socket.emit("server:state", {
+        roomId,
+        state: {
+          gameState: session.gameState,
+          orientation: session.controllerOrientation,
+        },
+      });
       io.to(roomId).emit("server:roomReady", { roomId });
     },
   );
@@ -650,16 +657,35 @@ export const registerHostLifecycleHandlers = (
         !isPreviousHostConnected ||
         session.masterHostSocketId === socket.id
       ) {
+        const previousGameState = session.gameState;
+        // Host refresh/reconnect should always return the room to lobby-safe pause state.
+        if (session.gameState === "playing") {
+          session.gameState = "paused";
+        }
+
         session.masterHostSocketId = socket.id;
         syncRoomAnalyticsState(session.analytics, socket.data.hostAuthority);
         roomManager.setRoom(roomId, session);
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
+        if (previousGameState !== session.gameState) {
+          io.to(roomId).emit("server:state", {
+            roomId,
+            state: {
+              gameState: session.gameState,
+              orientation: session.controllerOrientation,
+            },
+          });
+        }
+
         logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.reconnectAccepted, "Host reconnected to room", {
           roomId,
           controllerCount: session.controllers.size,
           focus: session.focus,
+          previousGameState,
+          nextGameState: session.gameState,
+          resetToLobbyOnReconnect: previousGameState !== session.gameState,
         });
         callback({
           ok: true,
@@ -667,6 +693,13 @@ export const registerHostLifecycleHandlers = (
           arcadeSession: buildArcadeSessionForHostAck(session, uuidv4),
           players: buildHostRosterSnapshot(session),
           controllerCapability: getControllerCapabilityForAck(session),
+        });
+        socket.emit("server:state", {
+          roomId,
+          state: {
+            gameState: session.gameState,
+            orientation: session.controllerOrientation,
+          },
         });
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {

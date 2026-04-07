@@ -97,6 +97,21 @@ describe("AuthService", () => {
     expect(result).toEqual({ isVerified: true });
   });
 
+  it("does not treat a remote DATABASE_URL as an active backend in development unless explicitly enabled", () => {
+    process.env.AIR_JAM_AUTH_MODE = "required";
+    process.env.NODE_ENV = "development";
+    process.env.DATABASE_URL = "postgresql://user:pass@db.example.com:5432/airjam";
+    delete process.env.AIR_JAM_MASTER_KEY;
+    delete process.env.AIR_JAM_HOST_GRANT_SECRET;
+    delete process.env.AIR_JAM_ALLOW_REMOTE_DATABASE;
+
+    const authService = new AuthService();
+
+    expect(authService.getStartupConfigurationError()).toBe(
+      "AIR_JAM_AUTH_MODE=required requires an auth backend. Configure DATABASE_URL for app ID bootstrap, AIR_JAM_HOST_GRANT_SECRET for signed host grants, or AIR_JAM_MASTER_KEY for the legacy fallback.",
+    );
+  });
+
   it("defaults to required auth in production when mode is not set", async () => {
     delete process.env.AIR_JAM_AUTH_MODE;
     process.env.NODE_ENV = "production";

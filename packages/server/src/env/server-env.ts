@@ -1,7 +1,12 @@
 import { validateEnv } from "@air-jam/env";
 import { z } from "zod";
+import {
+  REMOTE_DATABASE_BLOCKED_MESSAGE,
+  resolveServerRuntimeDatabaseUrl,
+} from "./database-url-policy.js";
 
 export type AuthMode = "disabled" | "required";
+export type ProxyHeaderTrustMode = "auto" | "enabled" | "disabled";
 
 export interface ServerEnvConfig {
   nodeEnv: string;
@@ -14,6 +19,8 @@ export interface ServerEnvConfig {
   devLogCollectorEnabled: boolean;
   devLogDir?: string;
   authMode: AuthMode;
+  proxyHeaderTrustMode: ProxyHeaderTrustMode;
+  remoteDatabaseBlocked: boolean;
   masterKey?: string;
   hostGrantSecret?: string;
   databaseUrl?: string;
@@ -108,6 +115,14 @@ const rawServerEnvSchema = z
     AIR_JAM_DEV_LOG_DIR: z.preprocess(trimToUndefined, z.string().optional()),
     AIR_JAM_AUTH_MODE: z
       .preprocess(trimToUndefined, z.enum(["disabled", "required"]).optional()),
+    AIR_JAM_TRUST_PROXY_HEADERS: z.preprocess(
+      trimToUndefined,
+      z.enum(["auto", "enabled", "disabled"]).optional(),
+    ),
+    AIR_JAM_ALLOW_REMOTE_DATABASE: z.preprocess(
+      trimToUndefined,
+      z.enum(["enabled", "disabled"]).optional(),
+    ),
     AIR_JAM_MASTER_KEY: z.preprocess(trimToUndefined, z.string().optional()),
     AIR_JAM_HOST_GRANT_SECRET: z.preprocess(trimToUndefined, z.string().optional()),
     DATABASE_URL: z.preprocess(trimToUndefined, z.string().optional()),
@@ -119,18 +134,29 @@ const rawServerEnvSchema = z
       configuredAuthMode: value.AIR_JAM_AUTH_MODE,
       nodeEnv,
     });
+    const databasePolicy = resolveServerRuntimeDatabaseUrl({
+      NODE_ENV: nodeEnv,
+      DATABASE_URL: value.DATABASE_URL,
+      AIR_JAM_ALLOW_REMOTE_DATABASE: value.AIR_JAM_ALLOW_REMOTE_DATABASE,
+    });
 
     if (
       authMode === "required" &&
       !value.AIR_JAM_MASTER_KEY &&
-      !value.DATABASE_URL &&
+      !databasePolicy.databaseUrl &&
       !value.AIR_JAM_HOST_GRANT_SECRET
     ) {
       context.addIssue({
         code: "custom",
-        path: ["AIR_JAM_AUTH_MODE"],
-        message:
-          "AIR_JAM_AUTH_MODE=required requires at least one auth backend: AIR_JAM_MASTER_KEY, DATABASE_URL, or AIR_JAM_HOST_GRANT_SECRET.",
+        path: databasePolicy.remoteDatabaseBlocked
+          ? ["DATABASE_URL"]
+          : ["AIR_JAM_AUTH_MODE"],
+        message: databasePolicy.remoteDatabaseBlocked
+          ? [
+              REMOTE_DATABASE_BLOCKED_MESSAGE,
+              "Required auth cannot rely on that blocked database URL without AIR_JAM_ALLOW_REMOTE_DATABASE=enabled.",
+            ].join(" ")
+          : "AIR_JAM_AUTH_MODE=required requires at least one auth backend: AIR_JAM_MASTER_KEY, DATABASE_URL, or AIR_JAM_HOST_GRANT_SECRET.",
       });
     }
   });
@@ -143,10 +169,14 @@ export const loadServerEnv = (
     schema: rawServerEnvSchema,
     env,
     docsHint:
-      "Set AIR_JAM_* values in .env.local (repo root) or apps/platform/.env.local and retry.",
+      "Set AIR_JAM_* values in .env.local (repo root) or packages/server/.env and retry.",
     keyHints: {
       AIR_JAM_AUTH_MODE:
         "Choose disabled/required. If required, configure AIR_JAM_MASTER_KEY, DATABASE_URL, or AIR_JAM_HOST_GRANT_SECRET.",
+      AIR_JAM_ALLOW_REMOTE_DATABASE:
+        "Choose enabled only when local or test server workflows intentionally need a non-local DATABASE_URL.",
+      AIR_JAM_TRUST_PROXY_HEADERS:
+        "Choose auto/enabled/disabled. Use auto to trust proxy headers only when the socket peer looks like a local/private proxy hop.",
       AIR_JAM_ALLOWED_ORIGINS:
         "Use a comma-separated list of origins, or '*' to allow all origins.",
       PORT: "Set a positive integer port (for example: PORT=4000).",
@@ -157,6 +187,11 @@ export const loadServerEnv = (
   const authMode = resolveAuthMode({
     configuredAuthMode: parsed.AIR_JAM_AUTH_MODE,
     nodeEnv,
+  });
+  const databasePolicy = resolveServerRuntimeDatabaseUrl({
+    NODE_ENV: nodeEnv,
+    DATABASE_URL: parsed.DATABASE_URL,
+    AIR_JAM_ALLOW_REMOTE_DATABASE: parsed.AIR_JAM_ALLOW_REMOTE_DATABASE,
   });
 
   return {
@@ -173,9 +208,11 @@ export const loadServerEnv = (
       : nodeEnv !== "production",
     devLogDir: parsed.AIR_JAM_DEV_LOG_DIR,
     authMode,
+    proxyHeaderTrustMode: parsed.AIR_JAM_TRUST_PROXY_HEADERS ?? "auto",
+    remoteDatabaseBlocked: databasePolicy.remoteDatabaseBlocked,
     masterKey: parsed.AIR_JAM_MASTER_KEY,
     hostGrantSecret: parsed.AIR_JAM_HOST_GRANT_SECRET,
-    databaseUrl: parsed.DATABASE_URL,
+    databaseUrl: databasePolicy.databaseUrl,
     logLevel: parsed.AIR_JAM_LOG_LEVEL,
   };
 };

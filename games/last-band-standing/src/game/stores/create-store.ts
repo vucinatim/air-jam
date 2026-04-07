@@ -180,7 +180,11 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    startMatch: () => {
+    startMatch: ({ role }) => {
+      if (role !== "host") {
+        return;
+      }
+
       set((state) => {
         if (state.phase !== "lobby") {
           return state;
@@ -324,7 +328,11 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    resetLobby: () => {
+    resetLobby: ({ role }) => {
+      if (role !== "host") {
+        return;
+      }
+
       set((state) => resetLobbyState(state));
     },
   },

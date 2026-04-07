@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-06  
+Last updated: 2026-04-07  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -16,7 +16,7 @@ Use it to answer:
 
 Air Jam should now move through prerelease work in one canonical plan:
 
-1. decide the final launch posture of the three legacy showcase games
+1. finish the final launch-readiness pass for the three legacy showcase games
 2. finish the five-game launch-set proof locally through Arcade
 3. resolve the release-critical issues surfaced by real multiplayer playtests
 4. prove the hosted release and managed media dashboard flows end to end
@@ -28,7 +28,77 @@ Anything outside that order should only move in parallel when it does not slow t
 
 User-directed active parallel track:
 
-1. import the three ZeroDays showcase games into `games/`, normalize them to the modern workspace contract, and promote them toward template quality using [ZeroDays Game Import And Template Promotion Plan](./plans/zerodays-game-import-template-promotion-plan.md)
+1. drive `code-review`, `last-band-standing`, and `the-office` through the release baseline in [Showcase Games Release Readiness Plan](./plans/showcase-games-release-readiness-plan.md)
+2. assess and harden the public-release security posture in [Public Release Security Hardening Plan](./plans/public-release-security-hardening-plan.md)
+3. define and execute the prerelease SDK clean-swap extraction track in [SDK Extraction Clean-Swap Plan](./plans/sdk-extraction-clean-swap-plan.md)
+4. define and execute the shared preview-controller track in [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
+
+Latest status (2026-04-07):
+
+1. Phase 3 feature-completion goals are implemented for all three showcase games:
+   1. `code-review` deterministic bot seats + ready-gated host start
+   2. `the-office` character picker with image + capability stats and ready gating
+   3. `last-band-standing` song/embed validation workflow and host-owned start flow
+2. Runtime hygiene hardening landed in this pass:
+   1. `code-review` controller fullscreen forcing removed
+   2. `last-band-standing` `/youtube-test` is debug-gated and excluded from default production bundles
+3. `last-band-standing` media curation baseline is now clean after pruning non-embeddable songs (`77/77` embeddable, no duplicate IDs)
+4. the per-game readiness checklist artifact now exists for final sign-off execution:
+   1. [Showcase Games Release Readiness Checklist](./plans/showcase-games-release-readiness-checklist.md)
+5. `create-airjam` scaffold snapshots were regenerated to keep template behavior aligned with game sources
+6. Remaining before sign-off on this parallel track:
+   1. per-game manual Arcade runbook and responsive UX verification on target device sizes
+   2. final launch-set readiness records (`ready` / `not-ready`) for all five launch games
+7. local Arcade integration boot smoke now passes for all five launch-set games:
+   1. `pnpm arcade:test --game=pong`
+   2. `pnpm arcade:test --game=air-capture`
+   3. `pnpm arcade:test --game=code-review`
+   4. `pnpm arcade:test --game=last-band-standing`
+   5. `pnpm arcade:test --game=the-office`
+8. baseline pair validation was refreshed in this pass:
+   1. `pnpm --filter pong typecheck && test && build`
+   2. `pnpm --filter air-capture typecheck && test && build`
+9. browser smoke is green again after capability-aware controller join wiring:
+   1. `scripts/repo/smoke/browser-smoke-stack.mjs` now starts `air-capture` via direct `vite` invocation (no invalid `airjam dev --host/--port` call path)
+   2. browser smoke specs now read the host runtime `aj_join_url` and join controllers with official capability tokens, matching server controller RPC policy
+   3. `pnpm smoke:browser` passed (`4/4`) on 2026-04-07
+10. showcase-trio validation is green in this pass:
+    1. `pnpm --filter code-review typecheck && test && build`
+    2. `pnpm --filter last-band-standing typecheck && test && build`
+    3. `pnpm --filter the-office typecheck && test && build`
+11. public-release security hardening closed the current Priority 1 release-blocker set:
+    1. platform framing policy no longer allows arbitrary embedding
+    2. hosted release moderation now fails closed instead of promoting skipped checks to `ready`
+    3. server proxy-header trust is now explicit instead of blindly trusting raw `x-forwarded-for`
+    4. non-production server runtime now blocks non-local `DATABASE_URL` values unless `AIR_JAM_ALLOW_REMOTE_DATABASE=enabled`
+    5. hosted release inspection now uses short-lived release-scoped signed access instead of one reusable global bearer token
+    6. server runtime/tests now load only repo-root and server-owned env files, including explicit startup entrypoints
+12. the prerelease SDK extraction clean-swap track is now explicitly scoped in:
+    1. [SDK Extraction Clean-Swap Plan](./plans/sdk-extraction-clean-swap-plan.md)
+13. current intent for that track:
+    1. extract only framework-owned runtime and small optional join/connection UI
+    2. migrate all repo games and scaffold sources as part of the refactor
+    3. leave no deprecated or compatibility-only path behind
+14. the preview-controller prerelease track is now explicitly scoped in:
+    1. [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
+15. current intent for that track:
+    1. make desktop/on-screen preview controllers a shared optional feature
+    2. keep preview controllers on the same room/session model as phone controllers
+    3. avoid any separate preview topology or fake controller simulation path
+16. architecture direction is now narrowed further for that track:
+    1. preview windows should launch the canonical `host.joinUrl` as real controller clients
+    2. the shared reusable layer should live as an optional SDK leaf module, not platform-only glue and not SDK core sprawl
+    3. the main prerequisite refactors are a canonical preview URL helper, a split of the platform controller page into cleaner layers, and narrow preview identity isolation
+17. default enablement direction is now explicit for that track:
+    1. enabled by default in normal local dev for repo games and scaffolded games
+    2. production remains opt-in at the host/product layer
+    3. scaffold first-run should expose a one-click `Add controller` path without requiring extra setup
+18. the preview-controller plan now includes an implementation checklist:
+    1. shared preview URL helper
+    2. preview identity isolation
+    3. shared dock and preview window layer
+    4. platform controller-page split
+    5. platform plus scaffold integration and validation
 
 ## Release-Critical Path
 
@@ -71,22 +141,18 @@ Plan: [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
 Remaining:
 
-1. finish the local Arcade proof for the three remaining showcase games: `code-review`, `last-band-standing`, and `the-office`
-2. land the release-critical playtest hardening stack:
-   1. prove the controller reconnect/resume baseline in real launch-set gameplay
-   2. `air-capture` high-priority gameplay fixes
-3. rerun the baseline pair after those fixes and confirm they remain launch-trustworthy
-4. run the final hosted release and managed media dashboard proof paths
-5. create release media assets
-6. connect and deploy all public games on official hosting
-7. validate all five games against the official servers
-8. merge the release PR, deploy the platform, and publish the launch content
+1. complete per-game manual Arcade runbook and responsive UX verification on target device sizes
+2. finalize launch-set readiness records (`ready` / `not-ready`) for all five launch games
+3. run the final hosted release and managed media dashboard proof paths
+4. create release media assets
+5. connect and deploy all public games on official hosting
+6. validate all five games against the official servers
+7. merge the release PR, deploy the platform, and publish the launch content
 
 Active subsystem plan linked from this phase:
 
-1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
-2. [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-modes-plan.md)
-3. [Runtime Topology And Endpoint Contract Plan](./plans/runtime-topology-and-endpoint-contract-plan.md)
+1. [Showcase Games Release Readiness Plan](./plans/showcase-games-release-readiness-plan.md)
+2. [Public Release Security Hardening Plan](./plans/public-release-security-hardening-plan.md)
 
 Completed baselines now folded into this phase:
 
@@ -100,64 +166,57 @@ Completed baselines now folded into this phase:
 8. `air-capture` has now passed its final prerelease reference-quality audit; the remaining runtime seam narrowing is post-release cleanup, not launch-critical work
 9. the three legacy ZeroDays games now have an explicit prerelease posture: migration-proof showcase games only, with `pong` and `air-capture` remaining the only canonical first-party reference implementations
 10. the baseline pair now has real local Arcade proof coverage:
-   1. `pong` host/controller happy path passes through the local Arcade browser smoke
-   2. `air-capture` settings/audio Arcade smoke passes through the local Arcade browser smoke
-11. a longer real playtest of `air-capture` and `last-band-standing` surfaced the next honest prerelease gate:
-   1. reconnect/resume now has a real SDK/server baseline:
-      1. stable controller device identity
-      2. room-scoped resumable controller lease
-      3. same-device automatic resume
-      4. conflicting-device rejection
-   2. Pong now has local Arcade browser proof for reconnect/resume after controller refresh; the remaining reconnect gate is live gameplay proof in `air-capture` and `last-band-standing`
-   3. controller fullscreen prompting is now explicit and productized at the controller shell boundary, with dedicated browser smoke coverage
-12. controller privileged channels now have an explicit room-scoped capability baseline:
-   1. official host/controller links carry the capability automatically
-   2. `controller:system`, `controller:play_sound`, and `controller:action_rpc` now require it after join
-   3. room-code-only joins still work for ordinary play/input flows without those elevated powers
-   4. implementation details live in [Controller Capability And Perf Hardening Plan](./archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
-13. server perf sanity is now a real release-confidence gate:
-   1. the canonical perf harness now runs both the input baseline and reconnect churn
-   2. committed strict thresholds now back the release path instead of ad hoc warning-only output
-   3. `pnpm check:release` now includes `pnpm run repo -- perf sanity --strict`
-   4. implementation details live in [Controller Capability And Perf Hardening Plan](./archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
-   4. `air-capture`'s first gameplay hardening pass is now in:
-      1. analog left-stick movement with right-side actions only
-      2. own-flag-carried enemy pickup lockout
-      3. stronger large-radius rocket blast tuning
-      4. lobby name visibility on host and controller
-      5. 3-second rotation-only opening countdown
-   5. the remaining gate for that slice is another real Arcade playtest, not more blind refactoring
-   6. Arcade waiting-state now has a first-pass platform-owned `ping` interaction:
-      1. controller waiting shell exposes a `Ping host` action
-      2. Arcade host plays a dedicated `piing` SFX with a small visual acknowledgment
-      3. the action is host-cooled-down so one controller cannot spam the shell
-   7. couch-readability and menu-affordance polish still need explicit prioritization after the next proof pass
-12. release moderation and enforcement are now split cleanly by audience:
-   1. upload finalization now runs automated screenshot + image moderation before a release settles into `ready`
-   2. creator release pages keep upload/publish/archive plus release history, but no longer expose moderation or quarantine controls
-   3. internal moderation and quarantine actions now live behind a database-backed `ops_admin` role on `/dashboard/ops/releases`
-13. the monorepo root now reflects the real product boundary more honestly:
-   1. platform-owned product surfaces remain under `apps/`
-   2. repo-owned first-party games can now live under `games/`
-   3. `air-capture` has been moved from `apps/air-capture` to `games/air-capture` as the first clean example of that split
-14. repo runtime commands now reflect the real three-mode local contract:
-   1. `pnpm standalone:dev --game=<id>` runs live standalone workspace dev
-   2. `pnpm arcade:dev --game=<id>` runs live Arcade workspace dev
-   3. `pnpm arcade:test --game=<id>` builds the selected game once and serves it through the platform under `/airjam-local-builds/<game>/`
-   4. secure Arcade validation now means `pnpm secure:init` plus `pnpm arcade:test --game=<id> --secure`
-   5. repo games still share the SDK router-basename contract so platform-served local build routes stay honest without per-game hacks
-15. runtime endpoint handling now has one explicit shared contract instead of scattered origin guessing:
-   1. `@air-jam/runtime-topology` is now the shared source of truth for run-mode endpoint modeling
-   2. workspace commands emit explicit shell topologies for platform host/controller surfaces
-   3. embedded Arcade game iframes now receive explicit child-runtime topology in their URL contract
-   4. scaffold/runtime project mode resolution now produces explicit topology internally instead of relying on SDK-side legacy endpoint fallback
-   5. platform shell topology is now produced at boot and consumed as required env, instead of deriving a legacy fallback inside runtime code
-   6. the SDK now separates `backendOrigin` from `socketOrigin` internally instead of treating `serverUrl` as one ambiguous field
-   7. `pnpm topology --game=<id> --mode=<mode> [--secure]` now prints the resolved topology for trust/debugging
-15. Postgres safety and local-dev DB posture are now explicit prerelease baselines:
-   1. the repo owns an optional persistent local dev Postgres via `pnpm run repo -- db up`, with data under `.airjam/postgres/dev/`
-   2. prerelease can still intentionally point `DATABASE_URL` at production for release-state validation
-   3. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
+    1. `pong` host/controller happy path passes through the local Arcade browser smoke
+    2. `air-capture` settings/audio Arcade smoke passes through the local Arcade browser smoke
+11. reconnect/resume is now release-proven across the launch-set validation surface:
+    1. stable controller device identity
+    2. room-scoped resumable controller lease
+    3. same-device automatic resume
+    4. conflicting-device rejection
+    5. `pong`, `air-capture`, and `last-band-standing` have now proven the behavior through real local Arcade product flow
+12. controller fullscreen prompting is now explicit and productized at the controller shell boundary, with dedicated browser smoke coverage
+13. controller privileged channels now have an explicit room-scoped capability baseline:
+    1. official host/controller links carry the capability automatically
+    2. `controller:system`, `controller:play_sound`, and `controller:action_rpc` now require it after join
+    3. room-code-only joins remain connected for non-privileged flows, while privileged controller RPC channels are intentionally blocked
+14. server perf sanity is now a real release-confidence gate:
+    1. the canonical perf harness now runs both the input baseline and reconnect churn
+    2. committed strict thresholds now back the release path instead of ad hoc warning-only output
+    3. `pnpm check:release` now includes `pnpm run repo -- perf sanity --strict`
+15. `air-capture`'s first gameplay hardening pass is now in:
+    1. analog left-stick movement with right-side actions only
+    2. own-flag-carried enemy pickup lockout
+    3. stronger large-radius rocket blast tuning
+    4. lobby name visibility on host and controller
+    5. 3-second rotation-only opening countdown
+16. Arcade waiting-state now has a first-pass platform-owned `ping` interaction:
+    1. controller waiting shell exposes a `Ping host` action
+    2. Arcade host plays a dedicated `piing` SFX with a small visual acknowledgment
+    3. the action is host-cooled-down so one controller cannot spam the shell
+17. release moderation and enforcement are now split cleanly by audience:
+    1. upload finalization now runs automated screenshot + image moderation before a release settles into `ready`
+    2. creator release pages keep upload/publish/archive plus release history, but no longer expose moderation or quarantine controls
+    3. internal moderation and quarantine actions now live behind a database-backed `ops_admin` role on `/dashboard/ops/releases`
+18. the monorepo root now reflects the real product boundary more honestly:
+    1. platform-owned product surfaces remain under `apps/`
+    2. repo-owned first-party games live under `games/`
+19. repo runtime commands now reflect the real three-mode local contract:
+    1. `pnpm standalone:dev --game=<id>` runs live standalone workspace dev
+    2. `pnpm arcade:dev --game=<id>` runs live Arcade workspace dev
+    3. `pnpm arcade:test --game=<id>` builds the selected game once and serves it through the platform under `/airjam-local-builds/<game>/`
+    4. secure Arcade validation means `pnpm secure:init` plus `pnpm arcade:test --game=<id> --secure`
+20. runtime endpoint handling now has one explicit shared contract instead of scattered origin guessing:
+    1. `@air-jam/runtime-topology` is now the shared source of truth for run-mode endpoint modeling
+    2. workspace commands emit explicit shell topologies for platform host/controller surfaces
+    3. embedded Arcade game iframes now receive explicit child-runtime topology in their URL contract
+    4. scaffold/runtime project mode resolution now produces explicit topology internally instead of relying on SDK-side legacy endpoint fallback
+    5. platform shell topology is now produced at boot and consumed as required env
+    6. the SDK now separates `backendOrigin` from `socketOrigin` internally instead of treating `serverUrl` as one ambiguous field
+    7. `pnpm topology --game=<id> --mode=<mode> [--secure]` now prints the resolved topology for trust/debugging
+21. Postgres safety and local-dev DB posture are now explicit prerelease baselines:
+    1. the repo owns an optional persistent local dev Postgres via `pnpm run repo -- db up`, with data under `.airjam/postgres/dev/`
+    2. prerelease can still intentionally point `DATABASE_URL` at production for release-state validation
+    3. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
 
 ### Priority 5. Release PR And Publish
 
@@ -203,7 +262,7 @@ Current truth:
 ### 7. Game-Source Scaffolding
 
 Status: completed baseline  
-Reference: [Game Source Scaffolding Plan](./plans/game-source-scaffolding-plan.md)
+Reference: [Game Source Scaffolding Plan](./archive/game-source-scaffolding-plan-2026-04-07.md)
 
 Current truth:
 
@@ -215,8 +274,8 @@ Current truth:
 
 ### 8. ZeroDays Game Import And Template Promotion
 
-Status: active  
-Reference: [ZeroDays Game Import And Template Promotion Plan](./plans/zerodays-game-import-template-promotion-plan.md)
+Status: completed baseline  
+Reference: [ZeroDays Game Import And Template Promotion Plan](./archive/zerodays-game-import-template-promotion-plan-2026-04-07.md)
 
 Current truth:
 
@@ -227,28 +286,45 @@ Current truth:
    1. `pnpm --filter code-review typecheck && pnpm --filter code-review build`
    2. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build`
    3. `pnpm --filter the-office typecheck && pnpm --filter the-office build`
-5. repo-owned games now declare a tiny `airjam-template.json` manifest even before template promotion, with `scaffold: false` keeping non-template games out of `create-airjam`
+5. all three imported showcase games are now promoted into the scaffold/template catalog with `airjam-template.json` set to `scaffold: true`
 6. the shared workspace launcher now supports explicit `pnpm standalone:dev --game=<id>` and `pnpm arcade:dev --game=<id>` flows for repo-owned games
-7. `code-review` has already been proven through the shared workspace launcher path with platform on `:3000`, server on `:4000`, and the game on `:5173`
-8. all three imported games now have a first-pass repo-native ownership cleanup:
+7. all three imported games now have a first-pass repo-native ownership cleanup:
    1. explicit `host/` and `controller/` entry ownership
    2. clearer `game/domain` or `game/stores` seams where they previously leaked through root-level files
    3. thin compatibility re-exports only where they reduce churn during migration
-9. `code-review` is now the first promoted imported template:
+8. `code-review` is now a promoted imported template:
    1. obvious imported garbage such as nested `.git`, `dist`, and local release artifacts was removed
    2. the game now carries a clean README and a minimal domain test seam
    3. `airjam-template.json` is now `scaffold: true`
    4. `pnpm --filter code-review typecheck && pnpm --filter code-review test && pnpm --filter code-review build` is green
    5. `pnpm --filter create-airjam smoke -- --source=workspace --template=code-review` is green
    6. `pnpm --filter create-airjam smoke:tarball -- --template=code-review` is green
-10. `last-band-standing` is now the second promoted imported template:
+9. `last-band-standing` is now a promoted imported template:
    1. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
    2. the imported README was replaced with a repo-native template-safe README
+   3. `airjam-template.json` is now `scaffold: true`
+   4. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build` is green
+   5. `pnpm --filter create-airjam smoke -- --source=workspace --template=last-band-standing` is green
+   6. `pnpm --filter create-airjam smoke:tarball -- --template=last-band-standing` is green
+10. `the-office` is now a promoted imported template:
+11. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
+12. the imported README was replaced with a repo-native template-safe README
+13. a minimal pure helper seam and helper test now exist around the office game store
+14. `airjam-template.json` is now `scaffold: true`
+15. `pnpm --filter the-office typecheck && pnpm --filter the-office test && pnpm --filter the-office build` is green
+16. `pnpm --filter create-airjam smoke -- --source=workspace --template=the-office` is green
+17. `pnpm --filter create-airjam smoke:tarball -- --template=the-office` is green
+18. the imported ZeroDays promotion track is now functionally complete; remaining game-specific launch quality work belongs to [Showcase Games Release Readiness Plan](./plans/showcase-games-release-readiness-plan.md)
+19. the imported template trio now has a second reference-quality polish pass:
+20. all three now use Pong-style Vite build defaults with `base: "./"` and explicit vendor chunking
+21. the large Vite chunk warnings were reduced below the warning threshold in targeted local builds for `code-review`, `last-band-standing`, and `the-office`
+22. `last-band-standing` now hoists lazy route imports out of the component body so its app entry matches the teaching pattern we want
+23. `the-office` now has a small pure helper seam around store mutation logic instead of keeping every store detail trapped inside the zustand wrapper
 
 ### 9. Local Runtime Workflow Modes
 
-Status: active  
-Reference: [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-modes-plan.md)
+Status: completed baseline  
+Reference: [Local Runtime Workflow Modes Plan](./archive/local-runtime-workflow-modes-plan-2026-04-07.md)
 
 Current truth:
 
@@ -256,11 +332,25 @@ Current truth:
    1. live standalone workspace dev via `pnpm standalone:dev --game=<id>`
    2. live Arcade workspace dev via `pnpm arcade:dev --game=<id>`
    3. built Arcade validation via `pnpm arcade:test --game=<id>`
-   4. standalone secure game dev via `cd games/<id> && pnpm dev -- --secure`
-2. secure local HTTPS is already the canonical local secure path and already uses Next's `--experimental-https`; the remaining problem is workflow clarity, not basic HTTPS support
-3. the command surface is now explicit enough that the remaining work is behavioral polish, not naming ambiguity
+2. secure local HTTPS is already the canonical local secure path and already uses Next's `--experimental-https`; the remaining work is product proof inside those modes, not command naming ambiguity
+3. standalone secure game dev for repo-owned or exported projects remains `cd games/<id> && pnpm dev -- --secure`
 
-### 9. Root Workspace CLI Consolidation
+### 10. Runtime Topology And Endpoint Contract
+
+Status: completed baseline  
+Reference: [Runtime Topology And Endpoint Contract Plan](./archive/runtime-topology-and-endpoint-contract-plan-2026-04-07.md)
+
+Current truth:
+
+1. `@air-jam/runtime-topology` is now the shared source of truth for run-mode endpoint modeling
+2. workspace commands emit explicit shell topologies for platform host/controller surfaces
+3. embedded Arcade game iframes now receive explicit child-runtime topology in their URL contract
+4. scaffold/runtime project mode resolution now produces explicit topology internally instead of relying on SDK-side legacy endpoint fallback
+5. platform shell topology is now produced at boot and consumed as required env
+6. the SDK now separates `backendOrigin` from `socketOrigin` internally instead of treating `serverUrl` as one ambiguous field
+7. `pnpm topology --game=<id> --mode=<mode> [--secure]` now prints the resolved topology for trust/debugging
+
+### 11. Root Workspace CLI Consolidation
 
 Status: completed baseline  
 Reference: [Root Workspace CLI Consolidation Plan](./archive/root-workspace-cli-consolidation-plan-2026-04-04.md)
@@ -272,25 +362,8 @@ Current truth:
 3. monorepo-only orchestration now lives behind one repo-local CLI at `pnpm run repo -- ...`
 4. workspace-specific scripts and helpers now live under `scripts/workspace/`
 5. `create-airjam` remains focused on public and project-local workflows instead of absorbing monorepo-only commands
-   4. `pnpm --filter last-band-standing typecheck && pnpm --filter last-band-standing test && pnpm --filter last-band-standing build` is green
-   5. `pnpm --filter create-airjam smoke -- --source=workspace --template=last-band-standing` is green
-   6. `pnpm --filter create-airjam smoke:tarball -- --template=last-band-standing` is green
-11. `the-office` is now the third promoted imported template:
-   1. the nested standalone `node_modules` install was removed and the game now relies on the workspace contract
-   2. the imported README was replaced with a repo-native template-safe README
-   3. a minimal pure helper seam and helper test now exist around the office game store
-   4. `airjam-template.json` is now `scaffold: true`
-   5. `pnpm --filter the-office typecheck && pnpm --filter the-office test && pnpm --filter the-office build` is green
-   6. `pnpm --filter create-airjam smoke -- --source=workspace --template=the-office` is green
-   7. `pnpm --filter create-airjam smoke:tarball -- --template=the-office` is green
-12. the imported ZeroDays promotion track is now functionally complete; the remaining obligation is keeping the shared five-template scaffold gate green
-13. the imported template trio now has a second reference-quality polish pass:
-   1. all three now use Pong-style Vite build defaults with `base: "./"` and explicit vendor chunking
-   2. the large Vite chunk warnings were reduced below the warning threshold in targeted local builds for `code-review`, `last-band-standing`, and `the-office`
-   3. `last-band-standing` now hoists lazy route imports out of the component body so its app entry matches the teaching pattern we want
-   4. `the-office` now has a small pure helper seam around store mutation logic instead of keeping every store detail trapped inside the zustand wrapper
 
-### 9. Shared Local Secure Dev
+### 12. Shared Local Secure Dev
 
 Status: completed baseline  
 Reference: [Shared Local Secure Dev Plan](./archive/shared-local-secure-dev-plan-2026-04-03.md)
@@ -305,9 +378,9 @@ Current truth:
 6. generated projects no longer ship with `cloudflared` as a default dependency
 7. the shared scaffold validation gate remains green after the secure-dev transition, so the repo and exported templates are still aligned
 
-### 10. Environment Contract Hardening
+### 13. Environment Contract Hardening
 
-Status: active baseline
+Status: completed baseline
 
 Current truth:
 
@@ -315,7 +388,8 @@ Current truth:
 2. server startup/auth env now parses once and fails fast with actionable terminal errors
 3. platform release storage/moderation env now uses boundary-owned validated schemas
 4. create-airjam runtime commands (`dev`, `secure:init`, `topology`) now use one validated runtime env contract
-5. env contract documentation now lives in [Environment Contracts](./systems/env-contracts.md)
+5. server DB creation now happens at explicit startup/runtime boundaries instead of module-load singleton state
+6. env contract documentation now lives in [Environment Contracts](./systems/env-contracts.md)
 
 ## Active Framework Tracks
 
@@ -328,7 +402,7 @@ Status: ongoing repo rule
 Remaining:
 
 1. use this ledger consistently as the single active execution surface
-2. archive completed plans more aggressively
+2. keep the active plan surface minimal as more baselines close
 3. keep architecture docs current as product direction evolves
 
 ## Recently Completed Baselines

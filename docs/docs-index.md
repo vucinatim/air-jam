@@ -36,14 +36,19 @@ Migration proof references:
 
 Active subsystem plans:
 
-1. [Controller Reconnect And Resume Plan](./plans/controller-reconnect-resume-plan.md)
-2. [ZeroDays Game Import And Template Promotion Plan](./plans/zerodays-game-import-template-promotion-plan.md)
-3. [Local Runtime Workflow Modes Plan](./plans/local-runtime-workflow-modes-plan.md)
-4. [Runtime Topology And Endpoint Contract Plan](./plans/runtime-topology-and-endpoint-contract-plan.md)
+1. [Showcase Games Release Readiness Plan](./plans/showcase-games-release-readiness-plan.md)
+2. [Showcase Games Release Readiness Checklist](./plans/showcase-games-release-readiness-checklist.md)
+3. [Public Release Security Hardening Plan](./plans/public-release-security-hardening-plan.md)
+4. [SDK Extraction Clean-Swap Plan](./plans/sdk-extraction-clean-swap-plan.md)
+5. [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
 
-Planned follow-on system plans:
+Archived recent baseline plans:
 
-1. [Game Source Scaffolding Plan](./plans/game-source-scaffolding-plan.md)
+1. [Game Source Scaffolding Plan](./archive/game-source-scaffolding-plan-2026-04-07.md)
+2. [ZeroDays Game Import And Template Promotion Plan](./archive/zerodays-game-import-template-promotion-plan-2026-04-07.md)
+3. [Local Runtime Workflow Modes Plan](./archive/local-runtime-workflow-modes-plan-2026-04-07.md)
+4. [Runtime Topology And Endpoint Contract Plan](./archive/runtime-topology-and-endpoint-contract-plan-2026-04-07.md)
+5. [Controller Reconnect And Resume Plan](./archive/controller-reconnect-resume-plan-2026-04-07.md)
 
 Completed transitions / reference plans:
 
@@ -51,25 +56,25 @@ Completed transitions / reference plans:
 2. [AI-Native Template System Rollout](./archive/ai-native-template-system-rollout-2026-03-29.md)
 3. [Logging System Rollout](./archive/logging-system-rollout-2026-03-29.md)
 4. [Shared Local Secure Dev Plan](./archive/shared-local-secure-dev-plan-2026-04-03.md)
-4. [Documentation Migration Plan](./archive/documentation-migration-plan-2026-03-27.md)
-5. [Root Workspace CLI Consolidation Plan](./archive/root-workspace-cli-consolidation-plan-2026-04-04.md)
-6. [Postgres Dev And Analytics Test DB Plan](./archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
-7. [Controller Capability And Perf Hardening Plan](./archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
-8. [Analytics Implementation Plan](./archive/analytics-implementation-plan-2026-03-27.md)
-9. [Documentation Hardening Plan (Archived)](./archive/documentation-hardening-plan-2026-03-29.md)
-10. [Landing Page Polish Plan (Archived)](./archive/landing-page-polish-plan-2026-03-29.md)
-11. [Legacy Game Migration Working Notes (Archived)](./archive/legacy-game-migration-working-notes-2026-03-29.md)
-12. [Release Prep Plan (Archived)](./archive/release-prep-plan-2026-03-31.md)
-13. [V1 Closeout Plan (Archived)](./archive/v1-closeout-plan-2026-03-31.md)
-14. [Release-Facing Polish Plan (Archived)](./archive/release-polish-plan-2026-03-31.md)
-15. [Air Capture Reference Refactor Plan (Archived)](./archive/air-capture-reference-refactor-plan-2026-03-31.md)
-16. [Platform Dashboard Account Auth Plan (Archived)](./archive/platform-dashboard-account-auth-plan-2026-03-31.md)
-17. [Platform Settings Runtime Plan (Archived)](./archive/platform-settings-runtime-plan-2026-03-31.md)
-18. [SDK Runtime Ownership Reset Plan (Archived)](./archive/sdk-runtime-ownership-plan-2026-03-31.md)
-19. [Public Arcade Artifact Release Plan (Archived)](./archive/public-arcade-artifact-release-plan-2026-03-31.md)
-20. [Auth Capability Plan (Archived)](./archive/auth-capability-plan-2026-03-31.md)
-21. [SDK Composability Plan (Archived)](./archive/sdk-composability-plan-2026-03-31.md)
-22. [SDK RPC Action Contract Plan (Archived)](./archive/sdk-rpc-action-contract-plan-2026-03-31.md)
+5. [Documentation Migration Plan](./archive/documentation-migration-plan-2026-03-27.md)
+6. [Root Workspace CLI Consolidation Plan](./archive/root-workspace-cli-consolidation-plan-2026-04-04.md)
+7. [Postgres Dev And Analytics Test DB Plan](./archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
+8. [Controller Capability And Perf Hardening Plan](./archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+9. [Analytics Implementation Plan](./archive/analytics-implementation-plan-2026-03-27.md)
+10. [Documentation Hardening Plan (Archived)](./archive/documentation-hardening-plan-2026-03-29.md)
+11. [Landing Page Polish Plan (Archived)](./archive/landing-page-polish-plan-2026-03-29.md)
+12. [Legacy Game Migration Working Notes (Archived)](./archive/legacy-game-migration-working-notes-2026-03-29.md)
+13. [Release Prep Plan (Archived)](./archive/release-prep-plan-2026-03-31.md)
+14. [V1 Closeout Plan (Archived)](./archive/v1-closeout-plan-2026-03-31.md)
+15. [Release-Facing Polish Plan (Archived)](./archive/release-polish-plan-2026-03-31.md)
+16. [Air Capture Reference Refactor Plan (Archived)](./archive/air-capture-reference-refactor-plan-2026-03-31.md)
+17. [Platform Dashboard Account Auth Plan (Archived)](./archive/platform-dashboard-account-auth-plan-2026-03-31.md)
+18. [Platform Settings Runtime Plan (Archived)](./archive/platform-settings-runtime-plan-2026-03-31.md)
+19. [SDK Runtime Ownership Reset Plan (Archived)](./archive/sdk-runtime-ownership-plan-2026-03-31.md)
+20. [Public Arcade Artifact Release Plan (Archived)](./archive/public-arcade-artifact-release-plan-2026-03-31.md)
+21. [Auth Capability Plan (Archived)](./archive/auth-capability-plan-2026-03-31.md)
+22. [SDK Composability Plan (Archived)](./archive/sdk-composability-plan-2026-03-31.md)
+23. [SDK RPC Action Contract Plan (Archived)](./archive/sdk-rpc-action-contract-plan-2026-03-31.md)
 
 Content drafts:
 

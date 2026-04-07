@@ -16,7 +16,9 @@ const readPort = (name, fallback) => {
 
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`Invalid ${name}="${raw}". Expected a positive integer port.`);
+    throw new Error(
+      `Invalid ${name}="${raw}". Expected a positive integer port.`,
+    );
   }
 
   return parsed;
@@ -180,7 +182,16 @@ const main = async () => {
 
   startProcess(
     "air-capture",
-    ["pnpm", "--filter", "air-capture", "dev", "--host", "--port", String(airCapturePort)],
+    [
+      "pnpm",
+      "--dir",
+      "games/air-capture",
+      "exec",
+      "vite",
+      "--host",
+      "--port",
+      String(airCapturePort),
+    ],
     {
       VITE_AIR_JAM_PUBLIC_HOST: airCaptureBaseUrl,
       VITE_AIR_JAM_SERVER_URL: serverBaseUrl,
@@ -217,13 +228,21 @@ const main = async () => {
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: pongBaseUrl,
   });
   await waitForUrl(platformBaseUrl, "platform root", 120_000);
-  await waitForUrl(`${platformBaseUrl}/arcade/local-pong`, "platform local pong", 120_000);
+  await waitForUrl(
+    `${platformBaseUrl}/arcade/local-pong`,
+    "platform local pong",
+    120_000,
+  );
   await waitForUrl(
     `${platformBaseUrl}/arcade/local-air-capture`,
     "platform local air capture",
     120_000,
   );
-  await waitForUrl(`${platformBaseUrl}/controller`, "platform controller", 120_000);
+  await waitForUrl(
+    `${platformBaseUrl}/controller`,
+    "platform controller",
+    120_000,
+  );
   await waitForUrl(publicGamesQueryUrl, "platform public games query", 120_000);
 
   console.log("[browser-smoke] Local browser smoke stack is ready.");

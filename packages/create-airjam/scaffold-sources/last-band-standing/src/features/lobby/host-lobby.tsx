@@ -30,6 +30,8 @@ interface HostLobbyProps {
   scoreboardByPlayerId: Record<string, PlayerScore>;
   readyCount: number;
   players: PlayerProfile[];
+  canStartMatch: boolean;
+  onStartMatch: () => void;
 }
 
 export const HostLobby = ({
@@ -42,6 +44,8 @@ export const HostLobby = ({
   scoreboardByPlayerId,
   readyCount,
   players,
+  canStartMatch,
+  onStartMatch,
 }: HostLobbyProps) => {
   const hasPlayers = playerOrder.length > 0;
   const allReady = readyCount === playerOrder.length && readyCount > 0;
@@ -196,6 +200,15 @@ export const HostLobby = ({
                     ? "All players ready!"
                     : `${readyCount}/${playerOrder.length} ready`}
                 </motion.p>
+
+                <button
+                  type="button"
+                  disabled={!canStartMatch}
+                  onClick={onStartMatch}
+                  className="rounded-2xl bg-primary px-8 py-3 text-base font-bold uppercase tracking-wider text-primary-foreground transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Start Match
+                </button>
               </motion.div>
             )}
           </div>

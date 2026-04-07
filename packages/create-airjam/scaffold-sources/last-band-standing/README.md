@@ -34,6 +34,7 @@ pnpm dev -- --secure --secure-mode=tunnel
 - `pnpm typecheck` runs TypeScript without emitting
 - `pnpm test` runs Vitest once
 - `pnpm build` creates the production build
+- `pnpm songs:validate` checks every `youtubeUrl` in `src/song-bank.ts` and writes a curation report
 - `pnpm exec airjam release bundle --dir .` creates the hosted release zip for the dashboard
 
 ## Project Shape
@@ -60,6 +61,13 @@ The app boundary follows the same ownership model as the repo reference games:
 
 ## Notes
 
-- The `/youtube-test` route is intentionally kept as a standalone debug surface.
+- The `/youtube-test` route is debug-only (`import.meta.env.DEV` or `VITE_ENABLE_YOUTUBE_TEST_ROUTE=true`).
 - Match timing, reveal flow, and scoring stay host-authoritative.
 - This game is scaffoldable through `create-airjam`, so keep docs and scripts export-safe.
+
+## Song Curation Workflow
+
+1. Run `pnpm songs:validate`.
+2. Review `reports/song-embed-report.json`.
+3. Remove or replace entries in `src/song-bank.ts` where `embeddable` is `false` or `duplicateId` is `true`.
+4. Re-run validation until only embeddable, unique IDs remain.

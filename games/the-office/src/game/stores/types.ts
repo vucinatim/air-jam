@@ -16,6 +16,7 @@ export interface SpaceGameState {
   totalMoneyPenalty: number;
   gameStartTime: number;
   gameDurationMs: number;
+  readyByPlayerId: Record<string, boolean>;
   playerPositions: Record<string, PlayerPosition>;
   playerAssignments: Record<string, string>;
   busyPlayers: Record<string, string>;
@@ -26,6 +27,14 @@ export interface SpaceGameState {
     syncConnectedPlayers: (
       ctx: AirJamActionContext,
       payload: { connectedPlayerIds: string[] },
+    ) => void;
+    setReady: (
+      ctx: AirJamActionContext,
+      payload: { ready: boolean },
+    ) => void;
+    selectCharacter: (
+      ctx: AirJamActionContext,
+      payload: { playerId: string },
     ) => void;
     completeTask: (
       ctx: AirJamActionContext,

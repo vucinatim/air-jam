@@ -15,7 +15,6 @@ import {
   type Location,
 } from "../task-manager";
 import {
-  getRandomUnassignedPlayer,
   getPlayerById,
   PLAYERS,
   getTaskDurationMs,
@@ -80,13 +79,20 @@ interface UseGameStateReturn {
     getInput: (playerId: string) => GameInput | null,
     gameStatePlaying: boolean,
   ) => void;
+  startMatch: () => void;
   resetGame: (playerIds: string[]) => void;
+}
+
+interface UseGameStateOptions {
+  muted?: boolean;
 }
 
 /**
  * Hook to manage all game state and logic.
  */
-export function useGameState(): UseGameStateReturn {
+export function useGameState({
+  muted = false,
+}: UseGameStateOptions = {}): UseGameStateReturn {
   // Zustand store selectors with atomic selectors
   const money = useSpaceStore((state: SpaceGameState) => state.money);
   const playerAssignments = useSpaceStore(
@@ -108,7 +114,7 @@ export function useGameState(): UseGameStateReturn {
     playNewOrder,
     playGameOver,
     playOrderTimeout,
-  } = useSounds();
+  } = useSounds(muted);
 
   // Keep actions in ref to avoid closure staleness in game loop
   const actionsRef = useRef(actions);
@@ -195,11 +201,6 @@ export function useGameState(): UseGameStateReturn {
       }
     });
 
-    // Set game start time if not already set
-    if (gameStartTime === 0) {
-      actionsRef.current.setGameStartTime({ startTime: Date.now() });
-    }
-
     playerIds.forEach((playerId) => {
       if (!gameState.current.positions[playerId]) {
         // Find the first available predefined position
@@ -226,17 +227,6 @@ export function useGameState(): UseGameStateReturn {
             attempts++;
           } while (!isValidPosition(x, y, PLAYER_RADIUS) && attempts < 50);
           gameState.current.positions[playerId] = { x, y };
-        }
-      }
-
-      if (!gameState.current.playerAssignments[playerId]) {
-        const assignedIds = Object.values(playerAssignments);
-        const player = getRandomUnassignedPlayer(assignedIds);
-        if (player) {
-          actionsRef.current.assignPlayer({
-            controllerId: playerId,
-            playerId: player.id,
-          });
         }
       }
     });
@@ -719,6 +709,21 @@ export function useGameState(): UseGameStateReturn {
     }
   };
 
+  const startMatch = (): void => {
+    const now = Date.now();
+    actionsRef.current.setGameOver({ gameOver: false });
+    actionsRef.current.setGameStartTime({ startTime: now });
+    taskManagerRef.current.reset();
+    pendingTasksRef.current = [];
+    lastTaskUpdateRef.current = now;
+    lastStatUpdateRef.current = now;
+    lastTaskCountRef.current = 0;
+    lastGameOverRef.current = false;
+    Object.keys(breakroomActivitiesRef.current).forEach((playerId) => {
+      breakroomActivitiesRef.current[playerId] = null;
+    });
+  };
+
   /**
    * Reset the game state.
    */
@@ -764,6 +769,7 @@ export function useGameState(): UseGameStateReturn {
     loadPlayerImages,
     loadLocationImages,
     updateGame,
+    startMatch,
     resetGame,
   };
 }

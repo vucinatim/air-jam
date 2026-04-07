@@ -1,18 +1,20 @@
 import { useAirJamHost } from "@air-jam/sdk";
-import { RoomQrCode } from "@air-jam/sdk/ui";
+import { HostMuteButton, RoomQrCode } from "@air-jam/sdk/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useGameStore } from "../game/stores";
+import { type Position, type Team } from "../game/domain/team-assignments";
 import {
+  type GameInput,
   gameInputSchema,
   PUNCH_COOLDOWN_MS,
   PUNCH_DURATION_MS,
 } from "../game/input";
-import leftShortSprite from "/sprites/left-short.png";
-import leftExtendedSprite from "/sprites/left-extended.png";
-import rightExtendedSprite from "/sprites/right-extended.png";
-import rightShortSprite from "/sprites/right-short.png";
+import { useGameStore } from "../game/stores";
 import defendSprite from "/sprites/defend.png";
 import endSprite from "/sprites/end.png";
+import leftExtendedSprite from "/sprites/left-extended.png";
+import leftShortSprite from "/sprites/left-short.png";
+import rightExtendedSprite from "/sprites/right-extended.png";
+import rightShortSprite from "/sprites/right-short.png";
 
 const FIELD_WIDTH = 720;
 const FIELD_HEIGHT = 720;
@@ -155,6 +157,58 @@ const IDLE_FRAME_MAX_MS = 800;
 
 type PlayerKey = (typeof PLAYER_KEYS)[number];
 
+type SlotParticipant = {
+  id: string;
+  label: string;
+  slotKey: PlayerKey;
+  team: Team;
+  position: Position;
+  isBot: boolean;
+};
+
+const FIGHTER_SLOTS: Array<{
+  slotKey: PlayerKey;
+  team: Team;
+  position: Position;
+  botId: string;
+  botLabel: string;
+}> = [
+  {
+    slotKey: "player1Front",
+    team: "team1",
+    position: "front",
+    botId: "bot-team1-front",
+    botLabel: "Coder Bot α",
+  },
+  {
+    slotKey: "player1Back",
+    team: "team1",
+    position: "back",
+    botId: "bot-team1-back",
+    botLabel: "Coder Bot β",
+  },
+  {
+    slotKey: "player2Front",
+    team: "team2",
+    position: "front",
+    botId: "bot-team2-front",
+    botLabel: "Reviewer Bot α",
+  },
+  {
+    slotKey: "player2Back",
+    team: "team2",
+    position: "back",
+    botId: "bot-team2-back",
+    botLabel: "Reviewer Bot β",
+  },
+];
+
+const BOT_FOLLOW_DISTANCE = 120;
+const BOT_RETREAT_DISTANCE = 64;
+const BOT_DEFEND_DISTANCE = 74;
+const BOT_PUNCH_DISTANCE = 84;
+const BOT_STRAFE_DISTANCE = 170;
+
 type PlayerState = {
   x: number;
   y: number;
@@ -215,6 +269,87 @@ const makePlayerState = (x: number, y: number): PlayerState => ({
   punchEmpowered: false,
 });
 
+const createBotInput = (
+  participant: SlotParticipant,
+  participants: SlotParticipant[],
+  state: Record<PlayerKey, PlayerState>,
+  timestamp: number,
+): GameInput => {
+  const selfState = state[participant.slotKey];
+  const enemies = participants.filter(
+    (entry) => entry.team !== participant.team,
+  );
+
+  if (enemies.length === 0) {
+    return {
+      vertical: 0,
+      horizontal: 0,
+      leftPunch: false,
+      rightPunch: false,
+      defend: false,
+    };
+  }
+
+  let nearestEnemy = enemies[0];
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  enemies.forEach((enemy) => {
+    const enemyState = state[enemy.slotKey];
+    const dx = enemyState.x - selfState.x;
+    const dy = enemyState.y - selfState.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestEnemy = enemy;
+    }
+  });
+
+  const target = state[nearestEnemy.slotKey];
+  const dx = target.x - selfState.x;
+  const dy = target.y - selfState.y;
+  const distance = Math.max(Math.hypot(dx, dy), 1);
+  const towardX = dx / distance;
+  const towardY = dy / distance;
+  const pulseStep = Math.floor(timestamp / 220);
+  const strafeDirection =
+    (pulseStep + participant.slotKey.length) % 2 === 0 ? 1 : -1;
+
+  let horizontal = 0;
+  let vertical = 0;
+
+  if (nearestDistance > BOT_FOLLOW_DISTANCE) {
+    horizontal = towardX;
+    vertical = towardY;
+  } else if (nearestDistance < BOT_RETREAT_DISTANCE) {
+    horizontal = -towardX;
+    vertical = -towardY;
+  } else {
+    horizontal = towardX * 0.2;
+    vertical = towardY * 0.2;
+  }
+
+  if (nearestDistance > BOT_STRAFE_DISTANCE) {
+    horizontal += towardY * 0.35 * strafeDirection;
+    vertical += -towardX * 0.35 * strafeDirection;
+  }
+
+  horizontal = clamp(horizontal, -1, 1);
+  vertical = clamp(vertical, -1, 1);
+
+  const enemyPunching = target.punchingLeft || target.punchingRight;
+  const defend = nearestDistance <= BOT_DEFEND_DISTANCE && enemyPunching;
+  const canPunch = nearestDistance <= BOT_PUNCH_DISTANCE && !defend;
+  const prefersLeftPunch = (pulseStep + participant.id.length) % 2 === 0;
+
+  return {
+    vertical,
+    horizontal,
+    leftPunch: canPunch && prefersLeftPunch,
+    rightPunch: canPunch && !prefersLeftPunch,
+    defend,
+  };
+};
+
 const TEAM1_COLOR = "#dc2626";
 const TEAM2_COLOR = "#2563eb";
 
@@ -269,7 +404,9 @@ export function HostView() {
     team2End: null,
   });
 
-  const hitFlashSpriteCacheRef = useRef<Record<SpriteTintCacheKey, HTMLCanvasElement>>({});
+  const hitFlashSpriteCacheRef = useRef<
+    Record<SpriteTintCacheKey, HTMLCanvasElement>
+  >({});
 
   const getTintedOverlaySprite = useCallback(
     (
@@ -289,14 +426,23 @@ export function HostView() {
   );
 
   const teamAssignments = useGameStore((state) => state.teamAssignments);
+  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
+  const botCounts = useGameStore((state) => state.botCounts);
   const actions = useGameStore.useActions();
   const hpSnapshotRef = useRef({ team1: MAX_HP, team2: MAX_HP });
   const [hpDisplay, setHpDisplay] = useState(() => ({
     team1: MAX_HP,
     team2: MAX_HP,
   }));
+  const [audioMuted, setAudioMuted] = useState(false);
   const [copiedJoinUrl, setCopiedJoinUrl] = useState(false);
   const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
+  const crowdAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioMutedRef = useRef(false);
+
+  useEffect(() => {
+    audioMutedRef.current = audioMuted;
+  }, [audioMuted]);
 
   const copyJoinUrl = async (): Promise<void> => {
     if (!host.joinUrl) return;
@@ -360,6 +506,102 @@ export function HostView() {
     () => host.players.map((player) => player.id),
     [host.players],
   );
+  const assignedHumanPlayers = useMemo(
+    () => host.players.filter((player) => teamAssignments[player.id]),
+    [host.players, teamAssignments],
+  );
+  const humanBySlotKey = useMemo(() => {
+    const bySlot = new Map<PlayerKey, { id: string; label: string }>();
+    assignedHumanPlayers.forEach((player) => {
+      const assignment = teamAssignments[player.id];
+      if (!assignment) {
+        return;
+      }
+      const slotKey =
+        `${assignment.team === "team1" ? "player1" : "player2"}${assignment.position === "front" ? "Front" : "Back"}` as PlayerKey;
+      bySlot.set(slotKey, { id: player.id, label: player.label });
+    });
+    return bySlot;
+  }, [assignedHumanPlayers, teamAssignments]);
+  const slotParticipants = useMemo<SlotParticipant[]>(
+    () => {
+      const remainingBots = { ...botCounts };
+      const participants: SlotParticipant[] = [];
+
+      FIGHTER_SLOTS.forEach((slot) => {
+        const human = humanBySlotKey.get(slot.slotKey);
+        if (human) {
+          participants.push({
+            id: human.id,
+            label: human.label,
+            slotKey: slot.slotKey,
+            team: slot.team,
+            position: slot.position,
+            isBot: false,
+          });
+          return;
+        }
+
+        if (remainingBots[slot.team] <= 0) {
+          return;
+        }
+        remainingBots[slot.team] -= 1;
+
+        participants.push({
+          id: slot.botId,
+          label: slot.botLabel,
+          slotKey: slot.slotKey,
+          team: slot.team,
+          position: slot.position,
+          isBot: true,
+        });
+      });
+      return participants;
+    },
+    [botCounts, humanBySlotKey],
+  );
+  const participantBySlot = useMemo(
+    () =>
+      Object.fromEntries(
+        slotParticipants.map((participant) => [
+          participant.slotKey,
+          participant,
+        ]),
+      ) as Partial<Record<PlayerKey, SlotParticipant>>,
+    [slotParticipants],
+  );
+  const botCount = useMemo(
+    () => slotParticipants.filter((participant) => participant.isBot).length,
+    [slotParticipants],
+  );
+  const team1BotCount = useMemo(
+    () =>
+      slotParticipants.filter(
+        (participant) => participant.isBot && participant.team === "team1",
+      ).length,
+    [slotParticipants],
+  );
+  const team2BotCount = useMemo(
+    () =>
+      slotParticipants.filter(
+        (participant) => participant.isBot && participant.team === "team2",
+      ).length,
+    [slotParticipants],
+  );
+  const readyAssignedCount = useMemo(
+    () =>
+      assignedHumanPlayers.filter(
+        (player) => readyByPlayerId[player.id] ?? false,
+      ).length,
+    [assignedHumanPlayers, readyByPlayerId],
+  );
+  const canStartMatch = useMemo(
+    () =>
+      assignedHumanPlayers.length > 0 &&
+      readyAssignedCount === assignedHumanPlayers.length &&
+      host.connectionStatus === "connected",
+    [assignedHumanPlayers.length, host.connectionStatus, readyAssignedCount],
+  );
 
   useEffect(() => {
     actions.syncConnectedPlayers({ connectedPlayerIds });
@@ -395,8 +637,9 @@ export function HostView() {
   // Loop crowd ambience with a first-interaction fallback for autoplay policies.
   useEffect(() => {
     const crowdAudio = new Audio("/sounds/crowd.mp3");
+    crowdAudioRef.current = crowdAudio;
     crowdAudio.loop = true;
-    crowdAudio.volume = 0.28;
+    crowdAudio.volume = audioMutedRef.current ? 0 : 0.28;
 
     const startAudio = () => {
       void crowdAudio.play().catch(() => {
@@ -419,8 +662,17 @@ export function HostView() {
       window.removeEventListener("keydown", startOnInteraction);
       crowdAudio.pause();
       crowdAudio.currentTime = 0;
+      if (crowdAudioRef.current === crowdAudio) {
+        crowdAudioRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    const crowdAudio = crowdAudioRef.current;
+    if (!crowdAudio) return;
+    crowdAudio.volume = audioMuted ? 0 : 0.28;
+  }, [audioMuted]);
 
   // Pre-load one-shot sound effects
   const sfxRef = useRef({
@@ -432,6 +684,9 @@ export function HostView() {
 
   /** Fire-and-forget a one-shot sound, rewinding if already playing. */
   const playSfx = useRef((key: keyof typeof sfxRef.current) => {
+    if (audioMutedRef.current) {
+      return;
+    }
     const audio = sfxRef.current[key];
     audio.currentTime = 0;
     void audio.play().catch(() => {
@@ -442,7 +697,10 @@ export function HostView() {
   // Play bell when the game transitions to "playing"
   const prevGameStateRef = useRef(host.gameState);
   useEffect(() => {
-    if (prevGameStateRef.current !== "playing" && host.gameState === "playing") {
+    if (
+      prevGameStateRef.current !== "playing" &&
+      host.gameState === "playing"
+    ) {
       playSfx.current("bell");
     }
     prevGameStateRef.current = host.gameState;
@@ -535,7 +793,7 @@ export function HostView() {
       lastFrameTime = now;
 
       const state = gameState.current;
-      const players = host.players;
+      const participants = slotParticipants;
       const isPlaying = host.gameState === "playing";
       const timestamp = Date.now();
 
@@ -564,9 +822,15 @@ export function HostView() {
 
             hpRef.current = { team1: MAX_HP, team2: MAX_HP };
             syncHpDisplay();
-            state.player1Front = makePlayerState(SPAWN_X_PLAYER1_FRONT, SPAWN_Y);
+            state.player1Front = makePlayerState(
+              SPAWN_X_PLAYER1_FRONT,
+              SPAWN_Y,
+            );
             state.player1Back = makePlayerState(SPAWN_X_PLAYER1_BACK, SPAWN_Y);
-            state.player2Front = makePlayerState(SPAWN_X_PLAYER2_FRONT, SPAWN_Y);
+            state.player2Front = makePlayerState(
+              SPAWN_X_PLAYER2_FRONT,
+              SPAWN_Y,
+            );
             state.player2Back = makePlayerState(SPAWN_X_PLAYER2_BACK, SPAWN_Y);
 
             koRef.current = { active: false, winner: null, endTime: 0 };
@@ -574,371 +838,378 @@ export function HostView() {
           }
           // Whether we just reset or are still counting — skip physics this frame
         } else {
-        // Limit to one hit sound per frame to avoid stacking
-        let hitSoundPlayedThisFrame = false;
+          // Limit to one hit sound per frame to avoid stacking
+          let hitSoundPlayedThisFrame = false;
 
-        // Process player input and punching
-        players.forEach((p) => {
-          const input = host.getInput(p.id);
-          const assignment = teamAssignments[p.id];
+          // Process participant input and punching
+          participants.forEach((participant) => {
+            const input = participant.isBot
+              ? createBotInput(participant, participants, state, timestamp)
+              : host.getInput(participant.id);
 
-          if (input && assignment) {
-            const { team, position } = assignment;
-            const key: PlayerKey =
-              `${team === "team1" ? "player1" : "player2"}${position === "front" ? "Front" : "Back"}`;
-            const ps = state[key];
+            if (input) {
+              const ps = state[participant.slotKey];
 
-            // Decrement cooldowns using real delta time
-            ps.cooldownLeft = Math.max(0, ps.cooldownLeft - dt);
-            ps.cooldownRight = Math.max(0, ps.cooldownRight - dt);
+              // Decrement cooldowns using real delta time
+              ps.cooldownLeft = Math.max(0, ps.cooldownLeft - dt);
+              ps.cooldownRight = Math.max(0, ps.cooldownRight - dt);
 
-            // Auto-reset punches based on stored end times.
-            // If the punch expired without landing, play the miss sound.
-            if (ps.punchingLeft && timestamp >= ps.punchEndLeft) {
-              if (!ps.punchLandedLeft) playSfx.current("missed");
-              ps.punchingLeft = false;
-              ps.punchLandedLeft = false;
-            }
-            if (ps.punchingRight && timestamp >= ps.punchEndRight) {
-              if (!ps.punchLandedRight) playSfx.current("missed");
-              ps.punchingRight = false;
-              ps.punchLandedRight = false;
-            }
-            // Clear empowered flag when no punch is active
-            if (!ps.punchingLeft && !ps.punchingRight) {
-              ps.punchEmpowered = false;
-            }
-
-            // Defend state — can't punch while defending
-            ps.defending = input.defend;
-
-            // Trigger punches from input (blocked while defending)
-            if (!ps.defending) {
-              if (input.leftPunch && ps.cooldownLeft <= 0) {
-                ps.punchingLeft = true;
+              // Auto-reset punches based on stored end times.
+              // If the punch expired without landing, play the miss sound.
+              if (ps.punchingLeft && timestamp >= ps.punchEndLeft) {
+                if (!ps.punchLandedLeft) playSfx.current("missed");
+                ps.punchingLeft = false;
                 ps.punchLandedLeft = false;
-                ps.cooldownLeft = PUNCH_COOLDOWN_MS;
-                ps.punchEndLeft = timestamp + PUNCH_DURATION_MS;
-                // Consume empowered on throw
-                if (timestamp < ps.empoweredUntil) {
-                  ps.punchEmpowered = true;
-                  ps.empoweredUntil = 0;
-                }
               }
-
-              if (input.rightPunch && ps.cooldownRight <= 0) {
-                ps.punchingRight = true;
+              if (ps.punchingRight && timestamp >= ps.punchEndRight) {
+                if (!ps.punchLandedRight) playSfx.current("missed");
+                ps.punchingRight = false;
                 ps.punchLandedRight = false;
-                ps.cooldownRight = PUNCH_COOLDOWN_MS;
-                ps.punchEndRight = timestamp + PUNCH_DURATION_MS;
-                // Consume empowered on throw (if not already consumed by left punch this frame)
-                if (timestamp < ps.empoweredUntil) {
-                  ps.punchEmpowered = true;
-                  ps.empoweredUntil = 0;
+              }
+              // Clear empowered flag when no punch is active
+              if (!ps.punchingLeft && !ps.punchingRight) {
+                ps.punchEmpowered = false;
+              }
+
+              // Defend state — can't punch while defending
+              ps.defending = input.defend;
+
+              // Trigger punches from input (blocked while defending)
+              if (!ps.defending) {
+                if (input.leftPunch && ps.cooldownLeft <= 0) {
+                  ps.punchingLeft = true;
+                  ps.punchLandedLeft = false;
+                  ps.cooldownLeft = PUNCH_COOLDOWN_MS;
+                  ps.punchEndLeft = timestamp + PUNCH_DURATION_MS;
+                  // Consume empowered on throw
+                  if (timestamp < ps.empoweredUntil) {
+                    ps.punchEmpowered = true;
+                    ps.empoweredUntil = 0;
+                  }
+                }
+
+                if (input.rightPunch && ps.cooldownRight <= 0) {
+                  ps.punchingRight = true;
+                  ps.punchLandedRight = false;
+                  ps.cooldownRight = PUNCH_COOLDOWN_MS;
+                  ps.punchEndRight = timestamp + PUNCH_DURATION_MS;
+                  // Consume empowered on throw (if not already consumed by left punch this frame)
+                  if (timestamp < ps.empoweredUntil) {
+                    ps.punchEmpowered = true;
+                    ps.empoweredUntil = 0;
+                  }
                 }
               }
+
+              // Expire empowered state
+              if (ps.empoweredUntil > 0 && timestamp >= ps.empoweredUntil) {
+                ps.empoweredUntil = 0;
+              }
+
+              // Movement — slower while defending, unclamped during knockback
+              const accel = ps.defending
+                ? ACCELERATION * DEFEND_ACCELERATION_MULTIPLIER
+                : ACCELERATION;
+
+              if (ps.knockbackFrames > 0) {
+                ps.vx = (ps.vx + input.horizontal * accel) * FRICTION;
+                ps.vy = (ps.vy + input.vertical * accel) * FRICTION;
+                ps.knockbackFrames--;
+              } else {
+                ps.vx = clamp(
+                  (ps.vx + input.horizontal * accel) * FRICTION,
+                  -MAX_VELOCITY,
+                  MAX_VELOCITY,
+                );
+                ps.vy = clamp(
+                  (ps.vy + input.vertical * accel) * FRICTION,
+                  -MAX_VELOCITY,
+                  MAX_VELOCITY,
+                );
+              }
+
+              if (Math.abs(ps.vx) < VELOCITY_EPSILON) {
+                ps.vx = 0;
+              }
+              if (Math.abs(ps.vy) < VELOCITY_EPSILON) {
+                ps.vy = 0;
+              }
+
+              ps.x = clamp(ps.x + ps.vx, RING_MIN_X, RING_MAX_X);
+              ps.y = clamp(ps.y + ps.vy, RING_MIN_Y, RING_MAX_Y);
             }
+          });
 
-            // Expire empowered state
-            if (ps.empoweredUntil > 0 && timestamp >= ps.empoweredUntil) {
-              ps.empoweredUntil = 0;
-            }
-
-            // Movement — slower while defending, unclamped during knockback
-            const accel = ps.defending
-              ? ACCELERATION * DEFEND_ACCELERATION_MULTIPLIER
-              : ACCELERATION;
-
-            if (ps.knockbackFrames > 0) {
-              ps.vx = (ps.vx + input.horizontal * accel) * FRICTION;
-              ps.vy = (ps.vy + input.vertical * accel) * FRICTION;
-              ps.knockbackFrames--;
-            } else {
-              ps.vx = clamp(
-                (ps.vx + input.horizontal * accel) * FRICTION,
-                -MAX_VELOCITY,
-                MAX_VELOCITY,
-              );
-              ps.vy = clamp(
-                (ps.vy + input.vertical * accel) * FRICTION,
-                -MAX_VELOCITY,
-                MAX_VELOCITY,
-              );
-            }
-
-            if (Math.abs(ps.vx) < VELOCITY_EPSILON) {
-              ps.vx = 0;
-            }
-            if (Math.abs(ps.vy) < VELOCITY_EPSILON) {
-              ps.vy = 0;
-            }
-
-            ps.x = clamp(ps.x + ps.vx, RING_MIN_X, RING_MAX_X);
-            ps.y = clamp(ps.y + ps.vy, RING_MIN_Y, RING_MAX_Y);
-          }
-        });
-
-        // Collect active player keys (those with a connected controller)
-        const activeKeys = PLAYER_KEYS.filter((k) => {
-          const team = k.startsWith("player1") ? "team1" : "team2";
-          const position = k.endsWith("Front") ? "front" : "back";
-          return players.some(
-            (p) =>
-              teamAssignments[p.id]?.team === team &&
-              teamAssignments[p.id]?.position === position,
+          const activeKeys = participants.map(
+            (participant) => participant.slotKey,
           );
-        });
 
-        // Build lightweight collision descriptors
-        const activePlayers = activeKeys.map((k) => {
-          const ps = state[k];
-          const team = (
-            k.startsWith("player1") ? "team1" : "team2"
-          ) as "team1" | "team2";
-          const isPunching =
-            (ps.punchingLeft && !ps.punchLandedLeft) ||
-            (ps.punchingRight && !ps.punchLandedRight);
+          // Build lightweight collision descriptors
+          const activePlayers = activeKeys.map((k) => {
+            const ps = state[k];
+            const team = (k.startsWith("player1") ? "team1" : "team2") as
+              | "team1"
+              | "team2";
+            const isPunching =
+              (ps.punchingLeft && !ps.punchLandedLeft) ||
+              (ps.punchingRight && !ps.punchLandedRight);
 
-          // When punching, compute the direction toward the nearest enemy
-          // and extend the hitbox along that vector.
-          let extX = 0;
-          let extY = 0;
+            // When punching, compute the direction toward the nearest enemy
+            // and extend the hitbox along that vector.
+            let extX = 0;
+            let extY = 0;
 
-          if (isPunching) {
-            let nearestDist = Infinity;
-            let angle = 0;
+            if (isPunching) {
+              let nearestDist = Infinity;
+              let angle = 0;
 
-            for (const other of activeKeys) {
-              if (other === k) continue;
-              const otherTeam = other.startsWith("player1")
-                ? "team1"
-                : "team2";
-              if (otherTeam === team) continue;
+              for (const other of activeKeys) {
+                if (other === k) continue;
+                const otherTeam = other.startsWith("player1")
+                  ? "team1"
+                  : "team2";
+                if (otherTeam === team) continue;
 
-              const oPs = state[other];
-              const dx = oPs.x + PLAYER_SIZE / 2 - (ps.x + PLAYER_SIZE / 2);
-              const dy = oPs.y + PLAYER_SIZE / 2 - (ps.y + PLAYER_SIZE / 2);
-              const dist = dx * dx + dy * dy;
+                const oPs = state[other];
+                const dx = oPs.x + PLAYER_SIZE / 2 - (ps.x + PLAYER_SIZE / 2);
+                const dy = oPs.y + PLAYER_SIZE / 2 - (ps.y + PLAYER_SIZE / 2);
+                const dist = dx * dx + dy * dy;
 
-              if (dist < nearestDist) {
-                nearestDist = dist;
-                angle = Math.atan2(dy, dx);
+                if (dist < nearestDist) {
+                  nearestDist = dist;
+                  angle = Math.atan2(dy, dx);
+                }
               }
+
+              extX = Math.cos(angle) * PUNCH_HITBOX_EXTENSION;
+              extY = Math.sin(angle) * PUNCH_HITBOX_EXTENSION;
             }
 
-            extX = Math.cos(angle) * PUNCH_HITBOX_EXTENSION;
-            extY = Math.sin(angle) * PUNCH_HITBOX_EXTENSION;
-          }
+            return { key: k, team, ps, isPunching, extX, extY };
+          });
 
-          return { key: k, team, ps, isPunching, extX, extY };
-        });
+          // Handle collisions and punches
+          for (let i = 0; i < activePlayers.length; i++) {
+            for (let j = i + 1; j < activePlayers.length; j++) {
+              const a = activePlayers[i];
+              const b = activePlayers[j];
 
-        // Handle collisions and punches
-        for (let i = 0; i < activePlayers.length; i++) {
-          for (let j = i + 1; j < activePlayers.length; j++) {
-            const a = activePlayers[i];
-            const b = activePlayers[j];
+              // Expand each player's AABB by their punch extension (clamped to positive side only)
+              const aMinX = a.ps.x + Math.min(0, a.extX);
+              const aMaxX = a.ps.x + PLAYER_SIZE + Math.max(0, a.extX);
+              const aMinY = a.ps.y + Math.min(0, a.extY);
+              const aMaxY = a.ps.y + PLAYER_SIZE + Math.max(0, a.extY);
 
-            // Expand each player's AABB by their punch extension (clamped to positive side only)
-            const aMinX = a.ps.x + Math.min(0, a.extX);
-            const aMaxX = a.ps.x + PLAYER_SIZE + Math.max(0, a.extX);
-            const aMinY = a.ps.y + Math.min(0, a.extY);
-            const aMaxY = a.ps.y + PLAYER_SIZE + Math.max(0, a.extY);
+              const bMinX = b.ps.x + Math.min(0, b.extX);
+              const bMaxX = b.ps.x + PLAYER_SIZE + Math.max(0, b.extX);
+              const bMinY = b.ps.y + Math.min(0, b.extY);
+              const bMaxY = b.ps.y + PLAYER_SIZE + Math.max(0, b.extY);
 
-            const bMinX = b.ps.x + Math.min(0, b.extX);
-            const bMaxX = b.ps.x + PLAYER_SIZE + Math.max(0, b.extX);
-            const bMinY = b.ps.y + Math.min(0, b.extY);
-            const bMaxY = b.ps.y + PLAYER_SIZE + Math.max(0, b.extY);
+              const overlapX = Math.min(aMaxX, bMaxX) - Math.max(aMinX, bMinX);
+              const overlapY = Math.min(aMaxY, bMaxY) - Math.max(aMinY, bMinY);
 
-            const overlapX =
-              Math.min(aMaxX, bMaxX) - Math.max(aMinX, bMinX);
-            const overlapY =
-              Math.min(aMaxY, bMaxY) - Math.max(aMinY, bMinY);
+              if (overlapX <= 0 || overlapY <= 0) continue;
 
-            if (overlapX <= 0 || overlapY <= 0) continue;
+              const aIsPunchingB = a.isPunching && a.team !== b.team;
+              const bIsPunchingA = b.isPunching && b.team !== a.team;
 
-            const aIsPunchingB = a.isPunching && a.team !== b.team;
-            const bIsPunchingA = b.isPunching && b.team !== a.team;
+              if (aIsPunchingB || bIsPunchingA) {
+                // Punch collision — apply strong knockback along the center-to-center axis
+                const dx =
+                  b.ps.x + PLAYER_SIZE / 2 - (a.ps.x + PLAYER_SIZE / 2);
+                const dy =
+                  b.ps.y + PLAYER_SIZE / 2 - (a.ps.y + PLAYER_SIZE / 2);
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const nx = dx / dist;
+                const ny = dy / dist;
 
-            if (aIsPunchingB || bIsPunchingA) {
-              // Punch collision — apply strong knockback along the center-to-center axis
-              const dx =
-                b.ps.x + PLAYER_SIZE / 2 - (a.ps.x + PLAYER_SIZE / 2);
-              const dy =
-                b.ps.y + PLAYER_SIZE / 2 - (a.ps.y + PLAYER_SIZE / 2);
-              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-              const nx = dx / dist;
-              const ny = dy / dist;
+                if (aIsPunchingB) {
+                  const bDefending = b.ps.defending;
+                  const defKbMult = bDefending
+                    ? DEFEND_KNOCKBACK_MULTIPLIER
+                    : 1;
+                  const defDmgMult = bDefending ? DEFEND_DAMAGE_MULTIPLIER : 1;
 
-              if (aIsPunchingB) {
-                const bDefending = b.ps.defending;
-                const defKbMult = bDefending ? DEFEND_KNOCKBACK_MULTIPLIER : 1;
-                const defDmgMult = bDefending ? DEFEND_DAMAGE_MULTIPLIER : 1;
+                  // Empowered punch: 2x damage/knockback (consumed on throw)
+                  const empKbMult = a.ps.punchEmpowered
+                    ? EMPOWER_KNOCKBACK_MULTIPLIER
+                    : 1;
+                  const empDmgMult = a.ps.punchEmpowered
+                    ? EMPOWER_DAMAGE_MULTIPLIER
+                    : 1;
 
-                // Empowered punch: 2x damage/knockback (consumed on throw)
-                const empKbMult = a.ps.punchEmpowered ? EMPOWER_KNOCKBACK_MULTIPLIER : 1;
-                const empDmgMult = a.ps.punchEmpowered ? EMPOWER_DAMAGE_MULTIPLIER : 1;
+                  const kbMult = defKbMult * empKbMult;
+                  const dmgMult = defDmgMult * empDmgMult;
 
-                const kbMult = defKbMult * empKbMult;
-                const dmgMult = defDmgMult * empDmgMult;
+                  // Instant displacement — makes the hit feel punchy
+                  b.ps.x += nx * PUNCH_DISPLACEMENT * kbMult;
+                  b.ps.y += ny * PUNCH_DISPLACEMENT * kbMult;
+                  // Set (not add) high velocity for a satisfying skid
+                  b.ps.vx = nx * PUNCH_KNOCKBACK_VELOCITY * kbMult;
+                  b.ps.vy = ny * PUNCH_KNOCKBACK_VELOCITY * kbMult;
+                  b.ps.knockbackFrames = PUNCH_KNOCKBACK_FRAMES;
+                  // Puncher recoil
+                  a.ps.vx -= nx * PUNCH_RECOIL;
+                  a.ps.vy -= ny * PUNCH_RECOIL;
 
-                // Instant displacement — makes the hit feel punchy
-                b.ps.x += nx * PUNCH_DISPLACEMENT * kbMult;
-                b.ps.y += ny * PUNCH_DISPLACEMENT * kbMult;
-                // Set (not add) high velocity for a satisfying skid
-                b.ps.vx = nx * PUNCH_KNOCKBACK_VELOCITY * kbMult;
-                b.ps.vy = ny * PUNCH_KNOCKBACK_VELOCITY * kbMult;
-                b.ps.knockbackFrames = PUNCH_KNOCKBACK_FRAMES;
-                // Puncher recoil
-                a.ps.vx -= nx * PUNCH_RECOIL;
-                a.ps.vy -= ny * PUNCH_RECOIL;
+                  // Apply damage to victim team
+                  hpRef.current[b.team] = Math.max(
+                    0,
+                    hpRef.current[b.team] - PUNCH_DAMAGE * dmgMult,
+                  );
+                  b.ps.hitFlashEnd = timestamp + HIT_FLASH_MS;
 
-                // Apply damage to victim team
-                hpRef.current[b.team] = Math.max(
-                  0,
-                  hpRef.current[b.team] - PUNCH_DAMAGE * dmgMult,
-                );
-                b.ps.hitFlashEnd = timestamp + HIT_FLASH_MS;
+                  // Grant empowered state if victim was defending
+                  if (bDefending) {
+                    b.ps.empoweredUntil = timestamp + EMPOWER_DURATION_MS;
+                  }
 
-                // Grant empowered state if victim was defending
-                if (bDefending) {
-                  b.ps.empoweredUntil = timestamp + EMPOWER_DURATION_MS;
+                  // Mark the active fist(s) as landed
+                  if (a.ps.punchingLeft) a.ps.punchLandedLeft = true;
+                  if (a.ps.punchingRight) a.ps.punchLandedRight = true;
+
+                  // Play a random hit sound (once per frame)
+                  if (!hitSoundPlayedThisFrame) {
+                    playSfx.current(Math.random() > 0.5 ? "hit1" : "hit2");
+                    hitSoundPlayedThisFrame = true;
+                  }
+
+                  // Send haptic feedback to B's controller (bots do not receive haptics)
+                  const bParticipant = participantBySlot[b.key];
+                  if (
+                    bParticipant &&
+                    !bParticipant.isBot &&
+                    !hitControllersRef.current.has(bParticipant.id)
+                  ) {
+                    host.sendSignal(
+                      "HAPTIC",
+                      { pattern: "heavy" },
+                      bParticipant.id,
+                    );
+                    hitControllersRef.current.add(bParticipant.id);
+                  }
                 }
 
-                // Mark the active fist(s) as landed
-                if (a.ps.punchingLeft) a.ps.punchLandedLeft = true;
-                if (a.ps.punchingRight) a.ps.punchLandedRight = true;
+                if (bIsPunchingA) {
+                  const aDefending = a.ps.defending;
+                  const defKbMult = aDefending
+                    ? DEFEND_KNOCKBACK_MULTIPLIER
+                    : 1;
+                  const defDmgMult = aDefending ? DEFEND_DAMAGE_MULTIPLIER : 1;
 
-                // Play a random hit sound (once per frame)
-                if (!hitSoundPlayedThisFrame) {
-                  playSfx.current(Math.random() > 0.5 ? "hit1" : "hit2");
-                  hitSoundPlayedThisFrame = true;
+                  // Empowered punch: 2x damage/knockback (consumed on throw)
+                  const empKbMult = b.ps.punchEmpowered
+                    ? EMPOWER_KNOCKBACK_MULTIPLIER
+                    : 1;
+                  const empDmgMult = b.ps.punchEmpowered
+                    ? EMPOWER_DAMAGE_MULTIPLIER
+                    : 1;
+
+                  const kbMult = defKbMult * empKbMult;
+                  const dmgMult = defDmgMult * empDmgMult;
+
+                  // Instant displacement
+                  a.ps.x -= nx * PUNCH_DISPLACEMENT * kbMult;
+                  a.ps.y -= ny * PUNCH_DISPLACEMENT * kbMult;
+                  // Set high velocity for skid
+                  a.ps.vx = -nx * PUNCH_KNOCKBACK_VELOCITY * kbMult;
+                  a.ps.vy = -ny * PUNCH_KNOCKBACK_VELOCITY * kbMult;
+                  a.ps.knockbackFrames = PUNCH_KNOCKBACK_FRAMES;
+                  // Puncher recoil
+                  b.ps.vx += nx * PUNCH_RECOIL;
+                  b.ps.vy += ny * PUNCH_RECOIL;
+
+                  // Apply damage to victim team
+                  hpRef.current[a.team] = Math.max(
+                    0,
+                    hpRef.current[a.team] - PUNCH_DAMAGE * dmgMult,
+                  );
+                  a.ps.hitFlashEnd = timestamp + HIT_FLASH_MS;
+
+                  // Grant empowered state if victim was defending
+                  if (aDefending) {
+                    a.ps.empoweredUntil = timestamp + EMPOWER_DURATION_MS;
+                  }
+
+                  // Mark the active fist(s) as landed
+                  if (b.ps.punchingLeft) b.ps.punchLandedLeft = true;
+                  if (b.ps.punchingRight) b.ps.punchLandedRight = true;
+
+                  // Play a random hit sound (once per frame)
+                  if (!hitSoundPlayedThisFrame) {
+                    playSfx.current(Math.random() > 0.5 ? "hit1" : "hit2");
+                    hitSoundPlayedThisFrame = true;
+                  }
+
+                  // Send haptic feedback to A's controller (bots do not receive haptics)
+                  const aParticipant = participantBySlot[a.key];
+                  if (
+                    aParticipant &&
+                    !aParticipant.isBot &&
+                    !hitControllersRef.current.has(aParticipant.id)
+                  ) {
+                    host.sendSignal(
+                      "HAPTIC",
+                      { pattern: "heavy" },
+                      aParticipant.id,
+                    );
+                    hitControllersRef.current.add(aParticipant.id);
+                  }
                 }
+              } else {
+                // Normal body collision (use body-only AABB for separation)
+                const bodyOverlapX =
+                  Math.min(a.ps.x + PLAYER_SIZE, b.ps.x + PLAYER_SIZE) -
+                  Math.max(a.ps.x, b.ps.x);
+                const bodyOverlapY =
+                  Math.min(a.ps.y + PLAYER_SIZE, b.ps.y + PLAYER_SIZE) -
+                  Math.max(a.ps.y, b.ps.y);
 
-                // Send haptic feedback to B's controller
-                const bPlayer = players.find(
-                  (p) =>
-                    teamAssignments[p.id]?.team === b.team &&
-                    teamAssignments[p.id]?.position ===
-                      (b.key.endsWith("Front") ? "front" : "back"),
-                );
-                if (bPlayer && !hitControllersRef.current.has(bPlayer.id)) {
-                  host.sendSignal("HAPTIC", { pattern: "heavy" }, bPlayer.id);
-                  hitControllersRef.current.add(bPlayer.id);
-                }
-              }
-
-              if (bIsPunchingA) {
-                const aDefending = a.ps.defending;
-                const defKbMult = aDefending ? DEFEND_KNOCKBACK_MULTIPLIER : 1;
-                const defDmgMult = aDefending ? DEFEND_DAMAGE_MULTIPLIER : 1;
-
-                // Empowered punch: 2x damage/knockback (consumed on throw)
-                const empKbMult = b.ps.punchEmpowered ? EMPOWER_KNOCKBACK_MULTIPLIER : 1;
-                const empDmgMult = b.ps.punchEmpowered ? EMPOWER_DAMAGE_MULTIPLIER : 1;
-
-                const kbMult = defKbMult * empKbMult;
-                const dmgMult = defDmgMult * empDmgMult;
-
-                // Instant displacement
-                a.ps.x -= nx * PUNCH_DISPLACEMENT * kbMult;
-                a.ps.y -= ny * PUNCH_DISPLACEMENT * kbMult;
-                // Set high velocity for skid
-                a.ps.vx = -nx * PUNCH_KNOCKBACK_VELOCITY * kbMult;
-                a.ps.vy = -ny * PUNCH_KNOCKBACK_VELOCITY * kbMult;
-                a.ps.knockbackFrames = PUNCH_KNOCKBACK_FRAMES;
-                // Puncher recoil
-                b.ps.vx += nx * PUNCH_RECOIL;
-                b.ps.vy += ny * PUNCH_RECOIL;
-
-                // Apply damage to victim team
-                hpRef.current[a.team] = Math.max(
-                  0,
-                  hpRef.current[a.team] - PUNCH_DAMAGE * dmgMult,
-                );
-                a.ps.hitFlashEnd = timestamp + HIT_FLASH_MS;
-
-                // Grant empowered state if victim was defending
-                if (aDefending) {
-                  a.ps.empoweredUntil = timestamp + EMPOWER_DURATION_MS;
-                }
-
-                // Mark the active fist(s) as landed
-                if (b.ps.punchingLeft) b.ps.punchLandedLeft = true;
-                if (b.ps.punchingRight) b.ps.punchLandedRight = true;
-
-                // Play a random hit sound (once per frame)
-                if (!hitSoundPlayedThisFrame) {
-                  playSfx.current(Math.random() > 0.5 ? "hit1" : "hit2");
-                  hitSoundPlayedThisFrame = true;
-                }
-
-                // Send haptic feedback to A's controller
-                const aPlayer = players.find(
-                  (p) =>
-                    teamAssignments[p.id]?.team === a.team &&
-                    teamAssignments[p.id]?.position ===
-                      (a.key.endsWith("Front") ? "front" : "back"),
-                );
-                if (aPlayer && !hitControllersRef.current.has(aPlayer.id)) {
-                  host.sendSignal("HAPTIC", { pattern: "heavy" }, aPlayer.id);
-                  hitControllersRef.current.add(aPlayer.id);
-                }
-              }
-            } else {
-              // Normal body collision (use body-only AABB for separation)
-              const bodyOverlapX =
-                Math.min(a.ps.x + PLAYER_SIZE, b.ps.x + PLAYER_SIZE) -
-                Math.max(a.ps.x, b.ps.x);
-              const bodyOverlapY =
-                Math.min(a.ps.y + PLAYER_SIZE, b.ps.y + PLAYER_SIZE) -
-                Math.max(a.ps.y, b.ps.y);
-
-              if (bodyOverlapX > 0 && bodyOverlapY > 0) {
-                if (bodyOverlapX < bodyOverlapY) {
-                  const sign =
-                    a.ps.x + PLAYER_SIZE / 2 < b.ps.x + PLAYER_SIZE / 2
-                      ? -1
-                      : 1;
-                  const half = bodyOverlapX / 2;
-                  a.ps.x += sign * half;
-                  b.ps.x -= sign * half;
-                  a.ps.vx += sign * COLLISION_PUSH;
-                  b.ps.vx -= sign * COLLISION_PUSH;
-                } else {
-                  const sign =
-                    a.ps.y + PLAYER_SIZE / 2 < b.ps.y + PLAYER_SIZE / 2
-                      ? -1
-                      : 1;
-                  const half = bodyOverlapY / 2;
-                  a.ps.y += sign * half;
-                  b.ps.y -= sign * half;
-                  a.ps.vy += sign * COLLISION_PUSH;
-                  b.ps.vy -= sign * COLLISION_PUSH;
+                if (bodyOverlapX > 0 && bodyOverlapY > 0) {
+                  if (bodyOverlapX < bodyOverlapY) {
+                    const sign =
+                      a.ps.x + PLAYER_SIZE / 2 < b.ps.x + PLAYER_SIZE / 2
+                        ? -1
+                        : 1;
+                    const half = bodyOverlapX / 2;
+                    a.ps.x += sign * half;
+                    b.ps.x -= sign * half;
+                    a.ps.vx += sign * COLLISION_PUSH;
+                    b.ps.vx -= sign * COLLISION_PUSH;
+                  } else {
+                    const sign =
+                      a.ps.y + PLAYER_SIZE / 2 < b.ps.y + PLAYER_SIZE / 2
+                        ? -1
+                        : 1;
+                    const half = bodyOverlapY / 2;
+                    a.ps.y += sign * half;
+                    b.ps.y -= sign * half;
+                    a.ps.vy += sign * COLLISION_PUSH;
+                    b.ps.vy -= sign * COLLISION_PUSH;
+                  }
                 }
               }
             }
           }
-        }
 
-        // Final hard clamp so nobody drifts out of bounds after collision resolution
-        for (const { ps } of activePlayers) {
-          ps.x = clamp(ps.x, RING_MIN_X, RING_MAX_X);
-          ps.y = clamp(ps.y, RING_MIN_Y, RING_MAX_Y);
-        }
+          // Final hard clamp so nobody drifts out of bounds after collision resolution
+          for (const { ps } of activePlayers) {
+            ps.x = clamp(ps.x, RING_MIN_X, RING_MAX_X);
+            ps.y = clamp(ps.y, RING_MIN_Y, RING_MAX_Y);
+          }
 
-        // KO detection — check if either team's HP hit 0
-        const { team1: hp1, team2: hp2 } = hpRef.current;
-        if (hp1 <= 0 || hp2 <= 0) {
-          const winner = hp1 <= 0 ? "team2" : "team1";
-          koRef.current = {
-            active: true,
-            winner,
-            endTime: timestamp + KO_COUNTDOWN_MS,
-          };
-          playSfx.current("bell");
-        }
-        syncHpDisplay();
+          // KO detection — check if either team's HP hit 0
+          const { team1: hp1, team2: hp2 } = hpRef.current;
+          if (hp1 <= 0 || hp2 <= 0) {
+            const winner = hp1 <= 0 ? "team2" : "team1";
+            koRef.current = {
+              active: true,
+              winner,
+              endTime: timestamp + KO_COUNTDOWN_MS,
+            };
+            playSfx.current("bell");
+          }
+          syncHpDisplay();
         } // close else (physics block — skipped during KO freeze)
       }
 
@@ -1020,38 +1291,33 @@ export function HostView() {
       }[] = [];
 
       for (const k of PLAYER_KEYS) {
-        const team = k.startsWith("player1") ? "team1" : "team2";
-        const position = k.endsWith("Front") ? "front" : "back";
-        const hasPlayer = players.some(
-          (p) =>
-            teamAssignments[p.id]?.team === team &&
-            teamAssignments[p.id]?.position === position,
-        );
-        if (hasPlayer) {
-          const ps = state[k];
-
-          // Tick per-player idle animation
-          if (now >= ps.idleNextSwap) {
-            ps.idleLeft = !ps.idleLeft;
-            ps.idleNextSwap =
-              now +
-              IDLE_FRAME_MIN_MS +
-              Math.random() * (IDLE_FRAME_MAX_MS - IDLE_FRAME_MIN_MS);
-          }
-
-          active.push({
-            key: k,
-            team: team as "team1" | "team2",
-            cx: ps.x + PLAYER_SIZE / 2,
-            cy: ps.y + PLAYER_SIZE / 2,
-            punchingLeft: ps.punchingLeft,
-            punchingRight: ps.punchingRight,
-            defending: ps.defending,
-            hitFlashEnd: ps.hitFlashEnd,
-            idleLeft: ps.idleLeft,
-            empoweredUntil: ps.empoweredUntil,
-          });
+        if (!participantBySlot[k]) {
+          continue;
         }
+        const team = k.startsWith("player1") ? "team1" : "team2";
+        const ps = state[k];
+
+        // Tick per-player idle animation
+        if (now >= ps.idleNextSwap) {
+          ps.idleLeft = !ps.idleLeft;
+          ps.idleNextSwap =
+            now +
+            IDLE_FRAME_MIN_MS +
+            Math.random() * (IDLE_FRAME_MAX_MS - IDLE_FRAME_MIN_MS);
+        }
+
+        active.push({
+          key: k,
+          team: team as "team1" | "team2",
+          cx: ps.x + PLAYER_SIZE / 2,
+          cy: ps.y + PLAYER_SIZE / 2,
+          punchingLeft: ps.punchingLeft,
+          punchingRight: ps.punchingRight,
+          defending: ps.defending,
+          hitFlashEnd: ps.hitFlashEnd,
+          idleLeft: ps.idleLeft,
+          empoweredUntil: ps.empoweredUntil,
+        });
       }
 
       const koLoserTeam =
@@ -1077,16 +1343,18 @@ export function HostView() {
         const defaultSpriteKey = p.idleLeft
           ? (`${prefix}LeftShort` as const)
           : (`${prefix}RightShort` as const);
-        const spriteKey = koLoserTeam === p.team
-          ? (`${prefix}End` as const)
-          : p.punchingLeft
-            ? (`${prefix}LeftExtended` as const)
-            : p.punchingRight
-              ? (`${prefix}RightExtended` as const)
-              : p.defending
-                ? (`${prefix}Defend` as const)
-                : defaultSpriteKey;
-        const sprite = spritesRef.current[spriteKey] ?? spritesRef.current[defaultSpriteKey];
+        const spriteKey =
+          koLoserTeam === p.team
+            ? (`${prefix}End` as const)
+            : p.punchingLeft
+              ? (`${prefix}LeftExtended` as const)
+              : p.punchingRight
+                ? (`${prefix}RightExtended` as const)
+                : p.defending
+                  ? (`${prefix}Defend` as const)
+                  : defaultSpriteKey;
+        const sprite =
+          spritesRef.current[spriteKey] ?? spritesRef.current[defaultSpriteKey];
         if (!sprite) return;
 
         // Find nearest enemy for rotation (sprite faces "up" / -Y, so offset by PI/2)
@@ -1201,16 +1469,31 @@ export function HostView() {
 
     gameLoop();
     return () => cancelAnimationFrame(animationId);
-  }, [host, teamAssignments, actions, getTintedOverlaySprite]);
+  }, [
+    host,
+    actions,
+    getTintedOverlaySprite,
+    slotParticipants,
+    participantBySlot,
+  ]);
 
   return (
     <div className="host-view-shell">
+      <div className="fixed right-4 top-4 z-[70]">
+        <HostMuteButton
+          muted={audioMuted}
+          onToggle={() => setAudioMuted((previous) => !previous)}
+          className="pixel-font h-10 rounded-none border-2 border-zinc-600 bg-zinc-900/85 text-zinc-100 hover:bg-zinc-800"
+          labelClassName="tracking-[0.14em]"
+        />
+      </div>
+
       <div
         className="relative flex min-h-screen flex-col items-center justify-center p-4"
         style={{ backgroundColor: "var(--ring-mat-color, #e5e7eb)" }}
       >
         <div className="mb-4 flex w-full items-center">
-          <div className="w-1/3 flex justify-center">
+          <div className="flex w-1/3 justify-center">
             <div className="relative">
               <span
                 style={{
@@ -1224,11 +1507,11 @@ export function HostView() {
             </div>
           </div>
 
-          <div className="w-1/3 flex justify-center">
+          <div className="flex w-1/3 justify-center">
             <canvas ref={canvasRef} className="block" />
           </div>
 
-          <div className="w-1/3 flex justify-center">
+          <div className="flex w-1/3 justify-center">
             <div className="relative">
               <span
                 style={{
@@ -1245,137 +1528,190 @@ export function HostView() {
       </div>
 
       {host.gameState === "paused" ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4">
-          <div
-            className="pixel-font relative flex flex-1 flex-col overflow-hidden rounded-none border-4 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)]"
-            style={{
-              width: "66vw",
-              height: "78vh",
-              maxWidth: "95vw",
-              maxHeight: "95vh",
-            }}
-          >
-            <div className="min-h-0 flex-1 p-4">
-                <div className="grid h-full grid-cols-[2fr_1fr] gap-4">
-                  <div className="flex items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-2">
-                    <img
-                      src="/sprites/cover.png"
-                      alt="Game cover"
-                      className="h-full w-full object-cover"
-                    />
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 p-2 sm:p-3 md:p-4">
+          <div className="flex min-h-full w-full items-center justify-center">
+            <div
+              className="pixel-font relative flex w-full max-w-[96vw] flex-col overflow-hidden rounded-none border-4 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)] xl:max-w-[1780px] 2xl:max-w-[1920px]"
+              style={{
+                height: "auto",
+                maxHeight: "none",
+              }}
+            >
+              <div className="min-h-0 flex-1 p-3 sm:p-4 md:p-5">
+                <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(36rem,1fr)]">
+                <div className="order-1 flex h-52 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-56 md:h-64 xl:h-auto xl:min-h-0">
+                  <img
+                    src="/sprites/cover.png"
+                    alt="Game cover"
+                    className="h-full w-full object-cover object-center"
+                  />
+                </div>
+
+                <div className="order-2 flex min-h-0 flex-col xl:order-2">
+                  <div className="space-y-2 md:space-y-3">
+                    <div>
+                      <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
+                        Room
+                      </p>
+                      <p className="text-lg text-white">{host.roomId}</p>
+                    </div>
+
+                    <div className="inline-flex text-xs tracking-[0.22em] uppercase">
+                      <span className="rounded-none border-2 border-zinc-600 px-2 py-1">
+                        {hostStatusText}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
+                        Join URL
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={host.joinUrl ?? ""}
+                          className="pixel-font h-9 min-w-0 flex-[1_1_14rem] rounded-none border-2 border-zinc-600 bg-black/80 px-3 py-2 text-xs text-zinc-100 outline-none md:h-10"
+                        />
+                        <button
+                          type="button"
+                          className="h-9 rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs text-zinc-100 uppercase transition hover:bg-zinc-700 md:h-10"
+                          onClick={copyJoinUrl}
+                        >
+                          {copiedJoinUrl ? "Copied" : "Copy"}
+                        </button>
+                        <button
+                          type="button"
+                          className="h-9 rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs text-zinc-100 uppercase transition hover:bg-zinc-700 md:h-10"
+                          onClick={() => {
+                            if (host.joinUrl) {
+                              window.open(
+                                host.joinUrl,
+                                "_blank",
+                                "noopener,noreferrer",
+                              );
+                            }
+                          }}
+                        >
+                          Open
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex min-h-0 flex-col">
-                    <div className="space-y-3 border-b-4 border-zinc-700 pb-3">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">
-                          Room
+                  <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
+                    <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,21rem)_minmax(28rem,1fr)]">
+                      <div className="flex flex-col items-center border-zinc-700 pb-3 md:border-r-2 md:pb-0 md:pr-3">
+                        <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
+                          Scan To Join
                         </p>
-                        <p className="text-lg text-white">
-                          {host.roomId}
-                        </p>
-                      </div>
-
-                      <div className="inline-flex text-xs uppercase tracking-[0.22em]">
-                        <span className="rounded-none border-2 border-zinc-600 px-2 py-1">
-                          {hostStatusText}
-                        </span>
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">
-                          Join URL
-                        </p>
-                        <div className="mt-1 flex gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            value={host.joinUrl ?? ""}
-                            className="pixel-font h-10 flex-1 rounded-none border-2 border-zinc-600 bg-black/80 px-3 py-2 text-xs text-zinc-100 outline-none"
-                          />
-                          <button
-                            type="button"
-                            className="rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs uppercase text-zinc-100 transition hover:bg-zinc-700"
-                            onClick={copyJoinUrl}
-                          >
-                            {copiedJoinUrl ? "Copied" : "Copy"}
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs uppercase text-zinc-100 transition hover:bg-zinc-700"
-                            onClick={() => {
-                              if (host.joinUrl) {
-                                window.open(host.joinUrl, "_blank", "noopener,noreferrer");
-                              }
-                            }}
-                          >
-                            Open
-                          </button>
-                        </div>
-                      </div>
-
-                        <div className="inline-flex w-full max-w-[24rem] aspect-square items-center justify-center rounded-none border-4 border-zinc-700 p-1">
+                        <div className="mt-2 flex w-full flex-1 items-start justify-center">
                           {host.joinUrl ? (
                             <RoomQrCode
                               value={host.joinUrl}
-                              size={420}
+                              size={448}
                               padding={1}
                               foregroundColor="#ffffff"
                               backgroundColor="#00000000"
-                              className="h-auto w-full"
+                              className="mx-auto h-auto w-full max-w-[12rem] sm:max-w-[14rem] md:max-w-[20rem] xl:max-w-[24rem]"
+                              style={{
+                                width: "100%",
+                                height: "auto",
+                                aspectRatio: "1 / 1",
+                              }}
                               alt={`Join room ${host.roomId}`}
                             />
                           ) : (
-                            <span className="text-xs text-zinc-400">Generating QR code…</span>
+                            <div className="flex h-full w-full min-h-40 items-center justify-center px-3 text-center">
+                              <span className="text-xs text-zinc-400">
+                                Generating QR code…
+                              </span>
+                            </div>
                           )}
                         </div>
-                    </div>
+                      </div>
 
-                    <div className="mt-3 flex min-h-0 flex-1 flex-col">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">
-                        Connected Players ({host.players.length})
-                      </p>
-
-                      <ul className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
-                        {host.players.length === 0 ? (
-                          <p className="text-xs text-zinc-400">
-                            Waiting for controllers to join…
+                      <div className="flex min-h-0 flex-col md:pl-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
+                            Connected Players ({host.players.length})
                           </p>
-                        ) : (
-                          host.players.map((player) => (
-                            <li
-                              key={player.id}
-                              className="mb-2 flex items-center justify-between border-b border-zinc-700 pb-2 text-xs"
-                            >
-                              <span className="text-zinc-100">{player.label}</span>
-                              <button
-                                type="button"
-                                className="max-w-[9rem] truncate text-left text-[10px] text-zinc-300 underline-offset-2 hover:underline"
-                                onClick={() => copyPlayerId(player.id)}
-                                title="Copy player ID"
-                              >
-                                {copiedPlayerId === player.id
-                                  ? "Copied!"
-                                  : player.id.slice(0, 8)}
-                              </button>
-                            </li>
-                          ))
-                        )}
-                      </ul>
-                    </div>
+                          <span className="text-[10px] tracking-[0.18em] text-zinc-400 uppercase">
+                            Ready Humans {readyAssignedCount}/
+                            {assignedHumanPlayers.length}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] tracking-[0.18em] text-zinc-500 uppercase">
+                          Auto Bots {botCount} (Coder {team1BotCount}, Reviewer{" "}
+                          {team2BotCount})
+                        </p>
 
-                    <div className="mt-auto flex justify-end">
-                      <button
-                        type="button"
-                        onClick={host.toggleGameState}
-                        className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-8 py-3 text-lg text-white transition hover:bg-zinc-700 active:scale-95"
-                      >
-                        Play
-                      </button>
+                        <ul className="mt-2 space-y-1 pr-1">
+                          {slotParticipants.map((participant) => (
+                            <li
+                              key={participant.slotKey}
+                              className="flex items-center justify-between border-b border-zinc-700 pb-2 text-xs"
+                            >
+                              <div className="min-w-0">
+                                <span className="block break-words text-zinc-100">
+                                  {participant.label}
+                                </span>
+                                <span className="block text-[10px] tracking-[0.15em] text-zinc-400 uppercase">
+                                  {participant.team === "team1"
+                                    ? "Coder"
+                                    : "Reviewer"}{" "}
+                                  •{" "}
+                                  {participant.position === "front"
+                                    ? "Front"
+                                    : "Back"}{" "}
+                                  •{" "}
+                                  {participant.isBot
+                                    ? "Bot"
+                                    : (readyByPlayerId[participant.id] ?? false)
+                                      ? "Ready"
+                                      : "Not ready"}
+                                </span>
+                              </div>
+                              {participant.isBot ? (
+                                <span className="text-[10px] tracking-[0.15em] text-zinc-500 uppercase">
+                                  Auto
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="text-left text-[10px] text-zinc-300 underline-offset-2 hover:underline"
+                                  onClick={() => copyPlayerId(participant.id)}
+                                  title="Copy player ID"
+                                >
+                                  {copiedPlayerId === participant.id
+                                    ? "Copied!"
+                                    : participant.id.slice(0, 8)}
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      disabled={!canStartMatch}
+                      onClick={() => {
+                        if (!canStartMatch) return;
+                        host.toggleGameState();
+                      }}
+                      className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-8 py-3 text-lg text-white transition enabled:hover:bg-zinc-700 enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Play
+                    </button>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
           </div>
         </div>
       ) : null}

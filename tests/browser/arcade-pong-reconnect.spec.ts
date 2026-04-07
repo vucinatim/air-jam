@@ -1,5 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { dismissControllerFullscreenPrompt } from "./helpers/controller-fullscreen";
+import { resolveControllerJoinUrl } from "./helpers/controller-join-url";
+
+const joinTeamUntilAssigned = async (joinTeamButton: Locator) => {
+  await expect(async () => {
+    await joinTeamButton.click();
+    await expect(joinTeamButton).toHaveText("Joined");
+  }).toPass({ timeout: 20_000 });
+};
 
 test("arcade local pong resumes the same controller slot after controller refresh", async ({
   browser,
@@ -17,17 +25,16 @@ test("arcade local pong resumes the same controller slot after controller refres
   await expect(hostGame.getByTestId("pong-host-room-code")).toHaveText(
     /[A-Z0-9]{4}/,
   );
-  const roomCode = (
-    await hostGame.getByTestId("pong-host-room-code").textContent()
-  )?.trim();
-  if (!roomCode) {
-    throw new Error("Pong room code was not available.");
+  if (!baseURL) {
+    throw new Error("Playwright baseURL was not configured.");
   }
+  const controllerJoinUrl = await resolveControllerJoinUrl({
+    hostGame,
+    baseURL,
+  });
 
   let controllerPage = await context.newPage();
-  await controllerPage.goto(
-    `${baseURL}/controller?room=${encodeURIComponent(roomCode)}`,
-  );
+  await controllerPage.goto(controllerJoinUrl);
   await dismissControllerFullscreenPrompt(controllerPage);
 
   let controllerGame = controllerPage.frameLocator(
@@ -40,8 +47,7 @@ test("arcade local pong resumes the same controller slot after controller refres
   const joinTeamButton = controllerGame.getByTestId(
     "pong-controller-join-team-team1",
   );
-  await joinTeamButton.click();
-  await expect(joinTeamButton).toHaveText("Joined");
+  await joinTeamUntilAssigned(joinTeamButton);
   await expect(
     hostGame.getByTestId("pong-host-team-slot-team1-0"),
   ).not.toContainText("Open Slot");
@@ -52,9 +58,7 @@ test("arcade local pong resumes the same controller slot after controller refres
   ).not.toContainText("Open Slot");
 
   controllerPage = await context.newPage();
-  await controllerPage.goto(
-    `${baseURL}/controller?room=${encodeURIComponent(roomCode)}`,
-  );
+  await controllerPage.goto(controllerJoinUrl);
   await dismissControllerFullscreenPrompt(controllerPage);
   controllerGame = controllerPage.frameLocator(
     'iframe[data-testid="arcade-controller-game-frame"]',

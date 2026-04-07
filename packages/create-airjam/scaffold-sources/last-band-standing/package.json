@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "songs:validate": "node ./scripts/validate-song-embeds.mjs"
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",

@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import {
+  type ServerDatabase,
   runtimeUsageControllerSegments,
   runtimeUsageEligibleSegments,
   runtimeUsageEvents,
@@ -9,8 +9,6 @@ import {
 import { refreshRuntimeUsageAggregatesForSession } from "./runtime-usage-aggregator.js";
 import { rebuildRuntimeUsageProjectionFromEvents } from "./runtime-usage-rebuild-domain.js";
 import type { RuntimeUsageEvent } from "./runtime-usage.js";
-
-type RuntimeUsageDb = PostgresJsDatabase<Record<string, never>>;
 
 const toRuntimeUsageEvent = (
   row: typeof runtimeUsageEvents.$inferSelect,
@@ -28,7 +26,7 @@ const toRuntimeUsageEvent = (
 });
 
 export const rebuildRuntimeUsageSessionFromLedger = async (
-  db: RuntimeUsageDb,
+  db: ServerDatabase,
   runtimeSessionId: string,
   referenceTime: Date,
 ): Promise<void> => {

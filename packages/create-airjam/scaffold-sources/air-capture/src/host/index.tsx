@@ -5,6 +5,7 @@ import {
   useHostGameStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
+import { HostMuteButton } from "@air-jam/sdk/ui";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import {
   Suspense,
@@ -40,7 +41,6 @@ import {
   EndedOverlay,
   GameplayFallback,
   type HostConnectionStatus,
-  HostMuteButton,
   LobbyOverlay,
   PausedOverlay,
   StageBackdrop,
@@ -378,7 +378,11 @@ const HostViewContent = ({
 
   const muteSlot = (
     <div className="pointer-events-auto absolute top-4 right-4 z-90">
-      <HostMuteButton muted={audioMuted} onToggle={toggleAudio} />
+      <HostMuteButton
+        muted={audioMuted}
+        onToggle={toggleAudio}
+        className="border-white/20 bg-black/50 text-white hover:bg-black/70"
+      />
     </div>
   );
   const showBackdrop = matchPhase === "lobby" || matchPhase === "ended";

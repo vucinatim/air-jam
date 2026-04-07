@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import {
+  type ServerDatabase,
   runtimeUsageControllerSegments,
   runtimeUsageEligibleSegments,
   runtimeUsageGameSegments,
@@ -16,10 +16,8 @@ import {
   type RuntimeUsageProjectionAction,
 } from "./runtime-usage-projection-domain.js";
 
-type RuntimeUsageDb = PostgresJsDatabase<Record<string, never>>;
-
 export const projectRuntimeUsageEventToSegments = async (
-  db: RuntimeUsageDb,
+  db: ServerDatabase,
   event: RuntimeUsageEvent,
 ): Promise<void> => {
   if (!event.runtimeSessionId || !event.roomId) {
@@ -94,7 +92,7 @@ export const projectRuntimeUsageEventToSegments = async (
 };
 
 const applyProjectionAction = async (
-  db: RuntimeUsageDb,
+  db: ServerDatabase,
   event: RuntimeUsageEvent,
   action: RuntimeUsageProjectionAction,
 ): Promise<void> => {

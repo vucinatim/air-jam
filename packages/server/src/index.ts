@@ -5,15 +5,9 @@ import {
   type ServerToClientEvents,
   type SocketData,
 } from "@air-jam/sdk/protocol";
-import {
-  formatEnvValidationError,
-  isEnvValidationError,
-} from "@air-jam/env";
 import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import { registerSocketHandlers } from "./gateway/register-socket-handlers.js";
 import {
@@ -27,6 +21,8 @@ import {
   type BrowserLogBatchPayload,
   type BrowserLogUnloadPayload,
 } from "./logging/dev-log-collector.js";
+import { createServerDatabase, type ServerDatabase } from "./db.js";
+import { REMOTE_DATABASE_BLOCKED_MESSAGE } from "./env/database-url-policy.js";
 import {
   type RuntimeUsagePublisher,
 } from "./analytics/runtime-usage.js";
@@ -54,6 +50,8 @@ export interface CreateAirJamServerOptions {
   runtimeUsagePublisher?: RuntimeUsagePublisher;
   rateLimitService?: RateLimitService;
   roomManager?: RoomManager;
+  db?: ServerDatabase | null;
+  proxyHeaderTrustMode?: ServerEnvConfig["proxyHeaderTrustMode"];
   devLogCollector?: DevLogCollector | false;
   devLogDir?: string;
   envConfig?: ServerEnvConfig;
@@ -68,6 +66,8 @@ export interface AirJamServerRuntime {
   flushDevLogs: () => Promise<void>;
   getPort: () => number | null;
 }
+
+let hasWarnedAboutBlockedRemoteDatabase = false;
 
 const parseAllowedOrigins = (
   input: string[] | "*" | undefined,
@@ -107,8 +107,16 @@ export const createAirJamServer = (
       devLogCollector,
       { level: envConfig.logLevel },
     );
+  if (envConfig.remoteDatabaseBlocked && !hasWarnedAboutBlockedRemoteDatabase) {
+    hasWarnedAboutBlockedRemoteDatabase = true;
+    logger.warn(
+      { component: "env", nodeEnv: envConfig.nodeEnv },
+      REMOTE_DATABASE_BLOCKED_MESSAGE,
+    );
+  }
   const roomManagerInstance = options.roomManager ?? roomManager;
   const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
+  const db = options.db ?? createServerDatabase(envConfig.databaseUrl);
   const authServiceInstance =
     options.authService ??
     new AuthService({
@@ -120,11 +128,13 @@ export const createAirJamServer = (
         databaseUrl: envConfig.databaseUrl,
         nodeEnv: envConfig.nodeEnv,
       },
+      db,
     });
   const runtimeUsagePublisher =
     options.runtimeUsagePublisher ??
     createDatabaseRuntimeUsageLedgerPublisher(
       logger.child({ component: "analytics" }),
+      db,
     );
   const startupConfigurationError =
     typeof authServiceInstance.getStartupConfigurationError === "function"
@@ -246,6 +256,8 @@ export const createAirJamServer = (
       hostRegistrationRateLimitMax,
       controllerJoinRateLimitMax,
       staticAppRateLimitMax,
+      proxyHeaderTrustMode:
+        options.proxyHeaderTrustMode ?? envConfig.proxyHeaderTrustMode,
     });
   });
 
@@ -307,33 +319,3 @@ export const createAirJamServer = (
     getPort,
   };
 };
-
-const isMainModule = (() => {
-  if (!process.argv[1]) {
-    return false;
-  }
-  const thisFilePath = fileURLToPath(import.meta.url);
-  return thisFilePath === path.resolve(process.argv[1]);
-})();
-
-if (isMainModule) {
-  Promise.resolve()
-    .then(() => createAirJamServer())
-    .then((runtime) => runtime.start())
-    .catch((error) => {
-      if (isEnvValidationError(error)) {
-        console.error(
-          formatEnvValidationError(error, {
-            docsHint:
-              "Fix the listed AIR_JAM_* variables and retry. For local dev, check .env.local.",
-          }),
-        );
-        process.exitCode = 1;
-        return;
-      }
-
-      const logger = createServerLogger({ service: "air-jam-server" });
-      logger.error({ err: error }, "Failed to start server");
-      process.exitCode = 1;
-    });
-}

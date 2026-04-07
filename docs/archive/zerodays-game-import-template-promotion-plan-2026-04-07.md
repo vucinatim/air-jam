@@ -1,15 +1,18 @@
 # ZeroDays Game Import And Template Promotion Plan
 
 Last updated: 2026-04-02  
-Status: active
+Status: archived completed baseline
+
+Archived on 2026-04-07 after the three showcase games were imported into `games/`, promoted into the scaffold catalog, and aligned to the repo-native workflow surface.
+Ongoing launch-quality work for those games now lives in [Showcase Games Release Readiness Plan](../plans/showcase-games-release-readiness-plan.md).
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [Game Source Scaffolding Plan](./game-source-scaffolding-plan.md)
+2. [Game Source Scaffolding Plan](./game-source-scaffolding-plan-2026-04-07.md)
 3. [Legacy Game Migration Guide](../systems/legacy-game-migration-guide.md)
 4. [Monorepo Operating System](../monorepo-operating-system.md)
-5. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+5. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
 
 ## Purpose
 

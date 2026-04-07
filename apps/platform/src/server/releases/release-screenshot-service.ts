@@ -3,7 +3,10 @@ import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url
 import { getReleaseModerationConfig } from "@/server/releases/release-moderation-config";
 import { getReleaseStorage } from "@/server/releases/release-storage";
 import { buildReleaseScreenshotObjectKey } from "@/server/releases/release-storage-keys";
-import { RELEASE_INSPECTION_ACCESS_HEADER } from "./release-inspection-access";
+import {
+  createReleaseInspectionAccessToken,
+  RELEASE_INSPECTION_ACCESS_HEADER,
+} from "./release-inspection-access";
 import { chromium } from "playwright-core";
 
 export type ReleaseScreenshotCaptureResult = {
@@ -28,6 +31,16 @@ export const captureReleaseScreenshot = async ({
     releaseId,
     assetPath: HOSTED_RELEASE_HOST_PATH,
   });
+  const inspectionAccessToken = createReleaseInspectionAccessToken({
+    gameId,
+    releaseId,
+    secret: config.internalAccessSecret,
+    expiresAtMs:
+      Date.now() +
+      config.browserLaunch.navigationTimeoutMs +
+      config.browserLaunch.waitAfterLoadMs +
+      120_000,
+  });
 
   const browser = config.browserLaunch.wsEndpoint
     ? await chromium.connect(config.browserLaunch.wsEndpoint)
@@ -43,7 +56,7 @@ export const captureReleaseScreenshot = async ({
         height: config.browserLaunch.viewportHeight,
       },
       extraHTTPHeaders: {
-        [RELEASE_INSPECTION_ACCESS_HEADER]: config.internalAccessToken,
+        [RELEASE_INSPECTION_ACCESS_HEADER]: inspectionAccessToken,
       },
     });
 

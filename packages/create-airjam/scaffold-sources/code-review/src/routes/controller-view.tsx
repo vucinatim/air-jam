@@ -4,38 +4,13 @@ import {
   useInputWriter,
 } from "@air-jam/sdk";
 import { ForcedOrientationShell } from "@air-jam/sdk/ui";
-import { useCallback, useEffect, useRef } from "react";
-import { useGameStore } from "../game/stores";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { PUNCH_COOLDOWN_MS } from "../game/input";
+import { useGameStore } from "../game/stores";
 
 const TEAM1_COLOR = "#dc2626"; // Solaris (Red) — matches arena corner
 const TEAM2_COLOR = "#2563eb"; // Nebulon (Blue) — matches arena corner
-const MOBILE_BREAKPOINT = 768;
-
-const isLikelyMobile = (): boolean => {
-  if (typeof window === "undefined") return false;
-
-  const userAgent = window.navigator.userAgent;
-  const mobileUserAgent =
-    /Mobi|Android|iPhone|iPad|iPod|Windows Phone|BlackBerry|BB10|Opera Mini|IEMobile|Mobile/i.test(
-      userAgent,
-    );
-  const hasCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  const hasSmallScreen = window.innerWidth <= MOBILE_BREAKPOINT;
-
-  return mobileUserAgent || hasCoarsePointer || hasSmallScreen;
-};
-
-const getFullscreenElement = (): Element | null => {
-  const doc = document;
-  return (
-    doc.fullscreenElement ||
-    (doc as { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ||
-    (doc as { mozFullScreenElement?: Element | null }).mozFullScreenElement ||
-    (doc as { msFullscreenElement?: Element | null }).msFullscreenElement ||
-    null
-  );
-};
+const MAX_TEAM_SLOTS = 2;
 
 /** Degrees of tilt beyond which direction is fully -1 or 1 */
 const GYRO_MAX_TILT = 25;
@@ -55,15 +30,16 @@ type DeviceOrientationEventWithPermission = {
   requestPermission?: () => Promise<"granted" | "denied">;
 };
 
-const resolveDeviceOrientationEvent = (): DeviceOrientationEventWithPermission | null => {
-  const candidate = (
-    globalThis as {
-      DeviceOrientationEvent?: DeviceOrientationEventWithPermission;
-    }
-  ).DeviceOrientationEvent;
+const resolveDeviceOrientationEvent =
+  (): DeviceOrientationEventWithPermission | null => {
+    const candidate = (
+      globalThis as {
+        DeviceOrientationEvent?: DeviceOrientationEventWithPermission;
+      }
+    ).DeviceOrientationEvent;
 
-  return candidate ?? null;
-};
+    return candidate ?? null;
+  };
 
 /** Maps a raw tilt angle (degrees) to a -1..1 direction value with dead zone. */
 const tiltToDirection = (tilt: number, invert: boolean) => {
@@ -93,54 +69,46 @@ export function ControllerView() {
   }>({ left: null, right: null });
 
   // Use the networked store
-  const teamAssignments = useGameStore(
-    (state) => state.teamAssignments,
-  );
+  const teamAssignments = useGameStore((state) => state.teamAssignments);
+  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
+  const botCounts = useGameStore((state) => state.botCounts);
   const actions = useGameStore.useActions();
 
   const myAssignment = controller.controllerId
     ? teamAssignments[controller.controllerId]
     : null;
   const myTeam = myAssignment?.team ?? null;
-  const teamColor = myTeam === "team1" ? TEAM1_COLOR : myTeam === "team2" ? TEAM2_COLOR : null;
+  const isReady = controller.controllerId
+    ? (readyByPlayerId[controller.controllerId] ?? false)
+    : false;
+  const teamColor =
+    myTeam === "team1" ? TEAM1_COLOR : myTeam === "team2" ? TEAM2_COLOR : null;
   const teamAccent = teamColor ?? "#27272a";
-  const isMobileClient = isLikelyMobile();
-
-  const requestFullscreenForMobile = useCallback(() => {
-    if (!isMobileClient || typeof document === "undefined") return;
-
-    if (getFullscreenElement()) return;
-
-    const root = document.documentElement;
-    const request =
-      root.requestFullscreen ||
-      (root as { webkitRequestFullscreen?: () => Promise<void> })
-        .webkitRequestFullscreen ||
-      (root as { mozRequestFullScreen?: () => Promise<void> }).mozRequestFullScreen ||
-      (root as { msRequestFullscreen?: () => Promise<void> }).msRequestFullscreen;
-
-    if (!request) return;
-
-    void request.call(root);
-  }, [isMobileClient]);
-
-  const hasRequestedFullscreenRef = useRef(false);
-  useEffect(() => {
-    if (!isMobileClient) {
-      hasRequestedFullscreenRef.current = false;
-      return;
-    }
-
-    if (controller.gameState !== "playing") {
-      hasRequestedFullscreenRef.current = false;
-      return;
-    }
-
-    if (hasRequestedFullscreenRef.current) return;
-
-    hasRequestedFullscreenRef.current = true;
-    requestFullscreenForMobile();
-  }, [controller.gameState, isMobileClient, requestFullscreenForMobile]);
+  const connectedPlayerIdSet = useMemo(
+    () => new Set(controller.players.map((player) => player.id)),
+    [controller.players],
+  );
+  const connectedTeamAssignments = useMemo(
+    () =>
+      Object.entries(teamAssignments)
+        .filter(([playerId]) => connectedPlayerIdSet.has(playerId))
+        .map(([, assignment]) => assignment),
+    [connectedPlayerIdSet, teamAssignments],
+  );
+  const teamHumanCounts = useMemo(
+    () => ({
+      team1: connectedTeamAssignments.filter((entry) => entry.team === "team1")
+        .length,
+      team2: connectedTeamAssignments.filter((entry) => entry.team === "team2")
+        .length,
+    }),
+    [connectedTeamAssignments],
+  );
+  const team1IsFull = teamHumanCounts.team1 + botCounts.team1 >= MAX_TEAM_SLOTS;
+  const team2IsFull = teamHumanCounts.team2 + botCounts.team2 >= MAX_TEAM_SLOTS;
+  const showGameplayControls =
+    controller.connectionStatus === "connected" &&
+    controller.gameState === "playing";
 
   useControllerTick(
     () => {
@@ -249,6 +217,27 @@ export function ControllerView() {
     await requestGyroPermission();
   };
 
+  const selectTeam = (team: "team1" | "team2") => {
+    const teamIsFull =
+      team === "team1"
+        ? team1IsFull && myTeam !== "team1"
+        : team2IsFull && myTeam !== "team2";
+    if (teamIsFull) return;
+    actions.joinTeam({ team });
+    actions.setReady({ ready: false });
+    requestPermissions();
+  };
+
+  const updateBotCount = (team: "team1" | "team2", count: number) => {
+    actions.setBotCount({ team, count });
+  };
+
+  const toggleReady = () => {
+    if (!myTeam) return;
+    actions.setReady({ ready: !isReady });
+    requestPermissions();
+  };
+
   // Request gyro permission — must be called from a user gesture on iOS.
   const requestGyroPermission = async () => {
     if (gyroActiveRef.current || !deviceOrientationEvent) return;
@@ -293,152 +282,190 @@ export function ControllerView() {
   return (
     <div className="controller-view-shell">
       <ForcedOrientationShell desired="portrait">
-        <div className="h-full w-full pixel-font">
-          {controller.gameState === "paused" ? (
-        // Team selection UI (shown when paused)
-        <div className="flex h-full w-full flex-col gap-2 p-2">
-          {/* Up button - Select Team 1 */}
-          <button
-            type="button"
-            className={`flex-1 touch-none rounded-none border-4 text-4xl text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
-              myTeam === "team1"
-                ? "ring-4 ring-white"
-                : "opacity-70"
-            }`}
-            style={{
-              backgroundColor: myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
-              borderColor:
-                myTeam === "team1" ? TEAM1_COLOR : myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
-              willChange: "transform",
-              transition: "none",
-            }}
-            onTouchStart={() => {
-              actions.joinTeam({ team: "team1" });
-              requestPermissions();
-              requestFullscreenForMobile();
-            }}
-            onMouseDown={() => {
-              actions.joinTeam({ team: "team1" });
-              requestPermissions();
-              requestFullscreenForMobile();
-            }}
-          >
-            CODER
-          </button>
+        <div className="pixel-font h-full w-full">
+          {!showGameplayControls ? (
+            // Team selection UI (shown when paused)
+            <div className="flex h-full w-full flex-col gap-2 p-2">
+              {/* Up button - Select Team 1 */}
+              <button
+                type="button"
+                disabled={team1IsFull && myTeam !== "team1"}
+                className={`flex-1 touch-none rounded-none border-4 text-4xl text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
+                  myTeam === "team1" ? "ring-4 ring-white" : "opacity-70"
+                }`}
+                style={{
+                  backgroundColor: myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
+                  borderColor:
+                    myTeam === "team1"
+                      ? TEAM1_COLOR
+                      : myTeam === "team2"
+                        ? TEAM2_COLOR
+                        : "#3f3f46",
+                  willChange: "transform",
+                  transition: "none",
+                }}
+                onClick={() => selectTeam("team1")}
+              >
+                {team1IsFull && myTeam !== "team1" ? "CODER FULL" : "CODER"}
+              </button>
 
-          {/* Down button - Select Team 2 */}
-          <button
-            type="button"
-            className={`flex-1 touch-none rounded-none border-4 text-4xl text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
-              myTeam === "team2"
-                ? "ring-4 ring-white"
-                : "opacity-70"
-            }`}
-            style={{
-              backgroundColor: myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
-              borderColor:
-                myTeam === "team2" ? TEAM2_COLOR : myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
-              willChange: "transform",
-              transition: "none",
-            }}
-            onTouchStart={() => {
-              actions.joinTeam({ team: "team2" });
-              requestPermissions();
-              requestFullscreenForMobile();
-            }}
-            onMouseDown={() => {
-              actions.joinTeam({ team: "team2" });
-              requestPermissions();
-              requestFullscreenForMobile();
-            }}
-          >
-            REVIEWER
-          </button>
-        </div>
-      ) : (
-        // Game control buttons — portrait layout, phone held on its side.
-        // Left column: defend (hold). Right column: left + right punch.
-        // All text rotated 90° so it reads naturally when sideways.
-        <div className="flex h-full w-full flex-row gap-2 p-2">
-          {/* Defend button — left column (bottom when held sideways) */}
-          <button
-            type="button"
-            className="flex touch-none basis-1/3 items-center justify-center rounded-none border-4 text-2xl text-white shadow-lg select-none active:scale-95"
-            style={{
-              backgroundColor: teamAccent,
-              borderColor: teamAccent,
-              willChange: "transform",
-              transition: "none",
-            }}
-            onTouchStart={() => {
-              defendRef.current = true;
-              requestFullscreenForMobile();
-            }}
-            onTouchEnd={() => {
-              defendRef.current = false;
-            }}
-            onTouchCancel={() => {
-              defendRef.current = false;
-            }}
-            onMouseDown={() => {
-              defendRef.current = true;
-              requestFullscreenForMobile();
-            }}
-              onMouseUp={() => {
-                defendRef.current = false;
-              }}
-            >
-              <span className="inline-block rotate-90">DEFEND</span>
-          </button>
+              {/* Down button - Select Team 2 */}
+              <button
+                type="button"
+                disabled={team2IsFull && myTeam !== "team2"}
+                className={`flex-1 touch-none rounded-none border-4 text-4xl text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
+                  myTeam === "team2" ? "ring-4 ring-white" : "opacity-70"
+                }`}
+                style={{
+                  backgroundColor: myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
+                  borderColor:
+                    myTeam === "team2"
+                      ? TEAM2_COLOR
+                      : myTeam === "team1"
+                        ? TEAM1_COLOR
+                        : "#3f3f46",
+                  willChange: "transform",
+                  transition: "none",
+                }}
+                onClick={() => selectTeam("team2")}
+              >
+                {team2IsFull && myTeam !== "team2" ? "REVIEWER FULL" : "REVIEWER"}
+              </button>
 
-          {/* Punch buttons — right column (top when held sideways) */}
-          <div className="flex flex-1 flex-col gap-2">
-            {/* Left Punch button */}
-            <button
-              type="button"
-              className="flex-1 touch-none rounded-none border-4 bg-zinc-800 text-3xl text-white shadow-lg select-none active:scale-95"
-              style={{
-                backgroundColor: teamAccent,
-                borderColor: teamAccent,
-                willChange: "transform",
-                transition: "none",
-              }}
-              onTouchStart={() => {
-                triggerLeftPunch();
-                requestFullscreenForMobile();
-              }}
-              onMouseDown={() => {
-                triggerLeftPunch();
-                requestFullscreenForMobile();
-              }}
-            >
-              <span className="inline-block rotate-90">LEFT</span>
-            </button>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-none border-4 border-zinc-500 bg-zinc-800/80 p-2 text-center text-white">
+                  <p className="text-xs tracking-[0.14em] text-zinc-300 uppercase">
+                    Coder Bots
+                  </p>
+                  <p className="mt-1 text-2xl font-black">{botCounts.team1}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
+                      disabled={botCounts.team1 <= 0}
+                      onClick={() => updateBotCount("team1", botCounts.team1 - 1)}
+                    >
+                      -
+                    </button>
+                    <button
+                      type="button"
+                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
+                      disabled={
+                        teamHumanCounts.team1 + botCounts.team1 >= MAX_TEAM_SLOTS
+                      }
+                      onClick={() => updateBotCount("team1", botCounts.team1 + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
 
-            {/* Right Punch button */}
-            <button
-              type="button"
-              className="flex-1 touch-none rounded-none border-4 bg-zinc-800 text-3xl text-white shadow-lg select-none active:scale-95"
-              style={{
-                backgroundColor: teamAccent,
-                borderColor: teamAccent,
-                willChange: "transform",
-                transition: "none",
-              }}
-              onTouchStart={() => {
-                triggerRightPunch();
-                requestFullscreenForMobile();
-              }}
-              onMouseDown={() => {
-                triggerRightPunch();
-                requestFullscreenForMobile();
-              }}
-            >
-              <span className="inline-block rotate-90">RIGHT</span>
-            </button>
-          </div>
-        </div>
-      )}
+                <div className="rounded-none border-4 border-zinc-500 bg-zinc-800/80 p-2 text-center text-white">
+                  <p className="text-xs tracking-[0.14em] text-zinc-300 uppercase">
+                    Reviewer Bots
+                  </p>
+                  <p className="mt-1 text-2xl font-black">{botCounts.team2}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
+                      disabled={botCounts.team2 <= 0}
+                      onClick={() => updateBotCount("team2", botCounts.team2 - 1)}
+                    >
+                      -
+                    </button>
+                    <button
+                      type="button"
+                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
+                      disabled={
+                        teamHumanCounts.team2 + botCounts.team2 >= MAX_TEAM_SLOTS
+                      }
+                      onClick={() => updateBotCount("team2", botCounts.team2 + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={!myTeam}
+                className="h-20 touch-none rounded-none border-4 border-zinc-300 bg-zinc-800 text-2xl text-white shadow-lg select-none enabled:active:scale-95 disabled:opacity-40"
+                onClick={toggleReady}
+              >
+                {myTeam ? (isReady ? "READY" : "TAP TO READY") : "PICK A TEAM"}
+              </button>
+            </div>
+          ) : (
+            // Game control buttons — portrait layout, phone held on its side.
+            // Left column: defend (hold). Right column: left + right punch.
+            // All text rotated 90° so it reads naturally when sideways.
+            <div className="flex h-full w-full flex-row gap-2 p-2">
+              {/* Defend button — left column (bottom when held sideways) */}
+              <button
+                type="button"
+                className="flex basis-1/3 touch-none items-center justify-center rounded-none border-4 text-2xl text-white shadow-lg select-none active:scale-95"
+                style={{
+                  backgroundColor: teamAccent,
+                  borderColor: teamAccent,
+                  willChange: "transform",
+                  transition: "none",
+                }}
+                onPointerDown={() => {
+                  defendRef.current = true;
+                }}
+                onPointerUp={() => {
+                  defendRef.current = false;
+                }}
+                onPointerCancel={() => {
+                  defendRef.current = false;
+                }}
+                onPointerLeave={() => {
+                  defendRef.current = false;
+                }}
+              >
+                <span className="inline-block rotate-90">DEFEND</span>
+              </button>
+
+              {/* Punch buttons — right column (top when held sideways) */}
+              <div className="flex flex-1 flex-col gap-2">
+                {/* Left Punch button */}
+                <button
+                  type="button"
+                  className="flex-1 touch-none rounded-none border-4 bg-zinc-800 text-3xl text-white shadow-lg select-none active:scale-95"
+                  style={{
+                    backgroundColor: teamAccent,
+                    borderColor: teamAccent,
+                    willChange: "transform",
+                    transition: "none",
+                  }}
+                  onPointerDown={() => {
+                    triggerLeftPunch();
+                  }}
+                >
+                  <span className="inline-block rotate-90">LEFT</span>
+                </button>
+
+                {/* Right Punch button */}
+                <button
+                  type="button"
+                  className="flex-1 touch-none rounded-none border-4 bg-zinc-800 text-3xl text-white shadow-lg select-none active:scale-95"
+                  style={{
+                    backgroundColor: teamAccent,
+                    borderColor: teamAccent,
+                    willChange: "transform",
+                    transition: "none",
+                  }}
+                  onPointerDown={() => {
+                    triggerRightPunch();
+                  }}
+                >
+                  <span className="inline-block rotate-90">RIGHT</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </ForcedOrientationShell>
     </div>

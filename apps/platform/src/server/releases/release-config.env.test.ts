@@ -85,6 +85,7 @@ describe("release env contracts", () => {
     if (availability.available) {
       expect(availability.config.openAi.model).toBe("omni-moderation-latest");
       expect(availability.config.browserLaunch.viewportWidth).toBe(1440);
+      expect(availability.config.internalAccessSecret).toBe("token");
     }
   });
 });

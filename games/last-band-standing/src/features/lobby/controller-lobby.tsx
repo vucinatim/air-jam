@@ -13,8 +13,6 @@ interface ControllerLobbyProps {
   canReadyToggle: boolean;
   isReady: boolean;
   onToggleReady: () => void;
-  canStart: boolean;
-  onStartMatch: () => void;
 }
 
 export const ControllerLobby = ({
@@ -29,8 +27,6 @@ export const ControllerLobby = ({
   canReadyToggle,
   isReady,
   onToggleReady,
-  canStart,
-  onStartMatch,
 }: ControllerLobbyProps) => {
   return (
     <motion.div
@@ -88,14 +84,6 @@ export const ControllerLobby = ({
           {isReady ? "Ready!" : "Tap to Ready"}
         </button>
 
-        <button
-          type="button"
-          disabled={!canStart}
-          onClick={() => onStartMatch()}
-          className="flex h-16 items-center justify-center rounded-2xl bg-foreground text-lg font-bold uppercase tracking-wider text-primary transition-all active:scale-[0.98] disabled:opacity-30"
-        >
-          Start Match
-        </button>
       </div>
     </motion.div>
   );

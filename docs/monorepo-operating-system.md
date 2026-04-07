@@ -220,16 +220,20 @@ Keep the repo DB stories explicit:
 2. its data lives under `.airjam/postgres/dev/`
 3. destructive analytics tests must never rely on the shared runtime `DATABASE_URL`
 4. destructive analytics tests should use the dedicated analytics test DB path
-5. prerelease may intentionally continue using a production-connected `DATABASE_URL`, but that should stay an explicit maintainer choice rather than an accidental default forever
+5. non-production server runtime now blocks non-local `DATABASE_URL` values unless `AIR_JAM_ALLOW_REMOTE_DATABASE=enabled`
+6. prerelease may still intentionally use a production-connected `DATABASE_URL`, but that is now an explicit maintainer opt-in instead of the default local server posture
+7. server runtime/tests now load only repo-root and server-owned env files; sibling app env files are no longer part of server startup
 
 Operationally:
 
-1. before release, it is acceptable for `apps/platform/.env.local` and `packages/server/.env` to keep `DATABASE_URL` pointed at the production-connected database intentionally
-2. when switching normal development to local Postgres, boot it with `pnpm run repo -- db up`
-3. print the connection string with `pnpm run repo -- db url`
-4. copy that value into the package env files that own `DATABASE_URL`
-5. restart the affected processes after changing env values
-6. use `pnpm run repo -- db reset` when you intentionally want a clean local database
+1. before release, it is still acceptable for `packages/server/.env` and the platform-owned env files to carry a production-connected `DATABASE_URL` intentionally for their own boundaries
+2. if local or test server flows truly need that remote database, set `AIR_JAM_ALLOW_REMOTE_DATABASE=enabled` explicitly for that run
+3. normal local server/dev/test flows should keep using the repo-owned local Postgres instead
+4. when switching normal development to local Postgres, boot it with `pnpm run repo -- db up`
+5. print the connection string with `pnpm run repo -- db url`
+6. copy that value into the env file owned by the runtime boundary that needs it
+7. restart the affected processes after changing env values
+8. use `pnpm run repo -- db reset` when you intentionally want a clean local database
 
 ### 9. Update Docs In The Same Change
 

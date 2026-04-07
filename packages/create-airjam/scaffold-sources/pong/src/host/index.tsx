@@ -2,8 +2,10 @@ import {
   AudioRuntime,
   PlatformSettingsRuntime,
   useAirJamHost,
+  useAudio,
   useHostGameStateBridge,
 } from "@air-jam/sdk";
+import { HostMuteButton } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
@@ -34,9 +36,11 @@ export function HostView() {
 
 function HostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
+  const audio = useAudio<keyof typeof PONG_SOUND_MANIFEST & string>();
   const { gameState, toggleGameState } = host;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [audioMuted, setAudioMuted] = useState(false);
 
   const scores = usePongStore((state) => state.scores);
   const matchPhase = usePongStore((state) => state.matchPhase);
@@ -78,6 +82,10 @@ function HostScreen() {
   );
 
   const showPausedOverlay = matchPhase === "playing" && gameState !== "playing";
+
+  useEffect(() => {
+    audio.mute(audioMuted);
+  }, [audio, audioMuted]);
 
   useHostGameStateBridge({
     phase: matchPhase,
@@ -181,32 +189,55 @@ function HostScreen() {
 
   if (matchPhase === "lobby") {
     return (
-      <LobbyScreen
-        joinQrValue={joinQrValue}
-        roomId={host.roomId}
-        botCounts={botCounts}
-        pointsToWin={pointsToWin}
-        connectedPlayers={host.players}
-        team1Players={team1Players}
-        team2Players={team2Players}
-      />
+      <>
+        <div className="fixed right-4 top-4 z-[60]">
+          <HostMuteButton
+            muted={audioMuted}
+            onToggle={() => setAudioMuted((previous) => !previous)}
+          />
+        </div>
+        <LobbyScreen
+          joinQrValue={joinQrValue}
+          roomId={host.roomId}
+          botCounts={botCounts}
+          pointsToWin={pointsToWin}
+          connectedPlayers={host.players}
+          team1Players={team1Players}
+          team2Players={team2Players}
+        />
+      </>
     );
   }
 
   if (matchPhase === "ended") {
     return (
-      <EndedScreen
-        roomId={host.roomId}
-        matchSummary={matchSummary}
-        team1Players={team1Players}
-        team2Players={team2Players}
-        botCounts={botCounts}
-      />
+      <>
+        <div className="fixed right-4 top-4 z-[60]">
+          <HostMuteButton
+            muted={audioMuted}
+            onToggle={() => setAudioMuted((previous) => !previous)}
+          />
+        </div>
+        <EndedScreen
+          roomId={host.roomId}
+          matchSummary={matchSummary}
+          team1Players={team1Players}
+          team2Players={team2Players}
+          botCounts={botCounts}
+        />
+      </>
     );
   }
 
   return (
     <div className="pong-app-shell h-screen w-screen text-white">
+      <div className="fixed right-4 top-4 z-[60]">
+        <HostMuteButton
+          muted={audioMuted}
+          onToggle={() => setAudioMuted((previous) => !previous)}
+        />
+      </div>
+
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 sm:px-6">
         <ScoreStrip
           team1Players={team1Players}

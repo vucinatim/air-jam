@@ -24,6 +24,15 @@ describe("space store helpers", () => {
     });
   });
 
+  it("returns the original record reference when no entries are pruned", () => {
+    const record = {
+      alpha: 1,
+      gamma: 3,
+    };
+
+    expect(pruneRecord(record, new Set(["alpha", "gamma", "delta"]))).toBe(record);
+  });
+
   it("clears busy state and task progress for one player", () => {
     expect(
       clearPlayerTaskState(

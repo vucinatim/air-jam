@@ -6,7 +6,7 @@ import {
 } from "./release-env";
 
 export type ReleaseModerationConfig = {
-  internalAccessToken: string;
+  internalAccessSecret: string;
   publicBaseUrl: string;
   browserLaunch: {
     wsEndpoint: string | null;
@@ -53,7 +53,7 @@ export const getReleaseModerationAvailability = () => {
   const probe = loadReleaseModerationAvailabilityProbeEnv();
   const wsEndpoint = probe.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null;
   const executablePath = probe.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null;
-  const internalAccessToken = probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
+  const internalAccessSecret = probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
   const openAiApiKey = probe.OPENAI_API_KEY ?? null;
 
   if (!wsEndpoint && !executablePath) {
@@ -65,11 +65,11 @@ export const getReleaseModerationAvailability = () => {
     return cachedReleaseModerationAvailability;
   }
 
-  if (!internalAccessToken) {
+  if (!internalAccessSecret) {
     cachedReleaseModerationAvailability = {
       available: false,
       reason:
-        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN to enable it.",
+        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN to enable scoped inspection access.",
     };
     return cachedReleaseModerationAvailability;
   }
@@ -85,7 +85,7 @@ export const getReleaseModerationAvailability = () => {
 
   const parsed = loadReleaseModerationEnv();
   cachedReleaseModerationConfig = {
-    internalAccessToken: parsed.internalAccessToken,
+    internalAccessSecret: parsed.internalAccessSecret,
     publicBaseUrl: (
       resolveConfiguredReleasesBaseUrl() ||
       getSiteUrl()

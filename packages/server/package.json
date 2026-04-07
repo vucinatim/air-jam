@@ -25,7 +25,7 @@
     "dist"
   ],
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx src/main.ts",
     "logs:dev": "tsx scripts/dev-logs.ts",
     "analytics:rebuild": "tsx scripts/runtime-usage-rebuild.ts",
     "start": "node dist/cli.js",

@@ -1,3 +1,7 @@
+# Candidate Song Sources
+
+Run `pnpm songs:validate` after editing `src/song-bank.ts` to verify YouTube embed availability before release.
+
 https://www.youtube.com/watch?v=cv1naUa3_3g&list=RDcv1naUa3_3g&start_radio=1
 https://www.youtube.com/watch?v=RgRfmL73qzU&list=RDRgRfmL73qzU&start_radio=1
 https://www.youtube.com/watch?v=MdxGibK0S4A&list=RDMdxGibK0S4A&start_radio=1

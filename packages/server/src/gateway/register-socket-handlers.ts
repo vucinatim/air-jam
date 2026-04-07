@@ -7,6 +7,7 @@ import {
   createRateLimitGuard,
   createScopedRateLimitGuard,
   resolveSocketIdentifier,
+  type ProxyHeaderTrustMode,
 } from "../policies/rate-limit-policy.js";
 import { createSocketAuthorization } from "../policies/socket-authorization.js";
 import type { HostBootstrapAuthService } from "../services/auth-service.js";
@@ -32,6 +33,7 @@ export interface RegisterSocketHandlersOptions {
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
   staticAppRateLimitMax: number;
+  proxyHeaderTrustMode: ProxyHeaderTrustMode;
 }
 
 export const registerSocketHandlers = ({
@@ -46,6 +48,7 @@ export const registerSocketHandlers = ({
   hostRegistrationRateLimitMax,
   controllerJoinRateLimitMax,
   staticAppRateLimitMax,
+  proxyHeaderTrustMode,
 }: RegisterSocketHandlersOptions): void => {
   const {
     isHostAuthorizedForRoom,
@@ -58,6 +61,7 @@ export const registerSocketHandlers = ({
     socket.handshake.headers["x-forwarded-for"],
     socket.handshake.address,
     socket.id,
+    proxyHeaderTrustMode,
   );
   const isRateLimited = createRateLimitGuard(
     rateLimitService,

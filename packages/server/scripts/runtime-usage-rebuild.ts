@@ -1,8 +1,13 @@
 import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 import { asc } from "drizzle-orm";
-import { db, runtimeUsageSessions } from "../src/db.js";
+import { createServerDatabase, runtimeUsageSessions } from "../src/db.js";
 import { rebuildRuntimeUsageSessionFromLedger } from "../src/analytics/runtime-usage-rebuilder.js";
+import {
+  REMOTE_DATABASE_BLOCKED_MESSAGE,
+  resolveServerRuntimeDatabaseUrl,
+} from "../src/env/database-url-policy.js";
+import { loadWorkspaceEnv } from "../src/env/load-workspace-env.js";
 
 export interface CliOptions {
   help: boolean;
@@ -75,11 +80,17 @@ export const formatHelp = (): string => {
 };
 
 const resolveTargetSessionIds = async (options: CliOptions): Promise<string[]> => {
+  const databasePolicy = resolveServerRuntimeDatabaseUrl(process.env);
+  const db = createServerDatabase(databasePolicy.databaseUrl);
+  if (!db) {
+    return [];
+  }
+
   if (options.runtimeSessionId) {
     return [options.runtimeSessionId];
   }
 
-  const rows = await db!
+  const rows = await db
     .select({ id: runtimeUsageSessions.id })
     .from(runtimeUsageSessions)
     .orderBy(asc(runtimeUsageSessions.startedAt), asc(runtimeUsageSessions.id));
@@ -88,6 +99,7 @@ const resolveTargetSessionIds = async (options: CliOptions): Promise<string[]> =
 };
 
 async function main(): Promise<void> {
+  loadWorkspaceEnv();
   const options = parseCliArgs(process.argv.slice(2));
   const validation = validateCliOptions(options);
 
@@ -104,8 +116,15 @@ async function main(): Promise<void> {
     return;
   }
 
+  const databasePolicy = resolveServerRuntimeDatabaseUrl(process.env);
+  const db = createServerDatabase(databasePolicy.databaseUrl);
+
   if (!db) {
-    console.error("DATABASE_URL is required to rebuild runtime usage analytics.");
+    console.error(
+      databasePolicy.remoteDatabaseBlocked
+        ? REMOTE_DATABASE_BLOCKED_MESSAGE
+        : "DATABASE_URL is required to rebuild runtime usage analytics.",
+    );
     process.exitCode = 1;
     return;
   }

@@ -4,7 +4,8 @@ import {
   useAirJamHost,
   useAudio,
 } from "@air-jam/sdk";
-import { useEffect, useMemo, useRef } from "react";
+import { HostMuteButton } from "@air-jam/sdk/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { rankPlayers } from "../game/domain/round-engine";
 import { getSongById } from "../song-bank";
@@ -51,8 +52,13 @@ const HostScreen = () => {
 
   // ── Sound effects ──
   const audio = useAudio();
+  const [audioMuted, setAudioMuted] = useState(false);
   const prevPhaseRef = useRef<string>(phase);
   const prevCountdownRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    audio.mute(audioMuted);
+  }, [audio, audioMuted]);
 
   useEffect(() => {
     const prev = prevPhaseRef.current;
@@ -110,6 +116,7 @@ const HostScreen = () => {
   const readyCount = useMemo(() => {
     return playerOrder.filter((playerId) => readyByPlayerId[playerId]).length;
   }, [playerOrder, readyByPlayerId]);
+  const canStartMatch = phase === "lobby" && playerOrder.length > 0 && readyCount === playerOrder.length;
 
   const answeredCount = currentRound
     ? currentRound.expectedPlayerIds.filter((playerId) => answersByPlayerId[playerId]).length
@@ -145,6 +152,7 @@ const HostScreen = () => {
   const { youtubePlayerRef, onIframeLoad } = useYouTubePlayer({
     phase,
     embedUrl,
+    muted: audioMuted,
     currentRound,
     roundReveal,
     revealDurationSec,
@@ -171,7 +179,12 @@ const HostScreen = () => {
 
   return (
     <main className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
-      <div className="fixed right-4 top-4 z-50">
+      <div className="fixed right-4 top-4 z-50 flex items-center gap-2">
+        <HostMuteButton
+          muted={audioMuted}
+          onToggle={() => setAudioMuted((previous) => !previous)}
+          className="rounded-lg border-border/70 bg-background/80 text-foreground hover:bg-background/90"
+        />
         <FullscreenToggle className="bg-background/80 backdrop-blur-sm hover:bg-background/90" />
       </div>
 
@@ -204,6 +217,8 @@ const HostScreen = () => {
               scoreboardByPlayerId={scoreboardByPlayerId}
               readyCount={readyCount}
               players={host.players}
+              canStartMatch={canStartMatch}
+              onStartMatch={() => actions.startMatch()}
             />
           )}
 

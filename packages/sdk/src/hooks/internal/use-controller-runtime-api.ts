@@ -361,6 +361,7 @@ export const useControllerRuntimeApi = (
           }
           latestState.setError(ack.message ?? "Unable to join room");
           latestState.setStatus("disconnected");
+          latestState.resetGameState();
           return;
         }
         if (ack.controllerId) {
@@ -386,6 +387,7 @@ export const useControllerRuntimeApi = (
         latestState.setError(reason);
       }
       latestState.setStatus("disconnected");
+      latestState.resetGameState();
     };
 
     const handleConnectError = (error: Error): void => {
@@ -429,6 +431,17 @@ export const useControllerRuntimeApi = (
 
     const handleState = (payload: ControllerStateMessage): void => {
       if (payload.roomId !== parsedRoomId) return;
+
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.controllerStateReceived,
+        message: "Controller received state update",
+        roomId: payload.roomId,
+        data: {
+          gameState: payload.state.gameState,
+          orientation: payload.state.orientation,
+          hasMessage: payload.state.message !== undefined,
+        },
+      });
 
       const latestState = store.getState();
       if (payload.state.gameState) {

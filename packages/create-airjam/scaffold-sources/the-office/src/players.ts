@@ -19,6 +19,28 @@ export interface Player {
   capabilities: Partial<Record<TaskId, number>>;
 }
 
+export interface PlayerCapabilityHighlight {
+  taskId: TaskId;
+  label: string;
+  level: number;
+  durationMs: number;
+}
+
+export const TASK_LABELS: Record<TaskId, string> = {
+  "vibe-coding": "Vibe coding",
+  coding: "Coding",
+  maili: "Maili",
+  opravek: "Opravek",
+  "bejzi-po-spejzo": "Špejža",
+  "odnesi-v-print": "Print",
+  "spuci-kavomat": "Kavomat",
+  "hisninska-dela": "Hišniška",
+  "sestanek-v-sejni": "Sejna",
+  "interni-sestanek": "Interni",
+  "internet-down": "Internet",
+  "narisi-strip": "Strip",
+};
+
 /** Helper to create a player with specific strengths/weaknesses, defaulting others to 3 (average) */
 function createPlayer(
   id: string,
@@ -153,6 +175,33 @@ export function getTaskDurationMs(taskId: string, playerId: string): number {
   }
 
   return capabilityToSeconds[capability] ?? 10000;
+}
+
+export function getPlayerCapabilityHighlights(
+  playerId: string,
+  limit = 3,
+): PlayerCapabilityHighlight[] {
+  const player = getPlayerById(playerId);
+  if (!player) {
+    return [];
+  }
+
+  const entries = Object.entries(player.capabilities) as Array<[TaskId, number]>;
+
+  return entries
+    .sort(([leftTaskId, leftLevel], [rightTaskId, rightLevel]) => {
+      if (leftLevel !== rightLevel) {
+        return rightLevel - leftLevel;
+      }
+      return leftTaskId.localeCompare(rightTaskId);
+    })
+    .slice(0, limit)
+    .map(([taskId, level]) => ({
+      taskId,
+      label: TASK_LABELS[taskId],
+      level,
+      durationMs: getTaskDurationMs(taskId, player.id),
+    }));
 }
 
 /**

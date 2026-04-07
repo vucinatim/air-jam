@@ -1,4 +1,8 @@
-import { db, runtimeUsageEvents, runtimeUsageSessions } from "../db.js";
+import {
+  type ServerDatabase,
+  runtimeUsageEvents,
+  runtimeUsageSessions,
+} from "../db.js";
 import type { ServerLogger } from "../logging/logger.js";
 import { refreshRuntimeUsageAggregatesForSession } from "./runtime-usage-aggregator.js";
 import { projectRuntimeUsageEventToSegments } from "./runtime-usage-projector.js";
@@ -9,6 +13,7 @@ import type {
 
 export const createDatabaseRuntimeUsageLedgerPublisher = (
   logger: ServerLogger,
+  db: ServerDatabase | null,
 ): RuntimeUsagePublisher => {
   const ledgerLogger = logger.child({ component: "runtime-usage-ledger" });
 
@@ -18,7 +23,7 @@ export const createDatabaseRuntimeUsageLedgerPublisher = (
         return;
       }
 
-      void persistRuntimeUsageEvent(event).catch((err: unknown) => {
+      void persistRuntimeUsageEvent(db, event).catch((err: unknown) => {
         ledgerLogger.warn(
           {
             err,
@@ -35,12 +40,9 @@ export const createDatabaseRuntimeUsageLedgerPublisher = (
 };
 
 const persistRuntimeUsageEvent = async (
+  db: ServerDatabase,
   event: RuntimeUsageEvent,
 ): Promise<void> => {
-  if (!db) {
-    return;
-  }
-
   await db.transaction(async (tx) => {
     if (
       event.runtimeSessionId &&

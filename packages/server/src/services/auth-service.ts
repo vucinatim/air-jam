@@ -4,8 +4,9 @@ import {
   verifyHostGrant,
   type HostGrantClaims,
 } from "@air-jam/sdk/protocol";
+import { resolveServerRuntimeDatabaseUrl } from "../env/database-url-policy.js";
 import { createServerLogger, type ServerLogger } from "../logging/logger.js";
-import { appIds, db } from "../db.js";
+import { appIds, type ServerDatabase } from "../db.js";
 
 type AuthMode = "disabled" | "required";
 
@@ -50,6 +51,12 @@ export interface AuthServiceEnvironment {
   nodeEnv?: string;
 }
 
+export interface AuthServiceOptions {
+  logger?: ServerLogger;
+  env?: AuthServiceEnvironment;
+  db?: ServerDatabase | null;
+}
+
 const normalizeOrigin = (value?: string): string | null => {
   if (!value) {
     return null;
@@ -62,7 +69,13 @@ const normalizeOrigin = (value?: string): string | null => {
   }
 };
 
-const resolveActiveAppIdRecord = async (appId?: string) => {
+const resolveActiveAppIdRecord = async ({
+  appId,
+  db,
+}: {
+  appId?: string;
+  db: ServerDatabase | null;
+}) => {
   if (!appId || !db) {
     return null;
   }
@@ -88,16 +101,18 @@ export class AuthService {
   private hostGrantSecret: string | undefined;
   private databaseUrl: string | undefined;
   private authMode: AuthMode;
+  private db: ServerDatabase | null;
 
-  constructor(
-    options: { logger?: ServerLogger; env?: AuthServiceEnvironment } = {},
-  ) {
+  constructor(options: AuthServiceOptions = {}) {
     this.logger = options.logger ?? createServerLogger({ component: "auth" });
     this.masterKey = options.env?.masterKey ?? process.env.AIR_JAM_MASTER_KEY;
     this.hostGrantSecret =
       options.env?.hostGrantSecret ?? process.env.AIR_JAM_HOST_GRANT_SECRET;
-    this.databaseUrl = options.env?.databaseUrl ?? process.env.DATABASE_URL;
+    this.databaseUrl =
+      options.env?.databaseUrl ??
+      resolveServerRuntimeDatabaseUrl(process.env).databaseUrl;
     this.authMode = this.resolveAuthMode(options.env);
+    this.db = options.db ?? null;
 
     if (this.authMode === "disabled") {
       this.logger.info(
@@ -194,7 +209,10 @@ export class AuthService {
         }
       }
 
-      const keyRecord = await resolveActiveAppIdRecord(grantResult.claims.appId);
+      const keyRecord = await resolveActiveAppIdRecord({
+        appId: grantResult.claims.appId,
+        db: this.db,
+      });
       return {
         isVerified: true,
         appId: grantResult.claims.appId,
@@ -241,7 +259,7 @@ export class AuthService {
     }
 
     // Check database (only if database URL is configured)
-    if (!this.databaseUrl || !db) {
+    if (!this.databaseUrl || !this.db) {
       return {
         isVerified: false,
         error: "Unauthorized: Invalid or Missing App ID",
@@ -249,7 +267,10 @@ export class AuthService {
     }
 
     try {
-      const keyRecord = await resolveActiveAppIdRecord(appId);
+      const keyRecord = await resolveActiveAppIdRecord({
+        appId,
+        db: this.db,
+      });
 
       if (keyRecord) {
         const allowedOrigins = keyRecord.allowedOrigins ?? [];
@@ -275,7 +296,8 @@ export class AuthService {
         }
 
         // Update last used timestamp (fire and forget)
-        db.update(appIds)
+        this.db
+          .update(appIds)
           .set({ lastUsedAt: new Date() })
           .where(eq(appIds.id, keyRecord.id))
           .catch((err: unknown) => {

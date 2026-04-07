@@ -9,10 +9,24 @@ export const createDefaultPlayerStats = (): PlayerStats => ({
 export const pruneRecord = <T>(
   record: Record<string, T>,
   connectedPlayerIds: Set<string>,
-): Record<string, T> =>
-  Object.fromEntries(
-    Object.entries(record).filter(([playerId]) => connectedPlayerIds.has(playerId)),
-  );
+): Record<string, T> => {
+  let removedAny = false;
+  const nextRecord: Record<string, T> = {};
+
+  for (const [playerId, value] of Object.entries(record)) {
+    if (!connectedPlayerIds.has(playerId)) {
+      removedAny = true;
+      continue;
+    }
+    nextRecord[playerId] = value;
+  }
+
+  if (!removedAny) {
+    return record;
+  }
+
+  return nextRecord;
+};
 
 export const clearPlayerTaskState = (
   busyPlayers: Record<string, string>,

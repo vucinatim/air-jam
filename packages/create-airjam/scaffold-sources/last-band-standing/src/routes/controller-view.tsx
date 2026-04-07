@@ -104,7 +104,6 @@ const ControllerScreen = ({
   const canReady = Boolean(isConnected && controllerId && phase === "lobby");
   const canSaveName = Boolean(isConnected && controllerId && normalizedName.length >= PLAYER_NAME_MIN_LENGTH);
   const canReadyToggle = Boolean(canReady && (isReady || normalizedName.length >= PLAYER_NAME_MIN_LENGTH));
-  const canStart = Boolean(canReady && isReady && readyCount > 0);
 
   const savePlayerName = () => {
     if (!controllerId) return;
@@ -146,8 +145,6 @@ const ControllerScreen = ({
             canReadyToggle={canReadyToggle}
             isReady={isReady}
             onToggleReady={toggleReady}
-            canStart={canStart}
-            onStartMatch={actions.startMatch}
           />
         )}
 

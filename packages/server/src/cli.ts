@@ -20,10 +20,11 @@ import {
   executeDevLogsCliOptions,
 } from "./logging/dev-logs-cli.js";
 import { createServerLogger } from "./logging/logger.js";
-import { createAirJamServer } from "./index.js";
 
 const runServer = async (): Promise<number> => {
   try {
+    loadWorkspaceEnv();
+    const { createAirJamServer } = await import("./index.js");
     const runtime = createAirJamServer();
     await runtime.start();
     return 0;
@@ -32,7 +33,7 @@ const runServer = async (): Promise<number> => {
       console.error(
         formatEnvValidationError(error, {
           docsHint:
-            "Fix the listed AIR_JAM_* variables and retry. For local dev, check .env.local.",
+            "Fix the listed AIR_JAM_* variables and retry. For local dev, check .env.local or packages/server/.env.",
         }),
       );
       return 1;

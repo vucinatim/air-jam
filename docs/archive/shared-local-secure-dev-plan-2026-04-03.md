@@ -7,8 +7,8 @@ Related docs:
 
 1. [Work Ledger](../work-ledger.md)
 2. [Monorepo Operating System](../monorepo-operating-system.md)
-3. [Game Source Scaffolding Plan](./game-source-scaffolding-plan.md)
-4. [ZeroDays Game Import And Template Promotion Plan](./zerodays-game-import-template-promotion-plan.md)
+3. [Game Source Scaffolding Plan](./game-source-scaffolding-plan-2026-04-07.md)
+4. [ZeroDays Game Import And Template Promotion Plan](./zerodays-game-import-template-promotion-plan-2026-04-07.md)
 
 ## Purpose
 

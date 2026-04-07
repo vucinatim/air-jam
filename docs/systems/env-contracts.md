@@ -31,6 +31,13 @@ Each boundary owns its own env schema and defaults:
 
 No monorepo-wide mega schema is used.
 
+For `@air-jam/server`, the env contract now also owns the local DB safety rule:
+
+1. non-production runtime accepts local `DATABASE_URL` values normally
+2. non-local `DATABASE_URL` values are ignored by default outside production
+3. intentional remote DB usage in local or test server flows requires `AIR_JAM_ALLOW_REMOTE_DATABASE=enabled`
+4. imported server runtime/tests now load only repo-root and server-owned env files by default
+
 ## Error Contract
 
 When env is invalid, startup/runtime command fails with a deterministic terminal report:
@@ -52,4 +59,3 @@ Follow-up candidates:
 
 1. migrate `scripts/workspace/*` env parsing to `@air-jam/env`
 2. migrate selected `scripts/repo/*` env parsing to `@air-jam/env`
-3. tighten DB/bootstrap env lifecycle where module-level reads still exist

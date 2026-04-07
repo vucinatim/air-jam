@@ -1,6 +1,5 @@
 import type { PlayerProfile } from "@air-jam/sdk";
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
-import { Volume2, VolumeX } from "lucide-react";
 import type { JSX } from "react";
 import { Button } from "../../components/ui/button";
 import {
@@ -368,26 +367,6 @@ export const CountdownOverlay = ({
       </div>
     </div>
   </div>
-);
-
-export const HostMuteButton = ({
-  muted,
-  onToggle,
-}: {
-  muted: boolean;
-  onToggle: () => void;
-}): JSX.Element => (
-  <Button
-    type="button"
-    variant="outline"
-    size="icon"
-    onClick={onToggle}
-    aria-label={muted ? "Unmute audio" : "Mute audio"}
-    title={muted ? "Unmute" : "Mute"}
-    className="border-white/20 bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
-  >
-    {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-  </Button>
 );
 
 export const AudioBlockedPrompt = ({

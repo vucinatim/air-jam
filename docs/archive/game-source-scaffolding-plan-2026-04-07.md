@@ -1,7 +1,10 @@
 # Game Source Scaffolding Plan
 
 Last updated: 2026-04-02  
-Status: completed baseline
+Status: archived completed baseline
+
+Archived on 2026-04-07 after the scaffold/export baseline landed.
+Current release execution now lives in [Work Ledger](../work-ledger.md) and [V1 Release Launch Plan](../plans/v1-release-launch-plan.md).
 
 Related docs:
 
@@ -9,7 +12,7 @@ Related docs:
 2. [Framework Paradigm](../framework-paradigm.md)
 3. [Monorepo Operating System](../monorepo-operating-system.md)
 4. [AI-Native Development Workflow](../systems/ai-native-development-workflow.md)
-5. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+5. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
 
 ## Purpose
 

@@ -9,10 +9,8 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { loadWorkspaceEnv } from "./env/load-workspace-env.js";
-
-loadWorkspaceEnv();
 
 // Define only the schema the runtime server needs directly.
 export const appIds = pgTable("app_ids", {
@@ -174,9 +172,14 @@ export const runtimeUsageDailyGameMetrics = pgTable(
   },
 );
 
-const connectionString = process.env.DATABASE_URL;
+export type ServerDatabase = PostgresJsDatabase<Record<string, never>>;
 
-// Only create database client if DATABASE_URL is provided
-// In dev mode (no DATABASE_URL), the server runs without database
-const client = connectionString ? postgres(connectionString) : null;
-export const db = client ? drizzle(client) : null;
+export const createServerDatabase = (
+  databaseUrl: string | undefined,
+): ServerDatabase | null => {
+  if (!databaseUrl) {
+    return null;
+  }
+
+  return drizzle(postgres(databaseUrl));
+};

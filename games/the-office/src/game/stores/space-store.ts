@@ -10,6 +10,7 @@ import {
   pruneRecord,
   restorePlayerStat,
 } from "./space-store-helpers";
+import { getPlayerById } from "../../players";
 
 const hostOnly = (
   role: AirJamActionContext["role"],
@@ -20,6 +21,7 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
   totalMoneyPenalty: 0,
   gameStartTime: 0,
   gameDurationMs: 300000,
+  readyByPlayerId: {},
   playerPositions: {},
   playerAssignments: {},
   busyPlayers: {},
@@ -44,6 +46,7 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
         const nextBusyPlayers = pruneRecord(state.busyPlayers, connectedSet);
         const nextTaskProgress = pruneRecord(state.taskProgress, connectedSet);
         const nextPlayerStats = pruneRecord(state.playerStats, connectedSet);
+        const nextReadyByPlayerId = pruneRecord(state.readyByPlayerId, connectedSet);
 
         if (
           nextMoney === state.money &&
@@ -51,7 +54,8 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
           nextPlayerAssignments === state.playerAssignments &&
           nextBusyPlayers === state.busyPlayers &&
           nextTaskProgress === state.taskProgress &&
-          nextPlayerStats === state.playerStats
+          nextPlayerStats === state.playerStats &&
+          nextReadyByPlayerId === state.readyByPlayerId
         ) {
           return state;
         }
@@ -63,6 +67,68 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
           busyPlayers: nextBusyPlayers,
           taskProgress: nextTaskProgress,
           playerStats: nextPlayerStats,
+          readyByPlayerId: nextReadyByPlayerId,
+        };
+      }),
+
+    setReady: ({ actorId }, { ready }) =>
+      set((state) => {
+        if (!actorId) {
+          return state;
+        }
+
+        if (ready && !state.playerAssignments[actorId]) {
+          return state;
+        }
+
+        if ((state.readyByPlayerId[actorId] ?? false) === ready) {
+          return state;
+        }
+
+        return {
+          readyByPlayerId: {
+            ...state.readyByPlayerId,
+            [actorId]: ready,
+          },
+        };
+      }),
+
+    selectCharacter: ({ actorId }, { playerId }) =>
+      set((state) => {
+        if (!actorId) {
+          return state;
+        }
+
+        if (!getPlayerById(playerId)) {
+          return state;
+        }
+
+        if (state.playerAssignments[actorId] === playerId) {
+          return state;
+        }
+
+        const selectedByOtherController = Object.entries(state.playerAssignments).some(
+          ([controllerId, selectedPlayerId]) =>
+            controllerId !== actorId && selectedPlayerId === playerId,
+        );
+        if (selectedByOtherController) {
+          return state;
+        }
+
+        return {
+          playerAssignments: {
+            ...state.playerAssignments,
+            [actorId]: playerId,
+          },
+          playerStats: {
+            ...state.playerStats,
+            [actorId]:
+              state.playerStats[actorId] || createDefaultPlayerStats(),
+          },
+          readyByPlayerId: {
+            ...state.readyByPlayerId,
+            [actorId]: false,
+          },
         };
       }),
 
@@ -101,6 +167,7 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
           money: {},
           totalMoneyPenalty: 0,
           gameStartTime: Date.now(),
+          readyByPlayerId: {},
           playerPositions: {},
           playerAssignments: {},
           busyPlayers: {},

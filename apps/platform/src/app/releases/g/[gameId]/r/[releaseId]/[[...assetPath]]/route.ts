@@ -6,7 +6,10 @@ import {
   rewriteHostedReleaseTextAssetUrls,
 } from "@/lib/releases/release-url";
 import { getReleaseAssetCacheControl } from "@/server/releases/release-artifact-validation";
-import { RELEASE_INSPECTION_ACCESS_HEADER } from "@/server/releases/release-inspection-access";
+import {
+  RELEASE_INSPECTION_ACCESS_HEADER,
+  verifyReleaseInspectionAccessToken,
+} from "@/server/releases/release-inspection-access";
 import { getReleaseStorage } from "@/server/releases/release-storage";
 import { buildReleaseSiteObjectKey } from "@/server/releases/release-storage-keys";
 import { db } from "@/db";
@@ -24,7 +27,7 @@ export async function GET(
   },
 ) {
   const { gameId, releaseId, assetPath } = await context.params;
-  const configuredInternalToken =
+  const configuredInternalSecret =
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN?.trim() || null;
   const internalAccessToken =
     request.headers.get(RELEASE_INSPECTION_ACCESS_HEADER)?.trim() || null;
@@ -42,8 +45,12 @@ export async function GET(
   }
 
   const canInspectPrivately =
-    configuredInternalToken &&
-    internalAccessToken === configuredInternalToken &&
+    verifyReleaseInspectionAccessToken({
+      token: internalAccessToken,
+      gameId,
+      releaseId,
+      secret: configuredInternalSecret,
+    }) &&
     ["checking", "ready", "quarantined", "live"].includes(release.status);
 
   if (release.status !== "live" && !canInspectPrivately) {

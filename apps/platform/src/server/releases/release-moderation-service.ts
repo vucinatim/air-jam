@@ -16,7 +16,7 @@ import { getReleaseStorage } from "./release-storage";
 const SCREENSHOT_CAPTURE_KIND = "screenshot_capture";
 const IMAGE_MODERATION_KIND = "image_moderation";
 
-type ReleaseModerationSummary = {
+export type ReleaseModerationSummary = {
   screenshot: ReleaseScreenshotCaptureResult | null;
   moderation: ReleaseImageModerationResult | null;
   skipped: boolean;

@@ -1,7 +1,10 @@
 # Local Runtime Workflow Modes Plan
 
 Last updated: 2026-04-06  
-Status: active
+Status: archived completed baseline
+
+Archived on 2026-04-07 after the explicit `standalone:dev`, `arcade:dev`, and `arcade:test` workflow surface landed.
+Current release execution now lives in [Work Ledger](../work-ledger.md) and [V1 Release Launch Plan](../plans/v1-release-launch-plan.md).
 
 Related docs:
 
@@ -9,7 +12,7 @@ Related docs:
 2. [Monorepo Operating System](../monorepo-operating-system.md)
 3. [Framework Paradigm](../framework-paradigm.md)
 4. [Arcade Surface Contract](../systems/arcade-surface-contract.md)
-5. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+5. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
 
 ## Purpose
 

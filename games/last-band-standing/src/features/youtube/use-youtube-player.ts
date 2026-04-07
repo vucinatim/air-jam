@@ -18,6 +18,7 @@ import {
 interface UseYouTubePlayerInput {
   phase: GamePhase;
   embedUrl: string | null;
+  muted: boolean;
   currentRound: ActiveRound | null;
   roundReveal: RoundReveal | null;
   revealDurationSec: number;
@@ -33,6 +34,7 @@ interface UseYouTubePlayerResult {
 export const useYouTubePlayer = ({
   phase,
   embedUrl,
+  muted,
   currentRound,
   roundReveal,
   revealDurationSec,
@@ -58,6 +60,12 @@ export const useYouTubePlayer = ({
 
     const applyActiveMix = () => {
       sendYouTubeCommand(youtubePlayerRef.current, "playVideo");
+      if (muted) {
+        sendYouTubeCommand(youtubePlayerRef.current, "mute");
+        setYouTubeVolume(youtubePlayerRef.current, 0);
+        lastYouTubeVolumeRef.current = 0;
+        return;
+      }
       sendYouTubeCommand(youtubePlayerRef.current, "unMute");
       setYouTubeVolume(youtubePlayerRef.current, YOUTUBE_MAX_VOLUME);
       lastYouTubeVolumeRef.current = YOUTUBE_MAX_VOLUME;
@@ -65,7 +73,7 @@ export const useYouTubePlayer = ({
 
     const timerId = window.setTimeout(applyActiveMix, 80);
     return () => window.clearTimeout(timerId);
-  }, [phase, embedUrl, loadedEmbedUrl]);
+  }, [phase, embedUrl, loadedEmbedUrl, muted]);
 
   // Reveal mix: fade volume down during round-reveal
   useEffect(() => {
@@ -78,6 +86,12 @@ export const useYouTubePlayer = ({
 
     const applyRevealMix = () => {
       sendYouTubeCommand(youtubePlayerRef.current, "playVideo");
+      if (muted) {
+        sendYouTubeCommand(youtubePlayerRef.current, "mute");
+        setYouTubeVolume(youtubePlayerRef.current, 0);
+        lastYouTubeVolumeRef.current = 0;
+        return;
+      }
       sendYouTubeCommand(youtubePlayerRef.current, "unMute");
 
       const now = Date.now();
@@ -112,16 +126,16 @@ export const useYouTubePlayer = ({
       window.clearInterval(intervalId);
       window.clearTimeout(pauseId);
     };
-  }, [phase, roundReveal, revealDurationSec]);
+  }, [phase, roundReveal, revealDurationSec, muted]);
 
-  // Mute during lobby/game-over
+  // Mute during lobby/game-over or when host toggle is muted
   useEffect(() => {
-    if (phase === "lobby" || phase === "game-over") {
+    if (muted || phase === "lobby" || phase === "game-over") {
       sendYouTubeCommand(youtubePlayerRef.current, "mute");
       setYouTubeVolume(youtubePlayerRef.current, 0);
       lastYouTubeVolumeRef.current = 0;
     }
-  }, [phase]);
+  }, [muted, phase]);
 
   // Handle YouTube errors — skip broken videos
   useEffect(() => {

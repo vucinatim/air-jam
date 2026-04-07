@@ -175,6 +175,44 @@ describe("session reconnect behavior", () => {
     );
   });
 
+  it("resets controller game state to paused on disconnect", async () => {
+    const { result } = renderHook(() => useAirJamController(), {
+      wrapper: createControllerWrapper({
+        roomId: "ROOM1",
+        controllerId: "ctrl_1",
+      }),
+    });
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    const stateHandler = mocked.controllerSocket.on.mock.calls.find(
+      ([event]: [string]) => event === "server:state",
+    )?.[1] as ((payload: { roomId: string; state: { gameState?: "paused" | "playing" } }) => void) | undefined;
+    expect(stateHandler).toBeDefined();
+
+    act(() => {
+      stateHandler?.({
+        roomId: "ROOM1",
+        state: { gameState: "playing" },
+      });
+    });
+    expect(result.current.gameState).toBe("playing");
+
+    const disconnectHandler = mocked.controllerSocket.on.mock.calls.find(
+      ([event]: [string]) => event === "disconnect",
+    )?.[1] as ((reason?: string) => void) | undefined;
+    expect(disconnectHandler).toBeDefined();
+
+    act(() => {
+      disconnectHandler?.("transport close");
+    });
+
+    expect(result.current.connectionStatus).toBe("disconnected");
+    expect(result.current.gameState).toBe("paused");
+  });
+
   it("recovers host status when the cached socket is already connected", async () => {
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
