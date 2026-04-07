@@ -1,11 +1,14 @@
-import { describe, expect, it } from "vitest";
+import type { Server } from "socket.io";
+import { describe, expect, it, vi } from "vitest";
 import {
   beginChildHostActivation,
   beginGameLaunch,
   beginRoomClosing,
+  buildRoomStateMessage,
   canActivateChildHost,
   canBeginGameLaunch,
   canTransitionRoomLifecycle,
+  emitRoomState,
   getRoomLifecyclePhase,
   issueChildHostCapability,
   markRoomTeardown,
@@ -25,6 +28,7 @@ const createSession = (): RoomSession => ({
   controllers: new Map(),
   maxPlayers: 8,
   gameState: "paused",
+  stateVersion: 0,
   controllerOrientation: "portrait",
   lifecycleState: "SYSTEM_IDLE",
 });
@@ -153,5 +157,21 @@ describe("room session domain lifecycle", () => {
 
     const invalid = canTransitionRoomLifecycle(session, "SYSTEM_IDLE");
     expect(invalid).toEqual({ ok: false, reason: "INVALID_TRANSITION" });
+  });
+
+  it("increments state version when broadcasting room state", () => {
+    const session = createSession();
+    const emit = vi.fn();
+    const io = {
+      to: vi.fn(() => ({ emit })),
+    } as unknown as Server;
+
+    const first = emitRoomState(io, session.roomId, session);
+    expect(first.state.stateVersion).toBe(1);
+    expect(session.stateVersion).toBe(1);
+    expect(emit).toHaveBeenCalledWith("server:state", first);
+
+    const snapshot = buildRoomStateMessage(session.roomId, session);
+    expect(snapshot.state.stateVersion).toBe(1);
   });
 });

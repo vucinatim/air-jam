@@ -17,6 +17,7 @@ import Color from "color";
 import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
+  buildRoomStateMessage,
   disconnectChildHostIfPresent,
   emitRoomState,
   isControllerPrivilegedCapabilityExpired,
@@ -94,6 +95,11 @@ export const registerControllerHandlers = (
       return Math.abs(nextInputCount - previousInputCount) > 2;
     },
   });
+  const controllerInputDroppedSummary = createWindowedEventSummary({
+    logger,
+    event: AIRJAM_DEV_LOG_EVENTS.controller.inputDroppedSummary,
+    msg: "Controller input drops summary",
+  });
 
   const getControllerLogger = (bindings: Record<string, unknown> = {}) => {
     const authority = socket.data.controllerAuthority;
@@ -132,7 +138,37 @@ export const registerControllerHandlers = (
 
   socket.on("disconnect", () => {
     controllerInputSummary.flushAll();
+    controllerInputDroppedSummary.flushAll();
   });
+
+  const recordInputDrop = ({
+    roomId,
+    controllerId,
+    reason,
+    hasActiveInput,
+  }: {
+    roomId?: string;
+    controllerId?: string;
+    reason: string;
+    hasActiveInput: boolean;
+  }): void => {
+    const roomKey = roomId ?? "unknown_room";
+    const controllerKey = controllerId ?? "unknown_controller";
+    controllerInputDroppedSummary.record({
+      key: `${roomKey}:${controllerKey}:${reason}`,
+      bindings: {
+        ...(roomId ? { roomId } : {}),
+        ...(controllerId ? { controllerId } : {}),
+      },
+      data: {
+        reason,
+      },
+      metrics: {
+        droppedCount: 1,
+        droppedActiveCount: hasActiveInput ? 1 : 0,
+      },
+    });
+  };
 
   socket.on("controller:join", (payload: ControllerJoinPayload, callback) => {
     if (
@@ -423,13 +459,7 @@ export const registerControllerHandlers = (
       resumed,
       player: controllerSession.playerProfile,
     });
-    socket.emit("server:state", {
-      roomId,
-      state: {
-        gameState: session.gameState,
-        orientation: session.controllerOrientation,
-      },
-    });
+    socket.emit("server:state", buildRoomStateMessage(roomId, session));
   });
 
   socket.on(
@@ -639,6 +669,18 @@ export const registerControllerHandlers = (
 
     const result = controllerInputSchema.safeParse(payload);
     if (!result.success) {
+      const rawRoomId =
+        typeof payload?.roomId === "string" ? payload.roomId : undefined;
+      const rawControllerId =
+        typeof payload?.controllerId === "string"
+          ? payload.controllerId
+          : undefined;
+      recordInputDrop({
+        roomId: rawRoomId,
+        controllerId: rawControllerId,
+        reason: "invalid_payload",
+        hasActiveInput: Boolean(hasActiveInput),
+      });
       if (
         !lastServerInputFailLogTime ||
         now - lastServerInputFailLogTime > 1000
@@ -659,6 +701,12 @@ export const registerControllerHandlers = (
 
     const { roomId, controllerId } = result.data;
     if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+      recordInputDrop({
+        roomId,
+        controllerId,
+        reason: "unauthorized",
+        hasActiveInput: Boolean(hasActiveInput),
+      });
       if (
         !lastServerInputFailLogTime ||
         now - lastServerInputFailLogTime > 1000
@@ -680,6 +728,12 @@ export const registerControllerHandlers = (
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
+      recordInputDrop({
+        roomId,
+        controllerId,
+        reason: "room_not_found",
+        hasActiveInput: Boolean(hasActiveInput),
+      });
       if (
         !lastServerInputFailLogTime ||
         now - lastServerInputFailLogTime > 1000
@@ -713,21 +767,29 @@ export const registerControllerHandlers = (
           activeInputCount: hasActiveInput ? 1 : 0,
         },
       });
-    } else if (
-      !lastServerInputFailLogTime ||
-      now - lastServerInputFailLogTime > 1000
-    ) {
-      lastServerInputFailLogTime = now;
-      logControllerEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.inputRejected,
-        "Rejected controller input because no active host was available",
-        {
-          roomId,
-          controllerId,
-          reason: "active_host_missing",
-        },
-      );
+    } else {
+      recordInputDrop({
+        roomId,
+        controllerId,
+        reason: "active_host_missing",
+        hasActiveInput: Boolean(hasActiveInput),
+      });
+      if (
+        !lastServerInputFailLogTime ||
+        now - lastServerInputFailLogTime > 1000
+      ) {
+        lastServerInputFailLogTime = now;
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.inputRejected,
+          "Rejected controller input because no active host was available",
+          {
+            roomId,
+            controllerId,
+            reason: "active_host_missing",
+          },
+        );
+      }
     }
   });
 
@@ -818,19 +880,27 @@ export const registerControllerHandlers = (
       const previousGameState = session.gameState;
       const nextGameState =
         previousGameState === "playing" ? "paused" : "playing";
+      session.gameState = nextGameState;
+      const broadcastPayload = emitRoomState(io, roomId, session);
       logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted, "Controller toggled pause state", {
         roomId,
         command,
         previousGameState,
         nextGameState,
+        stateVersion: broadcastPayload.state.stateVersion,
       });
-      session.gameState = nextGameState;
-      emitRoomState(
-        io,
-        roomId,
-        session.gameState,
-        session.controllerOrientation,
-      );
+      return;
     }
+
+    logControllerEvent(
+      "warn",
+      AIRJAM_DEV_LOG_EVENTS.controller.systemRejected,
+      "Rejected controller system command because command is unsupported",
+      {
+        roomId,
+        command,
+        reason: "unsupported_command",
+      },
+    );
   });
 };

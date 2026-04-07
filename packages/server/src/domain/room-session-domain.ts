@@ -3,7 +3,6 @@ import type {
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
   ControllerStateMessage,
-  GameState,
   HostArcadeSessionSnapshot,
   RoomCode,
 } from "@air-jam/sdk/protocol";
@@ -14,16 +13,16 @@ import type {
   RoomSession,
 } from "../types.js";
 
-type ControllerOrientation = NonNullable<
-  ControllerStateMessage["state"]["orientation"]
->;
-
 type AirJamIoServer = Server;
 
 export interface TransitionToSystemFocusOptions {
   resetGameState?: boolean;
   notifyMasterCloseChild?: boolean;
   resyncPlayersToMaster?: boolean;
+}
+
+interface RoomStateMessageOverrides {
+  message?: string;
 }
 
 export type RoomLifecyclePhase = RoomLifecycleState;
@@ -373,14 +372,42 @@ export const toControllerJoinedNotice = (
 export const emitRoomState = (
   io: AirJamIoServer,
   roomId: RoomCode,
-  gameState: GameState,
-  controllerOrientation: ControllerOrientation,
-): void => {
-  io.to(roomId).emit("server:state", {
+  session: RoomSession,
+  {
+    message,
+    bumpVersion = true,
+  }: RoomStateMessageOverrides & { bumpVersion?: boolean } = {},
+): ControllerStateMessage => {
+  if (bumpVersion) {
+    session.stateVersion += 1;
+  }
+
+  const payload: ControllerStateMessage = {
     roomId,
-    state: { gameState, orientation: controllerOrientation },
-  });
+    state: {
+      gameState: session.gameState,
+      orientation: session.controllerOrientation,
+      stateVersion: session.stateVersion,
+      ...(message !== undefined ? { message } : {}),
+    },
+  };
+  io.to(roomId).emit("server:state", payload);
+  return payload;
 };
+
+export const buildRoomStateMessage = (
+  roomId: RoomCode,
+  session: RoomSession,
+  { message }: RoomStateMessageOverrides = {},
+): ControllerStateMessage => ({
+  roomId,
+  state: {
+    gameState: session.gameState,
+    orientation: session.controllerOrientation,
+    stateVersion: session.stateVersion,
+    ...(message !== undefined ? { message } : {}),
+  },
+});
 
 export const resyncPlayersToMasterHost = (
   io: AirJamIoServer,

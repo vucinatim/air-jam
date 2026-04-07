@@ -231,6 +231,38 @@ export const useControllerRuntimeApi = (
     },
     [controllerId],
   );
+  const lastObservedStateVersionRef = useRef<number | null>(null);
+  const emittedInvariantKeysRef = useRef<Set<string>>(new Set());
+  const emitInvariantOnce = useCallback(
+    ({
+      code,
+      roomId,
+      data,
+      message,
+    }: {
+      code: string;
+      roomId?: string;
+      data?: Record<string, unknown>;
+      message: string;
+    }) => {
+      const key = `${roomId ?? "unknown"}:${code}`;
+      if (emittedInvariantKeysRef.current.has(key)) {
+        return;
+      }
+      emittedInvariantKeysRef.current.add(key);
+      emitControllerRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.invariantViolation,
+        level: "warn",
+        message,
+        roomId,
+        data: {
+          code,
+          ...data,
+        },
+      });
+    },
+    [emitControllerRuntimeEvent],
+  );
 
   const socket = useMemo<AirJamRealtimeClient | null>(
     () =>
@@ -297,6 +329,8 @@ export const useControllerRuntimeApi = (
     storeState.setRoomId(parsedRoomId);
     storeState.setStatus(parsedRoomId ? "connecting" : "idle");
     storeState.setError(undefined);
+    lastObservedStateVersionRef.current = null;
+    emittedInvariantKeysRef.current.clear();
 
     if (!parsedRoomId || !socket || !controllerId) {
       storeState.setStatus("idle");
@@ -388,6 +422,7 @@ export const useControllerRuntimeApi = (
       }
       latestState.setStatus("disconnected");
       latestState.resetGameState();
+      lastObservedStateVersionRef.current = null;
     };
 
     const handleConnectError = (error: Error): void => {
@@ -439,11 +474,82 @@ export const useControllerRuntimeApi = (
         data: {
           gameState: payload.state.gameState,
           orientation: payload.state.orientation,
+          stateVersion: payload.state.stateVersion,
           hasMessage: payload.state.message !== undefined,
         },
       });
 
       const latestState = store.getState();
+      const previousGameState = latestState.gameState;
+      const nextGameState = payload.state.gameState ?? previousGameState;
+      const incomingVersion = payload.state.stateVersion;
+      const previousVersion = lastObservedStateVersionRef.current;
+      if (typeof incomingVersion === "number") {
+        if (previousVersion === null) {
+          emitControllerRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
+            message: "Controller received initial room state version",
+            roomId: payload.roomId,
+            data: {
+              stateVersion: incomingVersion,
+              relation: "initial",
+            },
+          });
+        } else if (incomingVersion <= previousVersion) {
+          emitControllerRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
+            level: "warn",
+            message: "Controller received non-monotonic room state version",
+            roomId: payload.roomId,
+            data: {
+              stateVersion: incomingVersion,
+              previousStateVersion: previousVersion,
+              relation: "non_monotonic",
+            },
+          });
+          emitInvariantOnce({
+            code: "state_version_non_monotonic",
+            roomId: payload.roomId,
+            message:
+              "Received non-monotonic room state version in controller runtime",
+            data: {
+              stateVersion: incomingVersion,
+              previousStateVersion: previousVersion,
+            },
+          });
+        } else if (incomingVersion !== previousVersion + 1) {
+          emitControllerRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
+            message: "Controller detected room state version gap",
+            roomId: payload.roomId,
+            data: {
+              stateVersion: incomingVersion,
+              previousStateVersion: previousVersion,
+              relation: "gap",
+            },
+          });
+        }
+        lastObservedStateVersionRef.current =
+          previousVersion === null
+            ? incomingVersion
+            : Math.max(previousVersion, incomingVersion);
+      }
+      if (
+        typeof incomingVersion === "number" &&
+        nextGameState !== previousGameState
+      ) {
+        emitControllerRuntimeEvent({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.phaseTransition,
+          message: "Controller runtime phase transition",
+          roomId: payload.roomId,
+          data: {
+            from: previousGameState,
+            to: nextGameState,
+            source: "server_state",
+            stateVersion: incomingVersion,
+          },
+        });
+      }
       if (payload.state.gameState) {
         latestState.setGameState(payload.state.gameState);
       }
@@ -464,6 +570,7 @@ export const useControllerRuntimeApi = (
       latestState.setError(payload.reason);
       latestState.setStatus("disconnected");
       latestState.resetGameState();
+      lastObservedStateVersionRef.current = null;
 
       setTimeout(() => {
         socket.disconnect();
@@ -519,6 +626,7 @@ export const useControllerRuntimeApi = (
     deviceId,
     joinSource,
     capabilityToken,
+    emitInvariantOnce,
   ]);
 
   const setNickname = useCallback((value: string) => {

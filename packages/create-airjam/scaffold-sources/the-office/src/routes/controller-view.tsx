@@ -25,6 +25,8 @@ export function ControllerView() {
   const actionRef = useRef(false);
 
   const money = useSpaceStore((state) => state.money);
+  const totalMoneyPenalty = useSpaceStore((state) => state.totalMoneyPenalty);
+  const matchPhase = useSpaceStore((state) => state.matchPhase);
   const readyByPlayerId = useSpaceStore((state) => state.readyByPlayerId);
   const playerAssignments = useSpaceStore((state) => state.playerAssignments);
   const busyPlayers = useSpaceStore((state) => state.busyPlayers);
@@ -73,6 +75,11 @@ export function ControllerView() {
     controller.connectionStatus === "connected" &&
     Boolean(controller.controllerId) &&
     hasCharacterSelection;
+  const showLobbyView = matchPhase === "lobby";
+  const showEndedView = matchPhase === "ended";
+  const showGameplayView =
+    matchPhase === "playing" && controller.gameState === "playing";
+  const showPausedView = matchPhase === "playing" && !showGameplayView;
 
   useControllerTick(
     () => {
@@ -85,6 +92,7 @@ export function ControllerView() {
     {
       enabled:
         controller.connectionStatus === "connected" &&
+        matchPhase === "playing" &&
         controller.gameState === "playing",
       intervalMs: 16,
     },
@@ -117,13 +125,14 @@ export function ControllerView() {
     (sum, amount) => sum + amount,
     0,
   );
+  const finalTotalMoney = totalMoney - totalMoneyPenalty;
   const isDead = myStats ? !myStats.alive : false;
 
   return (
     <div className="controller-view-shell">
       <ForcedOrientationShell desired="portrait">
         <div className="flex h-full w-full flex-col gap-3 bg-[#fdf6e3] p-3">
-          {controller.gameState !== "playing" ? (
+          {showLobbyView ? (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
               <div className="bg-[#fef3c7] p-4 shadow-md">
                 <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
@@ -233,7 +242,37 @@ export function ControllerView() {
             </div>
           ) : null}
 
-          {controller.gameState === "playing" ? (
+          {showPausedView ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
+                  Match Paused
+                </p>
+                <p className="mt-2 text-sm text-[#6b7280]">
+                  Waiting for host runtime reconnect...
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {showEndedView ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-[#fef3c7] p-4 text-center shadow-md">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
+                Shift Ended
+              </p>
+              <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
+                Final Earnings
+              </p>
+              <p className="mt-2 text-3xl font-black text-[#8b6914]">
+                EUR {finalTotalMoney}
+              </p>
+              <p className="mt-3 text-sm text-[#6b7280]">
+                Waiting for host to restart the lobby...
+              </p>
+            </div>
+          ) : null}
+
+          {showGameplayView ? (
             <>
               <div className="flex h-12 items-center justify-between bg-[#fef3c7] px-4 shadow-md">
                 <div className="flex items-center gap-2">

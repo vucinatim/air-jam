@@ -3,6 +3,7 @@ import {
   PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
+  useHostGameStateBridge,
 } from "@air-jam/sdk";
 import { HostMuteButton } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -167,6 +168,18 @@ const HostScreen = () => {
     phase === "game-over" && finalRankingPlayerIds.length > 0
       ? finalRankingPlayerIds
       : rankPlayers(scoreboardByPlayerId);
+
+  const runtimePhase =
+    phase === "round-active" || phase === "round-reveal"
+      ? "playing"
+      : phase;
+
+  useHostGameStateBridge({
+    phase: runtimePhase,
+    playingPhase: "playing",
+    gameState: host.gameState,
+    toggleGameState: host.toggleGameState,
+  });
 
   const isPlaying = phase === "round-active" || phase === "round-reveal";
   const showVideo = isPlaying && activeSong && embedUrl;

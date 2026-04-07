@@ -1,4 +1,4 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useHostGameStateBridge } from "@air-jam/sdk";
 import { HostMuteButton, PlayerAvatar } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { gameInputSchema } from "../game/input";
@@ -21,6 +21,7 @@ export function HostView() {
     locationImagesRef,
     gameOver,
     finalTotalMoney,
+    money,
     timeRemaining,
     initializePlayers,
     loadPlayerImages,
@@ -31,6 +32,8 @@ export function HostView() {
   } = useGameState({ muted: audioMuted });
   const readyByPlayerId = useSpaceStore((state) => state.readyByPlayerId);
   const playerAssignments = useSpaceStore((state) => state.playerAssignments);
+  const matchPhase = useSpaceStore((state) => state.matchPhase);
+  const storeActions = useSpaceStore.useActions();
 
   const [pendingTasks, setPendingTasks] = useState(pendingTasksRef.current);
   const pendingTasksIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -46,8 +49,46 @@ export function HostView() {
     () => playerIds.filter((playerId) => Boolean(playerAssignments[playerId])).length,
     [playerAssignments, playerIds],
   );
+  const finalEarnings = useMemo(
+    () =>
+      host.players
+        .map((player) => ({
+          id: player.id,
+          label: player.label,
+          earnings: money[player.id] ?? 0,
+        }))
+        .sort((left, right) => right.earnings - left.earnings),
+    [host.players, money],
+  );
   const allReady = playerIds.length > 0 && readyCount === playerIds.length;
-  const canStartMatch = allReady && host.connectionStatus === "connected";
+  const canStartMatch =
+    matchPhase === "lobby" &&
+    allReady &&
+    host.connectionStatus === "connected";
+
+  useHostGameStateBridge({
+    phase: matchPhase,
+    playingPhase: "playing",
+    gameState: host.gameState,
+    toggleGameState: host.toggleGameState,
+  });
+
+  const prevRuntimeGameStateRef = useRef(host.gameState);
+  useEffect(() => {
+    const previousRuntimeState = prevRuntimeGameStateRef.current;
+    prevRuntimeGameStateRef.current = host.gameState;
+
+    if (matchPhase !== "playing") {
+      return;
+    }
+
+    if (
+      previousRuntimeState === "playing" &&
+      host.gameState !== "playing"
+    ) {
+      storeActions.setMatchPhase({ phase: "lobby" });
+    }
+  }, [host.gameState, matchPhase, storeActions]);
 
   const getInput = useCallback(
     (playerId: string) => host.getInput(playerId) ?? null,
@@ -92,7 +133,6 @@ export function HostView() {
   const handleStart = () => {
     if (!canStartMatch) return;
     startMatch();
-    host.toggleGameState();
   };
 
   return (
@@ -128,11 +168,13 @@ export function HostView() {
             locationImagesRef={locationImagesRef}
             getInput={getInput}
             players={host.players}
-            gameStatePlaying={host.gameState === "playing"}
+            gameStatePlaying={
+              matchPhase === "playing" && host.gameState === "playing"
+            }
             updateGame={updateGame}
           />
 
-          {gameOver ? (
+          {matchPhase === "playing" && gameOver ? (
             <GameOverOverlay
               totalMoney={finalTotalMoney}
               onRestart={handleRestart}
@@ -147,7 +189,7 @@ export function HostView() {
         ))}
       </div>
 
-      {host.gameState !== "playing" ? (
+      {matchPhase === "lobby" ? (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#1f2937]/70 p-4">
           <div className="w-full max-w-2xl border border-[#fef3c7] bg-[#fef3c7] p-6 text-[#5c4a2e] shadow-2xl">
             <div className="mb-4 flex items-center justify-between gap-4">
@@ -230,6 +272,63 @@ export function HostView() {
             >
               Start Match
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {matchPhase === "ended" ? (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#1f2937]/70 p-4">
+          <div className="w-full max-w-2xl border border-[#fef3c7] bg-[#fef3c7] p-6 text-[#5c4a2e] shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
+              Shift Ended
+            </p>
+            <p className="mt-2 text-3xl font-bold">Final Earnings</p>
+            <p className="mt-1 text-2xl font-bold text-[#8b6914]">
+              EUR {finalTotalMoney}
+            </p>
+
+            <div className="mt-4 max-h-64 overflow-y-auto border border-[#e5d4ab] bg-[#fff6d8] p-3">
+              {finalEarnings.length === 0 ? (
+                <p className="text-sm text-[#6b7280]">No connected players.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {finalEarnings.map((entry, index) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-center justify-between border-b border-[#e5d4ab] pb-2 text-sm last:border-0 last:pb-0"
+                    >
+                      <span className="font-semibold">
+                        {index + 1}. {entry.label}
+                      </span>
+                      <span className="font-bold text-[#8b6914]">
+                        EUR {entry.earnings}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleRestart}
+              className="mt-4 w-full bg-[#8b6914] px-4 py-3 text-lg font-bold uppercase tracking-wide text-[#fdf6e3] transition hover:bg-[#7a5b11]"
+            >
+              Back To Lobby
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {matchPhase === "playing" && host.gameState !== "playing" ? (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[#1f2937]/45 p-4">
+          <div className="w-full max-w-sm border border-[#fef3c7] bg-[#fef3c7] p-4 text-center text-[#5c4a2e] shadow-xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
+              Match Paused
+            </p>
+            <p className="mt-2 text-sm text-[#6b7280]">
+              Waiting for runtime reconnect...
+            </p>
           </div>
         </div>
       ) : null}

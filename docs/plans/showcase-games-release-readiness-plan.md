@@ -32,7 +32,7 @@ These are real Air Jam games, not tech demos.
 For release they must be:
 
 1. controllable end-to-end from phone controllers
-2. clear in lobby-to-match-to-reset flow
+2. clear in lobby-to-match-to-ended-to-reset flow
 3. stable in Arcade and standalone runtime stories
 4. visually aligned with each game's existing theme
 
@@ -57,13 +57,15 @@ Every launch game must pass these gates.
 3. touch targets are large and reliable on mobile
 4. no gameplay-critical scroll dependence on controller
 
-### 2. Lobby And Match Flow Contract
+### 2. Lobby, Match, And Ended Flow Contract
 
 1. explicit lobby state exists before gameplay starts
 2. players can set identity or role where relevant
 3. readiness is explicit and visible
 4. match start is deterministic and host-authoritative
-5. post-match reset path is clear and repeatable
+5. explicit ended/game-over phase exists after gameplay completes
+6. ended/game-over host screen shows a basic score/result summary
+7. post-match reset path is clear and repeatable
 
 ### 3. Host Authority And State Contract
 
@@ -95,7 +97,7 @@ Every launch game must pass these gates.
 
 ### Workstream A. Flow And Authority Alignment
 
-1. define one shared lobby/ready/start policy for showcase games
+1. define one shared lobby/ready/start/ended policy for showcase games
 2. enforce host-only start/reset/advance actions in stores
 3. normalize controller responsibilities to input, ready state, and gameplay actions
 
@@ -133,6 +135,7 @@ Every launch game must pass these gates.
 2. keep team fantasy and retro look, but make lobby/start/readiness clearer
 3. eliminate brittle controller fullscreen forcing and runtime DOM CSS hacks
 4. split host surface logic into clearer modules where change risk is highest
+5. add explicit ended phase with basic score summary screen before reset
 
 ### Implementation Notes
 
@@ -147,6 +150,7 @@ Every launch game must pass these gates.
 2. team assignment and start flow are explicit and reliable
 3. controller does not rely on forced fullscreen calls across gameplay buttons
 4. no deep-selector CSS used to hide runtime platform chrome
+5. ended state shows winner/score summary and exposes clear reset path
 
 ## `last-band-standing`
 
@@ -156,6 +160,7 @@ Every launch game must pass these gates.
 2. keep controller lobby focused on name + ready + gameplay answers
 3. add repeatable YouTube embed validation tooling
 4. remove legacy architecture leftovers that add confusion
+5. keep explicit ended/game-over phase with clear score/rank summary screen
 
 ### Implementation Notes
 
@@ -180,6 +185,7 @@ Every launch game must pass these gates.
 2. add a character picker with character image + displayed stats before match start
 3. fix timing/state correctness issues in game loop and task system
 4. preserve office-themed style while improving controller and host usability
+5. add explicit ended phase with basic score/earnings summary before reset
 
 ### Character Picker Contract
 
@@ -201,6 +207,7 @@ Every launch game must pass these gates.
 2. character stats are visible and understandable before gameplay
 3. timer/task behavior is consistent and deterministic in normal play
 4. host and controller layouts remain usable across target screen sizes
+5. ended state shows clear final score/earnings summary and restart CTA
 
 ## `pong` And `air-capture` Re-Validation
 
@@ -256,6 +263,13 @@ Every launch game must pass these gates.
    2. fresh per-game validation passes are recorded for all five launch-set games (`typecheck`, `test`, `build`)
    3. browser smoke is currently green again (`pnpm smoke:browser`, `4/4`) after capability-aware controller join test alignment
    4. remaining gate is manual phone/controller gameplay runbook and final outcome records
+
+Update (2026-04-07, late):
+
+1. lifecycle alignment scope is extended with one explicit baseline across all launch-set games:
+   1. explicit ended/game-over phase in domain flow
+   2. basic host-visible score/result summary before reset
+2. this baseline is tracked in this plan and checklist, not in SDK extraction scope
 
 ## Implemented In This Track
 

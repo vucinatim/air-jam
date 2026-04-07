@@ -55,12 +55,74 @@ const clampBotCounts = (
 });
 
 export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
+  matchPhase: "lobby",
+  matchSummary: null,
   scores: { team1: 0, team2: 0 },
   teamAssignments: {},
   readyByPlayerId: {},
   botCounts: { team1: 0, team2: 0 },
 
   actions: {
+    startMatch: ({ role }) =>
+      set((state) => {
+        if (role !== "host") {
+          return state;
+        }
+        if (state.matchPhase === "playing") {
+          return state;
+        }
+        return {
+          matchPhase: "playing",
+          matchSummary: null,
+          scores: { team1: 0, team2: 0 },
+        };
+      }),
+
+    resetToLobby: ({ role }) =>
+      set((state) => {
+        if (role !== "host") {
+          return state;
+        }
+        if (
+          state.matchPhase === "lobby" &&
+          state.matchSummary === null &&
+          state.scores.team1 === 0 &&
+          state.scores.team2 === 0
+        ) {
+          return state;
+        }
+        return {
+          matchPhase: "lobby",
+          matchSummary: null,
+          scores: { team1: 0, team2: 0 },
+        };
+      }),
+
+    finishMatch: ({ role }) =>
+      set((state) => {
+        if (role !== "host" || state.matchPhase !== "playing") {
+          return state;
+        }
+
+        const winner =
+          state.scores.team1 === state.scores.team2
+            ? "draw"
+            : state.scores.team1 > state.scores.team2
+              ? "team1"
+              : "team2";
+
+        return {
+          matchPhase: "ended",
+          matchSummary: {
+            winner,
+            scores: {
+              team1: state.scores.team1,
+              team2: state.scores.team2,
+            },
+          },
+        };
+      }),
+
     syncConnectedPlayers: ({ role }, { connectedPlayerIds }) =>
       set((state) => {
         if (role !== "host") {
@@ -213,6 +275,8 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
         }
 
         return {
+          matchPhase: "lobby",
+          matchSummary: null,
           scores: { team1: 0, team2: 0 },
           teamAssignments: {},
           readyByPlayerId: {},

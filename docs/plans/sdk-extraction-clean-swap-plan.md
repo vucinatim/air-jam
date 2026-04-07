@@ -208,6 +208,10 @@ These should not move into the SDK in this track:
 
 If those patterns later prove stable across multiple first-party games, extract them into a separate first-party game-kit rather than core SDK.
 
+Current routing:
+
+1. showcase-game lifecycle normalization (including explicit ended/game-over phase and basic score/result screens) is tracked in [Showcase Games Release Readiness Plan](./showcase-games-release-readiness-plan.md), not this SDK extraction track.
+
 ## Migration Contract
 
 This plan is a full clean swap.

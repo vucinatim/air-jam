@@ -1,5 +1,7 @@
 import { type AirJamActionContext } from "@air-jam/sdk";
 
+export type OfficeMatchPhase = "lobby" | "playing" | "ended";
+
 export interface PlayerPosition {
   x: number;
   y: number;
@@ -12,6 +14,7 @@ export interface PlayerStats {
 }
 
 export interface SpaceGameState {
+  matchPhase: OfficeMatchPhase;
   money: Record<string, number>;
   totalMoneyPenalty: number;
   gameStartTime: number;
@@ -83,6 +86,10 @@ export interface SpaceGameState {
     setGameStartTime: (
       ctx: AirJamActionContext,
       payload: { startTime: number },
+    ) => void;
+    setMatchPhase: (
+      ctx: AirJamActionContext,
+      payload: { phase: OfficeMatchPhase },
     ) => void;
   };
 }

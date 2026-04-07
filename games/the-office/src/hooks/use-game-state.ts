@@ -597,12 +597,17 @@ export function useGameState({
     getInput: (playerId: string) => GameInput | null,
     gameStatePlaying: boolean,
   ): void => {
+    const finishMatch = () => {
+      actionsRef.current.setGameOver({ gameOver: true });
+      actionsRef.current.setMatchPhase({ phase: "ended" });
+    };
+
     if (!gameStatePlaying || gameOver) return;
 
     // Check if game timer has expired
     const elapsedTime = currentTime - gameStartTime;
     if (elapsedTime >= gameDurationMs) {
-      actionsRef.current.setGameOver({ gameOver: true });
+      finishMatch();
       return;
     }
 
@@ -705,12 +710,13 @@ export function useGameState({
       });
 
     if (allPlayersDead && !gameOver) {
-      actionsRef.current.setGameOver({ gameOver: true });
+      finishMatch();
     }
   };
 
   const startMatch = (): void => {
     const now = Date.now();
+    actionsRef.current.setMatchPhase({ phase: "playing" });
     actionsRef.current.setGameOver({ gameOver: false });
     actionsRef.current.setGameStartTime({ startTime: now });
     taskManagerRef.current.reset();
@@ -729,6 +735,7 @@ export function useGameState({
    */
   const resetGame = (playerIds: string[]) => {
     actionsRef.current.resetGame();
+    actionsRef.current.setMatchPhase({ phase: "lobby" });
     actionsRef.current.setGameStartTime({ startTime: Date.now() });
     taskManagerRef.current.reset();
 

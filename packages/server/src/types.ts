@@ -69,6 +69,7 @@ export interface RoomSession {
   controllers: Map<string, ControllerSession>;
   maxPlayers: number;
   gameState: GameState;
+  stateVersion: number;
   controllerOrientation: ControllerOrientation;
   lifecycleState: RoomLifecycleState;
   /** Deferred teardown when child host socket drops (Socket.IO reconnect grace). */

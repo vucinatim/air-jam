@@ -168,18 +168,20 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   const emitHostRuntimeEvent = useCallback(
     ({
       event,
+      level = "info",
       message,
       roomId,
       data,
     }: {
       event: (typeof AIRJAM_DEV_LOG_EVENTS.runtime)[keyof typeof AIRJAM_DEV_LOG_EVENTS.runtime];
+      level?: "info" | "warn" | "error";
       message: string;
       roomId?: string;
       data?: Record<string, unknown>;
     }) => {
       emitAirJamDevRuntimeEvent({
         event,
-        level: "info",
+        level,
         message,
         role: "host",
         roomId,
@@ -187,6 +189,38 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       });
     },
     [],
+  );
+  const lastObservedStateVersionRef = useRef<number | null>(null);
+  const emittedInvariantKeysRef = useRef<Set<string>>(new Set());
+  const emitInvariantOnce = useCallback(
+    ({
+      code,
+      roomId,
+      data,
+      message,
+    }: {
+      code: string;
+      roomId?: string;
+      data?: Record<string, unknown>;
+      message: string;
+    }) => {
+      const key = `${roomId ?? "unknown"}:${code}`;
+      if (emittedInvariantKeysRef.current.has(key)) {
+        return;
+      }
+      emittedInvariantKeysRef.current.add(key);
+      emitHostRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.invariantViolation,
+        level: "warn",
+        message,
+        roomId,
+        data: {
+          code,
+          ...data,
+        },
+      });
+    },
+    [emitHostRuntimeEvent],
   );
 
   const toggleGameState = useCallback(() => {
@@ -367,6 +401,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     }
     storeState.setStatus("connecting");
     storeState.setError(undefined);
+    lastObservedStateVersionRef.current = null;
+    emittedInvariantKeysRef.current.clear();
 
     if (!shouldConnect || !socket) {
       storeState.setStatus("idle");
@@ -652,6 +688,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       store.getState().setStatus("disconnected");
       store.getState().resetPlayers();
       store.getState().resetGameState();
+      lastObservedStateVersionRef.current = null;
       setRegisteredRoomId(null);
       setDevHostTraceId(undefined);
     };
@@ -710,11 +747,81 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         data: {
           gameState: payload.state.gameState,
           orientation: payload.state.orientation,
+          stateVersion: payload.state.stateVersion,
           hasMessage: payload.state.message !== undefined,
         },
       });
 
       const latestState = store.getState();
+      const previousGameState = latestState.gameState;
+      const nextGameState = payload.state.gameState ?? previousGameState;
+      const incomingVersion = payload.state.stateVersion;
+      const previousVersion = lastObservedStateVersionRef.current;
+      if (typeof incomingVersion === "number") {
+        if (previousVersion === null) {
+          emitHostRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
+            message: "Host received initial room state version",
+            roomId: payload.roomId,
+            data: {
+              stateVersion: incomingVersion,
+              relation: "initial",
+            },
+          });
+        } else if (incomingVersion <= previousVersion) {
+          emitHostRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
+            level: "warn",
+            message: "Host received non-monotonic room state version",
+            roomId: payload.roomId,
+            data: {
+              stateVersion: incomingVersion,
+              previousStateVersion: previousVersion,
+              relation: "non_monotonic",
+            },
+          });
+          emitInvariantOnce({
+            code: "state_version_non_monotonic",
+            roomId: payload.roomId,
+            message: "Received non-monotonic room state version in host runtime",
+            data: {
+              stateVersion: incomingVersion,
+              previousStateVersion: previousVersion,
+            },
+          });
+        } else if (incomingVersion !== previousVersion + 1) {
+          emitHostRuntimeEvent({
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
+            message: "Host detected room state version gap",
+            roomId: payload.roomId,
+            data: {
+              stateVersion: incomingVersion,
+              previousStateVersion: previousVersion,
+              relation: "gap",
+            },
+          });
+        }
+        lastObservedStateVersionRef.current =
+          previousVersion === null
+            ? incomingVersion
+            : Math.max(previousVersion, incomingVersion);
+      }
+      if (
+        typeof incomingVersion === "number" &&
+        nextGameState !== previousGameState
+      ) {
+        emitHostRuntimeEvent({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.phaseTransition,
+          message: "Host runtime phase transition",
+          roomId: payload.roomId,
+          data: {
+            from: previousGameState,
+            to: nextGameState,
+            source: "server_state",
+            stateVersion: incomingVersion,
+          },
+        });
+      }
       if (payload.state.gameState) {
         latestState.setGameState(payload.state.gameState);
       }
@@ -776,6 +883,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     setDevHostTraceId,
     hostGrantResponseSchema,
     emitHostRuntimeEvent,
+    emitInvariantOnce,
     hydrateHostPlayers,
   ]);
 

@@ -51,6 +51,7 @@ Mark each cell for each game:
 | C10 | No brittle runtime hacks in critical gameplay flow          | [ ]  | [ ]         | [~]         | [~]                | [ ]        |
 | C11 | Release/content dependencies are validated (where relevant) | [ ]  | [ ]         | [ ]         | [x]                | [ ]        |
 | C12 | Game is publicly presentable for v1 without style rewrite   | [ ]  | [ ]         | [ ]         | [ ]                | [ ]        |
+| C13 | Explicit ended phase + basic score/result host screen       | [ ]  | [ ]         | [ ]         | [ ]                | [ ]        |
 
 ## Per-Game Records
 
@@ -62,7 +63,7 @@ Mark each cell for each game:
    2. `pnpm arcade:test --game=pong` boot smoke reached server/platform ready on local Arcade (2026-04-07)
 3. manual proof still required:
    1. QR join + controller flow in real phone session
-   2. short gameplay and reset validation in Arcade
+   2. short gameplay, ended-state score screen, and reset validation in Arcade
 
 ## `air-capture`
 
@@ -72,7 +73,7 @@ Mark each cell for each game:
    2. `pnpm arcade:test --game=air-capture` boot smoke reached server/platform ready on local Arcade (2026-04-07)
 3. manual proof still required:
    1. QR join + controller flow in real phone session
-   2. short gameplay and reset validation in Arcade
+   2. short gameplay, ended-state score screen, and reset validation in Arcade
 
 ## `code-review`
 
@@ -83,7 +84,7 @@ Mark each cell for each game:
    3. controller fullscreen forcing is removed; defend control now releases on mouse leave
 3. manual proof still required:
    1. QR join + controller flow in real phone session
-   2. short gameplay and reset validation in Arcade
+   2. short gameplay, ended-state score screen, and reset validation in Arcade
 
 ## `last-band-standing`
 
@@ -95,7 +96,7 @@ Mark each cell for each game:
    4. `/youtube-test` is debug-gated and excluded from default production assets
 3. manual proof still required:
    1. QR join + controller flow in real phone session
-   2. host-owned round start/reset and multi-player round flow validation
+   2. host-owned round start/reset, ended-state scoreboard visibility, and multi-player round flow validation
 
 ## `the-office`
 
@@ -106,4 +107,4 @@ Mark each cell for each game:
    3. character picker + ready gating + host start flow are now in source and scaffold snapshots
 3. manual proof still required:
    1. QR join + controller flow in real phone session
-   2. full match loop timing/task correctness in couch session
+   2. full match loop timing/task correctness plus ended-state score/earnings summary in couch session

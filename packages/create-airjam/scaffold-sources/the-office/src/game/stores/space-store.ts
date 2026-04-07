@@ -17,6 +17,7 @@ const hostOnly = (
 ): boolean => role === "host";
 
 export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
+  matchPhase: "lobby",
   money: {},
   totalMoneyPenalty: 0,
   gameStartTime: 0,
@@ -164,6 +165,7 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
         }
 
         return {
+          matchPhase: "lobby",
           money: {},
           totalMoneyPenalty: 0,
           gameStartTime: Date.now(),
@@ -318,6 +320,15 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
         }
 
         return { gameStartTime: startTime };
+      }),
+
+    setMatchPhase: ({ role }, { phase }) =>
+      set((state) => {
+        if (!hostOnly(role) || state.matchPhase === phase) {
+          return state;
+        }
+
+        return { matchPhase: phase };
       }),
   },
 }));

@@ -148,6 +148,7 @@ Remaining:
 5. connect and deploy all public games on official hosting
 6. validate all five games against the official servers
 7. merge the release PR, deploy the platform, and publish the launch content
+8. enforce explicit ended/game-over phase plus basic host score/result summary contract across all five launch-set games and re-validate checklist row `C13`
 
 Active subsystem plan linked from this phase:
 

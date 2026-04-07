@@ -69,6 +69,9 @@ export function ControllerView() {
   }>({ left: null, right: null });
 
   // Use the networked store
+  const matchPhase = useGameStore((state) => state.matchPhase);
+  const matchSummary = useGameStore((state) => state.matchSummary);
+  const scores = useGameStore((state) => state.scores);
   const teamAssignments = useGameStore((state) => state.teamAssignments);
   const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
   const botCounts = useGameStore((state) => state.botCounts);
@@ -106,9 +109,13 @@ export function ControllerView() {
   );
   const team1IsFull = teamHumanCounts.team1 + botCounts.team1 >= MAX_TEAM_SLOTS;
   const team2IsFull = teamHumanCounts.team2 + botCounts.team2 >= MAX_TEAM_SLOTS;
+  const showEndedView = matchPhase === "ended";
+  const showLobbyControls = matchPhase === "lobby";
   const showGameplayControls =
     controller.connectionStatus === "connected" &&
+    matchPhase === "playing" &&
     controller.gameState === "playing";
+  const showPausedOverlay = matchPhase === "playing" && !showGameplayControls;
 
   useControllerTick(
     () => {
@@ -133,6 +140,7 @@ export function ControllerView() {
     {
       enabled:
         controller.connectionStatus === "connected" &&
+        matchPhase === "playing" &&
         controller.gameState === "playing",
       intervalMs: 16,
     },
@@ -283,8 +291,30 @@ export function ControllerView() {
     <div className="controller-view-shell">
       <ForcedOrientationShell desired="portrait">
         <div className="pixel-font h-full w-full">
-          {!showGameplayControls ? (
-            // Team selection UI (shown when paused)
+          {showEndedView ? (
+            <div className="flex h-full w-full items-center justify-center p-4">
+              <div className="w-full max-w-sm rounded-none border-4 border-zinc-600 bg-zinc-900/90 p-4 text-center text-zinc-100">
+                <p className="text-xs tracking-[0.18em] text-zinc-400 uppercase">
+                  Match Ended
+                </p>
+                <p className="mt-2 text-lg">
+                  {matchSummary?.winner === "draw"
+                    ? "Draw"
+                    : matchSummary?.winner === "team1"
+                      ? "Coder Wins"
+                      : "Reviewer Wins"}
+                </p>
+                <p className="mt-3 text-sm text-zinc-300">
+                  {matchSummary?.scores.team1 ?? scores.team1} -{" "}
+                  {matchSummary?.scores.team2 ?? scores.team2}
+                </p>
+                <p className="mt-3 text-xs text-zinc-400">
+                  Waiting for host to return to lobby...
+                </p>
+              </div>
+            </div>
+          ) : showLobbyControls ? (
+            // Team selection UI (shown while in lobby phase)
             <div className="flex h-full w-full flex-col gap-2 p-2">
               {/* Up button - Select Team 1 */}
               <button
@@ -396,6 +426,17 @@ export function ControllerView() {
               >
                 {myTeam ? (isReady ? "READY" : "TAP TO READY") : "PICK A TEAM"}
               </button>
+            </div>
+          ) : showPausedOverlay ? (
+            <div className="flex h-full w-full items-center justify-center p-4">
+              <div className="w-full max-w-sm rounded-none border-4 border-zinc-600 bg-zinc-900/90 p-4 text-center">
+                <p className="text-sm tracking-[0.18em] text-zinc-400 uppercase">
+                  Match Paused
+                </p>
+                <p className="mt-2 text-xs text-zinc-300">
+                  Waiting for host runtime sync...
+                </p>
+              </div>
             </div>
           ) : (
             // Game control buttons — portrait layout, phone held on its side.

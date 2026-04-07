@@ -1,4 +1,4 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useHostGameStateBridge } from "@air-jam/sdk";
 import { HostMuteButton, RoomQrCode } from "@air-jam/sdk/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Position, type Team } from "../game/domain/team-assignments";
@@ -65,6 +65,7 @@ const HIT_FLASH_TINT_ALPHA = 0.32;
 const EMPOWER_GLOW_COLOR = "#fbbf24";
 /** Freeze duration after a KO before the next round starts (ms) */
 const KO_COUNTDOWN_MS = 3000;
+const MATCH_POINTS_TO_WIN = 5;
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
@@ -428,6 +429,9 @@ export function HostView() {
   const teamAssignments = useGameStore((state) => state.teamAssignments);
   const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
   const botCounts = useGameStore((state) => state.botCounts);
+  const matchPhase = useGameStore((state) => state.matchPhase);
+  const matchSummary = useGameStore((state) => state.matchSummary);
+  const scores = useGameStore((state) => state.scores);
   const actions = useGameStore.useActions();
   const hpSnapshotRef = useRef({ team1: MAX_HP, team2: MAX_HP });
   const [hpDisplay, setHpDisplay] = useState(() => ({
@@ -597,15 +601,58 @@ export function HostView() {
   );
   const canStartMatch = useMemo(
     () =>
+      matchPhase === "lobby" &&
       assignedHumanPlayers.length > 0 &&
       readyAssignedCount === assignedHumanPlayers.length &&
       host.connectionStatus === "connected",
-    [assignedHumanPlayers.length, host.connectionStatus, readyAssignedCount],
+    [
+      assignedHumanPlayers.length,
+      host.connectionStatus,
+      matchPhase,
+      readyAssignedCount,
+    ],
   );
+
+  useHostGameStateBridge({
+    phase: matchPhase,
+    playingPhase: "playing",
+    gameState: host.gameState,
+    toggleGameState: host.toggleGameState,
+  });
+
+  const prevRuntimeGameStateRef = useRef(host.gameState);
+  useEffect(() => {
+    const previousRuntimeState = prevRuntimeGameStateRef.current;
+    prevRuntimeGameStateRef.current = host.gameState;
+
+    if (matchPhase !== "playing") {
+      return;
+    }
+
+    if (
+      previousRuntimeState === "playing" &&
+      host.gameState !== "playing"
+    ) {
+      actions.resetToLobby();
+    }
+  }, [actions, host.gameState, matchPhase]);
 
   useEffect(() => {
     actions.syncConnectedPlayers({ connectedPlayerIds });
   }, [actions, connectedPlayerIds]);
+
+  useEffect(() => {
+    if (matchPhase !== "playing") {
+      return;
+    }
+    if (
+      scores.team1 < MATCH_POINTS_TO_WIN &&
+      scores.team2 < MATCH_POINTS_TO_WIN
+    ) {
+      return;
+    }
+    actions.finishMatch();
+  }, [actions, matchPhase, scores.team1, scores.team2]);
 
   // Load and tint all sprite variants
   useEffect(() => {
@@ -694,17 +741,17 @@ export function HostView() {
     });
   });
 
-  // Play bell when the game transitions to "playing"
-  const prevGameStateRef = useRef(host.gameState);
+  // Play bell when the match transitions to "playing"
+  const prevMatchPhaseRef = useRef(matchPhase);
   useEffect(() => {
     if (
-      prevGameStateRef.current !== "playing" &&
-      host.gameState === "playing"
+      prevMatchPhaseRef.current !== "playing" &&
+      matchPhase === "playing"
     ) {
       playSfx.current("bell");
     }
-    prevGameStateRef.current = host.gameState;
-  }, [host.gameState]);
+    prevMatchPhaseRef.current = matchPhase;
+  }, [matchPhase]);
 
   // Per-player physics + punch state
   const gameState = useRef<Record<PlayerKey, PlayerState>>({
@@ -794,7 +841,7 @@ export function HostView() {
 
       const state = gameState.current;
       const participants = slotParticipants;
-      const isPlaying = host.gameState === "playing";
+      const isPlaying = matchPhase === "playing" && host.gameState === "playing";
       const timestamp = Date.now();
 
       const syncHpDisplay = () => {
@@ -1473,6 +1520,7 @@ export function HostView() {
     host,
     actions,
     getTintedOverlaySprite,
+    matchPhase,
     slotParticipants,
     participantBySlot,
   ]);
@@ -1527,7 +1575,7 @@ export function HostView() {
         </div>
       </div>
 
-      {host.gameState === "paused" ? (
+      {matchPhase === "lobby" ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 p-2 sm:p-3 md:p-4">
           <div className="flex min-h-full w-full items-center justify-center">
             <div
@@ -1701,7 +1749,7 @@ export function HostView() {
                       disabled={!canStartMatch}
                       onClick={() => {
                         if (!canStartMatch) return;
-                        host.toggleGameState();
+                        actions.startMatch();
                       }}
                       className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-8 py-3 text-lg text-white transition enabled:hover:bg-zinc-700 enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                     >
@@ -1712,6 +1760,65 @@ export function HostView() {
               </div>
             </div>
           </div>
+          </div>
+        </div>
+      ) : null}
+
+      {matchPhase === "ended" ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 p-3 sm:p-4">
+          <div className="flex min-h-full w-full items-center justify-center">
+            <div className="pixel-font w-full max-w-2xl rounded-none border-4 border-zinc-700 bg-zinc-900 p-6 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)]">
+              <p className="text-xs tracking-[0.2em] text-zinc-400 uppercase">
+                Match Ended
+              </p>
+              <p className="mt-2 text-3xl text-white">
+                {matchSummary?.winner === "draw"
+                  ? "Draw"
+                  : matchSummary?.winner === "team1"
+                    ? "Coder Team Wins"
+                    : "Reviewer Team Wins"}
+              </p>
+
+              <div className="mt-6 grid grid-cols-2 gap-4 text-center">
+                <div className="rounded-none border-2 border-zinc-700 bg-zinc-800/70 p-4">
+                  <p className="text-xs tracking-[0.16em] text-zinc-400 uppercase">
+                    Coder
+                  </p>
+                  <p className="mt-2 text-5xl text-red-500">
+                    {matchSummary?.scores.team1 ?? scores.team1}
+                  </p>
+                </div>
+                <div className="rounded-none border-2 border-zinc-700 bg-zinc-800/70 p-4">
+                  <p className="text-xs tracking-[0.16em] text-zinc-400 uppercase">
+                    Reviewer
+                  </p>
+                  <p className="mt-2 text-5xl text-blue-500">
+                    {matchSummary?.scores.team2 ?? scores.team2}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => actions.resetToLobby()}
+                  className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-6 py-3 text-sm uppercase transition hover:bg-zinc-700"
+                >
+                  Back To Lobby
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {matchPhase === "playing" && host.gameState !== "playing" ? (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/45">
+          <div className="pixel-font rounded-none border-4 border-zinc-600 bg-zinc-900/90 px-6 py-4 text-center text-zinc-100">
+            <p className="text-sm tracking-[0.18em] uppercase">Match Paused</p>
+            <p className="mt-2 text-xs text-zinc-300">
+              Waiting for runtime reconnect...
+            </p>
           </div>
         </div>
       ) : null}

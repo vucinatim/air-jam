@@ -40,6 +40,11 @@ export const registerRealtimeHandlers = (
     event: AIRJAM_DEV_LOG_EVENTS.controller.actionRpcSummary,
     msg: "Controller action RPC activity summary",
   });
+  const hostStateBroadcastSummary = createWindowedEventSummary({
+    logger,
+    event: AIRJAM_DEV_LOG_EVENTS.host.stateBroadcastSummary,
+    msg: "Host state broadcast summary",
+  });
 
   const getRealtimeLogger = (bindings: Record<string, unknown> = {}) => {
     const mergedBindings = {
@@ -81,6 +86,7 @@ export const registerRealtimeHandlers = (
   socket.on("disconnect", () => {
     hostStateSyncSummary.flushAll();
     controllerActionRpcSummary.flushAll();
+    hostStateBroadcastSummary.flushAll();
   });
 
   socket.on("host:system", (payload) => {
@@ -117,20 +123,39 @@ export const registerRealtimeHandlers = (
       const previousGameState = session.gameState;
       const nextGameState =
         previousGameState === "playing" ? "paused" : "playing";
+      session.gameState = nextGameState;
+      const broadcastPayload = emitRoomState(io, roomId, session);
       logRealtimeEvent("info", AIRJAM_DEV_LOG_EVENTS.host.systemAccepted, "Host toggled pause state", {
         roomId,
         command,
         previousGameState,
         nextGameState,
+        stateVersion: broadcastPayload.state.stateVersion,
       });
-      session.gameState = nextGameState;
-      emitRoomState(
-        io,
-        roomId,
-        session.gameState,
-        session.controllerOrientation,
-      );
+      hostStateBroadcastSummary.record({
+        key: `${roomId}:host_system_toggle`,
+        bindings: { roomId },
+        data: {
+          source: "host_system_toggle",
+          latestStateVersion: broadcastPayload.state.stateVersion ?? 0,
+        },
+        metrics: {
+          broadcastCount: 1,
+        },
+      });
+      return;
     }
+
+    logRealtimeEvent(
+      "warn",
+      AIRJAM_DEV_LOG_EVENTS.host.systemRejected,
+      "Rejected host system command because command is unsupported",
+      {
+        roomId,
+        command,
+        reason: "unsupported_command",
+      },
+    );
   });
 
   socket.on("host:state", (payload: ControllerStateMessage) => {
@@ -161,26 +186,31 @@ export const registerRealtimeHandlers = (
       return;
     }
 
+    const previousGameState = session.gameState;
+    const previousOrientation = session.controllerOrientation;
     if (state.gameState) {
       session.gameState = state.gameState;
     }
     if (state.orientation) {
       session.controllerOrientation = state.orientation;
     }
-
-    session.controllers.forEach((controller) => {
-      if (!controller.socketId) {
-        return;
-      }
-      io.to(controller.socketId).emit("server:state", result.data);
+    const broadcastPayload = emitRoomState(io, roomId, session, {
+      message: state.message,
     });
-
-    if (session.masterHostSocketId) {
-      io.to(session.masterHostSocketId).emit("server:state", result.data);
-    }
-    if (session.childHostSocketId) {
-      io.to(session.childHostSocketId).emit("server:state", result.data);
-    }
+    hostStateBroadcastSummary.record({
+      key: `${roomId}:host_state`,
+      bindings: { roomId },
+      data: {
+        source: "host_state",
+        hasMessage: state.message !== undefined,
+        gameStateChanged: previousGameState !== session.gameState,
+        orientationChanged: previousOrientation !== session.controllerOrientation,
+        latestStateVersion: broadcastPayload.state.stateVersion ?? 0,
+      },
+      metrics: {
+        broadcastCount: 1,
+      },
+    });
   });
 
   socket.on("host:signal", (payload: SignalPayload) => {

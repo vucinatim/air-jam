@@ -35,10 +35,12 @@ import {
   beginChildHostActivation,
   beginGameLaunch,
   beginRoomClosing,
+  buildRoomStateMessage,
   buildArcadeSessionForHostAck,
   buildControllerCapabilityForHostAck,
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
+  emitRoomState,
   getRoomLifecyclePhase,
   isChildHostCapabilityExpired,
   issueControllerPrivilegedCapability,
@@ -101,6 +103,7 @@ export const registerHostLifecycleHandlers = (
       controllers: new Map(),
       maxPlayers,
       gameState: "paused",
+      stateVersion: 0,
       controllerOrientation: "portrait",
       lifecycleState: startsInGameFocus ? "GAME_ACTIVE" : "SYSTEM_IDLE",
     };
@@ -553,13 +556,7 @@ export const registerHostLifecycleHandlers = (
         players: buildHostRosterSnapshot(session),
         controllerCapability: getControllerCapabilityForAck(session),
       });
-      socket.emit("server:state", {
-        roomId,
-        state: {
-          gameState: session.gameState,
-          orientation: session.controllerOrientation,
-        },
-      });
+      socket.emit("server:state", buildRoomStateMessage(roomId, session));
       io.to(roomId).emit("server:roomReady", { roomId });
     },
   );
@@ -669,15 +666,10 @@ export const registerHostLifecycleHandlers = (
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
 
-        if (previousGameState !== session.gameState) {
-          io.to(roomId).emit("server:state", {
-            roomId,
-            state: {
-              gameState: session.gameState,
-              orientation: session.controllerOrientation,
-            },
-          });
-        }
+        const stateResetPayload =
+          previousGameState !== session.gameState
+            ? emitRoomState(io, roomId, session)
+            : undefined;
 
         logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.reconnectAccepted, "Host reconnected to room", {
           roomId,
@@ -687,6 +679,20 @@ export const registerHostLifecycleHandlers = (
           nextGameState: session.gameState,
           resetToLobbyOnReconnect: previousGameState !== session.gameState,
         });
+        logHostEvent(
+          "info",
+          AIRJAM_DEV_LOG_EVENTS.host.reconnectStateReconcile,
+          "Host reconnect state reconciliation completed",
+          {
+            roomId,
+            previousGameState,
+            nextGameState: session.gameState,
+            resetApplied: previousGameState !== session.gameState,
+            ...(stateResetPayload
+              ? { stateVersion: stateResetPayload.state.stateVersion }
+              : { stateVersion: session.stateVersion }),
+          },
+        );
         callback({
           ok: true,
           roomId,
@@ -694,13 +700,7 @@ export const registerHostLifecycleHandlers = (
           players: buildHostRosterSnapshot(session),
           controllerCapability: getControllerCapabilityForAck(session),
         });
-        socket.emit("server:state", {
-          roomId,
-          state: {
-            gameState: session.gameState,
-            orientation: session.controllerOrientation,
-          },
-        });
+        socket.emit("server:state", buildRoomStateMessage(roomId, session));
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {
         logHostEvent(
@@ -1022,13 +1022,7 @@ export const registerHostLifecycleHandlers = (
             );
           });
 
-          socket.emit("server:state", {
-            roomId,
-            state: {
-              gameState: session.gameState,
-              orientation: session.controllerOrientation,
-            },
-          });
+          socket.emit("server:state", buildRoomStateMessage(roomId, session));
         }, 100);
 
         callback({ ok: true, roomId });
@@ -1138,13 +1132,7 @@ export const registerHostLifecycleHandlers = (
         );
       });
 
-      socket.emit("server:state", {
-        roomId,
-        state: {
-          gameState: session.gameState,
-          orientation: session.controllerOrientation,
-        },
-      });
+      socket.emit("server:state", buildRoomStateMessage(roomId, session));
     }, 100);
 
     callback({ ok: true, roomId });
