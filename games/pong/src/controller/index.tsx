@@ -196,12 +196,14 @@ function ControllerScreen({
             team2Players={team2Players}
             pointsToWin={pointsToWin}
             controlsDisabled={controlsDisabled}
+            canStartMatch={readiness.canStart}
             readinessText={readinessText}
             onJoinTeam={(team) => actions.joinTeam({ team })}
             onSetBotCount={(team, count) => actions.setBotCount({ team, count })}
             onSetPointsToWin={(nextPointsToWin) =>
               actions.setPointsToWin({ pointsToWin: nextPointsToWin })
             }
+            onStartMatch={() => actions.startMatch()}
           />
         ) : matchPhase === "ended" ? (
           <EndedPanel

@@ -18,6 +18,7 @@ import {
   PUNCH_COOLDOWN_MS,
   PUNCH_DURATION_MS,
 } from "../game/input";
+import { MATCH_POINTS_TO_WIN } from "../game/match-config";
 import { useGameStore } from "../game/stores";
 import defendSprite from "/sprites/defend.png";
 import endSprite from "/sprites/end.png";
@@ -75,7 +76,6 @@ const HIT_FLASH_TINT_ALPHA = 0.32;
 const EMPOWER_GLOW_COLOR = "#fbbf24";
 /** Freeze duration after a KO before the next round starts (ms) */
 const KO_COUNTDOWN_MS = 3000;
-const MATCH_POINTS_TO_WIN = 5;
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
@@ -437,7 +437,6 @@ export function HostView() {
   );
 
   const teamAssignments = useGameStore((state) => state.teamAssignments);
-  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
   const botCounts = useGameStore((state) => state.botCounts);
   const matchPhase = useGameStore((state) => state.matchPhase);
   const matchSummary = useGameStore((state) => state.matchSummary);
@@ -508,43 +507,40 @@ export function HostView() {
     });
     return bySlot;
   }, [assignedHumanPlayers, teamAssignments]);
-  const slotParticipants = useMemo<SlotParticipant[]>(
-    () => {
-      const remainingBots = { ...botCounts };
-      const participants: SlotParticipant[] = [];
+  const slotParticipants = useMemo<SlotParticipant[]>(() => {
+    const remainingBots = { ...botCounts };
+    const participants: SlotParticipant[] = [];
 
-      FIGHTER_SLOTS.forEach((slot) => {
-        const human = humanBySlotKey.get(slot.slotKey);
-        if (human) {
-          participants.push({
-            id: human.id,
-            label: human.label,
-            slotKey: slot.slotKey,
-            team: slot.team,
-            position: slot.position,
-            isBot: false,
-          });
-          return;
-        }
-
-        if (remainingBots[slot.team] <= 0) {
-          return;
-        }
-        remainingBots[slot.team] -= 1;
-
+    FIGHTER_SLOTS.forEach((slot) => {
+      const human = humanBySlotKey.get(slot.slotKey);
+      if (human) {
         participants.push({
-          id: slot.botId,
-          label: slot.botLabel,
+          id: human.id,
+          label: human.label,
           slotKey: slot.slotKey,
           team: slot.team,
           position: slot.position,
-          isBot: true,
+          isBot: false,
         });
+        return;
+      }
+
+      if (remainingBots[slot.team] <= 0) {
+        return;
+      }
+      remainingBots[slot.team] -= 1;
+
+      participants.push({
+        id: slot.botId,
+        label: slot.botLabel,
+        slotKey: slot.slotKey,
+        team: slot.team,
+        position: slot.position,
+        isBot: true,
       });
-      return participants;
-    },
-    [botCounts, humanBySlotKey],
-  );
+    });
+    return participants;
+  }, [botCounts, humanBySlotKey]);
   const participantBySlot = useMemo(
     () =>
       Object.fromEntries(
@@ -573,24 +569,31 @@ export function HostView() {
       ).length,
     [slotParticipants],
   );
-  const readyAssignedCount = useMemo(
+  const team1Occupancy = useMemo(
     () =>
-      assignedHumanPlayers.filter(
-        (player) => readyByPlayerId[player.id] ?? false,
-      ).length,
-    [assignedHumanPlayers, readyByPlayerId],
+      slotParticipants.filter((participant) => participant.team === "team1")
+        .length,
+    [slotParticipants],
+  );
+  const team2Occupancy = useMemo(
+    () =>
+      slotParticipants.filter((participant) => participant.team === "team2")
+        .length,
+    [slotParticipants],
   );
   const canStartMatch = useMemo(
     () =>
       matchPhase === "lobby" &&
-      assignedHumanPlayers.length > 0 &&
-      readyAssignedCount === assignedHumanPlayers.length &&
-      host.connectionStatus === "connected",
+      host.connectionStatus === "connected" &&
+      team1Occupancy > 0 &&
+      team2Occupancy > 0 &&
+      assignedHumanPlayers.length > 0,
     [
       assignedHumanPlayers.length,
       host.connectionStatus,
       matchPhase,
-      readyAssignedCount,
+      team1Occupancy,
+      team2Occupancy,
     ],
   );
   const hostLobbyShell = useHostLobbyShell({
@@ -667,10 +670,7 @@ export function HostView() {
       return;
     }
 
-    if (
-      previousRuntimeState === "playing" &&
-      host.runtimeState !== "playing"
-    ) {
+    if (previousRuntimeState === "playing" && host.runtimeState !== "playing") {
       actions.resetToLobby();
     }
   }, [actions, host.runtimeState, matchPhase]);
@@ -782,10 +782,7 @@ export function HostView() {
   // Play bell when the match transitions to "playing"
   const prevMatchPhaseRef = useRef(matchPhase);
   useEffect(() => {
-    if (
-      prevMatchPhaseRef.current !== "playing" &&
-      matchPhase === "playing"
-    ) {
+    if (prevMatchPhaseRef.current !== "playing" && matchPhase === "playing") {
       playSfx.current("bell");
     }
     prevMatchPhaseRef.current = matchPhase;
@@ -879,7 +876,8 @@ export function HostView() {
 
       const state = gameState.current;
       const participants = slotParticipants;
-      const isPlaying = matchPhase === "playing" && host.runtimeState === "playing";
+      const isPlaying =
+        matchPhase === "playing" && host.runtimeState === "playing";
       const timestamp = Date.now();
 
       const syncHpDisplay = () => {
@@ -1565,7 +1563,7 @@ export function HostView() {
 
   return (
     <div className="host-view-shell">
-      <div className="fixed right-4 top-4 z-[70]">
+      <div className="fixed top-4 right-4 z-70">
         <HostMuteButton
           muted={audioMuted}
           onToggle={() => setAudioMuted((previous) => !previous)}
@@ -1625,153 +1623,147 @@ export function HostView() {
             >
               <div className="min-h-0 flex-1 p-3 sm:p-4 md:p-5">
                 <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(36rem,1fr)]">
-                <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
-                  <img
-                    src="/sprites/cover.png"
-                    alt="Game cover"
-                    className="h-full w-full object-cover object-center"
-                  />
-                </div>
-
-                <div className="order-2 flex min-h-0 flex-col xl:order-2">
-                  <div className="space-y-2 md:space-y-3">
-                    <div>
-                      <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
-                        Room
-                      </p>
-                      <p className="text-lg text-white">{host.roomId}</p>
-                    </div>
-
-                    <div className="inline-flex text-xs tracking-[0.22em] uppercase">
-                      <span className="rounded-none border-2 border-zinc-600 px-2 py-1">
-                        {hostStatusText}
-                      </span>
-                    </div>
-
-                    <JoinUrlControls
-                      value={hostLobbyShell.joinUrlValue}
-                      label="Join URL"
-                      copied={hostLobbyShell.copied}
-                      onCopy={hostLobbyShell.handleCopy}
-                      onOpen={hostLobbyShell.handleOpen}
-                      className="pt-1"
-                      inputClassName="pixel-font border-2 border-zinc-600 bg-black/80 text-xs text-zinc-100"
-                      buttonClassName="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+                  <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
+                    <img
+                      src="/sprites/cover.png"
+                      alt="Game cover"
+                      className="h-full w-full object-cover object-center"
                     />
                   </div>
 
-                  <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
-                    <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
-                      <div className="flex flex-col items-center border-zinc-700 pb-3 md:border-r-2 md:pb-0 md:pr-3">
-                        <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
-                          Scan To Join
+                  <div className="order-2 flex min-h-0 flex-col xl:order-2">
+                    <div className="space-y-2 md:space-y-3">
+                      <div>
+                        <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
+                          Room
                         </p>
-                        <div className="mt-2 flex w-full flex-1 items-start justify-center">
-                          {hostLobbyShell.joinUrlValue ? (
-                            <RoomQrCode
-                              value={hostLobbyShell.joinUrlValue}
-                              size={448}
-                              padding={1}
-                              foregroundColor="#ffffff"
-                              backgroundColor="#00000000"
-                              className="mx-auto h-auto w-full max-w-[13rem] sm:max-w-[15rem] md:max-w-[22rem] xl:max-w-[28rem]"
-                              style={{
-                                width: "100%",
-                                height: "auto",
-                                aspectRatio: "1 / 1",
-                              }}
-                              alt={`Join room ${host.roomId}`}
-                            />
-                          ) : (
-                            <div className="flex h-full w-full min-h-40 items-center justify-center px-3 text-center">
-                              <span className="text-xs text-zinc-400">
-                                Generating QR code…
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        <p className="text-lg text-white">{host.roomId}</p>
                       </div>
 
-                      <div className="flex min-h-0 flex-col md:pl-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
-                            Connected Players ({host.players.length})
-                          </p>
-                          <span className="text-[10px] tracking-[0.18em] text-zinc-400 uppercase">
-                            Ready Humans {readyAssignedCount}/
-                            {assignedHumanPlayers.length}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[10px] tracking-[0.18em] text-zinc-500 uppercase">
-                          Auto Bots {botCount} (Coder {team1BotCount}, Reviewer{" "}
-                          {team2BotCount})
-                        </p>
+                      <div className="inline-flex text-xs tracking-[0.22em] uppercase">
+                        <span className="rounded-none border-2 border-zinc-600 px-2 py-1">
+                          {hostStatusText}
+                        </span>
+                      </div>
 
-                        <ul className="mt-2 space-y-1 pr-1">
-                          {slotParticipants.map((participant) => (
-                            <li
-                              key={participant.slotKey}
-                              className="flex items-center justify-between border-b border-zinc-700 pb-2 text-xs"
-                            >
-                              <div className="min-w-0">
-                                <span className="block break-words text-zinc-100">
-                                  {participant.label}
-                                </span>
-                                <span className="block text-[10px] tracking-[0.15em] text-zinc-400 uppercase">
-                                  {participant.team === "team1"
-                                    ? "Coder"
-                                    : "Reviewer"}{" "}
-                                  •{" "}
-                                  {participant.position === "front"
-                                    ? "Front"
-                                    : "Back"}{" "}
-                                  •{" "}
-                                  {participant.isBot
-                                    ? "Bot"
-                                    : (readyByPlayerId[participant.id] ?? false)
-                                      ? "Ready"
-                                      : "Not ready"}
+                      <JoinUrlControls
+                        value={hostLobbyShell.joinUrlValue}
+                        label="Join URL"
+                        copied={hostLobbyShell.copied}
+                        onCopy={hostLobbyShell.handleCopy}
+                        onOpen={hostLobbyShell.handleOpen}
+                        className="pt-1"
+                        inputClassName="pixel-font border-2 border-zinc-600 bg-black/80 text-xs text-zinc-100"
+                        buttonClassName="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+                      />
+                    </div>
+
+                    <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
+                      <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+                        <div className="flex flex-col items-center border-zinc-700 pb-3 md:border-r-2 md:pr-3 md:pb-0">
+                          <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
+                            Scan To Join
+                          </p>
+                          <div className="mt-2 flex w-full flex-1 items-start justify-center">
+                            {hostLobbyShell.joinUrlValue ? (
+                              <RoomQrCode
+                                value={hostLobbyShell.joinUrlValue}
+                                size={448}
+                                padding={1}
+                                foregroundColor="#ffffff"
+                                backgroundColor="#00000000"
+                                className="mx-auto h-auto w-full max-w-52 sm:max-w-60 md:max-w-88 xl:max-w-md"
+                                style={{
+                                  width: "100%",
+                                  height: "auto",
+                                  aspectRatio: "1 / 1",
+                                }}
+                                alt={`Join room ${host.roomId}`}
+                              />
+                            ) : (
+                              <div className="flex h-full min-h-40 w-full items-center justify-center px-3 text-center">
+                                <span className="text-xs text-zinc-400">
+                                  Generating QR code…
                                 </span>
                               </div>
-                              {participant.isBot ? (
-                                <span className="text-[10px] tracking-[0.15em] text-zinc-500 uppercase">
-                                  Auto
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="text-left text-[10px] text-zinc-300 underline-offset-2 hover:underline"
-                                  onClick={() => copyPlayerId(participant.id)}
-                                  title="Copy player ID"
-                                >
-                                  {copiedPlayerId === participant.id
-                                    ? "Copied!"
-                                    : participant.id.slice(0, 8)}
-                                </button>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex min-h-0 flex-col md:pl-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
+                              Connected Players ({host.players.length})
+                            </p>
+                            <span className="text-[10px] tracking-[0.18em] text-zinc-400 uppercase">
+                              Humans {assignedHumanPlayers.length}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[10px] tracking-[0.18em] text-zinc-500 uppercase">
+                            Auto Bots {botCount} (Coder {team1BotCount},
+                            Reviewer {team2BotCount})
+                          </p>
+
+                          <ul className="mt-2 space-y-1 pr-1">
+                            {slotParticipants.map((participant) => (
+                              <li
+                                key={participant.slotKey}
+                                className="flex items-center justify-between border-b border-zinc-700 pb-2 text-xs"
+                              >
+                                <div className="min-w-0">
+                                  <span className="block wrap-break-word text-zinc-100">
+                                    {participant.label}
+                                  </span>
+                                  <span className="block text-[10px] tracking-[0.15em] text-zinc-400 uppercase">
+                                    {participant.team === "team1"
+                                      ? "Coder"
+                                      : "Reviewer"}{" "}
+                                    •{" "}
+                                    {participant.position === "front"
+                                      ? "Front"
+                                      : "Back"}{" "}
+                                    • {participant.isBot ? "Bot" : "Human"}
+                                  </span>
+                                </div>
+                                {participant.isBot ? (
+                                  <span className="text-[10px] tracking-[0.15em] text-zinc-500 uppercase">
+                                    Auto
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="text-left text-[10px] text-zinc-300 underline-offset-2 hover:underline"
+                                    onClick={() => copyPlayerId(participant.id)}
+                                    title="Copy player ID"
+                                  >
+                                    {copiedPlayerId === participant.id
+                                      ? "Copied!"
+                                      : participant.id.slice(0, 8)}
+                                  </button>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mt-3 flex justify-end">
-                    <LifecycleActionGroup
-                      phase="lobby"
-                      canInteract={canStartMatch}
-                      onStart={() => {
-                        if (!canStartMatch) return;
-                        actions.startMatch();
-                      }}
-                      startLabel="Play"
-                      buttonClassName="rounded-none border-4 border-zinc-300 bg-zinc-800 text-white enabled:hover:bg-zinc-700"
-                    />
+                    <div className="mt-3 flex justify-end">
+                      <LifecycleActionGroup
+                        phase="lobby"
+                        canInteract={canStartMatch}
+                        onStart={() => {
+                          if (!canStartMatch) return;
+                          actions.startMatch();
+                        }}
+                        startLabel="Play"
+                        buttonClassName="rounded-none border-4 border-zinc-300 bg-zinc-800 text-white enabled:hover:bg-zinc-700"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       ) : null}

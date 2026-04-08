@@ -17,8 +17,7 @@ const prepareLobbyState = async (
 
   const nameField = context.controller.game.locator("#player-name");
   await nameField.fill("Visual Runner");
-  await context.controller.game.getByRole("button", { name: "Save" }).click();
-  await context.controller.game.getByRole("button", { name: "Tap to Ready" }).click();
+  await context.controller.game.getByRole("button", { name: /Ready/i }).click();
 
   await waitForHostText(context, /1\/1 ready|All players ready!/i, 20_000);
   await context.sleep(500);
@@ -68,7 +67,7 @@ export const visualHarness = {
     {
       id: "playing",
       description:
-        "First round playing state after one controller joins, saves a valid name, readies up, and the host starts the match.",
+        "First round playing state after one controller joins, enters a valid name, readies up, and the host starts the match.",
       run: async (context) => {
         if (context.controller.fullscreenPromptDismissed) {
           context.note("Dismissed controller fullscreen prompt before capture.");

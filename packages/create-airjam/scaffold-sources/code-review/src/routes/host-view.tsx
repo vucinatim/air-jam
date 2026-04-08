@@ -1,5 +1,15 @@
 import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
-import { HostMuteButton, RoomQrCode } from "@air-jam/sdk/ui";
+import {
+  HostMuteButton,
+  JoinUrlControls,
+  LifecycleActionGroup,
+  RoomQrCode,
+  useHostLobbyShell,
+} from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Position, type Team } from "../game/domain/team-assignments";
 import {
@@ -8,6 +18,7 @@ import {
   PUNCH_COOLDOWN_MS,
   PUNCH_DURATION_MS,
 } from "../game/input";
+import { MATCH_POINTS_TO_WIN } from "../game/match-config";
 import { useGameStore } from "../game/stores";
 import defendSprite from "/sprites/defend.png";
 import endSprite from "/sprites/end.png";
@@ -65,7 +76,6 @@ const HIT_FLASH_TINT_ALPHA = 0.32;
 const EMPOWER_GLOW_COLOR = "#fbbf24";
 /** Freeze duration after a KO before the next round starts (ms) */
 const KO_COUNTDOWN_MS = 3000;
-const MATCH_POINTS_TO_WIN = 5;
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
@@ -427,7 +437,6 @@ export function HostView() {
   );
 
   const teamAssignments = useGameStore((state) => state.teamAssignments);
-  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
   const botCounts = useGameStore((state) => state.botCounts);
   const matchPhase = useGameStore((state) => state.matchPhase);
   const matchSummary = useGameStore((state) => state.matchSummary);
@@ -439,7 +448,6 @@ export function HostView() {
     team2: MAX_HP,
   }));
   const [audioMuted, setAudioMuted] = useState(false);
-  const [copiedJoinUrl, setCopiedJoinUrl] = useState(false);
   const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
   const crowdAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioMutedRef = useRef(false);
@@ -447,34 +455,6 @@ export function HostView() {
   useEffect(() => {
     audioMutedRef.current = audioMuted;
   }, [audioMuted]);
-
-  const copyJoinUrl = async (): Promise<void> => {
-    if (!host.joinUrl) return;
-
-    try {
-      await navigator.clipboard.writeText(host.joinUrl);
-      setCopiedJoinUrl(true);
-      setTimeout(() => setCopiedJoinUrl(false), 1800);
-      return;
-    } catch {
-      // Fallback for older browsers
-      const fallbackField = document.createElement("textarea");
-      fallbackField.value = host.joinUrl;
-      fallbackField.style.position = "fixed";
-      fallbackField.style.opacity = "0";
-      document.body.appendChild(fallbackField);
-      fallbackField.select();
-      try {
-        document.execCommand("copy");
-        setCopiedJoinUrl(true);
-        setTimeout(() => setCopiedJoinUrl(false), 1800);
-      } catch {
-        // Ignore copy failure.
-      } finally {
-        document.body.removeChild(fallbackField);
-      }
-    }
-  };
 
   const copyPlayerId = async (playerId: string): Promise<void> => {
     try {
@@ -592,26 +572,89 @@ export function HostView() {
       ).length,
     [slotParticipants],
   );
-  const readyAssignedCount = useMemo(
-    () =>
-      assignedHumanPlayers.filter(
-        (player) => readyByPlayerId[player.id] ?? false,
-      ).length,
-    [assignedHumanPlayers, readyByPlayerId],
+  const team1Occupancy = useMemo(
+    () => slotParticipants.filter((participant) => participant.team === "team1")
+      .length,
+    [slotParticipants],
+  );
+  const team2Occupancy = useMemo(
+    () => slotParticipants.filter((participant) => participant.team === "team2")
+      .length,
+    [slotParticipants],
   );
   const canStartMatch = useMemo(
     () =>
       matchPhase === "lobby" &&
-      assignedHumanPlayers.length > 0 &&
-      readyAssignedCount === assignedHumanPlayers.length &&
-      host.connectionStatus === "connected",
+      host.connectionStatus === "connected" &&
+      team1Occupancy > 0 &&
+      team2Occupancy > 0 &&
+      assignedHumanPlayers.length > 0,
     [
       assignedHumanPlayers.length,
       host.connectionStatus,
       matchPhase,
-      readyAssignedCount,
+      team1Occupancy,
+      team2Occupancy,
     ],
   );
+  const hostLobbyShell = useHostLobbyShell({
+    roomId: host.roomId,
+    joinUrl: host.joinUrl,
+    canStartMatch,
+  });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase,
+      runtimeState: host.runtimeState,
+    });
+  }, [
+    host.joinUrl,
+    host.joinUrlStatus,
+    host.roomId,
+    host.runtimeState,
+    matchPhase,
+  ]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      forceEndMatch: (payload) => {
+        const nextScores =
+          payload && typeof payload === "object" && payload !== null
+            ? (payload as {
+                scores?: { team1?: number; team2?: number };
+              })
+            : null;
+
+        const team1 =
+          nextScores?.scores?.team1 ?? Math.max(MATCH_POINTS_TO_WIN, 1);
+        const team2 = nextScores?.scores?.team2 ?? 0;
+        const pointDiff = Math.max(0, team1 - scores.team1);
+        for (let index = 0; index < pointDiff; index += 1) {
+          actions.scorePoint({ team: "team1" });
+        }
+
+        const reviewerDiff = Math.max(0, team2 - scores.team2);
+        for (let index = 0; index < reviewerDiff; index += 1) {
+          actions.scorePoint({ team: "team2" });
+        }
+
+        actions.finishMatch();
+        return true;
+      },
+    });
+  }, [actions, scores.team1, scores.team2]);
 
   useHostRuntimeStateBridge({
     matchPhase,
@@ -1585,8 +1628,8 @@ export function HostView() {
               }}
             >
               <div className="min-h-0 flex-1 p-3 sm:p-4 md:p-5">
-                <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(36rem,1fr)]">
-                <div className="order-1 flex h-52 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-56 md:h-64 xl:h-auto xl:min-h-0">
+                <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(36rem,1fr)]">
+                <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
                   <img
                     src="/sprites/cover.png"
                     alt="Game cover"
@@ -1609,58 +1652,33 @@ export function HostView() {
                       </span>
                     </div>
 
-                    <div>
-                      <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
-                        Join URL
-                      </p>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        <input
-                          type="text"
-                          readOnly
-                          value={host.joinUrl ?? ""}
-                          className="pixel-font h-9 min-w-0 flex-[1_1_14rem] rounded-none border-2 border-zinc-600 bg-black/80 px-3 py-2 text-xs text-zinc-100 outline-none md:h-10"
-                        />
-                        <button
-                          type="button"
-                          className="h-9 rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs text-zinc-100 uppercase transition hover:bg-zinc-700 md:h-10"
-                          onClick={copyJoinUrl}
-                        >
-                          {copiedJoinUrl ? "Copied" : "Copy"}
-                        </button>
-                        <button
-                          type="button"
-                          className="h-9 rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs text-zinc-100 uppercase transition hover:bg-zinc-700 md:h-10"
-                          onClick={() => {
-                            if (host.joinUrl) {
-                              window.open(
-                                host.joinUrl,
-                                "_blank",
-                                "noopener,noreferrer",
-                              );
-                            }
-                          }}
-                        >
-                          Open
-                        </button>
-                      </div>
-                    </div>
+                    <JoinUrlControls
+                      value={hostLobbyShell.joinUrlValue}
+                      label="Join URL"
+                      copied={hostLobbyShell.copied}
+                      onCopy={hostLobbyShell.handleCopy}
+                      onOpen={hostLobbyShell.handleOpen}
+                      className="pt-1"
+                      inputClassName="pixel-font border-2 border-zinc-600 bg-black/80 text-xs text-zinc-100"
+                      buttonClassName="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+                    />
                   </div>
 
                   <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
-                    <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,21rem)_minmax(28rem,1fr)]">
+                    <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
                       <div className="flex flex-col items-center border-zinc-700 pb-3 md:border-r-2 md:pb-0 md:pr-3">
                         <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
                           Scan To Join
                         </p>
                         <div className="mt-2 flex w-full flex-1 items-start justify-center">
-                          {host.joinUrl ? (
+                          {hostLobbyShell.joinUrlValue ? (
                             <RoomQrCode
-                              value={host.joinUrl}
+                              value={hostLobbyShell.joinUrlValue}
                               size={448}
                               padding={1}
                               foregroundColor="#ffffff"
                               backgroundColor="#00000000"
-                              className="mx-auto h-auto w-full max-w-[12rem] sm:max-w-[14rem] md:max-w-[20rem] xl:max-w-[24rem]"
+                              className="mx-auto h-auto w-full max-w-[13rem] sm:max-w-[15rem] md:max-w-[22rem] xl:max-w-[28rem]"
                               style={{
                                 width: "100%",
                                 height: "auto",
@@ -1684,8 +1702,7 @@ export function HostView() {
                             Connected Players ({host.players.length})
                           </p>
                           <span className="text-[10px] tracking-[0.18em] text-zinc-400 uppercase">
-                            Ready Humans {readyAssignedCount}/
-                            {assignedHumanPlayers.length}
+                            Humans {assignedHumanPlayers.length}
                           </span>
                         </div>
                         <p className="mt-1 text-[10px] tracking-[0.18em] text-zinc-500 uppercase">
@@ -1712,11 +1729,7 @@ export function HostView() {
                                     ? "Front"
                                     : "Back"}{" "}
                                   •{" "}
-                                  {participant.isBot
-                                    ? "Bot"
-                                    : (readyByPlayerId[participant.id] ?? false)
-                                      ? "Ready"
-                                      : "Not ready"}
+                                  {participant.isBot ? "Bot" : "Human"}
                                 </span>
                               </div>
                               {participant.isBot ? (
@@ -1743,17 +1756,16 @@ export function HostView() {
                   </div>
 
                   <div className="mt-3 flex justify-end">
-                    <button
-                      type="button"
-                      disabled={!canStartMatch}
-                      onClick={() => {
+                    <LifecycleActionGroup
+                      phase="lobby"
+                      canInteract={canStartMatch}
+                      onStart={() => {
                         if (!canStartMatch) return;
                         actions.startMatch();
                       }}
-                      className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-8 py-3 text-lg text-white transition enabled:hover:bg-zinc-700 enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Play
-                    </button>
+                      startLabel="Play"
+                      buttonClassName="rounded-none border-4 border-zinc-300 bg-zinc-800 text-white enabled:hover:bg-zinc-700"
+                    />
                   </div>
                 </div>
               </div>

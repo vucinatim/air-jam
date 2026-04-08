@@ -3,14 +3,26 @@ import {
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  ForcedOrientationShell,
+  Button,
+  PlayerAvatar,
+  RuntimeShellHeader,
+  useControllerLifecycleIntents,
+  useControllerLifecyclePermissions,
+  useControllerShellStatus,
+} from "@air-jam/sdk/ui";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  getLobbyReadinessText,
+  getMatchReadiness,
+} from "../game/domain/match-readiness";
 import { PUNCH_COOLDOWN_MS } from "../game/input";
 import { useGameStore } from "../game/stores";
+import { LobbyPanel } from "../controller/components/lobby-panel";
 
-const TEAM1_COLOR = "#dc2626"; // Solaris (Red) — matches arena corner
-const TEAM2_COLOR = "#2563eb"; // Nebulon (Blue) — matches arena corner
-const MAX_TEAM_SLOTS = 2;
+const TEAM1_COLOR = "#dc2626"; // Coder — matches arena corner
+const TEAM2_COLOR = "#2563eb"; // Reviewer — matches arena corner
 
 /** Degrees of tilt beyond which direction is fully -1 or 1 */
 const GYRO_MAX_TILT = 25;
@@ -73,17 +85,16 @@ export function ControllerView() {
   const matchSummary = useGameStore((state) => state.matchSummary);
   const scores = useGameStore((state) => state.scores);
   const teamAssignments = useGameStore((state) => state.teamAssignments);
-  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
   const botCounts = useGameStore((state) => state.botCounts);
   const actions = useGameStore.useActions();
 
   const myAssignment = controller.controllerId
     ? teamAssignments[controller.controllerId]
     : null;
+  const myProfile = controller.controllerId
+    ? controller.players.find((player) => player.id === controller.controllerId) ?? null
+    : null;
   const myTeam = myAssignment?.team ?? null;
-  const isReady = controller.controllerId
-    ? (readyByPlayerId[controller.controllerId] ?? false)
-    : false;
   const teamColor =
     myTeam === "team1" ? TEAM1_COLOR : myTeam === "team2" ? TEAM2_COLOR : null;
   const teamAccent = teamColor ?? "#27272a";
@@ -107,8 +118,45 @@ export function ControllerView() {
     }),
     [connectedTeamAssignments],
   );
-  const team1IsFull = teamHumanCounts.team1 + botCounts.team1 >= MAX_TEAM_SLOTS;
-  const team2IsFull = teamHumanCounts.team2 + botCounts.team2 >= MAX_TEAM_SLOTS;
+  const team1Players = useMemo(
+    () =>
+      controller.players
+        .filter((player) => teamAssignments[player.id]?.team === "team1")
+        .sort((left, right) => {
+          const leftPosition =
+            teamAssignments[left.id]?.position === "front" ? 0 : 1;
+          const rightPosition =
+            teamAssignments[right.id]?.position === "front" ? 0 : 1;
+          return leftPosition - rightPosition;
+        }),
+    [controller.players, teamAssignments],
+  );
+  const team2Players = useMemo(
+    () =>
+      controller.players
+        .filter((player) => teamAssignments[player.id]?.team === "team2")
+        .sort((left, right) => {
+          const leftPosition =
+            teamAssignments[left.id]?.position === "front" ? 0 : 1;
+          const rightPosition =
+            teamAssignments[right.id]?.position === "front" ? 0 : 1;
+          return leftPosition - rightPosition;
+        }),
+    [controller.players, teamAssignments],
+  );
+  const readiness = useMemo(
+    () => getMatchReadiness(teamHumanCounts, botCounts),
+    [botCounts, teamHumanCounts],
+  );
+  const readinessText = useMemo(
+    () => getLobbyReadinessText(teamHumanCounts, botCounts),
+    [botCounts, teamHumanCounts],
+  );
+  const controlsDisabled = controller.connectionStatus !== "connected";
+  const canStartMatch =
+    matchPhase === "lobby" &&
+    controller.connectionStatus === "connected" &&
+    readiness.canStart;
   const showEndedView = matchPhase === "ended";
   const showLobbyControls = matchPhase === "lobby";
   const showGameplayControls =
@@ -116,6 +164,23 @@ export function ControllerView() {
     matchPhase === "playing" &&
     controller.runtimeState === "playing";
   const showPausedOverlay = matchPhase === "playing" && !showGameplayControls;
+  const desiredOrientation = matchPhase === "playing" ? "landscape" : "portrait";
+  const shellStatus = useControllerShellStatus({
+    roomId: controller.roomId,
+    connectionStatus: controller.connectionStatus,
+    playerLabel: myProfile?.label ?? null,
+  });
+  const lifecyclePermissions = useControllerLifecyclePermissions({
+    phase: matchPhase,
+    canStartMatch:
+      controller.connectionStatus === "connected" && readiness.canStart,
+    canSendSystemCommand: controller.connectionStatus === "connected",
+  });
+  const lifecycleIntents = useControllerLifecycleIntents({
+    onTogglePause: () => controller.sendSystemCommand("toggle_pause"),
+    onBackToLobby: () => actions.resetToLobby(),
+    onRestart: () => actions.resetToLobby(),
+  });
 
   useControllerTick(
     () => {
@@ -225,25 +290,13 @@ export function ControllerView() {
     await requestGyroPermission();
   };
 
-  const selectTeam = (team: "team1" | "team2") => {
-    const teamIsFull =
-      team === "team1"
-        ? team1IsFull && myTeam !== "team1"
-        : team2IsFull && myTeam !== "team2";
-    if (teamIsFull) return;
+  const joinTeam = (team: "team1" | "team2") => {
     actions.joinTeam({ team });
-    actions.setReady({ ready: false });
-    requestPermissions();
+    void requestPermissions();
   };
 
   const updateBotCount = (team: "team1" | "team2", count: number) => {
     actions.setBotCount({ team, count });
-  };
-
-  const toggleReady = () => {
-    if (!myTeam) return;
-    actions.setReady({ ready: !isReady });
-    requestPermissions();
   };
 
   // Request gyro permission — must be called from a user gesture on iOS.
@@ -289,146 +342,122 @@ export function ControllerView() {
 
   return (
     <div className="controller-view-shell">
-      <ForcedOrientationShell desired="portrait">
-        <div className="pixel-font h-full w-full">
+      <ForcedOrientationShell desired={desiredOrientation}>
+        <div className="pixel-font flex min-h-dvh w-full flex-col">
+          <RuntimeShellHeader
+            connectionStatus={controller.connectionStatus}
+            leftSlot={
+              <div className="flex min-w-0 items-center gap-3">
+                {myProfile ? (
+                  <PlayerAvatar
+                    player={myProfile}
+                    size="sm"
+                    className="h-8 w-8 border-2"
+                  />
+                ) : (
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-zinc-800 text-[10px] font-semibold text-zinc-200">
+                    {shellStatus.identityInitial}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-zinc-100">
+                    {shellStatus.displayName}
+                  </div>
+                  <div className="text-[10px] font-semibold tracking-[0.18em] text-zinc-400 uppercase">
+                    {shellStatus.roomLine}
+                  </div>
+                </div>
+              </div>
+            }
+            rightSlot={
+              matchPhase === "lobby" ? null : (
+                <div className="flex items-center gap-2">
+                  {matchPhase === "playing" ? (
+                    <HeaderUtilityButton
+                      label={controller.runtimeState === "paused" ? "Resume" : "Pause"}
+                      icon={
+                        controller.runtimeState === "paused" ? (
+                          <PlayIcon />
+                        ) : (
+                          <PauseIcon />
+                        )
+                      }
+                      disabled={!lifecyclePermissions.canInteractForPhase}
+                      onPress={lifecycleIntents.onTogglePause}
+                    />
+                  ) : null}
+                  <HeaderUtilityButton
+                    label="Back to Lobby"
+                    icon={<HouseIcon />}
+                    disabled={!lifecyclePermissions.canInteractForPhase}
+                    onPress={lifecycleIntents.onBackToLobby}
+                  />
+                  {matchPhase === "ended" ? (
+                    <HeaderUtilityButton
+                      label="Restart"
+                      icon={<RotateIcon />}
+                      disabled={!lifecyclePermissions.canInteractForPhase}
+                      onPress={lifecycleIntents.onRestart}
+                    />
+                  ) : null}
+                </div>
+              )
+            }
+            className="border-zinc-700 bg-zinc-950/95"
+          />
           {showEndedView ? (
-            <div className="flex h-full w-full items-center justify-center p-4">
-              <div className="w-full max-w-sm rounded-none border-4 border-zinc-600 bg-zinc-900/90 p-4 text-center text-zinc-100">
-                <p className="text-xs tracking-[0.18em] text-zinc-400 uppercase">
-                  Match Ended
-                </p>
-                <p className="mt-2 text-lg">
-                  {matchSummary?.winner === "draw"
-                    ? "Draw"
-                    : matchSummary?.winner === "team1"
-                      ? "Coder Wins"
-                      : "Reviewer Wins"}
-                </p>
-                <p className="mt-3 text-sm text-zinc-300">
-                  {matchSummary?.scores.team1 ?? scores.team1} -{" "}
-                  {matchSummary?.scores.team2 ?? scores.team2}
-                </p>
-                <p className="mt-3 text-xs text-zinc-400">
-                  Waiting for host to return to lobby...
-                </p>
+            <div className="flex flex-1 min-h-0 w-full flex-col bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.2),_transparent_42%),linear-gradient(180deg,_#f5f5f4_0%,_#e7e5e4_100%)] p-3 sm:p-4">
+              <div className="flex flex-1 min-h-0 flex-col justify-center gap-4 rounded-none border-4 border-zinc-700 bg-zinc-950/92 px-5 py-6 text-zinc-100 shadow-[0_24px_60px_rgba(24,24,27,0.35)]">
+                <div className="text-center">
+                  <p className="text-[11px] tracking-[0.2em] text-zinc-500 uppercase">
+                    Match Ended
+                  </p>
+                  <p className="mt-3 text-2xl leading-tight text-white sm:text-3xl">
+                    {matchSummary?.winner === "draw"
+                      ? "Draw"
+                      : matchSummary?.winner === "team1"
+                        ? "Coder Wins"
+                        : "Reviewer Wins"}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-y-4 border-zinc-800 py-4">
+                  <div className="min-w-0 bg-red-600 px-3 py-3 text-center text-white">
+                    <p className="text-[10px] tracking-[0.16em] uppercase text-red-100">
+                      Coder
+                    </p>
+                    <p className="mt-1 text-3xl leading-none">
+                      {matchSummary?.scores.team1 ?? scores.team1}
+                    </p>
+                  </div>
+                  <p className="text-2xl text-zinc-500">:</p>
+                  <div className="min-w-0 bg-blue-600 px-3 py-3 text-center text-white">
+                    <p className="text-[10px] tracking-[0.16em] uppercase text-blue-100">
+                      Reviewer
+                    </p>
+                    <p className="mt-1 text-3xl leading-none">
+                      {matchSummary?.scores.team2 ?? scores.team2}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           ) : showLobbyControls ? (
-            // Team selection UI (shown while in lobby phase)
-            <div className="flex h-full w-full flex-col gap-2 p-2">
-              {/* Up button - Select Team 1 */}
-              <button
-                type="button"
-                disabled={team1IsFull && myTeam !== "team1"}
-                className={`flex-1 touch-none rounded-none border-4 text-4xl text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
-                  myTeam === "team1" ? "ring-4 ring-white" : "opacity-70"
-                }`}
-                style={{
-                  backgroundColor: myTeam === "team1" ? TEAM1_COLOR : "#3f3f46",
-                  borderColor:
-                    myTeam === "team1"
-                      ? TEAM1_COLOR
-                      : myTeam === "team2"
-                        ? TEAM2_COLOR
-                        : "#3f3f46",
-                  willChange: "transform",
-                  transition: "none",
-                }}
-                onClick={() => selectTeam("team1")}
-              >
-                {team1IsFull && myTeam !== "team1" ? "CODER FULL" : "CODER"}
-              </button>
-
-              {/* Down button - Select Team 2 */}
-              <button
-                type="button"
-                disabled={team2IsFull && myTeam !== "team2"}
-                className={`flex-1 touch-none rounded-none border-4 text-4xl text-white shadow-lg select-none hover:opacity-90 active:scale-95 ${
-                  myTeam === "team2" ? "ring-4 ring-white" : "opacity-70"
-                }`}
-                style={{
-                  backgroundColor: myTeam === "team2" ? TEAM2_COLOR : "#3f3f46",
-                  borderColor:
-                    myTeam === "team2"
-                      ? TEAM2_COLOR
-                      : myTeam === "team1"
-                        ? TEAM1_COLOR
-                        : "#3f3f46",
-                  willChange: "transform",
-                  transition: "none",
-                }}
-                onClick={() => selectTeam("team2")}
-              >
-                {team2IsFull && myTeam !== "team2" ? "REVIEWER FULL" : "REVIEWER"}
-              </button>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-none border-4 border-zinc-500 bg-zinc-800/80 p-2 text-center text-white">
-                  <p className="text-xs tracking-[0.14em] text-zinc-300 uppercase">
-                    Coder Bots
-                  </p>
-                  <p className="mt-1 text-2xl font-black">{botCounts.team1}</p>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
-                      disabled={botCounts.team1 <= 0}
-                      onClick={() => updateBotCount("team1", botCounts.team1 - 1)}
-                    >
-                      -
-                    </button>
-                    <button
-                      type="button"
-                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
-                      disabled={
-                        teamHumanCounts.team1 + botCounts.team1 >= MAX_TEAM_SLOTS
-                      }
-                      onClick={() => updateBotCount("team1", botCounts.team1 + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <div className="rounded-none border-4 border-zinc-500 bg-zinc-800/80 p-2 text-center text-white">
-                  <p className="text-xs tracking-[0.14em] text-zinc-300 uppercase">
-                    Reviewer Bots
-                  </p>
-                  <p className="mt-1 text-2xl font-black">{botCounts.team2}</p>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
-                      disabled={botCounts.team2 <= 0}
-                      onClick={() => updateBotCount("team2", botCounts.team2 - 1)}
-                    >
-                      -
-                    </button>
-                    <button
-                      type="button"
-                      className="h-10 rounded-none border-2 border-zinc-300 bg-zinc-900 text-xl font-black disabled:opacity-40"
-                      disabled={
-                        teamHumanCounts.team2 + botCounts.team2 >= MAX_TEAM_SLOTS
-                      }
-                      onClick={() => updateBotCount("team2", botCounts.team2 + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={!myTeam}
-                className="h-20 touch-none rounded-none border-4 border-zinc-300 bg-zinc-800 text-2xl text-white shadow-lg select-none enabled:active:scale-95 disabled:opacity-40"
-                onClick={toggleReady}
-              >
-                {myTeam ? (isReady ? "READY" : "TAP TO READY") : "PICK A TEAM"}
-              </button>
-            </div>
+            <LobbyPanel
+              myTeam={myTeam}
+              teamCounts={teamHumanCounts}
+              botCounts={botCounts}
+              team1Players={team1Players}
+              team2Players={team2Players}
+              controlsDisabled={controlsDisabled}
+              canStartMatch={canStartMatch}
+              readinessText={readinessText}
+              onJoinTeam={joinTeam}
+              onSetBotCount={updateBotCount}
+              onStartMatch={() => actions.startMatch()}
+            />
           ) : showPausedOverlay ? (
-            <div className="flex h-full w-full items-center justify-center p-4">
+            <div className="flex flex-1 min-h-0 w-full items-center justify-center p-4">
               <div className="w-full max-w-sm rounded-none border-4 border-zinc-600 bg-zinc-900/90 p-4 text-center">
                 <p className="text-sm tracking-[0.18em] text-zinc-400 uppercase">
                   Match Paused
@@ -439,44 +468,27 @@ export function ControllerView() {
               </div>
             </div>
           ) : (
-            // Game control buttons — portrait layout, phone held on its side.
-            // Left column: defend (hold). Right column: left + right punch.
-            // All text rotated 90° so it reads naturally when sideways.
-            <div className="flex h-full w-full flex-row gap-2 p-2">
-              {/* Defend button — left column (bottom when held sideways) */}
-              <button
-                type="button"
-                className="flex basis-1/3 touch-none items-center justify-center rounded-none border-4 text-2xl text-white shadow-lg select-none active:scale-95"
-                style={{
-                  backgroundColor: teamAccent,
-                  borderColor: teamAccent,
-                  willChange: "transform",
-                  transition: "none",
-                }}
-                onPointerDown={() => {
-                  defendRef.current = true;
-                }}
-                onPointerUp={() => {
-                  defendRef.current = false;
-                }}
-                onPointerCancel={() => {
-                  defendRef.current = false;
-                }}
-                onPointerLeave={() => {
-                  defendRef.current = false;
-                }}
-              >
-                <span className="inline-block rotate-90">DEFEND</span>
-              </button>
+            <div className="flex flex-1 min-h-0 w-full flex-col gap-3 bg-[linear-gradient(180deg,_rgba(24,24,27,0.96)_0%,_rgba(12,10,9,0.98)_100%)] p-3">
+              <div className="flex items-center justify-between gap-3 border-2 border-white/10 bg-zinc-900/80 px-4 py-3 text-[10px] tracking-[0.16em] text-zinc-400 uppercase">
+                <div>
+                  Team
+                  <p className="mt-1 text-base tracking-[0.12em] text-white">
+                    {myTeam === "team1" ? "Coder" : "Reviewer"}
+                  </p>
+                </div>
+                <p className="text-right text-[10px] leading-relaxed text-zinc-300 normal-case tracking-normal">
+                  Punch left or right.
+                  <br />
+                  Hold guard to block.
+                </p>
+              </div>
 
-              {/* Punch buttons — right column (top when held sideways) */}
-              <div className="flex flex-1 flex-col gap-2">
-                {/* Left Punch button */}
+              <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
                 <button
                   type="button"
-                  className="flex-1 touch-none rounded-none border-4 bg-zinc-800 text-3xl text-white shadow-lg select-none active:scale-95"
+                  className="flex min-h-0 touch-none flex-col items-start justify-between rounded-none border-4 px-4 py-4 text-left text-white shadow-[0_18px_40px_rgba(24,24,27,0.34)] select-none active:scale-[0.985]"
                   style={{
-                    backgroundColor: teamAccent,
+                    background: `linear-gradient(180deg, ${teamAccent}, color-mix(in srgb, ${teamAccent} 60%, #111827))`,
                     borderColor: teamAccent,
                     willChange: "transform",
                     transition: "none",
@@ -485,15 +497,52 @@ export function ControllerView() {
                     triggerLeftPunch();
                   }}
                 >
-                  <span className="inline-block rotate-90">LEFT</span>
+                  <p className="text-[10px] tracking-[0.18em] text-white/75 uppercase">
+                    Tap
+                  </p>
+                  <p className="max-w-full text-[1.55rem] leading-[0.95] sm:text-[1.8rem]">
+                    Left
+                  </p>
                 </button>
 
-                {/* Right Punch button */}
                 <button
                   type="button"
-                  className="flex-1 touch-none rounded-none border-4 bg-zinc-800 text-3xl text-white shadow-lg select-none active:scale-95"
+                  className="flex min-h-0 touch-none flex-col items-start justify-between rounded-none border-4 px-4 py-4 text-left text-white shadow-[0_22px_50px_rgba(24,24,27,0.38)] select-none active:scale-[0.985]"
                   style={{
-                    backgroundColor: teamAccent,
+                    background: `linear-gradient(180deg, ${teamAccent}, color-mix(in srgb, ${teamAccent} 56%, #18181b))`,
+                    borderColor: teamAccent,
+                    willChange: "transform",
+                    transition: "none",
+                  }}
+                  onPointerDown={() => {
+                    defendRef.current = true;
+                  }}
+                  onPointerUp={() => {
+                    defendRef.current = false;
+                  }}
+                  onPointerCancel={() => {
+                    defendRef.current = false;
+                  }}
+                  onPointerLeave={() => {
+                    defendRef.current = false;
+                  }}
+                >
+                  <div>
+                    <p className="text-[10px] tracking-[0.18em] text-white/75 uppercase">
+                      Hold
+                    </p>
+                    <p className="mt-3 max-w-full text-[1.55rem] leading-[0.95] sm:text-[1.8rem]">
+                      Guard
+                    </p>
+                  </div>
+                  <p className="max-w-full text-[11px] leading-relaxed text-white/90">Block</p>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex min-h-0 touch-none flex-col items-start justify-between rounded-none border-4 px-4 py-4 text-left text-white shadow-[0_18px_40px_rgba(24,24,27,0.34)] select-none active:scale-[0.985]"
+                  style={{
+                    background: `linear-gradient(180deg, ${teamAccent}, color-mix(in srgb, ${teamAccent} 66%, #0f172a))`,
                     borderColor: teamAccent,
                     willChange: "transform",
                     transition: "none",
@@ -502,7 +551,12 @@ export function ControllerView() {
                     triggerRightPunch();
                   }}
                 >
-                  <span className="inline-block rotate-90">RIGHT</span>
+                  <p className="text-[10px] tracking-[0.18em] text-white/75 uppercase">
+                    Tap
+                  </p>
+                  <p className="max-w-full text-[1.55rem] leading-[0.95] sm:text-[1.8rem]">
+                    Right
+                  </p>
                 </button>
               </div>
             </div>
@@ -510,5 +564,89 @@ export function ControllerView() {
         </div>
       </ForcedOrientationShell>
     </div>
+  );
+}
+
+function HeaderUtilityButton({
+  label,
+  icon,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  icon: ReactNode;
+  disabled?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onPress}
+      className="shrink-0 rounded-full border border-white/12 bg-white/6 text-white hover:bg-white/12"
+    >
+      {icon}
+    </Button>
+  );
+}
+
+function SvgIcon({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <SvgIcon>
+      <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none" />
+      <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none" />
+    </SvgIcon>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <SvgIcon>
+      <path d="M8 5l11 7-11 7z" fill="currentColor" stroke="none" />
+    </SvgIcon>
+  );
+}
+
+function HouseIcon() {
+  return (
+    <SvgIcon>
+      <path d="M4 10.5L12 4l8 6.5" />
+      <path d="M6.5 9.5V20h11V9.5" />
+      <path d="M9.5 20v-5h5v5" />
+    </SvgIcon>
+  );
+}
+
+function RotateIcon() {
+  return (
+    <SvgIcon>
+      <path d="M20 6v5h-5" />
+      <path d="M20 11a8 8 0 1 0 2 5" />
+    </SvgIcon>
   );
 }

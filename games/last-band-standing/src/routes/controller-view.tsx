@@ -127,10 +127,9 @@ const ControllerScreen = ({
   // ── Player name management ──
   const normalizedName = normalizePlayerName(nameDraft);
   const canReady = Boolean(isConnected && controllerId && phase === "lobby");
-  const canSaveName = Boolean(isConnected && controllerId && normalizedName.length >= PLAYER_NAME_MIN_LENGTH);
   const canReadyToggle = Boolean(canReady && (isReady || normalizedName.length >= PLAYER_NAME_MIN_LENGTH));
 
-  const savePlayerName = () => {
+  const commitPlayerName = () => {
     if (!controllerId) return;
 
     const nextName = normalizePlayerName(nameDraft);
@@ -147,7 +146,7 @@ const ControllerScreen = ({
 
   const toggleReady = () => {
     if (!canReadyToggle) return;
-    if (!isReady) savePlayerName();
+    if (!isReady) commitPlayerName();
     actions.setReady({ ready: !isReady });
   };
 
@@ -172,16 +171,21 @@ const ControllerScreen = ({
           </div>
         }
         rightSlot={
-          <LifecycleActionGroup
-            phase={shellPhase}
-            runtimeState={controller.runtimeState}
-            canInteract={lifecyclePermissions.canInteractForPhase}
-            onStart={lifecycleIntents.onStart}
-            onBackToLobby={lifecycleIntents.onBackToLobby}
-            onRestart={lifecycleIntents.onRestart}
-            startLabel="Start"
-            restartLabel="Reset"
-          />
+          shellPhase === "lobby" ? null : (
+            <LifecycleActionGroup
+              phase={shellPhase}
+              runtimeState={controller.runtimeState}
+              canInteract={lifecyclePermissions.canInteractForPhase}
+              onBackToLobby={lifecycleIntents.onBackToLobby}
+              onRestart={lifecycleIntents.onRestart}
+              presentation="icon"
+              visibleKinds={
+                shellPhase === "playing"
+                  ? ["pause-toggle", "back-to-lobby"]
+                  : ["restart", "back-to-lobby"]
+              }
+            />
+          )
         }
         className="border-border/60 bg-background/90"
       />
@@ -194,11 +198,11 @@ const ControllerScreen = ({
             playerCount={playerOrder.length}
             nameDraft={nameDraft}
             onNameChange={setNameDraft}
-            canSaveName={canSaveName}
-            onSaveName={savePlayerName}
+            onCommitReady={toggleReady}
+            onStartMatch={() => actions.startMatch()}
             canReadyToggle={canReadyToggle}
+            canStartMatch={canStartMatch}
             isReady={isReady}
-            onToggleReady={toggleReady}
           />
         )}
 

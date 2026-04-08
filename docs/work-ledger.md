@@ -99,6 +99,14 @@ Latest status (2026-04-08):
     3. shared dock and preview window layer
     4. platform controller-page split
     5. platform plus scaffold integration and validation
+19. the controller UX unification pass landed against the visual harness across the full five-game launch set:
+    1. shared controller shell spacing was tightened centrally in `@air-jam/sdk` so headers stay compact and lifecycle actions do not spill into awkward third-row wraps on narrow screens
+    2. `code-review`, `the-office`, and `air-capture` now enforce landscape gameplay at the top-level controller entry while keeping lobby and ended portrait
+    3. `pong` and `last-band-standing` remain portrait during gameplay as the control-reference pair
+    4. `the-office` gameplay controls now use a D-pad surface instead of four loose directional buttons
+    5. `last-band-standing` lobby no longer has a separate name `Save`; readying is now the only commit action
+    6. ended-state controller copy was simplified so it no longer implies players are waiting on a host-only lifecycle action path
+    7. the full standalone visual matrix was rerun after the refactor and produced fresh `lobby` / `playing` / `ended` artifacts for `pong`, `air-capture`, `code-review`, `the-office`, and `last-band-standing`
 
 ## Release-Critical Path
 
@@ -270,7 +278,8 @@ Completed baselines now folded into this phase:
        15. `last-band-standing` `ended`
     7. harness-only selectors are now being added where needed instead of forcing scenario packs to depend on ambiguous repeated UI copy, e.g. `air-capture` bot controls
     8. `ForcedOrientationShell` now derives current orientation from actual viewport geometry before `screen.orientation`, which fixed the previously rotated/incorrect controller screenshots in Playwright-driven portrait captures
-    9. the original `@air-jam/sdk` rebuild bottleneck is reduced now that visual capture reuses cached SDK output when sources are unchanged; the remaining bottleneck is no longer lifecycle coverage, but using that coverage to do real UI cleanup and extending prebuild reuse beyond the SDK
+    9. gameplay controller captures are now orientation-aware: `code-review`, `the-office`, and `air-capture` `playing` scenarios write true landscape controller screenshots instead of portrait screenshots containing rotated landscape UIs
+    10. the original `@air-jam/sdk` rebuild bottleneck is reduced now that visual capture reuses cached SDK output when sources are unchanged; the remaining bottleneck is no longer lifecycle coverage, but using that coverage to do real UI cleanup and extending prebuild reuse beyond the SDK
 27. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
 
 ### Priority 5. Release PR And Publish

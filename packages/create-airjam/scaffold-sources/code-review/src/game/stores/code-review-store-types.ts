@@ -21,7 +21,6 @@ export interface CodeReviewGameState {
   matchSummary: CodeReviewMatchSummary | null;
   scores: { team1: number; team2: number };
   teamAssignments: Record<string, TeamAssignment>;
-  readyByPlayerId: Record<string, boolean>;
   botCounts: BotCounts;
   actions: {
     startMatch: (
@@ -43,10 +42,6 @@ export interface CodeReviewGameState {
     joinTeam: (
       ctx: AirJamActionContext,
       payload: { team: Team },
-    ) => void;
-    setReady: (
-      ctx: AirJamActionContext,
-      payload: { ready: boolean },
     ) => void;
     setBotCount: (
       ctx: AirJamActionContext,

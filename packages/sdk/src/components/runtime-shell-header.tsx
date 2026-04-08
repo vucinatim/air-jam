@@ -19,15 +19,15 @@ export const RuntimeShellHeader = ({
   return (
     <header
       className={cn(
-        "flex flex-col gap-2 border-b border-white/10 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-3",
+        "flex min-h-[3.5rem] items-center gap-3 border-b border-white/10 px-3 py-2 sm:px-4",
         className,
       )}
     >
-      <div className="min-w-0 w-full sm:flex-1">{leftSlot}</div>
-      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:flex-none sm:justify-end">
+      <div className="min-w-0 flex-1">{leftSlot}</div>
+      <div className="flex shrink-0 items-center gap-2">
         <ConnectionStatusPill status={connectionStatus} />
         {rightSlot ? (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none">
+          <div className="flex items-center justify-end">
             {rightSlot}
           </div>
         ) : null}

@@ -9,16 +9,6 @@ import type { CodeReviewGameState } from "./code-review-store-types";
 
 const MAX_PLAYERS_PER_TEAM = 2;
 
-const readyMapsEqual = (
-  a: Record<string, boolean>,
-  b: Record<string, boolean>,
-): boolean => {
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) return false;
-  return aKeys.every((key) => a[key] === b[key]);
-};
-
 const botCountsEqual = (
   left: CodeReviewGameState["botCounts"],
   right: CodeReviewGameState["botCounts"],
@@ -59,7 +49,6 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
   matchSummary: null,
   scores: { team1: 0, team2: 0 },
   teamAssignments: {},
-  readyByPlayerId: {},
   botCounts: { team1: 0, team2: 0 },
 
   actions: {
@@ -127,17 +116,10 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
           state.teamAssignments,
           connectedPlayerIds,
         );
-        const connectedSet = new Set(connectedPlayerIds);
-        const nextReadyByPlayerId = Object.fromEntries(
-          Object.entries(state.readyByPlayerId).filter(([playerId]) =>
-            connectedSet.has(playerId),
-          ),
-        );
         const nextBotCounts = clampBotCounts(state.botCounts, nextAssignments);
 
         if (
           assignmentsEqual(nextAssignments, state.teamAssignments) &&
-          readyMapsEqual(nextReadyByPlayerId, state.readyByPlayerId) &&
           botCountsEqual(nextBotCounts, state.botCounts)
         ) {
           return state;
@@ -145,7 +127,6 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
 
         return {
           teamAssignments: nextAssignments,
-          readyByPlayerId: nextReadyByPlayerId,
           botCounts: nextBotCounts,
         };
       }),
@@ -205,33 +186,7 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
         const nextBotCounts = clampBotCounts(currentBotCounts, normalizedAssignments);
         return {
           teamAssignments: normalizedAssignments,
-          readyByPlayerId: {
-            ...state.readyByPlayerId,
-            [actorId]: false,
-          },
           botCounts: nextBotCounts,
-        };
-      }),
-
-    setReady: ({ actorId }, { ready }) =>
-      set((state) => {
-        if (!actorId) {
-          return state;
-        }
-
-        if (!state.teamAssignments[actorId]) {
-          return state;
-        }
-
-        if ((state.readyByPlayerId[actorId] ?? false) === ready) {
-          return state;
-        }
-
-        return {
-          readyByPlayerId: {
-            ...state.readyByPlayerId,
-            [actorId]: ready,
-          },
         };
       }),
 
@@ -273,7 +228,6 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
           matchSummary: null,
           scores: { team1: 0, team2: 0 },
           teamAssignments: {},
-          readyByPlayerId: {},
           botCounts: { team1: 0, team2: 0 },
         };
       }),

@@ -15,12 +15,7 @@ import {
   getLobbyReadinessText,
   getMatchReadiness,
   getTeamCounts,
-  type TeamCounts,
 } from "../game/domain/match-readiness";
-import {
-  getEffectiveTeamCounts,
-  getMaxBotsForTeam,
-} from "../game/domain/team-slots";
 import { usePrototypeMatchStore } from "../game/stores/match/match-store";
 import {
   ControllerAudioProvider,
@@ -44,20 +39,20 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
   runtimeState,
   canSendSystemCommand,
   canStartMatch,
+  onReturnToLobby,
   onStartMatch,
   onRestartMatch,
-  onReturnToLobby,
 }: {
   myProfile: PlayerProfile | null;
   roomId: string | null;
   connectionStatus: ControllerConnectionStatus;
   matchPhase: ControllerMatchPhase;
-  runtimeState: "paused" | "playing";
+  runtimeState?: "playing" | "paused";
   canSendSystemCommand: boolean;
   canStartMatch: boolean;
+  onReturnToLobby: () => void;
   onStartMatch: () => void;
   onRestartMatch: () => void;
-  onReturnToLobby: () => void;
 }) {
   const controller = useAirJamController();
 
@@ -175,19 +170,6 @@ const ControllerScreen = () => {
     [botCounts, pointsToWin, teamCounts],
   );
 
-  const effectiveCounts: TeamCounts = useMemo(
-    () => getEffectiveTeamCounts(teamCounts, botCounts),
-    [botCounts, teamCounts],
-  );
-
-  const maxBotsByTeam: TeamCounts = useMemo(
-    () => ({
-      solaris: getMaxBotsForTeam(teamCounts.solaris),
-      nebulon: getMaxBotsForTeam(teamCounts.nebulon),
-    }),
-    [teamCounts],
-  );
-
   const desiredOrientation =
     matchPhase === "countdown" || matchPhase === "playing"
       ? "landscape"
@@ -204,21 +186,21 @@ const ControllerScreen = () => {
           runtimeState={controllerState.runtimeState}
           canSendSystemCommand={canSendSystemCommand}
           canStartMatch={readiness.canStart}
+          onReturnToLobby={() => actions.returnToLobby()}
           onStartMatch={() => actions.startMatch()}
           onRestartMatch={() => actions.restartMatch()}
-          onReturnToLobby={() => actions.returnToLobby()}
         />
 
         {matchPhase === "lobby" ? (
           <ControllerLobbyPanel
             myTeam={myTeam}
             controlsDisabled={controlsDisabled}
-            effectiveCounts={effectiveCounts}
+            teamCounts={teamCounts}
             botCounts={botCounts}
-            maxBotsByTeam={maxBotsByTeam}
             pointsToWin={pointsToWin}
             readinessText={readinessText}
-            canStart={readiness.canStart}
+            canStartMatch={readiness.canStart}
+            onStartMatch={() => actions.startMatch()}
             teamPlayers={teamPlayers}
             onSelectTeam={(teamId) => actions.joinTeam({ teamId })}
             onSetTeamBotCount={(teamId, count) =>
@@ -227,14 +209,10 @@ const ControllerScreen = () => {
             onSetPointsToWin={(nextPointsToWin) =>
               actions.setPointsToWin({ pointsToWin: nextPointsToWin })
             }
-            onStartMatch={() => actions.startMatch()}
           />
         ) : matchPhase === "ended" ? (
           <ControllerEndedPanel
             matchSummary={matchSummary}
-            controlsDisabled={controlsDisabled}
-            onRestartMatch={() => actions.restartMatch()}
-            onReturnToLobby={() => actions.returnToLobby()}
           />
         ) : (
           <ControllerPlayingControls

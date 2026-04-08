@@ -11,15 +11,29 @@ export const STANDARD_CONTROLLER_VIEWPORTS = [
   ['small-mobile', { width: 360, height: 640 }],
 ] as const satisfies readonly [string, VisualViewport][];
 
+export const STANDARD_CONTROLLER_LANDSCAPE_VIEWPORTS = [
+  ['mobile', { width: 844, height: 390 }],
+  ['small-mobile', { width: 640, height: 360 }],
+] as const satisfies readonly [string, VisualViewport][];
+
 export const captureStandardSurfaces = async (
   context: VisualScenarioContext,
+  options?: {
+    controllerOrientation?: 'portrait' | 'landscape';
+  },
 ): Promise<void> => {
   for (const [viewportName, viewport] of STANDARD_HOST_VIEWPORTS) {
     await context.captureHost(viewportName, viewport);
   }
 
   await context.ensureControllerInteractive();
-  for (const [viewportName, viewport] of STANDARD_CONTROLLER_VIEWPORTS) {
+  const controllerOrientation = options?.controllerOrientation ?? 'portrait';
+  const controllerViewports =
+    controllerOrientation === 'landscape'
+      ? STANDARD_CONTROLLER_LANDSCAPE_VIEWPORTS
+      : STANDARD_CONTROLLER_VIEWPORTS;
+  context.note(`Captured controller surfaces in ${controllerOrientation} orientation.`);
+  for (const [viewportName, viewport] of controllerViewports) {
     await context.captureController(viewportName, viewport);
   }
 };

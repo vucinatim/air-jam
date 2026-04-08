@@ -16,7 +16,7 @@ const prepareLobbyState = async (
 
   await context.controller.game.getByRole("button", { name: "Špela" }).click();
   await context.controller.game
-    .getByRole("button", { name: "Tap To Ready" })
+    .getByRole("button", { name: "Ready" })
     .click();
 
   await waitForHostText(context, "Špela", 20_000);
@@ -53,7 +53,9 @@ export const visualHarness = {
         "Playing surface after one controller selects a character, readies up, and the host starts the match.",
       run: async (context) => {
         await preparePlayingState(context);
-        await captureStandardSurfaces(context);
+        await captureStandardSurfaces(context, {
+          controllerOrientation: "landscape",
+        });
       },
     },
     {

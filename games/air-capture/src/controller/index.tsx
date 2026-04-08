@@ -15,12 +15,7 @@ import {
   getLobbyReadinessText,
   getMatchReadiness,
   getTeamCounts,
-  type TeamCounts,
 } from "../game/domain/match-readiness";
-import {
-  getEffectiveTeamCounts,
-  getMaxBotsForTeam,
-} from "../game/domain/team-slots";
 import { usePrototypeMatchStore } from "../game/stores/match/match-store";
 import {
   ControllerAudioProvider,
@@ -175,19 +170,6 @@ const ControllerScreen = () => {
     [botCounts, pointsToWin, teamCounts],
   );
 
-  const effectiveCounts: TeamCounts = useMemo(
-    () => getEffectiveTeamCounts(teamCounts, botCounts),
-    [botCounts, teamCounts],
-  );
-
-  const maxBotsByTeam: TeamCounts = useMemo(
-    () => ({
-      solaris: getMaxBotsForTeam(teamCounts.solaris),
-      nebulon: getMaxBotsForTeam(teamCounts.nebulon),
-    }),
-    [teamCounts],
-  );
-
   const desiredOrientation =
     matchPhase === "countdown" || matchPhase === "playing"
       ? "landscape"
@@ -213,11 +195,12 @@ const ControllerScreen = () => {
           <ControllerLobbyPanel
             myTeam={myTeam}
             controlsDisabled={controlsDisabled}
-            effectiveCounts={effectiveCounts}
+            teamCounts={teamCounts}
             botCounts={botCounts}
-            maxBotsByTeam={maxBotsByTeam}
             pointsToWin={pointsToWin}
             readinessText={readinessText}
+            canStartMatch={readiness.canStart}
+            onStartMatch={() => actions.startMatch()}
             teamPlayers={teamPlayers}
             onSelectTeam={(teamId) => actions.joinTeam({ teamId })}
             onSetTeamBotCount={(teamId, count) =>

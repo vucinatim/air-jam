@@ -15,7 +15,9 @@ const prepareLobbyState = async (
   await waitForHostText(context, "Join Room");
   await context.ensureControllerInteractive();
 
-  await context.controller.game.getByRole("button", { name: "Solaris" }).click();
+  await context.controller.game
+    .getByTestId("air-capture-controller-join-team-solaris")
+    .click();
 
   await context.host.game
     .getByText(/Ready\. First to|Add players or bots to|Teams are incomplete\./i)
@@ -34,7 +36,7 @@ const preparePlayingState = async (
   await prepareLobbyState(context);
 
   await context.controller.game
-    .getByTestId("air-capture-bot-controls-nebulon-increment")
+    .getByTestId("air-capture-controller-add-bot-nebulon")
     .click();
 
   await context.host.game
@@ -90,7 +92,9 @@ export const visualHarness = {
         }
 
         await preparePlayingState(context);
-        await captureStandardSurfaces(context);
+        await captureStandardSurfaces(context, {
+          controllerOrientation: "landscape",
+        });
       },
     },
     {

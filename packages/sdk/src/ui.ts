@@ -1,6 +1,7 @@
 // Optional UI entrypoint. Core runtime stays headless at `@air-jam/sdk`.
 export * from "./components/forced-orientation-shell";
 export * from "./components/connection-status-pill";
+export * from "./components/controller-primary-action";
 export * from "./components/join-url-action-buttons";
 export * from "./components/lifecycle-action-group";
 export * from "./components/join-url-field";
