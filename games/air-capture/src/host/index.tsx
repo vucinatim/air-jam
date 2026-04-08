@@ -6,6 +6,10 @@ import {
   type PlayerProfile,
 } from "@air-jam/sdk";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import {
   Suspense,
@@ -335,6 +339,92 @@ const HostViewContent = ({
     onStartMatch: () => matchActions.startMatch(),
   });
   const joinQrValue = hostLobbyShell.joinUrlValue;
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase,
+      runtimeState,
+    });
+  }, [
+    host.joinUrl,
+    host.joinUrlStatus,
+    host.roomId,
+    matchPhase,
+    runtimeState,
+  ]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      setPointsToWin: (payload) => {
+        const nextPointsToWin =
+          typeof payload === "number" && Number.isFinite(payload)
+            ? payload
+            : typeof payload === "string"
+              ? Number(payload)
+              : NaN;
+
+        if (!Number.isFinite(nextPointsToWin)) {
+          return false;
+        }
+
+        matchActions.setPointsToWin({ pointsToWin: nextPointsToWin });
+        return true;
+      },
+      endMatch: (payload) => {
+        if (
+          !payload ||
+          typeof payload !== "object" ||
+          !("winner" in payload) ||
+          !("finalScores" in payload)
+        ) {
+          return false;
+        }
+
+        const nextWinner = (
+          payload as {
+            winner: unknown;
+            finalScores: { solaris?: unknown; nebulon?: unknown };
+          }
+        ).winner;
+        const nextScores = (
+          payload as {
+            winner: unknown;
+            finalScores: { solaris?: unknown; nebulon?: unknown };
+          }
+        ).finalScores;
+
+        if (
+          (nextWinner !== "solaris" && nextWinner !== "nebulon") ||
+          typeof nextScores !== "object" ||
+          nextScores === null ||
+          typeof nextScores.solaris !== "number" ||
+          typeof nextScores.nebulon !== "number"
+        ) {
+          return false;
+        }
+
+        matchActions.endMatch({
+          winner: nextWinner,
+          finalScores: {
+            solaris: nextScores.solaris,
+            nebulon: nextScores.nebulon,
+          },
+        });
+        return true;
+      },
+    });
+  }, [matchActions]);
 
   const showPausedOverlay =
     (matchPhase === "countdown" || matchPhase === "playing") &&

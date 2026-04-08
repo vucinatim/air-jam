@@ -6,6 +6,10 @@ import {
   RoomQrCode,
   useHostLobbyShell,
 } from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Position, type Team } from "../game/domain/team-assignments";
 import {
@@ -594,6 +598,59 @@ export function HostView() {
     joinUrl: host.joinUrl,
     canStartMatch,
   });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase,
+      runtimeState: host.runtimeState,
+    });
+  }, [
+    host.joinUrl,
+    host.joinUrlStatus,
+    host.roomId,
+    host.runtimeState,
+    matchPhase,
+  ]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      forceEndMatch: (payload) => {
+        const nextScores =
+          payload && typeof payload === "object" && payload !== null
+            ? (payload as {
+                scores?: { team1?: number; team2?: number };
+              })
+            : null;
+
+        const team1 =
+          nextScores?.scores?.team1 ?? Math.max(MATCH_POINTS_TO_WIN, 1);
+        const team2 = nextScores?.scores?.team2 ?? 0;
+        const pointDiff = Math.max(0, team1 - scores.team1);
+        for (let index = 0; index < pointDiff; index += 1) {
+          actions.scorePoint({ team: "team1" });
+        }
+
+        const reviewerDiff = Math.max(0, team2 - scores.team2);
+        for (let index = 0; index < reviewerDiff; index += 1) {
+          actions.scorePoint({ team: "team2" });
+        }
+
+        actions.finishMatch();
+        return true;
+      },
+    });
+  }, [actions, scores.team1, scores.team2]);
 
   useHostRuntimeStateBridge({
     matchPhase,

@@ -1185,7 +1185,7 @@ const generatedContentDocsDocuments = [
       },
       {
         title: "RuntimeState",
-        slug: "gamestate",
+        slug: "runtimestate",
         depth: 3,
         excerpt: 'type RuntimeState = "playing" | "paused";',
       },

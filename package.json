@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@air-jam/runtime-topology": "workspace:^",
+    "@air-jam/visual-harness": "workspace:^",
     "commander": "^14.0.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",

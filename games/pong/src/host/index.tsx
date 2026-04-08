@@ -6,6 +6,10 @@ import {
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getMatchReadiness } from "../game/domain/match-readiness";
 import { getTeamCounts } from "../game/domain/team-slots";
@@ -91,6 +95,52 @@ function HostScreen() {
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
   });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase,
+      runtimeState,
+    });
+  }, [host.joinUrl, host.joinUrlStatus, host.roomId, matchPhase, runtimeState]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      setPointsToWin: (payload) => {
+        const nextPointsToWin =
+          typeof payload === "number" && Number.isFinite(payload)
+            ? payload
+            : typeof payload === "string"
+              ? Number(payload)
+              : NaN;
+
+        if (!Number.isFinite(nextPointsToWin)) {
+          return false;
+        }
+
+        actions.setPointsToWin({ pointsToWin: nextPointsToWin });
+        return true;
+      },
+      scorePoint: (payload) => {
+        if (payload !== "team1" && payload !== "team2") {
+          return false;
+        }
+
+        actions.scorePoint({ team: payload });
+        return true;
+      },
+    });
+  }, [actions]);
 
   const showPausedOverlay =
     matchPhase === "playing" && runtimeState !== "playing";

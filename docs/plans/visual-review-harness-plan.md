@@ -14,6 +14,8 @@ Related docs:
 Prerequisite status:
 
 1. the standard lifecycle contract reset is complete, so this plan is no longer blocked on lifecycle semantics
+2. the first Phase 1 vertical slice is proven and expanded: standalone capture now produces deterministic artifacts for launch-set scenarios across multiple games
+3. the current implementation priority is the harness architecture reset: internal package extraction, dedicated visual stack adapters, and bridge-backed standalone capture as the default path
 
 ## Purpose
 
@@ -83,6 +85,22 @@ Once the first vertical slice is proven:
 
 This makes the harness a dependable prerelease UI tool for this repo.
 
+Current rollout state:
+
+1. `code-review`: `lobby`, `playing`, `ended`
+2. `the-office`: `lobby`, `playing`, `ended`
+3. `pong`: `lobby`, `playing`, `ended`
+4. `air-capture`: `lobby`, `playing`, `ended`
+5. `last-band-standing`: `lobby`, `playing`, `ended`
+6. bridge snapshots now publish canonical controller join URLs only after the host capability-bearing join URL is actually ready, so the runner no longer needs host-field scraping
+7. controller capture orientation is now trustworthy again after fixing `ForcedOrientationShell` to derive current orientation from the actual viewport before browser-reported `screen.orientation`
+
+Current next-step priority inside Phase 2:
+
+1. start using the full lifecycle capture surface for real UI cleanup and responsiveness fixes game by game
+2. extend the current prebuild cache beyond `@air-jam/sdk` so repeated capture runs avoid other unnecessary rebuild work too
+3. keep expanding game-owned scenario packs only for truly useful special states before adding diff/baseline infrastructure
+
 ### Phase 3. Scaffold And Standalone Promotion
 
 Once the contract is stable:
@@ -149,15 +167,61 @@ This should make the following loop normal:
 
 That is the baseline outcome for Phase 1.
 
+## Architecture Reset
+
+The first vertical slice proved that the artifact/scenario model is right, but it also exposed a bad implementation seam: the current harness runner is still coupled to the interactive local dev path.
+
+That coupling is the wrong architecture for a deterministic automation system.
+
+The rewrite should follow these rules:
+
+1. move the reusable harness core into an internal workspace package: `packages/visual-harness`
+2. keep repo commands and repo stack boot only as thin adapters on top of that package
+3. stop treating `airjam dev` as the harness runtime; use a dedicated visual stack boot path instead
+4. expose canonical runtime data to the harness through a structured dev bridge instead of DOM/UI scraping
+5. make Vite proxy routing and in-browser runtime routing derive from one backend-origin contract
+6. isolate each harness run with its own ports and fresh runtime/session namespace
+
+This reset should happen before wider rollout across more games.
+
+## Proper System
+
+The professional architecture for Phase 1 is:
+
+1. `packages/visual-harness`
+   1. scenario types
+   2. artifact writers
+   3. viewport presets
+   4. capture runner
+   5. failure artifact handling
+   6. runtime bridge contract types
+2. repo adapters
+   1. repo game discovery
+   2. repo visual command wiring
+   3. standalone visual stack adapter
+   4. arcade integration stack adapter
+3. game-owned scenario packs
+   1. still live with each game
+   2. consume the shared package contract
+4. dev-only runtime bridge
+   1. canonical join URL
+   2. room id
+   3. lifecycle checkpoint data
+   4. optional readiness/player-count state
+
+The harness package must stay internal for now. It should not be published until the adapter seams are proven.
+
 ## Decision Summary
 
-1. build a repo-owned visual harness instead of relying on attached-browser-only workflows
-2. reuse Playwright, the existing browser smoke stack, and workspace Arcade/runtime commands
-3. keep the harness useful for humans, CI, and agents, not AI-only
-4. use game-owned scenario files, not one giant central flow engine
-5. write artifacts to a stable deterministic output path
-6. clean outputs on rerun for the same game/scenario so artifacts do not grow forever
-7. treat Phase 1 as screenshot-and-metadata capture, not visual diff infrastructure
+1. build an internal `packages/visual-harness` package instead of growing a script-only subsystem
+2. keep repo commands and runtime launch details as thin adapters over that package
+3. use dedicated visual stack boot paths instead of reusing interactive `airjam dev` directly
+4. expose canonical runtime data through a structured dev bridge, not DOM/UI scraping
+5. keep the harness useful for humans, CI, and agents, not AI-only
+6. use game-owned scenario files, not one giant central flow engine
+7. write artifacts to a stable deterministic output path
+8. clean outputs on rerun for the same game/scenario so artifacts do not grow forever
+9. treat Phase 1 as screenshot-and-metadata capture, not visual diff infrastructure
 
 ## Why This Wins Over Attached-Browser-Only
 
@@ -196,6 +260,48 @@ Out of scope:
 6. immediate standalone `create-airjam` packaging work
 7. AI Studio integration in the first implementation
 
+## Rewrite Workstreams
+
+### Workstream A. Internal Package Extraction
+
+1. create `packages/visual-harness`
+2. move scenario types, artifact types, viewport presets, and runner logic into the package
+3. keep repo command entrypoints in `scripts/repo`, but make them thin adapters
+4. do not publish the package yet
+
+### Workstream B. Dedicated Visual Stack Adapters
+
+1. add a dedicated standalone visual stack adapter
+2. add an arcade integration adapter separately
+3. the standalone adapter must not call the human-first dev runner as its primary contract
+4. each run must allocate isolated ports and avoid clashing with default local dev ports
+
+### Workstream C. Unified Backend-Origin Contract
+
+1. Vite dev proxy and in-browser runtime must derive from one backend-origin value
+2. the visual stack adapter must provide that one value once
+3. avoid split env knobs that can diverge under harness execution
+
+### Workstream D. Structured Dev Bridge
+
+1. each game runtime must expose canonical harness data in dev mode
+2. minimum bridge payload:
+   1. room id
+   2. controller join URL
+   3. current `matchPhase`
+   4. current `runtimeState`
+3. scenarios may still use UI interactions, but the harness must not scrape UI to discover control-plane state
+
+### Workstream E. Re-Prove Reference Slice
+
+Status: completed baseline
+
+Completed proof:
+
+1. the repo command is now wired to the internal package and repo adapters
+2. `code-review` `standalone-dev` `lobby`, `playing`, and `ended` are proven
+3. the rollout has expanded to the full launch set
+
 ## Core Contract
 
 ## Command Contract
@@ -206,7 +312,8 @@ Illustrative command shape:
 
 1. `pnpm run repo -- visual capture --game=code-review`
 2. `pnpm run repo -- visual capture --game=code-review --scenario=host-lobby`
-3. `pnpm run repo -- visual capture --game=code-review --mode=arcade-built`
+3. `pnpm run repo -- visual capture --game=code-review --mode=standalone-dev`
+4. `pnpm run repo -- visual capture --game=code-review --mode=arcade-built`
 
 The exact flag names can be finalized during implementation, but the command must stay:
 
@@ -250,6 +357,7 @@ Rules:
 2. no timestamped nested directories by default
 3. optional retention modes can come later, but default behavior is clean overwrite
 4. failures should still leave the most recent metadata and any partial screenshots behind for debugging
+5. failures should also try to persist best-effort host/controller diagnostic screenshots so agents can inspect the broken intermediate state without rerunning blind
 
 ## Scenario Contract
 
@@ -279,7 +387,7 @@ Not every game must support every scenario on day one, but the contract should m
 The harness should work in this priority order:
 
 1. standard preset checkpoints
-2. optional game lifecycle adapter
+2. optional future lifecycle adapter
 3. full custom scenario code only when necessary
 
 ### Standard Preset Checkpoints
@@ -293,11 +401,17 @@ The default harness checkpoints should be:
 
 These should work out of the box for standard-lifecycle projects without any per-game state declarations.
 
-### Optional Game Lifecycle Adapter
+### Optional Future Lifecycle Adapter
 
-Games with richer internal lifecycle detail should be able to provide a small adapter that maps local lifecycle semantics onto the standard checkpoints.
+Games with richer internal lifecycle detail may later provide a small adapter that maps local lifecycle semantics onto the standard checkpoints.
 
-That adapter should be the preferred extension point when a game only needs to map:
+This is not part of the Phase 1 runtime surface today. The current extension points are:
+
+1. game-owned scenario files
+2. bridge snapshots
+3. bridge actions for deterministic setup
+
+If we add an adapter later, it should stay small and only cover lightweight checkpoint mapping such as:
 
 1. its local lifecycle field
 2. local values corresponding to `lobby`
@@ -337,11 +451,19 @@ This runner should not contain game-specific lobby logic.
 
 Reuse existing seams where possible:
 
-1. workspace Arcade commands and topology helpers
+1. workspace standalone and Arcade commands and topology helpers
 2. browser smoke stack patterns
 3. controller join helpers in `tests/browser/helpers/`
 
 If shared helpers need to be extracted from current smoke tests, do that rather than duplicating them.
+
+Immediate helper targets:
+
+1. shared host/controller viewport presets
+2. shared standard surface capture helpers
+3. simple host/controller text wait helpers for scenario assertions
+4. shared failure screenshot capture in the runner
+5. runtime-neutral page/frame query surfaces so the same scenario files work in standalone and Arcade
 
 ## 3. Game-Owned Scenario Modules
 
@@ -355,9 +477,7 @@ Each scenario module should be plain and explicit.
 
 No DSL is required if simple TypeScript functions stay cleaner.
 
-In addition, a game may optionally expose a small lifecycle adapter module.
-
-That adapter should stay much smaller than a full custom scenario file and should be preferred whenever the only need is mapping richer local lifecycle values to the standard harness checkpoints.
+In the future, a game may optionally expose a small lifecycle adapter module if checkpoint mapping becomes repetitive enough to justify it. That is not required for the current Phase 1 design.
 
 ## 4. Standard Viewport Presets
 
@@ -383,11 +503,13 @@ The goal is to surface the common layout failures, not to model every device cla
 2. add a `capture` command for one game
 3. implement artifact directory cleanup and metadata writing
 4. define viewport presets and file naming
+5. support both `standalone-dev` and `arcade-built`, with `standalone-dev` as the default
 
 Done when:
 
 1. one command can create a clean artifact folder for one game
 2. reruns overwrite the same artifact paths deterministically
+3. default visual review does not require the platform unless Arcade integration proof is explicitly requested
 
 ### Workstream B. Shared Playwright Harness
 
@@ -395,14 +517,16 @@ Done when:
 2. add host/controller page boot utilities
 3. add join-flow utilities for controller pages
 4. add shared screenshot capture helpers
+5. add best-effort host/controller failure screenshots on scenario errors
 
 Done when:
 
 1. the harness can drive host + controller for one game without inline duplicated flow code
+2. a broken scenario still leaves actionable failure artifacts behind
 
-### Workstream C. First Game Vertical Slice
+### Workstream C. Reference Rollout And Contract Lock
 
-Start with one game, preferably `code-review`, because it currently has obvious layout pressure and clear host/controller/lobby states.
+The original `code-review` vertical slice is complete. Phase 1 now uses the launch set as the proof surface for the shared contract.
 
 Implement:
 
@@ -411,11 +535,22 @@ Implement:
 3. `playing`
 4. `ended`
 
+Current rollout status:
+
+1. `code-review`: `lobby`, `playing`, `ended`
+2. `the-office`: `lobby`, `playing`, `ended`
+3. `pong`: `lobby`, `playing`, `ended`
+4. `air-capture`: `lobby`, `playing`, `ended`
+5. `last-band-standing`: `lobby`, `playing`, `ended`
+6. shared viewport helpers, failure screenshots, bridge snapshots, and bridge actions are all part of the current runner contract
+7. standalone capture is the default proof path; Arcade remains a secondary integration mode
+
 Done when:
 
-1. the agent can run one command for `code-review`
-2. screenshots are produced in stable paths
+1. the agent can run one command for any launch-set game
+2. screenshots are produced in stable paths for `lobby`, `playing`, and `ended`
 3. artifacts are sufficient to diagnose common host/controller layout breakage
+4. deterministic terminal-state setup uses explicit game-owned seams instead of brittle timing hacks
 
 ### Workstream D. Launch-Set Expansion
 
@@ -426,9 +561,13 @@ Expand to:
 3. `last-band-standing`
 4. `the-office`
 
+Status: completed baseline
+
 Done when:
 
-1. each launch-set game has at least baseline host/controller lobby coverage
+1. each launch-set game has baseline host/controller lifecycle coverage
+2. the shared helper layer is reused instead of being copied into each game scenario file
+3. the harness is ready to support real UI cleanup instead of further coverage-chasing
 
 ### Workstream E. Agent Workflow Documentation
 
@@ -453,7 +592,7 @@ The reusable parts later should be:
 2. viewport presets
 3. metadata contract
 4. screenshot artifact layout
-5. standard-preset plus adapter model
+5. standard preset checkpoints plus the current bridge/scenario contract, with an adapter layer added later only if it earns its complexity
 
 The repo-only parts in Phase 1 can be:
 
@@ -490,7 +629,7 @@ The future system should support this flow:
 Studio should follow the same priority order:
 
 1. standard presets first
-2. lifecycle-adapter mapping second
+2. bridge-backed scenario mapping second
 3. full custom scenario orchestration only when necessary
 
 ## Risks
@@ -518,6 +657,8 @@ Phase 1 is successful when:
 
 1. an agent can run one command for a specific game and get deterministic host/controller screenshots on disk
 2. rerunning the same capture cleans and rewrites the same artifact paths
+3. failed runs still produce actionable metadata and best-effort failure screenshots
+4. launch-set games can reuse the same shared helper layer instead of owning duplicated viewport/capture boilerplate
 3. the captured screenshots are sufficient to diagnose common host/controller layout issues
 4. the harness reuses existing repo browser/runtime seams rather than duplicating stack logic
 5. the contract is clean enough to promote later into `create-airjam` and AI Studio

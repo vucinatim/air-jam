@@ -7,6 +7,10 @@ import {
   RoomQrCode,
   useHostLobbyShell,
 } from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { gameInputSchema } from "../game/input";
 import { useGameState } from "../hooks/use-game-state";
@@ -79,8 +83,40 @@ export function HostView() {
     onStartMatch: startMatch,
   });
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase,
+      runtimeState: host.runtimeState,
+    });
+  }, [host.joinUrl, host.joinUrlStatus, host.roomId, host.runtimeState, matchPhase]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      forceEndMatch: () => {
+        if (matchPhase !== "playing") {
+          return false;
+        }
+
+        storeActions.setGameOver({ gameOver: true });
+        storeActions.setMatchPhase({ phase: "ended" });
+        return true;
+      },
+    });
+  }, [matchPhase, storeActions]);
+
   useHostRuntimeStateBridge({
-    matchPhase: matchPhase,
+    matchPhase,
     runtimeState: host.runtimeState,
     toggleRuntimeState: host.toggleRuntimeState,
   });

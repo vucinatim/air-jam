@@ -10,6 +10,7 @@ import { registerPlatformCommands } from "./commands/platform.mjs";
 import { registerScaffoldCommands } from "./commands/scaffold.mjs";
 import { registerSmokeCommands } from "./commands/smoke.mjs";
 import { registerStandardsCommands } from "./commands/standards.mjs";
+import { registerVisualCommands } from "./commands/visual.mjs";
 import { registerWorkspaceCommands } from "./commands/workspace.mjs";
 
 const program = new Command();
@@ -28,5 +29,6 @@ registerPackCommands(program);
 registerScaffoldCommands(program);
 registerSmokeCommands(program);
 registerStandardsCommands(program);
+registerVisualCommands(program);
 
 await program.parseAsync(process.argv.filter((value) => value !== "--"));

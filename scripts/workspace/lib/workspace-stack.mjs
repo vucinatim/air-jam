@@ -1,5 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { createWorkspaceDevLogSink } from "./workspace-dev-log-sink.mjs";
@@ -128,25 +129,130 @@ export const reserveWorkspaceResources = async ({
   }
 };
 
-export const createWorkspaceProcessGroup = ({ rootDir = process.cwd() } = {}) => {
+export const findAvailablePort = async () =>
+  new Promise((resolve, reject) => {
+    const server = net.createServer();
+
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close(() => reject(new Error("Could not resolve an available port.")));
+        return;
+      }
+
+      const { port } = address;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(port);
+      });
+    });
+  });
+
+const readNewestMtimeMs = (targetPath) => {
+  if (!existsSync(targetPath)) {
+    return 0;
+  }
+
+  const stats = statSync(targetPath);
+  if (!stats.isDirectory()) {
+    return stats.mtimeMs;
+  }
+
+  let newestMtimeMs = stats.mtimeMs;
+  for (const entry of readdirSync(targetPath, { withFileTypes: true })) {
+    newestMtimeMs = Math.max(
+      newestMtimeMs,
+      readNewestMtimeMs(path.join(targetPath, entry.name)),
+    );
+  }
+
+  return newestMtimeMs;
+};
+
+export const ensureWorkspacePackageBuild = ({
+  rootDir,
+  packageDir,
+  label,
+  buildArgs,
+  sourcePaths = ["src", "package.json", "tsconfig.json", "tsup.config.ts"],
+  distCheckFile = "dist/index.js",
+}) => {
+  const resolvedPackageDir = path.resolve(rootDir, packageDir);
+  const distCheckPath = path.join(resolvedPackageDir, distCheckFile);
+  const latestSourceMtimeMs = sourcePaths.reduce((latest, relativeSourcePath) => {
+    return Math.max(
+      latest,
+      readNewestMtimeMs(path.join(resolvedPackageDir, relativeSourcePath)),
+    );
+  }, 0);
+  const distMtimeMs = readNewestMtimeMs(distCheckPath);
+
+  if (distMtimeMs > 0 && distMtimeMs >= latestSourceMtimeMs) {
+    console.log(`[visual] Reusing cached ${label} build.`);
+    return false;
+  }
+
+  console.log(`[visual] Building ${label}.`);
+  execFileSync("pnpm", buildArgs, {
+    cwd: rootDir,
+    stdio: "inherit",
+    env: process.env,
+  });
+  return true;
+};
+
+export const createWorkspaceProcessGroup = ({
+  rootDir = process.cwd(),
+  exitOnShutdown = true,
+} = {}) => {
   const children = [];
   let isShuttingDown = false;
+  let shutdownPromise = null;
   const logSink = createWorkspaceDevLogSink();
 
   const shutdown = (code = 0) => {
     if (isShuttingDown) {
-      return;
+      return shutdownPromise;
     }
 
     isShuttingDown = true;
 
-    for (const child of children) {
-      if (!child.killed) {
-        child.kill("SIGTERM");
+    shutdownPromise = (async () => {
+      for (const childEntry of children) {
+        if (!childEntry.child.killed) {
+          childEntry.child.kill("SIGTERM");
+        }
       }
-    }
 
-    setTimeout(() => process.exit(code), 100);
+      await Promise.race([
+        Promise.allSettled(children.map((childEntry) => childEntry.exitPromise)),
+        delay(2_000),
+      ]);
+
+      for (const childEntry of children) {
+        if (childEntry.exited || childEntry.child.killed) {
+          continue;
+        }
+
+        childEntry.child.kill("SIGKILL");
+      }
+
+      await Promise.race([
+        Promise.allSettled(children.map((childEntry) => childEntry.exitPromise)),
+        delay(1_000),
+      ]);
+
+      if (exitOnShutdown) {
+        process.exit(code);
+      }
+    })();
+
+    return shutdownPromise;
   };
 
   const log = (prefix, data) => {
@@ -172,6 +278,17 @@ export const createWorkspaceProcessGroup = ({ rootDir = process.cwd() } = {}) =>
         ...(options.env ?? {}),
       },
       stdio: ["inherit", "pipe", "pipe"],
+    });
+    const childEntry = {
+      child,
+      exited: false,
+      exitPromise: null,
+    };
+    childEntry.exitPromise = new Promise((resolve) => {
+      child.once("exit", () => {
+        childEntry.exited = true;
+        resolve();
+      });
     });
 
     logSink.recordStart({
@@ -228,19 +345,23 @@ export const createWorkspaceProcessGroup = ({ rootDir = process.cwd() } = {}) =>
       }
 
       if (code === 0 || signal === "SIGTERM") {
-        shutdown(0);
+        void shutdown(0);
         return;
       }
 
       console.error(`[${name}] exited with code ${code ?? "null"}`);
-      shutdown(code ?? 1);
+      void shutdown(code ?? 1);
     });
 
-    children.push(child);
+    children.push(childEntry);
   };
 
-  process.on("SIGINT", () => shutdown(0));
-  process.on("SIGTERM", () => shutdown(0));
+  process.on("SIGINT", () => {
+    void shutdown(0);
+  });
+  process.on("SIGTERM", () => {
+    void shutdown(0);
+  });
 
   return {
     run,

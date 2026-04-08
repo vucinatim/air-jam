@@ -20,6 +20,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 14. Add optional per-action schema validation for networked store actions only if real game usage proves the zero-or-one plain-object RPC contract still needs stronger validation; keep it additive and narrow rather than turning the whole store layer into a schema-first framework.
 15. Split scaffold validation into a fast contract smoke and a full catalog sweep so routine local verification does not always require the heaviest `pnpm test:scaffold` path.
 16. Migrate workspace/repo command env parsing to `@air-jam/env` so runtime contract validation stays consistent beyond server/platform/create-airjam boundaries.
+17. Extend the current visual-harness prebuild cache beyond `@air-jam/sdk` so repeated capture runs can also skip other unchanged package/game rebuild work, or optionally reuse a warmed stack for multi-scenario passes without reopening the architecture seams we just cleaned up.
 
 ## Framework Boundary Follow-Ups
 

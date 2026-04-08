@@ -12,6 +12,9 @@ export default defineConfig([
     files: [
       "packages/server/**/*.{ts,tsx}",
       "packages/create-airjam/**/*.{ts,tsx}",
+      "packages/visual-harness/**/*.{ts,tsx}",
+      "scripts/**/*.{ts,tsx}",
+      "games/*/visual/**/*.{ts,tsx}",
     ],
     ignores: ["**/dist/**"],
     languageOptions: {
@@ -37,7 +40,11 @@ export default defineConfig([
     },
   },
   {
-    files: ["apps/**/*.{ts,tsx}", "packages/sdk/**/*.{ts,tsx}"],
+    files: [
+      "apps/**/*.{ts,tsx}",
+      "games/**/*.{ts,tsx}",
+      "packages/sdk/**/*.{ts,tsx}",
+    ],
     ignores: ["**/dist/**"],
     languageOptions: {
       ecmaVersion: 2022,

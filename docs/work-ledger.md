@@ -33,7 +33,7 @@ User-directed active parallel track:
 3. define and execute the prerelease SDK clean-swap extraction track in [SDK Extraction Clean-Swap Plan](./plans/sdk-extraction-clean-swap-plan.md)
 4. define and execute the shared preview-controller track in [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
 
-Latest status (2026-04-07):
+Latest status (2026-04-08):
 
 1. Phase 3 feature-completion goals are implemented for all three showcase games:
    1. `code-review` deterministic bot seats + ready-gated host start
@@ -218,6 +218,11 @@ Completed baselines now folded into this phase:
     7. `pnpm topology --game=<id> --mode=<mode> [--secure]` now prints the resolved topology for trust/debugging
 21. Postgres safety and local-dev DB posture are now explicit prerelease baselines:
     1. the repo owns an optional persistent local dev Postgres via `pnpm run repo -- db up`, with data under `.airjam/postgres/dev/`
+22. the visual review harness now has a real first proven slice:
+    1. `pnpm run repo -- visual capture --game=code-review --scenario=lobby` captures stable host/controller artifacts in built Arcade mode
+    2. shared harness helpers now cover standard viewport capture plus basic host/controller text waits
+    3. failed scenarios now leave best-effort host/controller failure screenshots and metadata instead of only a timeout stack
+    4. `code-review` `playing` capture is now also proven, with screenshots under `.airjam/artifacts/visual/code-review/playing/`
     2. prerelease can still intentionally point `DATABASE_URL` at production for release-state validation
 22. the standard lifecycle contract reset is now complete:
     1. `runtimeState` now owns transport pause/play semantics across shared runtime boundaries
@@ -236,7 +241,37 @@ Completed baselines now folded into this phase:
     2. the intended contract is game-owned scenarios plus stable artifact output under `.airjam/artifacts/visual/`
     3. the first implementation target is a `code-review` vertical slice that agents can run repeatedly for UI diagnosis and validation
     4. the visual harness is now unblocked by the lifecycle contract reset and can safely assume standard lifecycle presets by default
-25. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
+25. the first visual-review-harness implementation slice is now real:
+    1. `pnpm run repo -- visual capture --game=code-review --scenario=lobby` succeeds in built Arcade mode and writes stable host/controller screenshots plus metadata
+    2. `pnpm run repo -- visual capture --game=code-review --scenario=playing` now also succeeds in built Arcade mode
+    3. the harness now owns shared viewport/capture helpers plus best-effort failure screenshots for broken scenarios
+    4. this already surfaced and helped fix one real product bug: `code-review` controller-side `Play` was wired in the UI but rejected by the store until `startMatch`/`resetToLobby` were made controller-legal
+26. the visual-review-harness reset is now materially beyond the initial vertical slice:
+    1. the reusable core now lives in internal workspace package `@air-jam/visual-harness`
+    2. standalone visual capture now uses dedicated stack boot with isolated per-run ports instead of the human-first local dev path
+    3. launch-set host bridges now publish room id, canonical join URL, `matchPhase`, and `runtimeState` for harness consumption
+    4. shared harness helpers now include bridge-driven lifecycle waiting, so scenario packs can key off `matchPhase` instead of brittle host copy when staging active states
+    5. the harness now also supports optional dev-only host bridge actions for deterministic state setup when a terminal-state scenario would otherwise require long or flaky gameplay simulation
+    6. current proven standalone captures are:
+       1. `pong` `lobby`
+       2. `pong` `playing`
+       3. `pong` `ended`
+       4. `air-capture` `lobby`
+       5. `air-capture` `playing`
+       6. `air-capture` `ended`
+       7. `code-review` `lobby`
+       8. `code-review` `playing`
+       9. `code-review` `ended`
+       10. `the-office` `lobby`
+       11. `the-office` `playing`
+       12. `the-office` `ended`
+       13. `last-band-standing` `lobby`
+       14. `last-band-standing` `playing`
+       15. `last-band-standing` `ended`
+    7. harness-only selectors are now being added where needed instead of forcing scenario packs to depend on ambiguous repeated UI copy, e.g. `air-capture` bot controls
+    8. `ForcedOrientationShell` now derives current orientation from actual viewport geometry before `screen.orientation`, which fixed the previously rotated/incorrect controller screenshots in Playwright-driven portrait captures
+    9. the original `@air-jam/sdk` rebuild bottleneck is reduced now that visual capture reuses cached SDK output when sources are unchanged; the remaining bottleneck is no longer lifecycle coverage, but using that coverage to do real UI cleanup and extending prebuild reuse beyond the SDK
+27. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
 
 ### Priority 5. Release PR And Publish
 
@@ -413,7 +448,20 @@ Current truth:
 
 ## Active Framework Tracks
 
-Status: none beyond the canonical release plan
+### 14. Visual Harness Reset
+
+Status: active  
+Reference: [Visual Review Harness Plan](./plans/visual-review-harness-plan.md)
+
+Current truth:
+
+1. the harness core now lives in the internal `@air-jam/visual-harness` package, with repo commands and stack boot kept as thin adapters
+2. all five launch-set games publish the dev-only visual harness bridge snapshot with canonical join URL, `matchPhase`, and `runtimeState`, and the join URL is only exposed once the capability-bearing host URL is actually ready
+3. the runner now resolves controller join URLs from the bridge-backed contract instead of scraping host join fields
+4. the standalone capture path is now the default and runs on isolated per-run ports with unified backend routing
+5. the launch set now has deterministic `lobby`, `playing`, and `ended` capture coverage on disk
+6. controller portrait screenshots are trustworthy again after the shared `ForcedOrientationShell` fix
+7. the remaining work on this track is no longer architecture rescue; it is using the harness for real UI cleanup and extending build reuse where it materially improves iteration speed
 
 ## Documentation Hygiene Tasks
 

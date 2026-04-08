@@ -63,11 +63,8 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
   botCounts: { team1: 0, team2: 0 },
 
   actions: {
-    startMatch: ({ role }) =>
+    startMatch: () =>
       set((state) => {
-        if (role !== "host") {
-          return state;
-        }
         if (state.matchPhase === "playing") {
           return state;
         }
@@ -78,11 +75,8 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
         };
       }),
 
-    resetToLobby: ({ role }) =>
+    resetToLobby: () =>
       set((state) => {
-        if (role !== "host") {
-          return state;
-        }
         if (
           state.matchPhase === "lobby" &&
           state.matchSummary === null &&

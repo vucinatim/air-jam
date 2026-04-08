@@ -38,21 +38,25 @@ const readViewportSize = (): ViewportSize => {
 };
 
 const getOrientation = ({ width, height }: ViewportSize): ForcedOrientation => {
-  if (typeof window !== "undefined") {
-    if (window.screen?.orientation?.type) {
-      if (window.screen.orientation.type.startsWith("portrait")) {
-        return "portrait";
-      }
-      if (window.screen.orientation.type.startsWith("landscape")) {
-        return "landscape";
-      }
-    }
+  if (width > 0 && height > 0) {
+    return width >= height ? "landscape" : "portrait";
+  }
 
+  if (typeof window !== "undefined") {
     if (window.matchMedia) {
       if (window.matchMedia("(orientation: portrait)").matches) {
         return "portrait";
       }
       if (window.matchMedia("(orientation: landscape)").matches) {
+        return "landscape";
+      }
+    }
+
+    if (window.screen?.orientation?.type) {
+      if (window.screen.orientation.type.startsWith("portrait")) {
+        return "portrait";
+      }
+      if (window.screen.orientation.type.startsWith("landscape")) {
         return "landscape";
       }
     }

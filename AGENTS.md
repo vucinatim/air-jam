@@ -24,6 +24,19 @@ Build and maintain a clean, minimal, and extensible codebase that can scale with
 5. Add or update tests when behavior changes.
 6. Keep public APIs and documentation aligned.
 
+## Parallel Work Rule
+
+When work is naturally separable, agents should use parallel execution by default rather than treating it as optional.
+
+Preferred pattern:
+
+1. do shared contract, API, schema, or architecture work centrally first
+2. once the shared boundary is stable, split independent implementation work across parallel agents
+3. use this especially for cross-game refactors, repeated game-by-game improvements, scaffold parity work, and other bounded repo slices with disjoint ownership
+4. finish with one central integration pass for validation, fallout fixes, and final contract cleanup
+
+Do not parallelize prematurely when the shared API or architecture is still moving, because that creates churn instead of speed.
+
 ## Quality Gates
 
 Run relevant checks before considering work complete:

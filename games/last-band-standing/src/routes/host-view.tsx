@@ -6,6 +6,10 @@ import {
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { toShellMatchPhase } from "../game/domain/match-phase";
@@ -177,6 +181,39 @@ const HostScreen = () => {
       : rankPlayers(scoreboardByPlayerId);
 
   const shellPhase = toShellMatchPhase(phase);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase: shellPhase,
+      runtimeState: host.runtimeState,
+    });
+  }, [
+    host.joinUrl,
+    host.joinUrlStatus,
+    host.roomId,
+    host.runtimeState,
+    shellPhase,
+  ]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      forceGameOver: () => {
+        actions.forceGameOver();
+        return true;
+      },
+    });
+  }, [actions]);
 
   useHostRuntimeStateBridge({
     matchPhase: shellPhase,
