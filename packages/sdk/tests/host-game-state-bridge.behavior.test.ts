@@ -2,7 +2,7 @@
 
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useHostGameStateBridge } from "../src/hooks/use-host-game-state-bridge";
+import { useHostRuntimeStateBridge } from "../src/hooks/use-host-runtime-state-bridge";
 
 const mocked = vi.hoisted(() => ({
   useAssertSessionScope: vi.fn(),
@@ -12,91 +12,89 @@ vi.mock("../src/context/session-scope", () => ({
   useAssertSessionScope: mocked.useAssertSessionScope,
 }));
 
-describe("useHostGameStateBridge", () => {
-  it("toggles runtime game state on playing phase transitions", () => {
-    const toggleGameState = vi.fn();
-    const onEnterPlayingPhase = vi.fn();
-    const onExitPlayingPhase = vi.fn();
+describe("useHostRuntimeStateBridge", () => {
+  it("toggles runtime state on active phase transitions", () => {
+    const toggleRuntimeState = vi.fn();
+    const onEnterActivePhase = vi.fn();
+    const onExitActivePhase = vi.fn();
     const onPhaseTransition = vi.fn();
 
     const { rerender } = renderHook(
       ({
-        phase,
-        gameState,
+        matchPhase,
+        runtimeState,
       }: {
-        phase: "lobby" | "playing" | "ended";
-        gameState: "paused" | "playing";
+        matchPhase: "lobby" | "countdown" | "playing" | "ended";
+        runtimeState: "paused" | "playing";
       }) =>
-        useHostGameStateBridge({
-          phase,
-          playingPhase: "playing",
-          gameState,
-          toggleGameState,
-          onEnterPlayingPhase,
-          onExitPlayingPhase,
+        useHostRuntimeStateBridge({
+          matchPhase,
+          runtimeState,
+          toggleRuntimeState,
+          onEnterActivePhase,
+          onExitActivePhase,
           onPhaseTransition,
         }),
       {
         initialProps: {
-          phase: "lobby",
-          gameState: "paused",
+          matchPhase: "lobby",
+          runtimeState: "paused",
         },
       },
     );
 
     rerender({
-      phase: "playing",
-      gameState: "paused",
+      matchPhase: "countdown",
+      runtimeState: "paused",
     });
 
-    expect(toggleGameState).toHaveBeenCalledTimes(1);
-    expect(onEnterPlayingPhase).toHaveBeenCalledTimes(1);
-    expect(onExitPlayingPhase).not.toHaveBeenCalled();
+    expect(toggleRuntimeState).toHaveBeenCalledTimes(1);
+    expect(onEnterActivePhase).toHaveBeenCalledTimes(1);
+    expect(onExitActivePhase).not.toHaveBeenCalled();
 
     rerender({
-      phase: "ended",
-      gameState: "playing",
+      matchPhase: "ended",
+      runtimeState: "playing",
     });
 
-    expect(toggleGameState).toHaveBeenCalledTimes(2);
-    expect(onExitPlayingPhase).toHaveBeenCalledTimes(1);
+    expect(toggleRuntimeState).toHaveBeenCalledTimes(2);
+    expect(onExitActivePhase).toHaveBeenCalledTimes(1);
     expect(onPhaseTransition).toHaveBeenCalledTimes(2);
   });
 
   it("does not toggle if host runtime state is already aligned", () => {
-    const toggleGameState = vi.fn();
+    const toggleRuntimeState = vi.fn();
 
     const { rerender } = renderHook(
       ({
-        phase,
-        gameState,
+        matchPhase,
+        runtimeState,
       }: {
-        phase: "lobby" | "playing";
-        gameState: "paused" | "playing";
+        matchPhase: "lobby" | "countdown";
+        runtimeState: "paused" | "playing";
       }) =>
-        useHostGameStateBridge({
-          phase,
-          playingPhase: "playing",
-          gameState,
-          toggleGameState,
+        useHostRuntimeStateBridge({
+          matchPhase,
+          runtimeState,
+          toggleRuntimeState,
         }),
       {
         initialProps: {
-          phase: "lobby",
-          gameState: "paused",
+          matchPhase: "lobby",
+          runtimeState: "paused",
         },
       },
     );
 
     rerender({
-      phase: "playing",
-      gameState: "playing",
+      matchPhase: "countdown",
+      runtimeState: "playing",
     });
     rerender({
-      phase: "lobby",
-      gameState: "paused",
+      matchPhase: "lobby",
+      runtimeState: "paused",
     });
 
-    expect(toggleGameState).not.toHaveBeenCalled();
+    expect(toggleRuntimeState).not.toHaveBeenCalled();
   });
 });

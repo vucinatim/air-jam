@@ -128,7 +128,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       connectionStatus: state.connectionStatus,
       lastError: state.lastError,
       players: state.players,
-      gameState: state.gameState,
+      runtimeState: state.runtimeState,
       mode: state.mode,
       roomId: state.roomId,
     })),
@@ -223,7 +223,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     [emitHostRuntimeEvent],
   );
 
-  const toggleGameState = useCallback(() => {
+  const toggleRuntimeState = useCallback(() => {
     const now = Date.now();
     if (now - lastToggle < TOGGLE_DEBOUNCE_MS) {
       return;
@@ -687,7 +687,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       });
       store.getState().setStatus("disconnected");
       store.getState().resetPlayers();
-      store.getState().resetGameState();
+      store.getState().resetRuntimeState();
       lastObservedStateVersionRef.current = null;
       setRegisteredRoomId(null);
       setDevHostTraceId(undefined);
@@ -745,7 +745,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         message: "Host received state update",
         roomId: payload.roomId,
         data: {
-          gameState: payload.state.gameState,
+          runtimeState: payload.state.runtimeState,
           orientation: payload.state.orientation,
           stateVersion: payload.state.stateVersion,
           hasMessage: payload.state.message !== undefined,
@@ -753,8 +753,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       });
 
       const latestState = store.getState();
-      const previousGameState = latestState.gameState;
-      const nextGameState = payload.state.gameState ?? previousGameState;
+      const previousRuntimeState = latestState.runtimeState;
+      const nextRuntimeState = payload.state.runtimeState ?? previousRuntimeState;
       const incomingVersion = payload.state.stateVersion;
       const previousVersion = lastObservedStateVersionRef.current;
       if (typeof incomingVersion === "number") {
@@ -808,22 +808,22 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       }
       if (
         typeof incomingVersion === "number" &&
-        nextGameState !== previousGameState
+        nextRuntimeState !== previousRuntimeState
       ) {
         emitHostRuntimeEvent({
           event: AIRJAM_DEV_LOG_EVENTS.runtime.phaseTransition,
           message: "Host runtime phase transition",
           roomId: payload.roomId,
           data: {
-            from: previousGameState,
-            to: nextGameState,
+            from: previousRuntimeState,
+            to: nextRuntimeState,
             source: "server_state",
             stateVersion: incomingVersion,
           },
         });
       }
-      if (payload.state.gameState) {
-        latestState.setGameState(payload.state.gameState);
+      if (payload.state.runtimeState) {
+        latestState.setRuntimeState(payload.state.runtimeState);
       }
       if (payload.state.orientation) {
         latestState.setControllerOrientation(payload.state.orientation);
@@ -907,8 +907,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     players: connectionState.players,
     lastError: connectionState.lastError,
     mode: connectionState.mode,
-    gameState: connectionState.gameState,
-    toggleGameState,
+    runtimeState: connectionState.runtimeState,
+    toggleRuntimeState,
     sendState,
     sendSignal,
     reconnect,

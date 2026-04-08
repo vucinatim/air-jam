@@ -3,7 +3,7 @@ import type {
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
   ControllerStateMessage,
-  GameState,
+  RuntimeState,
   HostSessionKind,
   PlayerProfile,
   RoomCode,
@@ -68,7 +68,7 @@ export interface RoomSession {
   activeGameId?: string;
   controllers: Map<string, ControllerSession>;
   maxPlayers: number;
-  gameState: GameState;
+  runtimeState: RuntimeState;
   stateVersion: number;
   controllerOrientation: ControllerOrientation;
   lifecycleState: RoomLifecycleState;

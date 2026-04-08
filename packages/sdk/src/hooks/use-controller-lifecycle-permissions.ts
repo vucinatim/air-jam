@@ -1,7 +1,7 @@
-import type { LifecycleVisualPhase } from "./use-lifecycle-action-group-model";
+import type { ShellMatchPhase } from "../lifecycle";
 
 export interface UseControllerLifecyclePermissionsOptions {
-  phase: LifecycleVisualPhase;
+  phase: ShellMatchPhase;
   canStartMatch?: boolean;
   canSendSystemCommand?: boolean;
 }

@@ -60,5 +60,7 @@ The runtime boundary matches the repo reference shape:
 ## Notes
 
 - Public media assets live under `public/`.
+- `matchPhase` is the canonical lifecycle (`lobby | playing | ended`) and `runtimeState` is only the pause/play transport state.
+- Use `useHostRuntimeStateBridge(...)` for host runtime-to-lifecycle synchronization.
 - Match flow, penalties, and player-state mutation stay host-authoritative.
 - This game is scaffoldable through `create-airjam`, so docs and scripts should stay export-safe.

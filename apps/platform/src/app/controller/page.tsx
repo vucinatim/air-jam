@@ -167,7 +167,7 @@ function ControllerPageContent({
   const controllerSessionRef = useRef({
     roomId: controller.roomId,
     controllerId: controller.controllerId,
-    gameState: controller.gameState,
+    runtimeState: controller.runtimeState,
     controllerOrientation: controller.controllerOrientation,
     stateMessage: controller.stateMessage,
     players: controller.players,
@@ -323,7 +323,7 @@ function ControllerPageContent({
     controllerSessionRef.current = {
       roomId: controller.roomId,
       controllerId: controller.controllerId,
-      gameState: controller.gameState,
+      runtimeState: controller.runtimeState,
       controllerOrientation: controller.controllerOrientation,
       stateMessage: controller.stateMessage,
       players: controller.players,
@@ -331,7 +331,7 @@ function ControllerPageContent({
   }, [
     controller.controllerId,
     controller.controllerOrientation,
-    controller.gameState,
+    controller.runtimeState,
     controller.players,
     controller.roomId,
     controller.socket,
@@ -410,7 +410,7 @@ function ControllerPageContent({
           socketId: socket?.id,
           player,
           state: {
-            gameState: session.gameState,
+            runtimeState: session.runtimeState,
             orientation: session.controllerOrientation,
             message: session.stateMessage,
           },

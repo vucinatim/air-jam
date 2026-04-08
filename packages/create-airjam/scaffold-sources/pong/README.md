@@ -274,7 +274,7 @@ Use higher-level host/controller tests only after the pure boundary is already c
 ## Canonical Usage Rules
 
 - Keep game lifecycle in the networked store (`lobby`, `playing`, `ended`), not in transport state.
-- Treat `gameState` (`paused` / `playing`) as runtime pause only.
+- Treat `runtimeState` (`paused` / `playing`) as runtime pause only.
 - Host owns authority for simulation, scoring, and state transitions; controllers send input + actions.
 - Keep host shell code in `src/host/`, controller shell code in `src/controller/`, and gameplay logic in `src/game/`.
 - Keep feedback centralized in host feedback modules (`use-pong-feedback`): no scattered side-effects.
@@ -290,7 +290,7 @@ Use higher-level host/controller tests only after the pure boundary is already c
 - Remote controller sound playback: use `ControllerRemoteAudioRuntime` instead of manual `server:playSound` socket subscriptions or leaf-level audio ownership.
 - Controller toast signaling: use `useControllerToasts()` to consume host `sendSignal("TOAST", ...)`.
 - Presence-aware action context: every store action receives `ctx.connectedPlayerIds` (no custom presence sync action needed).
-- Host phase/runtime bridge: use `useHostGameStateBridge(...)` for canonical lifecycle-to-pause/play synchronization.
+- Host phase/runtime bridge: use `useHostRuntimeStateBridge(...)` for canonical lifecycle-to-pause/play synchronization.
 
 ## Environment Variables
 

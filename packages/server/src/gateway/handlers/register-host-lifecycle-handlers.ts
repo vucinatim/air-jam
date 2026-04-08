@@ -102,7 +102,7 @@ export const registerHostLifecycleHandlers = (
       activeGameId: startsInGameFocus ? analytics.gameId : undefined,
       controllers: new Map(),
       maxPlayers,
-      gameState: "paused",
+      runtimeState: "paused",
       stateVersion: 0,
       controllerOrientation: "portrait",
       lifecycleState: startsInGameFocus ? "GAME_ACTIVE" : "SYSTEM_IDLE",
@@ -654,10 +654,10 @@ export const registerHostLifecycleHandlers = (
         !isPreviousHostConnected ||
         session.masterHostSocketId === socket.id
       ) {
-        const previousGameState = session.gameState;
+        const previousGameState = session.runtimeState;
         // Host refresh/reconnect should always return the room to lobby-safe pause state.
-        if (session.gameState === "playing") {
-          session.gameState = "paused";
+        if (session.runtimeState === "playing") {
+          session.runtimeState = "paused";
         }
 
         session.masterHostSocketId = socket.id;
@@ -667,7 +667,7 @@ export const registerHostLifecycleHandlers = (
         socket.join(roomId);
 
         const stateResetPayload =
-          previousGameState !== session.gameState
+          previousGameState !== session.runtimeState
             ? emitRoomState(io, roomId, session)
             : undefined;
 
@@ -676,8 +676,8 @@ export const registerHostLifecycleHandlers = (
           controllerCount: session.controllers.size,
           focus: session.focus,
           previousGameState,
-          nextGameState: session.gameState,
-          resetToLobbyOnReconnect: previousGameState !== session.gameState,
+          nextGameState: session.runtimeState,
+          resetToLobbyOnReconnect: previousGameState !== session.runtimeState,
         });
         logHostEvent(
           "info",
@@ -686,8 +686,8 @@ export const registerHostLifecycleHandlers = (
           {
             roomId,
             previousGameState,
-            nextGameState: session.gameState,
-            resetApplied: previousGameState !== session.gameState,
+            nextGameState: session.runtimeState,
+            resetApplied: previousGameState !== session.runtimeState,
             ...(stateResetPayload
               ? { stateVersion: stateResetPayload.state.stateVersion }
               : { stateVersion: session.stateVersion }),

@@ -2,7 +2,7 @@ import {
   useAudioRuntimeControls,
   useAudioRuntimeStatus,
   useAirJamHost,
-  useHostGameStateBridge,
+  useHostRuntimeStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
 import { HostMuteButton } from "@air-jam/sdk/ui";
@@ -138,10 +138,10 @@ const HostViewContent = ({
     players,
     roomId,
     connectionStatus,
-    gameState,
+    runtimeState,
     lastError,
     sendState,
-    toggleGameState,
+    toggleRuntimeState,
   } = host;
 
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
@@ -156,9 +156,6 @@ const HostViewContent = ({
   );
   const matchActions = usePrototypeMatchStore.useActions();
   const countdownRemainingSeconds = useMatchCountdown(countdownEndsAtMs);
-  const bridgedMatchPhase =
-    matchPhase === "countdown" ? "playing" : matchPhase;
-
   const ctfScores = useCaptureTheFlagStore((state) => state.scores);
   const resetMatch = useCaptureTheFlagStore((state) => state.resetMatch);
 
@@ -169,17 +166,16 @@ const HostViewContent = ({
   const addBot = useBotManager((state) => state.addBot);
   const removeBot = useBotManager((state) => state.removeBot);
 
-  useHostGameStateBridge({
-    phase: bridgedMatchPhase,
-    playingPhase: "playing",
-    gameState,
-    toggleGameState,
-    onEnterPlayingPhase: () => {
+  useHostRuntimeStateBridge({
+    matchPhase,
+    runtimeState,
+    toggleRuntimeState,
+    onEnterActivePhase: () => {
       resetMatch();
       bumpRound();
     },
-    onPhaseTransition: ({ phase }) => {
-      if (phase === "lobby") {
+    onPhaseTransition: ({ previousPhase, matchPhase: nextPhase }) => {
+      if (previousPhase === "lobby" && nextPhase === "countdown") {
         resetMatch();
       }
     },
@@ -350,7 +346,7 @@ const HostViewContent = ({
 
   const showPausedOverlay =
     (matchPhase === "countdown" || matchPhase === "playing") &&
-    gameState !== "playing";
+    runtimeState !== "playing";
   const controllerOrientation =
     matchPhase === "countdown" || matchPhase === "playing"
       ? "landscape"
@@ -361,7 +357,7 @@ const HostViewContent = ({
       : "spectator";
   const scenePaused =
     (matchPhase !== "countdown" && matchPhase !== "playing") ||
-    gameState !== "playing";
+    runtimeState !== "playing";
 
   useEffect(() => {
     if (connectionStatus !== "connected") {

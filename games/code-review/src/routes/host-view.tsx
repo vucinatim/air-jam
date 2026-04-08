@@ -1,4 +1,4 @@
-import { useAirJamHost, useHostGameStateBridge } from "@air-jam/sdk";
+import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
 import {
   HostMuteButton,
   JoinUrlControls,
@@ -595,17 +595,16 @@ export function HostView() {
     canStartMatch,
   });
 
-  useHostGameStateBridge({
-    phase: matchPhase,
-    playingPhase: "playing",
-    gameState: host.gameState,
-    toggleGameState: host.toggleGameState,
+  useHostRuntimeStateBridge({
+    matchPhase,
+    runtimeState: host.runtimeState,
+    toggleRuntimeState: host.toggleRuntimeState,
   });
 
-  const prevRuntimeGameStateRef = useRef(host.gameState);
+  const prevRuntimeStateRef = useRef(host.runtimeState);
   useEffect(() => {
-    const previousRuntimeState = prevRuntimeGameStateRef.current;
-    prevRuntimeGameStateRef.current = host.gameState;
+    const previousRuntimeState = prevRuntimeStateRef.current;
+    prevRuntimeStateRef.current = host.runtimeState;
 
     if (matchPhase !== "playing") {
       return;
@@ -613,11 +612,11 @@ export function HostView() {
 
     if (
       previousRuntimeState === "playing" &&
-      host.gameState !== "playing"
+      host.runtimeState !== "playing"
     ) {
       actions.resetToLobby();
     }
-  }, [actions, host.gameState, matchPhase]);
+  }, [actions, host.runtimeState, matchPhase]);
 
   useEffect(() => {
     actions.syncConnectedPlayers({ connectedPlayerIds });
@@ -823,7 +822,7 @@ export function HostView() {
 
       const state = gameState.current;
       const participants = slotParticipants;
-      const isPlaying = matchPhase === "playing" && host.gameState === "playing";
+      const isPlaying = matchPhase === "playing" && host.runtimeState === "playing";
       const timestamp = Date.now();
 
       const syncHpDisplay = () => {
@@ -1768,7 +1767,7 @@ export function HostView() {
         </div>
       ) : null}
 
-      {matchPhase === "playing" && host.gameState !== "playing" ? (
+      {matchPhase === "playing" && host.runtimeState !== "playing" ? (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/45">
           <div className="pixel-font rounded-none border-4 border-zinc-600 bg-zinc-900/90 px-6 py-4 text-center text-zinc-100">
             <p className="text-sm tracking-[0.18em] uppercase">Match Paused</p>

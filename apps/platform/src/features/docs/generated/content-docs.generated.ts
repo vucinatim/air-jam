@@ -1167,7 +1167,7 @@ const generatedContentDocsDocuments = [
         slug: "types",
         depth: 2,
         excerpt:
-          "PlayerProfile ConnectionStatus GameState HapticSignalPayload ToastSignalPayload",
+          "PlayerProfile ConnectionStatus RuntimeState HapticSignalPayload ToastSignalPayload",
       },
       {
         title: "PlayerProfile",
@@ -1184,10 +1184,10 @@ const generatedContentDocsDocuments = [
           'type ConnectionStatus = | "idle" | "connecting" | "connected" | "disconnected" | "reconnecting";',
       },
       {
-        title: "GameState",
+        title: "RuntimeState",
         slug: "gamestate",
         depth: 3,
-        excerpt: 'type GameState = "playing" | "paused";',
+        excerpt: 'type RuntimeState = "playing" | "paused";',
       },
       {
         title: "HapticSignalPayload",

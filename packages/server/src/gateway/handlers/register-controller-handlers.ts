@@ -877,10 +877,10 @@ export const registerControllerHandlers = (
     }
 
     if (command === "toggle_pause") {
-      const previousGameState = session.gameState;
+      const previousGameState = session.runtimeState;
       const nextGameState =
         previousGameState === "playing" ? "paused" : "playing";
-      session.gameState = nextGameState;
+      session.runtimeState = nextGameState;
       const broadcastPayload = emitRoomState(io, roomId, session);
       logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted, "Controller toggled pause state", {
         roomId,

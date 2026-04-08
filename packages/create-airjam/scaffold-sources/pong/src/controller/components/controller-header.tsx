@@ -7,7 +7,7 @@ interface ControllerHeaderProps {
   myProfile: PlayerProfile | null;
   connectionStatus: AirJamControllerApi["connectionStatus"];
   matchPhase: "lobby" | "playing" | "ended";
-  gameState: AirJamControllerApi["gameState"];
+  runtimeState: AirJamControllerApi["runtimeState"];
   canSendSystemCommand: boolean;
   onTogglePause: () => void;
   onReturnToLobby: () => void;
@@ -26,7 +26,7 @@ export const ControllerHeader = ({
   myProfile,
   connectionStatus,
   matchPhase,
-  gameState,
+  runtimeState,
   canSendSystemCommand,
   onTogglePause,
   onReturnToLobby,
@@ -71,7 +71,7 @@ export const ControllerHeader = ({
               disabled={!canSendSystemCommand}
               onClick={onTogglePause}
             >
-              {gameState === "playing" ? "Pause" : "Resume"}
+              {runtimeState === "playing" ? "Pause" : "Resume"}
             </button>
             <button
               type="button"

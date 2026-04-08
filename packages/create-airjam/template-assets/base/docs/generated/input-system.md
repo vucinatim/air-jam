@@ -206,7 +206,7 @@ const ControllerView = () => {
     {
       enabled:
         controller.connectionStatus === "connected" &&
-        controller.gameState === "playing",
+        controller.runtimeState === "playing",
       intervalMs: 16,
     },
   );

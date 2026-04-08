@@ -36,7 +36,7 @@ import { createAirJamStore } from "@air-jam/sdk";
 
 type Team = "team1" | "team2";
 
-interface GameState {
+interface RuntimeState {
   phase: "lobby" | "playing";
   teamAssignments: Record<string, Team>;
   scores: { team1: number; team2: number };
@@ -56,7 +56,7 @@ interface GameState {
   };
 }
 
-export const useGameStore = createAirJamStore<GameState>((set) => ({
+export const useGameStore = createAirJamStore<RuntimeState>((set) => ({
   phase: "lobby",
   teamAssignments: {},
   scores: { team1: 0, team2: 0 },

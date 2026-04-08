@@ -66,7 +66,7 @@ interface GamePlayerProps {
   joinUrl?: string | null;
   hostSocket: AirJamRealtimeClient;
   players: PlayerProfile[];
-  gameState: "paused" | "playing";
+  runtimeState: "paused" | "playing";
   isVisible: boolean;
   /** Carried on host bridge attach for embedded runtime epoch alignment. */
   arcadeSurfaceRuntimeIdentity: ArcadeSurfaceRuntimeIdentity;
@@ -89,7 +89,7 @@ export const GamePlayer = ({
   joinUrl,
   hostSocket,
   players,
-  gameState,
+  runtimeState,
   isVisible,
   arcadeSurfaceRuntimeIdentity,
   onExit,
@@ -316,7 +316,7 @@ export const GamePlayer = ({
           socketId: hostSocket.id,
           players: playerNotices,
           state: {
-            gameState,
+            runtimeState,
           },
           arcadeSurface: arcadeSurfaceRuntimeIdentity,
         }),
@@ -325,7 +325,7 @@ export const GamePlayer = ({
     [
       arcadeSurfaceRuntimeIdentity,
       closeHostBridge,
-      gameState,
+      runtimeState,
       hostSocket,
       launchCapability.token,
       players,

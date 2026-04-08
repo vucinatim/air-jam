@@ -3,7 +3,7 @@ import type {
   ConnectionRole,
   ConnectionStatus,
   ControllerOrientation,
-  GameState,
+  RuntimeState,
   HostArcadeSessionSnapshot,
   PlayerProfile,
   RunMode,
@@ -20,7 +20,7 @@ export interface AirJamStore {
   controllerId: string | null;
   connectionStatus: ConnectionStatus;
   mode: RunMode;
-  gameState: GameState;
+  runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
   stateMessage?: string;
   players: PlayerProfile[];
@@ -41,15 +41,15 @@ export interface AirJamStore {
   setControllerId: (controllerId: string | null) => void;
   setStatus: (status: ConnectionStatus) => void;
   setMode: (mode: RunMode) => void;
-  setGameState: (state: GameState) => void;
+  setRuntimeState: (state: RuntimeState) => void;
   setControllerOrientation: (orientation: ControllerOrientation) => void;
   setStateMessage: (message?: string) => void;
-  toggleGameState: () => void;
+  toggleRuntimeState: () => void;
   setError: (message?: string) => void;
   upsertPlayer: (player: PlayerProfile) => void;
   removePlayer: (playerId: string) => void;
   resetPlayers: () => void;
-  resetGameState: () => void;
+  resetRuntimeState: () => void;
   setRegisteredRoomId: (roomId: string | null) => void;
 }
 
@@ -64,7 +64,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     controllerId: null,
     connectionStatus: "idle",
     mode: "standalone",
-    gameState: "paused",
+    runtimeState: "paused",
     controllerOrientation: "portrait",
     stateMessage: undefined,
     players: [],
@@ -87,13 +87,13 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     setControllerId: (controllerId) => set({ controllerId }),
     setStatus: (connectionStatus) => set({ connectionStatus }),
     setMode: (mode) => set({ mode }),
-    setGameState: (gameState) => set({ gameState }),
+    setRuntimeState: (runtimeState) => set({ runtimeState }),
     setControllerOrientation: (controllerOrientation) =>
       set({ controllerOrientation }),
     setStateMessage: (stateMessage) => set({ stateMessage }),
-    toggleGameState: () =>
+    toggleRuntimeState: () =>
       set((state) => ({
-        gameState: state.gameState === "paused" ? "playing" : "paused",
+        runtimeState: state.runtimeState === "paused" ? "playing" : "paused",
       })),
     setError: (message) => set({ lastError: message }),
     upsertPlayer: (player) =>
@@ -113,9 +113,9 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
         players: state.players.filter((player) => player.id !== playerId),
       })),
     resetPlayers: () => set({ players: [] }),
-    resetGameState: () =>
+    resetRuntimeState: () =>
       set({
-        gameState: "paused",
+        runtimeState: "paused",
         controllerOrientation: "portrait",
         stateMessage: undefined,
       }),

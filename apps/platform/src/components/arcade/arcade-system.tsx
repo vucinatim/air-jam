@@ -1090,7 +1090,7 @@ export const ArcadeSystem = ({
               joinUrl={joinQrStatus === "ready" ? arcadeJoinUrl : null}
               hostSocket={host.socket}
               players={host.players}
-              gameState={host.gameState}
+              runtimeState={host.runtimeState}
               isVisible={surfaceKind === "game"}
               reducedMotion={reducedMotion}
               arcadeSurfaceRuntimeIdentity={arcadeSurfaceRuntimeIdentity}

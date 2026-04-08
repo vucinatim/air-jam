@@ -41,18 +41,22 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
   roomId,
   connectionStatus,
   matchPhase,
-  gameState,
+  runtimeState,
   canSendSystemCommand,
-  controlsDisabled,
+  canStartMatch,
+  onStartMatch,
+  onRestartMatch,
   onReturnToLobby,
 }: {
   myProfile: PlayerProfile | null;
   roomId: string | null;
   connectionStatus: ControllerConnectionStatus;
   matchPhase: ControllerMatchPhase;
-  gameState: "lobby" | "playing" | "paused" | "ended";
+  runtimeState: "paused" | "playing";
   canSendSystemCommand: boolean;
-  controlsDisabled: boolean;
+  canStartMatch: boolean;
+  onStartMatch: () => void;
+  onRestartMatch: () => void;
   onReturnToLobby: () => void;
 }) {
   const controller = useAirJamController();
@@ -63,10 +67,12 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
       roomId={roomId}
       connectionStatus={connectionStatus}
       matchPhase={matchPhase}
-      gameState={gameState}
+      runtimeState={runtimeState}
       canSendSystemCommand={canSendSystemCommand}
-      controlsDisabled={controlsDisabled}
+      canStartMatch={canStartMatch}
       onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
+      onStartMatch={onStartMatch}
+      onRestartMatch={onRestartMatch}
       onReturnToLobby={onReturnToLobby}
     />
   );
@@ -80,7 +86,7 @@ const ControllerScreen = () => {
       roomId: state.roomId,
       controllerId: state.controllerId,
       connectionStatus: state.connectionStatus,
-      gameState: state.gameState,
+      runtimeState: state.runtimeState,
       players: state.players,
     })),
   );
@@ -113,7 +119,7 @@ const ControllerScreen = () => {
       enabled:
         controllerState.connectionStatus === "connected" &&
         (matchPhase === "countdown" || matchPhase === "playing") &&
-        controllerState.gameState === "playing",
+        controllerState.runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -195,9 +201,11 @@ const ControllerScreen = () => {
           roomId={controllerState.roomId}
           connectionStatus={controllerState.connectionStatus}
           matchPhase={matchPhase}
-          gameState={controllerState.gameState}
+          runtimeState={controllerState.runtimeState}
           canSendSystemCommand={canSendSystemCommand}
-          controlsDisabled={controlsDisabled}
+          canStartMatch={readiness.canStart}
+          onStartMatch={() => actions.startMatch()}
+          onRestartMatch={() => actions.restartMatch()}
           onReturnToLobby={() => actions.returnToLobby()}
         />
 

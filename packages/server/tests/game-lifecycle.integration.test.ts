@@ -68,7 +68,7 @@ describe("server game lifecycle", () => {
     );
     const stateNoticePromise = harness.waitForEvent<{
       roomId: string;
-      state: { gameState: "paused" | "playing" };
+      state: { runtimeState: "paused" | "playing" };
     }>(childHost, "server:state", 2_000);
 
     const childJoinAck = await harness.emitWithAck<{ ok: boolean; roomId?: string }>(
@@ -88,7 +88,7 @@ describe("server game lifecycle", () => {
 
     const stateNotice = await stateNoticePromise;
     expect(stateNotice.roomId).toBe(roomId);
-    expect(stateNotice.state.gameState).toBe("paused");
+    expect(stateNotice.state.runtimeState).toBe("paused");
   });
 
   it("activates embedded games on the master host socket without requiring a child host socket", async () => {
@@ -274,12 +274,12 @@ describe("server game lifecycle", () => {
 
     const firstToggleStatePromise = harness.waitForEvent<{
       roomId: string;
-      state: { gameState: "paused" | "playing" };
+      state: { runtimeState: "paused" | "playing" };
     }>(childHostOne, "server:state", 2_000);
     masterHost.emit("host:system", { roomId, command: "toggle_pause" });
     const firstToggleState = await firstToggleStatePromise;
     expect(firstToggleState.roomId).toBe(roomId);
-    expect(["paused", "playing"]).toContain(firstToggleState.state.gameState);
+    expect(["paused", "playing"]).toContain(firstToggleState.state.runtimeState);
 
     const childDisconnectPromise = harness.waitForEvent(
       childHostOne,
@@ -319,22 +319,22 @@ describe("server game lifecycle", () => {
 
     const secondToggleStatePromise = harness.waitForEvent<{
       roomId: string;
-      state: { gameState: "paused" | "playing" };
+      state: { runtimeState: "paused" | "playing" };
     }>(childHostTwo, "server:state", 2_000);
     masterHost.emit("host:system", { roomId, command: "toggle_pause" });
     const secondToggleState = await secondToggleStatePromise;
 
     const thirdToggleStatePromise = harness.waitForEvent<{
       roomId: string;
-      state: { gameState: "paused" | "playing" };
+      state: { runtimeState: "paused" | "playing" };
     }>(childHostTwo, "server:state", 2_000);
     masterHost.emit("host:system", { roomId, command: "toggle_pause" });
     const thirdToggleState = await thirdToggleStatePromise;
 
     expect(secondToggleState.roomId).toBe(roomId);
     expect(thirdToggleState.roomId).toBe(roomId);
-    expect(secondToggleState.state.gameState).not.toBe(
-      thirdToggleState.state.gameState,
+    expect(secondToggleState.state.runtimeState).not.toBe(
+      thirdToggleState.state.runtimeState,
     );
   });
 
@@ -391,7 +391,7 @@ describe("server game lifecycle", () => {
 
     const togglePromise = harness.waitForEvent<{
       roomId: string;
-      state: { gameState: "paused" | "playing" };
+      state: { runtimeState: "paused" | "playing" };
     }>(childTwo, "server:state", 2_000);
     masterHost.emit("host:system", { roomId, command: "toggle_pause" });
     const toggleState = await togglePromise;

@@ -3,7 +3,7 @@ import {
   PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
-  useHostGameStateBridge,
+  useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostMuteButton } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -37,7 +37,7 @@ export function HostView() {
 function HostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
   const audio = useAudio<keyof typeof PONG_SOUND_MANIFEST & string>();
-  const { gameState, toggleGameState } = host;
+  const { runtimeState, toggleRuntimeState } = host;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [audioMuted, setAudioMuted] = useState(false);
@@ -81,26 +81,25 @@ function HostScreen() {
     [host.players, teamAssignments],
   );
 
-  const showPausedOverlay = matchPhase === "playing" && gameState !== "playing";
+  const showPausedOverlay = matchPhase === "playing" && runtimeState !== "playing";
 
   useEffect(() => {
     audio.mute(audioMuted);
   }, [audio, audioMuted]);
 
-  useHostGameStateBridge({
-    phase: matchPhase,
-    playingPhase: "playing",
-    gameState,
-    toggleGameState,
-    onEnterPlayingPhase: () => {
+  useHostRuntimeStateBridge({
+    matchPhase,
+    runtimeState,
+    toggleRuntimeState,
+    onEnterActivePhase: () => {
       setCountdown(3);
       Object.assign(runtimeStateRef.current, createRuntimeState());
     },
-    onExitPlayingPhase: () => {
+    onExitActivePhase: () => {
       setCountdown(null);
     },
-    onPhaseTransition: ({ previousPhase, phase }) => {
-      if (previousPhase === "ended" && phase === "lobby") {
+    onPhaseTransition: ({ previousPhase, matchPhase: nextPhase }) => {
+      if (previousPhase === "ended" && nextPhase === "lobby") {
         resetBall(runtimeStateRef.current);
       }
     },
@@ -108,7 +107,7 @@ function HostScreen() {
 
   useEffect(() => {
     if (countdown === null) return;
-    if (gameState !== "playing" || matchPhase !== "playing") return;
+    if (runtimeState !== "playing" || matchPhase !== "playing") return;
 
     if (countdown === 0) {
       resetBall(runtimeStateRef.current);
@@ -123,7 +122,7 @@ function HostScreen() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [countdown, gameState, matchPhase]);
+  }, [countdown, runtimeState, matchPhase]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -147,7 +146,7 @@ function HostScreen() {
         players: host.players,
         teamAssignments,
         getInput: host.getInput,
-        isPlaying: gameState === "playing" && matchPhase === "playing",
+        isPlaying: runtimeState === "playing" && matchPhase === "playing",
         countdown,
         botCounts,
         onPaddleHit: (event) => {
@@ -177,7 +176,7 @@ function HostScreen() {
   }, [
     actions,
     countdown,
-    gameState,
+    runtimeState,
     host.getInput,
     host.players,
     matchPhase,

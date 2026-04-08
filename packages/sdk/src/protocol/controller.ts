@@ -25,7 +25,7 @@ export const controllerStateSchema = z.object({
   state: z.object({
     orientation: controllerOrientationSchema.optional(),
     message: z.string().optional(),
-    gameState: z.enum(["paused", "playing"]).optional(),
+    runtimeState: z.enum(["paused", "playing"]).optional(),
     stateVersion: z.number().int().nonnegative().optional(),
   }),
 });

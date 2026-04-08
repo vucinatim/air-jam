@@ -27,7 +27,7 @@ const createSession = (): RoomSession => ({
   focus: "SYSTEM",
   controllers: new Map(),
   maxPlayers: 8,
-  gameState: "paused",
+  runtimeState: "paused",
   stateVersion: 0,
   controllerOrientation: "portrait",
   lifecycleState: "SYSTEM_IDLE",
@@ -68,7 +68,7 @@ describe("room session domain lifecycle", () => {
     const session = createSession();
     beginGameLaunch(session, issueChildHostCapability("token-1"), "g1");
     beginChildHostActivation(session, "host-child");
-    session.gameState = "playing";
+    session.runtimeState = "playing";
 
     resetRoomToSystemState(session, false);
     expect(session.focus).toBe("SYSTEM");
@@ -76,13 +76,13 @@ describe("room session domain lifecycle", () => {
     expect(session.launchCapability).toBeUndefined();
     expect(session.activeGameId).toBeUndefined();
     expect(session.lifecycleState).toBe("SYSTEM_IDLE");
-    expect(session.gameState).toBe("playing");
+    expect(session.runtimeState).toBe("playing");
     expect(session.controllerOrientation).toBe("portrait");
 
-    session.gameState = "playing";
+    session.runtimeState = "playing";
     session.controllerOrientation = "landscape";
     resetRoomToSystemState(session, true);
-    expect(session.gameState).toBe("paused");
+    expect(session.runtimeState).toBe("paused");
     expect(session.controllerOrientation).toBe("portrait");
   });
 

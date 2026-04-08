@@ -9,7 +9,7 @@ const roomCodeSchema = z
     message: "room code must contain only A-Z or 0-9",
   });
 
-const gameStateSchema = z.enum(["paused", "playing"]);
+const runtimeStateSchema = z.enum(["paused", "playing"]);
 
 const playerProfileSchema = z
   .object({
@@ -30,7 +30,7 @@ const inputFrameEntrySchema = z
 export const V2_BRIDGE_PARENT_TO_GAME_TYPES = [
   "BOOTSTRAP",
   "PLAYERS_UPDATE",
-  "GAME_STATE_UPDATE",
+  "RUNTIME_STATE_UPDATE",
   "INPUT_FRAME",
   "PAUSE",
   "RESUME",
@@ -61,7 +61,7 @@ const bootstrapMessageSchema = z
         players: z.array(playerProfileSchema),
         state: z
           .object({
-            gameState: gameStateSchema,
+            runtimeState: runtimeStateSchema,
             message: z.string().optional(),
           })
           .strict(),
@@ -82,12 +82,12 @@ const playersUpdateMessageSchema = z
   })
   .strict();
 
-const gameStateUpdateMessageSchema = z
+const runtimeStateUpdateMessageSchema = z
   .object({
-    type: z.literal("GAME_STATE_UPDATE"),
+    type: z.literal("RUNTIME_STATE_UPDATE"),
     payload: z
       .object({
-        gameState: gameStateSchema,
+        runtimeState: runtimeStateSchema,
         message: z.string().optional(),
       })
       .strict(),
@@ -197,7 +197,7 @@ const metricsMessageSchema = z
 export const v2BridgeParentToGameMessageSchema = z.union([
   bootstrapMessageSchema,
   playersUpdateMessageSchema,
-  gameStateUpdateMessageSchema,
+  runtimeStateUpdateMessageSchema,
   inputFrameMessageSchema,
   pauseMessageSchema,
   resumeMessageSchema,

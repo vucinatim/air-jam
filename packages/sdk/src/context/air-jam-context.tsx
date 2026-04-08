@@ -492,9 +492,9 @@ export const useAirJamConfig = (): AirJamConfig => {
  *
  * @example
  * ```tsx
- * const { players, gameState } = useAirJamState((state) => ({
+ * const { players, runtimeState } = useAirJamState((state) => ({
  *   players: state.players,
- *   gameState: state.gameState,
+ *   runtimeState: state.runtimeState,
  * }));
  * ```
  */

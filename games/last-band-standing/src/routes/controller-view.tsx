@@ -13,6 +13,7 @@ import {
 } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
+import { toShellMatchPhase } from "../game/domain/match-phase";
 import { useGameStore } from "../game/stores";
 import { useNowTick } from "../hooks/use-now-tick";
 import { normalizePlayerName } from "../utils/player-utils";
@@ -71,18 +72,14 @@ const ControllerScreen = ({
     return playerOrder.filter((playerId) => readyByPlayerId[playerId]).length;
   }, [playerOrder, readyByPlayerId]);
   const canStartMatch = phase === "lobby" && playerOrder.length > 0 && readyCount === playerOrder.length;
+  const shellPhase = toShellMatchPhase(phase);
   const shellStatus = useControllerShellStatus({
     roomId: controller.roomId,
     connectionStatus: controller.connectionStatus,
     playerLabel: nameDraft.trim() || null,
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
-    phase:
-      phase === "round-active" || phase === "round-reveal"
-        ? "playing"
-        : phase === "game-over"
-          ? "ended"
-          : phase,
+    phase: shellPhase,
     canStartMatch: canStartMatch && isConnected,
     canSendSystemCommand: isConnected,
   });
@@ -176,8 +173,8 @@ const ControllerScreen = ({
         }
         rightSlot={
           <LifecycleActionGroup
-            phase={phase === "round-active" || phase === "round-reveal" ? "playing" : phase === "game-over" ? "ended" : phase}
-            gameState={controller.gameState}
+            phase={shellPhase}
+            runtimeState={controller.runtimeState}
             canInteract={lifecyclePermissions.canInteractForPhase}
             onStart={lifecycleIntents.onStart}
             onBackToLobby={lifecycleIntents.onBackToLobby}

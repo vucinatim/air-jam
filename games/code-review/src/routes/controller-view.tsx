@@ -125,7 +125,7 @@ export function ControllerView() {
   const showGameplayControls =
     controller.connectionStatus === "connected" &&
     matchPhase === "playing" &&
-    controller.gameState === "playing";
+    controller.runtimeState === "playing";
   const showPausedOverlay = matchPhase === "playing" && !showGameplayControls;
   const shellStatus = useControllerShellStatus({
     roomId: controller.roomId,
@@ -133,7 +133,7 @@ export function ControllerView() {
     playerLabel: myProfile?.label ?? null,
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
-    phase: matchPhase === "playing" ? "playing" : matchPhase,
+    phase: matchPhase,
     canStartMatch: controller.connectionStatus === "connected",
     canSendSystemCommand: controller.connectionStatus === "connected",
   });
@@ -168,7 +168,7 @@ export function ControllerView() {
       enabled:
         controller.connectionStatus === "connected" &&
         matchPhase === "playing" &&
-        controller.gameState === "playing",
+        controller.runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -345,8 +345,8 @@ export function ControllerView() {
             }
             rightSlot={
               <LifecycleActionGroup
-                phase={matchPhase === "playing" ? "playing" : matchPhase}
-                gameState={controller.gameState}
+                phase={matchPhase}
+                runtimeState={controller.runtimeState}
                 canInteract={lifecyclePermissions.canInteractForPhase}
                 onStart={lifecycleIntents.onStart}
                 onTogglePause={lifecycleIntents.onTogglePause}

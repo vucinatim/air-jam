@@ -120,10 +120,10 @@ export const registerRealtimeHandlers = (
     }
 
     if (command === "toggle_pause") {
-      const previousGameState = session.gameState;
+      const previousGameState = session.runtimeState;
       const nextGameState =
         previousGameState === "playing" ? "paused" : "playing";
-      session.gameState = nextGameState;
+      session.runtimeState = nextGameState;
       const broadcastPayload = emitRoomState(io, roomId, session);
       logRealtimeEvent("info", AIRJAM_DEV_LOG_EVENTS.host.systemAccepted, "Host toggled pause state", {
         roomId,
@@ -186,10 +186,10 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    const previousGameState = session.gameState;
+    const previousGameState = session.runtimeState;
     const previousOrientation = session.controllerOrientation;
-    if (state.gameState) {
-      session.gameState = state.gameState;
+    if (state.runtimeState) {
+      session.runtimeState = state.runtimeState;
     }
     if (state.orientation) {
       session.controllerOrientation = state.orientation;
@@ -203,7 +203,7 @@ export const registerRealtimeHandlers = (
       data: {
         source: "host_state",
         hasMessage: state.message !== undefined,
-        gameStateChanged: previousGameState !== session.gameState,
+        gameStateChanged: previousGameState !== session.runtimeState,
         orientationChanged: previousOrientation !== session.controllerOrientation,
         latestStateVersion: broadcastPayload.state.stateVersion ?? 0,
       },

@@ -1,4 +1,5 @@
 import type { PlayerProfile } from "@air-jam/sdk";
+import { toShellMatchPhase } from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   PlayerAvatar,
@@ -22,7 +23,7 @@ export const ControllerHeader = ({
   roomId,
   connectionStatus,
   matchPhase,
-  gameState,
+  runtimeState,
   canSendSystemCommand,
   canStartMatch,
   onTogglePause,
@@ -34,7 +35,7 @@ export const ControllerHeader = ({
   roomId: string | null;
   connectionStatus: ControllerConnectionStatus;
   matchPhase: ControllerMatchPhase;
-  gameState?: "playing" | "paused";
+  runtimeState?: "playing" | "paused";
   canSendSystemCommand: boolean;
   canStartMatch: boolean;
   onTogglePause: () => void;
@@ -47,8 +48,9 @@ export const ControllerHeader = ({
     connectionStatus,
     playerLabel: myProfile?.label ?? null,
   });
+  const shellPhase = toShellMatchPhase(matchPhase);
   const lifecyclePermissions = useControllerLifecyclePermissions({
-    phase: matchPhase === "countdown" ? "playing" : matchPhase,
+    phase: shellPhase,
     canStartMatch,
     canSendSystemCommand,
   });
@@ -89,8 +91,8 @@ export const ControllerHeader = ({
       }
       rightSlot={
         <LifecycleActionGroup
-          phase={matchPhase === "countdown" ? "playing" : matchPhase}
-          gameState={gameState}
+          phase={shellPhase}
+          runtimeState={runtimeState}
           canInteract={lifecyclePermissions.canInteractForPhase}
           onStart={lifecycleIntents.onStart}
           onTogglePause={lifecycleIntents.onTogglePause}

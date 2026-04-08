@@ -43,6 +43,8 @@ Active subsystem plans:
 4. [SDK Extraction Clean-Swap Plan](./plans/sdk-extraction-clean-swap-plan.md)
 5. [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
 6. [Composition Shell Contract Plan](./plans/composition-shell-contract-plan.md)
+7. [Visual Review Harness Plan](./plans/visual-review-harness-plan.md)
+8. [Standard Lifecycle Contract Plan](./plans/standard-lifecycle-contract-plan.md)
 
 Archived recent baseline plans:
 

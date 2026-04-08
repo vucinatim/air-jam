@@ -93,7 +93,7 @@ export function ControllerView() {
     roomFallback: "Connecting...",
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
-    phase: matchPhase === "playing" ? "playing" : matchPhase,
+    phase: matchPhase,
     canStartMatch,
     canSendSystemCommand: controller.connectionStatus === "connected",
   });
@@ -106,7 +106,7 @@ export function ControllerView() {
   const showLobbyView = matchPhase === "lobby";
   const showEndedView = matchPhase === "ended";
   const showGameplayView =
-    matchPhase === "playing" && controller.gameState === "playing";
+    matchPhase === "playing" && controller.runtimeState === "playing";
   const showPausedView = matchPhase === "playing" && !showGameplayView;
 
   useControllerTick(
@@ -121,7 +121,7 @@ export function ControllerView() {
       enabled:
         controller.connectionStatus === "connected" &&
         matchPhase === "playing" &&
-        controller.gameState === "playing",
+        controller.runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -187,8 +187,8 @@ export function ControllerView() {
             }
             rightSlot={
               <LifecycleActionGroup
-                phase={matchPhase === "playing" ? "playing" : matchPhase}
-                gameState={controller.gameState}
+                phase={matchPhase}
+                runtimeState={controller.runtimeState}
                 canInteract={lifecyclePermissions.canInteractForPhase}
                 onStart={lifecycleIntents.onStart}
                 onTogglePause={lifecycleIntents.onTogglePause}

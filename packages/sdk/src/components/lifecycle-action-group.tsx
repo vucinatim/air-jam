@@ -1,15 +1,13 @@
 import type { JSX } from "react";
-import type { GameState } from "../protocol";
-import {
-  useLifecycleActionGroupModel,
-  type LifecycleVisualPhase,
-} from "../hooks/use-lifecycle-action-group-model";
+import type { ShellMatchPhase } from "../lifecycle";
+import type { RuntimeState } from "../protocol";
+import { useLifecycleActionGroupModel } from "../hooks/use-lifecycle-action-group-model";
 import { cn } from "../utils/cn";
 import { Button } from "./ui/button";
 
 export interface LifecycleActionGroupProps {
-  phase: LifecycleVisualPhase;
-  gameState?: GameState;
+  phase: ShellMatchPhase;
+  runtimeState?: RuntimeState;
   canInteract?: boolean;
   onStart?: () => void;
   onTogglePause?: () => void;
@@ -24,7 +22,7 @@ export interface LifecycleActionGroupProps {
 
 export const LifecycleActionGroup = ({
   phase,
-  gameState,
+  runtimeState,
   canInteract = true,
   onStart,
   onTogglePause,
@@ -38,7 +36,7 @@ export const LifecycleActionGroup = ({
 }: LifecycleActionGroupProps): JSX.Element | null => {
   const { actions } = useLifecycleActionGroupModel({
     phase,
-    gameState,
+    runtimeState,
     canInteract,
     onStart,
     onTogglePause,

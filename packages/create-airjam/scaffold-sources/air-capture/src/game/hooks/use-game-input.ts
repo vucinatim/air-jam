@@ -12,7 +12,7 @@ export const useGameInput = () => {
   // Get getInput without subscribing to connection state
   const getInputFromHost = useGetInput<typeof gameInputSchema>();
   const botManager = useBotManager.getState();
-  const { gameState } = useRoom();
+  const { runtimeState } = useRoom();
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
 
   // We need time for bot updates
@@ -24,7 +24,7 @@ export const useGameInput = () => {
 
   const popInput = (controllerId: string): GameLoopInput | undefined => {
     if (
-      gameState !== "playing" ||
+      runtimeState !== "playing" ||
       (matchPhase !== "countdown" && matchPhase !== "playing")
     ) {
       return undefined;

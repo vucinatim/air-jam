@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-07  
+Last updated: 2026-04-08  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -155,6 +155,7 @@ Active subsystem plan linked from this phase:
 1. [Showcase Games Release Readiness Plan](./plans/showcase-games-release-readiness-plan.md)
 2. [Public Release Security Hardening Plan](./plans/public-release-security-hardening-plan.md)
 3. [Composition Shell Contract Plan](./plans/composition-shell-contract-plan.md)
+4. [Visual Review Harness Plan](./plans/visual-review-harness-plan.md)
 
 Completed baselines now folded into this phase:
 
@@ -218,14 +219,24 @@ Completed baselines now folded into this phase:
 21. Postgres safety and local-dev DB posture are now explicit prerelease baselines:
     1. the repo owns an optional persistent local dev Postgres via `pnpm run repo -- db up`, with data under `.airjam/postgres/dev/`
     2. prerelease can still intentionally point `DATABASE_URL` at production for release-state validation
-22. composition-shell-contract implementation is now underway:
+22. the standard lifecycle contract reset is now complete:
+    1. `runtimeState` now owns transport pause/play semantics across shared runtime boundaries
+    2. `matchPhase` now owns the standard `lobby | countdown | playing | ended` lifecycle contract
+    3. all five first-party launch games plus scaffold sources now conform to the standard shell-facing lifecycle model
+    4. the visual harness plan can now safely assume standard lifecycle presets by default
+23. composition-shell-contract implementation is now underway:
     1. shared SDK UI atoms now exist for join URL controls, lifecycle actions, runtime shell headers, and connection status
     2. shared shell hooks now exist for host lobby state, controller status, lifecycle permissions, lifecycle intents, and lifecycle action modeling
     3. `pong`, `air-capture`, `code-review`, `the-office`, and `last-band-standing` now use the shared host/controller shell contract instead of keeping mixed legacy shell paths
     4. template docs and skills now teach both the composition-first path and the full-custom escape hatch
     5. launch-set typechecks for the shared SDK and all five touched game packages are currently passing
     6. remaining work on this track is now manual Arcade verification plus readiness-checklist evidence, not more code-side shell implementation
-23. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
+24. visual-review-harness planning is now active:
+    1. the repo now has a dedicated phase-1 plan for deterministic host/controller screenshot capture
+    2. the intended contract is game-owned scenarios plus stable artifact output under `.airjam/artifacts/visual/`
+    3. the first implementation target is a `code-review` vertical slice that agents can run repeatedly for UI diagnosis and validation
+    4. the visual harness is now unblocked by the lifecycle contract reset and can safely assume standard lifecycle presets by default
+25. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
 
 ### Priority 5. Release PR And Publish
 

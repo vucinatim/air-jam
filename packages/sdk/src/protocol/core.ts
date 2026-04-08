@@ -13,7 +13,7 @@ export type ConnectionStatus =
 
 export type RunMode = "standalone" | "platform";
 
-export type GameState = "paused" | "playing";
+export type RuntimeState = "paused" | "playing";
 
 export const roomCodeSchema = z
   .string()

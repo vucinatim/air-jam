@@ -26,7 +26,7 @@ describe("LifecycleActionGroup", () => {
     render(
       <LifecycleActionGroup
         phase="playing"
-        gameState="paused"
+        runtimeState="paused"
         onTogglePause={onTogglePause}
         onBackToLobby={onBackToLobby}
       />,

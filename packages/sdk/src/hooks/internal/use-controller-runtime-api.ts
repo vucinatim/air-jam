@@ -11,7 +11,7 @@ import type {
   ControllerJoinAck,
   ControllerStateMessage,
   ControllerUpdatePlayerProfileAck,
-  GameState,
+  RuntimeState,
   PlayerProfile,
   PlayerProfilePatch,
   RoomCode,
@@ -170,7 +170,7 @@ export const useControllerRuntimeApi = (
       lastError: state.lastError,
       controllerId: state.controllerId,
       players: state.players,
-      gameState: state.gameState,
+      runtimeState: state.runtimeState,
       controllerOrientation: state.controllerOrientation,
       stateMessage: state.stateMessage,
     })),
@@ -395,7 +395,7 @@ export const useControllerRuntimeApi = (
           }
           latestState.setError(ack.message ?? "Unable to join room");
           latestState.setStatus("disconnected");
-          latestState.resetGameState();
+          latestState.resetRuntimeState();
           return;
         }
         if (ack.controllerId) {
@@ -421,7 +421,7 @@ export const useControllerRuntimeApi = (
         latestState.setError(reason);
       }
       latestState.setStatus("disconnected");
-      latestState.resetGameState();
+      latestState.resetRuntimeState();
       lastObservedStateVersionRef.current = null;
     };
 
@@ -472,7 +472,7 @@ export const useControllerRuntimeApi = (
         message: "Controller received state update",
         roomId: payload.roomId,
         data: {
-          gameState: payload.state.gameState,
+          runtimeState: payload.state.runtimeState,
           orientation: payload.state.orientation,
           stateVersion: payload.state.stateVersion,
           hasMessage: payload.state.message !== undefined,
@@ -480,8 +480,8 @@ export const useControllerRuntimeApi = (
       });
 
       const latestState = store.getState();
-      const previousGameState = latestState.gameState;
-      const nextGameState = payload.state.gameState ?? previousGameState;
+      const previousRuntimeState = latestState.runtimeState;
+      const nextRuntimeState = payload.state.runtimeState ?? previousRuntimeState;
       const incomingVersion = payload.state.stateVersion;
       const previousVersion = lastObservedStateVersionRef.current;
       if (typeof incomingVersion === "number") {
@@ -536,22 +536,22 @@ export const useControllerRuntimeApi = (
       }
       if (
         typeof incomingVersion === "number" &&
-        nextGameState !== previousGameState
+        nextRuntimeState !== previousRuntimeState
       ) {
         emitControllerRuntimeEvent({
           event: AIRJAM_DEV_LOG_EVENTS.runtime.phaseTransition,
           message: "Controller runtime phase transition",
           roomId: payload.roomId,
           data: {
-            from: previousGameState,
-            to: nextGameState,
+            from: previousRuntimeState,
+            to: nextRuntimeState,
             source: "server_state",
             stateVersion: incomingVersion,
           },
         });
       }
-      if (payload.state.gameState) {
-        latestState.setGameState(payload.state.gameState);
+      if (payload.state.runtimeState) {
+        latestState.setRuntimeState(payload.state.runtimeState);
       }
       if (payload.state.orientation) {
         latestState.setControllerOrientation(payload.state.orientation);
@@ -569,7 +569,7 @@ export const useControllerRuntimeApi = (
       }
       latestState.setError(payload.reason);
       latestState.setStatus("disconnected");
-      latestState.resetGameState();
+      latestState.resetRuntimeState();
       lastObservedStateVersionRef.current = null;
 
       setTimeout(() => {
@@ -705,7 +705,7 @@ export const useControllerRuntimeApi = (
     controllerId: connectionState.controllerId,
     connectionStatus: connectionState.connectionStatus,
     lastError: connectionState.lastError,
-    gameState: connectionState.gameState as GameState,
+    runtimeState: connectionState.runtimeState as RuntimeState,
     controllerOrientation: connectionState.controllerOrientation,
     stateMessage: connectionState.stateMessage,
     sendSystemCommand,

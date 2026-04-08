@@ -91,7 +91,7 @@ const HostView = () => {
     joinUrlStatus, // "loading" | "ready" | "unavailable"
     connectionStatus, // "connected" | "connecting" | "disconnected" | "idle"
     players, // Array of PlayerProfile
-    gameState, // "playing" | "paused"
+    runtimeState, // "playing" | "paused"
     lastError, // Error message if any
     mode, // "standalone" | "platform"
 
@@ -99,7 +99,7 @@ const HostView = () => {
     getInput, // (controllerId: string) => Input | undefined
     sendSignal, // Send haptics/toasts to controllers
     sendState, // Publish lightweight controller presentation state
-    toggleGameState, // Toggle between playing/paused
+    toggleRuntimeState, // Toggle between playing/paused
     reconnect, // Force reconnection
   } = host;
 
@@ -107,8 +107,8 @@ const HostView = () => {
     <div className="relative min-h-screen bg-black text-white">
       <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/70 px-4 py-2 backdrop-blur">
         <span>Room {roomId}</span>
-        <button onClick={toggleGameState}>
-          {gameState === "playing" ? "Pause" : "Resume"}
+        <button onClick={toggleRuntimeState}>
+          {runtimeState === "playing" ? "Pause" : "Resume"}
         </button>
       </header>
       <GameCanvas />
@@ -277,7 +277,7 @@ const ControllerView = () => {
     roomId, // Room code (from URL or props)
     controllerId, // This controller's unique ID
     connectionStatus, // Connection state
-    gameState, // "playing" | "paused"
+    runtimeState, // "playing" | "paused"
     controllerOrientation, // "portrait" | "landscape"
     stateMessage, // Optional message from host
 
@@ -301,7 +301,7 @@ const ControllerView = () => {
       });
     },
     {
-      enabled: connectionStatus === "connected" && gameState === "playing",
+      enabled: connectionStatus === "connected" && runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -434,10 +434,10 @@ type ConnectionStatus =
   | "reconnecting"; // Attempting to reconnect
 ```
 
-### `GameState`
+### `RuntimeState`
 
 ```typescript
-type GameState = "playing" | "paused";
+type RuntimeState = "playing" | "paused";
 ```
 
 ### `HapticSignalPayload`

@@ -78,7 +78,7 @@ export function ControllerView() {
   const showLobbyView = matchPhase === "lobby";
   const showEndedView = matchPhase === "ended";
   const showGameplayView =
-    matchPhase === "playing" && controller.gameState === "playing";
+    matchPhase === "playing" && controller.runtimeState === "playing";
   const showPausedView = matchPhase === "playing" && !showGameplayView;
 
   useControllerTick(
@@ -93,7 +93,7 @@ export function ControllerView() {
       enabled:
         controller.connectionStatus === "connected" &&
         matchPhase === "playing" &&
-        controller.gameState === "playing",
+        controller.runtimeState === "playing",
       intervalMs: 16,
     },
   );

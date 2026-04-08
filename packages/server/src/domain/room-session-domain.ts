@@ -329,7 +329,7 @@ export const resetRoomToSystemState = (
   session.activeGameId = undefined;
   transitionRoomLifecycle(session, "SYSTEM_IDLE");
   if (resetGameState) {
-    session.gameState = "paused";
+    session.runtimeState = "paused";
     session.controllerOrientation = "portrait";
   }
 };
@@ -385,7 +385,7 @@ export const emitRoomState = (
   const payload: ControllerStateMessage = {
     roomId,
     state: {
-      gameState: session.gameState,
+      runtimeState: session.runtimeState,
       orientation: session.controllerOrientation,
       stateVersion: session.stateVersion,
       ...(message !== undefined ? { message } : {}),
@@ -402,7 +402,7 @@ export const buildRoomStateMessage = (
 ): ControllerStateMessage => ({
   roomId,
   state: {
-    gameState: session.gameState,
+    runtimeState: session.runtimeState,
     orientation: session.controllerOrientation,
     stateVersion: session.stateVersion,
     ...(message !== undefined ? { message } : {}),

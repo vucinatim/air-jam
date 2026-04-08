@@ -4,7 +4,7 @@ import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
 import type {
   ConnectionStatus,
-  GameState,
+  RuntimeState,
   PlayerProfile,
   RoomCode,
   RunMode,
@@ -16,7 +16,7 @@ export interface AirJamHostSessionState {
   lastError?: string;
   players: PlayerProfile[];
   mode: RunMode;
-  gameState: GameState;
+  runtimeState: RuntimeState;
 }
 
 /**
@@ -37,7 +37,7 @@ export const useHostSession = (): AirJamHostSessionState => {
       lastError: s.lastError,
       players: s.players,
       mode: s.mode,
-      gameState: s.gameState,
+      runtimeState: s.runtimeState,
     })),
   );
 };

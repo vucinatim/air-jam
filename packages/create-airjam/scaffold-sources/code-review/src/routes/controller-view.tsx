@@ -114,7 +114,7 @@ export function ControllerView() {
   const showGameplayControls =
     controller.connectionStatus === "connected" &&
     matchPhase === "playing" &&
-    controller.gameState === "playing";
+    controller.runtimeState === "playing";
   const showPausedOverlay = matchPhase === "playing" && !showGameplayControls;
 
   useControllerTick(
@@ -141,7 +141,7 @@ export function ControllerView() {
       enabled:
         controller.connectionStatus === "connected" &&
         matchPhase === "playing" &&
-        controller.gameState === "playing",
+        controller.runtimeState === "playing",
       intervalMs: 16,
     },
   );

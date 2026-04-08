@@ -297,7 +297,7 @@ describe("embedded controller bridge runtime", () => {
           connected: true,
           arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
           state: {
-            gameState: "playing",
+            runtimeState: "playing",
             orientation: "landscape",
           },
         },
@@ -309,7 +309,7 @@ describe("embedded controller bridge runtime", () => {
     expect(stateSpy).toHaveBeenCalledWith({
       roomId: "ROOM1",
       state: {
-        gameState: "playing",
+        runtimeState: "playing",
         orientation: "landscape",
       },
     });

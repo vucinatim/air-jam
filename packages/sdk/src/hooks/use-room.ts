@@ -5,7 +5,7 @@ import type { RoomCode } from "../protocol";
 
 export interface RoomState {
   roomId: RoomCode | null;
-  gameState: "paused" | "playing";
+  runtimeState: "paused" | "playing";
   mode: "standalone" | "platform";
 }
 
@@ -15,7 +15,7 @@ export const useRoom = (): RoomState => {
     store,
     useShallow((state) => ({
       roomId: state.roomId,
-      gameState: state.gameState,
+      runtimeState: state.runtimeState,
       mode: state.mode,
     })),
   );

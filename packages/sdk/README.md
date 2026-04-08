@@ -186,7 +186,7 @@ export const ControllerView = () => {
     {
       enabled:
         controller.connectionStatus === "connected" &&
-        controller.gameState === "playing",
+        controller.runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -317,7 +317,7 @@ Use `createAirJamStore` for shared game state synced from host to controllers.
 ```tsx
 import { createAirJamStore } from "@air-jam/sdk";
 
-interface GameState {
+interface RuntimeState {
   phase: "lobby" | "playing";
   actions: {
     setPhase: (
@@ -331,7 +331,7 @@ interface GameState {
   };
 }
 
-export const useGameStore = createAirJamStore<GameState>((set) => ({
+export const useGameStore = createAirJamStore<RuntimeState>((set) => ({
   phase: "lobby",
   actions: {
     setPhase: (_ctx, { phase }) => set({ phase }),
@@ -354,16 +354,15 @@ Action context includes `connectedPlayerIds`, so host actions can prune stale as
 
 ## Host Lifecycle Bridge
 
-Use `useHostGameStateBridge` to keep transport pause/play state aligned with your store lifecycle phase transitions.
+Use `useHostRuntimeStateBridge` to keep transport pause/play state aligned with your store lifecycle phase transitions.
 
 ```tsx
-import { useHostGameStateBridge } from "@air-jam/sdk";
+import { useHostRuntimeStateBridge } from "@air-jam/sdk";
 
-useHostGameStateBridge({
-  phase: matchPhase, // "lobby" | "playing" | "ended"
-  playingPhase: "playing",
-  gameState: host.gameState,
-  toggleGameState: host.toggleGameState,
+useHostRuntimeStateBridge({
+  matchPhase, // "lobby" | "countdown" | "playing" | "ended"
+  runtimeState: host.runtimeState,
+  toggleRuntimeState: host.toggleRuntimeState,
 });
 ```
 

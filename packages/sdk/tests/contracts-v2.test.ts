@@ -41,7 +41,7 @@ describe("contracts v2 bridge messages", () => {
         payload: {
           roomId: "ABCD",
           players: [{ id: "p1", label: "Player 1", color: "#38bdf8" }],
-          state: { gameState: "paused", message: "Ready" },
+          state: { runtimeState: "paused", message: "Ready" },
           capabilities: { canPause: true },
         },
       },
@@ -52,9 +52,9 @@ describe("contracts v2 bridge messages", () => {
         },
       },
       {
-        type: "GAME_STATE_UPDATE",
+        type: "RUNTIME_STATE_UPDATE",
         payload: {
-          gameState: "playing",
+          runtimeState: "playing",
           message: "Round started",
         },
       },

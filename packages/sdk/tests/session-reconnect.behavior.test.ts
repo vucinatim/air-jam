@@ -189,16 +189,16 @@ describe("session reconnect behavior", () => {
 
     const stateHandler = mocked.controllerSocket.on.mock.calls.find(
       ([event]: [string]) => event === "server:state",
-    )?.[1] as ((payload: { roomId: string; state: { gameState?: "paused" | "playing" } }) => void) | undefined;
+    )?.[1] as ((payload: { roomId: string; state: { runtimeState?: "paused" | "playing" } }) => void) | undefined;
     expect(stateHandler).toBeDefined();
 
     act(() => {
       stateHandler?.({
         roomId: "ROOM1",
-        state: { gameState: "playing" },
+        state: { runtimeState: "playing" },
       });
     });
-    expect(result.current.gameState).toBe("playing");
+    expect(result.current.runtimeState).toBe("playing");
 
     const disconnectHandler = mocked.controllerSocket.on.mock.calls.find(
       ([event]: [string]) => event === "disconnect",
@@ -210,7 +210,7 @@ describe("session reconnect behavior", () => {
     });
 
     expect(result.current.connectionStatus).toBe("disconnected");
-    expect(result.current.gameState).toBe("paused");
+    expect(result.current.runtimeState).toBe("paused");
   });
 
   it("recovers host status when the cached socket is already connected", async () => {
@@ -323,7 +323,7 @@ describe("session reconnect behavior", () => {
 
     expect(
       result.current.sendState({
-        gameState: "playing",
+        runtimeState: "playing",
       }),
     ).toBe(true);
     expect(mocked.hostSocket.emit).toHaveBeenCalledWith(
@@ -331,7 +331,7 @@ describe("session reconnect behavior", () => {
       {
         roomId: "ROOM1",
         state: {
-          gameState: "playing",
+          runtimeState: "playing",
         },
       },
     );
@@ -342,7 +342,7 @@ describe("session reconnect behavior", () => {
 
     expect(
       result.current.sendState({
-        gameState: "paused",
+        runtimeState: "paused",
       }),
     ).toBe(false);
     expect(

@@ -21,7 +21,7 @@ import { useContext } from "react";
 import type {
   ConnectionStatus,
   ControllerStatePayload,
-  GameState,
+  RuntimeState,
   HapticSignalPayload,
   PlayerProfile,
   RoomCode,
@@ -103,9 +103,9 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   /** Current run mode (standalone, arcade, platform) */
   mode: RunMode;
   /** Current game state (paused or playing) */
-  gameState: GameState;
+  runtimeState: RuntimeState;
   /** Toggle between paused and playing states */
-  toggleGameState: () => void;
+  toggleRuntimeState: () => void;
   /**
    * Send state update to all connected controllers.
    * Use for syncing game state, messages, etc.
@@ -191,8 +191,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  *       <h1>Room: {host.roomId}</h1>
  *       <QRCode value={host.joinUrl} />
  *       <p>Players: {host.players.length}</p>
- *       <button onClick={host.toggleGameState}>
- *         {host.gameState === "playing" ? "Pause" : "Play"}
+ *       <button onClick={host.toggleRuntimeState}>
+ *         {host.runtimeState === "playing" ? "Pause" : "Play"}
  *       </button>
  *     </div>
  *   );

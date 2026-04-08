@@ -247,13 +247,13 @@ status, and short messages.
 ```tsx
 // Update controller presentation
 host.sendState({
-  gameState: "playing", // "playing" | "paused"
+  runtimeState: "playing", // "playing" | "paused"
   orientation: "landscape", // "portrait" | "landscape"
   message: "Round 3 - Fight!",
 });
 
 // Controllers receive via onState callback
-// or controller.gameState / controller.controllerOrientation / controller.stateMessage
+// or controller.runtimeState / controller.controllerOrientation / controller.stateMessage
 ```
 
 ## Error Handling

@@ -3,14 +3,10 @@ import {
   PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
-  useHostGameStateBridge,
+  useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { EndedScreen } from "./components/ended-screen";
-import { LobbyScreen } from "./components/lobby-screen";
-import { MatchOverlay } from "./components/match-overlay";
-import { ScoreStrip } from "./components/score-strip";
 import { getMatchReadiness } from "../game/domain/match-readiness";
 import { getTeamCounts } from "../game/domain/team-slots";
 import {
@@ -21,10 +17,14 @@ import {
   resetBall,
   stepGame,
 } from "../game/engine";
-import { usePongFeedback } from "./hooks/use-pong-feedback";
 import { gameInputSchema } from "../game/input";
 import { PONG_SOUND_MANIFEST } from "../game/shared/sounds";
 import { usePongStore } from "../game/stores";
+import { EndedScreen } from "./components/ended-screen";
+import { LobbyScreen } from "./components/lobby-screen";
+import { MatchOverlay } from "./components/match-overlay";
+import { ScoreStrip } from "./components/score-strip";
+import { usePongFeedback } from "./hooks/use-pong-feedback";
 
 export function HostView() {
   return (
@@ -39,7 +39,7 @@ export function HostView() {
 function HostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
   const audio = useAudio<keyof typeof PONG_SOUND_MANIFEST & string>();
-  const { gameState, toggleGameState } = host;
+  const { runtimeState, toggleRuntimeState } = host;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [audioMuted, setAudioMuted] = useState(false);
@@ -61,12 +61,16 @@ function HostScreen() {
 
   const team1Players = useMemo(
     () =>
-      host.players.filter((player) => teamAssignments[player.id]?.team === "team1"),
+      host.players.filter(
+        (player) => teamAssignments[player.id]?.team === "team1",
+      ),
     [host.players, teamAssignments],
   );
   const team2Players = useMemo(
     () =>
-      host.players.filter((player) => teamAssignments[player.id]?.team === "team2"),
+      host.players.filter(
+        (player) => teamAssignments[player.id]?.team === "team2",
+      ),
     [host.players, teamAssignments],
   );
   const teamCounts = useMemo(
@@ -88,26 +92,26 @@ function HostScreen() {
     onStartMatch: () => actions.startMatch(),
   });
 
-  const showPausedOverlay = matchPhase === "playing" && gameState !== "playing";
+  const showPausedOverlay =
+    matchPhase === "playing" && runtimeState !== "playing";
 
   useEffect(() => {
     audio.mute(audioMuted);
   }, [audio, audioMuted]);
 
-  useHostGameStateBridge({
-    phase: matchPhase,
-    playingPhase: "playing",
-    gameState,
-    toggleGameState,
-    onEnterPlayingPhase: () => {
+  useHostRuntimeStateBridge({
+    matchPhase,
+    runtimeState,
+    toggleRuntimeState,
+    onEnterActivePhase: () => {
       setCountdown(3);
       Object.assign(runtimeStateRef.current, createRuntimeState());
     },
-    onExitPlayingPhase: () => {
+    onExitActivePhase: () => {
       setCountdown(null);
     },
-    onPhaseTransition: ({ previousPhase, phase }) => {
-      if (previousPhase === "ended" && phase === "lobby") {
+    onPhaseTransition: ({ previousPhase, matchPhase: nextPhase }) => {
+      if (previousPhase === "ended" && nextPhase === "lobby") {
         resetBall(runtimeStateRef.current);
       }
     },
@@ -115,7 +119,7 @@ function HostScreen() {
 
   useEffect(() => {
     if (countdown === null) return;
-    if (gameState !== "playing" || matchPhase !== "playing") return;
+    if (runtimeState !== "playing" || matchPhase !== "playing") return;
 
     if (countdown === 0) {
       resetBall(runtimeStateRef.current);
@@ -130,7 +134,7 @@ function HostScreen() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [countdown, gameState, matchPhase]);
+  }, [countdown, runtimeState, matchPhase]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -154,7 +158,7 @@ function HostScreen() {
         players: host.players,
         teamAssignments,
         getInput: host.getInput,
-        isPlaying: gameState === "playing" && matchPhase === "playing",
+        isPlaying: runtimeState === "playing" && matchPhase === "playing",
         countdown,
         botCounts,
         onPaddleHit: (event) => {
@@ -184,7 +188,7 @@ function HostScreen() {
   }, [
     actions,
     countdown,
-    gameState,
+    runtimeState,
     host.getInput,
     host.players,
     matchPhase,
@@ -197,7 +201,7 @@ function HostScreen() {
   if (matchPhase === "lobby") {
     return (
       <>
-        <div className="fixed right-4 top-4 z-[60]">
+        <div className="fixed top-4 right-4 z-60">
           <HostMuteButton
             muted={audioMuted}
             onToggle={() => setAudioMuted((previous) => !previous)}
@@ -224,7 +228,7 @@ function HostScreen() {
   if (matchPhase === "ended") {
     return (
       <>
-        <div className="fixed right-4 top-4 z-[60]">
+        <div className="fixed top-4 right-4 z-60">
           <HostMuteButton
             muted={audioMuted}
             onToggle={() => setAudioMuted((previous) => !previous)}
@@ -243,7 +247,7 @@ function HostScreen() {
 
   return (
     <div className="pong-app-shell h-screen w-screen text-white">
-      <div className="fixed right-4 top-4 z-[60]">
+      <div className="fixed top-4 right-4 z-60">
         <HostMuteButton
           muted={audioMuted}
           onToggle={() => setAudioMuted((previous) => !previous)}
@@ -260,7 +264,7 @@ function HostScreen() {
         />
       </div>
 
-      <div className="absolute inset-0 flex items-center justify-center px-4 pb-6 pt-28 sm:px-6 sm:pb-8 sm:pt-32">
+      <div className="absolute inset-0 flex items-center justify-center px-4 pt-28 pb-6 sm:px-6 sm:pt-32 sm:pb-8">
         <div className="pong-stage-frame flex max-h-full max-w-full items-center justify-center">
           <canvas
             ref={canvasRef}

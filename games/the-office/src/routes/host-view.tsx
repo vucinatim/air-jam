@@ -1,4 +1,4 @@
-import { useAirJamHost, useHostGameStateBridge } from "@air-jam/sdk";
+import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
 import {
   HostMuteButton,
   JoinUrlControls,
@@ -79,17 +79,16 @@ export function HostView() {
     onStartMatch: startMatch,
   });
 
-  useHostGameStateBridge({
-    phase: matchPhase,
-    playingPhase: "playing",
-    gameState: host.gameState,
-    toggleGameState: host.toggleGameState,
+  useHostRuntimeStateBridge({
+    matchPhase: matchPhase,
+    runtimeState: host.runtimeState,
+    toggleRuntimeState: host.toggleRuntimeState,
   });
 
-  const prevRuntimeGameStateRef = useRef(host.gameState);
+  const prevRuntimeStateRef = useRef(host.runtimeState);
   useEffect(() => {
-    const previousRuntimeState = prevRuntimeGameStateRef.current;
-    prevRuntimeGameStateRef.current = host.gameState;
+    const previousRuntimeState = prevRuntimeStateRef.current;
+    prevRuntimeStateRef.current = host.runtimeState;
 
     if (matchPhase !== "playing") {
       return;
@@ -97,11 +96,11 @@ export function HostView() {
 
     if (
       previousRuntimeState === "playing" &&
-      host.gameState !== "playing"
+      host.runtimeState !== "playing"
     ) {
       storeActions.setMatchPhase({ phase: "lobby" });
     }
-  }, [host.gameState, matchPhase, storeActions]);
+  }, [host.runtimeState, matchPhase, storeActions]);
 
   const getInput = useCallback(
     (playerId: string) => host.getInput(playerId) ?? null,
@@ -182,7 +181,7 @@ export function HostView() {
             getInput={getInput}
             players={host.players}
             gameStatePlaying={
-              matchPhase === "playing" && host.gameState === "playing"
+              matchPhase === "playing" && host.runtimeState === "playing"
             }
             updateGame={updateGame}
           />
@@ -359,7 +358,7 @@ export function HostView() {
         </div>
       ) : null}
 
-      {matchPhase === "playing" && host.gameState !== "playing" ? (
+      {matchPhase === "playing" && host.runtimeState !== "playing" ? (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[#1f2937]/45 p-4">
           <div className="w-full max-w-sm border border-[#fef3c7] bg-[#fef3c7] p-4 text-center text-[#5c4a2e] shadow-xl">
             <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">

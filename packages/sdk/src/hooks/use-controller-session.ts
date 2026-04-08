@@ -6,7 +6,7 @@ import { useAssertSessionScope } from "../context/session-scope";
 import type {
   ConnectionStatus,
   ControllerOrientation,
-  GameState,
+  RuntimeState,
   PlayerProfile,
   RoomCode,
 } from "../protocol";
@@ -16,7 +16,7 @@ export interface AirJamControllerSessionState {
   controllerId: string | null;
   connectionStatus: ConnectionStatus;
   lastError?: string;
-  gameState: GameState;
+  runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
   stateMessage?: string;
   players: PlayerProfile[];
@@ -40,7 +40,7 @@ export const useControllerSession = (): AirJamControllerSessionState => {
       controllerId: s.controllerId,
       connectionStatus: s.connectionStatus,
       lastError: s.lastError,
-      gameState: s.gameState,
+      runtimeState: s.runtimeState,
       controllerOrientation: s.controllerOrientation,
       stateMessage: s.stateMessage,
       players: s.players,

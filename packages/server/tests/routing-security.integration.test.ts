@@ -360,7 +360,7 @@ describe("server routing and security", () => {
     await harness.expectNoEvent(host, "server:playSound");
     await harness.expectNoEvent(host, "airjam:action_rpc");
     await harness.delay(50);
-    expect(harness.getRoomManager().getRoom(roomId)?.gameState).toBe("paused");
+    expect(harness.getRoomManager().getRoom(roomId)?.runtimeState).toBe("paused");
   });
 
   it("allows privileged controller system and sound events with the official capability", async () => {
@@ -407,7 +407,7 @@ describe("server routing and security", () => {
     });
 
     await harness.delay(50);
-    expect(harness.getRoomManager().getRoom(roomId)?.gameState).toBe("playing");
+    expect(harness.getRoomManager().getRoom(roomId)?.runtimeState).toBe("playing");
   });
 
   it("blocks unauthorized launch and close transitions", async () => {
@@ -499,24 +499,24 @@ describe("server routing and security", () => {
 
     await harness.delay(25);
     const initialSession = harness.getRoomManager().getRoom(roomId);
-    expect(initialSession?.gameState).toBe("paused");
+    expect(initialSession?.runtimeState).toBe("paused");
 
     attacker.emit("host:state", {
       roomId,
-      state: { gameState: "playing" },
+      state: { runtimeState: "playing" },
     });
 
     await harness.delay(50);
     const afterForgedUpdate = harness.getRoomManager().getRoom(roomId);
-    expect(afterForgedUpdate?.gameState).toBe("paused");
+    expect(afterForgedUpdate?.runtimeState).toBe("paused");
 
     masterHost.emit("host:state", {
       roomId,
-      state: { gameState: "playing" },
+      state: { runtimeState: "playing" },
     });
 
     await harness.delay(50);
     const afterValidUpdate = harness.getRoomManager().getRoom(roomId);
-    expect(afterValidUpdate?.gameState).toBe("playing");
+    expect(afterValidUpdate?.runtimeState).toBe("playing");
   });
 });

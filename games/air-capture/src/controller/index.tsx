@@ -41,7 +41,7 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
   roomId,
   connectionStatus,
   matchPhase,
-  gameState,
+  runtimeState,
   canSendSystemCommand,
   canStartMatch,
   onReturnToLobby,
@@ -52,7 +52,7 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
   roomId: string | null;
   connectionStatus: ControllerConnectionStatus;
   matchPhase: ControllerMatchPhase;
-  gameState?: "playing" | "paused";
+  runtimeState?: "playing" | "paused";
   canSendSystemCommand: boolean;
   canStartMatch: boolean;
   onReturnToLobby: () => void;
@@ -67,7 +67,7 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
       roomId={roomId}
       connectionStatus={connectionStatus}
       matchPhase={matchPhase}
-      gameState={gameState}
+      runtimeState={runtimeState}
       canSendSystemCommand={canSendSystemCommand}
       canStartMatch={canStartMatch}
       onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
@@ -86,7 +86,7 @@ const ControllerScreen = () => {
       roomId: state.roomId,
       controllerId: state.controllerId,
       connectionStatus: state.connectionStatus,
-      gameState: state.gameState,
+      runtimeState: state.runtimeState,
       players: state.players,
     })),
   );
@@ -119,7 +119,7 @@ const ControllerScreen = () => {
       enabled:
         controllerState.connectionStatus === "connected" &&
         (matchPhase === "countdown" || matchPhase === "playing") &&
-        controllerState.gameState === "playing",
+        controllerState.runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -201,11 +201,7 @@ const ControllerScreen = () => {
           roomId={controllerState.roomId}
           connectionStatus={controllerState.connectionStatus}
           matchPhase={matchPhase}
-          gameState={
-            matchPhase === "countdown" || matchPhase === "playing"
-              ? controllerState.gameState
-              : undefined
-          }
+          runtimeState={controllerState.runtimeState}
           canSendSystemCommand={canSendSystemCommand}
           canStartMatch={readiness.canStart}
           onReturnToLobby={() => actions.returnToLobby()}

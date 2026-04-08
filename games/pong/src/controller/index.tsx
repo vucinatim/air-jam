@@ -127,7 +127,7 @@ function ControllerScreen({
     {
       enabled:
         controller.connectionStatus === "connected" &&
-        controller.gameState === "playing",
+        controller.runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -160,7 +160,7 @@ function ControllerScreen({
           myProfile={myProfile}
           connectionStatus={controller.connectionStatus}
           matchPhase={matchPhase}
-          gameState={controller.gameState}
+          runtimeState={controller.runtimeState}
           canSendSystemCommand={canSendSystemCommand}
           canStartMatch={readiness.canStart}
           onTogglePause={() => controller.sendSystemCommand("toggle_pause")}

@@ -79,9 +79,9 @@ export {
 } from "./hooks/use-controller-toasts";
 export { useGetInput } from "./hooks/use-get-input";
 export {
-  useHostGameStateBridge,
-  type UseHostGameStateBridgeOptions,
-} from "./hooks/use-host-game-state-bridge";
+  useHostRuntimeStateBridge,
+  type UseHostRuntimeStateBridgeOptions,
+} from "./hooks/use-host-runtime-state-bridge";
 export {
   useHostSession,
   type AirJamHostSessionState,
@@ -98,10 +98,18 @@ export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
 
 export type {
   ConnectionStatus,
-  GameState,
+  RuntimeState,
   RoomCode,
   RunMode,
 } from "./protocol/core";
+export type { ShellMatchPhase, StandardMatchPhase } from "./lifecycle";
+export {
+  isActiveMatchPhase,
+  isEndedMatchPhase,
+  isStandardMatchPhase,
+  standardMatchPhases,
+  toShellMatchPhase,
+} from "./lifecycle";
 export type {
   ControllerOrientation,
   ControllerStatePayload,

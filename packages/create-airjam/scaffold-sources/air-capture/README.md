@@ -52,6 +52,7 @@ tests/
 - `src/game/audio/` owns runtime audio once per surface; entities, prefabs, and engine hooks consume local audio facades instead of calling `useAudio(...)` directly.
 - `src/game/stores/` owns replicated state and thin store wiring around pure transition helpers and explicit interaction outcomes.
 - `src/game/engine/` owns hot runtime orchestration hooks plus pure ship/projectile/lifecycle/runtime stepping helpers, not lobby or shell UI.
+- `src/game/engine/` and shell-facing host/controller code should treat `matchPhase` as the lifecycle contract and `runtimeState` as pause/play only. Use the shared lifecycle helpers when a shell view needs a simplified phase.
 - `src/game/prefabs/arena/` owns the canonical arena prefab contract (`schema`, `preview`, `prefab`, `paint`).
 - `src/game/prefabs/` owns world composition entry surfaces, not debug/editor concerns.
 - `src/game/debug/` is where host-only cheat, recorder, and inspection surfaces belong.

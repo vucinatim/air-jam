@@ -14,7 +14,7 @@ interface ControllerHeaderProps {
   myProfile: PlayerProfile | null;
   connectionStatus: AirJamControllerApi["connectionStatus"];
   matchPhase: "lobby" | "playing" | "ended";
-  gameState: AirJamControllerApi["gameState"];
+  runtimeState: AirJamControllerApi["runtimeState"];
   canSendSystemCommand: boolean;
   canStartMatch: boolean;
   onTogglePause: () => void;
@@ -28,7 +28,7 @@ export const ControllerHeader = ({
   myProfile,
   connectionStatus,
   matchPhase,
-  gameState,
+  runtimeState,
   canSendSystemCommand,
   canStartMatch,
   onTogglePause,
@@ -84,7 +84,7 @@ export const ControllerHeader = ({
       rightSlot={
         <LifecycleActionGroup
           phase={matchPhase}
-          gameState={gameState}
+          runtimeState={runtimeState}
           canInteract={lifecyclePermissions.canInteractForPhase}
           onStart={lifecycleIntents.onStart}
           onTogglePause={lifecycleIntents.onTogglePause}

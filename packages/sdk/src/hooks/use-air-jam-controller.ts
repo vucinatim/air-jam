@@ -24,7 +24,7 @@ import type {
   ControllerOrientation,
   ControllerStatePayload,
   ControllerUpdatePlayerProfileAck,
-  GameState,
+  RuntimeState,
   PlayerProfile,
   PlayerProfilePatch,
   RoomCode,
@@ -50,7 +50,7 @@ import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
  * <AirJamControllerRuntime
  *   nickname={playerName}
  *   onState={(state) => {
- *     if (state.gameState === "playing") startGame();
+ *     if (state.runtimeState === "playing") startGame();
  *   }}
  * >
  *   <ControllerView />
@@ -99,7 +99,7 @@ export interface AirJamControllerApi {
   /** Last error message, if any */
   lastError?: string;
   /** Current game state (paused or playing) */
-  gameState: GameState;
+  runtimeState: RuntimeState;
   /** Intended controller presentation orientation for the active game UI. */
   controllerOrientation: ControllerOrientation;
   /** Optional message from the host (e.g., "Get Ready!") */
@@ -165,7 +165,7 @@ export interface AirJamControllerApi {
  *   return (
  *     <div>
  *       <p>Connected: {controller.controllerId}</p>
- *       <p>Game: {controller.gameState}</p>
+ *       <p>Game: {controller.runtimeState}</p>
  *     </div>
  *   );
  * };

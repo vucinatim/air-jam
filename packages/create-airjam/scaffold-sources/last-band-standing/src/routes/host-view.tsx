@@ -3,11 +3,12 @@ import {
   PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
-  useHostGameStateBridge,
+  useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostMuteButton } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
+import { toShellMatchPhase } from "../game/domain/match-phase";
 import { rankPlayers } from "../game/domain/round-engine";
 import { getSongById } from "../song-bank";
 import { useGameStore } from "../game/stores";
@@ -169,19 +170,15 @@ const HostScreen = () => {
       ? finalRankingPlayerIds
       : rankPlayers(scoreboardByPlayerId);
 
-  const runtimePhase =
-    phase === "round-active" || phase === "round-reveal"
-      ? "playing"
-      : phase;
+  const shellPhase = toShellMatchPhase(phase);
 
-  useHostGameStateBridge({
-    phase: runtimePhase,
-    playingPhase: "playing",
-    gameState: host.gameState,
-    toggleGameState: host.toggleGameState,
+  useHostRuntimeStateBridge({
+    matchPhase: shellPhase,
+    runtimeState: host.runtimeState,
+    toggleRuntimeState: host.toggleRuntimeState,
   });
 
-  const isPlaying = phase === "round-active" || phase === "round-reveal";
+  const isPlaying = shellPhase === "playing";
   const showVideo = isPlaying && activeSong && embedUrl;
 
   const stripPlayerIds = isPlaying || phase === "game-over" ? rankingPlayerIds : playerOrder;

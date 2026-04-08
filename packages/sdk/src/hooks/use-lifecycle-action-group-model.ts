@@ -1,6 +1,7 @@
-import type { GameState } from "../protocol";
+import type { ShellMatchPhase } from "../lifecycle";
+import type { RuntimeState } from "../protocol";
 
-export type LifecycleVisualPhase = "lobby" | "playing" | "ended";
+export type LifecycleVisualPhase = ShellMatchPhase;
 
 export type LifecycleActionKind =
   | "start"
@@ -18,7 +19,7 @@ export interface LifecycleActionDescriptor {
 
 export interface UseLifecycleActionGroupModelProps {
   phase: LifecycleVisualPhase;
-  gameState?: GameState;
+  runtimeState?: RuntimeState;
   canInteract?: boolean;
   onStart?: () => void;
   onTogglePause?: () => void;
@@ -38,7 +39,7 @@ export interface LifecycleActionGroupModel {
 
 export const useLifecycleActionGroupModel = ({
   phase,
-  gameState,
+  runtimeState,
   canInteract = true,
   onStart,
   onTogglePause,
@@ -50,7 +51,7 @@ export const useLifecycleActionGroupModel = ({
   pauseLabel = "Pause",
   resumeLabel = "Resume",
 }: UseLifecycleActionGroupModelProps): LifecycleActionGroupModel => {
-  const isPaused = gameState === "paused";
+  const isPaused = runtimeState === "paused";
   const actions: LifecycleActionDescriptor[] = [];
 
   if (phase === "lobby" && onStart) {
