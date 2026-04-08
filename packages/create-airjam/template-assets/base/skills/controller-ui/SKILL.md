@@ -12,6 +12,7 @@ Use this skill for controller gameplay and lobby surfaces.
 1. `docs/generated/controller-ui.md`
 2. `docs/visual-system.md`
 3. `docs/iconography.md`
+4. `docs/composition-shell-contract.md` when the controller needs lobby/status/lifecycle shell work
 
 ## Gameplay Rules
 
@@ -26,6 +27,15 @@ Use this skill for controller gameplay and lobby surfaces.
 1. keep the flow simple
 2. allow scroll only when it helps
 3. keep the hierarchy sparse
+4. prefer the shared shell contract for top status and lifecycle action placement unless the game has a strong reason to go fully custom
+
+## Shell Contract Rule
+
+For controller shell work:
+
+1. prefer `RuntimeShellHeader`, `LifecycleActionGroup`, `useControllerShellStatus`, `useControllerLifecyclePermissions`, and `useControllerLifecycleIntents` for the default composition path
+2. if you need custom markup, keep the same lifecycle behavior and action ordering
+3. do not keep duplicate lifecycle controls in both a top shell and a legacy local panel
 
 ## Design Direction
 

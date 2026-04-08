@@ -1,5 +1,11 @@
 import { useAirJamHost, useHostGameStateBridge } from "@air-jam/sdk";
-import { HostMuteButton, RoomQrCode } from "@air-jam/sdk/ui";
+import {
+  HostMuteButton,
+  JoinUrlControls,
+  LifecycleActionGroup,
+  RoomQrCode,
+  useHostLobbyShell,
+} from "@air-jam/sdk/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Position, type Team } from "../game/domain/team-assignments";
 import {
@@ -439,7 +445,6 @@ export function HostView() {
     team2: MAX_HP,
   }));
   const [audioMuted, setAudioMuted] = useState(false);
-  const [copiedJoinUrl, setCopiedJoinUrl] = useState(false);
   const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
   const crowdAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioMutedRef = useRef(false);
@@ -447,34 +452,6 @@ export function HostView() {
   useEffect(() => {
     audioMutedRef.current = audioMuted;
   }, [audioMuted]);
-
-  const copyJoinUrl = async (): Promise<void> => {
-    if (!host.joinUrl) return;
-
-    try {
-      await navigator.clipboard.writeText(host.joinUrl);
-      setCopiedJoinUrl(true);
-      setTimeout(() => setCopiedJoinUrl(false), 1800);
-      return;
-    } catch {
-      // Fallback for older browsers
-      const fallbackField = document.createElement("textarea");
-      fallbackField.value = host.joinUrl;
-      fallbackField.style.position = "fixed";
-      fallbackField.style.opacity = "0";
-      document.body.appendChild(fallbackField);
-      fallbackField.select();
-      try {
-        document.execCommand("copy");
-        setCopiedJoinUrl(true);
-        setTimeout(() => setCopiedJoinUrl(false), 1800);
-      } catch {
-        // Ignore copy failure.
-      } finally {
-        document.body.removeChild(fallbackField);
-      }
-    }
-  };
 
   const copyPlayerId = async (playerId: string): Promise<void> => {
     try {
@@ -612,6 +589,11 @@ export function HostView() {
       readyAssignedCount,
     ],
   );
+  const hostLobbyShell = useHostLobbyShell({
+    roomId: host.roomId,
+    joinUrl: host.joinUrl,
+    canStartMatch,
+  });
 
   useHostGameStateBridge({
     phase: matchPhase,
@@ -1610,41 +1592,16 @@ export function HostView() {
                       </span>
                     </div>
 
-                    <div>
-                      <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
-                        Join URL
-                      </p>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        <input
-                          type="text"
-                          readOnly
-                          value={host.joinUrl ?? ""}
-                          className="pixel-font h-9 min-w-0 flex-[1_1_14rem] rounded-none border-2 border-zinc-600 bg-black/80 px-3 py-2 text-xs text-zinc-100 outline-none md:h-10"
-                        />
-                        <button
-                          type="button"
-                          className="h-9 rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs text-zinc-100 uppercase transition hover:bg-zinc-700 md:h-10"
-                          onClick={copyJoinUrl}
-                        >
-                          {copiedJoinUrl ? "Copied" : "Copy"}
-                        </button>
-                        <button
-                          type="button"
-                          className="h-9 rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 text-xs text-zinc-100 uppercase transition hover:bg-zinc-700 md:h-10"
-                          onClick={() => {
-                            if (host.joinUrl) {
-                              window.open(
-                                host.joinUrl,
-                                "_blank",
-                                "noopener,noreferrer",
-                              );
-                            }
-                          }}
-                        >
-                          Open
-                        </button>
-                      </div>
-                    </div>
+                    <JoinUrlControls
+                      value={hostLobbyShell.joinUrlValue}
+                      label="Join URL"
+                      copied={hostLobbyShell.copied}
+                      onCopy={hostLobbyShell.handleCopy}
+                      onOpen={hostLobbyShell.handleOpen}
+                      className="pt-1"
+                      inputClassName="pixel-font border-2 border-zinc-600 bg-black/80 text-xs text-zinc-100"
+                      buttonClassName="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+                    />
                   </div>
 
                   <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
@@ -1654,9 +1611,9 @@ export function HostView() {
                           Scan To Join
                         </p>
                         <div className="mt-2 flex w-full flex-1 items-start justify-center">
-                          {host.joinUrl ? (
+                          {hostLobbyShell.joinUrlValue ? (
                             <RoomQrCode
-                              value={host.joinUrl}
+                              value={hostLobbyShell.joinUrlValue}
                               size={448}
                               padding={1}
                               foregroundColor="#ffffff"
@@ -1744,17 +1701,16 @@ export function HostView() {
                   </div>
 
                   <div className="mt-3 flex justify-end">
-                    <button
-                      type="button"
-                      disabled={!canStartMatch}
-                      onClick={() => {
+                    <LifecycleActionGroup
+                      phase="lobby"
+                      canInteract={canStartMatch}
+                      onStart={() => {
                         if (!canStartMatch) return;
                         actions.startMatch();
                       }}
-                      className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-8 py-3 text-lg text-white transition enabled:hover:bg-zinc-700 enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Play
-                    </button>
+                      startLabel="Play"
+                      buttonClassName="rounded-none border-4 border-zinc-300 bg-zinc-800 text-white enabled:hover:bg-zinc-700"
+                    />
                   </div>
                 </div>
               </div>

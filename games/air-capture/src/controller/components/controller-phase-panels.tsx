@@ -61,12 +61,10 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
   maxBotsByTeam,
   pointsToWin,
   readinessText,
-  canStart,
   teamPlayers,
   onSelectTeam,
   onSetTeamBotCount,
   onSetPointsToWin,
-  onStartMatch,
 }: {
   myTeam: TeamId | null;
   controlsDisabled: boolean;
@@ -75,12 +73,10 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
   maxBotsByTeam: TeamCounts;
   pointsToWin: number;
   readinessText: string;
-  canStart: boolean;
   teamPlayers: Record<TeamId, PlayerProfile[]>;
   onSelectTeam: (teamId: TeamId) => void;
   onSetTeamBotCount: (teamId: TeamId, count: number) => void;
   onSetPointsToWin: (pointsToWin: number) => void;
-  onStartMatch: () => void;
 }) {
   return (
     <div
@@ -177,28 +173,14 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
         </div>
       </div>
 
-      <button
-        type="button"
-        className="rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold tracking-wide text-white uppercase hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={!canStart || controlsDisabled}
-        onClick={onStartMatch}
-      >
-        Start Match
-      </button>
     </div>
   );
 });
 
 export const ControllerEndedPanel = memo(function ControllerEndedPanel({
   matchSummary,
-  controlsDisabled,
-  onRestartMatch,
-  onReturnToLobby,
 }: {
   matchSummary: MatchSummary | null;
-  controlsDisabled: boolean;
-  onRestartMatch: () => void;
-  onReturnToLobby: () => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-3 text-center">
@@ -220,22 +202,6 @@ export const ControllerEndedPanel = memo(function ControllerEndedPanel({
           ? `${matchSummary.finalScores.solaris}:${matchSummary.finalScores.nebulon}`
           : "0:0"}
       </div>
-      <button
-        type="button"
-        className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold tracking-wide text-white uppercase hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={controlsDisabled}
-        onClick={onRestartMatch}
-      >
-        Restart Match
-      </button>
-      <button
-        type="button"
-        className="w-full rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold tracking-wide text-white uppercase hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={controlsDisabled}
-        onClick={onReturnToLobby}
-      >
-        Return To Lobby
-      </button>
     </div>
   );
 });

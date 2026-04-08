@@ -5,12 +5,14 @@ import {
   useAudio,
   useHostGameStateBridge,
 } from "@air-jam/sdk";
-import { HostMuteButton } from "@air-jam/sdk/ui";
+import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
 import { MatchOverlay } from "./components/match-overlay";
 import { ScoreStrip } from "./components/score-strip";
+import { getMatchReadiness } from "../game/domain/match-readiness";
+import { getTeamCounts } from "../game/domain/team-slots";
 import {
   createRuntimeState,
   drawFrame,
@@ -57,19 +59,6 @@ function HostScreen() {
 
   const runtimeStateRef = useRef(createRuntimeState());
 
-  const joinQrValue = useMemo(() => {
-    if (host.joinUrl) {
-      return host.joinUrl;
-    }
-    if (!host.roomId || typeof window === "undefined") {
-      return "";
-    }
-    return new URL(
-      `/controller?room=${host.roomId}`,
-      window.location.origin,
-    ).toString();
-  }, [host.joinUrl, host.roomId]);
-
   const team1Players = useMemo(
     () =>
       host.players.filter((player) => teamAssignments[player.id]?.team === "team1"),
@@ -80,6 +69,24 @@ function HostScreen() {
       host.players.filter((player) => teamAssignments[player.id]?.team === "team2"),
     [host.players, teamAssignments],
   );
+  const teamCounts = useMemo(
+    () =>
+      getTeamCounts([
+        ...team1Players.map(() => ({ team: "team1" as const })),
+        ...team2Players.map(() => ({ team: "team2" as const })),
+      ]),
+    [team1Players, team2Players],
+  );
+  const canStartMatch = useMemo(
+    () => getMatchReadiness(teamCounts, botCounts).canStart,
+    [botCounts, teamCounts],
+  );
+  const hostLobbyShell = useHostLobbyShell({
+    roomId: host.roomId,
+    joinUrl: host.joinUrl,
+    canStartMatch,
+    onStartMatch: () => actions.startMatch(),
+  });
 
   const showPausedOverlay = matchPhase === "playing" && gameState !== "playing";
 
@@ -197,13 +204,18 @@ function HostScreen() {
           />
         </div>
         <LobbyScreen
-          joinQrValue={joinQrValue}
+          joinQrValue={hostLobbyShell.joinUrlValue}
+          copiedJoinUrl={hostLobbyShell.copied}
+          onCopyJoinUrl={hostLobbyShell.handleCopy}
+          onOpenJoinUrl={hostLobbyShell.handleOpen}
           roomId={host.roomId}
           botCounts={botCounts}
           pointsToWin={pointsToWin}
           connectedPlayers={host.players}
           team1Players={team1Players}
           team2Players={team2Players}
+          canStartMatch={canStartMatch}
+          onStartMatch={hostLobbyShell.handleStart}
         />
       </>
     );
@@ -259,7 +271,7 @@ function HostScreen() {
 
       {showPausedOverlay ? (
         <MatchOverlay
-          joinQrValue={joinQrValue}
+          joinQrValue={hostLobbyShell.joinUrlValue}
           roomId={host.roomId}
         />
       ) : null}

@@ -1,5 +1,10 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
-import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
+import {
+  JoinUrlControls,
+  LifecycleActionGroup,
+  PlayerAvatar,
+  RoomQrCode,
+} from "@air-jam/sdk/ui";
 import { getLobbyReadinessText } from "../../game/domain/match-readiness";
 import { type TeamId } from "../../game/domain/team";
 import {
@@ -12,12 +17,17 @@ import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 
 interface LobbyScreenProps {
   joinQrValue: string;
+  copiedJoinUrl: boolean;
+  onCopyJoinUrl: () => void;
+  onOpenJoinUrl: () => void;
+  canStartMatch: boolean;
   roomId: string | null;
   botCounts: BotCounts;
   pointsToWin: number;
   connectedPlayers: PlayerProfile[];
   team1Players: PlayerProfile[];
   team2Players: PlayerProfile[];
+  onStartMatch: () => void;
 }
 
 interface TeamCardProps {
@@ -60,12 +70,17 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
 
 export const LobbyScreen = ({
   joinQrValue,
+  copiedJoinUrl,
+  onCopyJoinUrl,
+  onOpenJoinUrl,
+  canStartMatch,
   roomId,
   botCounts,
   pointsToWin,
   connectedPlayers,
   team1Players,
   team2Players,
+  onStartMatch,
 }: LobbyScreenProps) => {
   const teamCounts = getTeamCounts([
     ...team1Players.map(() => ({ team: "team1" as const })),
@@ -153,11 +168,29 @@ export const LobbyScreen = ({
           <p className="mt-3 max-w-sm text-sm leading-6 text-slate-300">
             Scan to join.
           </p>
+          <JoinUrlControls
+            value={joinQrValue}
+            label="Controller link"
+            copied={copiedJoinUrl}
+            onCopy={onCopyJoinUrl}
+            onOpen={onOpenJoinUrl}
+            className="mt-4 w-full max-w-sm text-left"
+            inputClassName="border-white/15 bg-black/40 text-white"
+            buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
+          />
           <RoomQrCode
             value={joinQrValue}
             size={220}
             className="mt-4 rounded-xl bg-white"
             alt="Join this Pong room"
+          />
+          <LifecycleActionGroup
+            phase="lobby"
+            canInteract={canStartMatch}
+            onStart={onStartMatch}
+            startLabel="Play"
+            className="mt-4"
+            buttonClassName="border-white/15 bg-white px-5 text-black hover:bg-white/90"
           />
         </section>
       </div>

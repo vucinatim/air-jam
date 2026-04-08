@@ -17,11 +17,11 @@ Pick the one that matches the current problem.
 4. `game-state-and-rendering`
    Use when changing stores, frame logic, refs, React state, or rendering integration.
 5. `controller-ui`
-   Use when building or reviewing controller surfaces, including icon choices for controller and gameplay UI.
+   Use when building or reviewing controller surfaces, including the shared controller shell contract, lifecycle actions, and icon choices for controller and gameplay UI.
 6. `debug-and-test`
    Use when debugging with the unified dev log stream, adding diagnostics, or writing tests.
 7. `host-surface`
-   Use when building or reviewing the host shell, active game viewport, overlays, and room-facing presentation.
+   Use when building or reviewing the host shell, host-lobby join contract, active game viewport, overlays, and room-facing presentation.
 8. `prefab-authoring`
    Use when creating reusable gameplay objects or scene presets that should stay declarative, configurable, and tool-friendly.
 9. `r3f-3d-scene`

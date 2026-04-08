@@ -162,8 +162,11 @@ function ControllerScreen({
           matchPhase={matchPhase}
           gameState={controller.gameState}
           canSendSystemCommand={canSendSystemCommand}
+          canStartMatch={readiness.canStart}
           onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
           onReturnToLobby={() => actions.returnToLobby()}
+          onStartMatch={() => actions.startMatch()}
+          onRestartMatch={() => actions.restartMatch()}
         />
 
         {connectionNotice ? (
@@ -192,7 +195,6 @@ function ControllerScreen({
             team1Players={team1Players}
             team2Players={team2Players}
             pointsToWin={pointsToWin}
-            canStartMatch={readiness.canStart}
             controlsDisabled={controlsDisabled}
             readinessText={readinessText}
             onJoinTeam={(team) => actions.joinTeam({ team })}
@@ -200,14 +202,10 @@ function ControllerScreen({
             onSetPointsToWin={(nextPointsToWin) =>
               actions.setPointsToWin({ pointsToWin: nextPointsToWin })
             }
-            onStartMatch={() => actions.startMatch()}
           />
         ) : matchPhase === "ended" ? (
           <EndedPanel
             matchSummary={matchSummary}
-            canSendSystemCommand={canSendSystemCommand}
-            onRestartMatch={() => actions.restartMatch()}
-            onReturnToLobby={() => actions.returnToLobby()}
           />
         ) : (
           <PlayingControls

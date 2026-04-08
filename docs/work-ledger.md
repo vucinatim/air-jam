@@ -154,6 +154,7 @@ Active subsystem plan linked from this phase:
 
 1. [Showcase Games Release Readiness Plan](./plans/showcase-games-release-readiness-plan.md)
 2. [Public Release Security Hardening Plan](./plans/public-release-security-hardening-plan.md)
+3. [Composition Shell Contract Plan](./plans/composition-shell-contract-plan.md)
 
 Completed baselines now folded into this phase:
 
@@ -217,7 +218,14 @@ Completed baselines now folded into this phase:
 21. Postgres safety and local-dev DB posture are now explicit prerelease baselines:
     1. the repo owns an optional persistent local dev Postgres via `pnpm run repo -- db up`, with data under `.airjam/postgres/dev/`
     2. prerelease can still intentionally point `DATABASE_URL` at production for release-state validation
-    3. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
+22. composition-shell-contract implementation is now underway:
+    1. shared SDK UI atoms now exist for join URL controls, lifecycle actions, runtime shell headers, and connection status
+    2. shared shell hooks now exist for host lobby state, controller status, lifecycle permissions, lifecycle intents, and lifecycle action modeling
+    3. `pong`, `air-capture`, `code-review`, `the-office`, and `last-band-standing` now use the shared host/controller shell contract instead of keeping mixed legacy shell paths
+    4. template docs and skills now teach both the composition-first path and the full-custom escape hatch
+    5. launch-set typechecks for the shared SDK and all five touched game packages are currently passing
+    6. remaining work on this track is now manual Arcade verification plus readiness-checklist evidence, not more code-side shell implementation
+23. destructive analytics integration tests now run against an isolated real Postgres path instead of the shared runtime DB contract
 
 ### Priority 5. Release PR And Publish
 

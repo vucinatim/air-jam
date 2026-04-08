@@ -1,5 +1,9 @@
 import { type PlayerProfile } from "@air-jam/sdk";
-import { RoomQrCode } from "@air-jam/sdk/ui";
+import {
+  JoinUrlControls,
+  LifecycleActionGroup,
+  RoomQrCode,
+} from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getLabelForPlayer, createEmptyScore } from "@/utils/player-utils";
@@ -22,6 +26,9 @@ const playerCardVariants = {
 
 interface HostLobbyProps {
   joinUrl: string | null;
+  copiedJoinUrl: boolean;
+  onCopyJoinUrl: () => void | Promise<void>;
+  onOpenJoinUrl: () => void;
   connectionStatus: string;
   lastError: string | null;
   playerOrder: string[];
@@ -36,6 +43,9 @@ interface HostLobbyProps {
 
 export const HostLobby = ({
   joinUrl,
+  copiedJoinUrl,
+  onCopyJoinUrl,
+  onOpenJoinUrl,
   connectionStatus,
   lastError,
   playerOrder,
@@ -121,6 +131,16 @@ export const HostLobby = ({
               )}>
                 {hasPlayers ? "More friends? Scan to join" : "Scan to join the game"}
               </p>
+              <JoinUrlControls
+                value={joinUrl}
+                label="Controller link"
+                copied={copiedJoinUrl}
+                onCopy={onCopyJoinUrl}
+                onOpen={onOpenJoinUrl}
+                helperText="Copy or open the controller URL for quick joins."
+                inputClassName="border-border/30 bg-card/40 text-foreground"
+                buttonClassName="border-border/30 bg-background/60 text-foreground hover:bg-background/80"
+              />
             </motion.div>
 
             {hasPlayers && (
@@ -201,14 +221,14 @@ export const HostLobby = ({
                     : `${readyCount}/${playerOrder.length} ready`}
                 </motion.p>
 
-                <button
-                  type="button"
-                  disabled={!canStartMatch}
-                  onClick={onStartMatch}
-                  className="rounded-2xl bg-primary px-8 py-3 text-base font-bold uppercase tracking-wider text-primary-foreground transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Start Match
-                </button>
+                <LifecycleActionGroup
+                  phase="lobby"
+                  canInteract={canStartMatch}
+                  onStart={onStartMatch}
+                  startLabel="Start Match"
+                  buttonClassName="rounded-2xl bg-primary px-8 py-3 text-base font-bold uppercase tracking-wider text-primary-foreground transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="justify-center"
+                />
               </motion.div>
             )}
           </div>

@@ -1,20 +1,14 @@
 import type { MatchSummary } from "../../game/stores";
 import { getTeamColor } from "../../game/domain/team";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
-import { formatMatchDuration, PRESS_FEEL_CLASS } from "../constants";
+import { formatMatchDuration } from "../constants";
 
 interface EndedPanelProps {
   matchSummary: MatchSummary | null;
-  canSendSystemCommand: boolean;
-  onRestartMatch: () => void;
-  onReturnToLobby: () => void;
 }
 
 export const EndedPanel = ({
   matchSummary,
-  canSendSystemCommand,
-  onRestartMatch,
-  onReturnToLobby,
 }: EndedPanelProps) => {
   const winner = matchSummary?.winner;
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";
@@ -47,23 +41,6 @@ export const EndedPanel = ({
         </div>
       </div>
 
-      <button
-        type="button"
-        className={`rounded-[24px] border border-white/16 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_40px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
-        disabled={!canSendSystemCommand}
-        onClick={onRestartMatch}
-      >
-        Play Again
-      </button>
-
-      <button
-        type="button"
-        className={`rounded-[24px] border border-white/12 bg-white/6 px-4 py-4 text-sm font-semibold uppercase tracking-[0.18em] text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
-        disabled={!canSendSystemCommand}
-        onClick={onReturnToLobby}
-      >
-        Back to Lobby
-      </button>
     </div>
   );
 };

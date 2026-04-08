@@ -13,6 +13,7 @@ Use this skill for host presentation, overlays, room chrome, and game viewport c
 2. `docs/generated/project-structure.md`
 3. `docs/visual-system.md` if the template already ships a shared visual language
 4. `docs/generated/controller-ui.md` only if the host and controller should mirror a shared visual language
+5. `docs/composition-shell-contract.md` when the host lobby/join shell is part of the work
 
 ## Surface Rules
 
@@ -34,6 +35,14 @@ Use this skill for host presentation, overlays, room chrome, and game viewport c
 2. prefer fluid sizing over fixed panel widths and heights
 3. keep QR, room, pause, and status UI visually secondary to the active game
 4. keep readable safe margins for overlays without shrinking the gameplay surface unnecessarily
+
+## Lobby Contract Rule
+
+For host lobby work:
+
+1. the host lobby should expose room context, QR, join URL field, copy/open actions, and a primary start action
+2. prefer `useHostLobbyShell` plus `RoomQrCode`, `JoinUrlField`, `JoinUrlActionButtons`, `JoinUrlControls`, and `LifecycleActionGroup` unless the game needs a fully custom shell
+3. if the shell is fully custom, preserve the same join and lifecycle behavior contract
 
 ## Anti-Patterns
 

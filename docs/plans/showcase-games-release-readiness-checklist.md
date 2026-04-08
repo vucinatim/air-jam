@@ -1,6 +1,6 @@
 # Showcase Games Release Readiness Checklist
 
-Last updated: 2026-04-07  
+Last updated: 2026-04-08  
 Status: active
 
 Related docs:
@@ -52,6 +52,9 @@ Mark each cell for each game:
 | C11 | Release/content dependencies are validated (where relevant) | [ ]  | [ ]         | [ ]         | [x]                | [ ]        |
 | C12 | Game is publicly presentable for v1 without style rewrite   | [ ]  | [ ]         | [ ]         | [ ]                | [ ]        |
 | C13 | Explicit ended phase + basic score/result host screen       | [ ]  | [ ]         | [ ]         | [ ]                | [ ]        |
+| C14 | Host lobby shell shows QR + join URL + copy/open + start    | [ ]  | [ ]         | [ ]         | [ ]                | [ ]        |
+| C15 | Controller shell shows status + avatar + lifecycle actions  | [ ]  | [ ]         | [ ]         | [ ]                | [ ]        |
+| C16 | Controller-first lifecycle flow works without host touching | [ ]  | [ ]         | [ ]         | [ ]                | [ ]        |
 
 ## Per-Game Records
 
@@ -59,52 +62,62 @@ Mark each cell for each game:
 
 1. outcome: `pending`
 2. automated evidence:
-   1. `pnpm --filter pong typecheck && test && build` passed (2026-04-07)
+   1. `pnpm --filter pong typecheck && build` passed after the shared shell hook pass (2026-04-08)
    2. `pnpm arcade:test --game=pong` boot smoke reached server/platform ready on local Arcade (2026-04-07)
+   3. host lobby now uses `useHostLobbyShell`; controller shell now uses shared status, permissions, and lifecycle-intent hooks
 3. manual proof still required:
    1. QR join + controller flow in real phone session
    2. short gameplay, ended-state score screen, and reset validation in Arcade
+   3. explicit shell rows `C14` to `C16`
 
 ## `air-capture`
 
 1. outcome: `pending`
 2. automated evidence:
-   1. `pnpm --filter air-capture typecheck && test && build` passed (2026-04-07)
+   1. `pnpm --filter air-capture typecheck && build` passed after the shared shell hook pass (2026-04-08)
    2. `pnpm arcade:test --game=air-capture` boot smoke reached server/platform ready on local Arcade (2026-04-07)
+   3. controller no longer ships a duplicate legacy lifecycle/header path beside the shared shell route
 3. manual proof still required:
    1. QR join + controller flow in real phone session
    2. short gameplay, ended-state score screen, and reset validation in Arcade
+   3. explicit shell rows `C14` to `C16`
 
 ## `code-review`
 
 1. outcome: `pending`
 2. automated evidence:
-   1. `pnpm --filter code-review typecheck && test && build` passed (2026-04-07)
+   1. `pnpm --filter code-review typecheck && build` passed after the shared shell hook pass (2026-04-08)
    2. `pnpm arcade:test --game=code-review` boot smoke reached server/platform ready on local Arcade (2026-04-07)
    3. controller fullscreen forcing is removed; defend control now releases on mouse leave
+   4. host lobby and controller shell now both consume the shared shell contract hooks/components
 3. manual proof still required:
    1. QR join + controller flow in real phone session
    2. short gameplay, ended-state score screen, and reset validation in Arcade
+   3. explicit shell rows `C14` to `C16`
 
 ## `last-band-standing`
 
 1. outcome: `pending`
 2. automated evidence:
-   1. `pnpm --filter last-band-standing typecheck && test && build` passed (2026-04-07)
+   1. `pnpm --filter last-band-standing typecheck && build` passed after the shared shell hook pass (2026-04-08)
    2. `pnpm arcade:test --game=last-band-standing` boot smoke reached server/platform ready on local Arcade (2026-04-07)
    3. `pnpm --filter last-band-standing songs:validate -- --output /tmp/airjam-song-embed-report.json` passed with `77/77` embeddable and zero duplicate IDs
    4. `/youtube-test` is debug-gated and excluded from default production assets
+   5. host lobby and controller shell now consume the shared shell contract hooks/components
 3. manual proof still required:
    1. QR join + controller flow in real phone session
    2. host-owned round start/reset, ended-state scoreboard visibility, and multi-player round flow validation
+   3. explicit shell rows `C14` to `C16`
 
 ## `the-office`
 
 1. outcome: `pending`
 2. automated evidence:
-   1. `pnpm --filter the-office typecheck && test && build` passed (2026-04-07)
+   1. `pnpm --filter the-office typecheck && build` passed after the shared shell hook pass (2026-04-08)
    2. `pnpm arcade:test --game=the-office` boot smoke reached server/platform ready on local Arcade (2026-04-07)
    3. character picker + ready gating + host start flow are now in source and scaffold snapshots
+   4. host lobby and controller shell now consume the shared shell contract hooks/components
 3. manual proof still required:
    1. QR join + controller flow in real phone session
    2. full match loop timing/task correctness plus ended-state score/earnings summary in couch session
+   3. explicit shell rows `C14` to `C16`

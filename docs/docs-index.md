@@ -17,6 +17,7 @@ Core system docs:
 6. [Platform Controller Presentation](./systems/platform-controller-presentation.md)
 7. [Environment Contracts](./systems/env-contracts.md)
 8. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
+9. [Composition Shell Contract](./systems/composition-shell-contract.md)
 
 Strategy and operations:
 
@@ -41,6 +42,7 @@ Active subsystem plans:
 3. [Public Release Security Hardening Plan](./plans/public-release-security-hardening-plan.md)
 4. [SDK Extraction Clean-Swap Plan](./plans/sdk-extraction-clean-swap-plan.md)
 5. [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
+6. [Composition Shell Contract Plan](./plans/composition-shell-contract-plan.md)
 
 Archived recent baseline plans:
 

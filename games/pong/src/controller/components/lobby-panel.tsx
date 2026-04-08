@@ -18,13 +18,11 @@ interface LobbyPanelProps {
   team1Players: PlayerProfile[];
   team2Players: PlayerProfile[];
   pointsToWin: number;
-  canStartMatch: boolean;
   controlsDisabled: boolean;
   readinessText: string;
   onJoinTeam: (team: TeamId) => void;
   onSetBotCount: (team: TeamId, count: number) => void;
   onSetPointsToWin: (pointsToWin: number) => void;
-  onStartMatch: () => void;
 }
 
 export const LobbyPanel = ({
@@ -34,12 +32,10 @@ export const LobbyPanel = ({
   team1Players,
   team2Players,
   pointsToWin,
-  canStartMatch,
   controlsDisabled,
   onJoinTeam,
   onSetBotCount,
   onSetPointsToWin,
-  onStartMatch,
 }: LobbyPanelProps) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="pong-controller-lobby-panel">
@@ -147,17 +143,6 @@ export const LobbyPanel = ({
         </div>
       </div>
 
-      <div className="px-3 pt-2 pb-3">
-        <button
-          type="button"
-          data-testid="pong-controller-start-match"
-          className={`w-full rounded-[22px] border border-white/16 bg-white px-4 py-4 text-sm font-black tracking-[0.18em] text-black uppercase shadow-[0_18px_40px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
-          disabled={!canStartMatch || controlsDisabled}
-          onClick={onStartMatch}
-        >
-          Start Match
-        </button>
-      </div>
     </div>
   );
 };

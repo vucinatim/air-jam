@@ -5,7 +5,7 @@ import {
   useHostGameStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import { HostMuteButton } from "@air-jam/sdk/ui";
+import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import {
   Suspense,
@@ -333,20 +333,12 @@ const HostViewContent = ({
     return grouped;
   }, [players, teamAssignments]);
 
-  const joinQrValue = useMemo(() => {
-    if (host.joinUrl) {
-      return host.joinUrl;
-    }
-
-    if (!host.roomId || typeof window === "undefined") {
-      return "";
-    }
-
-    return new URL(
-      `/controller?room=${host.roomId}`,
-      window.location.origin,
-    ).toString();
-  }, [host.joinUrl, host.roomId]);
+  const hostLobbyShell = useHostLobbyShell({
+    roomId: host.roomId,
+    joinUrl: host.joinUrl,
+    onStartMatch: () => matchActions.startMatch(),
+  });
+  const joinQrValue = hostLobbyShell.joinUrlValue;
 
   const showPausedOverlay =
     (matchPhase === "countdown" || matchPhase === "playing") &&
@@ -418,16 +410,20 @@ const HostViewContent = ({
               />
             ) : null}
             {matchPhase === "lobby" ? (
-              <LobbyOverlay
-                joinQrValue={joinQrValue}
-                roomId={roomId}
-                pointsToWin={pointsToWin}
-                botCounts={botCounts}
-                connectionStatus={connectionStatus}
-                lastError={lastError}
-                connectedPlayers={players}
-                teamPlayers={teamPlayers}
-              />
+            <LobbyOverlay
+              joinQrValue={joinQrValue}
+              copiedJoinUrl={hostLobbyShell.copied}
+              onCopyJoinUrl={hostLobbyShell.handleCopy}
+              onOpenJoinUrl={hostLobbyShell.handleOpen}
+              roomId={roomId}
+              pointsToWin={pointsToWin}
+              botCounts={botCounts}
+              connectionStatus={connectionStatus}
+              lastError={lastError}
+              connectedPlayers={players}
+              teamPlayers={teamPlayers}
+              onStartMatch={() => matchActions.startMatch()}
+            />
             ) : (
               <EndedOverlay
                 roomId={roomId}

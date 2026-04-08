@@ -3,7 +3,14 @@ import {
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import {
+  ForcedOrientationShell,
+  LifecycleActionGroup,
+  RuntimeShellHeader,
+  useControllerLifecycleIntents,
+  useControllerLifecyclePermissions,
+  useControllerShellStatus,
+} from "@air-jam/sdk/ui";
 import {
   ChevronDown,
   ChevronLeft,
@@ -75,6 +82,27 @@ export function ControllerView() {
     controller.connectionStatus === "connected" &&
     Boolean(controller.controllerId) &&
     hasCharacterSelection;
+  const canStartMatch =
+    controller.connectionStatus === "connected" &&
+    hasCharacterSelection &&
+    isReady;
+  const shellStatus = useControllerShellStatus({
+    roomId: controller.roomId,
+    connectionStatus: controller.connectionStatus,
+    playerLabel: myPlayer?.name ?? null,
+    roomFallback: "Connecting...",
+  });
+  const lifecyclePermissions = useControllerLifecyclePermissions({
+    phase: matchPhase === "playing" ? "playing" : matchPhase,
+    canStartMatch,
+    canSendSystemCommand: controller.connectionStatus === "connected",
+  });
+  const lifecycleIntents = useControllerLifecycleIntents({
+    onStart: () => actions.setMatchPhase({ phase: "playing" }),
+    onTogglePause: () => controller.sendSystemCommand("toggle_pause"),
+    onBackToLobby: () => actions.setMatchPhase({ phase: "lobby" }),
+    onRestart: () => actions.setMatchPhase({ phase: "playing" }),
+  });
   const showLobbyView = matchPhase === "lobby";
   const showEndedView = matchPhase === "ended";
   const showGameplayView =
@@ -132,6 +160,48 @@ export function ControllerView() {
     <div className="controller-view-shell">
       <ForcedOrientationShell desired="portrait">
         <div className="flex h-full w-full flex-col gap-3 bg-[#fdf6e3] p-3">
+          <RuntimeShellHeader
+            connectionStatus={controller.connectionStatus}
+            leftSlot={
+              <div className="flex min-w-0 items-center gap-3">
+                {myPlayer ? (
+                  <img
+                    src={myPlayer.image}
+                    alt={myPlayer.name}
+                    className="h-9 w-9 rounded-full border border-[#e5d4ab] object-cover"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5d4ab] bg-[#fff6d8] text-[10px] font-bold text-[#5c4a2e]">
+                    {shellStatus.identityInitial}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#5c4a2e]">
+                    {shellStatus.displayName}
+                  </p>
+                  <p className="text-[10px] tracking-[0.16em] text-[#8b6914] uppercase">
+                    {shellStatus.roomLine}
+                  </p>
+                </div>
+              </div>
+            }
+            rightSlot={
+              <LifecycleActionGroup
+                phase={matchPhase === "playing" ? "playing" : matchPhase}
+                gameState={controller.gameState}
+                canInteract={lifecyclePermissions.canInteractForPhase}
+                onStart={lifecycleIntents.onStart}
+                onTogglePause={lifecycleIntents.onTogglePause}
+                onBackToLobby={lifecycleIntents.onBackToLobby}
+                onRestart={lifecycleIntents.onRestart}
+                startLabel="Start"
+                restartLabel="Restart"
+                backLabel="Lobby"
+                buttonClassName="border-[#8b6914]/25 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11]"
+              />
+            }
+            className="border-[#e5d4ab] bg-[#fef3c7]/90"
+          />
           {showLobbyView ? (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
               <div className="bg-[#fef3c7] p-4 shadow-md">

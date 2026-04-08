@@ -5,7 +5,7 @@ import {
   useAudio,
   useHostGameStateBridge,
 } from "@air-jam/sdk";
-import { HostMuteButton } from "@air-jam/sdk/ui";
+import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { rankPlayers } from "../game/domain/round-engine";
@@ -118,6 +118,12 @@ const HostScreen = () => {
     return playerOrder.filter((playerId) => readyByPlayerId[playerId]).length;
   }, [playerOrder, readyByPlayerId]);
   const canStartMatch = phase === "lobby" && playerOrder.length > 0 && readyCount === playerOrder.length;
+  const hostLobbyShell = useHostLobbyShell({
+    roomId: host.roomId,
+    joinUrl: host.joinUrl,
+    canStartMatch,
+    onStartMatch: () => actions.startMatch(),
+  });
 
   const answeredCount = currentRound
     ? currentRound.expectedPlayerIds.filter((playerId) => answersByPlayerId[playerId]).length
@@ -221,7 +227,10 @@ const HostScreen = () => {
         <AnimatePresence mode="wait">
           {phase === "lobby" && (
             <HostLobby
-              joinUrl={host.joinUrl}
+              joinUrl={hostLobbyShell.joinUrlValue}
+              copiedJoinUrl={hostLobbyShell.copied}
+              onCopyJoinUrl={hostLobbyShell.handleCopy}
+              onOpenJoinUrl={hostLobbyShell.handleOpen}
               connectionStatus={host.connectionStatus}
               lastError={host.lastError ?? null}
               playerOrder={playerOrder}
@@ -231,7 +240,7 @@ const HostScreen = () => {
               readyCount={readyCount}
               players={host.players}
               canStartMatch={canStartMatch}
-              onStartMatch={() => actions.startMatch()}
+              onStartMatch={hostLobbyShell.handleStart}
             />
           )}
 

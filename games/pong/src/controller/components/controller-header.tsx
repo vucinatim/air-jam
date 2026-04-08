@@ -1,5 +1,12 @@
 import type { AirJamControllerApi } from "@air-jam/sdk";
-import { PlayerAvatar } from "@air-jam/sdk/ui";
+import {
+  LifecycleActionGroup,
+  PlayerAvatar,
+  RuntimeShellHeader,
+  useControllerLifecycleIntents,
+  useControllerLifecyclePermissions,
+  useControllerShellStatus,
+} from "@air-jam/sdk/ui";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 
 interface ControllerHeaderProps {
@@ -9,17 +16,12 @@ interface ControllerHeaderProps {
   matchPhase: "lobby" | "playing" | "ended";
   gameState: AirJamControllerApi["gameState"];
   canSendSystemCommand: boolean;
+  canStartMatch: boolean;
   onTogglePause: () => void;
   onReturnToLobby: () => void;
+  onStartMatch: () => void;
+  onRestartMatch: () => void;
 }
-
-const statusDotByConnection = {
-  connected: "bg-emerald-300",
-  connecting: "bg-amber-300",
-  reconnecting: "bg-amber-300",
-  disconnected: "bg-rose-300",
-  idle: "bg-zinc-500",
-} as const;
 
 export const ControllerHeader = ({
   roomId,
@@ -28,71 +30,71 @@ export const ControllerHeader = ({
   matchPhase,
   gameState,
   canSendSystemCommand,
+  canStartMatch,
   onTogglePause,
   onReturnToLobby,
+  onStartMatch,
+  onRestartMatch,
 }: ControllerHeaderProps) => {
+  const shellStatus = useControllerShellStatus({
+    roomId,
+    connectionStatus,
+    playerLabel: myProfile?.label ?? null,
+  });
+  const lifecyclePermissions = useControllerLifecyclePermissions({
+    phase: matchPhase,
+    canStartMatch,
+    canSendSystemCommand,
+  });
+  const lifecycleIntents = useControllerLifecycleIntents({
+    onStart: onStartMatch,
+    onTogglePause,
+    onBackToLobby: onReturnToLobby,
+    onRestart: onRestartMatch,
+  });
+
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-xs uppercase">
-      <div className="flex min-w-0 items-center gap-3">
-        {myProfile ? (
-          <PlayerAvatar
-            player={myProfile}
-            size="sm"
-            className="h-10 w-10 border-2 ring-2 ring-white/12"
-          />
-        ) : (
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-zinc-800/90 text-[10px] font-bold text-zinc-300">
-            ME
-          </span>
-        )}
-        <div className="min-w-0">
+    <RuntimeShellHeader
+      connectionStatus={connectionStatus}
+      leftSlot={
+        <div className="flex min-w-0 items-center gap-3">
           {myProfile ? (
-            <div className="truncate text-sm font-semibold normal-case text-zinc-100">
-              {myProfile.label}
-            </div>
-          ) : null}
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDotByConnection[connectionStatus]}`}
-              aria-hidden
+            <PlayerAvatar
+              player={myProfile}
+              size="sm"
+              className="h-10 w-10 border-2 ring-2 ring-white/12"
             />
+          ) : (
+            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-zinc-800/90 text-[10px] font-bold text-zinc-300">
+              {shellStatus.identityInitial}
+            </span>
+          )}
+          <div className="min-w-0">
+            {shellStatus.hasIdentity ? (
+              <div className="truncate text-sm font-semibold normal-case text-zinc-100">
+                {shellStatus.displayName}
+              </div>
+            ) : null}
             <div className="text-[0.8rem] leading-tight font-semibold tracking-[0.22em] text-zinc-300 tabular-nums">
-              {roomId ?? "----"}
+              {shellStatus.roomLine}
             </div>
           </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {matchPhase === "playing" ? (
-          <>
-            <button
-              type="button"
-              className="rounded-full border border-white/14 bg-white/6 px-3 py-2 text-[10px] font-semibold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canSendSystemCommand}
-              onClick={onTogglePause}
-            >
-              {gameState === "playing" ? "Pause" : "Resume"}
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-white/14 bg-white/6 px-3 py-2 text-[10px] font-semibold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canSendSystemCommand}
-              onClick={onReturnToLobby}
-            >
-              Lobby
-            </button>
-          </>
-        ) : matchPhase === "ended" ? (
-          <button
-            type="button"
-            className="rounded-full border border-white/14 bg-white/6 px-3 py-2 text-[10px] font-semibold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!canSendSystemCommand}
-            onClick={onReturnToLobby}
-          >
-            Lobby
-          </button>
-        ) : null}
-      </div>
-    </header>
+      }
+      rightSlot={
+        <LifecycleActionGroup
+          phase={matchPhase}
+          gameState={gameState}
+          canInteract={lifecyclePermissions.canInteractForPhase}
+          onStart={lifecycleIntents.onStart}
+          onTogglePause={lifecycleIntents.onTogglePause}
+          onBackToLobby={lifecycleIntents.onBackToLobby}
+          onRestart={lifecycleIntents.onRestart}
+          startLabel="Play"
+          restartLabel="Play Again"
+        />
+      }
+      className="border-white/10 bg-black/35 px-3 py-2 text-xs uppercase"
+    />
   );
 };

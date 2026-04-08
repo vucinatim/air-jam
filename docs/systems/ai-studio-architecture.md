@@ -104,6 +104,10 @@ So the intended order of preference is:
 2. **relay-backed controller/device preview** as the primary cross-device testing path
 3. **hosted preview runtimes** as a secondary preview mode when a fully hosted session is needed
 
+Within the local desktop loop, Studio may expose the same preview session through docked or detachable preview surfaces when that improves workflow on larger screens or multiple monitors.
+
+Those surfaces should remain host-local presentation choices over the same preview/runtime contract, not separate execution modes.
+
 ### 2. Cloud Authority Plane
 
 This is the Air Jam hosted control plane.

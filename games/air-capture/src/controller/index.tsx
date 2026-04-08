@@ -43,17 +43,21 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
   matchPhase,
   gameState,
   canSendSystemCommand,
-  controlsDisabled,
+  canStartMatch,
   onReturnToLobby,
+  onStartMatch,
+  onRestartMatch,
 }: {
   myProfile: PlayerProfile | null;
   roomId: string | null;
   connectionStatus: ControllerConnectionStatus;
   matchPhase: ControllerMatchPhase;
-  gameState: "lobby" | "playing" | "paused" | "ended";
+  gameState?: "playing" | "paused";
   canSendSystemCommand: boolean;
-  controlsDisabled: boolean;
+  canStartMatch: boolean;
   onReturnToLobby: () => void;
+  onStartMatch: () => void;
+  onRestartMatch: () => void;
 }) {
   const controller = useAirJamController();
 
@@ -65,8 +69,10 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
       matchPhase={matchPhase}
       gameState={gameState}
       canSendSystemCommand={canSendSystemCommand}
-      controlsDisabled={controlsDisabled}
+      canStartMatch={canStartMatch}
       onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
+      onStartMatch={onStartMatch}
+      onRestartMatch={onRestartMatch}
       onReturnToLobby={onReturnToLobby}
     />
   );
@@ -195,10 +201,16 @@ const ControllerScreen = () => {
           roomId={controllerState.roomId}
           connectionStatus={controllerState.connectionStatus}
           matchPhase={matchPhase}
-          gameState={controllerState.gameState}
+          gameState={
+            matchPhase === "countdown" || matchPhase === "playing"
+              ? controllerState.gameState
+              : undefined
+          }
           canSendSystemCommand={canSendSystemCommand}
-          controlsDisabled={controlsDisabled}
+          canStartMatch={readiness.canStart}
           onReturnToLobby={() => actions.returnToLobby()}
+          onStartMatch={() => actions.startMatch()}
+          onRestartMatch={() => actions.restartMatch()}
         />
 
         {matchPhase === "lobby" ? (
@@ -210,7 +222,6 @@ const ControllerScreen = () => {
             maxBotsByTeam={maxBotsByTeam}
             pointsToWin={pointsToWin}
             readinessText={readinessText}
-            canStart={readiness.canStart}
             teamPlayers={teamPlayers}
             onSelectTeam={(teamId) => actions.joinTeam({ teamId })}
             onSetTeamBotCount={(teamId, count) =>
@@ -219,14 +230,10 @@ const ControllerScreen = () => {
             onSetPointsToWin={(nextPointsToWin) =>
               actions.setPointsToWin({ pointsToWin: nextPointsToWin })
             }
-            onStartMatch={() => actions.startMatch()}
           />
         ) : matchPhase === "ended" ? (
           <ControllerEndedPanel
             matchSummary={matchSummary}
-            controlsDisabled={controlsDisabled}
-            onRestartMatch={() => actions.restartMatch()}
-            onReturnToLobby={() => actions.returnToLobby()}
           />
         ) : (
           <ControllerPlayingControls

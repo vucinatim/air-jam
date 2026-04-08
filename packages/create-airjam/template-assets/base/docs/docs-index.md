@@ -30,10 +30,11 @@ For broader public framework docs, use the hosted docs site after checking these
 1. [Development Loop](./development-loop.md)
 2. [Iconography](./iconography.md)
 3. [Visual System](./visual-system.md)
-4. [Debug And Testing](./debug-and-testing.md)
-5. [Prefab Authoring](./prefab-authoring.md)
-6. [R3F 3D Scene](./r3f-3d-scene.md)
-7. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
+4. [Composition Shell Contract](./composition-shell-contract.md)
+5. [Debug And Testing](./debug-and-testing.md)
+6. [Prefab Authoring](./prefab-authoring.md)
+7. [R3F 3D Scene](./r3f-3d-scene.md)
+8. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
 
 ## Hosted Canonical Docs
 
@@ -49,4 +50,4 @@ For broader public framework docs, use the hosted docs site after checking these
 
 1. use generated canonical docs first for framework guidance
 2. use local supplements for project operating rules and template-specific patterns
-2. use hosted docs when you need broader framework detail or newer canonical public guidance
+3. use hosted docs when you need broader framework detail or newer canonical public guidance

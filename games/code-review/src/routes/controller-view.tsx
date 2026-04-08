@@ -3,7 +3,15 @@ import {
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import {
+  ForcedOrientationShell,
+  LifecycleActionGroup,
+  PlayerAvatar,
+  RuntimeShellHeader,
+  useControllerLifecycleIntents,
+  useControllerLifecyclePermissions,
+  useControllerShellStatus,
+} from "@air-jam/sdk/ui";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { PUNCH_COOLDOWN_MS } from "../game/input";
 import { useGameStore } from "../game/stores";
@@ -80,6 +88,9 @@ export function ControllerView() {
   const myAssignment = controller.controllerId
     ? teamAssignments[controller.controllerId]
     : null;
+  const myProfile = controller.controllerId
+    ? controller.players.find((player) => player.id === controller.controllerId) ?? null
+    : null;
   const myTeam = myAssignment?.team ?? null;
   const isReady = controller.controllerId
     ? (readyByPlayerId[controller.controllerId] ?? false)
@@ -116,6 +127,22 @@ export function ControllerView() {
     matchPhase === "playing" &&
     controller.gameState === "playing";
   const showPausedOverlay = matchPhase === "playing" && !showGameplayControls;
+  const shellStatus = useControllerShellStatus({
+    roomId: controller.roomId,
+    connectionStatus: controller.connectionStatus,
+    playerLabel: myProfile?.label ?? null,
+  });
+  const lifecyclePermissions = useControllerLifecyclePermissions({
+    phase: matchPhase === "playing" ? "playing" : matchPhase,
+    canStartMatch: controller.connectionStatus === "connected",
+    canSendSystemCommand: controller.connectionStatus === "connected",
+  });
+  const lifecycleIntents = useControllerLifecycleIntents({
+    onStart: () => actions.startMatch(),
+    onTogglePause: () => controller.sendSystemCommand("toggle_pause"),
+    onBackToLobby: () => actions.resetToLobby(),
+    onRestart: () => actions.resetToLobby(),
+  });
 
   useControllerTick(
     () => {
@@ -291,6 +318,46 @@ export function ControllerView() {
     <div className="controller-view-shell">
       <ForcedOrientationShell desired="portrait">
         <div className="pixel-font h-full w-full">
+          <RuntimeShellHeader
+            connectionStatus={controller.connectionStatus}
+            leftSlot={
+              <div className="flex min-w-0 items-center gap-3">
+                {myProfile ? (
+                  <PlayerAvatar
+                    player={myProfile}
+                    size="sm"
+                    className="h-8 w-8 border-2"
+                  />
+                ) : (
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-zinc-800 text-[10px] font-semibold text-zinc-200">
+                    {shellStatus.identityInitial}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-zinc-100">
+                    {shellStatus.displayName}
+                  </div>
+                  <div className="text-[10px] font-semibold tracking-[0.18em] text-zinc-400 uppercase">
+                    {shellStatus.roomLine}
+                  </div>
+                </div>
+              </div>
+            }
+            rightSlot={
+              <LifecycleActionGroup
+                phase={matchPhase === "playing" ? "playing" : matchPhase}
+                gameState={controller.gameState}
+                canInteract={lifecyclePermissions.canInteractForPhase}
+                onStart={lifecycleIntents.onStart}
+                onTogglePause={lifecycleIntents.onTogglePause}
+                onBackToLobby={lifecycleIntents.onBackToLobby}
+                onRestart={lifecycleIntents.onRestart}
+                startLabel="Play"
+                restartLabel="Play Again"
+              />
+            }
+            className="border-zinc-700 bg-zinc-950/95"
+          />
           {showEndedView ? (
             <div className="flex h-full w-full items-center justify-center p-4">
               <div className="w-full max-w-sm rounded-none border-4 border-zinc-600 bg-zinc-900/90 p-4 text-center text-zinc-100">

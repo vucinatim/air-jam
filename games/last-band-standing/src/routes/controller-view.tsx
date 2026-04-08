@@ -4,6 +4,13 @@ import {
   useAirJamController,
   useAudio,
 } from "@air-jam/sdk";
+import {
+  LifecycleActionGroup,
+  RuntimeShellHeader,
+  useControllerLifecycleIntents,
+  useControllerLifecyclePermissions,
+  useControllerShellStatus,
+} from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useGameStore } from "../game/stores";
@@ -63,6 +70,27 @@ const ControllerScreen = ({
   const readyCount = useMemo(() => {
     return playerOrder.filter((playerId) => readyByPlayerId[playerId]).length;
   }, [playerOrder, readyByPlayerId]);
+  const canStartMatch = phase === "lobby" && playerOrder.length > 0 && readyCount === playerOrder.length;
+  const shellStatus = useControllerShellStatus({
+    roomId: controller.roomId,
+    connectionStatus: controller.connectionStatus,
+    playerLabel: nameDraft.trim() || null,
+  });
+  const lifecyclePermissions = useControllerLifecyclePermissions({
+    phase:
+      phase === "round-active" || phase === "round-reveal"
+        ? "playing"
+        : phase === "game-over"
+          ? "ended"
+          : phase,
+    canStartMatch: canStartMatch && isConnected,
+    canSendSystemCommand: isConnected,
+  });
+  const lifecycleIntents = useControllerLifecycleIntents({
+    onStart: () => actions.startMatch(),
+    onBackToLobby: () => actions.resetLobby(),
+    onRestart: () => actions.resetLobby(),
+  });
 
   const selectedOptionId = controllerId
     ? answersByPlayerId[controllerId]?.optionId ?? null
@@ -131,6 +159,35 @@ const ControllerScreen = ({
 
   return (
     <main className="absolute inset-0 flex p-4 flex-col text-foreground">
+      <RuntimeShellHeader
+        connectionStatus={controller.connectionStatus}
+        leftSlot={
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-[10px] font-bold uppercase text-foreground">
+              {shellStatus.identityInitial || "ME"}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{shellStatus.displayName}</p>
+              <p className="text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+                {shellStatus.roomLine}
+              </p>
+            </div>
+          </div>
+        }
+        rightSlot={
+          <LifecycleActionGroup
+            phase={phase === "round-active" || phase === "round-reveal" ? "playing" : phase === "game-over" ? "ended" : phase}
+            gameState={controller.gameState}
+            canInteract={lifecyclePermissions.canInteractForPhase}
+            onStart={lifecycleIntents.onStart}
+            onBackToLobby={lifecycleIntents.onBackToLobby}
+            onRestart={lifecycleIntents.onRestart}
+            startLabel="Start"
+            restartLabel="Reset"
+          />
+        }
+        className="border-border/60 bg-background/90"
+      />
       <AnimatePresence mode="wait">
         {phase === "lobby" && (
           <ControllerLobby

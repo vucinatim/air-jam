@@ -1,5 +1,12 @@
 import { useAirJamHost, useHostGameStateBridge } from "@air-jam/sdk";
-import { HostMuteButton, PlayerAvatar } from "@air-jam/sdk/ui";
+import {
+  HostMuteButton,
+  JoinUrlControls,
+  LifecycleActionGroup,
+  PlayerAvatar,
+  RoomQrCode,
+  useHostLobbyShell,
+} from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { gameInputSchema } from "../game/input";
 import { useGameState } from "../hooks/use-game-state";
@@ -65,6 +72,12 @@ export function HostView() {
     matchPhase === "lobby" &&
     allReady &&
     host.connectionStatus === "connected";
+  const hostLobbyShell = useHostLobbyShell({
+    roomId: host.roomId,
+    joinUrl: host.joinUrl,
+    canStartMatch,
+    onStartMatch: startMatch,
+  });
 
   useHostGameStateBridge({
     phase: matchPhase,
@@ -211,6 +224,32 @@ export function HostView() {
               </div>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+              <JoinUrlControls
+                value={hostLobbyShell.joinUrlValue}
+                label="Controller link"
+                copied={hostLobbyShell.copied}
+                onCopy={hostLobbyShell.handleCopy}
+                onOpen={hostLobbyShell.handleOpen}
+                inputClassName="border-[#e5d4ab] bg-[#fff6d8] text-[#5c4a2e]"
+                buttonClassName="border-[#8b6914]/25 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11]"
+              />
+              <div className="flex items-center justify-center rounded-none border border-[#e5d4ab] bg-[#fff6d8] p-2">
+                {hostLobbyShell.joinUrlValue ? (
+                  <RoomQrCode
+                    value={hostLobbyShell.joinUrlValue}
+                    size={156}
+                    className="rounded-md bg-white"
+                    alt={`Join room ${host.roomId}`}
+                  />
+                ) : (
+                  <div className="px-3 text-center text-sm text-[#6b7280]">
+                    Generating QR...
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="mb-4 max-h-64 overflow-y-auto border border-[#e5d4ab] bg-[#fff6d8] p-3">
               {host.players.length === 0 ? (
                 <p className="text-sm text-[#6b7280]">Waiting for controllers to join…</p>
@@ -264,14 +303,14 @@ export function HostView() {
               )}
             </div>
 
-            <button
-              type="button"
-              disabled={!canStartMatch}
-              onClick={handleStart}
-              className="w-full bg-[#8b6914] px-4 py-3 text-lg font-bold uppercase tracking-wide text-[#fdf6e3] transition enabled:hover:bg-[#7a5b11] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Start Match
-            </button>
+            <LifecycleActionGroup
+              phase="lobby"
+              canInteract={canStartMatch}
+              onStart={handleStart}
+              startLabel="Start Match"
+              className="justify-center"
+              buttonClassName="border-[#8b6914]/25 bg-[#8b6914] px-5 text-[#fdf6e3] hover:bg-[#7a5b11]"
+            />
           </div>
         </div>
       ) : null}
