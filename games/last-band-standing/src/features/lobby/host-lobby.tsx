@@ -74,24 +74,27 @@ export const HostLobby = ({
         <MenuVideoBackground className="absolute inset-0 z-0" />
         <div className="pointer-events-none absolute inset-0 z-1 bg-background/40" />
 
-        <div className="relative z-2 flex h-full w-full flex-col items-center justify-between py-10">
+        <div className="relative z-2 flex h-full w-full flex-col items-center justify-center gap-8 px-4 py-6 sm:py-10">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.6 }}
             className="flex shrink-0 flex-col items-center gap-2"
           >
-            <VerticalLogo size={hasPlayers ? 156 : 256} className="text-foreground" />
-            <p className="text-center text-lg text-muted-foreground pt-2">
+            <VerticalLogo
+              size={hasPlayers ? 150 : 256}
+              className="text-foreground"
+            />
+            <p className="pt-2 text-center text-lg text-muted-foreground">
               Destroy your friends. Musically speaking, of course.
             </p>
           </motion.div>
 
-          <div className="flex flex-1 flex-col items-center justify-center gap-6">
+          <div className="flex w-full max-w-[640px] flex-col items-center gap-5">
             <motion.div
               layout
               className={cn(
-                "flex flex-col items-center gap-3",
+                "flex w-full flex-col items-center gap-3",
                 hasPlayers && "opacity-80",
               )}
               transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
@@ -102,8 +105,12 @@ export const HostLobby = ({
                   foregroundColor="#f5f6fa"
                   backgroundColor="#00000000"
                   errorCorrectionLevel="H"
-                  size={hasPlayers ? 140 : 220}
-                  className={hasPlayers ? "h-[100px] w-[100px]" : "h-[160px] w-[160px]"}
+                  size={hasPlayers ? 176 : 240}
+                  className={
+                    hasPlayers
+                      ? "h-[112px] w-[112px] sm:h-[124px] sm:w-[124px]"
+                      : "h-[168px] w-[168px] sm:h-[200px] sm:w-[200px]"
+                  }
                   alt="Scan to join"
                 />
               ) : (
@@ -138,6 +145,7 @@ export const HostLobby = ({
                 onCopy={onCopyJoinUrl}
                 onOpen={onOpenJoinUrl}
                 helperText="Copy or open the controller URL for quick joins."
+                className="w-full max-w-[420px]"
                 inputClassName="border-border/30 bg-card/40 text-foreground"
                 buttonClassName="border-border/30 bg-background/60 text-foreground hover:bg-background/80"
               />
@@ -145,12 +153,12 @@ export const HostLobby = ({
 
             {hasPlayers && (
               <motion.div
-                className="flex flex-col items-center gap-4"
+                className="flex w-full flex-col items-center gap-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <div className="flex flex-wrap items-center justify-center gap-3">
+                <div className="flex max-w-full flex-wrap items-center justify-center gap-3">
                   <AnimatePresence mode="popLayout">
                     {playerOrder.map((playerId, index) => {
                       const player = players.find((entry) => entry.id === playerId) ?? null;
@@ -211,7 +219,7 @@ export const HostLobby = ({
                 </div>
 
                 <motion.p
-                  className="text-lg text-muted-foreground"
+                  className="text-center text-lg text-muted-foreground"
                   key={allReady ? "all-ready" : "waiting"}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -232,8 +240,6 @@ export const HostLobby = ({
               </motion.div>
             )}
           </div>
-
-          <div className="shrink-0" />
         </div>
       </div>
     </motion.div>

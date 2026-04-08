@@ -2,10 +2,10 @@ import type { ConnectionStatus } from "../protocol";
 import { cn } from "../utils/cn";
 
 const statusLabelByConnection: Record<ConnectionStatus, string> = {
-  connected: "Connected",
-  connecting: "Connecting",
-  reconnecting: "Reconnecting",
-  disconnected: "Disconnected",
+  connected: "Live",
+  connecting: "Syncing",
+  reconnecting: "Syncing",
+  disconnected: "Offline",
   idle: "Idle",
 };
 
@@ -29,7 +29,7 @@ export const ConnectionStatusPill = ({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-[10px] font-semibold tracking-[0.18em] uppercase",
+        "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[9px] font-semibold tracking-[0.16em] uppercase sm:px-3 sm:text-[10px] sm:tracking-[0.18em]",
         statusToneByConnection[status],
         className,
       )}

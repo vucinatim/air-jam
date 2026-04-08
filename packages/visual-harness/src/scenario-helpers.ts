@@ -1,6 +1,7 @@
 import type { VisualScenarioContext, VisualViewport } from './types.js';
 
 export const STANDARD_HOST_VIEWPORTS = [
+  ['mac-desktop', { width: 3016, height: 1504 }],
   ['desktop', { width: 1440, height: 1024 }],
   ['tablet', { width: 1024, height: 1180 }],
 ] as const satisfies readonly [string, VisualViewport][];

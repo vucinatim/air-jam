@@ -62,8 +62,8 @@ export const LifecycleActionGroup = ({
           disabled={action.disabled}
           className={cn(
             action.tone === "primary"
-              ? "rounded-full border border-white/15 bg-white px-4 text-xs font-semibold tracking-[0.18em] text-black uppercase hover:bg-white/90"
-              : "rounded-full border-white/15 bg-white/5 px-4 text-xs font-semibold tracking-[0.18em] text-white uppercase hover:bg-white/10",
+              ? "rounded-full border border-white/15 bg-white px-3 py-2 text-[10px] font-semibold tracking-[0.14em] text-black uppercase hover:bg-white/90 sm:px-4 sm:text-xs sm:tracking-[0.18em]"
+              : "rounded-full border-white/15 bg-white/5 px-3 py-2 text-[10px] font-semibold tracking-[0.14em] text-white uppercase hover:bg-white/10 sm:px-4 sm:text-xs sm:tracking-[0.18em]",
             buttonClassName,
           )}
         >

@@ -197,10 +197,11 @@ export function ControllerView() {
                 startLabel="Start"
                 restartLabel="Restart"
                 backLabel="Lobby"
+                className="w-full justify-center sm:w-auto sm:justify-end"
                 buttonClassName="border-[#8b6914]/25 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11]"
               />
             }
-            className="border-[#e5d4ab] bg-[#fef3c7]/90"
+            className="flex-col items-stretch gap-2 border-[#e5d4ab] bg-[#fef3c7]/90 sm:flex-row sm:items-center"
           />
           {showLobbyView ? (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -314,7 +315,7 @@ export function ControllerView() {
 
           {showPausedView ? (
             <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
-              <div className="text-center">
+              <div className="max-w-sm text-center">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
                   Match Paused
                 </p>
@@ -326,128 +327,163 @@ export function ControllerView() {
           ) : null}
 
           {showEndedView ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-[#fef3c7] p-4 text-center shadow-md">
-              <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
-                Shift Ended
-              </p>
-              <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
-                Final Earnings
-              </p>
-              <p className="mt-2 text-3xl font-black text-[#8b6914]">
-                EUR {finalTotalMoney}
-              </p>
-              <p className="mt-3 text-sm text-[#6b7280]">
-                Waiting for host to restart the lobby...
-              </p>
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
+              <div className="w-full max-w-sm rounded border border-[#e5d4ab] bg-[#fff6d8] p-4 text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
+                  Shift Ended
+                </p>
+                <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
+                  Final Earnings
+                </p>
+                <p className="mt-2 text-3xl font-black text-[#8b6914]">
+                  EUR {finalTotalMoney}
+                </p>
+                <p className="mt-3 text-sm text-[#6b7280]">
+                  Waiting for host to restart the lobby...
+                </p>
+              </div>
             </div>
           ) : null}
 
           {showGameplayView ? (
-            <>
-              <div className="flex h-12 items-center justify-between bg-[#fef3c7] px-4 shadow-md">
-                <div className="flex items-center gap-2">
-                  {isDead && myPlayer?.image ? (
-                    <img
-                      src={myPlayer.image}
-                      alt={myPlayer.name}
-                      className="h-8 w-8 rounded-full object-cover grayscale"
-                    />
-                  ) : myPlayer?.image ? (
-                    <img
-                      src={myPlayer.image}
-                      alt={myPlayer.name}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-[#5c4a2e]">
-                      {myPlayer?.name?.charAt(0) || "?"}
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <div className="bg-[#fef3c7] px-4 py-3 shadow-md">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {isDead && myPlayer?.image ? (
+                      <img
+                        src={myPlayer.image}
+                        alt={myPlayer.name}
+                        className="h-8 w-8 rounded-full object-cover grayscale"
+                      />
+                    ) : myPlayer?.image ? (
+                      <img
+                        src={myPlayer.image}
+                        alt={myPlayer.name}
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xl font-bold text-[#5c4a2e]">
+                        {myPlayer?.name?.charAt(0) || "?"}
+                      </span>
+                    )}
+                    <span className="truncate text-lg font-bold text-[#5c4a2e]">
+                      {isDead ? "💀 MRTVEC" : myPlayer?.name || "Povezujem..."}
                     </span>
-                  )}
-                  <span className="text-lg font-bold text-[#5c4a2e]">
-                    {isDead ? "💀 MRTVEC" : myPlayer?.name || "Povezujem..."}
+                  </div>
+                  <span className="shrink-0 text-xl font-bold text-[#8b6914]">
+                    {totalMoney} EUR
                   </span>
                 </div>
-                <span className="text-2xl font-bold text-[#8b6914]">
-                  {totalMoney} EUR
-                </span>
               </div>
 
               {gameOver ? (
-                <div className="flex flex-col items-center justify-center bg-[#fef3c7] py-8 text-center shadow-md">
-                  <div className="mb-2 text-2xl font-bold text-[#c06030]">
-                    KONEC IGRE
-                  </div>
-                  <div className="text-lg text-[#5c4a2e]">
-                    Vsi igralci so umrli...
-                  </div>
-                  <div className="mt-2 text-xl font-semibold text-[#8b6914]">
-                    Skupaj: {totalMoney} EUR
+                <div className="flex flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
+                  <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[#e5d4ab] bg-[#fff8df] px-5 py-6 text-center shadow-sm">
+                    <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+                      Konec igre
+                    </p>
+                    <p className="text-2xl font-bold text-[#c06030]">
+                      Vsi igralci so umrli
+                    </p>
+                    <p className="text-base text-[#5c4a2e]">
+                      Skupaj zbrano: {totalMoney} EUR
+                    </p>
                   </div>
                 </div>
               ) : isDead ? (
-                <div className="flex items-center justify-center bg-[#fef3c7] py-4 text-lg font-bold text-[#5c4a2e]">
-                  💀 Umrli ste! Opazujete iz onstranstva...
+                <div className="flex flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
+                  <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[#e5d4ab] bg-[#fff8df] px-5 py-6 text-center shadow-sm">
+                    <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+                      Ste mrtvi
+                    </p>
+                    <p className="text-xl font-bold text-[#5c4a2e]">
+                      Opazujete iz onstranstva
+                    </p>
+                    <p className="text-sm text-[#6b7280]">
+                      Vaš del igre je končan. Počakajte na naslednji krog.
+                    </p>
+                  </div>
                 </div>
               ) : (
-                <>
-                  {myStats ? (
-                    <div className="flex flex-col gap-3 bg-[#fef3c7] p-3 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="w-16 text-sm text-[#5c4a2e]">
-                          Energija
-                        </span>
-                        <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              myStats.energy > 30
-                                ? "bg-[#d46060]"
-                                : "bg-[#a03030]"
-                            }`}
-                            style={{ width: `${myStats.energy}%` }}
-                          />
+                <div className="flex min-h-0 flex-1 flex-col gap-3">
+                  <div className="grid gap-3">
+                    {myStats ? (
+                      <div className="bg-[#fef3c7] px-4 py-3 shadow-sm">
+                        <div className="grid gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="w-16 text-sm text-[#5c4a2e]">
+                              Energija
+                            </span>
+                            <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  myStats.energy > 30
+                                    ? "bg-[#d46060]"
+                                    : "bg-[#a03030]"
+                                }`}
+                                style={{ width: `${myStats.energy}%` }}
+                              />
+                            </div>
+                            <span className="w-10 text-right text-sm text-[#5c4a2e]">
+                              {Math.round(myStats.energy)}%
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="w-16 text-sm text-[#5c4a2e]">
+                              Sreča
+                            </span>
+                            <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  myStats.boredom > 30
+                                    ? "bg-[#5b9bd5]"
+                                    : "bg-[#3a7bb5]"
+                                }`}
+                                style={{ width: `${myStats.boredom}%` }}
+                              />
+                            </div>
+                            <span className="w-10 text-right text-sm text-[#5c4a2e]">
+                              {Math.round(myStats.boredom)}%
+                            </span>
+                          </div>
                         </div>
-                        <span className="w-10 text-right text-sm text-[#5c4a2e]">
-                          {Math.round(myStats.energy)}%
-                        </span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="w-16 text-sm text-[#5c4a2e]">
-                          Sreča
-                        </span>
-                        <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              myStats.boredom > 30
-                                ? "bg-[#5b9bd5]"
-                                : "bg-[#3a7bb5]"
-                            }`}
-                            style={{ width: `${myStats.boredom}%` }}
-                          />
-                        </div>
-                        <span className="w-10 text-right text-sm text-[#5c4a2e]">
-                          {Math.round(myStats.boredom)}%
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
+                    ) : null}
 
-                  {isBusy ? (
-                    <div className="flex flex-col gap-2 bg-[#fef3c7] p-3 shadow-sm">
-                      <div className="flex items-center justify-center text-lg font-bold text-[#5c4a2e]">
-                        ⏳ {myTaskName}
+                    {isBusy ? (
+                      <div className="bg-[#fef3c7] px-4 py-4 shadow-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs tracking-[0.18em] text-[#8b6914] uppercase">
+                            Task
+                          </div>
+                          <div className="text-sm font-semibold text-[#5c4a2e]">
+                            {myTaskName}
+                          </div>
+                        </div>
+                        <div className="mt-3 h-4 overflow-hidden rounded-full bg-[#e8dcc8]">
+                          <div
+                            className="h-full rounded-full bg-[#6aaa64] transition-all duration-100"
+                            style={{ width: `${myProgress * 100}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
-                        <div
-                          className="h-full rounded-full bg-[#6aaa64] transition-all duration-100"
-                          style={{ width: `${myProgress * 100}%` }}
-                        />
-                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-1 flex-col gap-3 rounded-[28px] bg-[#fef3c7] p-4 shadow-md">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs tracking-[0.18em] text-[#8b6914] uppercase">
+                        Controls
+                      </p>
+                      <p className="text-xs text-[#6b7280]">
+                        Hold to work, use arrows to move
+                      </p>
                     </div>
-                  ) : (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-12">
+                    <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row">
                       <button
                         type="button"
-                        className="h-32 w-32 touch-none bg-[#fef3c7] text-2xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-95"
+                        className="flex min-h-[7.5rem] flex-[1.15] touch-none items-center justify-center rounded-[24px] bg-[#fff1bd] px-4 text-2xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-[0.98]"
                         onTouchStart={() => handleAction(true)}
                         onTouchEnd={() => handleAction(false)}
                         onTouchCancel={() => handleAction(false)}
@@ -458,11 +494,11 @@ export function ControllerView() {
                         DELAJ
                       </button>
 
-                      <div className="grid h-40 w-64 grid-cols-3 grid-rows-2 gap-3">
+                      <div className="grid flex-[0.95] grid-cols-3 grid-rows-3 gap-2 self-center">
                         <div />
                         <button
                           type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                          className="flex aspect-square touch-none items-center justify-center rounded-[20px] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
                           onTouchStart={() => handleMove(0, -1)}
                           onTouchEnd={() => handleMove(0, 0)}
                           onTouchCancel={() => handleMove(0, 0)}
@@ -470,12 +506,12 @@ export function ControllerView() {
                           onMouseUp={() => handleMove(0, 0)}
                           onMouseLeave={() => handleMove(0, 0)}
                         >
-                          <ChevronUp className="h-10 w-10" />
+                          <ChevronUp className="h-8 w-8" />
                         </button>
                         <div />
                         <button
                           type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                          className="flex aspect-square touch-none items-center justify-center rounded-[20px] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
                           onTouchStart={() => handleMove(-1, 0)}
                           onTouchEnd={() => handleMove(0, 0)}
                           onTouchCancel={() => handleMove(0, 0)}
@@ -483,11 +519,11 @@ export function ControllerView() {
                           onMouseUp={() => handleMove(0, 0)}
                           onMouseLeave={() => handleMove(0, 0)}
                         >
-                          <ChevronLeft className="h-10 w-10" />
+                          <ChevronLeft className="h-8 w-8" />
                         </button>
                         <button
                           type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                          className="flex aspect-square touch-none items-center justify-center rounded-[20px] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
                           onTouchStart={() => handleMove(0, 1)}
                           onTouchEnd={() => handleMove(0, 0)}
                           onTouchCancel={() => handleMove(0, 0)}
@@ -495,11 +531,11 @@ export function ControllerView() {
                           onMouseUp={() => handleMove(0, 0)}
                           onMouseLeave={() => handleMove(0, 0)}
                         >
-                          <ChevronDown className="h-10 w-10" />
+                          <ChevronDown className="h-8 w-8" />
                         </button>
                         <button
                           type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                          className="flex aspect-square touch-none items-center justify-center rounded-[20px] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
                           onTouchStart={() => handleMove(1, 0)}
                           onTouchEnd={() => handleMove(0, 0)}
                           onTouchCancel={() => handleMove(0, 0)}
@@ -507,14 +543,14 @@ export function ControllerView() {
                           onMouseUp={() => handleMove(0, 0)}
                           onMouseLeave={() => handleMove(0, 0)}
                         >
-                          <ChevronRight className="h-10 w-10" />
+                          <ChevronRight className="h-8 w-8" />
                         </button>
                       </div>
                     </div>
-                  )}
-                </>
+                  </div>
+                </div>
               )}
-            </>
+            </div>
           ) : null}
         </div>
       </ForcedOrientationShell>

@@ -94,6 +94,8 @@ Current rollout state:
 5. `last-band-standing`: `lobby`, `playing`, `ended`
 6. bridge snapshots now publish canonical controller join URLs only after the host capability-bearing join URL is actually ready, so the runner no longer needs host-field scraping
 7. controller capture orientation is now trustworthy again after fixing `ForcedOrientationShell` to derive current orientation from the actual viewport before browser-reported `screen.orientation`
+8. the shared controller shell now uses a portrait-safe stacked layout instead of one compressed horizontal row, which removes the worst header overflow and crowding across the launch set
+9. the standard host viewport set now includes a `mac-desktop` capture at `3016x1504`, and the harness browser launch is configured so WebGL-heavy games like `air-capture` render correctly in Playwright captures
 
 Current next-step priority inside Phase 2:
 
@@ -485,6 +487,7 @@ Phase 1 should ship a small fixed set:
 
 Host:
 
+1. `mac-desktop`
 1. `desktop`
 2. `tablet`
 
@@ -544,6 +547,8 @@ Current rollout status:
 5. `last-band-standing`: `lobby`, `playing`, `ended`
 6. shared viewport helpers, failure screenshots, bridge snapshots, and bridge actions are all part of the current runner contract
 7. standalone capture is the default proof path; Arcade remains a secondary integration mode
+8. the controller shell contract now renders as a stacked portrait-safe header instead of a single compressed row
+9. the host capture contract now includes a `mac-desktop` viewport at `3016x1504`
 
 Done when:
 

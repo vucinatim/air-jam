@@ -461,7 +461,9 @@ Current truth:
 4. the standalone capture path is now the default and runs on isolated per-run ports with unified backend routing
 5. the launch set now has deterministic `lobby`, `playing`, and `ended` capture coverage on disk
 6. controller portrait screenshots are trustworthy again after the shared `ForcedOrientationShell` fix
-7. the remaining work on this track is no longer architecture rescue; it is using the harness for real UI cleanup and extending build reuse where it materially improves iteration speed
+7. the shared controller shell now uses a portrait-safe stacked layout, which removed the worst top-header overflow and crowding across the representative controller captures
+8. the standard host capture set now includes a `3016x1504` `mac-desktop` viewport and the harness browser launch is configured so WebGL-heavy gameplay like `air-capture` renders correctly in Playwright
+9. the remaining work on this track is no longer architecture rescue; it is using the harness for real UI cleanup and extending build reuse where it materially improves iteration speed
 
 ## Documentation Hygiene Tasks
 

@@ -26,13 +26,13 @@ export const HostTopBar = ({
   const isPlaying = phase === "round-active" || phase === "round-reveal";
 
   return (
-    <header className="flex shrink-0 items-center justify-between py-3 px-5">
-      <div className="flex items-center gap-3 w-40 overflow-visible">
+    <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-visible">
         <FullLogo size={160} className="text-foreground" />
       </div>
 
       {isPlaying && currentRound && (
-        <div className="flex items-center gap-6">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-6 text-center">
           <span className="text-sm text-muted-foreground">
             Round {currentRound.roundNumber}/{totalRounds}
           </span>
@@ -41,7 +41,7 @@ export const HostTopBar = ({
           </span>
         </div>
       )}
-      <div className="w-40 h-full flex justify-end items-center">
+      <div className="flex min-w-0 flex-1 items-center justify-end">
         {phase === "round-active" && currentRound && (
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">

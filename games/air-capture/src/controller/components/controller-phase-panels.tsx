@@ -182,25 +182,53 @@ export const ControllerEndedPanel = memo(function ControllerEndedPanel({
 }: {
   matchSummary: MatchSummary | null;
 }) {
+  const winner = matchSummary?.winner ?? null;
+  const winnerColor = winner ? TEAM_CONFIG[winner].color : "#ffffff";
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-3 text-center">
-      <div className="text-xs tracking-[0.2em] text-zinc-400 uppercase">
-        Match Ended
-      </div>
-      <div
-        className="text-3xl font-black uppercase"
-        style={{
-          color: matchSummary ? TEAM_CONFIG[matchSummary.winner].color : "#fff",
-        }}
-      >
-        {matchSummary
-          ? `${TEAM_CONFIG[matchSummary.winner].label} Wins`
-          : "Match Complete"}
-      </div>
-      <div className="text-4xl font-black">
-        {matchSummary
-          ? `${matchSummary.finalScores.solaris}:${matchSummary.finalScores.nebulon}`
-          : "0:0"}
+    <div className="flex min-h-0 flex-1 items-center justify-center px-3 py-4">
+      <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-[28px] border border-white/10 bg-zinc-950/88 px-5 py-6 text-center shadow-2xl">
+        <div className="text-[11px] font-semibold tracking-[0.2em] text-zinc-400 uppercase">
+          Match Ended
+        </div>
+        <div
+          className="text-3xl font-black uppercase"
+          style={{ color: winnerColor }}
+        >
+          {winner ? `${TEAM_CONFIG[winner].label} Wins` : "Match Complete"}
+        </div>
+        <div className="flex items-center gap-3 text-5xl font-black leading-none">
+          <span style={{ color: TEAM_CONFIG.solaris.color }}>
+            {matchSummary?.finalScores.solaris ?? 0}
+          </span>
+          <span className="text-zinc-500">:</span>
+          <span style={{ color: TEAM_CONFIG.nebulon.color }}>
+            {matchSummary?.finalScores.nebulon ?? 0}
+          </span>
+        </div>
+        {matchSummary ? (
+          <div className="grid w-full grid-cols-2 gap-2">
+            {(["solaris", "nebulon"] as const).map((teamId) => (
+              <div
+                key={teamId}
+                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3"
+              >
+                <div
+                  className="text-[11px] font-semibold tracking-[0.16em] uppercase"
+                  style={{ color: TEAM_CONFIG[teamId].color }}
+                >
+                  {TEAM_CONFIG[teamId].label}
+                </div>
+                <div className="mt-1 text-xl font-black text-white">
+                  {matchSummary.finalScores[teamId]}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div className="text-[11px] tracking-[0.16em] text-zinc-500 uppercase">
+          Restart or return to lobby from the shell.
+        </div>
       </div>
     </div>
   );

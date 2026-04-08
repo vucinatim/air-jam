@@ -1624,8 +1624,8 @@ export function HostView() {
               }}
             >
               <div className="min-h-0 flex-1 p-3 sm:p-4 md:p-5">
-                <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(36rem,1fr)]">
-                <div className="order-1 flex h-52 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-56 md:h-64 xl:h-auto xl:min-h-0">
+                <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(36rem,1fr)]">
+                <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
                   <img
                     src="/sprites/cover.png"
                     alt="Game cover"
@@ -1661,7 +1661,7 @@ export function HostView() {
                   </div>
 
                   <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
-                    <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,21rem)_minmax(28rem,1fr)]">
+                    <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
                       <div className="flex flex-col items-center border-zinc-700 pb-3 md:border-r-2 md:pb-0 md:pr-3">
                         <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
                           Scan To Join
@@ -1674,7 +1674,7 @@ export function HostView() {
                               padding={1}
                               foregroundColor="#ffffff"
                               backgroundColor="#00000000"
-                              className="mx-auto h-auto w-full max-w-[12rem] sm:max-w-[14rem] md:max-w-[20rem] xl:max-w-[24rem]"
+                              className="mx-auto h-auto w-full max-w-[13rem] sm:max-w-[15rem] md:max-w-[22rem] xl:max-w-[28rem]"
                               style={{
                                 width: "100%",
                                 height: "auto",

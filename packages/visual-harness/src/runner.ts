@@ -660,6 +660,11 @@ export const runVisualHarness = async ({
 
   const browser = await chromium.launch({
     headless: true,
+    args: [
+      "--enable-webgl",
+      "--ignore-gpu-blocklist",
+      "--use-angle=swiftshader",
+    ],
   });
 
   const results: VisualCaptureScenarioMetadata[] = [];

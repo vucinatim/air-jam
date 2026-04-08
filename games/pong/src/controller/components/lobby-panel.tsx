@@ -33,6 +33,7 @@ export const LobbyPanel = ({
   team2Players,
   pointsToWin,
   controlsDisabled,
+  readinessText,
   onJoinTeam,
   onSetBotCount,
   onSetPointsToWin,
@@ -40,6 +41,15 @@ export const LobbyPanel = ({
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="pong-controller-lobby-panel">
       <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pt-3 pb-3">
+        <div className="pong-panel rounded-[24px] px-4 py-4 text-center">
+          <div className="pong-caption">Lobby Status</div>
+          <div className="mt-2 text-lg font-black uppercase tracking-[0.16em] text-white">
+            {readinessText}
+          </div>
+          <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+            Add players or bots to fill both sides.
+          </div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {(["team1", "team2"] as const).map((team) => {
             const botCount = botCounts[team];
