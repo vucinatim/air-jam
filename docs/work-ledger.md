@@ -69,9 +69,13 @@ Plan: [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
 Current truth:
 
 1. this feature is still genuinely unfinished
-2. the shared preview-controller product/runtime layer is not yet implemented
-3. the platform controller route still needs the planned cleanup if preview mode is going to ship
-4. under the new execution order, this should be finished during the upfront implementation stage rather than deferred until late prerelease
+2. the platform controller route split is now complete, including a thin preview-surface mode that reuses the real controller path
+3. the SDK now exposes a real `@air-jam/sdk/preview` leaf with a canonical preview launch URL builder
+4. preview device-identity override now exists as a narrow controller-runtime path instead of a general runtime expansion
+5. the first host-local preview session manager, shared preview surface, and shared preview dock now live in the SDK preview leaf
+6. platform `/arcade` and `/play`, plus the Pong repo/scaffold host flow, now consume that same shared preview UI
+7. the remaining real slices are concurrent preview identity validation, broader consumer rollout decisions, and final mixed-session proof
+8. under the new execution order, this should be finished during the upfront implementation stage rather than deferred until late prerelease
 
 ### Priority 4. Final Manual Release Proof
 
@@ -120,6 +124,10 @@ The audit confirmed:
 6. the hosted release and managed media lanes are implemented product surfaces; what remains is end-to-end proof, not building those systems
 7. the preview-controller dock remains the only clearly unfinished prerelease feature plan
 8. the SDK-owned platform-settings boundary cleanup and host join-url cleanup are now complete
+9. the platform controller page is now split into cleaner runtime, frame/bridge, and presentation layers as the first preview-controller prerequisite
+10. the canonical preview URL builder now exists as a dedicated SDK leaf instead of being left to app-level glue
+11. the first docked preview-controller platform integration now exists as a host-local overlay, not as replicated arcade state
+12. the shared preview UI is now proven by both platform and a repo/scaffold game host consumer instead of only one surface
 
 ## Documentation Hygiene Tasks
 

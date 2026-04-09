@@ -153,6 +153,7 @@ export default function PlayGamePage({
               initialGameId={game.id}
               onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
               className="flex-1"
+              previewControllersEnabled
             />
           </ArcadeAudioRuntime>
         </div>

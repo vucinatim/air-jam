@@ -35,6 +35,7 @@ import {
 import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
 import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readEmbeddedControllerChildSession } from "../../runtime/embedded-runtime-adapters";
+import { readPreviewControllerDeviceIdFromLocation } from "../../preview/identity";
 import { generateControllerId } from "../../utils/ids";
 import { detectRunMode } from "../../utils/mode";
 import type {
@@ -108,6 +109,10 @@ export const useControllerRuntimeApi = (
     () => getControllerCapabilityTokenFromLocation(),
     [],
   );
+  const previewDeviceId = useMemo(
+    () => readPreviewControllerDeviceIdFromLocation(),
+    [],
+  );
   const joinSource = useMemo(
     () =>
       resolveControllerJoinSource({
@@ -132,8 +137,11 @@ export const useControllerRuntimeApi = (
     if (embeddedController) {
       return null;
     }
+    if (previewDeviceId) {
+      return previewDeviceId;
+    }
     return getOrCreateControllerDeviceId();
-  }, [embeddedController]);
+  }, [embeddedController, previewDeviceId]);
 
   const controllerId = useMemo<string>(() => {
     if (embeddedController?.controllerId) {

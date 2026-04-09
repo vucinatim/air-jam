@@ -19,6 +19,7 @@ export default defineConfig({
     "src/arcade/url.ts",
     "src/ui.ts",
     "src/protocol.ts",
+    "src/preview.ts",
     "src/contracts/v2/index.ts",
   ],
   format: ["cjs", "esm"],

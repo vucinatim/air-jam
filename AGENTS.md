@@ -6,6 +6,29 @@ This file defines general engineering expectations for contributors and coding a
 
 Build and maintain a clean, minimal, and extensible codebase that can scale without unnecessary complexity.
 
+## Ultimate Vision
+
+Air Jam is not only a multiplayer game framework.
+
+The long-term goal is for it to become an AI-native game creation and evaluation harness where a single prompt can drive the full lifecycle of building, testing, polishing, publishing, and iterating on a game.
+
+The intended end state is:
+
+1. a user can ask for a game at a very high level, such as "make a mario kart clone"
+2. Air Jam Studio can orchestrate multiple specialized agents in parallel
+3. different agents can own gameplay logic, assets, audio, music, UI, polish, balancing, testing, and release preparation
+4. agents can run the game directly, inspect logs, inspect visuals, read authoritative runtime state, and control players without relying only on browser automation
+5. the framework exposes clean machine-usable contracts for controller actions, state inspection, runtime events, visual feedback, and evaluation loops
+6. the same contracts work for both human development and agent-driven development
+7. the system keeps iterating until the game reaches a high level of finish and polish rather than stopping at a rough prototype
+
+This vision has architectural consequences now:
+
+1. runtime, transport, controller input, replicated state, signals, logs, and preview surfaces must stay explicit and machine-readable
+2. behavior should be accessible through strong contracts rather than hidden in UI-only flows
+3. local preview, hosted preview, runtime authority, analytics, and publish flows should converge on one coherent operating model
+4. agent control surfaces should be treated as first-class future product requirements, not afterthought tooling
+
 ## Core Principles
 
 1. Prefer simple, explicit solutions over clever abstractions.
@@ -60,14 +83,15 @@ Treat `.airjam/logs/dev-latest.ndjson` as the canonical local debugging stream f
 
 ## Documentation Discipline
 
-1. Keep intended architecture in `docs/framework-paradigm.md`.
-2. Keep the single active repo-wide execution ledger in `docs/work-ledger.md`.
-3. Keep the durable follow-up backlog in `docs/suggestions.md`.
-4. Keep monorepo workflow guidance in `docs/monorepo-operating-system.md`.
-5. Keep navigation pointers in `docs/docs-index.md`.
-6. Treat `docs/plans/*.md` as bounded system plans, not duplicate global trackers.
-7. Move completed/superseded plan snapshots to `docs/archive/`.
-8. Update docs in the same change when contracts or behavior change.
+1. Keep long-term product direction in `docs/vision.md`.
+2. Keep intended architecture in `docs/framework-paradigm.md`.
+3. Keep the single active repo-wide execution ledger in `docs/work-ledger.md`.
+4. Keep the durable follow-up backlog in `docs/suggestions.md`.
+5. Keep monorepo workflow guidance in `docs/monorepo-operating-system.md`.
+6. Keep navigation pointers in `docs/docs-index.md`.
+7. Treat `docs/plans/*.md` as bounded system plans, not duplicate global trackers.
+8. Move completed/superseded plan snapshots to `docs/archive/`.
+9. Update docs in the same change when contracts or behavior change.
 
 ## Follow-Up Tracking Rule
 

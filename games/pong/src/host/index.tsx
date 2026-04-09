@@ -4,6 +4,7 @@ import {
   useAudio,
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
+import { PreviewControllerDock } from "@air-jam/sdk/preview";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
 import {
   publishVisualHarnessBridgeActions,
@@ -91,6 +92,9 @@ function HostScreen() {
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
   });
+  const previewJoinUrl =
+    host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
+  const previewControllersEnabled = import.meta.env.DEV;
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -267,6 +271,11 @@ function HostScreen() {
           canStartMatch={canStartMatch}
           onStartMatch={hostLobbyShell.handleStart}
         />
+        <PreviewControllerDock
+          enabled={previewControllersEnabled}
+          joinUrl={previewJoinUrl}
+          className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
+        />
       </>
     );
   }
@@ -286,6 +295,11 @@ function HostScreen() {
           team1Players={team1Players}
           team2Players={team2Players}
           botCounts={botCounts}
+        />
+        <PreviewControllerDock
+          enabled={previewControllersEnabled}
+          joinUrl={previewJoinUrl}
+          className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
         />
       </>
     );
@@ -325,6 +339,12 @@ function HostScreen() {
           roomId={host.roomId}
         />
       ) : null}
+
+      <PreviewControllerDock
+        enabled={previewControllersEnabled}
+        joinUrl={previewJoinUrl}
+        className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
+      />
     </div>
   );
 }

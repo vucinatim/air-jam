@@ -106,7 +106,7 @@ This should be a shared optional feature, not a platform-only feature and not SD
 
 ### Ownership
 
-The feature should live as a reusable host-side preview-controller surface that can be consumed by:
+The feature should live as a reusable host-side preview-controller session and launch layer that can be consumed by:
 
 1. the first-party platform Arcade/play surfaces
 2. scaffolded standalone games
@@ -121,8 +121,17 @@ The SDK core should continue to own:
 The preview-controller feature should own:
 
 1. spawning preview controller clients from a host surface
-2. arranging and managing preview surfaces, windows, and cards
-3. preview-controller lifecycle and local UX
+2. preview-controller launch and identity isolation
+3. host-local preview lifecycle and surface management
+4. the first presentation shell for those sessions
+
+The dock is the first presentation layer, not the primary architecture.
+
+That means:
+
+1. the reusable contract is "launch and manage preview controller sessions"
+2. the dock is the first consumer of that contract
+3. future detached windows or Studio surfaces should reuse the same launch/session primitives instead of redefining the feature
 
 ## Topology Contract
 
@@ -178,13 +187,22 @@ Suggested baseline:
 
 Each preview controller should be:
 
-1. draggable
-2. compact by default
-3. expandable/openable
-4. easy to close
-5. visually clean and not toy-like
+1. compact by default
+2. expandable/openable
+3. easy to close
+4. visually clean and not toy-like
+5. easy to scan when multiple previews are open
 
 The first release should present preview controllers through a host-side dock with embedded windows/cards.
+
+For v1, the baseline should stay deliberately simple:
+
+1. docked cards/windows
+2. expand/focus/close actions
+3. optional collapse
+4. stable ordering
+
+Do not treat a full draggable desktop-style window manager as part of the minimum release-quality scope.
 
 Detached windows should remain a valid future presentation mode, but they must reuse the same controller launch contract and session model instead of becoming a second preview architecture.
 
@@ -217,7 +235,7 @@ The first release-quality version should include:
 
 1. host-side preview-controller dock
 2. spawn one or more real preview controllers into the current room
-3. draggable preview windows/cards
+3. docked embedded preview cards/windows with compact and expanded states
 4. a real controller route loaded inside each preview surface, with docked embedded rendering as the v1 implementation
 5. clean join/leave lifecycle
 6. support mixing preview and phone controllers in one room
@@ -232,6 +250,7 @@ The first version should not include:
 4. preview recording/replay
 5. persistent preview seat restore across page reloads
 6. unlimited controller count
+7. a feature-heavy draggable desktop window manager
 
 ## Surface Consumers
 
@@ -305,7 +324,7 @@ This should be integrated in a way that avoids copy-paste between platform and s
 
 Preferred direction:
 
-1. one reusable preview-controller host surface
+1. one reusable preview-controller session and launch layer
 2. thin platform integration
 3. thin scaffold integration
 
@@ -313,8 +332,8 @@ The reusable layer should expose host-facing primitives such as:
 
 1. preview controller manager state
 2. spawn/remove actions
-3. preview controller surface launch/render helpers
-4. layout hooks or components
+3. preview controller launch/render helpers
+4. first-party dock components or dock primitives
 
 It should not pull platform-only dependencies into the reusable layer.
 
@@ -382,10 +401,12 @@ The shared preview layer should own only host-local concerns.
 It should contain:
 
 1. a preview controller URL helper that starts from canonical `host.joinUrl`
-2. preview controller manager state
-3. spawn, close, focus, and layout actions
-4. dock and surface components
-5. local persistence only if later proven worth it, not in v1
+2. preview controller identity-isolation helpers
+3. preview controller manager state
+4. spawn, close, focus, and basic ordering actions
+5. reusable preview surface launch/render helpers
+6. dock components or dock primitives
+7. local persistence only if later proven worth it, not in v1
 
 It should not contain:
 
@@ -393,6 +414,7 @@ It should not contain:
 2. game-specific preview behavior
 3. any replicated state or authority over room/game state
 4. fake input forwarding or host-side controller emulation
+5. a heavyweight generic window-manager abstraction
 
 ## Preview URL Contract
 
@@ -415,7 +437,30 @@ Suggested first-version reserved params:
 
 This feature is clean only if we do a few targeted refactors first instead of layering it onto the current code as host-specific glue.
 
-### Refactor 1. Canonical Preview Controller URL Helper
+### Refactor 1. Platform Controller Page Split
+
+Current issue:
+
+1. `apps/platform/src/app/controller/page.tsx` currently mixes controller runtime ownership, outer chrome, fullscreen/menu UX, fallback remote controls, and inner game-controller iframe loading
+2. preview mode will need the real runtime path but not necessarily all of that outer product chrome in either docked or detached presentation
+
+Required change:
+
+1. split the page into a reusable runtime shell and smaller platform presentation pieces
+2. separate controller runtime bootstrap, embedded game-controller frame/bridge, and outer product chrome
+3. allow preview mode to suppress or simplify fullscreen prompts, menu affordances, and other wrapper behavior that does not belong inside a compact preview surface
+
+This should remain a platform refactor, not a reusable preview-module responsibility.
+
+Current progress:
+
+1. completed on 2026-04-09
+2. `apps/platform/src/app/controller/page.tsx` now acts as a thin runtime/search-param wrapper
+3. the embedded controller iframe/bridge lifecycle now lives in `use-controller-embedded-game-frame.ts`
+4. outer platform presentation now lives in `controller-page-layout.tsx`
+5. preview-surface mode now exists and suppresses fullscreen/menu chrome without introducing a second controller runtime path
+
+### Refactor 2. Canonical Preview Controller URL Helper
 
 Current issue:
 
@@ -427,19 +472,11 @@ Required change:
 1. add one reusable preview URL builder in the shared preview module or shared URL helpers
 2. make all consumers use that helper instead of assembling params inline
 
-### Refactor 2. Platform Controller Page Split
+Current progress:
 
-Current issue:
-
-1. `apps/platform/src/app/controller/page.tsx` currently mixes controller runtime ownership, outer chrome, fullscreen/menu UX, fallback remote controls, and inner game-controller iframe loading
-2. preview mode will need the real runtime path but not necessarily all of that outer product chrome in either docked or detached presentation
-
-Required change:
-
-1. split the page into a reusable runtime shell and smaller platform presentation pieces
-2. allow preview mode to suppress or simplify fullscreen prompts, menu affordances, and any outer wrapper behavior that does not belong inside a compact preview surface
-
-This should remain a platform refactor, not a reusable preview-module responsibility.
+1. completed on 2026-04-09 through the new `@air-jam/sdk/preview` leaf export
+2. the canonical helper now starts from `host.joinUrl`, preserves existing join params, adds explicit preview controller identity, and appends `aj_preview=1`
+3. the helper can optionally reject launches outside an allowed origin set so embedded preview consumers can stay strict when needed
 
 ### Refactor 3. Preview Identity Isolation
 
@@ -454,6 +491,13 @@ Preferred change:
 2. have the preview launcher provide that identity instead of relying fully on controller local storage
 
 This is a small runtime hardening refactor and should stay narrow.
+
+Current progress:
+
+1. in progress on 2026-04-09
+2. preview launches now have a reserved preview device identity contract via `aj_preview_device`
+3. the controller runtime now prefers that preview device identity over persisted local device storage when present
+4. concurrent preview-session behavior still needs direct launch-path integration and validation
 
 ## State Ownership Rule
 
@@ -522,14 +566,14 @@ The preview system should look like a polished host-side accessory, not a tempor
 1. accidentally creating a second controller path
 2. overcomplicating preview identity/lifecycle
 3. building platform-specific logic that generated games cannot reuse
-4. adding too much drag/layout complexity before the core flow is proven
+4. adding too much window-management complexity before the core flow is proven
 
 ### Mitigations
 
 1. force preview controllers to use the real controller route
 2. keep first-version session lifecycle simple
 3. separate reusable preview logic from platform-only shell integration
-4. keep the window manager minimal and polished instead of feature-heavy
+4. keep the first dock minimal and polished instead of feature-heavy
 
 ## Execution Workstreams
 
@@ -546,7 +590,7 @@ Done when:
 
 ### Workstream B. Reusable Preview Runtime Layer
 
-1. create the reusable preview-controller manager
+1. create the reusable preview-controller session and launch layer
 2. ensure preview controllers use the real controller route
 3. ensure preview and phone controllers can coexist in one room
 4. keep host/session topology unchanged
@@ -555,7 +599,25 @@ Done when:
 
 1. the feature works without platform-specific assumptions
 
-### Workstream C. Platform Integration
+Current progress:
+
+1. the shared preview runtime contract now exists under `@air-jam/sdk/preview`
+2. canonical preview launch URL generation is shared
+3. host-local preview session state now exists as a reusable manager hook
+4. the shared preview surface and first dock presentation now also live under `@air-jam/sdk/preview`
+5. remaining work is broader consumer rollout and mixed-session proof
+
+### Workstream C. Platform Controller Refactor
+
+1. split the platform controller page into cleaner layers
+2. preserve the normal full controller product behavior
+3. expose a compact preview-surface mode without baking preview logic into the shared runtime layer
+
+Done when:
+
+1. platform integration can stay thin because the controller page is no longer one oversized mixed-responsibility component
+
+### Workstream D. Platform Integration
 
 1. integrate preview controllers into the relevant platform host surfaces
 2. keep public tryout UX clean
@@ -565,7 +627,13 @@ Done when:
 
 1. platform consumers get the feature as a thin integration over the shared layer
 
-### Workstream D. Scaffold Integration
+Current progress:
+
+1. the platform now mounts a first docked preview-controller accessory in both `/arcade` and `/play`
+2. the dock stays host-local and consumes the shared SDK preview manager instead of building app-local launch logic
+3. remaining work is live mixed-session proof and any follow-up layout tuning from real usage
+
+### Workstream E. Scaffold Integration
 
 1. integrate preview controllers into the scaffolded host experience
 2. keep setup minimal for generated projects
@@ -575,7 +643,13 @@ Done when:
 
 1. scaffolded games get the same fast-try benefit as platform games
 
-### Workstream E. Validation
+Current progress:
+
+1. the current Pong repo host and Pong scaffold source now consume the shared SDK preview dock
+2. the abstraction is no longer only proven by platform
+3. remaining work is deciding how broadly to fan this out across the other host surfaces before release
+
+### Workstream F. Validation
 
 1. verify mixed sessions with phone and preview controllers
 2. verify join/leave correctness
@@ -596,14 +670,15 @@ Done when:
 
 ### Phase 1. Shared Preview Runtime
 
-1. build the reusable preview-controller manager and dock
-2. prove real controller route loading through a host-managed preview surface
-3. prove mixed-session behavior
+1. split the platform controller page into reusable runtime/presentation layers
+2. build the shared preview URL and identity contract
+3. prove the minimal preview session launch path
 
 ### Phase 2. Platform Integration
 
-1. integrate into Arcade/play surfaces
-2. keep public tryout UX polished and minimal
+1. build the shared preview session layer and first dock presentation
+2. integrate into Arcade/play surfaces
+3. keep public tryout UX polished and minimal
 
 ### Phase 3. Scaffold Integration
 
@@ -612,7 +687,7 @@ Done when:
 
 ### Phase 4. Polish And Validation
 
-1. drag/layout polish
+1. compact/expanded dock polish
 2. join/leave and multi-controller validation
 3. targeted UX review for first-use quality
 
@@ -622,34 +697,48 @@ This checklist is the concrete execution order for the first clean implementatio
 
 ### 0. Prerequisite Contract Lock
 
-- [ ] Confirm the shared placement as an optional SDK leaf module such as `@air-jam/sdk/preview`
+- [x] Confirm the shared placement as an optional SDK leaf module such as `@air-jam/sdk/preview`
 - [ ] Confirm the defaulting rule: enabled by default in local dev, opt-in in production
-- [ ] Confirm the first-version controller count cap and window-behavior scope
-- [ ] Confirm the preview URL contract and reserved params
+- [x] Confirm the first-version controller count cap and compact/expanded dock scope
+- [x] Confirm the preview URL contract and reserved params
 
 Done when:
 
 1. no implementation step depends on unresolved ownership or product-default questions
 
-### 1. Shared Preview URL Builder
+### 1. Platform Controller Page Refactor
 
-- [ ] Add one canonical helper that starts from `host.joinUrl`
-- [ ] Make it append explicit preview controller identity without rebuilding the base join logic
-- [ ] Preserve existing capability-bearing join params from `host.joinUrl`
-- [ ] Add support for explicit preview-only reserved params such as `aj_preview=1`
-- [ ] Add tests for URL composition and invalid-origin rejection behavior
+- [x] Split `apps/platform/src/app/controller/page.tsx` into smaller reusable layers
+- [x] Separate controller runtime ownership from outer product chrome and menu UX
+- [x] Extract the embedded game-controller frame/bridge path into cleaner platform-local pieces
+- [x] Add a clean preview-surface mode that suppresses chrome not suitable for compact docked previews
+- [x] Preserve the normal full controller product behavior outside preview mode
+- [x] Keep all platform-only behavior inside the platform app
+
+Done when:
+
+1. platform preview consumers can reuse the real controller path cleanly
+2. the page no longer acts as one oversized mixed-responsibility component
+
+### 2. Shared Preview URL Builder
+
+- [x] Add one canonical helper that starts from `host.joinUrl`
+- [x] Make it append explicit preview controller identity without rebuilding the base join logic
+- [x] Preserve existing capability-bearing join params from `host.joinUrl`
+- [x] Add support for explicit preview-only reserved params such as `aj_preview=1`
+- [x] Add tests for URL composition and invalid-origin rejection behavior
 
 Done when:
 
 1. all preview consumers can build controller-launch URLs through one shared helper
 2. no app code is hand-assembling preview controller URLs
 
-### 2. Preview Identity Isolation
+### 3. Preview Identity Isolation
 
-- [ ] Decide the minimal explicit identity inputs needed for preview controllers
-- [ ] Add narrow controller-runtime support for preview identity override where required
+- [x] Decide the minimal explicit identity inputs needed for preview controllers
+- [x] Add narrow controller-runtime support for preview identity override where required
 - [ ] Ensure concurrent same-origin preview surfaces do not collide through shared local-storage identity
-- [ ] Keep this override path limited to preview use instead of widening general controller complexity
+- [x] Keep this override path limited to preview use instead of widening general controller complexity
 - [ ] Add runtime tests for concurrent preview-controller joins in one room
 
 Done when:
@@ -657,49 +746,37 @@ Done when:
 1. multiple preview controllers can join from one desktop host page without identity collisions
 2. closing and reopening previews behaves predictably
 
-### 3. Shared Preview Manager And Dock
+### 4. Shared Preview Session Layer And Dock
 
-- [ ] Add host-local preview controller manager state
-- [ ] Add spawn, close, focus, collapse, and reorder actions
-- [ ] Add the preview dock UI
-- [ ] Add preview window/card components
-- [ ] Keep layout state local to the host page and out of replicated/gameplay state
-- [ ] Keep the visual treatment minimal and product-grade
+- [x] Add host-local preview controller manager state
+- [x] Add spawn, close, focus, and basic ordering actions
+- [x] Add the preview dock UI
+- [x] Add compact and expanded preview card/window components
+- [x] Keep layout state local to the host page and out of replicated/gameplay state
+- [x] Keep the visual treatment minimal and product-grade
+- [x] Avoid a heavyweight general window-manager abstraction in v1
 
 Done when:
 
 1. a host surface can render and manage preview controllers without platform-specific code
 
-### 4. Shared Preview Surface
+### 5. Shared Preview Surface
 
-- [ ] Add the reusable preview surface component and launch abstraction
-- [ ] Implement docked embedded rendering as the first supported surface target
-- [ ] Ensure the v1 surface loads the real controller route, not a fake preview UI
-- [ ] Add loading, failed-load, and disconnected states that stay visually clean
-- [ ] Add close behavior that results in a normal controller disconnect
+- [x] Add the reusable preview surface component and launch abstraction
+- [x] Implement docked embedded rendering as the first supported surface target
+- [x] Ensure the v1 surface loads the real controller route, not a fake preview UI
+- [x] Add loading, failed-load, and disconnected states that stay visually clean
+- [x] Add close behavior that results in a normal controller disconnect
 - [ ] Verify that preview windows can coexist with real phone controllers in the same room
 
 Done when:
 
 1. preview surfaces are just host-managed containers around real controller clients
 
-### 5. Platform Controller Page Refactor
-
-- [ ] Split `apps/platform/src/app/controller/page.tsx` into smaller reusable layers
-- [ ] Separate controller runtime ownership from outer product chrome and menu UX
-- [ ] Add a clean preview-surface mode that suppresses surface chrome not suitable for compact docked or detached previews
-- [ ] Preserve the normal full controller product behavior outside preview mode
-- [ ] Keep all platform-only behavior inside the platform app
-
-Done when:
-
-1. platform preview consumers can reuse the real controller path cleanly
-2. the page no longer acts as one oversized mixed-responsibility component
-
 ### 6. Platform Integration
 
-- [ ] Add the preview dock to the chosen Arcade/play surfaces
-- [ ] Place the `Add controller` entry point where it is visible but not intrusive
+- [x] Add the preview dock to the chosen Arcade/play surfaces
+- [x] Place the `Add controller` entry point where it is visible but not intrusive
 - [ ] Verify preview windows do not fight Arcade chrome, QR, or fullscreen flows
 - [ ] Verify mixed sessions with preview and phone controllers in a live Arcade room
 
@@ -709,8 +786,8 @@ Done when:
 
 ### 7. Scaffold And Repo-Game Integration
 
-- [ ] Mount the preview dock by default in normal local dev host flows for scaffolded games
-- [ ] Mount the preview dock by default in normal local dev host flows for repo-owned games where applicable
+- [x] Mount the preview dock by default in normal local dev host flows for scaffolded games
+- [x] Mount the preview dock by default in normal local dev host flows for repo-owned games where applicable
 - [ ] Keep production disabled by default unless the host explicitly opts in
 - [ ] Update scaffold defaults so first-run local host pages expose `Add controller` without extra setup
 - [ ] Avoid copy-paste platform code in standalone consumers
@@ -773,15 +850,16 @@ This is a strong prerelease feature if it stays disciplined.
 
 The right version is:
 
-1. shared optional preview-controller dock
+1. shared optional preview-controller session and launch layer
+2. same session model
+3. same controller route
+4. a simple docked-card presentation for v1, not a feature-heavy window manager
+5. thin platform and scaffold integrations
+6. a reusable preview-surface model that can later support detached windows without changing runtime contracts
 
 Release gate:
 
 1. if this feature is not clearly done before the final manual prerelease check begins, cut it from v1 instead of carrying a half-productized preview path into release
-2. same session model
-3. same controller route
-4. thin platform and scaffold integrations
-5. a reusable preview-surface model that can later support detached windows without changing runtime contracts
 
 The wrong version is:
 

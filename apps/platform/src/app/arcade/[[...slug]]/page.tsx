@@ -61,6 +61,7 @@ export default function ArcadePage({
             hostRouteIntent={hostRouteIntent}
             autoLaunch={shouldAutoLaunch}
             className="h-screen"
+            previewControllersEnabled
           />
         </ArcadeAudioRuntime>
       </AirJamHostRuntime>

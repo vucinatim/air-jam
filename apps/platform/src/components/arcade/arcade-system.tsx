@@ -19,6 +19,7 @@ import {
   type PlayerProfile,
   type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
+import { PreviewControllerDock } from "@air-jam/sdk/preview";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import type {
   AirJamActionRpcPayload,
@@ -121,6 +122,8 @@ interface ArcadeSystemProps {
   onExitGame?: () => void;
   /** Custom class name for the container */
   className?: string;
+  /** Enable host-local preview controllers for this surface. */
+  previewControllersEnabled?: boolean;
 }
 
 /**
@@ -141,6 +144,7 @@ export const ArcadeSystem = ({
   showChrome = mode === "arcade",
   onExitGame,
   className,
+  previewControllersEnabled = false,
 }: ArcadeSystemProps) => {
   const runtime = useArcadeRuntimeManager({
     games,
@@ -1100,6 +1104,12 @@ export const ArcadeSystem = ({
             />
           )
         )}
+
+        <PreviewControllerDock
+          enabled={previewControllersEnabled}
+          joinUrl={joinQrStatus === "ready" ? arcadeJoinUrl : null}
+          highContrast={highContrast}
+        />
       </div>
     </div>
   );

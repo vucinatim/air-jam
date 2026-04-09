@@ -89,6 +89,11 @@
       "import": "./dist/protocol.js",
       "require": "./dist/protocol.cjs"
     },
+    "./preview": {
+      "types": "./dist/preview.d.ts",
+      "import": "./dist/preview.js",
+      "require": "./dist/preview.cjs"
+    },
     "./contracts/v2": {
       "types": "./dist/contracts/v2/index.d.ts",
       "import": "./dist/contracts/v2/index.js",
@@ -131,6 +136,9 @@
       ],
       "protocol": [
         "dist/protocol.d.ts"
+      ],
+      "preview": [
+        "dist/preview.d.ts"
       ],
       "contracts/v2": [
         "dist/contracts/v2/index.d.ts"

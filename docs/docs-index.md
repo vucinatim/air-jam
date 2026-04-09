@@ -2,10 +2,11 @@
 
 Current core docs:
 
-1. [Framework Paradigm](./framework-paradigm.md)
-2. [Work Ledger](./work-ledger.md)
-3. [Monorepo Operating System](./monorepo-operating-system.md)
-4. [Suggestions](./suggestions.md)
+1. [Vision](./vision.md)
+2. [Framework Paradigm](./framework-paradigm.md)
+3. [Work Ledger](./work-ledger.md)
+4. [Monorepo Operating System](./monorepo-operating-system.md)
+5. [Suggestions](./suggestions.md)
 
 Core system docs:
 
