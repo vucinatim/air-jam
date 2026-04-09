@@ -1,7 +1,10 @@
 # SDK Extraction Clean-Swap Plan
 
 Last updated: 2026-04-07  
-Status: active
+Status: archived
+
+Archived on: 2026-04-09  
+Archive reason: the broad original extraction plan was superseded by the narrower [Prerelease Systems Closeout Plan](../plans/prerelease-systems-closeout-plan.md)
 
 Related docs:
 

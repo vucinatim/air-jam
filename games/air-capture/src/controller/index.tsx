@@ -5,7 +5,10 @@ import {
   useInputWriter,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import {
+  ControllerPlayerNameField,
+  ForcedOrientationShell,
+} from "@air-jam/sdk/ui";
 import type { JSX } from "react";
 import { memo, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -189,6 +192,12 @@ const ControllerScreen = () => {
           onReturnToLobby={() => actions.returnToLobby()}
           onStartMatch={() => actions.startMatch()}
           onRestartMatch={() => actions.restartMatch()}
+        />
+
+        <ControllerPlayerNameField
+          className="border-b border-white/10 bg-black/30 px-3 py-2"
+          labelClassName="text-[10px] font-semibold tracking-[0.2em] text-zinc-400 uppercase"
+          inputClassName="w-full rounded-xl border border-white/15 bg-zinc-900/85 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-sky-400/45 focus:ring-1 focus:ring-sky-400/25"
         />
 
         {matchPhase === "lobby" ? (

@@ -1,15 +1,16 @@
 # Controller Preview Dock Plan
 
-Last updated: 2026-04-08  
+Last updated: 2026-04-09  
 Status: active
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
 2. [Framework Paradigm](../framework-paradigm.md)
-3. [SDK Extraction Clean-Swap Plan](./sdk-extraction-clean-swap-plan.md)
-4. [Showcase Games Release Readiness Plan](./showcase-games-release-readiness-plan.md)
-5. [Suggestions](../suggestions.md)
+3. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+4. [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
+5. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+6. [Suggestions](../suggestions.md)
 
 ## Purpose
 
@@ -773,6 +774,10 @@ This is a strong prerelease feature if it stays disciplined.
 The right version is:
 
 1. shared optional preview-controller dock
+
+Release gate:
+
+1. if this feature is not clearly done before the final manual prerelease check begins, cut it from v1 instead of carrying a half-productized preview path into release
 2. same session model
 3. same controller route
 4. thin platform and scaffold integrations

@@ -1,13 +1,16 @@
 # Showcase Games Release Readiness Plan
 
 Last updated: 2026-04-07  
-Status: active
+Status: archived
+
+Archived on: 2026-04-09  
+Archive reason: the implementation pass is complete enough to archive; final manual proof moved to [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
-3. [Showcase Games Release Readiness Checklist](./showcase-games-release-readiness-checklist.md)
+2. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
+3. [Showcase Games Release Readiness Checklist (Archived)](./showcase-games-release-readiness-checklist-2026-04-09.md)
 4. [ZeroDays Game Import And Template Promotion Plan](../archive/zerodays-game-import-template-promotion-plan-2026-04-07.md)
 5. [Framework Paradigm](../framework-paradigm.md)
 6. [Legacy Game Migration Guide](../systems/legacy-game-migration-guide.md)

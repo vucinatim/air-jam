@@ -31,20 +31,14 @@ Release-critical plans:
 
 1. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
-Migration proof references:
+Active prerelease implementation plans:
 
-1. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
+1. [Prerelease Systems Closeout Plan](./plans/prerelease-systems-closeout-plan.md)
+2. [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
 
-Active subsystem plans:
+Final release-proof plan:
 
-1. [Showcase Games Release Readiness Plan](./plans/showcase-games-release-readiness-plan.md)
-2. [Showcase Games Release Readiness Checklist](./plans/showcase-games-release-readiness-checklist.md)
-3. [Public Release Security Hardening Plan](./plans/public-release-security-hardening-plan.md)
-4. [SDK Extraction Clean-Swap Plan](./plans/sdk-extraction-clean-swap-plan.md)
-5. [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
-6. [Composition Shell Contract Plan](./plans/composition-shell-contract-plan.md)
-7. [Visual Review Harness Plan](./plans/visual-review-harness-plan.md)
-8. [Standard Lifecycle Contract Plan](./plans/standard-lifecycle-contract-plan.md)
+1. [Final Prerelease Manual Check Plan](./plans/final-prerelease-manual-check-plan.md)
 
 Archived recent baseline plans:
 
@@ -53,6 +47,13 @@ Archived recent baseline plans:
 3. [Local Runtime Workflow Modes Plan](./archive/local-runtime-workflow-modes-plan-2026-04-07.md)
 4. [Runtime Topology And Endpoint Contract Plan](./archive/runtime-topology-and-endpoint-contract-plan-2026-04-07.md)
 5. [Controller Reconnect And Resume Plan](./archive/controller-reconnect-resume-plan-2026-04-07.md)
+6. [Standard Lifecycle Contract Plan](./archive/standard-lifecycle-contract-plan-2026-04-09.md)
+7. [Composition Shell Contract Plan](./archive/composition-shell-contract-plan-2026-04-09.md)
+8. [Public Release Security Hardening Plan](./archive/public-release-security-hardening-plan-2026-04-09.md)
+9. [Showcase Games Release Readiness Plan](./archive/showcase-games-release-readiness-plan-2026-04-09.md)
+10. [Showcase Games Release Readiness Checklist](./archive/showcase-games-release-readiness-checklist-2026-04-09.md)
+11. [SDK Extraction Clean-Swap Plan](./archive/sdk-extraction-clean-swap-plan-2026-04-09.md)
+12. [Visual Review Harness Plan](./archive/visual-review-harness-plan-2026-04-09.md)
 
 Completed transitions / reference plans:
 

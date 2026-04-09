@@ -1,12 +1,15 @@
 # Showcase Games Release Readiness Checklist
 
 Last updated: 2026-04-08  
-Status: active
+Status: archived
+
+Archived on: 2026-04-09  
+Archive reason: final manual launch proof was consolidated into [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
 
 Related docs:
 
-1. [Showcase Games Release Readiness Plan](./showcase-games-release-readiness-plan.md)
-2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+1. [Showcase Games Release Readiness Plan (Archived)](./showcase-games-release-readiness-plan-2026-04-09.md)
+2. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
 3. [Work Ledger](../work-ledger.md)
 
 ## Purpose

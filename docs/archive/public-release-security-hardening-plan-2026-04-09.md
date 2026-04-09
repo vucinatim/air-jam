@@ -1,12 +1,15 @@
 # Public Release Security Hardening Plan
 
 Last updated: 2026-04-07  
-Status: active
+Status: archived
+
+Archived on: 2026-04-09  
+Archive reason: release-blocking hardening landed; remaining follow-ups belong in [Suggestions](../suggestions.md), not the active prerelease plan surface
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
+2. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
 3. [Framework Paradigm](../framework-paradigm.md)
 4. [Public Arcade Release Strategy](../strategy/public-arcade-release-strategy.md)
 5. [Production Observability Baseline](../strategy/production-observability-baseline.md)

@@ -1,13 +1,16 @@
 # Standard Lifecycle Contract Plan
 
 Last updated: 2026-04-08  
-Status: completed baseline
+Status: archived
+
+Archived on: 2026-04-09  
+Archive reason: completed baseline
 
 Related docs:
 
-1. [Visual Review Harness Plan](./visual-review-harness-plan.md)
-2. [Composition Shell Contract Plan](./composition-shell-contract-plan.md)
-3. [Showcase Games Release Readiness Plan](./showcase-games-release-readiness-plan.md)
+1. [Visual Review Harness Plan (Archived)](./visual-review-harness-plan-2026-04-09.md)
+2. [Composition Shell Contract Plan (Archived)](./composition-shell-contract-plan-2026-04-09.md)
+3. [Showcase Games Release Readiness Plan (Archived)](./showcase-games-release-readiness-plan-2026-04-09.md)
 4. [Framework Paradigm](../framework-paradigm.md)
 5. [Work Ledger](../work-ledger.md)
 6. [Docs Index](../docs-index.md)

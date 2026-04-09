@@ -7,6 +7,7 @@ import type {
   ControllerInputEvent,
   ControllerStateMessage,
   ControllerSystemPayload,
+  ControllerUpdatePlayerProfilePayload,
   ControllerWelcomePayload,
   HostLeftNotice,
   PlaySoundEventPayload,
@@ -43,6 +44,7 @@ export const controllerBridgeClientEvents = [
   "controller:state_sync_request",
   "controller:system",
   "controller:play_sound",
+  "controller:updatePlayerProfile",
 ] as const;
 
 export const controllerBridgeServerEvents = [
@@ -69,6 +71,7 @@ export type ControllerBridgeClientEventArgs = {
   "controller:state_sync_request": [payload: AirJamStateSyncRequestPayload];
   "controller:system": [payload: ControllerSystemPayload];
   "controller:play_sound": [payload: PlaySoundEventPayload];
+  "controller:updatePlayerProfile": [payload: ControllerUpdatePlayerProfilePayload];
 };
 
 export type ControllerBridgeServerEventArgs = {

@@ -1,13 +1,16 @@
 # Composition Shell Contract Plan
 
 Last updated: 2026-04-08  
-Status: active
+Status: archived
+
+Archived on: 2026-04-09  
+Archive reason: implementation is code-complete; remaining manual proof moved to [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
 
 Related docs:
 
-1. [Showcase Games Release Readiness Plan](./showcase-games-release-readiness-plan.md)
-2. [Showcase Games Release Readiness Checklist](./showcase-games-release-readiness-checklist.md)
-3. [SDK Extraction Clean-Swap Plan](./sdk-extraction-clean-swap-plan.md)
+1. [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
+2. [Prerelease Systems Closeout Plan](../plans/prerelease-systems-closeout-plan.md)
+3. [Showcase Games Release Readiness Plan (Archived)](./showcase-games-release-readiness-plan-2026-04-09.md)
 4. [Framework Paradigm](../framework-paradigm.md)
 5. [Work Ledger](../work-ledger.md)
 6. [AI-Native Development Workflow](../systems/ai-native-development-workflow.md)

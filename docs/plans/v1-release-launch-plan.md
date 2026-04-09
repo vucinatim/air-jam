@@ -1,6 +1,6 @@
 # Air Jam V1 Release Launch Plan
 
-Last updated: 2026-04-07  
+Last updated: 2026-04-09  
 Status: active
 
 Related docs:
@@ -11,10 +11,12 @@ Related docs:
 4. [Release Workflow](../strategy/release-workflow.md)
 5. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 6. [Docs Index](../docs-index.md)
-7. [Showcase Games Release Readiness Plan](./showcase-games-release-readiness-plan.md)
-8. [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
-9. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
-10. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+7. [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
+8. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+9. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+10. [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
+11. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
+12. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
 
 ## Purpose
 
@@ -72,17 +74,26 @@ This plan is not for:
 
 Air Jam should move through launch execution in this order:
 
-1. add the platform dashboard bug-report path
-2. decide which legacy games need full template-aligned structure upgrades
-3. get all five games running locally through Arcade
-4. resolve the critical issues surfaced by real multiplayer playtests
-5. run the final dashboard-level hosted release and managed media proof paths
-6. create release media assets
-7. connect and deploy all public games on official hosting
-8. validate all public games against the official servers
-9. merge the release PR and deploy the platform
-10. publish release content
-11. execute the launch distribution plan
+1. finish the remaining prerelease system closeout work in [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
+2. finish or explicitly cut the preview-controller feature in [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+3. run the single final manual proof pass in [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+4. create release media assets
+5. connect and deploy all public games on official hosting
+6. validate all public games against the official servers
+7. merge the release PR and deploy the platform
+8. publish release content
+9. execute the launch distribution plan
+
+## Active Parallel Prerelease Implementation Plans
+
+Only these implementation plans should stay active alongside this launch plan:
+
+1. [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
+2. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+
+All scattered manual verification has been moved into:
+
+1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
 
 ## Completed Baselines That No Longer Need Separate Active Plans
 
@@ -261,117 +272,25 @@ Current truth:
 4. the scaffolded Pong template now teaches `pnpm exec create-airjam release bundle --dir .` as the creator-facing entrypoint
 5. the quick-start docs and template README now teach the hosted artifact workflow instead of the older self-hosted-only public release path
 
-## Phase 6. Local Arcade Proof Across All Five Games
+## Phase 6. Final Manual Prerelease Check
 
 ### Goal
 
-Prove the real launch set locally before touching production hosting.
+Run one final manual proof pass across the local Arcade, dashboard hosted-release, managed-media, and official-server paths before release execution continues.
 
-### Required outcomes
+### Canonical manual runbook
 
-1. all five games boot and run through the local Arcade path
-2. host/controller flows work for each
-3. obvious runtime or integration failures are resolved before deploy work begins
+The authoritative manual runbook now lives in:
 
-### Execution order
+1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
 
-Run the proof in this exact order:
-
-1. `pong`
-2. `air-capture`
-3. `code-review`
-4. `last-band-standing`
-5. `the-office`
-
-Reason:
-
-1. start with the two canonical first-party reference games to prove the current framework/platform baseline first
-2. then move through the three migration-proof showcase games in ascending risk order
-
-### Local source of truth
-
-Use these project roots for the proof:
-
-1. `games/pong`
-2. `games/air-capture`
-3. `games/code-review`
-4. `games/last-band-standing`
-5. `games/the-office`
-
-Use the repo-native workflow surface for proof and follow-up fixes:
-
-1. prerelease confidence path: `pnpm arcade:test --game=<id>`
-2. fast Arcade iteration after a found issue: `pnpm arcade:dev --game=<id>`
-3. standalone workspace debugging when needed: `pnpm standalone:dev --game=<id>`
-4. standalone secure game debugging for browser-API-specific issues: `cd games/<id> && pnpm dev -- --secure`
-
-### Per-game proof checklist
-
-Each game should be judged with the same checklist:
-
-1. host route opens from local Arcade without manual patching
-2. controller join works from QR/join flow
-3. controller reaches the intended controller UI cleanly
-4. game can start from its normal lobby or ready flow
-5. core gameplay loop works for at least one short session
-6. host return/lobby/reset path works if the game exposes one
-7. no obvious launch-blocking runtime error appears in the browser/log sink
-8. shared platform settings do not break the game surface
-9. the game feels publicly presentable enough for v1
-
-### Evidence to record
-
-Record one outcome per game:
-
-1. `pass`
-2. `pass with note`
-3. `blocker`
-
-For each `pass with note` or `blocker`, capture:
-
-1. short issue summary
-2. whether it is a prerelease fix or launch-set cut decision
-3. whether it affects only polish or actual product trust
-
-### Decision policy
-
-Use these rules during the proof:
-
-1. `pong` and `air-capture` are canonical first-party references and should be fixed unless the issue is clearly outside the v1 scope
-2. `code-review`, `last-band-standing`, and `the-office` are migration-proof showcase games only; do not refactor them toward template purity during this phase
-3. if a legacy game has only polish notes, keep it
-4. if a legacy game has a small, isolated prerelease fix, do that fix
-5. if a legacy game has structural or trust-damaging issues, cut it from the v1 launch set instead of opening a new architecture stream
-
-### Logging and validation aids
-
-Use the canonical repo tooling during the proof:
-
-1. built local Arcade proof: `pnpm arcade:test --game=<id>`
-2. live Arcade iteration: `pnpm arcade:dev --game=<id>`
-3. resolved-topology inspection: `pnpm topology --game=<id> --mode=<mode> [--secure]`
-4. canonical local logs:
-   1. `.airjam/logs/dev-latest.ndjson`
-   2. `pnpm exec air-jam-server logs --view=signal`
+Do not keep separate manual checklists in parallel prerelease plans.
 
 ### Done when
 
-1. all five games are locally published in Arcade
-2. each game has a recorded outcome: `pass`, `pass with note`, or `blocker`
-3. any launch-set cuts are made explicitly instead of staying implied
-4. the launch set is small enough and clean enough to move into hosted-release proof with confidence
-
-Current proof progress:
-
-1. `pong`: `pass`
-   1. host/controller happy path now passes through local Arcade browser smoke
-   2. root cause fixed: embedded host bridge was being torn down on normal dependency churn in the Arcade host shell
-2. `air-capture`: `pass`
-   1. local Arcade settings/audio smoke now passes
-3. remaining to prove:
-   1. `code-review`
-   2. `last-band-standing`
-   3. `the-office`
+1. the final manual prerelease plan is complete
+2. launch-set cuts, if any, are explicit
+3. release execution can continue from recorded product proof instead of implied confidence
 
 ## Phase 7. Playtest-Driven Launch Hardening
 
@@ -472,6 +391,10 @@ These ideas are worth keeping, but they should not muddy the v1 path:
 
 Finish the last end-to-end product-proof work on the hosted release lane before public deploy work begins.
 
+Detailed manual execution for this phase now lives in:
+
+1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+
 ### Required outcomes
 
 1. run one dashboard-level hosted release upload → checks → make-live → listed-in-Arcade smoke
@@ -528,6 +451,10 @@ Get the public game set connected to the real hosted platform.
 ### Goal
 
 Prove the public game set against the actual official backend path.
+
+Detailed manual execution for this phase now lives in:
+
+1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
 
 ### Required outcomes
 

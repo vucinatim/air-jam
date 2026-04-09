@@ -123,6 +123,8 @@ export interface AirJamControllerApi {
   setAvatarId: (value: string) => void;
   /**
    * Patch display name and/or avatar on the server without reconnecting.
+   * In Arcade (embedded iframe), updates are forwarded through the controller bridge; the room
+   * still learns the new name via `server:playerUpdated` (ack payload is not round-tripped).
    */
   updatePlayerProfile: (
     patch: PlayerProfilePatch,

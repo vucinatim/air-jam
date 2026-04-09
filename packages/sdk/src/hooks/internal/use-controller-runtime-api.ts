@@ -651,27 +651,26 @@ export const useControllerRuntimeApi = (
         return Promise.resolve({ ok: false, message: "Not connected" });
       }
 
-      if (embeddedController) {
-        return Promise.resolve({
-          ok: false,
-          message:
-            "Profile updates are unavailable in embedded controller runtime",
-        });
-      }
-
       const controllerIdForPatch = store.getState().controllerId;
       if (!controllerIdForPatch) {
         return Promise.resolve({ ok: false, message: "No controller id" });
       }
 
+      const payload = {
+        roomId: parsedRoomId,
+        controllerId: controllerIdForPatch,
+        patch: parsedPatch.data,
+      };
+
+      if (embeddedController) {
+        socket.emit("controller:updatePlayerProfile", payload);
+        return Promise.resolve({ ok: true });
+      }
+
       return new Promise((resolve) => {
         socket.emit(
           "controller:updatePlayerProfile",
-          {
-            roomId: parsedRoomId,
-            controllerId: controllerIdForPatch,
-            patch: parsedPatch.data,
-          },
+          payload,
           (ack: ControllerUpdatePlayerProfileAck) => {
             resolve(ack);
           },

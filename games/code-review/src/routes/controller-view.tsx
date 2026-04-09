@@ -5,6 +5,7 @@ import {
 } from "@air-jam/sdk";
 import {
   Button,
+  ControllerPlayerNameField,
   ForcedOrientationShell,
   PlayerAvatar,
   RuntimeShellHeader,
@@ -411,6 +412,11 @@ export function ControllerView() {
               )
             }
             className="border-zinc-700 bg-zinc-950/95"
+          />
+          <ControllerPlayerNameField
+            className="border-b-4 border-zinc-800 bg-zinc-950 px-3 py-2"
+            labelClassName="text-[9px] font-black tracking-[0.2em] text-zinc-500 uppercase"
+            inputClassName="pixel-font w-full rounded-none border-4 border-zinc-600 bg-black px-2 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-400"
           />
           {showEndedView ? (
             <div className="flex min-h-0 w-full flex-1 flex-col bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.2),transparent_42%),linear-gradient(180deg,#f5f5f4_0%,#e7e5e4_100%)] p-3 sm:p-4">

@@ -6,7 +6,10 @@ import {
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import {
+  ControllerPlayerNameField,
+  ForcedOrientationShell,
+} from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { ControllerHeader } from "./components/controller-header";
 import { EndedPanel } from "./components/ended-panel";
@@ -167,6 +170,12 @@ function ControllerScreen({
           onReturnToLobby={() => actions.returnToLobby()}
           onStartMatch={() => actions.startMatch()}
           onRestartMatch={() => actions.restartMatch()}
+        />
+
+        <ControllerPlayerNameField
+          className="px-3 pt-1 pb-2"
+          labelClassName="text-[9px] font-semibold tracking-[0.18em] text-zinc-400 uppercase"
+          inputClassName="w-full rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[14px] font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-white/30 focus:ring-1 focus:ring-white/20"
         />
 
         {connectionNotice ? (
