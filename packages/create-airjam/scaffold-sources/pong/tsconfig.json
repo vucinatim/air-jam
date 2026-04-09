@@ -14,10 +14,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@air-jam/sdk": ["../../../sdk/src/index.ts"],
-      "@air-jam/sdk/*": ["../../../sdk/src/*"]
+      "@air-jam/sdk": ["../../packages/sdk/src/index.ts"],
+      "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
     },
     "types": ["node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "../../../sdk/src/**/*"]
+  "include": ["src", "visual", "tests", "vite.config.ts", "../../packages/sdk/src/**/*"]
 }

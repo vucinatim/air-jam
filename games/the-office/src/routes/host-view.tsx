@@ -77,7 +77,6 @@ export function HostView() {
     allReady &&
     host.connectionStatus === "connected";
   const hostLobbyShell = useHostLobbyShell({
-    roomId: host.roomId,
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: startMatch,

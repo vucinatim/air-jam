@@ -90,6 +90,10 @@ export interface QuizState {
       ctx: AirJamActionContext,
       payload: { nowMs?: number },
     ) => void;
+    forceGameOver: (
+      ctx: AirJamActionContext,
+      _payload: undefined,
+    ) => void;
     resetLobby: (
       ctx: AirJamActionContext,
       _payload: undefined,

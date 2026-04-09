@@ -1,6 +1,5 @@
 import {
   AudioRuntime,
-  PlatformSettingsRuntime,
   useAudio,
   useAudioRuntimeControls,
   useAudioRuntimeStatus,
@@ -23,11 +22,9 @@ export function HostAudioProvider({
   muted: boolean;
 }) {
   return (
-    <PlatformSettingsRuntime>
-      <AudioRuntime manifest={HOST_SFX_MANIFEST}>
-        <HostAudioLifecycle muted={muted}>{children}</HostAudioLifecycle>
-      </AudioRuntime>
-    </PlatformSettingsRuntime>
+    <AudioRuntime manifest={HOST_SFX_MANIFEST}>
+      <HostAudioLifecycle muted={muted}>{children}</HostAudioLifecycle>
+    </AudioRuntime>
   );
 }
 

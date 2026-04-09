@@ -1,16 +1,17 @@
 import {
   AudioRuntime,
-  PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
-import { HostMuteButton } from "@air-jam/sdk/ui";
+import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { EndedScreen } from "./components/ended-screen";
-import { LobbyScreen } from "./components/lobby-screen";
-import { MatchOverlay } from "./components/match-overlay";
-import { ScoreStrip } from "./components/score-strip";
+import { getMatchReadiness } from "../game/domain/match-readiness";
+import { getTeamCounts } from "../game/domain/team-slots";
 import {
   createRuntimeState,
   drawFrame,
@@ -19,18 +20,20 @@ import {
   resetBall,
   stepGame,
 } from "../game/engine";
-import { usePongFeedback } from "./hooks/use-pong-feedback";
 import { gameInputSchema } from "../game/input";
 import { PONG_SOUND_MANIFEST } from "../game/shared/sounds";
 import { usePongStore } from "../game/stores";
+import { EndedScreen } from "./components/ended-screen";
+import { LobbyScreen } from "./components/lobby-screen";
+import { MatchOverlay } from "./components/match-overlay";
+import { ScoreStrip } from "./components/score-strip";
+import { usePongFeedback } from "./hooks/use-pong-feedback";
 
 export function HostView() {
   return (
-    <PlatformSettingsRuntime>
-      <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
-        <HostScreen />
-      </AudioRuntime>
-    </PlatformSettingsRuntime>
+    <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
+      <HostScreen />
+    </AudioRuntime>
   );
 }
 
@@ -57,31 +60,86 @@ function HostScreen() {
 
   const runtimeStateRef = useRef(createRuntimeState());
 
-  const joinQrValue = useMemo(() => {
-    if (host.joinUrl) {
-      return host.joinUrl;
-    }
-    if (!host.roomId || typeof window === "undefined") {
-      return "";
-    }
-    return new URL(
-      `/controller?room=${host.roomId}`,
-      window.location.origin,
-    ).toString();
-  }, [host.joinUrl, host.roomId]);
-
   const team1Players = useMemo(
     () =>
-      host.players.filter((player) => teamAssignments[player.id]?.team === "team1"),
+      host.players.filter(
+        (player) => teamAssignments[player.id]?.team === "team1",
+      ),
     [host.players, teamAssignments],
   );
   const team2Players = useMemo(
     () =>
-      host.players.filter((player) => teamAssignments[player.id]?.team === "team2"),
+      host.players.filter(
+        (player) => teamAssignments[player.id]?.team === "team2",
+      ),
     [host.players, teamAssignments],
   );
+  const teamCounts = useMemo(
+    () =>
+      getTeamCounts([
+        ...team1Players.map(() => ({ team: "team1" as const })),
+        ...team2Players.map(() => ({ team: "team2" as const })),
+      ]),
+    [team1Players, team2Players],
+  );
+  const canStartMatch = useMemo(
+    () => getMatchReadiness(teamCounts, botCounts).canStart,
+    [botCounts, teamCounts],
+  );
+  const hostLobbyShell = useHostLobbyShell({
+    joinUrl: host.joinUrl,
+    canStartMatch,
+    onStartMatch: () => actions.startMatch(),
+  });
 
-  const showPausedOverlay = matchPhase === "playing" && runtimeState !== "playing";
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase,
+      runtimeState,
+    });
+  }, [host.joinUrl, host.joinUrlStatus, host.roomId, matchPhase, runtimeState]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      setPointsToWin: (payload) => {
+        const nextPointsToWin =
+          typeof payload === "number" && Number.isFinite(payload)
+            ? payload
+            : typeof payload === "string"
+              ? Number(payload)
+              : NaN;
+
+        if (!Number.isFinite(nextPointsToWin)) {
+          return false;
+        }
+
+        actions.setPointsToWin({ pointsToWin: nextPointsToWin });
+        return true;
+      },
+      scorePoint: (payload) => {
+        if (payload !== "team1" && payload !== "team2") {
+          return false;
+        }
+
+        actions.scorePoint({ team: payload });
+        return true;
+      },
+    });
+  }, [actions]);
+
+  const showPausedOverlay =
+    matchPhase === "playing" && runtimeState !== "playing";
 
   useEffect(() => {
     audio.mute(audioMuted);
@@ -189,20 +247,25 @@ function HostScreen() {
   if (matchPhase === "lobby") {
     return (
       <>
-        <div className="fixed right-4 top-4 z-[60]">
+        <div className="fixed top-4 right-4 z-60">
           <HostMuteButton
             muted={audioMuted}
             onToggle={() => setAudioMuted((previous) => !previous)}
           />
         </div>
         <LobbyScreen
-          joinQrValue={joinQrValue}
+          joinQrValue={hostLobbyShell.joinUrlValue}
+          copiedJoinUrl={hostLobbyShell.copied}
+          onCopyJoinUrl={hostLobbyShell.handleCopy}
+          onOpenJoinUrl={hostLobbyShell.handleOpen}
           roomId={host.roomId}
           botCounts={botCounts}
           pointsToWin={pointsToWin}
           connectedPlayers={host.players}
           team1Players={team1Players}
           team2Players={team2Players}
+          canStartMatch={canStartMatch}
+          onStartMatch={hostLobbyShell.handleStart}
         />
       </>
     );
@@ -211,7 +274,7 @@ function HostScreen() {
   if (matchPhase === "ended") {
     return (
       <>
-        <div className="fixed right-4 top-4 z-[60]">
+        <div className="fixed top-4 right-4 z-60">
           <HostMuteButton
             muted={audioMuted}
             onToggle={() => setAudioMuted((previous) => !previous)}
@@ -230,7 +293,7 @@ function HostScreen() {
 
   return (
     <div className="pong-app-shell h-screen w-screen text-white">
-      <div className="fixed right-4 top-4 z-[60]">
+      <div className="fixed top-4 right-4 z-60">
         <HostMuteButton
           muted={audioMuted}
           onToggle={() => setAudioMuted((previous) => !previous)}
@@ -247,7 +310,7 @@ function HostScreen() {
         />
       </div>
 
-      <div className="absolute inset-0 flex items-center justify-center px-4 pb-6 pt-28 sm:px-6 sm:pb-8 sm:pt-32">
+      <div className="absolute inset-0 flex items-center justify-center px-4 pt-28 pb-6 sm:px-6 sm:pt-32 sm:pb-8">
         <div className="pong-stage-frame flex max-h-full max-w-full items-center justify-center">
           <canvas
             ref={canvasRef}
@@ -258,7 +321,7 @@ function HostScreen() {
 
       {showPausedOverlay ? (
         <MatchOverlay
-          joinQrValue={joinQrValue}
+          joinQrValue={hostLobbyShell.joinUrlValue}
           roomId={host.roomId}
         />
       ) : null}

@@ -1,6 +1,5 @@
 import {
   ControllerRemoteAudioRuntime,
-  PlatformSettingsRuntime,
 } from "@air-jam/sdk";
 import type { ReactNode } from "react";
 import {
@@ -15,13 +14,11 @@ export function ControllerAudioProvider({
   remoteEnabled: boolean;
 }) {
   return (
-    <PlatformSettingsRuntime>
-      <ControllerRemoteAudioRuntime
-        manifest={CONTROLLER_SOUND_MANIFEST}
-        enabled={remoteEnabled}
-      >
-        {children}
-      </ControllerRemoteAudioRuntime>
-    </PlatformSettingsRuntime>
+    <ControllerRemoteAudioRuntime
+      manifest={CONTROLLER_SOUND_MANIFEST}
+      enabled={remoteEnabled}
+    >
+      {children}
+    </ControllerRemoteAudioRuntime>
   );
 }

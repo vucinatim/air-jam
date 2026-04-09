@@ -1,7 +1,6 @@
 import {
   useAirJamController,
   ControllerRemoteAudioRuntime,
-  PlatformSettingsRuntime,
   useControllerToasts,
   useControllerTick,
   useInputWriter,
@@ -28,14 +27,12 @@ export function ControllerView() {
   const controller = useAirJamController();
 
   return (
-    <PlatformSettingsRuntime>
-      <ControllerRemoteAudioRuntime
-        manifest={PONG_SOUND_MANIFEST}
-        enabled={controller.connectionStatus === "connected"}
-      >
-        <ControllerScreen controller={controller} />
-      </ControllerRemoteAudioRuntime>
-    </PlatformSettingsRuntime>
+    <ControllerRemoteAudioRuntime
+      manifest={PONG_SOUND_MANIFEST}
+      enabled={controller.connectionStatus === "connected"}
+    >
+      <ControllerScreen controller={controller} />
+    </ControllerRemoteAudioRuntime>
   );
 }
 

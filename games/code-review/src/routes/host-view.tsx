@@ -597,7 +597,6 @@ export function HostView() {
     ],
   );
   const hostLobbyShell = useHostLobbyShell({
-    roomId: host.roomId,
     joinUrl: host.joinUrl,
     canStartMatch,
   });

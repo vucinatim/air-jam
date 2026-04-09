@@ -4,8 +4,9 @@ import {
   useInputWriter,
 } from "@air-jam/sdk";
 import {
-  ForcedOrientationShell,
   Button,
+  ControllerPlayerNameField,
+  ForcedOrientationShell,
   PlayerAvatar,
   RuntimeShellHeader,
   useControllerLifecycleIntents,
@@ -13,13 +14,13 @@ import {
   useControllerShellStatus,
 } from "@air-jam/sdk/ui";
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { LobbyPanel } from "../controller/components/lobby-panel";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
 } from "../game/domain/match-readiness";
 import { PUNCH_COOLDOWN_MS } from "../game/input";
 import { useGameStore } from "../game/stores";
-import { LobbyPanel } from "../controller/components/lobby-panel";
 
 const TEAM1_COLOR = "#dc2626"; // Coder — matches arena corner
 const TEAM2_COLOR = "#2563eb"; // Reviewer — matches arena corner
@@ -92,7 +93,9 @@ export function ControllerView() {
     ? teamAssignments[controller.controllerId]
     : null;
   const myProfile = controller.controllerId
-    ? controller.players.find((player) => player.id === controller.controllerId) ?? null
+    ? (controller.players.find(
+        (player) => player.id === controller.controllerId,
+      ) ?? null)
     : null;
   const myTeam = myAssignment?.team ?? null;
   const teamColor =
@@ -164,7 +167,8 @@ export function ControllerView() {
     matchPhase === "playing" &&
     controller.runtimeState === "playing";
   const showPausedOverlay = matchPhase === "playing" && !showGameplayControls;
-  const desiredOrientation = matchPhase === "playing" ? "landscape" : "portrait";
+  const desiredOrientation =
+    matchPhase === "playing" ? "landscape" : "portrait";
   const shellStatus = useControllerShellStatus({
     roomId: controller.roomId,
     connectionStatus: controller.connectionStatus,
@@ -374,7 +378,11 @@ export function ControllerView() {
                 <div className="flex items-center gap-2">
                   {matchPhase === "playing" ? (
                     <HeaderUtilityButton
-                      label={controller.runtimeState === "paused" ? "Resume" : "Pause"}
+                      label={
+                        controller.runtimeState === "paused"
+                          ? "Resume"
+                          : "Pause"
+                      }
                       icon={
                         controller.runtimeState === "paused" ? (
                           <PlayIcon />
@@ -405,9 +413,14 @@ export function ControllerView() {
             }
             className="border-zinc-700 bg-zinc-950/95"
           />
+          <ControllerPlayerNameField
+            className="border-b-4 border-zinc-800 bg-zinc-950 px-3 py-2"
+            labelClassName="text-[9px] font-black tracking-[0.2em] text-zinc-500 uppercase"
+            inputClassName="pixel-font w-full rounded-none border-4 border-zinc-600 bg-black px-2 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-400"
+          />
           {showEndedView ? (
-            <div className="flex flex-1 min-h-0 w-full flex-col bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.2),_transparent_42%),linear-gradient(180deg,_#f5f5f4_0%,_#e7e5e4_100%)] p-3 sm:p-4">
-              <div className="flex flex-1 min-h-0 flex-col justify-center gap-4 rounded-none border-4 border-zinc-700 bg-zinc-950/92 px-5 py-6 text-zinc-100 shadow-[0_24px_60px_rgba(24,24,27,0.35)]">
+            <div className="flex min-h-0 w-full flex-1 flex-col bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.2),transparent_42%),linear-gradient(180deg,#f5f5f4_0%,#e7e5e4_100%)] p-3 sm:p-4">
+              <div className="flex min-h-0 flex-1 flex-col justify-center gap-4 rounded-none border-4 border-zinc-700 bg-zinc-950/92 px-5 py-6 text-zinc-100 shadow-[0_24px_60px_rgba(24,24,27,0.35)]">
                 <div className="text-center">
                   <p className="text-[11px] tracking-[0.2em] text-zinc-500 uppercase">
                     Match Ended
@@ -423,7 +436,7 @@ export function ControllerView() {
 
                 <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-y-4 border-zinc-800 py-4">
                   <div className="min-w-0 bg-red-600 px-3 py-3 text-center text-white">
-                    <p className="text-[10px] tracking-[0.16em] uppercase text-red-100">
+                    <p className="text-[10px] tracking-[0.16em] text-red-100 uppercase">
                       Coder
                     </p>
                     <p className="mt-1 text-3xl leading-none">
@@ -432,7 +445,7 @@ export function ControllerView() {
                   </div>
                   <p className="text-2xl text-zinc-500">:</p>
                   <div className="min-w-0 bg-blue-600 px-3 py-3 text-center text-white">
-                    <p className="text-[10px] tracking-[0.16em] uppercase text-blue-100">
+                    <p className="text-[10px] tracking-[0.16em] text-blue-100 uppercase">
                       Reviewer
                     </p>
                     <p className="mt-1 text-3xl leading-none">
@@ -457,7 +470,7 @@ export function ControllerView() {
               onStartMatch={() => actions.startMatch()}
             />
           ) : showPausedOverlay ? (
-            <div className="flex flex-1 min-h-0 w-full items-center justify-center p-4">
+            <div className="flex min-h-0 w-full flex-1 items-center justify-center p-4">
               <div className="w-full max-w-sm rounded-none border-4 border-zinc-600 bg-zinc-900/90 p-4 text-center">
                 <p className="text-sm tracking-[0.18em] text-zinc-400 uppercase">
                   Match Paused
@@ -468,7 +481,7 @@ export function ControllerView() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 min-h-0 w-full flex-col gap-3 bg-[linear-gradient(180deg,_rgba(24,24,27,0.96)_0%,_rgba(12,10,9,0.98)_100%)] p-3">
+            <div className="flex min-h-0 w-full flex-1 flex-col gap-3 bg-[linear-gradient(180deg,rgba(24,24,27,0.96)_0%,rgba(12,10,9,0.98)_100%)] p-3">
               <div className="flex items-center justify-between gap-3 border-2 border-white/10 bg-zinc-900/80 px-4 py-3 text-[10px] tracking-[0.16em] text-zinc-400 uppercase">
                 <div>
                   Team
@@ -476,7 +489,7 @@ export function ControllerView() {
                     {myTeam === "team1" ? "Coder" : "Reviewer"}
                   </p>
                 </div>
-                <p className="text-right text-[10px] leading-relaxed text-zinc-300 normal-case tracking-normal">
+                <p className="text-right text-[10px] leading-relaxed tracking-normal text-zinc-300 normal-case">
                   Punch left or right.
                   <br />
                   Hold guard to block.
@@ -535,7 +548,9 @@ export function ControllerView() {
                       Guard
                     </p>
                   </div>
-                  <p className="max-w-full text-[11px] leading-relaxed text-white/90">Block</p>
+                  <p className="max-w-full text-[11px] leading-relaxed text-white/90">
+                    Block
+                  </p>
                 </button>
 
                 <button
@@ -594,11 +609,7 @@ function HeaderUtilityButton({
   );
 }
 
-function SvgIcon({
-  children,
-}: {
-  children: ReactNode;
-}) {
+function SvgIcon({ children }: { children: ReactNode }) {
   return (
     <svg
       aria-hidden
@@ -618,8 +629,24 @@ function SvgIcon({
 function PauseIcon() {
   return (
     <SvgIcon>
-      <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none" />
-      <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none" />
+      <rect
+        x="6"
+        y="5"
+        width="4"
+        height="14"
+        rx="1"
+        fill="currentColor"
+        stroke="none"
+      />
+      <rect
+        x="14"
+        y="5"
+        width="4"
+        height="14"
+        rx="1"
+        fill="currentColor"
+        stroke="none"
+      />
     </SvgIcon>
   );
 }

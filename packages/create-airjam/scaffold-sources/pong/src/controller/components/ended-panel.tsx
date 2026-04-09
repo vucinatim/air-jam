@@ -1,32 +1,26 @@
 import type { MatchSummary } from "../../game/stores";
 import { getTeamColor } from "../../game/domain/team";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
-import { formatMatchDuration, PRESS_FEEL_CLASS } from "../constants";
+import { formatMatchDuration } from "../constants";
 
 interface EndedPanelProps {
   matchSummary: MatchSummary | null;
-  canSendSystemCommand: boolean;
-  onRestartMatch: () => void;
-  onReturnToLobby: () => void;
 }
 
 export const EndedPanel = ({
   matchSummary,
-  canSendSystemCommand,
-  onRestartMatch,
-  onReturnToLobby,
 }: EndedPanelProps) => {
   const winner = matchSummary?.winner;
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-4 pt-3">
-      <div className="pong-panel rounded-[28px] px-5 py-6 text-center">
+    <div className="flex min-h-0 flex-1 flex-col px-3 pb-4 pt-4 sm:pt-5">
+      <div className="pong-panel mx-auto w-full max-w-md rounded-[28px] px-4 py-5 text-center sm:px-5 sm:py-6">
         <div className="pong-caption">
           Match Ended
         </div>
         <div
-          className="mt-3 text-3xl font-black uppercase tracking-[0.14em]"
+          className="mt-2.5 text-[clamp(2rem,8vw,2.75rem)] leading-none font-black uppercase tracking-[0.1em]"
           style={{ color: winnerColor }}
         >
           {winner ? <TeamName team={winner} uppercase={false} suffix="Wins" /> : "Winner"}
@@ -34,36 +28,20 @@ export const EndedPanel = ({
         {matchSummary ? (
           <MatchScoreDisplay
             scores={matchSummary.finalScores}
-            className="mt-4 text-5xl font-black text-white"
-            separatorClassName="px-3 text-zinc-500"
+            className="mt-3 text-[clamp(3.5rem,14vw,4.5rem)] leading-none font-black text-white"
+            separatorClassName="px-2.5 text-zinc-500"
           />
         ) : (
-          <div className="mt-4 text-5xl font-black text-white">0:0</div>
+          <div className="mt-3 text-[clamp(3.5rem,14vw,4.5rem)] leading-none font-black text-white">
+            0:0
+          </div>
         )}
-        <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-zinc-400">
+        <div className="mt-2.5 text-[11px] uppercase tracking-[0.14em] text-zinc-400">
           {matchSummary
             ? `First to ${matchSummary.pointsToWin} • ${formatMatchDuration(matchSummary.durationMs)}`
             : "Match summary unavailable"}
         </div>
       </div>
-
-      <button
-        type="button"
-        className={`rounded-[24px] border border-white/16 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_40px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
-        disabled={!canSendSystemCommand}
-        onClick={onRestartMatch}
-      >
-        Play Again
-      </button>
-
-      <button
-        type="button"
-        className={`rounded-[24px] border border-white/12 bg-white/6 px-4 py-4 text-sm font-semibold uppercase tracking-[0.18em] text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
-        disabled={!canSendSystemCommand}
-        onClick={onReturnToLobby}
-      >
-        Back to Lobby
-      </button>
     </div>
   );
 };

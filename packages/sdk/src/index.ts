@@ -26,10 +26,12 @@ export type {
 } from "./settings/platform-settings";
 export { getEffectiveAudioVolume } from "./settings/platform-settings";
 export {
+  PlatformSettingsBoundary,
   PlatformSettingsRuntime,
   useInheritedPlatformSettings,
   usePlatformAudioSettings,
   usePlatformSettings,
+  type PlatformSettingsBoundaryProps,
   type PlatformAudioSettingsApi,
   type PlatformSettingsOwnerApi,
   type PlatformSettingsRuntimeProps,

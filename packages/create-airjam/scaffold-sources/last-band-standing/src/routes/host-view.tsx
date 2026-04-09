@@ -1,11 +1,14 @@
 import {
   AudioRuntime,
-  PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
-import { HostMuteButton } from "@air-jam/sdk/ui";
+import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  publishVisualHarnessBridgeActions,
+  publishVisualHarnessBridgeSnapshot,
+} from "@air-jam/visual-harness/runtime-bridge";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { toShellMatchPhase } from "../game/domain/match-phase";
@@ -27,11 +30,9 @@ import { HostGameOver } from "../features/game-over/host-game-over";
 
 export const HostView = () => {
   return (
-    <PlatformSettingsRuntime>
-      <AudioRuntime manifest={soundManifest}>
-        <HostScreen />
-      </AudioRuntime>
-    </PlatformSettingsRuntime>
+    <AudioRuntime manifest={soundManifest}>
+      <HostScreen />
+    </AudioRuntime>
   );
 };
 
@@ -119,6 +120,11 @@ const HostScreen = () => {
     return playerOrder.filter((playerId) => readyByPlayerId[playerId]).length;
   }, [playerOrder, readyByPlayerId]);
   const canStartMatch = phase === "lobby" && playerOrder.length > 0 && readyCount === playerOrder.length;
+  const hostLobbyShell = useHostLobbyShell({
+    joinUrl: host.joinUrl,
+    canStartMatch,
+    onStartMatch: () => actions.startMatch(),
+  });
 
   const answeredCount = currentRound
     ? currentRound.expectedPlayerIds.filter((playerId) => answersByPlayerId[playerId]).length
@@ -172,6 +178,39 @@ const HostScreen = () => {
 
   const shellPhase = toShellMatchPhase(phase);
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeSnapshot({
+      roomId: host.roomId,
+      controllerJoinUrl:
+        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
+      matchPhase: shellPhase,
+      runtimeState: host.runtimeState,
+    });
+  }, [
+    host.joinUrl,
+    host.joinUrlStatus,
+    host.roomId,
+    host.runtimeState,
+    shellPhase,
+  ]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    publishVisualHarnessBridgeActions({
+      forceGameOver: () => {
+        actions.forceGameOver();
+        return true;
+      },
+    });
+  }, [actions]);
+
   useHostRuntimeStateBridge({
     matchPhase: shellPhase,
     runtimeState: host.runtimeState,
@@ -218,7 +257,10 @@ const HostScreen = () => {
         <AnimatePresence mode="wait">
           {phase === "lobby" && (
             <HostLobby
-              joinUrl={host.joinUrl}
+              joinUrl={hostLobbyShell.joinUrlValue}
+              copiedJoinUrl={hostLobbyShell.copied}
+              onCopyJoinUrl={hostLobbyShell.handleCopy}
+              onOpenJoinUrl={hostLobbyShell.handleOpen}
               connectionStatus={host.connectionStatus}
               lastError={host.lastError ?? null}
               playerOrder={playerOrder}
@@ -228,7 +270,7 @@ const HostScreen = () => {
               readyCount={readyCount}
               players={host.players}
               canStartMatch={canStartMatch}
-              onStartMatch={() => actions.startMatch()}
+              onStartMatch={hostLobbyShell.handleStart}
             />
           )}
 

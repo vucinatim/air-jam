@@ -10,6 +10,7 @@ import {
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { POINTS_TO_WIN_OPTIONS, PRESS_FEEL_CLASS } from "../constants";
+import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
 
 interface LobbyPanelProps {
   myTeam: TeamId | null;
@@ -18,8 +19,8 @@ interface LobbyPanelProps {
   team1Players: PlayerProfile[];
   team2Players: PlayerProfile[];
   pointsToWin: number;
-  canStartMatch: boolean;
   controlsDisabled: boolean;
+  canStartMatch: boolean;
   readinessText: string;
   onJoinTeam: (team: TeamId) => void;
   onSetBotCount: (team: TeamId, count: number) => void;
@@ -34,8 +35,9 @@ export const LobbyPanel = ({
   team1Players,
   team2Players,
   pointsToWin,
-  canStartMatch,
   controlsDisabled,
+  canStartMatch,
+  readinessText,
   onJoinTeam,
   onSetBotCount,
   onSetPointsToWin,
@@ -43,8 +45,8 @@ export const LobbyPanel = ({
 }: LobbyPanelProps) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="pong-controller-lobby-panel">
-      <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pt-3 pb-3">
-        <div className="grid gap-3 sm:grid-cols-2">
+      <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
+        <div className="grid gap-2 sm:grid-cols-2">
           {(["team1", "team2"] as const).map((team) => {
             const botCount = botCounts[team];
             const humanCount = teamCounts[team];
@@ -56,13 +58,11 @@ export const LobbyPanel = ({
             return (
               <div
                 key={team}
-                className="pong-panel rounded-[24px] px-4 py-4 text-center"
+                className="pong-panel rounded-[24px] px-4 py-3 text-center"
                 data-testid={`pong-controller-team-card-${team}`}
               >
-                <div className="pong-caption">
-                  <TeamName team={team} />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <TeamName team={team} />
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     data-testid={`pong-controller-join-team-${team}`}
@@ -95,7 +95,7 @@ export const LobbyPanel = ({
                     Add Bot
                   </button>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   {slots.map((slot, index) => {
                     const canRemoveBot =
                       slot.kind === "bot" && !controlsDisabled;
@@ -120,10 +120,7 @@ export const LobbyPanel = ({
           })}
         </div>
 
-        <div className="pong-panel rounded-[24px] px-4 py-4">
-          <div className="mb-3 text-center text-[10px] font-semibold tracking-[0.18em] text-zinc-400 uppercase">
-            Points to Win
-          </div>
+        <div className="pong-panel rounded-[24px] px-4 py-3">
           <div className="grid grid-cols-4 gap-2">
             {POINTS_TO_WIN_OPTIONS.map((value) => {
               const selected = pointsToWin === value;
@@ -145,19 +142,17 @@ export const LobbyPanel = ({
             })}
           </div>
         </div>
+
+        <ControllerPrimaryAction
+          label="Play Match"
+          helper={readinessText}
+          disabled={!canStartMatch}
+          onPress={onStartMatch}
+          className="pb-1"
+          buttonClassName="bg-white text-black hover:bg-white/95"
+        />
       </div>
 
-      <div className="px-3 pt-2 pb-3">
-        <button
-          type="button"
-          data-testid="pong-controller-start-match"
-          className={`w-full rounded-[22px] border border-white/16 bg-white px-4 py-4 text-sm font-black tracking-[0.18em] text-black uppercase shadow-[0_18px_40px_rgba(255,255,255,0.14)] disabled:cursor-not-allowed disabled:opacity-50 ${PRESS_FEEL_CLASS}`}
-          disabled={!canStartMatch || controlsDisabled}
-          onClick={onStartMatch}
-        >
-          Start Match
-        </button>
-      </div>
     </div>
   );
 };

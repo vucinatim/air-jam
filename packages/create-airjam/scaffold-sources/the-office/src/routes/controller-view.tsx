@@ -3,8 +3,18 @@ import {
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
 import {
+  Button,
+  ControllerPrimaryAction,
+  ForcedOrientationShell,
+  LifecycleActionGroup,
+  RuntimeShellHeader,
+  useControllerLifecycleIntents,
+  useControllerLifecyclePermissions,
+  useControllerShellStatus,
+} from "@air-jam/sdk/ui";
+import {
+  BriefcaseBusiness,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -75,11 +85,32 @@ export function ControllerView() {
     controller.connectionStatus === "connected" &&
     Boolean(controller.controllerId) &&
     hasCharacterSelection;
+  const canStartMatch =
+    controller.connectionStatus === "connected" &&
+    selectedPlayerCount > 0 &&
+    readyCount === selectedPlayerCount;
+  const shellStatus = useControllerShellStatus({
+    roomId: controller.roomId,
+    connectionStatus: controller.connectionStatus,
+    playerLabel: myPlayer?.name ?? null,
+    roomFallback: "Connecting...",
+  });
+  const lifecyclePermissions = useControllerLifecyclePermissions({
+    phase: matchPhase,
+    canSendSystemCommand: controller.connectionStatus === "connected",
+  });
+  const lifecycleIntents = useControllerLifecycleIntents({
+    onTogglePause: () => controller.sendSystemCommand("toggle_pause"),
+    onBackToLobby: () => actions.setMatchPhase({ phase: "lobby" }),
+    onRestart: () => actions.setMatchPhase({ phase: "playing" }),
+  });
   const showLobbyView = matchPhase === "lobby";
   const showEndedView = matchPhase === "ended";
   const showGameplayView =
     matchPhase === "playing" && controller.runtimeState === "playing";
   const showPausedView = matchPhase === "playing" && !showGameplayView;
+  const desiredOrientation =
+    showLobbyView || showEndedView ? "portrait" : "landscape";
 
   useControllerTick(
     () => {
@@ -127,29 +158,67 @@ export function ControllerView() {
   );
   const finalTotalMoney = totalMoney - totalMoneyPenalty;
   const isDead = myStats ? !myStats.alive : false;
+  const energyValue = myStats?.energy ?? 0;
+  const boredomValue = myStats?.boredom ?? 0;
+  const lobbyPrimaryHelper = canStartMatch
+    ? "Everyone is ready."
+    : !hasCharacterSelection
+      ? "Pick a coworker, then ready up."
+      : `${readyCount}/${selectedPlayerCount} ready.`;
 
   return (
     <div className="controller-view-shell">
-      <ForcedOrientationShell desired="portrait">
-        <div className="flex h-full w-full flex-col gap-3 bg-[#fdf6e3] p-3">
+      <ForcedOrientationShell desired={desiredOrientation}>
+        <div className="flex h-full w-full flex-col gap-3 bg-[linear-gradient(180deg,#fbf4d9_0%,#f0e3bb_100%)] p-3 text-[#5c4a2e]">
+          <RuntimeShellHeader
+            connectionStatus={controller.connectionStatus}
+            leftSlot={
+              <div className="flex min-w-0 items-center gap-3">
+                {myPlayer ? (
+                  <img
+                    src={myPlayer.image}
+                    alt={myPlayer.name}
+                    className="h-9 w-9 rounded-full border border-[#e5d4ab] object-cover"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5d4ab] bg-[#fff6d8] text-[10px] font-bold text-[#5c4a2e]">
+                    {shellStatus.identityInitial}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#5c4a2e]">
+                    {shellStatus.displayName}
+                  </p>
+                  <p className="text-[10px] tracking-[0.16em] text-[#8b6914] uppercase">
+                    {shellStatus.roomLine}
+                  </p>
+                </div>
+              </div>
+            }
+            rightSlot={
+              showLobbyView ? null : (
+                <LifecycleActionGroup
+                  phase={matchPhase}
+                  runtimeState={controller.runtimeState}
+                  canInteract={lifecyclePermissions.canInteractForPhase}
+                  onTogglePause={lifecycleIntents.onTogglePause}
+                  onBackToLobby={lifecycleIntents.onBackToLobby}
+                  onRestart={lifecycleIntents.onRestart}
+                  presentation="icon"
+                  visibleKinds={
+                    matchPhase === "playing"
+                      ? ["pause-toggle", "back-to-lobby"]
+                      : ["restart", "back-to-lobby"]
+                  }
+                  buttonClassName="border-[#8b6914]/25 bg-[#8b6914]/10 text-[#7a5b11] hover:bg-[#8b6914]/18"
+                />
+              )
+            }
+            className="border-[#e5d4ab] bg-[#fef3c7]/90"
+          />
           {showLobbyView ? (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
-              <div className="bg-[#fef3c7] p-4 shadow-md">
-                <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
-                  Room
-                </p>
-                <p className="text-xl font-bold text-[#5c4a2e]">
-                  {controller.roomId ?? "Connecting..."}
-                </p>
-                <p className="mt-2 text-sm text-[#6b7280]">
-                  Ready {readyCount}/{selectedPlayerCount} picked
-                </p>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto bg-[#fff6d8] p-2 shadow-md">
-                <p className="mb-2 text-[11px] tracking-[0.18em] text-[#8b6914] uppercase">
-                  Pick Your Character
-                </p>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-[28px] border border-[#e5d4ab] bg-[#fff6d8] p-3 shadow-md">
                 <div className="grid grid-cols-2 gap-2">
                   {PLAYERS.map((playerOption) => {
                     const ownerControllerId = characterOwnerById.get(
@@ -220,231 +289,272 @@ export function ControllerView() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                disabled={!canToggleReady}
-                onClick={() => {
-                  if (!canToggleReady) return;
-                  actions.setReady({ ready: !isReady });
-                }}
-                className="h-20 bg-[#8b6914] text-lg font-bold tracking-wide text-[#fdf6e3] uppercase shadow-md transition enabled:active:scale-[0.98] disabled:opacity-40"
-              >
-                {hasCharacterSelection
-                  ? isReady
-                    ? "Ready"
-                    : "Tap To Ready"
-                  : "Pick Character"}
-              </button>
+              <div className="flex items-center justify-between px-1">
+                <span className="text-sm font-bold text-[#5c4a2e]">
+                  {hasCharacterSelection
+                    ? isReady
+                      ? `${myPlayer?.name ?? "Worker"} is ready`
+                      : `${myPlayer?.name ?? "Worker"} not ready`
+                    : "Pick a character first"}
+                </span>
+                <Button
+                  type="button"
+                  disabled={!canToggleReady}
+                  onClick={() => {
+                    if (!canToggleReady) return;
+                    actions.setReady({ ready: !isReady });
+                  }}
+                  className="h-10 rounded-full border-[#8b6914]/30 bg-[#8b6914] px-4 text-[10px] font-black tracking-[0.16em] text-[#fdf6e3] uppercase hover:bg-[#7a5b11] disabled:bg-[#c7b384] disabled:text-[#fff8df]"
+                >
+                  {isReady ? "Unready" : "Ready"}
+                </Button>
+              </div>
 
-              <p className="text-center text-sm text-[#6b7280]">
-                Choose your character, ready up, then wait for host start.
-              </p>
+              <ControllerPrimaryAction
+                label="Start Match"
+                helper={lobbyPrimaryHelper}
+                disabled={!canStartMatch}
+                onPress={() => actions.setMatchPhase({ phase: "playing" })}
+                icon={<BriefcaseBusiness className="h-6 w-6" />}
+                buttonClassName="border-[#8b6914]/30 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11] disabled:bg-[#c7b384] disabled:text-[#fff8df]"
+              />
             </div>
           ) : null}
 
           {showPausedView ? (
             <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
-              <div className="text-center">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
+              <div className="max-w-sm text-center">
+                <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
                   Match Paused
                 </p>
                 <p className="mt-2 text-sm text-[#6b7280]">
-                  Waiting for host runtime reconnect...
+                  Waiting for runtime sync...
                 </p>
               </div>
             </div>
           ) : null}
 
           {showEndedView ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-[#fef3c7] p-4 text-center shadow-md">
-              <p className="text-xs uppercase tracking-[0.2em] text-[#8b6914]">
-                Shift Ended
-              </p>
-              <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
-                Final Earnings
-              </p>
-              <p className="mt-2 text-3xl font-black text-[#8b6914]">
-                EUR {finalTotalMoney}
-              </p>
-              <p className="mt-3 text-sm text-[#6b7280]">
-                Waiting for host to restart the lobby...
-              </p>
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
+              <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[#e5d4ab] bg-[#fff8df] px-5 py-6 text-center shadow-sm">
+                <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
+                  Shift Ended
+                </p>
+                <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
+                  Final Earnings
+                </p>
+                <p className="mt-2 text-3xl font-black text-[#8b6914]">
+                  EUR {finalTotalMoney}
+                </p>
+                <p className="text-sm text-[#6b7280]">
+                  Use the shell actions above to restart or return to the lobby.
+                </p>
+              </div>
             </div>
           ) : null}
 
           {showGameplayView ? (
-            <>
-              <div className="flex h-12 items-center justify-between bg-[#fef3c7] px-4 shadow-md">
-                <div className="flex items-center gap-2">
-                  {isDead && myPlayer?.image ? (
-                    <img
-                      src={myPlayer.image}
-                      alt={myPlayer.name}
-                      className="h-8 w-8 rounded-full object-cover grayscale"
-                    />
-                  ) : myPlayer?.image ? (
-                    <img
-                      src={myPlayer.image}
-                      alt={myPlayer.name}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-[#5c4a2e]">
-                      {myPlayer?.name?.charAt(0) || "?"}
+            <div className="flex min-h-0 flex-1 flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
+                <div className="rounded-[28px] border border-[#d8c58a] bg-[#fff8e1] px-4 py-3 shadow-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {isDead && myPlayer?.image ? (
+                        <img
+                          src={myPlayer.image}
+                          alt={myPlayer.name}
+                          className="h-8 w-8 rounded-full object-cover grayscale"
+                        />
+                      ) : myPlayer?.image ? (
+                        <img
+                          src={myPlayer.image}
+                          alt={myPlayer.name}
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f7e7b1] text-lg font-bold text-[#5c4a2e]">
+                          {myPlayer?.name?.charAt(0) || "?"}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-lg font-bold text-[#5c4a2e]">
+                          {isDead ? "Mrtvec" : myPlayer?.name || "Povezujem..."}
+                        </p>
+                        <p className="text-[10px] tracking-[0.16em] text-[#8b6914] uppercase">
+                          {controller.roomId ?? "Connecting..."}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-xl font-bold text-[#8b6914]">
+                      {totalMoney} EUR
                     </span>
-                  )}
-                  <span className="text-lg font-bold text-[#5c4a2e]">
-                    {isDead ? "💀 MRTVEC" : myPlayer?.name || "Povezujem..."}
-                  </span>
+                  </div>
                 </div>
-                <span className="text-2xl font-bold text-[#8b6914]">
-                  {totalMoney} EUR
-                </span>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[24px] border border-[#d8c58a] bg-[#fff8e1] px-4 py-3 shadow-sm">
+                    <p className="text-[10px] tracking-[0.18em] text-[#8b6914] uppercase">
+                      Energija
+                    </p>
+                    <div className="mt-2 h-4 overflow-hidden rounded-full bg-[#eadcbc]">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          energyValue > 30 ? "bg-[#d46060]" : "bg-[#a03030]"
+                        }`}
+                        style={{ width: `${energyValue}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-[24px] border border-[#d8c58a] bg-[#fff8e1] px-4 py-3 shadow-sm">
+                    <p className="text-[10px] tracking-[0.18em] text-[#8b6914] uppercase">
+                      Sreča
+                    </p>
+                    <div className="mt-2 h-4 overflow-hidden rounded-full bg-[#eadcbc]">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          boredomValue > 30 ? "bg-[#5b9bd5]" : "bg-[#3a7bb5]"
+                        }`}
+                        style={{ width: `${boredomValue}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {isBusy ? (
+                  <div className="rounded-[24px] border border-[#d8c58a] bg-[#fff8e1] px-4 py-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[10px] tracking-[0.18em] text-[#8b6914] uppercase">
+                        Task
+                      </div>
+                      <div className="text-sm font-semibold text-[#5c4a2e]">
+                        {myTaskName}
+                      </div>
+                    </div>
+                    <div className="mt-3 h-4 overflow-hidden rounded-full bg-[#eadcbc]">
+                      <div
+                        className="h-full rounded-full bg-[#6aaa64] transition-all duration-100"
+                        style={{ width: `${myProgress * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {gameOver ? (
+                  <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
+                    <div className="max-w-sm">
+                      <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+                        Konec igre
+                      </p>
+                      <p className="mt-2 text-2xl font-bold text-[#c06030]">
+                        Vsi igralci so umrli
+                      </p>
+                      <p className="mt-2 text-base text-[#5c4a2e]">
+                        Skupaj zbrano: {totalMoney} EUR
+                      </p>
+                    </div>
+                  </div>
+                ) : isDead ? (
+                  <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
+                    <div className="max-w-sm">
+                      <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+                        Ste mrtvi
+                      </p>
+                      <p className="mt-2 text-xl font-bold text-[#5c4a2e]">
+                        Opazujete iz onstranstva
+                      </p>
+                      <p className="mt-2 text-sm text-[#6b7280]">
+                        Vaš del igre je končan. Počakajte na naslednji krog.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
-              {gameOver ? (
-                <div className="flex flex-col items-center justify-center bg-[#fef3c7] py-8 text-center shadow-md">
-                  <div className="mb-2 text-2xl font-bold text-[#c06030]">
-                    KONEC IGRE
+              {!gameOver && !isDead ? (
+                <div className="flex min-h-0 flex-1 flex-col gap-3 rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-4 shadow-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs tracking-[0.18em] text-[#8b6914] uppercase">
+                      Controls
+                    </p>
+                    <p className="text-xs text-[#6b7280]">
+                      Hold to work. Use the D-pad to move.
+                    </p>
                   </div>
-                  <div className="text-lg text-[#5c4a2e]">
-                    Vsi igralci so umrli...
-                  </div>
-                  <div className="mt-2 text-xl font-semibold text-[#8b6914]">
-                    Skupaj: {totalMoney} EUR
-                  </div>
-                </div>
-              ) : isDead ? (
-                <div className="flex items-center justify-center bg-[#fef3c7] py-4 text-lg font-bold text-[#5c4a2e]">
-                  💀 Umrli ste! Opazujete iz onstranstva...
-                </div>
-              ) : (
-                <>
-                  {myStats ? (
-                    <div className="flex flex-col gap-3 bg-[#fef3c7] p-3 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="w-16 text-sm text-[#5c4a2e]">
-                          Energija
-                        </span>
-                        <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              myStats.energy > 30
-                                ? "bg-[#d46060]"
-                                : "bg-[#a03030]"
-                            }`}
-                            style={{ width: `${myStats.energy}%` }}
-                          />
-                        </div>
-                        <span className="w-10 text-right text-sm text-[#5c4a2e]">
-                          {Math.round(myStats.energy)}%
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="w-16 text-sm text-[#5c4a2e]">
-                          Sreča
-                        </span>
-                        <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              myStats.boredom > 30
-                                ? "bg-[#5b9bd5]"
-                                : "bg-[#3a7bb5]"
-                            }`}
-                            style={{ width: `${myStats.boredom}%` }}
-                          />
-                        </div>
-                        <span className="w-10 text-right text-sm text-[#5c4a2e]">
-                          {Math.round(myStats.boredom)}%
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
 
-                  {isBusy ? (
-                    <div className="flex flex-col gap-2 bg-[#fef3c7] p-3 shadow-sm">
-                      <div className="flex items-center justify-center text-lg font-bold text-[#5c4a2e]">
-                        ⏳ {myTaskName}
-                      </div>
-                      <div className="h-4 flex-1 overflow-hidden rounded-full bg-[#e8dcc8]">
-                        <div
-                          className="h-full rounded-full bg-[#6aaa64] transition-all duration-100"
-                          style={{ width: `${myProgress * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-12">
+                  <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                    <button
+                      type="button"
+                      className="flex min-h-36 items-center justify-center rounded-[26px] bg-[#fff1bd] px-5 text-3xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-[0.98]"
+                      onTouchStart={() => handleAction(true)}
+                      onTouchEnd={() => handleAction(false)}
+                      onTouchCancel={() => handleAction(false)}
+                      onMouseDown={() => handleAction(true)}
+                      onMouseUp={() => handleAction(false)}
+                      onMouseLeave={() => handleAction(false)}
+                    >
+                      DELAJ
+                    </button>
+
+                    <div className="grid w-full max-w-48 grid-cols-3 grid-rows-3 gap-2 self-center justify-self-center">
+                      <div />
                       <button
                         type="button"
-                        className="h-32 w-32 touch-none bg-[#fef3c7] text-2xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-95"
-                        onTouchStart={() => handleAction(true)}
-                        onTouchEnd={() => handleAction(false)}
-                        onTouchCancel={() => handleAction(false)}
-                        onMouseDown={() => handleAction(true)}
-                        onMouseUp={() => handleAction(false)}
-                        onMouseLeave={() => handleAction(false)}
+                        className="flex aspect-square items-center justify-center rounded-[20px] border border-[#d8c58a] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                        onTouchStart={() => handleMove(0, -1)}
+                        onTouchEnd={() => handleMove(0, 0)}
+                        onTouchCancel={() => handleMove(0, 0)}
+                        onMouseDown={() => handleMove(0, -1)}
+                        onMouseUp={() => handleMove(0, 0)}
+                        onMouseLeave={() => handleMove(0, 0)}
+                        aria-label="Move up"
                       >
-                        DELAJ
+                        <ChevronUp className="h-7 w-7" />
                       </button>
-
-                      <div className="grid h-40 w-64 grid-cols-3 grid-rows-2 gap-3">
-                        <div />
-                        <button
-                          type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
-                          onTouchStart={() => handleMove(0, -1)}
-                          onTouchEnd={() => handleMove(0, 0)}
-                          onTouchCancel={() => handleMove(0, 0)}
-                          onMouseDown={() => handleMove(0, -1)}
-                          onMouseUp={() => handleMove(0, 0)}
-                          onMouseLeave={() => handleMove(0, 0)}
-                        >
-                          <ChevronUp className="h-10 w-10" />
-                        </button>
-                        <div />
-                        <button
-                          type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
-                          onTouchStart={() => handleMove(-1, 0)}
-                          onTouchEnd={() => handleMove(0, 0)}
-                          onTouchCancel={() => handleMove(0, 0)}
-                          onMouseDown={() => handleMove(-1, 0)}
-                          onMouseUp={() => handleMove(0, 0)}
-                          onMouseLeave={() => handleMove(0, 0)}
-                        >
-                          <ChevronLeft className="h-10 w-10" />
-                        </button>
-                        <button
-                          type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
-                          onTouchStart={() => handleMove(0, 1)}
-                          onTouchEnd={() => handleMove(0, 0)}
-                          onTouchCancel={() => handleMove(0, 0)}
-                          onMouseDown={() => handleMove(0, 1)}
-                          onMouseUp={() => handleMove(0, 0)}
-                          onMouseLeave={() => handleMove(0, 0)}
-                        >
-                          <ChevronDown className="h-10 w-10" />
-                        </button>
-                        <button
-                          type="button"
-                          className="flex touch-none items-center justify-center bg-[#fef3c7] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
-                          onTouchStart={() => handleMove(1, 0)}
-                          onTouchEnd={() => handleMove(0, 0)}
-                          onTouchCancel={() => handleMove(0, 0)}
-                          onMouseDown={() => handleMove(1, 0)}
-                          onMouseUp={() => handleMove(0, 0)}
-                          onMouseLeave={() => handleMove(0, 0)}
-                        >
-                          <ChevronRight className="h-10 w-10" />
-                        </button>
-                      </div>
+                      <div />
+                      <button
+                        type="button"
+                        className="flex aspect-square items-center justify-center rounded-[20px] border border-[#d8c58a] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                        onTouchStart={() => handleMove(-1, 0)}
+                        onTouchEnd={() => handleMove(0, 0)}
+                        onTouchCancel={() => handleMove(0, 0)}
+                        onMouseDown={() => handleMove(-1, 0)}
+                        onMouseUp={() => handleMove(0, 0)}
+                        onMouseLeave={() => handleMove(0, 0)}
+                        aria-label="Move left"
+                      >
+                        <ChevronLeft className="h-7 w-7" />
+                      </button>
+                      <button
+                        type="button"
+                        className="flex aspect-square items-center justify-center rounded-[20px] border border-[#d8c58a] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                        onTouchStart={() => handleMove(0, 1)}
+                        onTouchEnd={() => handleMove(0, 0)}
+                        onTouchCancel={() => handleMove(0, 0)}
+                        onMouseDown={() => handleMove(0, 1)}
+                        onMouseUp={() => handleMove(0, 0)}
+                        onMouseLeave={() => handleMove(0, 0)}
+                        aria-label="Move down"
+                      >
+                        <ChevronDown className="h-7 w-7" />
+                      </button>
+                      <button
+                        type="button"
+                        className="flex aspect-square items-center justify-center rounded-[20px] border border-[#d8c58a] bg-[#fff6d8] text-[#5c4a2e] shadow-md select-none active:bg-[#fde68a]"
+                        onTouchStart={() => handleMove(1, 0)}
+                        onTouchEnd={() => handleMove(0, 0)}
+                        onTouchCancel={() => handleMove(0, 0)}
+                        onMouseDown={() => handleMove(1, 0)}
+                        onMouseUp={() => handleMove(0, 0)}
+                        onMouseLeave={() => handleMove(0, 0)}
+                        aria-label="Move right"
+                      >
+                        <ChevronRight className="h-7 w-7" />
+                      </button>
                     </div>
-                  )}
-                </>
-              )}
-            </>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </ForcedOrientationShell>

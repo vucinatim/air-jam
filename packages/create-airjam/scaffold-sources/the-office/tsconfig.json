@@ -13,9 +13,11 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@air-jam/sdk": ["../../packages/sdk/src/index.ts"],
+      "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
     },
     "types": ["node"]
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "visual", "vite.config.ts", "../../packages/sdk/src/**/*"]
 }

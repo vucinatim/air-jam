@@ -5,6 +5,7 @@ import {
   HostSessionProvider,
   type AirJamProviderProps,
 } from "../context/session-providers";
+import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
 import type {
   AirJamControllerOptions,
 } from "../hooks/use-air-jam-controller";
@@ -93,13 +94,15 @@ export const AirJamHostRuntime = <
 }: AirJamHostRuntimeProps<TSchema>): JSX.Element => {
   return (
     <HostSessionProvider<TSchema> {...providerProps}>
-      <HostRuntimeOwner<TSchema>
-        roomId={roomId}
-        onPlayerJoin={onPlayerJoin}
-        onPlayerLeave={onPlayerLeave}
-      >
-        {children}
-      </HostRuntimeOwner>
+      <PlatformSettingsBoundary>
+        <HostRuntimeOwner<TSchema>
+          roomId={roomId}
+          onPlayerJoin={onPlayerJoin}
+          onPlayerLeave={onPlayerLeave}
+        >
+          {children}
+        </HostRuntimeOwner>
+      </PlatformSettingsBoundary>
     </HostSessionProvider>
   );
 };
@@ -115,15 +118,17 @@ export const AirJamControllerRuntime = ({
 }: AirJamControllerRuntimeProps): JSX.Element => {
   return (
     <ControllerSessionProvider {...providerProps}>
-      <ControllerRuntimeOwner
-        roomId={roomId}
-        nickname={nickname}
-        avatarId={avatarId}
-        controllerId={controllerId}
-        onState={onState}
-      >
-        {children}
-      </ControllerRuntimeOwner>
+      <PlatformSettingsBoundary>
+        <ControllerRuntimeOwner
+          roomId={roomId}
+          nickname={nickname}
+          avatarId={avatarId}
+          controllerId={controllerId}
+          onState={onState}
+        >
+          {children}
+        </ControllerRuntimeOwner>
+      </PlatformSettingsBoundary>
     </ControllerSessionProvider>
   );
 };

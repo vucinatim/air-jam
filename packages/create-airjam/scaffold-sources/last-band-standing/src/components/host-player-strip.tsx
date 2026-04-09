@@ -51,7 +51,7 @@ export const HostPlayerStrip = ({
                   scale: { type: "spring", stiffness: 400, damping: 15 },
                 }}
                 className={cn(
-                  "relative flex items-center gap-3 rounded-xl px-3 py-2 mx-2 my-2 transition-colors duration-300 bg-primary/10",
+                  "relative flex items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-300 bg-primary/10",
                   hasAnswered && "bg-primary/15 ring-2 ring-primary/40",
                 )}
               >

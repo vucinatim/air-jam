@@ -67,6 +67,7 @@ describe("sdk export surface", () => {
     expect("useAudio" in sdk).toBe(true);
     expect("useAudioRuntimeStatus" in sdk).toBe(true);
     expect("useAudioRuntimeControls" in sdk).toBe(true);
+    expect("PlatformSettingsBoundary" in sdk).toBe(true);
     expect("PlatformSettingsRuntime" in sdk).toBe(true);
     expect("usePlatformSettings" in sdk).toBe(true);
     expect("useInheritedPlatformSettings" in sdk).toBe(true);

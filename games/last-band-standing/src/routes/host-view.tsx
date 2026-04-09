@@ -1,6 +1,5 @@
 import {
   AudioRuntime,
-  PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
   useHostRuntimeStateBridge,
@@ -31,11 +30,9 @@ import { HostGameOver } from "../features/game-over/host-game-over";
 
 export const HostView = () => {
   return (
-    <PlatformSettingsRuntime>
-      <AudioRuntime manifest={soundManifest}>
-        <HostScreen />
-      </AudioRuntime>
-    </PlatformSettingsRuntime>
+    <AudioRuntime manifest={soundManifest}>
+      <HostScreen />
+    </AudioRuntime>
   );
 };
 
@@ -124,7 +121,6 @@ const HostScreen = () => {
   }, [playerOrder, readyByPlayerId]);
   const canStartMatch = phase === "lobby" && playerOrder.length > 0 && readyCount === playerOrder.length;
   const hostLobbyShell = useHostLobbyShell({
-    roomId: host.roomId,
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: () => actions.startMatch(),

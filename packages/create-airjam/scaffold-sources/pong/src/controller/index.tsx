@@ -1,12 +1,14 @@
 import {
   useAirJamController,
   ControllerRemoteAudioRuntime,
-  PlatformSettingsRuntime,
   useControllerToasts,
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import {
+  ControllerPlayerNameField,
+  ForcedOrientationShell,
+} from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { ControllerHeader } from "./components/controller-header";
 import { EndedPanel } from "./components/ended-panel";
@@ -25,14 +27,12 @@ export function ControllerView() {
   const controller = useAirJamController();
 
   return (
-    <PlatformSettingsRuntime>
-      <ControllerRemoteAudioRuntime
-        manifest={PONG_SOUND_MANIFEST}
-        enabled={controller.connectionStatus === "connected"}
-      >
-        <ControllerScreen controller={controller} />
-      </ControllerRemoteAudioRuntime>
-    </PlatformSettingsRuntime>
+    <ControllerRemoteAudioRuntime
+      manifest={PONG_SOUND_MANIFEST}
+      enabled={controller.connectionStatus === "connected"}
+    >
+      <ControllerScreen controller={controller} />
+    </ControllerRemoteAudioRuntime>
   );
 }
 
@@ -162,8 +162,17 @@ function ControllerScreen({
           matchPhase={matchPhase}
           runtimeState={controller.runtimeState}
           canSendSystemCommand={canSendSystemCommand}
+          canStartMatch={readiness.canStart}
           onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
           onReturnToLobby={() => actions.returnToLobby()}
+          onStartMatch={() => actions.startMatch()}
+          onRestartMatch={() => actions.restartMatch()}
+        />
+
+        <ControllerPlayerNameField
+          className="px-3 pt-1 pb-2"
+          labelClassName="text-[9px] font-semibold tracking-[0.18em] text-zinc-400 uppercase"
+          inputClassName="w-full rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[14px] font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-white/30 focus:ring-1 focus:ring-white/20"
         />
 
         {connectionNotice ? (
@@ -192,8 +201,8 @@ function ControllerScreen({
             team1Players={team1Players}
             team2Players={team2Players}
             pointsToWin={pointsToWin}
-            canStartMatch={readiness.canStart}
             controlsDisabled={controlsDisabled}
+            canStartMatch={readiness.canStart}
             readinessText={readinessText}
             onJoinTeam={(team) => actions.joinTeam({ team })}
             onSetBotCount={(team, count) => actions.setBotCount({ team, count })}
@@ -205,9 +214,6 @@ function ControllerScreen({
         ) : matchPhase === "ended" ? (
           <EndedPanel
             matchSummary={matchSummary}
-            canSendSystemCommand={canSendSystemCommand}
-            onRestartMatch={() => actions.restartMatch()}
-            onReturnToLobby={() => actions.returnToLobby()}
           />
         ) : (
           <PlayingControls

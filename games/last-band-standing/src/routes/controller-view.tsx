@@ -1,6 +1,5 @@
 import {
   ControllerRemoteAudioRuntime,
-  PlatformSettingsRuntime,
   useAirJamController,
   useAudio,
 } from "@air-jam/sdk";
@@ -28,14 +27,12 @@ export const ControllerView = () => {
   const controller = useAirJamController();
 
   return (
-    <PlatformSettingsRuntime>
-      <ControllerRemoteAudioRuntime
-        manifest={soundManifest}
-        enabled={controller.connectionStatus === "connected"}
-      >
-        <ControllerScreen controller={controller} />
-      </ControllerRemoteAudioRuntime>
-    </PlatformSettingsRuntime>
+    <ControllerRemoteAudioRuntime
+      manifest={soundManifest}
+      enabled={controller.connectionStatus === "connected"}
+    >
+      <ControllerScreen controller={controller} />
+    </ControllerRemoteAudioRuntime>
   );
 };
 

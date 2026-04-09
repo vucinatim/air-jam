@@ -9,6 +9,7 @@ import {
   PLATFORM_SETTINGS_STORAGE_KEY,
 } from "../src/settings/platform-settings";
 import {
+  PlatformSettingsBoundary,
   PlatformSettingsRuntime,
   useInheritedPlatformSettings,
   usePlatformAudioSettings,
@@ -236,5 +237,31 @@ describe("PlatformSettingsRuntime", () => {
         value: "",
       });
     }
+  });
+
+  it("creates a local owner runtime when mounted without an outer settings context", () => {
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(PlatformSettingsBoundary, null, children);
+
+    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
+
+    expect(result.current.settings).toEqual(DEFAULT_PLATFORM_SETTINGS);
+  });
+
+  it("reuses an outer owner runtime instead of mounting a nested settings owner", () => {
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(
+        PlatformSettingsRuntime,
+        { persistence: "local" },
+        createElement(PlatformSettingsBoundary, null, children),
+      );
+
+    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
+
+    act(() => {
+      result.current.updateAudio({ musicVolume: 0.42 });
+    });
+
+    expect(result.current.settings.audio.musicVolume).toBe(0.42);
   });
 });

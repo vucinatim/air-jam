@@ -74,15 +74,119 @@ This plan is not for:
 
 Air Jam should move through launch execution in this order:
 
-1. finish the remaining prerelease system closeout work in [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
-2. finish or explicitly cut the preview-controller feature in [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
-3. run the single final manual proof pass in [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-4. create release media assets
-5. connect and deploy all public games on official hosting
-6. validate all public games against the official servers
-7. merge the release PR and deploy the platform
-8. publish release content
-9. execute the launch distribution plan
+1. finish all remaining prerelease implementation work up front
+2. run the immediate post-implementation fix pass
+3. do UI and gameplay polish
+4. do prerelease cleanup
+5. run prerelease devex and SDK checks
+6. run prerelease security checks
+7. run the last prerelease overpass and manual proof pass in [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+8. finish final docs alignment and polish
+9. upload the games through the hosted release lane
+10. finish release media, blogs, and final landing-page overlook
+11. merge into `master`, deploy, and test the live system
+12. lock the release plan and execution sequence
+13. post media and do manual launch marketing
+
+Current mapping:
+
+1. remaining implementation work currently means:
+   1. the deferred visual-harness-driven cleanup/polish pass in [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
+   2. the on-screen preview-controller work in [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+2. prerelease devex and SDK checks should happen after cleanup/polish, not before unfinished implementation
+3. prerelease security checks should happen after the product shape is settled enough that findings do not churn with large feature edits
+4. hosted upload, media/blogs, deployment, and launch distribution are late-stage release execution, not active prerelease implementation
+
+## Execution Stages
+
+### Stage 1. Finish Implementation
+
+Complete every remaining product/framework feature that still belongs in v1 before switching the team into stabilization mode.
+
+Current remaining implementation tracks:
+
+1. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+2. any remaining planned prerelease cleanup that still changes shipped product behavior
+
+### Stage 2. Fixes
+
+Immediately after implementation is complete:
+
+1. fix fallout from the last implementation pass
+2. resolve regressions, obvious bugs, and behavior mismatches
+3. avoid mixing this stage with new feature scope
+
+### Stage 3. UI And Gameplay Polish
+
+Do the visible host/controller polish pass here:
+
+1. visual-harness-driven layout and responsiveness cleanup
+2. last game-feel and shell-quality improvements
+3. no new system design unless a polish blocker exposes a real architecture flaw
+
+### Stage 4. Prerelease Cleanup
+
+Use this stage to remove obvious prerelease rough edges:
+
+1. dead/stale prerelease seams
+2. outdated release-facing wording
+3. leftover setup friction that should not survive into final checks
+
+### Stage 5. Prerelease Devex And SDK Checks
+
+Run the framework-facing confidence pass once the product shape is stable:
+
+1. SDK package/build/type/test confidence
+2. scaffold/devex sanity
+3. release-lane and creator workflow sanity where it affects launch confidence
+
+### Stage 6. Prerelease Security Checks
+
+Run the final security-specific review after implementation and cleanup settle:
+
+1. public release path review
+2. dashboard/release/media surface review
+3. auth and hosted-lane review
+
+### Stage 7. Last Prerelease Overpass
+
+This is the final manual proof and go/no-go pass:
+
+1. execute [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+2. record findings and required blockers
+3. only exit this stage when the launch set has a clear go/no-go status
+
+### Stage 8. Final Docs Alignment And Polish
+
+After the product and prerelease checks are stable:
+
+1. align docs with the final shipped truth
+2. polish release-facing guidance
+3. avoid reopening implementation unless docs reveal a real blocker
+
+### Stage 9. Hosted Uploads
+
+1. upload the final games
+2. verify the hosted release surfaces are correct
+3. keep this distinct from final manual overpass work
+
+### Stage 10. Media, Blogs, And Landing Overlook
+
+1. finalize release media
+2. finalize blog/article content
+3. do the last landing-page/readability sweep
+
+### Stage 11. Merge, Deploy, And Live Test
+
+1. merge into `master`
+2. deploy the platform and release surfaces
+3. run live validation on the real deployment
+
+### Stage 12. Release Planning And Distribution
+
+1. lock the release plan timing/order
+2. post media
+3. do manual launch marketing
 
 ## Active Parallel Prerelease Implementation Plans
 

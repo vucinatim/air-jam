@@ -334,7 +334,6 @@ const HostViewContent = ({
   }, [players, teamAssignments]);
 
   const hostLobbyShell = useHostLobbyShell({
-    roomId: host.roomId,
     joinUrl: host.joinUrl,
     onStartMatch: () => matchActions.startMatch(),
   });

@@ -266,7 +266,8 @@ Mount `AudioRuntime` / `ControllerRemoteAudioRuntime` once per runtime surface, 
 
 Shared user settings are platform-owned and inherited by embedded games.
 
-Mount `PlatformSettingsRuntime` once in the platform shell, then use the narrow settings hooks below that boundary.
+Mount `PlatformSettingsRuntime` once in the platform shell when you want a persisted owner runtime.
+`AirJamHostRuntime` / `AirJamControllerRuntime` already provide a settings boundary for games, so repo games should not wrap each host/controller surface in another redundant `PlatformSettingsRuntime`.
 
 ```tsx
 import {
@@ -300,15 +301,16 @@ const EmbeddedGame = () => {
 Rules:
 
 1. mount `PlatformSettingsRuntime persistence="local"` once in the platform shell
-2. embedded games inherit platform settings read-only
-3. keep platform settings limited to shared cross-game concerns like audio, accessibility, and feedback
-4. do not recreate feature-specific global settings stores alongside this runtime
+2. let `airjam.Host`, `airjam.Controller`, `AirJamHostRuntime`, and `AirJamControllerRuntime` supply the in-game settings boundary automatically
+3. embedded games inherit platform settings read-only
+4. keep platform settings limited to shared cross-game concerns like audio, accessibility, and feedback
+5. do not recreate feature-specific global settings stores alongside this runtime
 
 ## Optional UI Primitives
 
 `@air-jam/sdk/ui` exports optional presentational primitives (`Button`, `Slider`, `PlayerAvatar`, `VolumeControls`).
 These components are lifecycle-free: they do not create sockets or own host/controller session state.
-`VolumeControls` reads and writes the shared audio slice through `PlatformSettingsRuntime`.
+`VolumeControls` reads and writes the shared audio slice through the platform settings runtime.
 
 ## Networked State (Host Source of Truth)
 

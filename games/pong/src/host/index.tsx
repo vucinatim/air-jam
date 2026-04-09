@@ -1,6 +1,5 @@
 import {
   AudioRuntime,
-  PlatformSettingsRuntime,
   useAirJamHost,
   useAudio,
   useHostRuntimeStateBridge,
@@ -32,11 +31,9 @@ import { usePongFeedback } from "./hooks/use-pong-feedback";
 
 export function HostView() {
   return (
-    <PlatformSettingsRuntime>
-      <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
-        <HostScreen />
-      </AudioRuntime>
-    </PlatformSettingsRuntime>
+    <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
+      <HostScreen />
+    </AudioRuntime>
   );
 }
 
@@ -90,7 +87,6 @@ function HostScreen() {
     [botCounts, teamCounts],
   );
   const hostLobbyShell = useHostLobbyShell({
-    roomId: host.roomId,
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: () => actions.startMatch(),

@@ -4,6 +4,7 @@ import {
   LifecycleActionGroup,
   PlayerAvatar,
   RuntimeShellHeader,
+  type LifecycleActionKind,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
   useControllerShellStatus,
@@ -60,6 +61,12 @@ export const ControllerHeader = ({
     onBackToLobby: onReturnToLobby,
     onRestart: onRestartMatch,
   });
+  const utilityKinds: LifecycleActionKind[] =
+    matchPhase === "playing" || matchPhase === "countdown"
+      ? ["pause-toggle", "back-to-lobby"]
+      : matchPhase === "ended"
+        ? ["restart", "back-to-lobby"]
+        : [];
 
   return (
     <RuntimeShellHeader
@@ -90,20 +97,22 @@ export const ControllerHeader = ({
         </div>
       }
       rightSlot={
-        <LifecycleActionGroup
-          phase={shellPhase}
-          runtimeState={runtimeState}
-          canInteract={lifecyclePermissions.canInteractForPhase}
-          onStart={lifecycleIntents.onStart}
-          onTogglePause={lifecycleIntents.onTogglePause}
-          onBackToLobby={lifecycleIntents.onBackToLobby}
-          onRestart={lifecycleIntents.onRestart}
-          startLabel="Start"
-          restartLabel="Restart"
-          backLabel="Lobby"
-        />
+        utilityKinds.length > 0 ? (
+          <LifecycleActionGroup
+            phase={shellPhase}
+            runtimeState={runtimeState}
+            canInteract={lifecyclePermissions.canInteractForPhase}
+            onStart={lifecycleIntents.onStart}
+            onTogglePause={lifecycleIntents.onTogglePause}
+            onBackToLobby={lifecycleIntents.onBackToLobby}
+            onRestart={lifecycleIntents.onRestart}
+            presentation="icon"
+            visibleKinds={utilityKinds}
+            buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
+          />
+        ) : null
       }
-      className="border-white/10 bg-black/20 px-3 py-2 text-xs uppercase"
+      className="border-white/10 bg-black/20 px-3 py-3 text-xs uppercase"
     />
   );
 };

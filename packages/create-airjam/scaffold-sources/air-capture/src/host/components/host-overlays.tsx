@@ -1,9 +1,15 @@
 import type { PlayerProfile } from "@air-jam/sdk";
-import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
+import {
+  JoinUrlControls,
+  LifecycleActionGroup,
+  PlayerAvatar,
+  RoomQrCode,
+} from "@air-jam/sdk/ui";
 import type { JSX } from "react";
 import { Button } from "../../components/ui/button";
 import {
   getLobbyReadinessText,
+  getMatchReadiness,
   getTeamCounts,
   type TeamCounts,
 } from "../../game/domain/match-readiness";
@@ -90,9 +96,13 @@ const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
 
 interface LobbyOverlayProps {
   joinQrValue: string;
+  copiedJoinUrl: boolean;
+  onCopyJoinUrl: () => void | Promise<void>;
+  onOpenJoinUrl: () => void;
   roomId: string | null;
   pointsToWin: number;
   botCounts: TeamCounts;
+  onStartMatch: () => void;
   connectionStatus: HostConnectionStatus;
   lastError?: string;
   connectedPlayers: PlayerProfile[];
@@ -101,9 +111,13 @@ interface LobbyOverlayProps {
 
 export const LobbyOverlay = ({
   joinQrValue,
+  copiedJoinUrl,
+  onCopyJoinUrl,
+  onOpenJoinUrl,
   roomId,
   pointsToWin,
   botCounts,
+  onStartMatch,
   connectionStatus,
   lastError,
   connectedPlayers,
@@ -119,6 +133,7 @@ export const LobbyOverlay = ({
     botCounts,
     pointsToWin,
   );
+  const canStartMatch = getMatchReadiness(humanCounts, botCounts).canStart;
 
   const hasJoinQr = joinQrValue.trim().length > 0;
 
@@ -142,6 +157,16 @@ export const LobbyOverlay = ({
             {roomId ?? "----"}
           </div>
         </div>
+
+        <JoinUrlControls
+          value={joinQrValue}
+          label="Controller link"
+          copied={copiedJoinUrl}
+          onCopy={onCopyJoinUrl}
+          onOpen={onOpenJoinUrl}
+          inputClassName="border-white/20 bg-black/40 text-white"
+          buttonClassName="border-white/20 bg-white/10 text-white hover:bg-white/15"
+        />
 
         {hasJoinQr ? (
           <RoomQrCode
@@ -211,6 +236,14 @@ export const LobbyOverlay = ({
             </span>
           )}
         </div>
+
+        <LifecycleActionGroup
+          phase="lobby"
+          canInteract={canStartMatch}
+          onStart={onStartMatch}
+          startLabel="Start Match"
+          buttonClassName="border-white/20 bg-white px-5 text-black hover:bg-white/90"
+        />
       </div>
     </div>
   );

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",
+    "@air-jam/visual-harness": "workspace:*",
     "@fontsource-variable/outfit": "^5.2.8",
     "@lottiefiles/dotlottie-react": "^0.18.5",
     "class-variance-authority": "^0.7.1",

@@ -31,6 +31,19 @@ Release-critical plans:
 
 1. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
+Canonical release sequence:
+
+1. implementation
+2. fixes
+3. UI/gameplay polish
+4. prerelease cleanup
+5. prerelease devex/SDK checks
+6. prerelease security checks
+7. final prerelease overpass
+8. final docs alignment
+9. uploads / media / landing overlook
+10. merge, deploy, live test, and launch distribution
+
 Active prerelease implementation plans:
 
 1. [Prerelease Systems Closeout Plan](./plans/prerelease-systems-closeout-plan.md)

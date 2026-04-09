@@ -45,6 +45,11 @@ export interface PlatformSettingsRuntimeProps {
   persistence?: PlatformSettingsPersistence;
 }
 
+export interface PlatformSettingsBoundaryProps {
+  children: ReactNode;
+  persistence?: PlatformSettingsPersistence;
+}
+
 export interface PlatformSettingsOwnerApi {
   settings: PlatformSettingsSnapshot;
   setSettings: (
@@ -238,6 +243,23 @@ export function PlatformSettingsRuntime({
     <platformSettingsContext.Provider value={value}>
       {children}
     </platformSettingsContext.Provider>
+  );
+}
+
+export function PlatformSettingsBoundary({
+  children,
+  persistence = "local",
+}: PlatformSettingsBoundaryProps) {
+  const existingContext = useContext(platformSettingsContext);
+
+  if (existingContext) {
+    return children;
+  }
+
+  return (
+    <PlatformSettingsRuntime persistence={persistence}>
+      {children}
+    </PlatformSettingsRuntime>
   );
 }
 

@@ -4,16 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import { useHostLobbyShell } from "../src/ui";
 
 describe("useHostLobbyShell", () => {
-  it("derives a fallback join url from room id when joinUrl is missing", () => {
+  it("treats a missing join url as unavailable", () => {
     const { result } = renderHook(() =>
       useHostLobbyShell({
-        roomId: "ROOM1",
         joinUrl: "",
       }),
     );
 
-    expect(result.current.joinUrlValue).toContain("/controller?room=ROOM1");
-    expect(result.current.hasJoinUrl).toBe(true);
+    expect(result.current.joinUrlValue).toBe("");
+    expect(result.current.hasJoinUrl).toBe(false);
   });
 
   it("copies the join url and exposes copied state", async () => {
@@ -26,7 +25,6 @@ describe("useHostLobbyShell", () => {
 
     const { result } = renderHook(() =>
       useHostLobbyShell({
-        roomId: "ROOM1",
         joinUrl: "https://example.com/controller?room=ROOM1",
       }),
     );
@@ -45,7 +43,6 @@ describe("useHostLobbyShell", () => {
     const onStartMatch = vi.fn();
     const { result } = renderHook(() =>
       useHostLobbyShell({
-        roomId: "ROOM1",
         joinUrl: "https://example.com/controller?room=ROOM1",
         canStartMatch: false,
         onStartMatch,

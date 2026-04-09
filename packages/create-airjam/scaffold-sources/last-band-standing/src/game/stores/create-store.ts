@@ -328,6 +328,22 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
+    forceGameOver: ({ role }) => {
+      if (role !== "host") {
+        return;
+      }
+
+      set((state) => ({
+        phase: "game-over",
+        currentRound: null,
+        roundReveal: null,
+        finalRankingPlayerIds:
+          state.finalRankingPlayerIds.length > 0
+            ? state.finalRankingPlayerIds
+            : rankPlayers(state.scoreboardByPlayerId),
+      }));
+    },
+
     resetLobby: ({ role }) => {
       if (role !== "host") {
         return;

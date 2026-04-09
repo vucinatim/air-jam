@@ -39,11 +39,9 @@ const copyTextToClipboard = async (text: string): Promise<boolean> => {
 };
 
 export interface UseHostLobbyShellOptions {
-  roomId: string | null;
   joinUrl: string | null | undefined;
   canStartMatch?: boolean;
   onStartMatch?: () => void;
-  controllerPath?: string;
   copiedDurationMs?: number;
 }
 
@@ -58,30 +56,15 @@ export interface HostLobbyShellApi {
 }
 
 export const useHostLobbyShell = ({
-  roomId,
   joinUrl,
   canStartMatch = false,
   onStartMatch,
-  controllerPath = "/controller",
   copiedDurationMs = 1800,
 }: UseHostLobbyShellOptions): HostLobbyShellApi => {
   const [copied, setCopied] = useState(false);
   const resetTimerRef = useRef<number | null>(null);
 
-  const joinUrlValue = useMemo(() => {
-    if (joinUrl) {
-      return joinUrl;
-    }
-
-    if (!roomId || typeof window === "undefined") {
-      return "";
-    }
-
-    return new URL(
-      `${controllerPath}?room=${roomId}`,
-      window.location.origin,
-    ).toString();
-  }, [controllerPath, joinUrl, roomId]);
+  const joinUrlValue = useMemo(() => joinUrl ?? "", [joinUrl]);
 
   const handleCopy = useCallback(async () => {
     if (!joinUrlValue) {

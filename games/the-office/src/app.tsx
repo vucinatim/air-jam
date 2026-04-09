@@ -1,4 +1,3 @@
-import { PlatformSettingsRuntime } from "@air-jam/sdk";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -34,9 +33,7 @@ export function App() {
             path="/"
             element={
               <airjam.Host>
-                <PlatformSettingsRuntime>
-                  <HostView />
-                </PlatformSettingsRuntime>
+                <HostView />
               </airjam.Host>
             }
           />
@@ -44,9 +41,7 @@ export function App() {
             path={airjam.paths.controller}
             element={
               <airjam.Controller>
-                <PlatformSettingsRuntime>
-                  <ControllerView />
-                </PlatformSettingsRuntime>
+                <ControllerView />
               </airjam.Controller>
             }
           />
