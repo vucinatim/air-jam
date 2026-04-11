@@ -27,10 +27,10 @@ the game may be relying on an accidental controller-origin assumption.
 
 ## Default Local Dev Usage
 
-Scaffolded host surfaces can mount the shared SDK dock like this:
+Scaffolded host surfaces can mount the shared SDK preview workspace like this:
 
 ```tsx
-import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 
 export const HostView = () => {
   const previewControllersEnabled = import.meta.env.DEV;
@@ -38,7 +38,7 @@ export const HostView = () => {
   return (
     <>
       <GameSurface />
-      <HostPreviewControllerDock enabled={previewControllersEnabled} />
+      <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
     </>
   );
 };
@@ -47,8 +47,8 @@ export const HostView = () => {
 In the normal local loop:
 
 1. open the host page
-2. click `Add controller`
-3. a real controller client opens in the host-local preview dock
+2. click `Open controller`
+3. a real controller client opens in the host-local preview workspace
 4. you can still join the same room from a phone or another browser tab
 
 ## Production Rule
@@ -78,7 +78,7 @@ That leaf currently owns:
 1. preview launch helpers
 2. preview identity helpers
 3. preview session manager state
-4. shared dock and surface components
+4. shared workspace and floating-window components
 
 ## What To Avoid
 

@@ -4,6 +4,7 @@ import type {
   ControllerPrivilegedGrant,
   ControllerStateMessage,
   HostArcadeSessionSnapshot,
+  PlayerProfile,
   RoomCode,
 } from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
@@ -368,6 +369,53 @@ export const toControllerJoinedNotice = (
   resumed: options.resumed,
   player: controller.playerProfile,
 });
+
+export const listRoomPlayers = (
+  session: RoomSession,
+): PlayerProfile[] =>
+  Array.from(session.controllers.values(), (controller) => controller.playerProfile);
+
+export const getActiveHostSocketId = (session: RoomSession): string =>
+  session.focus === "GAME" && session.childHostSocketId
+    ? session.childHostSocketId
+    : session.masterHostSocketId;
+
+const emitToConnectedControllers = <TPayload>(
+  io: AirJamIoServer,
+  session: RoomSession,
+  event: "server:controllerJoined" | "server:controllerLeft",
+  payload: TPayload,
+): void => {
+  session.controllers.forEach((controller) => {
+    if (!controller.connected || !controller.socketId) {
+      return;
+    }
+    io.to(controller.socketId).emit(event, payload);
+  });
+};
+
+export const emitControllerJoinedNotice = (
+  io: AirJamIoServer,
+  session: RoomSession,
+  controller: ControllerSession,
+  options: {
+    resumed?: boolean;
+  } = {},
+): void => {
+  const payload = toControllerJoinedNotice(controller, options);
+  emitToConnectedControllers(io, session, "server:controllerJoined", payload);
+  io.to(getActiveHostSocketId(session)).emit("server:controllerJoined", payload);
+};
+
+export const emitControllerLeftNotice = (
+  io: AirJamIoServer,
+  session: RoomSession,
+  controllerId: string,
+): void => {
+  const payload = { controllerId };
+  emitToConnectedControllers(io, session, "server:controllerLeft", payload);
+  io.to(getActiveHostSocketId(session)).emit("server:controllerLeft", payload);
+};
 
 export const emitRoomState = (
   io: AirJamIoServer,

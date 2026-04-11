@@ -2,6 +2,7 @@ import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
+  emitControllerLeftNotice,
   getControllerResumeLeaseMs,
   getChildHostDisconnectTeardownMs,
   transitionToSystemFocus,
@@ -172,11 +173,10 @@ export const registerDisconnectHandler = (
           }
           currentController.pendingDisconnectTimer = undefined;
           currentSession.controllers.delete(controller.controllerId);
-          io.to(roomManager.getActiveHostId(currentSession)).emit(
-            "server:controllerLeft",
-            {
-              controllerId: controller.controllerId,
-            },
+          emitControllerLeftNotice(
+            io,
+            currentSession,
+            controller.controllerId,
           );
           runtimeUsagePublisher.publish(
             createRoomRuntimeUsageEvent(currentSession, {

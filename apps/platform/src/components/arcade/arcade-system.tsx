@@ -19,7 +19,7 @@ import {
   type PlayerProfile,
   type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
-import { PreviewControllerDock } from "@air-jam/sdk/preview";
+import { PreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import type {
   AirJamActionRpcPayload,
@@ -1110,7 +1110,7 @@ export const ArcadeSystem = ({
           )
         )}
 
-        <PreviewControllerDock
+        <PreviewControllerWorkspace
           enabled={previewControllersEnabled}
           joinUrl={joinQrStatus === "ready" ? arcadeJoinUrl : null}
           highContrast={highContrast}

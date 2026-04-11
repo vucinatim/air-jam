@@ -60,8 +60,21 @@ Immediate next work:
 
 1. the first shared shell polish pass is now landed across the common SDK and platform shell surfaces
 2. refreshed `arcade-built` lobby captures are green again for all five launch games after that shell pass
-3. the next honest work is one bounded high-signal polish pass across the five launch games
-4. only reopen Stage 2 fixes if a real blocker appears during game-specific polish
+3. the preview-controller workspace rework is now landed across the shared SDK, platform Arcade surface, launch games, and scaffolds
+4. the next honest work is the bounded launch-game polish pass, with controller UX and presentation quality now free to iterate on top of the new workspace model
+5. only reopen Stage 2 fixes if a real blocker appears during game-specific polish
+
+### Recently Completed Implementation Track. Preview Controller Workspace Rework
+
+Status: completed  
+Plan: [Controller Preview Workspace Plan](./plans/controller-preview-workspace-plan.md)
+
+Current truth:
+
+1. the old dock metaphor is now replaced on the active SDK surface by a portal-based preview workspace
+2. the launcher hit-testing failure is fixed by moving the workspace above host layout ownership instead of depending on per-host z-index luck
+3. preview controllers now open as draggable floating windows with close/minimize controls and low-opacity inactive behavior
+4. the shared workspace now powers the platform Arcade surface plus all five launch games and their scaffold sources in local dev
 
 ### Recently Completed Implementation Track. Agent Runtime Contract Alignment
 
@@ -158,18 +171,18 @@ The audit confirmed:
 4. the public-release security blocker set is closed
 5. the visual harness is already implemented as a real package with launch-set lifecycle coverage
 6. the hosted release and managed media lanes are implemented product surfaces; what remains is end-to-end proof, not building those systems
-7. the preview-controller dock is now complete enough to be archived out of the active implementation surface
+7. the first preview-controller release path is now beyond the original docked-card form and uses the newer workspace/window model on the active SDK surface
 8. the SDK-owned platform-settings boundary cleanup and host join-url cleanup are now complete
 9. the platform controller page is now split into cleaner runtime, frame/bridge, and presentation layers as the first preview-controller prerequisite
 10. the canonical preview URL builder now exists as a dedicated SDK leaf instead of being left to app-level glue
-11. the first docked preview-controller platform integration now exists as a host-local overlay, not as replicated arcade state
-12. the shared preview UI is now proven by both platform and a repo/scaffold game host consumer instead of only one surface
+11. the platform preview-controller integration remains a host-local overlay, not replicated arcade state, but now uses the workspace/window model instead of the old docked-card presentation
+12. the shared preview UI is now proven by platform, repo games, and scaffold outputs through the same workspace primitive instead of only one or two surfaces
 13. the last systems-closeout iteration-speed task is done: repo visual capture in `arcade-built` mode now reuses unchanged game builds
 14. Arcade launch flows no longer infer controller runtime URLs only from host URLs; catalog entries now carry explicit `controllerUrl` values, which fixes the Pong Arcade-built recursive controller-shell bug
 15. the `air-capture` three-profile build no longer over-splits React and app runtime code; the Arcade-built host/controller lobby baseline now captures successfully instead of crashing on a bundled runtime cycle
 16. the shared Stage 2 fix-pass sweep is green for the launch set at the Arcade-built lobby baseline: all five launch games now produce captured host/controller artifacts through the platform Arcade shell
 17. the repo is now ready to move from shared blocker hunting into Stage 3 polish, with one bounded polish plan driving the next pass
-18. the shared shell no longer depends on rough transitional styling alone: the runtime header, connection pill, join controls, platform Arcade chrome, controller menu/fullscreen prompt, and preview dock/surface now share a calmer neutral shell treatment by default
+18. the shared shell no longer depends on rough transitional styling alone: the runtime header, connection pill, join controls, platform Arcade chrome, controller menu/fullscreen prompt, and preview workspace now share a calmer neutral shell treatment by default
 19. refreshed `arcade-built` lobby capture metadata is green again for `pong`, `air-capture`, `code-review`, `last-band-standing`, and `the-office` after the shared-shell pass
 
 ## Documentation Hygiene Tasks

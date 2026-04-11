@@ -19,9 +19,11 @@ import {
   beginRoomClosing,
   buildRoomStateMessage,
   disconnectChildHostIfPresent,
+  emitControllerJoinedNotice,
+  emitControllerLeftNotice,
   emitRoomState,
   isControllerPrivilegedCapabilityExpired,
-  toControllerJoinedNotice,
+  listRoomPlayers,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
 import { createWindowedEventSummary } from "../../logging/create-windowed-event-summary.js";
@@ -290,12 +292,7 @@ export const registerControllerHandlers = (
       );
       if (previousSession && previousEntry?.socketId === socket.id) {
         previousSession.controllers.delete(previousController.controllerId);
-        io.to(roomManager.getActiveHostId(previousSession)).emit(
-          "server:controllerLeft",
-          {
-            controllerId: previousController.controllerId,
-          },
-        );
+        emitControllerLeftNotice(io, previousSession, previousController.controllerId);
       }
       roomManager.deleteController(socket.id);
     }
@@ -414,10 +411,7 @@ export const registerControllerHandlers = (
     };
     socket.join(roomId);
 
-    io.to(roomManager.getActiveHostId(session)).emit(
-      "server:controllerJoined",
-      toControllerJoinedNotice(controllerSession, { resumed }),
-    );
+    emitControllerJoinedNotice(io, session, controllerSession, { resumed });
 
     if (resumed) {
       logControllerEvent(
@@ -458,6 +452,7 @@ export const registerControllerHandlers = (
       roomId,
       resumed,
       player: controllerSession.playerProfile,
+      players: listRoomPlayers(session),
     });
     socket.emit("server:state", buildRoomStateMessage(roomId, session));
   });
@@ -636,9 +631,7 @@ export const registerControllerHandlers = (
     session.controllers.delete(controllerId);
     roomManager.deleteController(socket.id);
     delete socket.data.controllerAuthority;
-    io.to(roomManager.getActiveHostId(session)).emit("server:controllerLeft", {
-      controllerId,
-    });
+    emitControllerLeftNotice(io, session, controllerId);
     socket.leave(roomId);
     logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.leaveAccepted, "Controller left room", {
       roomId,

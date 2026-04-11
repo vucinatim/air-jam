@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { normalizeRuntimeUrl } from "../protocol/url-policy";
+import { PREVIEW_WINDOW_HEIGHT, PREVIEW_WINDOW_WIDTH } from "./layout";
 import { createPreviewControllerLaunch } from "./url";
 
 export type PreviewControllerSurfaceState = "loading" | "ready" | "failed";
+
+const DEFAULT_VIEWPORT_WIDTH = 1440;
+const DEFAULT_VIEWPORT_HEIGHT = 900;
+const PREVIEW_WINDOW_MARGIN = 24;
+const PREVIEW_WORKSPACE_LAUNCHER_OFFSET = 88;
+const PREVIEW_WINDOW_CASCADE_OFFSET = 28;
 
 export interface PreviewControllerSession {
   id: string;
@@ -11,7 +19,11 @@ export interface PreviewControllerSession {
   deviceId: string;
   url: string;
   surfaceState: PreviewControllerSurfaceState;
-  expanded: boolean;
+  minimized: boolean;
+  active: boolean;
+  x: number;
+  y: number;
+  zIndex: number;
 }
 
 export interface UsePreviewControllerManagerOptions {
@@ -26,26 +38,108 @@ export interface UsePreviewControllerManagerResult {
   canSpawn: boolean;
   spawnPreviewController: () => PreviewControllerSession | null;
   removePreviewController: (id: string) => void;
-  setPreviewControllerExpanded: (id: string, expanded: boolean) => void;
+  minimizePreviewController: (id: string) => void;
+  restorePreviewController: (id: string) => void;
   focusPreviewController: (id: string) => void;
+  setPreviewControllerPosition: (id: string, x: number, y: number) => void;
   markPreviewControllerReady: (id: string) => void;
   markPreviewControllerFailed: (id: string) => void;
   clearPreviewControllers: () => void;
 }
 
-const moveSessionToFront = (
-  sessions: PreviewControllerSession[],
-  id: string,
-): PreviewControllerSession[] => {
-  const index = sessions.findIndex((session) => session.id === id);
-  if (index < 0 || index === sessions.length - 1) {
-    return sessions;
+const getViewportSize = () => {
+  if (typeof window === "undefined") {
+    return {
+      width: DEFAULT_VIEWPORT_WIDTH,
+      height: DEFAULT_VIEWPORT_HEIGHT,
+    };
   }
 
-  const next = sessions.slice();
-  const [target] = next.splice(index, 1);
-  next.push(target);
-  return next;
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+};
+
+const getJoinRoomIdentity = (joinUrl: string | null | undefined) => {
+  if (!joinUrl) {
+    return null;
+  }
+
+  try {
+    const normalizedJoinUrl = normalizeRuntimeUrl(joinUrl) ?? joinUrl;
+    const roomId = new URL(normalizedJoinUrl).searchParams.get("room");
+    return roomId && roomId.trim().length > 0 ? roomId : normalizedJoinUrl;
+  } catch {
+    return joinUrl;
+  }
+};
+
+const clampPosition = (x: number, y: number) => {
+  const viewport = getViewportSize();
+  const maxX = Math.max(PREVIEW_WINDOW_MARGIN, viewport.width - PREVIEW_WINDOW_WIDTH - PREVIEW_WINDOW_MARGIN);
+  const maxY = Math.max(PREVIEW_WINDOW_MARGIN, viewport.height - PREVIEW_WINDOW_HEIGHT - PREVIEW_WINDOW_MARGIN);
+
+  return {
+    x: Math.min(Math.max(PREVIEW_WINDOW_MARGIN, x), maxX),
+    y: Math.min(Math.max(PREVIEW_WINDOW_MARGIN, y), maxY),
+  };
+};
+
+const getInitialWindowPosition = (
+  sessions: PreviewControllerSession[],
+  ordinal: number,
+) => {
+  const viewport = getViewportSize();
+  const cascadeCount = Math.min(sessions.length, 3);
+  const offset = cascadeCount * PREVIEW_WINDOW_CASCADE_OFFSET;
+  const defaultX =
+    viewport.width -
+    PREVIEW_WINDOW_WIDTH -
+    PREVIEW_WINDOW_MARGIN -
+    offset;
+  const defaultY =
+    viewport.height -
+    PREVIEW_WINDOW_HEIGHT -
+    PREVIEW_WORKSPACE_LAUNCHER_OFFSET -
+    offset;
+
+  const anchored = clampPosition(defaultX, defaultY);
+
+  return {
+    x: anchored.x,
+    y: anchored.y + Math.max(0, ordinal - 1) * 0,
+  };
+};
+
+const getNextTopSessionId = (sessions: PreviewControllerSession[]) =>
+  sessions
+    .filter((session) => !session.minimized)
+    .sort((left, right) => right.zIndex - left.zIndex)[0]?.id ?? null;
+
+const activateSession = (
+  sessions: PreviewControllerSession[],
+  id: string,
+  nextZIndex: number,
+): PreviewControllerSession[] =>
+  sessions.map((session) =>
+    session.id === id
+      ? {
+          ...session,
+          active: true,
+          minimized: false,
+          zIndex: nextZIndex,
+        }
+      : { ...session, active: false },
+  );
+
+const normalizeActiveSession = (sessions: PreviewControllerSession[]) => {
+  const nextActiveId = getNextTopSessionId(sessions);
+
+  return sessions.map((session) => ({
+    ...session,
+    active: nextActiveId !== null && session.id === nextActiveId,
+  }));
 };
 
 export const usePreviewControllerManager = ({
@@ -56,15 +150,27 @@ export const usePreviewControllerManager = ({
 }: UsePreviewControllerManagerOptions): UsePreviewControllerManagerResult => {
   const [sessions, setSessions] = useState<PreviewControllerSession[]>([]);
   const nextOrdinalRef = useRef(1);
-  const previousJoinUrlRef = useRef<string | null>(joinUrl ?? null);
+  const nextZIndexRef = useRef(1);
+  const previousJoinRoomRef = useRef<string | null>(
+    getJoinRoomIdentity(joinUrl),
+  );
 
   useEffect(() => {
-    const normalizedJoinUrl = joinUrl ?? null;
-    const previousJoinUrl = previousJoinUrlRef.current;
-    if (!enabled || previousJoinUrl !== normalizedJoinUrl) {
+    const nextJoinRoom = getJoinRoomIdentity(joinUrl);
+    const previousJoinRoom = previousJoinRoomRef.current;
+
+    if (
+      !enabled ||
+      (previousJoinRoom !== null &&
+        nextJoinRoom !== null &&
+        previousJoinRoom !== nextJoinRoom)
+    ) {
       setSessions([]);
+      nextOrdinalRef.current = 1;
+      nextZIndexRef.current = 1;
     }
-    previousJoinUrlRef.current = normalizedJoinUrl;
+
+    previousJoinRoomRef.current = nextJoinRoom;
   }, [enabled, joinUrl]);
 
   const canSpawn =
@@ -94,6 +200,8 @@ export const usePreviewControllerManager = ({
       }
 
       const ordinal = nextOrdinalRef.current++;
+      const zIndex = nextZIndexRef.current++;
+      const position = getInitialWindowPosition(current, ordinal);
       nextSession = {
         id: launch.controllerId,
         ordinal,
@@ -102,44 +210,73 @@ export const usePreviewControllerManager = ({
         deviceId: launch.deviceId,
         url: launch.url,
         surfaceState: "loading",
-        expanded: current.length === 0,
+        minimized: false,
+        active: true,
+        x: position.x,
+        y: position.y,
+        zIndex,
       };
 
-      return [...current, nextSession];
+      return [
+        ...current.map((session) => ({ ...session, active: false })),
+        nextSession,
+      ];
     });
 
     return nextSession;
   }, [allowedOrigins, enabled, joinUrl, maxControllers]);
 
   const removePreviewController = useCallback((id: string) => {
-    setSessions((current) => current.filter((session) => session.id !== id));
+    setSessions((current) =>
+      normalizeActiveSession(current.filter((session) => session.id !== id)),
+    );
   }, []);
 
   const clearPreviewControllers = useCallback(() => {
     setSessions([]);
+    nextOrdinalRef.current = 1;
+    nextZIndexRef.current = 1;
   }, []);
 
-  const setPreviewControllerExpanded = useCallback(
-    (id: string, expanded: boolean) => {
+  const minimizePreviewController = useCallback((id: string) => {
+    setSessions((current) =>
+      normalizeActiveSession(
+        current.map((session) =>
+          session.id === id
+            ? { ...session, minimized: true, active: false }
+            : session,
+        ),
+      ),
+    );
+  }, []);
+
+  const focusPreviewController = useCallback((id: string) => {
+    const nextZIndex = nextZIndexRef.current++;
+    setSessions((current) => activateSession(current, id, nextZIndex));
+  }, []);
+
+  const restorePreviewController = useCallback((id: string) => {
+    const nextZIndex = nextZIndexRef.current++;
+    setSessions((current) => activateSession(current, id, nextZIndex));
+  }, []);
+
+  const setPreviewControllerPosition = useCallback(
+    (id: string, x: number, y: number) => {
+      const nextPosition = clampPosition(x, y);
       setSessions((current) =>
         current.map((session) =>
-          session.id === id ? { ...session, expanded } : session,
+          session.id === id
+            ? {
+                ...session,
+                x: nextPosition.x,
+                y: nextPosition.y,
+              }
+            : session,
         ),
       );
     },
     [],
   );
-
-  const focusPreviewController = useCallback((id: string) => {
-    setSessions((current) =>
-      moveSessionToFront(
-        current.map((session) =>
-          session.id === id ? { ...session, expanded: true } : session,
-        ),
-        id,
-      ),
-    );
-  }, []);
 
   const markPreviewControllerReady = useCallback((id: string) => {
     setSessions((current) =>
@@ -162,8 +299,10 @@ export const usePreviewControllerManager = ({
     canSpawn,
     spawnPreviewController,
     removePreviewController,
-    setPreviewControllerExpanded,
+    minimizePreviewController,
+    restorePreviewController,
     focusPreviewController,
+    setPreviewControllerPosition,
     markPreviewControllerReady,
     markPreviewControllerFailed,
     clearPreviewControllers,

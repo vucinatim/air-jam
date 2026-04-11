@@ -27,6 +27,8 @@ import {
 import type { AirJamControllerApi } from "@air-jam/sdk";
 import type {
   AirJamStateSyncPayload,
+  ControllerJoinedNotice,
+  ControllerLeftNotice,
   ControllerStateMessage,
   ControllerWelcomePayload,
   HostLeftNotice,
@@ -298,6 +300,7 @@ export function useControllerEmbeddedGameFrame({
           connected: socket?.connected ?? false,
           socketId: socket?.id,
           player,
+          players: session.players,
           state: {
             runtimeState: session.runtimeState,
             orientation: session.controllerOrientation,
@@ -445,6 +448,12 @@ export function useControllerEmbeddedGameFrame({
     const handleWelcome = (payload: ControllerWelcomePayload) => {
       forwardBridgeEvent("server:welcome", payload);
     };
+    const handleControllerJoined = (payload: ControllerJoinedNotice) => {
+      forwardBridgeEvent("server:controllerJoined", payload);
+    };
+    const handleControllerLeft = (payload: ControllerLeftNotice) => {
+      forwardBridgeEvent("server:controllerLeft", payload);
+    };
     const handleState = (payload: ControllerStateMessage) => {
       forwardBridgeEvent("server:state", payload);
     };
@@ -470,6 +479,8 @@ export function useControllerEmbeddedGameFrame({
     controller.socket.on("connect", handleConnect);
     controller.socket.on("disconnect", handleDisconnect);
     controller.socket.on("server:welcome", handleWelcome);
+    controller.socket.on("server:controllerJoined", handleControllerJoined);
+    controller.socket.on("server:controllerLeft", handleControllerLeft);
     controller.socket.on("server:state", handleState);
     controller.socket.on("server:hostLeft", handleHostLeft);
     controller.socket.on("server:error", handleError);
@@ -482,6 +493,8 @@ export function useControllerEmbeddedGameFrame({
       controller.socket?.off("connect", handleConnect);
       controller.socket?.off("disconnect", handleDisconnect);
       controller.socket?.off("server:welcome", handleWelcome);
+      controller.socket?.off("server:controllerJoined", handleControllerJoined);
+      controller.socket?.off("server:controllerLeft", handleControllerLeft);
       controller.socket?.off("server:state", handleState);
       controller.socket?.off("server:hostLeft", handleHostLeft);
       controller.socket?.off("server:error", handleError);

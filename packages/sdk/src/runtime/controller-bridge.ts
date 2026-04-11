@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
 import type {
+  ControllerJoinedNotice,
+  ControllerLeftNotice,
   AirJamStateSyncRequestPayload,
   AirJamStateSyncPayload,
   ControllerActionRpcPayload,
@@ -16,8 +18,8 @@ import type {
   RoomCode,
   ServerErrorPayload,
   SignalPayload,
+  PlayerUpdatedNotice,
 } from "../protocol";
-import type { PlayerUpdatedNotice } from "../protocol/notices";
 import {
   arcadeSurfaceRuntimeIdentitySchema,
   type ArcadeSurfaceRuntimeIdentity,
@@ -51,6 +53,8 @@ export const controllerBridgeServerEvents = [
   "connect",
   "disconnect",
   "server:welcome",
+  "server:controllerJoined",
+  "server:controllerLeft",
   "server:state",
   "server:hostLeft",
   "server:error",
@@ -78,6 +82,8 @@ export type ControllerBridgeServerEventArgs = {
   connect: [];
   disconnect: [reason?: string];
   "server:welcome": [payload: ControllerWelcomePayload];
+  "server:controllerJoined": [payload: ControllerJoinedNotice];
+  "server:controllerLeft": [payload: ControllerLeftNotice];
   "server:state": [payload: ControllerStateMessage];
   "server:hostLeft": [payload: HostLeftNotice];
   "server:error": [payload: ServerErrorPayload];
@@ -93,6 +99,7 @@ export interface ControllerBridgeSnapshot {
   connected: boolean;
   socketId?: string;
   player?: PlayerProfile;
+  players?: PlayerProfile[];
   state?: ControllerStateMessage["state"];
   /** The platform shell's active game surface identity for this embedded controller runtime. */
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;

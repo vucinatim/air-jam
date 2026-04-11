@@ -160,6 +160,97 @@ describe("server room lifecycle", () => {
     expect(rejoinedNotice.controllerId).toBe("ctrl_rejoin_1");
   });
 
+  it("hydrates controller welcome rosters and streams roster deltas to other controllers", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const controllerA = await harness.connectSocket();
+    const welcomeAPromise = harness.waitForEvent<{
+      controllerId: string;
+      players?: Array<{ id: string; label: string }>;
+    }>(controllerA, "server:welcome");
+    const joinAckA = await harness.emitWithAck<ControllerJoinAck>(
+      controllerA,
+      "controller:join",
+      { roomId, controllerId: "ctrl_roster_1", nickname: "Alpha" },
+    );
+
+    expect(joinAckA.ok).toBe(true);
+    expect(await welcomeAPromise).toEqual(
+      expect.objectContaining({
+        controllerId: "ctrl_roster_1",
+        players: [
+          expect.objectContaining({
+            id: "ctrl_roster_1",
+            label: "Alpha",
+          }),
+        ],
+      }),
+    );
+
+    const controllerB = await harness.connectSocket();
+    const controllerAJoinedPromise = harness.waitForEvent<{
+      controllerId: string;
+      player?: { id: string; label: string };
+    }>(controllerA, "server:controllerJoined");
+    const welcomeBPromise = harness.waitForEvent<{
+      controllerId: string;
+      players?: Array<{ id: string; label: string }>;
+    }>(controllerB, "server:welcome");
+    const joinAckB = await harness.emitWithAck<ControllerJoinAck>(
+      controllerB,
+      "controller:join",
+      { roomId, controllerId: "ctrl_roster_2", nickname: "Beta" },
+    );
+
+    expect(joinAckB.ok).toBe(true);
+    expect(await controllerAJoinedPromise).toEqual(
+      expect.objectContaining({
+        controllerId: "ctrl_roster_2",
+        player: expect.objectContaining({
+          id: "ctrl_roster_2",
+          label: "Beta",
+        }),
+      }),
+    );
+    expect(await welcomeBPromise).toEqual(
+      expect.objectContaining({
+        controllerId: "ctrl_roster_2",
+        players: expect.arrayContaining([
+          expect.objectContaining({
+            id: "ctrl_roster_1",
+            label: "Alpha",
+          }),
+          expect.objectContaining({
+            id: "ctrl_roster_2",
+            label: "Beta",
+          }),
+        ]),
+      }),
+    );
+
+    const controllerBLeftPromise = harness.waitForEvent<{ controllerId: string }>(
+      controllerB,
+      "server:controllerLeft",
+    );
+    controllerA.emit("controller:leave", {
+      roomId,
+      controllerId: "ctrl_roster_1",
+    });
+
+    expect(await controllerBLeftPromise).toEqual({
+      controllerId: "ctrl_roster_1",
+    });
+  });
+
   it("resumes the same controller binding after disconnect when the device id matches", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);

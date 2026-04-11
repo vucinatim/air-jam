@@ -5,7 +5,7 @@ import {
   useHostRuntimeStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
 import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import type { Dispatch, JSX, SetStateAction } from "react";
@@ -467,7 +467,7 @@ const HostViewContent = ({
             />
           </>
         )}
-        <HostPreviewControllerDock enabled={previewControllersEnabled} />
+        <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
       </div>
     </div>
   );

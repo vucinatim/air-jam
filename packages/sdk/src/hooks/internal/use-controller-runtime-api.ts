@@ -24,7 +24,12 @@ import {
   playerProfilePatchSchema,
   roomCodeSchema,
 } from "../../protocol";
-import type { PlayerUpdatedNotice } from "../../protocol/notices";
+import type {
+  ControllerJoinedNotice,
+  ControllerLeftNotice,
+  ControllerWelcomePayload,
+  PlayerUpdatedNotice,
+} from "../../protocol/notices";
 import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
 import {
   clearControllerRoomBinding,
@@ -446,11 +451,7 @@ export const useControllerRuntimeApi = (
       });
     };
 
-    const handleWelcome = (payload: {
-      controllerId: string;
-      roomId: RoomCode;
-      player?: PlayerProfile;
-    }): void => {
+    const handleWelcome = (payload: ControllerWelcomePayload): void => {
       const latestState = store.getState();
       const storeRoomId = latestState.roomId;
       if (
@@ -463,6 +464,12 @@ export const useControllerRuntimeApi = (
         latestState.setRoomId(payload.roomId);
       }
       writeControllerRoomBinding(payload.roomId, payload.controllerId);
+      if (Array.isArray(payload.players)) {
+        latestState.resetPlayers();
+        payload.players.forEach((player) => {
+          latestState.upsertPlayer(player);
+        });
+      }
       if (!payload.player) {
         latestState.setError(
           "Welcome message received but no player profile included.",
@@ -470,6 +477,17 @@ export const useControllerRuntimeApi = (
         return;
       }
       latestState.upsertPlayer(payload.player);
+    };
+
+    const handleControllerJoined = (payload: ControllerJoinedNotice): void => {
+      if (!payload.player) {
+        return;
+      }
+      store.getState().upsertPlayer(payload.player);
+    };
+
+    const handleControllerLeft = (payload: ControllerLeftNotice): void => {
+      store.getState().removePlayer(payload.controllerId);
     };
 
     const handleState = (payload: ControllerStateMessage): void => {
@@ -601,6 +619,8 @@ export const useControllerRuntimeApi = (
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
     socket.on("server:welcome", handleWelcome);
+    socket.on("server:controllerJoined", handleControllerJoined);
+    socket.on("server:controllerLeft", handleControllerLeft);
     socket.on("server:state", handleState);
     socket.on("server:hostLeft", handleHostLeft);
     socket.on("server:error", handleError);
@@ -617,6 +637,8 @@ export const useControllerRuntimeApi = (
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectError);
       socket.off("server:welcome", handleWelcome);
+      socket.off("server:controllerJoined", handleControllerJoined);
+      socket.off("server:controllerLeft", handleControllerLeft);
       socket.off("server:state", handleState);
       socket.off("server:hostLeft", handleHostLeft);
       socket.off("server:error", handleError);

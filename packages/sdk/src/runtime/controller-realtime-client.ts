@@ -284,6 +284,7 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
           controllerId: snapshot.controllerId,
           roomId: snapshot.roomId,
           player: snapshot.player,
+          players: snapshot.players,
         });
       }
 

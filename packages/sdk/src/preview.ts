@@ -22,15 +22,15 @@ export {
   type UsePreviewControllerManagerResult,
 } from "./preview/manager";
 export {
-  PreviewControllerSurface,
-  previewControllerSurfaceStateLabel,
-  type PreviewControllerSurfaceProps,
-} from "./preview/surface";
+  PreviewControllerWindow,
+  previewControllerWindowStateLabel,
+  type PreviewControllerWindowProps,
+} from "./preview/window";
 export {
-  PreviewControllerDock,
-  type PreviewControllerDockProps,
-} from "./preview/dock";
+  PreviewControllerWorkspace,
+  type PreviewControllerWorkspaceProps,
+} from "./preview/workspace";
 export {
-  HostPreviewControllerDock,
-  type HostPreviewControllerDockProps,
-} from "./preview/host-dock";
+  HostPreviewControllerWorkspace,
+  type HostPreviewControllerWorkspaceProps,
+} from "./preview/host-workspace";

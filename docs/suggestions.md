@@ -22,6 +22,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 16. Migrate workspace/repo command env parsing to `@air-jam/env` so runtime contract validation stays consistent beyond server/platform/create-airjam boundaries.
 17. Extend the current visual-harness prebuild cache beyond `@air-jam/sdk` so repeated capture runs can also skip other unchanged package/game rebuild work, or optionally reuse a warmed stack for multi-scenario passes without reopening the architecture seams we just cleaned up.
 18. Revisit repeated host-side derived-state clusters only if they keep spreading across games, but solve them with tiny game-domain helpers or hooks rather than another config layer so host screens stay readable without hiding runtime ownership behind indirection.
+19. Consider optional session-local preview workspace persistence for window positions and minimize state only if repeated real usage shows the current fresh-each-reload behavior slows local testing; keep it strictly host-local and do not let it leak into replicated game/runtime state.
 
 ## Framework Boundary Follow-Ups
 

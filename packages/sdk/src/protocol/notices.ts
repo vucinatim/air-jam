@@ -6,6 +6,7 @@ export interface ControllerWelcomePayload {
   roomId: RoomCode;
   resumed?: boolean;
   player?: PlayerProfile;
+  players?: PlayerProfile[];
 }
 
 export interface ControllerJoinedNotice {

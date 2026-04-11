@@ -1,5 +1,5 @@
 import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
-import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
   JoinUrlControls,
@@ -1779,7 +1779,7 @@ export function HostView() {
           </div>
         </div>
       ) : null}
-      <HostPreviewControllerDock enabled={previewControllersEnabled} />
+      <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
     </div>
   );
 }

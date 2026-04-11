@@ -234,7 +234,7 @@ state should live in the networked stores and replicate automatically.
 The preview-controller feature lives under the explicit experimental leaf:
 
 ```ts
-import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 ```
 
 Use it when you want a fast local desktop tryout path without replacing the
@@ -250,7 +250,7 @@ Important rules:
 Recommended host usage:
 
 ```tsx
-import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 
 export const HostView = () => {
   const previewControllersEnabled = import.meta.env.DEV;
@@ -258,7 +258,7 @@ export const HostView = () => {
   return (
     <>
       <GameCanvas />
-      <HostPreviewControllerDock enabled={previewControllersEnabled} />
+      <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
     </>
   );
 };
@@ -266,8 +266,8 @@ export const HostView = () => {
 
 The shared preview leaf currently provides:
 
-1. `HostPreviewControllerDock` for normal host-surface mounting
-2. `PreviewControllerDock` and `PreviewControllerSurface` for lower-level composition
+1. `HostPreviewControllerWorkspace` for normal host-surface mounting
+2. `PreviewControllerWorkspace` and `PreviewControllerWindow` for lower-level composition
 3. `usePreviewControllerManager` for host-local preview session state
 4. `buildPreviewControllerUrl` and related launch helpers for explicit launch control
 

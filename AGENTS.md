@@ -81,6 +81,15 @@ Preferred order:
 
 Treat `.airjam/logs/dev-latest.ndjson` as the canonical local debugging stream for server, browser/runtime, platform/Arcade, and workspace-process stories.
 
+## Chrome MCP Rule
+
+When using Chrome DevTools MCP in this repository, always use the
+`chrome-devtools-airjam` server.
+
+Do not use any shared or other-project Chrome MCP server for this repo.
+If the named server is unavailable, say so explicitly instead of silently
+falling back to another Chrome DevTools server.
+
 ## Documentation Discipline
 
 1. Keep long-term product direction in `docs/vision.md`.

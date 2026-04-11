@@ -49,7 +49,7 @@ Canonical release sequence:
 
 Active prerelease implementation plans:
 
-1. none
+1. [Controller Preview Workspace Plan](./plans/controller-preview-workspace-plan.md)
 
 Final release-proof plan:
 

@@ -4,9 +4,10 @@ import {
   useAudio,
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
-import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
 import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
+import type { JSX } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getMatchReadiness } from "../game/domain/match-readiness";
 import { getTeamCounts } from "../game/domain/team-slots";
@@ -204,100 +205,80 @@ function HostScreen() {
     teamAssignments,
   ]);
 
-  if (matchPhase === "lobby") {
-    return (
-      <>
-        <div className="fixed top-4 right-4 z-60">
-          <HostMuteButton
-            muted={audioMuted}
-            onToggle={() => setAudioMuted((previous) => !previous)}
-          />
-        </div>
-        <LobbyScreen
-          joinQrValue={hostLobbyShell.joinUrlValue}
-          copiedJoinUrl={hostLobbyShell.copied}
-          onCopyJoinUrl={hostLobbyShell.handleCopy}
-          onOpenJoinUrl={hostLobbyShell.handleOpen}
-          roomId={host.roomId}
-          botCounts={botCounts}
-          pointsToWin={pointsToWin}
-          connectedPlayers={host.players}
-          team1Players={team1Players}
-          team2Players={team2Players}
-          canStartMatch={canStartMatch}
-          onStartMatch={hostLobbyShell.handleStart}
-        />
-        <HostPreviewControllerDock
-          enabled={previewControllersEnabled}
-          className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
-        />
-      </>
-    );
-  }
+  let content: JSX.Element;
 
-  if (matchPhase === "ended") {
-    return (
-      <>
-        <div className="fixed top-4 right-4 z-60">
-          <HostMuteButton
-            muted={audioMuted}
-            onToggle={() => setAudioMuted((previous) => !previous)}
+  if (matchPhase === "lobby") {
+    content = (
+      <LobbyScreen
+        joinQrValue={hostLobbyShell.joinUrlValue}
+        copiedJoinUrl={hostLobbyShell.copied}
+        onCopyJoinUrl={hostLobbyShell.handleCopy}
+        onOpenJoinUrl={hostLobbyShell.handleOpen}
+        roomId={host.roomId}
+        botCounts={botCounts}
+        pointsToWin={pointsToWin}
+        connectedPlayers={host.players}
+        team1Players={team1Players}
+        team2Players={team2Players}
+        canStartMatch={canStartMatch}
+        onStartMatch={hostLobbyShell.handleStart}
+      />
+    );
+  } else if (matchPhase === "ended") {
+    content = (
+      <EndedScreen
+        roomId={host.roomId}
+        matchSummary={matchSummary}
+        team1Players={team1Players}
+        team2Players={team2Players}
+        botCounts={botCounts}
+      />
+    );
+  } else {
+    content = (
+      <div className="pong-app-shell h-screen w-screen text-white">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 sm:px-6">
+          <ScoreStrip
+            team1Players={team1Players}
+            team2Players={team2Players}
+            botCounts={botCounts}
+            pointsToWin={pointsToWin}
+            scores={scores}
           />
         </div>
-        <EndedScreen
-          roomId={host.roomId}
-          matchSummary={matchSummary}
-          team1Players={team1Players}
-          team2Players={team2Players}
-          botCounts={botCounts}
-        />
-        <HostPreviewControllerDock
-          enabled={previewControllersEnabled}
-          className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
-        />
-      </>
+
+        <div className="absolute inset-0 flex items-center justify-center px-4 pt-28 pb-6 sm:px-6 sm:pt-32 sm:pb-8">
+          <div className="pong-stage-frame flex max-h-full max-w-full items-center justify-center">
+            <canvas
+              ref={canvasRef}
+              className="block max-h-[calc(100vh-12rem)] max-w-[calc(100vw-3rem)] rounded-[22px] border border-white/16 bg-black"
+            />
+          </div>
+        </div>
+
+        {showPausedOverlay ? (
+          <MatchOverlay
+            joinQrValue={hostLobbyShell.joinUrlValue}
+            roomId={host.roomId}
+          />
+        ) : null}
+      </div>
     );
   }
 
   return (
-    <div className="pong-app-shell h-screen w-screen text-white">
+    <>
       <div className="fixed top-4 right-4 z-60">
         <HostMuteButton
           muted={audioMuted}
           onToggle={() => setAudioMuted((previous) => !previous)}
         />
       </div>
-
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 sm:px-6">
-        <ScoreStrip
-          team1Players={team1Players}
-          team2Players={team2Players}
-          botCounts={botCounts}
-          pointsToWin={pointsToWin}
-          scores={scores}
-        />
-      </div>
-
-      <div className="absolute inset-0 flex items-center justify-center px-4 pt-28 pb-6 sm:px-6 sm:pt-32 sm:pb-8">
-        <div className="pong-stage-frame flex max-h-full max-w-full items-center justify-center">
-          <canvas
-            ref={canvasRef}
-            className="block max-h-[calc(100vh-12rem)] max-w-[calc(100vw-3rem)] rounded-[22px] border border-white/16 bg-black"
-          />
-        </div>
-      </div>
-
-      {showPausedOverlay ? (
-        <MatchOverlay
-          joinQrValue={hostLobbyShell.joinUrlValue}
-          roomId={host.roomId}
-        />
-      ) : null}
-
-      <HostPreviewControllerDock
+      {content}
+      <HostPreviewControllerWorkspace
         enabled={previewControllersEnabled}
         className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
       />
-    </div>
+    </>
   );
 }

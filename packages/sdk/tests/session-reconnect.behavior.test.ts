@@ -213,6 +213,102 @@ describe("session reconnect behavior", () => {
     expect(result.current.runtimeState).toBe("paused");
   });
 
+  it("hydrates controller players from the welcome roster", async () => {
+    const { result } = renderHook(() => useAirJamController(), {
+      wrapper: createControllerWrapper({
+        roomId: "ROOM1",
+        controllerId: "ctrl_1",
+      }),
+    });
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    const welcomeHandler = mocked.controllerSocket.on.mock.calls.find(
+      ([event]: [string]) => event === "server:welcome",
+    )?.[1] as
+      | ((
+          payload: {
+            controllerId: string;
+            roomId: string;
+            player?: { id: string; label: string };
+            players?: Array<{ id: string; label: string }>;
+          },
+        ) => void)
+      | undefined;
+    expect(welcomeHandler).toBeDefined();
+
+    act(() => {
+      welcomeHandler?.({
+        controllerId: "ctrl_1",
+        roomId: "ROOM1",
+        player: { id: "ctrl_1", label: "Alpha" },
+        players: [
+          { id: "ctrl_1", label: "Alpha" },
+          { id: "ctrl_2", label: "Beta" },
+        ],
+      });
+    });
+
+    expect(result.current.players).toEqual([
+      { id: "ctrl_1", label: "Alpha" },
+      { id: "ctrl_2", label: "Beta" },
+    ]);
+  });
+
+  it("applies controller roster join and leave notices after welcome", async () => {
+    const { result } = renderHook(() => useAirJamController(), {
+      wrapper: createControllerWrapper({
+        roomId: "ROOM1",
+        controllerId: "ctrl_1",
+      }),
+    });
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toBe("connected");
+    });
+
+    const joinedHandler = mocked.controllerSocket.on.mock.calls.find(
+      ([event]: [string]) => event === "server:controllerJoined",
+    )?.[1] as
+      | ((payload: {
+          controllerId: string;
+          player?: { id: string; label: string };
+        }) => void)
+      | undefined;
+    const leftHandler = mocked.controllerSocket.on.mock.calls.find(
+      ([event]: [string]) => event === "server:controllerLeft",
+    )?.[1] as
+      | ((payload: { controllerId: string }) => void)
+      | undefined;
+    expect(joinedHandler).toBeDefined();
+    expect(leftHandler).toBeDefined();
+
+    act(() => {
+      joinedHandler?.({
+        controllerId: "ctrl_2",
+        player: { id: "ctrl_2", label: "Beta" },
+      });
+    });
+
+    expect(result.current.players).toContainEqual({
+      id: "ctrl_2",
+      label: "Beta",
+    });
+
+    act(() => {
+      leftHandler?.({
+        controllerId: "ctrl_2",
+      });
+    });
+
+    expect(result.current.players).not.toContainEqual({
+      id: "ctrl_2",
+      label: "Beta",
+    });
+  });
+
   it("recovers host status when the cached socket is already connected", async () => {
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
