@@ -31,17 +31,14 @@ export const ControllerPlayerNameField = ({
   const [local, setLocal] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setLocal(controller.selfPlayer?.label?.trim() ?? "");
-  }, [controller.controllerId]);
+  const nextPlayerLabel = controller.selfPlayer?.label?.trim() ?? "";
 
   useEffect(() => {
     if (inputRef.current === document.activeElement) {
       return;
     }
-    setLocal(controller.selfPlayer?.label?.trim() ?? "");
-  }, [controller.selfPlayer?.label]);
+    setLocal(nextPlayerLabel);
+  }, [controller.controllerId, nextPlayerLabel]);
 
   useEffect(
     () => () => {
@@ -108,7 +105,7 @@ export const ControllerPlayerNameField = ({
           }
           const trimmed = local.trim();
           if (trimmed.length < 1) {
-            setLocal(controller.selfPlayer?.label?.trim() ?? "");
+            setLocal(nextPlayerLabel);
             return;
           }
           pushRoomName(local);

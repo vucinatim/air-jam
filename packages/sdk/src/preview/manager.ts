@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
-import { PREVIEW_WINDOW_HEIGHT, PREVIEW_WINDOW_WIDTH } from "./layout";
+import {
+  PREVIEW_WINDOW_HEIGHT,
+  PREVIEW_WINDOW_MAX_HEIGHT,
+  PREVIEW_WINDOW_MAX_WIDTH,
+  PREVIEW_WINDOW_MIN_HEIGHT,
+  PREVIEW_WINDOW_MIN_WIDTH,
+  PREVIEW_WINDOW_WIDTH,
+  type PreviewControllerBounds,
+} from "./layout";
 import { createPreviewControllerLaunch } from "./url";
 
 export type PreviewControllerSurfaceState = "loading" | "ready" | "failed";
@@ -23,6 +31,8 @@ export interface PreviewControllerSession {
   active: boolean;
   x: number;
   y: number;
+  width: number;
+  height: number;
   zIndex: number;
 }
 
@@ -42,9 +52,19 @@ export interface UsePreviewControllerManagerResult {
   restorePreviewController: (id: string) => void;
   focusPreviewController: (id: string) => void;
   setPreviewControllerPosition: (id: string, x: number, y: number) => void;
+  setPreviewControllerBounds: (
+    id: string,
+    bounds: PreviewControllerBounds,
+    options?: PreviewControllerBoundsClampOptions,
+  ) => void;
   markPreviewControllerReady: (id: string) => void;
   markPreviewControllerFailed: (id: string) => void;
   clearPreviewControllers: () => void;
+}
+
+export interface PreviewControllerBoundsClampOptions {
+  preserveRight?: boolean;
+  preserveBottom?: boolean;
 }
 
 const getViewportSize = () => {
@@ -75,14 +95,81 @@ const getJoinRoomIdentity = (joinUrl: string | null | undefined) => {
   }
 };
 
-const clampPosition = (x: number, y: number) => {
+const clampSize = (width: number, height: number) => {
   const viewport = getViewportSize();
-  const maxX = Math.max(PREVIEW_WINDOW_MARGIN, viewport.width - PREVIEW_WINDOW_WIDTH - PREVIEW_WINDOW_MARGIN);
-  const maxY = Math.max(PREVIEW_WINDOW_MARGIN, viewport.height - PREVIEW_WINDOW_HEIGHT - PREVIEW_WINDOW_MARGIN);
+  const maxWidth = Math.max(
+    PREVIEW_WINDOW_MIN_WIDTH,
+    Math.min(PREVIEW_WINDOW_MAX_WIDTH, viewport.width - PREVIEW_WINDOW_MARGIN * 2),
+  );
+  const maxHeight = Math.max(
+    PREVIEW_WINDOW_MIN_HEIGHT,
+    Math.min(
+      PREVIEW_WINDOW_MAX_HEIGHT,
+      viewport.height - PREVIEW_WINDOW_MARGIN * 2,
+    ),
+  );
+
+  return {
+    width: Math.min(Math.max(PREVIEW_WINDOW_MIN_WIDTH, width), maxWidth),
+    height: Math.min(Math.max(PREVIEW_WINDOW_MIN_HEIGHT, height), maxHeight),
+  };
+};
+
+const clampPosition = (
+  x: number,
+  y: number,
+  width = PREVIEW_WINDOW_WIDTH,
+  height = PREVIEW_WINDOW_HEIGHT,
+) => {
+  const viewport = getViewportSize();
+  const nextSize = clampSize(width, height);
+  const maxX = Math.max(
+    PREVIEW_WINDOW_MARGIN,
+    viewport.width - nextSize.width - PREVIEW_WINDOW_MARGIN,
+  );
+  const maxY = Math.max(
+    PREVIEW_WINDOW_MARGIN,
+    viewport.height - nextSize.height - PREVIEW_WINDOW_MARGIN,
+  );
 
   return {
     x: Math.min(Math.max(PREVIEW_WINDOW_MARGIN, x), maxX),
     y: Math.min(Math.max(PREVIEW_WINDOW_MARGIN, y), maxY),
+  };
+};
+
+const clampBounds = (
+  bounds: PreviewControllerBounds,
+  options: PreviewControllerBoundsClampOptions = {},
+): PreviewControllerBounds => {
+  const viewport = getViewportSize();
+  const maxWidth = Math.max(
+    PREVIEW_WINDOW_MIN_WIDTH,
+    Math.min(PREVIEW_WINDOW_MAX_WIDTH, viewport.width - PREVIEW_WINDOW_MARGIN * 2),
+  );
+  const maxHeight = Math.max(
+    PREVIEW_WINDOW_MIN_HEIGHT,
+    Math.min(
+      PREVIEW_WINDOW_MAX_HEIGHT,
+      viewport.height - PREVIEW_WINDOW_MARGIN * 2,
+    ),
+  );
+
+  const right = bounds.x + bounds.width;
+  const bottom = bounds.y + bounds.height;
+
+  const width = Math.min(Math.max(PREVIEW_WINDOW_MIN_WIDTH, bounds.width), maxWidth);
+  const height = Math.min(Math.max(PREVIEW_WINDOW_MIN_HEIGHT, bounds.height), maxHeight);
+
+  const x = options.preserveRight ? right - width : bounds.x;
+  const y = options.preserveBottom ? bottom - height : bounds.y;
+
+  const position = clampPosition(x, y, width, height);
+  return {
+    x: position.x,
+    y: position.y,
+    width,
+    height,
   };
 };
 
@@ -104,7 +191,12 @@ const getInitialWindowPosition = (
     PREVIEW_WORKSPACE_LAUNCHER_OFFSET -
     offset;
 
-  const anchored = clampPosition(defaultX, defaultY);
+  const anchored = clampPosition(
+    defaultX,
+    defaultY,
+    PREVIEW_WINDOW_WIDTH,
+    PREVIEW_WINDOW_HEIGHT,
+  );
 
   return {
     x: anchored.x,
@@ -214,6 +306,8 @@ export const usePreviewControllerManager = ({
         active: true,
         x: position.x,
         y: position.y,
+        width: PREVIEW_WINDOW_WIDTH,
+        height: PREVIEW_WINDOW_HEIGHT,
         zIndex,
       };
 
@@ -262,17 +356,46 @@ export const usePreviewControllerManager = ({
 
   const setPreviewControllerPosition = useCallback(
     (id: string, x: number, y: number) => {
-      const nextPosition = clampPosition(x, y);
       setSessions((current) =>
-        current.map((session) =>
-          session.id === id
-            ? {
-                ...session,
-                x: nextPosition.x,
-                y: nextPosition.y,
-              }
-            : session,
-        ),
+        current.map((session) => {
+          if (session.id !== id) {
+            return session;
+          }
+
+          const nextPosition = clampPosition(x, y, session.width, session.height);
+          return {
+            ...session,
+            x: nextPosition.x,
+            y: nextPosition.y,
+          };
+        }),
+      );
+    },
+    [],
+  );
+
+  const setPreviewControllerBounds = useCallback(
+    (
+      id: string,
+      bounds: PreviewControllerBounds,
+      options: PreviewControllerBoundsClampOptions = {},
+    ) => {
+      setSessions((current) =>
+        current.map((session) => {
+          if (session.id !== id) {
+            return session;
+          }
+
+          const nextBounds = clampBounds(bounds, options);
+
+          return {
+            ...session,
+            width: nextBounds.width,
+            height: nextBounds.height,
+            x: nextBounds.x,
+            y: nextBounds.y,
+          };
+        }),
       );
     },
     [],
@@ -303,6 +426,7 @@ export const usePreviewControllerManager = ({
     restorePreviewController,
     focusPreviewController,
     setPreviewControllerPosition,
+    setPreviewControllerBounds,
     markPreviewControllerReady,
     markPreviewControllerFailed,
     clearPreviewControllers,

@@ -58,7 +58,7 @@ export const LobbyPanel = ({
             return (
               <div
                 key={team}
-                className="pong-panel rounded-[24px] px-4 py-3 text-center"
+                className="pong-panel rounded-2xl px-4 py-3 text-center"
                 data-testid={`pong-controller-team-card-${team}`}
               >
                 <TeamName team={team} />
@@ -66,7 +66,7 @@ export const LobbyPanel = ({
                   <button
                     type="button"
                     data-testid={`pong-controller-join-team-${team}`}
-                    className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
+                    className={`rounded-xl border px-3 py-3 text-[0.6875rem] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
                     style={{
                       background: joined
                         ? `linear-gradient(180deg, ${getTeamColor(team)}, color-mix(in srgb, ${getTeamColor(team)} 70%, black))`
@@ -84,7 +84,7 @@ export const LobbyPanel = ({
                   <button
                     type="button"
                     data-testid={`pong-controller-add-bot-${team}`}
-                    className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] uppercase ${
+                    className={`rounded-xl border px-3 py-3 text-[0.6875rem] font-black tracking-[0.16em] uppercase ${
                       teamIsFull
                         ? "border-white/10 bg-white/4 text-zinc-500"
                         : "border-cyan-400/40 bg-cyan-400/12 text-cyan-100"
@@ -120,7 +120,7 @@ export const LobbyPanel = ({
           })}
         </div>
 
-        <div className="pong-panel rounded-[24px] px-4 py-3">
+        <div className="pong-panel rounded-2xl px-4 py-3">
           <div className="grid grid-cols-4 gap-2">
             {POINTS_TO_WIN_OPTIONS.map((value) => {
               const selected = pointsToWin === value;

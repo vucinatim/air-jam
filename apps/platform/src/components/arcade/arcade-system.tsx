@@ -30,7 +30,6 @@ import {
 } from "@air-jam/sdk/arcade/surface";
 import { useHostArcadeRestore } from "@air-jam/sdk/arcade/host";
 import {
-  buildArcadeControllerRuntimeUrl,
   normalizeRuntimeUrl,
 } from "@air-jam/sdk/arcade/url";
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";

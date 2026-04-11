@@ -41,14 +41,6 @@ import { useRef, useState } from "react";
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-const formatDateTime = (value?: Date | string | null): string => {
-  if (!value) return "Not yet";
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-};
-
 const formatDateShort = (value?: Date | string | null): string => {
   if (!value) return "";
   return new Intl.DateTimeFormat(undefined, {

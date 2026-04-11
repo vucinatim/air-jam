@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import type { ForcedOrientation } from "./forced-orientation-shell";
+
+export type SurfaceOrientation = "portrait" | "landscape";
 
 export const AIRJAM_SAFE_AREA_TOP = "env(safe-area-inset-top, 0px)";
 export const AIRJAM_SAFE_AREA_RIGHT = "env(safe-area-inset-right, 0px)";
@@ -8,17 +9,18 @@ export const AIRJAM_SAFE_AREA_LEFT = "env(safe-area-inset-left, 0px)";
 export const AIRJAM_SAFE_VIEWPORT_WIDTH = `calc(100dvw - ${AIRJAM_SAFE_AREA_LEFT} - ${AIRJAM_SAFE_AREA_RIGHT})`;
 export const AIRJAM_SAFE_VIEWPORT_HEIGHT = `calc(100dvh - ${AIRJAM_SAFE_AREA_TOP} - ${AIRJAM_SAFE_AREA_BOTTOM})`;
 
-export const createForcedOrientationShellOuterStyle = (): CSSProperties => ({
-  ["--airjam-safe-area-top" as const]: AIRJAM_SAFE_AREA_TOP,
-  ["--airjam-safe-area-right" as const]: AIRJAM_SAFE_AREA_RIGHT,
-  ["--airjam-safe-area-bottom" as const]: AIRJAM_SAFE_AREA_BOTTOM,
-  ["--airjam-safe-area-left" as const]: AIRJAM_SAFE_AREA_LEFT,
-  ["--airjam-safe-viewport-width" as const]: AIRJAM_SAFE_VIEWPORT_WIDTH,
-  ["--airjam-safe-viewport-height" as const]: AIRJAM_SAFE_VIEWPORT_HEIGHT,
-} as CSSProperties);
+export const createSurfaceViewportOuterStyle = (): CSSProperties =>
+  ({
+    ["--airjam-safe-area-top" as const]: AIRJAM_SAFE_AREA_TOP,
+    ["--airjam-safe-area-right" as const]: AIRJAM_SAFE_AREA_RIGHT,
+    ["--airjam-safe-area-bottom" as const]: AIRJAM_SAFE_AREA_BOTTOM,
+    ["--airjam-safe-area-left" as const]: AIRJAM_SAFE_AREA_LEFT,
+    ["--airjam-safe-viewport-width" as const]: AIRJAM_SAFE_VIEWPORT_WIDTH,
+    ["--airjam-safe-viewport-height" as const]: AIRJAM_SAFE_VIEWPORT_HEIGHT,
+  }) as CSSProperties;
 
 export const resolveForcedOrientationFrameStyle = (
-  desired: ForcedOrientation,
+  desired: SurfaceOrientation,
   needsRotation: boolean,
 ): CSSProperties => {
   if (!needsRotation) {

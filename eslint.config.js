@@ -7,7 +7,27 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["dist", "node_modules", "**/*.json", "**/*.css"]),
+  globalIgnores([
+    "dist",
+    "**/dist/**",
+    "node_modules",
+    ".next",
+    ".next/**",
+    "**/.next/**",
+    ".next-smoke",
+    ".next-smoke/**",
+    "**/.next-smoke/**",
+    "out",
+    "out/**",
+    "**/out/**",
+    "build",
+    "build/**",
+    "**/build/**",
+    "apps/platform/**",
+    "packages/create-airjam/scaffold-sources/**",
+    "**/*.json",
+    "**/*.css",
+  ]),
   {
     files: [
       "packages/server/**/*.{ts,tsx}",
@@ -73,6 +93,13 @@ export default defineConfig([
           ignoreRestSiblings: true,
         },
       ],
+    },
+  },
+  {
+    files: ["packages/sdk/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+      "react-hooks/set-state-in-effect": "off",
     },
   },
   {

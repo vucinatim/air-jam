@@ -51,6 +51,13 @@ In the normal local loop:
 3. a real controller client opens in the host-local preview workspace
 4. you can still join the same room from a phone or another browser tab
 
+The preview workspace supports:
+
+1. multiple floating controller windows
+2. drag by the title bar
+3. resize from any window edge or corner
+4. minimize and close controls
+
 ## Production Rule
 
 Do not mount preview controllers in production by accident.

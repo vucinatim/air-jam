@@ -4,6 +4,7 @@ import path from "node:path";
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
+import type { HostBootstrapAuthService } from "../src/services/auth-service";
 import { io, type Socket } from "socket.io-client";
 
 describe("dev disconnect lifecycle logs", () => {
@@ -19,15 +20,16 @@ describe("dev disconnect lifecycle logs", () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "air-jam-disconnect-logs-"));
     previousChildTeardownMs = process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
     process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = "25";
+    const authService: HostBootstrapAuthService = {
+      verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+        isVerified: true,
+        appId,
+        verifiedVia: "appId" as const,
+      }),
+    };
     runtime = createAirJamServer({
       devLogDir: tempDir,
-      authService: {
-        verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
-          isVerified: true,
-          appId,
-          verifiedVia: "appId" as const,
-        }),
-      } as any,
+      authService,
     });
     const port = await runtime.start(0);
     baseUrl = `http://127.0.0.1:${port}`;

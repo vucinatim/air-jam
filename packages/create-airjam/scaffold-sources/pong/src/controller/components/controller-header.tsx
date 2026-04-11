@@ -57,25 +57,25 @@ export const ControllerHeader = ({
     <RuntimeShellHeader
       connectionStatus={connectionStatus}
       leftSlot={
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-3">
           {myProfile ? (
             <PlayerAvatar
               player={myProfile}
               size="sm"
-              className="h-9 w-9 border-2 ring-2 ring-white/12"
+              className="h-11 w-11 border-2 ring-2 ring-white/12"
             />
           ) : (
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-zinc-800/90 text-[10px] font-bold text-zinc-300">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-zinc-800/90 text-[0.6875rem] font-bold text-zinc-300">
               {shellStatus.identityInitial}
             </span>
           )}
           <div className="min-w-0 space-y-0.5">
             {shellStatus.hasIdentity ? (
-              <div className="truncate text-[15px] leading-tight font-semibold normal-case text-zinc-100">
+              <div className="truncate text-sm leading-tight font-semibold normal-case text-zinc-100 sm:text-[0.9375rem]">
                 {shellStatus.displayName}
               </div>
             ) : null}
-            <div className="text-[11px] leading-tight font-semibold tracking-[0.2em] text-zinc-300 tabular-nums sm:text-[12px]">
+            <div className="text-[0.625rem] leading-tight font-semibold tracking-[0.18em] text-zinc-300 tabular-nums sm:text-[0.6875rem]">
               {shellStatus.roomLine}
             </div>
           </div>
@@ -93,7 +93,7 @@ export const ControllerHeader = ({
             onRestart={lifecycleIntents.onRestart}
             restartLabel="Play Again"
             className="gap-1.5"
-            buttonClassName="h-7 px-2.5 text-[8px] tracking-[0.1em] sm:h-8 sm:px-3 sm:text-[9px] sm:tracking-[0.12em]"
+            buttonClassName="h-7 px-2.5 text-[0.625rem] tracking-[0.1em] sm:h-8 sm:px-3 sm:text-[0.6875rem] sm:tracking-[0.12em]"
           />
         )
       }

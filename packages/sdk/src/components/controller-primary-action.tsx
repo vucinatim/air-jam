@@ -30,16 +30,16 @@ export const ControllerPrimaryAction = ({
         aria-label={label}
         title={label}
         className={cn(
-          "flex h-auto min-h-18 w-full items-center justify-between rounded-3xl border border-white/15 px-5 py-4 text-left shadow-lg",
+          "flex h-auto min-h-18 w-full items-center justify-between rounded-[1.5rem] border border-white/15 px-5 py-4 text-left shadow-lg",
           buttonClassName,
         )}
       >
         <div className="min-w-0">
-          <div className="truncate text-lg font-black uppercase tracking-[0.12em]">
+          <div className="truncate text-base font-black uppercase tracking-[0.12em] sm:text-lg">
             {label}
           </div>
           {helper ? (
-            <div className="mt-1 text-xs font-medium normal-case tracking-normal opacity-80">
+            <div className="mt-1 text-sm/5 font-medium normal-case tracking-normal opacity-80">
               {helper}
             </div>
           ) : null}

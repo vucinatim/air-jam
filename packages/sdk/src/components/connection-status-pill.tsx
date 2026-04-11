@@ -37,7 +37,7 @@ export const ConnectionStatusPill = ({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold tracking-[0.16em] uppercase",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.625rem] font-semibold tracking-[0.16em] uppercase",
         statusToneByConnection[status],
         className,
       )}

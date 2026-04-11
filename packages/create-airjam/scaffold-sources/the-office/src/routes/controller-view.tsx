@@ -6,9 +6,9 @@ import {
 import {
   Button,
   ControllerPrimaryAction,
-  ForcedOrientationShell,
   LifecycleActionGroup,
   RuntimeShellHeader,
+  SurfaceViewport,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
   useControllerShellStatus,
@@ -168,7 +168,10 @@ export function ControllerView() {
 
   return (
     <div className="controller-view-shell">
-      <ForcedOrientationShell desired={desiredOrientation}>
+      <SurfaceViewport
+        orientation={desiredOrientation}
+        preset="controller-phone"
+      >
         <div className="flex h-full w-full flex-col gap-3 bg-[linear-gradient(180deg,#fbf4d9_0%,#f0e3bb_100%)] p-3 text-[#5c4a2e]">
           <RuntimeShellHeader
             connectionStatus={controller.connectionStatus}
@@ -557,7 +560,7 @@ export function ControllerView() {
             </div>
           ) : null}
         </div>
-      </ForcedOrientationShell>
+      </SurfaceViewport>
     </div>
   );
 }

@@ -24,7 +24,7 @@ export type VisualHarnessActionDefinition<
 
 export type VisualHarnessActionDefinitions<TContext> = Record<
   string,
-  VisualHarnessActionDefinition<TContext, any, any>
+  VisualHarnessActionDefinition<TContext, unknown, unknown>
 >;
 
 export type VisualHarnessBridgeDefinition<
@@ -38,38 +38,42 @@ export type VisualHarnessBridgeDefinition<
 };
 
 export type AnyVisualHarnessBridgeDefinition = VisualHarnessBridgeDefinition<
-  any,
+  unknown,
   VisualHarnessBridgeSnapshot,
-  VisualHarnessActionDefinitions<any>
+  VisualHarnessActionDefinitions<unknown>
 >;
 
 export type InferVisualHarnessBridgeContext<TBridge> =
-  TBridge extends VisualHarnessBridgeDefinition<infer TContext, any, any>
+  TBridge extends VisualHarnessBridgeDefinition<infer TContext, unknown, unknown>
     ? TContext
     : never;
 
 export type InferVisualHarnessBridgeSnapshot<TBridge> =
-  TBridge extends VisualHarnessBridgeDefinition<any, infer TSnapshot, any>
+  TBridge extends VisualHarnessBridgeDefinition<unknown, infer TSnapshot, unknown>
     ? TSnapshot
     : never;
 
 export type InferVisualHarnessBridgeActions<TBridge> =
-  TBridge extends VisualHarnessBridgeDefinition<any, any, infer TActions>
+  TBridge extends VisualHarnessBridgeDefinition<unknown, unknown, infer TActions>
     ? TActions
     : never;
 
 export type InferVisualHarnessActionPayload<TAction> =
-  TAction extends VisualHarnessActionDefinition<any, infer TPayload, any>
+  TAction extends VisualHarnessActionDefinition<unknown, infer TPayload, unknown>
     ? TPayload
     : never;
 
 export type InferVisualHarnessActionResult<TAction> =
-  TAction extends VisualHarnessActionDefinition<any, any, infer TResult>
+  TAction extends VisualHarnessActionDefinition<unknown, unknown, infer TResult>
     ? Awaited<TResult>
     : never;
 
 type VisualHarnessActionInvoker<TAction> =
-  TAction extends VisualHarnessActionDefinition<any, infer TPayload, infer TResult>
+  TAction extends VisualHarnessActionDefinition<
+    unknown,
+    infer TPayload,
+    infer TResult
+  >
     ? (...args: [TPayload] extends [void] ? [] : [payload: TPayload]) => Promise<Awaited<TResult>>
     : never;
 

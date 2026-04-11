@@ -333,8 +333,6 @@ export const finalizeReleaseUpload = async ({
     const originalFilename =
       uploadedObject.metadata["original-filename"] ?? "artifact.zip";
     const summary = `Validated ${manifest.fileCount} files and extracted ${manifest.extractedSizeBytes} bytes.`;
-    const checkedAt = new Date();
-
     await db.transaction(async (tx) => {
       await tx
         .update(gameReleases)

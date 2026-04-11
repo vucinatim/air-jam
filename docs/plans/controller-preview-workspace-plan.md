@@ -80,7 +80,7 @@ This plan does not cover:
 1. a second controller runtime path
 2. fake local controller simulators
 3. persistent preview-window layout across page reloads
-4. resizable windows
+4. advanced persistent desktop/window-manager features beyond drag, resize, minimize, and close
 5. a full desktop/window-manager feature set
 6. game-specific preview UI customization
 

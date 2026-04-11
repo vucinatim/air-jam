@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { gameReleaseChecks, gameReleases } from "@/db/schema";
+import { gameReleaseChecks } from "@/db/schema";
 import {
   captureReleaseScreenshot,
   type ReleaseScreenshotCaptureResult,
@@ -8,7 +8,6 @@ import {
   moderateReleaseScreenshot,
   type ReleaseImageModerationResult,
 } from "@/server/releases/release-image-moderation-service";
-import { eq } from "drizzle-orm";
 import { getReleaseModerationAvailability } from "./release-moderation-config";
 import { quarantineRelease } from "./release-status-service";
 import { getReleaseStorage } from "./release-storage";

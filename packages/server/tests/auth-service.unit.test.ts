@@ -3,6 +3,7 @@ import {
   AIRJAM_DEV_LOG_EVENTS,
   createHostGrant,
 } from "@air-jam/sdk/protocol";
+import type { ServerLogger } from "../src/logging/logger";
 import { AuthService } from "../src/services/auth-service";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -21,7 +22,7 @@ afterEach(() => {
   resetEnv();
 });
 
-const createMockLogger = () => ({
+const createMockLogger = (): Pick<ServerLogger, "info" | "warn" | "error"> => ({
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
@@ -32,7 +33,7 @@ describe("AuthService", () => {
     process.env.AIR_JAM_AUTH_MODE = "disabled";
 
     const logger = createMockLogger();
-    new AuthService({ logger: logger as any });
+    new AuthService({ logger: logger as unknown as ServerLogger });
 
     expect(logger.info).toHaveBeenCalledWith(
       { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled },
@@ -47,7 +48,7 @@ describe("AuthService", () => {
     delete process.env.AIR_JAM_HOST_GRANT_SECRET;
 
     const logger = createMockLogger();
-    new AuthService({ logger: logger as any });
+    new AuthService({ logger: logger as unknown as ServerLogger });
 
     expect(logger.warn).toHaveBeenCalledWith(
       { event: AIRJAM_DEV_LOG_EVENTS.auth.backendMissing },

@@ -8,7 +8,7 @@ export { metadata };
 
 ```tsx
 import {
-  ForcedOrientationShell,
+  SurfaceViewport,
   PlayerAvatar,
   RoomQrCode,
   VolumeControls,
@@ -97,23 +97,34 @@ Use it for:
 
 ---
 
-### `ForcedOrientationShell`
+### `SurfaceViewport`
 
-Enforce a consistent visual orientation using CSS rotation (the primary behavior).  
-Optionally, it also requests native browser orientation lock on first gesture when supported.
+Own safe-area, orientation, and page-level UI scaling for a game surface.
+It should fill the available screen while scaling the UI system proportionally, rather than letterboxing a fixed contained stage.
+Internally it publishes a local `--airjam-ui-scale` into Tailwind's own spacing, text, radius, and container variables so normal Tailwind utilities keep working.
 
 ```tsx
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import { SurfaceViewport } from "@air-jam/sdk/ui";
 
-<ForcedOrientationShell desired="portrait" className="bg-zinc-950">
+<SurfaceViewport
+  orientation="portrait"
+  preset="controller-phone"
+  className="bg-zinc-950"
+>
   <ControllerView />
-</ForcedOrientationShell>;
+</SurfaceViewport>;
 ```
 
 Props:
 
-- `desired: "portrait" | "landscape"` (required)
+- `orientation?: "portrait" | "landscape"`
 - `children: ReactNode` (required)
+- `preset?: "controller-phone" | "host-standard"`
+- `designWidth?: number`
+- `designHeight?: number`
+- `uiScaleMultiplier?: number`
+- `minScale?: number`
+- `maxScale?: number`
 - `lockOnGesture?: boolean` default `true`
 - `className?: string`
 - `contentClassName?: string`
@@ -121,11 +132,14 @@ Props:
 
 Use it for:
 
-- controller-only routes where physical rotation behavior should be predictable
+- controller routes that should keep a stable phone-like UI feel while still filling the screen
+- host routes that should scale proportionally without collapsing into ordinary website behavior
 
 Avoid:
 
-- nesting multiple orientation shells
+- nesting multiple surface viewports
+- treating it like a centered black-bar stage wrapper
+- depending on arbitrary raw `px` values for most of the UI chrome when a normal Tailwind scale utility would do
 - assuming native OS/browser lock is guaranteed everywhere
 
 ---
@@ -207,7 +221,7 @@ Combine:
 
 Combine:
 
-- `ForcedOrientationShell` for stable layout
+- `SurfaceViewport` for shared full-screen UI scaling
 - `PlayerAvatar` in a compact header
 - `Button` + `Slider` for controls/options
 

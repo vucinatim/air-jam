@@ -6,9 +6,9 @@ import {
 import {
   Button,
   ControllerPlayerNameField,
-  ForcedOrientationShell,
   PlayerAvatar,
   RuntimeShellHeader,
+  SurfaceViewport,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
   useControllerShellStatus,
@@ -346,8 +346,11 @@ export function ControllerView() {
 
   return (
     <div className="controller-view-shell">
-      <ForcedOrientationShell desired={desiredOrientation}>
-        <div className="pixel-font flex min-h-dvh w-full flex-col">
+      <SurfaceViewport
+        orientation={desiredOrientation}
+        preset="controller-phone"
+      >
+        <div className="pixel-font flex h-full w-full flex-col">
           <RuntimeShellHeader
             connectionStatus={controller.connectionStatus}
             leftSlot={
@@ -577,7 +580,7 @@ export function ControllerView() {
             </div>
           )}
         </div>
-      </ForcedOrientationShell>
+      </SurfaceViewport>
     </div>
   );
 }

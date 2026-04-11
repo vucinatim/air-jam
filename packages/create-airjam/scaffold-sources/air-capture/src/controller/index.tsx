@@ -7,7 +7,7 @@ import {
 } from "@air-jam/sdk";
 import {
   ControllerPlayerNameField,
-  ForcedOrientationShell,
+  SurfaceViewport,
 } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
 import { memo, useMemo, useState } from "react";
@@ -179,7 +179,10 @@ const ControllerScreen = () => {
       : "portrait";
 
   return (
-    <ForcedOrientationShell desired={desiredOrientation}>
+    <SurfaceViewport
+      orientation={desiredOrientation}
+      preset="controller-phone"
+    >
       <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-white">
         <ControllerHeaderRuntime
           myProfile={myProfile}
@@ -230,7 +233,7 @@ const ControllerScreen = () => {
           />
         )}
       </div>
-    </ForcedOrientationShell>
+    </SurfaceViewport>
   );
 };
 

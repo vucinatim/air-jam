@@ -133,7 +133,7 @@ The app should own:
 
 Shared framework helpers are still fine when they are narrow and honest, like:
 
-1. `ForcedOrientationShell`
+1. `SurfaceViewport`
 2. `PlayerAvatar`
 3. controller/session hooks
 

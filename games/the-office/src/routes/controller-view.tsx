@@ -6,9 +6,9 @@ import {
 import {
   Button,
   ControllerPrimaryAction,
-  ForcedOrientationShell,
   LifecycleActionGroup,
   RuntimeShellHeader,
+  SurfaceViewport,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
   useControllerShellStatus,
@@ -168,7 +168,10 @@ export function ControllerView() {
 
   return (
     <div className="controller-view-shell">
-      <ForcedOrientationShell desired={desiredOrientation}>
+      <SurfaceViewport
+        orientation={desiredOrientation}
+        preset="controller-phone"
+      >
         <div className="flex h-full w-full flex-col gap-3 bg-[linear-gradient(180deg,#fbf4d9_0%,#f0e3bb_100%)] p-3 text-[#5c4a2e]">
           <RuntimeShellHeader
             connectionStatus={controller.connectionStatus}
@@ -178,10 +181,10 @@ export function ControllerView() {
                   <img
                     src={myPlayer.image}
                     alt={myPlayer.name}
-                    className="h-9 w-9 rounded-full border border-[#e5d4ab] object-cover"
+                    className="h-10 w-10 rounded-full border border-[#e5d4ab] object-cover"
                   />
                 ) : (
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5d4ab] bg-[#fff6d8] text-[10px] font-bold text-[#5c4a2e]">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e5d4ab] bg-[#fff6d8] text-[0.6875rem] font-bold text-[#5c4a2e]">
                     {shellStatus.identityInitial}
                   </span>
                 )}
@@ -189,7 +192,7 @@ export function ControllerView() {
                   <p className="truncate text-sm font-bold text-[#5c4a2e]">
                     {shellStatus.displayName}
                   </p>
-                  <p className="text-[10px] tracking-[0.16em] text-[#8b6914] uppercase">
+                  <p className="text-[0.625rem] tracking-[0.16em] text-[#8b6914] uppercase sm:text-[0.6875rem]">
                     {shellStatus.roomLine}
                   </p>
                 </div>
@@ -557,7 +560,7 @@ export function ControllerView() {
             </div>
           ) : null}
         </div>
-      </ForcedOrientationShell>
+      </SurfaceViewport>
     </div>
   );
 }

@@ -19,7 +19,7 @@ const overflowSizeClasses: Record<
   NonNullable<PlayerAvatarStripProps["size"]>,
   string
 > = {
-  sm: "h-8 w-8 min-h-8 min-w-8 text-[10px]",
+  sm: "h-9 w-9 min-h-9 min-w-9 text-[0.625rem]",
   md: "h-12 w-12 min-h-12 min-w-12 text-[11px]",
   lg: "h-16 w-16 min-h-16 min-w-16 text-xs",
 };

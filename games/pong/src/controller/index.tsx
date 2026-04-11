@@ -7,7 +7,7 @@ import {
 } from "@air-jam/sdk";
 import {
   ControllerPlayerNameField,
-  ForcedOrientationShell,
+  SurfaceViewport,
 } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { ControllerHeader } from "./components/controller-header";
@@ -153,7 +153,11 @@ function ControllerScreen({
   }, []);
 
   return (
-    <ForcedOrientationShell desired="portrait" className="bg-zinc-950">
+    <SurfaceViewport
+      orientation="portrait"
+      preset="controller-phone"
+      className="bg-zinc-950"
+    >
       <div className="pong-controller-shell pong-safe-screen flex h-full w-full min-h-0 flex-col text-white">
         <ControllerHeader
           roomId={controller.roomId}
@@ -171,18 +175,18 @@ function ControllerScreen({
 
         <ControllerPlayerNameField
           className="px-3 pt-1 pb-2"
-          labelClassName="text-[9px] font-semibold tracking-[0.18em] text-zinc-400 uppercase"
-          inputClassName="w-full rounded-full border border-white/12 bg-white/6 px-3 py-2 text-[14px] font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-white/30 focus:ring-1 focus:ring-white/20"
+          labelClassName="text-[0.625rem] font-semibold tracking-[0.18em] text-zinc-400 uppercase"
+          inputClassName="w-full rounded-full border border-white/12 bg-white/6 px-3 py-2 text-sm font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-white/30 focus:ring-1 focus:ring-white/20"
         />
 
         {connectionNotice ? (
-          <div className="rounded-b-[18px] border-b border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-100">
+          <div className="rounded-b-xl border-b border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-amber-100">
             {connectionNotice}
           </div>
         ) : null}
         {latestToast ? (
           <div
-            className="rounded-b-[18px] border-b px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em]"
+            className="rounded-b-xl border-b px-3 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.12em]"
             style={{
               borderColor: `${latestToast.color ?? "#38bdf8"}55`,
               backgroundColor: `${latestToast.color ?? "#38bdf8"}1a`,
@@ -225,6 +229,6 @@ function ControllerScreen({
           />
         )}
       </div>
-    </ForcedOrientationShell>
+    </SurfaceViewport>
   );
 }

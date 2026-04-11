@@ -39,7 +39,7 @@ export const EndedScreen = ({
   const team2Slots = buildTeamSlots(team2Players, botCounts.team2);
 
   return (
-    <div className="pong-app-shell flex min-h-screen w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8">
+    <div className="pong-app-shell flex h-full min-h-0 w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8">
       <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="pong-panel-strong flex flex-col justify-between rounded-[34px] px-6 py-7 text-center sm:px-8 sm:text-left">
           <div className="space-y-3">
@@ -78,12 +78,12 @@ export const EndedScreen = ({
                 {team1Slots.some((slot) => slot.kind !== "open") ? (
                   team1Slots.map((slot, index) =>
                     slot.kind === "human" ? (
-                    <PlayerAvatar
-                      key={slot.player.id}
-                      player={slot.player}
-                      size="sm"
-                      className="h-8 w-8 border-2"
-                    />
+                      <PlayerAvatar
+                        key={slot.player.id}
+                        player={slot.player}
+                        size="sm"
+                        className="h-8 w-8 border-2"
+                      />
                     ) : slot.kind === "bot" ? (
                       <PlayerAvatar
                         key={`team1-bot-${index}`}
@@ -110,12 +110,12 @@ export const EndedScreen = ({
                 {team2Slots.some((slot) => slot.kind !== "open") ? (
                   team2Slots.map((slot, index) =>
                     slot.kind === "human" ? (
-                    <PlayerAvatar
-                      key={slot.player.id}
-                      player={slot.player}
-                      size="sm"
-                      className="h-8 w-8 border-2"
-                    />
+                      <PlayerAvatar
+                        key={slot.player.id}
+                        player={slot.player}
+                        size="sm"
+                        className="h-8 w-8 border-2"
+                      />
                     ) : slot.kind === "bot" ? (
                       <PlayerAvatar
                         key={`team2-bot-${index}`}

@@ -1,12 +1,20 @@
-import { Button } from "../components/ui/button";
-import { cn } from "../utils/cn";
-import { Loader2, Minus, MonitorSmartphone, TriangleAlert, X } from "lucide-react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import {
+  Loader2,
+  Minus,
+  MonitorSmartphone,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useState } from "react";
 import { shellPanelClassName } from "../components/shell-classes";
+import { Button } from "../components/ui/button";
+import { cn } from "../utils/cn";
 import {
-  PREVIEW_WINDOW_FRAME_HEIGHT,
-  PREVIEW_WINDOW_WIDTH,
+  PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+  PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE,
+  PREVIEW_WINDOW_TITLEBAR_HEIGHT,
+  type PreviewControllerResizeHandle,
 } from "./layout";
 import type { PreviewControllerSession } from "./manager";
 
@@ -32,7 +40,102 @@ export interface PreviewControllerWindowProps {
   onTitlePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onTitlePointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onTitlePointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResizePointerDown: (
+    handle: PreviewControllerResizeHandle,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => void;
+  onResizePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResizePointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResizePointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  resizing?: boolean;
 }
+
+const RESIZE_HANDLES: Array<{
+  handle: PreviewControllerResizeHandle;
+  cursor: string;
+  style: CSSProperties;
+}> = [
+  {
+    handle: "n",
+    cursor: "ns-resize",
+    style: {
+      top: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      left: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      right: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      height: PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE,
+    },
+  },
+  {
+    handle: "s",
+    cursor: "ns-resize",
+    style: {
+      bottom: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      left: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      right: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      height: PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE,
+    },
+  },
+  {
+    handle: "e",
+    cursor: "ew-resize",
+    style: {
+      top: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      right: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      bottom: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      width: PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE,
+    },
+  },
+  {
+    handle: "w",
+    cursor: "ew-resize",
+    style: {
+      top: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      left: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      bottom: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      width: PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE,
+    },
+  },
+  {
+    handle: "ne",
+    cursor: "nesw-resize",
+    style: {
+      top: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      right: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      width: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      height: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+    },
+  },
+  {
+    handle: "nw",
+    cursor: "nwse-resize",
+    style: {
+      top: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      left: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      width: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      height: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+    },
+  },
+  {
+    handle: "se",
+    cursor: "nwse-resize",
+    style: {
+      right: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      bottom: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      width: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      height: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+    },
+  },
+  {
+    handle: "sw",
+    cursor: "nesw-resize",
+    style: {
+      left: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      bottom: -(PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE / 2),
+      width: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+      height: PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
+    },
+  },
+];
 
 export const PreviewControllerWindow = ({
   session,
@@ -47,10 +150,15 @@ export const PreviewControllerWindow = ({
   onTitlePointerMove,
   onTitlePointerUp,
   onTitlePointerCancel,
+  onResizePointerDown,
+  onResizePointerMove,
+  onResizePointerUp,
+  onResizePointerCancel,
+  resizing = false,
 }: PreviewControllerWindowProps) => {
   const [windowHovered, setWindowHovered] = useState(false);
 
-  const isVisible = dragging || windowHovered;
+  const isVisible = dragging || resizing || windowHovered;
   const statusToneClassName =
     session.surfaceState === "failed"
       ? "bg-amber-300"
@@ -64,9 +172,13 @@ export const PreviewControllerWindow = ({
       style={{
         left: session.x,
         top: session.y,
+        width: session.width,
+        height: session.height,
         zIndex: session.zIndex,
         pointerEvents: "none",
       }}
+      onPointerEnter={() => setWindowHovered(true)}
+      onPointerLeave={() => setWindowHovered(false)}
     >
       <section
         className={cn(
@@ -76,12 +188,11 @@ export const PreviewControllerWindow = ({
           dragging && "shadow-[0_28px_90px_rgba(0,0,0,0.55)]",
         )}
         style={{
-          width: PREVIEW_WINDOW_WIDTH,
+          width: "100%",
+          height: "100%",
           opacity: isVisible ? 1 : 0.62,
           pointerEvents: "auto",
         }}
-        onPointerEnter={() => setWindowHovered(true)}
-        onPointerLeave={() => setWindowHovered(false)}
       >
         <div
           className="flex h-9 items-center gap-2 border-b border-white/8 px-2.5"
@@ -100,7 +211,7 @@ export const PreviewControllerWindow = ({
               <MonitorSmartphone className="h-3 w-3 text-white/80" />
             </div>
             <div className="min-w-0">
-              <div className="truncate text-[12px] font-semibold leading-none text-white/92">
+              <div className="truncate text-[12px] leading-none font-semibold text-white/92">
                 {session.label}
               </div>
             </div>
@@ -151,13 +262,14 @@ export const PreviewControllerWindow = ({
             }
           }}
         >
-          <div
-            className="relative overflow-hidden bg-black"
-          >
+          <div className="relative overflow-hidden bg-black">
             <div
               style={{
-                width: PREVIEW_WINDOW_WIDTH,
-                height: PREVIEW_WINDOW_FRAME_HEIGHT,
+                width: session.width,
+                height: Math.max(
+                  session.height - PREVIEW_WINDOW_TITLEBAR_HEIGHT,
+                  0,
+                ),
               }}
             >
               <iframe
@@ -191,8 +303,8 @@ export const PreviewControllerWindow = ({
                     Controller did not load
                   </div>
                   <p className="text-[11px] leading-5 text-slate-300">
-                    Close it and open a fresh controller once the route is
-                    ready again.
+                    Close it and open a fresh controller once the route is ready
+                    again.
                   </p>
                 </div>
               </div>
@@ -200,6 +312,25 @@ export const PreviewControllerWindow = ({
           </div>
         </div>
       </section>
+
+      {RESIZE_HANDLES.map(({ handle, cursor, style }) => (
+        <div
+          key={handle}
+          data-testid={`preview-controller-resize-${handle}-${session.ordinal}`}
+          className="absolute"
+          style={{
+            ...style,
+            cursor,
+            pointerEvents: "auto",
+            touchAction: "none",
+          }}
+          onPointerDown={(event) => onResizePointerDown(handle, event)}
+          onPointerMove={onResizePointerMove}
+          onPointerUp={onResizePointerUp}
+          onPointerCancel={onResizePointerCancel}
+          title="Resize controller"
+        />
+      ))}
     </div>
   );
 };

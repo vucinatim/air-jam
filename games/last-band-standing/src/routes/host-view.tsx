@@ -5,27 +5,31 @@ import {
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
-import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  HostMuteButton,
+  SurfaceViewport,
+  useHostLobbyShell,
+} from "@air-jam/sdk/ui";
 import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { toShellMatchPhase } from "../game/domain/match-phase";
-import { rankPlayers } from "../game/domain/round-engine";
-import { getSongById } from "../song-bank";
-import { useGameStore } from "../game/stores";
-import { gameInputSchema } from "../game/input";
-import { getYouTubeEmbedUrl, useYouTubePlayer } from "../features/youtube";
-import { useNowTick } from "../hooks/use-now-tick";
-import { FINALIZE_POLL_MS, NOW_TICK_MS } from "../config";
-import { soundManifest } from "../sounds";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { lastBandStandingVisualHarnessBridge } from "../../visual/contract";
 import { FullscreenToggle } from "../components/fullscreen-toggle";
-import { HostTopBar } from "../components/host-top-bar";
-import { HostTimerBar } from "../components/host-timer-bar";
 import { HostPlayerStrip } from "../components/host-player-strip";
+import { HostTimerBar } from "../components/host-timer-bar";
+import { HostTopBar } from "../components/host-top-bar";
+import { FINALIZE_POLL_MS, NOW_TICK_MS } from "../config";
+import { HostGameOver } from "../features/game-over/host-game-over";
 import { HostLobby } from "../features/lobby/host-lobby";
 import { HostVideoStage } from "../features/round/host-video-stage";
-import { HostGameOver } from "../features/game-over/host-game-over";
-import { lastBandStandingVisualHarnessBridge } from "../../visual/contract";
+import { getYouTubeEmbedUrl, useYouTubePlayer } from "../features/youtube";
+import { toShellMatchPhase } from "../game/domain/match-phase";
+import { rankPlayers } from "../game/domain/round-engine";
+import { gameInputSchema } from "../game/input";
+import { useGameStore } from "../game/stores";
+import { useNowTick } from "../hooks/use-now-tick";
+import { getSongById } from "../song-bank";
+import { soundManifest } from "../sounds";
 
 export const HostView = () => {
   return (
@@ -48,8 +52,12 @@ const HostScreen = () => {
   const currentRound = useGameStore((state) => state.currentRound);
   const answersByPlayerId = useGameStore((state) => state.answersByPlayerId);
   const roundReveal = useGameStore((state) => state.roundReveal);
-  const scoreboardByPlayerId = useGameStore((state) => state.scoreboardByPlayerId);
-  const finalRankingPlayerIds = useGameStore((state) => state.finalRankingPlayerIds);
+  const scoreboardByPlayerId = useGameStore(
+    (state) => state.scoreboardByPlayerId,
+  );
+  const finalRankingPlayerIds = useGameStore(
+    (state) => state.finalRankingPlayerIds,
+  );
   const actions = useGameStore.useActions();
 
   // ── Sound effects ──
@@ -72,7 +80,9 @@ const HostScreen = () => {
     }
 
     if (phase === "round-reveal" && roundReveal) {
-      const anyCorrect = Object.values(roundReveal.resultsByPlayerId).some((r) => r.isCorrect);
+      const anyCorrect = Object.values(roundReveal.resultsByPlayerId).some(
+        (r) => r.isCorrect,
+      );
       audio.play(anyCorrect ? "correct" : "wrong");
     }
 
@@ -83,7 +93,8 @@ const HostScreen = () => {
 
   // ── Sync players from Air Jam host ──
   const playersForStore = useMemo(
-    () => host.players.map((player) => ({ id: player.id, label: player.label })),
+    () =>
+      host.players.map((player) => ({ id: player.id, label: player.label })),
     [host.players],
   );
   const playersSignature = playersForStore
@@ -92,7 +103,7 @@ const HostScreen = () => {
 
   useEffect(() => {
     actions.setPlayers({ players: playersForStore });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions, playersSignature]);
 
   // ── Round finalization polling ──
@@ -118,7 +129,10 @@ const HostScreen = () => {
   const readyCount = useMemo(() => {
     return playerOrder.filter((playerId) => readyByPlayerId[playerId]).length;
   }, [playerOrder, readyByPlayerId]);
-  const canStartMatch = phase === "lobby" && playerOrder.length > 0 && readyCount === playerOrder.length;
+  const canStartMatch =
+    phase === "lobby" &&
+    playerOrder.length > 0 &&
+    readyCount === playerOrder.length;
   const hostLobbyShell = useHostLobbyShell({
     joinUrl: host.joinUrl,
     canStartMatch,
@@ -127,12 +141,16 @@ const HostScreen = () => {
   const previewControllersEnabled = import.meta.env.DEV;
 
   const answeredCount = currentRound
-    ? currentRound.expectedPlayerIds.filter((playerId) => answersByPlayerId[playerId]).length
+    ? currentRound.expectedPlayerIds.filter(
+        (playerId) => answersByPlayerId[playerId],
+      ).length
     : 0;
 
   const activeSong = useMemo(() => {
-    if (phase === "round-active" && currentRound) return getSongById(currentRound.songId);
-    if (phase === "round-reveal" && roundReveal) return getSongById(roundReveal.songId);
+    if (phase === "round-active" && currentRound)
+      return getSongById(currentRound.songId);
+    if (phase === "round-reveal" && roundReveal)
+      return getSongById(roundReveal.songId);
     return null;
   }, [phase, currentRound, roundReveal]);
 
@@ -150,7 +168,12 @@ const HostScreen = () => {
       prevCountdownRef.current = null;
       return;
     }
-    if (prevCountdownRef.current !== null && countdownSeconds < prevCountdownRef.current && countdownSeconds > 0 && countdownSeconds <= 5) {
+    if (
+      prevCountdownRef.current !== null &&
+      countdownSeconds < prevCountdownRef.current &&
+      countdownSeconds > 0 &&
+      countdownSeconds <= 5
+    ) {
       audio.play("countdown-tick");
     }
     prevCountdownRef.current = countdownSeconds;
@@ -193,97 +216,108 @@ const HostScreen = () => {
   const isPlaying = shellPhase === "playing";
   const showVideo = isPlaying && activeSong && embedUrl;
 
-  const stripPlayerIds = isPlaying || phase === "game-over" ? rankingPlayerIds : playerOrder;
+  const stripPlayerIds =
+    isPlaying || phase === "game-over" ? rankingPlayerIds : playerOrder;
 
   const countdownFraction = currentRound
-    ? Math.max(0, Math.min(1, (currentRound.endsAtMs - nowMs) / ((currentRound.endsAtMs - currentRound.startedAtMs) || 1)))
+    ? Math.max(
+        0,
+        Math.min(
+          1,
+          (currentRound.endsAtMs - nowMs) /
+            (currentRound.endsAtMs - currentRound.startedAtMs || 1),
+        ),
+      )
     : 0;
 
   return (
-    <main className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
-      <div className="fixed right-4 top-4 z-50 flex items-center gap-2">
+    <>
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
         <HostMuteButton
           muted={audioMuted}
           onToggle={() => setAudioMuted((previous) => !previous)}
-          className="rounded-lg border-border/70 bg-background/80 text-foreground hover:bg-background/90"
+          className="border-border/70 bg-background/80 text-foreground hover:bg-background/90 rounded-lg"
         />
-        <FullscreenToggle className="bg-background/80 backdrop-blur-sm hover:bg-background/90" />
+        <FullscreenToggle className="bg-background/80 hover:bg-background/90 backdrop-blur-sm" />
       </div>
-
-      {phase !== "lobby" && (
-        <HostTopBar
-          phase={phase}
-          currentRound={currentRound}
-          roundReveal={roundReveal}
-          totalRounds={totalRounds}
-          answeredCount={answeredCount}
-          countdownSeconds={countdownSeconds}
-          revealCountdownSeconds={revealCountdownSeconds}
-        />
-      )}
-
-      {phase === "round-active" && (
-        <HostTimerBar countdownFraction={countdownFraction} />
-      )}
-
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-        <AnimatePresence mode="wait">
-          {phase === "lobby" && (
-            <HostLobby
-              joinUrl={hostLobbyShell.joinUrlValue}
-              copiedJoinUrl={hostLobbyShell.copied}
-              onCopyJoinUrl={hostLobbyShell.handleCopy}
-              onOpenJoinUrl={hostLobbyShell.handleOpen}
-              connectionStatus={host.connectionStatus}
-              lastError={host.lastError ?? null}
-              playerOrder={playerOrder}
-              playerLabelById={playerLabelById}
-              readyByPlayerId={readyByPlayerId}
-              scoreboardByPlayerId={scoreboardByPlayerId}
-              readyCount={readyCount}
-              players={host.players}
-              canStartMatch={canStartMatch}
-              onStartMatch={hostLobbyShell.handleStart}
-            />
-          )}
-
-          {showVideo && (
-            <HostVideoStage
+      <SurfaceViewport preset="host-standard" className="bg-background">
+        <main className="bg-background text-foreground flex h-full w-full flex-col overflow-hidden">
+          {phase !== "lobby" && (
+            <HostTopBar
               phase={phase}
-              activeSong={activeSong}
-              embedUrl={embedUrl}
               currentRound={currentRound}
               roundReveal={roundReveal}
+              totalRounds={totalRounds}
+              answeredCount={answeredCount}
+              countdownSeconds={countdownSeconds}
+              revealCountdownSeconds={revealCountdownSeconds}
+            />
+          )}
+
+          {phase === "round-active" && (
+            <HostTimerBar countdownFraction={countdownFraction} />
+          )}
+
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+            <AnimatePresence mode="wait">
+              {phase === "lobby" && (
+                <HostLobby
+                  joinUrl={hostLobbyShell.joinUrlValue}
+                  copiedJoinUrl={hostLobbyShell.copied}
+                  onCopyJoinUrl={hostLobbyShell.handleCopy}
+                  onOpenJoinUrl={hostLobbyShell.handleOpen}
+                  connectionStatus={host.connectionStatus}
+                  lastError={host.lastError ?? null}
+                  playerOrder={playerOrder}
+                  playerLabelById={playerLabelById}
+                  readyByPlayerId={readyByPlayerId}
+                  scoreboardByPlayerId={scoreboardByPlayerId}
+                  readyCount={readyCount}
+                  players={host.players}
+                  canStartMatch={canStartMatch}
+                  onStartMatch={hostLobbyShell.handleStart}
+                />
+              )}
+
+              {showVideo && (
+                <HostVideoStage
+                  phase={phase}
+                  activeSong={activeSong}
+                  embedUrl={embedUrl}
+                  currentRound={currentRound}
+                  roundReveal={roundReveal}
+                  playerLabelById={playerLabelById}
+                  scoreboardByPlayerId={scoreboardByPlayerId}
+                  players={host.players}
+                  youtubePlayerRef={youtubePlayerRef}
+                  onIframeLoad={onIframeLoad}
+                />
+              )}
+
+              {phase === "game-over" && (
+                <HostGameOver
+                  rankingPlayerIds={rankingPlayerIds}
+                  playerLabelById={playerLabelById}
+                  totalRounds={totalRounds}
+                  onResetLobby={actions.resetLobby}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
+          {phase !== "lobby" && (
+            <HostPlayerStrip
+              phase={phase}
+              stripPlayerIds={stripPlayerIds}
               playerLabelById={playerLabelById}
               scoreboardByPlayerId={scoreboardByPlayerId}
+              answersByPlayerId={answersByPlayerId}
               players={host.players}
-              youtubePlayerRef={youtubePlayerRef}
-              onIframeLoad={onIframeLoad}
             />
           )}
-
-          {phase === "game-over" && (
-            <HostGameOver
-              rankingPlayerIds={rankingPlayerIds}
-              playerLabelById={playerLabelById}
-              totalRounds={totalRounds}
-              onResetLobby={actions.resetLobby}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-
-      {phase !== "lobby" && (
-        <HostPlayerStrip
-          phase={phase}
-          stripPlayerIds={stripPlayerIds}
-          playerLabelById={playerLabelById}
-          scoreboardByPlayerId={scoreboardByPlayerId}
-          answersByPlayerId={answersByPlayerId}
-          players={host.players}
-        />
-      )}
+        </main>
+      </SurfaceViewport>
       <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
-    </main>
+    </>
   );
 };

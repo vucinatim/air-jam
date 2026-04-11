@@ -2,6 +2,7 @@
 
 import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { getResizedPreviewBounds } from "../src/preview/layout";
 import { usePreviewControllerManager } from "../src/preview";
 
 describe("usePreviewControllerManager", () => {
@@ -22,6 +23,8 @@ describe("usePreviewControllerManager", () => {
     expect(result.current.sessions[0]?.surfaceState).toBe("loading");
     expect(result.current.sessions[0]?.x).toBeTypeOf("number");
     expect(result.current.sessions[0]?.y).toBeTypeOf("number");
+    expect(result.current.sessions[0]?.width).toBeTypeOf("number");
+    expect(result.current.sessions[0]?.height).toBeTypeOf("number");
   });
 
   it("enforces the max preview-controller count", () => {
@@ -205,5 +208,142 @@ describe("usePreviewControllerManager", () => {
 
     expect(result.current.sessions[0]!.x).not.toBe(initialPosition.x);
     expect(result.current.sessions[0]!.y).not.toBe(initialPosition.y);
+  });
+
+  it("updates preview-controller bounds and keeps them clamped", () => {
+    const { result } = renderHook(() =>
+      usePreviewControllerManager({
+        joinUrl: "https://platform.example/controller?room=ROOM1",
+      }),
+    );
+
+    act(() => {
+      result.current.spawnPreviewController();
+    });
+
+    const sessionId = result.current.sessions[0]!.id;
+    const initialSize = {
+      x: result.current.sessions[0]!.x,
+      y: result.current.sessions[0]!.y,
+      width: result.current.sessions[0]!.width,
+      height: result.current.sessions[0]!.height,
+    };
+
+    act(() => {
+      result.current.setPreviewControllerBounds(sessionId, {
+        x: initialSize.x,
+        y: initialSize.y,
+        width: 40,
+        height: 20,
+      });
+    });
+
+    expect(result.current.sessions[0]!.width).toBeGreaterThanOrEqual(260);
+    expect(result.current.sessions[0]!.height).toBeGreaterThanOrEqual(440);
+
+    act(() => {
+      result.current.setPreviewControllerBounds(sessionId, {
+        x: initialSize.x - 120,
+        y: initialSize.y - 120,
+        width: initialSize.width + 120,
+        height: initialSize.height + 120,
+      });
+    });
+
+    expect(result.current.sessions[0]!.width).toBeGreaterThan(initialSize.width);
+    expect(result.current.sessions[0]!.height).toBeGreaterThan(initialSize.height);
+    expect(result.current.sessions[0]!.x).toBeLessThanOrEqual(initialSize.x);
+    expect(result.current.sessions[0]!.y).toBeLessThanOrEqual(initialSize.y);
+  });
+
+  it("keeps the dragged edge fixed when bounds are clamped", () => {
+    const { result } = renderHook(() =>
+      usePreviewControllerManager({
+        joinUrl: "https://platform.example/controller?room=ROOM1",
+      }),
+    );
+
+    act(() => {
+      result.current.spawnPreviewController();
+    });
+
+    const sessionId = result.current.sessions[0]!.id;
+    act(() => {
+      result.current.setPreviewControllerPosition(sessionId, 100, 100);
+    });
+
+    const initialBounds = {
+      x: result.current.sessions[0]!.x,
+      y: result.current.sessions[0]!.y,
+      width: result.current.sessions[0]!.width,
+      height: result.current.sessions[0]!.height,
+    };
+
+    act(() => {
+      result.current.setPreviewControllerBounds(
+        sessionId,
+        {
+          x: initialBounds.x,
+          y: initialBounds.y,
+          width: initialBounds.width + 10_000,
+          height: initialBounds.height,
+        },
+        {
+          preserveRight: false,
+        },
+      );
+    });
+
+    expect(result.current.sessions[0]!.x).toBe(initialBounds.x);
+
+    const clampedRightEdge = initialBounds.x + 250 + 30;
+    act(() => {
+      result.current.setPreviewControllerBounds(
+        sessionId,
+        {
+          x: initialBounds.x + 250,
+          y: initialBounds.y,
+          width: 30,
+          height: initialBounds.height,
+        },
+        {
+          preserveRight: true,
+        },
+      );
+    });
+
+    expect(
+      result.current.sessions[0]!.x + result.current.sessions[0]!.width,
+    ).toBe(clampedRightEdge);
+  });
+
+  it("resizes preview bounds from anchored edges and corners", () => {
+    const origin = {
+      x: 300,
+      y: 200,
+      width: 312,
+      height: 554,
+    };
+
+    expect(getResizedPreviewBounds(origin, "w", -40, 0)).toEqual({
+      x: 260,
+      y: 200,
+      width: 352,
+      height: 554,
+    });
+
+    expect(getResizedPreviewBounds(origin, "n", 0, -30)).toEqual({
+      x: 300,
+      y: 170,
+      width: 312,
+      height: 584,
+    });
+
+    expect(getResizedPreviewBounds(origin, "sw", -25, 35)).toEqual({
+      x: 275,
+      y: 200,
+      width: 337,
+      height: 589,
+    });
   });
 });

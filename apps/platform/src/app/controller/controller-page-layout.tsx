@@ -8,7 +8,7 @@ import type {
   ControllerOrientation,
   PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
-import { ForcedOrientationShell } from "@air-jam/sdk/ui";
+import { SurfaceViewport } from "@air-jam/sdk/ui";
 import type { CSSProperties, RefObject } from "react";
 import { ControllerGameFrame } from "./controller-game-frame";
 import { ControllerIdleSurface } from "./controller-idle-surface";
@@ -139,12 +139,13 @@ export function ControllerPageLayout({
   return (
     <div className="dark">
       {!activeUrl ? (
-        <ForcedOrientationShell
-          desired="portrait"
+        <SurfaceViewport
+          orientation="portrait"
+          preset="controller-phone"
           contentClassName="h-full w-full bg-zinc-950"
         >
           {layout}
-        </ForcedOrientationShell>
+        </SurfaceViewport>
       ) : (
         <div className="relative flex h-dvh w-dvw flex-col bg-zinc-950">
           {layout}

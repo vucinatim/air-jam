@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-09  
+Last updated: 2026-04-11  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -61,8 +61,22 @@ Immediate next work:
 1. the first shared shell polish pass is now landed across the common SDK and platform shell surfaces
 2. refreshed `arcade-built` lobby captures are green again for all five launch games after that shell pass
 3. the preview-controller workspace rework is now landed across the shared SDK, platform Arcade surface, launch games, and scaffolds
-4. the next honest work is the bounded launch-game polish pass, with controller UX and presentation quality now free to iterate on top of the new workspace model
-5. only reopen Stage 2 fixes if a real blocker appears during game-specific polish
+4. the next active shared systems track is game-surface UI scaling, so host and controller UIs can scale like games instead of ordinary responsive web pages
+5. controller UX and launch-game polish should now continue on top of that scaling primitive instead of staying locked into ad hoc surface sizing
+6. only reopen Stage 2 fixes if a real blocker appears during game-specific polish
+
+### Current Active Systems Track. Game UI Scaling
+
+Status: active  
+Plan: [Game UI Scaling Plan](./plans/game-ui-scaling-plan.md)
+
+Current truth:
+
+1. the correct target model is now explicitly full-bleed fluid layout plus proportional UI scaling, not centered fixed-stage containment
+2. `SurfaceViewport` now uses full-bleed surface semantics and no longer centers a contained black-bar stage
+3. the shared surface now publishes a local `--airjam-ui-scale` into Tailwind's own sizing/theme variables instead of introducing an Air Jam-specific class system
+4. the desired DX remains normal Tailwind authoring by default, with game-specific cleanup only where old raw px/rem styling still fights the shared scale model
+5. the current work on this track is now tuning and fallout cleanup on the new shared semantics rather than defending the rejected implementation
 
 ### Recently Completed Implementation Track. Preview Controller Workspace Rework
 

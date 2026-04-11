@@ -4,7 +4,12 @@ import { MonitorSmartphone, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { shellUtilityButtonClassName } from "../components/shell-classes";
-import { PREVIEW_WORKSPACE_Z_INDEX } from "./layout";
+import {
+  getResizedPreviewBounds,
+  PREVIEW_WORKSPACE_Z_INDEX,
+  type PreviewControllerBounds,
+  type PreviewControllerResizeHandle,
+} from "./layout";
 import { usePreviewControllerManager } from "./manager";
 import { PreviewControllerWindow } from "./window";
 
@@ -27,6 +32,15 @@ interface DragState {
   pointerId: number;
 }
 
+interface ResizeState {
+  id: string;
+  handle: PreviewControllerResizeHandle;
+  originBounds: PreviewControllerBounds;
+  startClientX: number;
+  startClientY: number;
+  pointerId: number;
+}
+
 export const PreviewControllerWorkspace = ({
   joinUrl,
   enabled = false,
@@ -38,6 +52,7 @@ export const PreviewControllerWorkspace = ({
 }: PreviewControllerWorkspaceProps) => {
   const [mounted, setMounted] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [resizeState, setResizeState] = useState<ResizeState | null>(null);
   const {
     sessions,
     canSpawn,
@@ -47,6 +62,7 @@ export const PreviewControllerWorkspace = ({
     restorePreviewController,
     focusPreviewController,
     setPreviewControllerPosition,
+    setPreviewControllerBounds,
     markPreviewControllerReady,
     markPreviewControllerFailed,
   } = usePreviewControllerManager({
@@ -87,6 +103,7 @@ export const PreviewControllerWorkspace = ({
           session={session}
           highContrast={highContrast}
           dragging={dragState?.id === session.id}
+          resizing={resizeState?.id === session.id}
           onFocus={() => focusPreviewController(session.id)}
           onMinimize={() => minimizePreviewController(session.id)}
           onRemove={() => removePreviewController(session.id)}
@@ -111,6 +128,7 @@ export const PreviewControllerWorkspace = ({
           }}
           onTitlePointerMove={(event) => {
             if (
+              resizeState ||
               !dragState ||
               dragState.id !== session.id ||
               dragState.pointerId !== event.pointerId
@@ -143,6 +161,72 @@ export const PreviewControllerWorkspace = ({
               event.currentTarget.releasePointerCapture(event.pointerId);
             }
             setDragState(null);
+          }}
+          onResizePointerDown={(handle, event) => {
+            if (event.button !== 0) {
+              return;
+            }
+
+            event.stopPropagation();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            focusPreviewController(session.id);
+            setResizeState({
+              id: session.id,
+              handle,
+              originBounds: {
+                x: session.x,
+                y: session.y,
+                width: session.width,
+                height: session.height,
+              },
+              startClientX: event.clientX,
+              startClientY: event.clientY,
+              pointerId: event.pointerId,
+            });
+            event.preventDefault();
+          }}
+          onResizePointerMove={(event) => {
+            if (
+              !resizeState ||
+              resizeState.id !== session.id ||
+              resizeState.pointerId !== event.pointerId
+            ) {
+              return;
+            }
+
+            setPreviewControllerBounds(
+              resizeState.id,
+              getResizedPreviewBounds(
+                resizeState.originBounds,
+                resizeState.handle,
+                event.clientX - resizeState.startClientX,
+                event.clientY - resizeState.startClientY,
+              ),
+              {
+                preserveRight: resizeState.handle.includes("w"),
+                preserveBottom: resizeState.handle.includes("n"),
+              },
+            );
+          }}
+          onResizePointerUp={(event) => {
+            if (resizeState?.pointerId !== event.pointerId) {
+              return;
+            }
+
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+            setResizeState(null);
+          }}
+          onResizePointerCancel={(event) => {
+            if (resizeState?.pointerId !== event.pointerId) {
+              return;
+            }
+
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+            setResizeState(null);
           }}
         />
       ))}

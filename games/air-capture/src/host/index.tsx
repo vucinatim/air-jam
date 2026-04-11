@@ -1,12 +1,16 @@
 import {
+  useAirJamHost,
   useAudioRuntimeControls,
   useAudioRuntimeStatus,
-  useAirJamHost,
   useHostRuntimeStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
-import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  HostMuteButton,
+  SurfaceViewport,
+  useHostLobbyShell,
+} from "@air-jam/sdk/ui";
 import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import {
@@ -19,38 +23,34 @@ import {
   useState,
 } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
+import { airCaptureVisualHarnessBridge } from "../../visual/contract";
+import { HostAudioProvider } from "../game/audio/host-audio";
+import { useHostAudio } from "../game/audio/use-host-audio";
 import { useBotManager } from "../game/bot-system/bot-manager";
-import { TEAM_IDS, type TeamId } from "../game/domain/team";
-import { useMatchCountdown } from "../game/hooks/use-match-countdown";
-import { preloadRapier } from "../game/rapier-preload";
-import {
-  useCaptureTheFlagStore,
-} from "../game/stores/match/capture-the-flag-store";
 import {
   BotsSection,
   CTFDebugSection,
   PlayersSection,
   SceneInfoSection,
 } from "../game/debug/debug-sections";
+import { TEAM_IDS, type TeamId } from "../game/domain/team";
+import { useMatchCountdown } from "../game/hooks/use-match-countdown";
+import { preloadRapier } from "../game/rapier-preload";
+import { useCaptureTheFlagStore } from "../game/stores/match/capture-the-flag-store";
+import { usePrototypeMatchStore } from "../game/stores/match/match-store";
 import { useGameStore } from "../game/stores/players/game-store";
-import {
-  usePrototypeMatchStore,
-} from "../game/stores/match/match-store";
-import { HostAudioProvider } from "../game/audio/host-audio";
-import { useHostAudio } from "../game/audio/use-host-audio";
+import { PlayerHUDOverlay } from "../game/ui/player-hud-overlay";
+import { HostLiveChrome } from "./components/host-live-chrome";
 import {
   AudioBlockedPrompt,
   CountdownOverlay,
   EndedOverlay,
   GameplayFallback,
-  type HostConnectionStatus,
   LobbyOverlay,
   PausedOverlay,
   StageBackdrop,
+  type HostConnectionStatus,
 } from "./components/host-overlays";
-import { HostLiveChrome } from "./components/host-live-chrome";
-import { PlayerHUDOverlay } from "../game/ui/player-hud-overlay";
-import { airCaptureVisualHarnessBridge } from "../../visual/contract";
 
 const GameScene = lazy(async () => {
   await preloadRapier();
@@ -387,89 +387,91 @@ const HostViewContent = ({
   const showBackdrop = matchPhase === "lobby" || matchPhase === "ended";
 
   return (
-    <div className="bg-background relative h-screen w-screen overflow-hidden">
-      <div className="relative h-full w-full">
-        {showBackdrop ? (
-          <StageBackdrop />
-        ) : (
-          <GameplayStage
-            sceneMode={sceneMode}
-            scenePaused={scenePaused}
-            showPausedOverlay={showPausedOverlay}
-            roomId={roomId}
-            joinQrValue={joinQrValue}
-            connectionStatus={connectionStatus}
-            lastError={lastError}
-            matchPhase={matchPhase}
-            countdownRemainingSeconds={countdownRemainingSeconds}
-          />
-        )}
-
-        {showBackdrop ? (
-          <>
-            <div className="absolute inset-0 bg-radial from-transparent to-black/55" />
-            {muteSlot}
-            {audioRuntimeStatus === "blocked" ? (
-              <AudioBlockedPrompt
-                onEnable={() => {
-                  void audioRuntimeControls.retry();
-                }}
-              />
-            ) : null}
-            {matchPhase === "lobby" ? (
-            <LobbyOverlay
-              joinQrValue={joinQrValue}
-              copiedJoinUrl={hostLobbyShell.copied}
-              onCopyJoinUrl={hostLobbyShell.handleCopy}
-              onOpenJoinUrl={hostLobbyShell.handleOpen}
+    <>
+      <SurfaceViewport preset="host-standard" className="bg-background">
+        <div className="bg-background relative h-full w-full overflow-hidden">
+          {showBackdrop ? (
+            <StageBackdrop />
+          ) : (
+            <GameplayStage
+              sceneMode={sceneMode}
+              scenePaused={scenePaused}
+              showPausedOverlay={showPausedOverlay}
               roomId={roomId}
-              pointsToWin={pointsToWin}
-              botCounts={botCounts}
+              joinQrValue={joinQrValue}
               connectionStatus={connectionStatus}
               lastError={lastError}
-              connectedPlayers={players}
-              teamPlayers={teamPlayers}
-              onStartMatch={() => matchActions.startMatch()}
+              matchPhase={matchPhase}
+              countdownRemainingSeconds={countdownRemainingSeconds}
             />
-            ) : (
-              <EndedOverlay
-                roomId={roomId}
-                matchSummary={matchSummary}
-                botCounts={botCounts}
-                teamPlayers={teamPlayers}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <Suspense fallback={null}>
-              <ScoreDisplay />
+          )}
 
-              <DebugOverlay>
-                <PlayersSection />
-                <BotsSection />
-                <CTFDebugSection />
-                <SceneInfoSection />
-              </DebugOverlay>
-            </Suspense>
-            {audioRuntimeStatus === "blocked" ? (
-              <AudioBlockedPrompt
-                onEnable={() => {
-                  void audioRuntimeControls.retry();
-                }}
+          {showBackdrop ? (
+            <>
+              <div className="absolute inset-0 bg-radial from-transparent to-black/55" />
+              {muteSlot}
+              {audioRuntimeStatus === "blocked" ? (
+                <AudioBlockedPrompt
+                  onEnable={() => {
+                    void audioRuntimeControls.retry();
+                  }}
+                />
+              ) : null}
+              {matchPhase === "lobby" ? (
+                <LobbyOverlay
+                  joinQrValue={joinQrValue}
+                  copiedJoinUrl={hostLobbyShell.copied}
+                  onCopyJoinUrl={hostLobbyShell.handleCopy}
+                  onOpenJoinUrl={hostLobbyShell.handleOpen}
+                  roomId={roomId}
+                  pointsToWin={pointsToWin}
+                  botCounts={botCounts}
+                  connectionStatus={connectionStatus}
+                  lastError={lastError}
+                  connectedPlayers={players}
+                  teamPlayers={teamPlayers}
+                  onStartMatch={() => matchActions.startMatch()}
+                />
+              ) : (
+                <EndedOverlay
+                  roomId={roomId}
+                  matchSummary={matchSummary}
+                  botCounts={botCounts}
+                  teamPlayers={teamPlayers}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <Suspense fallback={null}>
+                <ScoreDisplay />
+
+                <DebugOverlay>
+                  <PlayersSection />
+                  <BotsSection />
+                  <CTFDebugSection />
+                  <SceneInfoSection />
+                </DebugOverlay>
+              </Suspense>
+              {audioRuntimeStatus === "blocked" ? (
+                <AudioBlockedPrompt
+                  onEnable={() => {
+                    void audioRuntimeControls.retry();
+                  }}
+                />
+              ) : null}
+              <HostLiveChrome
+                roomId={roomId}
+                connectionStatus={connectionStatus}
+                audioMuted={audioMuted}
+                onToggleAudio={toggleAudio}
               />
-            ) : null}
-            <HostLiveChrome
-              roomId={roomId}
-              connectionStatus={connectionStatus}
-              audioMuted={audioMuted}
-              onToggleAudio={toggleAudio}
-            />
-          </>
-        )}
-        <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
-      </div>
-    </div>
+            </>
+          )}
+        </div>
+      </SurfaceViewport>
+      <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
+    </>
   );
 };
 
@@ -478,10 +480,7 @@ export const HostView = (): JSX.Element => {
 
   return (
     <HostAudioProvider muted={audioMuted}>
-      <HostViewContent
-        audioMuted={audioMuted}
-        setAudioMuted={setAudioMuted}
-      />
+      <HostViewContent audioMuted={audioMuted} setAudioMuted={setAudioMuted} />
     </HostAudioProvider>
   );
 };

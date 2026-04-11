@@ -16,8 +16,9 @@ export const useRuntimeObservabilitySubscription = (
   }, [handler]);
 
   useEffect(() => {
+    const currentFilter = filter;
     return subscribeToRuntimeObservability((event) => {
       handlerRef.current(event);
-    }, filter);
-  }, [filter?.controllerId, filter?.roomId, filter?.role, filter?.events, filter?.levels]);
+    }, currentFilter);
+  }, [filter]);
 };

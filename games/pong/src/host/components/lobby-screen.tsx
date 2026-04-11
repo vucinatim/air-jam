@@ -102,7 +102,7 @@ export const LobbyScreen = ({
 
   return (
     <div
-      className="pong-app-shell flex min-h-screen w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8"
+      className="pong-app-shell flex h-full min-h-0 w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8"
       data-testid="pong-host-lobby-screen"
     >
       <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.2fr_0.8fr]">

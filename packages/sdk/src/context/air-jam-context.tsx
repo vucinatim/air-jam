@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * @module AirJamContext
  * @description Core context and provider for the AirJam SDK.
@@ -402,7 +401,13 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
         // Best effort only
       }
     }
-  }, [config.backendOrigin, config.socketOrigin, config.appId]);
+  }, [
+    config.appId,
+    config.appOrigin,
+    config.backendOrigin,
+    config.proxyStrategy,
+    config.socketOrigin,
+  ]);
 
   // Stable function references - don't recreate when config changes
   const getSocket = useCallback(

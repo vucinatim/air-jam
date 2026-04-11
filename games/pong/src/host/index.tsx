@@ -5,10 +5,15 @@ import {
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
-import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
+import {
+  HostMuteButton,
+  SurfaceViewport,
+  useHostLobbyShell,
+} from "@air-jam/sdk/ui";
 import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import type { JSX } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { pongVisualHarnessBridge } from "../../visual/contract";
 import { getMatchReadiness } from "../game/domain/match-readiness";
 import { getTeamCounts } from "../game/domain/team-slots";
 import {
@@ -27,7 +32,6 @@ import { LobbyScreen } from "./components/lobby-screen";
 import { MatchOverlay } from "./components/match-overlay";
 import { ScoreStrip } from "./components/score-strip";
 import { usePongFeedback } from "./hooks/use-pong-feedback";
-import { pongVisualHarnessBridge } from "../../visual/contract";
 
 export function HostView() {
   return (
@@ -236,7 +240,7 @@ function HostScreen() {
     );
   } else {
     content = (
-      <div className="pong-app-shell h-screen w-screen text-white">
+      <div className="pong-app-shell h-full w-full text-white">
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4 sm:px-6">
           <ScoreStrip
             team1Players={team1Players}
@@ -251,7 +255,7 @@ function HostScreen() {
           <div className="pong-stage-frame flex max-h-full max-w-full items-center justify-center">
             <canvas
               ref={canvasRef}
-              className="block max-h-[calc(100vh-12rem)] max-w-[calc(100vw-3rem)] rounded-[22px] border border-white/16 bg-black"
+              className="block max-h-full max-w-full rounded-[22px] border border-white/16 bg-black"
             />
           </div>
         </div>
@@ -274,7 +278,9 @@ function HostScreen() {
           onToggle={() => setAudioMuted((previous) => !previous)}
         />
       </div>
-      {content}
+      <SurfaceViewport preset="host-standard" className="bg-[#02030a]">
+        {content}
+      </SurfaceViewport>
       <HostPreviewControllerWorkspace
         enabled={previewControllersEnabled}
         className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"

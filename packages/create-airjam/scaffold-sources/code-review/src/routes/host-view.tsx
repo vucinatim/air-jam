@@ -5,10 +5,12 @@ import {
   JoinUrlControls,
   LifecycleActionGroup,
   RoomQrCode,
+  SurfaceViewport,
   useHostLobbyShell,
 } from "@air-jam/sdk/ui";
 import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { codeReviewVisualHarnessBridge } from "../../visual/contract";
 import { type Position, type Team } from "../game/domain/team-assignments";
 import {
   type GameInput,
@@ -24,7 +26,6 @@ import leftExtendedSprite from "/sprites/left-extended.png";
 import leftShortSprite from "/sprites/left-short.png";
 import rightExtendedSprite from "/sprites/right-extended.png";
 import rightShortSprite from "/sprites/right-short.png";
-import { codeReviewVisualHarnessBridge } from "../../visual/contract";
 
 const FIELD_WIDTH = 720;
 const FIELD_HEIGHT = 720;
@@ -1525,260 +1526,268 @@ export function HostView() {
         />
       </div>
 
-      <div
-        className="relative flex min-h-screen flex-col items-center justify-center p-4"
-        style={{ backgroundColor: "var(--ring-mat-color, #e5e7eb)" }}
+      <SurfaceViewport
+        preset="host-standard"
+        className="bg-[var(--ring-mat-color,#e5e7eb)]"
       >
-        <div className="mb-4 flex w-full items-center">
-          <div className="flex w-1/3 justify-center">
-            <div className="relative">
-              <span
-                style={{
-                  color: "rgb(220, 38, 38)",
-                  whiteSpace: "nowrap",
-                }}
-                className="pixel-font text-7xl leading-none"
-              >
-                {hpDisplay.team1}
-              </span>
+        <div
+          className="relative flex h-full w-full flex-col items-center justify-center p-4"
+          style={{ backgroundColor: "var(--ring-mat-color, #e5e7eb)" }}
+        >
+          <div className="mb-4 flex w-full items-center">
+            <div className="flex w-1/3 justify-center">
+              <div className="relative">
+                <span
+                  style={{
+                    color: "rgb(220, 38, 38)",
+                    whiteSpace: "nowrap",
+                  }}
+                  className="pixel-font text-7xl leading-none"
+                >
+                  {hpDisplay.team1}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex w-1/3 justify-center">
+              <canvas ref={canvasRef} className="block" />
+            </div>
+
+            <div className="flex w-1/3 justify-center">
+              <div className="relative">
+                <span
+                  style={{
+                    color: "rgb(37, 99, 235)",
+                    whiteSpace: "nowrap",
+                  }}
+                  className="pixel-font text-7xl leading-none"
+                >
+                  {hpDisplay.team2}
+                </span>
+              </div>
             </div>
           </div>
-
-          <div className="flex w-1/3 justify-center">
-            <canvas ref={canvasRef} className="block" />
-          </div>
-
-          <div className="flex w-1/3 justify-center">
-            <div className="relative">
-              <span
-                style={{
-                  color: "rgb(37, 99, 235)",
-                  whiteSpace: "nowrap",
-                }}
-                className="pixel-font text-7xl leading-none"
-              >
-                {hpDisplay.team2}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {matchPhase === "lobby" ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 p-2 sm:p-3 md:p-4">
-          <div className="flex min-h-full w-full items-center justify-center">
-            <div
-              className="pixel-font relative flex w-full max-w-[96vw] flex-col overflow-hidden rounded-none border-4 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)] xl:max-w-[1780px] 2xl:max-w-[1920px]"
-              style={{
-                height: "auto",
-                maxHeight: "none",
-              }}
-            >
-              <div className="min-h-0 flex-1 p-3 sm:p-4 md:p-5">
-                <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(36rem,1fr)]">
-                  <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
-                    <img
-                      src="/sprites/cover.png"
-                      alt="Game cover"
-                      className="h-full w-full object-cover object-center"
-                    />
-                  </div>
-
-                  <div className="order-2 flex min-h-0 flex-col xl:order-2">
-                    <div className="space-y-2 md:space-y-3">
-                      <div>
-                        <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
-                          Room
-                        </p>
-                        <p className="text-lg text-white">{host.roomId}</p>
+          {matchPhase === "lobby" ? (
+            <div className="absolute inset-0 z-50 overflow-y-auto bg-black/65 p-2 sm:p-3 md:p-4">
+              <div className="flex min-h-full w-full items-center justify-center">
+                <div
+                  className="pixel-font relative flex w-full max-w-[96vw] flex-col overflow-hidden rounded-none border-4 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)] xl:max-w-[1780px] 2xl:max-w-[1920px]"
+                  style={{
+                    height: "auto",
+                    maxHeight: "none",
+                  }}
+                >
+                  <div className="min-h-0 flex-1 p-3 sm:p-4 md:p-5">
+                    <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(36rem,1fr)]">
+                      <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
+                        <img
+                          src="/sprites/cover.png"
+                          alt="Game cover"
+                          className="h-full w-full object-cover object-center"
+                        />
                       </div>
 
-                      <div className="inline-flex text-xs tracking-[0.22em] uppercase">
-                        <span className="rounded-none border-2 border-zinc-600 px-2 py-1">
-                          {hostStatusText}
-                        </span>
-                      </div>
-
-                      <JoinUrlControls
-                        value={hostLobbyShell.joinUrlValue}
-                        label="Join URL"
-                        copied={hostLobbyShell.copied}
-                        onCopy={hostLobbyShell.handleCopy}
-                        onOpen={hostLobbyShell.handleOpen}
-                        className="pt-1"
-                        inputClassName="pixel-font border-2 border-zinc-600 bg-black/80 text-xs text-zinc-100"
-                        buttonClassName="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
-                      />
-                    </div>
-
-                    <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
-                      <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
-                        <div className="flex flex-col items-center border-zinc-700 pb-3 md:border-r-2 md:pr-3 md:pb-0">
-                          <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
-                            Scan To Join
-                          </p>
-                          <div className="mt-2 flex w-full flex-1 items-start justify-center">
-                            {hostLobbyShell.joinUrlValue ? (
-                              <RoomQrCode
-                                value={hostLobbyShell.joinUrlValue}
-                                size={448}
-                                padding={1}
-                                foregroundColor="#ffffff"
-                                backgroundColor="#00000000"
-                                className="mx-auto h-auto w-full max-w-52 sm:max-w-60 md:max-w-88 xl:max-w-md"
-                                style={{
-                                  width: "100%",
-                                  height: "auto",
-                                  aspectRatio: "1 / 1",
-                                }}
-                                alt={`Join room ${host.roomId}`}
-                              />
-                            ) : (
-                              <div className="flex h-full min-h-40 w-full items-center justify-center px-3 text-center">
-                                <span className="text-xs text-zinc-400">
-                                  Generating QR code…
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex min-h-0 flex-col md:pl-1">
-                          <div className="flex items-center justify-between gap-3">
+                      <div className="order-2 flex min-h-0 flex-col xl:order-2">
+                        <div className="space-y-2 md:space-y-3">
+                          <div>
                             <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
-                              Connected Players ({host.players.length})
+                              Room
                             </p>
-                            <span className="text-[10px] tracking-[0.18em] text-zinc-400 uppercase">
-                              Humans {assignedHumanPlayers.length}
+                            <p className="text-lg text-white">{host.roomId}</p>
+                          </div>
+
+                          <div className="inline-flex text-xs tracking-[0.22em] uppercase">
+                            <span className="rounded-none border-2 border-zinc-600 px-2 py-1">
+                              {hostStatusText}
                             </span>
                           </div>
-                          <p className="mt-1 text-[10px] tracking-[0.18em] text-zinc-500 uppercase">
-                            Auto Bots {botCount} (Coder {team1BotCount},
-                            Reviewer {team2BotCount})
-                          </p>
 
-                          <ul className="mt-2 space-y-1 pr-1">
-                            {slotParticipants.map((participant) => (
-                              <li
-                                key={participant.slotKey}
-                                className="flex items-center justify-between border-b border-zinc-700 pb-2 text-xs"
-                              >
-                                <div className="min-w-0">
-                                  <span className="block wrap-break-word text-zinc-100">
-                                    {participant.label}
-                                  </span>
-                                  <span className="block text-[10px] tracking-[0.15em] text-zinc-400 uppercase">
-                                    {participant.team === "team1"
-                                      ? "Coder"
-                                      : "Reviewer"}{" "}
-                                    •{" "}
-                                    {participant.position === "front"
-                                      ? "Front"
-                                      : "Back"}{" "}
-                                    • {participant.isBot ? "Bot" : "Human"}
-                                  </span>
-                                </div>
-                                {participant.isBot ? (
-                                  <span className="text-[10px] tracking-[0.15em] text-zinc-500 uppercase">
-                                    Auto
-                                  </span>
+                          <JoinUrlControls
+                            value={hostLobbyShell.joinUrlValue}
+                            label="Join URL"
+                            copied={hostLobbyShell.copied}
+                            onCopy={hostLobbyShell.handleCopy}
+                            onOpen={hostLobbyShell.handleOpen}
+                            className="pt-1"
+                            inputClassName="pixel-font border-2 border-zinc-600 bg-black/80 text-xs text-zinc-100"
+                            buttonClassName="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+                          />
+                        </div>
+
+                        <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
+                          <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+                            <div className="flex flex-col items-center border-zinc-700 pb-3 md:border-r-2 md:pr-3 md:pb-0">
+                              <p className="text-[10px] tracking-[0.2em] text-zinc-400 uppercase">
+                                Scan To Join
+                              </p>
+                              <div className="mt-2 flex w-full flex-1 items-start justify-center">
+                                {hostLobbyShell.joinUrlValue ? (
+                                  <RoomQrCode
+                                    value={hostLobbyShell.joinUrlValue}
+                                    size={448}
+                                    padding={1}
+                                    foregroundColor="#ffffff"
+                                    backgroundColor="#00000000"
+                                    className="mx-auto h-auto w-full max-w-52 sm:max-w-60 md:max-w-88 xl:max-w-md"
+                                    style={{
+                                      width: "100%",
+                                      height: "auto",
+                                      aspectRatio: "1 / 1",
+                                    }}
+                                    alt={`Join room ${host.roomId}`}
+                                  />
                                 ) : (
-                                  <button
-                                    type="button"
-                                    className="text-left text-[10px] text-zinc-300 underline-offset-2 hover:underline"
-                                    onClick={() => copyPlayerId(participant.id)}
-                                    title="Copy player ID"
-                                  >
-                                    {copiedPlayerId === participant.id
-                                      ? "Copied!"
-                                      : participant.id.slice(0, 8)}
-                                  </button>
+                                  <div className="flex h-full min-h-40 w-full items-center justify-center px-3 text-center">
+                                    <span className="text-xs text-zinc-400">
+                                      Generating QR code…
+                                    </span>
+                                  </div>
                                 )}
-                              </li>
-                            ))}
-                          </ul>
+                              </div>
+                            </div>
+
+                            <div className="flex min-h-0 flex-col md:pl-1">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
+                                  Connected Players ({host.players.length})
+                                </p>
+                                <span className="text-[10px] tracking-[0.18em] text-zinc-400 uppercase">
+                                  Humans {assignedHumanPlayers.length}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[10px] tracking-[0.18em] text-zinc-500 uppercase">
+                                Auto Bots {botCount} (Coder {team1BotCount},
+                                Reviewer {team2BotCount})
+                              </p>
+
+                              <ul className="mt-2 space-y-1 pr-1">
+                                {slotParticipants.map((participant) => (
+                                  <li
+                                    key={participant.slotKey}
+                                    className="flex items-center justify-between border-b border-zinc-700 pb-2 text-xs"
+                                  >
+                                    <div className="min-w-0">
+                                      <span className="block wrap-break-word text-zinc-100">
+                                        {participant.label}
+                                      </span>
+                                      <span className="block text-[10px] tracking-[0.15em] text-zinc-400 uppercase">
+                                        {participant.team === "team1"
+                                          ? "Coder"
+                                          : "Reviewer"}{" "}
+                                        •{" "}
+                                        {participant.position === "front"
+                                          ? "Front"
+                                          : "Back"}{" "}
+                                        • {participant.isBot ? "Bot" : "Human"}
+                                      </span>
+                                    </div>
+                                    {participant.isBot ? (
+                                      <span className="text-[10px] tracking-[0.15em] text-zinc-500 uppercase">
+                                        Auto
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="text-left text-[10px] text-zinc-300 underline-offset-2 hover:underline"
+                                        onClick={() =>
+                                          copyPlayerId(participant.id)
+                                        }
+                                        title="Copy player ID"
+                                      >
+                                        {copiedPlayerId === participant.id
+                                          ? "Copied!"
+                                          : participant.id.slice(0, 8)}
+                                      </button>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex justify-end">
+                          <LifecycleActionGroup
+                            phase="lobby"
+                            canInteract={canStartMatch}
+                            onStart={() => {
+                              if (!canStartMatch) return;
+                              actions.startMatch();
+                            }}
+                            startLabel="Play"
+                            buttonClassName="rounded-none border-4 border-zinc-300 bg-zinc-800 text-white enabled:hover:bg-zinc-700"
+                          />
                         </div>
                       </div>
-                    </div>
-
-                    <div className="mt-3 flex justify-end">
-                      <LifecycleActionGroup
-                        phase="lobby"
-                        canInteract={canStartMatch}
-                        onStart={() => {
-                          if (!canStartMatch) return;
-                          actions.startMatch();
-                        }}
-                        startLabel="Play"
-                        buttonClassName="rounded-none border-4 border-zinc-300 bg-zinc-800 text-white enabled:hover:bg-zinc-700"
-                      />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+          ) : null}
 
-      {matchPhase === "ended" ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 p-3 sm:p-4">
-          <div className="flex min-h-full w-full items-center justify-center">
-            <div className="pixel-font w-full max-w-2xl rounded-none border-4 border-zinc-700 bg-zinc-900 p-6 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)]">
-              <p className="text-xs tracking-[0.2em] text-zinc-400 uppercase">
-                Match Ended
-              </p>
-              <p className="mt-2 text-3xl text-white">
-                {matchSummary?.winner === "draw"
-                  ? "Draw"
-                  : matchSummary?.winner === "team1"
-                    ? "Coder Team Wins"
-                    : "Reviewer Team Wins"}
-              </p>
+          {matchPhase === "ended" ? (
+            <div className="absolute inset-0 z-50 overflow-y-auto bg-black/65 p-3 sm:p-4">
+              <div className="flex min-h-full w-full items-center justify-center">
+                <div className="pixel-font w-full max-w-2xl rounded-none border-4 border-zinc-700 bg-zinc-900 p-6 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)]">
+                  <p className="text-xs tracking-[0.2em] text-zinc-400 uppercase">
+                    Match Ended
+                  </p>
+                  <p className="mt-2 text-3xl text-white">
+                    {matchSummary?.winner === "draw"
+                      ? "Draw"
+                      : matchSummary?.winner === "team1"
+                        ? "Coder Team Wins"
+                        : "Reviewer Team Wins"}
+                  </p>
 
-              <div className="mt-6 grid grid-cols-2 gap-4 text-center">
-                <div className="rounded-none border-2 border-zinc-700 bg-zinc-800/70 p-4">
-                  <p className="text-xs tracking-[0.16em] text-zinc-400 uppercase">
-                    Coder
-                  </p>
-                  <p className="mt-2 text-5xl text-red-500">
-                    {matchSummary?.scores.team1 ?? scores.team1}
-                  </p>
+                  <div className="mt-6 grid grid-cols-2 gap-4 text-center">
+                    <div className="rounded-none border-2 border-zinc-700 bg-zinc-800/70 p-4">
+                      <p className="text-xs tracking-[0.16em] text-zinc-400 uppercase">
+                        Coder
+                      </p>
+                      <p className="mt-2 text-5xl text-red-500">
+                        {matchSummary?.scores.team1 ?? scores.team1}
+                      </p>
+                    </div>
+                    <div className="rounded-none border-2 border-zinc-700 bg-zinc-800/70 p-4">
+                      <p className="text-xs tracking-[0.16em] text-zinc-400 uppercase">
+                        Reviewer
+                      </p>
+                      <p className="mt-2 text-5xl text-blue-500">
+                        {matchSummary?.scores.team2 ?? scores.team2}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => actions.resetToLobby()}
+                      className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-6 py-3 text-sm uppercase transition hover:bg-zinc-700"
+                    >
+                      Back To Lobby
+                    </button>
+                  </div>
                 </div>
-                <div className="rounded-none border-2 border-zinc-700 bg-zinc-800/70 p-4">
-                  <p className="text-xs tracking-[0.16em] text-zinc-400 uppercase">
-                    Reviewer
-                  </p>
-                  <p className="mt-2 text-5xl text-blue-500">
-                    {matchSummary?.scores.team2 ?? scores.team2}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => actions.resetToLobby()}
-                  className="rounded-none border-4 border-zinc-300 bg-zinc-800 px-6 py-3 text-sm uppercase transition hover:bg-zinc-700"
-                >
-                  Back To Lobby
-                </button>
               </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+          ) : null}
 
-      {matchPhase === "playing" && host.runtimeState !== "playing" ? (
-        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-black/45">
-          <div className="pixel-font rounded-none border-4 border-zinc-600 bg-zinc-900/90 px-6 py-4 text-center text-zinc-100">
-            <p className="text-sm tracking-[0.18em] uppercase">Match Paused</p>
-            <p className="mt-2 text-xs text-zinc-300">
-              Waiting for runtime reconnect...
-            </p>
-          </div>
+          {matchPhase === "playing" && host.runtimeState !== "playing" ? (
+            <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/45">
+              <div className="pixel-font rounded-none border-4 border-zinc-600 bg-zinc-900/90 px-6 py-4 text-center text-zinc-100">
+                <p className="text-sm tracking-[0.18em] uppercase">
+                  Match Paused
+                </p>
+                <p className="mt-2 text-xs text-zinc-300">
+                  Waiting for runtime reconnect...
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </SurfaceViewport>
       <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
     </div>
   );

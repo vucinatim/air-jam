@@ -63,6 +63,7 @@ export function useSounds(muted = false) {
     }
 
     // Reset and play
+    // eslint-disable-next-line react-hooks/immutability -- HTMLAudioElement playback state is intentionally mutable runtime state.
     audio.currentTime = 0;
     const playPromise = audio.play();
 

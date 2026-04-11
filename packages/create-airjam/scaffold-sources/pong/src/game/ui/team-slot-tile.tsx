@@ -20,7 +20,7 @@ type TeamSlotTileProps = {
 
 const shellClassBySurface = {
   controller:
-    "flex h-[68px] min-w-0 items-center gap-2 rounded-[18px] border px-2 py-3 text-left",
+    "flex min-h-[4.5rem] min-w-0 items-center gap-2.5 rounded-xl border px-3 py-3 text-left",
   host: "flex h-[72px] items-center gap-3 rounded-[22px] border px-4",
 } as const;
 
@@ -41,20 +41,20 @@ const paletteBySurface = {
 } as const;
 
 const avatarClassBySurface = {
-  controller: "h-8 w-8 border-2",
+  controller: "h-10 w-10 border-2",
   host: "h-10 w-10 border-2",
 } as const;
 
 const badgeClassBySurface = {
   controller:
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-[9px] font-black tracking-[0.14em] uppercase",
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[0.625rem] font-black tracking-[0.14em] uppercase",
   host: "flex h-10 w-10 items-center justify-center rounded-full border-2 text-[11px] font-black tracking-[0.14em] uppercase",
 } as const;
 
 const textClassBySurface = {
   controller: {
-    title: "truncate text-[11px] font-black tracking-[0.14em] uppercase",
-    subtitle: "text-[9px] font-semibold tracking-[0.16em] uppercase",
+    title: "truncate text-[0.6875rem] font-black tracking-[0.14em] uppercase",
+    subtitle: "text-[0.625rem] font-semibold tracking-[0.16em] uppercase",
   },
   host: {
     title: "truncate text-sm font-black tracking-[0.14em] uppercase",

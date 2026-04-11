@@ -29,7 +29,7 @@ export const PlayerAvatar = ({
 }: PlayerAvatarProps): JSX.Element => {
   const accentColor = player.color || "hsl(var(--border))";
   const sizeClasses = {
-    sm: "h-8 w-8 border-2",
+    sm: "h-9 w-9 border-2",
     md: "h-12 w-12 border-4",
     lg: "h-16 w-16 border-4",
   };

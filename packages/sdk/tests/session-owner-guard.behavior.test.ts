@@ -25,8 +25,12 @@ const PROVIDER_CONFIG = {
   appId: "test_app_id",
 };
 
-const ControllerProviderForTest = ControllerSessionProvider as React.ComponentType<any>;
-const HostProviderForTest = HostSessionProvider as React.ComponentType<any>;
+type SessionProviderTestProps = React.PropsWithChildren<typeof PROVIDER_CONFIG>;
+
+const ControllerProviderForTest =
+  ControllerSessionProvider as React.ComponentType<SessionProviderTestProps>;
+const HostProviderForTest =
+  HostSessionProvider as React.ComponentType<SessionProviderTestProps>;
 
 const ClaimOwner = ({
   kind,

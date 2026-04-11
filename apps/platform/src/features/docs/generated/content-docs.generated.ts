@@ -1240,11 +1240,11 @@ const generatedContentDocsDocuments = [
           "Render a stable avatar ringed by player color from PlayerProfile. Set isBot when you want the same shell to represent an AI-controlled slot with a bot icon instead of player artwork. Props: player: PlayerProfile…",
       },
       {
-        title: "ForcedOrientationShell",
-        slug: "forcedorientationshell",
+        title: "SurfaceViewport",
+        slug: "surfaceviewport",
         depth: 3,
         excerpt:
-          'Enforce a consistent visual orientation using CSS rotation (the primary behavior). Optionally, it also requests native browser orientation lock on first gesture when supported. Props: desired: "portrait" | "landscape"…',
+          "Own safe-area, orientation, and page-level UI scaling for a game surface. It should fill the available screen while scaling the UI system proportionally, rather than letterboxing a fixed contained stage. Internally it…",
       },
       {
         title: "VolumeControls",
@@ -1278,7 +1278,7 @@ const generatedContentDocsDocuments = [
         slug: "composition-patterns",
         depth: 2,
         excerpt:
-          "Lobby Overlay Combine: RoomQrCode for quick join PlayerAvatar for team roster Button for start/ready actions Controller Route Combine: ForcedOrientationShell for stable layout PlayerAvatar in a compact header Button +…",
+          "Lobby Overlay Combine: RoomQrCode for quick join PlayerAvatar for team roster Button for start/ready actions Controller Route Combine: SurfaceViewport for shared full-screen UI scaling PlayerAvatar in a compact header…",
       },
       {
         title: "Lobby Overlay",
@@ -1292,7 +1292,7 @@ const generatedContentDocsDocuments = [
         slug: "controller-route",
         depth: 3,
         excerpt:
-          "Combine: ForcedOrientationShell for stable layout PlayerAvatar in a compact header Button + Slider for controls/options",
+          "Combine: SurfaceViewport for shared full-screen UI scaling PlayerAvatar in a compact header Button + Slider for controls/options",
       },
       {
         title: "Anti-Patterns",

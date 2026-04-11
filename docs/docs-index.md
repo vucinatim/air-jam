@@ -49,13 +49,13 @@ Canonical release sequence:
 
 Active prerelease implementation plans:
 
-1. [Controller Preview Workspace Plan](./plans/controller-preview-workspace-plan.md)
+1. [Game UI Scaling Plan](./plans/game-ui-scaling-plan.md)
 
 Final release-proof plan:
 
 1. [Final Prerelease Manual Check Plan](./plans/final-prerelease-manual-check-plan.md)
 
-Archived recent baseline plans:
+Archived recent baseline plans and completed implementation snapshots:
 
 1. [Game Source Scaffolding Plan](./archive/game-source-scaffolding-plan-2026-04-07.md)
 2. [ZeroDays Game Import And Template Promotion Plan](./archive/zerodays-game-import-template-promotion-plan-2026-04-07.md)
@@ -70,8 +70,9 @@ Archived recent baseline plans:
 11. [SDK Extraction Clean-Swap Plan](./archive/sdk-extraction-clean-swap-plan-2026-04-09.md)
 12. [Visual Review Harness Plan](./archive/visual-review-harness-plan-2026-04-09.md)
 13. [Controller Preview Dock Plan](./archive/controller-preview-dock-plan-2026-04-09.md)
-14. [Agent Runtime Contract Plan](./archive/agent-runtime-contract-plan-2026-04-09.md)
-15. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
+14. [Controller Preview Workspace Plan](./plans/controller-preview-workspace-plan.md)
+15. [Agent Runtime Contract Plan](./archive/agent-runtime-contract-plan-2026-04-09.md)
+16. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
 
 Completed transitions / reference plans:
 
