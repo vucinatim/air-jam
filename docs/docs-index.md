@@ -19,6 +19,7 @@ Core system docs:
 7. [Environment Contracts](./systems/env-contracts.md)
 8. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 9. [Composition Shell Contract](./systems/composition-shell-contract.md)
+10. [Visual Harness Contract](./systems/visual-harness-contract.md)
 
 Strategy and operations:
 
@@ -31,6 +32,7 @@ Strategy and operations:
 Release-critical plans:
 
 1. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
+2. [Stage 3 Polish Plan](./plans/stage-3-polish-plan.md)
 
 Canonical release sequence:
 
@@ -47,8 +49,7 @@ Canonical release sequence:
 
 Active prerelease implementation plans:
 
-1. [Prerelease Systems Closeout Plan](./plans/prerelease-systems-closeout-plan.md)
-2. [Controller Preview Dock Plan](./plans/controller-preview-dock-plan.md)
+1. none
 
 Final release-proof plan:
 
@@ -68,6 +69,9 @@ Archived recent baseline plans:
 10. [Showcase Games Release Readiness Checklist](./archive/showcase-games-release-readiness-checklist-2026-04-09.md)
 11. [SDK Extraction Clean-Swap Plan](./archive/sdk-extraction-clean-swap-plan-2026-04-09.md)
 12. [Visual Review Harness Plan](./archive/visual-review-harness-plan-2026-04-09.md)
+13. [Controller Preview Dock Plan](./archive/controller-preview-dock-plan-2026-04-09.md)
+14. [Agent Runtime Contract Plan](./archive/agent-runtime-contract-plan-2026-04-09.md)
+15. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
 
 Completed transitions / reference plans:
 

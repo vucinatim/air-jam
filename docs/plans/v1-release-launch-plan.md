@@ -11,12 +11,14 @@ Related docs:
 4. [Release Workflow](../strategy/release-workflow.md)
 5. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 6. [Docs Index](../docs-index.md)
-7. [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
-8. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
-9. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-10. [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
-11. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
-12. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+7. [Prerelease Systems Closeout Plan (Archived)](../archive/prerelease-systems-closeout-plan-2026-04-09.md)
+8. [Controller Preview Dock Plan (Archived)](../archive/controller-preview-dock-plan-2026-04-09.md)
+9. [Agent Runtime Contract Plan (Archived)](../archive/agent-runtime-contract-plan-2026-04-09.md)
+10. [Stage 3 Polish Plan](./stage-3-polish-plan.md)
+11. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+12. [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
+13. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
+14. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
 
 ## Purpose
 
@@ -91,8 +93,8 @@ Air Jam should move through launch execution in this order:
 Current mapping:
 
 1. remaining implementation work currently means:
-   1. the deferred visual-harness-driven cleanup/polish pass in [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
-   2. the on-screen preview-controller work in [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+   1. no separate implementation plan remains active
+   2. deferred visual-harness-driven cleanup stays in Stage 3 polish, not Stage 1 implementation
 2. prerelease devex and SDK checks should happen after cleanup/polish, not before unfinished implementation
 3. prerelease security checks should happen after the product shape is settled enough that findings do not churn with large feature edits
 4. hosted upload, media/blogs, deployment, and launch distribution are late-stage release execution, not active prerelease implementation
@@ -105,8 +107,7 @@ Complete every remaining product/framework feature that still belongs in v1 befo
 
 Current remaining implementation tracks:
 
-1. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
-2. any remaining planned prerelease cleanup that still changes shipped product behavior
+1. none
 
 ### Stage 2. Fixes
 
@@ -116,6 +117,13 @@ Immediately after implementation is complete:
 2. resolve regressions, obvious bugs, and behavior mismatches
 3. avoid mixing this stage with new feature scope
 
+Immediate known fix target:
+
+1. continue resolving post-implementation fallout without reopening feature scope
+2. keep validating Arcade-built host/controller flows after the explicit `controllerUrl` contract replaced platform-side inference
+3. the full launch-set Arcade-built lobby sweep is now green at the shared host/controller baseline
+4. unless a new regression appears, Stage 2 can now be treated as closed enough to move the main execution focus into Stage 3 UI and gameplay polish
+
 ### Stage 3. UI And Gameplay Polish
 
 Do the visible host/controller polish pass here:
@@ -123,6 +131,10 @@ Do the visible host/controller polish pass here:
 1. visual-harness-driven layout and responsiveness cleanup
 2. last game-feel and shell-quality improvements
 3. no new system design unless a polish blocker exposes a real architecture flaw
+
+Current active Stage 3 plan:
+
+1. [Stage 3 Polish Plan](./stage-3-polish-plan.md)
 
 ### Stage 4. Prerelease Cleanup
 
@@ -192,8 +204,7 @@ After the product and prerelease checks are stable:
 
 Only these implementation plans should stay active alongside this launch plan:
 
-1. [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
-2. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+1. none
 
 All scattered manual verification has been moved into:
 
@@ -210,6 +221,9 @@ These are already done enough that they should not stay as parallel prerelease t
 5. platform settings runtime, inherited iframe sync, and blocked-audio UX
 6. GitHub-first dashboard auth baseline with email/password kept as intentional fallback
 7. public Arcade hosted release lane, managed media lane, moderation/reporting hooks, and dashboard IA reset baseline
+8. shared preview controllers across platform, repo-host, and scaffold-host flows
+9. prerelease agent-runtime namespace and seam alignment across runtime-control, runtime-inspection, runtime-observability, and capabilities
+10. systems closeout is complete enough to archive: SDK/runtime cleanup is done, built-mode visual capture reuses unchanged game builds, and deferred harness cleanup now belongs to the later polish stage
 
 ## Phase 1. Platform Feedback Path
 

@@ -9,9 +9,9 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts"
     },
-    "./runtime-bridge": {
-      "types": "./src/runtime-bridge.ts",
-      "import": "./src/runtime-bridge.ts"
+    "./runtime": {
+      "types": "./src/runtime.ts",
+      "import": "./src/runtime.ts"
     }
   },
   "main": "./src/index.ts",
@@ -23,14 +23,25 @@
   ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.56.1",
     "typescript": "~5.9.3"
   },
+  "peerDependencies": {
+    "react": "^19.2.0"
+  },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "tsup": "^8.5.1",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
   }
 }

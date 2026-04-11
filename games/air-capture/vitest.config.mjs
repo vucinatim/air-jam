@@ -5,10 +5,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
-      "@air-jam/sdk": path.resolve(
-        import.meta.dirname,
-        "../../packages/sdk/src",
-      ),
     },
   },
   test: {

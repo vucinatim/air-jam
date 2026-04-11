@@ -2,6 +2,10 @@ import { Button } from "../components/ui/button";
 import { cn } from "../utils/cn";
 import { ChevronDown, ChevronUp, MonitorSmartphone, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+  shellPanelClassName,
+  shellUtilityButtonClassName,
+} from "../components/shell-classes";
 import { usePreviewControllerManager } from "./manager";
 import { PreviewControllerSurface } from "./surface";
 
@@ -89,17 +93,20 @@ export const PreviewControllerDock = ({
 
       <div
         className={cn(
-          "pointer-events-auto flex min-h-14 items-center gap-3 rounded-full border border-white/12 bg-black/84 px-3 py-2 text-white shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-md",
+          "pointer-events-auto flex min-h-14 items-center gap-3 px-3 py-2 text-white",
+          shellPanelClassName,
           highContrast && "border-white/30",
         )}
       >
         <div className="flex items-center gap-3 pl-1">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/6">
-            <MonitorSmartphone className="h-4.5 w-4.5 text-cyan-300" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
+            <MonitorSmartphone className="h-4.5 w-4.5 text-slate-100" />
           </div>
           <div className="hidden min-w-0 sm:block">
-            <div className="text-sm font-semibold tracking-tight">{title}</div>
-            <div className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
+            <div className="text-sm font-semibold tracking-tight text-white">
+              {title}
+            </div>
+            <div className="text-[10px] font-semibold tracking-[0.18em] text-white/48 uppercase">
               {statusText}
             </div>
           </div>
@@ -110,7 +117,7 @@ export const PreviewControllerDock = ({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="h-9 w-9 rounded-full text-white hover:bg-white/10"
+            className="h-9 w-9 rounded-2xl text-white/82 hover:bg-white/[0.08] hover:text-white"
             onClick={() => setCollapsed((current) => !current)}
             aria-label={collapsed ? "Show preview controllers" : "Hide preview controllers"}
             title={collapsed ? "Show preview controllers" : "Hide preview controllers"}
@@ -126,7 +133,10 @@ export const PreviewControllerDock = ({
         <Button
           type="button"
           variant="outline"
-          className="h-10 rounded-full border-white/12 bg-white/6 px-4 text-sm text-white hover:bg-white/10"
+          className={cn(
+            "h-10 rounded-2xl px-4 text-sm",
+            shellUtilityButtonClassName,
+          )}
           disabled={!canSpawn}
           onClick={() => {
             setCollapsed(false);

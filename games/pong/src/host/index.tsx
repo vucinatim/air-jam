@@ -4,12 +4,9 @@ import {
   useAudio,
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
-import { PreviewControllerDock } from "@air-jam/sdk/preview";
+import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
-import {
-  publishVisualHarnessBridgeActions,
-  publishVisualHarnessBridgeSnapshot,
-} from "@air-jam/visual-harness/runtime-bridge";
+import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getMatchReadiness } from "../game/domain/match-readiness";
 import { getTeamCounts } from "../game/domain/team-slots";
@@ -29,6 +26,7 @@ import { LobbyScreen } from "./components/lobby-screen";
 import { MatchOverlay } from "./components/match-overlay";
 import { ScoreStrip } from "./components/score-strip";
 import { usePongFeedback } from "./hooks/use-pong-feedback";
+import { pongVisualHarnessBridge } from "../../visual/contract";
 
 export function HostView() {
   return (
@@ -92,55 +90,13 @@ function HostScreen() {
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
   });
-  const previewJoinUrl =
-    host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
   const previewControllersEnabled = import.meta.env.DEV;
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeSnapshot({
-      roomId: host.roomId,
-      controllerJoinUrl:
-        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
-      matchPhase,
-      runtimeState,
-    });
-  }, [host.joinUrl, host.joinUrlStatus, host.roomId, matchPhase, runtimeState]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeActions({
-      setPointsToWin: (payload) => {
-        const nextPointsToWin =
-          typeof payload === "number" && Number.isFinite(payload)
-            ? payload
-            : typeof payload === "string"
-              ? Number(payload)
-              : NaN;
-
-        if (!Number.isFinite(nextPointsToWin)) {
-          return false;
-        }
-
-        actions.setPointsToWin({ pointsToWin: nextPointsToWin });
-        return true;
-      },
-      scorePoint: (payload) => {
-        if (payload !== "team1" && payload !== "team2") {
-          return false;
-        }
-
-        actions.scorePoint({ team: payload });
-        return true;
-      },
-    });
-  }, [actions]);
+  useVisualHarnessBridge(pongVisualHarnessBridge, {
+    host,
+    matchPhase,
+    runtimeState,
+    actions,
+  });
 
   const showPausedOverlay =
     matchPhase === "playing" && runtimeState !== "playing";
@@ -271,9 +227,8 @@ function HostScreen() {
           canStartMatch={canStartMatch}
           onStartMatch={hostLobbyShell.handleStart}
         />
-        <PreviewControllerDock
+        <HostPreviewControllerDock
           enabled={previewControllersEnabled}
-          joinUrl={previewJoinUrl}
           className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
         />
       </>
@@ -296,9 +251,8 @@ function HostScreen() {
           team2Players={team2Players}
           botCounts={botCounts}
         />
-        <PreviewControllerDock
+        <HostPreviewControllerDock
           enabled={previewControllersEnabled}
-          joinUrl={previewJoinUrl}
           className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
         />
       </>
@@ -340,9 +294,8 @@ function HostScreen() {
         />
       ) : null}
 
-      <PreviewControllerDock
+      <HostPreviewControllerDock
         enabled={previewControllersEnabled}
-        joinUrl={previewJoinUrl}
         className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
       />
     </div>

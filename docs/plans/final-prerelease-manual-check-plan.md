@@ -7,8 +7,8 @@ Related docs:
 
 1. [Work Ledger](../work-ledger.md)
 2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
-3. [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
-4. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+3. [Prerelease Systems Closeout Plan (Archived)](../archive/prerelease-systems-closeout-plan-2026-04-09.md)
+4. [Controller Preview Dock Plan (Archived)](../archive/controller-preview-dock-plan-2026-04-09.md)
 5. [Showcase Games Release Readiness Plan (Archived)](../archive/showcase-games-release-readiness-plan-2026-04-09.md)
 6. [Showcase Games Release Readiness Checklist (Archived)](../archive/showcase-games-release-readiness-checklist-2026-04-09.md)
 7. [Public Arcade Release Strategy](../strategy/public-arcade-release-strategy.md)
@@ -119,4 +119,3 @@ This plan is complete when:
 2. the dashboard hosted-release and managed-media lanes are proven end to end
 3. the official hosted runtime path is proven end to end
 4. the release proceeds from one explicit recorded go / no-go decision instead of implied confidence
-

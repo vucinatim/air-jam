@@ -4,13 +4,14 @@ import type {
 } from "@air-jam/visual-harness";
 import {
   captureStandardSurfaces,
+  defineVisualHarness,
   waitForControllerText,
-  waitForHostMatchPhase,
   waitForHostText,
 } from "@air-jam/visual-harness";
+import { pongVisualHarnessBridge } from "./contract";
 
 const prepareLobbyState = async (
-  context: VisualScenarioContext,
+  context: VisualScenarioContext<typeof pongVisualHarnessBridge>,
 ): Promise<void> => {
   await waitForHostText(context, "Join On Phone");
   await context.ensureControllerInteractive();
@@ -28,7 +29,7 @@ const prepareLobbyState = async (
 };
 
 const preparePlayingState = async (
-  context: VisualScenarioContext,
+  context: VisualScenarioContext<typeof pongVisualHarnessBridge>,
 ): Promise<void> => {
   await prepareLobbyState(context);
 
@@ -45,11 +46,11 @@ const preparePlayingState = async (
 };
 
 const prepareEndedState = async (
-  context: VisualScenarioContext,
+  context: VisualScenarioContext<typeof pongVisualHarnessBridge>,
 ): Promise<void> => {
   await prepareLobbyState(context);
 
-  await context.invokeHostBridgeAction("setPointsToWin", 1);
+  await context.bridge.actions.setPointsToWin(1);
 
   await context.controller.game
     .getByTestId("pong-controller-add-bot-team2")
@@ -59,25 +60,30 @@ const prepareEndedState = async (
     .getByRole("button", { name: "Play" })
     .click();
 
-  await waitForHostMatchPhase(context, "playing", 10_000);
-  await context.invokeHostBridgeAction("scorePoint", "team1");
-  await waitForHostMatchPhase(context, "ended", 10_000);
+  await context.bridge.waitFor(
+    (snapshot) => snapshot?.matchPhase === "playing",
+    'host match phase "playing"',
+    10_000,
+  );
+  await context.bridge.actions.scorePoint("team1");
+  await context.bridge.waitFor(
+    (snapshot) => snapshot?.matchPhase === "ended",
+    'host match phase "ended"',
+    10_000,
+  );
   await waitForControllerText(context, "Match Ended", 10_000);
   await context.sleep(750);
 };
 
-export const visualHarness = {
+export const visualHarness = defineVisualHarness({
   gameId: "pong",
+  bridge: pongVisualHarnessBridge,
   scenarios: [
     {
       id: "lobby",
       description:
         "Host lobby with one joined controller staged on team one and standard host/controller shell captures.",
-      run: async (context) => {
-        if (context.controller.fullscreenPromptDismissed) {
-          context.note("Dismissed controller fullscreen prompt before capture.");
-        }
-
+      run: async (context: VisualScenarioContext<typeof pongVisualHarnessBridge>) => {
         await prepareLobbyState(context);
         await captureStandardSurfaces(context);
       },
@@ -86,11 +92,7 @@ export const visualHarness = {
       id: "playing",
       description:
         "Playing surface after one controller joins team one, a bot is added to team two, and the host starts the match.",
-      run: async (context) => {
-        if (context.controller.fullscreenPromptDismissed) {
-          context.note("Dismissed controller fullscreen prompt before capture.");
-        }
-
+      run: async (context: VisualScenarioContext<typeof pongVisualHarnessBridge>) => {
         await preparePlayingState(context);
         await captureStandardSurfaces(context);
       },
@@ -99,14 +101,10 @@ export const visualHarness = {
       id: "ended",
       description:
         "Ended surface after a deterministic one-point match where the host awards the winning point through the visual harness bridge.",
-      run: async (context) => {
-        if (context.controller.fullscreenPromptDismissed) {
-          context.note("Dismissed controller fullscreen prompt before capture.");
-        }
-
+      run: async (context: VisualScenarioContext<typeof pongVisualHarnessBridge>) => {
         await prepareEndedState(context);
         await captureStandardSurfaces(context);
       },
     },
   ],
-} satisfies VisualScenarioPack;
+}) satisfies VisualScenarioPack<typeof pongVisualHarnessBridge>;

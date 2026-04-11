@@ -79,7 +79,10 @@ export default function PlayGamePage({
     );
   }
 
-  const arcadeGame = toArcadeGame(game);
+  const arcadeGame = toArcadeGame({
+    ...game,
+    controllerUrl: game.controllerUrl,
+  });
   const canReportPublicRelease = game.launchSource === "hosted_release";
 
   const handleSubmitReport = async () => {

@@ -1,4 +1,5 @@
 import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
+import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
   JoinUrlControls,
@@ -7,10 +8,7 @@ import {
   RoomQrCode,
   useHostLobbyShell,
 } from "@air-jam/sdk/ui";
-import {
-  publishVisualHarnessBridgeActions,
-  publishVisualHarnessBridgeSnapshot,
-} from "@air-jam/visual-harness/runtime-bridge";
+import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { gameInputSchema } from "../game/input";
 import { useGameState } from "../hooks/use-game-state";
@@ -19,6 +17,7 @@ import { TaskSidebar } from "../components/task-sidebar";
 import { GameOverOverlay } from "../components/game-over-overlay";
 import { useSpaceStore } from "../game/stores";
 import { getPlayerById, getPlayerCapabilityHighlights } from "../players";
+import { theOfficeVisualHarnessBridge } from "../../visual/contract";
 
 export function HostView() {
   const host = useAirJamHost<typeof gameInputSchema>();
@@ -81,38 +80,13 @@ export function HostView() {
     canStartMatch,
     onStartMatch: startMatch,
   });
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeSnapshot({
-      roomId: host.roomId,
-      controllerJoinUrl:
-        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
-      matchPhase,
-      runtimeState: host.runtimeState,
-    });
-  }, [host.joinUrl, host.joinUrlStatus, host.roomId, host.runtimeState, matchPhase]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeActions({
-      forceEndMatch: () => {
-        if (matchPhase !== "playing") {
-          return false;
-        }
-
-        storeActions.setGameOver({ gameOver: true });
-        storeActions.setMatchPhase({ phase: "ended" });
-        return true;
-      },
-    });
-  }, [matchPhase, storeActions]);
+  const previewControllersEnabled = import.meta.env.DEV;
+  useVisualHarnessBridge(theOfficeVisualHarnessBridge, {
+    host,
+    matchPhase,
+    runtimeState: host.runtimeState,
+    storeActions,
+  });
 
   useHostRuntimeStateBridge({
     matchPhase,
@@ -405,6 +379,7 @@ export function HostView() {
           </div>
         </div>
       ) : null}
+      <HostPreviewControllerDock enabled={previewControllersEnabled} />
     </div>
   );
 }

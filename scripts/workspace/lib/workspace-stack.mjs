@@ -174,22 +174,25 @@ const readNewestMtimeMs = (targetPath) => {
   return newestMtimeMs;
 };
 
-export const ensureWorkspacePackageBuild = ({
+export const ensureWorkspaceBuildArtifact = ({
   rootDir,
-  packageDir,
+  projectDir,
   label,
   buildArgs,
-  sourcePaths = ["src", "package.json", "tsconfig.json", "tsup.config.ts"],
-  distCheckFile = "dist/index.js",
+  sourcePaths,
+  distCheckFile,
 }) => {
-  const resolvedPackageDir = path.resolve(rootDir, packageDir);
-  const distCheckPath = path.join(resolvedPackageDir, distCheckFile);
-  const latestSourceMtimeMs = sourcePaths.reduce((latest, relativeSourcePath) => {
-    return Math.max(
-      latest,
-      readNewestMtimeMs(path.join(resolvedPackageDir, relativeSourcePath)),
-    );
-  }, 0);
+  const resolvedProjectDir = path.resolve(rootDir, projectDir);
+  const distCheckPath = path.join(resolvedProjectDir, distCheckFile);
+  const latestSourceMtimeMs = sourcePaths.reduce(
+    (latest, relativeSourcePath) => {
+      return Math.max(
+        latest,
+        readNewestMtimeMs(path.join(resolvedProjectDir, relativeSourcePath)),
+      );
+    },
+    0,
+  );
   const distMtimeMs = readNewestMtimeMs(distCheckPath);
 
   if (distMtimeMs > 0 && distMtimeMs >= latestSourceMtimeMs) {
@@ -205,6 +208,23 @@ export const ensureWorkspacePackageBuild = ({
   });
   return true;
 };
+
+export const ensureWorkspacePackageBuild = ({
+  rootDir,
+  packageDir,
+  label,
+  buildArgs,
+  sourcePaths = ["src", "package.json", "tsconfig.json", "tsup.config.ts"],
+  distCheckFile = "dist/index.js",
+}) =>
+  ensureWorkspaceBuildArtifact({
+    rootDir,
+    projectDir: packageDir,
+    label,
+    buildArgs,
+    sourcePaths,
+    distCheckFile,
+  });
 
 export const createWorkspaceProcessGroup = ({
   rootDir = process.cwd(),

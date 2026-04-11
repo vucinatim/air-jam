@@ -72,7 +72,7 @@ export function ControllerPageLayout({
   const layout = (
     <div
       className={cn(
-        "text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-black select-none",
+        "text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-zinc-950 select-none",
         highContrast && "contrast-125",
       )}
     >
@@ -129,7 +129,11 @@ export function ControllerPageLayout({
   );
 
   if (isPreview) {
-    return <div className="relative flex h-full w-full flex-col bg-black">{layout}</div>;
+    return (
+      <div className="relative flex h-full w-full flex-col bg-zinc-950">
+        {layout}
+      </div>
+    );
   }
 
   return (
@@ -137,12 +141,12 @@ export function ControllerPageLayout({
       {!activeUrl ? (
         <ForcedOrientationShell
           desired="portrait"
-          contentClassName="h-full w-full bg-black"
+          contentClassName="h-full w-full bg-zinc-950"
         >
           {layout}
         </ForcedOrientationShell>
       ) : (
-        <div className="relative flex h-dvh w-dvw flex-col bg-black">
+        <div className="relative flex h-dvh w-dvw flex-col bg-zinc-950">
           {layout}
         </div>
       )}

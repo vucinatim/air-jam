@@ -10,10 +10,30 @@ import {
 } from "./arcade-runtime-manager";
 
 const games: ArcadeGame[] = [
-  { id: "g1", name: "One", url: "https://game-one.test" },
-  { id: "g2", name: "Two", url: "https://game-two.test" },
-  { id: "g3", name: "Three", url: "https://game-three.test" },
-  { id: "g4", name: "Four", url: "https://game-four.test" },
+  {
+    id: "g1",
+    name: "One",
+    url: "https://game-one.test",
+    controllerUrl: "https://game-one.test/controller",
+  },
+  {
+    id: "g2",
+    name: "Two",
+    url: "https://game-two.test",
+    controllerUrl: "https://game-two.test/controller",
+  },
+  {
+    id: "g3",
+    name: "Three",
+    url: "https://game-three.test",
+    controllerUrl: "https://game-three.test/controller",
+  },
+  {
+    id: "g4",
+    name: "Four",
+    url: "https://game-four.test",
+    controllerUrl: "https://game-four.test/controller",
+  },
 ];
 
 describe("arcade runtime manager", () => {

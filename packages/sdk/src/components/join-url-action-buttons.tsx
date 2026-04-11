@@ -1,6 +1,7 @@
 import type { JSX } from "react";
 import { cn } from "../utils/cn";
 import { Button } from "./ui/button";
+import { shellUtilityButtonClassName } from "./shell-classes";
 
 export interface JoinUrlActionButtonsProps {
   hasValue: boolean;
@@ -20,7 +21,7 @@ export const JoinUrlActionButtons = ({
   buttonClassName,
 }: JoinUrlActionButtonsProps): JSX.Element => {
   return (
-    <div className={cn("flex gap-2", className)}>
+    <div className={cn("grid grid-cols-2 gap-2 sm:flex sm:items-center", className)}>
       <Button
         type="button"
         variant="outline"
@@ -28,7 +29,8 @@ export const JoinUrlActionButtons = ({
         disabled={!hasValue || !onCopy}
         onClick={onCopy}
         className={cn(
-          "rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10",
+          "h-11 rounded-2xl px-4 text-sm",
+          shellUtilityButtonClassName,
           buttonClassName,
         )}
       >
@@ -41,7 +43,8 @@ export const JoinUrlActionButtons = ({
         disabled={!hasValue || !onOpen}
         onClick={onOpen}
         className={cn(
-          "rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10",
+          "h-11 rounded-2xl px-4 text-sm",
+          shellUtilityButtonClassName,
           buttonClassName,
         )}
       >

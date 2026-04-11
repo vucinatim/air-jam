@@ -3,7 +3,6 @@ import { resolveAirJamBrowserRouterBasename } from "@air-jam/sdk";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./app";
-import { preloadRapier } from "./game/rapier-preload";
 import "./index.css";
 
 // Detect and apply dark mode based on system preference
@@ -33,8 +32,6 @@ const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Root element not found");
 }
-
-await preloadRapier();
 
 ReactDOM.createRoot(rootElement).render(
   <BrowserRouter

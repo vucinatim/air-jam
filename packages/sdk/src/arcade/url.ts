@@ -41,3 +41,24 @@ export const buildArcadeGameIframeSrc = ({
     ...runtimeTopologyToQueryParams(topology),
     ...arcadeSurfaceRuntimeUrlParams(arcadeSurface),
   });
+
+export const buildArcadeControllerRuntimeUrl = (
+  normalizedUrl: string,
+): string | null => {
+  try {
+    const runtimeUrl = new URL(normalizedUrl);
+    const trimmedPath =
+      runtimeUrl.pathname !== "/" && runtimeUrl.pathname.endsWith("/")
+        ? runtimeUrl.pathname.slice(0, -1)
+        : runtimeUrl.pathname;
+    const pathSegments = trimmedPath.split("/").filter(Boolean);
+    const controllerPath =
+      trimmedPath === "/" || pathSegments.length <= 1
+        ? "/controller"
+        : `${trimmedPath}/controller`;
+
+    return new URL(controllerPath, runtimeUrl.origin).toString();
+  } catch {
+    return null;
+  }
+};

@@ -4,12 +4,14 @@ import type {
 } from "@air-jam/visual-harness";
 import {
   captureStandardSurfaces,
+  defineVisualHarness,
   waitForControllerText,
   waitForHostText,
 } from "@air-jam/visual-harness";
+import { theOfficeVisualHarnessBridge } from "./contract";
 
 const prepareLobbyState = async (
-  context: VisualScenarioContext,
+  context: VisualScenarioContext<typeof theOfficeVisualHarnessBridge>,
 ): Promise<void> => {
   await waitForHostText(context, /Controller link|Waiting for controllers/i);
   await context.ensureControllerInteractive();
@@ -27,7 +29,7 @@ const prepareLobbyState = async (
 };
 
 const preparePlayingState = async (
-  context: VisualScenarioContext,
+  context: VisualScenarioContext<typeof theOfficeVisualHarnessBridge>,
 ): Promise<void> => {
   await prepareLobbyState(context);
   await context.host.game.getByRole("button", { name: "Start Match" }).click();
@@ -35,14 +37,17 @@ const preparePlayingState = async (
   await context.sleep(750);
 };
 
-export const visualHarness = {
+export const visualHarness = defineVisualHarness({
   gameId: "the-office",
+  bridge: theOfficeVisualHarnessBridge,
   scenarios: [
     {
       id: "lobby",
       description:
         "Host lobby with one controller joined, one character selected, and ready state visible.",
-      run: async (context) => {
+      run: async (
+        context: VisualScenarioContext<typeof theOfficeVisualHarnessBridge>,
+      ) => {
         await prepareLobbyState(context);
         await captureStandardSurfaces(context);
       },
@@ -51,7 +56,9 @@ export const visualHarness = {
       id: "playing",
       description:
         "Playing surface after one controller selects a character, readies up, and the host starts the match.",
-      run: async (context) => {
+      run: async (
+        context: VisualScenarioContext<typeof theOfficeVisualHarnessBridge>,
+      ) => {
         await preparePlayingState(context);
         await captureStandardSurfaces(context, {
           controllerOrientation: "landscape",
@@ -62,9 +69,11 @@ export const visualHarness = {
       id: "ended",
       description:
         "Ended surface after the host force-finishes a deterministic match through the visual harness bridge.",
-      run: async (context) => {
+      run: async (
+        context: VisualScenarioContext<typeof theOfficeVisualHarnessBridge>,
+      ) => {
         await preparePlayingState(context);
-        await context.invokeHostBridgeAction("forceEndMatch");
+        await context.bridge.actions.forceEndMatch();
         await waitForHostText(context, "Shift Ended", 10_000);
         await waitForControllerText(context, "Shift Ended", 10_000);
         await context.sleep(750);
@@ -72,4 +81,4 @@ export const visualHarness = {
       },
     },
   ],
-} satisfies VisualScenarioPack;
+}) satisfies VisualScenarioPack<typeof theOfficeVisualHarnessBridge>;

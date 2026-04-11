@@ -8,6 +8,10 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
+import {
+  shellInsetPanelClassName,
+  shellPanelClassName,
+} from "../components/shell-classes";
 import type { PreviewControllerSession } from "./manager";
 
 export const previewControllerSurfaceStateLabel: Record<
@@ -40,22 +44,23 @@ export const PreviewControllerSurface = ({
 }: PreviewControllerSurfaceProps) => {
   const statusToneClassName =
     session.surfaceState === "failed"
-      ? "text-amber-300"
+      ? "text-amber-200"
       : session.surfaceState === "ready"
-        ? "text-emerald-300"
-        : "text-slate-300";
+        ? "text-emerald-200"
+        : "text-white/58";
 
   return (
     <section
       className={cn(
-        "pointer-events-auto w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-white/12 bg-black/82 text-white shadow-[0_28px_90px_rgba(0,0,0,0.5)] backdrop-blur-md",
+        "pointer-events-auto w-[min(24rem,calc(100vw-2rem))] overflow-hidden text-white",
+        shellPanelClassName,
         highContrast && "border-white/30",
       )}
     >
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-3 px-4 py-3.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/12 bg-white/6">
-            <MonitorSmartphone className="h-4 w-4 text-cyan-300" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
+            <MonitorSmartphone className="h-4 w-4 text-slate-100" />
           </div>
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold tracking-tight">
@@ -63,7 +68,7 @@ export const PreviewControllerSurface = ({
             </div>
             <div
               className={cn(
-                "text-[11px] tracking-[0.18em] uppercase",
+                "text-[10px] font-semibold tracking-[0.18em] uppercase",
                 statusToneClassName,
               )}
             >
@@ -77,7 +82,7 @@ export const PreviewControllerSurface = ({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-8 rounded-full text-white hover:bg-white/10"
+            className="h-8 w-8 rounded-2xl text-white/82 hover:bg-white/[0.08] hover:text-white"
             onClick={session.expanded ? onToggleExpanded : onFocus}
             aria-label={session.expanded ? "Collapse preview" : "Open preview"}
             title={session.expanded ? "Collapse preview" : "Open preview"}
@@ -92,7 +97,7 @@ export const PreviewControllerSurface = ({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-8 rounded-full text-white hover:bg-white/10"
+            className="h-8 w-8 rounded-2xl text-white/82 hover:bg-white/[0.08] hover:text-white"
             onClick={onRemove}
             aria-label="Close preview controller"
             title="Close preview controller"
@@ -104,7 +109,12 @@ export const PreviewControllerSurface = ({
 
       {session.expanded ? (
         <div className="border-t border-white/10 px-3 pt-3 pb-3">
-          <div className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-black">
+          <div
+            className={cn(
+              "relative overflow-hidden bg-black",
+              shellInsetPanelClassName,
+            )}
+          >
             <div className="aspect-[9/16] w-full">
               <iframe
                 src={session.url}
@@ -119,8 +129,8 @@ export const PreviewControllerSurface = ({
             </div>
 
             {session.surfaceState === "loading" ? (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/44">
-                <div className="flex items-center gap-2 rounded-full border border-white/12 bg-black/70 px-3 py-2 text-xs text-slate-200 shadow-lg">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/42 backdrop-blur-[2px]">
+                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/72 px-3 py-2 text-xs text-slate-200 shadow-lg">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Loading controller
                 </div>
@@ -128,9 +138,9 @@ export const PreviewControllerSurface = ({
             ) : null}
 
             {session.surfaceState === "failed" ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/82 px-6 text-center">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/84 px-6 text-center backdrop-blur-[2px]">
                 <div className="max-w-xs space-y-3">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-300">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/22 bg-amber-400/8 text-amber-200">
                     <TriangleAlert className="h-4 w-4" />
                   </div>
                   <div className="text-sm font-semibold text-white">

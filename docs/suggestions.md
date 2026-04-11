@@ -21,6 +21,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 15. Split scaffold validation into a fast contract smoke and a full catalog sweep so routine local verification does not always require the heaviest `pnpm test:scaffold` path.
 16. Migrate workspace/repo command env parsing to `@air-jam/env` so runtime contract validation stays consistent beyond server/platform/create-airjam boundaries.
 17. Extend the current visual-harness prebuild cache beyond `@air-jam/sdk` so repeated capture runs can also skip other unchanged package/game rebuild work, or optionally reuse a warmed stack for multi-scenario passes without reopening the architecture seams we just cleaned up.
+18. Revisit repeated host-side derived-state clusters only if they keep spreading across games, but solve them with tiny game-domain helpers or hooks rather than another config layer so host screens stay readable without hiding runtime ownership behind indirection.
 
 ## Framework Boundary Follow-Ups
 

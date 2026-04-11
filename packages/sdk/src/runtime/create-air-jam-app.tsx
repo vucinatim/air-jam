@@ -24,6 +24,7 @@ import {
   resolveAirJamConfig,
   type ResolveAirJamConfigInput,
 } from "./air-jam-config";
+import type { AirJamGameCapabilityManifest } from "../capabilities/manifest";
 
 type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
   AirJamProviderProps<TSchema>,
@@ -38,6 +39,11 @@ export interface AirJamGameMetadata {
    * Defaults to "/controller".
    */
   controllerPath?: string;
+  /**
+   * Experimental game capability metadata for future machine-facing control,
+   * inspection, and evaluation workflows.
+   */
+  capabilities?: AirJamGameCapabilityManifest;
 }
 
 export interface AirJamRuntimeErrorBoundaryOptions {

@@ -30,8 +30,8 @@ import {
 } from "@air-jam/sdk/arcade/surface";
 import { useHostArcadeRestore } from "@air-jam/sdk/arcade/host";
 import {
+  buildArcadeControllerRuntimeUrl,
   normalizeRuntimeUrl,
-  urlBuilder,
 } from "@air-jam/sdk/arcade/url";
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "motion/react";
@@ -343,9 +343,12 @@ export const ArcadeSystem = ({
         return;
       }
 
-      const mobileControllerBaseUrl =
-        await urlBuilder.normalizeForMobile(normalizedHostUrl);
-      const controllerUrl = `${mobileControllerBaseUrl.replace(/\/$/, "")}/controller`;
+      const controllerUrl = normalizeRuntimeUrl(game.controllerUrl);
+
+      if (!controllerUrl) {
+        hostArcadeRestore.clear();
+        return;
+      }
 
       if (cancelled) {
         return;
@@ -484,9 +487,11 @@ export const ArcadeSystem = ({
         return;
       }
 
-      const mobileControllerBaseUrl =
-        await urlBuilder.normalizeForMobile(normalizedHostUrl);
-      const controllerUrl = `${mobileControllerBaseUrl.replace(/\/$/, "")}/controller`;
+      const controllerUrl = normalizeRuntimeUrl(game.controllerUrl);
+      if (!controllerUrl) {
+        failLaunch();
+        return;
+      }
 
       host.socket.emit(
         "system:launchGame",

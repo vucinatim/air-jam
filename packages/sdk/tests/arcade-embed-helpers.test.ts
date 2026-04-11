@@ -3,7 +3,10 @@ import {
   createArcadeBridgeInitMessage,
   createArcadeSettingsSyncMessage,
 } from "../src/arcade/bridge/iframe";
-import { buildArcadeGameIframeSrc } from "../src/arcade/url";
+import {
+  buildArcadeControllerRuntimeUrl,
+  buildArcadeGameIframeSrc,
+} from "../src/arcade/url";
 import { describe, expect, it } from "vitest";
 
 const embeddedTopology = resolveRuntimeTopology({
@@ -88,6 +91,32 @@ describe("arcade embed helpers", () => {
         },
       }),
     ).toBeNull();
+  });
+
+  it("builds controller runtime URLs from the game runtime origin", () => {
+    expect(
+      buildArcadeControllerRuntimeUrl("http://127.0.0.1:5173/?foo=bar"),
+    ).toBe("http://127.0.0.1:5173/controller");
+
+    expect(
+      buildArcadeControllerRuntimeUrl(
+        "https://game.example/play?foo=bar#debug",
+      ),
+    ).toBe("https://game.example/controller");
+
+    expect(
+      buildArcadeControllerRuntimeUrl(
+        "http://localhost:3000/airjam-local-builds/pong",
+      ),
+    ).toBe("http://localhost:3000/airjam-local-builds/pong/controller");
+
+    expect(
+      buildArcadeControllerRuntimeUrl(
+        "https://platform.example/releases/g/game-id/r/release-id/",
+      ),
+    ).toBe(
+      "https://platform.example/releases/g/game-id/r/release-id/controller",
+    );
   });
 
   it("creates settings sync message payload", () => {

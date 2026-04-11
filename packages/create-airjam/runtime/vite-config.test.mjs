@@ -19,7 +19,7 @@ test("createAirJamViteConfig default profile keeps Air Jam dev contract minimal"
   assert.equal(config.build, undefined);
 });
 
-test("createAirJamViteConfig three profile keeps zod with sdk chunk", () => {
+test("createAirJamViteConfig three profile keeps core runtime buckets stable", () => {
   const config = createAirJamViteConfig({
     env: {},
     port: 5173,
@@ -30,6 +30,8 @@ test("createAirJamViteConfig three profile keeps zod with sdk chunk", () => {
 
   assert.equal(typeof manualChunks, "function");
   assert.equal(manualChunks("/workspace/node_modules/zod/v4/index.js"), "airjam-sdk");
+  assert.equal(manualChunks("/workspace/node_modules/react/index.js"), "app-runtime");
+  assert.equal(manualChunks("/workspace/node_modules/zustand/react.js"), "app-runtime");
   assert.equal(
     manualChunks("/workspace/node_modules/@react-three/fiber/dist/index.js"),
     "fiber-runtime",

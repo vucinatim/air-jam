@@ -1,5 +1,6 @@
 {
   "create-airjam": "1.0.0",
   "@air-jam/sdk": "1.0.0",
-  "@air-jam/server": "1.0.0"
+  "@air-jam/server": "1.0.0",
+  "@air-jam/visual-harness": "1.0.0"
 }

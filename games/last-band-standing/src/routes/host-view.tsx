@@ -4,11 +4,9 @@ import {
   useAudio,
   useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
+import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
-import {
-  publishVisualHarnessBridgeActions,
-  publishVisualHarnessBridgeSnapshot,
-} from "@air-jam/visual-harness/runtime-bridge";
+import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { toShellMatchPhase } from "../game/domain/match-phase";
@@ -27,6 +25,7 @@ import { HostPlayerStrip } from "../components/host-player-strip";
 import { HostLobby } from "../features/lobby/host-lobby";
 import { HostVideoStage } from "../features/round/host-video-stage";
 import { HostGameOver } from "../features/game-over/host-game-over";
+import { lastBandStandingVisualHarnessBridge } from "../../visual/contract";
 
 export const HostView = () => {
   return (
@@ -125,6 +124,7 @@ const HostScreen = () => {
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
   });
+  const previewControllersEnabled = import.meta.env.DEV;
 
   const answeredCount = currentRound
     ? currentRound.expectedPlayerIds.filter((playerId) => answersByPlayerId[playerId]).length
@@ -177,39 +177,12 @@ const HostScreen = () => {
       : rankPlayers(scoreboardByPlayerId);
 
   const shellPhase = toShellMatchPhase(phase);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeSnapshot({
-      roomId: host.roomId,
-      controllerJoinUrl:
-        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
-      matchPhase: shellPhase,
-      runtimeState: host.runtimeState,
-    });
-  }, [
-    host.joinUrl,
-    host.joinUrlStatus,
-    host.roomId,
-    host.runtimeState,
-    shellPhase,
-  ]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeActions({
-      forceGameOver: () => {
-        actions.forceGameOver();
-        return true;
-      },
-    });
-  }, [actions]);
+  useVisualHarnessBridge(lastBandStandingVisualHarnessBridge, {
+    host,
+    matchPhase: shellPhase,
+    runtimeState: host.runtimeState,
+    actions,
+  });
 
   useHostRuntimeStateBridge({
     matchPhase: shellPhase,
@@ -310,6 +283,7 @@ const HostScreen = () => {
           players={host.players}
         />
       )}
+      <HostPreviewControllerDock enabled={previewControllersEnabled} />
     </main>
   );
 };

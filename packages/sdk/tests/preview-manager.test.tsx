@@ -65,6 +65,28 @@ describe("usePreviewControllerManager", () => {
     ).toBe("ready");
   });
 
+  it("gives concurrent preview sessions distinct controller and device identities", () => {
+    const { result } = renderHook(() =>
+      usePreviewControllerManager({
+        joinUrl: "https://platform.example/controller?room=ROOM1",
+        maxControllers: 2,
+      }),
+    );
+
+    act(() => {
+      result.current.spawnPreviewController();
+      result.current.spawnPreviewController();
+    });
+
+    expect(result.current.sessions).toHaveLength(2);
+    expect(result.current.sessions[0]?.controllerId).not.toBe(
+      result.current.sessions[1]?.controllerId,
+    );
+    expect(result.current.sessions[0]?.deviceId).not.toBe(
+      result.current.sessions[1]?.deviceId,
+    );
+  });
+
   it("clears sessions when the join url changes", () => {
     const { result, rerender } = renderHook(
       ({ joinUrl }: { joinUrl: string | null }) =>

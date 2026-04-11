@@ -30,3 +30,7 @@ export {
   PreviewControllerDock,
   type PreviewControllerDockProps,
 } from "./preview/dock";
+export {
+  HostPreviewControllerDock,
+  type HostPreviewControllerDockProps,
+} from "./preview/host-dock";

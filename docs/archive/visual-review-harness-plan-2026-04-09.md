@@ -4,13 +4,13 @@ Last updated: 2026-04-08
 Status: archived
 
 Archived on: 2026-04-09  
-Archive reason: the harness system and launch-set coverage are implemented; the remaining closeout work moved to [Prerelease Systems Closeout Plan](../plans/prerelease-systems-closeout-plan.md)
+Archive reason: the harness system and launch-set coverage are implemented; the remaining closeout work moved to [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan-2026-04-09.md)
 
 Related docs:
 
 1. [Showcase Games Release Readiness Plan (Archived)](./showcase-games-release-readiness-plan-2026-04-09.md)
 2. [Composition Shell Contract Plan (Archived)](./composition-shell-contract-plan-2026-04-09.md)
-3. [Controller Preview Dock Plan](../plans/controller-preview-dock-plan.md)
+3. [Controller Preview Dock Plan (Archived)](./controller-preview-dock-plan-2026-04-09.md)
 4. [Work Ledger](../work-ledger.md)
 5. [Docs Index](../docs-index.md)
 

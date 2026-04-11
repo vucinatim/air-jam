@@ -1,4 +1,5 @@
 import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
+import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
   JoinUrlControls,
@@ -6,10 +7,7 @@ import {
   RoomQrCode,
   useHostLobbyShell,
 } from "@air-jam/sdk/ui";
-import {
-  publishVisualHarnessBridgeActions,
-  publishVisualHarnessBridgeSnapshot,
-} from "@air-jam/visual-harness/runtime-bridge";
+import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Position, type Team } from "../game/domain/team-assignments";
 import {
@@ -26,6 +24,7 @@ import leftExtendedSprite from "/sprites/left-extended.png";
 import leftShortSprite from "/sprites/left-short.png";
 import rightExtendedSprite from "/sprites/right-extended.png";
 import rightShortSprite from "/sprites/right-short.png";
+import { codeReviewVisualHarnessBridge } from "../../visual/contract";
 
 const FIELD_WIDTH = 720;
 const FIELD_HEIGHT = 720;
@@ -398,6 +397,7 @@ const tintSpriteCanvas = (
 
 export function HostView() {
   const host = useAirJamHost<typeof gameInputSchema>();
+  const previewControllersEnabled = import.meta.env.DEV;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const spritesRef = useRef<Record<SpriteKey, HTMLCanvasElement | null>>({
@@ -600,59 +600,13 @@ export function HostView() {
     joinUrl: host.joinUrl,
     canStartMatch,
   });
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeSnapshot({
-      roomId: host.roomId,
-      controllerJoinUrl:
-        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
-      matchPhase,
-      runtimeState: host.runtimeState,
-    });
-  }, [
-    host.joinUrl,
-    host.joinUrlStatus,
-    host.roomId,
-    host.runtimeState,
+  useVisualHarnessBridge(codeReviewVisualHarnessBridge, {
+    host,
     matchPhase,
-  ]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeActions({
-      forceEndMatch: (payload) => {
-        const nextScores =
-          payload && typeof payload === "object" && payload !== null
-            ? (payload as {
-                scores?: { team1?: number; team2?: number };
-              })
-            : null;
-
-        const team1 =
-          nextScores?.scores?.team1 ?? Math.max(MATCH_POINTS_TO_WIN, 1);
-        const team2 = nextScores?.scores?.team2 ?? 0;
-        const pointDiff = Math.max(0, team1 - scores.team1);
-        for (let index = 0; index < pointDiff; index += 1) {
-          actions.scorePoint({ team: "team1" });
-        }
-
-        const reviewerDiff = Math.max(0, team2 - scores.team2);
-        for (let index = 0; index < reviewerDiff; index += 1) {
-          actions.scorePoint({ team: "team2" });
-        }
-
-        actions.finishMatch();
-        return true;
-      },
-    });
-  }, [actions, scores.team1, scores.team2]);
+    runtimeState: host.runtimeState,
+    actions,
+    scores,
+  });
 
   useHostRuntimeStateBridge({
     matchPhase,
@@ -1825,6 +1779,7 @@ export function HostView() {
           </div>
         </div>
       ) : null}
+      <HostPreviewControllerDock enabled={previewControllersEnabled} />
     </div>
   );
 }

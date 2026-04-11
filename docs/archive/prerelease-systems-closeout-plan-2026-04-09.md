@@ -1,24 +1,32 @@
 # Prerelease Systems Closeout Plan
 
 Last updated: 2026-04-09  
-Status: active
+Status: archived  
+Archived on: 2026-04-09
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
-3. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-4. [Controller Preview Dock Plan](./controller-preview-dock-plan.md)
+2. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
+3. [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
+4. [Controller Preview Dock Plan (Archived)](./controller-preview-dock-plan-2026-04-09.md)
 5. [Suggestions](../suggestions.md)
-6. [SDK Extraction Clean-Swap Plan (Archived)](../archive/sdk-extraction-clean-swap-plan-2026-04-09.md)
-7. [Visual Review Harness Plan (Archived)](../archive/visual-review-harness-plan-2026-04-09.md)
-8. [Composition Shell Contract Plan (Archived)](../archive/composition-shell-contract-plan-2026-04-09.md)
+6. [SDK Extraction Clean-Swap Plan (Archived)](./sdk-extraction-clean-swap-plan-2026-04-09.md)
+7. [Visual Review Harness Plan (Archived)](./visual-review-harness-plan-2026-04-09.md)
+8. [Composition Shell Contract Plan (Archived)](./composition-shell-contract-plan-2026-04-09.md)
 
 ## Purpose
 
 Capture only the prerelease implementation work that is still genuinely open after auditing the partially completed system plans.
 
 This plan exists to replace stale active plans whose main implementation already landed, but which still made the active surface look larger and fuzzier than reality.
+
+Archive reason:
+
+1. the last real systems-closeout implementation work is done
+2. built-mode repo visual capture now reuses unchanged game build artifacts instead of always rebuilding
+3. deferred harness-driven UI cleanup belongs to the later polish stage, not an active implementation plan
+4. the remaining Pong Arcade-built lobby timeout is a fix-pass item, not another systems-closeout architecture track
 
 ## Audit Outcome
 
@@ -195,6 +203,12 @@ Done when:
 2. fix the highest-value responsiveness or shell-quality issues surfaced by captures
 3. improve build reuse or stack reuse only where it materially speeds repeated capture passes
 
+Completed closeout work:
+
+1. the built-Arcade repo visual capture path now reuses unchanged game dist artifacts, not only the cached `@air-jam/sdk` build
+2. repeated `pnpm run repo -- visual capture --game pong --mode arcade-built --scenario lobby` now logs `Reusing cached pong build.` on the second run
+3. the remaining issue exposed by that rerun is a Pong Arcade-built scenario timeout waiting for `pong-controller-join-team-team1`, which now belongs to the Stage 2 fix pass
+
 Done when:
 
 1. the harness is being used as a real cleanup tool instead of remaining a plan artifact
@@ -232,4 +246,4 @@ This plan is complete when:
 Current read:
 
 1. exit criteria `1`, `2`, and `4` are satisfied
-2. exit criterion `3` is the only remaining active item
+2. exit criterion `3` was intentionally moved into the later polish stage instead of staying as fake-active implementation work

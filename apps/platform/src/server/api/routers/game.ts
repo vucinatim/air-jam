@@ -7,7 +7,11 @@ import {
   users,
 } from "@/db/schema";
 import { arcadeVisibilitySchema } from "@/lib/games/arcade-visibility";
-import { HOSTED_RELEASE_HOST_PATH } from "@/lib/releases/hosted-release-artifact";
+import {
+  HOSTED_RELEASE_CONTROLLER_PATH,
+  HOSTED_RELEASE_HOST_PATH,
+} from "@/lib/releases/hosted-release-artifact";
+import { buildArcadeControllerRuntimeUrl } from "@air-jam/sdk/arcade/url";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
 import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import {
@@ -108,10 +112,10 @@ export const gameRouter = createTRPCRouter({
         thumbnailMediaAssetId: games.thumbnailMediaAssetId,
         previewVideoMediaAssetId: games.previewVideoMediaAssetId,
         coverMediaAssetId: games.coverMediaAssetId,
-        ownerName: users.name,
-        releaseId: gameReleases.id,
-        releaseVersionLabel: gameReleases.versionLabel,
-        releasePublishedAt: gameReleases.publishedAt,
+      ownerName: users.name,
+      releaseId: gameReleases.id,
+      releaseVersionLabel: gameReleases.versionLabel,
+      releasePublishedAt: gameReleases.publishedAt,
       })
       .from(games)
       .innerJoin(users, eq(games.userId, users.id))
@@ -156,6 +160,11 @@ export const gameRouter = createTRPCRouter({
         versionLabel: row.releaseVersionLabel,
         publishedAt: row.releasePublishedAt,
       }),
+      controllerUrl: buildHostedReleaseAssetUrl({
+        gameId: row.id,
+        releaseId: row.releaseId,
+        assetPath: HOSTED_RELEASE_CONTROLLER_PATH,
+      }),
     }));
   }),
 
@@ -181,9 +190,17 @@ export const gameRouter = createTRPCRouter({
 
       if (isOwner) {
         if (game.url) {
+          const controllerUrl = buildArcadeControllerRuntimeUrl(game.url);
+          if (!controllerUrl) {
+            throw new Error(
+              "This game preview URL does not produce a valid controller route.",
+            );
+          }
+
           return {
             ...addManagedGameMediaUrls(game),
             url: game.url,
+            controllerUrl,
             selfHostedUrl: game.url,
             launchSource: "self_hosted" as const,
             liveRelease,
@@ -194,6 +211,7 @@ export const gameRouter = createTRPCRouter({
           return {
             ...addManagedGameMediaUrls(game),
             url: liveRelease.url,
+            controllerUrl: liveRelease.controllerUrl,
             selfHostedUrl: game.url,
             launchSource: "hosted_release" as const,
             liveRelease,
@@ -210,6 +228,7 @@ export const gameRouter = createTRPCRouter({
       return {
         ...addManagedGameMediaUrls(publicRelease.game),
         url: publicRelease.liveRelease.url,
+        controllerUrl: publicRelease.liveRelease.controllerUrl,
         selfHostedUrl: publicRelease.game.url,
         launchSource: "hosted_release" as const,
         liveRelease: publicRelease.liveRelease,

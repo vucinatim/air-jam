@@ -1,11 +1,14 @@
 export const VISUAL_HARNESS_BRIDGE_KEY = '__airJamVisualHarness';
 export const VISUAL_HARNESS_ACTIONS_KEY = '__airJamVisualHarnessActions';
 
-export type VisualHarnessBridgeSnapshot = {
+export type VisualHarnessBridgeSnapshot = Record<string, unknown> & {
   roomId: string | null;
   controllerJoinUrl: string | null;
   matchPhase: string | null;
   runtimeState: string | null;
+};
+
+export type PublishedVisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot & {
   updatedAt: string;
 };
 
@@ -21,9 +24,11 @@ export type VisualHarnessBridgeActions = Record<
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-export const readVisualHarnessBridgeSnapshot = (
+export const readVisualHarnessBridgeSnapshot = <
+  TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
+>(
   target: unknown = globalThis,
-): VisualHarnessBridgeSnapshot | null => {
+): TSnapshot | null => {
   if (!isRecord(target)) {
     return null;
   }
@@ -34,6 +39,7 @@ export const readVisualHarnessBridgeSnapshot = (
   }
 
   return {
+    ...raw,
     roomId: typeof raw.roomId === 'string' ? raw.roomId : null,
     controllerJoinUrl:
       typeof raw.controllerJoinUrl === 'string' ? raw.controllerJoinUrl : null,
@@ -41,11 +47,11 @@ export const readVisualHarnessBridgeSnapshot = (
     runtimeState: typeof raw.runtimeState === 'string' ? raw.runtimeState : null,
     updatedAt:
       typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
-  };
+  } as unknown as TSnapshot;
 };
 
 export const publishVisualHarnessBridgeSnapshot = (
-  snapshot: Omit<VisualHarnessBridgeSnapshot, 'updatedAt'>,
+  snapshot: VisualHarnessBridgeSnapshot,
   target: unknown = globalThis,
 ): void => {
   if (!isRecord(target)) {
@@ -58,6 +64,16 @@ export const publishVisualHarnessBridgeSnapshot = (
   };
 };
 
+export const clearVisualHarnessBridgeSnapshot = (
+  target: unknown = globalThis,
+): void => {
+  if (!isRecord(target)) {
+    return;
+  }
+
+  delete target[VISUAL_HARNESS_BRIDGE_KEY];
+};
+
 export const publishVisualHarnessBridgeActions = (
   actions: VisualHarnessBridgeActions,
   target: unknown = globalThis,
@@ -67,4 +83,14 @@ export const publishVisualHarnessBridgeActions = (
   }
 
   target[VISUAL_HARNESS_ACTIONS_KEY] = actions;
+};
+
+export const clearVisualHarnessBridgeActions = (
+  target: unknown = globalThis,
+): void => {
+  if (!isRecord(target)) {
+    return;
+  }
+
+  delete target[VISUAL_HARNESS_ACTIONS_KEY];
 };

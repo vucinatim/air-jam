@@ -7,19 +7,11 @@
     "types": ["vite/client", "react", "react-dom"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@air-jam/sdk": ["../../packages/sdk/src/index"],
-      "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
+      "@/*": ["./src/*"]
     },
     "composite": true,
     "incremental": true,
     "skipLibCheck": true
   },
-  "include": [
-    "src",
-    "visual",
-    "vite.config.ts",
-    "index.html",
-    "../../packages/sdk/src/**/*"
-  ]
+  "include": ["src", "visual", "vite.config.ts", "index.html"]
 }

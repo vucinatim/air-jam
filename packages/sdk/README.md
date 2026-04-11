@@ -229,6 +229,87 @@ This path is intentionally narrow. Use it for controller layout and short
 presentation metadata, not for authoritative gameplay state. Multiplayer game
 state should live in the networked stores and replicate automatically.
 
+## Preview Controllers (Experimental)
+
+The preview-controller feature lives under the explicit experimental leaf:
+
+```ts
+import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+```
+
+Use it when you want a fast local desktop tryout path without replacing the
+normal phone-controller product model.
+
+Important rules:
+
+1. phone controllers remain the canonical product experience
+2. preview controllers are not a second topology or fake simulator path
+3. preview controllers use the real controller route and join the same room as normal controllers
+4. production should stay explicit opt-in
+
+Recommended host usage:
+
+```tsx
+import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
+
+export const HostView = () => {
+  const previewControllersEnabled = import.meta.env.DEV;
+
+  return (
+    <>
+      <GameCanvas />
+      <HostPreviewControllerDock enabled={previewControllersEnabled} />
+    </>
+  );
+};
+```
+
+The shared preview leaf currently provides:
+
+1. `HostPreviewControllerDock` for normal host-surface mounting
+2. `PreviewControllerDock` and `PreviewControllerSurface` for lower-level composition
+3. `usePreviewControllerManager` for host-local preview session state
+4. `buildPreviewControllerUrl` and related launch helpers for explicit launch control
+
+Keep preview usage inside explicit host-side UI and do not treat it as a stable
+root-SDK contract yet.
+
+## Runtime Contract Leaves (Experimental)
+
+The first machine-facing runtime seams now live under explicit experimental
+leaves instead of being hidden inside preview, Arcade, or the root SDK:
+
+```ts
+import {
+  createHostRuntimeControlContract,
+  useControllerRuntimeControlContract,
+} from "@air-jam/sdk/runtime-control";
+import {
+  createHostRuntimeInspectionContract,
+  useControllerRuntimeInspectionContract,
+} from "@air-jam/sdk/runtime-inspection";
+import {
+  subscribeToRuntimeObservability,
+  useRuntimeObservabilitySubscription,
+} from "@air-jam/sdk/runtime-observability";
+```
+
+Use these leaves when you need explicit machine-usable control, inspection, or
+observability seams on top of the real runtime/session model.
+
+Important rules:
+
+1. these leaves are experimental and intentionally unstable
+2. they are additive adapters over the real host/controller runtime owners
+3. they are not a second gameplay path and do not replace normal human UI
+4. they are the future-facing namespace for bots, tests, previews, and agent tooling
+
+Current scope:
+
+1. `@air-jam/sdk/runtime-control` exposes narrow host/controller session-driving adapters
+2. `@air-jam/sdk/runtime-inspection` exposes structural host/controller runtime snapshots
+3. `@air-jam/sdk/runtime-observability` exposes machine-readable runtime event filtering over the canonical runtime event stream
+
 ## Controller Feedback Helpers
 
 Use explicit audio ownership at the controller boundary, then consume that runtime-owned manager below it.
@@ -422,6 +503,8 @@ export const App = () => (
 ```
 
 This keeps runtime config, host input schema, and route path ownership in one place.
+
+Optional future-facing game capability metadata should also live here, but the schema is intentionally experimental and lives in `@air-jam/sdk/capabilities`.
 
 ## Environment Variables
 

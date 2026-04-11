@@ -55,6 +55,9 @@ export type __assert_controller_session_hook_exported = AssertTrue<
 export type __assert_create_airjam_app_exported = AssertTrue<
   Has<"createAirJamApp">
 >;
+export type __assert_define_airjam_game_capabilities_not_exported = AssertFalse<
+  Has<"defineAirJamGameCapabilities">
+>;
 export type __assert_env_exported = AssertTrue<
   Has<"env">
 >;

@@ -53,24 +53,3 @@ export const waitForControllerText = async (
 ): Promise<void> => {
   await context.controller.game.getByText(text).first().waitFor({ state: 'visible', timeout });
 };
-
-export const waitForHostMatchPhase = async (
-  context: VisualScenarioContext,
-  phase: string,
-  timeout = 30_000,
-): Promise<void> => {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeout) {
-    const snapshot = await context.readHostBridgeSnapshot();
-    if (snapshot?.matchPhase === phase) {
-      return;
-    }
-
-    await context.sleep(200);
-  }
-
-  throw new Error(
-    `Timed out waiting for host visual harness bridge matchPhase to become "${phase}".`,
-  );
-};

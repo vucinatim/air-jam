@@ -1,5 +1,10 @@
 import type { Page } from '@playwright/test';
-import type { VisualHarnessBridgeSnapshot } from './runtime-bridge.js';
+import type {
+  AnyVisualHarnessBridgeDefinition,
+  InferVisualHarnessBridgeActions,
+  InferVisualHarnessBridgeSnapshot,
+  VisualHarnessActionInvokerMap,
+} from './bridge-contract.js';
 
 export type VisualHarnessMode = 'standalone-dev' | 'arcade-built';
 
@@ -41,9 +46,25 @@ export type VisualHarnessPageSurface = {
   embedded: boolean;
 };
 
-export type VisualScenarioContext = {
+export type VisualScenarioBridge<
+  TBridge extends AnyVisualHarnessBridgeDefinition,
+> = {
+  read: () => Promise<InferVisualHarnessBridgeSnapshot<TBridge> | null>;
+  waitFor: (
+    predicate: (
+      snapshot: InferVisualHarnessBridgeSnapshot<TBridge> | null,
+    ) => boolean | Promise<boolean>,
+    description?: string,
+    timeout?: number,
+  ) => Promise<InferVisualHarnessBridgeSnapshot<TBridge>>;
+  actions: VisualHarnessActionInvokerMap<InferVisualHarnessBridgeActions<TBridge>>;
+};
+
+export type VisualScenarioContext<
+  TBridge extends AnyVisualHarnessBridgeDefinition = AnyVisualHarnessBridgeDefinition,
+> = {
   gameId: string;
-  scenario: VisualScenario;
+  scenario: VisualScenario<TBridge>;
   scenarioDir: string;
   urls: VisualHarnessUrls;
   host: VisualHarnessPageSurface;
@@ -53,11 +74,7 @@ export type VisualScenarioContext = {
   note: (value: string) => void;
   sleep: (ms: number) => Promise<void>;
   ensureControllerInteractive: () => Promise<void>;
-  readHostBridgeSnapshot: () => Promise<VisualHarnessBridgeSnapshot | null>;
-  invokeHostBridgeAction: <T = unknown>(
-    actionName: string,
-    payload?: unknown,
-  ) => Promise<T | null>;
+  bridge: VisualScenarioBridge<TBridge>;
   captureHost: (viewportName: string, viewport: VisualViewport) => Promise<void>;
   captureController: (viewportName: string, viewport: VisualViewport) => Promise<void>;
   screenshotRecords: VisualScreenshotRecord[];
@@ -65,15 +82,20 @@ export type VisualScenarioContext = {
   close: () => Promise<void>;
 };
 
-export type VisualScenario = {
+export type VisualScenario<
+  TBridge extends AnyVisualHarnessBridgeDefinition = AnyVisualHarnessBridgeDefinition,
+> = {
   id: string;
   description?: string;
-  run: (context: VisualScenarioContext) => Promise<void>;
+  run: (context: VisualScenarioContext<TBridge>) => Promise<void>;
 };
 
-export type VisualScenarioPack = {
+export type VisualScenarioPack<
+  TBridge extends AnyVisualHarnessBridgeDefinition = AnyVisualHarnessBridgeDefinition,
+> = {
   gameId: string;
-  scenarios: VisualScenario[];
+  bridge: TBridge;
+  scenarios: VisualScenario<TBridge>[];
 };
 
 export type VisualCaptureScenarioMetadata = {

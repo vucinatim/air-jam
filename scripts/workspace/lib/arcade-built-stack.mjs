@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { loadEnvFile } from "../../../packages/create-airjam/runtime/dev-utils.mjs";
 import {
@@ -17,6 +16,7 @@ import {
   toLocalReferenceUrlEnvKey,
 } from "./repo-games.mjs";
 import {
+  ensureWorkspaceBuildArtifact,
   createWorkspaceProcessGroup,
   ensureWorkspacePackageBuild,
   reserveWorkspaceResources,
@@ -47,25 +47,32 @@ const waitForUrl = async (url, label, timeoutMs = 120_000) => {
 };
 
 const buildWorkspaceGame = ({ rootDir, activeGame }) => {
-  const runCommand = (label, command, commandArgs, cwd = rootDir) => {
-    console.log(`[arcade:built] ${label}`);
-    execFileSync(command, commandArgs, {
-      cwd,
-      stdio: "inherit",
-    });
-  };
-
   ensureWorkspacePackageBuild({
     rootDir,
     packageDir: "packages/sdk",
     label: "@air-jam/sdk",
     buildArgs: ["--filter", "@air-jam/sdk", "build"],
   });
-  runCommand(`Building ${activeGame.id}...`, "pnpm", [
-    "--dir",
-    activeGame.dir,
-    "build",
-  ]);
+  ensureWorkspaceBuildArtifact({
+    rootDir,
+    projectDir: activeGame.dir,
+    label: activeGame.id,
+    buildArgs: ["--dir", activeGame.dir, "build"],
+    sourcePaths: [
+      "src",
+      "index.html",
+      "package.json",
+      "tsconfig.json",
+      "vite.config.ts",
+      "vite.config.mjs",
+      "vite.config.js",
+      "tailwind.config.ts",
+      "tailwind.config.js",
+      "postcss.config.js",
+      "public",
+    ],
+    distCheckFile: "dist/index.html",
+  });
 };
 
 export const startWorkspaceArcadeBuiltStack = async ({

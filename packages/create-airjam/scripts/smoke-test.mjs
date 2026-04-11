@@ -265,13 +265,24 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         packageDir: path.join(repoRoot, "packages", "server"),
         outDir: tarballDir,
       });
+      const visualHarnessTarball = packWorkspacePackage({
+        packageDir: path.join(repoRoot, "packages", "visual-harness"),
+        outDir: tarballDir,
+      });
       cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
+      cliArgs.push(
+        `--dep-spec=@air-jam/visual-harness=file:${visualHarnessTarball}`,
+      );
       cliArgs.push(`--dep-spec=create-airjam=file:${createAirJamTarball}`);
       cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
+      cliArgs.push(
+        `--override-spec=@air-jam/visual-harness=file:${visualHarnessTarball}`,
+      );
     } else if (source === "workspace") {
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
+      run("pnpm --filter @air-jam/visual-harness build", repoRoot);
 
       const sdkPkg = JSON.parse(
         fs.readFileSync(path.join(repoRoot, "packages", "sdk", "package.json"), "utf-8"),
@@ -283,11 +294,17 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `--dep-spec=@air-jam/server=link:${path.join(repoRoot, "packages", "server")}`,
       );
       cliArgs.push(
+        `--dep-spec=@air-jam/visual-harness=link:${path.join(repoRoot, "packages", "visual-harness")}`,
+      );
+      cliArgs.push(
         `--dep-spec=create-airjam=link:${path.join(repoRoot, "packages", "create-airjam")}`,
       );
       cliArgs.push(`--dep-spec=zod=${toExactVersion(sdkPkg.dependencies?.zod)}`);
       cliArgs.push(
         `--override-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
+      );
+      cliArgs.push(
+        `--override-spec=@air-jam/visual-harness=link:${path.join(repoRoot, "packages", "visual-harness")}`,
       );
     }
 

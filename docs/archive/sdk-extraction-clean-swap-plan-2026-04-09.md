@@ -4,7 +4,7 @@ Last updated: 2026-04-07
 Status: archived
 
 Archived on: 2026-04-09  
-Archive reason: the broad original extraction plan was superseded by the narrower [Prerelease Systems Closeout Plan](../plans/prerelease-systems-closeout-plan.md)
+Archive reason: the broad original extraction plan was superseded by the narrower [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan-2026-04-09.md)
 
 Related docs:
 

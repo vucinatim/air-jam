@@ -1,15 +1,18 @@
 # Controller Preview Dock Plan
 
 Last updated: 2026-04-09  
-Status: active
+Status: archived
+
+Archived on: 2026-04-09  
+Archive reason: prerelease preview-controller implementation is complete; the active release surface now only needs the archived record and ledger summary
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
 2. [Framework Paradigm](../framework-paradigm.md)
-3. [V1 Release Launch Plan](./v1-release-launch-plan.md)
-4. [Prerelease Systems Closeout Plan](./prerelease-systems-closeout-plan.md)
-5. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+3. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
+4. [Prerelease Systems Closeout Plan (Archived)](./prerelease-systems-closeout-plan-2026-04-09.md)
+5. [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
 6. [Suggestions](../suggestions.md)
 
 ## Purpose
@@ -605,7 +608,12 @@ Current progress:
 2. canonical preview launch URL generation is shared
 3. host-local preview session state now exists as a reusable manager hook
 4. the shared preview surface and first dock presentation now also live under `@air-jam/sdk/preview`
-5. remaining work is broader consumer rollout and mixed-session proof
+5. the shared host wrapper now exists so standalone hosts do not need to hand-derive preview join state
+6. live mixed-session proof now passes on a standalone host with one preview controller plus one phone-style controller in the same room
+7. preview close and reopen now also behave correctly in that live room proof, with a fresh preview identity on reopen
+8. live Arcade proof now also passes on the platform path, including QR/controller-link coexistence, preview dock coexistence, and one phone controller joining the same room after the embedded-controller runtime-origin fix
+9. the first-use desktop-width pass now also holds at 1440, 1100, and 960 wide without losing the QR/controller-link or `Add controller` affordance
+10. this plan is now complete enough to leave the active prerelease implementation surface
 
 ### Workstream C. Platform Controller Refactor
 
@@ -631,7 +639,10 @@ Current progress:
 
 1. the platform now mounts a first docked preview-controller accessory in both `/arcade` and `/play`
 2. the dock stays host-local and consumes the shared SDK preview manager instead of building app-local launch logic
-3. remaining work is live mixed-session proof and any follow-up layout tuning from real usage
+3. the shared runtime path is already proven in a live standalone mixed-session room
+4. live Arcade proof now also passes after fixing the embedded-controller runtime-origin bug, with one preview controller and one phone controller coexisting in the same room
+5. the first-use desktop-width pass now also holds on the Arcade path at 1440, 1100, and 960 wide
+6. this workstream is now complete
 
 ### Workstream E. Scaffold Integration
 
@@ -645,9 +656,11 @@ Done when:
 
 Current progress:
 
-1. the current Pong repo host and Pong scaffold source now consume the shared SDK preview dock
-2. the abstraction is no longer only proven by platform
-3. remaining work is deciding how broadly to fan this out across the other host surfaces before release
+1. all five launch-set repo host flows now mount the shared host preview dock in local dev
+2. all five scaffold launch hosts now mount that same shared host preview dock in local dev
+3. the abstraction is no longer only proven by platform or one standalone game
+4. standalone mixed-session behavior is now proven in a real local host flow
+5. remaining work is documentation and final platform-surface validation rather than more rollout
 
 ### Workstream F. Validation
 
@@ -698,7 +711,7 @@ This checklist is the concrete execution order for the first clean implementatio
 ### 0. Prerequisite Contract Lock
 
 - [x] Confirm the shared placement as an optional SDK leaf module such as `@air-jam/sdk/preview`
-- [ ] Confirm the defaulting rule: enabled by default in local dev, opt-in in production
+- [x] Confirm the defaulting rule: enabled by default in local dev, opt-in in production
 - [x] Confirm the first-version controller count cap and compact/expanded dock scope
 - [x] Confirm the preview URL contract and reserved params
 
@@ -737,9 +750,10 @@ Done when:
 
 - [x] Decide the minimal explicit identity inputs needed for preview controllers
 - [x] Add narrow controller-runtime support for preview identity override where required
-- [ ] Ensure concurrent same-origin preview surfaces do not collide through shared local-storage identity
+- [x] Ensure concurrent same-origin preview surfaces do not collide through shared local-storage identity
 - [x] Keep this override path limited to preview use instead of widening general controller complexity
-- [ ] Add runtime tests for concurrent preview-controller joins in one room
+- [x] Add automated launch-layer tests for concurrent preview controller identities
+- [x] Complete live mixed-session proof for concurrent preview-controller joins in one room
 
 Done when:
 
@@ -767,7 +781,7 @@ Done when:
 - [x] Ensure the v1 surface loads the real controller route, not a fake preview UI
 - [x] Add loading, failed-load, and disconnected states that stay visually clean
 - [x] Add close behavior that results in a normal controller disconnect
-- [ ] Verify that preview windows can coexist with real phone controllers in the same room
+- [x] Verify that preview windows can coexist with real phone controllers in the same room
 
 Done when:
 
@@ -777,8 +791,8 @@ Done when:
 
 - [x] Add the preview dock to the chosen Arcade/play surfaces
 - [x] Place the `Add controller` entry point where it is visible but not intrusive
-- [ ] Verify preview windows do not fight Arcade chrome, QR, or fullscreen flows
-- [ ] Verify mixed sessions with preview and phone controllers in a live Arcade room
+- [x] Verify preview windows do not fight Arcade chrome, QR, or fullscreen flows
+- [x] Verify mixed sessions with preview and phone controllers in a live Arcade room
 
 Done when:
 
@@ -788,9 +802,9 @@ Done when:
 
 - [x] Mount the preview dock by default in normal local dev host flows for scaffolded games
 - [x] Mount the preview dock by default in normal local dev host flows for repo-owned games where applicable
-- [ ] Keep production disabled by default unless the host explicitly opts in
-- [ ] Update scaffold defaults so first-run local host pages expose `Add controller` without extra setup
-- [ ] Avoid copy-paste platform code in standalone consumers
+- [x] Keep production disabled by default unless the host explicitly opts in
+- [x] Update scaffold defaults so first-run local host pages expose `Add controller` without extra setup
+- [x] Avoid copy-paste platform code in standalone consumers
 
 Done when:
 
@@ -799,10 +813,10 @@ Done when:
 
 ### 8. Documentation
 
-- [ ] Update scaffold docs and generated docs for the new local host experience
-- [ ] Document the production opt-in behavior clearly
-- [ ] Document the non-goal that preview controllers are not a second topology or simulator
-- [ ] Document any public API added under the shared preview module
+- [x] Update scaffold docs and generated docs for the new local host experience
+- [x] Document the production opt-in behavior clearly
+- [x] Document the non-goal that preview controllers are not a second topology or simulator
+- [x] Document any public API added under the shared preview module
 
 Done when:
 
@@ -810,14 +824,14 @@ Done when:
 
 ### 9. Validation And Release Gate
 
-- [ ] Run relevant SDK typecheck, test, and build paths
-- [ ] Run relevant platform typecheck, test, and build paths
-- [ ] Run scaffold validation after template updates
-- [ ] Manually verify one standalone/scaffold host flow
-- [ ] Manually verify one platform Arcade/play flow
-- [ ] Manually verify mixed preview and phone-controller sessions
-- [ ] Manually verify preview close/reopen behavior
-- [ ] Manually verify the first-use UX on desktop widths we care about
+- [x] Run relevant SDK typecheck, test, and build paths
+- [x] Run relevant platform typecheck and build paths
+- [x] Run scaffold validation after template updates
+- [x] Manually verify one standalone/scaffold host flow
+- [x] Manually verify one platform Arcade/play flow
+- [x] Manually verify mixed preview and phone-controller sessions
+- [x] Manually verify preview close/reopen behavior
+- [x] Manually verify the first-use UX on desktop widths we care about
 
 Done when:
 

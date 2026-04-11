@@ -51,6 +51,7 @@ export interface GamePlayerGame {
   id: string;
   name: string;
   url: string;
+  controllerUrl: string;
   ownerName?: string | null;
   thumbnailUrl?: string | null;
   videoUrl?: string | null;

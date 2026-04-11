@@ -1,6 +1,12 @@
 import { chromium, type Browser, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import type {
+  AnyVisualHarnessBridgeDefinition,
+  InferVisualHarnessBridgeActions,
+  InferVisualHarnessBridgeSnapshot,
+  VisualHarnessActionInvokerMap,
+} from "./bridge-contract.js";
 import {
   VISUAL_HARNESS_ACTIONS_KEY,
   VISUAL_HARNESS_BRIDGE_KEY,
@@ -16,6 +22,7 @@ import type {
   VisualScenario,
   VisualScenarioContext,
   VisualScenarioPack,
+  VisualScenarioBridge,
   VisualScreenshotRecord,
   VisualViewport,
 } from "./types.js";
@@ -68,7 +75,7 @@ const appendFailureScreenshot = async ({
 };
 
 const captureFailureScreenshots = async (
-  runContext: VisualScenarioContext | null,
+  runContext: VisualScenarioContext<AnyVisualHarnessBridgeDefinition> | null,
 ): Promise<void> => {
   if (!runContext) {
     return;
@@ -160,7 +167,9 @@ const readRuntimeHref = async ({
   return game.locator("body").evaluate(() => window.location.href);
 };
 
-const readBridgeSnapshot = async ({
+const readBridgeSnapshot = async <
+  TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
+>({
   page,
   game,
   embedded,
@@ -168,7 +177,7 @@ const readBridgeSnapshot = async ({
   page: Page;
   game: VisualQuerySurface;
   embedded: boolean;
-}): Promise<VisualHarnessBridgeSnapshot | null> => {
+}): Promise<TSnapshot | null> => {
   const readRawSnapshot = async (): Promise<unknown> => {
     if (!embedded) {
       return page.evaluate(
@@ -188,12 +197,12 @@ const readBridgeSnapshot = async ({
   const rawSnapshot = await readRawSnapshot();
 
   if (!embedded) {
-    return readVisualHarnessBridgeSnapshot({
+    return readVisualHarnessBridgeSnapshot<TSnapshot>({
       [VISUAL_HARNESS_BRIDGE_KEY]: rawSnapshot,
     });
   }
 
-  return readVisualHarnessBridgeSnapshot({
+  return readVisualHarnessBridgeSnapshot<TSnapshot>({
     [VISUAL_HARNESS_BRIDGE_KEY]: rawSnapshot,
   });
 };
@@ -210,8 +219,8 @@ const invokeBridgeAction = async <T>({
   embedded: boolean;
   actionName: string;
   payload?: unknown;
-}): Promise<T | null> => {
-  const evaluator = async (): Promise<T | null> => {
+}): Promise<T> => {
+  const evaluator = async (): Promise<T> => {
     if (!embedded) {
       return page.evaluate(
         async ({ actionKey, name, nextPayload }) => {
@@ -220,10 +229,10 @@ const invokeBridgeAction = async <T>({
           ] as Record<string, unknown> | undefined;
           const action = actionMap?.[name];
           if (typeof action !== "function") {
-            return null;
+            throw new Error(`Missing visual harness action "${name}".`);
           }
 
-          return (await action(nextPayload)) as T | null;
+          return (await action(nextPayload)) as T;
         },
         {
           actionKey: VISUAL_HARNESS_ACTIONS_KEY,
@@ -240,10 +249,10 @@ const invokeBridgeAction = async <T>({
         ] as Record<string, unknown> | undefined;
         const action = actionMap?.[name];
         if (typeof action !== "function") {
-          return null;
+          throw new Error(`Missing visual harness action "${name}".`);
         }
 
-        return (await action(nextPayload)) as T | null;
+        return (await action(nextPayload)) as T;
       },
       {
         actionKey: VISUAL_HARNESS_ACTIONS_KEY,
@@ -254,6 +263,69 @@ const invokeBridgeAction = async <T>({
   };
 
   return evaluator();
+};
+
+const createBridgeClient = <
+  TBridge extends AnyVisualHarnessBridgeDefinition,
+>({
+  bridge,
+  page,
+  game,
+  embedded,
+  sleepFor,
+}: {
+  bridge: TBridge;
+  page: Page;
+  game: VisualQuerySurface;
+  embedded: boolean;
+  sleepFor: (ms: number) => Promise<void>;
+}): VisualScenarioBridge<TBridge> => {
+  const read = async () =>
+    readBridgeSnapshot<InferVisualHarnessBridgeSnapshot<TBridge>>({
+      page,
+      game,
+      embedded,
+    });
+
+  const waitFor: VisualScenarioBridge<TBridge>["waitFor"] = async (
+    predicate,
+    description = "visual harness bridge predicate",
+    timeout = 30_000,
+  ) => {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeout) {
+      const snapshot = await read();
+      if (await predicate(snapshot)) {
+        return snapshot as InferVisualHarnessBridgeSnapshot<TBridge>;
+      }
+
+      await sleepFor(200);
+    }
+
+    throw new Error(`Timed out waiting for ${description}.`);
+  };
+
+  const actionEntries = Object.keys(bridge.actions).map((actionName) => {
+    const invoke = async (payload?: unknown) =>
+      invokeBridgeAction({
+        page,
+        game,
+        embedded,
+        actionName,
+        payload,
+      });
+
+    return [actionName, invoke] as const;
+  });
+
+  return {
+    read,
+    waitFor,
+    actions: Object.fromEntries(actionEntries) as VisualHarnessActionInvokerMap<
+      InferVisualHarnessBridgeActions<TBridge>
+    >,
+  };
 };
 
 const resolveControllerJoinUrl = async ({
@@ -310,6 +382,7 @@ const resolveControllerJoinUrl = async ({
 const createScenarioRunContext = async ({
   browser,
   gameId,
+  bridge,
   scenario,
   scenarioDir,
   urls,
@@ -317,11 +390,12 @@ const createScenarioRunContext = async ({
 }: {
   browser: Browser;
   gameId: string;
-  scenario: VisualScenario;
+  bridge: AnyVisualHarnessBridgeDefinition;
+  scenario: VisualScenario<AnyVisualHarnessBridgeDefinition>;
   scenarioDir: string;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
   mode: VisualHarnessMode;
-}): Promise<VisualScenarioContext> => {
+}): Promise<VisualScenarioContext<AnyVisualHarnessBridgeDefinition>> => {
   const hostContext = await browser.newContext({
     viewport: DEFAULT_HOST_VIEWPORT,
   });
@@ -361,6 +435,9 @@ const createScenarioRunContext = async ({
   const screenshotRecords: VisualScreenshotRecord[] = [];
   const notes: string[] = [];
   notes.push(`Resolved controller join URL: ${controllerJoinUrl}`);
+  if (controllerPromptDismissed) {
+    notes.push("Dismissed controller fullscreen prompt before capture.");
+  }
 
   const captureSurface = async ({
     surface,
@@ -396,6 +473,14 @@ const createScenarioRunContext = async ({
     });
   };
 
+  const bridgeClient = createBridgeClient({
+    bridge,
+    page: hostPage,
+    game: hostGame,
+    embedded: hostEmbedded,
+    sleepFor: (ms) => hostPage.waitForTimeout(ms),
+  });
+
   return {
     gameId,
     scenario,
@@ -422,23 +507,7 @@ const createScenarioRunContext = async ({
     ensureControllerInteractive: async () => {
       await dismissControllerFullscreenPrompt(controllerPage);
     },
-    readHostBridgeSnapshot: async () =>
-      readBridgeSnapshot({
-        page: hostPage,
-        game: hostGame,
-        embedded: hostEmbedded,
-      }),
-    invokeHostBridgeAction: async <T = unknown>(
-      actionName: string,
-      payload?: unknown,
-    ) =>
-      invokeBridgeAction<T>({
-        page: hostPage,
-        game: hostGame,
-        embedded: hostEmbedded,
-        actionName,
-        payload,
-      }),
+    bridge: bridgeClient,
     captureHost: async (viewportName: string, viewport: VisualViewport) =>
       captureSurface({ surface: "host", viewportName, ...viewport }),
     captureController: async (viewportName: string, viewport: VisualViewport) =>
@@ -464,7 +533,7 @@ const buildScenarioMetadata = ({
 }: {
   artifactRoot: string;
   gameId: string;
-  scenario: VisualScenario;
+  scenario: VisualScenario<AnyVisualHarnessBridgeDefinition>;
   mode: VisualHarnessMode;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl"> | VisualHarnessUrls;
   screenshotRecords: VisualScreenshotRecord[];
@@ -501,6 +570,7 @@ const runScenarioCapture = async ({
   artifactRoot,
   browser,
   gameId,
+  bridge,
   scenario,
   urls,
   mode,
@@ -508,14 +578,16 @@ const runScenarioCapture = async ({
   artifactRoot: string;
   browser: Browser;
   gameId: string;
-  scenario: VisualScenario;
+  bridge: AnyVisualHarnessBridgeDefinition;
+  scenario: VisualScenario<AnyVisualHarnessBridgeDefinition>;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
   mode: VisualHarnessMode;
 }): Promise<VisualCaptureScenarioMetadata> => {
   const scenarioDir = path.join(artifactRoot, gameId, scenario.id);
   resetDir(scenarioDir);
 
-  let runContext: VisualScenarioContext | null = null;
+  let runContext: VisualScenarioContext<AnyVisualHarnessBridgeDefinition> | null =
+    null;
   let metadata: VisualCaptureScenarioMetadata | null = null;
   let scenarioError: unknown = null;
 
@@ -523,6 +595,7 @@ const runScenarioCapture = async ({
     runContext = await createScenarioRunContext({
       browser,
       gameId,
+      bridge,
       scenario,
       scenarioDir,
       urls,
@@ -587,7 +660,9 @@ const runScenarioCapture = async ({
   return metadata;
 };
 
-const listScenarioIds = (scenarioPack: VisualScenarioPack): string[] =>
+const listScenarioIds = (
+  scenarioPack: VisualScenarioPack<AnyVisualHarnessBridgeDefinition>,
+): string[] =>
   scenarioPack.scenarios.map((scenario) => scenario.id);
 
 export type VisualHarnessStackHandle = {
@@ -601,13 +676,17 @@ export type RunVisualHarnessOptions = {
   mode?: VisualHarnessMode;
   secure?: boolean;
   artifactRoot: string;
-  loadScenarioPack: (gameId: string) => Promise<VisualScenarioPack>;
+  loadScenarioPack: (
+    gameId: string,
+  ) => Promise<VisualScenarioPack<AnyVisualHarnessBridgeDefinition>>;
   startStack: (options: {
     gameId: string;
     mode: VisualHarnessMode;
     secure: boolean;
   }) => Promise<VisualHarnessStackHandle>;
-  onScenarioStart?: (scenario: VisualScenario) => void;
+  onScenarioStart?: (
+    scenario: VisualScenario<AnyVisualHarnessBridgeDefinition>,
+  ) => void;
   onCaptureStart?: (info: {
     gameId: string;
     mode: VisualHarnessMode;
@@ -682,6 +761,7 @@ export const runVisualHarness = async ({
         artifactRoot,
         browser,
         gameId,
+        bridge: scenarioPack.bridge,
         scenario,
         urls: stack.urls,
         mode,

@@ -89,6 +89,26 @@
       "import": "./dist/protocol.js",
       "require": "./dist/protocol.cjs"
     },
+    "./runtime-control": {
+      "types": "./dist/runtime-control.d.ts",
+      "import": "./dist/runtime-control.js",
+      "require": "./dist/runtime-control.cjs"
+    },
+    "./runtime-inspection": {
+      "types": "./dist/runtime-inspection.d.ts",
+      "import": "./dist/runtime-inspection.js",
+      "require": "./dist/runtime-inspection.cjs"
+    },
+    "./runtime-observability": {
+      "types": "./dist/runtime-observability.d.ts",
+      "import": "./dist/runtime-observability.js",
+      "require": "./dist/runtime-observability.cjs"
+    },
+    "./capabilities": {
+      "types": "./dist/capabilities.d.ts",
+      "import": "./dist/capabilities.js",
+      "require": "./dist/capabilities.cjs"
+    },
     "./preview": {
       "types": "./dist/preview.d.ts",
       "import": "./dist/preview.js",
@@ -136,6 +156,18 @@
       ],
       "protocol": [
         "dist/protocol.d.ts"
+      ],
+      "runtime-control": [
+        "dist/runtime-control.d.ts"
+      ],
+      "runtime-inspection": [
+        "dist/runtime-inspection.d.ts"
+      ],
+      "runtime-observability": [
+        "dist/runtime-observability.d.ts"
+      ],
+      "capabilities": [
+        "dist/capabilities.d.ts"
       ],
       "preview": [
         "dist/preview.d.ts"

@@ -29,8 +29,8 @@ export const JoinUrlControls = ({
   const hasValue = Boolean(value && value.trim().length > 0);
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex flex-col gap-2 sm:flex-row">
+    <div className={cn("space-y-2.5", className)}>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
         <JoinUrlField
           value={value}
           label={label}
@@ -43,7 +43,7 @@ export const JoinUrlControls = ({
           copied={copied}
           onCopy={onCopy}
           onOpen={onOpen}
-          className="shrink-0 self-end"
+          className="shrink-0 sm:self-end"
           buttonClassName={buttonClassName}
         />
       </div>

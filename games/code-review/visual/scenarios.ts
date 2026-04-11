@@ -4,12 +4,14 @@ import type {
 } from "@air-jam/visual-harness";
 import {
   captureStandardSurfaces,
+  defineVisualHarness,
   waitForControllerText,
   waitForHostText,
 } from "@air-jam/visual-harness";
+import { codeReviewVisualHarnessBridge } from "./contract";
 
 const prepareLobbyState = async (
-  context: VisualScenarioContext,
+  context: VisualScenarioContext<typeof codeReviewVisualHarnessBridge>,
 ): Promise<void> => {
   await waitForHostText(context, "Connected Players");
   await context.ensureControllerInteractive();
@@ -28,14 +30,14 @@ const prepareLobbyState = async (
 };
 
 const prepareEndedState = async (
-  context: VisualScenarioContext,
+  context: VisualScenarioContext<typeof codeReviewVisualHarnessBridge>,
 ): Promise<void> => {
   await prepareLobbyState(context);
 
   await context.host.game.getByRole("button", { name: "Play" }).click();
   await waitForControllerText(context, "Guard", 20_000);
 
-  await context.invokeHostBridgeAction("forceEndMatch", {
+  await context.bridge.actions.forceEndMatch({
     scores: { team1: 5, team2: 2 },
   });
 
@@ -44,18 +46,17 @@ const prepareEndedState = async (
   await context.sleep(750);
 };
 
-export const visualHarness = {
+export const visualHarness = defineVisualHarness({
   gameId: "code-review",
+  bridge: codeReviewVisualHarnessBridge,
   scenarios: [
     {
       id: "lobby",
       description:
         "Host lobby with one human on Coder, one reviewer bot, and pong-style staffing rules.",
-      run: async (context) => {
-        if (context.controller.fullscreenPromptDismissed) {
-          context.note("Dismissed controller fullscreen prompt before capture.");
-        }
-
+      run: async (
+        context: VisualScenarioContext<typeof codeReviewVisualHarnessBridge>,
+      ) => {
         await prepareLobbyState(context);
         await captureStandardSurfaces(context);
       },
@@ -64,7 +65,9 @@ export const visualHarness = {
       id: "playing",
       description:
         "Active match after one controller joins Coder, adds a reviewer bot, and the host starts the match.",
-      run: async (context) => {
+      run: async (
+        context: VisualScenarioContext<typeof codeReviewVisualHarnessBridge>,
+      ) => {
         await prepareLobbyState(context);
         await context.host.game.getByRole("button", { name: "Play" }).click();
         await waitForControllerText(context, "Guard", 20_000);
@@ -78,14 +81,12 @@ export const visualHarness = {
       id: "ended",
       description:
         "Ended match after a deterministic dev-only host bridge finalizes the score and match summary.",
-      run: async (context) => {
-        if (context.controller.fullscreenPromptDismissed) {
-          context.note("Dismissed controller fullscreen prompt before capture.");
-        }
-
+      run: async (
+        context: VisualScenarioContext<typeof codeReviewVisualHarnessBridge>,
+      ) => {
         await prepareEndedState(context);
         await captureStandardSurfaces(context);
       },
     },
   ],
-} satisfies VisualScenarioPack;
+}) satisfies VisualScenarioPack<typeof codeReviewVisualHarnessBridge>;

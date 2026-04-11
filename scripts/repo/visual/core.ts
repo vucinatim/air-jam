@@ -1,6 +1,7 @@
 import {
   runVisualHarness,
   type RunVisualCaptureCommandOptions,
+  type AnyVisualHarnessBridgeDefinition,
   type VisualHarnessMode,
   type VisualScenarioPack,
 } from '@air-jam/visual-harness';
@@ -29,16 +30,20 @@ const resolveScenarioModulePath = (gameId: string): string => {
   );
 };
 
-const loadScenarioPack = async (gameId: string): Promise<VisualScenarioPack> => {
+const loadScenarioPack = async (
+  gameId: string,
+): Promise<VisualScenarioPack<AnyVisualHarnessBridgeDefinition>> => {
   const scenarioModulePath = resolveScenarioModulePath(gameId);
   const loaded = (await import(pathToFileURL(scenarioModulePath).href)) as {
-    visualHarness?: VisualScenarioPack;
+    visualHarness?: VisualScenarioPack<AnyVisualHarnessBridgeDefinition>;
   };
   const scenarioPack = loaded.visualHarness ?? null;
 
   if (
     !scenarioPack ||
     scenarioPack.gameId !== gameId ||
+    !scenarioPack.bridge ||
+    scenarioPack.bridge.gameId !== gameId ||
     !Array.isArray(scenarioPack.scenarios)
   ) {
     throw new Error(

@@ -50,7 +50,10 @@ const resolveThreeProfileManualChunk = (id) => {
     id.includes("/react-dom/") ||
     id.includes("react-router-dom")
   ) {
-    return "react-runtime";
+    // Keep the core React/app runtime in one chunk for the three profile.
+    // Splitting React away from state/router/runtime helpers created a
+    // circular startup edge in built embeds.
+    return "app-runtime";
   }
 
   if (

@@ -4,6 +4,7 @@ type ArcadeGameSource = {
   id: string;
   name: string;
   url: string;
+  controllerUrl: string;
   ownerName?: string | null;
   thumbnailUrl?: string | null;
   videoUrl?: string | null;
@@ -16,6 +17,7 @@ export const toArcadeGame = (game: ArcadeGameSource): ArcadeGame => ({
   id: game.id,
   name: game.name,
   url: game.url,
+  controllerUrl: game.controllerUrl,
   ownerName: game.ownerName,
   thumbnailUrl: game.thumbnailUrl,
   videoUrl: game.videoUrl,

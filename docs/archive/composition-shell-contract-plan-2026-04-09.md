@@ -9,7 +9,7 @@ Archive reason: implementation is code-complete; remaining manual proof moved to
 Related docs:
 
 1. [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
-2. [Prerelease Systems Closeout Plan](../plans/prerelease-systems-closeout-plan.md)
+2. [Prerelease Systems Closeout Plan (Archived)](./prerelease-systems-closeout-plan-2026-04-09.md)
 3. [Showcase Games Release Readiness Plan (Archived)](./showcase-games-release-readiness-plan-2026-04-09.md)
 4. [Framework Paradigm](../framework-paradigm.md)
 5. [Work Ledger](../work-ledger.md)

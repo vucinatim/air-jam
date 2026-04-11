@@ -5,11 +5,9 @@ import {
   useHostRuntimeStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
+import { HostPreviewControllerDock } from "@air-jam/sdk/preview";
 import { HostMuteButton, useHostLobbyShell } from "@air-jam/sdk/ui";
-import {
-  publishVisualHarnessBridgeActions,
-  publishVisualHarnessBridgeSnapshot,
-} from "@air-jam/visual-harness/runtime-bridge";
+import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import {
   Suspense,
@@ -24,6 +22,7 @@ import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { useBotManager } from "../game/bot-system/bot-manager";
 import { TEAM_IDS, type TeamId } from "../game/domain/team";
 import { useMatchCountdown } from "../game/hooks/use-match-countdown";
+import { preloadRapier } from "../game/rapier-preload";
 import {
   useCaptureTheFlagStore,
 } from "../game/stores/match/capture-the-flag-store";
@@ -51,8 +50,10 @@ import {
 } from "./components/host-overlays";
 import { HostLiveChrome } from "./components/host-live-chrome";
 import { PlayerHUDOverlay } from "../game/ui/player-hud-overlay";
+import { airCaptureVisualHarnessBridge } from "../../visual/contract";
 
 const GameScene = lazy(async () => {
+  await preloadRapier();
   const module = await import("../game/engine/game-scene");
   return { default: module.GameScene };
 });
@@ -338,92 +339,13 @@ const HostViewContent = ({
     onStartMatch: () => matchActions.startMatch(),
   });
   const joinQrValue = hostLobbyShell.joinUrlValue;
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeSnapshot({
-      roomId: host.roomId,
-      controllerJoinUrl:
-        host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null,
-      matchPhase,
-      runtimeState,
-    });
-  }, [
-    host.joinUrl,
-    host.joinUrlStatus,
-    host.roomId,
+  const previewControllersEnabled = import.meta.env.DEV;
+  useVisualHarnessBridge(airCaptureVisualHarnessBridge, {
+    host,
     matchPhase,
     runtimeState,
-  ]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    publishVisualHarnessBridgeActions({
-      setPointsToWin: (payload) => {
-        const nextPointsToWin =
-          typeof payload === "number" && Number.isFinite(payload)
-            ? payload
-            : typeof payload === "string"
-              ? Number(payload)
-              : NaN;
-
-        if (!Number.isFinite(nextPointsToWin)) {
-          return false;
-        }
-
-        matchActions.setPointsToWin({ pointsToWin: nextPointsToWin });
-        return true;
-      },
-      endMatch: (payload) => {
-        if (
-          !payload ||
-          typeof payload !== "object" ||
-          !("winner" in payload) ||
-          !("finalScores" in payload)
-        ) {
-          return false;
-        }
-
-        const nextWinner = (
-          payload as {
-            winner: unknown;
-            finalScores: { solaris?: unknown; nebulon?: unknown };
-          }
-        ).winner;
-        const nextScores = (
-          payload as {
-            winner: unknown;
-            finalScores: { solaris?: unknown; nebulon?: unknown };
-          }
-        ).finalScores;
-
-        if (
-          (nextWinner !== "solaris" && nextWinner !== "nebulon") ||
-          typeof nextScores !== "object" ||
-          nextScores === null ||
-          typeof nextScores.solaris !== "number" ||
-          typeof nextScores.nebulon !== "number"
-        ) {
-          return false;
-        }
-
-        matchActions.endMatch({
-          winner: nextWinner,
-          finalScores: {
-            solaris: nextScores.solaris,
-            nebulon: nextScores.nebulon,
-          },
-        });
-        return true;
-      },
-    });
-  }, [matchActions]);
+    matchActions,
+  });
 
   const showPausedOverlay =
     (matchPhase === "countdown" || matchPhase === "playing") &&
@@ -545,6 +467,7 @@ const HostViewContent = ({
             />
           </>
         )}
+        <HostPreviewControllerDock enabled={previewControllersEnabled} />
       </div>
     </div>
   );

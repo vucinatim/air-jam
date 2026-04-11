@@ -1,4 +1,5 @@
 import type { ArcadeGame } from "@/components/arcade";
+import { buildArcadeControllerRuntimeUrl } from "@air-jam/sdk/arcade/url";
 
 type LocalReferenceGameKey =
   | "air-capture"
@@ -152,17 +153,27 @@ const resolveLocalReferenceGameUrl = (
 const toLocalReferenceArcadeGame = (
   config: LocalReferenceGameConfig,
   url: string,
-): ArcadeGame => ({
-  id: config.id,
-  slug: config.slug,
-  name: config.name,
-  ownerName: LOCAL_REFERENCE_OWNER_NAME,
-  url,
-  thumbnailUrl: null,
-  videoUrl: null,
-  catalogSource: "local_dev",
-  catalogBadgeLabel: LOCAL_REFERENCE_BADGE_LABEL,
-});
+): ArcadeGame => {
+  const controllerUrl = buildArcadeControllerRuntimeUrl(url);
+  if (!controllerUrl) {
+    throw new Error(
+      `Unable to derive local reference controller URL for ${config.key}.`,
+    );
+  }
+
+  return {
+    id: config.id,
+    slug: config.slug,
+    name: config.name,
+    ownerName: LOCAL_REFERENCE_OWNER_NAME,
+    url,
+    controllerUrl,
+    thumbnailUrl: null,
+    videoUrl: null,
+    catalogSource: "local_dev",
+    catalogBadgeLabel: LOCAL_REFERENCE_BADGE_LABEL,
+  };
+};
 
 export const getLocalReferenceArcadeGames = (
   options: LocalReferenceGameOptions = {},

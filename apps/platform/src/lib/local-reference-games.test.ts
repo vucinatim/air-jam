@@ -16,6 +16,7 @@ describe("local reference games", () => {
       slug: "local-air-capture",
       name: "Air Capture",
       url: "http://127.0.0.1:5173",
+      controllerUrl: "http://127.0.0.1:5173/controller",
       catalogSource: "local_dev",
       catalogBadgeLabel: "Local Dev",
     });
@@ -34,6 +35,7 @@ describe("local reference games", () => {
       slug: "local-pong",
       name: "Pong",
       url: "http://127.0.0.1:5173",
+      controllerUrl: "http://127.0.0.1:5173/controller",
     });
   });
 
@@ -54,7 +56,11 @@ describe("local reference games", () => {
       "local-code-review",
     ]);
     expect(games[1]?.url).toBe("http://127.0.0.1:4173");
+    expect(games[1]?.controllerUrl).toBe("http://127.0.0.1:4173/controller");
     expect(games[2]?.url).toBe("http://127.0.0.1:4174");
+    expect(games[2]?.controllerUrl).toBe(
+      "http://127.0.0.1:4174/controller",
+    );
   });
 
   it("does not expose local reference games in production", () => {
@@ -92,6 +98,7 @@ describe("local reference games", () => {
       slug: "local-pong",
       name: "Pong",
       url: "http://127.0.0.1:5173",
+      controllerUrl: "http://127.0.0.1:5173/controller",
     });
   });
 
