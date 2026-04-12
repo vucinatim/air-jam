@@ -232,14 +232,6 @@ const HostScreen = () => {
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-        <HostMuteButton
-          muted={audioMuted}
-          onToggle={() => setAudioMuted((previous) => !previous)}
-          className="border-border/70 bg-background/80 text-foreground hover:bg-background/90 rounded-lg"
-        />
-        <FullscreenToggle className="bg-background/80 hover:bg-background/90 backdrop-blur-sm" />
-      </div>
       <SurfaceViewport preset="host-standard" className="bg-background">
         <main className="bg-background text-foreground flex h-full w-full flex-col overflow-hidden">
           {phase !== "lobby" && (
@@ -266,7 +258,10 @@ const HostScreen = () => {
                   copiedJoinUrl={hostLobbyShell.copied}
                   onCopyJoinUrl={hostLobbyShell.handleCopy}
                   onOpenJoinUrl={hostLobbyShell.handleOpen}
-                  connectionStatus={host.connectionStatus}
+                  joinQrVisible={hostLobbyShell.joinQrVisible}
+                  onToggleJoinQr={hostLobbyShell.toggleJoinQr}
+                  onCloseJoinQr={hostLobbyShell.hideJoinQr}
+                  roomId={host.roomId}
                   lastError={host.lastError ?? null}
                   playerOrder={playerOrder}
                   playerLabelById={playerLabelById}
@@ -317,7 +312,18 @@ const HostScreen = () => {
           )}
         </main>
       </SurfaceViewport>
-      <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
+      <HostPreviewControllerWorkspace
+        enabled={previewControllersEnabled}
+        dockAccessory={
+          <div className="flex items-center gap-2">
+            <HostMuteButton
+              muted={audioMuted}
+              onToggle={() => setAudioMuted((previous) => !previous)}
+            />
+            <FullscreenToggle className="border border-white/25 bg-black/35 text-white backdrop-blur-sm hover:bg-black/55" />
+          </div>
+        }
+      />
     </>
   );
 };

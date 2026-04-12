@@ -50,7 +50,38 @@ Already true:
 That means the next job is not to keep chasing speculative breakage.
 The next job is to make the shipped surfaces feel intentional.
 
+Additional current truth:
+
+1. the visual harness is still useful, but it is no longer treated as the primary visual-inspection path for agents or humans during everyday game work
+2. browser-driven inspection and interaction are now the default visual path, while the harness remains valuable for deterministic setup, machine-readable state, and future evaluation automation
+3. prerelease work must first make repo validation truthful again before the game-by-game polish pass can be considered complete
+
 ## Workstreams
+
+### Workstream 0. Validation Truth And Harness Cleanup
+
+Before more game polish, restore truthful prerelease validation.
+
+Status update:
+
+1. completed on 2026-04-11
+2. the shared visual-harness generic/typecheck break is repaired
+3. the harness stays as optional advanced support rather than the primary visual-development path
+4. root lint and root typecheck are back to green after the harness fix
+
+Focus:
+
+1. resolve current repo typecheck and lint failures
+2. repair the current visual-harness generic/typecheck path across the shared package and affected launch games
+3. keep the visual harness as optional advanced support instead of removing it or pretending it is the default authoring path
+4. if any template/scaffold story still over-emphasizes the harness as a normal game-authoring concern, reduce that emphasis while keeping the advanced lane documented
+
+Done when:
+
+1. launch-set validation is not red because of known harness breakage
+2. the harness has one clear role: deterministic advanced support, not mandatory everyday authoring glue
+3. repo docs and template truth match that decision
+4. Stage 3 polish can proceed without carrying a known validation lie
 
 ### Workstream 1. Shared Shell Polish
 
@@ -100,6 +131,22 @@ Focus:
 3. ended/result-state quality
 4. obvious mobile controller issues
 5. obvious first-impression presentation issues
+6. gameplay feel where roughness is obvious enough to undercut release quality
+
+Current next priorities:
+
+1. `code-review`: reduce slippery movement feel and relax bot difficulty so the game reads as learnable rather than punitive
+2. `the-office`: improve controller contrast and background treatment so the sticky-note/gameplay UI remains legible
+3. `last-band-standing`: verify URL/media flows still work cleanly and do one bounded UI uplift if the current lobby/gameplay pass still feels obviously under-finished
+4. then run one shorter high-signal sweep across `pong` and `air-capture` for remaining polish nits only
+
+Status update:
+
+1. `code-review` gameplay feel has a first live tuning pass in place on movement retention and bot pressure
+2. `the-office` controller contrast/background treatment is corrected
+3. `last-band-standing` URL/embed validation is confirmed clean through the real `songs:validate` script and current song bank
+4. `code-review` is now structurally aligned with Pong and the scaffold guidance: gameplay simulation, bot behavior, render helpers, and pure store transitions are extracted out of the host route, and the scaffold source mirrors that cleanup
+5. the remaining question for this launch-game slice is whether `last-band-standing` still needs one bounded UI uplift after the now-verified media path
 
 ### Workstream 3. Gameplay Feel Tightening
 
@@ -119,10 +166,11 @@ Rule:
 
 ## Suggested Execution Order
 
-1. finish shared shell polish
-2. do one bounded launch-set polish pass in game order
-3. rerun the relevant visual captures
-4. carry only the remaining obvious release-facing roughness into prerelease cleanup
+1. complete Workstream 0 so validation and harness truth are clean again
+2. finish any remaining shared shell/UI fallout that directly blocks game polish
+3. do one bounded launch-set polish pass, starting with `code-review`, `the-office`, and `last-band-standing`
+4. rerun the relevant visual captures and targeted live checks
+5. carry only the remaining obvious release-facing roughness into prerelease cleanup
 
 ## Working Rule
 

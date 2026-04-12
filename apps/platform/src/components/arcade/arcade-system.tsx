@@ -16,33 +16,31 @@ import {
   useHostTick,
   useInheritedPlatformSettings,
   usePlatformSettings,
-  type PlayerProfile,
   type PlatformSettingsSnapshot,
+  type PlayerProfile,
 } from "@air-jam/sdk";
+import { useHostArcadeRestore } from "@air-jam/sdk/arcade/host";
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
+import { normalizeRuntimeUrl } from "@air-jam/sdk/arcade/url";
 import { PreviewControllerWorkspace } from "@air-jam/sdk/preview";
-import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import type {
   AirJamActionRpcPayload,
   SystemLaunchGameAck,
 } from "@air-jam/sdk/protocol";
-import {
-  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-} from "@air-jam/sdk/arcade/surface";
-import { useHostArcadeRestore } from "@air-jam/sdk/arcade/host";
-import {
-  normalizeRuntimeUrl,
-} from "@air-jam/sdk/arcade/url";
+import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { PlatformSettingsPanel } from "../platform-settings-panel";
 import type { ArcadeAudioId } from "./arcade-audio-runtime";
-import { ArcadeChrome } from "./arcade-chrome";
 import {
   readArcadeBrowserOverlayPreference,
   writeArcadeBrowserOverlayPreference,
 } from "./arcade-browser-overlay-preference";
+import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
+import { useArcadePlatformSettingsStore } from "./arcade-platform-settings-store";
 import {
   EXIT_COOLDOWN_MS,
   getAutoLaunchRequestKey,
@@ -52,8 +50,6 @@ import {
 import { useArcadeSurfaceStore } from "./arcade-surface-store";
 import { GameBrowser } from "./game-browser";
 import { GamePlayer, type GamePlayerGame } from "./game-player";
-import { PlatformSettingsPanel } from "../platform-settings-panel";
-import { useArcadePlatformSettingsStore } from "./arcade-platform-settings-store";
 
 // Calculate grid columns based on window width
 const getGridColumns = (): number => {
@@ -221,9 +217,9 @@ export const ArcadeSystem = ({
   const surfaceActions = useArcadeSurfaceStore.useActions();
   const platformSettingsActions = useArcadePlatformSettingsStore.useActions();
   const lastRoomIdForSurfaceRef = useRef<string | null>(null);
-  const pingRemovalTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  );
+  const pingRemovalTimeoutsRef = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
   const hostArcadeRestore = useHostArcadeRestore();
   const pendingHostArcadeRestoreSession = hostArcadeRestore.session;
   const { accessibility } = useInheritedPlatformSettings();
@@ -232,6 +228,7 @@ export const ArcadeSystem = ({
     updateAudio,
     updateAccessibility,
     updateFeedback,
+    updatePreviewControllers,
   } = usePlatformSettings();
   const reducedMotion = accessibility.reducedMotion;
   const highContrast = accessibility.highContrast;
@@ -571,7 +568,9 @@ export const ArcadeSystem = ({
           if (surfaceKind !== "browser") {
             return;
           }
-          const player = host.players.find((candidate) => candidate.id === event.actor.id);
+          const player = host.players.find(
+            (candidate) => candidate.id === event.actor.id,
+          );
           if (!player) {
             return;
           }
@@ -580,10 +579,14 @@ export const ArcadeSystem = ({
             audio.play("ping");
           });
           setActivePings((current) =>
-            [...current, { id: pingId, player }].slice(-ARCADE_MAX_ACTIVE_PINGS),
+            [...current, { id: pingId, player }].slice(
+              -ARCADE_MAX_ACTIVE_PINGS,
+            ),
           );
           const timeoutId = setTimeout(() => {
-            setActivePings((current) => current.filter((ping) => ping.id !== pingId));
+            setActivePings((current) =>
+              current.filter((ping) => ping.id !== pingId),
+            );
             pingRemovalTimeoutsRef.current.delete(pingId);
           }, ARCADE_PING_AVATAR_LIFETIME_MS);
           pingRemovalTimeoutsRef.current.set(pingId, timeoutId);
@@ -820,7 +823,11 @@ export const ArcadeSystem = ({
   const isBrowserChromeVisible = showChrome && surfaceKind === "browser";
 
   // Preview mode: show loading until surface is game with a join token (launch + hydration)
-  if (mode === "preview" && surfaceKind === "browser" && !state.launchCapability) {
+  if (
+    mode === "preview" &&
+    surfaceKind === "browser" &&
+    !state.launchCapability
+  ) {
     return (
       <div
         className={cn(
@@ -919,7 +926,10 @@ export const ArcadeSystem = ({
                         }}
                         exit={{
                           opacity: 0,
-                          y: -(ARCADE_MAX_ACTIVE_PINGS * ARCADE_PING_STACK_OFFSET_PX),
+                          y: -(
+                            ARCADE_MAX_ACTIVE_PINGS *
+                            ARCADE_PING_STACK_OFFSET_PX
+                          ),
                           scale: 0.9,
                         }}
                         transition={{
@@ -927,9 +937,11 @@ export const ArcadeSystem = ({
                           ease: [0.22, 1, 0.36, 1],
                         }}
                         className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2"
-                        style={{ zIndex: ARCADE_MAX_ACTIVE_PINGS - ageFromNewest }}
+                        style={{
+                          zIndex: ARCADE_MAX_ACTIVE_PINGS - ageFromNewest,
+                        }}
                       >
-                        <div className="rounded-full border border-airjam-cyan/30 bg-black/55 p-2 shadow-[0_0_28px_rgba(34,211,238,0.18)] backdrop-blur-sm">
+                        <div className="border-airjam-cyan/30 rounded-full border bg-black/55 p-2 shadow-[0_0_28px_rgba(34,211,238,0.18)] backdrop-blur-sm">
                           <PlayerAvatar
                             player={ping.player}
                             size="lg"
@@ -981,7 +993,10 @@ export const ArcadeSystem = ({
                 }
                 onClick={(event) => event.stopPropagation()}
               >
-                <PlatformSettingsPanel className="shadow-2xl" />
+                <PlatformSettingsPanel
+                  className="shadow-2xl"
+                  showPreviewControllerSettings
+                />
               </motion.div>
             </motion.div>
           )}
@@ -1084,8 +1099,10 @@ export const ArcadeSystem = ({
         </div>
 
         {/* Game View — surface kind is authoritative for shell; runtime holds iframe credentials */}
-        {surfaceKind === "game" && activeGame && state.launchCapability && (
-          joinQrStatus === "loading" ? (
+        {surfaceKind === "game" &&
+          activeGame &&
+          state.launchCapability &&
+          (joinQrStatus === "loading" ? (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-black text-sm font-medium text-white/80">
               Preparing game…
             </div>
@@ -1106,13 +1123,15 @@ export const ArcadeSystem = ({
               onExit={exitGame}
               showExitOverlay={showGameExitOverlay}
             />
-          )
-        )}
+          ))}
 
         <PreviewControllerWorkspace
           enabled={previewControllersEnabled}
           joinUrl={joinQrStatus === "ready" ? arcadeJoinUrl : null}
           highContrast={highContrast}
+          onActiveOpacityChange={(activeOpacity) =>
+            updatePreviewControllers({ activeOpacity })
+          }
         />
       </div>
     </div>

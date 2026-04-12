@@ -95,7 +95,7 @@ export type VisualScenarioPack<
 > = {
   gameId: string;
   bridge: TBridge;
-  scenarios: VisualScenario<TBridge>[];
+  scenarios: ReadonlyArray<VisualScenario<TBridge>>;
 };
 
 export type VisualCaptureScenarioMetadata = {

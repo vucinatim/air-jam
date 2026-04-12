@@ -5,22 +5,24 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type { PlatformSettingsSnapshot } from "@air-jam/sdk";
 import { usePlatformSettings } from "@air-jam/sdk";
-import { VolumeControls } from "@air-jam/sdk/ui";
+import { Slider, VolumeControls } from "@air-jam/sdk/ui";
 
 interface PlatformSettingsPanelProps {
   className?: string;
   compact?: boolean;
   settings?: PlatformSettingsSnapshot;
   readOnly?: boolean;
-  onUpdateAudio?: (
-    patch: Partial<PlatformSettingsSnapshot["audio"]>,
-  ) => void;
+  onUpdateAudio?: (patch: Partial<PlatformSettingsSnapshot["audio"]>) => void;
   onUpdateAccessibility?: (
     patch: Partial<PlatformSettingsSnapshot["accessibility"]>,
   ) => void;
   onUpdateFeedback?: (
     patch: Partial<PlatformSettingsSnapshot["feedback"]>,
   ) => void;
+  onUpdatePreviewControllers?: (
+    patch: Partial<PlatformSettingsSnapshot["previewControllers"]>,
+  ) => void;
+  showPreviewControllerSettings?: boolean;
 }
 
 interface SettingsToggleRowProps {
@@ -62,6 +64,7 @@ export function PlatformSettingsPanel(props: PlatformSettingsPanelProps) {
     <OwnedPlatformSettingsPanel
       className={props.className}
       compact={props.compact}
+      showPreviewControllerSettings={props.showPreviewControllerSettings}
     />
   );
 }
@@ -69,9 +72,18 @@ export function PlatformSettingsPanel(props: PlatformSettingsPanelProps) {
 function OwnedPlatformSettingsPanel({
   className,
   compact = false,
-}: Pick<PlatformSettingsPanelProps, "className" | "compact">) {
-  const { settings, updateAudio, updateAccessibility, updateFeedback } =
-    usePlatformSettings();
+  showPreviewControllerSettings = false,
+}: Pick<
+  PlatformSettingsPanelProps,
+  "className" | "compact" | "showPreviewControllerSettings"
+>) {
+  const {
+    settings,
+    updateAudio,
+    updateAccessibility,
+    updateFeedback,
+    updatePreviewControllers,
+  } = usePlatformSettings();
 
   return (
     <PlatformSettingsPanelBody
@@ -81,6 +93,8 @@ function OwnedPlatformSettingsPanel({
       onUpdateAudio={updateAudio}
       onUpdateAccessibility={updateAccessibility}
       onUpdateFeedback={updateFeedback}
+      onUpdatePreviewControllers={updatePreviewControllers}
+      showPreviewControllerSettings={showPreviewControllerSettings}
     />
   );
 }
@@ -93,6 +107,8 @@ function PlatformSettingsPanelBody({
   onUpdateAudio,
   onUpdateAccessibility,
   onUpdateFeedback,
+  onUpdatePreviewControllers,
+  showPreviewControllerSettings = false,
 }: Required<Pick<PlatformSettingsPanelProps, "settings">> &
   Omit<PlatformSettingsPanelProps, "settings">) {
   const highContrast = settings.accessibility.highContrast;
@@ -133,6 +149,48 @@ function PlatformSettingsPanelBody({
           onSfxVolumeChange={(sfxVolume) => onUpdateAudio?.({ sfxVolume })}
         />
       </div>
+
+      {showPreviewControllerSettings ? (
+        <>
+          <Separator className="my-4 bg-white/10" />
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-white">
+                Preview controller opacity
+              </p>
+              <p className="text-xs leading-5 text-slate-400">
+                Control how transparent active on-screen preview controllers are
+                so the host surface can stay visible underneath.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-slate-400">Active window</label>
+                <span className="font-mono text-xs text-slate-400">
+                  {Math.round(settings.previewControllers.activeOpacity * 100)}%
+                </span>
+              </div>
+              <Slider
+                data-testid="platform-settings-preview-controller-active-opacity"
+                value={[settings.previewControllers.activeOpacity * 100]}
+                onValueChange={(values) =>
+                  onUpdatePreviewControllers?.({
+                    activeOpacity: values[0] / 100,
+                  })
+                }
+                min={35}
+                max={100}
+                step={1}
+                className="w-full"
+                aria-label="Preview controller active opacity"
+                disabled={readOnly}
+              />
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <Separator className="my-4 bg-white/10" />
 

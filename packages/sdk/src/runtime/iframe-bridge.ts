@@ -62,6 +62,11 @@ const airJamSettingsSyncSchema = z
                 hapticsEnabled: z.boolean(),
               })
               .strict(),
+            previewControllers: z
+              .object({
+                activeOpacity: z.number(),
+              })
+              .strict(),
           })
           .strict(),
       })
@@ -111,7 +116,9 @@ export const isAirJamSettingsSyncMessage = (
   value: unknown,
 ): value is AirJamSettingsSyncMessage => {
   const result = airJamSettingsSyncSchema.safeParse(value);
-  return result.success && !!normalizePlatformSettings(result.data.payload.settings);
+  return (
+    result.success && !!normalizePlatformSettings(result.data.payload.settings)
+  );
 };
 
 export const parseAirJamBridgeInitMessage = (

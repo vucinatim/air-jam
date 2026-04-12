@@ -13,7 +13,7 @@ What is not acceptable is breaking the required lifecycle and room-join behavior
 The host lobby should expose:
 
 1. room/join context
-2. QR code
+2. QR access, either inline or via an obvious overlay trigger
 3. controller join URL field
 4. copy join URL action
 5. open join URL action
@@ -46,8 +46,9 @@ If the game does not need a highly custom shell, prefer composing from:
 4. `JoinUrlField`
 5. `JoinUrlActionButtons`
 6. `JoinUrlControls`
-7. `RoomQrCode`
-8. `HostMuteButton` where host audio mute is needed
+7. `JoinQrOverlay`
+8. `RoomQrCode` when a game truly needs inline QR presentation
+9. `HostMuteButton` where host audio mute is needed
 
 When lifecycle action visibility or labels should stay shared, prefer `useLifecycleActionGroupModel` and render from its returned action descriptors.
 

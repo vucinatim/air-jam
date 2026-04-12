@@ -1,9 +1,9 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import {
+  JoinQrOverlay,
   JoinUrlControls,
   LifecycleActionGroup,
   PlayerAvatar,
-  RoomQrCode,
 } from "@air-jam/sdk/ui";
 import { getLobbyReadinessText } from "../../game/domain/match-readiness";
 import { type TeamId } from "../../game/domain/team";
@@ -20,6 +20,9 @@ interface LobbyScreenProps {
   copiedJoinUrl: boolean;
   onCopyJoinUrl: () => void;
   onOpenJoinUrl: () => void;
+  joinQrVisible: boolean;
+  onToggleJoinQr: () => void;
+  onCloseJoinQr: () => void;
   canStartMatch: boolean;
   roomId: string | null;
   botCounts: BotCounts;
@@ -73,6 +76,9 @@ export const LobbyScreen = ({
   copiedJoinUrl,
   onCopyJoinUrl,
   onOpenJoinUrl,
+  joinQrVisible,
+  onToggleJoinQr,
+  onCloseJoinQr,
   canStartMatch,
   roomId,
   botCounts,
@@ -174,15 +180,11 @@ export const LobbyScreen = ({
             copied={copiedJoinUrl}
             onCopy={onCopyJoinUrl}
             onOpen={onOpenJoinUrl}
-            className="mt-4 w-full max-w-sm text-left"
+            qrVisible={joinQrVisible}
+            onToggleQr={onToggleJoinQr}
+            className="mt-4 w-full text-left"
             inputClassName="border-white/15 bg-black/40 text-white"
             buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
-          />
-          <RoomQrCode
-            value={joinQrValue}
-            size={220}
-            className="mt-4 rounded-xl bg-white"
-            alt="Join this Pong room"
           />
           <LifecycleActionGroup
             phase="lobby"
@@ -194,6 +196,13 @@ export const LobbyScreen = ({
           />
         </section>
       </div>
+      <JoinQrOverlay
+        open={joinQrVisible}
+        value={joinQrValue}
+        roomId={roomId}
+        onClose={onCloseJoinQr}
+        description="Scan with your phone to join this Pong room as a controller."
+      />
     </div>
   );
 };

@@ -17,8 +17,8 @@ interface ControllerLobbyProps {
 }
 
 export const ControllerLobby = ({
-  isConnected,
-  roomId,
+  isConnected: _isConnected,
+  roomId: _roomId,
   readyCount,
   playerCount,
   nameDraft,

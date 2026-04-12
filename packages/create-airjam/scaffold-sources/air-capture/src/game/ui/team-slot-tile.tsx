@@ -18,7 +18,7 @@ type TeamSlotTileProps = {
 };
 
 const shellClass =
-  "flex h-[68px] min-w-0 items-center gap-2 rounded-[18px] border px-2 py-3 text-left";
+  "flex min-h-[4.5rem] min-w-0 items-center gap-2.5 rounded-xl border px-3 py-3 text-left";
 
 const palette = {
   human: "border-white/16 bg-white/12 text-white",
@@ -30,8 +30,9 @@ const palette = {
 
 const tileContent = (slot: TeamSlotVisual) => {
   const titleClass =
-    "truncate text-[11px] font-black tracking-[0.14em] uppercase";
-  const subtitleClass = "text-[9px] font-semibold tracking-[0.16em] uppercase";
+    "truncate text-[0.6875rem] font-black tracking-[0.14em] uppercase";
+  const subtitleClass =
+    "text-[0.625rem] font-semibold tracking-[0.16em] uppercase";
 
   if (slot.kind === "human") {
     return (
@@ -39,7 +40,7 @@ const tileContent = (slot: TeamSlotVisual) => {
         <PlayerAvatar
           player={slot.player}
           size="sm"
-          className="h-8 w-8 border-2"
+          className="h-10 w-10 border-2"
         />
         <div className="min-w-0">
           <div className={cx(titleClass, "text-white")}>{slot.player.label}</div>
@@ -56,7 +57,7 @@ const tileContent = (slot: TeamSlotVisual) => {
           player={BOT_AVATAR_PLAYER}
           isBot
           size="sm"
-          className="h-8 w-8 border-2"
+          className="h-10 w-10 border-2"
         />
         <div className="min-w-0">
           <div className={cx(titleClass, "text-cyan-50")}>Bot Slot</div>
@@ -70,7 +71,7 @@ const tileContent = (slot: TeamSlotVisual) => {
 
   return (
     <>
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[9px] font-black tracking-[0.14em] text-zinc-500 uppercase">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white/10 bg-white/6 text-[0.625rem] font-black tracking-[0.14em] text-zinc-500 uppercase">
         --
       </div>
       <div className="min-w-0">

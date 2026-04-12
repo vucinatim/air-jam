@@ -57,6 +57,9 @@ describe("iframe bridge contracts", () => {
             feedback: {
               hapticsEnabled: true,
             },
+            previewControllers: {
+              activeOpacity: 0.9,
+            },
           },
         },
       }),

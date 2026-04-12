@@ -2,10 +2,10 @@ import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
+  JoinQrOverlay,
   JoinUrlControls,
   LifecycleActionGroup,
   PlayerAvatar,
-  RoomQrCode,
   SurfaceViewport,
   useHostLobbyShell,
 } from "@air-jam/sdk/ui";
@@ -161,15 +161,6 @@ export function HostView() {
     <>
       <SurfaceViewport preset="host-standard" className="bg-[#fdf6e3]">
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
-          <div className="absolute top-3 right-3 z-30">
-            <HostMuteButton
-              muted={audioMuted}
-              onToggle={() => setAudioMuted((previous) => !previous)}
-              className="border-[#8b6914]/45 bg-[#fff6d8]/90 text-[#5c4a2e] hover:bg-[#fef3c7]"
-              labelClassName="tracking-[0.14em]"
-            />
-          </div>
-
           <div className="mb-4 flex w-full items-center justify-center gap-8 text-center">
             <span className="text-foreground text-3xl font-bold">
               EUR {finalTotalMoney}
@@ -251,23 +242,11 @@ export function HostView() {
                     copied={hostLobbyShell.copied}
                     onCopy={hostLobbyShell.handleCopy}
                     onOpen={hostLobbyShell.handleOpen}
+                    qrVisible={hostLobbyShell.joinQrVisible}
+                    onToggleQr={hostLobbyShell.toggleJoinQr}
                     inputClassName="border-[#e5d4ab] bg-[#fff6d8] text-[#5c4a2e]"
                     buttonClassName="border-[#8b6914]/25 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11]"
                   />
-                  <div className="flex items-center justify-center rounded-none border border-[#e5d4ab] bg-[#fff6d8] p-2">
-                    {hostLobbyShell.joinUrlValue ? (
-                      <RoomQrCode
-                        value={hostLobbyShell.joinUrlValue}
-                        size={156}
-                        className="rounded-md bg-white"
-                        alt={`Join room ${host.roomId}`}
-                      />
-                    ) : (
-                      <div className="px-3 text-center text-sm text-[#6b7280]">
-                        Generating QR...
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 <div className="mb-4 max-h-64 overflow-y-auto border border-[#e5d4ab] bg-[#fff6d8] p-3">
@@ -345,6 +324,13 @@ export function HostView() {
                   className="justify-center"
                   buttonClassName="border-[#8b6914]/25 bg-[#8b6914] px-5 text-[#fdf6e3] hover:bg-[#7a5b11]"
                 />
+                <JoinQrOverlay
+                  open={hostLobbyShell.joinQrVisible}
+                  value={hostLobbyShell.joinUrlValue}
+                  roomId={host.roomId}
+                  onClose={hostLobbyShell.hideJoinQr}
+                  description="Scan with your phone to join The Office as a controller."
+                />
               </div>
             </div>
           ) : null}
@@ -409,7 +395,15 @@ export function HostView() {
           ) : null}
         </div>
       </SurfaceViewport>
-      <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
+      <HostPreviewControllerWorkspace
+        enabled={previewControllersEnabled}
+        dockAccessory={
+          <HostMuteButton
+            muted={audioMuted}
+            onToggle={() => setAudioMuted((previous) => !previous)}
+          />
+        }
+      />
     </>
   );
 }

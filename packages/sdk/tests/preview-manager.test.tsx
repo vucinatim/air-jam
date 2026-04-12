@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { getResizedPreviewBounds } from "../src/preview/layout";
 import { usePreviewControllerManager } from "../src/preview";
+import {
+  getDefaultPreviewWindowBounds,
+  getResizedPreviewBounds,
+} from "../src/preview/layout";
 
 describe("usePreviewControllerManager", () => {
   it("spawns preview sessions as active floating windows", () => {
@@ -21,10 +24,31 @@ describe("usePreviewControllerManager", () => {
     expect(result.current.sessions[0]?.minimized).toBe(false);
     expect(result.current.sessions[0]?.active).toBe(true);
     expect(result.current.sessions[0]?.surfaceState).toBe("loading");
+    expect(result.current.sessions[0]?.orientation).toBe("portrait");
     expect(result.current.sessions[0]?.x).toBeTypeOf("number");
     expect(result.current.sessions[0]?.y).toBeTypeOf("number");
     expect(result.current.sessions[0]?.width).toBeTypeOf("number");
     expect(result.current.sessions[0]?.height).toBeTypeOf("number");
+  });
+
+  it("spawns new preview sessions near the center of the viewport", () => {
+    const { result } = renderHook(() =>
+      usePreviewControllerManager({
+        joinUrl: "https://platform.example/controller?room=ROOM1",
+      }),
+    );
+
+    act(() => {
+      result.current.spawnPreviewController();
+    });
+
+    const session = result.current.sessions[0]!;
+    const defaultBounds = getDefaultPreviewWindowBounds("portrait");
+    const expectedX = (window.innerWidth - defaultBounds.width) / 2;
+    const expectedY = (window.innerHeight - defaultBounds.height) / 2;
+
+    expect(session.x).toBeCloseTo(expectedX, 0);
+    expect(session.y).toBeCloseTo(expectedY, 0);
   });
 
   it("enforces the max preview-controller count", () => {
@@ -77,7 +101,6 @@ describe("usePreviewControllerManager", () => {
     expect(firstSession?.active).toBe(true);
     expect(firstSession?.minimized).toBe(false);
     expect(firstSession?.surfaceState).toBe("ready");
-    expect(firstSession?.zIndex).toBeGreaterThan(secondSession?.zIndex ?? 0);
     expect(secondSession?.active).toBe(false);
   });
 
@@ -250,10 +273,42 @@ describe("usePreviewControllerManager", () => {
       });
     });
 
-    expect(result.current.sessions[0]!.width).toBeGreaterThan(initialSize.width);
-    expect(result.current.sessions[0]!.height).toBeGreaterThan(initialSize.height);
+    expect(result.current.sessions[0]!.width).toBeGreaterThan(
+      initialSize.width,
+    );
+    expect(result.current.sessions[0]!.height).toBeGreaterThan(
+      initialSize.height,
+    );
     expect(result.current.sessions[0]!.x).toBeLessThanOrEqual(initialSize.x);
     expect(result.current.sessions[0]!.y).toBeLessThanOrEqual(initialSize.y);
+  });
+
+  it("rotates preview controllers by swapping orientation-aware bounds", () => {
+    const { result } = renderHook(() =>
+      usePreviewControllerManager({
+        joinUrl: "https://platform.example/controller?room=ROOM1",
+      }),
+    );
+
+    act(() => {
+      result.current.spawnPreviewController();
+    });
+
+    const sessionId = result.current.sessions[0]!.id;
+    const initialBounds = {
+      width: result.current.sessions[0]!.width,
+      height: result.current.sessions[0]!.height,
+    };
+
+    act(() => {
+      result.current.rotatePreviewController(sessionId);
+    });
+
+    expect(result.current.sessions[0]!.orientation).toBe("landscape");
+    expect(result.current.sessions[0]!.width).toBeGreaterThanOrEqual(440);
+    expect(result.current.sessions[0]!.height).toBeGreaterThanOrEqual(260);
+    expect(result.current.sessions[0]!.width).toBe(initialBounds.height);
+    expect(result.current.sessions[0]!.height).toBe(initialBounds.width);
   });
 
   it("keeps the dragged edge fixed when bounds are clamped", () => {

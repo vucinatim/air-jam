@@ -1,16 +1,11 @@
-import { HostMuteButton } from "@air-jam/sdk/ui";
 import { type HostConnectionStatus } from "./host-overlays";
 
 export const HostLiveChrome = ({
   roomId,
   connectionStatus,
-  audioMuted,
-  onToggleAudio,
 }: {
   roomId: string | null;
   connectionStatus: HostConnectionStatus;
-  audioMuted: boolean;
-  onToggleAudio: () => void;
 }) => {
   const statusLabel =
     connectionStatus === "connected"
@@ -41,11 +36,6 @@ export const HostLiveChrome = ({
           Room <span className="text-white/95">{roomId || "----"}</span>
         </div>
       </div>
-      <HostMuteButton
-        muted={audioMuted}
-        onToggle={onToggleAudio}
-        className="border-white/20 bg-black/50 text-white hover:bg-black/70"
-      />
     </div>
   );
 };

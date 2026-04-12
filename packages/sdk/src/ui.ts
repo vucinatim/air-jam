@@ -3,6 +3,7 @@ export * from "./components/connection-status-pill";
 export * from "./components/controller-player-name-field";
 export * from "./components/controller-primary-action";
 export * from "./components/host-mute-button";
+export * from "./components/join-qr-overlay";
 export * from "./components/join-url-action-buttons";
 export * from "./components/join-url-controls";
 export * from "./components/join-url-field";

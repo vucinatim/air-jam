@@ -40,8 +40,8 @@ Use this skill for host presentation, overlays, room chrome, and game viewport c
 
 For host lobby work:
 
-1. the host lobby should expose room context, QR, join URL field, copy/open actions, and a primary start action
-2. prefer `useHostLobbyShell` plus `RoomQrCode`, `JoinUrlField`, `JoinUrlActionButtons`, `JoinUrlControls`, and `LifecycleActionGroup` unless the game needs a fully custom shell
+1. the host lobby should expose room context, QR access, join URL field, copy/open actions, and a primary start action
+2. prefer `useHostLobbyShell` plus `JoinQrOverlay`, `JoinUrlField`, `JoinUrlActionButtons`, `JoinUrlControls`, and `LifecycleActionGroup` unless the game needs a fully custom shell
 3. if the shell is fully custom, preserve the same join and lifecycle behavior contract
 
 ## Anti-Patterns

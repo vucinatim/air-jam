@@ -58,12 +58,18 @@ Plan: [Stage 3 Polish Plan](./plans/stage-3-polish-plan.md)
 
 Immediate next work:
 
-1. the first shared shell polish pass is now landed across the common SDK and platform shell surfaces
-2. refreshed `arcade-built` lobby captures are green again for all five launch games after that shell pass
-3. the preview-controller workspace rework is now landed across the shared SDK, platform Arcade surface, launch games, and scaffolds
-4. the next active shared systems track is game-surface UI scaling, so host and controller UIs can scale like games instead of ordinary responsive web pages
-5. controller UX and launch-game polish should now continue on top of that scaling primitive instead of staying locked into ad hoc surface sizing
-6. only reopen Stage 2 fixes if a real blocker appears during game-specific polish
+1. repair repo truth first: resolve the current typecheck and lint blockers so prerelease validation reflects the real product state instead of known-red technical debt
+2. keep the visual harness, but repair its current generic/typecheck path and position it as optional advanced support rather than the default game-authoring path
+3. continue launch-game polish after validation truth is restored, with the next highest-signal pass focused on `code-review`, `the-office`, and `last-band-standing`
+4. keep shared UI/surface cleanup bounded to what directly improves launch quality or developer clarity; do not reopen broad framework redesign unless a real blocker appears
+5. once repo truth and launch-game polish are good enough, move into prerelease cleanup, then devex/security checks, then the final manual overpass
+
+Latest progress inside this focus:
+
+1. `code-review` got a first gameplay-feel tightening pass by reducing glide, tightening coast friction, and softening bot aggression/punishment so the match reads as more learnable
+2. `the-office` controller now uses a darker outer shell/background treatment so the sticky-note UI reads clearly instead of disappearing into pale yellow-on-pale yellow
+3. `last-band-standing` song/embed validation is now confirmed against the real game script and current song bank, with 77/77 embeddable and no duplicate ids
+4. `code-review` no longer keeps gameplay simulation, rendering, and bot logic inside one oversized host route; that logic is now extracted into `src/game/engine/*`, the store reducers are split into pure store-state helpers, and the scaffold copy now matches the same boundary-first structure
 
 ### Current Active Systems Track. Game UI Scaling
 
@@ -77,6 +83,19 @@ Current truth:
 3. the shared surface now publishes a local `--airjam-ui-scale` into Tailwind's own sizing/theme variables instead of introducing an Air Jam-specific class system
 4. the desired DX remains normal Tailwind authoring by default, with game-specific cleanup only where old raw px/rem styling still fights the shared scale model
 5. the current work on this track is now tuning and fallout cleanup on the new shared semantics rather than defending the rejected implementation
+
+### Recently Closed Validation Blocker. Visual Harness Typecheck Truth
+
+Status: completed inside Stage 3  
+Plan: [Stage 3 Polish Plan](./plans/stage-3-polish-plan.md)
+
+Current truth:
+
+1. the visual harness remains valuable as an advanced deterministic setup and machine-readable evaluation lane
+2. it is no longer assumed to be the primary way humans or agents visually inspect games during normal development; browser-driven inspection is now the default visual path
+3. the prerelease move was to keep the harness, repair the generic/typecheck break, and keep it available as optional advanced support
+4. that repair is now landed in the shared visual-harness contract layer, and the affected launch games are back to clean typecheck
+5. repo validation truth is restored, so the active execution focus can move back to launch-game polish
 
 ### Recently Completed Implementation Track. Preview Controller Workspace Rework
 

@@ -3,6 +3,7 @@
 /* Tell Tailwind to scan this package's source files for classes */
 @source "./components/**/*.{ts,tsx}";
 @source "./hooks/**/*.{ts,tsx}";
+@source "./preview/**/*.{ts,tsx}";
 @source "./utils/**/*.{ts,tsx}";
 @source "./state/**/*.{ts,tsx}";
 

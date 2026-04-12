@@ -1,4 +1,5 @@
 import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import { describe, expect, it } from "vitest";
 import {
   createArcadeBridgeInitMessage,
   createArcadeSettingsSyncMessage,
@@ -7,7 +8,6 @@ import {
   buildArcadeControllerRuntimeUrl,
   buildArcadeGameIframeSrc,
 } from "../src/arcade/url";
-import { describe, expect, it } from "vitest";
 
 const embeddedTopology = resolveRuntimeTopology({
   runtimeMode: "arcade-live",
@@ -133,6 +133,9 @@ describe("arcade embed helpers", () => {
       feedback: {
         hapticsEnabled: true,
       },
+      previewControllers: {
+        activeOpacity: 0.85,
+      },
     });
 
     expect(message).toEqual({
@@ -150,6 +153,9 @@ describe("arcade embed helpers", () => {
           },
           feedback: {
             hapticsEnabled: true,
+          },
+          previewControllers: {
+            activeOpacity: 0.85,
           },
         },
       },

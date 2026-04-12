@@ -1,16 +1,16 @@
+import { VerticalLogo } from "@/assets/vertical-logo";
+import { PlayerAvatarWithFire } from "@/components/player-avatar-with-fire";
+import { MenuVideoBackground } from "@/components/ui/menu-video-background";
+import { cn } from "@/lib/utils";
+import { type PlayerScore } from "@/store/types";
+import { createEmptyScore, getLabelForPlayer } from "@/utils/player-utils";
 import { type PlayerProfile } from "@air-jam/sdk";
 import {
+  JoinQrOverlay,
   JoinUrlControls,
   LifecycleActionGroup,
-  RoomQrCode,
 } from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { getLabelForPlayer, createEmptyScore } from "@/utils/player-utils";
-import { VerticalLogo } from "@/assets/vertical-logo";
-import { MenuVideoBackground } from "@/components/ui/menu-video-background";
-import { PlayerAvatarWithFire } from "@/components/player-avatar-with-fire";
-import { type PlayerScore } from "@/store/types";
 
 const centerVariants = {
   initial: { opacity: 0, scale: 0.96 },
@@ -29,7 +29,10 @@ interface HostLobbyProps {
   copiedJoinUrl: boolean;
   onCopyJoinUrl: () => void | Promise<void>;
   onOpenJoinUrl: () => void;
-  connectionStatus: string;
+  joinQrVisible: boolean;
+  onToggleJoinQr: () => void;
+  onCloseJoinQr: () => void;
+  roomId: string | null;
   lastError: string | null;
   playerOrder: string[];
   playerLabelById: Record<string, string>;
@@ -46,7 +49,10 @@ export const HostLobby = ({
   copiedJoinUrl,
   onCopyJoinUrl,
   onOpenJoinUrl,
-  connectionStatus,
+  joinQrVisible,
+  onToggleJoinQr,
+  onCloseJoinQr,
+  roomId,
   lastError,
   playerOrder,
   playerLabelById,
@@ -72,7 +78,7 @@ export const HostLobby = ({
     >
       <div className="relative h-full w-full overflow-hidden">
         <MenuVideoBackground className="absolute inset-0 z-0" />
-        <div className="pointer-events-none absolute inset-0 z-1 bg-background/40" />
+        <div className="bg-background/40 pointer-events-none absolute inset-0 z-1" />
 
         <div className="relative z-2 flex h-full w-full flex-col items-center justify-center gap-8 px-4 py-6 sm:py-10">
           <motion.div
@@ -85,7 +91,7 @@ export const HostLobby = ({
               size={hasPlayers ? 150 : 256}
               className="text-foreground"
             />
-            <p className="pt-2 text-center text-lg text-muted-foreground">
+            <p className="text-muted-foreground pt-2 text-center text-lg">
               Destroy your friends. Musically speaking, of course.
             </p>
           </motion.div>
@@ -97,46 +103,24 @@ export const HostLobby = ({
                 "flex w-full flex-col items-center gap-3",
                 hasPlayers && "opacity-80",
               )}
-              transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
+              transition={{
+                layout: { type: "spring", stiffness: 300, damping: 30 },
+              }}
             >
-              {joinUrl ? (
-                <RoomQrCode
-                  value={joinUrl}
-                  foregroundColor="#f5f6fa"
-                  backgroundColor="#00000000"
-                  errorCorrectionLevel="H"
-                  size={hasPlayers ? 176 : 240}
-                  className={
-                    hasPlayers
-                      ? "h-[112px] w-[112px] sm:h-[124px] sm:w-[124px]"
-                      : "h-[168px] w-[168px] sm:h-[200px] sm:w-[200px]"
-                  }
-                  alt="Scan to join"
-                />
-              ) : (
-                <div className={cn(
-                  "flex items-center justify-center rounded-2xl border border-border/30 bg-card/40 backdrop-blur-md",
-                  hasPlayers ? "h-[120px] w-[120px]" : "h-[200px] w-[200px]",
-                )}>
-                  <span className="px-3 text-center text-sm text-muted-foreground">
-                    {connectionStatus === "connecting"
-                      ? "Connecting..."
-                      : lastError
-                        ? "Connection failed"
-                        : "Generating QR..."}
-                  </span>
-                </div>
-              )}
               {lastError && (
-                <p className="max-w-[340px] text-center text-xs text-destructive">
+                <p className="text-destructive max-w-[340px] text-center text-xs">
                   {lastError}
                 </p>
               )}
-              <p className={cn(
-                "text-muted-foreground",
-                hasPlayers ? "text-sm" : "text-lg",
-              )}>
-                {hasPlayers ? "More friends? Scan to join" : "Scan to join the game"}
+              <p
+                className={cn(
+                  "text-muted-foreground",
+                  hasPlayers ? "text-sm" : "text-lg",
+                )}
+              >
+                {hasPlayers
+                  ? "More friends? Open the QR overlay to join."
+                  : "Open the QR overlay to join the game."}
               </p>
               <JoinUrlControls
                 value={joinUrl}
@@ -144,8 +128,10 @@ export const HostLobby = ({
                 copied={copiedJoinUrl}
                 onCopy={onCopyJoinUrl}
                 onOpen={onOpenJoinUrl}
+                qrVisible={joinQrVisible}
+                onToggleQr={onToggleJoinQr}
                 helperText="Copy or open the controller URL for quick joins."
-                className="w-full max-w-[420px]"
+                className="w-full"
                 inputClassName="border-border/30 bg-card/40 text-foreground"
                 buttonClassName="border-border/30 bg-background/60 text-foreground hover:bg-background/80"
               />
@@ -161,9 +147,11 @@ export const HostLobby = ({
                 <div className="flex max-w-full flex-wrap items-center justify-center gap-3">
                   <AnimatePresence mode="popLayout">
                     {playerOrder.map((playerId, index) => {
-                      const player = players.find((entry) => entry.id === playerId) ?? null;
+                      const player =
+                        players.find((entry) => entry.id === playerId) ?? null;
                       const isReady = readyByPlayerId[playerId] ?? false;
-                      const score = scoreboardByPlayerId[playerId] ?? createEmptyScore();
+                      const score =
+                        scoreboardByPlayerId[playerId] ?? createEmptyScore();
 
                       return (
                         <motion.div
@@ -174,7 +162,11 @@ export const HostLobby = ({
                           animate="animate"
                           exit="exit"
                           transition={{
-                            layout: { type: "spring", stiffness: 400, damping: 30 },
+                            layout: {
+                              type: "spring",
+                              stiffness: 400,
+                              damping: 30,
+                            },
                             delay: index * 0.05,
                           }}
                           className={cn(
@@ -192,24 +184,33 @@ export const HostLobby = ({
                                 showFire={score.hasStreakFire}
                               />
                             ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-bold">
-                                {getLabelForPlayer(playerId, playerLabelById).charAt(0)}
+                              <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold">
+                                {getLabelForPlayer(
+                                  playerId,
+                                  playerLabelById,
+                                ).charAt(0)}
                               </div>
                             )}
-                            <div className={cn(
-                              "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 transition-colors",
-                              isReady
-                                ? "border-primary/30 bg-primary"
-                                : "border-card bg-muted-foreground/40",
-                            )} />
+                            <div
+                              className={cn(
+                                "absolute -right-0.5 -bottom-0.5 h-3.5 w-3.5 rounded-full border-2 transition-colors",
+                                isReady
+                                  ? "border-primary/30 bg-primary"
+                                  : "border-card bg-muted-foreground/40",
+                              )}
+                            />
                           </div>
                           <span className="max-w-[100px] truncate text-sm font-medium">
                             {getLabelForPlayer(playerId, playerLabelById)}
                           </span>
-                          <span className={cn(
-                            "text-xs font-medium",
-                            isReady ? "text-primary" : "text-muted-foreground",
-                          )}>
+                          <span
+                            className={cn(
+                              "text-xs font-medium",
+                              isReady
+                                ? "text-primary"
+                                : "text-muted-foreground",
+                            )}
+                          >
                             {isReady ? "Ready" : "Waiting..."}
                           </span>
                         </motion.div>
@@ -219,7 +220,7 @@ export const HostLobby = ({
                 </div>
 
                 <motion.p
-                  className="text-center text-lg text-muted-foreground"
+                  className="text-muted-foreground text-center text-lg"
                   key={allReady ? "all-ready" : "waiting"}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -241,6 +242,13 @@ export const HostLobby = ({
             )}
           </div>
         </div>
+        <JoinQrOverlay
+          open={joinQrVisible}
+          value={joinUrl}
+          roomId={roomId}
+          onClose={onCloseJoinQr}
+          description="Scan with your phone to join Last Band Standing as a controller."
+        />
       </div>
     </motion.div>
   );

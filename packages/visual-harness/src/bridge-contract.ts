@@ -24,7 +24,7 @@ export type VisualHarnessActionDefinition<
 
 export type VisualHarnessActionDefinitions<TContext> = Record<
   string,
-  VisualHarnessActionDefinition<TContext, unknown, unknown>
+  VisualHarnessActionDefinition<TContext, any, any>
 >;
 
 export type VisualHarnessBridgeDefinition<
@@ -38,42 +38,38 @@ export type VisualHarnessBridgeDefinition<
 };
 
 export type AnyVisualHarnessBridgeDefinition = VisualHarnessBridgeDefinition<
-  unknown,
+  any,
   VisualHarnessBridgeSnapshot,
-  VisualHarnessActionDefinitions<unknown>
+  VisualHarnessActionDefinitions<any>
 >;
 
 export type InferVisualHarnessBridgeContext<TBridge> =
-  TBridge extends VisualHarnessBridgeDefinition<infer TContext, unknown, unknown>
+  TBridge extends VisualHarnessBridgeDefinition<infer TContext, any, any>
     ? TContext
     : never;
 
 export type InferVisualHarnessBridgeSnapshot<TBridge> =
-  TBridge extends VisualHarnessBridgeDefinition<unknown, infer TSnapshot, unknown>
+  TBridge extends VisualHarnessBridgeDefinition<any, infer TSnapshot, any>
     ? TSnapshot
     : never;
 
 export type InferVisualHarnessBridgeActions<TBridge> =
-  TBridge extends VisualHarnessBridgeDefinition<unknown, unknown, infer TActions>
+  TBridge extends VisualHarnessBridgeDefinition<any, any, infer TActions>
     ? TActions
     : never;
 
 export type InferVisualHarnessActionPayload<TAction> =
-  TAction extends VisualHarnessActionDefinition<unknown, infer TPayload, unknown>
+  TAction extends VisualHarnessActionDefinition<any, infer TPayload, any>
     ? TPayload
     : never;
 
 export type InferVisualHarnessActionResult<TAction> =
-  TAction extends VisualHarnessActionDefinition<unknown, unknown, infer TResult>
+  TAction extends VisualHarnessActionDefinition<any, any, infer TResult>
     ? Awaited<TResult>
     : never;
 
 type VisualHarnessActionInvoker<TAction> =
-  TAction extends VisualHarnessActionDefinition<
-    unknown,
-    infer TPayload,
-    infer TResult
-  >
+  TAction extends VisualHarnessActionDefinition<any, infer TPayload, infer TResult>
     ? (...args: [TPayload] extends [void] ? [] : [payload: TPayload]) => Promise<Awaited<TResult>>
     : never;
 
@@ -195,10 +191,14 @@ export const defineVisualHarnessBridge = <
 
 export const defineVisualHarness = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
+  TScenario extends {
+    id: string;
+    run: (...args: any[]) => Promise<void>;
+  },
   TPack extends {
     gameId: string;
     bridge: TBridge;
-    scenarios: ReadonlyArray<unknown>;
+    scenarios: ReadonlyArray<TScenario>;
   },
 >(
   pack: TPack,

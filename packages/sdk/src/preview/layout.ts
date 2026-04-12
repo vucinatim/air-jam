@@ -1,11 +1,43 @@
+import type { ControllerOrientation } from "../protocol/controller";
+
 export const PREVIEW_WORKSPACE_Z_INDEX = 2_147_483_000;
 
-export const PREVIEW_WINDOW_WIDTH = 312;
-export const PREVIEW_WINDOW_HEIGHT = 554;
-export const PREVIEW_WINDOW_MIN_WIDTH = 260;
-export const PREVIEW_WINDOW_MIN_HEIGHT = 440;
-export const PREVIEW_WINDOW_MAX_WIDTH = 480;
-export const PREVIEW_WINDOW_MAX_HEIGHT = 860;
+export const PREVIEW_WINDOW_DEFAULT_BOUNDS: Record<
+  ControllerOrientation,
+  { width: number; height: number }
+> = {
+  portrait: {
+    width: 312,
+    height: 554,
+  },
+  landscape: {
+    width: 554,
+    height: 312,
+  },
+};
+
+export const PREVIEW_WINDOW_SIZE_CONSTRAINTS: Record<
+  ControllerOrientation,
+  {
+    minWidth: number;
+    minHeight: number;
+    maxWidth: number;
+    maxHeight: number;
+  }
+> = {
+  portrait: {
+    minWidth: 260,
+    minHeight: 440,
+    maxWidth: 480,
+    maxHeight: 860,
+  },
+  landscape: {
+    minWidth: 440,
+    minHeight: 260,
+    maxWidth: 860,
+    maxHeight: 480,
+  },
+};
 export const PREVIEW_WINDOW_TITLEBAR_HEIGHT = 38;
 export const PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE = 12;
 export const PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE = 20;
@@ -27,6 +59,14 @@ export interface PreviewControllerBounds {
   height: number;
 }
 
+export const getDefaultPreviewWindowBounds = (
+  orientation: ControllerOrientation,
+) => PREVIEW_WINDOW_DEFAULT_BOUNDS[orientation];
+
+export const getPreviewWindowSizeConstraints = (
+  orientation: ControllerOrientation,
+) => PREVIEW_WINDOW_SIZE_CONSTRAINTS[orientation];
+
 export const getResizedPreviewBounds = (
   bounds: PreviewControllerBounds,
   handle: PreviewControllerResizeHandle,
@@ -42,9 +82,7 @@ export const getResizedPreviewBounds = (
     x: resizingWest ? bounds.x + deltaX : bounds.x,
     y: resizingNorth ? bounds.y + deltaY : bounds.y,
     width:
-      bounds.width +
-      (resizingEast ? deltaX : 0) -
-      (resizingWest ? deltaX : 0),
+      bounds.width + (resizingEast ? deltaX : 0) - (resizingWest ? deltaX : 0),
     height:
       bounds.height +
       (resizingSouth ? deltaY : 0) -

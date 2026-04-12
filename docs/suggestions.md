@@ -25,6 +25,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 19. Consider optional session-local preview workspace persistence for window positions and minimize state only if repeated real usage shows the current fresh-each-reload behavior slows local testing; keep it strictly host-local and do not let it leak into replicated game/runtime state.
 20. Revisit `SurfaceViewport` preset baselines after a few more real-device and small-window passes, especially `host-standard`, so the shared full-bleed scaling model keeps its clean semantics while landing on more confident default reference dimensions.
 21. Consider an explicit preview-controller close path that skips the normal 30-second controller resume lease and disconnects immediately, but only if we can do it without weakening the real phone/controller reconnect contract.
+22. Replace Arcade's bespoke full-screen join QR overlay with the shared SDK `JoinQrOverlay` now that game lobbies use the same primitive, so QR presentation and dismissal behavior do not diverge between the platform shell and embedded host shells.
+23. If host-side top-right utilities keep growing beyond mute, fullscreen, and preview controllers, promote the current host preview dock accessory slot into a small first-class `HostUtilityDock` contract so games register utility actions declaratively instead of drifting back toward ad hoc overlay chrome.
 
 ## Framework Boundary Follow-Ups
 

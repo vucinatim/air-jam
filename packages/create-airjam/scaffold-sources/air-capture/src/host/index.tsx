@@ -375,15 +375,6 @@ const HostViewContent = ({
     setAudioMuted((current) => !current);
   }, [setAudioMuted]);
 
-  const muteSlot = (
-    <div className="pointer-events-auto absolute top-4 right-4 z-90">
-      <HostMuteButton
-        muted={audioMuted}
-        onToggle={toggleAudio}
-        className="border-white/20 bg-black/50 text-white hover:bg-black/70"
-      />
-    </div>
-  );
   const showBackdrop = matchPhase === "lobby" || matchPhase === "ended";
 
   return (
@@ -409,7 +400,6 @@ const HostViewContent = ({
           {showBackdrop ? (
             <>
               <div className="absolute inset-0 bg-radial from-transparent to-black/55" />
-              {muteSlot}
               {audioRuntimeStatus === "blocked" ? (
                 <AudioBlockedPrompt
                   onEnable={() => {
@@ -423,11 +413,12 @@ const HostViewContent = ({
                   copiedJoinUrl={hostLobbyShell.copied}
                   onCopyJoinUrl={hostLobbyShell.handleCopy}
                   onOpenJoinUrl={hostLobbyShell.handleOpen}
+                  joinQrVisible={hostLobbyShell.joinQrVisible}
+                  onToggleJoinQr={hostLobbyShell.toggleJoinQr}
+                  onCloseJoinQr={hostLobbyShell.hideJoinQr}
                   roomId={roomId}
                   pointsToWin={pointsToWin}
                   botCounts={botCounts}
-                  connectionStatus={connectionStatus}
-                  lastError={lastError}
                   connectedPlayers={players}
                   teamPlayers={teamPlayers}
                   onStartMatch={() => matchActions.startMatch()}
@@ -463,14 +454,17 @@ const HostViewContent = ({
               <HostLiveChrome
                 roomId={roomId}
                 connectionStatus={connectionStatus}
-                audioMuted={audioMuted}
-                onToggleAudio={toggleAudio}
               />
             </>
           )}
         </div>
       </SurfaceViewport>
-      <HostPreviewControllerWorkspace enabled={previewControllersEnabled} />
+      <HostPreviewControllerWorkspace
+        enabled={previewControllersEnabled}
+        dockAccessory={
+          <HostMuteButton muted={audioMuted} onToggle={toggleAudio} />
+        }
+      />
     </>
   );
 };

@@ -1,9 +1,20 @@
-import { Button } from "../components/ui/button";
-import { cn } from "../utils/cn";
-import { MonitorSmartphone, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  MonitorSmartphone,
+  Plus,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { shellUtilityButtonClassName } from "../components/shell-classes";
+import {
+  shellInsetPanelClassName,
+  shellPanelClassName,
+  shellUtilityButtonClassName,
+} from "../components/shell-classes";
+import { Button } from "../components/ui/button";
+import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
+import { cn } from "../utils/cn";
 import {
   getResizedPreviewBounds,
   PREVIEW_WORKSPACE_Z_INDEX,
@@ -11,13 +22,18 @@ import {
   type PreviewControllerResizeHandle,
 } from "./layout";
 import { usePreviewControllerManager } from "./manager";
-import { PreviewControllerWindow } from "./window";
+import {
+  PreviewControllerWindow,
+  previewControllerWindowStateLabel,
+} from "./window";
 
 export interface PreviewControllerWorkspaceProps {
   joinUrl: string | null;
   enabled?: boolean;
   highContrast?: boolean;
+  onActiveOpacityChange?: (opacity: number) => void;
   className?: string;
+  dockAccessory?: ReactNode;
   maxControllers?: number;
   launcherLabel?: string;
   waitingLabel?: string;
@@ -45,24 +61,30 @@ export const PreviewControllerWorkspace = ({
   joinUrl,
   enabled = false,
   highContrast = false,
+  onActiveOpacityChange,
   className,
+  dockAccessory,
   maxControllers = 2,
-  launcherLabel = "Open controller",
+  launcherLabel = "Controllers",
   waitingLabel = "Waiting for room",
 }: PreviewControllerWorkspaceProps) => {
   const [mounted, setMounted] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  const dockRef = useRef<HTMLDivElement | null>(null);
   const {
     sessions,
     canSpawn,
     spawnPreviewController,
+    clearPreviewControllers,
     removePreviewController,
     minimizePreviewController,
     restorePreviewController,
     focusPreviewController,
     setPreviewControllerPosition,
     setPreviewControllerBounds,
+    rotatePreviewController,
     markPreviewControllerReady,
     markPreviewControllerFailed,
   } = usePreviewControllerManager({
@@ -70,11 +92,49 @@ export const PreviewControllerWorkspace = ({
     enabled,
     maxControllers,
   });
+  const platformSettings = useResolvedPlatformSettingsSnapshot();
+  const activeOpacity = platformSettings.previewControllers.activeOpacity;
+  const sortedSessions = useMemo(
+    () => [...sessions].sort((left, right) => left.ordinal - right.ordinal),
+    [sessions],
+  );
 
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  useEffect(() => {
+    if (!launcherOpen || typeof document === "undefined") {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (dockRef.current?.contains(target)) {
+        return;
+      }
+
+      setLauncherOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLauncherOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [launcherOpen]);
 
   const minimizedSessions = useMemo(
     () =>
@@ -101,12 +161,15 @@ export const PreviewControllerWorkspace = ({
         <PreviewControllerWindow
           key={session.id}
           session={session}
+          activeOpacity={activeOpacity}
           highContrast={highContrast}
           dragging={dragState?.id === session.id}
           resizing={resizeState?.id === session.id}
           onFocus={() => focusPreviewController(session.id)}
           onMinimize={() => minimizePreviewController(session.id)}
           onRemove={() => removePreviewController(session.id)}
+          onRotate={() => rotatePreviewController(session.id)}
+          onActiveOpacityChange={onActiveOpacityChange}
           onReady={() => markPreviewControllerReady(session.id)}
           onFailed={() => markPreviewControllerFailed(session.id)}
           onTitlePointerDown={(event) => {
@@ -232,52 +295,189 @@ export const PreviewControllerWorkspace = ({
       ))}
 
       <div
+        ref={dockRef}
         className={cn(
-          "fixed right-4 bottom-4 flex items-center justify-end gap-2 sm:right-6 sm:bottom-6",
-          className,
+          "fixed flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2",
+          className ?? "right-4 bottom-4 sm:right-6 sm:bottom-6",
         )}
-        style={{ pointerEvents: "none", maxWidth: "calc(100vw - 2rem)" }}
+        style={{ pointerEvents: "none" }}
       >
-        {minimizedSessions.length > 0 ? (
-          <div
-            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/45 px-2.5 py-2 text-white shadow-[0_18px_48px_rgba(0,0,0,0.34)] backdrop-blur-md"
+        <div
+          className="flex items-start justify-end gap-2"
+          style={{ pointerEvents: "auto" }}
+        >
+          {dockAccessory}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "rounded-full border border-white/25 bg-black/35 px-3 text-white backdrop-blur-sm hover:bg-black/55 disabled:border-white/10 disabled:bg-black/25 disabled:text-white/40",
+            )}
+            aria-expanded={launcherOpen}
+            aria-label={
+              launcherOpen
+                ? "Hide preview controllers"
+                : "Show preview controllers"
+            }
+            title={!joinUrl ? waitingLabel : launcherLabel}
+            onClick={() => setLauncherOpen((current) => !current)}
+          >
+            <MonitorSmartphone className="h-4 w-4" />
+            <span className="text-[11px] font-semibold tracking-[0.16em] uppercase">
+              {launcherLabel}
+            </span>
+            <span className="rounded-full border border-white/12 bg-white/[0.06] px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white/88">
+              {sessions.length}
+            </span>
+            {launcherOpen ? (
+              <ChevronUp className="h-4 w-4 text-white/60" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-white/60" />
+            )}
+          </Button>
+        </div>
+
+        {launcherOpen ? (
+          <section
+            className={cn(
+              "w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden p-4",
+              shellPanelClassName,
+              highContrast && "border-white/30",
+            )}
             style={{ pointerEvents: "auto" }}
           >
-            {minimizedSessions.map((session) => (
-              <Button
-                key={session.id}
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 rounded-full border border-white/10 bg-white/[0.04] px-3 text-[11px] font-semibold text-white/84 hover:bg-white/[0.1] hover:text-white"
-                onClick={() => restorePreviewController(session.id)}
-                title={`Restore ${session.label}`}
-              >
-                {session.label}
-              </Button>
-            ))}
-          </div>
-        ) : null}
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-[0.18em] text-white/54 uppercase">
+                      Preview controllers
+                    </p>
+                    <p className="mt-2 text-sm text-white/86">
+                      {sessions.length === 0
+                        ? "No preview controllers yet"
+                        : `${sessions.length} controller${sessions.length === 1 ? "" : "s"} available`}
+                    </p>
+                  </div>
+                  {sessions.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-7 w-7 shrink-0 rounded-full text-white/72 hover:bg-white/[0.08] hover:text-white"
+                      onClick={() => clearPreviewControllers()}
+                      title="Close all preview controllers"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="h-px bg-white/10" />
+              </div>
 
-          <Button
-          type="button"
-          variant="outline"
-          className={cn(
-            "h-10 rounded-full px-4 text-sm",
-            "border-white/10 bg-black/55 text-white/88 shadow-[0_20px_55px_rgba(0,0,0,0.4)] backdrop-blur-md hover:bg-black/72 hover:text-white disabled:border-white/8 disabled:bg-black/40 disabled:text-white/40",
-            shellUtilityButtonClassName,
-          )}
-          style={{ pointerEvents: "auto" }}
-          disabled={!canSpawn}
-          onClick={() => {
-            spawnPreviewController();
-          }}
-          title={!joinUrl ? waitingLabel : launcherLabel}
-        >
-          <MonitorSmartphone className="h-4 w-4" />
-          <Plus className="h-3.5 w-3.5 text-white/60" />
-          {launcherLabel}
-        </Button>
+              <div className="space-y-4">
+                {sortedSessions.length > 0 ? (
+                  <div className="space-y-3">
+                    {sortedSessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-[1rem] px-3 py-2.5",
+                          shellInsetPanelClassName,
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-semibold text-white/92">
+                              {session.label}
+                            </span>
+                            <span
+                              className={cn(
+                                "h-1.5 w-1.5 rounded-full",
+                                session.surfaceState === "failed"
+                                  ? "bg-amber-300"
+                                  : session.surfaceState === "ready"
+                                    ? "bg-emerald-300"
+                                    : "bg-white/45",
+                              )}
+                            />
+                          </div>
+                          <p className="mt-1 text-[10px] tracking-[0.14em] text-white/50 uppercase">
+                            {session.minimized
+                              ? "Minimized"
+                              : session.active
+                                ? "Focused"
+                                : previewControllerWindowStateLabel[
+                                    session.surfaceState
+                                  ]}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "h-7 rounded-full px-3 text-[10px]",
+                              shellUtilityButtonClassName,
+                            )}
+                            onClick={() =>
+                              session.minimized
+                                ? restorePreviewController(session.id)
+                                : focusPreviewController(session.id)
+                            }
+                          >
+                            {session.minimized ? "Restore" : "Focus"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-7 w-7 rounded-full text-white/68 hover:bg-white/[0.08] hover:text-white"
+                            onClick={() => removePreviewController(session.id)}
+                            title={`Close ${session.label}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={cn("px-4 py-4", shellInsetPanelClassName)}>
+                    <p className="text-sm leading-6 text-white/58">
+                      Open a controller preview here to test the host flow
+                      without using a phone.
+                    </p>
+                  </div>
+                )}
+
+                {minimizedSessions.length > 0 ? (
+                  <p className="text-[11px] tracking-[0.14em] text-white/46 uppercase">
+                    {minimizedSessions.length} minimized
+                  </p>
+                ) : null}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "h-10 w-full rounded-2xl",
+                    shellUtilityButtonClassName,
+                  )}
+                  disabled={!canSpawn}
+                  onClick={() => {
+                    spawnPreviewController();
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  {!joinUrl ? waitingLabel : "Add controller"}
+                </Button>
+              </div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>,
     document.body,

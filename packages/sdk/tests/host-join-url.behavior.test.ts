@@ -1,14 +1,20 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from "@testing-library/react";
-import { renderHook } from "@testing-library/react";
+import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import {
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import { JoinQrOverlay } from "../src/components/join-qr-overlay";
 import { RoomQrCode } from "../src/components/room-qr-code";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
-import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
 import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
+import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
 import { createAirJamStore } from "../src/state/connection-store";
 import { urlBuilder } from "../src/utils/url-builder";
 
@@ -163,6 +169,25 @@ describe("host join url behavior", () => {
     );
 
     expect(screen.getByText("Generating QR…")).toBeTruthy();
+  });
+
+  it("renders the shared join QR overlay and closes it on backdrop click", () => {
+    const onClose = vi.fn();
+
+    render(
+      createElement(JoinQrOverlay, {
+        open: true,
+        value: "https://platform.example/controller?room=ROOM1",
+        roomId: "ROOM1",
+        onClose,
+      }),
+    );
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByText("ROOM1")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("includes the controller capability token in official host join urls", async () => {

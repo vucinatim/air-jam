@@ -15,10 +15,15 @@ export interface PlatformFeedbackSettings {
   hapticsEnabled: boolean;
 }
 
+export interface PlatformPreviewControllerSettings {
+  activeOpacity: number;
+}
+
 export interface PlatformSettings {
   audio: PlatformAudioSettings;
   accessibility: PlatformAccessibilitySettings;
   feedback: PlatformFeedbackSettings;
+  previewControllers: PlatformPreviewControllerSettings;
 }
 
 export type PlatformSettingsSnapshot = PlatformSettings;
@@ -39,17 +44,23 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsSnapshot = {
   feedback: {
     hapticsEnabled: true,
   },
+  previewControllers: {
+    activeOpacity: 1,
+  },
 };
 
 type PartialPlatformAudioSettings = Partial<PlatformAudioSettings>;
 type PartialPlatformAccessibilitySettings =
   Partial<PlatformAccessibilitySettings>;
 type PartialPlatformFeedbackSettings = Partial<PlatformFeedbackSettings>;
+type PartialPlatformPreviewControllerSettings =
+  Partial<PlatformPreviewControllerSettings>;
 
 export interface PartialPlatformSettings {
   audio?: PartialPlatformAudioSettings;
   accessibility?: PartialPlatformAccessibilitySettings;
   feedback?: PartialPlatformFeedbackSettings;
+  previewControllers?: PartialPlatformPreviewControllerSettings;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -84,6 +95,22 @@ const normalizeAudioSettings = (
   };
 };
 
+const normalizePreviewControllerSettings = (
+  value: unknown,
+  fallback: PlatformPreviewControllerSettings,
+): PlatformPreviewControllerSettings => {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+
+  return {
+    activeOpacity:
+      typeof value.activeOpacity === "number"
+        ? clamp01(value.activeOpacity)
+        : fallback.activeOpacity,
+  };
+};
+
 export const normalizePlatformSettings = (
   value: unknown,
 ): PlatformSettingsSnapshot => {
@@ -95,7 +122,9 @@ export const normalizePlatformSettings = (
     audio: normalizeAudioSettings(value.audio, DEFAULT_PLATFORM_SETTINGS.audio),
     accessibility: {
       reducedMotion: normalizeBoolean(
-        isRecord(value.accessibility) ? value.accessibility.reducedMotion : null,
+        isRecord(value.accessibility)
+          ? value.accessibility.reducedMotion
+          : null,
         DEFAULT_PLATFORM_SETTINGS.accessibility.reducedMotion,
       ),
       highContrast: normalizeBoolean(
@@ -109,6 +138,10 @@ export const normalizePlatformSettings = (
         DEFAULT_PLATFORM_SETTINGS.feedback.hapticsEnabled,
       ),
     },
+    previewControllers: normalizePreviewControllerSettings(
+      value.previewControllers,
+      DEFAULT_PLATFORM_SETTINGS.previewControllers,
+    ),
   };
 };
 
@@ -123,6 +156,10 @@ export const mergePlatformSettings = (
       ...patch.accessibility,
     },
     feedback: { ...current.feedback, ...patch.feedback },
+    previewControllers: {
+      ...current.previewControllers,
+      ...patch.previewControllers,
+    },
   });
 
 export const getEffectiveAudioVolume = (

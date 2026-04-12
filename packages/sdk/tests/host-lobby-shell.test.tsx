@@ -55,4 +55,37 @@ describe("useHostLobbyShell", () => {
 
     expect(onStartMatch).not.toHaveBeenCalled();
   });
+
+  it("toggles QR visibility only when a join url is available", () => {
+    const { result } = renderHook(() =>
+      useHostLobbyShell({
+        joinUrl: "https://example.com/controller?room=ROOM1",
+      }),
+    );
+
+    act(() => {
+      result.current.toggleJoinQr();
+    });
+    expect(result.current.joinQrVisible).toBe(true);
+
+    act(() => {
+      result.current.hideJoinQr();
+    });
+    expect(result.current.joinQrVisible).toBe(false);
+  });
+
+  it("keeps the QR overlay closed when the join url is unavailable", () => {
+    const { result } = renderHook(() =>
+      useHostLobbyShell({
+        joinUrl: "",
+      }),
+    );
+
+    act(() => {
+      result.current.showJoinQr();
+      result.current.toggleJoinQr();
+    });
+
+    expect(result.current.joinQrVisible).toBe(false);
+  });
 });

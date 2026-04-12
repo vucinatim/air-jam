@@ -1,5 +1,6 @@
 import type { PlayerProfile } from "@air-jam/sdk";
 import {
+  JoinQrOverlay,
   JoinUrlControls,
   LifecycleActionGroup,
   PlayerAvatar,
@@ -13,8 +14,8 @@ import {
   getTeamCounts,
   type TeamCounts,
 } from "../../game/domain/match-readiness";
-import { buildTeamSlots } from "../../game/domain/team-slots";
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
+import { buildTeamSlots } from "../../game/domain/team-slots";
 import type { MatchSummary } from "../../game/stores/match/match-store";
 
 export type HostConnectionStatus =
@@ -47,19 +48,19 @@ const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
         {slots.some((slot) => slot.kind !== "open") ? (
           slots.map((slot, index) =>
             slot.kind === "human" ? (
-            <div
-              key={slot.player.id}
-              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
-            >
-              <PlayerAvatar
-                player={slot.player}
-                size="sm"
-                className="h-7 w-7 border-2"
-              />
-              <span className="text-xs font-semibold text-zinc-100 normal-case">
-                {slot.player.label}
-              </span>
-            </div>
+              <div
+                key={slot.player.id}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
+              >
+                <PlayerAvatar
+                  player={slot.player}
+                  size="sm"
+                  className="h-7 w-7 border-2"
+                />
+                <span className="text-xs font-semibold text-zinc-100 normal-case">
+                  {slot.player.label}
+                </span>
+              </div>
             ) : slot.kind === "bot" ? (
               <div
                 key={`${teamId}-bot-${index}`}
@@ -99,12 +100,13 @@ interface LobbyOverlayProps {
   copiedJoinUrl: boolean;
   onCopyJoinUrl: () => void | Promise<void>;
   onOpenJoinUrl: () => void;
+  joinQrVisible: boolean;
+  onToggleJoinQr: () => void;
+  onCloseJoinQr: () => void;
   roomId: string | null;
   pointsToWin: number;
   botCounts: TeamCounts;
   onStartMatch: () => void;
-  connectionStatus: HostConnectionStatus;
-  lastError?: string;
   connectedPlayers: PlayerProfile[];
   teamPlayers: Record<TeamId, PlayerProfile[]>;
 }
@@ -114,12 +116,13 @@ export const LobbyOverlay = ({
   copiedJoinUrl,
   onCopyJoinUrl,
   onOpenJoinUrl,
+  joinQrVisible,
+  onToggleJoinQr,
+  onCloseJoinQr,
   roomId,
   pointsToWin,
   botCounts,
   onStartMatch,
-  connectionStatus,
-  lastError,
   connectedPlayers,
   teamPlayers,
 }: LobbyOverlayProps): JSX.Element => {
@@ -134,8 +137,6 @@ export const LobbyOverlay = ({
     pointsToWin,
   );
   const canStartMatch = getMatchReadiness(humanCounts, botCounts).canStart;
-
-  const hasJoinQr = joinQrValue.trim().length > 0;
 
   return (
     <div
@@ -164,32 +165,11 @@ export const LobbyOverlay = ({
           copied={copiedJoinUrl}
           onCopy={onCopyJoinUrl}
           onOpen={onOpenJoinUrl}
+          qrVisible={joinQrVisible}
+          onToggleQr={onToggleJoinQr}
           inputClassName="border-white/20 bg-black/40 text-white"
           buttonClassName="border-white/20 bg-white/10 text-white hover:bg-white/15"
         />
-
-        {hasJoinQr ? (
-          <RoomQrCode
-            value={joinQrValue}
-            size={220}
-            className="rounded-md bg-white"
-            alt="Join this prototype room"
-          />
-        ) : (
-          <div className="flex h-[220px] w-[220px] flex-col items-center justify-center gap-2 rounded-md border border-white/20 bg-black/40 px-4 text-center">
-            <div className="text-[11px] font-semibold tracking-[0.18em] text-zinc-300 uppercase">
-              Join URL unavailable
-            </div>
-            <div className="text-[11px] text-zinc-400">
-              {connectionStatus === "connected"
-                ? "Room is not ready yet."
-                : `Host status: ${connectionStatus}`}
-            </div>
-            {lastError ? (
-              <div className="text-[11px] text-rose-300">{lastError}</div>
-            ) : null}
-          </div>
-        )}
 
         <div className="text-xs tracking-[0.14em] text-zinc-300 uppercase">
           {readinessText}
@@ -245,6 +225,13 @@ export const LobbyOverlay = ({
           buttonClassName="border-white/20 bg-white px-5 text-black hover:bg-white/90"
         />
       </div>
+      <JoinQrOverlay
+        open={joinQrVisible}
+        value={joinQrValue}
+        roomId={roomId}
+        onClose={onCloseJoinQr}
+        description="Scan with your phone to join this Air Capture room as a controller."
+      />
     </div>
   );
 };

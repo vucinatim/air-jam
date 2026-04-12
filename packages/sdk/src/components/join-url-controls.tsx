@@ -10,6 +10,8 @@ export interface JoinUrlControlsProps {
   copied?: boolean;
   onCopy?: () => void;
   onOpen?: () => void;
+  qrVisible?: boolean;
+  onToggleQr?: () => void;
   className?: string;
   inputClassName?: string;
   buttonClassName?: string;
@@ -22,6 +24,8 @@ export const JoinUrlControls = ({
   copied = false,
   onCopy,
   onOpen,
+  qrVisible = false,
+  onToggleQr,
   className,
   inputClassName,
   buttonClassName,
@@ -29,13 +33,13 @@ export const JoinUrlControls = ({
   const hasValue = Boolean(value && value.trim().length > 0);
 
   return (
-    <div className={cn("space-y-2.5", className)}>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
+    <div className={cn("w-full space-y-3", className)}>
+      <div className="flex flex-col gap-3">
         <JoinUrlField
           value={value}
           label={label}
           helperText={helperText}
-          className="min-w-0 flex-1"
+          className="w-full min-w-0"
           inputClassName={inputClassName}
         />
         <JoinUrlActionButtons
@@ -43,7 +47,9 @@ export const JoinUrlControls = ({
           copied={copied}
           onCopy={onCopy}
           onOpen={onOpen}
-          className="shrink-0 sm:self-end"
+          qrVisible={qrVisible}
+          onToggleQr={onToggleQr}
+          className="w-full"
           buttonClassName={buttonClassName}
         />
       </div>

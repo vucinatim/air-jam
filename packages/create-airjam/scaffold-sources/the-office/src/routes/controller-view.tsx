@@ -172,7 +172,7 @@ export function ControllerView() {
         orientation={desiredOrientation}
         preset="controller-phone"
       >
-        <div className="flex h-full w-full flex-col gap-3 bg-[linear-gradient(180deg,#fbf4d9_0%,#f0e3bb_100%)] p-3 text-[#5c4a2e]">
+        <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[#5c4a2e]">
           <RuntimeShellHeader
             connectionStatus={controller.connectionStatus}
             leftSlot={
@@ -181,18 +181,18 @@ export function ControllerView() {
                   <img
                     src={myPlayer.image}
                     alt={myPlayer.name}
-                    className="h-9 w-9 rounded-full border border-[#e5d4ab] object-cover"
+                    className="h-10 w-10 rounded-full border border-[#9d8450] object-cover"
                   />
                 ) : (
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5d4ab] bg-[#fff6d8] text-[10px] font-bold text-[#5c4a2e]">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#9d8450] bg-[#4a3925] text-[0.6875rem] font-bold text-[#f7e7b1]">
                     {shellStatus.identityInitial}
                   </span>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-[#5c4a2e]">
+                  <p className="truncate text-sm font-bold text-[#fff1c4]">
                     {shellStatus.displayName}
                   </p>
-                  <p className="text-[10px] tracking-[0.16em] text-[#8b6914] uppercase">
+                  <p className="text-[0.625rem] tracking-[0.16em] text-[#d9bb63] uppercase sm:text-[0.6875rem]">
                     {shellStatus.roomLine}
                   </p>
                 </div>
@@ -217,7 +217,7 @@ export function ControllerView() {
                 />
               )
             }
-            className="border-[#e5d4ab] bg-[#fef3c7]/90"
+            className="border-[#7d6640] bg-[#3a2f22]/92"
           />
           {showLobbyView ? (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -325,12 +325,12 @@ export function ControllerView() {
           ) : null}
 
           {showPausedView ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
+            <div className="flex min-h-0 flex-1 items-center justify-center rounded-[28px] border border-[#7d6640] bg-[#2e241a]/90 p-4 shadow-md">
               <div className="max-w-sm text-center">
-                <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
+                <p className="text-xs tracking-[0.2em] text-[#d9bb63] uppercase">
                   Match Paused
                 </p>
-                <p className="mt-2 text-sm text-[#6b7280]">
+                <p className="mt-2 text-sm text-[#f3e7bf]">
                   Waiting for runtime sync...
                 </p>
               </div>

@@ -57,6 +57,8 @@ The preview workspace supports:
 2. drag by the title bar
 3. resize from any window edge or corner
 4. minimize and close controls
+5. per-window portrait or landscape rotation from the title bar
+6. shared active-opacity control for preview windows through platform settings
 
 ## Production Rule
 

@@ -271,6 +271,10 @@ The shared preview leaf currently provides:
 3. `usePreviewControllerManager` for host-local preview session state
 4. `buildPreviewControllerUrl` and related launch helpers for explicit launch control
 
+The floating window chrome also supports per-window portrait/landscape rotation,
+and active preview-window opacity is driven by the shared platform settings
+runtime so hosts can persist their preferred transparency level.
+
 Keep preview usage inside explicit host-side UI and do not treat it as a stable
 root-SDK contract yet.
 

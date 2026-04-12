@@ -15,7 +15,7 @@ import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 const POINTS_TO_WIN_OPTIONS = [1, 3, 5, 7] as const;
 
 const capturePanelClass =
-  "rounded-[24px] border border-white/10 bg-linear-to-b from-white/[0.07] to-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_50px_rgba(2,6,23,0.34)]";
+  "rounded-2xl border border-white/10 bg-linear-to-b from-white/[0.07] to-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_50px_rgba(2,6,23,0.34)]";
 
 const vibrate = (pattern: number | number[]) => {
   if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -73,7 +73,7 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
                 data-testid={`air-capture-controller-team-card-${teamId}`}
               >
                 <div
-                  className="text-[11px] font-black tracking-[0.2em] uppercase"
+                  className="text-[0.6875rem] font-black tracking-[0.2em] uppercase"
                   style={{ color: teamColor }}
                 >
                   {TEAM_CONFIG[teamId].label}
@@ -82,7 +82,7 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
                   <button
                     type="button"
                     data-testid={`air-capture-controller-join-team-${teamId}`}
-                    className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
+                    className={`rounded-xl border px-3 py-3 text-[0.6875rem] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
                     style={{
                       background: joined
                         ? `linear-gradient(180deg, ${teamColor}, color-mix(in srgb, ${teamColor} 70%, black))`
@@ -102,7 +102,7 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
                   <button
                     type="button"
                     data-testid={`air-capture-controller-add-bot-${teamId}`}
-                    className={`rounded-[18px] border px-3 py-3 text-[10px] font-black tracking-[0.16em] uppercase ${
+                    className={`rounded-xl border px-3 py-3 text-[0.6875rem] font-black tracking-[0.16em] uppercase ${
                       teamIsFull
                         ? "border-white/10 bg-white/4 text-zinc-500"
                         : "border-cyan-400/40 bg-cyan-400/12 text-cyan-100"

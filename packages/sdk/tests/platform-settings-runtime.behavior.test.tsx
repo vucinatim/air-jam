@@ -24,7 +24,11 @@ describe("PlatformSettingsRuntime", () => {
 
   it("uses deterministic defaults without persisted storage", () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, { persistence: "local" }, children);
+      createElement(
+        PlatformSettingsRuntime,
+        { persistence: "local" },
+        children,
+      );
 
     const { result } = renderHook(() => usePlatformSettings(), { wrapper });
 
@@ -42,7 +46,11 @@ describe("PlatformSettingsRuntime", () => {
     );
 
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, { persistence: "local" }, children);
+      createElement(
+        PlatformSettingsRuntime,
+        { persistence: "local" },
+        children,
+      );
 
     const { result } = renderHook(() => usePlatformSettings(), { wrapper });
 
@@ -63,9 +71,15 @@ describe("PlatformSettingsRuntime", () => {
 
   it("persists owner updates to local storage", async () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, { persistence: "local" }, children);
+      createElement(
+        PlatformSettingsRuntime,
+        { persistence: "local" },
+        children,
+      );
 
-    const { result } = renderHook(() => usePlatformAudioSettings(), { wrapper });
+    const { result } = renderHook(() => usePlatformAudioSettings(), {
+      wrapper,
+    });
 
     act(() => {
       result.current.setMusicVolume(0.35);
@@ -86,11 +100,49 @@ describe("PlatformSettingsRuntime", () => {
     });
   });
 
+  it("persists preview-controller settings alongside other shared defaults", async () => {
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(
+        PlatformSettingsRuntime,
+        { persistence: "local" },
+        children,
+      );
+
+    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
+
+    act(() => {
+      result.current.updateSettings({
+        previewControllers: {
+          activeOpacity: 0.74,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        JSON.parse(
+          window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY) ?? "null",
+        ),
+      ).toEqual({
+        ...DEFAULT_PLATFORM_SETTINGS,
+        previewControllers: {
+          activeOpacity: 0.74,
+        },
+      });
+    });
+  });
+
   it("syncs owner runtimes from platform settings storage changes in other windows", async () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, { persistence: "local" }, children);
+      createElement(
+        PlatformSettingsRuntime,
+        { persistence: "local" },
+        children,
+      );
 
-    const { result } = renderHook(() => usePlatformAudioSettings(), { wrapper });
+    const { result } = renderHook(() => usePlatformAudioSettings(), {
+      wrapper,
+    });
 
     act(() => {
       window.localStorage.setItem(
@@ -142,8 +194,10 @@ describe("PlatformSettingsRuntime", () => {
       createElement(PlatformSettingsRuntime, null, children);
 
     try {
-      expect(() => renderHook(() => usePlatformSettings(), { wrapper })).toThrow(
-        "usePlatformSettings can only be used in a platform-owned settings runtime. Mount <PlatformSettingsRuntime persistence=\"local\"> in the platform shell.",
+      expect(() =>
+        renderHook(() => usePlatformSettings(), { wrapper }),
+      ).toThrow(
+        'usePlatformSettings can only be used in a platform-owned settings runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell.',
       );
     } finally {
       Object.defineProperty(window, "parent", {
@@ -200,6 +254,9 @@ describe("PlatformSettingsRuntime", () => {
                   feedback: {
                     hapticsEnabled: false,
                   },
+                  previewControllers: {
+                    activeOpacity: 0.65,
+                  },
                 },
               },
             },
@@ -220,6 +277,9 @@ describe("PlatformSettingsRuntime", () => {
           },
           feedback: {
             hapticsEnabled: false,
+          },
+          previewControllers: {
+            activeOpacity: 0.65,
           },
         });
       });

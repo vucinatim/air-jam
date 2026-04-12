@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const copyTextToClipboard = async (text: string): Promise<boolean> => {
   if (!text) {
@@ -49,9 +49,13 @@ export interface HostLobbyShellApi {
   joinUrlValue: string;
   hasJoinUrl: boolean;
   copied: boolean;
+  joinQrVisible: boolean;
   canStartMatch: boolean;
   handleCopy: () => Promise<void>;
   handleOpen: () => void;
+  showJoinQr: () => void;
+  hideJoinQr: () => void;
+  toggleJoinQr: () => void;
   handleStart: () => void;
 }
 
@@ -62,9 +66,17 @@ export const useHostLobbyShell = ({
   copiedDurationMs = 1800,
 }: UseHostLobbyShellOptions): HostLobbyShellApi => {
   const [copied, setCopied] = useState(false);
+  const [joinQrVisible, setJoinQrVisible] = useState(false);
   const resetTimerRef = useRef<number | null>(null);
 
   const joinUrlValue = useMemo(() => joinUrl ?? "", [joinUrl]);
+  const hasJoinUrl = joinUrlValue.length > 0;
+
+  useEffect(() => {
+    if (!hasJoinUrl) {
+      setJoinQrVisible(false);
+    }
+  }, [hasJoinUrl]);
 
   const handleCopy = useCallback(async () => {
     if (!joinUrlValue) {
@@ -96,6 +108,26 @@ export const useHostLobbyShell = ({
     window.open(joinUrlValue, "_blank", "noopener,noreferrer");
   }, [joinUrlValue]);
 
+  const showJoinQr = useCallback(() => {
+    if (!hasJoinUrl) {
+      return;
+    }
+
+    setJoinQrVisible(true);
+  }, [hasJoinUrl]);
+
+  const hideJoinQr = useCallback(() => {
+    setJoinQrVisible(false);
+  }, []);
+
+  const toggleJoinQr = useCallback(() => {
+    if (!hasJoinUrl) {
+      return;
+    }
+
+    setJoinQrVisible((current) => !current);
+  }, [hasJoinUrl]);
+
   const handleStart = useCallback(() => {
     if (!canStartMatch) {
       return;
@@ -106,11 +138,15 @@ export const useHostLobbyShell = ({
 
   return {
     joinUrlValue,
-    hasJoinUrl: joinUrlValue.length > 0,
+    hasJoinUrl,
     copied,
+    joinQrVisible,
     canStartMatch,
     handleCopy,
     handleOpen,
+    showJoinQr,
+    hideJoinQr,
+    toggleJoinQr,
     handleStart,
   };
 };

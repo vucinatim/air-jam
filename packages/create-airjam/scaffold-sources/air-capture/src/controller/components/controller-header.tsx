@@ -72,15 +72,15 @@ export const ControllerHeader = ({
     <RuntimeShellHeader
       connectionStatus={connectionStatus}
       leftSlot={
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
           {myProfile ? (
             <PlayerAvatar
               player={myProfile}
               size="sm"
-              className="h-7 w-7 border-2"
+              className="h-10 w-10 border-2"
             />
           ) : (
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-zinc-800 text-[10px] font-bold text-zinc-300">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-zinc-800 text-[0.6875rem] font-bold text-zinc-300">
               {shellStatus.identityInitial}
             </span>
           )}
@@ -90,7 +90,7 @@ export const ControllerHeader = ({
                 {shellStatus.displayName}
               </div>
             ) : null}
-            <div className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">
+            <div className="text-[0.625rem] font-semibold tracking-[0.18em] text-zinc-300 uppercase sm:text-[0.6875rem]">
               {shellStatus.roomLine}
             </div>
           </div>

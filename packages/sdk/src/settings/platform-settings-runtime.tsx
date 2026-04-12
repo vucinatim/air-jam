@@ -1,26 +1,26 @@
 import {
   createContext,
-  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "../runtime/dev-runtime-events";
 import {
   DEFAULT_PLATFORM_SETTINGS,
+  getEffectiveAudioVolume,
   LEGACY_AUDIO_SETTINGS_STORAGE_KEY,
   mergePlatformSettings,
-  PLATFORM_SETTINGS_STORAGE_KEY,
   persistPlatformSettings,
+  PLATFORM_SETTINGS_STORAGE_KEY,
   readPersistedPlatformSettings,
   type PartialPlatformSettings,
   type PlatformAudioSettings,
   type PlatformSettingsPersistence,
   type PlatformSettingsSnapshot,
-  getEffectiveAudioVolume,
 } from "./platform-settings";
 import { initializeInheritedPlatformSettingsBridge } from "./platform-settings-bridge";
 
@@ -65,6 +65,9 @@ export interface PlatformSettingsOwnerApi {
   updateFeedback: (
     patch: Partial<PlatformSettingsSnapshot["feedback"]>,
   ) => void;
+  updatePreviewControllers: (
+    patch: Partial<PlatformSettingsSnapshot["previewControllers"]>,
+  ) => void;
 }
 
 export interface PlatformAudioSettingsApi extends PlatformAudioSettings {
@@ -94,12 +97,12 @@ const createDefaultContextValue = (): PlatformSettingsContextValue => ({
   settings: DEFAULT_PLATFORM_SETTINGS,
   setSettings: () => {
     throw new Error(
-      "Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence=\"local\"> in the platform shell to update shared settings.",
+      'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
     );
   },
   updateSettings: () => {
     throw new Error(
-      "Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence=\"local\"> in the platform shell to update shared settings.",
+      'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
     );
   },
 });
@@ -110,7 +113,9 @@ export function PlatformSettingsRuntime({
 }: PlatformSettingsRuntimeProps) {
   const mode = getInitialMode(persistence);
   const [settings, setSettingsState] = useState<PlatformSettingsSnapshot>(() =>
-    mode === "owner" ? readPersistedPlatformSettings() : DEFAULT_PLATFORM_SETTINGS,
+    mode === "owner"
+      ? readPersistedPlatformSettings()
+      : DEFAULT_PLATFORM_SETTINGS,
   );
 
   useEffect(() => {
@@ -179,7 +184,8 @@ export function PlatformSettingsRuntime({
       onSettingsReadyRequested: (trustedParentOrigin) => {
         emitAirJamDevRuntimeEvent({
           event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
-          message: "Embedded runtime requested initial platform settings from parent",
+          message:
+            "Embedded runtime requested initial platform settings from parent",
           level: "info",
           data: {
             trustedParentOrigin,
@@ -202,25 +208,28 @@ export function PlatformSettingsRuntime({
     });
   }, [mode]);
 
-  const setSettings = useCallback<
-    PlatformSettingsContextValue["setSettings"]
-  >((next) => {
-    if (mode !== "owner") {
-      throw new Error(
-        "Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence=\"local\"> in the platform shell to update shared settings.",
+  const setSettings = useCallback<PlatformSettingsContextValue["setSettings"]>(
+    (next) => {
+      if (mode !== "owner") {
+        throw new Error(
+          'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
+        );
+      }
+
+      setSettingsState((current) =>
+        typeof next === "function" ? next(current) : next,
       );
-    }
+    },
+    [mode],
+  );
 
-    setSettingsState((current) =>
-      typeof next === "function" ? next(current) : next,
-    );
-  }, [mode]);
-
-  const updateSettings = useCallback<PlatformSettingsContextValue["updateSettings"]>(
+  const updateSettings = useCallback<
+    PlatformSettingsContextValue["updateSettings"]
+  >(
     (patch) => {
       if (mode !== "owner") {
         throw new Error(
-          "Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence=\"local\"> in the platform shell to update shared settings.",
+          'Platform settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
         );
       }
 
@@ -274,7 +283,7 @@ export function usePlatformSettings(): PlatformSettingsOwnerApi {
 
   if (context.mode !== "owner") {
     throw new Error(
-      "usePlatformSettings can only be used in a platform-owned settings runtime. Mount <PlatformSettingsRuntime persistence=\"local\"> in the platform shell.",
+      'usePlatformSettings can only be used in a platform-owned settings runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell.',
     );
   }
 
@@ -286,6 +295,8 @@ export function usePlatformSettings(): PlatformSettingsOwnerApi {
     updateAccessibility: (patch) =>
       context.updateSettings({ accessibility: patch }),
     updateFeedback: (patch) => context.updateSettings({ feedback: patch }),
+    updatePreviewControllers: (patch) =>
+      context.updateSettings({ previewControllers: patch }),
   };
 }
 
@@ -302,7 +313,8 @@ export function useInheritedPlatformSettings(): Readonly<PlatformSettingsSnapsho
 }
 
 export function usePlatformAudioSettings(): PlatformAudioSettingsApi {
-  const context = useContext(platformSettingsContext) ?? createDefaultContextValue();
+  const context =
+    useContext(platformSettingsContext) ?? createDefaultContextValue();
   const { audio } = context.settings;
   const isReadOnly = context.mode !== "owner";
 
@@ -310,7 +322,7 @@ export function usePlatformAudioSettings(): PlatformAudioSettingsApi {
     (patch: Partial<PlatformAudioSettings>) => {
       if (context.mode !== "owner") {
         throw new Error(
-          "Platform audio settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence=\"local\"> in the platform shell to update shared settings.",
+          'Platform audio settings are read-only in this runtime. Mount <PlatformSettingsRuntime persistence="local"> in the platform shell to update shared settings.',
         );
       }
 
@@ -330,5 +342,7 @@ export function usePlatformAudioSettings(): PlatformAudioSettingsApi {
 }
 
 export function useResolvedPlatformSettingsSnapshot(): PlatformSettingsSnapshot {
-  return useContext(platformSettingsContext)?.settings ?? DEFAULT_PLATFORM_SETTINGS;
+  return (
+    useContext(platformSettingsContext)?.settings ?? DEFAULT_PLATFORM_SETTINGS
+  );
 }

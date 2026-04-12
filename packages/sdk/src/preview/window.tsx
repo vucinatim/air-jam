@@ -2,6 +2,8 @@ import {
   Loader2,
   Minus,
   MonitorSmartphone,
+  SlidersHorizontal,
+  TabletSmartphone,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -9,6 +11,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useState } from "react";
 import { shellPanelClassName } from "../components/shell-classes";
 import { Button } from "../components/ui/button";
+import { Slider } from "../components/ui/slider";
 import { cn } from "../utils/cn";
 import {
   PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE,
@@ -17,6 +20,8 @@ import {
   type PreviewControllerResizeHandle,
 } from "./layout";
 import type { PreviewControllerSession } from "./manager";
+
+const PREVIEW_WINDOW_SETTINGS_SHELF_HEIGHT = 52;
 
 export const previewControllerWindowStateLabel: Record<
   PreviewControllerSession["surfaceState"],
@@ -29,11 +34,14 @@ export const previewControllerWindowStateLabel: Record<
 
 export interface PreviewControllerWindowProps {
   session: PreviewControllerSession;
+  activeOpacity: number;
   highContrast?: boolean;
   dragging?: boolean;
   onFocus: () => void;
   onMinimize: () => void;
   onRemove: () => void;
+  onRotate: () => void;
+  onActiveOpacityChange?: (opacity: number) => void;
   onReady: () => void;
   onFailed: () => void;
   onTitlePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -139,11 +147,14 @@ const RESIZE_HANDLES: Array<{
 
 export const PreviewControllerWindow = ({
   session,
+  activeOpacity,
   highContrast = false,
   dragging = false,
   onFocus,
   onMinimize,
   onRemove,
+  onRotate,
+  onActiveOpacityChange,
   onReady,
   onFailed,
   onTitlePointerDown,
@@ -157,8 +168,22 @@ export const PreviewControllerWindow = ({
   resizing = false,
 }: PreviewControllerWindowProps) => {
   const [windowHovered, setWindowHovered] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isVisible = dragging || resizing || windowHovered;
+  const windowOpacity = isVisible
+    ? activeOpacity
+    : Math.min(activeOpacity, 0.62);
+  const contentHeight = Math.max(
+    session.height -
+      PREVIEW_WINDOW_TITLEBAR_HEIGHT -
+      (settingsOpen && onActiveOpacityChange
+        ? PREVIEW_WINDOW_SETTINGS_SHELF_HEIGHT
+        : 0),
+    0,
+  );
+  const nextOrientationLabel =
+    session.orientation === "portrait" ? "landscape" : "portrait";
   const statusToneClassName =
     session.surfaceState === "failed"
       ? "bg-amber-300"
@@ -182,7 +207,7 @@ export const PreviewControllerWindow = ({
     >
       <section
         className={cn(
-          "overflow-hidden border-white/10 transition-opacity duration-150",
+          "relative overflow-hidden border-white/10 transition-opacity duration-150",
           shellPanelClassName,
           highContrast && "border-white/30",
           dragging && "shadow-[0_28px_90px_rgba(0,0,0,0.55)]",
@@ -190,7 +215,7 @@ export const PreviewControllerWindow = ({
         style={{
           width: "100%",
           height: "100%",
-          opacity: isVisible ? 1 : 0.62,
+          opacity: windowOpacity,
           pointerEvents: "auto",
         }}
       >
@@ -232,6 +257,37 @@ export const PreviewControllerWindow = ({
               className="h-6 w-6 rounded-full text-white/70 hover:bg-white/[0.08] hover:text-white"
               style={{ pointerEvents: "auto" }}
               onPointerDown={(event) => event.stopPropagation()}
+              onClick={onRotate}
+              aria-label={`Rotate ${session.label} to ${nextOrientationLabel}`}
+              title={`Rotate to ${nextOrientationLabel}`}
+            >
+              <TabletSmartphone className="h-3.5 w-3.5" />
+            </Button>
+            {onActiveOpacityChange ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className={cn(
+                  "h-6 w-6 rounded-full text-white/70 hover:bg-white/[0.08] hover:text-white",
+                  settingsOpen && "bg-white/[0.08] text-white",
+                )}
+                style={{ pointerEvents: "auto" }}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => setSettingsOpen((current) => !current)}
+                aria-label={`Adjust ${session.label} opacity`}
+                title={`Adjust opacity (${Math.round(activeOpacity * 100)}%)`}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="h-6 w-6 rounded-full text-white/70 hover:bg-white/[0.08] hover:text-white"
+              style={{ pointerEvents: "auto" }}
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={onMinimize}
               aria-label={`Minimize ${session.label}`}
               title="Minimize controller"
@@ -254,6 +310,30 @@ export const PreviewControllerWindow = ({
           </div>
         </div>
 
+        {settingsOpen && onActiveOpacityChange ? (
+          <div
+            className="border-b border-white/8 bg-black/72 px-3 py-2.5 backdrop-blur-sm"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-300 uppercase">
+                Opacity
+              </p>
+              <span className="font-mono text-[11px] text-slate-400">
+                {Math.round(activeOpacity * 100)}%
+              </span>
+            </div>
+            <Slider
+              value={[activeOpacity * 100]}
+              onValueChange={(values) => onActiveOpacityChange(values[0] / 100)}
+              min={35}
+              max={100}
+              step={1}
+              aria-label="Preview controller opacity"
+            />
+          </div>
+        ) : null}
+
         <div
           className="relative"
           onPointerDownCapture={() => {
@@ -266,10 +346,7 @@ export const PreviewControllerWindow = ({
             <div
               style={{
                 width: session.width,
-                height: Math.max(
-                  session.height - PREVIEW_WINDOW_TITLEBAR_HEIGHT,
-                  0,
-                ),
+                height: contentHeight,
               }}
             >
               <iframe

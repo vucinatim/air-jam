@@ -218,6 +218,9 @@ function HostScreen() {
         copiedJoinUrl={hostLobbyShell.copied}
         onCopyJoinUrl={hostLobbyShell.handleCopy}
         onOpenJoinUrl={hostLobbyShell.handleOpen}
+        joinQrVisible={hostLobbyShell.joinQrVisible}
+        onToggleJoinQr={hostLobbyShell.toggleJoinQr}
+        onCloseJoinQr={hostLobbyShell.hideJoinQr}
         roomId={host.roomId}
         botCounts={botCounts}
         pointsToWin={pointsToWin}
@@ -272,18 +275,17 @@ function HostScreen() {
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-60">
-        <HostMuteButton
-          muted={audioMuted}
-          onToggle={() => setAudioMuted((previous) => !previous)}
-        />
-      </div>
       <SurfaceViewport preset="host-standard" className="bg-[#02030a]">
         {content}
       </SurfaceViewport>
       <HostPreviewControllerWorkspace
         enabled={previewControllersEnabled}
-        className="right-4 bottom-4 z-60 sm:right-6 sm:bottom-6"
+        dockAccessory={
+          <HostMuteButton
+            muted={audioMuted}
+            onToggle={() => setAudioMuted((previous) => !previous)}
+          />
+        }
       />
     </>
   );

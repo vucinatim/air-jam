@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ControllerOrientation } from "../protocol/controller";
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
 import {
-  PREVIEW_WINDOW_HEIGHT,
-  PREVIEW_WINDOW_MAX_HEIGHT,
-  PREVIEW_WINDOW_MAX_WIDTH,
-  PREVIEW_WINDOW_MIN_HEIGHT,
-  PREVIEW_WINDOW_MIN_WIDTH,
-  PREVIEW_WINDOW_WIDTH,
   type PreviewControllerBounds,
+  getDefaultPreviewWindowBounds,
+  getPreviewWindowSizeConstraints,
 } from "./layout";
 import { createPreviewControllerLaunch } from "./url";
 
@@ -16,8 +13,9 @@ export type PreviewControllerSurfaceState = "loading" | "ready" | "failed";
 const DEFAULT_VIEWPORT_WIDTH = 1440;
 const DEFAULT_VIEWPORT_HEIGHT = 900;
 const PREVIEW_WINDOW_MARGIN = 24;
-const PREVIEW_WORKSPACE_LAUNCHER_OFFSET = 88;
 const PREVIEW_WINDOW_CASCADE_OFFSET = 28;
+const DEFAULT_PREVIEW_CONTROLLER_ORIENTATION: ControllerOrientation =
+  "portrait";
 
 export interface PreviewControllerSession {
   id: string;
@@ -27,6 +25,7 @@ export interface PreviewControllerSession {
   deviceId: string;
   url: string;
   surfaceState: PreviewControllerSurfaceState;
+  orientation: ControllerOrientation;
   minimized: boolean;
   active: boolean;
   x: number;
@@ -57,6 +56,7 @@ export interface UsePreviewControllerManagerResult {
     bounds: PreviewControllerBounds,
     options?: PreviewControllerBoundsClampOptions,
   ) => void;
+  rotatePreviewController: (id: string) => void;
   markPreviewControllerReady: (id: string) => void;
   markPreviewControllerFailed: (id: string) => void;
   clearPreviewControllers: () => void;
@@ -95,34 +95,42 @@ const getJoinRoomIdentity = (joinUrl: string | null | undefined) => {
   }
 };
 
-const clampSize = (width: number, height: number) => {
+const clampSize = (
+  orientation: ControllerOrientation,
+  width: number,
+  height: number,
+) => {
   const viewport = getViewportSize();
+  const constraints = getPreviewWindowSizeConstraints(orientation);
   const maxWidth = Math.max(
-    PREVIEW_WINDOW_MIN_WIDTH,
-    Math.min(PREVIEW_WINDOW_MAX_WIDTH, viewport.width - PREVIEW_WINDOW_MARGIN * 2),
+    constraints.minWidth,
+    Math.min(constraints.maxWidth, viewport.width - PREVIEW_WINDOW_MARGIN * 2),
   );
   const maxHeight = Math.max(
-    PREVIEW_WINDOW_MIN_HEIGHT,
+    constraints.minHeight,
     Math.min(
-      PREVIEW_WINDOW_MAX_HEIGHT,
+      constraints.maxHeight,
       viewport.height - PREVIEW_WINDOW_MARGIN * 2,
     ),
   );
 
   return {
-    width: Math.min(Math.max(PREVIEW_WINDOW_MIN_WIDTH, width), maxWidth),
-    height: Math.min(Math.max(PREVIEW_WINDOW_MIN_HEIGHT, height), maxHeight),
+    width: Math.min(Math.max(constraints.minWidth, width), maxWidth),
+    height: Math.min(Math.max(constraints.minHeight, height), maxHeight),
   };
 };
 
 const clampPosition = (
+  orientation: ControllerOrientation,
   x: number,
   y: number,
-  width = PREVIEW_WINDOW_WIDTH,
-  height = PREVIEW_WINDOW_HEIGHT,
+  width = getDefaultPreviewWindowBounds(DEFAULT_PREVIEW_CONTROLLER_ORIENTATION)
+    .width,
+  height = getDefaultPreviewWindowBounds(DEFAULT_PREVIEW_CONTROLLER_ORIENTATION)
+    .height,
 ) => {
   const viewport = getViewportSize();
-  const nextSize = clampSize(width, height);
+  const nextSize = clampSize(orientation, width, height);
   const maxX = Math.max(
     PREVIEW_WINDOW_MARGIN,
     viewport.width - nextSize.width - PREVIEW_WINDOW_MARGIN,
@@ -139,18 +147,20 @@ const clampPosition = (
 };
 
 const clampBounds = (
+  orientation: ControllerOrientation,
   bounds: PreviewControllerBounds,
   options: PreviewControllerBoundsClampOptions = {},
 ): PreviewControllerBounds => {
   const viewport = getViewportSize();
+  const constraints = getPreviewWindowSizeConstraints(orientation);
   const maxWidth = Math.max(
-    PREVIEW_WINDOW_MIN_WIDTH,
-    Math.min(PREVIEW_WINDOW_MAX_WIDTH, viewport.width - PREVIEW_WINDOW_MARGIN * 2),
+    constraints.minWidth,
+    Math.min(constraints.maxWidth, viewport.width - PREVIEW_WINDOW_MARGIN * 2),
   );
   const maxHeight = Math.max(
-    PREVIEW_WINDOW_MIN_HEIGHT,
+    constraints.minHeight,
     Math.min(
-      PREVIEW_WINDOW_MAX_HEIGHT,
+      constraints.maxHeight,
       viewport.height - PREVIEW_WINDOW_MARGIN * 2,
     ),
   );
@@ -158,13 +168,19 @@ const clampBounds = (
   const right = bounds.x + bounds.width;
   const bottom = bounds.y + bounds.height;
 
-  const width = Math.min(Math.max(PREVIEW_WINDOW_MIN_WIDTH, bounds.width), maxWidth);
-  const height = Math.min(Math.max(PREVIEW_WINDOW_MIN_HEIGHT, bounds.height), maxHeight);
+  const width = Math.min(
+    Math.max(constraints.minWidth, bounds.width),
+    maxWidth,
+  );
+  const height = Math.min(
+    Math.max(constraints.minHeight, bounds.height),
+    maxHeight,
+  );
 
   const x = options.preserveRight ? right - width : bounds.x;
   const y = options.preserveBottom ? bottom - height : bounds.y;
 
-  const position = clampPosition(x, y, width, height);
+  const position = clampPosition(orientation, x, y, width, height);
   return {
     x: position.x,
     y: position.y,
@@ -175,32 +191,26 @@ const clampBounds = (
 
 const getInitialWindowPosition = (
   sessions: PreviewControllerSession[],
-  ordinal: number,
+  orientation: ControllerOrientation,
 ) => {
   const viewport = getViewportSize();
+  const defaultBounds = getDefaultPreviewWindowBounds(orientation);
   const cascadeCount = Math.min(sessions.length, 3);
   const offset = cascadeCount * PREVIEW_WINDOW_CASCADE_OFFSET;
-  const defaultX =
-    viewport.width -
-    PREVIEW_WINDOW_WIDTH -
-    PREVIEW_WINDOW_MARGIN -
-    offset;
-  const defaultY =
-    viewport.height -
-    PREVIEW_WINDOW_HEIGHT -
-    PREVIEW_WORKSPACE_LAUNCHER_OFFSET -
-    offset;
+  const defaultX = (viewport.width - defaultBounds.width) / 2 + offset;
+  const defaultY = (viewport.height - defaultBounds.height) / 2 + offset;
 
   const anchored = clampPosition(
+    orientation,
     defaultX,
     defaultY,
-    PREVIEW_WINDOW_WIDTH,
-    PREVIEW_WINDOW_HEIGHT,
+    defaultBounds.width,
+    defaultBounds.height,
   );
 
   return {
     x: anchored.x,
-    y: anchored.y + Math.max(0, ordinal - 1) * 0,
+    y: anchored.y,
   };
 };
 
@@ -271,54 +281,58 @@ export const usePreviewControllerManager = ({
     joinUrl.trim().length > 0 &&
     sessions.length < maxControllers;
 
-  const spawnPreviewController = useCallback((): PreviewControllerSession | null => {
-    if (!enabled || !joinUrl) {
-      return null;
-    }
-
-    let nextSession: PreviewControllerSession | null = null;
-
-    setSessions((current) => {
-      if (current.length >= maxControllers) {
-        return current;
+  const spawnPreviewController =
+    useCallback((): PreviewControllerSession | null => {
+      if (!enabled || !joinUrl) {
+        return null;
       }
 
-      const launch = createPreviewControllerLaunch({
-        joinUrl,
-        allowedOrigins,
+      let nextSession: PreviewControllerSession | null = null;
+
+      setSessions((current) => {
+        if (current.length >= maxControllers) {
+          return current;
+        }
+
+        const launch = createPreviewControllerLaunch({
+          joinUrl,
+          allowedOrigins,
+        });
+        if (!launch) {
+          return current;
+        }
+
+        const ordinal = nextOrdinalRef.current++;
+        const zIndex = nextZIndexRef.current++;
+        const orientation = DEFAULT_PREVIEW_CONTROLLER_ORIENTATION;
+        const defaultBounds = getDefaultPreviewWindowBounds(orientation);
+        const position = getInitialWindowPosition(current, orientation);
+        nextSession = {
+          id: launch.controllerId,
+          ordinal,
+          label: `Preview ${ordinal}`,
+          controllerId: launch.controllerId,
+          deviceId: launch.deviceId,
+          url: launch.url,
+          surfaceState: "loading",
+          orientation,
+          minimized: false,
+          active: true,
+          x: position.x,
+          y: position.y,
+          width: defaultBounds.width,
+          height: defaultBounds.height,
+          zIndex,
+        };
+
+        return [
+          ...current.map((session) => ({ ...session, active: false })),
+          nextSession,
+        ];
       });
-      if (!launch) {
-        return current;
-      }
 
-      const ordinal = nextOrdinalRef.current++;
-      const zIndex = nextZIndexRef.current++;
-      const position = getInitialWindowPosition(current, ordinal);
-      nextSession = {
-        id: launch.controllerId,
-        ordinal,
-        label: `Preview ${ordinal}`,
-        controllerId: launch.controllerId,
-        deviceId: launch.deviceId,
-        url: launch.url,
-        surfaceState: "loading",
-        minimized: false,
-        active: true,
-        x: position.x,
-        y: position.y,
-        width: PREVIEW_WINDOW_WIDTH,
-        height: PREVIEW_WINDOW_HEIGHT,
-        zIndex,
-      };
-
-      return [
-        ...current.map((session) => ({ ...session, active: false })),
-        nextSession,
-      ];
-    });
-
-    return nextSession;
-  }, [allowedOrigins, enabled, joinUrl, maxControllers]);
+      return nextSession;
+    }, [allowedOrigins, enabled, joinUrl, maxControllers]);
 
   const removePreviewController = useCallback((id: string) => {
     setSessions((current) =>
@@ -362,7 +376,13 @@ export const usePreviewControllerManager = ({
             return session;
           }
 
-          const nextPosition = clampPosition(x, y, session.width, session.height);
+          const nextPosition = clampPosition(
+            session.orientation,
+            x,
+            y,
+            session.width,
+            session.height,
+          );
           return {
             ...session,
             x: nextPosition.x,
@@ -386,7 +406,7 @@ export const usePreviewControllerManager = ({
             return session;
           }
 
-          const nextBounds = clampBounds(bounds, options);
+          const nextBounds = clampBounds(session.orientation, bounds, options);
 
           return {
             ...session,
@@ -400,6 +420,40 @@ export const usePreviewControllerManager = ({
     },
     [],
   );
+
+  const rotatePreviewController = useCallback((id: string) => {
+    setSessions((current) =>
+      current.map((session) => {
+        if (session.id !== id) {
+          return session;
+        }
+
+        const nextOrientation: ControllerOrientation =
+          session.orientation === "portrait" ? "landscape" : "portrait";
+        const centerX = session.x + session.width / 2;
+        const centerY = session.y + session.height / 2;
+        const nextBounds = clampBounds(
+          nextOrientation,
+          {
+            x: centerX - session.height / 2,
+            y: centerY - session.width / 2,
+            width: session.height,
+            height: session.width,
+          },
+          {},
+        );
+
+        return {
+          ...session,
+          orientation: nextOrientation,
+          x: nextBounds.x,
+          y: nextBounds.y,
+          width: nextBounds.width,
+          height: nextBounds.height,
+        };
+      }),
+    );
+  }, []);
 
   const markPreviewControllerReady = useCallback((id: string) => {
     setSessions((current) =>
@@ -427,6 +481,7 @@ export const usePreviewControllerManager = ({
     focusPreviewController,
     setPreviewControllerPosition,
     setPreviewControllerBounds,
+    rotatePreviewController,
     markPreviewControllerReady,
     markPreviewControllerFailed,
     clearPreviewControllers,
