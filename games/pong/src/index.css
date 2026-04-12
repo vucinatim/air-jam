@@ -18,10 +18,6 @@
 }
 
 @layer base {
-  :root {
-    color-scheme: dark;
-  }
-
   html,
   body,
   #root {

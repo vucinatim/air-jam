@@ -1,4 +1,5 @@
 import type { AirJamControllerApi } from "@air-jam/sdk";
+import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import {
   LifecycleActionGroup,
   PlayerAvatar,
@@ -7,7 +8,6 @@ import {
   useControllerLifecyclePermissions,
   useControllerShellStatus,
 } from "@air-jam/sdk/ui";
-import type { PlayerProfile } from "@air-jam/sdk/protocol";
 
 interface ControllerHeaderProps {
   roomId: AirJamControllerApi["roomId"];
@@ -71,7 +71,7 @@ export const ControllerHeader = ({
           )}
           <div className="min-w-0 space-y-0.5">
             {shellStatus.hasIdentity ? (
-              <div className="truncate text-sm leading-tight font-semibold normal-case text-zinc-100 sm:text-[0.9375rem]">
+              <div className="truncate text-sm leading-tight font-semibold text-zinc-100 normal-case sm:text-[0.9375rem]">
                 {shellStatus.displayName}
               </div>
             ) : null}
@@ -93,7 +93,7 @@ export const ControllerHeader = ({
             onRestart={lifecycleIntents.onRestart}
             restartLabel="Play Again"
             className="gap-1.5"
-            buttonClassName="h-7 px-2.5 text-[0.625rem] tracking-[0.1em] sm:h-8 sm:px-3 sm:text-[0.6875rem] sm:tracking-[0.12em]"
+            buttonClassName="h-8 px-3 text-[0.6875rem] tracking-[0.12em] sm:h-9 sm:px-4 sm:text-[0.75rem] sm:tracking-[0.14em]"
           />
         )
       }

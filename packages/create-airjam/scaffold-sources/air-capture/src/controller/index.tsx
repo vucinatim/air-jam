@@ -5,24 +5,19 @@ import {
   useInputWriter,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import {
-  ControllerPlayerNameField,
-  SurfaceViewport,
-} from "@air-jam/sdk/ui";
+import { ControllerPlayerNameField, SurfaceViewport } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
 import { memo, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { ControllerAudioProvider } from "../game/audio/controller-audio";
 import { createControllerStore } from "../game/controller-store";
-import { useMatchCountdown } from "../game/hooks/use-match-countdown";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
   getTeamCounts,
 } from "../game/domain/match-readiness";
+import { useMatchCountdown } from "../game/hooks/use-match-countdown";
 import { usePrototypeMatchStore } from "../game/stores/match/match-store";
-import {
-  ControllerAudioProvider,
-} from "../game/audio/controller-audio";
 import {
   ControllerHeader,
   type ControllerConnectionStatus,
@@ -92,7 +87,9 @@ const ControllerScreen = () => {
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
   const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);
   const botCounts = usePrototypeMatchStore((state) => state.botCounts);
-  const teamAssignments = usePrototypeMatchStore((state) => state.teamAssignments);
+  const teamAssignments = usePrototypeMatchStore(
+    (state) => state.teamAssignments,
+  );
   const matchSummary = usePrototypeMatchStore((state) => state.matchSummary);
   const countdownEndsAtMs = usePrototypeMatchStore(
     (state) => state.countdownEndsAtMs,
@@ -129,7 +126,8 @@ const ControllerScreen = () => {
 
   const myProfile = useAirJamControllerState((state) =>
     state.controllerId
-      ? state.players.find((player) => player.id === state.controllerId) ?? null
+      ? (state.players.find((player) => player.id === state.controllerId) ??
+        null)
       : null,
   );
 
@@ -164,12 +162,7 @@ const ControllerScreen = () => {
     [botCounts, teamCounts],
   );
   const readinessText = useMemo(
-    () =>
-      getLobbyReadinessText(
-        teamCounts,
-        botCounts,
-        pointsToWin,
-      ),
+    () => getLobbyReadinessText(teamCounts, botCounts, pointsToWin),
     [botCounts, pointsToWin, teamCounts],
   );
 
@@ -179,10 +172,7 @@ const ControllerScreen = () => {
       : "portrait";
 
   return (
-    <SurfaceViewport
-      orientation={desiredOrientation}
-      preset="controller-phone"
-    >
+    <SurfaceViewport orientation={desiredOrientation} preset="controller-phone">
       <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-white">
         <ControllerHeaderRuntime
           myProfile={myProfile}
@@ -197,11 +187,13 @@ const ControllerScreen = () => {
           onRestartMatch={() => actions.restartMatch()}
         />
 
-        <ControllerPlayerNameField
-          className="border-b border-white/10 bg-black/30 px-3 py-2"
-          labelClassName="text-[0.625rem] font-semibold tracking-[0.2em] text-zinc-400 uppercase"
-          inputClassName="w-full rounded-xl border border-white/15 bg-zinc-900/85 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-sky-400/45 focus:ring-1 focus:ring-sky-400/25"
-        />
+        {matchPhase === "lobby" ? (
+          <ControllerPlayerNameField
+            className="border-b border-white/10 bg-black/30 px-3 py-2"
+            labelClassName="text-[0.625rem] font-semibold tracking-[0.2em] text-zinc-400 uppercase"
+            inputClassName="w-full rounded-xl border border-white/15 bg-zinc-900/85 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-sky-400/45 focus:ring-1 focus:ring-sky-400/25"
+          />
+        ) : null}
 
         {matchPhase === "lobby" ? (
           <ControllerLobbyPanel
@@ -225,6 +217,9 @@ const ControllerScreen = () => {
         ) : matchPhase === "ended" ? (
           <ControllerEndedPanel
             matchSummary={matchSummary}
+            runtimeState={controllerState.runtimeState}
+            onBackToLobby={() => actions.returnToLobby()}
+            onRestart={() => actions.restartMatch()}
           />
         ) : (
           <ControllerPlayingControls
@@ -243,9 +238,7 @@ export const ControllerView = (): JSX.Element => {
   );
 
   return (
-    <ControllerAudioProvider
-      remoteEnabled={connectionStatus === "connected"}
-    >
+    <ControllerAudioProvider remoteEnabled={connectionStatus === "connected"}>
       <ControllerScreen />
     </ControllerAudioProvider>
   );

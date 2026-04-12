@@ -74,7 +74,9 @@ const tileContent = (slot: TeamSlotVisual, surface: "controller" | "host") => {
           className={avatarClassBySurface[surface]}
         />
         <div className="min-w-0">
-          <div className={cx(text.title, "text-white")}>{slot.player.label}</div>
+          <div className={cx(text.title, "text-white")}>
+            {slot.player.label}
+          </div>
           <div className={cx(text.subtitle, "text-zinc-400")}>Player</div>
         </div>
       </>
@@ -112,9 +114,7 @@ const tileContent = (slot: TeamSlotVisual, surface: "controller" | "host") => {
       </div>
       <div className="min-w-0">
         <div className={cx(text.title, "text-zinc-400")}>Open Slot</div>
-        <div className={cx(text.subtitle, "text-zinc-600")}>
-          Waiting On Phone
-        </div>
+        <div className={cx(text.subtitle, "text-zinc-600")}>Waiting</div>
       </div>
     </>
   );

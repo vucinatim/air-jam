@@ -98,20 +98,6 @@ export function HostView() {
     toggleRuntimeState: host.toggleRuntimeState,
   });
 
-  const prevRuntimeStateRef = useRef(host.runtimeState);
-  useEffect(() => {
-    const previousRuntimeState = prevRuntimeStateRef.current;
-    prevRuntimeStateRef.current = host.runtimeState;
-
-    if (matchPhase !== "playing") {
-      return;
-    }
-
-    if (previousRuntimeState === "playing" && host.runtimeState !== "playing") {
-      storeActions.setMatchPhase({ phase: "lobby" });
-    }
-  }, [host.runtimeState, matchPhase, storeActions]);
-
   const getInput = useCallback(
     (playerId: string) => host.getInput(playerId) ?? null,
     [host],

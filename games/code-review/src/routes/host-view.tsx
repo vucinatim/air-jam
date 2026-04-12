@@ -260,20 +260,6 @@ export function HostView() {
     toggleRuntimeState: host.toggleRuntimeState,
   });
 
-  const prevRuntimeStateRef = useRef(host.runtimeState);
-  useEffect(() => {
-    const previousRuntimeState = prevRuntimeStateRef.current;
-    prevRuntimeStateRef.current = host.runtimeState;
-
-    if (matchPhase !== "playing") {
-      return;
-    }
-
-    if (previousRuntimeState === "playing" && host.runtimeState !== "playing") {
-      actions.resetToLobby();
-    }
-  }, [actions, host.runtimeState, matchPhase]);
-
   useEffect(() => {
     actions.syncConnectedPlayers({ connectedPlayerIds });
   }, [actions, connectedPlayerIds]);
@@ -477,7 +463,7 @@ export function HostView() {
     <div className="host-view-shell">
       <SurfaceViewport
         preset="host-standard"
-        className="bg-[var(--ring-mat-color,#e5e7eb)]"
+        className="bg-(--ring-mat-color,#e5e7eb)"
       >
         <div
           className="relative flex h-full w-full flex-col items-center justify-center p-4"
@@ -518,16 +504,16 @@ export function HostView() {
           </div>
           {matchPhase === "lobby" ? (
             <div className="absolute inset-0 z-50 overflow-y-auto bg-black/65 p-2 sm:p-3 md:p-4">
-              <div className="flex min-h-full w-full items-center justify-center">
+              <div className="mx-auto flex min-h-full w-full max-w-4/5 items-center justify-center">
                 <div
-                  className="pixel-font relative flex w-full max-w-[96vw] flex-col overflow-hidden rounded-none border-4 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)] xl:max-w-[1780px] 2xl:max-w-[1920px]"
+                  className="pixel-font relative flex w-full flex-col overflow-hidden rounded-none border-4 border-zinc-700 bg-zinc-900 text-zinc-100 shadow-[6px_6px_0_rgba(0,0,0,0.8)] xl:max-w-[1780px] 2xl:max-w-[1920px]"
                   style={{
                     height: "auto",
                     maxHeight: "none",
                   }}
                 >
                   <div className="min-h-0 flex-1 p-3 sm:p-4 md:p-5">
-                    <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(36rem,1fr)]">
+                    <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.7fr)]">
                       <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
                         <img
                           src="/sprites/cover.png"
@@ -565,7 +551,7 @@ export function HostView() {
                           />
                         </div>
 
-                        <div className="mt-2 min-h-0 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
+                        <div className="mt-2 min-h-72 flex-1 rounded-none border-4 border-zinc-700 bg-zinc-900/45 p-3 md:mt-3">
                           <div className="flex h-full min-h-0 flex-col">
                             <div className="flex items-center justify-between gap-3">
                               <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">

@@ -171,9 +171,6 @@ export const LobbyScreen = ({
           >
             {roomId ?? "----"}
           </div>
-          <p className="mt-3 max-w-sm text-sm leading-6 text-slate-300">
-            Scan to join.
-          </p>
           <JoinUrlControls
             value={joinQrValue}
             label="Controller link"

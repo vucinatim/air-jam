@@ -22,18 +22,16 @@
   font-family: "Press Start 2P", "Courier New", monospace;
 }
 
-.controller-view-shell > .dark > .text-foreground > header {
+.host-view-shell
+  [data-airjam-surface-root="true"]
+  > .relative
+  > .pointer-events-none.absolute {
   display: none;
 }
 
-.controller-view-shell > .dark > .text-foreground > main {
-  padding: 0 !important;
-}
-
-.host-view-shell > .dark > .pointer-events-none.absolute {
-  display: none;
-}
-
-.host-view-shell > .dark > .pointer-events-none.fixed {
+.host-view-shell
+  [data-airjam-surface-root="true"]
+  > .relative
+  > .pointer-events-none.fixed {
   display: none;
 }

@@ -26,6 +26,7 @@ export const PUNCH_KNOCKBACK_VELOCITY = 12;
 export const PUNCH_KNOCKBACK_FRAMES = 6;
 export const PUNCH_RECOIL = 3;
 export const PUNCH_HITBOX_EXTENSION = 30;
+export const PUNCH_REACH = PLAYER_SIZE + PUNCH_HITBOX_EXTENSION * 2;
 export const MAX_HP = 100;
 export const PUNCH_DAMAGE = 8;
 export const DEFEND_DAMAGE_MULTIPLIER = 0.5;
@@ -134,9 +135,9 @@ export const FIGHTER_SLOTS: Array<{
 ];
 
 export const BOT_FOLLOW_DISTANCE = 150;
-export const BOT_RETREAT_DISTANCE = 78;
-export const BOT_DEFEND_DISTANCE = 68;
-export const BOT_PUNCH_DISTANCE = 70;
+export const BOT_RETREAT_DISTANCE = 54;
+export const BOT_DEFEND_DISTANCE = PUNCH_REACH + 8;
+export const BOT_PUNCH_DISTANCE = PUNCH_REACH;
 export const BOT_STRAFE_DISTANCE = 210;
 export const BOT_APPROACH_INTENT = 0.18;
 export const BOT_STRAFE_INTENT = 0.22;

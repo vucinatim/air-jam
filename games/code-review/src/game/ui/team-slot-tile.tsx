@@ -43,7 +43,9 @@ const tileContent = (slot: TeamSlotVisual) => {
           className="h-10 w-10 border-2 border-zinc-500"
         />
         <div className="min-w-0">
-          <div className={cx(titleClass, "text-white")}>{slot.player.label}</div>
+          <div className={cx(titleClass, "text-white")}>
+            {slot.player.label}
+          </div>
           <div className={subtitleClass}>Player</div>
         </div>
       </>
@@ -76,9 +78,7 @@ const tileContent = (slot: TeamSlotVisual) => {
       </div>
       <div className="min-w-0">
         <div className={cx(titleClass, "text-zinc-400")}>Open Slot</div>
-        <div className={cx(subtitleClass, "text-zinc-600")}>
-          Waiting On Phone
-        </div>
+        <div className={cx(subtitleClass, "text-zinc-600")}>Waiting</div>
       </div>
     </>
   );

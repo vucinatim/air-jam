@@ -1,3 +1,6 @@
+import type { Team } from "../domain/team-assignments";
+import type { GameInput } from "../input";
+import { PUNCH_COOLDOWN_MS, PUNCH_DURATION_MS } from "../input";
 import {
   ACCELERATION,
   BOT_APPROACH_INTENT,
@@ -9,8 +12,8 @@ import {
   BOT_RETREAT_DISTANCE,
   BOT_STRAFE_DISTANCE,
   BOT_STRAFE_INTENT,
-  COLLISION_PUSH,
   COAST_FRICTION,
+  COLLISION_PUSH,
   DEFEND_ACCELERATION_MULTIPLIER,
   DEFEND_DAMAGE_MULTIPLIER,
   DEFEND_KNOCKBACK_MULTIPLIER,
@@ -22,13 +25,12 @@ import {
   KO_COUNTDOWN_MS,
   MAX_VELOCITY,
   MOVE_FRICTION,
-  PLAYER_KEYS,
   PLAYER_SIZE,
   PUNCH_DAMAGE,
   PUNCH_DISPLACEMENT,
-  PUNCH_HITBOX_EXTENSION,
   PUNCH_KNOCKBACK_FRAMES,
   PUNCH_KNOCKBACK_VELOCITY,
+  PUNCH_REACH,
   PUNCH_RECOIL,
   RING_MAX_X,
   RING_MAX_Y,
@@ -47,12 +49,32 @@ import type {
   RuntimePlayerState,
   SlotParticipant,
 } from "./types";
-import type { GameInput } from "../input";
-import { PUNCH_COOLDOWN_MS, PUNCH_DURATION_MS } from "../input";
-import type { Team } from "../domain/team-assignments";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+const getPlayerCenter = (
+  playerState: Pick<RuntimePlayerState[PlayerKey], "x" | "y">,
+) => ({
+  x: playerState.x + PLAYER_SIZE / 2,
+  y: playerState.y + PLAYER_SIZE / 2,
+});
+
+const getCenterDelta = (
+  leftState: Pick<RuntimePlayerState[PlayerKey], "x" | "y">,
+  rightState: Pick<RuntimePlayerState[PlayerKey], "x" | "y">,
+) => {
+  const leftCenter = getPlayerCenter(leftState);
+  const rightCenter = getPlayerCenter(rightState);
+  const dx = rightCenter.x - leftCenter.x;
+  const dy = rightCenter.y - leftCenter.y;
+
+  return {
+    dx,
+    dy,
+    distance: Math.hypot(dx, dy),
+  };
+};
 
 const hasMovementInput = (input: Pick<GameInput, "horizontal" | "vertical">) =>
   Math.abs(input.horizontal) > 0.01 || Math.abs(input.vertical) > 0.01;
@@ -75,7 +97,9 @@ const createBotInput = (
   timestamp: number,
 ): GameInput => {
   const selfState = state[participant.slotKey];
-  const enemies = participants.filter((entry) => entry.team !== participant.team);
+  const enemies = participants.filter(
+    (entry) => entry.team !== participant.team,
+  );
 
   if (enemies.length === 0) {
     return {
@@ -92,9 +116,7 @@ const createBotInput = (
 
   enemies.forEach((enemy) => {
     const enemyState = state[enemy.slotKey];
-    const dx = enemyState.x - selfState.x;
-    const dy = enemyState.y - selfState.y;
-    const distance = Math.hypot(dx, dy);
+    const { distance } = getCenterDelta(selfState, enemyState);
     if (distance < nearestDistance) {
       nearestDistance = distance;
       nearestEnemy = enemy;
@@ -102,9 +124,8 @@ const createBotInput = (
   });
 
   const target = state[nearestEnemy.slotKey];
-  const dx = target.x - selfState.x;
-  const dy = target.y - selfState.y;
-  const distance = Math.max(Math.hypot(dx, dy), 1);
+  const { dx, dy, distance: rawDistance } = getCenterDelta(selfState, target);
+  const distance = Math.max(rawDistance, 1);
   const towardX = dx / distance;
   const towardY = dy / distance;
   const pulseStep = Math.floor(timestamp / 220);
@@ -144,12 +165,14 @@ const createBotInput = (
     enemyPunching &&
     (defendStep + participant.id.length) % 2 === 0;
   const punchWindowOpen = (punchStep + participant.slotKey.length) % 3 === 0;
+  const pressureGuardOpen =
+    target.defending &&
+    (punchStep + participant.id.length + nearestEnemy.id.length) % 5 === 0;
   const canPunch =
     nearestDistance <= BOT_PUNCH_DISTANCE &&
     !defend &&
-    !target.defending &&
     target.knockbackFrames === 0 &&
-    punchWindowOpen;
+    (punchWindowOpen || pressureGuardOpen);
   const prefersLeftPunch = (pulseStep + participant.id.length) % 2 === 0;
 
   return {
@@ -272,7 +295,10 @@ export const stepMatchFrame = ({
       }
     }
 
-    if (playerState.empoweredUntil > 0 && timestamp >= playerState.empoweredUntil) {
+    if (
+      playerState.empoweredUntil > 0 &&
+      timestamp >= playerState.empoweredUntil
+    ) {
       playerState.empoweredUntil = 0;
     }
 
@@ -310,8 +336,16 @@ export const stepMatchFrame = ({
       playerState.vy = 0;
     }
 
-    playerState.x = clamp(playerState.x + playerState.vx, RING_MIN_X, RING_MAX_X);
-    playerState.y = clamp(playerState.y + playerState.vy, RING_MIN_Y, RING_MAX_Y);
+    playerState.x = clamp(
+      playerState.x + playerState.vx,
+      RING_MIN_X,
+      RING_MAX_X,
+    );
+    playerState.y = clamp(
+      playerState.y + playerState.vy,
+      RING_MIN_Y,
+      RING_MAX_Y,
+    );
   });
 
   const activePlayers = participants.map((participant) => {
@@ -320,43 +354,10 @@ export const stepMatchFrame = ({
       (playerState.punchingLeft && !playerState.punchLandedLeft) ||
       (playerState.punchingRight && !playerState.punchLandedRight);
 
-    let extX = 0;
-    let extY = 0;
-
-    if (isPunching) {
-      let nearestDistance = Number.POSITIVE_INFINITY;
-      let angle = 0;
-
-      PLAYER_KEYS.forEach((otherKey) => {
-        if (otherKey === participant.slotKey || !participantBySlot[otherKey]) {
-          return;
-        }
-
-        const otherParticipant = participantBySlot[otherKey];
-        if (!otherParticipant || otherParticipant.team === participant.team) {
-          return;
-        }
-
-        const otherState = state[otherKey];
-        const dx = otherState.x + PLAYER_SIZE / 2 - (playerState.x + PLAYER_SIZE / 2);
-        const dy = otherState.y + PLAYER_SIZE / 2 - (playerState.y + PLAYER_SIZE / 2);
-        const distance = dx * dx + dy * dy;
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          angle = Math.atan2(dy, dx);
-        }
-      });
-
-      extX = Math.cos(angle) * PUNCH_HITBOX_EXTENSION;
-      extY = Math.sin(angle) * PUNCH_HITBOX_EXTENSION;
-    }
-
     return {
       participant,
       playerState,
       isPunching,
-      extX,
-      extY,
     };
   });
 
@@ -368,42 +369,24 @@ export const stepMatchFrame = ({
     ) {
       const left = activePlayers[leftIndex];
       const right = activePlayers[rightIndex];
-
-      const leftMinX = left.playerState.x + Math.min(0, left.extX);
-      const leftMaxX = left.playerState.x + PLAYER_SIZE + Math.max(0, left.extX);
-      const leftMinY = left.playerState.y + Math.min(0, left.extY);
-      const leftMaxY = left.playerState.y + PLAYER_SIZE + Math.max(0, left.extY);
-      const rightMinX = right.playerState.x + Math.min(0, right.extX);
-      const rightMaxX =
-        right.playerState.x + PLAYER_SIZE + Math.max(0, right.extX);
-      const rightMinY = right.playerState.y + Math.min(0, right.extY);
-      const rightMaxY =
-        right.playerState.y + PLAYER_SIZE + Math.max(0, right.extY);
-
-      const overlapX =
-        Math.min(leftMaxX, rightMaxX) - Math.max(leftMinX, rightMinX);
-      const overlapY =
-        Math.min(leftMaxY, rightMaxY) - Math.max(leftMinY, rightMinY);
-
-      if (overlapX <= 0 || overlapY <= 0) {
-        continue;
-      }
+      const { dx, dy, distance } = getCenterDelta(
+        left.playerState,
+        right.playerState,
+      );
+      const safeDistance = distance || 1;
 
       const leftIsPunchingRight =
-        left.isPunching && left.participant.team !== right.participant.team;
+        left.isPunching &&
+        left.participant.team !== right.participant.team &&
+        distance <= PUNCH_REACH;
       const rightIsPunchingLeft =
-        right.isPunching && right.participant.team !== left.participant.team;
+        right.isPunching &&
+        right.participant.team !== left.participant.team &&
+        distance <= PUNCH_REACH;
 
       if (leftIsPunchingRight || rightIsPunchingLeft) {
-        const dx =
-          right.playerState.x + PLAYER_SIZE / 2 -
-          (left.playerState.x + PLAYER_SIZE / 2);
-        const dy =
-          right.playerState.y + PLAYER_SIZE / 2 -
-          (left.playerState.y + PLAYER_SIZE / 2);
-        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-        const nx = dx / distance;
-        const ny = dy / distance;
+        const nx = dx / safeDistance;
+        const ny = dy / safeDistance;
 
         if (leftIsPunchingRight) {
           const victimDefending = right.playerState.defending;
@@ -505,11 +488,15 @@ export const stepMatchFrame = ({
       }
 
       const bodyOverlapX =
-        Math.min(left.playerState.x + PLAYER_SIZE, right.playerState.x + PLAYER_SIZE) -
-        Math.max(left.playerState.x, right.playerState.x);
+        Math.min(
+          left.playerState.x + PLAYER_SIZE,
+          right.playerState.x + PLAYER_SIZE,
+        ) - Math.max(left.playerState.x, right.playerState.x);
       const bodyOverlapY =
-        Math.min(left.playerState.y + PLAYER_SIZE, right.playerState.y + PLAYER_SIZE) -
-        Math.max(left.playerState.y, right.playerState.y);
+        Math.min(
+          left.playerState.y + PLAYER_SIZE,
+          right.playerState.y + PLAYER_SIZE,
+        ) - Math.max(left.playerState.y, right.playerState.y);
 
       if (bodyOverlapX <= 0 || bodyOverlapY <= 0) {
         continue;

@@ -1,27 +1,24 @@
 import {
-  useAirJamController,
   ControllerRemoteAudioRuntime,
-  useControllerToasts,
+  useAirJamController,
   useControllerTick,
+  useControllerToasts,
   useInputWriter,
 } from "@air-jam/sdk";
-import {
-  ControllerPlayerNameField,
-  SurfaceViewport,
-} from "@air-jam/sdk/ui";
+import { ControllerPlayerNameField, SurfaceViewport } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef } from "react";
-import { ControllerHeader } from "./components/controller-header";
-import { EndedPanel } from "./components/ended-panel";
-import { LobbyPanel } from "./components/lobby-panel";
-import { PlayingControls } from "./components/playing-controls";
-import { useControllerConnectionNotice } from "./hooks/use-controller-connection-notice";
-import { usePongStore, type PongState } from "../game/stores";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
 } from "../game/domain/match-readiness";
 import { getTeamCounts } from "../game/domain/team-slots";
 import { PONG_SOUND_MANIFEST } from "../game/shared/sounds";
+import { usePongStore, type PongState } from "../game/stores";
+import { ControllerHeader } from "./components/controller-header";
+import { EndedPanel } from "./components/ended-panel";
+import { LobbyPanel } from "./components/lobby-panel";
+import { PlayingControls } from "./components/playing-controls";
+import { useControllerConnectionNotice } from "./hooks/use-controller-connection-notice";
 
 export function ControllerView() {
   const controller = useAirJamController();
@@ -80,8 +77,10 @@ function ControllerScreen({
       controller.players
         .filter((player) => teamAssignments[player.id]?.team === "team1")
         .sort((left, right) => {
-          const leftPosition = teamAssignments[left.id]?.position === "front" ? 0 : 1;
-          const rightPosition = teamAssignments[right.id]?.position === "front" ? 0 : 1;
+          const leftPosition =
+            teamAssignments[left.id]?.position === "front" ? 0 : 1;
+          const rightPosition =
+            teamAssignments[right.id]?.position === "front" ? 0 : 1;
           return leftPosition - rightPosition;
         }),
     [controller.players, teamAssignments],
@@ -91,8 +90,10 @@ function ControllerScreen({
       controller.players
         .filter((player) => teamAssignments[player.id]?.team === "team2")
         .sort((left, right) => {
-          const leftPosition = teamAssignments[left.id]?.position === "front" ? 0 : 1;
-          const rightPosition = teamAssignments[right.id]?.position === "front" ? 0 : 1;
+          const leftPosition =
+            teamAssignments[left.id]?.position === "front" ? 0 : 1;
+          const rightPosition =
+            teamAssignments[right.id]?.position === "front" ? 0 : 1;
           return leftPosition - rightPosition;
         }),
     [controller.players, teamAssignments],
@@ -103,20 +104,12 @@ function ControllerScreen({
   );
   const readinessText = useMemo(
     () =>
-      getLobbyReadinessText(
-        teamCounts,
-        botCounts,
-        pointsToWin,
-        "controller",
-      ),
+      getLobbyReadinessText(teamCounts, botCounts, pointsToWin, "controller"),
     [teamCounts, botCounts, pointsToWin],
   );
 
-  const {
-    canSendSystemCommand,
-    controlsDisabled,
-    connectionNotice,
-  } = useControllerConnectionNotice(controller.connectionStatus);
+  const { canSendSystemCommand, controlsDisabled, connectionNotice } =
+    useControllerConnectionNotice(controller.connectionStatus);
 
   useControllerTick(
     () => {
@@ -158,7 +151,7 @@ function ControllerScreen({
       preset="controller-phone"
       className="bg-zinc-950"
     >
-      <div className="pong-controller-shell pong-safe-screen flex h-full w-full min-h-0 flex-col text-white">
+      <div className="pong-controller-shell pong-safe-screen flex h-full min-h-0 w-full flex-col text-white">
         <ControllerHeader
           roomId={controller.roomId}
           myProfile={myProfile}
@@ -173,20 +166,22 @@ function ControllerScreen({
           onRestartMatch={() => actions.restartMatch()}
         />
 
-        <ControllerPlayerNameField
-          className="px-3 pt-1 pb-2"
-          labelClassName="text-[0.625rem] font-semibold tracking-[0.18em] text-zinc-400 uppercase"
-          inputClassName="w-full rounded-full border border-white/12 bg-white/6 px-3 py-2 text-sm font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-white/30 focus:ring-1 focus:ring-white/20"
-        />
+        {matchPhase === "lobby" ? (
+          <ControllerPlayerNameField
+            className="px-3 pt-1 pb-2"
+            labelClassName="text-[0.625rem] font-semibold tracking-[0.18em] text-zinc-400 uppercase"
+            inputClassName="w-full rounded-full border border-white/12 bg-white/6 px-3 py-2 text-sm font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-white/30 focus:ring-1 focus:ring-white/20"
+          />
+        ) : null}
 
         {connectionNotice ? (
-          <div className="rounded-b-xl border-b border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-amber-100">
+          <div className="rounded-b-xl border-b border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[0.6875rem] font-semibold tracking-[0.12em] text-amber-100 uppercase">
             {connectionNotice}
           </div>
         ) : null}
         {latestToast ? (
           <div
-            className="rounded-b-xl border-b px-3 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.12em]"
+            className="rounded-b-xl border-b px-3 py-2 text-[0.6875rem] font-semibold tracking-[0.12em] uppercase"
             style={{
               borderColor: `${latestToast.color ?? "#38bdf8"}55`,
               backgroundColor: `${latestToast.color ?? "#38bdf8"}1a`,
@@ -209,7 +204,9 @@ function ControllerScreen({
             canStartMatch={readiness.canStart}
             readinessText={readinessText}
             onJoinTeam={(team) => actions.joinTeam({ team })}
-            onSetBotCount={(team, count) => actions.setBotCount({ team, count })}
+            onSetBotCount={(team, count) =>
+              actions.setBotCount({ team, count })
+            }
             onSetPointsToWin={(nextPointsToWin) =>
               actions.setPointsToWin({ pointsToWin: nextPointsToWin })
             }
@@ -218,6 +215,9 @@ function ControllerScreen({
         ) : matchPhase === "ended" ? (
           <EndedPanel
             matchSummary={matchSummary}
+            runtimeState={controller.runtimeState}
+            onBackToLobby={() => actions.returnToLobby()}
+            onRestart={() => actions.restartMatch()}
           />
         ) : (
           <PlayingControls

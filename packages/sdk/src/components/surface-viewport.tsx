@@ -231,9 +231,7 @@ export const SurfaceViewport = ({
             referenceHeight: referenceSize.height,
           })}
         >
-          <div
-            className="h-full w-full"
-          >
+          <div className="h-full w-full" data-airjam-surface-root="true">
             {children}
           </div>
         </div>

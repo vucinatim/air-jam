@@ -4,8 +4,8 @@ import {
   useInputWriter,
 } from "@air-jam/sdk";
 import {
-  Button,
   ControllerPlayerNameField,
+  LifecycleActionGroup,
   PlayerAvatar,
   RuntimeShellHeader,
   SurfaceViewport,
@@ -13,7 +13,7 @@ import {
   useControllerLifecyclePermissions,
   useControllerShellStatus,
 } from "@air-jam/sdk/ui";
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { LobbyPanel } from "../controller/components/lobby-panel";
 import {
   getLobbyReadinessText,
@@ -378,49 +378,32 @@ export function ControllerView() {
             }
             rightSlot={
               matchPhase === "lobby" ? null : (
-                <div className="flex items-center gap-2">
-                  {matchPhase === "playing" ? (
-                    <HeaderUtilityButton
-                      label={
-                        controller.runtimeState === "paused"
-                          ? "Resume"
-                          : "Pause"
-                      }
-                      icon={
-                        controller.runtimeState === "paused" ? (
-                          <PlayIcon />
-                        ) : (
-                          <PauseIcon />
-                        )
-                      }
-                      disabled={!lifecyclePermissions.canInteractForPhase}
-                      onPress={lifecycleIntents.onTogglePause}
-                    />
-                  ) : null}
-                  <HeaderUtilityButton
-                    label="Back to Lobby"
-                    icon={<HouseIcon />}
-                    disabled={!lifecyclePermissions.canInteractForPhase}
-                    onPress={lifecycleIntents.onBackToLobby}
-                  />
-                  {matchPhase === "ended" ? (
-                    <HeaderUtilityButton
-                      label="Restart"
-                      icon={<RotateIcon />}
-                      disabled={!lifecyclePermissions.canInteractForPhase}
-                      onPress={lifecycleIntents.onRestart}
-                    />
-                  ) : null}
-                </div>
+                <LifecycleActionGroup
+                  phase={matchPhase}
+                  runtimeState={controller.runtimeState}
+                  canInteract={lifecyclePermissions.canInteractForPhase}
+                  onTogglePause={lifecycleIntents.onTogglePause}
+                  onBackToLobby={lifecycleIntents.onBackToLobby}
+                  onRestart={lifecycleIntents.onRestart}
+                  presentation="icon"
+                  visibleKinds={
+                    matchPhase === "playing"
+                      ? ["pause-toggle", "back-to-lobby"]
+                      : ["restart", "back-to-lobby"]
+                  }
+                  buttonClassName="border-white/12 bg-white/6 text-white hover:bg-white/12"
+                />
               )
             }
             className="border-zinc-700 bg-zinc-950/95"
           />
-          <ControllerPlayerNameField
-            className="border-b-4 border-zinc-800 bg-zinc-950 px-3 py-2"
-            labelClassName="text-[9px] font-black tracking-[0.2em] text-zinc-500 uppercase"
-            inputClassName="pixel-font w-full rounded-none border-4 border-zinc-600 bg-black px-2 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-400"
-          />
+          {showLobbyControls ? (
+            <ControllerPlayerNameField
+              className="border-b-4 border-zinc-800 bg-zinc-950 px-3 py-2"
+              labelClassName="text-[9px] font-black tracking-[0.2em] text-zinc-500 uppercase"
+              inputClassName="pixel-font w-full rounded-none border-4 border-zinc-600 bg-black px-2 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-400"
+            />
+          ) : null}
           {showEndedView ? (
             <div className="flex min-h-0 w-full flex-1 flex-col bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.2),transparent_42%),linear-gradient(180deg,#f5f5f4_0%,#e7e5e4_100%)] p-3 sm:p-4">
               <div className="flex min-h-0 flex-1 flex-col justify-center gap-4 rounded-none border-4 border-zinc-700 bg-zinc-950/92 px-5 py-6 text-zinc-100 shadow-[0_24px_60px_rgba(24,24,27,0.35)]">
@@ -456,6 +439,18 @@ export function ControllerView() {
                     </p>
                   </div>
                 </div>
+
+                <LifecycleActionGroup
+                  phase={matchPhase}
+                  runtimeState={controller.runtimeState}
+                  canInteract={lifecyclePermissions.canInteractForPhase}
+                  onBackToLobby={lifecycleIntents.onBackToLobby}
+                  onRestart={lifecycleIntents.onRestart}
+                  presentation="pill"
+                  visibleKinds={["back-to-lobby", "restart"]}
+                  className="w-full flex-col items-stretch gap-2"
+                  buttonClassName="h-11 w-full justify-center rounded-none border-4 border-zinc-700 bg-zinc-900 px-4 text-[0.6875rem] font-semibold tracking-[0.18em] text-white hover:bg-zinc-800"
+                />
               </div>
             </div>
           ) : showLobbyControls ? (
@@ -484,21 +479,7 @@ export function ControllerView() {
               </div>
             </div>
           ) : (
-            <div className="flex min-h-0 w-full flex-1 flex-col gap-3 bg-[linear-gradient(180deg,rgba(24,24,27,0.96)_0%,rgba(12,10,9,0.98)_100%)] p-3">
-              <div className="flex items-center justify-between gap-3 border-2 border-white/10 bg-zinc-900/80 px-4 py-3 text-[10px] tracking-[0.16em] text-zinc-400 uppercase">
-                <div>
-                  Team
-                  <p className="mt-1 text-base tracking-[0.12em] text-white">
-                    {myTeam === "team1" ? "Coder" : "Reviewer"}
-                  </p>
-                </div>
-                <p className="text-right text-[10px] leading-relaxed tracking-normal text-zinc-300 normal-case">
-                  Punch left or right.
-                  <br />
-                  Hold guard to block.
-                </p>
-              </div>
-
+            <div className="flex min-h-0 w-full flex-1 flex-col bg-[linear-gradient(180deg,rgba(24,24,27,0.96)_0%,rgba(12,10,9,0.98)_100%)] p-3">
               <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
                 <button
                   type="button"
@@ -582,101 +563,5 @@ export function ControllerView() {
         </div>
       </SurfaceViewport>
     </div>
-  );
-}
-
-function HeaderUtilityButton({
-  label,
-  icon,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  icon: ReactNode;
-  disabled?: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onClick={onPress}
-      className="shrink-0 rounded-full border border-white/12 bg-white/6 text-white hover:bg-white/12"
-    >
-      {icon}
-    </Button>
-  );
-}
-
-function SvgIcon({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
-    >
-      {children}
-    </svg>
-  );
-}
-
-function PauseIcon() {
-  return (
-    <SvgIcon>
-      <rect
-        x="6"
-        y="5"
-        width="4"
-        height="14"
-        rx="1"
-        fill="currentColor"
-        stroke="none"
-      />
-      <rect
-        x="14"
-        y="5"
-        width="4"
-        height="14"
-        rx="1"
-        fill="currentColor"
-        stroke="none"
-      />
-    </SvgIcon>
-  );
-}
-
-function PlayIcon() {
-  return (
-    <SvgIcon>
-      <path d="M8 5l11 7-11 7z" fill="currentColor" stroke="none" />
-    </SvgIcon>
-  );
-}
-
-function HouseIcon() {
-  return (
-    <SvgIcon>
-      <path d="M4 10.5L12 4l8 6.5" />
-      <path d="M6.5 9.5V20h11V9.5" />
-      <path d="M9.5 20v-5h5v5" />
-    </SvgIcon>
-  );
-}
-
-function RotateIcon() {
-  return (
-    <SvgIcon>
-      <path d="M20 6v5h-5" />
-      <path d="M20 11a8 8 0 1 0 2 5" />
-    </SvgIcon>
   );
 }

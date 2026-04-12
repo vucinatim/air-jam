@@ -349,9 +349,17 @@ export function ControllerView() {
                 <p className="mt-2 text-3xl font-black text-[#8b6914]">
                   EUR {finalTotalMoney}
                 </p>
-                <p className="text-sm text-[#6b7280]">
-                  Use the shell actions above to restart or return to the lobby.
-                </p>
+                <LifecycleActionGroup
+                  phase={matchPhase}
+                  runtimeState={controller.runtimeState}
+                  canInteract={lifecyclePermissions.canInteractForPhase}
+                  onBackToLobby={lifecycleIntents.onBackToLobby}
+                  onRestart={lifecycleIntents.onRestart}
+                  presentation="pill"
+                  visibleKinds={["back-to-lobby", "restart"]}
+                  className="w-full flex-col items-stretch gap-2 pt-1"
+                  buttonClassName="h-11 w-full justify-center rounded-full border-[#8b6914]/30 bg-[#8b6914] px-4 text-[0.6875rem] font-black tracking-[0.16em] text-[#fdf6e3] uppercase hover:bg-[#7a5b11]"
+                />
               </div>
             </div>
           ) : null}
