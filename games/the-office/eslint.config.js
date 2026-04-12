@@ -35,7 +35,7 @@ export default defineConfig([
               name: "@air-jam/sdk",
               importNames: ["useAirJamHost", "useAirJamController"],
               message:
-                "Mount runtime owner hooks only in src/routes/host-view.tsx or src/routes/controller-view.tsx. Child components should use read-only session hooks.",
+                "Mount runtime owner hooks only in src/host/index.tsx or src/controller/index.tsx. Child components should use read-only session hooks.",
             },
           ],
           patterns: [
@@ -43,7 +43,7 @@ export default defineConfig([
               group: ["@air-jam/sdk"],
               importNames: ["useAirJamHost", "useAirJamController"],
               message:
-                "Mount runtime owner hooks only in src/routes/host-view.tsx or src/routes/controller-view.tsx. Child components should use read-only session hooks.",
+                "Mount runtime owner hooks only in src/host/index.tsx or src/controller/index.tsx. Child components should use read-only session hooks.",
             },
           ],
         },
@@ -52,7 +52,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/routes/host-view.tsx", "src/routes/controller-view.tsx"],
+    files: ["src/host/index.tsx", "src/controller/index.tsx"],
     rules: {
       "no-restricted-imports": "off",
     },

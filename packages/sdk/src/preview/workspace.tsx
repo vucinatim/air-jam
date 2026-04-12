@@ -327,7 +327,7 @@ export const PreviewControllerWorkspace = ({
             <span className="text-[11px] font-semibold tracking-[0.16em] uppercase">
               {launcherLabel}
             </span>
-            <span className="rounded-full border border-white/12 bg-white/[0.06] px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white/88">
+            <span className="rounded-full border border-white/12 bg-white/6 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white/88">
               {sessions.length}
             </span>
             {launcherOpen ? (
@@ -341,7 +341,7 @@ export const PreviewControllerWorkspace = ({
         {launcherOpen ? (
           <section
             className={cn(
-              "w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden p-4",
+              "w-88 max-w-[calc(100vw-2rem)] overflow-hidden p-4",
               shellPanelClassName,
               highContrast && "border-white/30",
             )}
@@ -365,7 +365,7 @@ export const PreviewControllerWorkspace = ({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      className="h-7 w-7 shrink-0 rounded-full text-white/72 hover:bg-white/[0.08] hover:text-white"
+                      className="h-7 w-7 shrink-0 rounded-full text-white/72 hover:bg-white/8 hover:text-white"
                       onClick={() => clearPreviewControllers()}
                       title="Close all preview controllers"
                     >
@@ -383,7 +383,7 @@ export const PreviewControllerWorkspace = ({
                       <div
                         key={session.id}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-[1rem] px-3 py-2.5",
+                          "flex items-center gap-2.5 rounded-2xl px-3 py-2.5",
                           shellInsetPanelClassName,
                         )}
                       >
@@ -434,7 +434,7 @@ export const PreviewControllerWorkspace = ({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            className="h-7 w-7 rounded-full text-white/68 hover:bg-white/[0.08] hover:text-white"
+                            className="h-7 w-7 rounded-full text-white/68 hover:bg-white/8 hover:text-white"
                             onClick={() => removePreviewController(session.id)}
                             title={`Close ${session.label}`}
                           >

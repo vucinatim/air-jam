@@ -1,34 +1,26 @@
-import {
-  createAirJamStore,
-  type AirJamActionContext,
-} from "@air-jam/sdk";
-import type { SpaceGameState } from "./types";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
 import {
   clearPlayerTaskState,
   createDefaultPlayerStats,
   markPlayerDead,
-  pruneRecord,
   restorePlayerStat,
 } from "./space-store-helpers";
-import { getPlayerById } from "../../players";
+import {
+  createInitialSpaceGameState,
+  reduceFinishMatch,
+  reduceRestartMatch,
+  reduceReturnToLobby,
+  reduceSelectCharacter,
+  reduceStartMatch,
+  reduceSyncConnectedPlayers,
+} from "./space-store-state";
+import type { SpaceGameState } from "./types";
 
-const hostOnly = (
-  role: AirJamActionContext["role"],
-): boolean => role === "host";
+const hostOnly = (role: AirJamActionContext["role"]): boolean =>
+  role === "host";
 
 export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
-  matchPhase: "lobby",
-  money: {},
-  totalMoneyPenalty: 0,
-  gameStartTime: 0,
-  gameDurationMs: 300000,
-  readyByPlayerId: {},
-  playerPositions: {},
-  playerAssignments: {},
-  busyPlayers: {},
-  taskProgress: {},
-  playerStats: {},
-  gameOver: false,
+  ...createInitialSpaceGameState(),
 
   actions: {
     syncConnectedPlayers: ({ role }, { connectedPlayerIds }) =>
@@ -37,100 +29,35 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
           return state;
         }
 
-        const connectedSet = new Set(connectedPlayerIds);
-        const nextMoney = pruneRecord(state.money, connectedSet);
-        const nextPlayerPositions = pruneRecord(state.playerPositions, connectedSet);
-        const nextPlayerAssignments = pruneRecord(
-          state.playerAssignments,
-          connectedSet,
-        );
-        const nextBusyPlayers = pruneRecord(state.busyPlayers, connectedSet);
-        const nextTaskProgress = pruneRecord(state.taskProgress, connectedSet);
-        const nextPlayerStats = pruneRecord(state.playerStats, connectedSet);
-        const nextReadyByPlayerId = pruneRecord(state.readyByPlayerId, connectedSet);
-
-        if (
-          nextMoney === state.money &&
-          nextPlayerPositions === state.playerPositions &&
-          nextPlayerAssignments === state.playerAssignments &&
-          nextBusyPlayers === state.busyPlayers &&
-          nextTaskProgress === state.taskProgress &&
-          nextPlayerStats === state.playerStats &&
-          nextReadyByPlayerId === state.readyByPlayerId
-        ) {
-          return state;
-        }
-
-        return {
-          money: nextMoney,
-          playerPositions: nextPlayerPositions,
-          playerAssignments: nextPlayerAssignments,
-          busyPlayers: nextBusyPlayers,
-          taskProgress: nextTaskProgress,
-          playerStats: nextPlayerStats,
-          readyByPlayerId: nextReadyByPlayerId,
-        };
+        return reduceSyncConnectedPlayers(state, connectedPlayerIds);
       }),
 
-    setReady: ({ actorId }, { ready }) =>
+    startMatch: ({ connectedPlayerIds }) =>
+      set((state) => reduceStartMatch(state, connectedPlayerIds)),
+
+    restartMatch: ({ connectedPlayerIds }) =>
+      set((state) => reduceRestartMatch(state, connectedPlayerIds)),
+
+    returnToLobby: ({ connectedPlayerIds }) =>
+      set((state) => reduceReturnToLobby(state, connectedPlayerIds)),
+
+    finishMatch: ({ role }) =>
       set((state) => {
-        if (!actorId) {
+        if (!hostOnly(role)) {
           return state;
         }
 
-        if (ready && !state.playerAssignments[actorId]) {
-          return state;
-        }
-
-        if ((state.readyByPlayerId[actorId] ?? false) === ready) {
-          return state;
-        }
-
-        return {
-          readyByPlayerId: {
-            ...state.readyByPlayerId,
-            [actorId]: ready,
-          },
-        };
+        return reduceFinishMatch(state);
       }),
 
-    selectCharacter: ({ actorId }, { playerId }) =>
+    selectCharacter: ({ actorId, connectedPlayerIds }, { playerId }) =>
       set((state) => {
-        if (!actorId) {
-          return state;
-        }
-
-        if (!getPlayerById(playerId)) {
-          return state;
-        }
-
-        if (state.playerAssignments[actorId] === playerId) {
-          return state;
-        }
-
-        const selectedByOtherController = Object.entries(state.playerAssignments).some(
-          ([controllerId, selectedPlayerId]) =>
-            controllerId !== actorId && selectedPlayerId === playerId,
+        return reduceSelectCharacter(
+          state,
+          actorId,
+          connectedPlayerIds,
+          playerId,
         );
-        if (selectedByOtherController) {
-          return state;
-        }
-
-        return {
-          playerAssignments: {
-            ...state.playerAssignments,
-            [actorId]: playerId,
-          },
-          playerStats: {
-            ...state.playerStats,
-            [actorId]:
-              state.playerStats[actorId] || createDefaultPlayerStats(),
-          },
-          readyByPlayerId: {
-            ...state.readyByPlayerId,
-            [actorId]: false,
-          },
-        };
       }),
 
     completeTask: ({ role }, { playerId, reward }) =>
@@ -155,46 +82,6 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
 
         return {
           totalMoneyPenalty: state.totalMoneyPenalty + amount,
-        };
-      }),
-
-    resetGame: ({ role }) =>
-      set((state) => {
-        if (!hostOnly(role)) {
-          return state;
-        }
-
-        return {
-          matchPhase: "lobby",
-          money: {},
-          totalMoneyPenalty: 0,
-          gameStartTime: Date.now(),
-          readyByPlayerId: {},
-          playerPositions: {},
-          playerAssignments: {},
-          busyPlayers: {},
-          taskProgress: {},
-          playerStats: {},
-          gameOver: false,
-        };
-      }),
-
-    assignPlayer: ({ role }, { controllerId, playerId }) =>
-      set((state) => {
-        if (!hostOnly(role)) {
-          return state;
-        }
-
-        return {
-          playerAssignments: {
-            ...state.playerAssignments,
-            [controllerId]: playerId,
-          },
-          playerStats: {
-            ...state.playerStats,
-            [controllerId]:
-              state.playerStats[controllerId] || createDefaultPlayerStats(),
-          },
         };
       }),
 
@@ -302,33 +189,6 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
             [playerId]: markPlayerDead(currentStats),
           },
         };
-      }),
-
-    setGameOver: ({ role }, { gameOver }) =>
-      set((state) => {
-        if (!hostOnly(role)) {
-          return state;
-        }
-
-        return { gameOver };
-      }),
-
-    setGameStartTime: ({ role }, { startTime }) =>
-      set((state) => {
-        if (!hostOnly(role)) {
-          return state;
-        }
-
-        return { gameStartTime: startTime };
-      }),
-
-    setMatchPhase: ({ role }, { phase }) =>
-      set((state) => {
-        if (!hostOnly(role) || state.matchPhase === phase) {
-          return state;
-        }
-
-        return { matchPhase: phase };
       }),
   },
 }));

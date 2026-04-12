@@ -27,6 +27,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 21. Consider an explicit preview-controller close path that skips the normal 30-second controller resume lease and disconnects immediately, but only if we can do it without weakening the real phone/controller reconnect contract.
 22. Replace Arcade's bespoke full-screen join QR overlay with the shared SDK `JoinQrOverlay` now that game lobbies use the same primitive, so QR presentation and dismissal behavior do not diverge between the platform shell and embedded host shells.
 23. If host-side top-right utilities keep growing beyond mute, fullscreen, and preview controllers, promote the current host preview dock accessory slot into a small first-class `HostUtilityDock` contract so games register utility actions declaratively instead of drifting back toward ad hoc overlay chrome.
+24. Run one repo-wide game-template naming pass so equivalent concerns stop drifting across folder names. Current examples: `pong` uses `src/ui` where most games use `src/components` and/or `src/game/ui`, and `last-band-standing` uses top-level `src/store` while most other games keep gameplay state under `src/game/stores`. Pick one convention and mirror it through scaffold sources.
+25. Revisit The Office runtime ownership after the current lifecycle refactor and decide whether player positions, pending tasks, and other per-frame runtime refs should graduate into an explicit host-side runtime snapshot contract for the visual harness and future agent tooling, instead of remaining hook-local mutable refs forever.
 
 ## Framework Boundary Follow-Ups
 

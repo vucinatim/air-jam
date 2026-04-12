@@ -2,11 +2,6 @@ import { type AirJamActionContext } from "@air-jam/sdk";
 
 export type OfficeMatchPhase = "lobby" | "playing" | "ended";
 
-export interface PlayerPosition {
-  x: number;
-  y: number;
-}
-
 export interface PlayerStats {
   energy: number;
   boredom: number;
@@ -19,22 +14,21 @@ export interface SpaceGameState {
   totalMoneyPenalty: number;
   gameStartTime: number;
   gameDurationMs: number;
-  readyByPlayerId: Record<string, boolean>;
-  playerPositions: Record<string, PlayerPosition>;
   playerAssignments: Record<string, string>;
   busyPlayers: Record<string, string>;
   taskProgress: Record<string, number>;
   playerStats: Record<string, PlayerStats>;
   gameOver: boolean;
+  lifecycleVersion: number;
   actions: {
     syncConnectedPlayers: (
       ctx: AirJamActionContext,
       payload: { connectedPlayerIds: string[] },
     ) => void;
-    setReady: (
-      ctx: AirJamActionContext,
-      payload: { ready: boolean },
-    ) => void;
+    startMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
+    restartMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
+    returnToLobby: (ctx: AirJamActionContext, _payload: undefined) => void;
+    finishMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
     selectCharacter: (
       ctx: AirJamActionContext,
       payload: { playerId: string },
@@ -46,14 +40,6 @@ export interface SpaceGameState {
     applyPenalty: (
       ctx: AirJamActionContext,
       payload: { amount: number },
-    ) => void;
-    resetGame: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
-    assignPlayer: (
-      ctx: AirJamActionContext,
-      payload: { controllerId: string; playerId: string },
     ) => void;
     setBusy: (
       ctx: AirJamActionContext,
@@ -78,18 +64,6 @@ export interface SpaceGameState {
     killPlayer: (
       ctx: AirJamActionContext,
       payload: { playerId: string },
-    ) => void;
-    setGameOver: (
-      ctx: AirJamActionContext,
-      payload: { gameOver: boolean },
-    ) => void;
-    setGameStartTime: (
-      ctx: AirJamActionContext,
-      payload: { startTime: number },
-    ) => void;
-    setMatchPhase: (
-      ctx: AirJamActionContext,
-      payload: { phase: OfficeMatchPhase },
     ) => void;
   };
 }

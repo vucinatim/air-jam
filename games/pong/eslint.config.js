@@ -46,8 +46,6 @@ export default defineConfig([
     ignores: [
       "dist",
       "node_modules",
-      "src/routes/host-view.tsx",
-      "src/routes/controller-view.tsx",
       "src/host/index.tsx",
       "src/controller/index.tsx",
     ],

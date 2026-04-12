@@ -14,8 +14,7 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
     matchPhase: string | null;
     runtimeState: string | null;
     storeActions: {
-      setGameOver: (payload: { gameOver: boolean }) => void;
-      setMatchPhase: (payload: { phase: "ended" }) => void;
+      finishMatch: () => void;
     };
   }) => ({
     roomId: context.host.roomId,
@@ -31,8 +30,7 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
       (context: {
         matchPhase: string | null;
         storeActions: {
-          setGameOver: (payload: { gameOver: boolean }) => void;
-          setMatchPhase: (payload: { phase: "ended" }) => void;
+          finishMatch: () => void;
         };
       }) => {
         if (context.matchPhase !== "playing") {
@@ -41,8 +39,7 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
           );
         }
 
-        context.storeActions.setGameOver({ gameOver: true });
-        context.storeActions.setMatchPhase({ phase: "ended" });
+        context.storeActions.finishMatch();
       },
     ),
   },

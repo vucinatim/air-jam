@@ -1,2 +1,2 @@
 export { useSpaceStore } from "./space-store";
-export type { PlayerPosition, PlayerStats, SpaceGameState } from "./types";
+export type { PlayerStats, SpaceGameState } from "./types";

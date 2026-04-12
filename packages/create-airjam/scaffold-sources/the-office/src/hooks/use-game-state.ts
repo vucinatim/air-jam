@@ -3,38 +3,34 @@
  * Handles player movement, tasks, breakroom activities, stats, and game loop state.
  */
 
-import { useEffect, useRef } from "react";
-import { useSounds } from "./use-sounds";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  TaskManager,
-  LOCATIONS,
-  BREAKROOM_LOCATIONS,
-  STAT_CONSTANTS,
-  type ActiveTask,
-  type Location,
-} from "../task-manager";
-import {
-  getPlayerById,
-  PLAYERS,
-  getTaskDurationMs,
-} from "../players";
-import {
-  useSpaceStore,
-  type SpaceGameState,
-  type PlayerStats,
-} from "../game/stores";
-import type { GameInput } from "../game/input";
-import {
-  FIELD_WIDTH,
+  circlesOverlap,
   FIELD_HEIGHT,
+  FIELD_WIDTH,
+  isNearLocation,
+  isValidPosition,
   PLAYER_RADIUS,
   PLAYER_SPEED,
   SPAWN_POSITIONS,
-  isValidPosition,
-  isNearLocation,
-  circlesOverlap,
 } from "../game-constants";
+import type { GameInput } from "../game/input";
+import {
+  useSpaceStore,
+  type PlayerStats,
+  type SpaceGameState,
+} from "../game/stores";
+import { getPlayerById, getTaskDurationMs, PLAYERS } from "../players";
+import {
+  BREAKROOM_LOCATIONS,
+  LOCATIONS,
+  STAT_CONSTANTS,
+  TaskManager,
+  type ActiveTask,
+  type Location,
+} from "../task-manager";
+import { useSounds } from "./use-sounds";
 
 // Type for breakroom activity state
 interface BreakroomActivity {
@@ -79,12 +75,11 @@ interface UseGameStateReturn {
     getInput: (playerId: string) => GameInput | null,
     gameStatePlaying: boolean,
   ) => void;
-  startMatch: () => void;
-  resetGame: (playerIds: string[]) => void;
 }
 
 interface UseGameStateOptions {
   muted?: boolean;
+  connectedPlayerIds?: string[];
 }
 
 /**
@@ -92,6 +87,7 @@ interface UseGameStateOptions {
  */
 export function useGameState({
   muted = false,
+  connectedPlayerIds = [],
 }: UseGameStateOptions = {}): UseGameStateReturn {
   // Zustand store selectors with atomic selectors
   const money = useSpaceStore((state: SpaceGameState) => state.money);
@@ -102,10 +98,21 @@ export function useGameState({
     (state: SpaceGameState) => state.playerStats,
   );
   const gameOver = useSpaceStore((state: SpaceGameState) => state.gameOver);
-  const gameStartTime = useSpaceStore((state: SpaceGameState) => state.gameStartTime);
-  const gameDurationMs = useSpaceStore((state: SpaceGameState) => state.gameDurationMs);
-  const totalMoneyPenalty = useSpaceStore((state: SpaceGameState) => state.totalMoneyPenalty);
+  const gameStartTime = useSpaceStore(
+    (state: SpaceGameState) => state.gameStartTime,
+  );
+  const gameDurationMs = useSpaceStore(
+    (state: SpaceGameState) => state.gameDurationMs,
+  );
+  const totalMoneyPenalty = useSpaceStore(
+    (state: SpaceGameState) => state.totalMoneyPenalty,
+  );
+  const matchPhase = useSpaceStore((state: SpaceGameState) => state.matchPhase);
+  const lifecycleVersion = useSpaceStore(
+    (state: SpaceGameState) => state.lifecycleVersion,
+  );
   const actions = useSpaceStore.useActions();
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   // Sound effects hook
   const {
@@ -146,27 +153,34 @@ export function useGameState({
   const locationImagesRef = useRef<Record<string, HTMLImageElement>>({});
 
   // Sync gameState refs with store values
+  const playerAssignmentsRef = useRef(playerAssignments);
   useEffect(() => {
+    playerAssignmentsRef.current = playerAssignments;
     gameState.current.playerAssignments = playerAssignments;
   }, [playerAssignments]);
 
+  const playerStatsRef = useRef(playerStats);
   useEffect(() => {
+    playerStatsRef.current = playerStats;
     gameState.current.playerStats = playerStats;
   }, [playerStats]);
 
   // Calculate total money and final money after penalties
   const totalMoney = Object.values(money).reduce((sum, m) => sum + m, 0);
   const finalTotalMoney = totalMoney - totalMoneyPenalty;
-  
+
   // Calculate time remaining
-  const timeRemaining = Math.max(0, gameDurationMs - (Date.now() - gameStartTime));
+  const timeRemaining =
+    matchPhase === "playing"
+      ? Math.max(0, gameDurationMs - (clockNow - gameStartTime))
+      : gameDurationMs;
 
   /**
    * Initialize player positions and assignments for new players.
    * Players spawn at unique predefined positions (max 9 players).
    * Positions are assigned sequentially (Player 1 -> Position 1, Player 2 -> Position 2, etc.)
    */
-  const initializePlayers = (playerIds: string[]) => {
+  const initializePlayers = useCallback((playerIds: string[]) => {
     actionsRef.current.syncConnectedPlayers({ connectedPlayerIds: playerIds });
 
     const connectedSet = new Set(playerIds);
@@ -205,7 +219,7 @@ export function useGameState({
       if (!gameState.current.positions[playerId]) {
         // Find the first available predefined position
         let assignedPosition: { x: number; y: number } | null = null;
-        
+
         for (let i = 0; i < SPAWN_POSITIONS.length; i++) {
           if (!gameState.current.usedSpawnIndices.has(i)) {
             assignedPosition = SPAWN_POSITIONS[i];
@@ -216,21 +230,91 @@ export function useGameState({
 
         if (assignedPosition) {
           // Assign predefined position
-          gameState.current.positions[playerId] = { x: assignedPosition.x, y: assignedPosition.y };
+          gameState.current.positions[playerId] = {
+            x: assignedPosition.x,
+            y: assignedPosition.y,
+          };
         } else {
           // Fallback to random position if all predefined positions are used
           let x: number, y: number;
           let attempts = 0;
           do {
-            x = PLAYER_RADIUS + Math.random() * (FIELD_WIDTH - PLAYER_RADIUS * 2);
-            y = PLAYER_RADIUS + Math.random() * (FIELD_HEIGHT - PLAYER_RADIUS * 2);
+            x =
+              PLAYER_RADIUS + Math.random() * (FIELD_WIDTH - PLAYER_RADIUS * 2);
+            y =
+              PLAYER_RADIUS +
+              Math.random() * (FIELD_HEIGHT - PLAYER_RADIUS * 2);
             attempts++;
           } while (!isValidPosition(x, y, PLAYER_RADIUS) && attempts < 50);
           gameState.current.positions[playerId] = { x, y };
         }
       }
     });
-  };
+  }, []);
+
+  const resetRuntimeState = useCallback(
+    (
+      playerIds: string[],
+      nextAssignments: GameState["playerAssignments"],
+      nextPlayerStats: GameState["playerStats"],
+    ) => {
+      const now = performance.now();
+
+      gameState.current.positions = {};
+      gameState.current.lastAction = {};
+      gameState.current.playerAssignments = nextAssignments;
+      gameState.current.playerStats = nextPlayerStats;
+      gameState.current.lastTaskCompleteTime = {};
+      gameState.current.usedSpawnIndices.clear();
+
+      taskManagerRef.current.reset();
+      pendingTasksRef.current = [];
+      lastTaskUpdateRef.current = now;
+      lastStatUpdateRef.current = now;
+      lastTaskCountRef.current = 0;
+      lastGameOverRef.current = false;
+      breakroomActivitiesRef.current = {};
+      playerBoredomDecayTimers.current = {};
+
+      playerIds.forEach((playerId) => {
+        breakroomActivitiesRef.current[playerId] = null;
+        playerBoredomDecayTimers.current[playerId] = 0;
+      });
+    },
+    [],
+  );
+
+  const connectedPlayerIdsRef = useRef(connectedPlayerIds);
+  useEffect(() => {
+    connectedPlayerIdsRef.current = connectedPlayerIds;
+  }, [connectedPlayerIds]);
+
+  useEffect(() => {
+    const playerIds = connectedPlayerIdsRef.current;
+    resetRuntimeState(
+      playerIds,
+      playerAssignmentsRef.current,
+      playerStatsRef.current,
+    );
+    if (matchPhase !== "ended") {
+      initializePlayers(playerIds);
+    }
+    setClockNow(Date.now());
+  }, [initializePlayers, lifecycleVersion, matchPhase, resetRuntimeState]);
+
+  useEffect(() => {
+    if (matchPhase !== "playing") {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 250);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [matchPhase]);
 
   /**
    * Load player images for all players.
@@ -356,7 +440,7 @@ export function useGameState({
         );
         if (started) {
           actionsRef.current.setBusy({ playerId, taskName: task.name });
-              toast(`${player.name} je prevzel nalogo "${task.name}"`, {
+          toast(`${player.name} je prevzel nalogo "${task.name}"`, {
             duration: 1500,
           });
           playTaskStart();
@@ -501,7 +585,7 @@ export function useGameState({
             );
             if (started) {
               actionsRef.current.setBusy({ playerId, taskName: task.name });
-          toast(`${player.name} je začel nalogo "${task.name}"`, {
+              toast(`${player.name} je začel nalogo "${task.name}"`, {
                 duration: 1500,
               });
             }
@@ -598,8 +682,7 @@ export function useGameState({
     gameStatePlaying: boolean,
   ): void => {
     const finishMatch = () => {
-      actionsRef.current.setGameOver({ gameOver: true });
-      actionsRef.current.setMatchPhase({ phase: "ended" });
+      actionsRef.current.finishMatch();
     };
 
     if (!gameStatePlaying || gameOver) return;
@@ -613,7 +696,7 @@ export function useGameState({
 
     // Update task manager and get expired tasks
     const expiredTasks = taskManagerRef.current.update(currentTime);
-    
+
     // Apply penalty for each expired task (€100 per task)
     if (expiredTasks.length > 0) {
       const penaltyPerTask = 100;
@@ -714,49 +797,6 @@ export function useGameState({
     }
   };
 
-  const startMatch = (): void => {
-    const now = Date.now();
-    actionsRef.current.setMatchPhase({ phase: "playing" });
-    actionsRef.current.setGameOver({ gameOver: false });
-    actionsRef.current.setGameStartTime({ startTime: now });
-    taskManagerRef.current.reset();
-    pendingTasksRef.current = [];
-    lastTaskUpdateRef.current = now;
-    lastStatUpdateRef.current = now;
-    lastTaskCountRef.current = 0;
-    lastGameOverRef.current = false;
-    Object.keys(breakroomActivitiesRef.current).forEach((playerId) => {
-      breakroomActivitiesRef.current[playerId] = null;
-    });
-  };
-
-  /**
-   * Reset the game state.
-   */
-  const resetGame = (playerIds: string[]) => {
-    actionsRef.current.resetGame();
-    actionsRef.current.setMatchPhase({ phase: "lobby" });
-    actionsRef.current.setGameStartTime({ startTime: Date.now() });
-    taskManagerRef.current.reset();
-
-    // Reset player positions and state
-    playerIds.forEach((playerId) => {
-      delete gameState.current.positions[playerId];
-      delete gameState.current.lastAction[playerId];
-      delete gameState.current.playerAssignments[playerId];
-      delete gameState.current.playerStats[playerId];
-      breakroomActivitiesRef.current[playerId] = null;
-      playerBoredomDecayTimers.current[playerId] = 0;
-    });
-
-    // Clear used spawn positions so they can be reused
-    gameState.current.usedSpawnIndices.clear();
-    
-    // Reset sound tracking refs
-    lastTaskCountRef.current = 0;
-    lastGameOverRef.current = false;
-  };
-
   return {
     gameStateRef: gameState,
     taskManagerRef,
@@ -776,7 +816,5 @@ export function useGameState({
     loadPlayerImages,
     loadLocationImages,
     updateGame,
-    startMatch,
-    resetGame,
   };
 }
