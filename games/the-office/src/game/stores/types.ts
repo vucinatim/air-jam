@@ -49,9 +49,17 @@ export interface SpaceGameState {
       ctx: AirJamActionContext,
       payload: { playerId: string; progress: number },
     ) => void;
+    setTaskProgressBatch: (
+      ctx: AirJamActionContext,
+      payload: { progressByPlayerId: Record<string, number> },
+    ) => void;
     updatePlayerStats: (
       ctx: AirJamActionContext,
       payload: { playerId: string; updates: Partial<PlayerStats> },
+    ) => void;
+    updatePlayerStatsBatch: (
+      ctx: AirJamActionContext,
+      payload: { updatesByPlayerId: Record<string, Partial<PlayerStats>> },
     ) => void;
     restoreEnergy: (
       ctx: AirJamActionContext,

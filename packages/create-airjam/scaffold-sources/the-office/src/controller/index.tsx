@@ -27,7 +27,17 @@ import {
   useState,
   type PointerEvent,
 } from "react";
-import { useSpaceStore } from "../game/stores";
+import {
+  useOfficeFinalTotalMoney,
+  useOfficeGameOver,
+  useOfficeMatchPhase,
+  useOfficePlayerAssignment,
+  useOfficePlayerBusyTask,
+  useOfficePlayerStats,
+  useOfficeSelectedPlayerCount,
+  useOfficeTotalMoney,
+  useSpaceStore,
+} from "../game/stores";
 import {
   getPlayerById,
   getPlayerCapabilityHighlights,
@@ -42,53 +52,27 @@ export function ControllerView() {
   const activePadPointerIdRef = useRef<number | null>(null);
   const [padDirection, setPadDirection] = useState({ x: 0, y: 0 });
 
-  const money = useSpaceStore((state) => state.money);
-  const totalMoneyPenalty = useSpaceStore((state) => state.totalMoneyPenalty);
-  const matchPhase = useSpaceStore((state) => state.matchPhase);
-  const playerAssignments = useSpaceStore((state) => state.playerAssignments);
-  const busyPlayers = useSpaceStore((state) => state.busyPlayers);
-  const playerStats = useSpaceStore((state) => state.playerStats);
-  const taskProgress = useSpaceStore((state) => state.taskProgress);
-  const gameOver = useSpaceStore((state) => state.gameOver);
-  const actions = useSpaceStore.useActions();
-
-  const myPlayerId = controller.controllerId
-    ? playerAssignments[controller.controllerId]
-    : null;
-  const myPlayer = myPlayerId ? getPlayerById(myPlayerId) : null;
-  const myTaskName = controller.controllerId
-    ? busyPlayers[controller.controllerId]
-    : null;
-  const isBusy = Boolean(myTaskName);
-  const myStats = controller.controllerId
-    ? playerStats[controller.controllerId]
-    : null;
-  const myProgress = controller.controllerId
-    ? taskProgress[controller.controllerId] || 0
-    : 0;
-  const selectedPlayerCount = useMemo(
-    () =>
-      controller.players.filter((player) =>
-        Boolean(playerAssignments[player.id]),
-      ).length,
-    [controller.players, playerAssignments],
+  const matchPhase = useOfficeMatchPhase();
+  const myPlayerId = useOfficePlayerAssignment(controller.controllerId);
+  const myPlayer = useMemo(
+    () => (myPlayerId ? getPlayerById(myPlayerId) : null),
+    [myPlayerId],
   );
-  const connectedPlayerCount = useMemo(
-    () => controller.players.length,
+  const myTaskName = useOfficePlayerBusyTask(controller.controllerId);
+  const isBusy = Boolean(myTaskName);
+  const connectedPlayerIds = useMemo(
+    () => controller.players.map((player) => player.id),
     [controller.players],
   );
-  const characterOwnerById = useMemo(() => {
-    const ownerByCharacterId = new Map<string, string>();
-    Object.entries(playerAssignments).forEach(([controllerId, playerId]) => {
-      ownerByCharacterId.set(playerId, controllerId);
-    });
-    return ownerByCharacterId;
-  }, [playerAssignments]);
+  const selectedPlayerCount = useOfficeSelectedPlayerCount(connectedPlayerIds);
+  const connectedPlayerCount = controller.players.length;
   const hasCharacterSelection = Boolean(myPlayerId);
   const canStartMatch =
     controller.connectionStatus === "connected" &&
     selectedPlayerCount > 0 &&
     selectedPlayerCount === connectedPlayerCount;
+
+  const actions = useSpaceStore.useActions();
   const shellStatus = useControllerShellStatus({
     roomId: controller.roomId,
     connectionStatus: controller.connectionStatus,
@@ -104,6 +88,9 @@ export function ControllerView() {
     onBackToLobby: () => actions.returnToLobby(),
     onRestart: () => actions.restartMatch(),
   });
+  const handleBackToLobby = lifecycleIntents.onBackToLobby ?? (() => {});
+  const handleRestart = lifecycleIntents.onRestart ?? (() => {});
+
   const showLobbyView = matchPhase === "lobby";
   const showEndedView = matchPhase === "ended";
   const showGameplayView =
@@ -111,6 +98,11 @@ export function ControllerView() {
   const showPausedView = matchPhase === "playing" && !showGameplayView;
   const desiredOrientation =
     showLobbyView || showEndedView ? "portrait" : "landscape";
+  const lobbyPrimaryHelper = canStartMatch
+    ? "Everyone has picked a coworker."
+    : !hasCharacterSelection
+      ? "Pick a coworker to join the shift."
+      : `${selectedPlayerCount}/${connectedPlayerCount} coworkers picked.`;
 
   useControllerTick(
     () => {
@@ -210,20 +202,6 @@ export function ControllerView() {
     actionRef.current = pressed;
   };
 
-  const totalMoney = Object.values(money).reduce(
-    (sum, amount) => sum + amount,
-    0,
-  );
-  const finalTotalMoney = totalMoney - totalMoneyPenalty;
-  const isDead = myStats ? !myStats.alive : false;
-  const energyValue = myStats?.energy ?? 0;
-  const boredomValue = myStats?.boredom ?? 0;
-  const lobbyPrimaryHelper = canStartMatch
-    ? "Everyone has picked a coworker."
-    : !hasCharacterSelection
-      ? "Pick a coworker to join the shift."
-      : `${selectedPlayerCount}/${connectedPlayerCount} coworkers picked.`;
-
   return (
     <div className="controller-view-shell">
       <SurfaceViewport
@@ -277,297 +255,412 @@ export function ControllerView() {
             }
             className="border-[#7d6640] bg-[#3a2f22]/92"
           />
+
           {showLobbyView ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-3">
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="grid grid-cols-2 gap-2">
-                  {PLAYERS.map((playerOption) => {
-                    const ownerControllerId = characterOwnerById.get(
-                      playerOption.id,
-                    );
-                    const selectedByMe = myPlayerId === playerOption.id;
-                    const takenByOtherController =
-                      ownerControllerId !== undefined &&
-                      ownerControllerId !== controller.controllerId;
-                    const highlights = getPlayerCapabilityHighlights(
-                      playerOption.id,
-                      2,
-                    );
-
-                    return (
-                      <button
-                        key={playerOption.id}
-                        type="button"
-                        disabled={takenByOtherController}
-                        onClick={() => {
-                          if (takenByOtherController) return;
-                          actions.selectCharacter({
-                            playerId: playerOption.id,
-                          });
-                        }}
-                        className={`border-2 bg-[#fef3c7] p-2 text-left shadow-sm transition ${
-                          selectedByMe ? "border-[#8b6914]" : "border-[#e5d4ab]"
-                        } ${takenByOtherController ? "opacity-45" : "active:scale-[0.98]"}`}
-                      >
-                        <div className="mb-2 flex items-center gap-2">
-                          <img
-                            src={playerOption.image}
-                            alt={playerOption.name}
-                            className={`h-12 w-12 object-cover object-top ${
-                              takenByOtherController ? "grayscale" : ""
-                            }`}
-                          />
-                          <div>
-                            <p className="text-sm font-bold text-[#5c4a2e]">
-                              {playerOption.name}
-                            </p>
-                            <p className="text-[10px] tracking-[0.12em] text-[#8b6914] uppercase">
-                              {takenByOtherController
-                                ? "Taken"
-                                : selectedByMe
-                                  ? "Selected"
-                                  : "Available"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          {highlights.map((highlight) => (
-                            <div
-                              key={`${playerOption.id}:${highlight.taskId}`}
-                              className="flex items-center justify-between text-[10px] text-[#5c4a2e]"
-                            >
-                              <span>{highlight.label}</span>
-                              <span className="font-semibold">
-                                {highlight.level}/5 •{" "}
-                                {(highlight.durationMs / 1000).toFixed(0)}s
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between px-1">
-                <span className="text-sm font-bold text-[#5c4a2e]">
-                  {hasCharacterSelection
-                    ? `${myPlayer?.name ?? "Worker"} selected`
-                    : "Pick a coworker first"}
-                </span>
-              </div>
-
-              <ControllerPrimaryAction
-                label="Start Match"
-                helper={lobbyPrimaryHelper}
-                disabled={!canStartMatch}
-                onPress={() => actions.startMatch()}
-                icon={<BriefcaseBusiness className="h-6 w-6" />}
-                buttonClassName="rounded-none border-[#8b6914]/30 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11] disabled:bg-[#c7b384] disabled:text-[#fff8df]"
-              />
-            </div>
+            <OfficeControllerLobbyView
+              controllerId={controller.controllerId}
+              connectedPlayerCount={connectedPlayerCount}
+              selectedPlayerCount={selectedPlayerCount}
+              canStartMatch={canStartMatch}
+              hasCharacterSelection={hasCharacterSelection}
+              lobbyPrimaryHelper={lobbyPrimaryHelper}
+            />
           ) : null}
 
-          {showPausedView ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center rounded-[28px] border border-[#7d6640] bg-[#2e241a]/90 p-4 shadow-md">
-              <div className="max-w-sm text-center">
-                <p className="text-xs tracking-[0.2em] text-[#d9bb63] uppercase">
-                  Match Paused
-                </p>
-                <p className="mt-2 text-sm text-[#f3e7bf]">
-                  Waiting for runtime sync...
-                </p>
-              </div>
-            </div>
-          ) : null}
+          {showPausedView ? <OfficeControllerPausedView /> : null}
 
           {showEndedView ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
-              <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[#e5d4ab] bg-[#fff8df] px-5 py-6 text-center shadow-sm">
-                <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
-                  Shift Ended
-                </p>
-                <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
-                  Final Earnings
-                </p>
-                <p className="mt-2 text-3xl font-black text-[#8b6914]">
-                  EUR {finalTotalMoney}
-                </p>
-                <LifecycleActionGroup
-                  phase={matchPhase}
-                  runtimeState={controller.runtimeState}
-                  canInteract={lifecyclePermissions.canInteractForPhase}
-                  onBackToLobby={lifecycleIntents.onBackToLobby}
-                  onRestart={lifecycleIntents.onRestart}
-                  presentation="pill"
-                  visibleKinds={["back-to-lobby", "restart"]}
-                  className="w-full flex-col items-stretch gap-2 pt-1"
-                  buttonClassName="h-11 w-full justify-center rounded-none border-[#8b6914]/30 bg-[#8b6914] px-4 text-[0.6875rem] font-black tracking-[0.16em] text-[#fdf6e3] uppercase hover:bg-[#7a5b11]"
-                />
-              </div>
-            </div>
+            <OfficeControllerEndedView
+              matchPhase={matchPhase}
+              runtimeState={controller.runtimeState}
+              canInteract={lifecyclePermissions.canInteractForPhase}
+              onBackToLobby={handleBackToLobby}
+              onRestart={handleRestart}
+            />
           ) : null}
 
           {showGameplayView ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-3">
-              {gameOver ? (
-                <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
-                  <div className="max-w-sm">
-                    <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
-                      Konec igre
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-[#c06030]">
-                      Vsi igralci so umrli
-                    </p>
-                    <p className="mt-2 text-base text-[#5c4a2e]">
-                      Skupaj zbrano: {totalMoney} EUR
-                    </p>
-                  </div>
-                </div>
-              ) : isDead ? (
-                <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
-                  <div className="max-w-sm">
-                    <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
-                      Ste mrtvi
-                    </p>
-                    <p className="mt-2 text-xl font-bold text-[#5c4a2e]">
-                      Opazujete iz onstranstva
-                    </p>
-                    <p className="mt-2 text-sm text-[#6b7280]">
-                      Vaš del igre je končan. Počakajte na naslednji krog.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                  <div
-                    className="relative min-h-0 rounded-[28px] border border-[#d8c58a] bg-[#fff8df] shadow-md"
-                    onPointerDown={handlePadPointerDown}
-                    onPointerMove={handlePadPointerMove}
-                    onPointerUp={resetPad}
-                    onPointerCancel={resetPad}
-                    onLostPointerCapture={resetPad}
-                    style={{ touchAction: "none" }}
-                  >
-                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-2 p-4">
-                      <div />
-                      <div
-                        className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-                          padDirection.y === -1
-                            ? "border-[#8b6914] bg-[#facc15]/35"
-                            : "border-[#d8c58a] bg-[#fff6d8]"
-                        }`}
-                      >
-                        <ChevronUp className="h-8 w-8" />
-                      </div>
-                      <div />
-                      <div
-                        className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-                          padDirection.x === -1
-                            ? "border-[#8b6914] bg-[#facc15]/35"
-                            : "border-[#d8c58a] bg-[#fff6d8]"
-                        }`}
-                      >
-                        <ChevronLeft className="h-8 w-8" />
-                      </div>
-                      <div className="border border-[#d8c58a] bg-[#fff1bd]/60" />
-                      <div
-                        className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-                          padDirection.x === 1
-                            ? "border-[#8b6914] bg-[#facc15]/35"
-                            : "border-[#d8c58a] bg-[#fff6d8]"
-                        }`}
-                      >
-                        <ChevronRight className="h-8 w-8" />
-                      </div>
-                      <div />
-                      <div
-                        className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-                          padDirection.y === 1
-                            ? "border-[#8b6914] bg-[#facc15]/35"
-                            : "border-[#d8c58a] bg-[#fff6d8]"
-                        }`}
-                      >
-                        <ChevronDown className="h-8 w-8" />
-                      </div>
-                      <div />
-                    </div>
-                  </div>
-
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="grid gap-1.5 border border-[#d8c58a] bg-[#fff8df] p-3 shadow-sm">
-                      <div className="flex items-center justify-between text-[10px] tracking-[0.14em] uppercase">
-                        <span className="text-[#8b6914]">Earned</span>
-                        <span className="font-black text-[#5c4a2e]">
-                          EUR {totalMoney}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] uppercase">
-                        <span className="w-16 shrink-0 text-[#8b6914]">
-                          Energy
-                        </span>
-                        <div className="h-2 flex-1 overflow-hidden bg-[#eadcbc]">
-                          <div
-                            className={`h-full transition-all duration-300 ${
-                              energyValue > 30 ? "bg-[#d46060]" : "bg-[#a03030]"
-                            }`}
-                            style={{ width: `${energyValue}%` }}
-                          />
-                        </div>
-                        <span className="w-8 text-right font-black text-[#5c4a2e]">
-                          {Math.round(energyValue)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] uppercase">
-                        <span className="w-16 shrink-0 text-[#8b6914]">
-                          Happy
-                        </span>
-                        <div className="h-2 flex-1 overflow-hidden bg-[#eadcbc]">
-                          <div
-                            className={`h-full transition-all duration-300 ${
-                              boredomValue > 30
-                                ? "bg-[#5b9bd5]"
-                                : "bg-[#3a7bb5]"
-                            }`}
-                            style={{ width: `${boredomValue}%` }}
-                          />
-                        </div>
-                        <span className="w-8 text-right font-black text-[#5c4a2e]">
-                          {Math.round(boredomValue)}
-                        </span>
-                      </div>
-                      {isBusy ? (
-                        <div className="flex items-center justify-between text-[10px] tracking-[0.14em] uppercase">
-                          <span className="truncate text-[#8b6914]">
-                            Working
-                          </span>
-                          <span className="truncate font-black text-[#5c4a2e]">
-                            {myTaskName}
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="flex min-h-[50%] flex-1 items-center justify-center border border-[#d8c58a] bg-[#fff1bd] px-5 text-4xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-[0.98]"
-                      onTouchStart={() => handleAction(true)}
-                      onTouchEnd={() => handleAction(false)}
-                      onTouchCancel={() => handleAction(false)}
-                      onMouseDown={() => handleAction(true)}
-                      onMouseUp={() => handleAction(false)}
-                      onMouseLeave={() => handleAction(false)}
-                    >
-                      WORK
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <OfficeControllerGameplayView
+              controllerId={controller.controllerId}
+              padDirection={padDirection}
+              handleAction={handleAction}
+              handlePadPointerDown={handlePadPointerDown}
+              handlePadPointerMove={handlePadPointerMove}
+              resetPad={resetPad}
+            />
           ) : null}
         </div>
       </SurfaceViewport>
+    </div>
+  );
+}
+
+function OfficeControllerLobbyView({
+  controllerId,
+  connectedPlayerCount,
+  selectedPlayerCount,
+  canStartMatch,
+  hasCharacterSelection,
+  lobbyPrimaryHelper,
+}: {
+  controllerId: string | null;
+  connectedPlayerCount: number;
+  selectedPlayerCount: number;
+  canStartMatch: boolean;
+  hasCharacterSelection: boolean;
+  lobbyPrimaryHelper: string;
+}) {
+  const playerAssignments = useSpaceStore((state) => state.playerAssignments);
+  const actions = useSpaceStore.useActions();
+  const myPlayerId = controllerId ? playerAssignments[controllerId] ?? null : null;
+  const characterOwnerById = useMemo(() => {
+    const ownerByCharacterId = new Map<string, string>();
+    Object.entries(playerAssignments).forEach(([ownerControllerId, playerId]) => {
+      ownerByCharacterId.set(playerId, ownerControllerId);
+    });
+    return ownerByCharacterId;
+  }, [playerAssignments]);
+  const myPlayer = useMemo(
+    () => (myPlayerId ? getPlayerById(myPlayerId) : null),
+    [myPlayerId],
+  );
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="grid grid-cols-2 gap-2">
+          {PLAYERS.map((playerOption) => {
+            const ownerControllerId = characterOwnerById.get(playerOption.id);
+            const selectedByMe = myPlayerId === playerOption.id;
+            const takenByOtherController =
+              ownerControllerId !== undefined &&
+              ownerControllerId !== controllerId;
+            const highlights = getPlayerCapabilityHighlights(playerOption.id, 2);
+
+            return (
+              <button
+                key={playerOption.id}
+                type="button"
+                disabled={takenByOtherController}
+                onClick={() => {
+                  if (takenByOtherController) {
+                    return;
+                  }
+                  actions.selectCharacter({
+                    playerId: playerOption.id,
+                  });
+                }}
+                className={`border-2 bg-[#fef3c7] p-2 text-left shadow-sm transition ${
+                  selectedByMe ? "border-[#8b6914]" : "border-[#e5d4ab]"
+                } ${takenByOtherController ? "opacity-45" : "active:scale-[0.98]"}`}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <img
+                    src={playerOption.image}
+                    alt={playerOption.name}
+                    className={`h-12 w-12 object-cover object-top ${
+                      takenByOtherController ? "grayscale" : ""
+                    }`}
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-[#5c4a2e]">
+                      {playerOption.name}
+                    </p>
+                    <p className="text-[10px] tracking-[0.12em] text-[#8b6914] uppercase">
+                      {takenByOtherController
+                        ? "Taken"
+                        : selectedByMe
+                          ? "Selected"
+                          : "Available"}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {highlights.map((highlight) => (
+                    <div
+                      key={`${playerOption.id}:${highlight.taskId}`}
+                      className="flex items-center justify-between text-[10px] text-[#5c4a2e]"
+                    >
+                      <span>{highlight.label}</span>
+                      <span className="font-semibold">
+                        {highlight.level}/5 •{" "}
+                        {(highlight.durationMs / 1000).toFixed(0)}s
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between px-1">
+        <span className="text-sm font-bold text-[#5c4a2e]">
+          {hasCharacterSelection
+            ? `${myPlayer?.name ?? "Worker"} selected`
+            : "Pick a coworker first"}
+        </span>
+        <span className="text-[10px] tracking-[0.12em] text-[#8b6914] uppercase">
+          {selectedPlayerCount}/{connectedPlayerCount}
+        </span>
+      </div>
+
+      <ControllerPrimaryAction
+        label="Start Match"
+        helper={lobbyPrimaryHelper}
+        disabled={!canStartMatch}
+        onPress={() => actions.startMatch()}
+        icon={<BriefcaseBusiness className="h-6 w-6" />}
+        buttonClassName="rounded-none border-[#8b6914]/30 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11] disabled:bg-[#c7b384] disabled:text-[#fff8df]"
+      />
+    </div>
+  );
+}
+
+function OfficeControllerPausedView() {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center rounded-[28px] border border-[#7d6640] bg-[#2e241a]/90 p-4 shadow-md">
+      <div className="max-w-sm text-center">
+        <p className="text-xs tracking-[0.2em] text-[#d9bb63] uppercase">
+          Match Paused
+        </p>
+        <p className="mt-2 text-sm text-[#f3e7bf]">
+          Waiting for runtime sync...
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function OfficeControllerEndedView({
+  matchPhase,
+  runtimeState,
+  canInteract,
+  onBackToLobby,
+  onRestart,
+}: {
+  matchPhase: "ended";
+  runtimeState: "playing" | "paused";
+  canInteract: boolean;
+  onBackToLobby: () => void;
+  onRestart: () => void;
+}) {
+  const finalTotalMoney = useOfficeFinalTotalMoney();
+
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
+      <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[#e5d4ab] bg-[#fff8df] px-5 py-6 text-center shadow-sm">
+        <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
+          Shift Ended
+        </p>
+        <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
+          Final Earnings
+        </p>
+        <p className="mt-2 text-3xl font-black text-[#8b6914]">
+          EUR {finalTotalMoney}
+        </p>
+        <LifecycleActionGroup
+          phase={matchPhase}
+          runtimeState={runtimeState}
+          canInteract={canInteract}
+          onBackToLobby={onBackToLobby}
+          onRestart={onRestart}
+          presentation="pill"
+          visibleKinds={["back-to-lobby", "restart"]}
+          className="w-full flex-col items-stretch gap-2 pt-1"
+          buttonClassName="h-11 w-full justify-center rounded-none border-[#8b6914]/30 bg-[#8b6914] px-4 text-[0.6875rem] font-black tracking-[0.16em] text-[#fdf6e3] uppercase hover:bg-[#7a5b11]"
+        />
+      </div>
+    </div>
+  );
+}
+
+function OfficeControllerGameplayView({
+  controllerId,
+  padDirection,
+  handleAction,
+  handlePadPointerDown,
+  handlePadPointerMove,
+  resetPad,
+}: {
+  controllerId: string | null;
+  padDirection: { x: number; y: number };
+  handleAction: (pressed: boolean) => void;
+  handlePadPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+  handlePadPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
+  resetPad: () => void;
+}) {
+  const gameOver = useOfficeGameOver();
+  const myStats = useOfficePlayerStats(controllerId);
+  const totalMoney = useOfficeTotalMoney();
+  const isDead = myStats ? !myStats.alive : false;
+
+  if (gameOver) {
+    return (
+      <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
+        <div className="max-w-sm">
+          <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+            Konec igre
+          </p>
+          <p className="mt-2 text-2xl font-bold text-[#c06030]">
+            Vsi igralci so umrli
+          </p>
+          <p className="mt-2 text-base text-[#5c4a2e]">
+            Skupaj zbrano: {totalMoney} EUR
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isDead) {
+    return (
+      <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
+        <div className="max-w-sm">
+          <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+            Ste mrtvi
+          </p>
+          <p className="mt-2 text-xl font-bold text-[#5c4a2e]">
+            Opazujete iz onstranstva
+          </p>
+          <p className="mt-2 text-sm text-[#6b7280]">
+            Vaš del igre je končan. Počakajte na naslednji krog.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+      <div
+        className="relative min-h-0 rounded-[28px] border border-[#d8c58a] bg-[#fff8df] shadow-md"
+        onPointerDown={handlePadPointerDown}
+        onPointerMove={handlePadPointerMove}
+        onPointerUp={resetPad}
+        onPointerCancel={resetPad}
+        onLostPointerCapture={resetPad}
+        style={{ touchAction: "none" }}
+      >
+        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-2 p-4">
+          <div />
+          <div
+            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
+              padDirection.y === -1
+                ? "border-[#8b6914] bg-[#facc15]/35"
+                : "border-[#d8c58a] bg-[#fff6d8]"
+            }`}
+          >
+            <ChevronUp className="h-8 w-8" />
+          </div>
+          <div />
+          <div
+            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
+              padDirection.x === -1
+                ? "border-[#8b6914] bg-[#facc15]/35"
+                : "border-[#d8c58a] bg-[#fff6d8]"
+            }`}
+          >
+            <ChevronLeft className="h-8 w-8" />
+          </div>
+          <div className="border border-[#d8c58a] bg-[#fff1bd]/60" />
+          <div
+            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
+              padDirection.x === 1
+                ? "border-[#8b6914] bg-[#facc15]/35"
+                : "border-[#d8c58a] bg-[#fff6d8]"
+            }`}
+          >
+            <ChevronRight className="h-8 w-8" />
+          </div>
+          <div />
+          <div
+            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
+              padDirection.y === 1
+                ? "border-[#8b6914] bg-[#facc15]/35"
+                : "border-[#d8c58a] bg-[#fff6d8]"
+            }`}
+          >
+            <ChevronDown className="h-8 w-8" />
+          </div>
+          <div />
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-col gap-3">
+        <OfficeControllerGameplayStatusCard controllerId={controllerId} />
+
+        <button
+          type="button"
+          className="flex min-h-[50%] flex-1 items-center justify-center border border-[#d8c58a] bg-[#fff1bd] px-5 text-4xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-[0.98]"
+          onTouchStart={() => handleAction(true)}
+          onTouchEnd={() => handleAction(false)}
+          onTouchCancel={() => handleAction(false)}
+          onMouseDown={() => handleAction(true)}
+          onMouseUp={() => handleAction(false)}
+          onMouseLeave={() => handleAction(false)}
+        >
+          WORK
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OfficeControllerGameplayStatusCard({
+  controllerId,
+}: {
+  controllerId: string | null;
+}) {
+  const totalMoney = useOfficeTotalMoney();
+  const myStats = useOfficePlayerStats(controllerId);
+  const myTaskName = useOfficePlayerBusyTask(controllerId);
+  const energyValue = myStats?.energy ?? 0;
+  const boredomValue = myStats?.boredom ?? 0;
+
+  return (
+    <div className="grid gap-1.5 border border-[#d8c58a] bg-[#fff8df] p-3 shadow-sm">
+      <div className="flex items-center justify-between text-[10px] tracking-[0.14em] uppercase">
+        <span className="text-[#8b6914]">Earned</span>
+        <span className="font-black text-[#5c4a2e]">EUR {totalMoney}</span>
+      </div>
+      <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] uppercase">
+        <span className="w-16 shrink-0 text-[#8b6914]">Energy</span>
+        <div className="h-2 flex-1 overflow-hidden bg-[#eadcbc]">
+          <div
+            className={`h-full transition-all duration-300 ${
+              energyValue > 30 ? "bg-[#d46060]" : "bg-[#a03030]"
+            }`}
+            style={{ width: `${energyValue}%` }}
+          />
+        </div>
+        <span className="w-8 text-right font-black text-[#5c4a2e]">
+          {Math.round(energyValue)}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] uppercase">
+        <span className="w-16 shrink-0 text-[#8b6914]">Happy</span>
+        <div className="h-2 flex-1 overflow-hidden bg-[#eadcbc]">
+          <div
+            className={`h-full transition-all duration-300 ${
+              boredomValue > 30 ? "bg-[#5b9bd5]" : "bg-[#3a7bb5]"
+            }`}
+            style={{ width: `${boredomValue}%` }}
+          />
+        </div>
+        <span className="w-8 text-right font-black text-[#5c4a2e]">
+          {Math.round(boredomValue)}
+        </span>
+      </div>
+      {myTaskName ? (
+        <div className="flex items-center justify-between text-[10px] tracking-[0.14em] uppercase">
+          <span className="truncate text-[#8b6914]">Working</span>
+          <span className="truncate font-black text-[#5c4a2e]">
+            {myTaskName}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -2,8 +2,11 @@ import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
 import {
   clearPlayerTaskState,
   createDefaultPlayerStats,
+  mergePlayerStatUpdates,
+  mergeRecordUpdates,
   markPlayerDead,
   restorePlayerStat,
+  setRecordValue,
 } from "./space-store-helpers";
 import {
   createInitialSpaceGameState,
@@ -91,21 +94,39 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
           return state;
         }
 
+        if (taskName === null) {
+          const clearedState = clearPlayerTaskState(
+            state.busyPlayers,
+            state.taskProgress,
+            playerId,
+          );
+
+          if (
+            clearedState.busyPlayers === state.busyPlayers &&
+            clearedState.taskProgress === state.taskProgress
+          ) {
+            return state;
+          }
+
+          return {
+            busyPlayers: clearedState.busyPlayers,
+            taskProgress: clearedState.taskProgress,
+          };
+        }
+
+        const nextBusyPlayers = setRecordValue(state.busyPlayers, playerId, taskName);
+        const nextTaskProgress = setRecordValue(state.taskProgress, playerId, 0);
+
+        if (
+          nextBusyPlayers === state.busyPlayers &&
+          nextTaskProgress === state.taskProgress
+        ) {
+          return state;
+        }
+
         return {
-          busyPlayers: taskName
-            ? { ...state.busyPlayers, [playerId]: taskName }
-            : clearPlayerTaskState(
-                state.busyPlayers,
-                state.taskProgress,
-                playerId,
-              ).busyPlayers,
-          taskProgress: taskName
-            ? state.taskProgress
-            : clearPlayerTaskState(
-                state.busyPlayers,
-                state.taskProgress,
-                playerId,
-              ).taskProgress,
+          busyPlayers: nextBusyPlayers,
+          taskProgress: nextTaskProgress,
         };
       }),
 
@@ -123,6 +144,26 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
         };
       }),
 
+    setTaskProgressBatch: ({ role }, { progressByPlayerId }) =>
+      set((state) => {
+        if (!hostOnly(role) || Object.keys(progressByPlayerId).length === 0) {
+          return state;
+        }
+
+        const nextTaskProgress = mergeRecordUpdates(
+          state.taskProgress,
+          progressByPlayerId,
+        );
+
+        if (nextTaskProgress === state.taskProgress) {
+          return state;
+        }
+
+        return {
+          taskProgress: nextTaskProgress,
+        };
+      }),
+
     updatePlayerStats: ({ role }, { playerId, updates }) =>
       set((state) => {
         if (!hostOnly(role)) {
@@ -137,6 +178,26 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
               ...updates,
             },
           },
+        };
+      }),
+
+    updatePlayerStatsBatch: ({ role }, { updatesByPlayerId }) =>
+      set((state) => {
+        if (!hostOnly(role) || Object.keys(updatesByPlayerId).length === 0) {
+          return state;
+        }
+
+        const nextPlayerStats = mergePlayerStatUpdates(
+          state.playerStats,
+          updatesByPlayerId,
+        );
+
+        if (nextPlayerStats === state.playerStats) {
+          return state;
+        }
+
+        return {
+          playerStats: nextPlayerStats,
         };
       }),
 

@@ -3,7 +3,7 @@
  * Uses refs for game state to avoid re-renders during the game loop.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   FIELD_WIDTH,
   FIELD_HEIGHT,
@@ -109,7 +109,7 @@ interface GameCanvasProps {
 /**
  * Game canvas component with rendering and game loop.
  */
-export function GameCanvas({
+export const GameCanvas = memo(function GameCanvas({
   gameStateRef,
   taskManagerRef,
   breakroomActivitiesRef,
@@ -482,4 +482,4 @@ export function GameCanvas({
       />
     </div>
   );
-}
+});

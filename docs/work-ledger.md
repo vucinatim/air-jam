@@ -70,6 +70,7 @@ Latest progress inside this focus:
 2. `the-office` controller now uses a darker outer shell/background treatment so the sticky-note UI reads clearly instead of disappearing into pale yellow-on-pale yellow
 3. `last-band-standing` song/embed validation is now confirmed against the real game script and current song bank, with 77/77 embeddable and no duplicate ids
 4. `code-review` no longer keeps gameplay simulation, rendering, and bot logic inside one oversized host route; that logic is now extracted into `src/game/engine/*`, the store reducers are split into pure store-state helpers, and the scaffold copy now matches the same boundary-first structure
+5. `the-office` no longer routes hot gameplay progress and stats through broad host/controller subscriptions: the host and controller shells are now coarse, stable surfaces, while the canvas runtime owns hot authoritative updates and only narrow Office HUD islands subscribe to per-player progress, stats, and money
 
 ### Current Active Systems Track. Game UI Scaling
 
