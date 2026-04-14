@@ -1,10 +1,16 @@
 import type { JSX } from "react";
 import { resolveAirCaptureArenaProps, type AirCaptureArenaPrefabOverrides } from "./schema";
-import { Flags } from "./flags";
-import { JumpPads } from "./jump-pads";
-import { Obstacles } from "./obstacles";
-import { PlayerBases } from "./player-bases";
+import {
+  AIR_CAPTURE_ARENA_FLAG_INSTANCES,
+  AIR_CAPTURE_ARENA_JUMP_PADS,
+  AIR_CAPTURE_ARENA_OBSTACLES,
+  AIR_CAPTURE_ARENA_PLAYER_BASE_INSTANCES,
+} from "./layout";
 import { SpaceEnvironment } from "./space-environment";
+import { AirCaptureFlag } from "../flag";
+import { AirCaptureJumpPad } from "../jump-pad";
+import { AirCaptureObstacleBlock } from "../obstacle-block";
+import { AirCapturePlayerBase } from "../player-base";
 
 export const paintAirCaptureArena = (
   overrides: AirCaptureArenaPrefabOverrides = {},
@@ -14,10 +20,23 @@ export const paintAirCaptureArena = (
   return (
     <>
       <SpaceEnvironment props={props} />
-      <Obstacles />
-      <PlayerBases />
-      <Flags />
-      <JumpPads />
+      {AIR_CAPTURE_ARENA_OBSTACLES.map((obstacle, index) => (
+        <AirCaptureObstacleBlock
+          key={`obstacle-${index}`}
+          position={obstacle.position}
+          rotationY={obstacle.rotationY}
+          size={obstacle.size}
+        />
+      ))}
+      {AIR_CAPTURE_ARENA_PLAYER_BASE_INSTANCES.map((base) => (
+        <AirCapturePlayerBase key={`base-${base.teamId}`} teamId={base.teamId} />
+      ))}
+      {AIR_CAPTURE_ARENA_FLAG_INSTANCES.map((flag) => (
+        <AirCaptureFlag key={`flag-${flag.teamId}`} teamId={flag.teamId} />
+      ))}
+      {AIR_CAPTURE_ARENA_JUMP_PADS.map((pad) => (
+        <AirCaptureJumpPad key={pad.id} id={pad.id} position={pad.position} />
+      ))}
     </>
   );
 };

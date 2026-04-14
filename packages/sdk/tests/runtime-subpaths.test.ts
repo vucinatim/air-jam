@@ -12,6 +12,8 @@ import {
   createRuntimeObservabilityEvent,
   useRuntimeObservabilitySubscription,
 } from "../src/runtime-observability";
+import { createPrefabCatalog, definePrefab } from "../src/prefabs";
+import { z } from "zod";
 
 describe("runtime experimental subpaths", () => {
   it("re-export the control contract seam from the dedicated leaf", () => {
@@ -59,5 +61,22 @@ describe("runtime experimental subpaths", () => {
 
     expect(event.source).toBe("runtime");
     expect(typeof useRuntimeObservabilitySubscription).toBe("function");
+  });
+
+  it("re-exports the prefab contract seam from the dedicated leaf", () => {
+    const catalog = createPrefabCatalog([
+      definePrefab({
+        id: "test.prefab.default",
+        label: "Test Prefab",
+        category: "prop",
+        description: "A prefab leaf contract.",
+        tags: ["test"],
+        defaultProps: { size: 1 },
+        configSchema: z.object({ size: z.number().positive() }),
+        render: ({ size }) => size,
+      }),
+    ] as const);
+
+    expect(catalog[0]?.id).toBe("test.prefab.default");
   });
 });

@@ -71,6 +71,7 @@ Latest progress inside this focus:
 3. `last-band-standing` song/embed validation is now confirmed against the real game script and current song bank, with 77/77 embeddable and no duplicate ids
 4. `code-review` no longer keeps gameplay simulation, rendering, and bot logic inside one oversized host route; that logic is now extracted into `src/game/engine/*`, the store reducers are split into pure store-state helpers, and the scaffold copy now matches the same boundary-first structure
 5. `the-office` no longer routes hot gameplay progress and stats through broad host/controller subscriptions: the host and controller shells are now coarse, stable surfaces, while the canvas runtime owns hot authoritative updates and only narrow Office HUD islands subscribe to per-player progress, stats, and money
+6. prefab boundaries are now more explicit: the SDK exposes an experimental prefab-contract leaf for future Studio/catalog work, prefab docs now distinguish prefab definitions from scene-population or pooling layers, `pong` and `air-capture` both export game-owned prefab catalogs, `air-capture` no longer keeps plural runtime population mappers like `Ships` and `Collectibles` inside `src/game/prefabs/`, and the first unit-prefab migration is started there with dedicated `jump-pad`, `flag`, `player-base`, and `obstacle-block` prefab folders plus arena-owned layout data
 
 ### Current Active Systems Track. Game UI Scaling
 

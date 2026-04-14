@@ -1,15 +1,13 @@
 import { RigidBody } from "@react-three/rapier";
 import { useMemo } from "react";
 import { BoxGeometry, MeshStandardMaterial } from "three";
-import { OBSTACLES } from "../../constants";
+import type { AirCaptureObstacleBlockPrefabProps } from "./schema";
 
-interface ObstacleProps {
-  position: [number, number, number];
-  rotationY: number;
-  size: [number, number, number];
-}
-
-function Obstacle({ position, rotationY, size }: ObstacleProps) {
+export function AirCaptureObstacleBlock({
+  position,
+  rotationY,
+  size,
+}: AirCaptureObstacleBlockPrefabProps) {
   const geometry = useMemo(
     () => new BoxGeometry(size[0], size[1], size[2]),
     [size],
@@ -40,20 +38,5 @@ function Obstacle({ position, rotationY, size }: ObstacleProps) {
         userData={{ type: "obstacle" }}
       />
     </RigidBody>
-  );
-}
-
-export function Obstacles() {
-  return (
-    <>
-      {OBSTACLES.map((obstacle, index) => (
-        <Obstacle
-          key={index}
-          position={obstacle.position}
-          rotationY={obstacle.rotationY}
-          size={obstacle.size}
-        />
-      ))}
-    </>
   );
 }

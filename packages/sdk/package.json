@@ -109,6 +109,11 @@
       "import": "./dist/capabilities.js",
       "require": "./dist/capabilities.cjs"
     },
+    "./prefabs": {
+      "types": "./src/prefabs.ts",
+      "import": "./src/prefabs.ts",
+      "require": "./dist/prefabs.cjs"
+    },
     "./preview": {
       "types": "./dist/preview.d.ts",
       "import": "./dist/preview.js",
@@ -168,6 +173,9 @@
       ],
       "capabilities": [
         "dist/capabilities.d.ts"
+      ],
+      "prefabs": [
+        "src/prefabs.ts"
       ],
       "preview": [
         "dist/preview.d.ts"

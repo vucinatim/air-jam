@@ -314,6 +314,37 @@ Current scope:
 2. `@air-jam/sdk/runtime-inspection` exposes structural host/controller runtime snapshots
 3. `@air-jam/sdk/runtime-observability` exposes machine-readable runtime event filtering over the canonical runtime event stream
 
+## Prefab Contract Leaf (Experimental)
+
+Prefab definitions should live under a stable, scanable contract instead of
+drifting between scene glue, render layers, and runtime population code.
+
+The first prefab contract helpers now live under the explicit experimental leaf:
+
+```ts
+import {
+  createPrefabCatalog,
+  definePrefab,
+  type PrefabDefinition,
+} from "@air-jam/sdk/prefabs";
+```
+
+Use this leaf when you need a canonical prefab definition that future tooling
+can scan, preview, configure, and catalog.
+
+Important rules:
+
+1. this leaf defines prefab contracts, not a prefab runtime or editor
+2. keep prefab definitions separate from scene population, pooling, or runtime spawn systems
+3. keep larger gameplay behavior in domain, engine, or adapter modules instead of burying it inside prefab metadata
+4. treat this as the future-facing namespace for Studio and agent-oriented prefab tooling
+
+Current scope:
+
+1. `definePrefab(...)` for a stable prefab definition shape
+2. `createPrefabCatalog(...)` for a game-owned prefab registry export
+3. shared preview and placement descriptor types for future Studio/catalog work
+
 ## Controller Feedback Helpers
 
 Use explicit audio ownership at the controller boundary, then consume that runtime-owned manager below it.

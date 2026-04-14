@@ -1,6 +1,11 @@
 import { Vector3 } from "three";
 import { TEAM_IDS, type TeamId } from "../domain/team";
 import {
+  AIR_CAPTURE_ARENA_JUMP_PADS,
+  AIR_CAPTURE_ARENA_OBSTACLES,
+  type ObstacleData,
+} from "../prefabs/arena/layout";
+import {
   useCaptureTheFlagStore,
 } from "../stores/match/capture-the-flag-store";
 import {
@@ -10,10 +15,7 @@ import {
 import { shipPositions, shipRotations } from "../engine/ships/runtime";
 import {
   JUMP_FORCE,
-  JUMP_PADS,
   JUMP_PAD_RADIUS,
-  OBSTACLES,
-  type ObstacleData,
 } from "../constants";
 import { useGameStore } from "../stores/players/game-store";
 import { useHealthStore } from "../stores/players/health-store";
@@ -87,7 +89,7 @@ export class GameContext {
    * Get all obstacles in the game world
    */
   getObstacles(): ObstacleData[] {
-    return OBSTACLES;
+    return AIR_CAPTURE_ARENA_OBSTACLES;
   }
 
   /**
@@ -190,7 +192,7 @@ export class GameContext {
    * Get all jump pads in the game world
    */
   getJumpPads(): JumpPadInfo[] {
-    return JUMP_PADS.map((pad) => ({
+    return AIR_CAPTURE_ARENA_JUMP_PADS.map((pad) => ({
       id: pad.id,
       position: new Vector3(...pad.position),
       radius: JUMP_PAD_RADIUS,

@@ -9,18 +9,13 @@ import {
 import { useRef } from "react";
 import type { Group } from "three";
 import { useHostAudio } from "../../audio/use-host-audio";
-import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../../domain/team";
+import { TEAM_CONFIG } from "../../domain/team";
+import { shipPositions } from "../../engine/ships/runtime";
 import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
 import { FlagModel } from "../../components/models/flag-model";
-import { shipPositions } from "../../engine/ships/runtime";
+import type { AirCaptureFlagPrefabProps } from "./schema";
 
-function FlagCarrierTrail({
-  teamId,
-  carrierId,
-}: {
-  teamId: TeamId;
-  carrierId: string;
-}) {
+function FlagCarrierTrail({ teamId, carrierId }: AirCaptureFlagPrefabProps & { carrierId: string }) {
   const groupRef = useRef<Group>(null);
   const color = TEAM_CONFIG[teamId].color;
 
@@ -52,7 +47,7 @@ function FlagCarrierTrail({
   );
 }
 
-function GroundFlag({ teamId }: { teamId: TeamId }) {
+function GroundFlag({ teamId }: AirCaptureFlagPrefabProps) {
   const flagState = useCaptureTheFlagStore((state) => state.flags[teamId]);
   const tryPickup = useCaptureTheFlagStore((state) => state.tryPickupFlag);
   const color = TEAM_CONFIG[teamId].color;
@@ -83,18 +78,18 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
   };
 
   useFrame((_, delta) => {
+    if (!flagState) {
+      return;
+    }
+
     if (pulseRef.current > 0) {
       pulseRef.current = Math.max(0, pulseRef.current - delta * 3);
     }
 
-    // Update group position when flag position changes
-    // Also explicitly update RigidBody translation to ensure Rapier detects the position change
-    // This is critical for collision detection when flags are dropped
     if (rigidBodyRef.current && groupRef.current) {
       const [x, y, z] = flagState.position;
       const currentPos: [number, number, number] = [x, y, z];
 
-      // Check if position actually changed
       const positionChanged =
         !prevPositionRef.current ||
         prevPositionRef.current[0] !== x ||
@@ -102,14 +97,8 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
         prevPositionRef.current[2] !== z;
 
       if (positionChanged) {
-        // Update visual position
         groupRef.current.position.set(x, y, z);
-
-        // Explicitly update RigidBody translation in world space
-        // Since RigidBody is at [0, 3, 0] relative to group, its world position is [x, y+3, z]
-        // This ensures Rapier's collision detection works correctly when flag position changes
         rigidBodyRef.current.setTranslation({ x, y: y + 3, z }, true);
-
         prevPositionRef.current = currentPos;
       }
     }
@@ -125,8 +114,6 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
         sensor
         onIntersectionEnter={handlePickup}
       >
-        {/* Explicit cylinder collider: [halfHeight, radius] */}
-        {/* Cylinder was height 6, radius 4.5 -> args are [3, 4.5] */}
         <CylinderCollider args={[3, 4.5]} />
       </RigidBody>
 
@@ -146,22 +133,12 @@ function GroundFlag({ teamId }: { teamId: TeamId }) {
   );
 }
 
-function Flag({ teamId }: { teamId: TeamId }) {
+export function AirCaptureFlag({ teamId }: AirCaptureFlagPrefabProps) {
   const flagState = useCaptureTheFlagStore((state) => state.flags[teamId]);
 
-  if (flagState.status === "carried" && flagState.carrierId) {
+  if (flagState?.status === "carried" && flagState.carrierId) {
     return <FlagCarrierTrail teamId={teamId} carrierId={flagState.carrierId} />;
   }
 
   return <GroundFlag teamId={teamId} />;
-}
-
-export function Flags() {
-  return (
-    <>
-      {TEAM_IDS.map((teamId) => (
-        <Flag key={teamId} teamId={teamId} />
-      ))}
-    </>
-  );
 }

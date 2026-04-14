@@ -98,6 +98,7 @@ describe("sdk export surface", () => {
         "./ui",
         "./protocol",
         "./contracts/v2",
+        "./prefabs",
         "./styles.css",
       ]),
     );

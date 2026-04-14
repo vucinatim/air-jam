@@ -21,7 +21,7 @@ export const drawFrame = ({
   countdown,
   botCounts,
 }: DrawFrameOptions): void => {
-  PONG_ARENA_PREFAB.paint(ctx, PONG_ARENA_PREFAB.defaultProps, {
+  PONG_ARENA_PREFAB.render(ctx, PONG_ARENA_PREFAB.defaultProps, {
     showBounds: SHOW_PONG_FIELD_BOUNDS,
   });
 

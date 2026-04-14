@@ -30,6 +30,7 @@ Keep the prefab definition declarative and stable enough that future tooling can
 2. keep metadata, schema, and runtime component clearly separated
 3. put pure behavior in domain/system modules when it outgrows the prefab itself
 4. avoid coupling prefab definitions directly to scene-global mutable state
+5. keep scene-population, spawn, and pooling layers outside `src/game/prefabs/`
 
 ## Config Rules
 
@@ -44,3 +45,4 @@ Keep the prefab definition declarative and stable enough that future tooling can
 2. prefab files that bury behavior, metadata, and config in one component
 3. prefab placement rules that depend on trial-and-error offsets
 4. prefab contracts that are too ad hoc for future scanning or preview generation
+5. plural runtime mappers like `Ships` or `Collectibles` living in `src/game/prefabs/` when they are actually population layers over state

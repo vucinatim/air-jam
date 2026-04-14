@@ -26,6 +26,25 @@ Good prefabs should make it possible to:
 3. generate previews later
 4. scan the prefab directory and build a lightweight catalog
 
+Each game should also expose one game-owned prefab catalog export so future
+Studio or agent tooling has a single honest scan surface instead of searching
+the whole codebase heuristically.
+
+## Prefabs vs Scene Population
+
+Do not mix these two concepts.
+
+1. a prefab is a reusable authored content unit with a stable contract
+2. scene population is the runtime or authored layer that places many prefab instances into a scene
+
+Examples of scene population:
+
+1. spawn one ship per connected player
+2. render all collectibles from replicated store state
+3. fill an arena with obstacle instances from a level layout
+
+Those population or pooling layers should live outside `src/game/prefabs/`.
+
 ## Recommended Shape
 
 Move toward a folder per prefab under `src/game/prefabs/`.
@@ -45,7 +64,7 @@ The exact filenames can vary, but the boundary should stay clear:
 
 1. metadata and registry-facing contract
 2. config schema and defaults
-3. runtime component
+3. runtime render entry
 4. optional preview descriptor
 
 ## Recommended Metadata
@@ -59,8 +78,9 @@ Each prefab should converge on stable fields like:
 5. `tags`
 6. `defaultProps`
 7. `configSchema`
-8. `component`
+8. `render`
 9. `preview`
+10. `placement`
 
 ## Placement Rule
 
@@ -83,6 +103,7 @@ Use:
 1. prefab files for reusable content assembly
 2. domain or system modules for larger rules and behavior
 3. adapters for engine or renderer integration
+4. scene-population or pooling modules for multi-instance runtime ownership
 
 ## Decision Rule
 

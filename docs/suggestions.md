@@ -30,6 +30,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 24. Run one repo-wide game-template naming pass so equivalent concerns stop drifting across folder names. Current examples: `pong` uses `src/ui` where most games use `src/components` and/or `src/game/ui`, and `last-band-standing` uses top-level `src/store` while most other games keep gameplay state under `src/game/stores`. Pick one convention and mirror it through scaffold sources.
 25. Revisit The Office runtime ownership after the render-isolation refactor and decide whether player positions, pending tasks, and other per-frame runtime refs should graduate into an explicit host-side runtime snapshot contract for the visual harness and future agent tooling, instead of remaining hook-local mutable refs forever.
 26. If another launch game needs the same hot-state isolation pattern, extract only the tiny shared pieces that proved reusable here, such as guarded record-merge helpers or narrow replicated-selector utilities, rather than promoting game-specific runtime ownership into a broader framework abstraction too early.
+27. Once the new prefab contract settles, add a dedicated prefab-preview harness path that can render one prefab at a time with controllable config and stable camera/placement metadata, so future Studio and agent tooling can iterate on prefab units without booting a full match scene.
+28. Once two or three games actually need it, extract a tiny shared scene-population contract for runtime spawn/pool layers that map state or authored layout into many prefab instances, but keep it separate from the prefab definition contract so pooling and population do not leak back into `src/game/prefabs/`.
 
 ## Framework Boundary Follow-Ups
 

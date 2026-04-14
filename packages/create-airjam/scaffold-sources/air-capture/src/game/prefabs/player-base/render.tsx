@@ -6,11 +6,10 @@ import {
 } from "@react-three/rapier";
 import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, Color, CylinderGeometry, DoubleSide } from "three";
-import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../../domain/team";
-import {
-  useCaptureTheFlagStore,
-} from "../../stores/match/capture-the-flag-store";
 import { useHostAudio } from "../../audio/use-host-audio";
+import { TEAM_CONFIG } from "../../domain/team";
+import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
+import type { AirCapturePlayerBasePrefabProps } from "./schema";
 
 const BASE_RADIUS = 10;
 const BASE_HEIGHT = 8;
@@ -31,17 +30,13 @@ const baseFragment = `
   uniform float whiteAmount;
   void main() {
     float alpha = 1.0 - vUv.y;
-    alpha = pow(alpha, 1.2); 
+    alpha = pow(alpha, 1.2);
     vec3 color = mix(baseColor, vec3(1.0), whiteAmount);
     gl_FragColor = vec4(color, alpha * 0.8);
   }
 `;
 
-interface TeamBaseProps {
-  teamId: TeamId;
-}
-
-function TeamBase({ teamId }: TeamBaseProps) {
+export function AirCapturePlayerBase({ teamId }: AirCapturePlayerBasePrefabProps) {
   const handleBaseEntry = useCaptureTheFlagStore(
     (state) => state.handleBaseEntry,
   );
@@ -53,7 +48,6 @@ function TeamBase({ teamId }: TeamBaseProps) {
 
   const playersInsideRef = useRef<Set<string>>(new Set());
   const rigidBodyRef = useRef<RapierRigidBody>(null);
-
   const uniformsRef = useRef({
     baseColor: { value: new Color(team.color) },
     whiteAmount: { value: 0 },
@@ -66,8 +60,8 @@ function TeamBase({ teamId }: TeamBaseProps) {
         BASE_RADIUS,
         BASE_HEIGHT + GRADIENT_EXTEND_BELOW,
         32,
-        1, // heightSegments
-        true, // openEnded - remove top and bottom caps
+        1,
+        true,
       ),
     [],
   );
@@ -77,12 +71,9 @@ function TeamBase({ teamId }: TeamBaseProps) {
     [],
   );
 
-  // Sync Physics Position
   useEffect(() => {
     if (rigidBodyRef.current && basePosition) {
       const [x, , z] = basePosition;
-      // setTranslation uses WORLD coordinates.
-      // By keeping the parent group at [0,0,0], this sets the absolute position correctly.
       rigidBodyRef.current.setTranslation(
         { x, y: COLLISION_HEIGHT / 2, z },
         true,
@@ -126,13 +117,11 @@ function TeamBase({ teamId }: TeamBaseProps) {
     playersInsideRef.current.delete(userData.controllerId);
   };
 
-  // FIX: Removed position={[...]} from this group
   return (
     <group>
       <RigidBody
         ref={rigidBodyRef}
         type="fixed"
-        // Initial position set here, subsequent updates handled by useEffect
         position={[basePosition[0], COLLISION_HEIGHT / 2, basePosition[2]]}
         sensor
         colliders="hull"
@@ -159,15 +148,5 @@ function TeamBase({ teamId }: TeamBaseProps) {
         </group>
       </RigidBody>
     </group>
-  );
-}
-
-export function PlayerBases() {
-  return (
-    <>
-      {TEAM_IDS.map((teamId) => (
-        <TeamBase key={teamId} teamId={teamId} />
-      ))}
-    </>
   );
 }

@@ -23,6 +23,7 @@ export default defineConfig({
     "src/runtime-inspection.ts",
     "src/runtime-observability.ts",
     "src/capabilities.ts",
+    "src/prefabs.ts",
     "src/preview.ts",
     "src/contracts/v2/index.ts",
   ],

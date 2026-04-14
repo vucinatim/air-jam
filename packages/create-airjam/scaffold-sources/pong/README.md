@@ -202,8 +202,9 @@ src/
   │   │   └── arena/
   │   │       ├── prefab.ts       # Metadata and registry-facing prefab contract
   │   │       ├── schema.ts       # Defaults and serializable config rules
-  │   │       ├── paint.ts        # Runtime scene composition helper
+  │   │       ├── paint.ts        # Runtime render helper used by the prefab contract
   │   │       └── preview.ts      # Future catalog/preview descriptor
+  │   ├── scene-population/       # Optional runtime spawn/pool layers when many prefab instances are mapped from state
   │   ├── debug/
   │   │   └── field-debug.ts      # Isolated debug-only toggles
   │   ├── ui/
@@ -248,7 +249,8 @@ When extending this template, inspect these modules before adding new code:
 - `src/game/engine/runtime-state.ts` for per-frame mutable runtime values that do not belong in React state
 - `src/game/prefabs/arena/prefab.ts` for metadata and registry-facing prefab shape
 - `src/game/prefabs/arena/schema.ts` for defaults and config validation
-- `src/game/prefabs/arena/paint.ts` for reusable scene composition owned by the prefab
+- `src/game/prefabs/arena/paint.ts` for the prefab-owned render helper
+- `src/game/scene-population/` when a game needs runtime spawn or pooling layers that should not be treated as prefab definitions
 - `src/game/debug/field-debug.ts` for isolated debug-only helpers
 
 Use these as the default boundaries instead of introducing new mixed files.

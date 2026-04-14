@@ -1,3 +1,4 @@
+import { definePrefab } from "@air-jam/sdk/prefabs";
 import { paintPongArena } from "./paint";
 import { PONG_ARENA_PREVIEW } from "./preview";
 import {
@@ -5,7 +6,7 @@ import {
   pongArenaPrefabSchema,
 } from "./schema";
 
-export const PONG_ARENA_PREFAB = {
+export const PONG_ARENA_PREFAB = definePrefab({
   id: "pong.arena.default",
   label: "Pong Arena",
   category: "arena",
@@ -14,5 +15,17 @@ export const PONG_ARENA_PREFAB = {
   defaultProps: PONG_ARENA_DEFAULT_PROPS,
   configSchema: pongArenaPrefabSchema,
   preview: PONG_ARENA_PREVIEW,
-  paint: paintPongArena,
-} as const;
+  render: paintPongArena,
+  placement: {
+    origin: "center",
+    bounds: {
+      width: PONG_ARENA_DEFAULT_PROPS.fieldWidth,
+      height: PONG_ARENA_DEFAULT_PROPS.fieldHeight,
+    },
+    footprint: {
+      kind: "box",
+      width: PONG_ARENA_DEFAULT_PROPS.fieldWidth,
+      depth: PONG_ARENA_DEFAULT_PROPS.fieldHeight,
+    },
+  },
+});

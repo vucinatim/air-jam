@@ -29,7 +29,12 @@ src/
     stores/                   # replicated match/player/world/debug state
     engine/                   # runtime orchestration hooks plus pure ship/projectile/lifecycle/runtime helpers
     prefabs/
-      arena/                  # canonical arena prefab contract and composition
+      arena/                  # canonical arena prefab contract plus default scene layout data
+      jump-pad/               # reusable jump-pad prefab contract
+      flag/                   # reusable team-flag prefab contract
+      player-base/            # reusable team-base prefab contract
+      obstacle-block/         # reusable obstacle-block prefab contract
+    scene-population/         # runtime spawn/pool layers that map state into many prefab/entity instances
     ui/                       # shared game-facing HUD overlays
     debug/                    # host/debug tooling and cheat surfaces
     components/
@@ -53,8 +58,9 @@ tests/
 - `src/game/stores/` owns replicated state and thin store wiring around pure transition helpers and explicit interaction outcomes.
 - `src/game/engine/` owns hot runtime orchestration hooks plus pure ship/projectile/lifecycle/runtime stepping helpers, not lobby or shell UI.
 - `src/game/engine/` and shell-facing host/controller code should treat `matchPhase` as the lifecycle contract and `runtimeState` as pause/play only. Use the shared lifecycle helpers when a shell view needs a simplified phase.
-- `src/game/prefabs/arena/` owns the canonical arena prefab contract (`schema`, `preview`, `prefab`, `paint`).
-- `src/game/prefabs/` owns world composition entry surfaces, not debug/editor concerns.
+- `src/game/prefabs/arena/` owns the canonical arena prefab contract plus the default arena layout data that places prefab instances.
+- `src/game/prefabs/` owns scanable prefab definitions and game-owned prefab catalogs.
+- `src/game/scene-population/` owns runtime spawn, pooling, and multi-instance mapping layers such as "render one ship per connected player".
 - `src/game/debug/` is where host-only cheat, recorder, and inspection surfaces belong.
 - `src/game/components/entities/` owns runtime leaf gameplay actors, not their primary frame orchestration.
 - `src/game/components/models/` owns reusable render models.

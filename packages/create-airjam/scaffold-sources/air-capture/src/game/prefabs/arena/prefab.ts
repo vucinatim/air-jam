@@ -1,3 +1,4 @@
+import { definePrefab } from "@air-jam/sdk/prefabs";
 import { paintAirCaptureArena } from "./paint-arena";
 import { AIR_CAPTURE_ARENA_PREVIEW } from "./preview";
 import {
@@ -5,7 +6,7 @@ import {
   airCaptureArenaPrefabSchema,
 } from "./schema";
 
-export const AIR_CAPTURE_ARENA_PREFAB = {
+export const AIR_CAPTURE_ARENA_PREFAB = definePrefab({
   id: "air-capture.arena.default",
   label: "Air Capture Arena",
   category: "arena",
@@ -15,5 +16,15 @@ export const AIR_CAPTURE_ARENA_PREFAB = {
   defaultProps: AIR_CAPTURE_ARENA_DEFAULT_PROPS,
   configSchema: airCaptureArenaPrefabSchema,
   preview: AIR_CAPTURE_ARENA_PREVIEW,
-  paint: paintAirCaptureArena,
-} as const;
+  render: paintAirCaptureArena,
+  placement: {
+    origin: "center",
+    bounds: {
+      radius: AIR_CAPTURE_ARENA_DEFAULT_PROPS.arenaRadius,
+    },
+    footprint: {
+      kind: "circle",
+      radius: AIR_CAPTURE_ARENA_DEFAULT_PROPS.arenaRadius,
+    },
+  },
+});

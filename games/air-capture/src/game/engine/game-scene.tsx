@@ -17,9 +17,9 @@ import { useCameraViewports } from "./use-camera-viewports";
 import { useMultiViewportRenderer } from "./use-multi-viewport-renderer";
 import { ArenaBounds } from "./arena-bounds";
 import { FreeFlyCamera } from "./free-fly-camera";
-import { Collectibles } from "../prefabs/collectibles";
 import { AirCaptureArena } from "../prefabs/arena";
-import { Ships } from "../prefabs/ships";
+import { Collectibles } from "../scene-population/collectibles";
+import { Ships } from "../scene-population/ships";
 
 function SpectatorCamera() {
   const cameraRef = useRef<ThreePerspectiveCamera>(null);
