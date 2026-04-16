@@ -3,23 +3,9 @@
 import {
   createAirJamStore,
   type AirJamActionContext,
+  DEFAULT_PLATFORM_SETTINGS,
   type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
-
-const DEFAULT_ARCADE_PLATFORM_SETTINGS: PlatformSettingsSnapshot = {
-  audio: {
-    masterVolume: 1,
-    musicVolume: 0.8,
-    sfxVolume: 1,
-  },
-  accessibility: {
-    reducedMotion: false,
-    highContrast: false,
-  },
-  feedback: {
-    hapticsEnabled: true,
-  },
-};
 
 export const AIR_JAM_ARCADE_PLATFORM_SETTINGS_STORE_DOMAIN = "arcade.settings";
 
@@ -36,7 +22,7 @@ interface ArcadePlatformSettingsStoreState {
 export const useArcadePlatformSettingsStore =
   createAirJamStore<ArcadePlatformSettingsStoreState>(
     (set) => ({
-      settings: DEFAULT_ARCADE_PLATFORM_SETTINGS,
+      settings: DEFAULT_PLATFORM_SETTINGS,
       actions: {
         setSettings: (ctx, payload) => {
           if (ctx.role !== "host") {

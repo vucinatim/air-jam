@@ -44,5 +44,53 @@ export const registerVisualCommands = (program) => {
       runCommand("pnpm", args);
     });
 
+  visualCommand
+    .command("prefab-capture")
+    .description("Capture one isolated prefab surface for a repo game")
+    .requiredOption("--game <id>", "Repo game to capture")
+    .requiredOption("--prefab <id>", "Prefab capture id or prefab id")
+    .option(
+      "--variant <key=value>",
+      "Prefab variant parameter; repeat for multiple values",
+      (value, previous = []) => {
+        previous.push(value);
+        return previous;
+      },
+      [],
+    )
+    .option(
+      "--mode <mode>",
+      "Visual harness runtime mode",
+      "standalone-dev",
+    )
+    .option(
+      "--secure",
+      "Run the visual harness over trusted local HTTPS",
+      false,
+    )
+    .action((options) => {
+      const args = [
+        "exec",
+        "tsx",
+        "./scripts/repo/visual/prefab-run.ts",
+        "--game",
+        options.game,
+        "--prefab",
+        options.prefab,
+        "--mode",
+        options.mode,
+      ];
+
+      for (const variant of options.variant) {
+        args.push("--variant", variant);
+      }
+
+      if (options.secure) {
+        args.push("--secure");
+      }
+
+      runCommand("pnpm", args);
+    });
+
   return visualCommand;
 };

@@ -12,7 +12,12 @@ import { repoRoot } from '../lib/paths.mjs';
 import { startWorkspaceArcadeBuiltStack } from '../../workspace/lib/arcade-built-stack.mjs';
 import { startWorkspaceStandaloneLiveStack } from '../../workspace/lib/standalone-live-stack.mjs';
 
-const ARTIFACT_ROOT = path.join(repoRoot, '.airjam', 'artifacts', 'visual');
+export const VISUAL_ARTIFACT_ROOT = path.join(
+  repoRoot,
+  '.airjam',
+  'artifacts',
+  'visual',
+);
 
 const resolveScenarioModulePath = (gameId: string): string => {
   const tsPath = path.join(repoRoot, 'games', gameId, 'visual', 'scenarios.ts');
@@ -54,7 +59,7 @@ const loadScenarioPack = async (
   return scenarioPack;
 };
 
-const startRepoVisualStack = async ({
+export const startRepoVisualStack = async ({
   gameId,
   mode,
   secure,
@@ -88,7 +93,7 @@ export const runVisualCaptureCommand = async ({
     scenarioId,
     mode,
     secure,
-    artifactRoot: ARTIFACT_ROOT,
+    artifactRoot: VISUAL_ARTIFACT_ROOT,
     loadScenarioPack,
     startStack: startRepoVisualStack,
     onCaptureStart: ({ gameId: activeGameId, mode: activeMode, scenarioCount }) => {

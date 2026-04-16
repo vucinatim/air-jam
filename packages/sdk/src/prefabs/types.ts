@@ -9,6 +9,11 @@ export interface PrefabPreviewDescriptor {
   accentColor?: string;
   dimensions?: Record<string, number>;
   defaultVariant?: string;
+  camera?: {
+    position: readonly [number, number, number];
+    target: readonly [number, number, number];
+    fov?: number;
+  };
 }
 
 export interface PrefabBoundsDescriptor {

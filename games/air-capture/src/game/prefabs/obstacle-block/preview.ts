@@ -6,4 +6,9 @@ export const AIR_CAPTURE_OBSTACLE_BLOCK_PREVIEW = {
     height: 8,
     depth: 8,
   },
+  camera: {
+    position: [14, 10, 14],
+    target: [0, 4, 0],
+    fov: 36,
+  },
 } as const;

@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-11  
+Last updated: 2026-04-15 (late pass)  
 Status: active
 
 This is the single active repo-wide ledger.
@@ -22,7 +22,7 @@ Air Jam should now move through prerelease work in this order:
 4. do prerelease cleanup
 5. run prerelease devex and SDK checks
 6. run prerelease security checks
-7. run the final prerelease overpass in [Final Prerelease Manual Check Plan](./plans/final-prerelease-manual-check-plan.md)
+7. run the final prerelease overpass in [Final Release Checks Plan](./plans/final-release-checks-plan.md)
 8. finish final docs alignment and polish
 9. upload the games
 10. finish media, blogs, and final landing-page overlook
@@ -36,7 +36,7 @@ Canonical prerelease plan: [V1 Release Launch Plan](./plans/v1-release-launch-pl
 After the 2026-04-09 planning audit:
 
 1. several plans were archived because their implementation was already complete or only manual verification remained
-2. the active implementation surface is now intentionally empty
+2. the broad implementation surface was intentionally emptied after that audit; the only new active implementation work now is the bounded final prerelease hardening pass
 3. all scattered manual verification now belongs in one final prerelease plan instead of staying spread across subsystem docs
 
 ## Active Plans
@@ -51,58 +51,72 @@ Still open here:
 1. sequence and coordinate the full release path after prerelease implementation is done
 2. cover hosted uploads, media/blogs, live deploy, and launch execution
 
-### Current Focus. Stage 3 Polish
+### Current Focus. Final Prerelease Readiness
 
 Status: active execution focus
-Plan: [Stage 3 Polish Plan](./plans/stage-3-polish-plan.md)
+Plans:
+
+1. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
+2. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
+3. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 
 Immediate next work:
 
-1. repair repo truth first: resolve the current typecheck and lint blockers so prerelease validation reflects the real product state instead of known-red technical debt
-2. keep the visual harness, but repair its current generic/typecheck path and position it as optional advanced support rather than the default game-authoring path
-3. continue launch-game polish after validation truth is restored, with the next highest-signal pass focused on `code-review`, `the-office`, and `last-band-standing`
-4. keep shared UI/surface cleanup bounded to what directly improves launch quality or developer clarity; do not reopen broad framework redesign unless a real blocker appears
-5. once repo truth and launch-game polish are good enough, move into prerelease cleanup, then devex/security checks, then the final manual overpass
+1. complete one last bounded hardening and cleanup pass on the still-worth-doing prerelease items surfaced by the project review
+2. keep that pass focused on release leverage: ops guardrails, abuse protection, dead public seams, cheap metadata/schema fixes, and release-facing cleanup
+3. once that pass is complete, run the final prerelease manual overpass for the launch set and hosted lanes
+4. finish uploads, release media/blogs, deploy, and live validation in the canonical release order
 
 Latest progress inside this focus:
 
-1. `code-review` got a first gameplay-feel tightening pass by reducing glide, tightening coast friction, and softening bot aggression/punishment so the match reads as more learnable
-2. `the-office` controller now uses a darker outer shell/background treatment so the sticky-note UI reads clearly instead of disappearing into pale yellow-on-pale yellow
-3. `last-band-standing` song/embed validation is now confirmed against the real game script and current song bank, with 77/77 embeddable and no duplicate ids
-4. `code-review` no longer keeps gameplay simulation, rendering, and bot logic inside one oversized host route; that logic is now extracted into `src/game/engine/*`, the store reducers are split into pure store-state helpers, and the scaffold copy now matches the same boundary-first structure
-5. `the-office` no longer routes hot gameplay progress and stats through broad host/controller subscriptions: the host and controller shells are now coarse, stable surfaces, while the canvas runtime owns hot authoritative updates and only narrow Office HUD islands subscribe to per-player progress, stats, and money
-6. prefab boundaries are now more explicit: the SDK exposes an experimental prefab-contract leaf for future Studio/catalog work, prefab docs now distinguish prefab definitions from scene-population or pooling layers, `pong` and `air-capture` both export game-owned prefab catalogs, `air-capture` no longer keeps plural runtime population mappers like `Ships` and `Collectibles` inside `src/game/prefabs/`, and the first unit-prefab migration is started there with dedicated `jump-pad`, `flag`, `player-base`, and `obstacle-block` prefab folders plus arena-owned layout data
+1. the hidden prerelease blockers are fixed at the shared boundary: server runtime/test isolation, embedded controller bridge attach parsing, preview session/window identity, platform settings contract alignment, and the Pong controller smoke selector contract
+2. full `pnpm run check:release` is green again, including typecheck, tests, builds, perf sanity, browser smoke, and scaffold smoke
+3. `code-review`, `the-office`, and `last-band-standing` already received the bounded Stage 3 pass that was called out earlier
+4. the preview workspace rollout is complete enough to archive as a finished implementation track rather than leaving it in `docs/plans`
+5. the 2026-04-15 project review has now been converted into one explicit final hardening-and-cleanup plan instead of being left as a loose snapshot with implied follow-up
+6. the late 2026-04-15 doc cleanup pass collapsed all prerelease and release checks into one consolidated [Final Release Checks Plan](./plans/final-release-checks-plan.md) and archived the Game UI Scaling Plan and Stage 3 Polish Plan now that their implementation tracks are complete
+7. the dead `apps/platform/src/app/__airjam/` and `apps/platform/src/app/__airjam-local-builds/` route trees are deleted; only the live `airjam-local-builds/` route remains
+8. Workstream 1 of the hardening-and-cleanup plan (review doc alignment and execution-bucket rewrite) is complete
 
-### Current Active Systems Track. Game UI Scaling
+### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 
 Status: active  
-Plan: [Game UI Scaling Plan](./plans/game-ui-scaling-plan.md)
+Plan: [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
 
 Current truth:
 
-1. the correct target model is now explicitly full-bleed fluid layout plus proportional UI scaling, not centered fixed-stage containment
-2. `SurfaceViewport` now uses full-bleed surface semantics and no longer centers a contained black-bar stage
-3. the shared surface now publishes a local `--airjam-ui-scale` into Tailwind's own sizing/theme variables instead of introducing an Air Jam-specific class system
-4. the desired DX remains normal Tailwind authoring by default, with game-specific cleanup only where old raw px/rem styling still fights the shared scale model
-5. the current work on this track is now tuning and fallout cleanup on the new shared semantics rather than defending the rejected implementation
+1. this is the last intended fix/improve/polish implementation pass before the final manual prerelease overpass
+2. the pass is intentionally bounded to release leverage, not broad architecture cleanup
+3. it owns the still-worth-doing review fallout: docs truth alignment, release ops guardrails, platform abuse/security cleanup, cheap metadata/schema tightening, and release-facing cleanup such as prefab-preview extraction
+4. items that are valid but not v1-critical now belong either in later release stages or in `docs/suggestions.md`, not in another new active plan
 
-### Recently Closed Validation Blocker. Visual Harness Typecheck Truth
+### Recently Archived Implementation Track. Game UI Scaling
 
-Status: completed inside Stage 3  
-Plan: [Stage 3 Polish Plan](./plans/stage-3-polish-plan.md)
+Status: archived 2026-04-15  
+Plan: [Game UI Scaling Plan (Archived)](./archive/game-ui-scaling-plan-2026-04-15.md)
 
 Current truth:
 
-1. the visual harness remains valuable as an advanced deterministic setup and machine-readable evaluation lane
-2. it is no longer assumed to be the primary way humans or agents visually inspect games during normal development; browser-driven inspection is now the default visual path
-3. the prerelease move was to keep the harness, repair the generic/typecheck break, and keep it available as optional advanced support
-4. that repair is now landed in the shared visual-harness contract layer, and the affected launch games are back to clean typecheck
-5. repo validation truth is restored, so the active execution focus can move back to launch-game polish
+1. `SurfaceViewport` ships full-bleed surface semantics and publishes `--airjam-ui-scale` into Tailwind's sizing/theme variables
+2. the launch set and scaffold sources consume that shared scale model
+3. any residual styling fallout now lives inside the hardening-and-cleanup plan, not a separate active plan
+
+### Recently Archived Implementation Track. Stage 3 Polish
+
+Status: archived 2026-04-15  
+Plan: [Stage 3 Polish Plan (Archived)](./archive/stage-3-polish-plan-2026-04-15.md)
+
+Current truth:
+
+1. the shared-shell pass and the per-game polish sweep landed for the full launch set
+2. Arcade-built lobby captures are green for all five launch games after the pass
+3. the plan's own rule was to stop Stage 3 and hand off to the final manual proof once no new high-signal issue appeared
+4. any surviving polish items now surface as findings inside the final checks plan and loop back into the hardening-and-cleanup plan only if they turn out to matter for launch
 
 ### Recently Completed Implementation Track. Preview Controller Workspace Rework
 
 Status: completed  
-Plan: [Controller Preview Workspace Plan](./plans/controller-preview-workspace-plan.md)
+Plan: [Controller Preview Workspace Plan](./archive/controller-preview-workspace-plan-2026-04-14.md)
 
 Current truth:
 
@@ -161,7 +175,7 @@ Current truth:
 ### Priority 2. Final Manual Release Proof
 
 Status: planned  
-Plan: [Final Prerelease Manual Check Plan](./plans/final-prerelease-manual-check-plan.md)
+Plan: [Final Release Checks Plan](./plans/final-release-checks-plan.md)
 
 This plan now owns:
 
@@ -219,6 +233,9 @@ The audit confirmed:
 17. the repo is now ready to move from shared blocker hunting into Stage 3 polish, with one bounded polish plan driving the next pass
 18. the shared shell no longer depends on rough transitional styling alone: the runtime header, connection pill, join controls, platform Arcade chrome, controller menu/fullscreen prompt, and preview workspace now share a calmer neutral shell treatment by default
 19. refreshed `arcade-built` lobby capture metadata is green again for `pong`, `air-capture`, `code-review`, `last-band-standing`, and `the-office` after the shared-shell pass
+20. the prefab contract now has a real first consumer surface beyond docs: `air-capture` ships an internal host-side prefab capture surface plus a `repo visual prefab-capture` lane that renders one prefab at a time using prefab-owned preview camera metadata and placement footprints, giving Studio and agent tooling a stable isolated inspection lane without turning prefab review into a product page
+21. the canonical release gate is green again after the latest shared fix pass, so repo truth is no longer red because of hidden server, SDK, or smoke-contract breakage
+22. the preview workspace track is no longer an active implementation plan; remaining preview ideas now belong either in the final manual overpass or in durable follow-ups
 
 ## Documentation Hygiene Tasks
 

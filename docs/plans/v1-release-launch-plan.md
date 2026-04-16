@@ -1,6 +1,6 @@
 # Air Jam V1 Release Launch Plan
 
-Last updated: 2026-04-09  
+Last updated: 2026-04-15  
 Status: active
 
 Related docs:
@@ -14,11 +14,12 @@ Related docs:
 7. [Prerelease Systems Closeout Plan (Archived)](../archive/prerelease-systems-closeout-plan-2026-04-09.md)
 8. [Controller Preview Dock Plan (Archived)](../archive/controller-preview-dock-plan-2026-04-09.md)
 9. [Agent Runtime Contract Plan (Archived)](../archive/agent-runtime-contract-plan-2026-04-09.md)
-10. [Stage 3 Polish Plan](./stage-3-polish-plan.md)
-11. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-12. [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
-13. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
-14. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
+10. [Stage 3 Polish Plan (Archived)](../archive/stage-3-polish-plan-2026-04-15.md)
+11. [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md)
+12. [Final Release Checks Plan](./final-release-checks-plan.md)
+13. [Controller Reconnect And Resume Plan](../archive/controller-reconnect-resume-plan-2026-04-07.md)
+14. [Postgres Dev And Analytics Test DB Plan](../archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
+15. [Controller Capability And Perf Hardening Plan](../archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
 
 ## Purpose
 
@@ -82,7 +83,7 @@ Air Jam should move through launch execution in this order:
 4. do prerelease cleanup
 5. run prerelease devex and SDK checks
 6. run prerelease security checks
-7. run the last prerelease overpass and manual proof pass in [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+7. run the last prerelease overpass and manual proof pass in [Final Release Checks Plan](./final-release-checks-plan.md)
 8. finish final docs alignment and polish
 9. upload the games through the hosted release lane
 10. finish release media, blogs, and final landing-page overlook
@@ -93,8 +94,9 @@ Air Jam should move through launch execution in this order:
 Current mapping:
 
 1. remaining implementation work currently means:
-   1. no separate implementation plan remains active
-   2. deferred visual-harness-driven cleanup stays in Stage 3 polish, not Stage 1 implementation
+   1. no broad feature implementation plan remains active
+   2. the only active late implementation/improvement track is [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md)
+   3. deferred visual-harness-driven cleanup stays in Stage 3 polish or later cleanup, not Stage 1 implementation
 2. prerelease devex and SDK checks should happen after cleanup/polish, not before unfinished implementation
 3. prerelease security checks should happen after the product shape is settled enough that findings do not churn with large feature edits
 4. hosted upload, media/blogs, deployment, and launch distribution are late-stage release execution, not active prerelease implementation
@@ -107,7 +109,8 @@ Complete every remaining product/framework feature that still belongs in v1 befo
 
 Current remaining implementation tracks:
 
-1. none
+1. none at the broad feature level
+2. the only active late pass is the bounded [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md)
 
 ### Stage 2. Fixes
 
@@ -122,19 +125,14 @@ Immediate known fix target:
 1. continue resolving post-implementation fallout without reopening feature scope
 2. keep validating Arcade-built host/controller flows after the explicit `controllerUrl` contract replaced platform-side inference
 3. the full launch-set Arcade-built lobby sweep is now green at the shared host/controller baseline
-4. unless a new regression appears, Stage 2 can now be treated as closed enough to move the main execution focus into Stage 3 UI and gameplay polish
+4. the full canonical `pnpm run check:release` gate is now green again after the shared server/SDK/platform fix pass
+5. unless a new regression appears, Stage 2 can now be treated as closed enough to move the main execution focus into late Stage 3 polish, final manual proof, and release execution
 
 ### Stage 3. UI And Gameplay Polish
 
-Do the visible host/controller polish pass here:
+The Stage 3 launch-set polish pass is complete. Details are archived in [Stage 3 Polish Plan (Archived)](../archive/stage-3-polish-plan-2026-04-15.md).
 
-1. visual-harness-driven layout and responsiveness cleanup
-2. last game-feel and shell-quality improvements
-3. no new system design unless a polish blocker exposes a real architecture flaw
-
-Current active Stage 3 plan:
-
-1. [Stage 3 Polish Plan](./stage-3-polish-plan.md)
+Any surviving polish-shaped item now surfaces as a finding inside [Final Release Checks Plan](./final-release-checks-plan.md) and loops back into [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md) only if it turns out to matter for launch.
 
 ### Stage 4. Prerelease Cleanup
 
@@ -144,6 +142,10 @@ Use this stage to remove obvious prerelease rough edges:
 2. outdated release-facing wording
 3. leftover setup friction that should not survive into final checks
 
+Current active cleanup/hardening plan:
+
+1. [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md)
+
 ### Stage 5. Prerelease Devex And SDK Checks
 
 Run the framework-facing confidence pass once the product shape is stable:
@@ -151,6 +153,12 @@ Run the framework-facing confidence pass once the product shape is stable:
 1. SDK package/build/type/test confidence
 2. scaffold/devex sanity
 3. release-lane and creator workflow sanity where it affects launch confidence
+
+Current truth:
+
+1. the canonical prerelease gate is green again through `pnpm run check:release`
+2. browser smoke, perf sanity, and scaffold smoke are included in that green state
+3. the next work is no longer framework/devex confidence repair; it is final manual proof plus late release execution
 
 ### Stage 6. Prerelease Security Checks
 
@@ -164,7 +172,7 @@ Run the final security-specific review after implementation and cleanup settle:
 
 This is the final manual proof and go/no-go pass:
 
-1. execute [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+1. execute [Final Release Checks Plan](./final-release-checks-plan.md)
 2. record findings and required blockers
 3. only exit this stage when the launch set has a clear go/no-go status
 
@@ -204,11 +212,11 @@ After the product and prerelease checks are stable:
 
 Only these implementation plans should stay active alongside this launch plan:
 
-1. none
+1. [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md)
 
 All scattered manual verification has been moved into:
 
-1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+1. [Final Release Checks Plan](./final-release-checks-plan.md)
 
 ## Completed Baselines That No Longer Need Separate Active Plans
 
@@ -225,190 +233,40 @@ These are already done enough that they should not stay as parallel prerelease t
 9. prerelease agent-runtime namespace and seam alignment across runtime-control, runtime-inspection, runtime-observability, and capabilities
 10. systems closeout is complete enough to archive: SDK/runtime cleanup is done, built-mode visual capture reuses unchanged game builds, and deferred harness cleanup now belongs to the later polish stage
 
-## Phase 1. Platform Feedback Path
+## Completed Baselines (Phases 1–5)
 
-Status: completed baseline
+Phases 1–5 are all complete. Full writeups with goals, rules, and current truth previously lived inline; the summaries below are the durable record.
 
-### Goal
+### Phase 1. Platform Feedback Path
 
-Give dashboard users one obvious path to report product bugs during release.
+The dashboard exposes one clear bug-report action that routes to the official GitHub issues surface.
 
-### Required outcomes
+### Phase 2. `air-capture` Reference Refactor
 
-1. add a bug-report entry point in the dashboard
-2. route it to the official GitHub issues surface
-3. keep the UI low-friction and obvious
+`air-capture` now has the modern host/controller/domain/store/engine/prefab/ui/debug/audio structure with focused tests. Host/controller owners were reduced to shell owners with extracted surface components, team-slot and arena prefab contracts are explicit seams, and local Arcade manual validation confirmed host, controller, lobby, match, and return flows. Remaining scene-traversal and Rapier-lookup narrowing is explicitly post-release cleanup.
 
-### Done when
+### Phase 3. Legacy Showcase Game Alignment
 
-1. the dashboard exposes one clear bug-report action
-2. release testers can report issues without hunting for the repo
+`pong` and `air-capture` are the canonical first-party reference games for v1. `code-review`, `last-band-standing`, and `the-office` are migration-proof showcase games, not template-aligned reference implementations. Next decision gate for all three is the five-game local Arcade proof inside [Final Release Checks Plan](./final-release-checks-plan.md), not more prerelease architecture work.
 
-## Phase 2. `air-capture` Reference Refactor
+### Phase 4. Docs, Template, And Skills Alignment
 
-Status: completed baseline
+Source docs reflect the current SDK and platform truth: explicit runtime ownership, shared platform settings/audio, narrowed networked action contract, hosted artifact + managed media workflow. The scaffolded generated docs pack was regenerated from the corrected source docs, the Pong template README teaches the current workflow, and template-local docs/skills cover generated-surface alignment and visible runtime boundaries.
 
-### Goal
+### Phase 5. Release Artifact Bundle Command
 
-Make `air-capture` match the newer template-aligned architecture so it can serve as a real public reference app.
+`pnpm exec create-airjam release bundle --dir .` builds a hosted release zip with `.airjam/release-manifest.json`. The hosted dashboard lane enforces the fixed `/` host and `/controller` controller contract without affecting self-hosted routing freedom. Platform hosted serving resolves `/controller` through explicit SPA fallback. Quick-start docs and the Pong template README teach the hosted artifact workflow instead of the older self-hosted-only path.
 
-### Required outcomes
+## Phase 6. Final Release Checks
 
-1. move `air-capture` to the same clean host/controller/game boundary style taught by the Pong template
-2. add or tighten tests where the new structure makes them practical
-3. validate the refactor locally and through Arcade
+All prerelease and release checks live in [Final Release Checks Plan](./final-release-checks-plan.md). That plan is the single runbook for local launch-set proof, dashboard hosted-release + managed-media proof, official-server proof, playtest reruns, the SDK export audit, the canonical release gate rerun, live deploy validation, and the final go / no-go record.
 
-### Rule
-
-Do this in one deliberate pass.
-Do not keep nibbling at `air-capture` through isolated UI-only patches.
+This launch plan no longer duplicates that content.
 
 ### Done when
 
-1. `air-capture` matches the intended architecture well enough to teach from
-2. it runs cleanly locally through Arcade
-3. it no longer feels structurally behind the template direction
-
-Current truth:
-
-1. `air-capture` now has the modern host/controller/domain/store/engine/prefab/ui/debug/audio structure
-2. the host/controller owner files were reduced into cleaner shell owners with extracted surface components
-3. team-slot and arena prefab contracts now exist as explicit reusable seams
-4. focused domain/prefab/store/engine tests now exist and pass
-5. local Arcade manual validation confirmed host, controller, lobby, match, and return flows
-6. the remaining scene-traversal and Rapier-lookup narrowing is now explicitly tracked as post-release cleanup, not prerelease launch work
-
-## Phase 3. Legacy Showcase Game Alignment
-
-Status: completed baseline
-
-### Goal
-
-Decide how far the three ZeroDays games need to move beyond the already-proven migration baseline.
-
-### Required outcomes
-
-1. decide whether each of the three games is a long-term public reference game
-2. if yes, align it properly to the modern architecture and test posture
-3. if no, keep the migration-proof baseline and do not over-refactor for purity
-
-### Rule
-
-Do not rewrite healthy legacy code just to imitate folder structure.
-Only do deeper refactors when they improve long-term public maintainability.
-
-### Done when
-
-1. each legacy game has an explicit status:
-   1. public maintained reference
-   2. migration-proof only
-2. any chosen reference game has clean enough structure and tests for public trust
-
-Current truth:
-
-1. `pong` and `air-capture` are the only canonical first-party reference games for v1
-2. `code-review`, `last-band-standing`, and `the-office` should be treated as migration-proof showcase games, not template-aligned reference implementations
-3. `code-review` is the lowest-risk legacy launch candidate and should stay in the launch set if the Arcade proof is clean
-4. `last-band-standing` still uses the older direct audio-owner pattern and should only stay in the launch set if the Arcade proof is clean enough without further framework churn
-5. `the-office` keeps a heavier custom host runtime and should only stay in the launch set if the Arcade proof is smooth enough without forcing it into template purity
-6. the next decision gate for all three is the five-game local Arcade proof, not more prerelease architecture work
-
-## Phase 4. Docs, Template, And Skills Alignment
-
-Status: completed baseline
-
-### Goal
-
-Make the public docs, generated template docs pack, template README, and local skills teach the current SDK and platform truth instead of older prerelease slices.
-
-### Required outcomes
-
-1. audit `content/docs` for stale guidance around runtime ownership, shared settings/audio, auth, hosted releases, managed media, and the networked action contract
-2. regenerate `packages/create-airjam/template-assets/base/docs/generated` from the corrected source docs
-3. update `games/pong/README.md` to match the current SDK/platform model
-4. update any template-local skills or AGENTS guidance that still teach stale framework or release patterns
-5. make the final creator-facing story explicit:
-   1. how to build a game
-   2. how to produce a release artifact
-   3. how to upload it in the dashboard
-   4. how managed media fits into the release flow
-
-### Done when
-
-1. source docs and scaffolded generated docs tell the same story
-2. the template README no longer teaches the stale self-hosted-only media/release path as the primary public flow
-3. local skills and template guidance no longer contradict the current runtime/platform model
-
-Current truth:
-
-1. source docs now reflect explicit runtime ownership, shared platform settings/audio, and the narrowed networked action contract
-2. quick-start now teaches the hosted artifact lane with `pnpm exec create-airjam release bundle --dir .` instead of the older public self-hosted URL flow
-3. the scaffolded generated docs pack has been regenerated from the corrected source docs
-4. the Pong template README now teaches the hosted artifact + managed media workflow
-5. the template-local docs workflow and game architecture skills now explicitly cover generated-surface alignment and visible runtime boundaries
-
-## Phase 5. Release Artifact Bundle Command
-
-Status: completed baseline
-
-### Goal
-
-Give developers one clean local command that produces the exact static artifact they upload to the dashboard hosted-release flow.
-
-### Required outcomes
-
-1. add a developer-facing `create-airjam` command for building a release artifact bundle
-2. make the output location and naming deterministic and obvious
-3. define and document the hosted release artifact contract separately from flexible self-hosted routing
-4. make the hosted artifact contract explicit:
-   1. host entry is `/`
-   2. controller entry is `/controller`
-   3. the bundle carries an explicit release manifest for hosted-mode validation
-5. add the corresponding platform-side validation and hosted serving behavior needed for that fixed contract
-6. document the expected artifact contents and static-hosting constraints
-7. add a smoke or validation check for the artifact-bundling path
-
-### Rule
-
-Do not build a full dashboard publish CLI unless the auth/token and publish workflow truly need it for v1.
-The important prerelease need is a clean bundle command, not a second release surface.
-Keep self-hosted mode flexible; only the dashboard-uploaded hosted artifact lane should be strict about route shape.
-
-### Done when
-
-1. a developer can run one documented command and get the dashboard-upload zip artifact
-2. the hosted artifact contract is explicit and enforceable without affecting self-hosted routing freedom
-3. platform hosted serving can reliably resolve the fixed hosted host/controller paths
-4. the command is simple enough to recommend in the template README and docs
-5. the artifact shape is proven enough that it does not feel like an undocumented manual packaging step
-
-Current truth:
-
-1. `create-airjam release bundle` now builds a hosted release zip with `.airjam/release-manifest.json`
-2. the hosted dashboard lane now enforces the fixed `/` host and `/controller` controller contract without changing self-hosted routing freedom
-3. platform hosted serving now resolves `/controller` through explicit SPA fallback instead of relying on artifact-specific hacks
-4. the scaffolded Pong template now teaches `pnpm exec create-airjam release bundle --dir .` as the creator-facing entrypoint
-5. the quick-start docs and template README now teach the hosted artifact workflow instead of the older self-hosted-only public release path
-
-## Phase 6. Final Manual Prerelease Check
-
-### Goal
-
-Run one final manual proof pass across the local Arcade, dashboard hosted-release, managed-media, and official-server paths before release execution continues.
-
-### Canonical manual runbook
-
-The authoritative manual runbook now lives in:
-
-1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-
-Do not keep separate manual checklists in parallel prerelease plans.
-
-### Done when
-
-1. the final manual prerelease plan is complete
-2. launch-set cuts, if any, are explicit
-3. release execution can continue from recorded product proof instead of implied confidence
+1. the final release checks plan records an explicit go / no-go decision
+2. launch-set cuts, if any, are recorded in that plan
 
 ## Phase 7. Playtest-Driven Launch Hardening
 
@@ -458,10 +316,8 @@ These should be handled before public launch because they affect trust, recovera
       3. rocket blast was tuned into a larger distance-scaled AOE so it reads clearly in live play
       4. player names are now visible in the lobby on both host and controller surfaces
       5. match start now goes through a 3-second countdown phase where pilots can rotate but cannot thrust or fire
-   2. remaining release gate:
-      1. rerun real Arcade playtests for `air-capture` and confirm these fixes actually improve the trust/readability bar in live play
-7. rerun `air-capture` and `last-band-standing` local Arcade proof after the above fixes and record whether they remain in the launch set without qualification
-8. if any SDK/platform work lands here, realign:
+   2. remaining playtest reruns live in [Final Release Checks Plan](./final-release-checks-plan.md) Workstream D
+7. if any SDK/platform work lands here, realign:
    1. `pong`
    2. `air-capture`
    3. `code-review`
@@ -505,24 +361,9 @@ These ideas are worth keeping, but they should not muddy the v1 path:
 
 ## Phase 8. Dashboard Hosted Release And Managed Media Proof
 
-### Goal
+Dashboard hosted-release and managed-media proof lives in [Final Release Checks Plan](./final-release-checks-plan.md) Workstream B.
 
-Finish the last end-to-end product-proof work on the hosted release lane before public deploy work begins.
-
-Detailed manual execution for this phase now lives in:
-
-1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-
-### Required outcomes
-
-1. run one dashboard-level hosted release upload → checks → make-live → listed-in-Arcade smoke
-2. run one dashboard-level managed media upload/assignment → public catalog render smoke
-3. confirm these flows against the now-final dashboard IA and hosted release contract
-
-### Done when
-
-1. hosted releases are proven through the real dashboard flow, not only by lower-level implementation confidence
-2. managed media is proven through the real dashboard and public catalog path
+This launch plan no longer duplicates that content.
 
 ## Phase 9. Release Media Assets
 
@@ -566,23 +407,9 @@ Get the public game set connected to the real hosted platform.
 
 ## Phase 11. Official Server Validation
 
-### Goal
+Official hosting and official-server proof lives in [Final Release Checks Plan](./final-release-checks-plan.md) Workstream C.
 
-Prove the public game set against the actual official backend path.
-
-Detailed manual execution for this phase now lives in:
-
-1. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-
-### Required outcomes
-
-1. verify each public game against the official servers
-2. validate room creation, controller join, gameplay start, and return flows
-3. fix any production-only auth, env, or integration issues
-
-### Done when
-
-1. all five games are confirmed working against the official hosted runtime path
+This launch plan no longer duplicates that content.
 
 ## Phase 12. Release Merge And Platform Deploy
 
@@ -594,7 +421,8 @@ Turn the validated prerelease state into the public platform state.
 
 1. merge the large release branch into `master`
 2. deploy the new platform
-3. confirm the deployed platform reflects the intended public release surface
+
+Post-deploy live validation lives in [Final Release Checks Plan](./final-release-checks-plan.md) Workstream G.
 
 ## Phase 13. Release Content
 

@@ -233,6 +233,7 @@ export const createWorkspaceProcessGroup = ({
   const children = [];
   let isShuttingDown = false;
   let shutdownPromise = null;
+  let suppressOutputAfterShutdown = false;
   const logSink = createWorkspaceDevLogSink();
 
   const shutdown = (code = 0) => {
@@ -241,6 +242,7 @@ export const createWorkspaceProcessGroup = ({
     }
 
     isShuttingDown = true;
+    suppressOutputAfterShutdown = code === 0;
 
     shutdownPromise = (async () => {
       for (const childEntry of children) {
@@ -320,6 +322,10 @@ export const createWorkspaceProcessGroup = ({
     });
 
     child.stdout.on("data", (data) => {
+      if (suppressOutputAfterShutdown) {
+        return;
+      }
+
       log(name, data);
       logSink.captureChunk({
         processName: name,
@@ -332,6 +338,10 @@ export const createWorkspaceProcessGroup = ({
       });
     });
     child.stderr.on("data", (data) => {
+      if (suppressOutputAfterShutdown) {
+        return;
+      }
+
       log(name, data);
       logSink.captureChunk({
         processName: name,

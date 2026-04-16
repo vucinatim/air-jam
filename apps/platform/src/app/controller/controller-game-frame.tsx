@@ -5,6 +5,7 @@ import type { CSSProperties, RefObject } from "react";
 interface ControllerGameFrameProps {
   iframeRef: RefObject<HTMLIFrameElement | null>;
   controllerIframeSrc: string | null;
+  controllerIframePending: boolean;
   controllerIframeFailed: boolean;
   chromeInsetStyle?: CSSProperties;
 }
@@ -12,6 +13,7 @@ interface ControllerGameFrameProps {
 export function ControllerGameFrame({
   iframeRef,
   controllerIframeSrc,
+  controllerIframePending,
   controllerIframeFailed,
   chromeInsetStyle,
 }: ControllerGameFrameProps) {
@@ -20,7 +22,13 @@ export function ControllerGameFrame({
       className="bg-background absolute inset-0 z-20"
       style={chromeInsetStyle}
     >
-      {controllerIframeSrc ? (
+      {controllerIframePending ? (
+        <div className="flex h-full items-center justify-center px-6 text-center">
+          <p className="text-muted-foreground text-sm">
+            Preparing controller bridge…
+          </p>
+        </div>
+      ) : controllerIframeSrc ? (
         <iframe
           ref={iframeRef}
           src={controllerIframeSrc}

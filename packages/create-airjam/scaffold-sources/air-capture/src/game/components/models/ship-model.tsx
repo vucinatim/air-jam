@@ -392,7 +392,6 @@ function ExhaustLight({
 interface ShipModelProps {
   playerColor: string;
   thrustRef: React.MutableRefObject<number>;
-  thrustInputRef: React.MutableRefObject<number>;
   abilityVisual: React.ReactNode | null;
   planeGroupRef: React.RefObject<Group | null>;
 }

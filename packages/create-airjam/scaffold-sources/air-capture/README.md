@@ -34,6 +34,7 @@ src/
       flag/                   # reusable team-flag prefab contract
       player-base/            # reusable team-base prefab contract
       obstacle-block/         # reusable obstacle-block prefab contract
+      ship/                   # canonical playable-ship prefab visual used by the live ship entity
     scene-population/         # runtime spawn/pool layers that map state into many prefab/entity instances
     ui/                       # shared game-facing HUD overlays
     debug/                    # host/debug tooling and cheat surfaces

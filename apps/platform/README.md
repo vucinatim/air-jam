@@ -42,6 +42,17 @@ Optional env for local Arcade entries:
 2. `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL=http://127.0.0.1:5173`
 3. `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL=http://127.0.0.1:4173`
 
+## Sentry Error Monitoring (Optional)
+
+The platform supports a minimal Sentry integration for production error monitoring.
+
+Set these in `.env.local` or your hosted environment:
+
+1. `NEXT_PUBLIC_SENTRY_DSN=<project-dsn>`
+2. `SENTRY_AUTH_TOKEN=<auth-token-for-source-map-upload>`
+
+If `NEXT_PUBLIC_SENTRY_DSN` is unset, Sentry stays disabled.
+
 The default slot exists because both the local Pong template and `air-capture`
 use port `5173` by default, so only the reference game you are actively running
 should auto-appear without an explicit override.

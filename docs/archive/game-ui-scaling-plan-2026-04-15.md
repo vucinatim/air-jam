@@ -1,15 +1,17 @@
 # Game UI Scaling Plan
 
-Last updated: 2026-04-11  
-Status: active
+Last updated: 2026-04-15  
+Status: archived
+
+Archive reason: the chosen full-bleed fluid scaling model is implemented. `SurfaceViewport` uses full-bleed surface semantics and publishes `--airjam-ui-scale` into Tailwind's theme variables, and the launch set plus scaffold sources consume that shared model. Any residual styling fallout belongs inside [Final Prerelease Hardening And Cleanup Plan](../plans/final-prerelease-hardening-and-cleanup-plan.md).
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [Stage 3 Polish Plan](./stage-3-polish-plan.md)
+2. [Stage 3 Polish Plan (Archived)](./stage-3-polish-plan-2026-04-15.md)
 3. [Framework Paradigm](../framework-paradigm.md)
 4. [Platform Controller Presentation](../systems/platform-controller-presentation.md)
-5. [Controller Preview Workspace Plan](./controller-preview-workspace-plan.md)
+5. [Controller Preview Workspace Plan (Archived)](./controller-preview-workspace-plan-2026-04-14.md)
 
 ## Purpose
 

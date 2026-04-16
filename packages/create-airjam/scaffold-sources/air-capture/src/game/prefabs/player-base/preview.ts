@@ -5,4 +5,9 @@ export const AIR_CAPTURE_PLAYER_BASE_PREVIEW = {
     radius: 10,
     height: 10,
   },
+  camera: {
+    position: [22, 14, 22],
+    target: [0, 4, 0],
+    fov: 36,
+  },
 } as const;

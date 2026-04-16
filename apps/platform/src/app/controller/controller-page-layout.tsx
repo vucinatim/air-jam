@@ -26,6 +26,7 @@ interface ControllerPageLayoutProps {
   chromeInsetStyle?: CSSProperties;
   iframeRef: RefObject<HTMLIFrameElement | null>;
   controllerIframeSrc: string | null;
+  controllerIframePending: boolean;
   controllerIframeFailed: boolean;
   hostQrVisible: boolean;
   hapticsEnabled: boolean;
@@ -54,6 +55,7 @@ export function ControllerPageLayout({
   chromeInsetStyle,
   iframeRef,
   controllerIframeSrc,
+  controllerIframePending,
   controllerIframeFailed,
   hostQrVisible,
   hapticsEnabled,
@@ -111,6 +113,7 @@ export function ControllerPageLayout({
           <ControllerGameFrame
             iframeRef={iframeRef}
             controllerIframeSrc={controllerIframeSrc}
+            controllerIframePending={controllerIframePending}
             controllerIframeFailed={controllerIframeFailed}
             chromeInsetStyle={mainInsetStyle}
           />

@@ -1,5 +1,5 @@
 import { useAirJamHost } from "../hooks/use-air-jam-host";
-import { usePlatformSettings } from "../settings/platform-settings-runtime";
+import { useOptionalPlatformSettingsOwnerApi } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
   PreviewControllerWorkspace,
@@ -17,7 +17,7 @@ export const HostPreviewControllerWorkspace = ({
   ...props
 }: HostPreviewControllerWorkspaceProps) => {
   const host = useAirJamHost();
-  const { updatePreviewControllers } = usePlatformSettings();
+  const platformSettingsOwner = useOptionalPlatformSettingsOwnerApi();
   const joinUrl =
     host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
 
@@ -26,7 +26,7 @@ export const HostPreviewControllerWorkspace = ({
       enabled={enabled}
       joinUrl={joinUrl}
       onActiveOpacityChange={(activeOpacity) =>
-        updatePreviewControllers({ activeOpacity })
+        platformSettingsOwner?.updatePreviewControllers({ activeOpacity })
       }
       className={cn("top-4 right-4 z-60 sm:top-6 sm:right-6", className)}
       {...props}

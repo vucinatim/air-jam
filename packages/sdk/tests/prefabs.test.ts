@@ -24,6 +24,10 @@ describe("prefab contract leaf", () => {
       preview: {
         summary: "A square crate obstacle.",
         accentColor: "#ff9900",
+        camera: {
+          position: [6, 5, 6],
+          target: [0, 1, 0],
+        },
       },
       placement: {
         origin: "ground",
@@ -44,6 +48,7 @@ describe("prefab contract leaf", () => {
       width: 2,
     });
     expect(cratePrefab.preview?.summary).toContain("crate");
+    expect(cratePrefab.preview?.camera?.position).toEqual([6, 5, 6]);
     expect(cratePrefab.placement?.origin).toBe("ground");
     expect(cratePrefab.render({ width: 4 })).toBe(4);
   });

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
 import { io, type Socket } from "socket.io-client";
+import { emitWithAck, waitForSocketConnect } from "./helpers/socket-test-utils";
 
 const parseEvents = (contents: string): Array<Record<string, unknown>> =>
   contents
@@ -59,15 +60,12 @@ describe("dev browser log sink", () => {
       reconnection: false,
     });
 
-    await new Promise<void>((resolve, reject) => {
-      socket!.once("connect", () => resolve());
-      socket!.once("connect_error", (error) => reject(error));
-    });
+    await waitForSocketConnect(socket);
 
-    const bootstrapAck = await new Promise<{ ok: boolean; traceId?: string }>(
-      (resolve) => {
-        socket!.emit("host:bootstrap", { appId: "aj_app_test123" }, resolve);
-      },
+    const bootstrapAck = await emitWithAck<{ ok: boolean; traceId?: string }>(
+      socket,
+      "host:bootstrap",
+      { appId: "aj_app_test123" },
     );
 
     expect(bootstrapAck.ok).toBe(true);

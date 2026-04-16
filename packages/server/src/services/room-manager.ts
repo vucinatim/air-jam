@@ -12,6 +12,25 @@ export class RoomManager {
   private hostIndex = new Map<string, RoomCode>();
   private controllerIndex = new Map<string, ControllerIndexEntry>();
 
+  private clearRoomTimers(session: RoomSession): void {
+    if (session.pendingChildTeardownTimer) {
+      clearTimeout(session.pendingChildTeardownTimer);
+      session.pendingChildTeardownTimer = undefined;
+    }
+
+    if (session.pendingRoomCloseTimer) {
+      clearTimeout(session.pendingRoomCloseTimer);
+      session.pendingRoomCloseTimer = undefined;
+    }
+
+    session.controllers.forEach((controller) => {
+      if (controller.pendingDisconnectTimer) {
+        clearTimeout(controller.pendingDisconnectTimer);
+        controller.pendingDisconnectTimer = undefined;
+      }
+    });
+  }
+
   /**
    * Get a room by ID
    */
@@ -91,10 +110,7 @@ export class RoomManager {
     const session = this.rooms.get(roomId);
     if (!session) return;
 
-    if (session.pendingChildTeardownTimer) {
-      clearTimeout(session.pendingChildTeardownTimer);
-      session.pendingChildTeardownTimer = undefined;
-    }
+    this.clearRoomTimers(session);
 
     markRoomTeardown(session);
 
@@ -103,10 +119,6 @@ export class RoomManager {
 
     // Clean up controller indices
     session.controllers.forEach((controller) => {
-      if (controller.pendingDisconnectTimer) {
-        clearTimeout(controller.pendingDisconnectTimer);
-        controller.pendingDisconnectTimer = undefined;
-      }
       if (controller.socketId) {
         this.controllerIndex.delete(controller.socketId);
       }
@@ -120,6 +132,12 @@ export class RoomManager {
 
     // Remove room
     this.rooms.delete(roomId);
+  }
+
+  clearAllRooms(io: Server, reason: string): void {
+    for (const roomId of Array.from(this.rooms.keys())) {
+      this.removeRoom(roomId, io, reason);
+    }
   }
 
   /**

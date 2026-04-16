@@ -1,12 +1,12 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 import {
   resolveRuntimeTopology,
   serializeRuntimeTopology,
 } from "@air-jam/runtime-topology";
+import { resolvePlatformPublicUrl } from "./src/lib/platform-public-url";
 
-const resolvedAppUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const resolvedAppUrl = resolvePlatformPublicUrl(process.env);
 
 const resolvePlatformShellTopologyEnv = (
   surfaceRole: "platform-host" | "platform-controller",
@@ -103,4 +103,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: "timvucina-bo",
+  project: "airjam-platform",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+});

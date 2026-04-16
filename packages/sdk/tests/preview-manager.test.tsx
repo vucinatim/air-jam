@@ -124,6 +124,9 @@ describe("usePreviewControllerManager", () => {
     expect(result.current.sessions[0]?.deviceId).not.toBe(
       result.current.sessions[1]?.deviceId,
     );
+    expect(result.current.sessions[0]?.id).not.toBe(
+      result.current.sessions[1]?.id,
+    );
   });
 
   it("clears sessions when the join url changes", () => {

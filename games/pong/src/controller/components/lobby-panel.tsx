@@ -144,6 +144,7 @@ export const LobbyPanel = ({
         </div>
 
         <ControllerPrimaryAction
+          testId="pong-controller-start-match"
           label="Play Match"
           helper={readinessText}
           disabled={!canStartMatch}

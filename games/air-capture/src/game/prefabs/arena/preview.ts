@@ -4,6 +4,11 @@ export interface AirCaptureArenaPrefabPreview {
   dimensions: {
     radius: number;
   };
+  camera?: {
+    position: [number, number, number];
+    target: [number, number, number];
+    fov?: number;
+  };
 }
 
 export const AIR_CAPTURE_ARENA_PREVIEW: AirCaptureArenaPrefabPreview = {
@@ -12,5 +17,10 @@ export const AIR_CAPTURE_ARENA_PREVIEW: AirCaptureArenaPrefabPreview = {
   accentColor: "#00e5ff",
   dimensions: {
     radius: 200,
+  },
+  camera: {
+    position: [180, 110, 180],
+    target: [0, 0, 0],
+    fov: 50,
   },
 };

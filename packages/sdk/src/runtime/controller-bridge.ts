@@ -179,6 +179,7 @@ const bridgeAttachSchema = z
             connected: z.boolean(),
             socketId: z.string().optional(),
             player: z.unknown().optional(),
+            players: z.array(z.unknown()).optional(),
             state: z.unknown().optional(),
             arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
           })

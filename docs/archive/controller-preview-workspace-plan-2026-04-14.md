@@ -1,13 +1,13 @@
 # Controller Preview Workspace Plan
 
-Last updated: 2026-04-11  
-Status: active
+Last updated: 2026-04-14  
+Status: archived
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [Stage 3 Polish Plan](./stage-3-polish-plan.md)
-3. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
+2. [Stage 3 Polish Plan](../plans/stage-3-polish-plan.md)
+3. [Final Prerelease Manual Check Plan](../plans/final-prerelease-manual-check-plan.md)
 4. [Controller Preview Dock Plan (Archived)](../archive/controller-preview-dock-plan-2026-04-09.md)
 5. [Framework Paradigm](../framework-paradigm.md)
 

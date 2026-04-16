@@ -15,8 +15,8 @@ import { useGameStore } from "../../stores/players/game-store";
 import { useDebugStore } from "../../stores/debug/debug-store";
 import { useHealthStore } from "../../stores/players/health-store";
 import { ShipExplosion } from "../effects/ship-explosion";
-import { ShipModel } from "../models/ship-model";
 import { useShipRuntime } from "../../engine/ships/use-ship-runtime";
+import { AirCaptureShipVisual } from "../../prefabs/ship";
 
 interface ShipProps {
   controllerId: string;
@@ -111,10 +111,9 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
             }}
             renderOrder={debugHitboxesVisible ? 20 : 0}
           />
-          <ShipModel
+          <AirCaptureShipVisual
             playerColor={playerColor}
             thrustRef={currentThrustRef}
-            thrustInputRef={thrustInputRef}
             abilityVisual={abilityVisual}
             planeGroupRef={planeGroupRef}
           />

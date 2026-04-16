@@ -27,8 +27,12 @@ describe("join url controls", () => {
   it("disables copy and open buttons when no join url exists", () => {
     render(<JoinUrlActionButtons hasValue={false} />);
 
-    expect(screen.getByRole("button", { name: "Copy" }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getByRole("button", { name: "Open" }).hasAttribute("disabled")).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Copy join link" }).hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Open join link" }).hasAttribute("disabled"),
+    ).toBe(true);
   });
 
   it("keeps the composed control API stable", () => {
@@ -44,7 +48,11 @@ describe("join url controls", () => {
     expect(
       screen.getByDisplayValue("https://example.com/controller?room=ROOM1"),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Copied" }).hasAttribute("disabled")).toBe(false);
-    expect(screen.getByRole("button", { name: "Open" }).hasAttribute("disabled")).toBe(false);
+    expect(
+      screen.getByRole("button", { name: "Copied join link" }).hasAttribute("disabled"),
+    ).toBe(false);
+    expect(
+      screen.getByRole("button", { name: "Open join link" }).hasAttribute("disabled"),
+    ).toBe(false);
   });
 });

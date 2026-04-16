@@ -105,6 +105,9 @@ export const registerDisconnectHandler = (
         roomManager.deleteHost(socket.id);
         return;
       } else if (socket.id === session.masterHostSocketId) {
+        if (session.pendingRoomCloseTimer) {
+          clearTimeout(session.pendingRoomCloseTimer);
+        }
         getDisconnectLogger({ roomId }).info(
           {
             event: AIRJAM_DEV_LOG_EVENTS.host.disconnectPendingRoomClose,
@@ -113,7 +116,8 @@ export const registerDisconnectHandler = (
           },
           "Master host disconnected; scheduled room close",
         );
-        setTimeout(() => {
+        session.pendingRoomCloseTimer = setTimeout(() => {
+          session.pendingRoomCloseTimer = undefined;
           const currentSession = roomManager.getRoom(roomId);
           if (currentSession && currentSession.masterHostSocketId === socket.id) {
             runtimeUsagePublisher.publish(

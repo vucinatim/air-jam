@@ -6,6 +6,7 @@ import {
   AIR_CAPTURE_JUMP_PAD_PREFAB,
   AIR_CAPTURE_OBSTACLE_BLOCK_PREFAB,
   AIR_CAPTURE_PLAYER_BASE_PREFAB,
+  AIR_CAPTURE_SHIP_PREFAB,
 } from "../../../src/game/prefabs";
 import {
   AIR_CAPTURE_ARENA_DEFAULT_PROPS,
@@ -28,6 +29,7 @@ describe("air-capture arena prefab schema", () => {
         AIR_CAPTURE_JUMP_PAD_PREFAB,
         AIR_CAPTURE_OBSTACLE_BLOCK_PREFAB,
         AIR_CAPTURE_PLAYER_BASE_PREFAB,
+        AIR_CAPTURE_SHIP_PREFAB,
       ]),
     );
   });

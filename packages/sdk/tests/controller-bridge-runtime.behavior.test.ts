@@ -12,7 +12,14 @@ import {
 } from "../src/runtime/controller-realtime-client";
 
 describe("embedded controller bridge runtime", () => {
+  const getMockCall = (
+    spy: ReturnType<typeof vi.spyOn>,
+    offsetFromEnd = 0,
+  ): unknown[] | undefined =>
+    spy.mock.calls.at(-(offsetFromEnd + 1)) as unknown[] | undefined;
+
   beforeEach(() => {
+    vi.useRealTimers();
     window.history.replaceState(
       {},
       "",
@@ -21,6 +28,7 @@ describe("embedded controller bridge runtime", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     window.history.replaceState({}, "", "/");
     resetControllerRealtimeClientForTests();
     vi.restoreAllMocks();
@@ -51,7 +59,7 @@ describe("embedded controller bridge runtime", () => {
 
     client.connect();
 
-    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const requestCall = getMockCall(postMessageSpy);
     expect(requestCall?.[0]).toMatchObject({
       type: "AIRJAM_CONTROLLER_BRIDGE_REQUEST",
     });
@@ -80,6 +88,7 @@ describe("embedded controller bridge runtime", () => {
           roomId: "ROOM1",
           controllerId: "ctrl_1",
           connected: true,
+          players: [{ id: "ctrl_1", label: "Player 1" }],
           arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
         },
       },
@@ -131,6 +140,57 @@ describe("embedded controller bridge runtime", () => {
     runtimeEvents.cleanup();
   });
 
+  it("accepts bridge attaches that include the controller roster snapshot", async () => {
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+    const client = getControllerRealtimeClient(() => {
+      throw new Error("direct socket should not be requested in embedded mode");
+    });
+    const connectSpy = vi.fn();
+    const welcomeSpy = vi.fn();
+    client.on("connect", connectSpy);
+    client.on("server:welcome", welcomeSpy);
+
+    client.connect();
+
+    const requestCall = getMockCall(postMessageSpy);
+    const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(parentPort).toBeDefined();
+    parentPort!.start?.();
+
+    parentPort!.postMessage({
+      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-controller-runtime",
+          capabilityFlags: {
+            controllerBridge: true,
+          },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          connected: true,
+          player: { id: "ctrl_1", label: "Player 1" },
+          players: [{ id: "ctrl_1", label: "Player 1" }],
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
+        },
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(client.connected).toBe(true);
+    expect(connectSpy).toHaveBeenCalledTimes(1);
+    expect(welcomeSpy).toHaveBeenCalledWith({
+      controllerId: "ctrl_1",
+      roomId: "ROOM1",
+      player: { id: "ctrl_1", label: "Player 1" },
+      players: [{ id: "ctrl_1", label: "Player 1" }],
+    });
+  });
+
   it("normalizes legacy null action payloads before posting bridge emits", async () => {
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
     const client = getControllerRealtimeClient(() => {
@@ -139,7 +199,7 @@ describe("embedded controller bridge runtime", () => {
 
     client.connect();
 
-    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const requestCall = getMockCall(postMessageSpy);
     const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
     expect(parentPort).toBeDefined();
 
@@ -226,9 +286,10 @@ describe("embedded controller bridge runtime", () => {
     });
   });
 
-  it("fails closed when the parent never attaches the bridge", () => {
+  it("surfaces handshake timeout and then re-requests the bridge", () => {
     vi.useFakeTimers();
     const runtimeEvents = captureRuntimeEvents();
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
     const client = getControllerRealtimeClient(
       vi.fn(() => {
@@ -258,6 +319,9 @@ describe("embedded controller bridge runtime", () => {
         }),
       ]),
     );
+    expect(postMessageSpy).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(50);
+    expect(postMessageSpy).toHaveBeenCalledTimes(2);
 
     runtimeEvents.cleanup();
     vi.useRealTimers();
@@ -275,7 +339,7 @@ describe("embedded controller bridge runtime", () => {
 
     client.connect();
 
-    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const requestCall = getMockCall(postMessageSpy);
     const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
     expect(parentPort).toBeDefined();
     parentPort!.start?.();
@@ -328,7 +392,7 @@ describe("embedded controller bridge runtime", () => {
 
     client.connect();
 
-    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const requestCall = getMockCall(postMessageSpy);
     const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
     expect(parentPort).toBeDefined();
 
@@ -384,5 +448,87 @@ describe("embedded controller bridge runtime", () => {
     );
 
     runtimeEvents.cleanup();
+  });
+
+  it("re-requests the bridge after a transient parent close", async () => {
+    vi.useFakeTimers();
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const client = getControllerRealtimeClient(() => {
+      throw new Error("direct socket should not be requested in embedded mode");
+    });
+    const connectSpy = vi.fn();
+    const disconnectSpy = vi.fn();
+    client.on("connect", connectSpy);
+    client.on("disconnect", disconnectSpy);
+
+    client.connect();
+
+    const firstRequestCall = getMockCall(postMessageSpy);
+    const firstParentPort = (firstRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(firstParentPort).toBeDefined();
+
+    firstParentPort!.postMessage({
+      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-controller-runtime",
+          capabilityFlags: { controllerBridge: true },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          connected: true,
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
+        },
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.connected).toBe(true);
+
+    firstParentPort!.postMessage({
+      type: "AIRJAM_CONTROLLER_BRIDGE_CLOSE",
+      payload: { reason: "game_unloaded" },
+    });
+
+    await vi.advanceTimersByTimeAsync(49);
+    expect(postMessageSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(postMessageSpy).toHaveBeenCalledTimes(2);
+    expect(disconnectSpy).toHaveBeenCalledWith("game_unloaded");
+
+    const secondRequestCall = getMockCall(postMessageSpy);
+    expect(secondRequestCall?.[0]).toMatchObject({
+      type: "AIRJAM_CONTROLLER_BRIDGE_REQUEST",
+    });
+
+    const secondParentPort = (secondRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(secondParentPort).toBeDefined();
+
+    secondParentPort!.postMessage({
+      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-controller-runtime",
+          capabilityFlags: { controllerBridge: true },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          connected: true,
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
+        },
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.connected).toBe(true);
+    expect(connectSpy).toHaveBeenCalledTimes(2);
   });
 });

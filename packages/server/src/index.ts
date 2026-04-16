@@ -27,8 +27,8 @@ import {
   type RuntimeUsagePublisher,
 } from "./analytics/runtime-usage.js";
 import { createDatabaseRuntimeUsageLedgerPublisher } from "./analytics/runtime-usage-ledger.js";
-import { RateLimitService, rateLimitService } from "./services/rate-limit-service.js";
-import { RoomManager, roomManager } from "./services/room-manager.js";
+import { RateLimitService } from "./services/rate-limit-service.js";
+import { RoomManager } from "./services/room-manager.js";
 import { loadServerEnv, type ServerEnvConfig } from "./env/server-env.js";
 
 export type AirJamIoServer = Server<
@@ -114,8 +114,9 @@ export const createAirJamServer = (
       REMOTE_DATABASE_BLOCKED_MESSAGE,
     );
   }
-  const roomManagerInstance = options.roomManager ?? roomManager;
-  const rateLimitServiceInstance = options.rateLimitService ?? rateLimitService;
+  const roomManagerInstance = options.roomManager ?? new RoomManager();
+  const rateLimitServiceInstance =
+    options.rateLimitService ?? new RateLimitService();
   const db = options.db ?? createServerDatabase(envConfig.databaseUrl);
   const authServiceInstance =
     options.authService ??
@@ -294,6 +295,8 @@ export const createAirJamServer = (
     if (!httpServer.listening) {
       return;
     }
+
+    roomManagerInstance.clearAllRooms(io, "Server shutting down");
 
     await new Promise<void>((resolve) => {
       io.close(() => resolve());

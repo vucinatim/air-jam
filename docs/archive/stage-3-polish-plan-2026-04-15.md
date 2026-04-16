@@ -1,14 +1,16 @@
 # Air Jam Stage 3 Polish Plan
 
-Last updated: 2026-04-09  
-Status: active
+Last updated: 2026-04-15  
+Status: archived
+
+Archive reason: the shared-shell pass and the per-game polish sweep are landed for the launch set, captures are green again, and the plan's own rule says to stop Stage 3 and hand off to the final manual proof if no new high-signal issue appears. Any remaining polish-shaped item now surfaces as a finding inside [Final Release Checks Plan](../plans/final-release-checks-plan.md) and loops back into [Final Prerelease Hardening And Cleanup Plan](../plans/final-prerelease-hardening-and-cleanup-plan.md) if it turns out to matter for launch.
 
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
-3. [Final Prerelease Manual Check Plan](./final-prerelease-manual-check-plan.md)
-4. [Visual Review Harness Plan (Archived)](../archive/visual-review-harness-plan-2026-04-09.md)
+2. [V1 Release Launch Plan](../plans/v1-release-launch-plan.md)
+3. [Final Release Checks Plan](../plans/final-release-checks-plan.md)
+4. [Visual Review Harness Plan (Archived)](./visual-review-harness-plan-2026-04-09.md)
 5. [Public Arcade Release Strategy](../strategy/public-arcade-release-strategy.md)
 
 ## Purpose
@@ -54,7 +56,7 @@ Additional current truth:
 
 1. the visual harness is still useful, but it is no longer treated as the primary visual-inspection path for agents or humans during everyday game work
 2. browser-driven inspection and interaction are now the default visual path, while the harness remains valuable for deterministic setup, machine-readable state, and future evaluation automation
-3. prerelease work must first make repo validation truthful again before the game-by-game polish pass can be considered complete
+3. repo validation truth is restored all the way through `pnpm run check:release`, including perf sanity, browser smoke, and scaffold smoke
 
 ## Workstreams
 
@@ -64,10 +66,11 @@ Before more game polish, restore truthful prerelease validation.
 
 Status update:
 
-1. completed on 2026-04-11
+1. completed on 2026-04-14
 2. the shared visual-harness generic/typecheck break is repaired
 3. the harness stays as optional advanced support rather than the primary visual-development path
-4. root lint and root typecheck are back to green after the harness fix
+4. root lint and typecheck are back to green after the harness fix
+5. the full prerelease release gate is green again, so Stage 3 no longer needs to carry repo-truth repair as active work
 
 Focus:
 
@@ -135,10 +138,9 @@ Focus:
 
 Current next priorities:
 
-1. `code-review`: reduce slippery movement feel and relax bot difficulty so the game reads as learnable rather than punitive
-2. `the-office`: improve controller contrast and background treatment so the sticky-note/gameplay UI remains legible
-3. `last-band-standing`: verify URL/media flows still work cleanly and do one bounded UI uplift if the current lobby/gameplay pass still feels obviously under-finished
-4. then run one shorter high-signal sweep across `pong` and `air-capture` for remaining polish nits only
+1. `last-band-standing`: do one bounded UI uplift only if the final manual pass still shows an obvious release-facing rough edge
+2. run one short high-signal sweep across `pong` and `air-capture` only if the final manual pass surfaces remaining visible nits
+3. if no new high-signal issue appears, stop Stage 3 work and hand off to the final prerelease manual proof instead of reopening more polish scope
 
 Status update:
 
@@ -166,11 +168,10 @@ Rule:
 
 ## Suggested Execution Order
 
-1. complete Workstream 0 so validation and harness truth are clean again
-2. finish any remaining shared shell/UI fallout that directly blocks game polish
-3. do one bounded launch-set polish pass, starting with `code-review`, `the-office`, and `last-band-standing`
-4. rerun the relevant visual captures and targeted live checks
-5. carry only the remaining obvious release-facing roughness into prerelease cleanup
+1. keep Workstream 0 closed unless the release gate regresses again
+2. finish only the remaining bounded launch-game polish that survives live/manual proof
+3. rerun only the relevant visual captures and targeted live checks for that bounded fallout
+4. carry any remaining obvious release-facing roughness into prerelease cleanup or the final manual overpass
 
 ## Working Rule
 

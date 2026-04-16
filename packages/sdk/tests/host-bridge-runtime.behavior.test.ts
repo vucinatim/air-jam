@@ -12,7 +12,14 @@ import {
 } from "../src/runtime/host-realtime-client";
 
 describe("embedded host bridge runtime", () => {
+  const getMockCall = (
+    spy: ReturnType<typeof vi.spyOn>,
+    offsetFromEnd = 0,
+  ): unknown[] | undefined =>
+    spy.mock.calls.at(-(offsetFromEnd + 1)) as unknown[] | undefined;
+
   beforeEach(() => {
+    vi.useRealTimers();
     window.history.replaceState(
       {},
       "",
@@ -21,6 +28,7 @@ describe("embedded host bridge runtime", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     window.history.replaceState({}, "", "/");
     resetHostRealtimeClientForTests();
     vi.restoreAllMocks();
@@ -51,7 +59,7 @@ describe("embedded host bridge runtime", () => {
 
     client.connect();
 
-    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const requestCall = getMockCall(postMessageSpy);
     expect(requestCall?.[0]).toMatchObject({
       type: "AIRJAM_HOST_BRIDGE_REQUEST",
     });
@@ -130,9 +138,10 @@ describe("embedded host bridge runtime", () => {
     runtimeEvents.cleanup();
   });
 
-  it("fails closed when the parent never attaches the bridge", () => {
+  it("surfaces handshake timeout and then re-requests the bridge", () => {
     vi.useFakeTimers();
     const runtimeEvents = captureRuntimeEvents();
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
     const client = getHostRealtimeClient(
       vi.fn(() => {
@@ -159,6 +168,9 @@ describe("embedded host bridge runtime", () => {
         }),
       ]),
     );
+    expect(postMessageSpy).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(50);
+    expect(postMessageSpy).toHaveBeenCalledTimes(2);
 
     runtimeEvents.cleanup();
     vi.useRealTimers();
@@ -177,7 +189,7 @@ describe("embedded host bridge runtime", () => {
 
     client.connect();
 
-    const requestCall = postMessageSpy.mock.calls[0] as unknown[] | undefined;
+    const requestCall = getMockCall(postMessageSpy);
     const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
     expect(parentPort).toBeDefined();
 
@@ -233,5 +245,89 @@ describe("embedded host bridge runtime", () => {
     );
 
     runtimeEvents.cleanup();
+  });
+
+  it("re-requests the bridge after a transient parent close", async () => {
+    vi.useFakeTimers();
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+
+    const client = getHostRealtimeClient(() => {
+      throw new Error("direct socket should not be requested in embedded mode");
+    });
+    const connectSpy = vi.fn();
+    const disconnectSpy = vi.fn();
+    client.on("connect", connectSpy);
+    client.on("disconnect", disconnectSpy);
+
+    client.connect();
+
+    const firstRequestCall = getMockCall(postMessageSpy);
+    const firstParentPort = (firstRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(firstParentPort).toBeDefined();
+
+    firstParentPort!.postMessage({
+      type: "AIRJAM_HOST_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-host-runtime",
+          capabilityFlags: { hostBridge: true },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          capabilityToken: "join_123",
+          connected: true,
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
+          players: [],
+        },
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.connected).toBe(true);
+
+    firstParentPort!.postMessage({
+      type: "AIRJAM_HOST_BRIDGE_CLOSE",
+      payload: { reason: "game_unloaded" },
+    });
+
+    await vi.advanceTimersByTimeAsync(49);
+    expect(postMessageSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(postMessageSpy).toHaveBeenCalledTimes(2);
+    expect(disconnectSpy).toHaveBeenCalledWith("game_unloaded");
+
+    const secondRequestCall = getMockCall(postMessageSpy);
+    expect(secondRequestCall?.[0]).toMatchObject({
+      type: "AIRJAM_HOST_BRIDGE_REQUEST",
+    });
+
+    const secondParentPort = (secondRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    expect(secondParentPort).toBeDefined();
+
+    secondParentPort!.postMessage({
+      type: "AIRJAM_HOST_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-host-runtime",
+          capabilityFlags: { hostBridge: true },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          capabilityToken: "join_123",
+          connected: true,
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
+          players: [],
+        },
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.connected).toBe(true);
+    expect(connectSpy).toHaveBeenCalledTimes(2);
   });
 });

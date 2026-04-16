@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
 import { io, type Socket } from "socket.io-client";
+import { emitWithAck, waitForSocketConnect } from "./helpers/socket-test-utils";
 
 describe("dev log summaries", () => {
   let runtime: AirJamServerRuntime | null = null;
@@ -70,46 +71,33 @@ describe("dev log summaries", () => {
       reconnection: false,
     });
 
-    await Promise.all([
-      new Promise<void>((resolve, reject) => {
-        host!.once("connect", () => resolve());
-        host!.once("connect_error", (error) => reject(error));
-      }),
-      new Promise<void>((resolve, reject) => {
-        controller!.once("connect", () => resolve());
-        controller!.once("connect_error", (error) => reject(error));
-      }),
-    ]);
+    await Promise.all([waitForSocketConnect(host), waitForSocketConnect(controller)]);
 
-    const bootstrapAck = await new Promise<{ ok: boolean }>((resolve) => {
-      host!.emit("host:bootstrap", { appId: "aj_app_summary_test" }, resolve);
+    const bootstrapAck = await emitWithAck<{ ok: boolean }>(host, "host:bootstrap", {
+      appId: "aj_app_summary_test",
     });
     expect(bootstrapAck.ok).toBe(true);
 
-    const createRoomAck = await new Promise<{
+    const createRoomAck = await emitWithAck<{
       ok: boolean;
       roomId?: string;
       controllerCapability?: { token: string };
-    }>((resolve) => {
-      host!.emit("host:createRoom", { maxPlayers: 4 }, resolve);
-    });
+    }>(host, "host:createRoom", { maxPlayers: 4 });
     expect(createRoomAck.ok).toBe(true);
     expect(createRoomAck.roomId).toBeTruthy();
 
     const roomId = createRoomAck.roomId as string;
 
-    const controllerJoinAck = await new Promise<{ ok: boolean }>((resolve) => {
-      controller!.emit(
-        "controller:join",
-        {
-          roomId,
-          controllerId: "ctrl_summary_1",
-          nickname: "Summary Controller",
-          capabilityToken: createRoomAck.controllerCapability?.token,
-        },
-        resolve,
-      );
-    });
+    const controllerJoinAck = await emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_summary_1",
+        nickname: "Summary Controller",
+        capabilityToken: createRoomAck.controllerCapability?.token,
+      },
+    );
     expect(controllerJoinAck.ok).toBe(true);
 
     controller.emit("controller:input", {
@@ -188,46 +176,33 @@ describe("dev log summaries", () => {
       reconnection: false,
     });
 
-    await Promise.all([
-      new Promise<void>((resolve, reject) => {
-        host!.once("connect", () => resolve());
-        host!.once("connect_error", (error) => reject(error));
-      }),
-      new Promise<void>((resolve, reject) => {
-        controller!.once("connect", () => resolve());
-        controller!.once("connect_error", (error) => reject(error));
-      }),
-    ]);
+    await Promise.all([waitForSocketConnect(host), waitForSocketConnect(controller)]);
 
-    const bootstrapAck = await new Promise<{ ok: boolean }>((resolve) => {
-      host!.emit("host:bootstrap", { appId: "aj_app_summary_test" }, resolve);
+    const bootstrapAck = await emitWithAck<{ ok: boolean }>(host, "host:bootstrap", {
+      appId: "aj_app_summary_test",
     });
     expect(bootstrapAck.ok).toBe(true);
 
-    const createRoomAck = await new Promise<{
+    const createRoomAck = await emitWithAck<{
       ok: boolean;
       roomId?: string;
       controllerCapability?: { token: string };
-    }>((resolve) => {
-      host!.emit("host:createRoom", { maxPlayers: 4 }, resolve);
-    });
+    }>(host, "host:createRoom", { maxPlayers: 4 });
     expect(createRoomAck.ok).toBe(true);
     expect(createRoomAck.roomId).toBeTruthy();
 
     const roomId = createRoomAck.roomId as string;
 
-    const controllerJoinAck = await new Promise<{ ok: boolean }>((resolve) => {
-      controller!.emit(
-        "controller:join",
-        {
-          roomId,
-          controllerId: "ctrl_idle_1",
-          nickname: "Idle Controller",
-          capabilityToken: createRoomAck.controllerCapability?.token,
-        },
-        resolve,
-      );
-    });
+    const controllerJoinAck = await emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_idle_1",
+        nickname: "Idle Controller",
+        capabilityToken: createRoomAck.controllerCapability?.token,
+      },
+    );
     expect(controllerJoinAck.ok).toBe(true);
 
     const emitNeutralInputs = (count: number): void => {

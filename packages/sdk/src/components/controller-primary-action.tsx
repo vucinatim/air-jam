@@ -8,6 +8,7 @@ export interface ControllerPrimaryActionProps {
   icon?: ReactNode;
   disabled?: boolean;
   onPress?: () => void;
+  testId?: string;
   className?: string;
   buttonClassName?: string;
 }
@@ -18,6 +19,7 @@ export const ControllerPrimaryAction = ({
   icon,
   disabled,
   onPress,
+  testId,
   className,
   buttonClassName,
 }: ControllerPrimaryActionProps): JSX.Element => {
@@ -27,6 +29,7 @@ export const ControllerPrimaryAction = ({
         type="button"
         onClick={onPress}
         disabled={disabled}
+        data-testid={testId}
         aria-label={label}
         title={label}
         className={cn(

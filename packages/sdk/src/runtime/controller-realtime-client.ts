@@ -27,6 +27,11 @@ import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
 const CONTROLLER_BRIDGE_RUNTIME_KIND = "arcade-controller-runtime";
+const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set([
+  "game_unloaded",
+  "replaced",
+]);
+const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
 
 type LegacyControllerActionRpcPayload = Omit<
   ControllerActionRpcPayload,
@@ -111,8 +116,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   private listeners = new Map<string, Set<BridgeListener>>();
   private port: MessagePort | null = null;
   private connectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private requested = false;
   private lastAttachedArcadeEpoch: number | null = null;
+  private allowReconnect = true;
 
   connect(): this {
     const runtimeParams = readEmbeddedControllerRuntimeParams();
@@ -127,8 +134,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       return this;
     }
 
-    this.requested = true;
+    this.allowReconnect = true;
+    this.clearReconnectTimeout();
     this.clearPort(false);
+    this.requested = true;
 
     const channel = new MessageChannel();
     this.port = channel.port1;
@@ -169,6 +178,8 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   }
 
   disconnect(): this {
+    this.allowReconnect = false;
+    this.clearReconnectTimeout();
     if (this.port) {
       this.port.postMessage(createControllerBridgeCloseMessage("detached"));
     }
@@ -327,6 +338,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
         { reason: closeMessage.payload.reason },
       );
       this.clearPort(true, closeMessage.payload.reason);
+      this.scheduleReconnect(
+        closeMessage.payload.reason,
+        BRIDGE_TRANSIENT_CLOSE_REASONS,
+      );
     }
   }
 
@@ -349,6 +364,7 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       },
     );
     this.clearPort(false);
+    this.scheduleReconnect(options?.reason, BRIDGE_TRANSIENT_FAILURE_REASONS);
     this.notify("disconnect", reason);
   }
 
@@ -371,6 +387,21 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
     }
   }
 
+  private scheduleReconnect(
+    reason: string | undefined,
+    transientReasons: ReadonlySet<string>,
+  ): void {
+    if (!this.allowReconnect || !transientReasons.has(reason ?? "")) {
+      return;
+    }
+
+    this.clearReconnectTimeout();
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+      this.connect();
+    }, 50);
+  }
+
   private clearConnectTimeout(): void {
     if (!this.connectTimeout) {
       return;
@@ -378,6 +409,15 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
 
     clearTimeout(this.connectTimeout);
     this.connectTimeout = null;
+  }
+
+  private clearReconnectTimeout(): void {
+    if (!this.reconnectTimeout) {
+      return;
+    }
+
+    clearTimeout(this.reconnectTimeout);
+    this.reconnectTimeout = null;
   }
 
   private emitRuntimeEvent(

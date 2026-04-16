@@ -28,11 +28,13 @@ Strategy and operations:
 3. [Deployment and Monetization Strategy](./strategy/deployment-and-monetization-strategy.md)
 4. [Production Observability Baseline](./strategy/production-observability-baseline.md)
 5. [Public Arcade Release Strategy](./strategy/public-arcade-release-strategy.md)
+6. [Project Review (2026-04-15)](./strategy/project-review-2026-04-15.md)
 
 Release-critical plans:
 
 1. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
-2. [Stage 3 Polish Plan](./plans/stage-3-polish-plan.md)
+2. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
+3. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
 
 Canonical release sequence:
 
@@ -47,13 +49,13 @@ Canonical release sequence:
 9. uploads / media / landing overlook
 10. merge, deploy, live test, and launch distribution
 
-Active prerelease implementation plans:
+Active prerelease implementation plan:
 
-1. [Game UI Scaling Plan](./plans/game-ui-scaling-plan.md)
+1. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
 
 Final release-proof plan:
 
-1. [Final Prerelease Manual Check Plan](./plans/final-prerelease-manual-check-plan.md)
+1. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
 
 Archived recent baseline plans and completed implementation snapshots:
 
@@ -70,9 +72,11 @@ Archived recent baseline plans and completed implementation snapshots:
 11. [SDK Extraction Clean-Swap Plan](./archive/sdk-extraction-clean-swap-plan-2026-04-09.md)
 12. [Visual Review Harness Plan](./archive/visual-review-harness-plan-2026-04-09.md)
 13. [Controller Preview Dock Plan](./archive/controller-preview-dock-plan-2026-04-09.md)
-14. [Controller Preview Workspace Plan](./plans/controller-preview-workspace-plan.md)
+14. [Controller Preview Workspace Plan](./archive/controller-preview-workspace-plan-2026-04-14.md)
 15. [Agent Runtime Contract Plan](./archive/agent-runtime-contract-plan-2026-04-09.md)
 16. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
+17. [Game UI Scaling Plan](./archive/game-ui-scaling-plan-2026-04-15.md)
+18. [Stage 3 Polish Plan](./archive/stage-3-polish-plan-2026-04-15.md)
 
 Completed transitions / reference plans:
 

@@ -53,6 +53,7 @@ export function ControllerPageContent({
     hostQrVisible,
     controllerPresentationOrientation,
     controllerIframeSrc,
+    controllerIframePending,
     controllerIframeFailed,
     iframeRef,
   } = useControllerEmbeddedGameFrame({
@@ -154,6 +155,7 @@ export function ControllerPageContent({
       chromeInsetStyle={controllerChromeInsetStyle}
       iframeRef={iframeRef}
       controllerIframeSrc={controllerIframeSrc}
+      controllerIframePending={controllerIframePending}
       controllerIframeFailed={controllerIframeFailed}
       hostQrVisible={hostQrVisible}
       hapticsEnabled={feedback.hapticsEnabled}

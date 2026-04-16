@@ -73,6 +73,7 @@ describe("sdk export surface", () => {
     expect("useInheritedPlatformSettings" in sdk).toBe(true);
     expect("usePlatformAudioSettings" in sdk).toBe(true);
     expect("getEffectiveAudioVolume" in sdk).toBe(true);
+    expect("DEFAULT_PLATFORM_SETTINGS" in sdk).toBe(true);
     expect("useAudioSettings" in sdk).toBe(false);
   });
 
@@ -82,6 +83,13 @@ describe("sdk export surface", () => {
     ) as {
       exports?: Record<string, unknown>;
     };
+    const prefabExport = packageJson.exports?.["./prefabs"] as
+      | {
+          types?: string;
+          import?: string;
+          require?: string;
+        }
+      | undefined;
 
     const exportKeys = Object.keys(packageJson.exports ?? {});
     expect(exportKeys).toEqual(
@@ -104,5 +112,10 @@ describe("sdk export surface", () => {
     );
     expect(packageJson.exports?.["./context"]).toBeUndefined();
     expect(packageJson.exports?.["./context/socket-manager"]).toBeUndefined();
+    expect(prefabExport).toEqual({
+      types: "./dist/prefabs.d.ts",
+      import: "./dist/prefabs.js",
+      require: "./dist/prefabs.cjs",
+    });
   });
 });

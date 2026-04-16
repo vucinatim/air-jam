@@ -58,6 +58,7 @@ interface ControllerEmbeddedGameFrameState {
   hostQrVisible: boolean;
   controllerPresentationOrientation: "portrait" | "landscape";
   controllerIframeSrc: string | null;
+  controllerIframePending: boolean;
   controllerIframeFailed: boolean;
   iframeRef: RefObject<HTMLIFrameElement | null>;
 }
@@ -102,6 +103,7 @@ export function useControllerEmbeddedGameFrame({
   const controllerIframeHandshakeDeadlineRef = useRef<
     ReturnType<typeof setTimeout> | null
   >(null);
+  const [bridgeListenerReady, setBridgeListenerReady] = useState(false);
   const [controllerIframeFailed, setControllerIframeFailed] = useState(false);
   const bridgeAttachedIdentityRef = useRef<ArcadeSurfaceRuntimeIdentity | null>(
     null,
@@ -124,7 +126,7 @@ export function useControllerEmbeddedGameFrame({
       ? controller.controllerOrientation
       : "portrait";
 
-  const controllerIframeSrc = useMemo(() => {
+  const rawControllerIframeSrc = useMemo(() => {
     if (!activeUrl || !controller.controllerId || !controller.roomId) {
       return null;
     }
@@ -168,6 +170,11 @@ export function useControllerEmbeddedGameFrame({
     localProfile.avatarId,
     localProfile.label,
   ]);
+
+  const controllerIframeSrc =
+    bridgeListenerReady && rawControllerIframeSrc ? rawControllerIframeSrc : null;
+  const controllerIframePending =
+    Boolean(rawControllerIframeSrc) && !bridgeListenerReady;
 
   const closeBridge = useCallback((reason?: string) => {
     const currentPort = bridgePortRef.current;
@@ -330,6 +337,7 @@ export function useControllerEmbeddedGameFrame({
 
   useEffect(() => {
     if (!activeUrl) {
+      setBridgeListenerReady(false);
       return;
     }
 
@@ -363,6 +371,12 @@ export function useControllerEmbeddedGameFrame({
         request.payload.roomId !== session.roomId ||
         request.payload.controllerId !== session.controllerId
       ) {
+        console.warn("[airjam] controller bridge session mismatch", {
+          expectedRoomId: session.roomId,
+          expectedControllerId: session.controllerId,
+          receivedRoomId: request.payload.roomId,
+          receivedControllerId: request.payload.controllerId,
+        });
         port.postMessage(
           createControllerBridgeCloseMessage(
             "Embedded controller bridge session mismatch.",
@@ -379,6 +393,10 @@ export function useControllerEmbeddedGameFrame({
           request.payload.arcadeSurface,
         )
       ) {
+        console.warn("[airjam] controller bridge surface mismatch", {
+          shellSurface: surface,
+          requestSurface: request.payload.arcadeSurface,
+        });
         port.postMessage(
           createControllerBridgeCloseMessage(
             "Embedded controller bridge handshake rejected: arcade surface mismatch.",
@@ -388,13 +406,24 @@ export function useControllerEmbeddedGameFrame({
         return;
       }
 
+      console.info("[airjam] controller bridge attach", {
+        roomId: session.roomId,
+        controllerId: session.controllerId,
+        connected: controllerSocketRef.current?.connected ?? false,
+        socketId: controllerSocketRef.current?.id,
+        playerCount: session.players.length,
+        gameId: surface.gameId,
+        epoch: surface.epoch,
+      });
       attachBridgePort(port);
       clearControllerIframeHandshakeDeadline();
       setControllerIframeFailed(false);
     };
 
     window.addEventListener("message", handleMessage);
+    setBridgeListenerReady(true);
     return () => {
+      setBridgeListenerReady(false);
       window.removeEventListener("message", handleMessage);
     };
   }, [activeUrl, attachBridgePort, clearControllerIframeHandshakeDeadline]);
@@ -510,6 +539,7 @@ export function useControllerEmbeddedGameFrame({
     hostQrVisible,
     controllerPresentationOrientation,
     controllerIframeSrc,
+    controllerIframePending,
     controllerIframeFailed,
     iframeRef,
   };

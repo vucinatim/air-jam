@@ -244,6 +244,11 @@ const normalizeActiveSession = (sessions: PreviewControllerSession[]) => {
   }));
 };
 
+const mapSessionsAndNormalizeActive = (
+  sessions: PreviewControllerSession[],
+  mapSession: (session: PreviewControllerSession) => PreviewControllerSession,
+) => normalizeActiveSession(sessions.map(mapSession));
+
 export const usePreviewControllerManager = ({
   joinUrl,
   enabled = true,
@@ -251,6 +256,7 @@ export const usePreviewControllerManager = ({
   allowedOrigins,
 }: UsePreviewControllerManagerOptions): UsePreviewControllerManagerResult => {
   const [sessions, setSessions] = useState<PreviewControllerSession[]>([]);
+  const nextSessionIdRef = useRef(1);
   const nextOrdinalRef = useRef(1);
   const nextZIndexRef = useRef(1);
   const previousJoinRoomRef = useRef<string | null>(
@@ -268,6 +274,7 @@ export const usePreviewControllerManager = ({
         previousJoinRoom !== nextJoinRoom)
     ) {
       setSessions([]);
+      nextSessionIdRef.current = 1;
       nextOrdinalRef.current = 1;
       nextZIndexRef.current = 1;
     }
@@ -304,11 +311,12 @@ export const usePreviewControllerManager = ({
 
         const ordinal = nextOrdinalRef.current++;
         const zIndex = nextZIndexRef.current++;
+        const sessionId = `preview_session_${nextSessionIdRef.current++}`;
         const orientation = DEFAULT_PREVIEW_CONTROLLER_ORIENTATION;
         const defaultBounds = getDefaultPreviewWindowBounds(orientation);
         const position = getInitialWindowPosition(current, orientation);
         nextSession = {
-          id: launch.controllerId,
+          id: sessionId,
           ordinal,
           label: `Preview ${ordinal}`,
           controllerId: launch.controllerId,
@@ -342,6 +350,7 @@ export const usePreviewControllerManager = ({
 
   const clearPreviewControllers = useCallback(() => {
     setSessions([]);
+    nextSessionIdRef.current = 1;
     nextOrdinalRef.current = 1;
     nextZIndexRef.current = 1;
   }, []);
@@ -371,7 +380,7 @@ export const usePreviewControllerManager = ({
   const setPreviewControllerPosition = useCallback(
     (id: string, x: number, y: number) => {
       setSessions((current) =>
-        current.map((session) => {
+        mapSessionsAndNormalizeActive(current, (session) => {
           if (session.id !== id) {
             return session;
           }
@@ -401,7 +410,7 @@ export const usePreviewControllerManager = ({
       options: PreviewControllerBoundsClampOptions = {},
     ) => {
       setSessions((current) =>
-        current.map((session) => {
+        mapSessionsAndNormalizeActive(current, (session) => {
           if (session.id !== id) {
             return session;
           }
@@ -423,7 +432,7 @@ export const usePreviewControllerManager = ({
 
   const rotatePreviewController = useCallback((id: string) => {
     setSessions((current) =>
-      current.map((session) => {
+      mapSessionsAndNormalizeActive(current, (session) => {
         if (session.id !== id) {
           return session;
         }
@@ -457,7 +466,7 @@ export const usePreviewControllerManager = ({
 
   const markPreviewControllerReady = useCallback((id: string) => {
     setSessions((current) =>
-      current.map((session) =>
+      mapSessionsAndNormalizeActive(current, (session) =>
         session.id === id ? { ...session, surfaceState: "ready" } : session,
       ),
     );
@@ -465,7 +474,7 @@ export const usePreviewControllerManager = ({
 
   const markPreviewControllerFailed = useCallback((id: string) => {
     setSessions((current) =>
-      current.map((session) =>
+      mapSessionsAndNormalizeActive(current, (session) =>
         session.id === id ? { ...session, surfaceState: "failed" } : session,
       ),
     );

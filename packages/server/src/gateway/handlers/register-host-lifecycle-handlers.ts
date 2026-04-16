@@ -116,6 +116,15 @@ export const registerHostLifecycleHandlers = (
     session: RoomSession,
   ) => buildControllerCapabilityForHostAck(session, uuidv4);
 
+  const clearPendingRoomCloseTimer = (session: RoomSession): void => {
+    if (!session.pendingRoomCloseTimer) {
+      return;
+    }
+
+    clearTimeout(session.pendingRoomCloseTimer);
+    session.pendingRoomCloseTimer = undefined;
+  };
+
   const getHostLogger = (bindings: Record<string, unknown> = {}) => {
     const traceId = socket.data.hostAuthority?.traceId;
     const mergedBindings = {
@@ -374,6 +383,7 @@ export const registerHostLifecycleHandlers = (
 
       let session = roomManager.getRoom(roomId);
       if (session) {
+        clearPendingRoomCloseTimer(session);
         session.masterHostSocketId = socket.id;
         syncRoomAnalyticsState(session.analytics, socket.data.hostAuthority);
         roomManager.setRoom(roomId, session);
@@ -654,6 +664,7 @@ export const registerHostLifecycleHandlers = (
         !isPreviousHostConnected ||
         session.masterHostSocketId === socket.id
       ) {
+        clearPendingRoomCloseTimer(session);
         const previousGameState = session.runtimeState;
         // Host refresh/reconnect should always return the room to lobby-safe pause state.
         if (session.runtimeState === "playing") {

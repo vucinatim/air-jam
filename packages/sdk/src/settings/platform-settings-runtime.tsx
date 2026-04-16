@@ -300,6 +300,26 @@ export function usePlatformSettings(): PlatformSettingsOwnerApi {
   };
 }
 
+export function useOptionalPlatformSettingsOwnerApi(): PlatformSettingsOwnerApi | null {
+  const context = useContext(platformSettingsContext);
+
+  if (!context || context.mode !== "owner") {
+    return null;
+  }
+
+  return {
+    settings: context.settings,
+    setSettings: context.setSettings,
+    updateSettings: context.updateSettings,
+    updateAudio: (patch) => context.updateSettings({ audio: patch }),
+    updateAccessibility: (patch) =>
+      context.updateSettings({ accessibility: patch }),
+    updateFeedback: (patch) => context.updateSettings({ feedback: patch }),
+    updatePreviewControllers: (patch) =>
+      context.updateSettings({ previewControllers: patch }),
+  };
+}
+
 export function useInheritedPlatformSettings(): Readonly<PlatformSettingsSnapshot> {
   const context = useContext(platformSettingsContext);
 

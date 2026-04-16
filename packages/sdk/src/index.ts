@@ -24,7 +24,10 @@ export type {
   PlatformSettingsPersistence,
   PlatformSettingsSnapshot,
 } from "./settings/platform-settings";
-export { getEffectiveAudioVolume } from "./settings/platform-settings";
+export {
+  DEFAULT_PLATFORM_SETTINGS,
+  getEffectiveAudioVolume,
+} from "./settings/platform-settings";
 export {
   PlatformSettingsBoundary,
   PlatformSettingsRuntime,

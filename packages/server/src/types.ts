@@ -74,6 +74,8 @@ export interface RoomSession {
   lifecycleState: RoomLifecycleState;
   /** Deferred teardown when child host socket drops (Socket.IO reconnect grace). */
   pendingChildTeardownTimer?: ReturnType<typeof setTimeout>;
+  /** Deferred teardown when the master host socket drops. */
+  pendingRoomCloseTimer?: ReturnType<typeof setTimeout>;
 }
 
 /**

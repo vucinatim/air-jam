@@ -8,6 +8,7 @@ import {
 } from "../../src/index";
 import { RateLimitService } from "../../src/services/rate-limit-service";
 import { RoomManager } from "../../src/services/room-manager";
+import { emitWithAck as emitWithAckWithTimeout, waitForSocketConnect } from "./socket-test-utils";
 
 type GenericEventMap = Record<string, (...args: unknown[]) => void>;
 type GenericSocket = Socket<GenericEventMap, GenericEventMap>;
@@ -100,31 +101,19 @@ export const setupServerTestHarness = (
   const connectSocket = async (options?: {
     origin?: string;
   }): Promise<GenericSocket> => {
-    const socket = await new Promise<GenericSocket>((resolve, reject) => {
-      const nextSocket = io(baseUrl, {
-        transports: ["websocket"],
-        forceNew: true,
-        reconnection: false,
-        extraHeaders: options?.origin
-          ? {
-              origin: options.origin,
-            }
-          : undefined,
-      });
-
-      const onConnectError = (error: Error) => {
-        nextSocket.off("connect", onConnect);
-        reject(error);
-      };
-
-      const onConnect = () => {
-        nextSocket.off("connect_error", onConnectError);
-        resolve(nextSocket as GenericSocket);
-      };
-
-      nextSocket.once("connect_error", onConnectError);
-      nextSocket.once("connect", onConnect);
+    const nextSocket = io(baseUrl, {
+      transports: ["websocket"],
+      forceNew: true,
+      reconnection: false,
+      extraHeaders: options?.origin
+        ? {
+            origin: options.origin,
+          }
+        : undefined,
     });
+
+    await waitForSocketConnect(nextSocket as GenericSocket);
+    const socket = nextSocket as GenericSocket;
 
     sockets.push(socket);
     return socket;
@@ -135,9 +124,7 @@ export const setupServerTestHarness = (
     event: string,
     payload: unknown,
   ): Promise<TAck> => {
-    return await new Promise((resolve) => {
-      socket.emit(event, payload, (ack: TAck) => resolve(ack));
-    });
+    return await emitWithAckWithTimeout<TAck>(socket, event, payload);
   };
 
   const bootstrapHost = async (
