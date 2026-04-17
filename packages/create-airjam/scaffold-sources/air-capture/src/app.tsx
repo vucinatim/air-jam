@@ -9,6 +9,19 @@ import {
   AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM,
 } from "./prefab-preview/params";
 
+// Prefab-preview is dev-only tooling for the visual-harness capture lane.
+// `import.meta.env.DEV` resolves to a compile-time boolean, so production
+// builds tree-shake the lazy factory (and therefore the chunk for
+// `./prefab-preview`) out of the bundle. Only the tiny params constants and
+// the dead-branch guard below survive — the 255-LOC prefab surface does not
+// ship to production.
+const PrefabCaptureSurface = import.meta.env.DEV
+  ? lazy(async () => {
+      const module = await import("./prefab-preview");
+      return { default: module.PrefabCaptureSurface };
+    })
+  : null;
+
 const HostView = lazy(async () => {
   const module = await import("./host");
   return { default: module.HostView };
@@ -17,11 +30,6 @@ const HostView = lazy(async () => {
 const ControllerView = lazy(async () => {
   const module = await import("./controller");
   return { default: module.ControllerView };
-});
-
-const PrefabCaptureSurface = lazy(async () => {
-  const module = await import("./prefab-preview");
-  return { default: module.PrefabCaptureSurface };
 });
 
 const RouteFallback = (): JSX.Element => {
@@ -36,8 +44,10 @@ const HostSurface = (): JSX.Element => {
   );
 
   if (
+    import.meta.env.DEV &&
+    PrefabCaptureSurface &&
     searchParams.get(AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM) ===
-    AIR_CAPTURE_PREFAB_CAPTURE_SURFACE
+      AIR_CAPTURE_PREFAB_CAPTURE_SURFACE
   ) {
     return (
       <HostAudioProvider muted={true}>

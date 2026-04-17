@@ -157,10 +157,21 @@ export const createAirJamServer = (
 
   const app = express();
   app.use(cors({ origin: corsOrigin }));
-  app.use(express.json());
+  app.use(express.json({ limit: "512kb" }));
 
   app.get("/health", (_, res) => {
-    res.json({ ok: true });
+    const rooms = roomManagerInstance.getAllRooms();
+    let controllerCount = 0;
+    for (const session of rooms.values()) {
+      controllerCount += session.controllers.size;
+    }
+    res.json({
+      ok: !envConfig.maintenanceMode,
+      uptime: Math.floor(process.uptime()),
+      rooms: rooms.size,
+      controllers: controllerCount,
+      maintenance: envConfig.maintenanceMode,
+    });
   });
 
   app.post("/__airjam/dev/browser-logs", async (req, res) => {
@@ -259,6 +270,7 @@ export const createAirJamServer = (
       staticAppRateLimitMax,
       proxyHeaderTrustMode:
         options.proxyHeaderTrustMode ?? envConfig.proxyHeaderTrustMode,
+      maintenanceMode: envConfig.maintenanceMode,
     });
   });
 

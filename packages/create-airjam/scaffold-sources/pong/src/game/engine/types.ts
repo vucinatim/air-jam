@@ -1,11 +1,19 @@
+/**
+ * Engine types. The engine is deliberately decoupled from the networked
+ * store — it doesn't know anything about `usePongStore` or the SDK. It only
+ * sees the minimal shapes defined here, which makes it trivial to unit-test
+ * the game loop without mocking a session.
+ */
 import type { TeamId } from "../domain/team";
 import type { BotCounts } from "../domain/team-slots";
 import type { TeamAssignment } from "../stores";
 
+/** Minimal player shape the engine needs for input lookup. */
 export interface RuntimePlayer {
   id: string;
 }
 
+/** Authoritative host-local match state. Mutated in-place by `stepGame`. */
 export interface RuntimeState {
   paddle1FrontY: number;
   paddle1BackY: number;

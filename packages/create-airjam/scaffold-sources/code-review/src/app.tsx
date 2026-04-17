@@ -1,3 +1,9 @@
+/**
+ * Route shell. The host + controller views are lazy-loaded so each surface
+ * only pulls the code it needs. The real work happens inside `./host` and
+ * `./controller`, both wrapped by the lifecycle providers from
+ * `airjam.config.ts`.
+ */
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { airjam } from "./airjam.config";

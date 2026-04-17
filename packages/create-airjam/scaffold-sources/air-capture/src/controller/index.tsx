@@ -1,3 +1,20 @@
+/**
+ * Controller surface for air-capture.
+ *
+ * Flow:
+ *  1. `ControllerView` wraps the screen in `ControllerAudioProvider` so
+ *     host-triggered sounds (shot cues, flag pickups) play through a
+ *     controller-local audio manager.
+ *  2. Phase-specific panels (`ControllerLobbyPanel`,
+ *     `ControllerPlayingControls`, `ControllerEndedPanel`) are picked from
+ *     the networked `matchPhase`.
+ *  3. `useControllerTick` publishes the current input state (movement +
+ *     abilities) to the host every frame; the host reads it through
+ *     `host.getInput(playerId)` in its simulation step.
+ *
+ * No gameplay logic lives here — everything authoritative is in the host
+ * stores under `../game/stores/` and is replicated down.
+ */
 import {
   useAirJamController,
   useAirJamControllerState,

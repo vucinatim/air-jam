@@ -1,7 +1,18 @@
+/**
+ * Pure helpers for turning the networked team-assignment map into the shapes
+ * the UI and engine need:
+ * - slot visuals (human / bot / open) for lobby tiles
+ * - aggregate team counts for readiness checks
+ * - available slot positions for bot placement
+ *
+ * Every function here is pure + deterministic so it can be reused on host,
+ * controller, and in tests without any session wiring.
+ */
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import type { TeamId } from "./team";
 import type { TeamAssignment } from "../stores";
 
+/** Paddle position within a team: the front paddle is closer to centre. */
 export type PaddleSlotPosition = "front" | "back";
 
 export interface TeamCounts {

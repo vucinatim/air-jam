@@ -1,3 +1,12 @@
+/**
+ * Single-frame game loop.
+ *
+ * Call `stepGame` once per requestAnimationFrame tick. It applies input,
+ * moves the ball, resolves paddle collisions, and fires `onPaddleHit` /
+ * `onScore` callbacks so the host can trigger audio / haptics / store
+ * actions. Keeping the simulation pure (no side effects, no React, no SDK)
+ * means the full match logic is unit-testable with a plain `RuntimeState`.
+ */
 import {
   PADDLE_X,
 } from "./constants";

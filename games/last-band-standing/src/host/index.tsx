@@ -1,3 +1,12 @@
+/**
+ * Host surface for last-band-standing.
+ *
+ * This host drives a round-based music quiz: a YouTube clip plays on the
+ * main screen, controllers buzz in, and the host advances the round
+ * lifecycle through the networked `useGameStore`. The YouTube player
+ * wrapper in `../features/youtube` handles cued playback without exposing
+ * the iframe API directly to the rest of the code.
+ */
 import {
   AudioRuntime,
   useAirJamHost,

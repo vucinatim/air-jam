@@ -29,4 +29,11 @@ export const auth = betterAuth({
           },
         }
       : undefined,
+  // Baseline per-IP rate limiting on auth endpoints (sign-up, sign-in, reset, etc.).
+  // Sufficient for v1 single-instance launch; revisit once we have distributed infra.
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 20,
+  },
 });

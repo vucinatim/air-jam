@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef } from "react";
 import {
   createMatchWinnerToastSignal,
   createPaddleHitHapticSignal,
-} from "../../game/adapters/controller-signals";
-import type { MatchSummary } from "../../game/stores";
-import type { TeamId } from "../../game/domain/team";
-import { PONG_SOUND_MANIFEST } from "../../game/shared/sounds";
+} from "../game/controller-signals";
+import type { MatchSummary } from "../game/stores";
+import type { TeamId } from "../game/domain/team";
+import { PONG_SOUND_MANIFEST } from "../game/sounds";
 
 interface UsePongFeedbackOptions {
   matchPhase: "lobby" | "playing" | "ended";

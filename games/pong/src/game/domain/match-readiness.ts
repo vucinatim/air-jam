@@ -1,3 +1,10 @@
+/**
+ * "Can we start the match?" logic.
+ *
+ * Single source of truth for the host button + the controller start button.
+ * A match needs at least one participant on each side; humans and bots both
+ * count.
+ */
 import type { TeamId } from "./team";
 import { getEffectiveTeamCounts, type BotCounts, type TeamCounts } from "./team-slots";
 

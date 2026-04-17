@@ -1,3 +1,9 @@
+/**
+ * Team identity + static presentation (label, color).
+ *
+ * Kept as domain-pure constants so both the host canvas renderer and the
+ * controller UI read the same source of truth.
+ */
 export type TeamId = "team1" | "team2";
 
 export const TEAMS: Record<

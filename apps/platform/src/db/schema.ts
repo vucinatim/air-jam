@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { ArcadeVisibility } from "@/lib/games/arcade-visibility";
+import type { GameConfig } from "@/lib/games/game-config-contract";
 import type {
   GameMediaKind,
   GameMediaStatus,
@@ -77,26 +78,38 @@ export const verificationTokens = pgTable("verification_tokens", {
   updatedAt: timestamp("updated_at").notNull(),
 });
 
-export const games = pgTable("games", {
-  id: text("id").primaryKey(), // Changed to text to match user ID style or keep UUID if preferred, but text is easier with BetterAuth user IDs
-  userId: text("user_id")
-    .references(() => users.id)
-    .notNull(),
-  name: text("name").notNull(),
-  slug: text("slug").unique(), // For pretty URLs
-  description: text("description"),
-  url: text("url"), // Optional creator-only preview URL used for local/external iframe testing
-  thumbnailMediaAssetId: text("thumbnail_media_asset_id"),
-  coverMediaAssetId: text("cover_media_asset_id"),
-  previewVideoMediaAssetId: text("preview_video_media_asset_id"),
-  arcadeVisibility: text("arcade_visibility")
-    .$type<ArcadeVisibility>()
-    .default("hidden")
-    .notNull(),
-  config: jsonb("config").default(sql`'{}'::jsonb`).notNull(), // Game specific configuration variables
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const games = pgTable(
+  "games",
+  {
+    id: text("id").primaryKey(), // Changed to text to match user ID style or keep UUID if preferred, but text is easier with BetterAuth user IDs
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    name: text("name").notNull(),
+    slug: text("slug").unique(), // For pretty URLs
+    description: text("description"),
+    url: text("url"), // Optional creator-only preview URL used for local/external iframe testing
+    thumbnailMediaAssetId: text("thumbnail_media_asset_id"),
+    coverMediaAssetId: text("cover_media_asset_id"),
+    previewVideoMediaAssetId: text("preview_video_media_asset_id"),
+    arcadeVisibility: text("arcade_visibility")
+      .$type<ArcadeVisibility>()
+      .default("hidden")
+      .notNull(),
+    // Schema-owned JSON bucket. See `@/lib/games/game-config-contract` for the
+    // Zod schema and validation helpers. All write paths MUST validate via
+    // `parseGameConfig` before persisting.
+    config: jsonb("config")
+      .$type<GameConfig>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdx: index("games_user_id_idx").on(table.userId),
+  }),
+);
 
 export const appIds = pgTable("app_ids", {
   id: text("id").primaryKey(),

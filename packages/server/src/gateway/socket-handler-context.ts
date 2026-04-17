@@ -19,6 +19,7 @@ export interface SocketHandlerContext {
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
   staticAppRateLimitMax: number;
+  maintenanceMode: boolean;
   emitError: (socketId: string, payload: ServerErrorPayload) => void;
   isRateLimited: (bucket: string, limit: number) => boolean;
   isScopedRateLimited: (bucket: string, scope: string, limit: number) => boolean;

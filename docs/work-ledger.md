@@ -135,7 +135,7 @@ Current truth:
 1. the long-term vision now explicitly includes a future where agents can build, run, inspect, control, and iteratively polish games through Air Jam-native contracts
 2. the SDK surface audit now explicitly classifies the current public lanes
 3. `@air-jam/sdk`, `@air-jam/sdk/ui`, and `@air-jam/sdk/styles.css` are the intended durable prerelease authoring/UI lanes
-4. `@air-jam/sdk/preview`, `@air-jam/sdk/arcade*`, `@air-jam/sdk/protocol`, `@air-jam/sdk/contracts/v2`, `@air-jam/sdk/runtime-control`, `@air-jam/sdk/runtime-inspection`, and `@air-jam/sdk/runtime-observability` are intentionally experimental leaves
+4. `@air-jam/sdk/preview`, `@air-jam/sdk/arcade*`, `@air-jam/sdk/protocol`, `@air-jam/sdk/capabilities`, `@air-jam/sdk/metadata`, and `@air-jam/sdk/prefabs` are intentionally experimental leaves. The `runtime-control`, `runtime-inspection`, `runtime-observability`, and `contracts/v2` seams were dropped from public exports on 2026-04-15 because they had no first-party consumer; the source files are retained and will be re-exported as explicit experimental leaves when a real consumer lands
 5. future machine-facing seams now have explicit experimental SDK homes instead of staying only internal
 6. `@air-jam/sdk/runtime-control` exposes additive host/controller session-driving adapters over the mounted runtime owners
 7. `@air-jam/sdk/runtime-inspection` exposes structural host/controller runtime snapshots instead of UI scraping

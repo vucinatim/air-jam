@@ -1,3 +1,10 @@
+/**
+ * Controller surface for last-band-standing.
+ *
+ * Phase-specific panels (lobby / active round / reveal / game-over) switch
+ * on the networked `matchPhase`. The active-round panel exposes the buzz-in
+ * button; the reveal panel shows round results once the host finalises them.
+ */
 import {
   ControllerRemoteAudioRuntime,
   useAirJamController,

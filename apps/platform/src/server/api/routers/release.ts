@@ -32,6 +32,8 @@ import {
   opsProcedure,
   protectedProcedure,
   publicProcedure,
+  rateLimitMiddleware,
+  RATE_LIMITS,
 } from "../trpc";
 
 const createDraftReleaseInput = z.object({
@@ -123,6 +125,7 @@ export const releaseRouter = createTRPCRouter({
     }),
 
   createDraft: protectedProcedure
+    .use(rateLimitMiddleware("release.createDraft", RATE_LIMITS.releaseCreate))
     .input(createDraftReleaseInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
@@ -247,6 +250,7 @@ export const releaseRouter = createTRPCRouter({
   }),
 
   requestUploadTarget: protectedProcedure
+    .use(rateLimitMiddleware("release.requestUploadTarget", RATE_LIMITS.releaseCreate))
     .input(requestUploadTargetInput)
     .mutation(async ({ input, ctx }) => {
       const release = await assertOwnedRelease(input.releaseId, ctx.user.id);

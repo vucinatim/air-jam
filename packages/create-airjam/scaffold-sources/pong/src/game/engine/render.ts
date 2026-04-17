@@ -8,7 +8,7 @@ import {
   TEAM1_COLOR,
   TEAM2_COLOR,
 } from "./constants";
-import { SHOW_PONG_FIELD_BOUNDS } from "../debug/field-debug";
+import { SHOW_PONG_FIELD_BOUNDS } from "../debug";
 import { getTeamPaddleState } from "./paddles";
 import { PONG_ARENA_PREFAB } from "../prefabs/arena";
 import type { DrawFrameOptions } from "./types";

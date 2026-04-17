@@ -1,3 +1,23 @@
+/**
+ * Controller surface for pong. Renders on each connected phone / tablet.
+ *
+ * Flow:
+ *  1. `ControllerView` mounts the remote audio runtime (host-triggered sounds
+ *     arrive through it) and delegates to `ControllerScreen`.
+ *  2. `ControllerScreen` reads the networked `usePongStore` slice through
+ *     `useTeamsSnapshot`. The store is shared with the host — state we see
+ *     here is the host's authoritative truth, replicated.
+ *  3. Controller-only state (the current movement direction, stored in a ref)
+ *     is published to the host every ~16ms via `useControllerTick` +
+ *     `useInputWriter`. The host reads it with `host.getInput(playerId)`.
+ *  4. `useControllerConnectionNotice` converts the SDK connection status into
+ *     a banner + a `controlsDisabled` flag that gates input + action buttons.
+ *  5. Phase-specific panels (`LobbyPanel` / `PlayingControls` / `EndedPanel`)
+ *     are picked by `matchPhase` and render the actual UI.
+ *
+ * This file orchestrates wiring only. No game rules, no scoring logic, no
+ * bot AI — those all live on the host and replicate down through the store.
+ */
 import {
   ControllerRemoteAudioRuntime,
   useAirJamController,
@@ -6,19 +26,18 @@ import {
   useInputWriter,
 } from "@air-jam/sdk";
 import { ControllerPlayerNameField, SurfaceViewport } from "@air-jam/sdk/ui";
-import { useEffect, useMemo, useRef } from "react";
-import {
-  getLobbyReadinessText,
-  getMatchReadiness,
-} from "../game/domain/match-readiness";
-import { getTeamCounts } from "../game/domain/team-slots";
-import { PONG_SOUND_MANIFEST } from "../game/shared/sounds";
-import { usePongStore, type PongState } from "../game/stores";
+import { useEffect, useRef } from "react";
+import { PONG_SOUND_MANIFEST } from "../game/sounds";
+import { usePongStore } from "../game/stores";
+import { useTeamsSnapshot } from "../game/use-teams-snapshot";
 import { ControllerHeader } from "./components/controller-header";
 import { EndedPanel } from "./components/ended-panel";
 import { LobbyPanel } from "./components/lobby-panel";
 import { PlayingControls } from "./components/playing-controls";
-import { useControllerConnectionNotice } from "./hooks/use-controller-connection-notice";
+import { useControllerConnectionNotice } from "./use-controller-connection-notice";
+
+/** Controller input tick rate — publish movement intent to the host at ~60Hz. */
+const INPUT_TICK_INTERVAL_MS = 16;
 
 export function ControllerView() {
   const controller = useAirJamController();
@@ -40,16 +59,24 @@ function ControllerScreen({
 }) {
   const { latestToast } = useControllerToasts();
   const writeInput = useInputWriter();
+  // Movement intent is a ref so onPointer events can update it without
+  // triggering re-renders; the tick loop reads the latest value every frame.
   const directionRef = useRef(0);
 
-  const teamAssignments = usePongStore(
-    (state: PongState) => state.teamAssignments,
-  );
-  const matchPhase = usePongStore((state: PongState) => state.matchPhase);
-  const botCounts = usePongStore((state: PongState) => state.botCounts);
-  const pointsToWin = usePongStore((state: PongState) => state.pointsToWin);
-  const matchSummary = usePongStore((state: PongState) => state.matchSummary);
   const actions = usePongStore.useActions();
+
+  const {
+    teamAssignments,
+    botCounts,
+    pointsToWin,
+    matchPhase,
+    matchSummary,
+    team1Players,
+    team2Players,
+    teamCounts,
+    readiness,
+    readinessText,
+  } = useTeamsSnapshot(controller.players, "controller");
 
   const myAssignment = controller.controllerId
     ? teamAssignments[controller.controllerId]
@@ -57,60 +84,10 @@ function ControllerScreen({
   const myTeam = myAssignment?.team ?? null;
   const myProfile = controller.selfPlayer;
 
-  const connectedPlayerIdSet = useMemo(
-    () => new Set(controller.players.map((player) => player.id)),
-    [controller.players],
-  );
-  const connectedAssignments = useMemo(
-    () =>
-      Object.entries(teamAssignments)
-        .filter(([playerId]) => connectedPlayerIdSet.has(playerId))
-        .map(([, assignment]) => assignment),
-    [connectedPlayerIdSet, teamAssignments],
-  );
-  const teamCounts = useMemo(
-    () => getTeamCounts(connectedAssignments),
-    [connectedAssignments],
-  );
-  const team1Players = useMemo(
-    () =>
-      controller.players
-        .filter((player) => teamAssignments[player.id]?.team === "team1")
-        .sort((left, right) => {
-          const leftPosition =
-            teamAssignments[left.id]?.position === "front" ? 0 : 1;
-          const rightPosition =
-            teamAssignments[right.id]?.position === "front" ? 0 : 1;
-          return leftPosition - rightPosition;
-        }),
-    [controller.players, teamAssignments],
-  );
-  const team2Players = useMemo(
-    () =>
-      controller.players
-        .filter((player) => teamAssignments[player.id]?.team === "team2")
-        .sort((left, right) => {
-          const leftPosition =
-            teamAssignments[left.id]?.position === "front" ? 0 : 1;
-          const rightPosition =
-            teamAssignments[right.id]?.position === "front" ? 0 : 1;
-          return leftPosition - rightPosition;
-        }),
-    [controller.players, teamAssignments],
-  );
-  const readiness = useMemo(
-    () => getMatchReadiness(teamCounts, botCounts),
-    [teamCounts, botCounts],
-  );
-  const readinessText = useMemo(
-    () =>
-      getLobbyReadinessText(teamCounts, botCounts, pointsToWin, "controller"),
-    [teamCounts, botCounts, pointsToWin],
-  );
-
   const { canSendSystemCommand, controlsDisabled, connectionNotice } =
     useControllerConnectionNotice(controller.connectionStatus);
 
+  // Publish movement intent to the host while connected + playing.
   useControllerTick(
     () => {
       writeInput({
@@ -121,16 +98,20 @@ function ControllerScreen({
       enabled:
         controller.connectionStatus === "connected" &&
         controller.runtimeState === "playing",
-      intervalMs: 16,
+      intervalMs: INPUT_TICK_INTERVAL_MS,
     },
   );
 
+  // Reset direction the instant controls go away so no stuck input leaks
+  // through a disconnect / reconnect cycle.
   useEffect(() => {
     if (controlsDisabled) {
       directionRef.current = 0;
     }
   }, [controlsDisabled]);
 
+  // Also release direction when the tab is backgrounded — pointerup events
+  // don't always fire reliably on mobile when the browser loses focus.
   useEffect(() => {
     const releaseDirection = () => {
       directionRef.current = 0;

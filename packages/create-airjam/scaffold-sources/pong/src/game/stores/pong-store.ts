@@ -1,3 +1,15 @@
+/**
+ * Networked pong store.
+ *
+ * This is the "state lane" — replicated, host-authoritative game state shared
+ * between the host and every controller. Action handlers run on the host.
+ * When a controller calls `actions.joinTeam(...)`, the SDK RPCs it to the
+ * host, runs the reducer there, and broadcasts the updated state back to all
+ * controllers.
+ *
+ * The reducers themselves are pure functions in `./pong-store-state` so they
+ * can be unit-tested without a running session.
+ */
 import {
   createAirJamStore,
 } from "@air-jam/sdk";
@@ -13,7 +25,6 @@ import {
 } from "./pong-store-state";
 import type { PongState } from "./pong-store-types";
 
-// This store is automatically synced between the host and all controllers.
 export const usePongStore = createAirJamStore<PongState>((set) => ({
   ...createInitialPongState(),
 

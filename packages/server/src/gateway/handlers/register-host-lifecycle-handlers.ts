@@ -204,6 +204,21 @@ export const registerHostLifecycleHandlers = (
       payload: HostBootstrapPayload,
       callback: (ack: HostBootstrapAck) => void,
     ) => {
+      if (context.maintenanceMode) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.bootstrapRejected,
+          "Rejected host bootstrap: server is in maintenance mode",
+          { reason: "maintenance_mode" },
+        );
+        callback({
+          ok: false,
+          message: "Server is currently in maintenance mode. Please try again later.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
       if (
         context.isRateLimited(
           "host-bootstrap",

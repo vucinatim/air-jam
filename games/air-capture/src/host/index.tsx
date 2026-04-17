@@ -1,3 +1,21 @@
+/**
+ * Host surface for air-capture (the advanced reference game).
+ *
+ * Flow:
+ *  1. `HostAudioProvider` + `HostView` mount the audio runtime and delegate
+ *     to `HostScreen`.
+ *  2. `HostScreen` pulls the three networked stores (match, capture-the-flag
+ *     state, player/roster) and wires them to: the 3D `GameScene`, the bot
+ *     manager, the visual-harness bridge, and the lobby / countdown / ended
+ *     overlays picked by `matchPhase`.
+ *  3. `useHostRuntimeStateBridge` aligns transport pause/play with the
+ *     store's match phase. `useMatchCountdown` owns the countdown lifecycle.
+ *  4. `useBotManager` runs the bot AI loop on the host against the same
+ *     runtime the `GameScene` renders from.
+ *
+ * Heaviest piece: the 3D scene under `../game/engine/game-scene`. It's lazy-
+ * loaded so the lobby surface renders before Rapier initialises.
+ */
 import {
   useAirJamHost,
   useAudioRuntimeControls,

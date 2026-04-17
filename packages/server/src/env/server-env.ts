@@ -21,6 +21,7 @@ export interface ServerEnvConfig {
   authMode: AuthMode;
   proxyHeaderTrustMode: ProxyHeaderTrustMode;
   remoteDatabaseBlocked: boolean;
+  maintenanceMode: boolean;
   masterKey?: string;
   hostGrantSecret?: string;
   databaseUrl?: string;
@@ -127,6 +128,10 @@ const rawServerEnvSchema = z
     AIR_JAM_HOST_GRANT_SECRET: z.preprocess(trimToUndefined, z.string().optional()),
     DATABASE_URL: z.preprocess(trimToUndefined, z.string().optional()),
     AIR_JAM_LOG_LEVEL: z.preprocess(trimToUndefined, z.string().optional()),
+    AIR_JAM_MAINTENANCE_MODE: z.preprocess(
+      trimToUndefined,
+      z.enum(["enabled", "disabled"]).optional(),
+    ),
   })
   .superRefine((value, context) => {
     const nodeEnv = value.NODE_ENV ?? "development";
@@ -214,5 +219,6 @@ export const loadServerEnv = (
     hostGrantSecret: parsed.AIR_JAM_HOST_GRANT_SECRET,
     databaseUrl: databasePolicy.databaseUrl,
     logLevel: parsed.AIR_JAM_LOG_LEVEL,
+    maintenanceMode: parsed.AIR_JAM_MAINTENANCE_MODE === "enabled",
   };
 };

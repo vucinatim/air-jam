@@ -1,3 +1,11 @@
+/**
+ * Controller surface for code-review.
+ *
+ * The controller publishes movement (optionally driven by phone gyroscope)
+ * plus a punch pulse through `useInputWriter`. The gyro helpers at the top
+ * (dead zone, max tilt, smoothing) tune how raw device orientation is
+ * mapped to the -1..1 direction axis the host consumes.
+ */
 import {
   useAirJamController,
   useControllerTick,

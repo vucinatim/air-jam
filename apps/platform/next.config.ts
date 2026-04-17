@@ -51,19 +51,48 @@ const nextConfig: NextConfig = {
       (process.env.GITHUB_CLIENT_ID ? "true" : "false"),
   },
   async headers() {
+    // Baseline CSP tuned for the real Air Jam embed model:
+    // - the platform shell iframes game release content from the same origin
+    //   (under /releases/g/... and /airjam-local-builds/...)
+    // - games connect to the realtime server over wss:/https:
+    // - creator-provided media URLs may live on any https host
+    // - Sentry SDK is bundled; DSN traffic is a generic https: connect target
+    //
+    // `'unsafe-inline'` and `'unsafe-eval'` are required for Next.js runtime
+    // bootstrap scripts. Keep this as the single authoritative CSP — individual
+    // routes should not override it unless there is a concrete product reason.
+    const contentSecurityPolicy = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https: wss: ws:",
+      "media-src 'self' blob: https:",
+      "frame-src 'self' https:",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
+
+    const permissionsPolicy = [
+      "camera=()",
+      "microphone=()",
+      "geolocation=()",
+      "payment=()",
+      "usb=()",
+    ].join(", ");
+
     return [
       {
-        // Apply to all routes
         source: "/:path*",
         headers: [
-          {
-            key: "X-Frame-Options",
-            value: "SAMEORIGIN",
-          },
-          {
-            key: "Content-Security-Policy",
-            value: "frame-ancestors 'self';",
-          },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: permissionsPolicy },
+          { key: "Content-Security-Policy", value: contentSecurityPolicy },
         ],
       },
     ];

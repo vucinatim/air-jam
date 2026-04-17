@@ -1,3 +1,12 @@
+/**
+ * Host surface for code-review.
+ *
+ * This host renders a 2D fighting arena on a canvas at ~60fps. The canvas
+ * loop owns: input collection via `host.getInput`, simulation step via
+ * `stepMatchFrame` (pure reducer over `RuntimeState`), and rendering via
+ * `drawFrame`. Match lifecycle (lobby/playing/ended) is replicated through
+ * the networked `useGameStore`.
+ */
 import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {

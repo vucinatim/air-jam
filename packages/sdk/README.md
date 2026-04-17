@@ -2,6 +2,39 @@
 
 Core SDK for building Air Jam hosts and mobile controllers.
 
+## Stability And Compatibility Policy
+
+Air Jam SDK follows semver. What that means concretely for creators building
+against v1:
+
+1. **Durable v1 surface.** `@air-jam/sdk`, `@air-jam/sdk/ui`, and
+   `@air-jam/sdk/styles.css` are the stable authoring and UI lanes. Breaking
+   changes on these require a major version bump, and v1 will be kept working
+   for games for **at least 12 months** after v1.0.0 ships.
+2. **Non-breaking v1.x.** Within the `1.x` line we commit to: no removals,
+   no incompatible type changes, and no silent behavior changes on the stable
+   lanes above. New functionality lands as additive APIs.
+3. **Experimental leaves.** `@air-jam/sdk/preview`, `@air-jam/sdk/arcade*`,
+   `@air-jam/sdk/protocol`, `@air-jam/sdk/capabilities`,
+   `@air-jam/sdk/metadata`, and `@air-jam/sdk/prefabs` are intentionally
+   unstable future-facing seams. They may change within `1.x` — each carries
+   a documented purpose in its leaf, and changes are noted in release notes.
+   The machine-facing `runtime-control`, `runtime-inspection`,
+   `runtime-observability`, and `contracts/v2` seams exist in-source but are
+   **not exported publicly** until a first-party consumer lands; they will be
+   re-exported as explicit experimental leaves when that happens.
+4. **v2 migration.** When v2 ships, we commit to publishing a codemod (or
+   migration notes if the surface is too narrow to automate) alongside the
+   release. v1 games will not be silently broken — the v1 SDK will remain
+   installable.
+5. **Metadata and capability contracts.** The `defineAirJamGameMetadata` and
+   `defineAirJamGameCapabilities` helpers produce versioned, frozen objects.
+   Contract versions are bumped explicitly so the platform can accept mixed
+   versions during a transition window.
+
+Games built against v1 should declare `supportedSdkRange: "^1.0.0"` in their
+metadata unless they intentionally pin tighter.
+
 ## Three Lanes (Canonical)
 
 1. `Input lane` (high frequency, transient):

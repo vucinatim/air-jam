@@ -34,6 +34,7 @@ export interface RegisterSocketHandlersOptions {
   controllerJoinRateLimitMax: number;
   staticAppRateLimitMax: number;
   proxyHeaderTrustMode: ProxyHeaderTrustMode;
+  maintenanceMode: boolean;
 }
 
 export const registerSocketHandlers = ({
@@ -49,6 +50,7 @@ export const registerSocketHandlers = ({
   controllerJoinRateLimitMax,
   staticAppRateLimitMax,
   proxyHeaderTrustMode,
+  maintenanceMode,
 }: RegisterSocketHandlersOptions): void => {
   const {
     isHostAuthorizedForRoom,
@@ -99,6 +101,7 @@ export const registerSocketHandlers = ({
     emitError,
     isRateLimited,
     isScopedRateLimited,
+    maintenanceMode,
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
     hasControllerPrivilegeForRoom,

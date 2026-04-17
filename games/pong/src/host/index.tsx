@@ -1,3 +1,23 @@
+/**
+ * Host surface for pong. Renders on the TV / laptop / big-screen host.
+ *
+ * Flow:
+ *  1. `HostView` mounts the audio runtime and delegates to `HostScreen`.
+ *  2. `HostScreen` pulls the networked `usePongStore` slice through
+ *     `useTeamsSnapshot` and wires up the host-side feedback (audio + haptic
+ *     signals to controllers).
+ *  3. `useHostRuntimeStateBridge` keeps transport pause/play aligned with the
+ *     store's `matchPhase` — entering `playing` starts the countdown, exiting
+ *     clears it, and returning to lobby resets the ball.
+ *  4. The canvas `useEffect` runs the 60fps game loop: `stepGame` advances
+ *     simulation from controller inputs, `drawFrame` renders the scene, and
+ *     `onScore` dispatches the networked `scorePoint` action.
+ *  5. The lobby / match / ended screens are picked by `matchPhase` and wrap
+ *     the canvas + score strip when the match is active.
+ *
+ * Everything authoritative about the game state lives in `usePongStore`;
+ * this file only orchestrates the local rendering and side-effects.
+ */
 import {
   AudioRuntime,
   useAirJamHost,
@@ -12,10 +32,8 @@ import {
 } from "@air-jam/sdk/ui";
 import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
 import type { JSX } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { pongVisualHarnessBridge } from "../../visual/contract";
-import { getMatchReadiness } from "../game/domain/match-readiness";
-import { getTeamCounts } from "../game/domain/team-slots";
 import {
   createRuntimeState,
   drawFrame,
@@ -25,13 +43,17 @@ import {
   stepGame,
 } from "../game/engine";
 import { gameInputSchema } from "../game/input";
-import { PONG_SOUND_MANIFEST } from "../game/shared/sounds";
+import { PONG_SOUND_MANIFEST } from "../game/sounds";
 import { usePongStore } from "../game/stores";
+import { useTeamsSnapshot } from "../game/use-teams-snapshot";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
 import { MatchOverlay } from "./components/match-overlay";
 import { ScoreStrip } from "./components/score-strip";
-import { usePongFeedback } from "./hooks/use-pong-feedback";
+import { usePongFeedback } from "./use-pong-feedback";
+
+/** Countdown length (seconds) shown when a match begins or the ball resets. */
+const COUNTDOWN_SECONDS = 3;
 
 export function HostView() {
   return (
@@ -50,52 +72,39 @@ function HostScreen() {
   const [audioMuted, setAudioMuted] = useState(false);
 
   const scores = usePongStore((state) => state.scores);
-  const matchPhase = usePongStore((state) => state.matchPhase);
-  const botCounts = usePongStore((state) => state.botCounts);
-  const pointsToWin = usePongStore((state) => state.pointsToWin);
-  const matchSummary = usePongStore((state) => state.matchSummary);
-  const teamAssignments = usePongStore((state) => state.teamAssignments);
   const actions = usePongStore.useActions();
+
+  const {
+    teamAssignments,
+    botCounts,
+    pointsToWin,
+    matchPhase,
+    matchSummary,
+    team1Players,
+    team2Players,
+    readiness,
+  } = useTeamsSnapshot(host.players, "host");
+  const canStartMatch = readiness.canStart;
+
   const { triggerPaddleHitFeedback, triggerScoreFeedback } = usePongFeedback({
     matchPhase,
     matchSummaryWinner: matchSummary?.winner ?? null,
     matchSummary,
   });
 
+  // Host-authoritative runtime state lives in a ref (not React state) so the
+  // 60fps game loop can mutate it without triggering renders.
   const runtimeStateRef = useRef(createRuntimeState());
 
-  const team1Players = useMemo(
-    () =>
-      host.players.filter(
-        (player) => teamAssignments[player.id]?.team === "team1",
-      ),
-    [host.players, teamAssignments],
-  );
-  const team2Players = useMemo(
-    () =>
-      host.players.filter(
-        (player) => teamAssignments[player.id]?.team === "team2",
-      ),
-    [host.players, teamAssignments],
-  );
-  const teamCounts = useMemo(
-    () =>
-      getTeamCounts([
-        ...team1Players.map(() => ({ team: "team1" as const })),
-        ...team2Players.map(() => ({ team: "team2" as const })),
-      ]),
-    [team1Players, team2Players],
-  );
-  const canStartMatch = useMemo(
-    () => getMatchReadiness(teamCounts, botCounts).canStart,
-    [botCounts, teamCounts],
-  );
   const hostLobbyShell = useHostLobbyShell({
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
   });
+
+  // Preview controllers are a dev-only affordance. Never shown in production.
   const previewControllersEnabled = import.meta.env.DEV;
+
   useVisualHarnessBridge(pongVisualHarnessBridge, {
     host,
     matchPhase,
@@ -110,12 +119,13 @@ function HostScreen() {
     audio.mute(audioMuted);
   }, [audio, audioMuted]);
 
+  // Keep transport pause/play aligned with store phase transitions.
   useHostRuntimeStateBridge({
     matchPhase,
     runtimeState,
     toggleRuntimeState,
     onEnterActivePhase: () => {
-      setCountdown(3);
+      setCountdown(COUNTDOWN_SECONDS);
       Object.assign(runtimeStateRef.current, createRuntimeState());
     },
     onExitActivePhase: () => {
@@ -128,6 +138,8 @@ function HostScreen() {
     },
   });
 
+  // Countdown tick. Once it hits 0 the ball launches, and we clear countdown
+  // on the next microtask so the next frame's `stepGame` sees `null`.
   useEffect(() => {
     if (countdown === null) return;
     if (runtimeState !== "playing" || matchPhase !== "playing") return;
@@ -147,6 +159,9 @@ function HostScreen() {
     return () => clearTimeout(timer);
   }, [countdown, runtimeState, matchPhase]);
 
+  // Main game loop. Runs at ~60fps via requestAnimationFrame. Simulation reads
+  // controller inputs via `host.getInput`, so this stays host-authoritative:
+  // controllers publish intent, the host decides the world.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -178,7 +193,7 @@ function HostScreen() {
         onScore: (team) => {
           triggerScoreFeedback();
           actions.scorePoint({ team });
-          setCountdown(3);
+          setCountdown(COUNTDOWN_SECONDS);
         },
       });
 

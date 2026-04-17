@@ -105,13 +105,22 @@ describe("sdk export surface", () => {
         "./arcade/url",
         "./ui",
         "./protocol",
-        "./contracts/v2",
+        "./capabilities",
+        "./metadata",
         "./prefabs",
+        "./preview",
         "./styles.css",
       ]),
     );
+    // Private / internal seams must never appear in the public export map.
     expect(packageJson.exports?.["./context"]).toBeUndefined();
     expect(packageJson.exports?.["./context/socket-manager"]).toBeUndefined();
+    // Dropped 2026-04-15: no first-party consumer, kept in-source. Re-export
+    // as explicit experimental leaves when a real consumer lands.
+    expect(packageJson.exports?.["./contracts/v2"]).toBeUndefined();
+    expect(packageJson.exports?.["./runtime-control"]).toBeUndefined();
+    expect(packageJson.exports?.["./runtime-inspection"]).toBeUndefined();
+    expect(packageJson.exports?.["./runtime-observability"]).toBeUndefined();
     expect(prefabExport).toEqual({
       types: "./dist/prefabs.d.ts",
       import: "./dist/prefabs.js",

@@ -1,3 +1,8 @@
+/**
+ * Entry point. Mounts the React tree and the Air Jam-aware router basename so
+ * the arcade shell can embed this game under its own path without breaking
+ * routing. All the Air Jam wiring happens inside `./app` via `airjam.config.ts`.
+ */
 import { resolveAirJamBrowserRouterBasename } from "@air-jam/sdk";
 import "@air-jam/sdk/styles.css";
 import ReactDOM from "react-dom/client";

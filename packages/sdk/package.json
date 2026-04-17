@@ -89,25 +89,15 @@
       "import": "./dist/protocol.js",
       "require": "./dist/protocol.cjs"
     },
-    "./runtime-control": {
-      "types": "./dist/runtime-control.d.ts",
-      "import": "./dist/runtime-control.js",
-      "require": "./dist/runtime-control.cjs"
-    },
-    "./runtime-inspection": {
-      "types": "./dist/runtime-inspection.d.ts",
-      "import": "./dist/runtime-inspection.js",
-      "require": "./dist/runtime-inspection.cjs"
-    },
-    "./runtime-observability": {
-      "types": "./dist/runtime-observability.d.ts",
-      "import": "./dist/runtime-observability.js",
-      "require": "./dist/runtime-observability.cjs"
-    },
     "./capabilities": {
       "types": "./dist/capabilities.d.ts",
       "import": "./dist/capabilities.js",
       "require": "./dist/capabilities.cjs"
+    },
+    "./metadata": {
+      "types": "./dist/metadata.d.ts",
+      "import": "./dist/metadata.js",
+      "require": "./dist/metadata.cjs"
     },
     "./prefabs": {
       "types": "./dist/prefabs.d.ts",
@@ -118,11 +108,6 @@
       "types": "./dist/preview.d.ts",
       "import": "./dist/preview.js",
       "require": "./dist/preview.cjs"
-    },
-    "./contracts/v2": {
-      "types": "./dist/contracts/v2/index.d.ts",
-      "import": "./dist/contracts/v2/index.js",
-      "require": "./dist/contracts/v2/index.cjs"
     },
     "./styles.css": "./src/styles.css"
   },
@@ -162,26 +147,17 @@
       "protocol": [
         "dist/protocol.d.ts"
       ],
-      "runtime-control": [
-        "dist/runtime-control.d.ts"
-      ],
-      "runtime-inspection": [
-        "dist/runtime-inspection.d.ts"
-      ],
-      "runtime-observability": [
-        "dist/runtime-observability.d.ts"
-      ],
       "capabilities": [
         "dist/capabilities.d.ts"
+      ],
+      "metadata": [
+        "dist/metadata.d.ts"
       ],
       "prefabs": [
         "dist/prefabs.d.ts"
       ],
       "preview": [
         "dist/preview.d.ts"
-      ],
-      "contracts/v2": [
-        "dist/contracts/v2/index.d.ts"
       ]
     }
   },

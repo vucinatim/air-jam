@@ -22,7 +22,13 @@ import {
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+  rateLimitMiddleware,
+  RATE_LIMITS,
+} from "../trpc";
 
 const normalizeAllowedOrigins = (values: string[]): string[] => {
   const normalized = values
@@ -63,6 +69,7 @@ const addManagedGameMediaUrls = <
 
 export const gameRouter = createTRPCRouter({
   create: protectedProcedure
+    .use(rateLimitMiddleware("game.create", RATE_LIMITS.gameCreate))
     .input(
       z.object({
         name: z.string().min(1),

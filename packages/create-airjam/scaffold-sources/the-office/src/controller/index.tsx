@@ -1,3 +1,11 @@
+/**
+ * Controller surface for the-office.
+ *
+ * The controller shows the assigned player's stats, the current busy task
+ * (if any), and a d-pad + primary action. It publishes direction + action
+ * intent to the host via `useInputWriter`. Phase switches (lobby / playing
+ * / ended) come from the networked `useSpaceStore`.
+ */
 import {
   useAirJamController,
   useControllerTick,

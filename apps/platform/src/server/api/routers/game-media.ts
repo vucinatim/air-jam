@@ -15,7 +15,12 @@ import {
 import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  rateLimitMiddleware,
+  RATE_LIMITS,
+} from "../trpc";
 
 const requestUploadTargetInput = z.object({
   gameId: z.string(),
@@ -92,6 +97,7 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   requestUploadTarget: protectedProcedure
+    .use(rateLimitMiddleware("gameMedia.requestUploadTarget", RATE_LIMITS.mediaMutation))
     .input(requestUploadTargetInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
@@ -99,6 +105,7 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   finalizeUpload: protectedProcedure
+    .use(rateLimitMiddleware("gameMedia.finalizeUpload", RATE_LIMITS.mediaMutation))
     .input(mediaAssetMutationInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
@@ -106,6 +113,7 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   assignAsset: protectedProcedure
+    .use(rateLimitMiddleware("gameMedia.assignAsset", RATE_LIMITS.mediaMutation))
     .input(mediaAssetMutationInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
@@ -113,6 +121,7 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   archiveAsset: protectedProcedure
+    .use(rateLimitMiddleware("gameMedia.archiveAsset", RATE_LIMITS.mediaMutation))
     .input(mediaAssetMutationInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
