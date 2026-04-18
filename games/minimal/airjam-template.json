@@ -1,0 +1,16 @@
+{
+  "id": "minimal",
+  "name": "Minimal",
+  "description": "Clean-slate starter. Shared tap counter in ~150 LOC — best when you want empty and will build from scratch.",
+  "scaffold": true,
+  "export": {
+    "exclude": [
+      ".airjam",
+      "dist",
+      "dist-ssr",
+      "node_modules",
+      "coverage",
+      "tsconfig.tsbuildinfo"
+    ]
+  }
+}

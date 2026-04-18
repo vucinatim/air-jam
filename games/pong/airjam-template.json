@@ -1,8 +1,8 @@
 {
   "id": "pong",
   "name": "Pong",
-  "description": "Small two-team starter game and canonical Air Jam scaffold baseline.",
-  "category": "starter",
+  "description": "Basic 2D canvas starter. Team paddle game with lobby, bots, scoring, and audio — the canonical reference for a complete Air Jam game.",
+  "default": true,
   "scaffold": true,
   "export": {
     "exclude": [

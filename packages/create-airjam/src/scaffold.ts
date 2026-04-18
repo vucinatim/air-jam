@@ -3,14 +3,24 @@ import JSON5 from "json5";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type ScaffoldTemplateCategory = "starter" | "reference" | string;
-
 export interface ScaffoldTemplateManifest {
   id: string;
   name: string;
+  /**
+   * Short, creator-facing one-liner shown in the interactive template picker.
+   * Keep it under ~130 chars so the prompt stays readable in a terminal.
+   * The description is the only complexity signal — say things like
+   * "Basic 2D canvas starter" or "Advanced 3D arena" explicitly.
+   */
   description: string;
-  category: ScaffoldTemplateCategory;
   scaffold: boolean;
+  /**
+   * Marks this template as the pre-selected default in the interactive
+   * picker. At most one template in `scaffold-sources/` may set this to
+   * `true`. Missing from every template → picker defaults to the first entry
+   * after the alphabetical sort.
+   */
+  default?: boolean;
   export?: {
     exclude?: string[];
   };
@@ -40,32 +50,34 @@ const __dirname = path.dirname(__filename);
 
 export const scaffoldSourcesDir = path.resolve(__dirname, "..", "scaffold-sources");
 
-const categoryOrder = new Map<string, number>([
-  ["starter", 0],
-  ["reference", 1],
-]);
-
 const manifestFileName = "airjam-template.json";
 
 const readTemplateManifest = (filePath: string): ScaffoldTemplateManifest => {
-  const manifest = fs.readJsonSync(filePath) as Partial<ScaffoldTemplateManifest>;
+  const manifest = fs.readJsonSync(filePath) as Partial<ScaffoldTemplateManifest> & {
+    category?: unknown;
+  };
 
   if (
     typeof manifest.id !== "string" ||
     typeof manifest.name !== "string" ||
     typeof manifest.description !== "string" ||
-    typeof manifest.category !== "string" ||
     manifest.scaffold !== true
   ) {
     throw new Error(`Invalid scaffold manifest at ${filePath}`);
+  }
+
+  if (manifest.default !== undefined && typeof manifest.default !== "boolean") {
+    throw new Error(
+      `Invalid scaffold manifest at ${filePath}: "default" must be boolean if set.`,
+    );
   }
 
   return {
     id: manifest.id,
     name: manifest.name,
     description: manifest.description,
-    category: manifest.category,
     scaffold: true,
+    default: manifest.default === true ? true : undefined,
     export: manifest.export,
   };
 };
@@ -77,7 +89,7 @@ export const loadAvailableScaffoldTemplates = (): ScaffoldTemplateSource[] => {
     );
   }
 
-  return fs
+  const templates = fs
     .readdirSync(scaffoldSourcesDir)
     .map((entry) => path.join(scaffoldSourcesDir, entry))
     .filter((entryPath) => fs.statSync(entryPath).isDirectory())
@@ -93,14 +105,38 @@ export const loadAvailableScaffoldTemplates = (): ScaffoldTemplateSource[] => {
       };
     })
     .sort((left, right) => {
-      const leftOrder = categoryOrder.get(left.manifest.category) ?? 99;
-      const rightOrder = categoryOrder.get(right.manifest.category) ?? 99;
-      if (leftOrder !== rightOrder) {
-        return leftOrder - rightOrder;
+      // Default template first, then alphabetical by name.
+      if (left.manifest.default !== right.manifest.default) {
+        return left.manifest.default ? -1 : 1;
       }
-
       return left.manifest.name.localeCompare(right.manifest.name);
     });
+
+  const defaults = templates.filter((entry) => entry.manifest.default === true);
+  if (defaults.length > 1) {
+    throw new Error(
+      `Multiple scaffold templates are marked default=true: ${defaults
+        .map((entry) => entry.manifest.id)
+        .join(", ")}. At most one template may be the default.`,
+    );
+  }
+
+  return templates;
+};
+
+/**
+ * Return the index of the template the interactive picker should pre-select.
+ *
+ * Prefers the template whose manifest sets `default: true`. Falls back to the
+ * first entry in the sorted list if no template claims the default slot.
+ */
+export const resolveDefaultTemplateIndex = (
+  templates: ScaffoldTemplateSource[],
+): number => {
+  const defaultIndex = templates.findIndex(
+    (entry) => entry.manifest.default === true,
+  );
+  return defaultIndex >= 0 ? defaultIndex : 0;
 };
 
 export const findScaffoldTemplate = (

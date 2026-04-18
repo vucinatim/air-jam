@@ -19,6 +19,7 @@ import {
   loadAvailableScaffoldTemplates,
   normalizeScaffoldPackageJson,
   normalizeStandaloneProjectFiles,
+  resolveDefaultTemplateIndex,
   type ScaffoldPackageJson,
   type ScaffoldTemplateSource,
 } from "./scaffold";
@@ -508,11 +509,11 @@ const runScaffoldCommand = async (
       name: "templateId",
       message: "Choose a template:",
       choices: templates.map((entry) => ({
-        title: `${entry.manifest.name} (${entry.manifest.category})`,
+        title: entry.manifest.name,
         description: entry.manifest.description,
         value: entry.manifest.id,
       })),
-      initial: 0,
+      initial: resolveDefaultTemplateIndex(templates),
     });
 
     if (!response.templateId) {

@@ -1,8 +1,7 @@
 {
   "id": "air-capture",
   "name": "Air Capture",
-  "description": "Advanced 3D capture-the-flag reference game for building on the full Air Jam stack.",
-  "category": "reference",
+  "description": "Advanced 3D arena battler. Fly ships, shoot rockets, capture flags — references physics, bots, abilities, and remote audio.",
   "scaffold": true,
   "export": {
     "exclude": [

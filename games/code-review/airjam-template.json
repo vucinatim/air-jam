@@ -1,8 +1,7 @@
 {
   "id": "code-review",
   "name": "Code Review",
-  "description": "Fast social code-triage game imported from the ZeroDays showcase track.",
-  "category": "reference",
+  "description": "2D fighting arena with gyroscope controls. Teams punch each other down in a code-review-themed brawler.",
   "scaffold": true,
   "export": {
     "exclude": [

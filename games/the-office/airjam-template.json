@@ -1,8 +1,7 @@
 {
   "id": "the-office",
   "name": "The Office",
-  "description": "Workplace-chaos party game imported from the ZeroDays showcase track.",
-  "category": "reference",
+  "description": "Workplace co-op chaos. Assign personas, cooperate on pending tasks on a shared 2D office map before time runs out.",
   "scaffold": true,
   "export": {
     "exclude": [

@@ -1,8 +1,7 @@
 {
   "id": "last-band-standing",
   "name": "Last Band Standing",
-  "description": "Music-first party game imported from the ZeroDays showcase track.",
-  "category": "reference",
+  "description": "Music-quiz party game. Host plays a YouTube clip, controllers buzz in — good reference for round-based play.",
   "scaffold": true,
   "export": {
     "exclude": [
