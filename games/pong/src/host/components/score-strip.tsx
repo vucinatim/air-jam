@@ -1,16 +1,9 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
-import type { BotCounts } from "../../game/domain/team-slots";
+import { usePongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
-
-interface ScoreStripProps {
-  team1Players: PlayerProfile[];
-  team2Players: PlayerProfile[];
-  botCounts: BotCounts;
-  pointsToWin: number;
-  scores: { team1: number; team2: number };
-}
+import { usePongHostTeams } from "../use-pong-host-teams";
 
 const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
   id: `bot-${team}-${index}`,
@@ -18,13 +11,11 @@ const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
   color: getTeamColor(team),
 });
 
-export const ScoreStrip = ({
-  team1Players,
-  team2Players,
-  botCounts,
-  pointsToWin,
-  scores,
-}: ScoreStripProps) => {
+export const ScoreStrip = () => {
+  const scores = usePongStore((state) => state.scores);
+  const { botCounts, pointsToWin, team1Players, team2Players } =
+    usePongHostTeams();
+
   return (
     <div
       className="pong-panel mx-auto mt-4 flex w-full max-w-5xl items-center gap-3 rounded-[28px] px-4 py-3 sm:mt-6 sm:px-5"

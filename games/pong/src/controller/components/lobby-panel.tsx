@@ -1,53 +1,45 @@
-import type { PlayerProfile } from "@air-jam/sdk/protocol";
-import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
+import {
+  ControllerPlayerNameField,
+  ControllerPrimaryAction,
+} from "@air-jam/sdk/ui";
 import type { TeamId } from "../../game/domain/team";
 import { getTeamColor } from "../../game/domain/team";
-import {
-  buildTeamSlots,
-  MAX_TEAM_SLOTS,
-  type BotCounts,
-  type TeamCounts,
-} from "../../game/domain/team-slots";
+import { buildTeamSlots, MAX_TEAM_SLOTS } from "../../game/domain/team-slots";
+import { usePongStore } from "../../game/stores";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { POINTS_TO_WIN_OPTIONS, PRESS_FEEL_CLASS } from "../constants";
+import { useControllerConnectionNotice } from "../use-controller-connection-notice";
+import { usePongControllerTeams } from "../use-pong-controller-teams";
 
-interface LobbyPanelProps {
-  myTeam: TeamId | null;
-  teamCounts: TeamCounts;
-  botCounts: BotCounts;
-  team1Players: PlayerProfile[];
-  team2Players: PlayerProfile[];
-  pointsToWin: number;
-  controlsDisabled: boolean;
-  canStartMatch: boolean;
-  readinessText: string;
-  onJoinTeam: (team: TeamId) => void;
-  onSetBotCount: (team: TeamId, count: number) => void;
-  onSetPointsToWin: (pointsToWin: number) => void;
-  onStartMatch: () => void;
-}
+export const LobbyPanel = () => {
+  const actions = usePongStore.useActions();
+  const {
+    myTeam,
+    teamCounts,
+    botCounts,
+    team1Players,
+    team2Players,
+    pointsToWin,
+    readiness,
+    readinessText,
+  } = usePongControllerTeams();
+  const { controlsDisabled } = useControllerConnectionNotice();
 
-export const LobbyPanel = ({
-  myTeam,
-  teamCounts,
-  botCounts,
-  team1Players,
-  team2Players,
-  pointsToWin,
-  controlsDisabled,
-  canStartMatch,
-  readinessText,
-  onJoinTeam,
-  onSetBotCount,
-  onSetPointsToWin,
-  onStartMatch,
-}: LobbyPanelProps) => {
+  const setBotCount = (team: TeamId, count: number) =>
+    actions.setBotCount({ team, count });
+
   return (
     <div
       className="flex min-h-0 flex-1 flex-col"
       data-testid="pong-controller-lobby-panel"
     >
+      <ControllerPlayerNameField
+        className="px-3 pt-1 pb-2"
+        labelClassName="text-[0.625rem] font-semibold tracking-[0.18em] text-zinc-400 uppercase"
+        inputClassName="w-full rounded-full border border-white/12 bg-white/6 px-3 py-2 text-sm font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-white/30 focus:ring-1 focus:ring-white/20"
+      />
+
       <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
         <div className="grid gap-2 sm:grid-cols-2">
           {(["team1", "team2"] as const).map((team) => {
@@ -82,7 +74,7 @@ export const LobbyPanel = ({
                         : undefined,
                     }}
                     disabled={controlsDisabled || (teamIsFull && !joined)}
-                    onClick={() => onJoinTeam(team)}
+                    onClick={() => actions.joinTeam({ team })}
                   >
                     {joined ? "Joined" : teamIsFull ? "Full" : "Join Team"}
                   </button>
@@ -95,7 +87,7 @@ export const LobbyPanel = ({
                         : "border-cyan-400/40 bg-cyan-400/12 text-cyan-100"
                     }`}
                     disabled={controlsDisabled || teamIsFull}
-                    onClick={() => onSetBotCount(team, botCount + 1)}
+                    onClick={() => setBotCount(team, botCount + 1)}
                   >
                     Add Bot
                   </button>
@@ -113,7 +105,7 @@ export const LobbyPanel = ({
                         disabled={!canRemoveBot}
                         onBotAction={() => {
                           if (canRemoveBot) {
-                            onSetBotCount(team, Math.max(0, botCount - 1));
+                            setBotCount(team, Math.max(0, botCount - 1));
                           }
                         }}
                       />
@@ -139,7 +131,7 @@ export const LobbyPanel = ({
                       : "border-white/10 bg-white/6 text-zinc-300 hover:bg-white/10"
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                   disabled={controlsDisabled}
-                  onClick={() => onSetPointsToWin(value)}
+                  onClick={() => actions.setPointsToWin({ pointsToWin: value })}
                 >
                   {value}
                 </button>
@@ -152,8 +144,8 @@ export const LobbyPanel = ({
           testId="pong-controller-start-match"
           label="Play Match"
           helper={readinessText}
-          disabled={!canStartMatch}
-          onPress={onStartMatch}
+          disabled={!readiness.canStart}
+          onPress={() => actions.startMatch()}
           className="pb-1"
           buttonClassName="bg-white text-black hover:bg-white/95"
         />

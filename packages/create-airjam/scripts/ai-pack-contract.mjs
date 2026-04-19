@@ -13,7 +13,7 @@ export const basePackRoot = path.join(
 
 export const requiredBasePackPaths = [
   "AGENTS.md",
-  ".gitignore",
+  "_gitignore",
   "plan.md",
   "suggestions.md",
   ".airjam/ai-pack.json",
@@ -35,7 +35,10 @@ export const requiredGeneratedDocPaths = exportedDocs.map((entry) =>
 );
 
 export const requiredScaffoldPaths = [
-  ...requiredBasePackPaths,
+  ...requiredBasePackPaths.filter(
+    (relativePath) => relativePath !== "_gitignore",
+  ),
+  ".gitignore",
   ...requiredGeneratedDocPaths,
 ];
 

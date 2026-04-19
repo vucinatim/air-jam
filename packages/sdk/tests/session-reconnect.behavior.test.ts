@@ -174,7 +174,7 @@ describe("session reconnect behavior", () => {
     );
   });
 
-  it("resets controller game state to paused on disconnect", async () => {
+  it("keeps controller runtime state unchanged on disconnect", async () => {
     const { result } = renderHook(() => useAirJamController(), {
       wrapper: createControllerWrapper({
         roomId: "ROOM1",
@@ -214,7 +214,7 @@ describe("session reconnect behavior", () => {
     });
 
     expect(result.current.connectionStatus).toBe("disconnected");
-    expect(result.current.runtimeState).toBe("paused");
+    expect(result.current.runtimeState).toBe("playing");
   });
 
   it("hydrates controller players from the welcome roster", async () => {

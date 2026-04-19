@@ -1,5 +1,4 @@
-import type { AirJamControllerApi } from "@air-jam/sdk";
-import type { PlayerProfile } from "@air-jam/sdk/protocol";
+import { useAirJamController } from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   PlayerAvatar,
@@ -9,49 +8,34 @@ import {
   useControllerShellStatus,
   type LifecycleActionKind,
 } from "@air-jam/sdk/ui";
+import { usePongStore } from "../../game/stores";
+import { useControllerConnectionNotice } from "../use-controller-connection-notice";
+import { usePongControllerTeams } from "../use-pong-controller-teams";
 
-interface ControllerHeaderProps {
-  roomId: AirJamControllerApi["roomId"];
-  myProfile: PlayerProfile | null;
-  connectionStatus: AirJamControllerApi["connectionStatus"];
-  matchPhase: "lobby" | "playing" | "ended";
-  runtimeState: AirJamControllerApi["runtimeState"];
-  canSendSystemCommand: boolean;
-  canStartMatch: boolean;
-  onTogglePause: () => void;
-  onReturnToLobby: () => void;
-  onStartMatch: () => void;
-  onRestartMatch: () => void;
-}
-
-export const ControllerHeader = ({
-  roomId,
-  myProfile,
-  connectionStatus,
-  matchPhase,
-  runtimeState,
-  canSendSystemCommand,
-  canStartMatch,
-  onTogglePause,
-  onReturnToLobby,
-  onStartMatch,
-  onRestartMatch,
-}: ControllerHeaderProps) => {
+export const ControllerHeader = () => {
+  const controller = useAirJamController();
+  const actions = usePongStore.useActions();
+  const matchPhase = usePongStore((state) => state.matchPhase);
+  const { readiness } = usePongControllerTeams();
+  const { canSendSystemCommand } = useControllerConnectionNotice();
   const shellStatus = useControllerShellStatus({
-    roomId,
-    connectionStatus,
-    playerLabel: myProfile?.label ?? null,
+    roomId: controller.roomId,
+    connectionStatus: controller.connectionStatus,
+    playerLabel: controller.selfPlayer?.label ?? null,
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
     phase: matchPhase,
-    canStartMatch,
+    canStartMatch: readiness.canStart,
     canSendSystemCommand,
   });
   const lifecycleIntents = useControllerLifecycleIntents({
-    onStart: onStartMatch,
-    onTogglePause,
-    onBackToLobby: onReturnToLobby,
-    onRestart: onRestartMatch,
+    onStart: () => actions.startMatch(),
+    onTogglePause: () =>
+      controller.sendSystemCommand(
+        controller.runtimeState === "playing" ? "pause" : "resume",
+      ),
+    onBackToLobby: () => actions.returnToLobby(),
+    onRestart: () => actions.restartMatch(),
   });
   const utilityKinds: LifecycleActionKind[] =
     matchPhase === "playing"
@@ -62,12 +46,12 @@ export const ControllerHeader = ({
 
   return (
     <RuntimeShellHeader
-      connectionStatus={connectionStatus}
+      connectionStatus={controller.connectionStatus}
       leftSlot={
         <div className="flex min-w-0 items-center gap-3">
-          {myProfile ? (
+          {controller.selfPlayer ? (
             <PlayerAvatar
-              player={myProfile}
+              player={controller.selfPlayer}
               size="sm"
               className="h-11 w-11 border-2 ring-2 ring-white/12"
             />
@@ -92,7 +76,7 @@ export const ControllerHeader = ({
         utilityKinds.length > 0 ? (
           <LifecycleActionGroup
             phase={matchPhase}
-            runtimeState={runtimeState}
+            runtimeState={controller.runtimeState}
             canInteract={lifecyclePermissions.canInteractForPhase}
             onStart={lifecycleIntents.onStart}
             onTogglePause={lifecycleIntents.onTogglePause}

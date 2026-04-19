@@ -1,18 +1,18 @@
-import type { TeamId } from "../../game/domain/team";
 import { getTeamColor, getTeamLabel } from "../../game/domain/team";
 import { PRESS_FEEL_CLASS } from "../constants";
+import { useControllerConnectionNotice } from "../use-controller-connection-notice";
+import type { PongControllerDirection } from "../use-pong-controller-input-runtime";
+import { usePongControllerTeams } from "../use-pong-controller-teams";
 
 interface PlayingControlsProps {
-  controlsDisabled: boolean;
-  myTeam: TeamId | null;
-  onDirectionChange: (direction: -1 | 0 | 1) => void;
+  onDirectionChange: (direction: PongControllerDirection) => void;
 }
 
 interface DirectionButtonProps {
   label: string;
   direction: -1 | 1;
   controlsDisabled: boolean;
-  onDirectionChange: (direction: -1 | 0 | 1) => void;
+  onDirectionChange: (direction: PongControllerDirection) => void;
 }
 
 const DirectionButton = ({
@@ -41,10 +41,10 @@ const DirectionButton = ({
 };
 
 export const PlayingControls = ({
-  controlsDisabled,
-  myTeam,
   onDirectionChange,
 }: PlayingControlsProps) => {
+  const { controlsDisabled } = useControllerConnectionNotice();
+  const { myTeam } = usePongControllerTeams();
   const teamColor = myTeam ? getTeamColor(myTeam) : "#f8fafc";
 
   return (

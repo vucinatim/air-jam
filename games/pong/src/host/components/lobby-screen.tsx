@@ -1,37 +1,19 @@
+import { useAirJamHost } from "@air-jam/sdk";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import {
   JoinQrOverlay,
   JoinUrlControls,
   LifecycleActionGroup,
   PlayerAvatar,
+  useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { getLobbyReadinessText } from "../../game/domain/match-readiness";
 import { type TeamId } from "../../game/domain/team";
-import {
-  buildTeamSlots,
-  getTeamCounts,
-  type BotCounts,
-} from "../../game/domain/team-slots";
+import { buildTeamSlots } from "../../game/domain/team-slots";
+import { gameInputSchema } from "../../game/input";
+import { usePongStore } from "../../game/stores";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
-
-interface LobbyScreenProps {
-  joinQrValue: string;
-  copiedJoinUrl: boolean;
-  onCopyJoinUrl: () => void;
-  onOpenJoinUrl: () => void;
-  joinQrVisible: boolean;
-  onToggleJoinQr: () => void;
-  onCloseJoinQr: () => void;
-  canStartMatch: boolean;
-  roomId: string | null;
-  botCounts: BotCounts;
-  pointsToWin: number;
-  connectedPlayers: PlayerProfile[];
-  team1Players: PlayerProfile[];
-  team2Players: PlayerProfile[];
-  onStartMatch: () => void;
-}
+import { usePongHostTeams } from "../use-pong-host-teams";
 
 interface TeamCardProps {
   team: TeamId;
@@ -71,38 +53,27 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
   );
 };
 
-export const LobbyScreen = ({
-  joinQrValue,
-  copiedJoinUrl,
-  onCopyJoinUrl,
-  onOpenJoinUrl,
-  joinQrVisible,
-  onToggleJoinQr,
-  onCloseJoinQr,
-  canStartMatch,
-  roomId,
-  botCounts,
-  pointsToWin,
-  connectedPlayers,
-  team1Players,
-  team2Players,
-  onStartMatch,
-}: LobbyScreenProps) => {
-  const teamCounts = getTeamCounts([
-    ...team1Players.map(() => ({ team: "team1" as const })),
-    ...team2Players.map(() => ({ team: "team2" as const })),
-  ]);
-  const readinessText = getLobbyReadinessText(
-    teamCounts,
+export const LobbyScreen = () => {
+  const host = useAirJamHost<typeof gameInputSchema>();
+  const actions = usePongStore.useActions();
+  const {
     botCounts,
     pointsToWin,
-    "host",
-  );
+    team1Players,
+    team2Players,
+    readiness,
+    readinessText,
+  } = usePongHostTeams();
+  const joinControls = useHostJoinControls({
+    joinUrl: host.joinUrl,
+    canStartMatch: readiness.canStart,
+    onStartMatch: () => actions.startMatch(),
+  });
   const stagedPlayerIds = new Set([
     ...team1Players.map((player) => player.id),
     ...team2Players.map((player) => player.id),
   ]);
-  const waitingPlayers = connectedPlayers.filter(
+  const waitingPlayers = host.players.filter(
     (player) => !stagedPlayerIds.has(player.id),
   );
 
@@ -169,24 +140,24 @@ export const LobbyScreen = ({
             className="mt-2 text-4xl font-black tracking-[0.22em] text-white uppercase"
             data-testid="pong-host-room-code"
           >
-            {roomId ?? "----"}
+            {host.roomId ?? "----"}
           </div>
           <JoinUrlControls
-            value={joinQrValue}
+            value={joinControls.joinUrlValue}
             label="Controller link"
-            copied={copiedJoinUrl}
-            onCopy={onCopyJoinUrl}
-            onOpen={onOpenJoinUrl}
-            qrVisible={joinQrVisible}
-            onToggleQr={onToggleJoinQr}
+            copied={joinControls.copied}
+            onCopy={joinControls.handleCopy}
+            onOpen={joinControls.handleOpen}
+            qrVisible={joinControls.joinQrVisible}
+            onToggleQr={joinControls.toggleJoinQr}
             className="mt-4 w-full text-left"
             inputClassName="border-white/15 bg-black/40 text-white"
             buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
           />
           <LifecycleActionGroup
             phase="lobby"
-            canInteract={canStartMatch}
-            onStart={onStartMatch}
+            canInteract={joinControls.canStartMatch}
+            onStart={joinControls.handleStart}
             startLabel="Play"
             className="mt-4"
             buttonClassName="border-white/15 bg-white px-5 text-black hover:bg-white/90"
@@ -194,10 +165,10 @@ export const LobbyScreen = ({
         </section>
       </div>
       <JoinQrOverlay
-        open={joinQrVisible}
-        value={joinQrValue}
-        roomId={roomId}
-        onClose={onCloseJoinQr}
+        open={joinControls.joinQrVisible}
+        value={joinControls.joinUrlValue}
+        roomId={host.roomId}
+        onClose={joinControls.hideJoinQr}
         description="Scan with your phone to join this Pong room as a controller."
       />
     </div>

@@ -1,3 +1,4 @@
+export const PONG_CONTROLLER_INPUT_TICK_MS = 16;
 export const POINTS_TO_WIN_OPTIONS = [3, 5, 7, 11] as const;
 
 export const PRESS_FEEL_CLASS =

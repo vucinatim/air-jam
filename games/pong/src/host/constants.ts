@@ -1,0 +1,2 @@
+export const PONG_COUNTDOWN_SECONDS = 3;
+export const PONG_SIMULATION_STEP_MS = 1000 / 60;

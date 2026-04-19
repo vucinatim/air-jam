@@ -1,8 +1,7 @@
-import type { ConnectionStatus } from "@air-jam/sdk";
+import { useAirJamController } from "@air-jam/sdk";
 
-export const useControllerConnectionNotice = (
-  connectionStatus: ConnectionStatus,
-) => {
+export const useControllerConnectionNotice = () => {
+  const { connectionStatus } = useAirJamController();
   const canSendSystemCommand = connectionStatus === "connected";
   const controlsDisabled = !canSendSystemCommand;
   const isConnecting =

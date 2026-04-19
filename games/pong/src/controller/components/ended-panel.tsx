@@ -1,22 +1,14 @@
+import { useAirJamController } from "@air-jam/sdk";
 import { LifecycleActionGroup } from "@air-jam/sdk/ui";
 import { getTeamColor } from "../../game/domain/team";
-import type { MatchSummary } from "../../game/stores";
+import { usePongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
 import { formatMatchDuration } from "../constants";
 
-interface EndedPanelProps {
-  matchSummary: MatchSummary | null;
-  runtimeState?: "playing" | "paused";
-  onBackToLobby: () => void;
-  onRestart: () => void;
-}
-
-export const EndedPanel = ({
-  matchSummary,
-  runtimeState,
-  onBackToLobby,
-  onRestart,
-}: EndedPanelProps) => {
+export const EndedPanel = () => {
+  const controller = useAirJamController();
+  const actions = usePongStore.useActions();
+  const matchSummary = usePongStore((state) => state.matchSummary);
   const winner = matchSummary?.winner;
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";
 
@@ -52,10 +44,10 @@ export const EndedPanel = ({
         </div>
         <LifecycleActionGroup
           phase="ended"
-          runtimeState={runtimeState}
+          runtimeState={controller.runtimeState}
           canInteract
-          onBackToLobby={onBackToLobby}
-          onRestart={onRestart}
+          onBackToLobby={() => actions.returnToLobby()}
+          onRestart={() => actions.restartMatch()}
           presentation="pill"
           visibleKinds={["back-to-lobby", "restart"]}
           className="mt-4 w-full flex-col items-stretch gap-2"

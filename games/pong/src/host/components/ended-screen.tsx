@@ -1,17 +1,12 @@
+import { useAirJamHost } from "@air-jam/sdk";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
-import { buildTeamSlots, type BotCounts } from "../../game/domain/team-slots";
-import type { MatchSummary } from "../../game/stores";
+import { buildTeamSlots } from "../../game/domain/team-slots";
+import { gameInputSchema } from "../../game/input";
+import { usePongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
-
-interface EndedScreenProps {
-  roomId: string | null;
-  matchSummary: MatchSummary | null;
-  team1Players: PlayerProfile[];
-  team2Players: PlayerProfile[];
-  botCounts: BotCounts;
-}
+import { usePongHostTeams } from "../use-pong-host-teams";
 
 const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
   id: `bot-${team}-${index}`,
@@ -26,13 +21,10 @@ const formatDuration = (durationMs: number): string => {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 };
 
-export const EndedScreen = ({
-  roomId,
-  matchSummary,
-  team1Players,
-  team2Players,
-  botCounts,
-}: EndedScreenProps) => {
+export const EndedScreen = () => {
+  const host = useAirJamHost<typeof gameInputSchema>();
+  const matchSummary = usePongStore((state) => state.matchSummary);
+  const { botCounts, team1Players, team2Players } = usePongHostTeams();
   const winner = matchSummary?.winner;
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";
   const team1Slots = buildTeamSlots(team1Players, botCounts.team1);
@@ -57,7 +49,7 @@ export const EndedScreen = ({
                   )}
                 </div>
                 <div className="mt-2 text-sm tracking-[0.2em] text-zinc-400 uppercase">
-                  Room {roomId ?? "----"}
+                  Room {host.roomId ?? "----"}
                 </div>
               </div>
               <div className="pong-status-pill self-center sm:self-auto">

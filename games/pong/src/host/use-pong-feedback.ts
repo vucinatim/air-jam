@@ -6,23 +6,16 @@ import {
 } from "../game/controller-signals";
 import type { TeamId } from "../game/domain/team";
 import type { PongSoundId } from "../game/sounds";
-import type { MatchSummary } from "../game/stores";
-
-interface UsePongFeedbackOptions {
-  matchPhase: "lobby" | "playing" | "ended";
-  matchSummaryWinner: TeamId | null;
-  matchSummary: MatchSummary | null;
-}
+import { usePongStore } from "../game/stores";
 
 const HIT_FEEDBACK_COOLDOWN_MS = 70;
 
-export const usePongFeedback = ({
-  matchPhase,
-  matchSummaryWinner,
-  matchSummary,
-}: UsePongFeedbackOptions) => {
+export const usePongFeedback = () => {
   const audio = useAudio<PongSoundId>();
   const sendSignal = useSendSignal();
+  const matchPhase = usePongStore((state) => state.matchPhase);
+  const matchSummary = usePongStore((state) => state.matchSummary);
+  const matchSummaryWinner = matchSummary?.winner ?? null;
   const lastHitAtRef = useRef(0);
   const previousPhaseRef = useRef(matchPhase);
   const announcedEndRef = useRef<string | null>(null);
