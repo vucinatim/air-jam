@@ -9,6 +9,14 @@ export const packageRoot = path.resolve(__dirname, "../..");
 export const repoRoot = path.resolve(packageRoot, "../..");
 export const gamesRoot = path.join(repoRoot, "games");
 export const scaffoldSourcesRoot = path.join(packageRoot, "scaffold-sources");
+export const scaffoldTemplatesRoot = path.join(
+  packageRoot,
+  "scaffold-templates",
+);
+export const scaffoldTemplateManifestPath = path.join(
+  scaffoldTemplatesRoot,
+  "manifest.json",
+);
 
 const byTemplateName = (left, right) => left.name.localeCompare(right.name);
 

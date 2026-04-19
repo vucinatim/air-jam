@@ -13,6 +13,7 @@ import {
 import {
   LifecycleActionGroup,
   RuntimeShellHeader,
+  SurfaceViewport,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
   useControllerShellStatus,
@@ -179,92 +180,98 @@ const ControllerScreen = ({
     : -1;
 
   return (
-    <main className="text-foreground absolute inset-0 flex flex-col p-4">
-      <RuntimeShellHeader
-        connectionStatus={controller.connectionStatus}
-        leftSlot={
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="border-border bg-background text-foreground flex h-9 w-9 items-center justify-center rounded-full border text-[10px] font-bold uppercase">
-              {shellStatus.identityInitial || "ME"}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {shellStatus.displayName}
-              </p>
-              <p className="text-muted-foreground text-[10px] tracking-[0.16em] uppercase">
-                {shellStatus.roomLine}
-              </p>
+    <SurfaceViewport
+      orientation="portrait"
+      preset="controller-phone"
+      className="bg-background"
+    >
+      <main className="text-foreground absolute inset-0 flex flex-col p-4">
+        <RuntimeShellHeader
+          connectionStatus={controller.connectionStatus}
+          leftSlot={
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="border-border bg-background text-foreground flex h-9 w-9 items-center justify-center rounded-full border text-[10px] font-bold uppercase">
+                {shellStatus.identityInitial || "ME"}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">
+                  {shellStatus.displayName}
+                </p>
+                <p className="text-muted-foreground text-[10px] tracking-[0.16em] uppercase">
+                  {shellStatus.roomLine}
+                </p>
+              </div>
             </div>
-          </div>
-        }
-        rightSlot={
-          shellPhase === "lobby" ? null : (
-            <LifecycleActionGroup
-              phase={shellPhase}
-              runtimeState={controller.runtimeState}
-              canInteract={lifecyclePermissions.canInteractForPhase}
-              onBackToLobby={lifecycleIntents.onBackToLobby}
-              onRestart={lifecycleIntents.onRestart}
-              presentation="icon"
-              visibleKinds={
-                shellPhase === "playing"
-                  ? ["pause-toggle", "back-to-lobby"]
-                  : ["restart", "back-to-lobby"]
-              }
+          }
+          rightSlot={
+            shellPhase === "lobby" ? null : (
+              <LifecycleActionGroup
+                phase={shellPhase}
+                runtimeState={controller.runtimeState}
+                canInteract={lifecyclePermissions.canInteractForPhase}
+                onBackToLobby={lifecycleIntents.onBackToLobby}
+                onRestart={lifecycleIntents.onRestart}
+                presentation="icon"
+                visibleKinds={
+                  shellPhase === "playing"
+                    ? ["pause-toggle", "back-to-lobby"]
+                    : ["restart", "back-to-lobby"]
+                }
+              />
+            )
+          }
+          className="border-border/60 bg-background/90"
+        />
+        <AnimatePresence mode="wait">
+          {phase === "lobby" && (
+            <ControllerLobby
+              isConnected={isConnected}
+              roomId={controller.roomId}
+              readyCount={readyCount}
+              playerCount={playerOrder.length}
+              nameDraft={nameDraft}
+              onNameChange={setNameDraft}
+              onCommitReady={toggleReady}
+              onStartMatch={() => actions.startMatch()}
+              canReadyToggle={canReadyToggle}
+              canStartMatch={canStartMatch}
+              isReady={isReady}
             />
-          )
-        }
-        className="border-border/60 bg-background/90"
-      />
-      <AnimatePresence mode="wait">
-        {phase === "lobby" && (
-          <ControllerLobby
-            isConnected={isConnected}
-            roomId={controller.roomId}
-            readyCount={readyCount}
-            playerCount={playerOrder.length}
-            nameDraft={nameDraft}
-            onNameChange={setNameDraft}
-            onCommitReady={toggleReady}
-            onStartMatch={() => actions.startMatch()}
-            canReadyToggle={canReadyToggle}
-            canStartMatch={canStartMatch}
-            isReady={isReady}
-          />
-        )}
+          )}
 
-        {phase === "round-active" && currentRound && (
-          <ControllerRoundActive
-            currentRound={currentRound}
-            totalRounds={totalRounds}
-            roundCountdownSeconds={roundCountdownSeconds}
-            isActivePlayer={isActivePlayer}
-            selectedOptionId={selectedOptionId}
-            onSubmitGuess={(optionId) => actions.submitGuess({ optionId })}
-          />
-        )}
+          {phase === "round-active" && currentRound && (
+            <ControllerRoundActive
+              currentRound={currentRound}
+              totalRounds={totalRounds}
+              roundCountdownSeconds={roundCountdownSeconds}
+              isActivePlayer={isActivePlayer}
+              selectedOptionId={selectedOptionId}
+              onSubmitGuess={(optionId) => actions.submitGuess({ optionId })}
+            />
+          )}
 
-        {phase === "round-reveal" && roundReveal && (
-          <ControllerRoundReveal
-            roundReveal={roundReveal}
-            myRoundResult={myRoundResult}
-            playerLabelById={playerLabelById}
-            revealCountdownSeconds={revealCountdownSeconds}
-          />
-        )}
+          {phase === "round-reveal" && roundReveal && (
+            <ControllerRoundReveal
+              roundReveal={roundReveal}
+              myRoundResult={myRoundResult}
+              playerLabelById={playerLabelById}
+              revealCountdownSeconds={revealCountdownSeconds}
+            />
+          )}
 
-        {phase === "game-over" && (
-          <ControllerGameOver
-            controllerId={controllerId}
-            myRank={myRank}
-            myScore={myScore}
-            finalRankingPlayerIds={finalRankingPlayerIds}
-            scoreboardByPlayerId={scoreboardByPlayerId}
-            playerLabelById={playerLabelById}
-            onResetLobby={actions.resetLobby}
-          />
-        )}
-      </AnimatePresence>
-    </main>
+          {phase === "game-over" && (
+            <ControllerGameOver
+              controllerId={controllerId}
+              myRank={myRank}
+              myScore={myScore}
+              finalRankingPlayerIds={finalRankingPlayerIds}
+              scoreboardByPlayerId={scoreboardByPlayerId}
+              playerLabelById={playerLabelById}
+              onResetLobby={actions.resetLobby}
+            />
+          )}
+        </AnimatePresence>
+      </main>
+    </SurfaceViewport>
   );
 };

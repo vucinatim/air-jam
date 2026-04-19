@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import JSON5 from "json5";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import yauzl from "yauzl";
 
 export interface ScaffoldTemplateManifest {
   id: string;
@@ -16,9 +17,9 @@ export interface ScaffoldTemplateManifest {
   scaffold: boolean;
   /**
    * Marks this template as the pre-selected default in the interactive
-   * picker. At most one template in `scaffold-sources/` may set this to
-   * `true`. Missing from every template → picker defaults to the first entry
-   * after the alphabetical sort.
+   * picker. At most one packaged template may set this to `true`. Missing
+   * from every template → picker defaults to the first entry after the
+   * alphabetical sort.
    */
   default?: boolean;
   export?: {
@@ -27,7 +28,7 @@ export interface ScaffoldTemplateManifest {
 }
 
 export interface ScaffoldTemplateSource {
-  dir: string;
+  archivePath: string;
   manifest: ScaffoldTemplateManifest;
 }
 
@@ -48,18 +49,19 @@ export interface ScaffoldPackageJson {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const scaffoldSourcesDir = path.resolve(
+export const scaffoldTemplatesDir = path.resolve(
   __dirname,
   "..",
-  "scaffold-sources",
+  "scaffold-templates",
 );
 
-const manifestFileName = "airjam-template.json";
+const templateIndexFileName = "manifest.json";
 
-const readTemplateManifest = (filePath: string): ScaffoldTemplateManifest => {
-  const manifest = fs.readJsonSync(
-    filePath,
-  ) as Partial<ScaffoldTemplateManifest> & {
+const normalizeTemplateManifest = (
+  value: unknown,
+  sourceLabel: string,
+): ScaffoldTemplateManifest => {
+  const manifest = value as Partial<ScaffoldTemplateManifest> & {
     category?: unknown;
   };
 
@@ -69,12 +71,12 @@ const readTemplateManifest = (filePath: string): ScaffoldTemplateManifest => {
     typeof manifest.description !== "string" ||
     manifest.scaffold !== true
   ) {
-    throw new Error(`Invalid scaffold manifest at ${filePath}`);
+    throw new Error(`Invalid scaffold manifest at ${sourceLabel}`);
   }
 
   if (manifest.default !== undefined && typeof manifest.default !== "boolean") {
     throw new Error(
-      `Invalid scaffold manifest at ${filePath}: "default" must be boolean if set.`,
+      `Invalid scaffold manifest at ${sourceLabel}: "default" must be boolean if set.`,
     );
   }
 
@@ -88,26 +90,52 @@ const readTemplateManifest = (filePath: string): ScaffoldTemplateManifest => {
   };
 };
 
+interface ScaffoldTemplateIndexEntry {
+  archive: unknown;
+  manifest: unknown;
+}
+
+interface ScaffoldTemplateIndex {
+  schemaVersion?: unknown;
+  templates?: unknown;
+}
+
 export const loadAvailableScaffoldTemplates = (): ScaffoldTemplateSource[] => {
-  if (!fs.existsSync(scaffoldSourcesDir)) {
+  if (!fs.existsSync(scaffoldTemplatesDir)) {
     throw new Error(
-      "Missing packaged scaffold sources. Rebuild create-airjam before scaffolding.",
+      "Missing packaged scaffold templates. Rebuild create-airjam before scaffolding.",
     );
   }
 
-  const templates = fs
-    .readdirSync(scaffoldSourcesDir)
-    .map((entry) => path.join(scaffoldSourcesDir, entry))
-    .filter((entryPath) => fs.statSync(entryPath).isDirectory())
-    .map((dir) => {
-      const manifestPath = path.join(dir, manifestFileName);
-      if (!fs.existsSync(manifestPath)) {
-        throw new Error(`Missing scaffold manifest at ${manifestPath}`);
-      }
+  const indexPath = path.join(scaffoldTemplatesDir, templateIndexFileName);
+  if (!fs.existsSync(indexPath)) {
+    throw new Error(
+      "Missing packaged scaffold template manifest. Rebuild create-airjam before scaffolding.",
+    );
+  }
 
+  const index = fs.readJsonSync(indexPath) as ScaffoldTemplateIndex;
+  if (index.schemaVersion !== 1 || !Array.isArray(index.templates)) {
+    throw new Error(`Invalid scaffold template manifest at ${indexPath}`);
+  }
+
+  const templates = (index.templates as ScaffoldTemplateIndexEntry[])
+    .map((entry, index) => {
+      if (typeof entry.archive !== "string" || entry.archive.trim() === "") {
+        throw new Error(
+          `Invalid scaffold template manifest at ${indexPath}: template ${index} is missing archive.`,
+        );
+      }
+      const archivePath = path.join(scaffoldTemplatesDir, entry.archive);
+      if (!fs.existsSync(archivePath)) {
+        throw new Error(`Missing scaffold template archive at ${archivePath}`);
+      }
       return {
-        dir,
-        manifest: readTemplateManifest(manifestPath),
+        archivePath,
+        manifest: normalizeTemplateManifest(
+          entry.manifest,
+          `${indexPath}#templates[${index}].manifest`,
+        ),
       };
     })
     .sort((left, right) => {
@@ -265,6 +293,96 @@ const stripSdkAliasFromConfig = async (filePath: string) => {
   );
 
   await fs.writeFile(filePath, source, "utf8");
+};
+
+const assertArchiveEntryPath = (
+  targetDir: string,
+  entryName: string,
+): string => {
+  const normalized = entryName.replace(/\\/g, "/");
+  if (
+    normalized.startsWith("/") ||
+    normalized.split("/").some((segment) => segment === "..")
+  ) {
+    throw new Error(`Unsafe scaffold template archive entry: ${entryName}`);
+  }
+
+  const resolvedTargetDir = path.resolve(targetDir);
+  const targetPath = path.resolve(resolvedTargetDir, normalized);
+  if (
+    targetPath !== resolvedTargetDir &&
+    !targetPath.startsWith(`${resolvedTargetDir}${path.sep}`)
+  ) {
+    throw new Error(`Unsafe scaffold template archive entry: ${entryName}`);
+  }
+  return targetPath;
+};
+
+export const extractScaffoldTemplateArchive = async ({
+  archivePath,
+  targetDir,
+}: {
+  archivePath: string;
+  targetDir: string;
+}): Promise<void> => {
+  await fs.ensureDir(targetDir);
+
+  await new Promise<void>((resolve, reject) => {
+    yauzl.open(archivePath, { lazyEntries: true }, (openError, zipFile) => {
+      if (openError) {
+        reject(openError);
+        return;
+      }
+      if (!zipFile) {
+        reject(
+          new Error(`Unable to open scaffold template archive ${archivePath}`),
+        );
+        return;
+      }
+
+      zipFile.on("error", reject);
+      zipFile.on("end", resolve);
+      zipFile.readEntry();
+      zipFile.on("entry", (entry) => {
+        const targetPath = assertArchiveEntryPath(targetDir, entry.fileName);
+        if (entry.fileName.endsWith("/")) {
+          fs.ensureDir(targetPath)
+            .then(() => zipFile.readEntry())
+            .catch(reject);
+          return;
+        }
+
+        zipFile.openReadStream(entry, (streamError, readStream) => {
+          if (streamError) {
+            reject(streamError);
+            return;
+          }
+          if (!readStream) {
+            reject(
+              new Error(
+                `Unable to read scaffold template archive entry ${entry.fileName}`,
+              ),
+            );
+            return;
+          }
+
+          fs.ensureDir(path.dirname(targetPath))
+            .then(
+              () =>
+                new Promise<void>((streamResolve, streamReject) => {
+                  const writeStream = fs.createWriteStream(targetPath);
+                  readStream.on("error", streamReject);
+                  writeStream.on("error", streamReject);
+                  writeStream.on("close", streamResolve);
+                  readStream.pipe(writeStream);
+                }),
+            )
+            .then(() => zipFile.readEntry())
+            .catch(reject);
+        });
+      });
+    });
+  });
 };
 
 export const normalizeStandaloneProjectFiles = async (

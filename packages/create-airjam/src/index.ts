@@ -12,6 +12,7 @@ import { runSecureInitCli } from "../runtime/secure-dev.mjs";
 import { runProjectTopologyCli } from "../runtime/topology.mjs";
 import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
 import {
+  extractScaffoldTemplateArchive,
   findScaffoldTemplate,
   loadAvailableScaffoldTemplates,
   normalizeScaffoldPackageJson,
@@ -532,7 +533,7 @@ const runScaffoldCommand = async (
     throw new Error("Unable to resolve scaffold template.");
   }
 
-  const templateDir = selectedTemplate.dir;
+  const templateArchivePath = selectedTemplate.archivePath;
 
   if (fs.existsSync(targetDir)) {
     const response = await prompts({
@@ -550,56 +551,11 @@ const runScaffoldCommand = async (
 
   console.log(kleur.cyan(`\nCreating project in ${targetDir}...\n`));
 
-  // Copy the packaged scaffold source. Repo-only artifacts were already stripped
-  // during the create-airjam build step that generated these snapshots.
-  await fs.copy(templateDir, targetDir, {
-    filter: (src) => {
-      const relativePath = path.relative(templateDir, src);
-      const basename = path.basename(src);
-      const normalizedPath = relativePath.replace(/\\/g, "/"); // Normalize path separators
-
-      // Exclude node_modules
-      if (normalizedPath.includes("node_modules")) {
-        return false;
-      }
-
-      // Exclude build output directories (check if first path segment is dist or dist-ssr)
-      const firstSegment = normalizedPath.split("/")[0];
-      if (firstSegment === "dist" || firstSegment === "dist-ssr") {
-        return false;
-      }
-
-      // Exclude lock files and npm config
-      if (
-        relativePath.endsWith("pnpm-lock.yaml") ||
-        relativePath.endsWith("package-lock.json") ||
-        relativePath.endsWith("yarn.lock") ||
-        relativePath.endsWith(".npmrc")
-      ) {
-        return false;
-      }
-
-      // Exclude .env files except .env.example
-      if (basename.startsWith(".env") && basename !== ".env.example") {
-        return false;
-      }
-
-      // Exclude *.local files (like .env.local, config.local.json, etc.)
-      if (basename.endsWith(".local")) {
-        return false;
-      }
-
-      // Exclude editor and OS files
-      if (
-        basename === ".DS_Store" ||
-        normalizedPath.includes(".vscode/") ||
-        normalizedPath.includes(".idea/")
-      ) {
-        return false;
-      }
-
-      return true;
-    },
+  // Extract the packaged scaffold archive. Repo-only artifacts were already
+  // stripped during the create-airjam build step that generated these archives.
+  await extractScaffoldTemplateArchive({
+    archivePath: templateArchivePath,
+    targetDir,
   });
 
   if (!fs.existsSync(templateAssetsBaseDir)) {

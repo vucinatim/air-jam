@@ -59,7 +59,7 @@ export function HostView() {
 
 function OfficeHostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
-  const { connectionStatus, sendState } = host;
+  const { connectionStatus } = host;
   const [audioMuted, setAudioMuted] = useState(false);
   const playerIds = useMemo(
     () => host.players.map((player) => player.id),
@@ -92,23 +92,11 @@ function OfficeHostScreen() {
     toggleRuntimeState: host.toggleRuntimeState,
   });
 
-  const controllerOrientation =
-    matchPhase === "playing" ? "landscape" : "portrait";
   const {
     advanceElapsedMs,
     elapsedMsRef: matchElapsedMsRef,
     timeRemainingMs,
   } = useOfficeActiveMatchClock();
-
-  useEffect(() => {
-    if (connectionStatus !== "connected") {
-      return;
-    }
-
-    sendState({
-      orientation: controllerOrientation,
-    });
-  }, [connectionStatus, controllerOrientation, sendState]);
 
   const handleRestart = () => {
     storeActions.returnToLobby();

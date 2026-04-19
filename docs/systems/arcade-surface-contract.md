@@ -90,7 +90,7 @@ Rules:
 
 1. `portrait` for browser
 2. game surface may start with catalog/default orientation
-3. live controller outer chrome still follows host-reported `controllerOrientation` from `server:state`
+3. live controller outer chrome follows the embedded controller `SurfaceViewport orientation`, with session `controllerOrientation` only as a startup fallback
 
 ### `overlay`
 

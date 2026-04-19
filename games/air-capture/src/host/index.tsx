@@ -170,7 +170,6 @@ const HostViewContent = ({
     connectionStatus,
     runtimeState,
     lastError,
-    sendState,
     toggleRuntimeState,
   } = host;
 
@@ -374,10 +373,6 @@ const HostViewContent = ({
   const showPausedOverlay =
     (matchPhase === "countdown" || matchPhase === "playing") &&
     runtimeState !== "playing";
-  const controllerOrientation =
-    matchPhase === "countdown" || matchPhase === "playing"
-      ? "landscape"
-      : "portrait";
   const sceneMode =
     matchPhase === "countdown" || matchPhase === "playing"
       ? "match"
@@ -386,15 +381,6 @@ const HostViewContent = ({
     (matchPhase !== "countdown" && matchPhase !== "playing") ||
     runtimeState !== "playing";
 
-  useEffect(() => {
-    if (connectionStatus !== "connected") {
-      return;
-    }
-
-    sendState({
-      orientation: controllerOrientation,
-    });
-  }, [connectionStatus, controllerOrientation, sendState]);
   const toggleAudio = useCallback(() => {
     setAudioMuted((current) => !current);
   }, [setAudioMuted]);

@@ -85,6 +85,7 @@ export function HostView() {
 
 function CodeReviewHostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
+  const { connectionStatus } = host;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const spritesRef = useRef<Record<SpriteKey, HTMLCanvasElement | null>>(
@@ -267,13 +268,13 @@ function CodeReviewHostScreen() {
   const canStartMatch = useMemo(
     () =>
       matchPhase === "lobby" &&
-      host.connectionStatus === "connected" &&
+      connectionStatus === "connected" &&
       team1Occupancy > 0 &&
       team2Occupancy > 0 &&
       assignedHumanPlayers.length > 0,
     [
       assignedHumanPlayers.length,
-      host.connectionStatus,
+      connectionStatus,
       matchPhase,
       team1Occupancy,
       team2Occupancy,

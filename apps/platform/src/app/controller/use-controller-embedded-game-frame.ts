@@ -9,13 +9,14 @@ import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
 import type { ControllerPersistedProfile } from "@/lib/controller-local-profile";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
-import type { AirJamControllerApi } from "@air-jam/sdk";
+import type { AirJamControllerApi, ControllerOrientation } from "@air-jam/sdk";
 import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
   createControllerBridgeAttachMessage,
   createControllerBridgeCloseMessage,
   parseControllerBridgeEmitMessage,
   parseControllerBridgeRequestMessage,
+  parseControllerPresentationSyncMessage,
   type ControllerBridgeServerEventName,
 } from "@air-jam/sdk/arcade/bridge/controller";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@air-jam/sdk/arcade/surface";
 import {
   appendRuntimeQueryParams,
+  getRuntimeUrlOrigin,
   normalizeRuntimeUrl,
 } from "@air-jam/sdk/arcade/url";
 import type {
@@ -53,6 +55,11 @@ interface UseControllerEmbeddedGameFrameOptions {
   localProfile: ControllerPersistedProfile;
 }
 
+interface ControllerSurfaceOrientationOverride {
+  orientation: ControllerOrientation;
+  surfaceKey: string;
+}
+
 interface ControllerEmbeddedGameFrameState {
   activeUrl: string | null;
   hostQrVisible: boolean;
@@ -62,6 +69,12 @@ interface ControllerEmbeddedGameFrameState {
   controllerIframeFailed: boolean;
   iframeRef: RefObject<HTMLIFrameElement | null>;
 }
+
+const arcadeSurfaceKey = (surface: {
+  kind: ArcadeSurfaceRuntimeIdentity["kind"];
+  epoch: ArcadeSurfaceRuntimeIdentity["epoch"];
+  gameId: ArcadeSurfaceRuntimeIdentity["gameId"];
+}): string => `${surface.kind}:${surface.epoch}:${surface.gameId ?? ""}`;
 
 export function useControllerEmbeddedGameFrame({
   controller,
@@ -105,6 +118,10 @@ export function useControllerEmbeddedGameFrame({
   > | null>(null);
   const [bridgeListenerReady, setBridgeListenerReady] = useState(false);
   const [controllerIframeFailed, setControllerIframeFailed] = useState(false);
+  const [
+    controllerSurfaceOrientationOverride,
+    setControllerSurfaceOrientationOverride,
+  ] = useState<ControllerSurfaceOrientationOverride | null>(null);
   const bridgeAttachedIdentityRef = useRef<ArcadeSurfaceRuntimeIdentity | null>(
     null,
   );
@@ -121,9 +138,18 @@ export function useControllerEmbeddedGameFrame({
 
   arcadeSurfaceRef.current = arcadeSurface;
 
+  const activeArcadeSurfaceKey =
+    activeUrl && arcadeSurface.kind === "game"
+      ? arcadeSurfaceKey(arcadeSurface)
+      : null;
+  const activeControllerSurfaceOrientation =
+    activeArcadeSurfaceKey &&
+    controllerSurfaceOrientationOverride?.surfaceKey === activeArcadeSurfaceKey
+      ? controllerSurfaceOrientationOverride.orientation
+      : null;
   const controllerPresentationOrientation =
     activeUrl && arcadeSurface.kind === "game"
-      ? controller.controllerOrientation
+      ? (activeControllerSurfaceOrientation ?? controller.controllerOrientation)
       : "portrait";
 
   const rawControllerIframeSrc = useMemo(() => {
@@ -344,6 +370,30 @@ export function useControllerEmbeddedGameFrame({
 
     const handleMessage = (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
+
+      const presentation = parseControllerPresentationSyncMessage(event.data);
+      if (presentation) {
+        const expectedOrigin = getRuntimeUrlOrigin(activeUrl);
+        if (expectedOrigin && event.origin !== expectedOrigin) {
+          return;
+        }
+
+        const surface = arcadeSurfaceRef.current;
+        if (
+          shouldRejectControllerBridgeHandshake(
+            surface,
+            presentation.payload.arcadeSurface,
+          )
+        ) {
+          return;
+        }
+
+        setControllerSurfaceOrientationOverride({
+          orientation: presentation.payload.orientation,
+          surfaceKey: arcadeSurfaceKey(presentation.payload.arcadeSurface),
+        });
         return;
       }
 

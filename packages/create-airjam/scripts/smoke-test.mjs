@@ -193,22 +193,17 @@ const parseTemplate = () => {
 };
 
 const loadScaffoldTemplateIds = (repoRoot) => {
-  const scaffoldSourcesDir = path.join(
+  const manifestPath = path.join(
     repoRoot,
     "packages",
     "create-airjam",
-    "scaffold-sources",
+    "scaffold-templates",
+    "manifest.json",
   );
+  const index = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
-  return fs
-    .readdirSync(scaffoldSourcesDir)
-    .map((entry) => path.join(scaffoldSourcesDir, entry))
-    .filter((entryPath) => fs.statSync(entryPath).isDirectory())
-    .map((dir) =>
-      JSON.parse(
-        fs.readFileSync(path.join(dir, "airjam-template.json"), "utf8"),
-      ),
-    )
+  return index.templates
+    .map((entry) => entry.manifest)
     .filter(
       (manifest) =>
         manifest?.scaffold === true && typeof manifest.id === "string",

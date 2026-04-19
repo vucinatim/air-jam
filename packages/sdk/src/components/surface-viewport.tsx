@@ -1,5 +1,7 @@
 import type { CSSProperties, JSX, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useSessionScope } from "../context/session-scope";
+import { publishEmbeddedControllerPresentation } from "../runtime/controller-presentation";
 import { cn } from "../utils/cn";
 import {
   createSurfaceViewportOuterStyle,
@@ -96,6 +98,7 @@ export const SurfaceViewport = ({
   maxScale,
 }: SurfaceViewportProps): JSX.Element => {
   const [viewport, setViewport] = useState<ViewportSize | null>(null);
+  const sessionScope = useSessionScope();
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -145,6 +148,14 @@ export const SurfaceViewport = ({
       window.removeEventListener("pointerdown", onFirstGesture, true);
     };
   }, [orientation, lockOnGesture]);
+
+  useEffect(() => {
+    if (!orientation || sessionScope !== "controller") {
+      return;
+    }
+
+    publishEmbeddedControllerPresentation(orientation);
+  }, [orientation, sessionScope]);
 
   const currentOrientation = viewport ? getOrientation(viewport) : "portrait";
   const effectiveOrientation = orientation ?? currentOrientation;

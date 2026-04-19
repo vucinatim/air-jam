@@ -3,62 +3,65 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  scaffoldSourcesRoot as legacyScaffoldSourcesRoot,
   loadScaffoldableRepoGameManifests,
-  scaffoldSourcesRoot as scaffoldRoot,
+  scaffoldTemplateManifestPath,
+  scaffoldTemplatesRoot,
 } from "./lib/scaffold-source-manifests.mjs";
 
 const missing = [];
 const expectedTemplates = loadScaffoldableRepoGameManifests().map(
   ({ manifest }) => manifest.id,
 );
-const actualTemplates = fs.existsSync(scaffoldRoot)
-  ? fs
-      .readdirSync(scaffoldRoot)
-      .filter((entry) =>
-        fs.statSync(path.join(scaffoldRoot, entry)).isDirectory(),
-      )
-      .sort()
-  : [];
-
-for (const templateId of actualTemplates) {
-  if (!expectedTemplates.includes(templateId)) {
-    missing.push(`unexpected scaffold source ${templateId}`);
-  }
+if (fs.existsSync(legacyScaffoldSourcesRoot)) {
+  missing.push(
+    "legacy scaffold-sources directory exists; packaged templates must live in scaffold-templates archives so editors do not load generated snapshots as live TypeScript projects",
+  );
 }
 
-for (const templateId of expectedTemplates) {
-  const templateRoot = path.join(scaffoldRoot, templateId);
-  const manifestPath = path.join(templateRoot, "airjam-template.json");
-  const packageJsonPath = path.join(templateRoot, "package.json");
+if (!fs.existsSync(scaffoldTemplateManifestPath)) {
+  missing.push(`missing scaffold template manifest`);
+} else {
+  const index = JSON.parse(
+    fs.readFileSync(scaffoldTemplateManifestPath, "utf8"),
+  );
+  if (index?.schemaVersion !== 1 || !Array.isArray(index.templates)) {
+    missing.push(`invalid scaffold template manifest`);
+  } else {
+    const actualTemplates = index.templates
+      .map((entry) => entry?.manifest?.id)
+      .filter(Boolean)
+      .sort();
 
-  if (!fs.existsSync(templateRoot)) {
-    missing.push(`missing scaffold source ${templateId}`);
-    continue;
-  }
-
-  if (!fs.existsSync(manifestPath)) {
-    missing.push(`missing manifest for ${templateId}`);
-  }
-
-  if (!fs.existsSync(packageJsonPath)) {
-    missing.push(`missing package.json for ${templateId}`);
-  }
-
-  if (fs.existsSync(path.join(templateRoot, "node_modules"))) {
-    missing.push(`scaffold source ${templateId} still contains node_modules`);
-  }
-
-  if (fs.existsSync(path.join(templateRoot, "dist"))) {
-    missing.push(`scaffold source ${templateId} still contains dist`);
-  }
-
-  if (fs.existsSync(manifestPath)) {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-    if (manifest?.id !== templateId) {
-      missing.push(`scaffold source ${templateId} has mismatched manifest id`);
+    for (const templateId of actualTemplates) {
+      if (!expectedTemplates.includes(templateId)) {
+        missing.push(`unexpected scaffold template ${templateId}`);
+      }
     }
-    if (manifest?.scaffold !== true) {
-      missing.push(`scaffold source ${templateId} is not scaffold-enabled`);
+
+    for (const templateId of expectedTemplates) {
+      const entry = index.templates.find(
+        (candidate) => candidate?.manifest?.id === templateId,
+      );
+      if (!entry) {
+        missing.push(`missing scaffold template ${templateId}`);
+        continue;
+      }
+
+      if (entry.manifest?.scaffold !== true) {
+        missing.push(`scaffold template ${templateId} is not scaffold-enabled`);
+      }
+
+      if (typeof entry.archive !== "string" || entry.archive.trim() === "") {
+        missing.push(`scaffold template ${templateId} is missing archive`);
+        continue;
+      }
+
+      if (!fs.existsSync(path.join(scaffoldTemplatesRoot, entry.archive))) {
+        missing.push(
+          `scaffold template ${templateId} archive ${entry.archive} is missing`,
+        );
+      }
     }
   }
 }
@@ -67,4 +70,6 @@ if (missing.length > 0) {
   throw new Error(missing.join("\n"));
 }
 
-console.log(`✓ Scaffold source snapshots verified in ${scaffoldRoot}`);
+console.log(
+  `✓ Scaffold template archives verified in ${scaffoldTemplatesRoot}`,
+);

@@ -1,24 +1,26 @@
 import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
-import type {
-  AirJamStateSyncPayload,
-  AirJamStateSyncRequestPayload,
-  ControllerActionRpcPayload,
-  ControllerInputEvent,
-  ControllerJoinedNotice,
-  ControllerLeftNotice,
-  ControllerStateMessage,
-  ControllerSystemPayload,
-  ControllerUpdatePlayerProfilePayload,
-  ControllerWelcomePayload,
-  HostLeftNotice,
-  PlaySoundEventPayload,
-  PlaySoundPayload,
-  PlayerProfile,
-  PlayerUpdatedNotice,
-  RoomCode,
-  ServerErrorPayload,
-  SignalPayload,
+import {
+  controllerOrientationSchema,
+  type AirJamStateSyncPayload,
+  type AirJamStateSyncRequestPayload,
+  type ControllerActionRpcPayload,
+  type ControllerInputEvent,
+  type ControllerJoinedNotice,
+  type ControllerLeftNotice,
+  type ControllerOrientation,
+  type ControllerStateMessage,
+  type ControllerSystemPayload,
+  type ControllerUpdatePlayerProfilePayload,
+  type ControllerWelcomePayload,
+  type HostLeftNotice,
+  type PlaySoundEventPayload,
+  type PlaySoundPayload,
+  type PlayerProfile,
+  type PlayerUpdatedNotice,
+  type RoomCode,
+  type ServerErrorPayload,
+  type SignalPayload,
 } from "../protocol";
 import {
   arcadeSurfaceRuntimeIdentitySchema,
@@ -37,6 +39,8 @@ export const AIRJAM_CONTROLLER_BRIDGE_EMIT =
   "AIRJAM_CONTROLLER_BRIDGE_EMIT" as const;
 export const AIRJAM_CONTROLLER_BRIDGE_CLOSE =
   "AIRJAM_CONTROLLER_BRIDGE_CLOSE" as const;
+export const AIRJAM_CONTROLLER_PRESENTATION_SYNC =
+  "AIRJAM_CONTROLLER_PRESENTATION_SYNC" as const;
 
 export const controllerBridgeClientEvents = [
   "controller:input",
@@ -146,6 +150,14 @@ export interface ControllerBridgeCloseMessage {
   };
 }
 
+export interface ControllerPresentationSyncMessage {
+  type: typeof AIRJAM_CONTROLLER_PRESENTATION_SYNC;
+  payload: {
+    orientation: ControllerOrientation;
+    arcadeSurface: ArcadeSurfaceRuntimeIdentity;
+  };
+}
+
 export type ControllerBridgePortMessage =
   | ControllerBridgeAttachMessage
   | ControllerBridgeEventMessage
@@ -224,6 +236,18 @@ const bridgeCloseSchema = z
   })
   .strict();
 
+const presentationSyncSchema = z
+  .object({
+    type: z.literal(AIRJAM_CONTROLLER_PRESENTATION_SYNC),
+    payload: z
+      .object({
+        orientation: controllerOrientationSchema,
+        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
+      })
+      .strict(),
+  })
+  .strict();
+
 export const createControllerBridgeRequestMessage = (payload: {
   roomId: RoomCode;
   controllerId: string;
@@ -295,6 +319,14 @@ export const createControllerBridgeCloseMessage = (
   },
 });
 
+export const createControllerPresentationSyncMessage = (payload: {
+  orientation: ControllerOrientation;
+  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
+}): ControllerPresentationSyncMessage => ({
+  type: AIRJAM_CONTROLLER_PRESENTATION_SYNC,
+  payload,
+});
+
 export const parseControllerBridgeRequestMessage = (
   value: unknown,
 ): ControllerBridgeRequestMessage | null => {
@@ -330,4 +362,13 @@ export const parseControllerBridgeCloseMessage = (
 ): ControllerBridgeCloseMessage | null => {
   const result = bridgeCloseSchema.safeParse(value);
   return result.success ? (result.data as ControllerBridgeCloseMessage) : null;
+};
+
+export const parseControllerPresentationSyncMessage = (
+  value: unknown,
+): ControllerPresentationSyncMessage | null => {
+  const result = presentationSyncSchema.safeParse(value);
+  return result.success
+    ? (result.data as ControllerPresentationSyncMessage)
+    : null;
 };

@@ -210,6 +210,7 @@ import {
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
+import { SurfaceViewport } from "@air-jam/sdk/ui";
 
 const ControllerShell = () => (
   <AirJamControllerRuntime
@@ -241,19 +242,20 @@ export const ControllerView = () => {
   );
 
   return (
-    <section>
-      <p>Layout: {controller.controllerOrientation}</p>
-      <button
-        onPointerDown={() =>
-          writeInput({
-            vector: { x: 0, y: 0 },
-            action: true, // one-shot pulses still valid
-          })
-        }
-      >
-        Action
-      </button>
-    </section>
+    <SurfaceViewport orientation="portrait" preset="controller-phone">
+      <section>
+        <button
+          onPointerDown={() =>
+            writeInput({
+              vector: { x: 0, y: 0 },
+              action: true, // one-shot pulses still valid
+            })
+          }
+        >
+          Action
+        </button>
+      </section>
+    </SurfaceViewport>
   );
 };
 ```
@@ -269,14 +271,13 @@ The important rule is:
 
 1. mount `AirJamHostRuntime` / `AirJamControllerRuntime` once per runtime surface
 2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
+3. wrap controller UI in `SurfaceViewport` and set its `orientation` there
 
-Hosts can also publish lightweight controller presentation state with
-`host.sendState({ orientation: "portrait" | "landscape" })`, which controllers
-receive as `controller.controllerOrientation`.
-
-This path is intentionally narrow. Use it for controller layout and short
-presentation metadata, not for authoritative gameplay state. Multiplayer game
-state should live in the networked stores and replicate automatically.
+When the controller runs inside Arcade, `SurfaceViewport` automatically publishes
+its orientation to the parent Arcade chrome. The same component still handles
+standalone controller layout, so games do not need a separate host-side
+orientation bridge. Multiplayer game state should live in the networked stores
+and replicate automatically.
 
 ## Preview Controllers (Experimental)
 
