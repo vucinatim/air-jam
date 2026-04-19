@@ -320,7 +320,7 @@ describe("server routing and security", () => {
     expect(received.id).toBe("valid_sound");
   });
 
-  it("blocks privileged controller channels for room-code-only joins", async () => {
+  it("allows accepted room-code-only joins to use normal controller channels", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
@@ -342,26 +342,43 @@ describe("server routing and security", () => {
 
     controller.emit("controller:play_sound", {
       roomId,
-      soundId: "blocked_sound",
+      soundId: "room_code_sound",
       volume: 0.4,
       loop: false,
     });
+    const sound = await harness.waitForEvent<{ id: string }>(
+      host,
+      "server:playSound",
+    );
+    expect(sound.id).toBe("room_code_sound");
+
     controller.emit("controller:action_rpc", {
       roomId,
       actionName: "joinTeam",
       payload: { team: "team1" },
       storeDomain: "default",
     });
+    const forwarded = await harness.waitForEvent<{
+      actionName: string;
+      payload: unknown;
+      storeDomain: string;
+      actor: { id: string; role: "controller" | "host" };
+    }>(host, "airjam:action_rpc");
+    expect(forwarded).toEqual({
+      actionName: "joinTeam",
+      payload: { team: "team1" },
+      storeDomain: "default",
+      actor: { id: "ctrl_basic_1", role: "controller" },
+    });
+
     controller.emit("controller:system", {
       roomId,
       command: "toggle_pause",
     });
 
-    await harness.expectNoEvent(host, "server:playSound");
-    await harness.expectNoEvent(host, "airjam:action_rpc");
     await harness.delay(50);
     expect(harness.getRoomManager().getRoom(roomId)?.runtimeState).toBe(
-      "paused",
+      "playing",
     );
   });
 

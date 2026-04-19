@@ -42,8 +42,12 @@ import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
 import { useArcadePlatformSettingsStore } from "./arcade-platform-settings-store";
 import {
+  ARCADE_BROWSER_PATH,
   EXIT_COOLDOWN_MS,
+  getArcadeGameHistoryPath,
+  getArcadeHistorySurface,
   getAutoLaunchRequestKey,
+  normalizeArcadeHistoryPathname,
   shouldAutoLaunchGame,
   useArcadeRuntimeManager,
 } from "./arcade-runtime-manager";
@@ -80,6 +84,7 @@ const ARCADE_QR_OVERLAY_MOTION_TRANSITION = {
 const ARCADE_PING_AVATAR_LIFETIME_MS = 850;
 const ARCADE_MAX_ACTIVE_PINGS = 3;
 const ARCADE_PING_STACK_OFFSET_PX = 38;
+const ARCADE_HISTORY_SURFACE_KEY = "__airJamArcadeSurface";
 
 interface ActiveArcadePing {
   id: string;
@@ -90,6 +95,71 @@ interface ActiveArcadePingLane {
   playerId: string;
   pings: ActiveArcadePing[];
 }
+
+const getCurrentHistoryState = (): Record<string, unknown> => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  const state = window.history.state;
+  return state && typeof state === "object"
+    ? (state as Record<string, unknown>)
+    : {};
+};
+
+const replaceArcadeBrowserHistoryEntry = (): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.history.replaceState(
+    {
+      ...getCurrentHistoryState(),
+      [ARCADE_HISTORY_SURFACE_KEY]: "browser",
+    },
+    "",
+    ARCADE_BROWSER_PATH,
+  );
+};
+
+const pushArcadeGameHistoryEntry = (
+  game: ArcadeGame,
+  options: { ensureBrowserBackTarget?: boolean } = {},
+): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const gamePath = getArcadeGameHistoryPath(game);
+  const currentPath = normalizeArcadeHistoryPathname(
+    window.location.pathname,
+  );
+  const currentSurface = getArcadeHistorySurface(window.location.pathname);
+  const currentState = getCurrentHistoryState();
+  const isCurrentGameEntry =
+    currentSurface === "game" && currentPath === gamePath;
+
+  if (
+    isCurrentGameEntry &&
+    (!options.ensureBrowserBackTarget ||
+      currentState[ARCADE_HISTORY_SURFACE_KEY] === "game")
+  ) {
+    return;
+  }
+
+  if (currentSurface !== "browser") {
+    replaceArcadeBrowserHistoryEntry();
+  }
+
+  window.history.pushState(
+    {
+      ...getCurrentHistoryState(),
+      [ARCADE_HISTORY_SURFACE_KEY]: "game",
+    },
+    "",
+    gamePath,
+  );
+};
 
 interface ArcadeSystemProps {
   games: ArcadeGame[];
@@ -159,10 +229,12 @@ export const ArcadeSystem = ({
     resetSession,
     exitGame: resetRuntimeAfterExit,
     consumeAutoLaunch,
+    releaseBrowserActionLaunchBlock,
   } = runtime;
 
   // Ref for launch callback (used in input loop)
   const launchGameRef = useRef<(game: ArcadeGame) => void>(() => {});
+  const closeGameRef = useRef<() => void>(() => {});
 
   // Navigation logic refs
   const EXIT_COOLDOWN = EXIT_COOLDOWN_MS;
@@ -180,6 +252,10 @@ export const ArcadeSystem = ({
 
   const qrVisible = useArcadeSurfaceStore((s) => s.overlay === "qr");
   const surfaceKind = useArcadeSurfaceStore((s) => s.kind);
+  const surfaceKindRef = useRef(surfaceKind);
+  useEffect(() => {
+    surfaceKindRef.current = surfaceKind;
+  }, [surfaceKind]);
   const arcadeSurfaceRuntimeIdentity = useArcadeSurfaceStore(
     useShallow((s) => ({
       epoch: s.epoch,
@@ -368,8 +444,9 @@ export const ArcadeSystem = ({
       }
 
       if (mode === "arcade" && typeof window !== "undefined") {
-        const gameSlugOrId = game.slug || game.id;
-        window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
+        pushArcadeGameHistoryEntry(game, {
+          ensureBrowserBackTarget: hostRouteIntent.kind === "game",
+        });
       }
 
       hostArcadeRestore.clear();
@@ -448,13 +525,29 @@ export const ArcadeSystem = ({
         lastVectorStates.current.set(player.id, latchedInput.vector);
 
         if (latchedInput.action) {
-          if (now - stateRef.current.lastExitAt < EXIT_COOLDOWN) return;
+          const snapshot = stateRef.current;
+          if (
+            snapshot.browserActionLaunchBlocked ||
+            now - snapshot.lastExitAt < EXIT_COOLDOWN
+          ) {
+            return;
+          }
           const game = games[stateRef.current.selectedIndex] ?? selectedGame;
           if (game) {
             launchGameRef.current(game);
           }
         }
       });
+
+      if (stateRef.current.browserActionLaunchBlocked) {
+        const hasActiveAction = host.players.some((player) => {
+          const latchedInput = host.getInput?.(player.id);
+          return latchedInput?.action === true;
+        });
+        if (!hasActiveAction) {
+          releaseBrowserActionLaunchBlock();
+        }
+      }
     },
     {
       enabled:
@@ -510,8 +603,9 @@ export const ArcadeSystem = ({
 
             // Update URL shallowly in arcade mode for deep linking
             if (mode === "arcade" && typeof window !== "undefined") {
-              const gameSlugOrId = game.slug || game.id;
-              window.history.replaceState(null, "", `/arcade/${gameSlugOrId}`);
+              pushArcadeGameHistoryEntry(game, {
+                ensureBrowserBackTarget: hostRouteIntent.kind === "game",
+              });
             }
           } else {
             failLaunch();
@@ -524,6 +618,7 @@ export const ArcadeSystem = ({
       arcadeJoinUrl,
       host.socket,
       host.roomId,
+      hostRouteIntent,
       mode,
       beginLaunch,
       stateRef,
@@ -533,14 +628,10 @@ export const ArcadeSystem = ({
     ],
   );
 
-  const exitGame = useCallback(() => {
-    if (host.socket?.connected) {
-      host.socket.emit("system:closeGame", { roomId: host.roomId });
-    }
-
+  const returnToBrowserSurface = useCallback(() => {
     // Reset URL shallowly in arcade mode
     if (mode === "arcade" && typeof window !== "undefined") {
-      window.history.replaceState(null, "", "/arcade");
+      replaceArcadeBrowserHistoryEntry();
     }
 
     const preferredBrowserOverlay = getPreferredBrowserOverlay();
@@ -551,12 +642,45 @@ export const ArcadeSystem = ({
     resetRuntimeAfterExit();
   }, [
     getPreferredBrowserOverlay,
-    host.socket,
-    host.roomId,
     mode,
     resetRuntimeAfterExit,
     surfaceActions,
   ]);
+
+  const closeGame = useCallback(() => {
+    returnToBrowserSurface();
+
+    if (host.socket?.connected) {
+      host.socket.emit("system:closeGame", { roomId: host.roomId });
+    }
+  }, [host.roomId, host.socket, returnToBrowserSurface]);
+
+  useEffect(() => {
+    closeGameRef.current = closeGame;
+  }, [closeGame]);
+
+  useEffect(() => {
+    if (mode !== "arcade" || typeof window === "undefined") {
+      return;
+    }
+
+    const handlePopState = () => {
+      if (getArcadeHistorySurface(window.location.pathname) !== "browser") {
+        return;
+      }
+
+      if (surfaceKindRef.current !== "game") {
+        return;
+      }
+
+      closeGameRef.current();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [mode]);
 
   const handleArcadeAction = useCallback(
     (event: AirJamActionRpcPayload) => {
@@ -614,7 +738,7 @@ export const ArcadeSystem = ({
           return;
         case airJamArcadePlatformActions.exitGame:
           if (surfaceKind === "game") {
-            exitGame();
+            closeGame();
           }
           return;
         case airJamArcadePlatformActions.updatePlatformSettings: {
@@ -644,7 +768,7 @@ export const ArcadeSystem = ({
     [
       audio,
       audioControls,
-      exitGame,
+      closeGame,
       host.players,
       qrVisible,
       surfaceKind,
@@ -733,14 +857,14 @@ export const ArcadeSystem = ({
   // Platform-owned child-host lifecycle event.
   useEffect(() => {
     const handleChildClose = () => {
-      exitGame();
+      returnToBrowserSurface();
     };
 
     host.socket.on("server:closeChild", handleChildClose);
     return () => {
       host.socket.off("server:closeChild", handleChildClose);
     };
-  }, [host.socket, exitGame]);
+  }, [host.socket, returnToBrowserSurface]);
 
   // Auto-launch effect (for both arcade and preview modes)
   useEffect(() => {
@@ -1120,7 +1244,7 @@ export const ArcadeSystem = ({
               reducedMotion={reducedMotion}
               arcadeSurfaceRuntimeIdentity={arcadeSurfaceRuntimeIdentity}
               parentTopology={platformArcadeHostSessionConfig.topology}
-              onExit={exitGame}
+              onExit={closeGame}
               showExitOverlay={showGameExitOverlay}
             />
           ))}

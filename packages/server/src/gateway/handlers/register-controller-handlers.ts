@@ -22,6 +22,7 @@ import {
   emitControllerJoinedNotice,
   emitControllerLeftNotice,
   emitRoomState,
+  getDefaultControllerPrivilegedGrants,
   isControllerPrivilegedCapabilityExpired,
   listRoomPlayers,
   transitionToSystemFocus,
@@ -328,8 +329,10 @@ export const registerControllerHandlers = (
     }
 
     const grantedPrivileges = hasValidCapability
-      ? roomCapability!.grants
-      : (existing?.privilegedGrants ?? []);
+      ? [...roomCapability!.grants]
+      : existing?.privilegedGrants.length
+        ? [...existing.privilegedGrants]
+        : getDefaultControllerPrivilegedGrants();
     const resumed = isResumedJoin;
     if (existing) {
       if (existing.deviceId !== deviceId) {

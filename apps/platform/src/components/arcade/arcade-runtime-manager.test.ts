@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  ARCADE_BROWSER_PATH,
   createInitialArcadeRuntimeState,
+  getArcadeGameHistoryPath,
+  getArcadeHistorySurface,
   getAutoLaunchRequestKey,
   getInitialSelectedIndex,
   getNextSelectedIndex,
+  normalizeArcadeHistoryPathname,
   reduceArcadeRuntimeState,
   shouldAutoLaunchGame,
 } from "./arcade-runtime-manager";
@@ -37,6 +41,22 @@ const games: ArcadeGame[] = [
 ];
 
 describe("arcade runtime manager", () => {
+  it("models arcade browser and game history paths", () => {
+    expect(ARCADE_BROWSER_PATH).toBe("/arcade");
+    expect(getArcadeGameHistoryPath(games[0]!)).toBe("/arcade/g1");
+    expect(getArcadeGameHistoryPath({ ...games[0]!, slug: "local-one" })).toBe(
+      "/arcade/local-one",
+    );
+
+    expect(getArcadeHistorySurface("/arcade")).toBe("browser");
+    expect(getArcadeHistorySurface("/arcade/")).toBe("browser");
+    expect(getArcadeHistorySurface("/arcade/local-one")).toBe("game");
+    expect(getArcadeHistorySurface("/play/local-one")).toBe("outside");
+    expect(normalizeArcadeHistoryPathname("/arcade/local-one/")).toBe(
+      "/arcade/local-one",
+    );
+  });
+
   it("initializes selected game from initialGameId", () => {
     expect(getInitialSelectedIndex(games, "g3")).toBe(2);
     expect(getInitialSelectedIndex(games, "missing")).toBe(0);
@@ -112,6 +132,27 @@ describe("arcade runtime manager", () => {
     expect(state.isLaunching).toBe(false);
     expect(state.consumedAutoLaunchRequestKey).toBe("arcade:g2");
     expect(state.lastExitAt).toBe(123_456);
+    expect(state.browserActionLaunchBlocked).toBe(true);
+  });
+
+  it("blocks browser action relaunch after exit until controller actions are released", () => {
+    let state = createInitialArcadeRuntimeState({
+      games,
+      initialGameId: "g2",
+    });
+
+    state = reduceArcadeRuntimeState(state, {
+      type: "exit-game",
+      exitedAt: 123_456,
+    });
+
+    expect(state.browserActionLaunchBlocked).toBe(true);
+
+    state = reduceArcadeRuntimeState(state, {
+      type: "browser-action-release-observed",
+    });
+
+    expect(state.browserActionLaunchBlocked).toBe(false);
   });
 
   it("clears stale launch state on session reset without applying exit cooldown", () => {
@@ -141,6 +182,7 @@ describe("arcade runtime manager", () => {
     expect(state.isLaunching).toBe(false);
     expect(state.consumedAutoLaunchRequestKey).toBeNull();
     expect(state.lastExitAt).toBe(0);
+    expect(state.browserActionLaunchBlocked).toBe(false);
   });
 
   it("derives a stable auto-launch request key per route intent", () => {

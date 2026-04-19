@@ -10,9 +10,37 @@ export interface ArcadeRuntimeState {
   isLaunching: boolean;
   consumedAutoLaunchRequestKey: string | null;
   lastExitAt: number;
+  browserActionLaunchBlocked: boolean;
 }
 
 export const EXIT_COOLDOWN_MS = 500;
+export const ARCADE_BROWSER_PATH = "/arcade";
+
+export type ArcadeHistorySurface = "browser" | "game" | "outside";
+
+export const getArcadeGameHistoryPath = (game: ArcadeGame): string =>
+  `${ARCADE_BROWSER_PATH}/${game.slug || game.id}`;
+
+export const normalizeArcadeHistoryPathname = (pathname: string): string =>
+  pathname.length > 1 && pathname.endsWith("/")
+    ? pathname.slice(0, -1)
+    : pathname;
+
+export const getArcadeHistorySurface = (
+  pathname: string,
+): ArcadeHistorySurface => {
+  const normalizedPathname = normalizeArcadeHistoryPathname(pathname);
+
+  if (normalizedPathname === ARCADE_BROWSER_PATH) {
+    return "browser";
+  }
+
+  if (normalizedPathname.startsWith(`${ARCADE_BROWSER_PATH}/`)) {
+    return "game";
+  }
+
+  return "outside";
+};
 
 export const getInitialSelectedIndex = (
   games: ArcadeGame[],
@@ -163,6 +191,7 @@ type RuntimeAction =
     }
   | { type: "launch-failure" }
   | { type: "exit-game"; exitedAt: number }
+  | { type: "browser-action-release-observed" }
   | { type: "reset-session" }
   | { type: "consume-auto-launch"; requestKey: string };
 
@@ -179,6 +208,7 @@ export const createInitialArcadeRuntimeState = ({
   isLaunching: false,
   consumedAutoLaunchRequestKey: null,
   lastExitAt: 0,
+  browserActionLaunchBlocked: false,
 });
 
 export const reduceArcadeRuntimeState = (
@@ -215,6 +245,7 @@ export const reduceArcadeRuntimeState = (
         isLaunching: false,
         normalizedGameUrl: action.normalizedGameUrl,
         launchCapability: action.launchCapability,
+        browserActionLaunchBlocked: false,
       };
 
     case "launch-failure":
@@ -231,6 +262,13 @@ export const reduceArcadeRuntimeState = (
         launchCapability: null,
         isLaunching: false,
         lastExitAt: action.exitedAt,
+        browserActionLaunchBlocked: true,
+      };
+
+    case "browser-action-release-observed":
+      return {
+        ...state,
+        browserActionLaunchBlocked: false,
       };
 
     case "reset-session":
@@ -240,6 +278,7 @@ export const reduceArcadeRuntimeState = (
         launchCapability: null,
         isLaunching: false,
         consumedAutoLaunchRequestKey: null,
+        browserActionLaunchBlocked: false,
       };
 
     case "consume-auto-launch":
@@ -347,6 +386,10 @@ export const useArcadeRuntimeManager = ({
     dispatch({ type: "consume-auto-launch", requestKey });
   }, []);
 
+  const releaseBrowserActionLaunchBlock = useCallback(() => {
+    dispatch({ type: "browser-action-release-observed" });
+  }, []);
+
   return {
     state,
     stateRef,
@@ -359,5 +402,6 @@ export const useArcadeRuntimeManager = ({
     resetSession,
     exitGame,
     consumeAutoLaunch,
+    releaseBrowserActionLaunchBlock,
   };
 };

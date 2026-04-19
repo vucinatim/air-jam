@@ -160,9 +160,12 @@ const DEFAULT_CONTROLLER_PRIVILEGED_GRANTS: ControllerPrivilegedGrant[] = [
   "action_rpc",
 ];
 
+export const getDefaultControllerPrivilegedGrants =
+  (): ControllerPrivilegedGrant[] => [...DEFAULT_CONTROLLER_PRIVILEGED_GRANTS];
+
 export const issueControllerPrivilegedCapability = (
   token: string,
-  grants: ControllerPrivilegedGrant[] = DEFAULT_CONTROLLER_PRIVILEGED_GRANTS,
+  grants: ControllerPrivilegedGrant[] = getDefaultControllerPrivilegedGrants(),
   now = Date.now(),
 ): ControllerPrivilegedCapability => ({
   token,

@@ -561,7 +561,7 @@ export function ControllerMenuSheet({
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 h-14 min-h-14 flex-1 touch-manipulation rounded-xl text-base text-white"
               onClick={() => {
-                controller.sendSystemCommand("exit");
+                emitArcadeAction(airJamArcadePlatformActions.exitGame);
                 setOverlayOpen(false);
               }}
             >
