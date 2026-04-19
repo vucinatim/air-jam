@@ -189,7 +189,8 @@ export const AIRJAM_DEV_LOG_EVENTS = {
     joinAccepted: "child_host.join.accepted",
     joinRejected: "child_host.join.rejected",
     disconnectPendingSystemFocus: "child_host.disconnect.pending_system_focus",
-    disconnectSystemFocusRestored: "child_host.disconnect.system_focus_restored",
+    disconnectSystemFocusRestored:
+      "child_host.disconnect.system_focus_restored",
   },
   embeddedGame: {
     activateAccepted: "embedded_game.activate.accepted",

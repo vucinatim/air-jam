@@ -1,11 +1,11 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
-import { MATCH_POINTS_TO_WIN } from "../../game/match-config";
 import {
   buildTeamSlots,
   MAX_TEAM_SLOTS,
   type TeamId,
 } from "../../game/domain/team-slots";
+import { MATCH_POINTS_TO_WIN } from "../../game/match-config";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { PRESS_FEEL_CLASS } from "../constants";
 

@@ -11,7 +11,10 @@ import {
 } from "three";
 import type { AirCaptureArenaPrefabProps } from "./schema";
 
-function Forcefield({ arenaRadius, forcefieldColor }: AirCaptureArenaPrefabProps) {
+function Forcefield({
+  arenaRadius,
+  forcefieldColor,
+}: AirCaptureArenaPrefabProps) {
   const materialRef = useRef<ShaderMaterial>(null);
 
   useFrame((state) => {
@@ -133,7 +136,9 @@ export function SpaceEnvironment({
         userData={{ type: "ground" }}
       >
         <mesh receiveShadow userData={{ type: "ground" }}>
-          <planeGeometry args={[props.arenaRadius * 3, props.arenaRadius * 3]} />
+          <planeGeometry
+            args={[props.arenaRadius * 3, props.arenaRadius * 3]}
+          />
           <meshStandardMaterial
             color={props.groundColor}
             roughness={0.8}

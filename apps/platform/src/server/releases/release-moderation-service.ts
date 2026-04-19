@@ -1,13 +1,13 @@
 import { db } from "@/db";
 import { gameReleaseChecks } from "@/db/schema";
 import {
-  captureReleaseScreenshot,
-  type ReleaseScreenshotCaptureResult,
-} from "@/server/releases/release-screenshot-service";
-import {
   moderateReleaseScreenshot,
   type ReleaseImageModerationResult,
 } from "@/server/releases/release-image-moderation-service";
+import {
+  captureReleaseScreenshot,
+  type ReleaseScreenshotCaptureResult,
+} from "@/server/releases/release-screenshot-service";
 import { getReleaseModerationAvailability } from "./release-moderation-config";
 import { quarantineRelease } from "./release-status-service";
 import { getReleaseStorage } from "./release-storage";
@@ -226,7 +226,8 @@ export const runReleaseModeration = async ({
     releaseId,
     kind: IMAGE_MODERATION_KIND,
     status: "passed",
-    summary: "Automated image moderation cleared the canonical release screenshot.",
+    summary:
+      "Automated image moderation cleared the canonical release screenshot.",
     payload: {
       flagged: moderation.flagged,
       categories: moderation.categories,

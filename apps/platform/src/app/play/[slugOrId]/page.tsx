@@ -1,8 +1,6 @@
 "use client";
 
 import { ArcadeAudioRuntime, ArcadeSystem } from "@/components/arcade";
-import { toArcadeGame } from "@/lib/arcade-game-mapper";
-import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,9 +14,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
+import { toArcadeGame } from "@/lib/arcade-game-mapper";
 import { api } from "@/trpc/react";
 import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
-import { AlertCircle, ArrowLeft, ExternalLink, Flag, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ExternalLink,
+  Flag,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
@@ -122,112 +128,117 @@ export default function PlayGamePage({
     <PlatformSettingsRuntime persistence="local">
       <AirJamHostRuntime {...platformArcadeHostSessionConfig}>
         <div className="flex h-screen flex-col bg-slate-950">
-        {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
-        <div className="relative z-100">
-          <PreviewHeader
-            gameId={game.id}
-            gameName={game.name}
-            gameUrl={game.url}
-            launchSource={game.launchSource}
-            canReport={canReportPublicRelease}
-            onReport={() => setReportDialogOpen(true)}
-            reportPending={reportPublicRelease.isPending}
-          />
-          {reportFeedback ? (
-            <div className="border-b border-white/10 bg-slate-950/95 px-4 py-3">
-              <Alert variant={reportFeedback.variant}>
-                {reportFeedback.variant === "destructive" ? (
-                  <AlertCircle className="h-4 w-4" />
-                ) : (
-                  <Flag className="h-4 w-4" />
-                )}
-                <AlertTitle>{reportFeedback.title}</AlertTitle>
-                <AlertDescription>{reportFeedback.description}</AlertDescription>
-              </Alert>
-            </div>
-          ) : null}
-        </div>
-        <div className="relative flex-1">
-          {/* Game Container - Takes remaining space */}
-          <ArcadeAudioRuntime>
-            <ArcadeSystem
-              games={[arcadeGame]}
-              mode="preview"
-              initialGameId={game.id}
-              onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
-              className="flex-1"
-              previewControllersEnabled
+          {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
+          <div className="relative z-100">
+            <PreviewHeader
+              gameId={game.id}
+              gameName={game.name}
+              gameUrl={game.url}
+              launchSource={game.launchSource}
+              canReport={canReportPublicRelease}
+              onReport={() => setReportDialogOpen(true)}
+              reportPending={reportPublicRelease.isPending}
             />
-          </ArcadeAudioRuntime>
-        </div>
+            {reportFeedback ? (
+              <div className="border-b border-white/10 bg-slate-950/95 px-4 py-3">
+                <Alert variant={reportFeedback.variant}>
+                  {reportFeedback.variant === "destructive" ? (
+                    <AlertCircle className="h-4 w-4" />
+                  ) : (
+                    <Flag className="h-4 w-4" />
+                  )}
+                  <AlertTitle>{reportFeedback.title}</AlertTitle>
+                  <AlertDescription>
+                    {reportFeedback.description}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            ) : null}
+          </div>
+          <div className="relative flex-1">
+            {/* Game Container - Takes remaining space */}
+            <ArcadeAudioRuntime>
+              <ArcadeSystem
+                games={[arcadeGame]}
+                mode="preview"
+                initialGameId={game.id}
+                onExitGame={() => router.push(`/dashboard/games/${game.id}`)}
+                className="flex-1"
+                previewControllersEnabled
+              />
+            </ArcadeAudioRuntime>
+          </div>
         </div>
         <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Report this hosted release</DialogTitle>
-            <DialogDescription>
-              Use this if the public Arcade release looks abusive, misleading, or
-              inappropriate. Reports are attached to the live hosted release, not
-              to the creator&apos;s optional preview URL.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Reason</label>
-              <Input
-                value={reportReason}
-                onChange={(event) => setReportReason(event.target.value)}
-                placeholder="Example: explicit sexual content, phishing, hate symbols"
-                maxLength={120}
-              />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Report this hosted release</DialogTitle>
+              <DialogDescription>
+                Use this if the public Arcade release looks abusive, misleading,
+                or inappropriate. Reports are attached to the live hosted
+                release, not to the creator&apos;s optional preview URL.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reason</label>
+                <Input
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  placeholder="Example: explicit sexual content, phishing, hate symbols"
+                  maxLength={120}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Details</label>
+                <Textarea
+                  value={reportDetails}
+                  onChange={(event) => setReportDetails(event.target.value)}
+                  placeholder="Share any extra context that helps review the release."
+                  maxLength={2000}
+                  rows={5}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email (optional)</label>
+                <Input
+                  value={reporterEmail}
+                  onChange={(event) => setReporterEmail(event.target.value)}
+                  placeholder="name@example.com"
+                  type="email"
+                  maxLength={320}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Details</label>
-              <Textarea
-                value={reportDetails}
-                onChange={(event) => setReportDetails(event.target.value)}
-                placeholder="Share any extra context that helps review the release."
-                maxLength={2000}
-                rows={5}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email (optional)</label>
-              <Input
-                value={reporterEmail}
-                onChange={(event) => setReporterEmail(event.target.value)}
-                placeholder="name@example.com"
-                type="email"
-                maxLength={320}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setReportDialogOpen(false)}
-              disabled={reportPublicRelease.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleSubmitReport()}
-              disabled={reportPublicRelease.isPending || reportReason.trim().length < 3}
-            >
-              {reportPublicRelease.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending
-                </>
-              ) : (
-                <>
-                  <Flag className="mr-2 h-4 w-4" />
-                  Submit report
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setReportDialogOpen(false)}
+                disabled={reportPublicRelease.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => void handleSubmitReport()}
+                disabled={
+                  reportPublicRelease.isPending ||
+                  reportReason.trim().length < 3
+                }
+              >
+                {reportPublicRelease.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending
+                  </>
+                ) : (
+                  <>
+                    <Flag className="mr-2 h-4 w-4" />
+                    Submit report
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
       </AirJamHostRuntime>
     </PlatformSettingsRuntime>

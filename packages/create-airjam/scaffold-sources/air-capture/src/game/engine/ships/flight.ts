@@ -243,9 +243,7 @@ function calculateAirShipVelocity(
   let liftSlip = currentVelocity.dot(liftAxis);
 
   const thrustAcceleration =
-    SHIP_ENGINE_CONFIG.AIR_THRUST_ACCELERATION *
-    speedMultiplier *
-    thrustInput;
+    SHIP_ENGINE_CONFIG.AIR_THRUST_ACCELERATION * speedMultiplier * thrustInput;
   forwardSpeed += thrustAcceleration * delta;
   forwardSpeed *= Math.max(0, 1 - SHIP_ENGINE_CONFIG.AIR_FORWARD_DRAG * delta);
 
@@ -328,7 +326,10 @@ export function calculateShipPitchVelocity(
       targetAngle = 0;
     }
 
-    const currentAngle = new Euler().setFromQuaternion(currentRotation, "YXZ").x;
+    const currentAngle = new Euler().setFromQuaternion(
+      currentRotation,
+      "YXZ",
+    ).x;
     const angleDiff = targetAngle - currentAngle;
     targetPitchVelocity = MathUtils.clamp(
       angleDiff * SHIP_ENGINE_CONFIG.PITCH_RESPONSIVENESS -
@@ -399,7 +400,10 @@ export function calculateShipVerticalVelocityDelta(
       SHIP_ENGINE_CONFIG.AIR_DIVE_ACCELERATION;
 
     const verticalAcceleration =
-      SHIP_ENGINE_CONFIG.BASE_GRAVITY + glideLift + pitchLift - diveAcceleration;
+      SHIP_ENGINE_CONFIG.BASE_GRAVITY +
+      glideLift +
+      pitchLift -
+      diveAcceleration;
 
     const deltaY = verticalAcceleration * delta;
     const nextVelocity = verticalVelocity + deltaY;

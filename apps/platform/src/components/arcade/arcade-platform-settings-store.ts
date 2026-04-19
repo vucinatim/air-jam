@@ -2,8 +2,8 @@
 
 import {
   createAirJamStore,
-  type AirJamActionContext,
   DEFAULT_PLATFORM_SETTINGS,
+  type AirJamActionContext,
   type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
 

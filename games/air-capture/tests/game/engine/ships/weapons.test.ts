@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { Euler, Quaternion, Vector3 } from "three";
+import { describe, expect, it } from "vitest";
 import {
   buildShipLaserShots,
   shouldFireShipWeapons,

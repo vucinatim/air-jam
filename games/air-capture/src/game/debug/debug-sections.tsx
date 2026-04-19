@@ -1,26 +1,21 @@
-import { useHostSession } from "@air-jam/sdk";
-import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useHostSession } from "@air-jam/sdk";
+import { useEffect, useMemo, useState } from "react";
 import {
   getAbilityIconPath,
   getAllAbilityDefinitions,
   useAbilitiesStore,
 } from "../abilities-store";
-import {
-  getTeamCounts,
-  type TeamCounts,
-} from "../domain/match-readiness";
+import { getTeamCounts, type TeamCounts } from "../domain/match-readiness";
 import { TEAM_CONFIG, TEAM_IDS } from "../domain/team";
-import {
-  useCaptureTheFlagStore,
-} from "../stores/match/capture-the-flag-store";
-import { usePrototypeMatchStore } from "../stores/match/match-store";
 import { useDebugStore } from "../stores/debug/debug-store";
-import { useDecalsStore } from "../stores/world/decals-store";
+import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
+import { usePrototypeMatchStore } from "../stores/match/match-store";
 import { useGameStore } from "../stores/players/game-store";
 import { useHealthStore } from "../stores/players/health-store";
 import { useLasersStore } from "../stores/projectiles/lasers-store";
+import { useDecalsStore } from "../stores/world/decals-store";
 import { DebugSection } from "./debug-section";
 import { TeamBotControls } from "./team-bot-controls";
 

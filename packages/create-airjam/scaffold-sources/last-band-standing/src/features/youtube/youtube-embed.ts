@@ -16,7 +16,11 @@ const extractYouTubeStartSeconds = (youtubeUrl: string): number | null => {
   const match = t.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/);
   if (!match) return null;
   const [, h, m, s] = match;
-  return (parseInt(h ?? "0", 10) * 3600) + (parseInt(m ?? "0", 10) * 60) + parseInt(s ?? "0", 10);
+  return (
+    parseInt(h ?? "0", 10) * 3600 +
+    parseInt(m ?? "0", 10) * 60 +
+    parseInt(s ?? "0", 10)
+  );
 };
 
 /**
@@ -64,7 +68,9 @@ export const getYouTubeEmbedUrl = (
 /**
  * Builds a YouTube embed URL for ambient background use: muted, no controls, autoplay, loop.
  */
-export const getYouTubeBackgroundEmbedUrl = (youtubeUrl: string): string | null => {
+export const getYouTubeBackgroundEmbedUrl = (
+  youtubeUrl: string,
+): string | null => {
   const videoId = extractYouTubeVideoId(youtubeUrl);
 
   if (!videoId) {

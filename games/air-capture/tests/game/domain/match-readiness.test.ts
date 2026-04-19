@@ -29,10 +29,7 @@ describe("air-capture match readiness", () => {
 
   it("requires at least one human player even if bots fill both teams", () => {
     expect(
-      getMatchReadiness(
-        { solaris: 0, nebulon: 0 },
-        { solaris: 1, nebulon: 1 },
-      ),
+      getMatchReadiness({ solaris: 0, nebulon: 0 }, { solaris: 1, nebulon: 1 }),
     ).toEqual({
       canStart: false,
     });
@@ -40,10 +37,7 @@ describe("air-capture match readiness", () => {
 
   it("allows a match when one human is present and both teams are occupied", () => {
     expect(
-      getMatchReadiness(
-        { solaris: 1, nebulon: 0 },
-        { solaris: 0, nebulon: 1 },
-      ),
+      getMatchReadiness({ solaris: 1, nebulon: 0 }, { solaris: 0, nebulon: 1 }),
     ).toEqual({
       canStart: true,
     });

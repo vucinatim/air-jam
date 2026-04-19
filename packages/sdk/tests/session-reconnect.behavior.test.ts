@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
+import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { onAirJamDiagnostic } from "../src/diagnostics";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
@@ -101,21 +101,20 @@ const createHostWrapper =
     });
 
 const createControllerWrapper =
-  (options: {
-    roomId?: string;
-    controllerId?: string;
-    nickname?: string;
-    avatarId?: string;
-  } = {}) =>
+  (
+    options: {
+      roomId?: string;
+      controllerId?: string;
+      nickname?: string;
+      avatarId?: string;
+    } = {},
+  ) =>
   ({ children }: { children: ReactNode }) =>
-    React.createElement(
-      AirJamControllerRuntime,
-      {
-        ...PROVIDER_CONFIG,
-        ...options,
-        children,
-      },
-    );
+    React.createElement(AirJamControllerRuntime, {
+      ...PROVIDER_CONFIG,
+      ...options,
+      children,
+    });
 
 describe("session reconnect behavior", () => {
   beforeEach(() => {
@@ -189,7 +188,12 @@ describe("session reconnect behavior", () => {
 
     const stateHandler = mocked.controllerSocket.on.mock.calls.find(
       ([event]: [string]) => event === "server:state",
-    )?.[1] as ((payload: { roomId: string; state: { runtimeState?: "paused" | "playing" } }) => void) | undefined;
+    )?.[1] as
+      | ((payload: {
+          roomId: string;
+          state: { runtimeState?: "paused" | "playing" };
+        }) => void)
+      | undefined;
     expect(stateHandler).toBeDefined();
 
     act(() => {
@@ -228,14 +232,12 @@ describe("session reconnect behavior", () => {
     const welcomeHandler = mocked.controllerSocket.on.mock.calls.find(
       ([event]: [string]) => event === "server:welcome",
     )?.[1] as
-      | ((
-          payload: {
-            controllerId: string;
-            roomId: string;
-            player?: { id: string; label: string };
-            players?: Array<{ id: string; label: string }>;
-          },
-        ) => void)
+      | ((payload: {
+          controllerId: string;
+          roomId: string;
+          player?: { id: string; label: string };
+          players?: Array<{ id: string; label: string }>;
+        }) => void)
       | undefined;
     expect(welcomeHandler).toBeDefined();
 
@@ -279,9 +281,7 @@ describe("session reconnect behavior", () => {
       | undefined;
     const leftHandler = mocked.controllerSocket.on.mock.calls.find(
       ([event]: [string]) => event === "server:controllerLeft",
-    )?.[1] as
-      | ((payload: { controllerId: string }) => void)
-      | undefined;
+    )?.[1] as ((payload: { controllerId: string }) => void) | undefined;
     expect(joinedHandler).toBeDefined();
     expect(leftHandler).toBeDefined();
 
@@ -314,11 +314,7 @@ describe("session reconnect behavior", () => {
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
     sessionStorage.setItem("airjam_room_id", "ROOM1");
     mocked.hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        _payload: unknown,
-        callback?: (ack: unknown) => void,
-      ) => {
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
         if (event === "host:bootstrap") {
           callback?.({ ok: true });
         }
@@ -349,11 +345,7 @@ describe("session reconnect behavior", () => {
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
     sessionStorage.setItem("airjam_room_id", "ROOM1");
     mocked.hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        _payload: unknown,
-        callback?: (ack: unknown) => void,
-      ) => {
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
         if (event === "host:bootstrap") {
           callback?.({ ok: true });
         }
@@ -395,11 +387,7 @@ describe("session reconnect behavior", () => {
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
     sessionStorage.setItem("airjam_room_id", "ROOM1");
     mocked.hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        _payload: unknown,
-        callback?: (ack: unknown) => void,
-      ) => {
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
         if (event === "host:bootstrap") {
           callback?.({ ok: true });
         }
@@ -422,15 +410,12 @@ describe("session reconnect behavior", () => {
         runtimeState: "playing",
       }),
     ).toBe(true);
-    expect(mocked.hostSocket.emit).toHaveBeenCalledWith(
-      "host:state",
-      {
-        roomId: "ROOM1",
-        state: {
-          runtimeState: "playing",
-        },
+    expect(mocked.hostSocket.emit).toHaveBeenCalledWith("host:state", {
+      roomId: "ROOM1",
+      state: {
+        runtimeState: "playing",
       },
-    );
+    });
 
     act(() => {
       mocked.store?.getState().setRegisteredRoomId(null);
@@ -475,11 +460,7 @@ describe("session reconnect behavior", () => {
       }),
     );
     mocked.hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        _payload: unknown,
-        callback?: (ack: unknown) => void,
-      ) => {
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
         if (event === "host:bootstrap") {
           callback?.({ ok: true });
         }
@@ -519,11 +500,7 @@ describe("session reconnect behavior", () => {
     });
 
     mocked.hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        _payload: unknown,
-        callback?: (ack: unknown) => void,
-      ) => {
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
         if (event === "host:bootstrap") {
           callback?.({
             ok: false,
@@ -553,11 +530,7 @@ describe("session reconnect behavior", () => {
     sessionStorage.clear();
 
     mocked.hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        _payload: unknown,
-        callback?: (ack: unknown) => void,
-      ) => {
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
         if (event === "host:bootstrap") {
           callback?.({ ok: true });
           return;
@@ -603,11 +576,7 @@ describe("session reconnect behavior", () => {
     sessionStorage.setItem("airjam_room_id", "ROOM1");
 
     mocked.hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        payload: unknown,
-        callback?: (ack: unknown) => void,
-      ) => {
+      (event: string, payload: unknown, callback?: (ack: unknown) => void) => {
         if (event === "host:bootstrap") {
           callback?.({ ok: true });
           return;

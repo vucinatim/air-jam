@@ -1,15 +1,9 @@
 import path from "node:path";
-import {
-  defaultWorkspaceGameId,
-  findRepoGame,
-  toLocalReferenceUrlEnvKey,
-} from "../lib/repo-games.mjs";
-import {
-  createWorkspaceProcessGroup,
-  reserveWorkspaceResources,
-} from "../lib/workspace-stack.mjs";
-import { resolveWorkspaceArcadeOrigins } from "../lib/workspace-runtime-origins.mjs";
 import { loadEnvFile } from "../../../packages/create-airjam/runtime/dev-utils.mjs";
+import {
+  buildPlatformShellTopology,
+  serializeResolvedTopology,
+} from "../../../packages/create-airjam/runtime/runtime-topology.mjs";
 import {
   DEFAULT_GAME_PORT,
   DEFAULT_PLATFORM_PORT,
@@ -17,9 +11,15 @@ import {
   SECURE_MODE_LOCAL,
 } from "../../../packages/create-airjam/runtime/secure-dev.mjs";
 import {
-  buildPlatformShellTopology,
-  serializeResolvedTopology,
-} from "../../../packages/create-airjam/runtime/runtime-topology.mjs";
+  defaultWorkspaceGameId,
+  findRepoGame,
+  toLocalReferenceUrlEnvKey,
+} from "../lib/repo-games.mjs";
+import { resolveWorkspaceArcadeOrigins } from "../lib/workspace-runtime-origins.mjs";
+import {
+  createWorkspaceProcessGroup,
+  reserveWorkspaceResources,
+} from "../lib/workspace-stack.mjs";
 
 const BACKEND_PROXY_URL = "http://127.0.0.1:4000";
 
@@ -164,8 +164,9 @@ export const runWorkspaceArcadeDevCommand = async ({
     AIR_JAM_DEV_PROXY_BACKEND_URL: BACKEND_PROXY_URL,
     NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY:
       serializeResolvedTopology(platformHostTopology),
-    NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY:
-      serializeResolvedTopology(platformControllerTopology),
+    NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY: serializeResolvedTopology(
+      platformControllerTopology,
+    ),
     NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: arcadeOrigins.publicPlatformOrigin,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: activeGame.id,
     [toLocalReferenceUrlEnvKey(activeGame.id)]: arcadeOrigins.publicGameOrigin,

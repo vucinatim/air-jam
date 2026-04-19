@@ -9,7 +9,10 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
 const DEFAULT_SOURCE = path.resolve(projectRoot, "src/song-bank.ts");
-const DEFAULT_OUTPUT = path.resolve(projectRoot, "reports/song-embed-report.json");
+const DEFAULT_OUTPUT = path.resolve(
+  projectRoot,
+  "reports/song-embed-report.json",
+);
 const DEFAULT_TIMEOUT_MS = 8_000;
 const DEFAULT_CONCURRENCY = 6;
 
@@ -20,7 +23,9 @@ const SONG_ENTRY_REGEX =
   /\{\s*(?:"id"|id)\s*:\s*"([^"]+)"\s*,\s*(?:"title"|title)\s*:\s*"([^"]+)"\s*,\s*(?:"artist"|artist)\s*:\s*"([^"]+)"\s*,\s*(?:"youtubeUrl"|youtubeUrl)\s*:\s*"([^"]+)"([\s\S]*?)\}/g;
 
 const usage = () => {
-  console.log(`Usage: node ./scripts/validate-song-embeds.mjs [options]\n\nOptions:\n  --source <path>           Song bank source file (default: src/song-bank.ts)\n  --output <path>           JSON report output path (default: reports/song-embed-report.json)\n  --timeout-ms <number>     HTTP timeout per video check (default: ${DEFAULT_TIMEOUT_MS})\n  --concurrency <number>    Parallel checks (default: ${DEFAULT_CONCURRENCY})\n  --fail-on-invalid         Exit with code 1 when any song is blocked/invalid\n  --help                    Show this help\n`);
+  console.log(
+    `Usage: node ./scripts/validate-song-embeds.mjs [options]\n\nOptions:\n  --source <path>           Song bank source file (default: src/song-bank.ts)\n  --output <path>           JSON report output path (default: reports/song-embed-report.json)\n  --timeout-ms <number>     HTTP timeout per video check (default: ${DEFAULT_TIMEOUT_MS})\n  --concurrency <number>    Parallel checks (default: ${DEFAULT_CONCURRENCY})\n  --fail-on-invalid         Exit with code 1 when any song is blocked/invalid\n  --help                    Show this help\n`,
+  );
 };
 
 const parseArgs = (argv) => {
@@ -107,7 +112,9 @@ const parseSongEntries = (sourceText) => {
   }
 
   if (songs.length === 0) {
-    throw new Error("No songs found in source file. Expected raw song objects in src/song-bank.ts");
+    throw new Error(
+      "No songs found in source file. Expected raw song objects in src/song-bank.ts",
+    );
   }
 
   return songs;
@@ -208,7 +215,8 @@ const checkSong = async (song, timeoutMs) => {
         : error instanceof Error
           ? error.message
           : "Unknown network error.",
-      fixHint: "Retry validation. If it persists, manually test this URL in /youtube-test.",
+      fixHint:
+        "Retry validation. If it persists, manually test this URL in /youtube-test.",
     };
   } finally {
     clearTimeout(timeoutHandle);
@@ -264,7 +272,9 @@ const main = async () => {
     `Embeddable: ${embeddableCount} | Invalid/Blocked: ${blockedCount} | Duplicate IDs: ${duplicateCount}`,
   );
 
-  const invalidEntries = results.filter((entry) => !entry.embeddable || entry.duplicateId);
+  const invalidEntries = results.filter(
+    (entry) => !entry.embeddable || entry.duplicateId,
+  );
   if (invalidEntries.length > 0) {
     console.log("\nSongs needing curation:");
     invalidEntries.slice(0, 20).forEach((entry) => {
@@ -272,10 +282,14 @@ const main = async () => {
         entry.embeddable ? null : entry.status,
         entry.duplicateId ? "duplicate-id" : null,
       ].filter(Boolean);
-      console.log(`- ${entry.id} (${issues.join(", ")}) -> ${entry.youtubeUrl}`);
+      console.log(
+        `- ${entry.id} (${issues.join(", ")}) -> ${entry.youtubeUrl}`,
+      );
     });
     if (invalidEntries.length > 20) {
-      console.log(`...and ${invalidEntries.length - 20} more (see JSON report)`);
+      console.log(
+        `...and ${invalidEntries.length - 20} more (see JSON report)`,
+      );
     }
   }
 

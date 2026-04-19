@@ -15,7 +15,10 @@ const getLocalStorage = (): Storage | null => {
 };
 
 const generateControllerDeviceId = (): string => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return `d_${crypto.randomUUID()}`;
   }
   return `d_${generateControllerId()}_${Date.now().toString(36)}`;

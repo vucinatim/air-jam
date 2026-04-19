@@ -11,7 +11,12 @@
     margin: 0;
     background: #0a0a0a;
     color: #fafafa;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
   }
 
   button,

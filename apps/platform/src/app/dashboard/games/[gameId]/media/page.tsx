@@ -112,7 +112,10 @@ export default function GameMediaPage() {
   const [busyKind, setBusyKind] = useState<GameMediaKind | null>(null);
   const [actionAssetId, setActionAssetId] = useState<string | null>(null);
 
-  const { data: game } = api.game.get.useQuery({ id: gameId }, { enabled: !!gameId });
+  const { data: game } = api.game.get.useQuery(
+    { id: gameId },
+    { enabled: !!gameId },
+  );
   const { data: mediaData, isLoading } = api.gameMedia.listByGame.useQuery(
     { gameId },
     { enabled: !!gameId },
@@ -133,7 +136,10 @@ export default function GameMediaPage() {
   };
 
   const assetsByKind = useMemo(() => {
-    const grouped = new Map<GameMediaKind, NonNullable<typeof mediaData>["assets"]>();
+    const grouped = new Map<
+      GameMediaKind,
+      NonNullable<typeof mediaData>["assets"]
+    >();
 
     for (const kind of MEDIA_KIND_ORDER) {
       grouped.set(kind, []);
@@ -222,7 +228,9 @@ export default function GameMediaPage() {
       await archiveAsset.mutateAsync({ gameId, assetId });
       await refreshMediaData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to archive asset.");
+      alert(
+        error instanceof Error ? error.message : "Failed to archive asset.",
+      );
     } finally {
       setActionAssetId(null);
     }
@@ -238,8 +246,9 @@ export default function GameMediaPage() {
         <h1 className="text-3xl font-bold tracking-tight">Media</h1>
         <p className="text-muted-foreground max-w-3xl">
           Managed catalog visuals for {game?.name ?? "this game"}. These assets
-          power Arcade cards, landing showcase surfaces, and public presentation.
-          They are stored in Air Jam-managed storage, not external URLs.
+          power Arcade cards, landing showcase surfaces, and public
+          presentation. They are stored in Air Jam-managed storage, not external
+          URLs.
         </p>
       </div>
 
@@ -261,7 +270,10 @@ export default function GameMediaPage() {
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
                   <div className="space-y-3">
                     <div className="text-sm font-medium">Current asset</div>
-                    <MediaPreview kind={kind} url={activeAsset?.publicUrl ?? null} />
+                    <MediaPreview
+                      kind={kind}
+                      url={activeAsset?.publicUrl ?? null}
+                    />
                     {activeAsset ? (
                       <div className="text-muted-foreground text-sm">
                         {activeAsset.originalFilename} ·{" "}
@@ -270,8 +282,8 @@ export default function GameMediaPage() {
                       </div>
                     ) : (
                       <div className="text-muted-foreground text-sm">
-                        No {MEDIA_KIND_LABEL[kind].toLowerCase()} has been assigned
-                        yet.
+                        No {MEDIA_KIND_LABEL[kind].toLowerCase()} has been
+                        assigned yet.
                       </div>
                     )}
                   </div>
@@ -284,7 +296,9 @@ export default function GameMediaPage() {
                       }}
                       type="file"
                       accept={
-                        kind === "preview_video" ? "video/mp4,video/webm" : "image/png,image/jpeg,image/webp"
+                        kind === "preview_video"
+                          ? "video/mp4,video/webm"
+                          : "image/png,image/jpeg,image/webp"
                       }
                       onChange={(event) => {
                         const file = event.target.files?.[0] ?? null;
@@ -294,7 +308,10 @@ export default function GameMediaPage() {
                         }));
                       }}
                     />
-                    <Button onClick={() => void handleUpload(kind)} disabled={busy}>
+                    <Button
+                      onClick={() => void handleUpload(kind)}
+                      disabled={busy}
+                    >
                       {busy ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : kind === "preview_video" ? (
@@ -305,8 +322,8 @@ export default function GameMediaPage() {
                       Upload {MEDIA_KIND_LABEL[kind]}
                     </Button>
                     <div className="text-muted-foreground text-sm">
-                      Uploading a new ready asset automatically makes it the active{" "}
-                      {MEDIA_KIND_LABEL[kind].toLowerCase()}.
+                      Uploading a new ready asset automatically makes it the
+                      active {MEDIA_KIND_LABEL[kind].toLowerCase()}.
                     </div>
                   </div>
                 </div>
@@ -326,7 +343,9 @@ export default function GameMediaPage() {
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{asset.originalFilename}</span>
+                              <span className="font-medium">
+                                {asset.originalFilename}
+                              </span>
                               {asset.isActive ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600">
                                   <CheckCircle2 className="h-3 w-3" />
@@ -335,7 +354,8 @@ export default function GameMediaPage() {
                               ) : null}
                             </div>
                             <div className="text-muted-foreground text-sm">
-                              {asset.mimeType} · {formatBytes(asset.sizeBytes)} · {asset.status} ·{" "}
+                              {asset.mimeType} · {formatBytes(asset.sizeBytes)}{" "}
+                              · {asset.status} ·{" "}
                               {formatDateTime(asset.createdAt)}
                             </div>
                           </div>

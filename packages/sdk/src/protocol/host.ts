@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { roomCodeSchema, type RoomCode } from "./core";
-import type { ErrorCode } from "./errors";
 import type {
   ControllerPrivilegedCapability,
   PlayerProfile,
 } from "./controller";
+import { roomCodeSchema, type RoomCode } from "./core";
+import type { ErrorCode } from "./errors";
 
 export const hostSessionKindSchema = z.enum(["game", "system"]);
 export type HostSessionKind = z.infer<typeof hostSessionKindSchema>;
@@ -67,7 +67,9 @@ export const hostRegisterSystemSchema = z.object({
   roomId: roomCodeSchema,
 });
 
-export type HostRegisterSystemPayload = z.infer<typeof hostRegisterSystemSchema>;
+export type HostRegisterSystemPayload = z.infer<
+  typeof hostRegisterSystemSchema
+>;
 
 export const systemLaunchGameSchema = z.object({
   roomId: roomCodeSchema,

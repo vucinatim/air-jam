@@ -1,6 +1,6 @@
 import {
-  type PlatformAudioSettings,
   type AudioHandle,
+  type PlatformAudioSettings,
   type PlayOptions,
   getEffectiveAudioVolume,
 } from "@air-jam/sdk";
@@ -143,8 +143,7 @@ export function createHostMusicDriver(
       element.preload = "none";
       element.muted = muted;
       element.volume =
-        (config.volume ?? 1) *
-        getEffectiveAudioVolume(audioSettings, "music");
+        (config.volume ?? 1) * getEffectiveAudioVolume(audioSettings, "music");
       elements.set(trackId, element);
     }
     return element;

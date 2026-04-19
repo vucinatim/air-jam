@@ -49,18 +49,15 @@ export const allowedGameMediaStatusTransitions: Record<
 export const canTransitionGameMediaStatus = (
   currentStatus: GameMediaStatus,
   nextStatus: GameMediaStatus,
-): boolean => allowedGameMediaStatusTransitions[currentStatus].includes(
-  nextStatus,
-);
+): boolean =>
+  allowedGameMediaStatusTransitions[currentStatus].includes(nextStatus);
 
 export const normalizeGameMediaKindPath = (
   kind: GameMediaKind,
 ): "thumbnail" | "cover" | "preview-video" =>
   kind === "preview_video" ? "preview-video" : kind;
 
-export const parseGameMediaKindPath = (
-  value: string,
-): GameMediaKind | null => {
+export const parseGameMediaKindPath = (value: string): GameMediaKind | null => {
   if (value === "thumbnail" || value === "cover") {
     return value;
   }

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { Quaternion, Vector3 } from "three";
+import { describe, expect, it } from "vitest";
 import {
   applyPendingShipRespawn,
   applyShipPhysics,
@@ -53,10 +53,7 @@ describe("air-capture ship runtime helpers", () => {
       },
     };
 
-    const applied = applyPendingShipRespawn(
-      rigidBody as never,
-      runtime,
-    );
+    const applied = applyPendingShipRespawn(rigidBody as never, runtime);
 
     expect(applied).toBe(true);
     expect(calls).toEqual([

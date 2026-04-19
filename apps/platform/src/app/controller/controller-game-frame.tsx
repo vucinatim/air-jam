@@ -50,7 +50,7 @@ export function ControllerGameFrame({
       {controllerIframeFailed ? (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/78 px-6 text-center">
           <div className="max-w-sm rounded-3xl border border-amber-400/30 bg-zinc-950/95 px-5 py-6 text-left shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-amber-300/80">
+            <div className="text-[10px] tracking-[0.22em] text-amber-300/80 uppercase">
               Controller Load Blocked
             </div>
             <div className="mt-3 text-sm font-semibold text-white">

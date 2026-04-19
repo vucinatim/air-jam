@@ -26,7 +26,9 @@ describe("runtime url policy", () => {
   it("extracts origin and validates message origin", () => {
     const url = "https://game.example/path?a=1";
     expect(getRuntimeUrlOrigin(url)).toBe("https://game.example");
-    expect(isTrustedRuntimeMessageOrigin(url, "https://game.example")).toBe(true);
+    expect(isTrustedRuntimeMessageOrigin(url, "https://game.example")).toBe(
+      true,
+    );
     expect(isTrustedRuntimeMessageOrigin(url, "https://other.example")).toBe(
       false,
     );
@@ -48,7 +50,9 @@ describe("runtime url policy", () => {
   });
 
   it("schema enforces runtime URL policy", () => {
-    expect(runtimeUrlSchema.safeParse("https://example.com").success).toBe(true);
+    expect(runtimeUrlSchema.safeParse("https://example.com").success).toBe(
+      true,
+    );
     expect(runtimeUrlSchema.safeParse("javascript:alert(1)").success).toBe(
       false,
     );

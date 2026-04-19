@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { Group } from "three";
-import { TEAM_CONFIG } from "../../domain/team";
 import { ShipModel } from "../../components/models/ship-model";
+import { TEAM_CONFIG } from "../../domain/team";
 import type { AirCaptureShipPrefabProps } from "./schema";
 
 export function AirCaptureShipVisual({
@@ -25,10 +25,7 @@ export function AirCaptureShipVisual({
   );
 }
 
-export function AirCaptureShip({
-  teamId,
-  thrust,
-}: AirCaptureShipPrefabProps) {
+export function AirCaptureShip({ teamId, thrust }: AirCaptureShipPrefabProps) {
   const thrustRef = useRef(thrust);
   const planeGroupRef = useRef<Group>(null);
 

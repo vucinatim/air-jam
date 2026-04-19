@@ -39,10 +39,6 @@ const getOrientation = ({
   width,
   height,
 }: ViewportSize): SurfaceOrientation => {
-  if (width > 0 && height > 0) {
-    return width >= height ? "landscape" : "portrait";
-  }
-
   if (typeof window !== "undefined") {
     if (window.matchMedia) {
       if (window.matchMedia("(orientation: portrait)").matches) {
@@ -61,6 +57,10 @@ const getOrientation = ({
         return "landscape";
       }
     }
+  }
+
+  if (width > 0 && height > 0) {
+    return width >= height ? "landscape" : "portrait";
   }
 
   return width >= height ? "landscape" : "portrait";

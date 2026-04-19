@@ -1,7 +1,4 @@
-import {
-  AIRJAM_DEV_LOG_EVENTS,
-  type RoomCode,
-} from "../protocol";
+import { AIRJAM_DEV_LOG_EVENTS, type RoomCode } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import {
   createHostBridgeCloseMessage,
@@ -25,10 +22,7 @@ import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
 const HOST_BRIDGE_RUNTIME_KIND = "arcade-host-runtime";
-const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set([
-  "game_unloaded",
-  "replaced",
-]);
+const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set(["game_unloaded", "replaced"]);
 const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
 
 class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
@@ -172,14 +166,17 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
         snapshot.arcadeSurface,
       );
       if (!epochResult.ok) {
-        this.fail("Embedded host bridge attach rejected: stale arcade surface epoch.", {
-          reason: "stale_arcade_surface_epoch",
-          runtimeParams: readChildHostRuntimeParams(),
-          data: {
-            attachedEpoch: snapshot.arcadeSurface.epoch,
-            previousEpoch: this.lastAttachedArcadeEpoch,
+        this.fail(
+          "Embedded host bridge attach rejected: stale arcade surface epoch.",
+          {
+            reason: "stale_arcade_surface_epoch",
+            runtimeParams: readChildHostRuntimeParams(),
+            data: {
+              attachedEpoch: snapshot.arcadeSurface.epoch,
+              previousEpoch: this.lastAttachedArcadeEpoch,
+            },
           },
-        });
+        );
         return;
       }
       this.lastAttachedArcadeEpoch = epochResult.nextLast;

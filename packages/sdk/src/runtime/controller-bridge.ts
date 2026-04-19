@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
 import type {
-  ControllerJoinedNotice,
-  ControllerLeftNotice,
-  AirJamStateSyncRequestPayload,
   AirJamStateSyncPayload,
+  AirJamStateSyncRequestPayload,
   ControllerActionRpcPayload,
   ControllerInputEvent,
+  ControllerJoinedNotice,
+  ControllerLeftNotice,
   ControllerStateMessage,
   ControllerSystemPayload,
   ControllerUpdatePlayerProfilePayload,
@@ -15,18 +15,16 @@ import type {
   PlaySoundEventPayload,
   PlaySoundPayload,
   PlayerProfile,
+  PlayerUpdatedNotice,
   RoomCode,
   ServerErrorPayload,
   SignalPayload,
-  PlayerUpdatedNotice,
 } from "../protocol";
 import {
   arcadeSurfaceRuntimeIdentitySchema,
   type ArcadeSurfaceRuntimeIdentity,
 } from "./arcade-surface-identity";
-import {
-  createBridgeHandshake,
-} from "./iframe-bridge";
+import { createBridgeHandshake } from "./iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "./sdk-version";
 
 export const AIRJAM_CONTROLLER_BRIDGE_REQUEST =
@@ -75,7 +73,9 @@ export type ControllerBridgeClientEventArgs = {
   "controller:state_sync_request": [payload: AirJamStateSyncRequestPayload];
   "controller:system": [payload: ControllerSystemPayload];
   "controller:play_sound": [payload: PlaySoundEventPayload];
-  "controller:updatePlayerProfile": [payload: ControllerUpdatePlayerProfilePayload];
+  "controller:updatePlayerProfile": [
+    payload: ControllerUpdatePlayerProfilePayload,
+  ];
 };
 
 export type ControllerBridgeServerEventArgs = {
@@ -299,7 +299,9 @@ export const parseControllerBridgeRequestMessage = (
   value: unknown,
 ): ControllerBridgeRequestMessage | null => {
   const result = bridgeRequestSchema.safeParse(value);
-  return result.success ? (result.data as ControllerBridgeRequestMessage) : null;
+  return result.success
+    ? (result.data as ControllerBridgeRequestMessage)
+    : null;
 };
 
 export const parseControllerBridgeAttachMessage = (

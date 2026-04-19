@@ -1,49 +1,35 @@
 import path from "node:path";
 import { loadEnvFile } from "../../../packages/create-airjam/runtime/dev-utils.mjs";
 import {
+  buildPlatformShellTopology,
+  serializeResolvedTopology,
+} from "../../../packages/create-airjam/runtime/runtime-topology.mjs";
+import {
   DEFAULT_GAME_PORT,
   DEFAULT_PLATFORM_PORT,
   loadSecureDevState,
   SECURE_MODE_LOCAL,
 } from "../../../packages/create-airjam/runtime/secure-dev.mjs";
 import {
-  buildPlatformShellTopology,
-  serializeResolvedTopology,
-} from "../../../packages/create-airjam/runtime/runtime-topology.mjs";
-import {
   defaultWorkspaceGameId,
   findRepoGame,
   toLocalReferenceUrlEnvKey,
 } from "./repo-games.mjs";
+import { waitForUrl } from "./url-readiness.mjs";
+import { resolveWorkspaceArcadeOrigins } from "./workspace-runtime-origins.mjs";
 import {
-  ensureWorkspaceBuildArtifact,
   createWorkspaceProcessGroup,
+  ensureWorkspaceBuildArtifact,
   ensureWorkspacePackageBuild,
   reserveWorkspaceResources,
 } from "./workspace-stack.mjs";
-import { resolveWorkspaceArcadeOrigins } from "./workspace-runtime-origins.mjs";
 
 const BACKEND_PROXY_URL = "http://127.0.0.1:4000";
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const waitForUrl = async (url, label, timeoutMs = 120_000) => {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // Ignore transient startup failures while the stack boots.
-    }
-
-    await sleep(250);
-  }
-
-  throw new Error(`Timed out waiting for ${label} at ${url}`);
+const appendVisualHarnessParam = (url) => {
+  const nextUrl = new URL(url);
+  nextUrl.searchParams.set("aj_visual_harness", "enabled");
+  return nextUrl.toString();
 };
 
 const buildWorkspaceGame = ({ rootDir, activeGame }) => {
@@ -60,6 +46,7 @@ const buildWorkspaceGame = ({ rootDir, activeGame }) => {
     buildArgs: ["--dir", activeGame.dir, "build"],
     sourcePaths: [
       "src",
+      "visual",
       "index.html",
       "package.json",
       "tsconfig.json",
@@ -70,6 +57,8 @@ const buildWorkspaceGame = ({ rootDir, activeGame }) => {
       "tailwind.config.js",
       "postcss.config.js",
       "public",
+      "../../packages/visual-harness/package.json",
+      "../../packages/visual-harness/src",
     ],
     distCheckFile: "dist/index.html",
   });
@@ -82,6 +71,7 @@ export const startWorkspaceArcadeBuiltStack = async ({
   secureMode = SECURE_MODE_LOCAL,
   build = true,
   browserOrigin = "public",
+  visualHarness = false,
 } = {}) => {
   const activeGame = findRepoGame(gameId);
   if (!activeGame) {
@@ -120,8 +110,14 @@ export const startWorkspaceArcadeBuiltStack = async ({
     browserOrigin === "host"
       ? arcadeOrigins.hostPlatformOrigin
       : arcadeOrigins.publicPlatformOrigin;
-  const browserBuildUrl = `${browserPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
-  const publicBuildUrl = `${arcadeOrigins.publicPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
+  const browserBuildUrlBase = `${browserPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
+  const publicBuildUrlBase = `${arcadeOrigins.publicPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
+  const browserBuildUrl = visualHarness
+    ? appendVisualHarnessParam(browserBuildUrlBase)
+    : browserBuildUrlBase;
+  const publicBuildUrl = visualHarness
+    ? appendVisualHarnessParam(publicBuildUrlBase)
+    : publicBuildUrlBase;
   const platformHostTopology = buildPlatformShellTopology({
     runtimeMode: "arcade-built",
     surfaceRole: "platform-host",
@@ -143,8 +139,9 @@ export const startWorkspaceArcadeBuiltStack = async ({
     AIR_JAM_LOCAL_BUILD_ACTIVE_DIST_DIR: path.join(activeGame.dir, "dist"),
     NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY:
       serializeResolvedTopology(platformHostTopology),
-    NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY:
-      serializeResolvedTopology(platformControllerTopology),
+    NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY: serializeResolvedTopology(
+      platformControllerTopology,
+    ),
     NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: arcadeOrigins.publicPlatformOrigin,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: activeGame.id,
     NEXT_PUBLIC_APP_URL: arcadeOrigins.publicPlatformOrigin,
@@ -185,15 +182,48 @@ export const startWorkspaceArcadeBuiltStack = async ({
     publicHost: arcadeOrigins.publicPlatformOrigin,
   };
 
-  await waitForUrl(`${BACKEND_PROXY_URL}/health`, "Air Jam server");
-  await waitForUrl(urls.appOrigin, "platform root");
-  await waitForUrl(urls.hostUrl, `${activeGame.id} Arcade surface`);
-  await waitForUrl(urls.controllerBaseUrl, "platform controller");
+  try {
+    const readinessOptions = { allowInsecureLocalHttps: secure };
+    await waitForUrl(`${BACKEND_PROXY_URL}/health`, "Air Jam server");
+    await waitForUrl(
+      urls.appOrigin,
+      "platform root",
+      120_000,
+      readinessOptions,
+    );
+    await waitForUrl(
+      urls.hostUrl,
+      `${activeGame.id} Arcade surface`,
+      120_000,
+      readinessOptions,
+    );
+    await waitForUrl(
+      urls.controllerBaseUrl,
+      "platform controller",
+      120_000,
+      readinessOptions,
+    );
+  } catch (error) {
+    await processGroup.shutdown(0);
+    await reserveWorkspaceResources({
+      rootDir,
+      ports: [4000, DEFAULT_PLATFORM_PORT],
+      clearPlatformCache: false,
+    });
+    throw error;
+  }
 
   return {
     activeGame,
     processGroup,
     urls,
-    shutdown: () => processGroup.shutdown(0),
+    shutdown: async () => {
+      await processGroup.shutdown(0);
+      await reserveWorkspaceResources({
+        rootDir,
+        ports: [4000, DEFAULT_PLATFORM_PORT],
+        clearPlatformCache: false,
+      });
+    },
   };
 };

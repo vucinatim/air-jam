@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
 import { EnvValidationError } from "@air-jam/env";
+import { afterEach, describe, expect, it } from "vitest";
 import { createAirJamServer } from "../src/index";
 
 const ORIGINAL_ENV = { ...process.env };

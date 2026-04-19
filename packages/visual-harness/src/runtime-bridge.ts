@@ -1,5 +1,7 @@
-export const VISUAL_HARNESS_BRIDGE_KEY = '__airJamVisualHarness';
-export const VISUAL_HARNESS_ACTIONS_KEY = '__airJamVisualHarnessActions';
+export const VISUAL_HARNESS_BRIDGE_KEY = "__airJamVisualHarness";
+export const VISUAL_HARNESS_ACTIONS_KEY = "__airJamVisualHarnessActions";
+export const VISUAL_HARNESS_ENABLE_PARAM = "aj_visual_harness";
+export const VISUAL_HARNESS_ENABLE_VALUE = "enabled";
 
 export type VisualHarnessBridgeSnapshot = Record<string, unknown> & {
   roomId: string | null;
@@ -8,9 +10,10 @@ export type VisualHarnessBridgeSnapshot = Record<string, unknown> & {
   runtimeState: string | null;
 };
 
-export type PublishedVisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot & {
-  updatedAt: string;
-};
+export type PublishedVisualHarnessBridgeSnapshot =
+  VisualHarnessBridgeSnapshot & {
+    updatedAt: string;
+  };
 
 export type VisualHarnessBridgeActionHandler = (
   payload?: unknown,
@@ -22,7 +25,7 @@ export type VisualHarnessBridgeActions = Record<
 >;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  typeof value === "object" && value !== null;
 
 export const readVisualHarnessBridgeSnapshot = <
   TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
@@ -40,13 +43,16 @@ export const readVisualHarnessBridgeSnapshot = <
 
   return {
     ...raw,
-    roomId: typeof raw.roomId === 'string' ? raw.roomId : null,
+    roomId: typeof raw.roomId === "string" ? raw.roomId : null,
     controllerJoinUrl:
-      typeof raw.controllerJoinUrl === 'string' ? raw.controllerJoinUrl : null,
-    matchPhase: typeof raw.matchPhase === 'string' ? raw.matchPhase : null,
-    runtimeState: typeof raw.runtimeState === 'string' ? raw.runtimeState : null,
+      typeof raw.controllerJoinUrl === "string" ? raw.controllerJoinUrl : null,
+    matchPhase: typeof raw.matchPhase === "string" ? raw.matchPhase : null,
+    runtimeState:
+      typeof raw.runtimeState === "string" ? raw.runtimeState : null,
     updatedAt:
-      typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
+      typeof raw.updatedAt === "string"
+        ? raw.updatedAt
+        : new Date().toISOString(),
   } as unknown as TSnapshot;
 };
 

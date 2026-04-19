@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { extractYouTubeVideoId, getYouTubeEmbedUrl } from "@/features/youtube";
+import { useMemo, useState } from "react";
 
 const DEFAULT_URL = "https://www.youtube.com/watch?v=4NRXx6U8ABQ";
 
@@ -16,20 +16,24 @@ export const YoutubeTestPage = () => {
   );
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 text-foreground">
+    <main className="bg-background text-foreground min-h-screen px-4 py-8">
       <section className="mx-auto w-full max-w-4xl space-y-4">
-        <header className="rounded-4xl border bg-card p-5 text-card-foreground">
-          <p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
+        <header className="bg-card text-card-foreground rounded-4xl border p-5">
+          <p className="text-muted-foreground text-xs font-medium tracking-[0.16em] uppercase">
             Debug
           </p>
           <h1 className="mt-1 text-2xl font-semibold">YouTube Iframe Test</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Load a single YouTube URL to test embed behavior outside the game flow.
+          <p className="text-muted-foreground mt-2 text-sm">
+            Load a single YouTube URL to test embed behavior outside the game
+            flow.
           </p>
         </header>
 
-        <article className="rounded-4xl border bg-card p-5 text-card-foreground">
-          <label className="mb-2 block text-sm font-medium" htmlFor="youtube-url">
+        <article className="bg-card text-card-foreground rounded-4xl border p-5">
+          <label
+            className="mb-2 block text-sm font-medium"
+            htmlFor="youtube-url"
+          >
             YouTube URL
           </label>
           <input
@@ -37,7 +41,7 @@ export const YoutubeTestPage = () => {
             type="text"
             value={inputUrl}
             onChange={(event) => setInputUrl(event.target.value)}
-            className="w-full rounded-3xl border bg-background px-4 py-2 text-sm"
+            className="bg-background w-full rounded-3xl border px-4 py-2 text-sm"
             placeholder="https://www.youtube.com/watch?v=..."
           />
 
@@ -46,7 +50,7 @@ export const YoutubeTestPage = () => {
               Load Iframe
             </Button>
 
-            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <label className="text-muted-foreground inline-flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={autoplay}
@@ -56,12 +60,14 @@ export const YoutubeTestPage = () => {
             </label>
           </div>
 
-          <div className="mt-4 space-y-1 text-xs text-muted-foreground">
+          <div className="text-muted-foreground mt-4 space-y-1 text-xs">
             <p>
-              Parsed video id: <span className="font-mono">{videoId ?? "invalid"}</span>
+              Parsed video id:{" "}
+              <span className="font-mono">{videoId ?? "invalid"}</span>
             </p>
             <p>
-              Embed URL: <span className="font-mono">{embedUrl ?? "invalid"}</span>
+              Embed URL:{" "}
+              <span className="font-mono">{embedUrl ?? "invalid"}</span>
             </p>
           </div>
 
@@ -87,7 +93,7 @@ export const YoutubeTestPage = () => {
           ) : null}
         </article>
 
-        <article className="overflow-hidden rounded-4xl border bg-card p-4 text-card-foreground">
+        <article className="bg-card text-card-foreground overflow-hidden rounded-4xl border p-4">
           {embedUrl ? (
             <iframe
               key={embedUrl}
@@ -98,7 +104,7 @@ export const YoutubeTestPage = () => {
               allowFullScreen
             />
           ) : (
-            <div className="flex h-[520px] items-center justify-center rounded-3xl border bg-background text-sm text-muted-foreground">
+            <div className="bg-background text-muted-foreground flex h-[520px] items-center justify-center rounded-3xl border text-sm">
               Enter a valid YouTube URL and click Load Iframe.
             </div>
           )}

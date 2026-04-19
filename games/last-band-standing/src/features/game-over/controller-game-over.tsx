@@ -1,10 +1,10 @@
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { type PlayerScore } from "@/store/types";
 import {
   formatAverageResponseTime,
   getLabelForPlayer,
 } from "@/utils/player-utils";
-import { type PlayerScore } from "@/store/types";
+import { motion } from "framer-motion";
 
 interface ControllerGameOverProps {
   controllerId: string | null;
@@ -35,21 +35,22 @@ export const ControllerGameOver = ({
       transition={{ duration: 0.3 }}
     >
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5">
-        <p className="text-sm uppercase tracking-widest text-muted-foreground">
+        <p className="text-muted-foreground text-sm tracking-widest uppercase">
           Your Placement
         </p>
-        <p className="title text-7xl">
-          #{myRank >= 0 ? myRank + 1 : "?"}
-        </p>
+        <p className="title text-7xl">#{myRank >= 0 ? myRank + 1 : "?"}</p>
         {myScore && (
           <div className="flex flex-col items-center gap-1">
             <p className="text-2xl font-bold">{myScore.points} pts</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {myScore.correct} correct · {myScore.wrong} wrong
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Avg answer:{" "}
-              {formatAverageResponseTime(myScore.totalResponseMs, myScore.answeredRounds)}
+              {formatAverageResponseTime(
+                myScore.totalResponseMs,
+                myScore.answeredRounds,
+              )}
             </p>
           </div>
         )}
@@ -72,14 +73,19 @@ export const ControllerGameOver = ({
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="flex items-center gap-3">
-                  <span className="w-5 text-sm font-bold text-muted-foreground tabular-nums">
+                  <span className="text-muted-foreground w-5 text-sm font-bold tabular-nums">
                     {index + 1}
                   </span>
                   <div className="flex flex-col items-start">
-                    <span className={cn("text-sm font-medium", isMe && "text-primary")}>
+                    <span
+                      className={cn(
+                        "text-sm font-medium",
+                        isMe && "text-primary",
+                      )}
+                    >
                       {getLabelForPlayer(playerId, playerLabelById)}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-muted-foreground text-[11px]">
                       Avg:{" "}
                       {formatAverageResponseTime(
                         score.totalResponseMs,
@@ -88,7 +94,9 @@ export const ControllerGameOver = ({
                     </span>
                   </div>
                 </div>
-                <span className="text-sm font-bold tabular-nums">{score.points}</span>
+                <span className="text-sm font-bold tabular-nums">
+                  {score.points}
+                </span>
               </motion.div>
             );
           })}
@@ -99,7 +107,7 @@ export const ControllerGameOver = ({
         <button
           type="button"
           onClick={onResetLobby}
-          className="flex h-14 w-full items-center justify-center rounded-2xl bg-primary text-lg font-bold text-primary-foreground transition-all active:scale-[0.98]"
+          className="bg-primary text-primary-foreground flex h-14 w-full items-center justify-center rounded-2xl text-lg font-bold transition-all active:scale-[0.98]"
         >
           Back To Lobby
         </button>

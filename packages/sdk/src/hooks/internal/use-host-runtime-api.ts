@@ -12,8 +12,8 @@ import {
 import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import { emitAirJamDiagnostic } from "../../diagnostics";
 import type {
-  ControllerPrivilegedCapability,
   ControllerInputEvent,
+  ControllerPrivilegedCapability,
   ControllerStateMessage,
   ControllerStatePayload,
   HapticSignalPayload,
@@ -599,9 +599,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                 if (ack.ok && ack.roomId) {
                   latestState.setStatus("connected");
                   latestState.setRoomId(ack.roomId);
-                hydrateHostPlayers(ack.players);
-                setControllerCapability(ack.controllerCapability ?? null);
-                latestState.setHostArcadeRestore(
+                  hydrateHostPlayers(ack.players);
+                  setControllerCapability(ack.controllerCapability ?? null);
+                  latestState.setHostArcadeRestore(
                     ack.arcadeSession
                       ? {
                           phase: "pending_restore",
@@ -754,7 +754,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
       const latestState = store.getState();
       const previousRuntimeState = latestState.runtimeState;
-      const nextRuntimeState = payload.state.runtimeState ?? previousRuntimeState;
+      const nextRuntimeState =
+        payload.state.runtimeState ?? previousRuntimeState;
       const incomingVersion = payload.state.stateVersion;
       const previousVersion = lastObservedStateVersionRef.current;
       if (typeof incomingVersion === "number") {
@@ -783,7 +784,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           emitInvariantOnce({
             code: "state_version_non_monotonic",
             roomId: payload.roomId,
-            message: "Received non-monotonic room state version in host runtime",
+            message:
+              "Received non-monotonic room state version in host runtime",
             data: {
               stateVersion: incomingVersion,
               previousStateVersion: previousVersion,

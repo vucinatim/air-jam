@@ -1,10 +1,6 @@
-import {
-  ControllerRemoteAudioRuntime,
-} from "@air-jam/sdk";
+import { ControllerRemoteAudioRuntime } from "@air-jam/sdk";
 import type { ReactNode } from "react";
-import {
-  CONTROLLER_SOUND_MANIFEST,
-} from "./sounds";
+import { CONTROLLER_SOUND_MANIFEST } from "./sounds";
 
 export function ControllerAudioProvider({
   children,

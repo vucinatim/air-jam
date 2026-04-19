@@ -56,12 +56,12 @@ describe("resolveServerRuntimeDatabaseUrl", () => {
 
 describe("isLocalDatabaseUrl", () => {
   it("treats localhost-style urls as local", () => {
-    expect(isLocalDatabaseUrl("postgresql://postgres@localhost:5432/airjam")).toBe(
+    expect(
+      isLocalDatabaseUrl("postgresql://postgres@localhost:5432/airjam"),
+    ).toBe(true);
+    expect(isLocalDatabaseUrl("postgresql://postgres@[::1]:5432/airjam")).toBe(
       true,
     );
-    expect(
-      isLocalDatabaseUrl("postgresql://postgres@[::1]:5432/airjam"),
-    ).toBe(true);
   });
 
   it("treats non-local hosts as remote", () => {

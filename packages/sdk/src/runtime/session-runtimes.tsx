@@ -5,24 +5,21 @@ import {
   HostSessionProvider,
   type AirJamProviderProps,
 } from "../context/session-providers";
-import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
-import type {
-  AirJamControllerOptions,
-} from "../hooks/use-air-jam-controller";
-import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
+import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
+import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
+import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
 import {
   controllerRuntimeContext,
   hostRuntimeContext,
 } from "./runtime-owner-contexts";
 
-export type AirJamHostRuntimeProps<
-  TSchema extends z.ZodSchema = z.ZodSchema,
-> = AirJamProviderProps<TSchema> &
-  AirJamHostOptions & {
-    children: ReactNode;
-  };
+export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
+  AirJamProviderProps<TSchema> &
+    AirJamHostOptions & {
+      children: ReactNode;
+    };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
   AirJamControllerOptions & {
@@ -83,9 +80,7 @@ const ControllerRuntimeOwner = ({
   );
 };
 
-export const AirJamHostRuntime = <
-  TSchema extends z.ZodSchema = z.ZodSchema,
->({
+export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
   roomId,
   onPlayerJoin,

@@ -165,7 +165,7 @@ pnpm run dev -- --secure --secure-mode=tunnel
 ```
 src/
   ├── app.tsx                     # Main app component with routing
-  ├── airjam.config.ts            # Canonical runtime/game metadata
+  ├── airjam.config.ts            # Catalog metadata plus runtime/game config
   ├── host/
   │   ├── index.tsx               # Host surface shell
   │   ├── components/             # Lobby, overlay, ended, score host UI
@@ -225,7 +225,7 @@ tests/
 
 ## Runtime Pattern (Canonical)
 
-- `airjam.config.ts` is the single source for runtime metadata + provider config.
+- `airjam.config.ts` is the single source for catalog metadata plus runtime/provider config.
 - `airjam.Host` wraps `HostView` from `src/host/index.tsx` and owns input schema + behavior defaults.
 - `airjam.Controller` wraps `ControllerView` from `src/controller/index.tsx`.
 - Controller input is published on a fixed 16ms cadence using `useInputWriter` in `src/controller/index.tsx`.

@@ -9,13 +9,16 @@ import {
 import { useRef } from "react";
 import type { Group } from "three";
 import { useHostAudio } from "../../audio/use-host-audio";
+import { FlagModel } from "../../components/models/flag-model";
 import { TEAM_CONFIG } from "../../domain/team";
 import { shipPositions } from "../../engine/ships/runtime";
 import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
-import { FlagModel } from "../../components/models/flag-model";
 import type { AirCaptureFlagPrefabProps } from "./schema";
 
-function FlagCarrierTrail({ teamId, carrierId }: AirCaptureFlagPrefabProps & { carrierId: string }) {
+function FlagCarrierTrail({
+  teamId,
+  carrierId,
+}: AirCaptureFlagPrefabProps & { carrierId: string }) {
   const groupRef = useRef<Group>(null);
   const color = TEAM_CONFIG[teamId].color;
 

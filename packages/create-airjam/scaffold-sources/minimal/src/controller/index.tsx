@@ -51,7 +51,7 @@ export function ControllerView() {
     >
       <div className="flex h-full w-full flex-col items-center justify-between gap-4 p-6 text-white">
         <div className="w-full text-center">
-          <div className="text-[0.625rem] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+          <div className="text-[0.625rem] font-semibold tracking-[0.2em] text-neutral-500 uppercase">
             Room {controller.roomId ?? "—"}
           </div>
           <div className="mt-1 text-xs text-neutral-400">
@@ -65,7 +65,7 @@ export function ControllerView() {
           type="button"
           onPointerDown={handleTap}
           disabled={!canTap}
-          className="flex h-[50vmin] w-[50vmin] items-center justify-center rounded-full bg-emerald-500 text-4xl font-black uppercase tracking-[0.1em] text-emerald-950 shadow-lg shadow-emerald-500/30 transition active:scale-95 disabled:bg-neutral-800 disabled:text-neutral-600 disabled:shadow-none"
+          className="flex h-[50vmin] w-[50vmin] items-center justify-center rounded-full bg-emerald-500 text-4xl font-black tracking-[0.1em] text-emerald-950 uppercase shadow-lg shadow-emerald-500/30 transition active:scale-95 disabled:bg-neutral-800 disabled:text-neutral-600 disabled:shadow-none"
         >
           Tap
         </button>

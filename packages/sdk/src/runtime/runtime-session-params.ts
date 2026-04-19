@@ -3,10 +3,10 @@ import {
   parseRuntimeTopologyFromSearchParams,
   resolveRuntimeTopology,
 } from "@air-jam/runtime-topology";
-import { normalizeRuntimeUrl } from "../protocol/url-policy";
 import type { PlayerProfile } from "../protocol";
-import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
+import { normalizeRuntimeUrl } from "../protocol/url-policy";
 import { parseOptionalArcadeSurfaceFromSearchParams } from "./arcade-runtime-url";
+import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 
 export interface ChildHostRuntimeParams {
   room: string;

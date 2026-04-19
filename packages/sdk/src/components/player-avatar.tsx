@@ -1,5 +1,5 @@
-import type { JSX } from "react";
 import { Bot } from "lucide-react";
+import type { JSX } from "react";
 import type { PlayerProfile } from "../protocol";
 import { cn } from "../utils/cn";
 import { getPlayerAvatarImageUrl } from "../utils/player-avatar-url";

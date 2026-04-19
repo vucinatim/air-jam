@@ -33,7 +33,9 @@ describe("space store helpers", () => {
       gamma: 3,
     };
 
-    expect(pruneRecord(record, new Set(["alpha", "gamma", "delta"]))).toBe(record);
+    expect(pruneRecord(record, new Set(["alpha", "gamma", "delta"]))).toBe(
+      record,
+    );
   });
 
   it("clears busy state and task progress for one player", () => {
@@ -111,11 +113,7 @@ describe("space store helpers", () => {
 
   it("caps restored stats at 100", () => {
     expect(
-      restorePlayerStat(
-        { energy: 95, boredom: 70, alive: true },
-        "energy",
-        10,
-      ),
+      restorePlayerStat({ energy: 95, boredom: 70, alive: true }, "energy", 10),
     ).toEqual({
       energy: 100,
       boredom: 70,

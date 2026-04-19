@@ -1,12 +1,16 @@
-import { type PlayerProfile } from "@air-jam/sdk";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { formatResponseTime, getLabelForPlayer } from "@/utils/player-utils";
 import { PlayerAvatarWithFire } from "@/components/player-avatar-with-fire";
 import { getRoundPrompt } from "@/features/round/round-prompt";
-import { type ActiveRound, type PlayerScore, type RoundReveal } from "@/store/types";
-import { type GamePhase } from "@/types";
+import { cn } from "@/lib/utils";
 import { type SongEntry } from "@/song-bank";
+import {
+  type ActiveRound,
+  type PlayerScore,
+  type RoundReveal,
+} from "@/store/types";
+import { type GamePhase } from "@/types";
+import { formatResponseTime, getLabelForPlayer } from "@/utils/player-utils";
+import { type PlayerProfile } from "@air-jam/sdk";
+import { motion } from "framer-motion";
 
 const centerVariants = {
   initial: { opacity: 0, scale: 0.96 },
@@ -42,13 +46,14 @@ export const HostVideoStage = ({
   const isBlurred = phase === "round-active";
 
   const firstCorrectPlayer = roundReveal?.firstCorrectPlayerId
-    ? players.find((p) => p.id === roundReveal.firstCorrectPlayerId) ?? null
+    ? (players.find((p) => p.id === roundReveal.firstCorrectPlayerId) ?? null)
     : null;
   const firstCorrectPlayerLabel = roundReveal?.firstCorrectPlayerId
     ? getLabelForPlayer(roundReveal.firstCorrectPlayerId, playerLabelById)
     : null;
   const firstCorrectPlayerHasStreakFire = roundReveal?.firstCorrectPlayerId
-    ? (scoreboardByPlayerId[roundReveal.firstCorrectPlayerId]?.hasStreakFire ?? false)
+    ? (scoreboardByPlayerId[roundReveal.firstCorrectPlayerId]?.hasStreakFire ??
+      false)
     : false;
 
   return (
@@ -72,7 +77,9 @@ export const HostVideoStage = ({
       />
 
       <motion.div
-        className={cn("pointer-events-none absolute inset-0 bg-background/30 backdrop-blur-xl")}
+        className={cn(
+          "bg-background/30 pointer-events-none absolute inset-0 backdrop-blur-xl",
+        )}
         animate={{ opacity: isBlurred ? 1 : 0 }}
         transition={{ duration: 0.6 }}
       />
@@ -85,7 +92,7 @@ export const HostVideoStage = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <span className="rounded-full bg-background/60 px-6 py-3 text-3xl font-medium backdrop-blur-sm">
+            <span className="bg-background/60 rounded-full px-6 py-3 text-3xl font-medium backdrop-blur-sm">
               {getRoundPrompt(currentRound.guessKind)}
             </span>
           </motion.div>
@@ -93,26 +100,27 @@ export const HostVideoStage = ({
       )}
 
       {phase === "round-reveal" && roundReveal && (
-        <div className="absolute inset-x-0 bottom-0 h-full bg-linear-to-t from-background/90 to-transparent p-8">
+        <div className="from-background/90 absolute inset-x-0 bottom-0 h-full bg-linear-to-t to-transparent p-8">
           <motion.div
-            className="mx-auto flex w-full max-w-5xl flex-col justify-end h-full items-center gap-4"
+            className="mx-auto flex h-full w-full max-w-5xl flex-col items-center justify-end gap-4"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <p className="text-sm uppercase tracking-widest text-muted-foreground">
+            <p className="text-muted-foreground text-sm tracking-widest uppercase">
               Round {roundReveal.roundNumber} — Answer
             </p>
             <h2 className="title text-center text-4xl md:text-5xl">
               {roundReveal.songArtist} - {roundReveal.songTitle}
             </h2>
-            <p className="text-sm uppercase tracking-wider text-muted-foreground">
+            <p className="text-muted-foreground text-sm tracking-wider uppercase">
               Correct {roundReveal.guessKind === "artist" ? "Artist" : "Song"}
             </p>
 
-            {roundReveal.firstCorrectResponseMs !== null && firstCorrectPlayerLabel ? (
+            {roundReveal.firstCorrectResponseMs !== null &&
+            firstCorrectPlayerLabel ? (
               <div className="flex justify-center">
-                <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3">
+                <div className="border-primary/30 bg-primary/10 flex items-center gap-3 rounded-2xl border px-4 py-3">
                   {firstCorrectPlayer ? (
                     <PlayerAvatarWithFire
                       player={firstCorrectPlayer}
@@ -120,23 +128,25 @@ export const HostVideoStage = ({
                       showFire={firstCorrectPlayerHasStreakFire}
                     />
                   ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-bold">
+                    <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold">
                       {firstCorrectPlayerLabel.charAt(0)}
                     </div>
                   )}
                   <div className="flex flex-col">
-                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <span className="text-muted-foreground text-xs tracking-wider uppercase">
                       Quickest
                     </span>
-                    <span className="font-bold text-primary">{firstCorrectPlayerLabel}</span>
-                    <span className="text-sm font-medium text-primary/80">
+                    <span className="text-primary font-bold">
+                      {firstCorrectPlayerLabel}
+                    </span>
+                    <span className="text-primary/80 text-sm font-medium">
                       {formatResponseTime(roundReveal.firstCorrectResponseMs)}
                     </span>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-muted-foreground text-sm font-medium">
                 Nobody got it right this round.
               </p>
             )}

@@ -5,8 +5,8 @@ import {
   ArcadeSystem,
   type ArcadeGame,
 } from "@/components/arcade";
-import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
+import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import {
   getLocalReferenceArcadeGame,
   getLocalReferenceArcadeGames,
@@ -25,7 +25,8 @@ export default function ArcadePage({
   const slugOrId = resolvedParams.slug?.[0];
   const localReferenceGames = getLocalReferenceArcadeGames();
   const localReferenceGame = getLocalReferenceArcadeGame(slugOrId ?? null);
-  const { data: games, isLoading: gamesLoading } = api.game.getAllPublic.useQuery();
+  const { data: games, isLoading: gamesLoading } =
+    api.game.getAllPublic.useQuery();
   const publicArcadeGames = games ? toArcadeGames(games) : [];
   const arcadeGames: ArcadeGame[] = [
     ...(localReferenceGame &&
@@ -37,9 +38,9 @@ export default function ArcadePage({
   ];
 
   const targetGame = slugOrId
-    ? arcadeGames.find(
+    ? (arcadeGames.find(
         (game) => game.slug === slugOrId || game.id === slugOrId,
-      ) ?? null
+      ) ?? null)
     : null;
 
   const routeGame = localReferenceGame ?? targetGame;

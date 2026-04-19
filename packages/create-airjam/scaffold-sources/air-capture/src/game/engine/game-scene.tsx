@@ -1,25 +1,22 @@
 import { PerspectiveCamera } from "@react-three/drei";
-import {
-  Canvas,
-  useFrame,
-} from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { useEffect, useRef } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
-import { useDebugStore } from "../stores/debug/debug-store";
-import { useGameStore } from "../stores/players/game-store";
 import { CollectibleSpawner } from "../components/entities/collectible-spawner";
 import { Decals } from "../components/entities/decals";
 import { Lasers } from "../components/entities/lasers";
 import { Rockets } from "../components/entities/rockets";
-import { useCameraFollow } from "./use-camera-follow";
-import { useCameraViewports } from "./use-camera-viewports";
-import { useMultiViewportRenderer } from "./use-multi-viewport-renderer";
-import { ArenaBounds } from "./arena-bounds";
-import { FreeFlyCamera } from "./free-fly-camera";
 import { AirCaptureArena } from "../prefabs/arena";
 import { Collectibles } from "../scene-population/collectibles";
 import { Ships } from "../scene-population/ships";
+import { useDebugStore } from "../stores/debug/debug-store";
+import { useGameStore } from "../stores/players/game-store";
+import { ArenaBounds } from "./arena-bounds";
+import { FreeFlyCamera } from "./free-fly-camera";
+import { useCameraFollow } from "./use-camera-follow";
+import { useCameraViewports } from "./use-camera-viewports";
+import { useMultiViewportRenderer } from "./use-multi-viewport-renderer";
 
 function SpectatorCamera() {
   const cameraRef = useRef<ThreePerspectiveCamera>(null);
@@ -172,7 +169,9 @@ export function GameScene({
         {mode === "spectator" ? (
           <SpectatorCamera />
         ) : (
-          <MultiCameraController onCamerasReady={onCamerasReady || (() => {})} />
+          <MultiCameraController
+            onCamerasReady={onCamerasReady || (() => {})}
+          />
         )}
       </Physics>
     </Canvas>

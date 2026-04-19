@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export const RELEASE_INSPECTION_ACCESS_HEADER =
-  "x-airjam-release-access-token";
+export const RELEASE_INSPECTION_ACCESS_HEADER = "x-airjam-release-access-token";
 
 const RELEASE_INSPECTION_TOKEN_VERSION = "v1";
 
@@ -99,7 +98,9 @@ export const createReleaseInspectionAccessToken = ({
     secret,
   });
 
-  return [RELEASE_INSPECTION_TOKEN_VERSION, encodedPayload, signature].join(".");
+  return [RELEASE_INSPECTION_TOKEN_VERSION, encodedPayload, signature].join(
+    ".",
+  );
 };
 
 export const verifyReleaseInspectionAccessToken = ({

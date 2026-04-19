@@ -16,21 +16,21 @@
  * room and skips create-room; resolution is centralized in
  * {@link ../runtime/embedded-runtime-adapters.readEmbeddedHostChildSession}.
  */
-import type { z } from "zod";
 import { useContext } from "react";
+import type { z } from "zod";
+import { useAssertSessionScope } from "../context/session-scope";
+import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
   ControllerStatePayload,
-  RuntimeState,
   HapticSignalPayload,
   PlayerProfile,
   RoomCode,
   RunMode,
+  RuntimeState,
   ToastSignalPayload,
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import { useAssertSessionScope } from "../context/session-scope";
-import { createAirJamDiagnosticError } from "../diagnostics";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
 
 export type JoinUrlStatus = "loading" | "ready" | "unavailable";
@@ -230,7 +230,9 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * };
  * ```
  */
-export const useAirJamHost = <TSchema extends z.ZodSchema = z.ZodSchema>(): AirJamHostApi<TSchema> => {
+export const useAirJamHost = <
+  TSchema extends z.ZodSchema = z.ZodSchema,
+>(): AirJamHostApi<TSchema> => {
   useAssertSessionScope("host", "useAirJamHost");
 
   const runtime = useContext(hostRuntimeContext);

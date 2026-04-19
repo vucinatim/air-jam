@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  airJamArcadePlatformActions,
   AIRJAM_ARCADE_PLATFORM_ACTION_PREFIX,
+  airJamArcadePlatformActions,
   isAirJamArcadePlatformPrefixAction,
 } from "../src/protocol/arcade-platform-actions";
 

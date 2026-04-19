@@ -1,7 +1,7 @@
 # Air Jam Final Prerelease Hardening And Cleanup Plan
 
-Last updated: 2026-04-15  
-Status: active
+Last updated: 2026-04-18  
+Status: active closeout
 
 Related docs:
 
@@ -46,14 +46,21 @@ This plan does not cover:
 
 Already true:
 
-1. the canonical prerelease gate is green again through `pnpm run check:release`
+1. the canonical prerelease gate is green again through `pnpm run check:release` as of 2026-04-18
 2. the public-release blocker set was already narrowed enough that the repo moved back into polish and release execution mode
-3. the shared preview workspace, platform settings boundary cleanup, and explicit experimental runtime leaves are already deliberate repo decisions, not active architecture debates
+3. exported experimental SDK leaves are now explicitly limited to `preview`, `arcade*`, `protocol`, `capabilities`, `metadata`, and `prefabs`; the machine-facing `runtime-control`, `runtime-inspection`, `runtime-observability`, and `contracts/v2` seams remain in-source but private
 4. the remaining work is now best described as last-mile hardening and cleanup, not major implementation
 
 That means this plan should stay small and selective.
 
 If a task does not materially improve launch safety, release clarity, or near-term creator correctness, it should be cut from this pass.
+
+Current closeout truth:
+
+1. Workstream 2 is materially done for v1: platform Sentry, real health/readiness, payload limits, and maintenance mode are landed. Broader server/runtime release tracking is a follow-up choice, not an untracked blocker.
+2. Workstream 3 is done for v1: sensitive write-path rate limiting, security headers, and dead route cleanup are landed.
+3. Workstream 4 is landed for v1: `games.user_id`, typed `games.config`, SDK compatibility docs, SDK metadata helpers, first-party `gameMetadata` exports, scaffold-source adoption, and the template-manifest `category` contract are in place.
+4. Workstream 5 no longer hides a blocker: the public export surface is intentionally narrower than the old docs implied, and `air-capture`'s prefab-preview remains dev-only and tree-shaken from production.
 
 ## Workstreams
 

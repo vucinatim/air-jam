@@ -16,7 +16,7 @@ pnpm --filter air-capture build
 ```text
 src/
   app.tsx                     # runtime surface switch
-  airjam.config.ts            # app metadata and runtime config
+  airjam.config.ts            # catalog metadata and runtime config
   host/
     index.tsx                 # host-owned shell, state wiring, and side effects
     components/               # host overlays and live match chrome

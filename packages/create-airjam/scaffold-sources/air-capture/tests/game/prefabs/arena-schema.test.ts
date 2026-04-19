@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  AIR_CAPTURE_PREFABS,
   AIR_CAPTURE_ARENA_PREFAB,
   AIR_CAPTURE_FLAG_PREFAB,
   AIR_CAPTURE_JUMP_PAD_PREFAB,
   AIR_CAPTURE_OBSTACLE_BLOCK_PREFAB,
   AIR_CAPTURE_PLAYER_BASE_PREFAB,
+  AIR_CAPTURE_PREFABS,
   AIR_CAPTURE_SHIP_PREFAB,
 } from "../../../src/game/prefabs";
 import {

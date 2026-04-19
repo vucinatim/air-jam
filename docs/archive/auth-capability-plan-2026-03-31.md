@@ -34,7 +34,7 @@ Done:
 9. static publishable mode now has per-app scoped bootstrap and lifecycle rate limits in addition to the existing socket/IP guardrails
 
 Still pending:
- 
+
 1. optional stronger abuse posture beyond the current app-scoped rate limits, for example quotas, analytics-backed anomaly handling, or managed-service policy tiers
 
 ## Goal
@@ -272,7 +272,7 @@ This should still feel like:
 ```ts
 createAirJamApp({
   runtime: env.auto(),
-})
+});
 ```
 
 or:
@@ -436,9 +436,9 @@ Status:
 3. runtime URLs now carry `aj_cap` / `aj_cap_exp`
 4. game code remains unaware of capability details
 
-1. completed for the current arcade launch path
-2. `launchCapability` now carries `token + expiresAt`
-3. host reconnect restores active game launch capability through `HostArcadeSessionSnapshot`
+5. completed for the current arcade launch path
+6. `launchCapability` now carries `token + expiresAt`
+7. host reconnect restores active game launch capability through `HostArcadeSessionSnapshot`
 
 ### Phase 5. Naming and Schema Replacement
 

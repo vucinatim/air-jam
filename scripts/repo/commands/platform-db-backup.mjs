@@ -105,17 +105,14 @@ export const runRepoPlatformDbBackupCommand = () => {
     .replace(/\.\d{3}Z$/, "Z");
   const outputPath = path.join(backupDir, `platform-${timestamp}.dump`);
 
-  let result = runPgDump(
-    "pg_dump",
-    [
-      "--format=custom",
-      "--no-owner",
-      "--no-privileges",
-      "--file",
-      outputPath,
-      databaseUrl,
-    ],
-  );
+  let result = runPgDump("pg_dump", [
+    "--format=custom",
+    "--no-owner",
+    "--no-privileges",
+    "--file",
+    outputPath,
+    databaseUrl,
+  ]);
 
   const versionMismatch =
     result.status !== 0 &&

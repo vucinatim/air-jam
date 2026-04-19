@@ -1,46 +1,22 @@
 import path from "node:path";
 import { loadEnvFile } from "../../../packages/create-airjam/runtime/dev-utils.mjs";
 import {
-  buildSecureGameEnv,
-  DEFAULT_GAME_PORT,
-  loadSecureDevState,
-  SECURE_MODE_LOCAL,
-} from "../../../packages/create-airjam/runtime/secure-dev.mjs";
-import {
   buildStandaloneGameTopology,
   serializeResolvedTopology,
 } from "../../../packages/create-airjam/runtime/runtime-topology.mjs";
 import {
-  defaultWorkspaceGameId,
-  findRepoGame,
-} from "./repo-games.mjs";
+  buildSecureGameEnv,
+  loadSecureDevState,
+  SECURE_MODE_LOCAL,
+} from "../../../packages/create-airjam/runtime/secure-dev.mjs";
+import { defaultWorkspaceGameId, findRepoGame } from "./repo-games.mjs";
+import { waitForUrl } from "./url-readiness.mjs";
 import {
   createWorkspaceProcessGroup,
   ensureWorkspacePackageBuild,
   findAvailablePort,
   reserveWorkspaceResources,
 } from "./workspace-stack.mjs";
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const waitForUrl = async (url, label, timeoutMs = 120_000) => {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // Ignore transient startup failures while the stack boots.
-    }
-
-    await sleep(250);
-  }
-
-  throw new Error(`Timed out waiting for ${label} at ${url}`);
-};
 
 export const startWorkspaceStandaloneLiveStack = async ({
   rootDir = process.cwd(),
@@ -73,7 +49,9 @@ export const startWorkspaceStandaloneLiveStack = async ({
     gamePort = await findAvailablePort();
   }
 
-  const origin = secure ? `https://localhost:${gamePort}` : `http://localhost:${gamePort}`;
+  const origin = secure
+    ? `https://localhost:${gamePort}`
+    : `http://localhost:${gamePort}`;
   const backendProxyUrl = `http://127.0.0.1:${serverPort}`;
   const secureState = secure
     ? loadSecureDevState({
@@ -97,17 +75,12 @@ export const startWorkspaceStandaloneLiveStack = async ({
     buildArgs: ["--filter", "@air-jam/sdk", "build"],
   });
 
-  processGroup.run(
-    "server",
-    "pnpm",
-    ["--filter", "@air-jam/server", "dev"],
-    {
-      suppressStructuredServerLogs: true,
-      env: {
-        PORT: String(serverPort),
-      },
+  processGroup.run("server", "pnpm", ["--filter", "@air-jam/server", "dev"], {
+    suppressStructuredServerLogs: true,
+    env: {
+      PORT: String(serverPort),
     },
-  );
+  });
   const gameEnv = secure
     ? {
         ...buildSecureGameEnv({
@@ -132,27 +105,43 @@ export const startWorkspaceStandaloneLiveStack = async ({
         AIR_JAM_DEV_PROXY_BACKEND_URL: backendProxyUrl,
         VITE_AIR_JAM_SERVER_URL: backendProxyUrl,
       };
-  processGroup.run(
-    activeGame.id,
-    "pnpm",
-    ["exec", "vite"],
-    {
-      cwd: activeGame.dir,
-      env: {
-        VITE_PORT: String(gamePort),
-        ...gameEnv,
-        ...(secureState
-          ? {
-              AIR_JAM_SECURE_ROOT: rootDir,
-            }
-          : {}),
-      },
+  processGroup.run(activeGame.id, "pnpm", ["exec", "vite"], {
+    cwd: activeGame.dir,
+    env: {
+      VITE_PORT: String(gamePort),
+      ...gameEnv,
+      ...(secureState
+        ? {
+            AIR_JAM_SECURE_ROOT: rootDir,
+          }
+        : {}),
     },
-  );
+  });
 
-  await waitForUrl(`${backendProxyUrl}/health`, "Air Jam server");
-  await waitForUrl(origin, `${activeGame.id} standalone host`);
-  await waitForUrl(`${origin}/controller`, `${activeGame.id} standalone controller`);
+  try {
+    const readinessOptions = { allowInsecureLocalHttps: secure };
+    await waitForUrl(`${backendProxyUrl}/health`, "Air Jam server");
+    await waitForUrl(
+      origin,
+      `${activeGame.id} standalone host`,
+      120_000,
+      readinessOptions,
+    );
+    await waitForUrl(
+      `${origin}/controller`,
+      `${activeGame.id} standalone controller`,
+      120_000,
+      readinessOptions,
+    );
+  } catch (error) {
+    await processGroup.shutdown(0);
+    await reserveWorkspaceResources({
+      rootDir,
+      ports: [serverPort, gamePort],
+      clearPlatformCache: false,
+    });
+    throw error;
+  }
 
   return {
     activeGame,

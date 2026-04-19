@@ -16,7 +16,9 @@ export const pongArenaPrefabSchema = z.object({
 
 export type PongArenaPrefabProps = z.infer<typeof pongArenaPrefabSchema>;
 
-export type PongArenaPrefabOverrides = Partial<Omit<PongArenaPrefabProps, "teamColors">> & {
+export type PongArenaPrefabOverrides = Partial<
+  Omit<PongArenaPrefabProps, "teamColors">
+> & {
   teamColors?: Partial<Record<TeamId, string>>;
 };
 

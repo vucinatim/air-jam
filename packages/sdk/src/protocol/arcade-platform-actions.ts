@@ -24,5 +24,6 @@ export type AirJamArcadePlatformActionName =
  * Server routing: platform UI commands under `airjam.arcade.*` must be delivered to the master
  * host (Arcade shell), not the active embedded game host.
  */
-export const isAirJamArcadePlatformPrefixAction = (actionName: string): boolean =>
-  actionName.startsWith(AIRJAM_ARCADE_PLATFORM_ACTION_PREFIX);
+export const isAirJamArcadePlatformPrefixAction = (
+  actionName: string,
+): boolean => actionName.startsWith(AIRJAM_ARCADE_PLATFORM_ACTION_PREFIX);

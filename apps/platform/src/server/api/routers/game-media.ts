@@ -6,20 +6,20 @@ import {
 } from "@/lib/games/game-media-contract";
 import { MAX_GAME_MEDIA_BYTES } from "@/lib/games/game-media-policy";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
+import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import {
   archiveGameMediaAsset,
   assignGameMediaAsset,
   finalizeGameMediaUpload,
   requestGameMediaUploadTarget,
 } from "@/server/media/game-media-service";
-import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
   createTRPCRouter,
   protectedProcedure,
-  rateLimitMiddleware,
   RATE_LIMITS,
+  rateLimitMiddleware,
 } from "../trpc";
 
 const requestUploadTargetInput = z.object({
@@ -97,7 +97,12 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   requestUploadTarget: protectedProcedure
-    .use(rateLimitMiddleware("gameMedia.requestUploadTarget", RATE_LIMITS.mediaMutation))
+    .use(
+      rateLimitMiddleware(
+        "gameMedia.requestUploadTarget",
+        RATE_LIMITS.mediaMutation,
+      ),
+    )
     .input(requestUploadTargetInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
@@ -105,7 +110,12 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   finalizeUpload: protectedProcedure
-    .use(rateLimitMiddleware("gameMedia.finalizeUpload", RATE_LIMITS.mediaMutation))
+    .use(
+      rateLimitMiddleware(
+        "gameMedia.finalizeUpload",
+        RATE_LIMITS.mediaMutation,
+      ),
+    )
     .input(mediaAssetMutationInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
@@ -113,7 +123,9 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   assignAsset: protectedProcedure
-    .use(rateLimitMiddleware("gameMedia.assignAsset", RATE_LIMITS.mediaMutation))
+    .use(
+      rateLimitMiddleware("gameMedia.assignAsset", RATE_LIMITS.mediaMutation),
+    )
     .input(mediaAssetMutationInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
@@ -121,7 +133,9 @@ export const gameMediaRouter = createTRPCRouter({
     }),
 
   archiveAsset: protectedProcedure
-    .use(rateLimitMiddleware("gameMedia.archiveAsset", RATE_LIMITS.mediaMutation))
+    .use(
+      rateLimitMiddleware("gameMedia.archiveAsset", RATE_LIMITS.mediaMutation),
+    )
     .input(mediaAssetMutationInput)
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);

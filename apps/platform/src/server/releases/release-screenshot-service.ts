@@ -1,13 +1,13 @@
 import { HOSTED_RELEASE_HOST_PATH } from "@/lib/releases/hosted-release-artifact";
-import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { getReleaseModerationConfig } from "@/server/releases/release-moderation-config";
+import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { getReleaseStorage } from "@/server/releases/release-storage";
 import { buildReleaseScreenshotObjectKey } from "@/server/releases/release-storage-keys";
+import { chromium } from "playwright-core";
 import {
   createReleaseInspectionAccessToken,
   RELEASE_INSPECTION_ACCESS_HEADER,
 } from "./release-inspection-access";
-import { chromium } from "playwright-core";
 
 export type ReleaseScreenshotCaptureResult = {
   screenshotObjectKey: string;

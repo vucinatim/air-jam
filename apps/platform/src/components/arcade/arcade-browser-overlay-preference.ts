@@ -7,8 +7,7 @@ const STORAGE_KEY = "airjam.arcade.browser-overlay";
 
 const isBrowserOverlayPreference = (
   value: unknown,
-): value is BrowserOverlayPreference =>
-  value === "hidden" || value === "qr";
+): value is BrowserOverlayPreference => value === "hidden" || value === "qr";
 
 export const readArcadeBrowserOverlayPreference = (
   mode: ArcadeMode,

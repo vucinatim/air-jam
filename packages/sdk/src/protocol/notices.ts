@@ -1,5 +1,5 @@
-import type { RoomCode } from "./core";
 import type { PlayerProfile } from "./controller";
+import type { RoomCode } from "./core";
 
 export interface ControllerWelcomePayload {
   controllerId: string;

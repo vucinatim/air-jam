@@ -42,6 +42,11 @@
  * );
  * ```
  */
+import type {
+  ResolvedAirJamRuntimeTopology,
+  RuntimeTopologyInput,
+  SurfaceRole,
+} from "@air-jam/runtime-topology";
 import {
   createContext,
   useCallback,
@@ -50,19 +55,14 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import type {
-  ResolvedAirJamRuntimeTopology,
-  RuntimeTopologyInput,
-  SurfaceRole,
-} from "@air-jam/runtime-topology";
 import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { InputManager, type InputConfig } from "../internal/input-manager";
-import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import type { ConnectionRole } from "../protocol";
+import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import type { HostSessionKind } from "../protocol/host";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
@@ -365,7 +365,11 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
         ? (window as unknown as DevProviderMountWindow)
         : undefined;
 
-    if (devWindow && isDevelopmentRuntime() && !devWindow.__airJamDevProviderMountSent__) {
+    if (
+      devWindow &&
+      isDevelopmentRuntime() &&
+      !devWindow.__airJamDevProviderMountSent__
+    ) {
       try {
         devWindow.__airJamDevProviderMountSent__ = true;
         emitAirJamDevRuntimeEvent({
@@ -532,5 +536,5 @@ export const useAirJamSocket = (role: ConnectionRole): AirJamSocket => {
 // Exports
 // ============================================================================
 
-export { AirJamContext };
 export type { AirJamConfig } from "../runtime/air-jam-config";
+export { AirJamContext };

@@ -8,10 +8,17 @@ import {
   SPAWN_X_PLAYER2_FRONT,
   SPAWN_Y,
 } from "./constants";
-import type { HpState, KoState, PlayerState, RuntimePlayerState } from "./types";
+import type {
+  HpState,
+  KoState,
+  PlayerState,
+  RuntimePlayerState,
+} from "./types";
 
 const getNextIdleSwap = (now: number) =>
-  now + IDLE_FRAME_MIN_MS + Math.random() * (IDLE_FRAME_MAX_MS - IDLE_FRAME_MIN_MS);
+  now +
+  IDLE_FRAME_MIN_MS +
+  Math.random() * (IDLE_FRAME_MAX_MS - IDLE_FRAME_MIN_MS);
 
 export const makePlayerState = (
   x: number,

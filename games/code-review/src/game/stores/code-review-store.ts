@@ -1,5 +1,4 @@
 import { createAirJamStore } from "@air-jam/sdk";
-import type { CodeReviewGameState } from "./code-review-store-types";
 import {
   createInitialCodeReviewState,
   reduceFinishMatch,
@@ -11,6 +10,7 @@ import {
   reduceStartMatch,
   reduceSyncConnectedPlayers,
 } from "./code-review-store-state";
+import type { CodeReviewGameState } from "./code-review-store-types";
 
 export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
   ...createInitialCodeReviewState(),
@@ -42,9 +42,7 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
       set((state) => reduceJoinTeam(state, actorId, connectedPlayerIds, team)),
 
     setBotCount: ({ connectedPlayerIds }, { team, count }) =>
-      set((state) =>
-        reduceSetBotCount(state, connectedPlayerIds, team, count),
-      ),
+      set((state) => reduceSetBotCount(state, connectedPlayerIds, team, count)),
 
     resetGame: ({ role }) =>
       set((state) => {

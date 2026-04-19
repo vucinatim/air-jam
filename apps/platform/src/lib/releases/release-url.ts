@@ -104,8 +104,14 @@ export const injectHostedReleaseHtmlRuntimeBase = ({
   const bootstrapScript = `<script>window.__AIRJAM_HOSTED_RELEASE_BASE__=${JSON.stringify(hostedBasePath)};window.__AIRJAM_HOSTED_RELEASE_ROUTE__=${JSON.stringify(logicalPath)};(function(){var targetPath=window.__AIRJAM_HOSTED_RELEASE_ROUTE__||"/";var targetUrl=targetPath+window.location.search+window.location.hash;if(window.location.pathname!==targetPath){window.history.replaceState(window.history.state,"",targetUrl);}})();</script>`;
 
   const withBaseTag = html.includes("<base ")
-    ? html.replace(/<base\s+href=["'][^"']*["']\s*\/?>/i, `<base href="${normalizedBaseHref}">`)
-    : html.replace(/<head(\s[^>]*)?>/i, (match) => `${match}<base href="${normalizedBaseHref}">`);
+    ? html.replace(
+        /<base\s+href=["'][^"']*["']\s*\/?>/i,
+        `<base href="${normalizedBaseHref}">`,
+      )
+    : html.replace(
+        /<head(\s[^>]*)?>/i,
+        (match) => `${match}<base href="${normalizedBaseHref}">`,
+      );
 
   if (withBaseTag.includes("</head>")) {
     return withBaseTag.replace("</head>", `${bootstrapScript}</head>`);
@@ -128,7 +134,9 @@ export const normalizeRequestedReleaseAssetPath = (
     !normalizedPath ||
     normalizedPath === "." ||
     normalizedPath.includes("\0") ||
-    normalizedPath.split("/").some((segment) => segment === "." || segment === "..")
+    normalizedPath
+      .split("/")
+      .some((segment) => segment === "." || segment === "..")
   ) {
     throw new Error("Invalid release asset path.");
   }

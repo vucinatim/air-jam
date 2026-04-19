@@ -1,6 +1,9 @@
 import type { SpriteKey } from "./types";
 
-export const createEmptySpriteMap = (): Record<SpriteKey, HTMLCanvasElement | null> => ({
+export const createEmptySpriteMap = (): Record<
+  SpriteKey,
+  HTMLCanvasElement | null
+> => ({
   team1LeftShort: null,
   team1RightShort: null,
   team1LeftExtended: null,

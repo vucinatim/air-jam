@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 
+import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { render, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
-import {
-  onAirJamDiagnostic,
-  resetAirJamDiagnosticsForTests,
-} from "../src/diagnostics";
 import {
   ControllerSessionProvider,
   HostSessionProvider,
 } from "../src/context/session-providers";
 import { useClaimSessionRuntimeOwner } from "../src/context/session-scope";
+import {
+  onAirJamDiagnostic,
+  resetAirJamDiagnosticsForTests,
+} from "../src/diagnostics";
 
 const PROVIDER_CONFIG = {
   topology: resolveRuntimeTopology({

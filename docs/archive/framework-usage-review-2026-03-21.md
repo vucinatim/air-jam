@@ -21,6 +21,7 @@ Main conclusion: prioritize shell/headless API clarity and composability over ad
 ### P1: Custom UI currently requires brittle CSS hacks against shell internals
 
 Evidence:
+
 - `code-review` hides shell internals using selector-level hacks:
   - `../../zerodays/air-jam-games/code-review/src/index.css:33`
   - `../../zerodays/air-jam-games/code-review/src/index.css:37`
@@ -29,12 +30,14 @@ Evidence:
   - `../../zerodays/air-jam-games/last-band-standing/src/index.css:33`
 
 Impact:
+
 - Shell DOM/class changes can break existing games unexpectedly.
 - Encourages copy-paste workaround patterns.
 
 ### P1: SDK currently encourages duplicated host lifecycle wiring
 
 Evidence:
+
 - `HostShell` calls `useAirJamHost()` internally:
   - `packages/sdk/src/components/host-shell.tsx:37`
 - Games also call `useAirJamHost()` in host views:
@@ -44,12 +47,14 @@ Evidence:
   - `packages/sdk/src/hooks/use-air-jam-host.ts:429`
 
 Impact:
+
 - Duplicate listeners/registration risk in real-world usage patterns.
 - Developers cannot clearly tell when to use `HostShell` vs hook-only mode.
 
 ### P2: Hook return shape invites unstable effect dependencies
 
 Evidence:
+
 - Vibecoded games use whole object dependencies:
   - `../../zerodays/air-jam-games/code-review/src/host-view.tsx:1228` (`[host, ...]`)
   - `../../zerodays/air-jam-games/code-review/src/controller-view.tsx:148` (`[controller, ...]`)
@@ -58,12 +63,14 @@ Evidence:
   - `packages/sdk/src/hooks/use-air-jam-controller.ts:594`
 
 Impact:
+
 - Easy to accidentally resubscribe loops/effects.
 - LLM-generated code frequently falls into this pattern.
 
 ### P2: Host chrome is often rebuilt manually because shell is not composable enough
 
 Evidence:
+
 - `code-review` implements custom paused overlay, join URL copy/open, QR generation, player list:
   - `../../zerodays/air-jam-games/code-review/src/host-view.tsx:302`
   - `../../zerodays/air-jam-games/code-review/src/host-view.tsx:1274`
@@ -71,18 +78,21 @@ Evidence:
   - `packages/sdk/src/components/host-shell.tsx:215`
 
 Impact:
+
 - Reimplementation and divergence across games.
 - Inconsistent UX and duplicated maintenance burden.
 
 ### P2: Docs/templates reinforce the ambiguous pattern
 
 Evidence:
+
 - SDK docs and templates show `useAirJamHost()` + `<HostShell>` together:
   - `packages/sdk/README.md:41`
   - `games/pong/README.md:57`
   - `games/pong/src/host/index.tsx:18`
 
 Impact:
+
 - Current guidance normalizes patterns that create the issues above.
 
 ## What to tighten now (before broader launch traffic)
@@ -123,6 +133,7 @@ Scope: `apps/prototype-game`, `../../zerodays/air-jam-games/the-office`
 ### P1: `the-office` has mixed time sources (`requestAnimationFrame` time vs `Date.now`) in core game/task logic
 
 Evidence:
+
 - `GameCanvas` passes RAF timestamp (`currentTime`) into game update:
   - `../../zerodays/air-jam-games/the-office/src/components/game-canvas.tsx:453`
 - `updateGame` uses that `currentTime` against `gameStartTime` (epoch ms from `Date.now()`):
@@ -132,15 +143,18 @@ Evidence:
   - `../../zerodays/air-jam-games/the-office/src/task-manager.ts:378`
 
 Impact:
+
 - Task expiry logic is inconsistent and can fail (tasks effectively never expire).
 - Game-duration timeout check is inconsistent and can fail (timer-based end condition can be broken).
 
 Required tightening:
+
 - Standardize on a single timebase (prefer `performance.now()` / RAF time everywhere in loop logic), or pass `Date.now()` consistently everywhere.
 
 ### P1: `the-office` still relies on invasive shell-theme hacks
 
 Evidence:
+
 - Host side polling DOM with selector hacks to remove shell dark mode:
   - `../../zerodays/air-jam-games/the-office/src/host-view.tsx:47`
   - `../../zerodays/air-jam-games/the-office/src/host-view.tsx:50`
@@ -149,12 +163,14 @@ Evidence:
   - `../../zerodays/air-jam-games/the-office/src/controller-view.tsx:61`
 
 Impact:
+
 - Fragile against SDK internals.
 - Higher runtime overhead and hard-to-debug visual side effects.
 
 ### P1: `prototype-game` has event listener cleanup mismatch in controller sound subscription
 
 Evidence:
+
 - Listener is attached via inline callback:
   - `apps/prototype-game/src/routes/controller-view.tsx:184`
 - Cleanup attempts to remove a different function reference (`handlePlaySound`):
@@ -162,12 +178,14 @@ Evidence:
   - `apps/prototype-game/src/routes/controller-view.tsx:192`
 
 Impact:
+
 - Leaked listeners across remount/reconnect cycles.
 - Duplicate sound playback over time.
 
 ### P2: Unstable object dependencies appear again in `the-office`
 
 Evidence:
+
 - Host `getInput` callback depends on whole `host` object:
   - `../../zerodays/air-jam-games/the-office/src/host-view.tsx:41`
   - `../../zerodays/air-jam-games/the-office/src/host-view.tsx:43`
@@ -175,32 +193,38 @@ Evidence:
   - `../../zerodays/air-jam-games/the-office/src/controller-view.tsx:117`
 
 Impact:
+
 - Unnecessary effect teardown/restart cycles.
 - Reinforces a common misuse pattern for SDK consumers/LLMs.
 
 ### P2: `the-office` assignment initialization can use stale assignment snapshots
 
 Evidence:
+
 - Assignment candidate list is derived from `playerAssignments` selector snapshot inside loop:
   - `../../zerodays/air-jam-games/the-office/src/hooks/use-game-state.ts:196`
 - New assignments are dispatched during same loop:
   - `../../zerodays/air-jam-games/the-office/src/hooks/use-game-state.ts:199`
 
 Impact:
+
 - Potential duplicate character assignment when multiple players are initialized in one pass.
 
 ### P3: Input transport strategy is inconsistent across sample games
 
 Evidence:
+
 - `prototype-game` sends on state changes (store subscription):
   - `apps/prototype-game/src/routes/controller-view.tsx:161`
 - `the-office` streams every frame with RAF:
   - `../../zerodays/air-jam-games/the-office/src/controller-view.tsx:106`
 
 Impact:
+
 - No clear best-practice in docs for cadence tradeoffs (bandwidth vs responsiveness vs simplicity).
 
 Recommended doc/API tightening:
+
 - Document two official patterns (`event-driven` vs `frame-driven`) and when to choose each.
 - Optionally provide a small SDK helper hook for input publishing cadence to reduce custom loop boilerplate.
 

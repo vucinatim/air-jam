@@ -1,6 +1,6 @@
 # Air Jam V1 Release Launch Plan
 
-Last updated: 2026-04-15  
+Last updated: 2026-04-18  
 Status: active
 
 Related docs:
@@ -230,7 +230,7 @@ These are already done enough that they should not stay as parallel prerelease t
 6. GitHub-first dashboard auth baseline with email/password kept as intentional fallback
 7. public Arcade hosted release lane, managed media lane, moderation/reporting hooks, and dashboard IA reset baseline
 8. shared preview controllers across platform, repo-host, and scaffold-host flows
-9. prerelease agent-runtime namespace and seam alignment across runtime-control, runtime-inspection, runtime-observability, and capabilities
+9. prerelease SDK surface classification is complete: exported experimental leaves are explicit, and the machine-facing runtime-control/runtime-inspection/runtime-observability/contracts-v2 seams remain intentionally private until a first-party consumer lands
 10. systems closeout is complete enough to archive: SDK/runtime cleanup is done, built-mode visual capture reuses unchanged game builds, and deferred harness cleanup now belongs to the later polish stage
 
 ## Completed Baselines (Phases 1–5)

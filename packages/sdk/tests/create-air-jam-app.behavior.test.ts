@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { describe, expect, it } from "vitest";
 import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { createAirJamApp } from "../src/runtime/create-air-jam-app";
 
 describe("createAirJamApp", () => {

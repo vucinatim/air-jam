@@ -1,18 +1,18 @@
 import {
   AIRJAM_DEV_LOG_EVENTS,
   controllerActionRpcSchema,
-  controllerStateSyncRequestSchema,
   controllerStateSchema,
+  controllerStateSyncRequestSchema,
   controllerSystemSchema,
   hostStateSyncSchema,
-  type AirJamDevLogEventName,
+  isAirJamArcadePlatformPrefixAction,
   type AirJamActionRpcPayload,
+  type AirJamDevLogEventName,
   type AirJamStateSyncPayload,
   type ControllerActionRpcPayload,
   type ControllerStateMessage,
   type PlaySoundEventPayload,
   type SignalPayload,
-  isAirJamArcadePlatformPrefixAction,
 } from "@air-jam/sdk/protocol";
 import { emitRoomState } from "../../domain/room-session-domain.js";
 import { createWindowedEventSummary } from "../../logging/create-windowed-event-summary.js";
@@ -92,30 +92,45 @@ export const registerRealtimeHandlers = (
   socket.on("host:system", (payload) => {
     const parsed = controllerSystemSchema.safeParse(payload);
     if (!parsed.success) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.systemRejected, "Rejected host system command with invalid payload", {
-        reason: "invalid_payload",
-        issues: parsed.error.issues,
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.systemRejected,
+        "Rejected host system command with invalid payload",
+        {
+          reason: "invalid_payload",
+          issues: parsed.error.issues,
+        },
+      );
       return;
     }
 
     const { roomId, command } = parsed.data;
     if (!isHostAuthorizedForRoom(roomId)) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.systemRejected, "Rejected host system command because socket is unauthorized", {
-        roomId,
-        command,
-        reason: "unauthorized",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.systemRejected,
+        "Rejected host system command because socket is unauthorized",
+        {
+          roomId,
+          command,
+          reason: "unauthorized",
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.systemRejected, "Rejected host system command because room was not found", {
-        roomId,
-        command,
-        reason: "room_not_found",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.systemRejected,
+        "Rejected host system command because room was not found",
+        {
+          roomId,
+          command,
+          reason: "room_not_found",
+        },
+      );
       return;
     }
 
@@ -125,13 +140,18 @@ export const registerRealtimeHandlers = (
         previousGameState === "playing" ? "paused" : "playing";
       session.runtimeState = nextGameState;
       const broadcastPayload = emitRoomState(io, roomId, session);
-      logRealtimeEvent("info", AIRJAM_DEV_LOG_EVENTS.host.systemAccepted, "Host toggled pause state", {
-        roomId,
-        command,
-        previousGameState,
-        nextGameState,
-        stateVersion: broadcastPayload.state.stateVersion,
-      });
+      logRealtimeEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.host.systemAccepted,
+        "Host toggled pause state",
+        {
+          roomId,
+          command,
+          previousGameState,
+          nextGameState,
+          stateVersion: broadcastPayload.state.stateVersion,
+        },
+      );
       hostStateBroadcastSummary.record({
         key: `${roomId}:host_system_toggle`,
         bindings: { roomId },
@@ -161,28 +181,43 @@ export const registerRealtimeHandlers = (
   socket.on("host:state", (payload: ControllerStateMessage) => {
     const result = controllerStateSchema.safeParse(payload);
     if (!result.success) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.stateRejected, "Rejected host state update with invalid payload", {
-        reason: "invalid_payload",
-        issues: result.error.issues,
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.stateRejected,
+        "Rejected host state update with invalid payload",
+        {
+          reason: "invalid_payload",
+          issues: result.error.issues,
+        },
+      );
       return;
     }
 
     const { roomId, state } = result.data;
     if (!isHostAuthorizedForRoom(roomId)) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.stateRejected, "Rejected host state update because socket is unauthorized", {
-        roomId,
-        reason: "unauthorized",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.stateRejected,
+        "Rejected host state update because socket is unauthorized",
+        {
+          roomId,
+          reason: "unauthorized",
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.stateRejected, "Rejected host state update because room was not found", {
-        roomId,
-        reason: "room_not_found",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.stateRejected,
+        "Rejected host state update because room was not found",
+        {
+          roomId,
+          reason: "room_not_found",
+        },
+      );
       return;
     }
 
@@ -204,7 +239,8 @@ export const registerRealtimeHandlers = (
         source: "host_state",
         hasMessage: state.message !== undefined,
         gameStateChanged: previousGameState !== session.runtimeState,
-        orientationChanged: previousOrientation !== session.controllerOrientation,
+        orientationChanged:
+          previousOrientation !== session.controllerOrientation,
         latestStateVersion: broadcastPayload.state.stateVersion ?? 0,
       },
       metrics: {
@@ -216,20 +252,30 @@ export const registerRealtimeHandlers = (
   socket.on("host:signal", (payload: SignalPayload) => {
     const roomId = roomManager.getRoomByHostId(socket.id);
     if (!roomId) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.signalRejected, "Rejected host signal because socket is not bound to a room", {
-        reason: "room_binding_missing",
-        signalType: payload.type,
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.signalRejected,
+        "Rejected host signal because socket is not bound to a room",
+        {
+          reason: "room_binding_missing",
+          signalType: payload.type,
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.signalRejected, "Rejected host signal because room was not found", {
-        roomId,
-        reason: "room_not_found",
-        signalType: payload.type,
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.signalRejected,
+        "Rejected host signal because room was not found",
+        {
+          roomId,
+          reason: "room_not_found",
+          signalType: payload.type,
+        },
+      );
       return;
     }
 
@@ -239,12 +285,17 @@ export const registerRealtimeHandlers = (
         io.to(controller.socketId).emit("server:signal", payload);
         return;
       }
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.signalRejected, "Rejected host signal because target controller was not found", {
-        roomId,
-        targetControllerId: payload.targetId,
-        reason: "target_missing",
-        signalType: payload.type,
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.signalRejected,
+        "Rejected host signal because target controller was not found",
+        {
+          roomId,
+          targetControllerId: payload.targetId,
+          reason: "target_missing",
+          signalType: payload.type,
+        },
+      );
       return;
     }
 
@@ -254,21 +305,31 @@ export const registerRealtimeHandlers = (
   socket.on("host:play_sound", (payload: PlaySoundEventPayload) => {
     const { roomId, targetControllerId, soundId, volume, loop } = payload;
     if (!isHostAuthorizedForRoom(roomId)) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.playSoundRejected, "Rejected host sound playback because socket is unauthorized", {
-        roomId,
-        soundId,
-        reason: "unauthorized",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.playSoundRejected,
+        "Rejected host sound playback because socket is unauthorized",
+        {
+          roomId,
+          soundId,
+          reason: "unauthorized",
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.playSoundRejected, "Rejected host sound playback because room was not found", {
-        roomId,
-        soundId,
-        reason: "room_not_found",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.playSoundRejected,
+        "Rejected host sound playback because room was not found",
+        {
+          roomId,
+          soundId,
+          reason: "room_not_found",
+        },
+      );
       return;
     }
 
@@ -279,12 +340,17 @@ export const registerRealtimeHandlers = (
         io.to(controller.socketId).emit("server:playSound", message);
         return;
       }
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.playSoundRejected, "Rejected host targeted sound because controller was not found", {
-        roomId,
-        targetControllerId,
-        soundId,
-        reason: "target_missing",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.playSoundRejected,
+        "Rejected host targeted sound because controller was not found",
+        {
+          roomId,
+          targetControllerId,
+          soundId,
+          reason: "target_missing",
+        },
+      );
       return;
     }
 
@@ -294,30 +360,45 @@ export const registerRealtimeHandlers = (
   socket.on("controller:play_sound", (payload: PlaySoundEventPayload) => {
     const { roomId, soundId, volume, loop } = payload;
     if (!isControllerAuthorizedForRoom(roomId)) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected, "Rejected controller sound playback because socket is unauthorized", {
-        roomId,
-        soundId,
-        reason: "unauthorized",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected,
+        "Rejected controller sound playback because socket is unauthorized",
+        {
+          roomId,
+          soundId,
+          reason: "unauthorized",
+        },
+      );
       return;
     }
 
     if (!hasControllerPrivilegeForRoom(roomId, "play_sound")) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected, "Rejected controller sound playback because privileged capability is missing", {
-        roomId,
-        soundId,
-        reason: "missing_capability",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected,
+        "Rejected controller sound playback because privileged capability is missing",
+        {
+          roomId,
+          soundId,
+          reason: "missing_capability",
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected, "Rejected controller sound playback because room was not found", {
-        roomId,
-        soundId,
-        reason: "room_not_found",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.playSoundRejected,
+        "Rejected controller sound playback because room was not found",
+        {
+          roomId,
+          soundId,
+          reason: "room_not_found",
+        },
+      );
       return;
     }
 
@@ -331,21 +412,31 @@ export const registerRealtimeHandlers = (
   socket.on("host:state_sync", (payload: unknown) => {
     const parsed = hostStateSyncSchema.safeParse(payload);
     if (!parsed.success) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.stateSyncRejected, "Rejected host state sync with invalid payload", {
-        reason: "invalid_payload",
-        issues: parsed.error.issues,
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.stateSyncRejected,
+        "Rejected host state sync with invalid payload",
+        {
+          reason: "invalid_payload",
+          issues: parsed.error.issues,
+        },
+      );
       return;
     }
 
     const { roomId, data, storeDomain } = parsed.data;
     const session = roomManager.getRoom(roomId);
     if (!session) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.stateSyncRejected, "Rejected host state sync because room was not found", {
-        roomId,
-        storeDomain,
-        reason: "room_not_found",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.stateSyncRejected,
+        "Rejected host state sync because room was not found",
+        {
+          roomId,
+          storeDomain,
+          reason: "room_not_found",
+        },
+      );
       return;
     }
 
@@ -353,11 +444,16 @@ export const registerRealtimeHandlers = (
       session.masterHostSocketId !== socket.id &&
       session.childHostSocketId !== socket.id
     ) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.host.stateSyncRejected, "Rejected host state sync because socket is unauthorized", {
-        roomId,
-        storeDomain,
-        reason: "unauthorized",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.host.stateSyncRejected,
+        "Rejected host state sync because socket is unauthorized",
+        {
+          roomId,
+          storeDomain,
+          reason: "unauthorized",
+        },
+      );
       return;
     }
 
@@ -416,86 +512,128 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    io.to(roomManager.getActiveHostId(session)).emit("airjam:state_sync_request", {
-      roomId,
-      storeDomain,
-    });
+    io.to(roomManager.getActiveHostId(session)).emit(
+      "airjam:state_sync_request",
+      {
+        roomId,
+        storeDomain,
+      },
+    );
   });
 
   socket.on("controller:action_rpc", (payload: ControllerActionRpcPayload) => {
     const parsed = controllerActionRpcSchema.safeParse(payload);
     if (!parsed.success) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC with invalid payload", {
-        reason: "invalid_payload",
-        issues: parsed.error.issues,
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+        "Rejected controller action RPC with invalid payload",
+        {
+          reason: "invalid_payload",
+          issues: parsed.error.issues,
+        },
+      );
       return;
     }
 
-    const { roomId, actionName, payload: actionPayload, storeDomain } =
-      parsed.data;
+    const {
+      roomId,
+      actionName,
+      payload: actionPayload,
+      storeDomain,
+    } = parsed.data;
     if (actionName.startsWith("_")) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because action name is reserved", {
-        roomId,
-        actionName,
-        storeDomain,
-        reason: "reserved_action",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+        "Rejected controller action RPC because action name is reserved",
+        {
+          roomId,
+          actionName,
+          storeDomain,
+          reason: "reserved_action",
+        },
+      );
       return;
     }
 
     if (!isControllerAuthorizedForRoom(roomId)) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because socket is unauthorized", {
-        roomId,
-        actionName,
-        storeDomain,
-        reason: "unauthorized",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+        "Rejected controller action RPC because socket is unauthorized",
+        {
+          roomId,
+          actionName,
+          storeDomain,
+          reason: "unauthorized",
+        },
+      );
       return;
     }
 
     if (!hasControllerPrivilegeForRoom(roomId, "action_rpc")) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because privileged capability is missing", {
-        roomId,
-        actionName,
-        storeDomain,
-        reason: "missing_capability",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+        "Rejected controller action RPC because privileged capability is missing",
+        {
+          roomId,
+          actionName,
+          storeDomain,
+          reason: "missing_capability",
+        },
+      );
       return;
     }
 
     const session = roomManager.getRoom(roomId);
     if (!session) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because room was not found", {
-        roomId,
-        actionName,
-        storeDomain,
-        reason: "room_not_found",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+        "Rejected controller action RPC because room was not found",
+        {
+          roomId,
+          actionName,
+          storeDomain,
+          reason: "room_not_found",
+        },
+      );
       return;
     }
 
     const controllerInfo = roomManager.getControllerInfo(socket.id);
     if (!controllerInfo || controllerInfo.roomId !== roomId) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because controller mapping was missing", {
-        roomId,
-        actionName,
-        storeDomain,
-        reason: "controller_mapping_missing",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+        "Rejected controller action RPC because controller mapping was missing",
+        {
+          roomId,
+          actionName,
+          storeDomain,
+          reason: "controller_mapping_missing",
+        },
+      );
       return;
     }
 
     const controllerId = controllerInfo.controllerId;
     const controllerSession = session.controllers.get(controllerId);
     if (!controllerSession) {
-      logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because controller session was not found", {
-        roomId,
-        controllerId,
-        actionName,
-        storeDomain,
-        reason: "controller_session_missing",
-      });
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+        "Rejected controller action RPC because controller session was not found",
+        {
+          roomId,
+          controllerId,
+          actionName,
+          storeDomain,
+          reason: "controller_session_missing",
+        },
+      );
       return;
     }
 
@@ -523,8 +661,7 @@ export const registerRealtimeHandlers = (
         data: {
           actionName,
           storeDomain,
-          target:
-            shouldRouteToMaster ? "master_host" : "active_host",
+          target: shouldRouteToMaster ? "master_host" : "active_host",
         },
         metrics: {
           rpcCount: 1,
@@ -533,12 +670,17 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    logRealtimeEvent("warn", AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected, "Rejected controller action RPC because no host target was available", {
-      roomId,
-      controllerId,
-      actionName,
-      storeDomain,
-      reason: "host_target_missing",
-    });
+    logRealtimeEvent(
+      "warn",
+      AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+      "Rejected controller action RPC because no host target was available",
+      {
+        roomId,
+        controllerId,
+        actionName,
+        storeDomain,
+        reason: "host_target_missing",
+      },
+    );
   });
 };

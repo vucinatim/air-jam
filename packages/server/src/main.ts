@@ -1,7 +1,4 @@
-import {
-  formatEnvValidationError,
-  isEnvValidationError,
-} from "@air-jam/env";
+import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
 import { loadWorkspaceEnv } from "./env/load-workspace-env.js";
 import { createServerLogger } from "./logging/logger.js";
 

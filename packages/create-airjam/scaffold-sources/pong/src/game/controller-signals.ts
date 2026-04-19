@@ -7,15 +7,8 @@
  * Keeping these as pure factories lets tests assert on the exact payload
  * without mocking the SDK.
  */
-import type {
-  HapticSignalPayload,
-  ToastSignalPayload,
-} from "@air-jam/sdk";
-import {
-  getTeamColor,
-  getTeamLabel,
-  type TeamId,
-} from "./domain/team";
+import type { HapticSignalPayload, ToastSignalPayload } from "@air-jam/sdk";
+import { getTeamColor, getTeamLabel, type TeamId } from "./domain/team";
 import type { MatchSummary } from "./stores";
 
 const MATCH_WINNER_TOAST_DURATION_MS = 2200;

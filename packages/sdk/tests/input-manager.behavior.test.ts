@@ -117,20 +117,26 @@ describe("InputManager behavior semantics", () => {
       controllerId: CONTROLLER_ID,
       input: { vector: { x: 0.5, y: 0 } },
     });
-    expect(manager.getInput(CONTROLLER_ID)).toEqual({ vector: { x: 0.5, y: 0 } });
+    expect(manager.getInput(CONTROLLER_ID)).toEqual({
+      vector: { x: 0.5, y: 0 },
+    });
 
     manager.handleInput({
       roomId: ROOM_ID,
       controllerId: CONTROLLER_ID,
       input: { vector: { x: 0, y: 0 } },
     });
-    expect(manager.getInput(CONTROLLER_ID)).toEqual({ vector: { x: 0.5, y: 0 } });
+    expect(manager.getInput(CONTROLLER_ID)).toEqual({
+      vector: { x: 0.5, y: 0 },
+    });
 
     manager.handleInput({
       roomId: ROOM_ID,
       controllerId: CONTROLLER_ID,
       input: { vector: { x: -1, y: 0 } },
     });
-    expect(manager.getInput(CONTROLLER_ID)).toEqual({ vector: { x: -1, y: 0 } });
+    expect(manager.getInput(CONTROLLER_ID)).toEqual({
+      vector: { x: -1, y: 0 },
+    });
   });
 });

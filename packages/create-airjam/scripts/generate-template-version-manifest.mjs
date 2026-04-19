@@ -10,7 +10,10 @@ const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, "..");
 const createAirJamPackageJsonPath = path.resolve(packageRoot, "package.json");
 const sdkPackageJsonPath = path.resolve(packageRoot, "../sdk/package.json");
-const serverPackageJsonPath = path.resolve(packageRoot, "../server/package.json");
+const serverPackageJsonPath = path.resolve(
+  packageRoot,
+  "../server/package.json",
+);
 const visualHarnessPackageJsonPath = path.resolve(
   packageRoot,
   "../visual-harness/package.json",
@@ -32,5 +35,9 @@ const manifest = {
   "@air-jam/visual-harness": readPackageVersion(visualHarnessPackageJsonPath),
 };
 
-fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+fs.writeFileSync(
+  manifestPath,
+  `${JSON.stringify(manifest, null, 2)}\n`,
+  "utf-8",
+);
 console.log(`✓ Wrote template version manifest to ${manifestPath}`);

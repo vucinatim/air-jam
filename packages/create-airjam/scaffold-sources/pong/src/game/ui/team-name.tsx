@@ -16,10 +16,7 @@ export const TeamName = ({
   const label = `${getTeamLabel(team)}${suffix ? ` ${suffix}` : ""}`;
 
   return (
-    <span
-      className={className}
-      style={{ color: getTeamColor(team) }}
-    >
+    <span className={className} style={{ color: getTeamColor(team) }}>
       {uppercase ? label.toUpperCase() : label}
     </span>
   );

@@ -7,10 +7,13 @@ import {
 describe("match readiness", () => {
   it("requires at least one occupied slot on each team", () => {
     expect(
-      getMatchReadiness({ team1: 0, team2: 0 }, {
-        team1: 0,
-        team2: 1,
-      }),
+      getMatchReadiness(
+        { team1: 0, team2: 0 },
+        {
+          team1: 0,
+          team2: 1,
+        },
+      ),
     ).toEqual({
       canStart: false,
       missingTeam: "team1",
@@ -19,10 +22,13 @@ describe("match readiness", () => {
 
   it("allows mixed human and bot occupancy", () => {
     expect(
-      getMatchReadiness({ team1: 1, team2: 0 }, {
-        team1: 1,
-        team2: 1,
-      }),
+      getMatchReadiness(
+        { team1: 1, team2: 0 },
+        {
+          team1: 1,
+          team2: 1,
+        },
+      ),
     ).toEqual({
       canStart: true,
       missingTeam: null,

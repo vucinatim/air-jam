@@ -6,13 +6,13 @@ import {
   hasFlag,
   loadEnvFile,
 } from "./dev-utils.mjs";
+import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 import {
   DEFAULT_GAME_PORT,
   loadSecureDevState,
   SECURE_MODE_LOCAL,
 } from "./secure-dev.mjs";
 import { DEFAULT_AIR_JAM_DEV_BACKEND_URL } from "./vite-https.mjs";
-import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 
 const SUPPORTED_MODES = new Set([
   "standalone-dev",
@@ -97,9 +97,15 @@ export const runProjectTopologyCli = async ({
     console.log("Usage: airjam topology --mode=<mode> [--secure]");
     console.log("");
     console.log("Modes:");
-    console.log("  standalone-dev          Resolve standalone local game topology");
-    console.log("  self-hosted-production  Resolve self-hosted production topology");
-    console.log("  hosted-release          Resolve hosted Air Jam release topology");
+    console.log(
+      "  standalone-dev          Resolve standalone local game topology",
+    );
+    console.log(
+      "  self-hosted-production  Resolve self-hosted production topology",
+    );
+    console.log(
+      "  hosted-release          Resolve hosted Air Jam release topology",
+    );
     return;
   }
 

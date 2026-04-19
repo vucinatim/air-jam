@@ -122,10 +122,7 @@ Check:
 Air Jam exposes structured diagnostics for common misuse paths:
 
 ```tsx
-import {
-  onAirJamDiagnostic,
-  setAirJamDiagnosticsEnabled,
-} from "@air-jam/sdk";
+import { onAirJamDiagnostic, setAirJamDiagnosticsEnabled } from "@air-jam/sdk";
 
 setAirJamDiagnosticsEnabled(true);
 

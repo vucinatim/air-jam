@@ -28,7 +28,9 @@ export const LandingFinalCta = () => {
             >
               <Link
                 href={finalCta.primary.href}
-                onClick={() => trackWebsiteEvent("landing_final_primary_cta_clicked")}
+                onClick={() =>
+                  trackWebsiteEvent("landing_final_primary_cta_clicked")
+                }
               >
                 {finalCta.primary.label}
               </Link>

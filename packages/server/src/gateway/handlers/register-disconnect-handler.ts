@@ -3,8 +3,8 @@ import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
   emitControllerLeftNotice,
-  getControllerResumeLeaseMs,
   getChildHostDisconnectTeardownMs,
+  getControllerResumeLeaseMs,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
@@ -59,8 +59,7 @@ export const registerDisconnectHandler = (
         }
         getDisconnectLogger({ roomId }).info(
           {
-            event:
-              AIRJAM_DEV_LOG_EVENTS.childHost.disconnectPendingSystemFocus,
+            event: AIRJAM_DEV_LOG_EVENTS.childHost.disconnectPendingSystemFocus,
             reason,
             teardownMs: getChildHostDisconnectTeardownMs(),
           },
@@ -119,7 +118,10 @@ export const registerDisconnectHandler = (
         session.pendingRoomCloseTimer = setTimeout(() => {
           session.pendingRoomCloseTimer = undefined;
           const currentSession = roomManager.getRoom(roomId);
-          if (currentSession && currentSession.masterHostSocketId === socket.id) {
+          if (
+            currentSession &&
+            currentSession.masterHostSocketId === socket.id
+          ) {
             runtimeUsagePublisher.publish(
               createRoomRuntimeUsageEvent(currentSession, {
                 kind: "room_closed",
@@ -151,7 +153,9 @@ export const registerDisconnectHandler = (
 
     const session = roomManager.getRoom(controller.roomId);
     if (session) {
-      const controllerSession = session.controllers.get(controller.controllerId);
+      const controllerSession = session.controllers.get(
+        controller.controllerId,
+      );
       const resumeLeaseMs = getControllerResumeLeaseMs();
       const resumeLeaseExpiresAt = Date.now() + resumeLeaseMs;
 
@@ -177,11 +181,7 @@ export const registerDisconnectHandler = (
           }
           currentController.pendingDisconnectTimer = undefined;
           currentSession.controllers.delete(controller.controllerId);
-          emitControllerLeftNotice(
-            io,
-            currentSession,
-            controller.controllerId,
-          );
+          emitControllerLeftNotice(io, currentSession, controller.controllerId);
           runtimeUsagePublisher.publish(
             createRoomRuntimeUsageEvent(currentSession, {
               kind: "controller_left",

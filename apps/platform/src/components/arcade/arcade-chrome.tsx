@@ -1,12 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  platformShellBarClassName,
-  platformShellInsetClassName,
-  platformShellUtilityButtonActiveClassName,
-  platformShellUtilityButtonClassName,
-} from "@/components/shell-classes";
 import { cn } from "@/lib/utils";
 import type { PlayerProfile } from "@air-jam/sdk";
 import { PlayerAvatarStrip } from "@air-jam/sdk/ui";
@@ -57,18 +51,16 @@ export const ArcadeChrome = ({
   highContrast = false,
 }: ArcadeChromeProps) => {
   const showElevatedBar = !listAtTop;
-  const utilityIconButtonClassName = cn(
-    "size-9 shrink-0 rounded-xl p-0",
-    platformShellUtilityButtonClassName,
-  );
+  const iconButtonClassName =
+    "size-8 shrink-0 border-white/20 bg-black/20 p-0 text-white hover:bg-white/10";
 
   return (
     <header
       className={cn(
-        "px-4 py-2.5 transition-[background-color,backdrop-filter,border-color] duration-200 ease-out",
+        "px-4 py-2 transition-[background-color,backdrop-filter,border-color] duration-200 ease-out",
         showElevatedBar
           ? highContrast
-            ? "border-b border-white/20 bg-black/92 backdrop-blur-md"
+            ? "border-b border-white/20 bg-black/90 backdrop-blur-md"
             : "border-b border-white/10 bg-black/80 backdrop-blur-md"
           : highContrast
             ? "border-b border-white/10"
@@ -76,80 +68,50 @@ export const ArcadeChrome = ({
         className,
       )}
     >
-      <div
-        className={cn(
-          "flex w-full items-center justify-between gap-3 rounded-[1.6rem] px-2 py-1.5",
-          platformShellBarClassName,
-          highContrast && "border-white/20",
-        )}
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-11 shrink-0 items-center rounded-[1.1rem] border border-white/10 bg-white/[0.045] px-3">
-            <Image
-              src="/images/airjam-logo.png"
-              alt="Air Jam"
-              width={160}
-              height={40}
-              className="h-6.5 w-auto shrink-0 object-contain"
-              priority={false}
-            />
-          </div>
-          <div
-            className={cn(
-              "min-w-0 px-3 py-2",
-              platformShellInsetClassName,
-            )}
-            title={lastError ?? `Connection ${connectionStatus}`}
-          >
+      <div className="flex w-full items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Image
+            src="/images/airjam-logo.png"
+            alt="Air Jam"
+            width={160}
+            height={40}
+            className="h-7 w-auto shrink-0 object-contain"
+            priority={false}
+          />
+          <div title={lastError ?? `Connection ${connectionStatus}`}>
             <span className="sr-only">{`Connection ${connectionStatus}. `}</span>
-            <div className="flex items-center gap-1.5">
-              <p className="text-[10px] font-semibold tracking-[0.18em] text-white/50 uppercase">
-                Room
-              </p>
-              <span
-                className={cn(
-                  "h-1.5 w-1.5 shrink-0 rounded-full",
-                  connectionStatus === "connected"
-                    ? "bg-emerald-300"
-                    : connectionStatus === "connecting" ||
-                        connectionStatus === "reconnecting"
-                      ? "bg-amber-300"
-                      : connectionStatus === "idle"
-                        ? "bg-white/45"
-                        : "bg-rose-300",
-                )}
-                aria-hidden
-              />
-            </div>
+            <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
+              Room
+            </p>
             <p
-              className="text-lg leading-tight font-semibold tracking-[0.08em] text-white tabular-nums"
+              className="text-lg leading-tight font-semibold text-white"
               data-testid="arcade-room-code"
             >
               {roomId || "----"}
             </p>
             {lastError ? (
-              <p className="max-w-[22rem] text-[11px] leading-tight text-rose-200/90">
+              <p className="max-w-[22rem] text-[11px] leading-tight text-rose-300">
                 {lastError}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex h-8 items-center gap-3">
           <div
-            className={cn("hidden items-center gap-3 px-3 py-2 md:flex", platformShellInsetClassName)}
+            className="flex h-8 items-center gap-3"
             aria-label={`${players.length} player${players.length === 1 ? "" : "s"} joined`}
           >
             <PlayerAvatarStrip
               players={players}
               size="sm"
               maxVisible={4}
-              avatarClassName="ring-2 ring-black/95"
-              overflowBadgeClassName="border-white/18 bg-slate-700/80 text-white ring-2 ring-black/95"
+              avatarClassName="ring-2 ring-black/90"
+              overflowBadgeClassName="border-white/25 bg-slate-700 text-white ring-2 ring-black/90"
             />
-            <div className="flex h-8 items-center gap-1.5 text-white/72">
+            <div className="flex h-8 items-center gap-1.5 text-slate-300">
               <Users className="h-4 w-4 shrink-0" aria-hidden />
-              <span className="text-sm leading-none font-medium text-white tabular-nums">
+              <span className="text-sm leading-none font-medium text-slate-100 tabular-nums">
                 {players.length}
               </span>
             </div>
@@ -157,14 +119,9 @@ export const ArcadeChrome = ({
 
           <Button
             type="button"
-            variant="outline"
+            variant={settingsVisible ? "default" : "outline"}
             size="icon-sm"
-            className={cn(
-              utilityIconButtonClassName,
-              settingsVisible
-                ? platformShellUtilityButtonActiveClassName
-                : platformShellUtilityButtonClassName,
-            )}
+            className={iconButtonClassName}
             onClick={onToggleSettings}
             aria-label={settingsVisible ? "Hide settings" : "Show settings"}
             title={settingsVisible ? "Hide settings" : "Show settings"}
@@ -174,16 +131,13 @@ export const ArcadeChrome = ({
 
           <Button
             type="button"
-            variant="outline"
+            variant={documentFullscreen ? "default" : "outline"}
             size="icon-sm"
-            className={cn(
-              utilityIconButtonClassName,
-              documentFullscreen
-                ? platformShellUtilityButtonActiveClassName
-                : platformShellUtilityButtonClassName,
-            )}
+            className={iconButtonClassName}
             onClick={onToggleFullscreen}
-            aria-label={documentFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            aria-label={
+              documentFullscreen ? "Exit fullscreen" : "Enter fullscreen"
+            }
             title={documentFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
             {documentFullscreen ? (
@@ -196,12 +150,7 @@ export const ArcadeChrome = ({
           <Button
             type="button"
             variant="outline"
-            className={cn(
-              "h-9 shrink-0 gap-1.5 rounded-xl px-3 text-xs font-medium",
-              qrVisible
-                ? platformShellUtilityButtonActiveClassName
-                : platformShellUtilityButtonClassName,
-            )}
+            className="h-8 w-24 shrink-0 gap-1 border-white/20 bg-black/20 px-2 text-xs text-white hover:bg-white/10"
             onClick={onToggleQr}
             aria-label={qrVisible ? "Hide join QR" : "Show join QR"}
             title={qrVisible ? "Hide join QR" : "Show join QR"}

@@ -85,7 +85,9 @@ export const RoomQrCode = ({
   ]);
 
   const imageSrc =
-    trimmed && qrState.key === qrKey && qrState.dataUrl ? qrState.dataUrl : null;
+    trimmed && qrState.key === qrKey && qrState.dataUrl
+      ? qrState.dataUrl
+      : null;
   const isLoading = !!trimmed && qrState.key !== qrKey;
   const isUnavailable = !trimmed || (qrState.key === qrKey && qrState.error);
 

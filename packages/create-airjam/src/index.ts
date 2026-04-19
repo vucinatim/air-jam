@@ -1,3 +1,4 @@
+import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
 import { Command } from "commander";
 import fs from "fs-extra";
 import kleur from "kleur";
@@ -6,10 +7,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
 import yazl from "yazl";
-import {
-  formatEnvValidationError,
-  isEnvValidationError,
-} from "@air-jam/env";
 import { runGameDevCli } from "../runtime/game-dev.mjs";
 import { runSecureInitCli } from "../runtime/secure-dev.mjs";
 import { runProjectTopologyCli } from "../runtime/topology.mjs";
@@ -26,7 +23,11 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const manifestPath = path.resolve(__dirname, "..", "template-version-manifest.json");
+const manifestPath = path.resolve(
+  __dirname,
+  "..",
+  "template-version-manifest.json",
+);
 const packageJsonPath = path.resolve(__dirname, "..", "package.json");
 const templateAssetsBaseDir = path.resolve(
   __dirname,
@@ -274,7 +275,9 @@ const getDefaultReleaseBundlePath = ({
   packageVersion?: string;
 }): string => {
   const normalizedReleaseLabel = sanitizePathSegment(packageVersion || "dev");
-  const normalizedPackageName = sanitizePathSegment(packageName || "airjam-game");
+  const normalizedPackageName = sanitizePathSegment(
+    packageName || "airjam-game",
+  );
 
   return path.join(
     targetDir,
@@ -301,7 +304,8 @@ const readConfiguredControllerPath = async (
 const assertHostedReleaseControllerPath = async (
   targetDir: string,
 ): Promise<void> => {
-  const configuredControllerPath = await readConfiguredControllerPath(targetDir);
+  const configuredControllerPath =
+    await readConfiguredControllerPath(targetDir);
   if (
     configuredControllerPath &&
     configuredControllerPath !== HOSTED_RELEASE_CONTROLLER_PATH
@@ -661,7 +665,9 @@ const runScaffoldCommand = async (
       );
     }
   } else {
-    console.log(kleur.yellow("Skipped dependency installation (--skip-install).\n"));
+    console.log(
+      kleur.yellow("Skipped dependency installation (--skip-install).\n"),
+    );
   }
 
   console.log("Next steps:\n");
@@ -671,21 +677,17 @@ const runScaffoldCommand = async (
     kleur.cyan("  pnpm run dev         # Recommended: start server + game"),
   );
   console.log(
-    kleur.cyan("  pnpm run dev -- --web-only  # Optional: official backend only"),
+    kleur.cyan(
+      "  pnpm run dev -- --web-only  # Optional: official backend only",
+    ),
   );
   console.log(
     kleur.cyan(
       "  # Optional HTTPS mode (needed for gyro/camera testing on phones)",
     ),
   );
-  console.log(
-    kleur.cyan(
-      "  pnpm run secure:init",
-    ),
-  );
-  console.log(
-    kleur.cyan("  pnpm run dev -- --secure"),
-  );
+  console.log(kleur.cyan("  pnpm run secure:init"));
+  console.log(kleur.cyan("  pnpm run dev -- --secure"));
   console.log(
     kleur.cyan(
       "  # Optional Cloudflare fallback: pnpm run secure:init -- --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev",
@@ -735,13 +737,21 @@ const buildProgram = () => {
     .command("status")
     .description("Show AI pack status for a project")
     .option("--dir <path>", "Project directory to inspect")
-    .option("--manifest-url <url>", "Override the hosted AI pack root manifest URL")
-    .option("--manifest-file <path>", "Read the AI pack root manifest from a local file")
+    .option(
+      "--manifest-url <url>",
+      "Override the hosted AI pack root manifest URL",
+    )
+    .option(
+      "--manifest-file <path>",
+      "Read the AI pack root manifest from a local file",
+    )
     .action(async (options: unknown) => {
       await runAiPackStatus(
-        resolveActionOptions<{ dir?: string; manifestUrl?: string; manifestFile?: string }>(
-          options,
-        ),
+        resolveActionOptions<{
+          dir?: string;
+          manifestUrl?: string;
+          manifestFile?: string;
+        }>(options),
       );
     });
 
@@ -749,13 +759,21 @@ const buildProgram = () => {
     .command("diff")
     .description("Show AI pack file differences for a project")
     .option("--dir <path>", "Project directory to inspect")
-    .option("--manifest-url <url>", "Override the hosted AI pack root manifest URL")
-    .option("--manifest-file <path>", "Read the AI pack root manifest from a local file")
+    .option(
+      "--manifest-url <url>",
+      "Override the hosted AI pack root manifest URL",
+    )
+    .option(
+      "--manifest-file <path>",
+      "Read the AI pack root manifest from a local file",
+    )
     .action(async (options: unknown) => {
       await runAiPackDiff(
-        resolveActionOptions<{ dir?: string; manifestUrl?: string; manifestFile?: string }>(
-          options,
-        ),
+        resolveActionOptions<{
+          dir?: string;
+          manifestUrl?: string;
+          manifestFile?: string;
+        }>(options),
       );
     });
 
@@ -763,9 +781,19 @@ const buildProgram = () => {
     .command("update")
     .description("Update managed AI pack assets for a project")
     .option("--dir <path>", "Project directory to inspect")
-    .option("--manifest-url <url>", "Override the hosted AI pack root manifest URL")
-    .option("--manifest-file <path>", "Read the AI pack root manifest from a local file")
-    .option("--force", "Overwrite same-version managed file drift during update", false)
+    .option(
+      "--manifest-url <url>",
+      "Override the hosted AI pack root manifest URL",
+    )
+    .option(
+      "--manifest-file <path>",
+      "Read the AI pack root manifest from a local file",
+    )
+    .option(
+      "--force",
+      "Overwrite same-version managed file drift during update",
+      false,
+    )
     .action(async (options: unknown) => {
       await runAiPackUpdate(
         resolveActionOptions<{
@@ -791,7 +819,11 @@ const buildProgram = () => {
     .option("--dir <path>", "Project directory to bundle")
     .option("--dist-dir <path>", "Built static output directory")
     .option("--out <path>", "Output zip file path")
-    .option("--skip-build", "Reuse the existing dist directory without building", false)
+    .option(
+      "--skip-build",
+      "Reuse the existing dist directory without building",
+      false,
+    )
     .action(async (options: unknown) => {
       await runReleaseBundleCommand(
         resolveActionOptions<{
@@ -848,13 +880,19 @@ const buildProgram = () => {
 
   program
     .command("topology")
-    .description("Print the resolved project runtime topology for the current game")
+    .description(
+      "Print the resolved project runtime topology for the current game",
+    )
     .allowUnknownOption(false)
     .requiredOption(
       "--mode <mode>",
       "Topology mode to inspect (standalone-dev, self-hosted-production, hosted-release)",
     )
-    .option("--secure", "Resolve standalone local topology using trusted local HTTPS", false)
+    .option(
+      "--secure",
+      "Resolve standalone local topology using trusted local HTTPS",
+      false,
+    )
     .action(async () => {
       await runProjectTopologyCli({
         argv: normalizeRuntimeCliArgv(process.argv.slice(3)),

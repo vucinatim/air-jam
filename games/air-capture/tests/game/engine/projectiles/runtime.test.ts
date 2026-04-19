@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import { Object3D } from "three";
+import { describe, expect, it, vi } from "vitest";
 import {
   collectProjectileRuntimeTargets,
   findControllerRigidBody,

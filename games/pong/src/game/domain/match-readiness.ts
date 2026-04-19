@@ -6,7 +6,11 @@
  * count.
  */
 import type { TeamId } from "./team";
-import { getEffectiveTeamCounts, type BotCounts, type TeamCounts } from "./team-slots";
+import {
+  getEffectiveTeamCounts,
+  type BotCounts,
+  type TeamCounts,
+} from "./team-slots";
 
 export interface MatchReadiness {
   canStart: boolean;

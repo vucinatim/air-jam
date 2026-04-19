@@ -13,7 +13,10 @@ type LandingPageProps = {
   equationCodeBlock: ReactNode;
 };
 
-export const LandingPage = ({ sdkProofCodes, equationCodeBlock }: LandingPageProps) => {
+export const LandingPage = ({
+  sdkProofCodes,
+  equationCodeBlock,
+}: LandingPageProps) => {
   return (
     <div className="min-h-screen overflow-x-hidden">
       <LandingHero />

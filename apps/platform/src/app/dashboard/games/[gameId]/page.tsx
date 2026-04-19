@@ -31,17 +31,24 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { buildCreateAirJamTemplateCommand } from "@/lib/create-airjam-template-command";
 import { getArcadeVisibilityLabel } from "@/lib/games/arcade-visibility";
+import {
+  gameConfigSourceUrlSchema,
+  gameConfigTemplateIdSchema,
+} from "@/lib/games/game-config-contract";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Check,
   ChevronDown,
+  Code2,
   Copy,
   Eye,
   EyeOff,
   Gamepad2,
+  Github,
   Globe,
   ImageIcon,
   Key,
@@ -70,6 +77,8 @@ const overviewSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with dashes"),
   description: z.string().optional(),
   previewUrl: z.union([z.literal(""), z.string().url("Must be a valid URL")]),
+  sourceUrl: z.union([z.literal(""), gameConfigSourceUrlSchema]),
+  templateId: z.union([z.literal(""), gameConfigTemplateIdSchema]),
 });
 
 type OverviewForm = z.infer<typeof overviewSchema>;
@@ -144,10 +153,21 @@ export default function GameOverviewPage() {
 
   const form = useForm<OverviewForm>({
     resolver: zodResolver(overviewSchema),
-    defaultValues: { name: "", slug: "", description: "", previewUrl: "" },
+    defaultValues: {
+      name: "",
+      slug: "",
+      description: "",
+      previewUrl: "",
+      sourceUrl: "",
+      templateId: "",
+    },
   });
 
   const watchedSlug = useWatch({ control: form.control, name: "slug" });
+  const watchedTemplateId = useWatch({
+    control: form.control,
+    name: "templateId",
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSlug(watchedSlug || ""), 300);
@@ -161,6 +181,8 @@ export default function GameOverviewPage() {
       slug: game.slug || "",
       description: game.description || "",
       previewUrl: game.url ?? "",
+      sourceUrl: game.config?.sourceUrl ?? "",
+      templateId: game.config?.templateId ?? "",
     });
   }, [form, game]);
 
@@ -214,6 +236,8 @@ export default function GameOverviewPage() {
         slug: data.slug,
         description: data.description,
         url: data.previewUrl.trim() ? data.previewUrl.trim() : null,
+        sourceUrl: data.sourceUrl.trim() ? data.sourceUrl.trim() : null,
+        templateId: data.templateId.trim() ? data.templateId.trim() : null,
       })
       .then(() => alert("Overview saved successfully."))
       .catch(() => {});
@@ -286,6 +310,7 @@ export default function GameOverviewPage() {
     isSlugFormatValid &&
     debouncedSlug === watchedSlug;
   const isSlugAvailable = slugCheck?.available ?? false;
+  const scaffoldCommand = buildCreateAirJamTemplateCommand(watchedTemplateId);
 
   const mediaConfigured = [
     game.thumbnailUrl,
@@ -562,6 +587,66 @@ export default function GameOverviewPage() {
                     </FormItem>
                   )}
                 />
+
+                <div className="rounded-lg border border-dashed p-4">
+                  <div className="mb-4">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold">
+                      <Github className="h-4 w-4" />
+                      Developer Links
+                    </h3>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      Optional public Arcade actions for source code and
+                      create-airjam templates.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="sourceUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Source Repository URL</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://github.com/vucinatim/air-jam/tree/main/games/pong"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Shows the GitHub icon on the Arcade card when set.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="templateId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Create-AirJam Template ID</FormLabel>
+                          <FormControl>
+                            <Input placeholder="pong" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Shows the code icon and copies the generated npx
+                            command.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {scaffoldCommand ? (
+                    <div className="bg-muted/50 mt-4 flex items-start gap-2 rounded-md border p-3 text-xs">
+                      <Code2 className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <code className="break-all">{scaffoldCommand}</code>
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="flex justify-end pt-2">
                   <Button

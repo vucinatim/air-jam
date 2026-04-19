@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Bug, X } from "lucide-react";
 import type React from "react";
 import { useDebugStore } from "../stores/debug/debug-store";
-import { cn } from "@/lib/utils";
 
 interface DebugOverlayProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export function DebugOverlay({ children }: DebugOverlayProps) {
       <button
         onClick={toggle}
         className={cn(
-          "fixed top-14 left-4 z-80 pointer-events-auto",
+          "pointer-events-auto fixed top-14 left-4 z-80",
           "size-10 rounded-md",
           "bg-background/90 border-border border",
           "flex items-center justify-center",
@@ -37,7 +37,7 @@ export function DebugOverlay({ children }: DebugOverlayProps) {
       {/* Sidebar Overlay */}
       <div
         className={cn(
-          "bg-background/90 fixed top-0 left-0 z-80 h-full pointer-events-auto",
+          "bg-background/90 pointer-events-auto fixed top-0 left-0 z-80 h-full",
           "border-border/50 rounded-r-2xl border-r",
           "shadow-2xl",
           "transition-transform duration-300 ease-in-out",

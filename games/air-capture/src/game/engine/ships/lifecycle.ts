@@ -14,11 +14,9 @@ export function getShipDeathPosition(
   ];
 }
 
-export function buildShipRespawnPosition(basePosition: [number, number, number]): [
-  number,
-  number,
-  number,
-] {
+export function buildShipRespawnPosition(
+  basePosition: [number, number, number],
+): [number, number, number] {
   return [
     basePosition[0],
     basePosition[1] + SHIP_RESPAWN_HEIGHT_OFFSET,

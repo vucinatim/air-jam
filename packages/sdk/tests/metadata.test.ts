@@ -71,6 +71,14 @@ describe("air jam game metadata manifest", () => {
     expect(metadata.supportedSdkRange).toBe(">=1.2 <2");
   });
 
+  it("accepts launch games above the default 8-player room size", () => {
+    const metadata = defineAirJamGameMetadata({
+      ...baseInput,
+      maxPlayers: 10,
+    });
+    expect(metadata.maxPlayers).toBe(10);
+  });
+
   it("parseAirJamGameMetadata returns ok=false on invalid input", () => {
     const result = parseAirJamGameMetadata({ slug: "bad input!" });
     expect(result.ok).toBe(false);

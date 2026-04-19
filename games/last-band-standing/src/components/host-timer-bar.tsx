@@ -6,9 +6,9 @@ interface HostTimerBarProps {
 
 export const HostTimerBar = ({ countdownFraction }: HostTimerBarProps) => {
   return (
-    <div className="h-1 w-full shrink-0 bg-muted">
+    <div className="bg-muted h-1 w-full shrink-0">
       <motion.div
-        className="h-full bg-primary"
+        className="bg-primary h-full"
         animate={{ width: `${countdownFraction * 100}%` }}
         transition={{ duration: 0.25, ease: "linear" }}
       />

@@ -16,4 +16,3 @@ export function createLoginHref(nextPath?: string | null): string {
   const normalizedPath = normalizePostAuthPath(nextPath);
   return `/login?next=${encodeURIComponent(normalizedPath)}`;
 }
-

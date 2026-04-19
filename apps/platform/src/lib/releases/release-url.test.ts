@@ -59,9 +59,7 @@ describe("rewriteHostedReleaseHtmlAssetUrls", () => {
         gameId: "game-1",
         releaseId: "release-1",
       }),
-    ).toContain(
-      `${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/assets/app.css`,
-    );
+    ).toContain(`${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/assets/app.css`);
   });
 
   it("preserves protocol-relative urls", () => {

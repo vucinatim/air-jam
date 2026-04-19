@@ -16,24 +16,24 @@ import {
   canTransitionReleaseStatus,
 } from "@/lib/releases/release-policy";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
+import { assertOwnedRelease } from "@/server/releases/assert-owned-release";
 import { assertReleaseExists } from "@/server/releases/assert-release-exists";
+import { findPublicReleaseBySlugOrId } from "@/server/releases/public-release-record";
 import {
   finalizeReleaseUpload,
   requestReleaseUploadTarget,
 } from "@/server/releases/release-artifact-service";
-import { assertOwnedRelease } from "@/server/releases/assert-owned-release";
 import { runReleaseModeration } from "@/server/releases/release-moderation-service";
 import { quarantineRelease } from "@/server/releases/release-status-service";
-import { findPublicReleaseBySlugOrId } from "@/server/releases/public-release-record";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
+  RATE_LIMITS,
   createTRPCRouter,
   opsProcedure,
   protectedProcedure,
   publicProcedure,
   rateLimitMiddleware,
-  RATE_LIMITS,
 } from "../trpc";
 
 const createDraftReleaseInput = z.object({
@@ -192,7 +192,9 @@ export const releaseRouter = createTRPCRouter({
         ),
     ]);
 
-    const ownerIds = Array.from(new Set(releaseGames.map((game) => game.userId)));
+    const ownerIds = Array.from(
+      new Set(releaseGames.map((game) => game.userId)),
+    );
     const releaseOwners =
       ownerIds.length === 0
         ? []
@@ -250,7 +252,12 @@ export const releaseRouter = createTRPCRouter({
   }),
 
   requestUploadTarget: protectedProcedure
-    .use(rateLimitMiddleware("release.requestUploadTarget", RATE_LIMITS.releaseCreate))
+    .use(
+      rateLimitMiddleware(
+        "release.requestUploadTarget",
+        RATE_LIMITS.releaseCreate,
+      ),
+    )
     .input(requestUploadTargetInput)
     .mutation(async ({ input, ctx }) => {
       const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
@@ -293,7 +300,9 @@ export const releaseRouter = createTRPCRouter({
             ),
           );
 
-        const existingLiveReleaseIds = existingLiveReleases.map((item) => item.id);
+        const existingLiveReleaseIds = existingLiveReleases.map(
+          (item) => item.id,
+        );
         if (existingLiveReleaseIds.length > 0) {
           await tx
             .update(gameReleases)

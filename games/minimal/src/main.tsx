@@ -3,8 +3,8 @@
  * the Arcade shell can embed this game under its own path without breaking
  * routing. All actual Air Jam wiring happens inside `./app`.
  */
-import "@air-jam/sdk/styles.css";
 import { resolveAirJamBrowserRouterBasename } from "@air-jam/sdk";
+import "@air-jam/sdk/styles.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

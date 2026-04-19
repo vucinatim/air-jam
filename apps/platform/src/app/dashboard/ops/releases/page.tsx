@@ -1,11 +1,11 @@
+import { db } from "@/db";
+import { users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { createLoginHref } from "@/lib/auth-redirect";
 import { isOpsAdmin } from "@/lib/auth/user-role";
-import { db } from "@/db";
-import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { OpsReleasesPageClient } from "./page-client";
 
 export default async function OpsReleasesPage() {

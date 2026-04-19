@@ -14,6 +14,7 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
     matchPhase: string | null;
     runtimeState: string | null;
     storeActions: {
+      startMatch: () => void;
       finishMatch: () => void;
     };
   }) => ({
@@ -26,6 +27,22 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
     runtimeState: context.runtimeState,
   }),
   actions: {
+    startMatch: bridgeAction.custom(
+      (context: {
+        matchPhase: string | null;
+        storeActions: {
+          startMatch: () => void;
+        };
+      }) => {
+        if (context.matchPhase !== "lobby") {
+          throw new Error(
+            "[visual-harness:the-office.startMatch] can only run during the lobby phase",
+          );
+        }
+
+        context.storeActions.startMatch();
+      },
+    ),
     forceEndMatch: bridgeAction.custom(
       (context: {
         matchPhase: string | null;

@@ -110,12 +110,19 @@ const rawServerEnvSchema = z
       "AIR_JAM_STATIC_APP_RATE_LIMIT_MAX",
       120,
     ),
-    AIR_JAM_ALLOWED_ORIGINS: z.preprocess(trimToUndefined, z.string().optional()),
-    AIR_JAM_DEV_LOG_COLLECTOR: z
-      .preprocess(trimToUndefined, z.enum(["enabled", "disabled"]).optional()),
+    AIR_JAM_ALLOWED_ORIGINS: z.preprocess(
+      trimToUndefined,
+      z.string().optional(),
+    ),
+    AIR_JAM_DEV_LOG_COLLECTOR: z.preprocess(
+      trimToUndefined,
+      z.enum(["enabled", "disabled"]).optional(),
+    ),
     AIR_JAM_DEV_LOG_DIR: z.preprocess(trimToUndefined, z.string().optional()),
-    AIR_JAM_AUTH_MODE: z
-      .preprocess(trimToUndefined, z.enum(["disabled", "required"]).optional()),
+    AIR_JAM_AUTH_MODE: z.preprocess(
+      trimToUndefined,
+      z.enum(["disabled", "required"]).optional(),
+    ),
     AIR_JAM_TRUST_PROXY_HEADERS: z.preprocess(
       trimToUndefined,
       z.enum(["auto", "enabled", "disabled"]).optional(),
@@ -125,7 +132,10 @@ const rawServerEnvSchema = z
       z.enum(["enabled", "disabled"]).optional(),
     ),
     AIR_JAM_MASTER_KEY: z.preprocess(trimToUndefined, z.string().optional()),
-    AIR_JAM_HOST_GRANT_SECRET: z.preprocess(trimToUndefined, z.string().optional()),
+    AIR_JAM_HOST_GRANT_SECRET: z.preprocess(
+      trimToUndefined,
+      z.string().optional(),
+    ),
     DATABASE_URL: z.preprocess(trimToUndefined, z.string().optional()),
     AIR_JAM_LOG_LEVEL: z.preprocess(trimToUndefined, z.string().optional()),
     AIR_JAM_MAINTENANCE_MODE: z.preprocess(

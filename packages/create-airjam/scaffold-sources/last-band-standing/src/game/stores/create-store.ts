@@ -1,13 +1,16 @@
-import { createAirJamStore } from "@air-jam/sdk";
-import { rankPlayers } from "@/game/domain/round-engine";
-import { normalizePlayerName } from "@/utils/player-utils";
 import {
   DEFAULT_REVEAL_DURATION_SEC,
   DEFAULT_ROUND_DURATION_SEC,
   DEFAULT_TOTAL_ROUNDS,
 } from "@/config";
-import { type QuizState } from "./types";
-import { buildNextPlayerLabelMap, buildPlayerLabelMap, filterRecordByPlayerIds } from "./player-helpers";
+import { rankPlayers } from "@/game/domain/round-engine";
+import { normalizePlayerName } from "@/utils/player-utils";
+import { createAirJamStore } from "@air-jam/sdk";
+import {
+  buildNextPlayerLabelMap,
+  buildPlayerLabelMap,
+  filterRecordByPlayerIds,
+} from "./player-helpers";
 import {
   createInitialScoreboard,
   createRound,
@@ -16,6 +19,7 @@ import {
   pickPlaylistSongIds,
   resetLobbyState,
 } from "./round-helpers";
+import { type QuizState } from "./types";
 
 export const useGameStore = createAirJamStore<QuizState>((set) => ({
   phase: "lobby",
@@ -50,7 +54,9 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
         const retainedOrder = state.playerOrder.filter((playerId) =>
           playerIds.includes(playerId),
         );
-        const newPlayerIds = playerIds.filter((playerId) => !retainedOrder.includes(playerId));
+        const newPlayerIds = playerIds.filter(
+          (playerId) => !retainedOrder.includes(playerId),
+        );
         const nextPlayerOrder = [...retainedOrder, ...newPlayerIds];
         const nextPlayerLabelById = buildNextPlayerLabelMap(
           nextPlayerOrder,
@@ -58,20 +64,22 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
           state.playerLabelById,
         );
 
-        const nextReadyByPlayerId = nextPlayerOrder.reduce<Record<string, boolean>>(
-          (nextReady, playerId) => {
-            nextReady[playerId] = state.readyByPlayerId[playerId] ?? false;
-            return nextReady;
-          },
-          {},
-        );
+        const nextReadyByPlayerId = nextPlayerOrder.reduce<
+          Record<string, boolean>
+        >((nextReady, playerId) => {
+          nextReady[playerId] = state.readyByPlayerId[playerId] ?? false;
+          return nextReady;
+        }, {});
 
         if (state.phase === "lobby") {
           const hasSameOrder =
             state.playerOrder.length === nextPlayerOrder.length &&
-            state.playerOrder.every((playerId, index) => playerId === nextPlayerOrder[index]);
+            state.playerOrder.every(
+              (playerId, index) => playerId === nextPlayerOrder[index],
+            );
           const hasSameLabels = nextPlayerOrder.every(
-            (playerId) => state.playerLabelById[playerId] === nextPlayerLabelById[playerId],
+            (playerId) =>
+              state.playerLabelById[playerId] === nextPlayerLabelById[playerId],
           );
 
           if (hasSameOrder && hasSameLabels) {
@@ -113,14 +121,14 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
             state.scoreboardByPlayerId,
             nextActivePlayerIds,
           ),
-          finalRankingPlayerIds: state.finalRankingPlayerIds.filter((playerId) =>
-            nextActivePlayerIds.includes(playerId),
+          finalRankingPlayerIds: state.finalRankingPlayerIds.filter(
+            (playerId) => nextActivePlayerIds.includes(playerId),
           ),
           currentRound: state.currentRound
             ? {
                 ...state.currentRound,
-                expectedPlayerIds: state.currentRound.expectedPlayerIds.filter((playerId) =>
-                  nextActivePlayerIds.includes(playerId),
+                expectedPlayerIds: state.currentRound.expectedPlayerIds.filter(
+                  (playerId) => nextActivePlayerIds.includes(playerId),
                 ),
               }
             : null,

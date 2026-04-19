@@ -1,5 +1,3 @@
-import { auth } from "@/lib/auth";
-import { createLoginHref } from "@/lib/auth-redirect";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DynamicBreadcrumbs } from "@/components/dynamic-breadcrumbs";
 import {
@@ -7,8 +5,10 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { createLoginHref } from "@/lib/auth-redirect";
 import { Github } from "lucide-react";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 

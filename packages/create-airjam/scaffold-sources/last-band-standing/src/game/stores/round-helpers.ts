@@ -1,3 +1,4 @@
+import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "@/config";
 import {
   buildRoundResults,
   findFirstCorrectSummary,
@@ -10,13 +11,9 @@ import {
   pickRoundOptionSongIds,
   songBank,
 } from "@/song-bank";
-import { shuffleList } from "@/utils/shuffle";
-import { createEmptyScore } from "@/utils/player-utils";
-import {
-  DEFAULT_OPTION_COUNT,
-  STREAK_FIRE_MIN_ROUNDS,
-} from "@/config";
 import { type RoundGuessKind } from "@/types";
+import { createEmptyScore } from "@/utils/player-utils";
+import { shuffleList } from "@/utils/shuffle";
 import { type ActiveRound, type PlayerScore, type QuizState } from "./types";
 
 export const pickPlaylistSongIds = (count: number): string[] => {
@@ -47,7 +44,11 @@ export const createRound = (
     throw new Error(`Cannot create round for missing song: ${songId}`);
   }
 
-  const optionOrder = pickRoundOptionSongIds(song.id, DEFAULT_OPTION_COUNT, guessKind);
+  const optionOrder = pickRoundOptionSongIds(
+    song.id,
+    DEFAULT_OPTION_COUNT,
+    guessKind,
+  );
 
   return {
     roundNumber,
@@ -63,10 +64,13 @@ export const createRound = (
 export const createInitialScoreboard = (
   activePlayerIds: string[],
 ): Record<string, PlayerScore> => {
-  return activePlayerIds.reduce<Record<string, PlayerScore>>((scoreboard, playerId) => {
-    scoreboard[playerId] = createEmptyScore();
-    return scoreboard;
-  }, {});
+  return activePlayerIds.reduce<Record<string, PlayerScore>>(
+    (scoreboard, playerId) => {
+      scoreboard[playerId] = createEmptyScore();
+      return scoreboard;
+    },
+    {},
+  );
 };
 
 export const getTopRoundScorerIds = (
@@ -113,7 +117,10 @@ export const resetLobbyState = (state: QuizState): Partial<QuizState> => {
   };
 };
 
-export const finalizeRoundState = (state: QuizState, nowMs: number): QuizState => {
+export const finalizeRoundState = (
+  state: QuizState,
+  nowMs: number,
+): QuizState => {
   if (state.phase !== "round-active" || !state.currentRound) {
     return state;
   }
@@ -172,7 +179,8 @@ export const finalizeRoundState = (state: QuizState, nowMs: number): QuizState =
       points: previousScore.points + playerRoundResult.points,
       correct: previousScore.correct + (playerRoundResult.isCorrect ? 1 : 0),
       wrong: previousScore.wrong + (playerRoundResult.isCorrect ? 0 : 1),
-      totalResponseMs: previousScore.totalResponseMs + (playerRoundResult.responseMs ?? 0),
+      totalResponseMs:
+        previousScore.totalResponseMs + (playerRoundResult.responseMs ?? 0),
       answeredRounds: previousScore.answeredRounds + (didAnswer ? 1 : 0),
       mostPointsStreak,
       hasStreakFire: mostPointsStreak >= STREAK_FIRE_MIN_ROUNDS,
@@ -192,7 +200,10 @@ export const finalizeRoundState = (state: QuizState, nowMs: number): QuizState =
       songArtist: song.artist,
       guessKind: state.currentRound.guessKind,
       correctOptionId: song.id,
-      correctOptionLabel: getRoundOptionLabel(song, state.currentRound.guessKind),
+      correctOptionLabel: getRoundOptionLabel(
+        song,
+        state.currentRound.guessKind,
+      ),
       firstCorrectPlayerId: firstCorrectSummary.playerId,
       firstCorrectResponseMs: firstCorrectSummary.responseMs,
       resultsByPlayerId,

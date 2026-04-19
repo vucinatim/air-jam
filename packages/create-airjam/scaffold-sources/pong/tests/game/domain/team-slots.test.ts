@@ -7,12 +7,7 @@ import {
 
 describe("team slots", () => {
   it("builds fixed slot visuals from ordered humans and bot count", () => {
-    const slots = buildTeamSlots(
-      [
-        { id: "p1", label: "Alex" },
-      ],
-      1,
-    );
+    const slots = buildTeamSlots([{ id: "p1", label: "Alex" }], 1);
 
     expect(slots).toEqual([
       {
@@ -29,10 +24,7 @@ describe("team slots", () => {
 
   it("combines human and bot counts into effective occupancy", () => {
     expect(
-      getEffectiveTeamCounts(
-        { team1: 1, team2: 0 },
-        createEmptyBotCounts(),
-      ),
+      getEffectiveTeamCounts({ team1: 1, team2: 0 }, createEmptyBotCounts()),
     ).toEqual({ team1: 1, team2: 0 });
   });
 });

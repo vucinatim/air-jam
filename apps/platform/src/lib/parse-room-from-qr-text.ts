@@ -12,7 +12,10 @@ export const parseRoomFromQrText = (text: string): string | null => {
     const room =
       url.searchParams.get("room") ?? url.searchParams.get("aj_room");
     if (room) {
-      return room.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+      return room
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 8);
     }
   } catch {
     // not a URL

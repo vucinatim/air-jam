@@ -1,4 +1,7 @@
-import type { ResolvedAirJamRuntimeTopology, SurfaceRole } from "@air-jam/runtime-topology";
+import type {
+  ResolvedAirJamRuntimeTopology,
+  SurfaceRole,
+} from "@air-jam/runtime-topology";
 
 export declare const buildStandaloneGameTopology: (input: {
   surfaceRole: Extract<SurfaceRole, "host" | "controller">;

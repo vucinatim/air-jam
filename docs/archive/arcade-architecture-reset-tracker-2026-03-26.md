@@ -594,13 +594,13 @@ The architecture is not done until these behaviors are covered.
 
 Coverage is **split**: automated tests prove protocol/SDK/platform units; **Arcade UI reconnect** still needs manual passes in the platform app.
 
-| Scenario | Automated (partial) | Manual (Arcade shell) |
-| --- | --- | --- |
+| Scenario                                          | Automated (partial)                                                                                                                                               | Manual (Arcade shell)                   |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | Controller reconnect (browser vs in-game surface) | `networked-store.behavior.test.ts` (same-`controllerId` replay, reconnect ack suppression); `controller-bridge-runtime.behavior.test.ts` (attach snapshot replay) | Phase 3 exit criteria (Arcade shell UX) |
-| Host reconnect with controllers connected | `packages/server/tests/room-lifecycle.integration.test.ts` (host reconnect); `stability-churn.integration.test.ts` | Phase 4 exit criteria |
-| Game A → game B / pause / child host | `packages/server/tests/game-lifecycle.integration.test.ts` (“keeps controllers connected across game switches…”) | Drift-free embedded iframes |
-| Game → browser return | — | Manual |
-| Stale runtime / epoch | `validate-arcade-bridge-attach.test.ts`, controller/host bridge runtime tests, `arcade-bridge-request-surface.test.ts` | — |
+| Host reconnect with controllers connected         | `packages/server/tests/room-lifecycle.integration.test.ts` (host reconnect); `stability-churn.integration.test.ts`                                                | Phase 4 exit criteria                   |
+| Game A → game B / pause / child host              | `packages/server/tests/game-lifecycle.integration.test.ts` (“keeps controllers connected across game switches…”)                                                  | Drift-free embedded iframes             |
+| Game → browser return                             | —                                                                                                                                                                 | Manual                                  |
+| Stale runtime / epoch                             | `validate-arcade-bridge-attach.test.ts`, controller/host bridge runtime tests, `arcade-bridge-request-surface.test.ts`                                            | —                                       |
 
 Checklist (keep until manual passes are logged):
 

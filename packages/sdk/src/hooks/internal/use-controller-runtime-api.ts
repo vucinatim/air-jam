@@ -7,14 +7,15 @@ import {
   useClaimSessionRuntimeOwner,
 } from "../../context/session-scope";
 import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
+import { readPreviewControllerDeviceIdFromLocation } from "../../preview/identity";
 import type {
   ControllerJoinAck,
   ControllerStateMessage,
   ControllerUpdatePlayerProfileAck,
-  RuntimeState,
   PlayerProfile,
   PlayerProfilePatch,
   RoomCode,
+  RuntimeState,
   SignalPayload,
 } from "../../protocol";
 import {
@@ -30,17 +31,16 @@ import type {
   ControllerWelcomePayload,
   PlayerUpdatedNotice,
 } from "../../protocol/notices";
-import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
 import {
   clearControllerRoomBinding,
   getOrCreateControllerDeviceId,
   readControllerRoomBinding,
   writeControllerRoomBinding,
 } from "../../runtime/controller-identity";
+import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
 import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
-import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { readEmbeddedControllerChildSession } from "../../runtime/embedded-runtime-adapters";
-import { readPreviewControllerDeviceIdFromLocation } from "../../preview/identity";
+import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { generateControllerId } from "../../utils/ids";
 import { detectRunMode } from "../../utils/mode";
 import type {
@@ -191,9 +191,9 @@ export const useControllerRuntimeApi = (
   const selfPlayer = useMemo(
     () =>
       connectionState.controllerId
-        ? connectionState.players.find(
+        ? (connectionState.players.find(
             (player) => player.id === connectionState.controllerId,
-          ) ?? null
+          ) ?? null)
         : null,
     [connectionState.controllerId, connectionState.players],
   );
@@ -351,10 +351,16 @@ export const useControllerRuntimeApi = (
     }
 
     storeState.setControllerId(controllerId);
-    if (embeddedController?.playerProfile?.label || embeddedController?.playerProfile?.avatarId) {
+    if (
+      embeddedController?.playerProfile?.label ||
+      embeddedController?.playerProfile?.avatarId
+    ) {
       const fallbackPlayer: PlayerProfile = {
         id: controllerId,
-        label: embeddedController.playerProfile?.label || nicknameRef.current || "Player",
+        label:
+          embeddedController.playerProfile?.label ||
+          nicknameRef.current ||
+          "Player",
         ...(embeddedController.playerProfile?.avatarId
           ? { avatarId: embeddedController.playerProfile.avatarId }
           : avatarIdRef.current
@@ -507,7 +513,8 @@ export const useControllerRuntimeApi = (
 
       const latestState = store.getState();
       const previousRuntimeState = latestState.runtimeState;
-      const nextRuntimeState = payload.state.runtimeState ?? previousRuntimeState;
+      const nextRuntimeState =
+        payload.state.runtimeState ?? previousRuntimeState;
       const incomingVersion = payload.state.stateVersion;
       const previousVersion = lastObservedStateVersionRef.current;
       if (typeof incomingVersion === "number") {

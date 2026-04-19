@@ -18,11 +18,11 @@ import {
   RARITY_INFO,
   useAbilitiesStore,
 } from "../../abilities-store";
+import { useHostAudio } from "../../audio/use-host-audio";
 import {
   CollectibleData,
   useCollectiblesStore,
 } from "../../stores/world/collectibles-store";
-import { useHostAudio } from "../../audio/use-host-audio";
 
 interface CollectibleProps {
   collectible: CollectibleData;

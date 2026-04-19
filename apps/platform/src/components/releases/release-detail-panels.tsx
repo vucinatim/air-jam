@@ -97,7 +97,9 @@ export function ReleaseDetailPanels({
             )}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">No artifact metadata yet.</p>
+          <p className="text-muted-foreground text-sm">
+            No artifact metadata yet.
+          </p>
         )}
       </div>
 
@@ -111,7 +113,9 @@ export function ReleaseDetailPanels({
             {checks.map((check) => (
               <div key={check.id} className="rounded-md border p-2.5 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{formatCheckKind(check.kind)}</span>
+                  <span className="font-medium">
+                    {formatCheckKind(check.kind)}
+                  </span>
                   <Badge
                     variant={
                       check.status === "passed"
@@ -137,7 +141,9 @@ export function ReleaseDetailPanels({
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">No checks recorded yet.</p>
+          <p className="text-muted-foreground text-sm">
+            No checks recorded yet.
+          </p>
         )}
       </div>
 
@@ -153,7 +159,9 @@ export function ReleaseDetailPanels({
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{report.reason}</span>
                   <Badge
-                    variant={report.status === "open" ? "destructive" : "secondary"}
+                    variant={
+                      report.status === "open" ? "destructive" : "secondary"
+                    }
                     className="text-[10px]"
                   >
                     {report.status}

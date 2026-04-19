@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import {
   injectLocalBuildHtmlRuntimeBase,
   isLocalBuildSpaFallbackPath,
@@ -8,6 +6,8 @@ import {
   rewriteLocalBuildHtmlAssetUrls,
   rewriteLocalBuildTextAssetUrls,
 } from "@/lib/local-build-url";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -93,7 +93,8 @@ export async function GET(
 
   const contentType = getContentType(servedAssetPath);
   const isHtmlDocument =
-    contentType.includes("text/html") && servedAssetPath === LOCAL_BUILD_ENTRY_PATH;
+    contentType.includes("text/html") &&
+    servedAssetPath === LOCAL_BUILD_ENTRY_PATH;
   const isRewritableTextAsset =
     contentType.includes("text/javascript") || contentType.includes("text/css");
 

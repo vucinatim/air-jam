@@ -10,7 +10,8 @@ export const AIR_CAPTURE_FLAG_PREFAB = definePrefab({
   id: "air-capture.flag.team",
   label: "Team Flag",
   category: "objective",
-  description: "Team flag objective that can be captured, dropped, and returned.",
+  description:
+    "Team flag objective that can be captured, dropped, and returned.",
   tags: ["air-capture", "flag", "objective", "3d"],
   defaultProps: AIR_CAPTURE_FLAG_DEFAULT_PROPS,
   configSchema: airCaptureFlagPrefabSchema,

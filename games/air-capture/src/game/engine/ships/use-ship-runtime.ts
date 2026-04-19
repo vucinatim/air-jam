@@ -8,10 +8,10 @@ import { useAbilitiesStore } from "../../abilities-store";
 import { useHostAudio } from "../../audio/use-host-audio";
 import { useGameInput } from "../../hooks/use-game-input";
 import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
-import { useLasersStore } from "../../stores/projectiles/lasers-store";
+import { useFlightStateStore } from "../../stores/players/flight-state-store";
 import { useHealthStore } from "../../stores/players/health-store";
 import { usePlayerStatsStore } from "../../stores/players/player-stats-store";
-import { useFlightStateStore } from "../../stores/players/flight-state-store";
+import { useLasersStore } from "../../stores/projectiles/lasers-store";
 import { useRocketsStore } from "../../stores/projectiles/rockets-store";
 import { stepShipAbility } from "./abilities";
 import {
@@ -44,10 +44,7 @@ import {
   readShipPhysicsSnapshot,
   updateTrackedShipPose,
 } from "./runtime";
-import {
-  buildShipLaserShots,
-  shouldFireShipWeapons,
-} from "./weapons";
+import { buildShipLaserShots, shouldFireShipWeapons } from "./weapons";
 
 interface UseShipRuntimeParams {
   controllerId: string;
@@ -185,10 +182,9 @@ export function useShipRuntime({
 
       const deathPosition = getShipDeathPosition(shipWorldPos);
       try {
-        useCaptureTheFlagStore.getState().dropFlagAtPosition(
-          controllerId,
-          deathPosition,
-        );
+        useCaptureTheFlagStore
+          .getState()
+          .dropFlagAtPosition(controllerId, deathPosition);
         runtime.respawnAt = scheduleShipRespawn(time);
         setExplosionPosition(deathPosition);
         audio.play("explosion");
@@ -211,7 +207,11 @@ export function useShipRuntime({
       return;
     }
 
-    runtime.smoothedInput = smoothShipInput(runtime.smoothedInput, input.vector, delta);
+    runtime.smoothedInput = smoothShipInput(
+      runtime.smoothedInput,
+      input.vector,
+      delta,
+    );
 
     const currentFlightState = flightStateStore.getFlightState(controllerId);
     const controls = resolveShipControls(

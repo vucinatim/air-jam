@@ -3,10 +3,10 @@ import type {
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
   ControllerStateMessage,
-  RuntimeState,
   HostSessionKind,
   PlayerProfile,
   RoomCode,
+  RuntimeState,
 } from "@air-jam/sdk/protocol";
 
 type ControllerOrientation = NonNullable<

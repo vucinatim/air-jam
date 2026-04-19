@@ -36,7 +36,9 @@ const baseFragment = `
   }
 `;
 
-export function AirCapturePlayerBase({ teamId }: AirCapturePlayerBasePrefabProps) {
+export function AirCapturePlayerBase({
+  teamId,
+}: AirCapturePlayerBasePrefabProps) {
   const handleBaseEntry = useCaptureTheFlagStore(
     (state) => state.handleBaseEntry,
   );

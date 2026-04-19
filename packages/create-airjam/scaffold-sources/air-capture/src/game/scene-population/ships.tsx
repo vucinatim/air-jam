@@ -1,7 +1,7 @@
+import { Ship } from "../components/entities/ship";
 import { TEAM_IDS, type TeamId } from "../domain/team";
 import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
 import { useGameStore } from "../stores/players/game-store";
-import { Ship } from "../components/entities/ship";
 
 export function Ships() {
   const players = useGameStore((state) => state.players);

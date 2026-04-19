@@ -53,7 +53,8 @@ export const getReleaseModerationAvailability = () => {
   const probe = loadReleaseModerationAvailabilityProbeEnv();
   const wsEndpoint = probe.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null;
   const executablePath = probe.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null;
-  const internalAccessSecret = probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
+  const internalAccessSecret =
+    probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
   const openAiApiKey = probe.OPENAI_API_KEY ?? null;
 
   if (!wsEndpoint && !executablePath) {
@@ -86,10 +87,10 @@ export const getReleaseModerationAvailability = () => {
   const parsed = loadReleaseModerationEnv();
   cachedReleaseModerationConfig = {
     internalAccessSecret: parsed.internalAccessSecret,
-    publicBaseUrl: (
-      resolveConfiguredReleasesBaseUrl() ||
-      getSiteUrl()
-    ).replace(/\/$/, ""),
+    publicBaseUrl: (resolveConfiguredReleasesBaseUrl() || getSiteUrl()).replace(
+      /\/$/,
+      "",
+    ),
     browserLaunch: parsed.browserLaunch,
     openAi: parsed.openAi,
   };

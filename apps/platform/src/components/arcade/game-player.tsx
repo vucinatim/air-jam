@@ -1,16 +1,33 @@
 "use client";
 
-import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
 import {
   embeddedBridgeForwardShouldClose,
   shouldRejectHostBridgeHandshake,
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { cn } from "@/lib/utils";
+import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
+import { useInheritedPlatformSettings, type PlayerProfile } from "@air-jam/sdk";
 import {
-  type PlayerProfile,
-  useInheritedPlatformSettings,
-} from "@air-jam/sdk";
+  AIRJAM_HOST_BRIDGE_EVENT,
+  createHostBridgeAttachMessage,
+  createHostBridgeCloseMessage,
+  parseHostBridgeEmitMessage,
+  parseHostBridgeRequestMessage,
+  type AirJamRealtimeClient,
+  type HostBridgeServerEventName,
+} from "@air-jam/sdk/arcade/bridge/host";
+import {
+  AIRJAM_DEV_LOG_SINK_FAILURE,
+  AIRJAM_DEV_PROVIDER_MOUNTED,
+  createParentPlatformSettingsBridge,
+  emitAirJamDevRuntimeEvent,
+} from "@air-jam/sdk/arcade/bridge/iframe";
+import type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk/arcade/surface";
+import {
+  buildArcadeGameIframeSrc,
+  getRuntimeUrlOrigin,
+} from "@air-jam/sdk/arcade/url";
 import type {
   AirJamActionRpcPayload,
   ChildHostCapability,
@@ -25,26 +42,6 @@ import type {
   ServerErrorPayload,
 } from "@air-jam/sdk/protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
-import {
-  AIRJAM_HOST_BRIDGE_EVENT,
-  createHostBridgeAttachMessage,
-  createHostBridgeCloseMessage,
-  parseHostBridgeEmitMessage,
-  parseHostBridgeRequestMessage,
-  type AirJamRealtimeClient,
-  type HostBridgeServerEventName,
-} from "@air-jam/sdk/arcade/bridge/host";
-import type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk/arcade/surface";
-import {
-  buildArcadeGameIframeSrc,
-  getRuntimeUrlOrigin,
-} from "@air-jam/sdk/arcade/url";
-import {
-  AIRJAM_DEV_LOG_SINK_FAILURE,
-  AIRJAM_DEV_PROVIDER_MOUNTED,
-  createParentPlatformSettingsBridge,
-  emitAirJamDevRuntimeEvent,
-} from "@air-jam/sdk/arcade/bridge/iframe";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface GamePlayerGame {
@@ -57,6 +54,8 @@ export interface GamePlayerGame {
   videoUrl?: string | null;
   catalogSource?: "public_arcade" | "local_dev";
   catalogBadgeLabel?: string | null;
+  sourceUrl?: string | null;
+  templateId?: string | null;
 }
 
 interface GamePlayerProps {
@@ -109,7 +108,9 @@ export const GamePlayer = ({
     createParentPlatformSettingsBridge({
       onEvent: (event, payload) => {
         if (event === "bridgeAttached") {
-          const data = payload as { state: "unbound" | "waiting_ready" | "ready" };
+          const data = payload as {
+            state: "unbound" | "waiting_ready" | "ready";
+          };
           emitAirJamDevRuntimeEvent({
             event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
             message: "Arcade host attached embedded platform settings bridge",
@@ -127,7 +128,9 @@ export const GamePlayer = ({
         }
 
         if (event === "settingsReady") {
-          const data = payload as { state: "unbound" | "waiting_ready" | "ready" };
+          const data = payload as {
+            state: "unbound" | "waiting_ready" | "ready";
+          };
           emitAirJamDevRuntimeEvent({
             event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
             message: "Arcade host received embedded settings-ready request",
@@ -300,7 +303,10 @@ export const GamePlayer = ({
           return;
         }
 
-        hostSocket.emit(message.payload.event, ...(message.payload.args as never[]));
+        hostSocket.emit(
+          message.payload.event,
+          ...(message.payload.args as never[]),
+        );
       };
 
       const playerNotices: ControllerJoinedNotice[] = players.map((player) => ({
@@ -348,15 +354,13 @@ export const GamePlayer = ({
         return;
       }
 
-      currentPort.postMessage(
-        {
-          type: AIRJAM_HOST_BRIDGE_EVENT,
-          payload: {
-            event: eventName,
-            args,
-          },
+      currentPort.postMessage({
+        type: AIRJAM_HOST_BRIDGE_EVENT,
+        payload: {
+          event: eventName,
+          args,
         },
-      );
+      });
     },
     [closeHostBridge],
   );
@@ -422,7 +426,9 @@ export const GamePlayer = ({
         request.payload.capabilityToken !== launchCapability.token
       ) {
         port.postMessage(
-          createHostBridgeCloseMessage("Embedded host bridge session mismatch."),
+          createHostBridgeCloseMessage(
+            "Embedded host bridge session mismatch.",
+          ),
         );
         port.close();
         return;
@@ -564,9 +570,7 @@ export const GamePlayer = ({
     <div
       className={cn(
         "absolute inset-0 z-20 bg-black",
-        reducedMotion
-          ? "transition-none"
-          : "transition-transform duration-500",
+        reducedMotion ? "transition-none" : "transition-transform duration-500",
         isVisible ? "translate-y-0" : "translate-y-full",
       )}
     >

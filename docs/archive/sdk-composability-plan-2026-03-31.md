@@ -89,4 +89,3 @@ Run before release:
 2. Optional UI moved under `@air-jam/sdk/ui`.
 3. Shell components remain available but deprecated.
 4. No breaking changes in this transition release.
-

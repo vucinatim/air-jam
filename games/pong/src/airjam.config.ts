@@ -10,11 +10,25 @@
  *    the host encodes `<origin>/<controllerPath>?room=<roomId>`.
  * - `input.schema`: the Zod shape your controller publishes. The host reads
  *    validated values through `host.getInput(playerId)`.
- *
- * Add optional `metadata` here once you have a typed catalog shape to target.
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { gameInputSchema } from "./game/input";
+
+export const gameMetadata = defineAirJamGameMetadata({
+  slug: "pong",
+  name: "Pong",
+  tagline:
+    "Basic 2D canvas starter. Team paddle game with lobby, bots, scoring, and audio.",
+  category: "arcade",
+  minPlayers: 1,
+  maxPlayers: 4,
+  inputModalities: ["buttons", "touch"],
+  supportedSdkRange: "^1.0.0",
+  maintainer: { name: "Air Jam" },
+  ageRating: "all-ages",
+  tags: ["starter", "canvas", "teams"],
+});
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),

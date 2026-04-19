@@ -57,7 +57,7 @@ const GameCard = ({ game, index, onHover }: GameCardProps) => {
     <Reveal
       delay={index * 0.06}
       margin="-40px"
-      className="border-border/40 bg-card/15 group hover:border-airjam-cyan/30 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)] flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-1"
+      className="border-border/40 bg-card/15 group hover:border-airjam-cyan/30 flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
     >
       <Link
         href={href}

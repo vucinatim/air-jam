@@ -360,7 +360,9 @@ describe("server routing and security", () => {
     await harness.expectNoEvent(host, "server:playSound");
     await harness.expectNoEvent(host, "airjam:action_rpc");
     await harness.delay(50);
-    expect(harness.getRoomManager().getRoom(roomId)?.runtimeState).toBe("paused");
+    expect(harness.getRoomManager().getRoom(roomId)?.runtimeState).toBe(
+      "paused",
+    );
   });
 
   it("allows privileged controller system and sound events with the official capability", async () => {
@@ -407,7 +409,9 @@ describe("server routing and security", () => {
     });
 
     await harness.delay(50);
-    expect(harness.getRoomManager().getRoom(roomId)?.runtimeState).toBe("playing");
+    expect(harness.getRoomManager().getRoom(roomId)?.runtimeState).toBe(
+      "playing",
+    );
   });
 
   it("blocks unauthorized launch and close transitions", async () => {
@@ -442,7 +446,9 @@ describe("server routing and security", () => {
 
     expect(forgedLaunchAck.ok).toBe(false);
     expect(forgedLaunchAck.code).toBe(ErrorCode.UNAUTHORIZED);
-    expect(harness.getRoomManager().getRoom(roomId)?.activeGameId).toBeUndefined();
+    expect(
+      harness.getRoomManager().getRoom(roomId)?.activeGameId,
+    ).toBeUndefined();
 
     const validLaunchAck = await harness.emitWithAck<LaunchGameAck>(
       masterHost,
@@ -470,7 +476,11 @@ describe("server routing and security", () => {
     await harness.expectNoEvent(controller, "disconnect");
     await harness.expectNoEvent(childHost, "disconnect");
 
-    const childDisconnectPromise = harness.waitForEvent(childHost, "disconnect", 2_000);
+    const childDisconnectPromise = harness.waitForEvent(
+      childHost,
+      "disconnect",
+      2_000,
+    );
     masterHost.emit("system:closeGame", { roomId });
     await harness.expectNoEvent(controller, "disconnect", 120);
     await childDisconnectPromise;

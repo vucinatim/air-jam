@@ -10,6 +10,8 @@ import type {
 import {
   VISUAL_HARNESS_ACTIONS_KEY,
   VISUAL_HARNESS_BRIDGE_KEY,
+  VISUAL_HARNESS_ENABLE_PARAM,
+  VISUAL_HARNESS_ENABLE_VALUE,
   readVisualHarnessBridgeSnapshot,
   type VisualHarnessBridgeSnapshot,
 } from "./runtime-bridge.js";
@@ -20,9 +22,9 @@ import type {
   VisualHarnessUrls,
   VisualQuerySurface,
   VisualScenario,
+  VisualScenarioBridge,
   VisualScenarioContext,
   VisualScenarioPack,
-  VisualScenarioBridge,
   VisualScreenshotRecord,
   VisualViewport,
 } from "./types.js";
@@ -97,11 +99,15 @@ const captureFailureScreenshots = async (
   ]);
 };
 
-const dismissControllerFullscreenPrompt = async (page: Page): Promise<boolean> => {
+const dismissControllerFullscreenPrompt = async (
+  page: Page,
+): Promise<boolean> => {
   const openPrompt = page.locator(
     '[data-testid="controller-fullscreen-prompt"][data-state="open"]',
   );
-  await openPrompt.waitFor({ state: "visible", timeout: 5_000 }).catch(() => null);
+  await openPrompt
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .catch(() => null);
   const isVisible = await openPrompt.isVisible().catch(() => false);
   if (!isVisible) {
     return false;
@@ -151,6 +157,15 @@ const waitForFrameToLoad = async ({
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+const withVisualHarnessEnabled = (url: string): string => {
+  const nextUrl = new URL(url);
+  nextUrl.searchParams.set(
+    VISUAL_HARNESS_ENABLE_PARAM,
+    VISUAL_HARNESS_ENABLE_VALUE,
+  );
+  return nextUrl.toString();
+};
+
 const readRuntimeHref = async ({
   page,
   game,
@@ -182,16 +197,18 @@ const readBridgeSnapshot = async <
     if (!embedded) {
       return page.evaluate(
         (bridgeKey) =>
-          ((window as unknown as Record<string, unknown>)[bridgeKey] ?? null),
+          (window as unknown as Record<string, unknown>)[bridgeKey] ?? null,
         VISUAL_HARNESS_BRIDGE_KEY,
       );
     }
 
-    return game.locator("body").evaluate(
-      (_, bridgeKey) =>
-        ((window as unknown as Record<string, unknown>)[bridgeKey] ?? null),
-      VISUAL_HARNESS_BRIDGE_KEY,
-    );
+    return game
+      .locator("body")
+      .evaluate(
+        (_, bridgeKey) =>
+          (window as unknown as Record<string, unknown>)[bridgeKey] ?? null,
+        VISUAL_HARNESS_BRIDGE_KEY,
+      );
   };
 
   const rawSnapshot = await readRawSnapshot();
@@ -265,9 +282,7 @@ const invokeBridgeAction = async <T>({
   return evaluator();
 };
 
-const createBridgeClient = <
-  TBridge extends AnyVisualHarnessBridgeDefinition,
->({
+const createBridgeClient = <TBridge extends AnyVisualHarnessBridgeDefinition>({
   bridge,
   page,
   game,
@@ -376,7 +391,7 @@ const resolveControllerJoinUrl = async ({
   const platformUrl = new URL(appOrigin);
   joinUrl.protocol = platformUrl.protocol;
   joinUrl.host = platformUrl.host;
-  return joinUrl.toString();
+  return withVisualHarnessEnabled(joinUrl.toString());
 };
 
 const createScenarioRunContext = async ({
@@ -421,7 +436,9 @@ const createScenarioRunContext = async ({
   });
 
   const controllerPage = await controllerContext.newPage();
-  await controllerPage.goto(controllerJoinUrl, { waitUntil: "domcontentloaded" });
+  await controllerPage.goto(controllerJoinUrl, {
+    waitUntil: "domcontentloaded",
+  });
   const controllerPromptDismissed =
     await dismissControllerFullscreenPrompt(controllerPage);
   const controllerGame: VisualQuerySurface =
@@ -515,7 +532,10 @@ const createScenarioRunContext = async ({
     screenshotRecords,
     notes,
     close: async () => {
-      await Promise.allSettled([hostContext.close(), controllerContext.close()]);
+      await Promise.allSettled([
+        hostContext.close(),
+        controllerContext.close(),
+      ]);
     },
   };
 };
@@ -631,9 +651,12 @@ const runScenarioCapture = async ({
       status: "failed",
       error,
     });
-    throw Object.assign(error instanceof Error ? error : new Error(String(error)), {
-      visualMetadata: metadata,
-    });
+    throw Object.assign(
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        visualMetadata: metadata,
+      },
+    );
   } finally {
     if (!metadata) {
       metadata = buildScenarioMetadata({
@@ -662,8 +685,7 @@ const runScenarioCapture = async ({
 
 const listScenarioIds = (
   scenarioPack: VisualScenarioPack<AnyVisualHarnessBridgeDefinition>,
-): string[] =>
-  scenarioPack.scenarios.map((scenario) => scenario.id);
+): string[] => scenarioPack.scenarios.map((scenario) => scenario.id);
 
 export type VisualHarnessStackHandle = {
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
@@ -683,6 +705,7 @@ export type RunVisualHarnessOptions = {
     gameId: string;
     mode: VisualHarnessMode;
     secure: boolean;
+    visualHarness: boolean;
   }) => Promise<VisualHarnessStackHandle>;
   onScenarioStart?: (
     scenario: VisualScenario<AnyVisualHarnessBridgeDefinition>,
@@ -735,6 +758,7 @@ export const runVisualHarness = async ({
     gameId,
     mode,
     secure,
+    visualHarness: true,
   });
 
   const browser = await chromium.launch({

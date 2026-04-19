@@ -27,25 +27,25 @@ export function TaskSidebar({ pendingTasks }: TaskSidebarProps) {
             {visibleTasks.map((task, index) => (
               <div
                 key={task.id}
-                className="aspect-square flex flex-col items-center justify-center p-3 shadow-md relative bg-amber-100"
+                className="relative flex aspect-square flex-col items-center justify-center bg-amber-100 p-3 shadow-md"
                 style={{
                   transform: `rotate(${index % 2 === 0 ? -1.5 : 1.5}deg)`,
                   boxShadow: "2px 3px 6px rgba(0, 0, 0, 0.12)",
                 }}
               >
-                <span className="font-semibold text-slate-800 text-center text-sm leading-tight">
+                <span className="text-center text-sm leading-tight font-semibold text-slate-800">
                   {task.name}
                 </span>
-                <p className="text-xs text-slate-600 text-center mt-1 leading-tight">
+                <p className="mt-1 text-center text-xs leading-tight text-slate-600">
                   {task.description}
                 </p>
-                <span className="absolute bottom-2 right-2 text-base font-semibold text-slate-700">
+                <span className="absolute right-2 bottom-2 text-base font-semibold text-slate-700">
                   {task.reward}€
                 </span>
               </div>
             ))}
             {remainingCount > 0 && (
-              <div className="relative h-24 mt-2">
+              <div className="relative mt-2 h-24">
                 {/* Stack of notes behind */}
                 <div
                   className="absolute inset-0 aspect-square bg-amber-200"
@@ -63,7 +63,7 @@ export function TaskSidebar({ pendingTasks }: TaskSidebarProps) {
                 />
                 {/* Top note with number */}
                 <div
-                  className="absolute inset-0 aspect-square flex items-center justify-center bg-amber-100"
+                  className="absolute inset-0 flex aspect-square items-center justify-center bg-amber-100"
                   style={{
                     transform: "rotate(0.5deg)",
                     boxShadow: "2px 3px 6px rgba(0, 0, 0, 0.12)",

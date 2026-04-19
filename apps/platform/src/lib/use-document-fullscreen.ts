@@ -32,8 +32,9 @@ function subscribeFullscreen(onStoreChange: () => void) {
 }
 
 export async function toggleDocumentFullscreen(
-  target: HTMLElement | null =
-    typeof document !== "undefined" ? document.documentElement : null,
+  target: HTMLElement | null = typeof document !== "undefined"
+    ? document.documentElement
+    : null,
 ): Promise<void> {
   if (typeof document === "undefined" || !target) {
     return;

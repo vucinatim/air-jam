@@ -2,6 +2,7 @@
   "id": "the-office",
   "name": "The Office",
   "description": "Workplace co-op chaos. Assign personas, cooperate on pending tasks on a shared 2D office map before time runs out.",
+  "category": "party",
   "scaffold": true,
   "export": {
     "exclude": [

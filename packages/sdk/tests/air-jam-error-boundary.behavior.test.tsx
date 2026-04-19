@@ -24,7 +24,9 @@ describe("AirJamErrorBoundary behavior", () => {
   });
 
   it("renders fallback UI and emits AJ_RUNTIME_RENDER_CRASH on render failure", () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const diagnosticCodes: string[] = [];
     const unsubscribe = onAirJamDiagnostic((diagnostic) => {
       diagnosticCodes.push(diagnostic.code);
@@ -48,7 +50,9 @@ describe("AirJamErrorBoundary behavior", () => {
   });
 
   it("supports minimizing and expanding the fallback panel", () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     render(
       <AirJamErrorBoundary role="host" roomId="ABCD">
@@ -56,11 +60,17 @@ describe("AirJamErrorBoundary behavior", () => {
       </AirJamErrorBoundary>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Minimize error panel/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Minimize error panel/i }),
+    );
     expect(screen.getByText(/AirJam · runtime error/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Expand error panel/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Expand error panel/i }),
+    ).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /Expand error panel/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Expand error panel/i }),
+    );
     expect(screen.getByText("Something went wrong")).toBeTruthy();
 
     consoleErrorSpy.mockRestore();

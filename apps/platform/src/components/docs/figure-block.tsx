@@ -28,10 +28,7 @@ export default function FigureBlock({
   // Only handle Shiki-transformed code blocks
   if (!isShikiFigure) {
     return (
-      <figure
-        className={cn("max-w-full min-w-0", className)}
-        {...props}
-      >
+      <figure className={cn("max-w-full min-w-0", className)} {...props}>
         {children}
       </figure>
     );

@@ -21,13 +21,14 @@ let clientSnapshotKey = "";
 /**
  * Mutable copy for form state (e.g. initial `useState`); same values as SSR default.
  */
-export const createDefaultControllerPersistedProfile = (): ControllerPersistedProfile => ({
-  label: serverDefaultSnapshot.label,
-  avatarId: serverDefaultSnapshot.avatarId,
-});
+export const createDefaultControllerPersistedProfile =
+  (): ControllerPersistedProfile => ({
+    label: serverDefaultSnapshot.label,
+    avatarId: serverDefaultSnapshot.avatarId,
+  });
 
-export const getControllerLocalProfileServerSnapshot = (): ControllerPersistedProfile =>
-  serverDefaultSnapshot;
+export const getControllerLocalProfileServerSnapshot =
+  (): ControllerPersistedProfile => serverDefaultSnapshot;
 
 const profileListeners = new Set<() => void>();
 
@@ -41,7 +42,9 @@ export const notifyControllerLocalProfileChanged = (): void => {
 /**
  * For useSyncExternalStore: cross-tab updates via `storage`, same-tab via {@link notifyControllerLocalProfileChanged}.
  */
-export const subscribeControllerLocalProfile = (onStoreChange: () => void): (() => void) => {
+export const subscribeControllerLocalProfile = (
+  onStoreChange: () => void,
+): (() => void) => {
   profileListeners.add(onStoreChange);
   const onStorage = (event: StorageEvent): void => {
     if (event.key === STORAGE_KEY || event.key === null) {
@@ -59,56 +62,60 @@ export const subscribeControllerLocalProfile = (onStoreChange: () => void): (() 
   };
 };
 
-export const readControllerLocalProfile = (): ControllerPersistedProfile | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
+export const readControllerLocalProfile =
+  (): ControllerPersistedProfile | null => {
+    if (typeof window === "undefined") {
       return null;
     }
-    const parsed = JSON.parse(raw) as unknown;
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      !("label" in parsed) ||
-      !("avatarId" in parsed)
-    ) {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw) as unknown;
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        !("label" in parsed) ||
+        !("avatarId" in parsed)
+      ) {
+        return null;
+      }
+      const label = String((parsed as { label: unknown }).label).trim();
+      const avatarId = String(
+        (parsed as { avatarId: unknown }).avatarId,
+      ).trim();
+      if (!label || !avatarId) {
+        return null;
+      }
+      return { label, avatarId };
+    } catch {
       return null;
     }
-    const label = String((parsed as { label: unknown }).label).trim();
-    const avatarId = String((parsed as { avatarId: unknown }).avatarId).trim();
-    if (!label || !avatarId) {
-      return null;
-    }
-    return { label, avatarId };
-  } catch {
-    return null;
-  }
-};
+  };
 
 /**
  * Client snapshot for `useSyncExternalStore`, with stable referential equality when values are unchanged.
  */
-export const getControllerLocalProfileClientSnapshot = (): ControllerPersistedProfile => {
-  const fromRead = readControllerLocalProfile();
-  const merged = fromRead ?? serverDefaultSnapshot;
-  const key = `${merged.label}\0${merged.avatarId}`;
-  if (clientSnapshotCache && key === clientSnapshotKey) {
+export const getControllerLocalProfileClientSnapshot =
+  (): ControllerPersistedProfile => {
+    const fromRead = readControllerLocalProfile();
+    const merged = fromRead ?? serverDefaultSnapshot;
+    const key = `${merged.label}\0${merged.avatarId}`;
+    if (clientSnapshotCache && key === clientSnapshotKey) {
+      return clientSnapshotCache;
+    }
+    clientSnapshotKey = key;
+    if (
+      key ===
+      `${serverDefaultSnapshot.label}\0${serverDefaultSnapshot.avatarId}`
+    ) {
+      clientSnapshotCache = serverDefaultSnapshot;
+    } else {
+      clientSnapshotCache = merged;
+    }
     return clientSnapshotCache;
-  }
-  clientSnapshotKey = key;
-  if (
-    key ===
-    `${serverDefaultSnapshot.label}\0${serverDefaultSnapshot.avatarId}`
-  ) {
-    clientSnapshotCache = serverDefaultSnapshot;
-  } else {
-    clientSnapshotCache = merged;
-  }
-  return clientSnapshotCache;
-};
+  };
 
 export const writeControllerLocalProfile = (
   profile: ControllerPersistedProfile,

@@ -11,23 +11,39 @@ import {
   clearVisualHarnessBridgeSnapshot,
   publishVisualHarnessBridgeActions,
   publishVisualHarnessBridgeSnapshot,
+  VISUAL_HARNESS_ENABLE_PARAM,
+  VISUAL_HARNESS_ENABLE_VALUE,
 } from "./runtime-bridge.js";
 
 const isVisualHarnessRuntimeEnabled = (): boolean => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const meta = import.meta as any;
-    return meta?.env?.DEV === true;
+    if (meta?.env?.DEV === true) {
+      return true;
+    }
   } catch {
+    // Fall through to the explicit URL opt-in below.
+  }
+
+  if (typeof window === "undefined") {
     return false;
   }
+
+  return (
+    new URLSearchParams(window.location.search).get(
+      VISUAL_HARNESS_ENABLE_PARAM,
+    ) === VISUAL_HARNESS_ENABLE_VALUE
+  );
 };
 
 type UseVisualHarnessBridgeOptions = {
   enabled?: boolean;
 };
 
-const createPublishedActionMap = <TBridge extends AnyVisualHarnessBridgeDefinition>(
+const createPublishedActionMap = <
+  TBridge extends AnyVisualHarnessBridgeDefinition,
+>(
   bridge: TBridge,
   contextRef: MutableRefObject<InferVisualHarnessBridgeContext<TBridge>>,
 ) => {

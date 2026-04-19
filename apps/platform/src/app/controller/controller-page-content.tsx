@@ -1,6 +1,11 @@
 "use client";
 
 import { useArcadePlatformSettingsStore } from "@/components/arcade/arcade-platform-settings-store";
+import {
+  getControllerLocalProfileClientSnapshot,
+  getControllerLocalProfileServerSnapshot,
+  subscribeControllerLocalProfile,
+} from "@/lib/controller-local-profile";
 import { triggerLocalHaptic } from "@/lib/local-haptics";
 import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import {
@@ -10,8 +15,8 @@ import {
   useInputWriter,
   type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
-import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
+import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import {
   useCallback,
   useRef,
@@ -19,11 +24,9 @@ import {
   type CSSProperties,
 } from "react";
 import {
-  getControllerLocalProfileClientSnapshot,
-  getControllerLocalProfileServerSnapshot,
-  subscribeControllerLocalProfile,
-} from "@/lib/controller-local-profile";
-import { ControllerPageLayout, type ControllerPageSurfaceMode } from "./controller-page-layout";
+  ControllerPageLayout,
+  type ControllerPageSurfaceMode,
+} from "./controller-page-layout";
 import { useControllerEmbeddedGameFrame } from "./use-controller-embedded-game-frame";
 
 interface ControllerPageContentProps {

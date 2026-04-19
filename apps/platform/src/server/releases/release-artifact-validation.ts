@@ -9,7 +9,10 @@ import {
   MAX_RELEASE_FILE_BYTES,
   MAX_RELEASE_FILE_COUNT,
 } from "@/lib/releases/release-policy";
-import { contentType as formatMimeType, lookup as lookupMimeType } from "mime-types";
+import {
+  contentType as formatMimeType,
+  lookup as lookupMimeType,
+} from "mime-types";
 import path from "node:path";
 import { Readable } from "node:stream";
 import * as yauzl from "yauzl";
@@ -43,10 +46,7 @@ const TEXT_LIKE_MIME_TYPES = new Set([
   "application/xml",
 ]);
 
-const IGNORED_RELEASE_ARCHIVE_PATHS = [
-  "__MACOSX/",
-  ".DS_Store",
-] as const;
+const IGNORED_RELEASE_ARCHIVE_PATHS = ["__MACOSX/", ".DS_Store"] as const;
 
 const openZipFile = async (archiveBuffer: Buffer): Promise<yauzl.ZipFile> =>
   new Promise((resolve, reject) => {
@@ -193,7 +193,10 @@ export const getReleaseAssetCacheControl = (relativePath: string): string => {
 
 export const resolveReleaseArchiveRoot = (
   archivePaths: readonly string[],
-): { entryPath: typeof HOSTED_RELEASE_ENTRY_PATH; wrapperDirectory: string | null } => {
+): {
+  entryPath: typeof HOSTED_RELEASE_ENTRY_PATH;
+  wrapperDirectory: string | null;
+} => {
   if (archivePaths.includes(HOSTED_RELEASE_ENTRY_PATH)) {
     return {
       entryPath: HOSTED_RELEASE_ENTRY_PATH,
@@ -212,7 +215,9 @@ export const resolveReleaseArchiveRoot = (
   }
 
   const [wrapperDirectory] = [...topLevelSegments];
-  if (!archivePaths.includes(`${wrapperDirectory}/${HOSTED_RELEASE_ENTRY_PATH}`)) {
+  if (
+    !archivePaths.includes(`${wrapperDirectory}/${HOSTED_RELEASE_ENTRY_PATH}`)
+  ) {
     throw new Error(
       "Release archive wrapper directory must contain an index.html entry.",
     );
@@ -307,7 +312,9 @@ const readReleaseArchiveEntryBuffer = async ({
 
       zipFile.once("end", () => {
         fail(
-          new Error(`Release archive is missing required entry: ${archivePath}`),
+          new Error(
+            `Release archive is missing required entry: ${archivePath}`,
+          ),
         );
       });
 
@@ -373,7 +380,9 @@ export const readReleaseArchiveManifest = async (
 
       zipFile.on("entry", (entry) => {
         try {
-          const normalizedEntry = normalizeReleaseArchiveEntryPath(entry.fileName);
+          const normalizedEntry = normalizeReleaseArchiveEntryPath(
+            entry.fileName,
+          );
           if (isIgnoredReleaseArchiveEntry(normalizedEntry.archivePath)) {
             zipFile.readEntry();
             return;

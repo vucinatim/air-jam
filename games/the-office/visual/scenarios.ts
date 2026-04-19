@@ -17,11 +17,11 @@ const prepareLobbyState = async (
   await context.ensureControllerInteractive();
 
   await context.controller.game.getByRole("button", { name: "Špela" }).click();
-  await context.controller.game
-    .getByRole("button", { name: "Ready" })
-    .click();
 
   await waitForHostText(context, "Špela", 20_000);
+  await context.controller.game
+    .getByRole("button", { name: "Start Match" })
+    .waitFor({ state: "visible", timeout: 20_000 });
   await context.host.game
     .getByRole("button", { name: "Start Match" })
     .waitFor({ state: "visible", timeout: 20_000 });
@@ -32,8 +32,13 @@ const preparePlayingState = async (
   context: VisualScenarioContext<typeof theOfficeVisualHarnessBridge>,
 ): Promise<void> => {
   await prepareLobbyState(context);
-  await context.host.game.getByRole("button", { name: "Start Match" }).click();
-  await waitForControllerText(context, "Energija", 20_000);
+  await context.bridge.actions.startMatch();
+  await context.bridge.waitFor(
+    (snapshot) => snapshot?.matchPhase === "playing",
+    'host match phase "playing"',
+    10_000,
+  );
+  await waitForControllerText(context, /Energy|Energija/i, 20_000);
   await context.sleep(750);
 };
 

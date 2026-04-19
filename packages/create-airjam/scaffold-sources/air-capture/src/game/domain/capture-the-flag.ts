@@ -33,27 +33,21 @@ export interface CaptureTheFlagSnapshot {
 }
 
 export function createInitialFlags(basePositions: TeamPositions): FlagMap {
-  return TEAM_IDS.reduce(
-    (acc, teamId) => {
-      acc[teamId] = {
-        teamId,
-        status: "atBase",
-        position: [...basePositions[teamId]],
-      };
-      return acc;
-    },
-    {} as FlagMap,
-  );
+  return TEAM_IDS.reduce((acc, teamId) => {
+    acc[teamId] = {
+      teamId,
+      status: "atBase",
+      position: [...basePositions[teamId]],
+    };
+    return acc;
+  }, {} as FlagMap);
 }
 
 export function createInitialScores(): TeamScores {
-  return TEAM_IDS.reduce(
-    (acc, teamId) => {
-      acc[teamId] = 0;
-      return acc;
-    },
-    {} as TeamScores,
-  );
+  return TEAM_IDS.reduce((acc, teamId) => {
+    acc[teamId] = 0;
+    return acc;
+  }, {} as TeamScores);
 }
 
 export function getEnemyTeam(team: TeamId): TeamId {
@@ -67,7 +61,12 @@ export function generateRandomBasePositions(
   const maxDistance = ARENA_RADIUS * 0.85;
   const maxSafeDistance = ARENA_RADIUS - 15;
 
-  const firstBase = generateBasePosition(minDistance, maxDistance, maxSafeDistance, random);
+  const firstBase = generateBasePosition(
+    minDistance,
+    maxDistance,
+    maxSafeDistance,
+    random,
+  );
   const oppositeAngle = Math.atan2(firstBase[2], firstBase[0]) + Math.PI;
   const secondBase = generateBasePositionAtAngle(
     oppositeAngle,
@@ -77,7 +76,10 @@ export function generateRandomBasePositions(
     random,
   );
 
-  if (distanceFromCenter(firstBase) > ARENA_RADIUS || distanceFromCenter(secondBase) > ARENA_RADIUS) {
+  if (
+    distanceFromCenter(firstBase) > ARENA_RADIUS ||
+    distanceFromCenter(secondBase) > ARENA_RADIUS
+  ) {
     return {
       solaris: [ARENA_RADIUS * 0.7, 0, 0],
       nebulon: [-ARENA_RADIUS * 0.7, 0, 0],

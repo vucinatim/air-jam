@@ -5,7 +5,9 @@ export const airCaptureFlagPrefabSchema = z.object({
   teamId: z.enum(TEAM_IDS),
 });
 
-export type AirCaptureFlagPrefabProps = z.infer<typeof airCaptureFlagPrefabSchema>;
+export type AirCaptureFlagPrefabProps = z.infer<
+  typeof airCaptureFlagPrefabSchema
+>;
 
 export const AIR_CAPTURE_FLAG_DEFAULT_PROPS: AirCaptureFlagPrefabProps =
   airCaptureFlagPrefabSchema.parse({

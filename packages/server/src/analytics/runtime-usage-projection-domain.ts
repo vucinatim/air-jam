@@ -150,14 +150,16 @@ export const projectRuntimeUsageEvent = (
       if (openState.hasOpenEligibleSegment) {
         actions.push({
           type: "close_eligible_segment",
-          reason: getPayloadString(event, "reason") ?? "game_returned_to_system",
+          reason:
+            getPayloadString(event, "reason") ?? "game_returned_to_system",
         });
       }
 
       if (openState.hasOpenGameSegment) {
         actions.push({
           type: "close_all_game_segments",
-          reason: getPayloadString(event, "reason") ?? "game_returned_to_system",
+          reason:
+            getPayloadString(event, "reason") ?? "game_returned_to_system",
         });
       }
 

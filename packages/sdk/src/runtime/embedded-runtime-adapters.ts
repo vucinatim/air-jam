@@ -35,18 +35,19 @@ export type EmbeddedControllerChildSession = {
 /**
  * Reads and validates embedded host bootstrap from the current window URL, or `null` if not embedded.
  */
-export const readEmbeddedHostChildSession = (): EmbeddedHostChildSession | null => {
-  const raw = readChildHostRuntimeParams();
-  if (!raw) {
-    return null;
-  }
-  return {
-    roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
-    joinUrl: raw.joinUrl,
-    topology: raw.topology,
-    arcadeSurface: raw.arcadeSurface,
+export const readEmbeddedHostChildSession =
+  (): EmbeddedHostChildSession | null => {
+    const raw = readChildHostRuntimeParams();
+    if (!raw) {
+      return null;
+    }
+    return {
+      roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
+      joinUrl: raw.joinUrl,
+      topology: raw.topology,
+      arcadeSurface: raw.arcadeSurface,
+    };
   };
-};
 
 /**
  * Reads and validates embedded controller bootstrap from the current window URL, or `null` if not embedded.

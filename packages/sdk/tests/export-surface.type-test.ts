@@ -1,6 +1,6 @@
 import type {
-  AudioHandle,
   AirJamControllerApi,
+  AudioHandle,
   PlayerProfile,
   SignalPayload,
   SoundManifest,
@@ -58,9 +58,7 @@ export type __assert_create_airjam_app_exported = AssertTrue<
 export type __assert_define_airjam_game_capabilities_not_exported = AssertFalse<
   Has<"defineAirJamGameCapabilities">
 >;
-export type __assert_env_exported = AssertTrue<
-  Has<"env">
->;
+export type __assert_env_exported = AssertTrue<Has<"env">>;
 export type __assert_host_session_hook_exported = AssertTrue<
   Has<"useHostSession">
 >;
@@ -121,12 +119,8 @@ export type __assert_default_server_port_not_exported = AssertFalse<
 export type __assert_controller_path_not_exported = AssertFalse<
   Has<"CONTROLLER_PATH">
 >;
-export type __assert_events_namespace_not_exported = AssertFalse<
-  Has<"Events">
->;
-export type __assert_url_builder_not_exported = AssertFalse<
-  Has<"urlBuilder">
->;
+export type __assert_events_namespace_not_exported = AssertFalse<Has<"Events">>;
+export type __assert_url_builder_not_exported = AssertFalse<Has<"urlBuilder">>;
 export type __assert_arcade_surface_domain_not_exported = AssertFalse<
   Has<"AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN">
 >;
@@ -185,8 +179,9 @@ export type __assert_internal_store_action_name_not_exported = AssertFalse<
   Has<"isInternalActionName">
 >;
 
-type ControllerHas<K extends string> =
-  K extends keyof AirJamControllerApi ? true : false;
+type ControllerHas<K extends string> = K extends keyof AirJamControllerApi
+  ? true
+  : false;
 
 export type __assert_controller_send_input_not_exported = AssertFalse<
   ControllerHas<"sendInput">

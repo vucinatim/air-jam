@@ -29,9 +29,7 @@ export const RuntimeShellHeader = ({
       <div className="flex shrink-0 items-center gap-2.5">
         <ConnectionStatusPill status={connectionStatus} />
         {rightSlot ? (
-          <div className="flex items-center justify-end">
-            {rightSlot}
-          </div>
+          <div className="flex items-center justify-end">{rightSlot}</div>
         ) : null}
       </div>
     </header>

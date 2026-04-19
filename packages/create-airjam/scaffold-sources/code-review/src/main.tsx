@@ -1,5 +1,5 @@
-import "@air-jam/sdk/styles.css";
 import { resolveAirJamBrowserRouterBasename } from "@air-jam/sdk";
+import "@air-jam/sdk/styles.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

@@ -16,17 +16,17 @@ export {
   type AudioRuntimeStatus,
   type ControllerRemoteAudioRuntimeProps,
 } from "./audio/hooks";
+export {
+  DEFAULT_PLATFORM_SETTINGS,
+  getEffectiveAudioVolume,
+} from "./settings/platform-settings";
 export type {
-  PlatformAudioSettings,
   PlatformAccessibilitySettings,
+  PlatformAudioSettings,
   PlatformFeedbackSettings,
   PlatformSettings,
   PlatformSettingsPersistence,
   PlatformSettingsSnapshot,
-} from "./settings/platform-settings";
-export {
-  DEFAULT_PLATFORM_SETTINGS,
-  getEffectiveAudioVolume,
 } from "./settings/platform-settings";
 export {
   PlatformSettingsBoundary,
@@ -34,8 +34,8 @@ export {
   useInheritedPlatformSettings,
   usePlatformAudioSettings,
   usePlatformSettings,
-  type PlatformSettingsBoundaryProps,
   type PlatformAudioSettingsApi,
+  type PlatformSettingsBoundaryProps,
   type PlatformSettingsOwnerApi,
   type PlatformSettingsRuntimeProps,
 } from "./settings/platform-settings-runtime";
@@ -61,12 +61,6 @@ export {
   type JoinUrlStatus,
 } from "./hooks/use-air-jam-host";
 export { useAirJamHostState } from "./hooks/use-air-jam-host-state";
-export {
-  AirJamControllerRuntime,
-  AirJamHostRuntime,
-  type AirJamControllerRuntimeProps,
-  type AirJamHostRuntimeProps,
-} from "./runtime/session-runtimes";
 export { useConnectionStatus } from "./hooks/use-connection-status";
 export {
   useControllerSession,
@@ -100,14 +94,13 @@ export { useInputWriter } from "./hooks/use-input-writer";
 export { usePlayers } from "./hooks/use-players";
 export { useRoom, type RoomState } from "./hooks/use-room";
 export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
+export {
+  AirJamControllerRuntime,
+  AirJamHostRuntime,
+  type AirJamControllerRuntimeProps,
+  type AirJamHostRuntimeProps,
+} from "./runtime/session-runtimes";
 
-export type {
-  ConnectionStatus,
-  RuntimeState,
-  RoomCode,
-  RunMode,
-} from "./protocol/core";
-export type { ShellMatchPhase, StandardMatchPhase } from "./lifecycle";
 export {
   isActiveMatchPhase,
   isEndedMatchPhase,
@@ -115,6 +108,7 @@ export {
   standardMatchPhases,
   toShellMatchPhase,
 } from "./lifecycle";
+export type { ShellMatchPhase, StandardMatchPhase } from "./lifecycle";
 export type {
   ControllerOrientation,
   ControllerStatePayload,
@@ -123,6 +117,12 @@ export type {
   PlayerProfilePatch,
 } from "./protocol/controller";
 export type {
+  ConnectionStatus,
+  RoomCode,
+  RunMode,
+  RuntimeState,
+} from "./protocol/core";
+export type {
   HapticSignalPayload,
   SignalPayload,
   SignalType,
@@ -130,21 +130,21 @@ export type {
 } from "./protocol/signals";
 
 export {
-  createAirJamApp,
-  env,
-  type AirJamApp,
-  type AirJamAppErrorBoundaryOptions,
-  type AirJamGameMetadata,
-  type AirJamRuntimeErrorBoundaryOptions,
-  type CreateAirJamAppOptions,
-} from "./runtime/create-air-jam-app";
-export {
   AirJamErrorBoundary,
   type AirJamErrorBoundaryProps,
   type AirJamErrorFallbackRenderProps,
   type AirJamErrorFallbackRenderer,
   type AirJamRuntimeRole,
 } from "./runtime/air-jam-error-boundary";
+export {
+  createAirJamApp,
+  env,
+  type AirJamApp,
+  type AirJamAppErrorBoundaryOptions,
+  type AirJamGameRuntimeConfig,
+  type AirJamRuntimeErrorBoundaryOptions,
+  type CreateAirJamAppOptions,
+} from "./runtime/create-air-jam-app";
 export { resolveAirJamBrowserRouterBasename } from "./runtime/router-basename";
 
 export {

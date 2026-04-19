@@ -1,5 +1,5 @@
-import path from "node:path";
 import type { GameMediaKind } from "@/lib/games/game-media-contract";
+import path from "node:path";
 
 const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 

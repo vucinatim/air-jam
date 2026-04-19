@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
-import type { RuntimeState } from "../../../src/game/engine/types";
 import {
   advanceBall,
   applyPaddleBounce,
   getScoringTeam,
   reflectBallOffWalls,
 } from "../../../src/game/engine/ball";
-import { BALL_SIZE, FIELD_HEIGHT, FIELD_WIDTH } from "../../../src/game/engine/constants";
+import {
+  BALL_SIZE,
+  FIELD_HEIGHT,
+  FIELD_WIDTH,
+} from "../../../src/game/engine/constants";
+import type { RuntimeState } from "../../../src/game/engine/types";
 
-const createRuntimeState = (overrides: Partial<RuntimeState> = {}): RuntimeState => ({
+const createRuntimeState = (
+  overrides: Partial<RuntimeState> = {},
+): RuntimeState => ({
   paddle1FrontY: 0,
   paddle1BackY: 0,
   paddle2FrontY: 0,
@@ -50,9 +56,14 @@ describe("ball runtime helpers", () => {
   });
 
   it("returns the scoring team once the ball leaves the field bounds", () => {
-    expect(getScoringTeam(createRuntimeState({ ballX: 0 }), null)).toBe("team2");
+    expect(getScoringTeam(createRuntimeState({ ballX: 0 }), null)).toBe(
+      "team2",
+    );
     expect(
-      getScoringTeam(createRuntimeState({ ballX: FIELD_WIDTH - BALL_SIZE }), null),
+      getScoringTeam(
+        createRuntimeState({ ballX: FIELD_WIDTH - BALL_SIZE }),
+        null,
+      ),
     ).toBe("team1");
     expect(getScoringTeam(createRuntimeState({ ballX: 20 }), 2)).toBeNull();
   });

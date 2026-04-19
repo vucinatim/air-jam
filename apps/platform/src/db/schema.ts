@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import type { ArcadeVisibility } from "@/lib/games/arcade-visibility";
 import type { GameConfig } from "@/lib/games/game-config-contract";
 import type {
@@ -13,13 +12,14 @@ import type {
   ReleaseReportSource,
   ReleaseReportStatus,
 } from "@/lib/releases/release-contract";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
   index,
   integer,
-  pgEnum,
   jsonb,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -219,7 +219,9 @@ export const gameReleaseReports = pgTable(
     reviewedAt: timestamp("reviewed_at"),
   },
   (table) => ({
-    releaseIdx: index("game_release_reports_release_id_idx").on(table.releaseId),
+    releaseIdx: index("game_release_reports_release_id_idx").on(
+      table.releaseId,
+    ),
     statusIdx: index("game_release_reports_status_idx").on(table.status),
     createdAtIdx: index("game_release_reports_created_at_idx").on(
       table.createdAt,
@@ -300,9 +302,9 @@ export const runtimeUsageEvents = pgTable(
     occurredAtIdx: index("runtime_usage_events_occurred_at_idx").on(
       table.occurredAt,
     ),
-    runtimeSessionIdIdx: index("runtime_usage_events_runtime_session_id_idx").on(
-      table.runtimeSessionId,
-    ),
+    runtimeSessionIdIdx: index(
+      "runtime_usage_events_runtime_session_id_idx",
+    ).on(table.runtimeSessionId),
     roomIdIdx: index("runtime_usage_events_room_id_idx").on(table.roomId),
     appIdIdx: index("runtime_usage_events_app_id_idx").on(table.appId),
   }),
@@ -329,9 +331,9 @@ export const runtimeUsageControllerSegments = pgTable(
     runtimeSessionIdx: index(
       "runtime_usage_controller_segments_runtime_session_id_idx",
     ).on(table.runtimeSessionId),
-    controllerIdx: index("runtime_usage_controller_segments_controller_id_idx").on(
-      table.controllerId,
-    ),
+    controllerIdx: index(
+      "runtime_usage_controller_segments_controller_id_idx",
+    ).on(table.controllerId),
     startedAtIdx: index("runtime_usage_controller_segments_started_at_idx").on(
       table.startedAt,
     ),
@@ -357,9 +359,9 @@ export const runtimeUsageGameSegments = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    runtimeSessionIdx: index("runtime_usage_game_segments_runtime_session_id_idx").on(
-      table.runtimeSessionId,
-    ),
+    runtimeSessionIdx: index(
+      "runtime_usage_game_segments_runtime_session_id_idx",
+    ).on(table.runtimeSessionId),
     gameIdx: index("runtime_usage_game_segments_game_id_idx").on(table.gameId),
     startedAtIdx: index("runtime_usage_game_segments_started_at_idx").on(
       table.startedAt,

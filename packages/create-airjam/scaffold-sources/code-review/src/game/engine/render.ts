@@ -32,7 +32,9 @@ const readCssVar = (
   return value || fallback;
 };
 
-export const createArenaColors = (styles: CSSStyleDeclaration): ArenaColors => ({
+export const createArenaColors = (
+  styles: CSSStyleDeclaration,
+): ArenaColors => ({
   ringMat: readCssVar(styles, "--ring-mat-color", DEFAULT_ARENA_COLORS.ringMat),
   ringMarkings: readCssVar(
     styles,
@@ -249,8 +251,7 @@ export const drawFrame = ({
             : player.defending
               ? (`${teamPrefix}Defend` as const)
               : defaultSpriteKey;
-    const sprite =
-      sprites[spriteKey] ?? sprites[defaultSpriteKey];
+    const sprite = sprites[spriteKey] ?? sprites[defaultSpriteKey];
 
     if (!sprite) {
       return;
@@ -284,8 +285,7 @@ export const drawFrame = ({
     );
 
     if (timestamp < player.hitFlashEnd) {
-      const hitFlashColor =
-        player.team === "team1" ? TEAM2_COLOR : TEAM1_COLOR;
+      const hitFlashColor = player.team === "team1" ? TEAM2_COLOR : TEAM1_COLOR;
       const hitFlashSprite = getTintedOverlaySprite(
         spriteKey,
         sprite,

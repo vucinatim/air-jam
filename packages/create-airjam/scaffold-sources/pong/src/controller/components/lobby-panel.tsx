@@ -1,16 +1,16 @@
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
+import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
 import type { TeamId } from "../../game/domain/team";
 import { getTeamColor } from "../../game/domain/team";
 import {
+  buildTeamSlots,
   MAX_TEAM_SLOTS,
   type BotCounts,
   type TeamCounts,
-  buildTeamSlots,
 } from "../../game/domain/team-slots";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { POINTS_TO_WIN_OPTIONS, PRESS_FEEL_CLASS } from "../constants";
-import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
 
 interface LobbyPanelProps {
   myTeam: TeamId | null;
@@ -44,7 +44,10 @@ export const LobbyPanel = ({
   onStartMatch,
 }: LobbyPanelProps) => {
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-testid="pong-controller-lobby-panel">
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      data-testid="pong-controller-lobby-panel"
+    >
       <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
         <div className="grid gap-2 sm:grid-cols-2">
           {(["team1", "team2"] as const).map((team) => {
@@ -71,7 +74,9 @@ export const LobbyPanel = ({
                       background: joined
                         ? `linear-gradient(180deg, ${getTeamColor(team)}, color-mix(in srgb, ${getTeamColor(team)} 70%, black))`
                         : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)), rgba(12,18,33,0.92)",
-                      borderColor: joined ? `${getTeamColor(team)}aa` : "rgba(255,255,255,0.12)",
+                      borderColor: joined
+                        ? `${getTeamColor(team)}aa`
+                        : "rgba(255,255,255,0.12)",
                       boxShadow: joined
                         ? `0 16px 28px color-mix(in srgb, ${getTeamColor(team)} 22%, transparent)`
                         : undefined,
@@ -153,7 +158,6 @@ export const LobbyPanel = ({
           buttonClassName="bg-white text-black hover:bg-white/95"
         />
       </div>
-
     </div>
   );
 };

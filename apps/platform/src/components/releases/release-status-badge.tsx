@@ -51,11 +51,7 @@ const getReleaseStatusClassName = (status: GameReleaseStatus): string => {
   }
 };
 
-export function ReleaseStatusBadge({
-  status,
-}: {
-  status: GameReleaseStatus;
-}) {
+export function ReleaseStatusBadge({ status }: { status: GameReleaseStatus }) {
   return (
     <Badge
       variant={getReleaseStatusBadgeVariant(status)}

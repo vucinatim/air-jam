@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildGameMediaUrl } from "./game-media-url";
 import {
   normalizeGameMediaKindPath,
   parseGameMediaKindPath,
 } from "./game-media-policy";
+import { buildGameMediaUrl } from "./game-media-url";
 
 describe("game media path contract", () => {
   it("normalizes preview video to the public route segment", () => {

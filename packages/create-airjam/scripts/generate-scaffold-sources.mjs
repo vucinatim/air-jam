@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import path from "node:path";
 import fse from "fs-extra";
+import path from "node:path";
 import {
   loadScaffoldableRepoGameManifests,
   scaffoldSourcesRoot as outputRoot,
@@ -62,7 +62,9 @@ const main = async () => {
 
   for (const { gameDir, manifest } of loadScaffoldableRepoGameManifests()) {
     const outputDir = path.join(outputRoot, manifest.id);
-    const manifestExcludes = (manifest.export?.exclude ?? []).map(normalizePath);
+    const manifestExcludes = (manifest.export?.exclude ?? []).map(
+      normalizePath,
+    );
 
     await fse.copy(gameDir, outputDir, {
       filter: (src) => {
@@ -82,7 +84,9 @@ const main = async () => {
     generatedCount += 1;
   }
 
-  console.log(`✓ Generated ${generatedCount} scaffold source snapshots in ${outputRoot}`);
+  console.log(
+    `✓ Generated ${generatedCount} scaffold source snapshots in ${outputRoot}`,
+  );
 };
 
 await main();

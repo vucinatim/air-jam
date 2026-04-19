@@ -27,7 +27,11 @@ const templateVersionManifestPath = path.join(
   "create-airjam",
   "template-version-manifest.json",
 );
-const baseAiPackManifestPath = path.join(basePackRoot, ".airjam", "ai-pack.json");
+const baseAiPackManifestPath = path.join(
+  basePackRoot,
+  ".airjam",
+  "ai-pack.json",
+);
 const AI_PACK_UNMANAGED_ROOT_FILES = new Set(["plan.md", "suggestions.md"]);
 
 const readJson = async (filePath) =>
@@ -52,7 +56,9 @@ const listFiles = async (rootDir) => {
   };
 
   await walk(rootDir);
-  return files.filter((relativePath) => !AI_PACK_UNMANAGED_ROOT_FILES.has(relativePath));
+  return files.filter(
+    (relativePath) => !AI_PACK_UNMANAGED_ROOT_FILES.has(relativePath),
+  );
 };
 
 const encodeArtifactPath = (relativePath) =>

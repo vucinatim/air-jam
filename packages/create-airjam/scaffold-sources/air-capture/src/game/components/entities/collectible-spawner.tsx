@@ -1,8 +1,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { getRandomAbilityByRarity } from "../../abilities-store";
-import { useCollectiblesStore } from "../../stores/world/collectibles-store";
 import { ARENA_RADIUS } from "../../constants";
+import { useCollectiblesStore } from "../../stores/world/collectibles-store";
 
 const SPAWN_INTERVAL = 3; // Spawn a new collectible every 3 seconds
 const MAX_COLLECTIBLES = 20; // Maximum number of collectibles at once

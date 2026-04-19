@@ -5,32 +5,32 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
-  FIELD_WIDTH,
-  FIELD_HEIGHT,
-  PADDING,
-  PLAYER_RADIUS,
-  WALL_THICKNESS,
-  LOCATION_COLOR,
-  LOCATION_ACTIVE_COLOR,
-  PLAYER_COLORS,
-  WALLS,
-  BREAKROOM_ACTIVE_COLOR,
-  BREAKROOM_INACTIVE_COLOR,
-  STAT_BAR_TRACK_COLOR,
-  ENERGY_BAR_COLOR,
-  ENERGY_BAR_LOW_COLOR,
   BOREDOM_BAR_COLOR,
   BOREDOM_BAR_LOW_COLOR,
+  BREAKROOM_ACTIVE_COLOR,
+  BREAKROOM_INACTIVE_COLOR,
+  ENERGY_BAR_COLOR,
+  ENERGY_BAR_LOW_COLOR,
+  FIELD_HEIGHT,
+  FIELD_WIDTH,
+  LOCATION_ACTIVE_COLOR,
+  LOCATION_COLOR,
+  PADDING,
+  PLAYER_COLORS,
+  PLAYER_RADIUS,
+  STAT_BAR_TRACK_COLOR,
+  WALL_THICKNESS,
+  WALLS,
 } from "../game-constants";
+import type { GameInput } from "../game/input";
+import type { PlayerStats } from "../game/stores";
+import { getPlayerById } from "../players";
+import type { TaskManager } from "../task-manager";
 import {
-  LOCATIONS,
   BREAKROOM_LOCATIONS,
+  LOCATIONS,
   STAT_CONSTANTS,
 } from "../task-manager";
-import type { TaskManager } from "../task-manager";
-import type { PlayerStats } from "../game/stores";
-import type { GameInput } from "../game/input";
-import { getPlayerById } from "../players";
 
 /**
  * Draws a handdrawn/sketchy line on canvas.
@@ -166,284 +166,306 @@ export const GameCanvas = memo(function GameCanvas({
   }, []);
 
   // Render function
-  const render = useCallback((ctx: CanvasRenderingContext2D) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const render = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const { width: displayWidth, height: displayHeight } = canvasSize;
-    const gameWidth = FIELD_WIDTH + PADDING * 2;
-    const gameHeight = FIELD_HEIGHT + PADDING * 2;
-    const dpr = window.devicePixelRatio || 1;
+      const { width: displayWidth, height: displayHeight } = canvasSize;
+      const gameWidth = FIELD_WIDTH + PADDING * 2;
+      const gameHeight = FIELD_HEIGHT + PADDING * 2;
+      const dpr = window.devicePixelRatio || 1;
 
-    // Setup canvas size and scaling
-    canvas.width = displayWidth * dpr;
-    canvas.height = displayHeight * dpr;
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
+      // Setup canvas size and scaling
+      canvas.width = displayWidth * dpr;
+      canvas.height = displayHeight * dpr;
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
 
-    const scaleX = displayWidth / gameWidth;
-    const scaleY = displayHeight / gameHeight;
+      const scaleX = displayWidth / gameWidth;
+      const scaleY = displayHeight / gameHeight;
 
-    ctx.setTransform(dpr * scaleX, 0, 0, dpr * scaleY, PADDING, PADDING);
+      ctx.setTransform(dpr * scaleX, 0, 0, dpr * scaleY, PADDING, PADDING);
 
-    // Clear and draw background
-    ctx.clearRect(-PADDING, -PADDING, gameWidth, gameHeight);
+      // Clear and draw background
+      ctx.clearRect(-PADDING, -PADDING, gameWidth, gameHeight);
 
-    // Draw walls - handdrawn style
-    ctx.strokeStyle = "#000000";
-    ctx.lineCap = "round";
-    WALLS.forEach((wall) => {
-      drawHanddrawnLine(
-        ctx,
-        wall.x1,
-        wall.y1,
-        wall.x2,
-        wall.y2,
-        WALL_THICKNESS,
-      );
-    });
-
-    // Draw work locations
-    LOCATIONS.forEach((location) => {
-      const hasTask = taskManagerRef.current.hasTaskAt(location.id);
-      const locationImage = locationImagesRef.current[location.id];
-
-      if (locationImage) {
-        // Draw yellow radial gradient when active - use shorter dimension for proportional glow
-        if (hasTask) {
-          const centerX = location.x + location.width / 2;
-          const centerY = location.y + location.height / 2;
-          const radius = Math.min(location.width, location.height) / 2 + 15;
-          const gradient = ctx.createRadialGradient(
-            centerX,
-            centerY,
-            0,
-            centerX,
-            centerY,
-            radius,
-          );
-          gradient.addColorStop(0, "rgba(245, 213, 71, 0.9)");
-          gradient.addColorStop(1, "rgba(245, 213, 71, 0)");
-          ctx.fillStyle = gradient;
-          ctx.fillRect(
-            location.x - 10,
-            location.y - 10,
-            location.width + 20,
-            location.height + 20,
-          );
-        }
-        // Draw location image
-        ctx.drawImage(
-          locationImage,
-          location.x,
-          location.y,
-          location.width,
-          location.height,
+      // Draw walls - handdrawn style
+      ctx.strokeStyle = "#000000";
+      ctx.lineCap = "round";
+      WALLS.forEach((wall) => {
+        drawHanddrawnLine(
+          ctx,
+          wall.x1,
+          wall.y1,
+          wall.x2,
+          wall.y2,
+          WALL_THICKNESS,
         );
-      } else {
-        // Draw square box (existing behavior)
-        ctx.fillStyle = hasTask ? LOCATION_ACTIVE_COLOR : LOCATION_COLOR;
-        ctx.fillRect(location.x, location.y, location.width, location.height);
-      }
-    });
+      });
 
-    // Draw breakroom locations
-    BREAKROOM_LOCATIONS.forEach((location) => {
-      const activity = breakroomActivitiesRef.current;
-      const hasActivity = Object.values(activity).some(
-        (a) => a && a.locationId === location.id,
-      );
-      const locationImage = locationImagesRef.current[location.id];
+      // Draw work locations
+      LOCATIONS.forEach((location) => {
+        const hasTask = taskManagerRef.current.hasTaskAt(location.id);
+        const locationImage = locationImagesRef.current[location.id];
 
-      if (locationImage) {
-        // Draw yellow radial gradient when active - use shorter dimension for proportional glow
-        if (hasActivity) {
-          const centerX = location.x + location.width / 2;
-          const centerY = location.y + location.height / 2;
-          const radius = Math.min(location.width, location.height) / 2 + 15;
-          const gradient = ctx.createRadialGradient(
-            centerX,
-            centerY,
-            0,
-            centerX,
-            centerY,
-            radius,
+        if (locationImage) {
+          // Draw yellow radial gradient when active - use shorter dimension for proportional glow
+          if (hasTask) {
+            const centerX = location.x + location.width / 2;
+            const centerY = location.y + location.height / 2;
+            const radius = Math.min(location.width, location.height) / 2 + 15;
+            const gradient = ctx.createRadialGradient(
+              centerX,
+              centerY,
+              0,
+              centerX,
+              centerY,
+              radius,
+            );
+            gradient.addColorStop(0, "rgba(245, 213, 71, 0.9)");
+            gradient.addColorStop(1, "rgba(245, 213, 71, 0)");
+            ctx.fillStyle = gradient;
+            ctx.fillRect(
+              location.x - 10,
+              location.y - 10,
+              location.width + 20,
+              location.height + 20,
+            );
+          }
+          // Draw location image
+          ctx.drawImage(
+            locationImage,
+            location.x,
+            location.y,
+            location.width,
+            location.height,
           );
-          gradient.addColorStop(0, "rgba(245, 213, 71, 0.9)");
-          gradient.addColorStop(1, "rgba(245, 213, 71, 0)");
-          ctx.fillStyle = gradient;
-          ctx.fillRect(
-            location.x - 10,
-            location.y - 10,
-            location.width + 20,
-            location.height + 20,
-          );
+        } else {
+          // Draw square box (existing behavior)
+          ctx.fillStyle = hasTask ? LOCATION_ACTIVE_COLOR : LOCATION_COLOR;
+          ctx.fillRect(location.x, location.y, location.width, location.height);
         }
-        // Draw location image
-        ctx.drawImage(
-          locationImage,
-          location.x,
-          location.y,
-          location.width,
-          location.height,
+      });
+
+      // Draw breakroom locations
+      BREAKROOM_LOCATIONS.forEach((location) => {
+        const activity = breakroomActivitiesRef.current;
+        const hasActivity = Object.values(activity).some(
+          (a) => a && a.locationId === location.id,
         );
-      } else {
-        // Breakroom: warm terracotta / muted orange palette
-        ctx.fillStyle = hasActivity
-          ? BREAKROOM_ACTIVE_COLOR
-          : BREAKROOM_INACTIVE_COLOR;
-        ctx.fillRect(location.x, location.y, location.width, location.height);
-      }
-    });
+        const locationImage = locationImagesRef.current[location.id];
 
-    // Draw players
-    players.forEach((p, index) => {
-      const pos = gameStateRef.current.positions[p.id];
-      if (!pos) return;
+        if (locationImage) {
+          // Draw yellow radial gradient when active - use shorter dimension for proportional glow
+          if (hasActivity) {
+            const centerX = location.x + location.width / 2;
+            const centerY = location.y + location.height / 2;
+            const radius = Math.min(location.width, location.height) / 2 + 15;
+            const gradient = ctx.createRadialGradient(
+              centerX,
+              centerY,
+              0,
+              centerX,
+              centerY,
+              radius,
+            );
+            gradient.addColorStop(0, "rgba(245, 213, 71, 0.9)");
+            gradient.addColorStop(1, "rgba(245, 213, 71, 0)");
+            ctx.fillStyle = gradient;
+            ctx.fillRect(
+              location.x - 10,
+              location.y - 10,
+              location.width + 20,
+              location.height + 20,
+            );
+          }
+          // Draw location image
+          ctx.drawImage(
+            locationImage,
+            location.x,
+            location.y,
+            location.width,
+            location.height,
+          );
+        } else {
+          // Breakroom: warm terracotta / muted orange palette
+          ctx.fillStyle = hasActivity
+            ? BREAKROOM_ACTIVE_COLOR
+            : BREAKROOM_INACTIVE_COLOR;
+          ctx.fillRect(location.x, location.y, location.width, location.height);
+        }
+      });
 
-      const playerId = gameStateRef.current.playerAssignments[p.id];
-      const player = playerId ? getPlayerById(playerId) : null;
-      const playerImage = playerId ? playerImagesRef.current[playerId] : null;
-      const stats = gameStateRef.current.playerStats[p.id];
-      const isDead = stats && !stats.alive;
+      // Draw players
+      players.forEach((p, index) => {
+        const pos = gameStateRef.current.positions[p.id];
+        if (!pos) return;
 
-      // Apply grayscale filter for dead players
-      if (isDead) {
-        ctx.save();
-        ctx.filter = "grayscale(100%)";
-      }
+        const playerId = gameStateRef.current.playerAssignments[p.id];
+        const player = playerId ? getPlayerById(playerId) : null;
+        const playerImage = playerId ? playerImagesRef.current[playerId] : null;
+        const stats = gameStateRef.current.playerStats[p.id];
+        const isDead = stats && !stats.alive;
 
-      // Draw player circle
-      ctx.fillStyle = PLAYER_COLORS[index % PLAYER_COLORS.length];
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, PLAYER_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
+        // Apply grayscale filter for dead players
+        if (isDead) {
+          ctx.save();
+          ctx.filter = "grayscale(100%)";
+        }
 
-      // Draw player image or initials
-      if (playerImage) {
-        const imgSize = PLAYER_RADIUS * 2;
-        ctx.save();
+        // Draw player circle
+        ctx.fillStyle = PLAYER_COLORS[index % PLAYER_COLORS.length];
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, PLAYER_RADIUS, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
+        ctx.fill();
 
-        const srcW = playerImage.naturalWidth;
-        const srcH = playerImage.naturalHeight;
-        const srcSize = Math.min(srcW, srcH);
-        const srcX = (srcW - srcSize) / 2;
-        const srcY = (srcH - srcSize) / 2;
+        // Draw player image or initials
+        if (playerImage) {
+          const imgSize = PLAYER_RADIUS * 2;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, PLAYER_RADIUS, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
 
-        ctx.drawImage(
-          playerImage,
-          srcX,
-          srcY,
-          srcSize,
-          srcSize,
-          pos.x - PLAYER_RADIUS,
-          pos.y - PLAYER_RADIUS,
-          imgSize,
-          imgSize,
-        );
-        ctx.restore();
-      } else {
-        const initials = player?.name?.charAt(0) || "?";
-        ctx.font = "bold 14px Arial";
-        ctx.fillStyle = "#fff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(initials, pos.x, pos.y);
-      }
+          const srcW = playerImage.naturalWidth;
+          const srcH = playerImage.naturalHeight;
+          const srcSize = Math.min(srcW, srcH);
+          const srcX = (srcW - srcSize) / 2;
+          const srcY = (srcH - srcSize) / 2;
 
-      // Restore from grayscale if dead
-      if (isDead) {
-        ctx.restore();
-        return; // Skip stat bars for dead players
-      }
+          ctx.drawImage(
+            playerImage,
+            srcX,
+            srcY,
+            srcSize,
+            srcSize,
+            pos.x - PLAYER_RADIUS,
+            pos.y - PLAYER_RADIUS,
+            imgSize,
+            imgSize,
+          );
+          ctx.restore();
+        } else {
+          const initials = player?.name?.charAt(0) || "?";
+          ctx.font = "bold 14px Arial";
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(initials, pos.x, pos.y);
+        }
 
-      const taskProgress = taskManagerRef.current.getTaskProgress(p.id);
-      const breakroomActivity = breakroomActivitiesRef.current[p.id];
+        // Restore from grayscale if dead
+        if (isDead) {
+          ctx.restore();
+          return; // Skip stat bars for dead players
+        }
 
-      // Calculate unified progress (breakroom takes priority)
-      let unifiedProgress = 0;
-      if (breakroomActivity) {
-        const elapsed = performance.now() - breakroomActivity.startTime;
-        unifiedProgress = Math.min(
-          elapsed / STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS,
-          1,
-        );
-      } else if (taskProgress > 0) {
-        unifiedProgress = taskProgress;
-      }
+        const taskProgress = taskManagerRef.current.getTaskProgress(p.id);
+        const breakroomActivity = breakroomActivitiesRef.current[p.id];
 
-      // Start position above player for progress bars
-      let currentBarY = pos.y - PLAYER_RADIUS - 20;
+        // Calculate unified progress (breakroom takes priority)
+        let unifiedProgress = 0;
+        if (breakroomActivity) {
+          const elapsed = performance.now() - breakroomActivity.startTime;
+          unifiedProgress = Math.min(
+            elapsed / STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS,
+            1,
+          );
+        } else if (taskProgress > 0) {
+          unifiedProgress = taskProgress;
+        }
 
-      // Draw unified progress bar (green for both tasks and breakroom activities)
-      if (unifiedProgress > 0) {
-        const barWidth = 40;
-        const barHeight = 6;
-        const barX = pos.x - barWidth / 2;
+        // Start position above player for progress bars
+        let currentBarY = pos.y - PLAYER_RADIUS - 20;
 
-        ctx.fillStyle = STAT_BAR_TRACK_COLOR;
-        ctx.fillRect(barX, currentBarY, barWidth, barHeight);
+        // Draw unified progress bar (green for both tasks and breakroom activities)
+        if (unifiedProgress > 0) {
+          const barWidth = 40;
+          const barHeight = 6;
+          const barX = pos.x - barWidth / 2;
 
-        ctx.fillStyle = LOCATION_ACTIVE_COLOR;
-        ctx.fillRect(barX, currentBarY, barWidth * unifiedProgress, barHeight);
+          ctx.fillStyle = STAT_BAR_TRACK_COLOR;
+          ctx.fillRect(barX, currentBarY, barWidth, barHeight);
 
-        currentBarY += barHeight + 4;
-      }
+          ctx.fillStyle = LOCATION_ACTIVE_COLOR;
+          ctx.fillRect(
+            barX,
+            currentBarY,
+            barWidth * unifiedProgress,
+            barHeight,
+          );
 
-      // Draw player stat arcs around the player (only for alive players)
-      if (stats?.alive) {
-        const arcRadius = PLAYER_RADIUS + 6;
-        const arcWidth = 3;
+          currentBarY += barHeight + 4;
+        }
 
-        // Energy arc - left side (135° to 225°), depletes downward
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, arcRadius, Math.PI * 0.75, Math.PI * 1.25, false);
-        ctx.lineWidth = arcWidth;
-        ctx.strokeStyle = STAT_BAR_TRACK_COLOR;
-        ctx.stroke();
+        // Draw player stat arcs around the player (only for alive players)
+        if (stats?.alive) {
+          const arcRadius = PLAYER_RADIUS + 6;
+          const arcWidth = 3;
 
-        // Energy fill - depletes from top (100%) toward bottom (0%)
-        const energyArcLength = Math.PI * 0.5; // 90 degrees
-        const energyEmptyPortion = energyArcLength * (1 - stats.energy / 100);
-        const energyStart = Math.PI * 0.75 + energyEmptyPortion;
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, arcRadius, energyStart, Math.PI * 1.25, false);
-        ctx.strokeStyle =
-          stats.energy > 30 ? ENERGY_BAR_COLOR : ENERGY_BAR_LOW_COLOR;
-        ctx.stroke();
+          // Energy arc - left side (135° to 225°), depletes downward
+          ctx.beginPath();
+          ctx.arc(
+            pos.x,
+            pos.y,
+            arcRadius,
+            Math.PI * 0.75,
+            Math.PI * 1.25,
+            false,
+          );
+          ctx.lineWidth = arcWidth;
+          ctx.strokeStyle = STAT_BAR_TRACK_COLOR;
+          ctx.stroke();
 
-        // Boredom arc - right side (315° to 45°), depletes downward
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, arcRadius, Math.PI * 1.75, Math.PI * 2.25, false);
-        ctx.lineWidth = arcWidth;
-        ctx.strokeStyle = STAT_BAR_TRACK_COLOR;
-        ctx.stroke();
+          // Energy fill - depletes from top (100%) toward bottom (0%)
+          const energyArcLength = Math.PI * 0.5; // 90 degrees
+          const energyEmptyPortion = energyArcLength * (1 - stats.energy / 100);
+          const energyStart = Math.PI * 0.75 + energyEmptyPortion;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, arcRadius, energyStart, Math.PI * 1.25, false);
+          ctx.strokeStyle =
+            stats.energy > 30 ? ENERGY_BAR_COLOR : ENERGY_BAR_LOW_COLOR;
+          ctx.stroke();
 
-        // Boredom fill - depletes from top (100%) toward bottom (0%)
-        const boredomArcLength = Math.PI * 0.5; // 90 degrees
-        const boredomEmptyPortion =
-          boredomArcLength * (1 - stats.boredom / 100);
-        const boredomStart = Math.PI * 1.75 + boredomEmptyPortion;
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, arcRadius, boredomStart, Math.PI * 2.25, false);
-        ctx.strokeStyle =
-          stats.boredom > 30 ? BOREDOM_BAR_COLOR : BOREDOM_BAR_LOW_COLOR;
-        ctx.stroke();
-      }
-    });
-  }, [
-    breakroomActivitiesRef,
-    canvasSize,
-    gameStateRef,
-    locationImagesRef,
-    players,
-    playerImagesRef,
-    taskManagerRef,
-  ]);
+          // Boredom arc - right side (315° to 45°), depletes downward
+          ctx.beginPath();
+          ctx.arc(
+            pos.x,
+            pos.y,
+            arcRadius,
+            Math.PI * 1.75,
+            Math.PI * 2.25,
+            false,
+          );
+          ctx.lineWidth = arcWidth;
+          ctx.strokeStyle = STAT_BAR_TRACK_COLOR;
+          ctx.stroke();
+
+          // Boredom fill - depletes from top (100%) toward bottom (0%)
+          const boredomArcLength = Math.PI * 0.5; // 90 degrees
+          const boredomEmptyPortion =
+            boredomArcLength * (1 - stats.boredom / 100);
+          const boredomStart = Math.PI * 1.75 + boredomEmptyPortion;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, arcRadius, boredomStart, Math.PI * 2.25, false);
+          ctx.strokeStyle =
+            stats.boredom > 30 ? BOREDOM_BAR_COLOR : BOREDOM_BAR_LOW_COLOR;
+          ctx.stroke();
+        }
+      });
+    },
+    [
+      breakroomActivitiesRef,
+      canvasSize,
+      gameStateRef,
+      locationImagesRef,
+      players,
+      playerImagesRef,
+      taskManagerRef,
+    ],
+  );
 
   // Main game loop
   useEffect(() => {
@@ -475,10 +497,10 @@ export const GameCanvas = memo(function GameCanvas({
   }, [gameStatePlaying, getInput, players, render, updateGame]);
 
   return (
-    <div ref={canvasContainerRef} className="relative w-full h-full">
+    <div ref={canvasContainerRef} className="relative h-full w-full">
       <canvas
         ref={canvasRef}
-        className="block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+        className="absolute top-1/2 left-1/2 block -translate-x-1/2 -translate-y-1/2"
       />
     </div>
   );

@@ -7,6 +7,11 @@ import {
   loadEnvFile,
   waitForPort,
 } from "./dev-utils.mjs";
+import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
+import {
+  buildStandaloneGameTopology,
+  serializeResolvedTopology,
+} from "./runtime-topology.mjs";
 import {
   buildSecureGameEnv,
   DEFAULT_GAME_PORT,
@@ -14,11 +19,6 @@ import {
   parseGameDevArgs,
   SECURE_MODE_TUNNEL,
 } from "./secure-dev.mjs";
-import {
-  buildStandaloneGameTopology,
-  serializeResolvedTopology,
-} from "./runtime-topology.mjs";
-import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 
 const START_TIMEOUT_MS = 20_000;
 
@@ -34,9 +34,13 @@ const usage = () => {
   );
   console.log("");
   console.log("Modes:");
-  console.log("  default               Start local server + game (recommended)");
+  console.log(
+    "  default               Start local server + game (recommended)",
+  );
   console.log("  --secure              Start secure local game dev");
-  console.log("  --secure-mode=tunnel  Use Cloudflare tunnel fallback instead of local-only secure host");
+  console.log(
+    "  --secure-mode=tunnel  Use Cloudflare tunnel fallback instead of local-only secure host",
+  );
   console.log("  --web-only            Start only the game app");
   console.log("  --server-only         Start only the local Air Jam server");
   console.log(
@@ -55,7 +59,9 @@ const getDefaultPublicHost = (env, gamePort) => {
     console.warn(
       "[dev] Could not detect LAN IP. Falling back to localhost in QR links.",
     );
-    console.warn("[dev] Set VITE_AIR_JAM_PUBLIC_HOST manually for phone testing.");
+    console.warn(
+      "[dev] Set VITE_AIR_JAM_PUBLIC_HOST manually for phone testing.",
+    );
     return `http://localhost:${gamePort}`;
   }
 
@@ -76,11 +82,7 @@ const startServerIfNeeded = async (processGroup, serverPort) => {
 
 const startGameIfNeeded = async (
   processGroup,
-  {
-    gamePort,
-    env,
-    allowExistingGame,
-  },
+  { gamePort, env, allowExistingGame },
 ) => {
   const hasExistingGame = await isPortOpen(gamePort);
   if (hasExistingGame) {
@@ -151,7 +153,9 @@ export const runGameDevCli = async ({
     if (!args.webOnly) {
       startedServer = await startServerIfNeeded(processGroup, serverPort);
     } else {
-      console.log("[dev] Web-only mode: skipping local Air Jam server startup.");
+      console.log(
+        "[dev] Web-only mode: skipping local Air Jam server startup.",
+      );
     }
 
     let startedGame = false;

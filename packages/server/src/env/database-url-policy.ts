@@ -16,7 +16,10 @@ const trimToUndefined = (value: unknown): string | undefined => {
 };
 
 const normalizeHostname = (value: string): string =>
-  value.trim().replace(/^\[|\]$/g, "").toLowerCase();
+  value
+    .trim()
+    .replace(/^\[|\]$/g, "")
+    .toLowerCase();
 
 const isLocalDatabaseHostname = (hostname: string): boolean =>
   LOCAL_DATABASE_HOSTS.has(normalizeHostname(hostname));
@@ -24,8 +27,10 @@ const isLocalDatabaseHostname = (hostname: string): boolean =>
 const resolveNodeEnv = (env: ServerDatabasePolicyEnv): string =>
   trimToUndefined(env.NODE_ENV) ?? "development";
 
-export interface ServerDatabasePolicyEnv
-  extends Record<string, string | undefined> {
+export interface ServerDatabasePolicyEnv extends Record<
+  string,
+  string | undefined
+> {
   AIR_JAM_ALLOW_REMOTE_DATABASE?: string;
   DATABASE_URL?: string;
   NODE_ENV?: string;

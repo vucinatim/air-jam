@@ -33,8 +33,14 @@ export const clearPlayerTaskState = (
   taskProgress: Record<string, number>,
   playerId: string,
 ) => {
-  const hasBusyState = Object.prototype.hasOwnProperty.call(busyPlayers, playerId);
-  const hasTaskProgress = Object.prototype.hasOwnProperty.call(taskProgress, playerId);
+  const hasBusyState = Object.prototype.hasOwnProperty.call(
+    busyPlayers,
+    playerId,
+  );
+  const hasTaskProgress = Object.prototype.hasOwnProperty.call(
+    taskProgress,
+    playerId,
+  );
 
   if (!hasBusyState && !hasTaskProgress) {
     return {

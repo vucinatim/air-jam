@@ -192,12 +192,7 @@ Example shape:
   "category": "reference",
   "scaffold": true,
   "export": {
-    "exclude": [
-      "dist",
-      "node_modules",
-      "coverage",
-      "tsconfig.tsbuildinfo"
-    ]
+    "exclude": ["dist", "node_modules", "coverage", "tsconfig.tsbuildinfo"]
   }
 }
 ```

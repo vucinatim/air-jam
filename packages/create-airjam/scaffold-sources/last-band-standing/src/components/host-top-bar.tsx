@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
 import { FullLogo } from "@/assets/full-logo";
 import { getRoundPrompt } from "@/features/round/round-prompt";
+import { cn } from "@/lib/utils";
 import { type ActiveRound, type RoundReveal } from "@/store/types";
 import { type GamePhase } from "@/types";
 
@@ -33,10 +33,10 @@ export const HostTopBar = ({
 
       {isPlaying && currentRound && (
         <div className="flex min-w-0 flex-1 items-center justify-center gap-6 text-center">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             Round {currentRound.roundNumber}/{totalRounds}
           </span>
-          <span className="text-sm uppercase tracking-wider text-muted-foreground">
+          <span className="text-muted-foreground text-sm tracking-wider uppercase">
             {getRoundPrompt(currentRound.guessKind)}
           </span>
         </div>
@@ -44,20 +44,22 @@ export const HostTopBar = ({
       <div className="flex min-w-0 flex-1 items-center justify-end">
         {phase === "round-active" && currentRound && (
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {answeredCount}/{currentRound.expectedPlayerIds.length} answered
             </span>
-            <span className={cn(
-              "min-w-[2ch] text-right text-xl font-bold tabular-nums",
-              countdownSeconds <= 5 ? "text-destructive" : "text-foreground",
-            )}>
+            <span
+              className={cn(
+                "min-w-[2ch] text-right text-xl font-bold tabular-nums",
+                countdownSeconds <= 5 ? "text-destructive" : "text-foreground",
+              )}
+            >
               {countdownSeconds}
             </span>
           </div>
         )}
 
         {phase === "round-reveal" && roundReveal && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             Next in {revealCountdownSeconds}s
           </span>
         )}

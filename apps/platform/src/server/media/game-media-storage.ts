@@ -3,8 +3,8 @@ import {
   type CreateReleaseArtifactUploadTargetInput,
   type PutReleaseObjectInput,
   type ReleaseArtifactUploadTarget,
-  type ReleaseStoredObjectHead,
   type ReleaseStorage,
+  type ReleaseStoredObjectHead,
 } from "@/server/releases/release-storage";
 
 export type GameMediaUploadTarget = ReleaseArtifactUploadTarget;

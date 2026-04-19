@@ -23,17 +23,17 @@ export function ControllerIdleSurface({
   onPing,
 }: ControllerIdleSurfaceProps) {
   return (
-    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-8 px-6 pt-24 pb-12">
-      <div className="text-center opacity-30">
-        <h1 className="text-4xl font-black tracking-tighter uppercase select-none">
+    <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-between gap-[clamp(0.75rem,2.5dvh,2rem)] overflow-hidden px-4 pt-[clamp(5rem,12dvh,6rem)] pb-[clamp(1rem,4dvh,3rem)]">
+      <div className="shrink-0 text-center opacity-30">
+        <h1 className="text-[clamp(1.875rem,8vw,2.25rem)] leading-none font-black tracking-tighter uppercase select-none">
           Air Jam
         </h1>
-        <p className="text-primary text-2xl font-black tracking-wider uppercase">
+        <p className="text-primary text-[clamp(1.25rem,5.5vw,1.5rem)] leading-tight font-black tracking-wider uppercase">
           Arcade
         </p>
       </div>
 
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex min-h-0 flex-1 items-center justify-center">
         <RemoteDPad
           onMove={onMove}
           onConfirm={onConfirm}
@@ -47,7 +47,7 @@ export function ControllerIdleSurface({
           type="button"
           variant="outline"
           size="touch"
-          className="min-w-48 border-airjam-cyan/40 bg-airjam-cyan/8 px-6 text-airjam-cyan transition-all duration-150 hover:bg-airjam-cyan/14 focus-visible:border-airjam-cyan focus-visible:bg-airjam-cyan/14 focus-visible:ring-airjam-cyan/35 active:border-airjam-cyan active:bg-airjam-cyan/20 active:scale-[0.98] active:shadow-[0_0_24px_rgba(34,211,238,0.22)]"
+          className="border-airjam-cyan/40 bg-airjam-cyan/8 text-airjam-cyan hover:bg-airjam-cyan/14 focus-visible:border-airjam-cyan focus-visible:bg-airjam-cyan/14 focus-visible:ring-airjam-cyan/35 active:border-airjam-cyan active:bg-airjam-cyan/20 min-w-48 shrink-0 px-6 transition-all duration-150 active:scale-[0.98] active:shadow-[0_0_24px_rgba(34,211,238,0.22)]"
           data-testid="controller-arcade-ping"
           onClick={onPing}
         >
@@ -56,7 +56,7 @@ export function ControllerIdleSurface({
         </Button>
       ) : null}
 
-      <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm opacity-50">
+      <div className="text-muted-foreground flex shrink-0 flex-col items-center gap-2 text-center text-sm opacity-50">
         <p>Use the remote to navigate</p>
         <p className="mt-0.5 flex items-center justify-center gap-1.5">
           <span>Press</span>

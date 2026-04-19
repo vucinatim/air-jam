@@ -24,7 +24,9 @@ const parseScaffoldManifest = (manifestPath) => {
   }
 
   if (typeof manifest.scaffold !== "boolean") {
-    throw new Error(`Invalid scaffold manifest scaffold flag at ${manifestPath}`);
+    throw new Error(
+      `Invalid scaffold manifest scaffold flag at ${manifestPath}`,
+    );
   }
 
   return manifest;
@@ -57,4 +59,6 @@ export const loadRepoGameTemplateManifests = () => {
 };
 
 export const loadScaffoldableRepoGameManifests = () =>
-  loadRepoGameTemplateManifests().filter((entry) => entry.manifest.scaffold === true);
+  loadRepoGameTemplateManifests().filter(
+    (entry) => entry.manifest.scaffold === true,
+  );

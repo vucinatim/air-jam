@@ -4,10 +4,10 @@ import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
 import type {
   ConnectionStatus,
-  RuntimeState,
   PlayerProfile,
   RoomCode,
   RunMode,
+  RuntimeState,
 } from "../protocol";
 
 export interface AirJamHostSessionState {

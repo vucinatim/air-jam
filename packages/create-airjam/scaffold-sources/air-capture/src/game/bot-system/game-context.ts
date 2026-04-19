@@ -1,24 +1,19 @@
 import { Vector3 } from "three";
+import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
 import { TEAM_IDS, type TeamId } from "../domain/team";
+import { shipPositions, shipRotations } from "../engine/ships/runtime";
 import {
   AIR_CAPTURE_ARENA_JUMP_PADS,
   AIR_CAPTURE_ARENA_OBSTACLES,
   type ObstacleData,
 } from "../prefabs/arena/layout";
-import {
-  useCaptureTheFlagStore,
-} from "../stores/match/capture-the-flag-store";
+import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
+import { useGameStore } from "../stores/players/game-store";
+import { useHealthStore } from "../stores/players/health-store";
 import {
   useCollectiblesStore,
   type CollectibleData,
 } from "../stores/world/collectibles-store";
-import { shipPositions, shipRotations } from "../engine/ships/runtime";
-import {
-  JUMP_FORCE,
-  JUMP_PAD_RADIUS,
-} from "../constants";
-import { useGameStore } from "../stores/players/game-store";
-import { useHealthStore } from "../stores/players/health-store";
 import type { JumpPadInfo } from "./reachability-checker";
 
 export interface BotSelf {

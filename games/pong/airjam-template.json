@@ -2,6 +2,7 @@
   "id": "pong",
   "name": "Pong",
   "description": "Basic 2D canvas starter. Team paddle game with lobby, bots, scoring, and audio — the canonical reference for a complete Air Jam game.",
+  "category": "arcade",
   "default": true,
   "scaffold": true,
   "export": {

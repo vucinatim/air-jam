@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   onAirJamDiagnostic,
   resetAirJamDiagnosticsForTests,

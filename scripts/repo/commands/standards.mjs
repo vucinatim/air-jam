@@ -3,7 +3,7 @@ import { runCommandResult } from "../lib/shell.mjs";
 const canonicalRules = [
   {
     pattern:
-      'import\\s*{[^}]*\\bAirJamProvider\\b[^}]*}\\s*from\\s*["\\\']@air-jam/sdk["\\\']',
+      "import\\s*{[^}]*\\bAirJamProvider\\b[^}]*}\\s*from\\s*[\"\\']@air-jam/sdk[\"\\']",
     label: "unscoped AirJamProvider imports in runtime code",
     paths: [
       "apps/platform/src/app/arcade",
@@ -63,7 +63,8 @@ const canonicalRules = [
     ],
   },
   {
-    pattern: "<HostSessionProvider[^>]*(serverUrl|appId|maxPlayers|publicHost|input)\\s*=",
+    pattern:
+      "<HostSessionProvider[^>]*(serverUrl|appId|maxPlayers|publicHost|input)\\s*=",
     label:
       "inline HostSessionProvider runtime config props (use canonical session-config module)",
     paths: [
@@ -90,7 +91,7 @@ const canonicalRules = [
     ],
   },
   {
-    pattern: 'postMessage\\([^,]+,\\s*["\\\']\\*["\\\']',
+    pattern: "postMessage\\([^,]+,\\s*[\"\\']\\*[\"\\']",
     label: "wildcard postMessage targetOrigin usage",
     paths: ["apps/platform/src/components/arcade", "packages/sdk/src"],
   },
@@ -141,7 +142,8 @@ const canonicalRules = [
   {
     pattern:
       "actions\\.[A-Za-z0-9_]+\\(\\s*\\{[^)]*\\b(vector|direction|action|ability|timestamp)\\s*:",
-    label: "input-like payload dispatched through state actions in docs/examples",
+    label:
+      "input-like payload dispatched through state actions in docs/examples",
     paths: [
       "apps/platform/src/app/docs",
       "apps/platform/src/components/docs",

@@ -1,6 +1,9 @@
-import { type AirJamActionContext } from "@air-jam/sdk";
-import { type PlayerAnswer, type RoundPlayerResult } from "@/game/domain/round-engine";
+import {
+  type PlayerAnswer,
+  type RoundPlayerResult,
+} from "@/game/domain/round-engine";
 import { type GamePhase, type RoundGuessKind } from "@/types";
+import { type AirJamActionContext } from "@air-jam/sdk";
 
 export interface ConnectedPlayer {
   id: string;
@@ -70,14 +73,8 @@ export interface QuizState {
       ctx: AirJamActionContext,
       payload: { name: string },
     ) => void;
-    setReady: (
-      ctx: AirJamActionContext,
-      payload: { ready: boolean },
-    ) => void;
-    startMatch: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
+    setReady: (ctx: AirJamActionContext, payload: { ready: boolean }) => void;
+    startMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
     submitGuess: (
       ctx: AirJamActionContext,
       payload: { optionId: string },
@@ -90,13 +87,7 @@ export interface QuizState {
       ctx: AirJamActionContext,
       payload: { nowMs?: number },
     ) => void;
-    forceGameOver: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
-    resetLobby: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
+    forceGameOver: (ctx: AirJamActionContext, _payload: undefined) => void;
+    resetLobby: (ctx: AirJamActionContext, _payload: undefined) => void;
   };
 }

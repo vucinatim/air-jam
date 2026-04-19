@@ -115,7 +115,7 @@ export function LoginScreen({ nextPath }: LoginScreenProps) {
         <div className="pointer-events-none absolute inset-0 z-1 bg-black/20" />
         <div className="from-airjam-cyan/12 via-airjam-cyan/4 absolute top-1/2 left-1/2 z-2 h-96 w-3xl -translate-x-1/2 -translate-y-1/2 rounded-full bg-radial to-transparent blur-3xl" />
 
-        <Card className="relative z-10 w-full max-w-[420px] gap-0 overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/92 py-0 text-zinc-100 ring-1 ring-white/4 shadow-2xl shadow-black/60 backdrop-blur-xl">
+        <Card className="relative z-10 w-full max-w-[420px] gap-0 overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/92 py-0 text-zinc-100 shadow-2xl ring-1 shadow-black/60 ring-white/4 backdrop-blur-xl">
           <div className="from-airjam-cyan/25 pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r via-white/40 to-transparent" />
           <div className="pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-b from-white/4 to-transparent" />
 

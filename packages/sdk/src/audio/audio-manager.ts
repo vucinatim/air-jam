@@ -203,7 +203,10 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     const category = this.getCategory(id);
     const config = this.manifest[id];
     const baseVolume = config?.volume ?? 1;
-    const effectiveVolume = getEffectiveAudioVolume(this.audioSettings, category);
+    const effectiveVolume = getEffectiveAudioVolume(
+      this.audioSettings,
+      category,
+    );
     const finalVolume =
       volume !== undefined
         ? volume * effectiveVolume

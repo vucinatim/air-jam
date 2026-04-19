@@ -1,12 +1,14 @@
-import type { PlayerProfilePatch, RuntimeState } from "../../protocol";
-import type {
-  AirJamControllerApi,
-} from "../../hooks/use-air-jam-controller";
+import type { AirJamControllerApi } from "../../hooks/use-air-jam-controller";
 import type { AirJamHostApi } from "../../hooks/use-air-jam-host";
+import type { PlayerProfilePatch, RuntimeState } from "../../protocol";
 
 type HostControlApi = Pick<
   AirJamHostApi,
-  "runtimeState" | "toggleRuntimeState" | "sendSignal" | "sendState" | "reconnect"
+  | "runtimeState"
+  | "toggleRuntimeState"
+  | "sendSignal"
+  | "sendState"
+  | "reconnect"
 >;
 
 type ControllerControlApi = Pick<
@@ -34,7 +36,9 @@ export interface ControllerRuntimeControlContract {
   sendSystemCommand: ControllerControlApi["sendSystemCommand"];
   setNicknameDraft: (value: string) => void;
   setAvatarIdDraft: (value: string) => void;
-  updatePlayerProfile: (patch: PlayerProfilePatch) => ReturnType<ControllerControlApi["updatePlayerProfile"]>;
+  updatePlayerProfile: (
+    patch: PlayerProfilePatch,
+  ) => ReturnType<ControllerControlApi["updatePlayerProfile"]>;
 }
 
 export const createHostRuntimeControlContract = (

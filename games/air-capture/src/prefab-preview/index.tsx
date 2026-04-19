@@ -1,19 +1,19 @@
-import { Canvas } from "@react-three/fiber";
 import { PerspectiveCamera } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { type JSX, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
-import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../game/domain/team";
 import {
   createInitialFlags,
   createInitialScores,
   type TeamPositions,
 } from "../game/domain/capture-the-flag";
-import { AIR_CAPTURE_ARENA_PREFAB } from "../game/prefabs/arena/prefab";
-import { SpaceEnvironment } from "../game/prefabs/arena/space-environment";
-import { resolveAirCaptureArenaProps } from "../game/prefabs/arena/schema";
+import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../game/domain/team";
 import { AIR_CAPTURE_PREFABS } from "../game/prefabs";
+import { AIR_CAPTURE_ARENA_PREFAB } from "../game/prefabs/arena/prefab";
+import { resolveAirCaptureArenaProps } from "../game/prefabs/arena/schema";
+import { SpaceEnvironment } from "../game/prefabs/arena/space-environment";
 import { useCaptureTheFlagStore } from "../game/stores/match/capture-the-flag-store";
 import {
   AIR_CAPTURE_PREFAB_CAPTURE_PREFAB_PARAM,
@@ -219,7 +219,10 @@ export function PrefabCaptureSurface(): JSX.Element {
   }, [selectedPrefab, selectedTeam]);
 
   useEffect(() => {
-    const basePositions = resolveTeamPreviewPositions(selectedTeam, isArenaPreview);
+    const basePositions = resolveTeamPreviewPositions(
+      selectedTeam,
+      isArenaPreview,
+    );
     useCaptureTheFlagStore.setState({
       playerTeams: {},
       basePositions,
@@ -246,7 +249,10 @@ export function PrefabCaptureSurface(): JSX.Element {
         />
         <Physics gravity={[0, 0, 0]} interpolate={true}>
           <group>
-            <PrefabScene prefab={selectedPrefab} resolvedProps={resolvedProps} />
+            <PrefabScene
+              prefab={selectedPrefab}
+              resolvedProps={resolvedProps}
+            />
           </group>
         </Physics>
       </Canvas>

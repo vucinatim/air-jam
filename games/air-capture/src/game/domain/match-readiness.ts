@@ -5,17 +5,12 @@ import { getEffectiveTeamCounts } from "./team-slots";
 export type TeamCounts = Record<TeamId, number>;
 
 export const createEmptyTeamCounts = (): TeamCounts =>
-  TEAM_IDS.reduce(
-    (acc, teamId) => {
-      acc[teamId] = 0;
-      return acc;
-    },
-    {} as TeamCounts,
-  );
+  TEAM_IDS.reduce((acc, teamId) => {
+    acc[teamId] = 0;
+    return acc;
+  }, {} as TeamCounts);
 
-export const getTeamCounts = (
-  assignments: TeamAssignment[],
-): TeamCounts => {
+export const getTeamCounts = (assignments: TeamAssignment[]): TeamCounts => {
   return assignments.reduce((acc, assignment) => {
     acc[assignment.teamId] += 1;
     return acc;

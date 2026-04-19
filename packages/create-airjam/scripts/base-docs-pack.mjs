@@ -124,7 +124,7 @@ const transformMdxToLocalMarkdown = (value) => {
     if (
       trimmed.startsWith("import ") ||
       trimmed === "export { metadata };" ||
-      trimmed === 'export { metadata };'
+      trimmed === "export { metadata };"
     ) {
       continue;
     }
@@ -155,9 +155,12 @@ const rewriteDocLinks = (value, currentOutputFile) =>
         ? `](${toLocalLink(currentOutputFile, localOutputFile)})`
         : `](${hostedDocUrl(slug)})`;
     })
-    .replace(/\]\((\/(llms\.txt|sitemap\.xml|robots\.txt))\)/g, (_match, href) => {
-      return `](https://air-jam.app${href})`;
-    });
+    .replace(
+      /\]\((\/(llms\.txt|sitemap\.xml|robots\.txt))\)/g,
+      (_match, href) => {
+        return `](https://air-jam.app${href})`;
+      },
+    );
 
 const stripExcessBlankLines = (value) =>
   value
@@ -215,6 +218,10 @@ export const generateBaseDocsPack = async (targetRoot = outputDocsRoot) => {
         entry.output,
       ),
     );
-    await fs.writeFile(targetPath, renderExportedDoc(entry, transformed), "utf8");
+    await fs.writeFile(
+      targetPath,
+      renderExportedDoc(entry, transformed),
+      "utf8",
+    );
   }
 };

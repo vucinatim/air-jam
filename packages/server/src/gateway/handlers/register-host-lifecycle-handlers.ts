@@ -3,7 +3,6 @@ import {
   ErrorCode,
   hostActivateEmbeddedGameSchema,
   hostBootstrapSchema,
-  type HostSessionKind,
   hostCreateRoomSchema,
   hostJoinAsChildSchema,
   hostReconnectSchema,
@@ -15,9 +14,10 @@ import {
   type HostBootstrapPayload,
   type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
-  type HostRegistrationAck,
   type HostReconnectPayload,
   type HostRegisterSystemPayload,
+  type HostRegistrationAck,
+  type HostSessionKind,
   type PlayerProfile,
   type SystemLaunchGamePayload,
 } from "@air-jam/sdk/protocol";
@@ -28,26 +28,26 @@ import {
   createRuntimeUsageEvent,
   syncRoomAnalyticsState,
 } from "../../analytics/runtime-usage.js";
-import { redactIdentifier } from "../../logging/logger.js";
 import {
   activateChildHost,
   activateEmbeddedGame,
   beginChildHostActivation,
   beginGameLaunch,
   beginRoomClosing,
-  buildRoomStateMessage,
   buildArcadeSessionForHostAck,
   buildControllerCapabilityForHostAck,
+  buildRoomStateMessage,
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
   emitRoomState,
   getRoomLifecyclePhase,
   isChildHostCapabilityExpired,
-  issueControllerPrivilegedCapability,
   issueChildHostCapability,
+  issueControllerPrivilegedCapability,
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
+import { redactIdentifier } from "../../logging/logger.js";
 import type { RoomSession } from "../../types.js";
 import { generateRoomCode } from "../../utils/ids.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
@@ -110,11 +110,13 @@ export const registerHostLifecycleHandlers = (
   };
 
   const buildHostRosterSnapshot = (session: RoomSession): PlayerProfile[] =>
-    Array.from(session.controllers.values(), (controller) => controller.playerProfile);
+    Array.from(
+      session.controllers.values(),
+      (controller) => controller.playerProfile,
+    );
 
-  const getControllerCapabilityForAck = (
-    session: RoomSession,
-  ) => buildControllerCapabilityForHostAck(session, uuidv4);
+  const getControllerCapabilityForAck = (session: RoomSession) =>
+    buildControllerCapabilityForHostAck(session, uuidv4);
 
   const clearPendingRoomCloseTimer = (session: RoomSession): void => {
     if (!session.pendingRoomCloseTimer) {
@@ -213,7 +215,8 @@ export const registerHostLifecycleHandlers = (
         );
         callback({
           ok: false,
-          message: "Server is currently in maintenance mode. Please try again later.",
+          message:
+            "Server is currently in maintenance mode. Please try again later.",
           code: ErrorCode.SERVICE_UNAVAILABLE,
         });
         return;
@@ -303,7 +306,8 @@ export const registerHostLifecycleHandlers = (
         );
         callback({
           ok: false,
-          message: "Too many bootstrap attempts for this app. Please try again.",
+          message:
+            "Too many bootstrap attempts for this app. Please try again.",
           code: ErrorCode.SERVICE_UNAVAILABLE,
         });
         return;
@@ -316,11 +320,16 @@ export const registerHostLifecycleHandlers = (
         verification.verifiedOrigin,
         parsed.data.hostSessionKind,
       );
-      logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.bootstrapVerified, "Host bootstrap verified", {
-        verifiedVia: verification.verifiedVia,
-        appIdHint: redactIdentifier(verification.appId),
-        verifiedOrigin: verification.verifiedOrigin,
-      });
+      logHostEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.host.bootstrapVerified,
+        "Host bootstrap verified",
+        {
+          verifiedVia: verification.verifiedVia,
+          appIdHint: redactIdentifier(verification.appId),
+          verifiedOrigin: verification.verifiedOrigin,
+        },
+      );
       runtimeUsagePublisher.publish(
         createRuntimeUsageEvent({
           kind: "host_bootstrap_verified",
@@ -369,7 +378,8 @@ export const registerHostLifecycleHandlers = (
         );
         callback({
           ok: false,
-          message: "Too many host lifecycle attempts for this app. Please try again.",
+          message:
+            "Too many host lifecycle attempts for this app. Please try again.",
           code: ErrorCode.SERVICE_UNAVAILABLE,
         });
         return;
@@ -410,9 +420,14 @@ export const registerHostLifecycleHandlers = (
       roomManager.setHostRoom(socket.id, roomId);
       socket.join(roomId);
 
-      logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.registerSystemAccepted, "Host registered as system host", {
-        roomId,
-      });
+      logHostEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.host.registerSystemAccepted,
+        "Host registered as system host",
+        {
+          roomId,
+        },
+      );
       runtimeUsagePublisher.publish(
         createRoomRuntimeUsageEvent(session, {
           kind: "room_registered",
@@ -466,7 +481,8 @@ export const registerHostLifecycleHandlers = (
         );
         callback({
           ok: false,
-          message: "Too many host lifecycle attempts for this app. Please try again.",
+          message:
+            "Too many host lifecycle attempts for this app. Please try again.",
           code: ErrorCode.SERVICE_UNAVAILABLE,
         });
         return;
@@ -514,7 +530,8 @@ export const registerHostLifecycleHandlers = (
             ok: true,
             roomId: existingRoomId,
             players: buildHostRosterSnapshot(existingSession),
-            controllerCapability: getControllerCapabilityForAck(existingSession),
+            controllerCapability:
+              getControllerCapabilityForAck(existingSession),
           });
           return;
         }
@@ -551,11 +568,16 @@ export const registerHostLifecycleHandlers = (
       roomManager.setHostRoom(socket.id, roomId);
       socket.join(roomId);
 
-      logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.createRoomAccepted, "Host created room", {
-        roomId,
-        maxPlayers,
-        reused: false,
-      });
+      logHostEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.host.createRoomAccepted,
+        "Host created room",
+        {
+          roomId,
+          maxPlayers,
+          reused: false,
+        },
+      );
       runtimeUsagePublisher.publish(
         createRoomRuntimeUsageEvent(session, {
           kind: "room_created",
@@ -625,7 +647,8 @@ export const registerHostLifecycleHandlers = (
         );
         callback({
           ok: false,
-          message: "Too many host lifecycle attempts for this app. Please try again.",
+          message:
+            "Too many host lifecycle attempts for this app. Please try again.",
           code: ErrorCode.SERVICE_UNAVAILABLE,
         });
         return;
@@ -697,14 +720,19 @@ export const registerHostLifecycleHandlers = (
             ? emitRoomState(io, roomId, session)
             : undefined;
 
-        logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.host.reconnectAccepted, "Host reconnected to room", {
-          roomId,
-          controllerCount: session.controllers.size,
-          focus: session.focus,
-          previousGameState,
-          nextGameState: session.runtimeState,
-          resetToLobbyOnReconnect: previousGameState !== session.runtimeState,
-        });
+        logHostEvent(
+          "info",
+          AIRJAM_DEV_LOG_EVENTS.host.reconnectAccepted,
+          "Host reconnected to room",
+          {
+            roomId,
+            controllerCount: session.controllers.size,
+            focus: session.focus,
+            previousGameState,
+            nextGameState: session.runtimeState,
+            resetToLobbyOnReconnect: previousGameState !== session.runtimeState,
+          },
+        );
         logHostEvent(
           "info",
           AIRJAM_DEV_LOG_EVENTS.host.reconnectStateReconcile,
@@ -1138,10 +1166,15 @@ export const registerHostLifecycleHandlers = (
     roomManager.setHostRoom(socket.id, roomId);
     socket.join(roomId);
 
-    logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.childHost.joinAccepted, "Child host joined pending launch", {
-      roomId,
-      resumed: false,
-    });
+    logHostEvent(
+      "info",
+      AIRJAM_DEV_LOG_EVENTS.childHost.joinAccepted,
+      "Child host joined pending launch",
+      {
+        roomId,
+        resumed: false,
+      },
+    );
     runtimeUsagePublisher.publish(
       createRoomRuntimeUsageEvent(session, {
         kind: "game_became_active",
@@ -1318,10 +1351,15 @@ export const registerHostLifecycleHandlers = (
       }
 
       activateEmbeddedGame(session);
-      logHostEvent("info", AIRJAM_DEV_LOG_EVENTS.embeddedGame.activateAccepted, "Embedded game activated", {
-        roomId,
-        alreadyActive: false,
-      });
+      logHostEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.embeddedGame.activateAccepted,
+        "Embedded game activated",
+        {
+          roomId,
+          alreadyActive: false,
+        },
+      );
       runtimeUsagePublisher.publish(
         createRoomRuntimeUsageEvent(session, {
           kind: "game_became_active",

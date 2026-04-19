@@ -11,6 +11,8 @@ type ArcadeGameSource = {
   slug?: string | null;
   catalogSource?: "public_arcade" | "local_dev";
   catalogBadgeLabel?: string | null;
+  sourceUrl?: string | null;
+  templateId?: string | null;
 };
 
 export const toArcadeGame = (game: ArcadeGameSource): ArcadeGame => ({
@@ -24,6 +26,8 @@ export const toArcadeGame = (game: ArcadeGameSource): ArcadeGame => ({
   slug: game.slug,
   catalogSource: game.catalogSource ?? "public_arcade",
   catalogBadgeLabel: game.catalogBadgeLabel ?? null,
+  sourceUrl: game.sourceUrl ?? null,
+  templateId: game.templateId ?? null,
 });
 
 export const toArcadeGames = (

@@ -101,7 +101,7 @@ export default function GamesPage() {
                     <div
                       className={
                         hasThumbnail
-                          ? "bg-white/20 text-white flex h-10 w-10 items-center justify-center rounded-lg backdrop-blur-xs"
+                          ? "flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-xs"
                           : "bg-airjam-cyan/10 text-airjam-cyan flex h-10 w-10 items-center justify-center rounded-lg"
                       }
                     >
@@ -113,7 +113,9 @@ export default function GamesPage() {
                   </div>
                   <CardTitle
                     className={
-                      hasThumbnail ? "mt-4 line-clamp-1 text-white" : "mt-4 line-clamp-1"
+                      hasThumbnail
+                        ? "mt-4 line-clamp-1 text-white"
+                        : "mt-4 line-clamp-1"
                     }
                   >
                     {game.name}
@@ -139,7 +141,13 @@ export default function GamesPage() {
                     }
                   >
                     <div>
-                      <p className={hasThumbnail ? "text-white/70" : "text-muted-foreground"}>
+                      <p
+                        className={
+                          hasThumbnail
+                            ? "text-white/70"
+                            : "text-muted-foreground"
+                        }
+                      >
                         Status
                       </p>
                       <p className="inline-flex items-center gap-2 font-medium">
@@ -149,7 +157,7 @@ export default function GamesPage() {
                               ? "h-2 w-2 rounded-full bg-emerald-400"
                               : hasThumbnail
                                 ? "h-2 w-2 rounded-full bg-white/60"
-                                : "h-2 w-2 rounded-full bg-muted-foreground"
+                                : "bg-muted-foreground h-2 w-2 rounded-full"
                           }
                         />
                         {game.arcadeVisibility === "listed"
@@ -158,7 +166,13 @@ export default function GamesPage() {
                       </p>
                     </div>
                     <div>
-                      <p className={hasThumbnail ? "text-white/70" : "text-muted-foreground"}>
+                      <p
+                        className={
+                          hasThumbnail
+                            ? "text-white/70"
+                            : "text-muted-foreground"
+                        }
+                      >
                         Updated
                       </p>
                       <p className="font-medium">

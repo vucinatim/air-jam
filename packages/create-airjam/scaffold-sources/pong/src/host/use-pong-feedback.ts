@@ -4,9 +4,9 @@ import {
   createMatchWinnerToastSignal,
   createPaddleHitHapticSignal,
 } from "../game/controller-signals";
-import type { MatchSummary } from "../game/stores";
 import type { TeamId } from "../game/domain/team";
 import { PONG_SOUND_MANIFEST } from "../game/sounds";
+import type { MatchSummary } from "../game/stores";
 
 interface UsePongFeedbackOptions {
   matchPhase: "lobby" | "playing" | "ended";

@@ -158,30 +158,28 @@ const getEnvHostGrantEndpoint = (): string | undefined => {
   return undefined;
 };
 
-const readRuntimeTopologyFromViteEnv = ():
-  | ResolvedAirJamRuntimeTopology
-  | null => {
-  const viteEnv = getViteEnv();
-  if (!viteEnv?.VITE_AIR_JAM_RUNTIME_TOPOLOGY) {
-    return null;
-  }
+const readRuntimeTopologyFromViteEnv =
+  (): ResolvedAirJamRuntimeTopology | null => {
+    const viteEnv = getViteEnv();
+    if (!viteEnv?.VITE_AIR_JAM_RUNTIME_TOPOLOGY) {
+      return null;
+    }
 
-  return readRuntimeTopologyFromEnv({
-    VITE_AIR_JAM_RUNTIME_TOPOLOGY: viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY,
-  });
-};
+    return readRuntimeTopologyFromEnv({
+      VITE_AIR_JAM_RUNTIME_TOPOLOGY: viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY,
+    });
+  };
 
-const readRuntimeTopologyFromWindow = ():
-  | ResolvedAirJamRuntimeTopology
-  | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
+const readRuntimeTopologyFromWindow =
+  (): ResolvedAirJamRuntimeTopology | null => {
+    if (typeof window === "undefined") {
+      return null;
+    }
 
-  return parseRuntimeTopologyFromSearchParams(
-    new URLSearchParams(window.location.search),
-  );
-};
+    return parseRuntimeTopologyFromSearchParams(
+      new URLSearchParams(window.location.search),
+    );
+  };
 
 const applySurfaceRoleOverride = (
   topology: ResolvedAirJamRuntimeTopology | null,

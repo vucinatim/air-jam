@@ -2,6 +2,7 @@
   "id": "last-band-standing",
   "name": "Last Band Standing",
   "description": "Music-quiz party game. Host plays a YouTube clip, controllers buzz in — good reference for round-based play.",
+  "category": "music",
   "scaffold": true,
   "export": {
     "exclude": [

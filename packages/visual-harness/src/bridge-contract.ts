@@ -5,20 +5,18 @@ type VisualHarnessActionParseMeta = {
   actionName: string;
 };
 
-export type VisualHarnessActionHandler<TContext, TPayload, TResult = unknown> = (
-  context: TContext,
-  payload: TPayload,
-) => TResult | Promise<TResult>;
+export type VisualHarnessActionHandler<
+  TContext,
+  TPayload,
+  TResult = unknown,
+> = (context: TContext, payload: TPayload) => TResult | Promise<TResult>;
 
 export type VisualHarnessActionDefinition<
   TContext,
   TPayload,
   TResult = unknown,
 > = {
-  parse: (
-    payload: unknown,
-    meta: VisualHarnessActionParseMeta,
-  ) => TPayload;
+  parse: (payload: unknown, meta: VisualHarnessActionParseMeta) => TPayload;
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>;
 };
 
@@ -69,8 +67,14 @@ export type InferVisualHarnessActionResult<TAction> =
     : never;
 
 type VisualHarnessActionInvoker<TAction> =
-  TAction extends VisualHarnessActionDefinition<any, infer TPayload, infer TResult>
-    ? (...args: [TPayload] extends [void] ? [] : [payload: TPayload]) => Promise<Awaited<TResult>>
+  TAction extends VisualHarnessActionDefinition<
+    any,
+    infer TPayload,
+    infer TResult
+  >
+    ? (
+        ...args: [TPayload] extends [void] ? [] : [payload: TPayload]
+      ) => Promise<Awaited<TResult>>
     : never;
 
 export type VisualHarnessActionInvokerMap<TActions> = {
@@ -148,7 +152,9 @@ function customAction<TContext, TPayload, TResult>(
     | VisualHarnessCustomParser<TPayload>
     | ((context: TContext) => TResult | Promise<TResult>),
   maybeRun?: VisualHarnessActionHandler<TContext, TPayload, TResult>,
-): VisualHarnessActionDefinition<TContext, TPayload, TResult> | VisualHarnessActionDefinition<TContext, void, TResult> {
+):
+  | VisualHarnessActionDefinition<TContext, TPayload, TResult>
+  | VisualHarnessActionDefinition<TContext, void, TResult> {
   if (!maybeRun) {
     return createActionDefinition<TContext, void, TResult>(
       () => undefined,

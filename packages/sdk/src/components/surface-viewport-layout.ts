@@ -223,15 +223,21 @@ export const createSurfaceViewportScaleStyle = ({
     "--radius": createScaledVariableValue("0.625rem"),
   };
 
-  for (const [name, baseValue] of Object.entries(SURFACE_VIEWPORT_TEXT_SIZE_BASES)) {
+  for (const [name, baseValue] of Object.entries(
+    SURFACE_VIEWPORT_TEXT_SIZE_BASES,
+  )) {
     style[`--text-${name}`] = createScaledVariableValue(baseValue);
   }
 
-  for (const [name, baseValue] of Object.entries(SURFACE_VIEWPORT_CONTAINER_BASES)) {
+  for (const [name, baseValue] of Object.entries(
+    SURFACE_VIEWPORT_CONTAINER_BASES,
+  )) {
     style[`--container-${name}`] = createScaledVariableValue(baseValue);
   }
 
-  for (const [name, baseValue] of Object.entries(SURFACE_VIEWPORT_RADIUS_BASES)) {
+  for (const [name, baseValue] of Object.entries(
+    SURFACE_VIEWPORT_RADIUS_BASES,
+  )) {
     style[`--radius-${name}`] = createScaledVariableValue(baseValue);
   }
 

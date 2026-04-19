@@ -2,9 +2,9 @@ import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
 import {
   clearPlayerTaskState,
   createDefaultPlayerStats,
+  markPlayerDead,
   mergePlayerStatUpdates,
   mergeRecordUpdates,
-  markPlayerDead,
   restorePlayerStat,
   setRecordValue,
 } from "./space-store-helpers";
@@ -114,8 +114,16 @@ export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
           };
         }
 
-        const nextBusyPlayers = setRecordValue(state.busyPlayers, playerId, taskName);
-        const nextTaskProgress = setRecordValue(state.taskProgress, playerId, 0);
+        const nextBusyPlayers = setRecordValue(
+          state.busyPlayers,
+          playerId,
+          taskName,
+        );
+        const nextTaskProgress = setRecordValue(
+          state.taskProgress,
+          playerId,
+          0,
+        );
 
         if (
           nextBusyPlayers === state.busyPlayers &&

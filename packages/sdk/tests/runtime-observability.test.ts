@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { AIRJAM_DEV_RUNTIME_EVENT } from "../src/runtime/dev-runtime-events";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
 import {
   createRuntimeObservabilityEvent,
   matchesRuntimeObservabilityFilter,
   subscribeToRuntimeObservability,
 } from "../src/runtime/contracts/observability";
+import { AIRJAM_DEV_RUNTIME_EVENT } from "../src/runtime/dev-runtime-events";
 
 describe("runtime observability contract", () => {
   it("normalizes runtime event details into machine-readable observability events", () => {

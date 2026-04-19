@@ -282,7 +282,7 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     width: 50,
     height: 140,
     label: "☕ Coffee",
-    image: '/items/kitchen.png'
+    image: "/items/kitchen.png",
   },
   // Kuhinja - FIFA table
   {
@@ -306,7 +306,6 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     label: "🥪 Lunch",
     image: "/items/kitchen-table.png",
   },
-
 ];
 
 export interface ActiveTask {
@@ -338,7 +337,7 @@ export class TaskManager {
     const expiredTasks = this.tasks.filter(
       (t) => currentTime - t.spawnTime >= STAT_CONSTANTS.TASK_EXPIRY_MS,
     );
-    
+
     // Remove expired tasks
     this.tasks = this.tasks.filter(
       (t) => currentTime - t.spawnTime < STAT_CONSTANTS.TASK_EXPIRY_MS,
@@ -348,7 +347,7 @@ export class TaskManager {
       this.spawnTask();
       this.lastSpawnTime = currentTime;
     }
-    
+
     return expiredTasks;
   }
 

@@ -267,7 +267,9 @@ export const registerControllerHandlers = (
         {
           roomId,
           controllerId,
-          reason: capabilityExpired ? "capability_expired" : "invalid_capability",
+          reason: capabilityExpired
+            ? "capability_expired"
+            : "invalid_capability",
         },
       );
       callback({
@@ -292,7 +294,11 @@ export const registerControllerHandlers = (
       );
       if (previousSession && previousEntry?.socketId === socket.id) {
         previousSession.controllers.delete(previousController.controllerId);
-        emitControllerLeftNotice(io, previousSession, previousController.controllerId);
+        emitControllerLeftNotice(
+          io,
+          previousSession,
+          previousController.controllerId,
+        );
       }
       roomManager.deleteController(socket.id);
     }
@@ -323,7 +329,7 @@ export const registerControllerHandlers = (
 
     const grantedPrivileges = hasValidCapability
       ? roomCapability!.grants
-      : existing?.privilegedGrants ?? [];
+      : (existing?.privilegedGrants ?? []);
     const resumed = isResumedJoin;
     if (existing) {
       if (existing.deviceId !== deviceId) {
@@ -373,7 +379,9 @@ export const registerControllerHandlers = (
       controllerSession.playerProfile = {
         ...controllerSession.playerProfile,
         label:
-          nickname ?? controllerSession.nickname ?? controllerSession.playerProfile.label,
+          nickname ??
+          controllerSession.nickname ??
+          controllerSession.playerProfile.label,
         ...(avatarId !== undefined
           ? { avatarId }
           : controllerSession.playerProfile.avatarId
@@ -418,23 +426,28 @@ export const registerControllerHandlers = (
         "info",
         AIRJAM_DEV_LOG_EVENTS.controller.resumeAccepted,
         "Controller resumed existing room binding",
+        {
+          roomId,
+          controllerId,
+          nickname: nickname ?? undefined,
+          privilegedGrantCount: grantedPrivileges.length,
+        },
+      );
+    }
+
+    logControllerEvent(
+      "info",
+      AIRJAM_DEV_LOG_EVENTS.controller.joinAccepted,
+      "Controller joined room",
       {
         roomId,
         controllerId,
         nickname: nickname ?? undefined,
+        resumed,
         privilegedGrantCount: grantedPrivileges.length,
+        hasCapability: hasValidCapability,
       },
     );
-    }
-
-    logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.joinAccepted, "Controller joined room", {
-      roomId,
-      controllerId,
-      nickname: nickname ?? undefined,
-      resumed,
-      privilegedGrantCount: grantedPrivileges.length,
-      hasCapability: hasValidCapability,
-    });
     runtimeUsagePublisher.publish(
       createRoomRuntimeUsageEvent(session, {
         kind: "controller_joined",
@@ -633,10 +646,15 @@ export const registerControllerHandlers = (
     delete socket.data.controllerAuthority;
     emitControllerLeftNotice(io, session, controllerId);
     socket.leave(roomId);
-    logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.leaveAccepted, "Controller left room", {
-      roomId,
-      controllerId,
-    });
+    logControllerEvent(
+      "info",
+      AIRJAM_DEV_LOG_EVENTS.controller.leaveAccepted,
+      "Controller left room",
+      {
+        roomId,
+        controllerId,
+      },
+    );
     runtimeUsagePublisher.publish(
       createRoomRuntimeUsageEvent(session, {
         kind: "controller_left",
@@ -847,10 +865,15 @@ export const registerControllerHandlers = (
 
     const previousGameId = session.activeGameId;
     if (command === "exit") {
-      logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted, "Controller requested room exit", {
-        roomId,
-        command,
-      });
+      logControllerEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted,
+        "Controller requested room exit",
+        {
+          roomId,
+          command,
+        },
+      );
       beginRoomClosing(session);
       disconnectChildHostIfPresent(io, session);
       transitionToSystemFocus(io, session, {
@@ -875,13 +898,18 @@ export const registerControllerHandlers = (
         previousGameState === "playing" ? "paused" : "playing";
       session.runtimeState = nextGameState;
       const broadcastPayload = emitRoomState(io, roomId, session);
-      logControllerEvent("info", AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted, "Controller toggled pause state", {
-        roomId,
-        command,
-        previousGameState,
-        nextGameState,
-        stateVersion: broadcastPayload.state.stateVersion,
-      });
+      logControllerEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.controller.systemAccepted,
+        "Controller toggled pause state",
+        {
+          roomId,
+          command,
+          previousGameState,
+          nextGameState,
+          stateVersion: broadcastPayload.state.stateVersion,
+        },
+      );
       return;
     }
 

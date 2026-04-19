@@ -15,12 +15,19 @@ describe("workspace dev log sink", () => {
   });
 
   it("emits normalized workspace events and suppresses duplicated structured server output", async () => {
-    tempDir = await mkdtemp(path.join(os.tmpdir(), "air-jam-workspace-log-sink-"));
+    tempDir = await mkdtemp(
+      path.join(os.tmpdir(), "air-jam-workspace-log-sink-"),
+    );
     const logFilePath = path.join(tempDir, "dev-latest.ndjson");
     const modulePath = fileURLToPath(
-      new URL("../../../scripts/workspace/lib/workspace-dev-log-sink.mjs", import.meta.url),
+      new URL(
+        "../../../scripts/workspace/lib/workspace-dev-log-sink.mjs",
+        import.meta.url,
+      ),
     );
-    const { createWorkspaceDevLogSink } = await import(pathToFileURL(modulePath).href);
+    const { createWorkspaceDevLogSink } = await import(
+      pathToFileURL(modulePath).href
+    );
 
     const sink = createWorkspaceDevLogSink({ logFilePath });
 
@@ -120,6 +127,8 @@ describe("workspace dev log sink", () => {
       level: "error",
       data: { pid: 4321, code: 1, signal: null },
     });
-    expect(events.some((event) => event.msg === "Host bootstrap verified")).toBe(false);
+    expect(
+      events.some((event) => event.msg === "Host bootstrap verified"),
+    ).toBe(false);
   });
 });

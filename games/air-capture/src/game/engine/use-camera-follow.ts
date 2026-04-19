@@ -4,10 +4,10 @@ import {
   Vector3,
   type PerspectiveCamera as ThreePerspectiveCamera,
 } from "three";
-import { shipPositions, shipRotations } from "./ships/runtime";
 import { PLAYER_CAMERA_OFFSET, TOPDOWN_CAMERA_HEIGHT } from "../constants";
 import { useDebugStore } from "../stores/debug/debug-store";
 import { useGameStore } from "../stores/players/game-store";
+import { shipPositions, shipRotations } from "./ships/runtime";
 
 interface CameraFollowState {
   targetPosition: Vector3;

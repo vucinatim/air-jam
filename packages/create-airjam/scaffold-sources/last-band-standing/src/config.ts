@@ -14,7 +14,9 @@ export const YOUTUBE_MAX_VOLUME = 100;
 export const REVEAL_START_VOLUME = 50;
 export const REVEAL_PAUSE_LEAD_MS = 30;
 export const VIDEO_MIX_TICK_MS = 150;
-export const SKIPPABLE_YOUTUBE_ERROR_CODES = new Set([2, 5, 100, 101, 150, 153]);
+export const SKIPPABLE_YOUTUBE_ERROR_CODES = new Set([
+  2, 5, 100, 101, 150, 153,
+]);
 
 // ── Player name ──
 export const PLAYER_NAME_STORAGE_KEY = "last-band-standing:player-name";

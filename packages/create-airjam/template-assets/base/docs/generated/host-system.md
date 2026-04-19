@@ -146,12 +146,9 @@ useFrame(() => {
 ### Standalone Mode
 
 ```tsx
-<AirJamHostRuntime
-  roomId="GAME"
-  input={{ schema: gameInputSchema }}
->
+<AirJamHostRuntime roomId="GAME" input={{ schema: gameInputSchema }}>
   <HostView />
-</AirJamHostRuntime>
+</AirJamHostRuntime>;
 
 // Inside HostView:
 const host = useAirJamHost();

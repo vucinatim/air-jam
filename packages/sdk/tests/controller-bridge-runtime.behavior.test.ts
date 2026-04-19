@@ -3,13 +3,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
 import {
-  AIRJAM_DEV_RUNTIME_EVENT,
-  type AirJamDevRuntimeEventDetail,
-} from "../src/runtime/dev-runtime-events";
-import {
   getControllerRealtimeClient,
   resetControllerRealtimeClientForTests,
 } from "../src/runtime/controller-realtime-client";
+import {
+  AIRJAM_DEV_RUNTIME_EVENT,
+  type AirJamDevRuntimeEventDetail,
+} from "../src/runtime/dev-runtime-events";
 
 describe("embedded controller bridge runtime", () => {
   const getMockCall = (
@@ -42,7 +42,8 @@ describe("embedded controller bridge runtime", () => {
     window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler);
     return {
       events,
-      cleanup: () => window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler),
+      cleanup: () =>
+        window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler),
     };
   };
 
@@ -465,7 +466,9 @@ describe("embedded controller bridge runtime", () => {
     client.connect();
 
     const firstRequestCall = getMockCall(postMessageSpy);
-    const firstParentPort = (firstRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    const firstParentPort = (
+      firstRequestCall?.[2] as MessagePort[] | undefined
+    )?.[0];
     expect(firstParentPort).toBeDefined();
 
     firstParentPort!.postMessage({
@@ -506,7 +509,9 @@ describe("embedded controller bridge runtime", () => {
       type: "AIRJAM_CONTROLLER_BRIDGE_REQUEST",
     });
 
-    const secondParentPort = (secondRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    const secondParentPort = (
+      secondRequestCall?.[2] as MessagePort[] | undefined
+    )?.[0];
     expect(secondParentPort).toBeDefined();
 
     secondParentPort!.postMessage({

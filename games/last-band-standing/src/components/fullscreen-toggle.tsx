@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
-import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { Maximize2, Minimize2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Button } from "./ui/button";
 
 export const FullscreenToggle = ({ className }: { className?: string }) => {
-  const [isFullscreen, setIsFullscreen] = useState(
-    () => Boolean(document.fullscreenElement),
+  const [isFullscreen, setIsFullscreen] = useState(() =>
+    Boolean(document.fullscreenElement),
   );
 
   useEffect(() => {

@@ -21,7 +21,7 @@ describe("local build url helpers", () => {
         html: '<script src="/assets/app.js"></script><link href="/assets/app.css"><div style="background:url(/sprites/cover.png)"></div>',
         gameId: "code-review",
       }),
-    ).toContain('/airjam-local-builds/code-review/assets/app.js');
+    ).toContain("/airjam-local-builds/code-review/assets/app.js");
   });
 
   it("rewrites root-relative asset urls inside built js and css text", () => {
@@ -66,9 +66,7 @@ describe("local build url helpers", () => {
     expect(html).toContain(
       'window.__AIRJAM_LOCAL_GAME_PROXY_BASE__="/airjam-local-builds/code-review"',
     );
-    expect(html).toContain(
-      '<base href="/airjam-local-builds/code-review/">',
-    );
+    expect(html).toContain('<base href="/airjam-local-builds/code-review/">');
   });
 
   it("normalizes request paths and blocks traversal", () => {

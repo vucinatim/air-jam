@@ -1,3 +1,4 @@
+import { db } from "@/db";
 import { isHostedReleaseSpaFallbackPath } from "@/lib/releases/hosted-release-artifact";
 import {
   injectHostedReleaseHtmlRuntimeBase,
@@ -12,7 +13,6 @@ import {
 } from "@/server/releases/release-inspection-access";
 import { getReleaseStorage } from "@/server/releases/release-storage";
 import { buildReleaseSiteObjectKey } from "@/server/releases/release-storage-keys";
-import { db } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +34,7 @@ export async function GET(
 
   const release = await db.query.gameReleases.findFirst({
     where: (table, { and, eq }) =>
-      and(
-        eq(table.id, releaseId),
-        eq(table.gameId, gameId),
-      ),
+      and(eq(table.id, releaseId), eq(table.gameId, gameId)),
   });
 
   if (!release) {
@@ -50,8 +47,7 @@ export async function GET(
       gameId,
       releaseId,
       secret: configuredInternalSecret,
-    }) &&
-    ["checking", "ready", "quarantined", "live"].includes(release.status);
+    }) && ["checking", "ready", "quarantined", "live"].includes(release.status);
 
   if (release.status !== "live" && !canInspectPrivately) {
     return new Response("Not found", { status: 404 });
@@ -109,8 +105,7 @@ export async function GET(
 
   const contentType = objectHead.contentType || "application/octet-stream";
   const isHtmlDocument =
-    contentType.includes("text/html") &&
-    servedAssetPath === artifact.entryPath;
+    contentType.includes("text/html") && servedAssetPath === artifact.entryPath;
   const isRewritableTextAsset =
     contentType.includes("javascript") || contentType.includes("text/css");
 

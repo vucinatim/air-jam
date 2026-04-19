@@ -23,37 +23,19 @@ export interface CodeReviewGameState {
   teamAssignments: Record<string, TeamAssignment>;
   botCounts: BotCounts;
   actions: {
-    startMatch: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
-    resetToLobby: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
-    finishMatch: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
+    startMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
+    resetToLobby: (ctx: AirJamActionContext, _payload: undefined) => void;
+    finishMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
     syncConnectedPlayers: (
       ctx: AirJamActionContext,
       payload: { connectedPlayerIds: string[] },
     ) => void;
-    joinTeam: (
-      ctx: AirJamActionContext,
-      payload: { team: Team },
-    ) => void;
+    joinTeam: (ctx: AirJamActionContext, payload: { team: Team }) => void;
     setBotCount: (
       ctx: AirJamActionContext,
       payload: { team: Team; count: number },
     ) => void;
-    resetGame: (
-      ctx: AirJamActionContext,
-      _payload: undefined,
-    ) => void;
-    scorePoint: (
-      ctx: AirJamActionContext,
-      payload: { team: Team },
-    ) => void;
+    resetGame: (ctx: AirJamActionContext, _payload: undefined) => void;
+    scorePoint: (ctx: AirJamActionContext, payload: { team: Team }) => void;
   };
 }

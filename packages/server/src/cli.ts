@@ -5,11 +5,8 @@
  * Handles environment variable loading and starts the server
  */
 
+import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
-import {
-  formatEnvValidationError,
-  isEnvValidationError,
-} from "@air-jam/env";
 import { Command } from "commander";
 import path from "node:path";
 import { pathToFileURL } from "node:url";

@@ -7,8 +7,7 @@ const ANSI = {
   dim: "\u001b[2m",
 };
 
-const DEFAULT_FOOTER_HINT =
-  "Set the required environment variables and retry.";
+const DEFAULT_FOOTER_HINT = "Set the required environment variables and retry.";
 
 const resolveColorEnabled = (forced) => {
   if (typeof forced === "boolean") {
@@ -39,10 +38,10 @@ const toEnvKey = (path) => {
     return "<root>";
   }
 
-  const firstStringSegment = path.find((segment) => typeof segment === "string");
-  return typeof firstStringSegment === "string"
-    ? firstStringSegment
-    : "<root>";
+  const firstStringSegment = path.find(
+    (segment) => typeof segment === "string",
+  );
+  return typeof firstStringSegment === "string" ? firstStringSegment : "<root>";
 };
 
 const describeExpectedRule = (issue) => {
@@ -119,7 +118,8 @@ export class EnvValidationError extends Error {
   }
 }
 
-export const isEnvValidationError = (error) => error instanceof EnvValidationError;
+export const isEnvValidationError = (error) =>
+  error instanceof EnvValidationError;
 
 export const validateEnv = ({
   boundary,
@@ -155,7 +155,9 @@ export const formatEnvValidationError = (
   const colorEnabled = resolveColorEnabled(color);
   const heading = `✖ ${error.boundary}: invalid environment configuration`;
 
-  const lines = [paint(colorEnabled, "red", paint(colorEnabled, "bold", heading))];
+  const lines = [
+    paint(colorEnabled, "red", paint(colorEnabled, "bold", heading)),
+  ];
 
   for (const [index, issue] of error.issues.entries()) {
     lines.push(

@@ -226,10 +226,7 @@ export const reduceResetGame = () => ({
   ...createInitialCodeReviewState(),
 });
 
-export const reduceScorePoint = (
-  state: CodeReviewGameState,
-  team: Team,
-) => ({
+export const reduceScorePoint = (state: CodeReviewGameState, team: Team) => ({
   scores: {
     ...state.scores,
     [team]: state.scores[team] + 1,

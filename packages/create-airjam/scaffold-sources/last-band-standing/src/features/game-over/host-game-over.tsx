@@ -1,5 +1,5 @@
-import { motion } from "framer-motion";
 import { getLabelForPlayer } from "@/utils/player-utils";
+import { motion } from "framer-motion";
 
 const centerVariants = {
   initial: { opacity: 0, scale: 0.96 },
@@ -30,7 +30,7 @@ export const HostGameOver = ({
       exit="exit"
       transition={{ duration: 0.4 }}
     >
-      <p className="text-sm uppercase tracking-widest text-muted-foreground">
+      <p className="text-muted-foreground text-sm tracking-widest uppercase">
         Game Over
       </p>
       <h1 className="title text-5xl md:text-7xl">
@@ -39,12 +39,12 @@ export const HostGameOver = ({
           : "Nobody"}{" "}
         Wins!
       </h1>
-      <p className="text-lg text-muted-foreground">
+      <p className="text-muted-foreground text-lg">
         After {totalRounds} rounds
       </p>
       <button
         type="button"
-        className="mt-4 rounded-full bg-primary px-8 py-3 text-lg font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+        className="bg-primary text-primary-foreground hover:bg-primary/80 mt-4 rounded-full px-8 py-3 text-lg font-medium transition-colors"
         onClick={onResetLobby}
       >
         Back To Lobby

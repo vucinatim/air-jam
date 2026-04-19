@@ -188,7 +188,12 @@ describe("findFirstCorrectSummary", () => {
       alice: { optionId: "song-1", answeredAtMs: 10_000 },
       bob: { optionId: "song-1", answeredAtMs: 5_000 },
     };
-    const results = buildRoundResults(["alice", "bob"], answers, "song-1", window);
+    const results = buildRoundResults(
+      ["alice", "bob"],
+      answers,
+      "song-1",
+      window,
+    );
     const summary = findFirstCorrectSummary(["alice", "bob"], results);
 
     expect(summary.playerId).toBe("bob");
@@ -200,7 +205,12 @@ describe("findFirstCorrectSummary", () => {
       alice: { optionId: "song-1", answeredAtMs: 5_000 },
       bob: { optionId: "song-1", answeredAtMs: 5_000 },
     };
-    const results = buildRoundResults(["alice", "bob"], answers, "song-1", window);
+    const results = buildRoundResults(
+      ["alice", "bob"],
+      answers,
+      "song-1",
+      window,
+    );
     const summary = findFirstCorrectSummary(["alice", "bob"], results);
 
     expect(summary.playerId).toBe("alice");

@@ -6,9 +6,7 @@ import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 export const validateArcadeBridgeAttachEpoch = (
   lastEpoch: number | null,
   identity: ArcadeSurfaceRuntimeIdentity,
-):
-  | { ok: true; nextLast: number | null }
-  | { ok: false } => {
+): { ok: true; nextLast: number | null } | { ok: false } => {
   if (lastEpoch !== null && identity.epoch < lastEpoch) {
     return { ok: false };
   }

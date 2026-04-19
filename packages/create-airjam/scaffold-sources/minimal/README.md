@@ -9,7 +9,7 @@ Use this template when you want a clean slate to build on.
 
 ```
 src/
-├── airjam.config.ts   # SDK app config: runtime, controller route, input schema
+├── airjam.config.ts   # game metadata plus SDK runtime/controller/input config
 ├── main.tsx           # React entry — mounts <BrowserRouter> and <App>
 ├── app.tsx            # Routes: "/" → host, "/controller" → controller
 ├── game/
@@ -28,11 +28,11 @@ files in `game/`, `host/`, and `controller/`.
 
 The SDK offers three ways to move data between the host and controllers:
 
-| Lane   | What it's for                              | Used here? |
-|--------|--------------------------------------------|------------|
-| State  | Replicated store + host-authoritative RPC  | Yes — `useMinimalStore` |
-| Signal | Out-of-band UX (haptics, toasts)           | Yes — self-target HAPTIC on tap |
-| Input  | High-frequency per-frame controller input  | No — taps are discrete events |
+| Lane   | What it's for                             | Used here?                      |
+| ------ | ----------------------------------------- | ------------------------------- |
+| State  | Replicated store + host-authoritative RPC | Yes — `useMinimalStore`         |
+| Signal | Out-of-band UX (haptics, toasts)          | Yes — self-target HAPTIC on tap |
+| Input  | High-frequency per-frame controller input | No — taps are discrete events   |
 
 When you need continuous controller input (joystick, paddle, motion),
 `useInputWriter` / `useControllerTick` on the controller + `host.getInput()`

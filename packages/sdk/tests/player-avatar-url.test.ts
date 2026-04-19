@@ -23,9 +23,7 @@ describe("resolvePlayerAvatarSeed", () => {
   });
 
   it("uses player id when avatarId is missing", () => {
-    expect(
-      resolvePlayerAvatarSeed({ id: "xyz", label: "P" }),
-    ).toBe("xyz");
+    expect(resolvePlayerAvatarSeed({ id: "xyz", label: "P" })).toBe("xyz");
   });
 
   it("passes through custom avatarId strings", () => {

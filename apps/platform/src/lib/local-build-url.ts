@@ -1,5 +1,5 @@
-import path from "node:path";
 import { rewriteRootRelativeAssetUrlsInText } from "@/lib/asset-url-rewrite";
+import path from "node:path";
 
 export const LOCAL_BUILD_PATH_PREFIX = "/airjam-local-builds";
 export const LOCAL_BUILD_ENTRY_PATH = "index.html" as const;
@@ -68,7 +68,8 @@ export const injectLocalBuildHtmlRuntimeBase = ({
 export const normalizeRequestedLocalBuildAssetPath = (
   assetPathSegments: string[] | undefined,
 ): string => {
-  const joinedPath = assetPathSegments?.join("/").trim() || LOCAL_BUILD_ENTRY_PATH;
+  const joinedPath =
+    assetPathSegments?.join("/").trim() || LOCAL_BUILD_ENTRY_PATH;
   const normalizedPath = joinedPath
     .replaceAll("\\", "/")
     .replace(/^\/+/, "")
@@ -78,7 +79,9 @@ export const normalizeRequestedLocalBuildAssetPath = (
     !normalizedPath ||
     normalizedPath === "." ||
     normalizedPath.includes("\0") ||
-    normalizedPath.split("/").some((segment) => segment === "." || segment === "..")
+    normalizedPath
+      .split("/")
+      .some((segment) => segment === "." || segment === "..")
   ) {
     throw new Error("Invalid local build asset path.");
   }

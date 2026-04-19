@@ -71,14 +71,13 @@ describe("server game lifecycle", () => {
       state: { runtimeState: "paused" | "playing" };
     }>(childHost, "server:state", 2_000);
 
-    const childJoinAck = await harness.emitWithAck<{ ok: boolean; roomId?: string }>(
-      childHost,
-      "host:joinAsChild",
-      {
-        roomId,
-        capabilityToken: launchAck.launchCapability?.token,
-      },
-    );
+    const childJoinAck = await harness.emitWithAck<{
+      ok: boolean;
+      roomId?: string;
+    }>(childHost, "host:joinAsChild", {
+      roomId,
+      capabilityToken: launchAck.launchCapability?.token,
+    });
 
     expect(childJoinAck.ok).toBe(true);
     expect(childJoinAck.roomId).toBe(roomId);
@@ -121,14 +120,13 @@ describe("server game lifecycle", () => {
     );
     expect(launchAck.ok).toBe(true);
 
-    const activateAck = await harness.emitWithAck<{ ok: boolean; roomId?: string }>(
-      masterHost,
-      "host:activateEmbeddedGame",
-      {
-        roomId,
-        capabilityToken: launchAck.launchCapability?.token,
-      },
-    );
+    const activateAck = await harness.emitWithAck<{
+      ok: boolean;
+      roomId?: string;
+    }>(masterHost, "host:activateEmbeddedGame", {
+      roomId,
+      capabilityToken: launchAck.launchCapability?.token,
+    });
     expect(activateAck.ok).toBe(true);
     expect(activateAck.roomId).toBe(roomId);
 
@@ -224,7 +222,11 @@ describe("server game lifecycle", () => {
 
     expect(childJoinAck.ok).toBe(true);
 
-    const childDisconnectPromise = harness.waitForEvent(childHost, "disconnect", 2_000);
+    const childDisconnectPromise = harness.waitForEvent(
+      childHost,
+      "disconnect",
+      2_000,
+    );
     masterHost.emit("system:closeGame", { roomId });
 
     await harness.expectNoEvent(controller, "disconnect", 120);
@@ -279,7 +281,9 @@ describe("server game lifecycle", () => {
     masterHost.emit("host:system", { roomId, command: "toggle_pause" });
     const firstToggleState = await firstToggleStatePromise;
     expect(firstToggleState.roomId).toBe(roomId);
-    expect(["paused", "playing"]).toContain(firstToggleState.state.runtimeState);
+    expect(["paused", "playing"]).toContain(
+      firstToggleState.state.runtimeState,
+    );
 
     const childDisconnectPromise = harness.waitForEvent(
       childHostOne,

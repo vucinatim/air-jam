@@ -1,11 +1,11 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/runtime.ts'],
-  format: ['esm'],
+  entry: ["src/index.ts", "src/runtime.ts"],
+  format: ["esm"],
   dts: true,
   sourcemap: true,
   clean: true,
-  target: 'es2022',
-  external: ['@playwright/test', 'react']
+  target: "es2022",
+  external: ["@playwright/test", "react"],
 });

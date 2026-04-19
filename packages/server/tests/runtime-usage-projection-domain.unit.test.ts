@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { projectRuntimeUsageEvent } from "../src/analytics/runtime-usage-projection-domain";
 import type { RuntimeUsageEvent } from "../src/analytics/runtime-usage";
+import { projectRuntimeUsageEvent } from "../src/analytics/runtime-usage-projection-domain";
 
 const createEvent = (
   partial: Partial<RuntimeUsageEvent> & Pick<RuntimeUsageEvent, "kind">,

@@ -13,11 +13,7 @@ type HostCreateRoomAck = {
 describe("server auth and rate limiting", () => {
   describe("auth checks", () => {
     const authService = {
-      verifyHostBootstrap: async ({
-        appId,
-      }: {
-        appId?: string;
-      }) => {
+      verifyHostBootstrap: async ({ appId }: { appId?: string }) => {
         if (appId === "valid-key") {
           return { isVerified: true, appId, verifiedVia: "appId" as const };
         }
@@ -224,35 +220,45 @@ describe("server auth and rate limiting", () => {
         origin: "https://blocked.example",
       });
 
-      expect((await lifecycleHarness.bootstrapHost(firstHost, "valid-key")).ok).toBe(true);
-      expect((await lifecycleHarness.bootstrapHost(thirdHost, "valid-key")).ok).toBe(true);
-      const firstCreateAck = await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
-        firstHost,
-        "host:createRoom",
-        { maxPlayers: 4 },
-      );
+      expect(
+        (await lifecycleHarness.bootstrapHost(firstHost, "valid-key")).ok,
+      ).toBe(true);
+      expect(
+        (await lifecycleHarness.bootstrapHost(thirdHost, "valid-key")).ok,
+      ).toBe(true);
+      const firstCreateAck =
+        await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
+          firstHost,
+          "host:createRoom",
+          { maxPlayers: 4 },
+        );
       expect(firstCreateAck.ok).toBe(true);
 
-      expect((await lifecycleHarness.bootstrapHost(secondHost, "other-key")).ok).toBe(true);
-      const secondCreateAck = await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
-        secondHost,
-        "host:createRoom",
-        { maxPlayers: 4 },
-      );
+      expect(
+        (await lifecycleHarness.bootstrapHost(secondHost, "other-key")).ok,
+      ).toBe(true);
+      const secondCreateAck =
+        await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
+          secondHost,
+          "host:createRoom",
+          { maxPlayers: 4 },
+        );
       expect(secondCreateAck.ok).toBe(true);
 
-      const thirdCreateAck = await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
-        thirdHost,
-        "host:createRoom",
-        { maxPlayers: 4 },
-      );
+      const thirdCreateAck =
+        await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
+          thirdHost,
+          "host:createRoom",
+          { maxPlayers: 4 },
+        );
       expect(thirdCreateAck.ok).toBe(true);
 
-      const throttledAck = await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
-        firstHost,
-        "host:createRoom",
-        { maxPlayers: 4 },
-      );
+      const throttledAck =
+        await lifecycleHarness.emitWithAck<HostCreateRoomAck>(
+          firstHost,
+          "host:createRoom",
+          { maxPlayers: 4 },
+        );
 
       expect(throttledAck.ok).toBe(false);
       expect(throttledAck.code).toBe(ErrorCode.SERVICE_UNAVAILABLE);

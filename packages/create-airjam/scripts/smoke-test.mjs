@@ -21,7 +21,10 @@ const run = (command, cwd) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const waitFor = async (predicate, { timeoutMs = 20_000, intervalMs = 200, label }) => {
+const waitFor = async (
+  predicate,
+  { timeoutMs = 20_000, intervalMs = 200, label },
+) => {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
@@ -105,7 +108,12 @@ const waitForServerHealth = async ({ port, server }) => {
 };
 
 const verifyGeneratedDevLogLifecycle = async (projectDir) => {
-  const logFilePath = path.join(projectDir, ".airjam", "logs", "dev-latest.ndjson");
+  const logFilePath = path.join(
+    projectDir,
+    ".airjam",
+    "logs",
+    "dev-latest.ndjson",
+  );
   const port = 4310;
 
   const firstServer = startServerProcess({ cwd: projectDir, port });
@@ -117,7 +125,9 @@ const verifyGeneratedDevLogLifecycle = async (projectDir) => {
           return false;
         }
 
-        return fs.readFileSync(logFilePath, "utf8").includes('"event":"server.started"');
+        return fs
+          .readFileSync(logFilePath, "utf8")
+          .includes('"event":"server.started"');
       },
       { label: "generated dev log file creation" },
     );
@@ -195,9 +205,14 @@ const loadScaffoldTemplateIds = (repoRoot) => {
     .map((entry) => path.join(scaffoldSourcesDir, entry))
     .filter((entryPath) => fs.statSync(entryPath).isDirectory())
     .map((dir) =>
-      JSON.parse(fs.readFileSync(path.join(dir, "airjam-template.json"), "utf8")),
+      JSON.parse(
+        fs.readFileSync(path.join(dir, "airjam-template.json"), "utf8"),
+      ),
     )
-    .filter((manifest) => manifest?.scaffold === true && typeof manifest.id === "string")
+    .filter(
+      (manifest) =>
+        manifest?.scaffold === true && typeof manifest.id === "string",
+    )
     .sort((left, right) => left.name.localeCompare(right.name))
     .map((manifest) => manifest.id);
 };
@@ -221,7 +236,13 @@ const packWorkspacePackage = ({ packageDir, outDir }) => {
 };
 
 const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
-  const cliEntry = path.join(repoRoot, "packages", "create-airjam", "dist", "index.js");
+  const cliEntry = path.join(
+    repoRoot,
+    "packages",
+    "create-airjam",
+    "dist",
+    "index.js",
+  );
 
   if (!fs.existsSync(cliEntry)) {
     throw new Error(
@@ -229,7 +250,9 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
     );
   }
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-scaffold-smoke-"));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "airjam-scaffold-smoke-"),
+  );
   const projectName = "smoke-airjam-app";
   const projectArg = path.join("nested", projectName);
   const projectDir = path.join(tempRoot, projectArg);
@@ -285,7 +308,10 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       run("pnpm --filter @air-jam/visual-harness build", repoRoot);
 
       const sdkPkg = JSON.parse(
-        fs.readFileSync(path.join(repoRoot, "packages", "sdk", "package.json"), "utf-8"),
+        fs.readFileSync(
+          path.join(repoRoot, "packages", "sdk", "package.json"),
+          "utf-8",
+        ),
       );
       cliArgs.push(
         `--dep-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
@@ -299,7 +325,9 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       cliArgs.push(
         `--dep-spec=create-airjam=link:${path.join(repoRoot, "packages", "create-airjam")}`,
       );
-      cliArgs.push(`--dep-spec=zod=${toExactVersion(sdkPkg.dependencies?.zod)}`);
+      cliArgs.push(
+        `--dep-spec=zod=${toExactVersion(sdkPkg.dependencies?.zod)}`,
+      );
       cliArgs.push(
         `--override-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
       );

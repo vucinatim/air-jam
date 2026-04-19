@@ -1,3 +1,4 @@
+import type { ProxyStrategy } from "@air-jam/runtime-topology";
 import {
   onAirJamDiagnostic,
   type AirJamDiagnostic,
@@ -17,7 +18,6 @@ import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
 } from "../runtime/dev-runtime-events";
-import type { ProxyStrategy } from "@air-jam/runtime-topology";
 
 type BrowserLogLevel = "debug" | "info" | "warn" | "error";
 type BrowserLogSource = AirJamDevBrowserLogSource;
@@ -172,7 +172,9 @@ const resolveLogEndpoint = (options: BrowserLogSinkOptions): string | null => {
   return `${baseUrl}/__airjam/dev/browser-logs`;
 };
 
-const resolveUnloadEndpoint = (options: BrowserLogSinkOptions): string | null => {
+const resolveUnloadEndpoint = (
+  options: BrowserLogSinkOptions,
+): string | null => {
   const baseUrl = resolveEndpointBase(options);
   if (!baseUrl) {
     return null;
@@ -186,7 +188,9 @@ const resolveLogLevelFromDiagnostic = (
   return severity === "error" ? "error" : "warn";
 };
 
-const resolveConsoleLevel = (methodName: ConsoleMethodName): BrowserLogLevel => {
+const resolveConsoleLevel = (
+  methodName: ConsoleMethodName,
+): BrowserLogLevel => {
   switch (methodName) {
     case "debug":
       return "debug";
@@ -323,7 +327,10 @@ class BrowserLogSinkRuntime {
   private nextSourceSeq = 1;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private hasReset = false;
-  private readonly originalConsole = new Map<ConsoleMethodName, Console[ConsoleMethodName]>();
+  private readonly originalConsole = new Map<
+    ConsoleMethodName,
+    Console[ConsoleMethodName]
+  >();
   private readonly disposers: Array<() => void> = [];
   private installed = false;
 
@@ -412,7 +419,10 @@ class BrowserLogSinkRuntime {
     ];
 
     for (const methodName of consoleMethods) {
-      this.originalConsole.set(methodName, window.console[methodName].bind(window.console));
+      this.originalConsole.set(
+        methodName,
+        window.console[methodName].bind(window.console),
+      );
       const original = window.console[methodName].bind(window.console);
       window.console[methodName] = ((...args: unknown[]) => {
         original(...args);
@@ -440,8 +450,8 @@ class BrowserLogSinkRuntime {
           event.error instanceof Error
             ? event.error.stack
             : typeof event.filename === "string"
-            ? `${event.filename}:${event.lineno}:${event.colno}`
-            : undefined,
+              ? `${event.filename}:${event.lineno}:${event.colno}`
+              : undefined,
       });
     };
     window.addEventListener("error", errorHandler);
@@ -581,11 +591,15 @@ class BrowserLogSinkRuntime {
       source: "diagnostic",
       message: diagnostic.message,
       code: diagnostic.code,
-      data: diagnostic.details ? [toSerializable(diagnostic.details)] : undefined,
+      data: diagnostic.details
+        ? [toSerializable(diagnostic.details)]
+        : undefined,
     };
   }
 
-  private fromRuntimeEvent(detail: AirJamDevRuntimeEventDetail): BrowserLogEntry {
+  private fromRuntimeEvent(
+    detail: AirJamDevRuntimeEventDetail,
+  ): BrowserLogEntry {
     return {
       occurredAt: new Date().toISOString(),
       level: detail.level ?? "info",
@@ -618,7 +632,11 @@ class BrowserLogSinkRuntime {
     previous: BrowserLogEntry | undefined,
     next: BrowserLogEntry,
   ): boolean {
-    if (!previous || previous.source !== "console" || next.source !== "console") {
+    if (
+      !previous ||
+      previous.source !== "console" ||
+      next.source !== "console"
+    ) {
       return false;
     }
 

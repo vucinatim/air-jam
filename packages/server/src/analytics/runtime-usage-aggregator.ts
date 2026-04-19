@@ -20,24 +20,29 @@ export const refreshRuntimeUsageAggregatesForSession = async (
   const previousSessionMetrics = await db
     .select()
     .from(runtimeUsageGameSessionMetrics)
-    .where(eq(runtimeUsageGameSessionMetrics.runtimeSessionId, runtimeSessionId));
+    .where(
+      eq(runtimeUsageGameSessionMetrics.runtimeSessionId, runtimeSessionId),
+    );
 
-  const [gameSegments, controllerSegments, eligibleSegments] = await Promise.all([
-    db
-      .select()
-      .from(runtimeUsageGameSegments)
-      .where(eq(runtimeUsageGameSegments.runtimeSessionId, runtimeSessionId)),
-    db
-      .select()
-      .from(runtimeUsageControllerSegments)
-      .where(
-        eq(runtimeUsageControllerSegments.runtimeSessionId, runtimeSessionId),
-      ),
-    db
-      .select()
-      .from(runtimeUsageEligibleSegments)
-      .where(eq(runtimeUsageEligibleSegments.runtimeSessionId, runtimeSessionId)),
-  ]);
+  const [gameSegments, controllerSegments, eligibleSegments] =
+    await Promise.all([
+      db
+        .select()
+        .from(runtimeUsageGameSegments)
+        .where(eq(runtimeUsageGameSegments.runtimeSessionId, runtimeSessionId)),
+      db
+        .select()
+        .from(runtimeUsageControllerSegments)
+        .where(
+          eq(runtimeUsageControllerSegments.runtimeSessionId, runtimeSessionId),
+        ),
+      db
+        .select()
+        .from(runtimeUsageEligibleSegments)
+        .where(
+          eq(runtimeUsageEligibleSegments.runtimeSessionId, runtimeSessionId),
+        ),
+    ]);
 
   const sessionMetrics = buildRuntimeUsageGameSessionMetrics(
     gameSegments,
@@ -48,7 +53,9 @@ export const refreshRuntimeUsageAggregatesForSession = async (
 
   await db
     .delete(runtimeUsageGameSessionMetrics)
-    .where(eq(runtimeUsageGameSessionMetrics.runtimeSessionId, runtimeSessionId));
+    .where(
+      eq(runtimeUsageGameSessionMetrics.runtimeSessionId, runtimeSessionId),
+    );
 
   if (sessionMetrics.length > 0) {
     await db.insert(runtimeUsageGameSessionMetrics).values(
@@ -72,7 +79,9 @@ export const refreshRuntimeUsageAggregatesForSession = async (
 
   const affectedGameIds = Array.from(
     new Set(
-      [...previousSessionMetrics, ...sessionMetrics].map((metric) => metric.gameId),
+      [...previousSessionMetrics, ...sessionMetrics].map(
+        (metric) => metric.gameId,
+      ),
     ),
   );
   const affectedBucketDates = Array.from(

@@ -1,16 +1,14 @@
 import { definePrefab } from "@air-jam/sdk/prefabs";
 import { paintPongArena } from "./paint";
 import { PONG_ARENA_PREVIEW } from "./preview";
-import {
-  PONG_ARENA_DEFAULT_PROPS,
-  pongArenaPrefabSchema,
-} from "./schema";
+import { PONG_ARENA_DEFAULT_PROPS, pongArenaPrefabSchema } from "./schema";
 
 export const PONG_ARENA_PREFAB = definePrefab({
   id: "pong.arena.default",
   label: "Pong Arena",
   category: "arena",
-  description: "Default Pong playfield palette and dimensions for the starter template.",
+  description:
+    "Default Pong playfield palette and dimensions for the starter template.",
   tags: ["pong", "arena", "2d", "starter"],
   defaultProps: PONG_ARENA_DEFAULT_PROPS,
   configSchema: pongArenaPrefabSchema,

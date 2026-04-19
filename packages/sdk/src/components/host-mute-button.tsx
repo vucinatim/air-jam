@@ -35,12 +35,13 @@ export function HostMuteButton({
         className,
       )}
     >
-      {muted ? (
-        <VolumeX className="size-4" />
-      ) : (
-        <Volume2 className="size-4" />
-      )}
-      <span className={cn("text-[11px] font-semibold tracking-[0.16em] uppercase", labelClassName)}>
+      {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+      <span
+        className={cn(
+          "text-[11px] font-semibold tracking-[0.16em] uppercase",
+          labelClassName,
+        )}
+      >
         {label}
       </span>
     </Button>

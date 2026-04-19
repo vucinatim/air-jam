@@ -1,12 +1,14 @@
 import { definePrefabCaptureHarness } from "@air-jam/visual-harness";
 import { AIR_CAPTURE_PREFABS } from "../src/game/prefabs";
 import {
-  buildAirCapturePrefabCaptureUrl,
   AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID,
+  buildAirCapturePrefabCaptureUrl,
 } from "../src/prefab-preview/params";
 
 const findPrefab = (prefabId: string) => {
-  const prefab = AIR_CAPTURE_PREFABS.find((candidate) => candidate.id === prefabId);
+  const prefab = AIR_CAPTURE_PREFABS.find(
+    (candidate) => candidate.id === prefabId,
+  );
   if (!prefab) {
     throw new Error(`Unknown Air Capture prefab "${prefabId}".`);
   }

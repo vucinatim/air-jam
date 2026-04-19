@@ -94,11 +94,7 @@ describe("room session domain lifecycle", () => {
     });
 
     const pendingSession = createSession();
-    beginGameLaunch(
-      pendingSession,
-      issueChildHostCapability("token-1"),
-      "g1",
-    );
+    beginGameLaunch(pendingSession, issueChildHostCapability("token-1"), "g1");
     expect(canActivateChildHost(pendingSession)).toEqual({ ok: true });
 
     const activeSession = createSession();

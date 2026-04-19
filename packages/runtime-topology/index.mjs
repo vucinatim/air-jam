@@ -292,10 +292,7 @@ export const serializeRuntimeTopology = (topology) =>
   JSON.stringify(resolveRuntimeTopology(topology));
 
 export const parseRuntimeTopology = (serialized) => {
-  const normalized = assertString(
-    serialized,
-    "serialized runtime topology",
-  );
+  const normalized = assertString(serialized, "serialized runtime topology");
 
   let parsed;
   try {
@@ -338,8 +335,9 @@ export const runtimeTopologyToQueryParams = (topology) => {
       resolved.assetBasePath,
     [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}secure_transport`]:
       toBooleanParam(resolved.secureTransport),
-    [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}embedded`]:
-      toBooleanParam(resolved.embedded),
+    [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}embedded`]: toBooleanParam(
+      resolved.embedded,
+    ),
     [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}proxy_strategy`]:
       resolved.proxyStrategy,
     ...(resolved.embedParentOrigin
@@ -366,7 +364,8 @@ export const parseRuntimeTopologyFromSearchParams = (params) => {
   }
 
   const missing = REQUIRED_QUERY_KEYS.filter(
-    (key) => !params.has(`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}${key}`),
+    (key) =>
+      !params.has(`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}${key}`),
   );
   if (missing.length > 0) {
     throw new Error(

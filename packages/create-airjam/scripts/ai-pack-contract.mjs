@@ -1,7 +1,15 @@
 import path from "node:path";
-import { createAirjamRoot, exportedDocs, outputDocsRoot } from "./base-docs-pack.mjs";
+import {
+  createAirjamRoot,
+  exportedDocs,
+  outputDocsRoot,
+} from "./base-docs-pack.mjs";
 
-export const basePackRoot = path.join(createAirjamRoot, "template-assets", "base");
+export const basePackRoot = path.join(
+  createAirjamRoot,
+  "template-assets",
+  "base",
+);
 
 export const requiredBasePackPaths = [
   "AGENTS.md",

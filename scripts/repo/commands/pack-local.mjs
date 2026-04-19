@@ -8,8 +8,12 @@ export const runRepoPackLocalCommand = () => {
   runCommand("pnpm", ["--filter", "server", "build"]);
   runCommand("pnpm", ["--filter", "create-airjam", "build"]);
 
-  const sdkTarball = packWorkspacePackage(path.join(repoRoot, "packages", "sdk"));
-  const serverTarball = packWorkspacePackage(path.join(repoRoot, "packages", "server"));
+  const sdkTarball = packWorkspacePackage(
+    path.join(repoRoot, "packages", "sdk"),
+  );
+  const serverTarball = packWorkspacePackage(
+    path.join(repoRoot, "packages", "server"),
+  );
   const cliTarball = packWorkspacePackage(
     path.join(repoRoot, "packages", "create-airjam"),
   );

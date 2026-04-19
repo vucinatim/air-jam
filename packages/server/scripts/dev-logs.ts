@@ -1,7 +1,7 @@
 import {
   executeDevLogsCli,
-  formatDevLogsHelp as formatHelp,
   formatDevLogDetails as formatDetails,
+  formatDevLogsHelp as formatHelp,
   parseDevLogsCliArgs as parseCliArgs,
   passesDevLogFilter as passesFilter,
 } from "../src/logging/dev-logs-cli";

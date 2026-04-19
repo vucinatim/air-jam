@@ -6,12 +6,9 @@ import { Raycaster, Vector3 } from "three";
 
 import { useSendSignal } from "@air-jam/sdk";
 import { useHostAudio } from "../../audio/use-host-audio";
-import {
-  buildProjectileDecalPlacement,
-  calculateLaserKnockbackImpulse,
-  findHitControllerId,
-  resolveImpactWorldNormal,
-} from "./impact";
+import { useHealthStore } from "../../stores/players/health-store";
+import { useLasersStore } from "../../stores/projectiles/lasers-store";
+import { useDecalsStore } from "../../stores/world/decals-store";
 import {
   advanceProjectilePosition,
   buildProjectileRaySegment,
@@ -19,12 +16,15 @@ import {
   shouldExpireProjectile,
 } from "./flight";
 import {
+  buildProjectileDecalPlacement,
+  calculateLaserKnockbackImpulse,
+  findHitControllerId,
+  resolveImpactWorldNormal,
+} from "./impact";
+import {
   collectProjectileRuntimeTargets,
   findControllerRigidBody,
 } from "./runtime";
-import { useDecalsStore } from "../../stores/world/decals-store";
-import { useHealthStore } from "../../stores/players/health-store";
-import { useLasersStore } from "../../stores/projectiles/lasers-store";
 
 interface UseLaserRuntimeParams {
   id: string;

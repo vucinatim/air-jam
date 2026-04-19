@@ -163,7 +163,10 @@ const disconnectClientSocket = async (socket: GenericSocket): Promise<void> => {
 const toFixedMs = (value: number): string => `${value.toFixed(2)} ms`;
 
 const buildConfig = (): PerfConfig => {
-  const controllers = Math.min(Math.floor(parseNumberArg("controllers", 8)), 16);
+  const controllers = Math.min(
+    Math.floor(parseNumberArg("controllers", 8)),
+    16,
+  );
   return {
     controllers,
     hz: Math.floor(parseNumberArg("hz", 30)),
@@ -497,9 +500,7 @@ const printReconnectResult = (result: ReconnectScenarioResult): void => {
   console.log(`reconnect latency max: ${toFixedMs(result.latency.max)}`);
 };
 
-const collectBaselineWarnings = (
-  result: BaselineScenarioResult,
-): string[] => {
+const collectBaselineWarnings = (result: BaselineScenarioResult): string[] => {
   const warnings: string[] = [];
   if (result.dropRatePct > BASELINE_THRESHOLDS.maxDropRatePct) {
     warnings.push(
@@ -524,8 +525,7 @@ const collectReconnectWarnings = (
     );
   }
   if (
-    result.resumedFailureRatePct >
-    RECONNECT_THRESHOLDS.maxResumedFailureRatePct
+    result.resumedFailureRatePct > RECONNECT_THRESHOLDS.maxResumedFailureRatePct
   ) {
     warnings.push(
       `Reconnect resume failure rate exceeded threshold (${result.resumedFailureRatePct.toFixed(2)}% > ${RECONNECT_THRESHOLDS.maxResumedFailureRatePct.toFixed(2)}%)`,

@@ -1,9 +1,9 @@
 import { db } from "@/db";
+import { gameReleaseArtifacts, gameReleases } from "@/db/schema";
 import {
   HOSTED_RELEASE_CONTROLLER_PATH,
   HOSTED_RELEASE_HOST_PATH,
 } from "@/lib/releases/hosted-release-artifact";
-import { gameReleaseArtifacts, gameReleases } from "@/db/schema";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { and, eq } from "drizzle-orm";
 
@@ -47,7 +47,9 @@ export const getLiveReleaseForGame = async (gameId: string) => {
       gameReleaseArtifacts,
       eq(gameReleaseArtifacts.releaseId, gameReleases.id),
     )
-    .where(and(eq(gameReleases.gameId, gameId), eq(gameReleases.status, "live")))
+    .where(
+      and(eq(gameReleases.gameId, gameId), eq(gameReleases.status, "live")),
+    )
     .limit(1);
 
   const match = liveReleaseRows[0];

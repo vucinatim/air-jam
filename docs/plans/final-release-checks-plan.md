@@ -1,7 +1,7 @@
 # Air Jam Final Release Checks Plan
 
-Last updated: 2026-04-15  
-Status: planned
+Last updated: 2026-04-19
+Status: active manual proof
 
 Related docs:
 
@@ -31,6 +31,13 @@ This plan starts only after:
 2. release media and official hosting setup are ready enough for end-to-end product proof
 3. no other active plan is waiting on manual verification as its main remaining step
 
+Current automated prerequisite status:
+
+1. full `pnpm run check:release` passed on 2026-04-19 against the prerelease state before the late Arcade navbar, controller UI, preview-controller, local CSP, and controller idle-layout fixes; focused platform security tests, SDK viewport tests/build, platform typecheck, and platform production build passed after those fixes
+2. all five launch games have green automated `arcade-built` visual captures
+3. `air-capture` has a green automated secure `arcade-built` visual capture
+4. the remaining work in this plan is intentionally manual product proof, hosted upload proof, live deploy validation, and final go / no-go recording
+
 ## Scope
 
 This plan owns:
@@ -39,8 +46,8 @@ This plan owns:
 2. dashboard hosted-release and managed-media proof
 3. official hosted-platform and official-server proof
 4. post-hardening playtest reruns for `air-capture` and `last-band-standing`
-5. experimental SDK subpath export audit
-6. canonical release gate rerun
+5. public experimental SDK export audit
+6. canonical release gate confirmation
 7. live deploy validation after merge to `master`
 8. optional one-time spot-checks that are cheap and worth running once
 9. final launch-set go / no-go recording
@@ -63,6 +70,15 @@ Run the final local Arcade and real-controller pass for:
 3. `code-review`
 4. `last-band-standing`
 5. `the-office`
+
+Automated precheck already green on 2026-04-19:
+
+1. `air-capture` `arcade-built`
+2. `code-review` `arcade-built`
+3. `last-band-standing` `arcade-built`
+4. `pong` `arcade-built`
+5. `the-office` `arcade-built`
+6. `air-capture` secure `arcade-built`
 
 For each game, verify:
 
@@ -107,9 +123,9 @@ Rerun real Arcade playtests after the prerelease fixes landed:
 1. `air-capture` — confirm the controller playing UI, flag pickup rules, rocket AOE, lobby name visibility, and 3-second countdown actually improve trust and readability in live play
 2. `last-band-standing` — record whether it remains in the launch set without qualification
 
-### Workstream E. Experimental SDK Subpath Export Audit
+### Workstream E. Public Experimental SDK Export Audit
 
-For each experimental SDK subpath export, record:
+For each public experimental SDK subpath export, record:
 
 1. clear owner
 2. explicit experimental status
@@ -118,28 +134,33 @@ For each experimental SDK subpath export, record:
 Targets:
 
 1. `@air-jam/sdk/preview`
-2. `@air-jam/sdk/runtime-control`
-3. `@air-jam/sdk/runtime-inspection`
-4. `@air-jam/sdk/runtime-observability`
-5. `@air-jam/sdk/capabilities`
-6. `@air-jam/sdk/prefabs`
-7. `@air-jam/sdk/arcade*`
-8. `@air-jam/sdk/contracts/v2`
-9. `@air-jam/sdk/protocol`
+2. `@air-jam/sdk/arcade*`
+3. `@air-jam/sdk/capabilities`
+4. `@air-jam/sdk/prefabs`
+5. `@air-jam/sdk/metadata`
+6. `@air-jam/sdk/protocol`
+
+Also confirm that these machine-facing seams remain intentionally in-source but private until a real first-party consumer lands:
+
+1. `@air-jam/sdk/runtime-control`
+2. `@air-jam/sdk/runtime-inspection`
+3. `@air-jam/sdk/runtime-observability`
+4. `@air-jam/sdk/contracts/v2`
 
 Any export that fails the third part is dropped or deferred. Drop or defer decisions are implementation follow-ups that belong in [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md) Workstream 5, not here.
 
-### Workstream F. Canonical Release Gate Rerun
+### Workstream F. Canonical Release Gate Confirmation
 
-Run the full canonical release gate after the final hardening pass:
+Current truth:
 
-1. `pnpm run check:release` green end to end, including:
+1. `pnpm run check:release` passed end to end on 2026-04-19, including:
    1. typecheck
    2. tests
    3. builds
    4. strict perf sanity (baseline plus reconnect churn)
    5. browser smoke
    6. scaffold smoke
+2. rerun the full gate only if additional prerelease code or config changes land before release
 
 ### Workstream G. Live Deploy Validation
 
@@ -173,9 +194,9 @@ Also record:
 
 ## Suggested Execution Order
 
-1. run the canonical release gate rerun (F) first so product proof starts from a green baseline
-2. run the experimental SDK subpath export audit (E) and hand drop or defer items back to implementation
-3. run local launch-set product proof (A)
+1. treat the canonical release gate (F) as satisfied unless new prerelease code or config changes land
+2. run the public experimental SDK export audit (E) and hand drop or defer items back to implementation only if the audit finds a real blocker
+3. run one deep local launch-set product proof pass (A), with emphasis on `air-capture` because it exercises the most runtime surface
 4. run playtest reruns (D) for `air-capture` and `last-band-standing` inside the local proof pass if practical
 5. run dashboard hosted-release and managed-media proof (B)
 6. run official hosting and official-server proof (C)
@@ -191,7 +212,7 @@ This plan is complete when:
 2. the dashboard hosted-release and managed-media lanes are proven end to end
 3. the official hosted runtime path is proven end to end
 4. playtest reruns are recorded for `air-capture` and `last-band-standing`
-5. the experimental SDK export audit is complete and any drop or defer actions are handed back to implementation
+5. the public experimental SDK export audit is complete and any drop or defer actions are handed back to implementation
 6. the canonical release gate is green on the final prerelease state
 7. live deploy validation is green on the real production surface
 8. the release proceeds from one explicit recorded go / no-go decision instead of implied confidence

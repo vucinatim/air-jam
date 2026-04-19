@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { ArcadeGame } from "./arcade-system";
 import {
   createInitialArcadeRuntimeState,
   getAutoLaunchRequestKey,
@@ -8,6 +7,7 @@ import {
   reduceArcadeRuntimeState,
   shouldAutoLaunchGame,
 } from "./arcade-runtime-manager";
+import type { ArcadeGame } from "./arcade-system";
 
 const games: ArcadeGame[] = [
   {

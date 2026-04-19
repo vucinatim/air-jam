@@ -492,7 +492,7 @@ Host:
 
 1. `mac-desktop`
 1. `desktop`
-2. `tablet`
+1. `tablet`
 
 Controller:
 
@@ -667,11 +667,11 @@ Phase 1 is successful when:
 2. rerunning the same capture cleans and rewrites the same artifact paths
 3. failed runs still produce actionable metadata and best-effort failure screenshots
 4. launch-set games can reuse the same shared helper layer instead of owning duplicated viewport/capture boilerplate
-3. the captured screenshots are sufficient to diagnose common host/controller layout issues
-4. the harness reuses existing repo browser/runtime seams rather than duplicating stack logic
-5. the contract is clean enough to promote later into `create-airjam` and AI Studio
-6. the implementation leaves a clear seam between portable capture logic and repo-specific runtime launch logic
-7. standard-lifecycle projects work with presets alone and do not require per-game lifecycle declarations
+5. the captured screenshots are sufficient to diagnose common host/controller layout issues
+6. the harness reuses existing repo browser/runtime seams rather than duplicating stack logic
+7. the contract is clean enough to promote later into `create-airjam` and AI Studio
+8. the implementation leaves a clear seam between portable capture logic and repo-specific runtime launch logic
+9. standard-lifecycle projects work with presets alone and do not require per-game lifecycle declarations
 
 ## Recommended First Implementation Target
 

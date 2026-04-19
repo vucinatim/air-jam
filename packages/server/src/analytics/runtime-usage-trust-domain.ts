@@ -55,7 +55,9 @@ export const evaluateRuntimeUsageSessionTrust = (
       overlapsGameSegment(gameSegment, controllerSegment, referenceTime),
   );
   const uniqueControllerCount = new Set(
-    overlappingControllerSegments.map((controllerSegment) => controllerSegment.controllerId),
+    overlappingControllerSegments.map(
+      (controllerSegment) => controllerSegment.controllerId,
+    ),
   ).size;
   const reconnectOverflow = Math.max(
     0,
@@ -64,7 +66,8 @@ export const evaluateRuntimeUsageSessionTrust = (
 
   if (
     reconnectOverflow >= SHORT_SESSION_RECONNECT_OVERFLOW_THRESHOLD &&
-    rawEligiblePlaytimeSeconds <= SHORT_SESSION_RECONNECT_CHURN_MAX_ELIGIBLE_SECONDS
+    rawEligiblePlaytimeSeconds <=
+      SHORT_SESSION_RECONNECT_CHURN_MAX_ELIGIBLE_SECONDS
   ) {
     trustFlags.push("reconnect_churn_detected");
   }

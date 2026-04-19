@@ -1,3 +1,8 @@
+import type { AirJamControllerApi } from "../../hooks/use-air-jam-controller";
+import type {
+  AirJamHostApi,
+  JoinUrlStatus,
+} from "../../hooks/use-air-jam-host";
 import type {
   ConnectionStatus,
   ControllerOrientation,
@@ -6,13 +11,6 @@ import type {
   RunMode,
   RuntimeState,
 } from "../../protocol";
-import type {
-  AirJamControllerApi,
-} from "../../hooks/use-air-jam-controller";
-import type {
-  AirJamHostApi,
-  JoinUrlStatus,
-} from "../../hooks/use-air-jam-host";
 
 type HostInspectionApi = Pick<
   AirJamHostApi,

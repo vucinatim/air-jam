@@ -1,3 +1,4 @@
+export { useRuntimeObservabilitySubscription } from "./hooks/internal/use-runtime-observability-contract";
 export {
   createRuntimeObservabilityEvent,
   matchesRuntimeObservabilityFilter,
@@ -6,6 +7,3 @@ export {
   type RuntimeObservabilityEventHandler,
   type RuntimeObservabilityFilter,
 } from "./runtime/contracts/observability";
-export {
-  useRuntimeObservabilitySubscription,
-} from "./hooks/internal/use-runtime-observability-contract";

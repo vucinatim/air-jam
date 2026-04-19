@@ -25,7 +25,7 @@ Those assumptions change which missing pieces are release-blocking vs later-on-r
 **Grades**
 
 | Dimension                       | Grade |
-|---------------------------------|-------|
+| ------------------------------- | ----- |
 | Idea                            | A−    |
 | Architecture (macro)            | A     |
 | Architecture (meso)             | B     |
@@ -67,7 +67,7 @@ Weakness in the story: monetization and moderation are unstated. Deferred is fin
 ### 3.2 Where the architecture is carrying weight it shouldn't
 
 1. **Experimental SDK subpath exports need individual ownership review.** The SDK publishes `/preview`, `/runtime-control`, `/runtime-inspection`, `/runtime-observability`, `/capabilities`, `/prefabs`, `/contracts/v2`, `/arcade/bridge/{host,controller,iframe}`, `/ui`, `/protocol`. The ledger ([`docs/work-ledger.md:115`](../work-ledger.md)) confirms these are deliberate experimental leaves, and `packages/sdk/README.md:281` marks them as "experimental and intentionally unstable." That's the right posture. The concern is narrower: each leaf should pass a three-part test — **clear owner, explicit experimental status, and a real near-term purpose beyond speculative surface area**. Leaves that fail the third part are carrying versioning and documentation weight without justified product or architecture benefit. Audit individually; do not collapse under one generic bucket.
-2. **Parallel runtime-wiring paths — a bounded smell, not structural rot.** Supporting standalone, embedded, host, controller, preview, and platform surfaces is a legitimate source of structural complexity. Separately, the defensive `useClaimSessionRuntimeOwner()` scope machinery in `context/session-scope.ts` is specifically defending against *ambiguous ownership*, which is a different concern. Keep this alive as a smell to revisit when next doing runtime-ownership work; don't treat it as prerelease cleanup.
+2. **Parallel runtime-wiring paths — a bounded smell, not structural rot.** Supporting standalone, embedded, host, controller, preview, and platform surfaces is a legitimate source of structural complexity. Separately, the defensive `useClaimSessionRuntimeOwner()` scope machinery in `context/session-scope.ts` is specifically defending against _ambiguous ownership_, which is a different concern. Keep this alive as a smell to revisit when next doing runtime-ownership work; don't treat it as prerelease cleanup.
 3. **Duplicate URL builders / settings-inheritance paths — mostly resolved per ledger.** [`docs/work-ledger.md:211–213`](../work-ledger.md) records that the SDK-owned platform-settings boundary cleanup and the canonical preview URL builder are complete. If any duplication remains after that work, it's residual; verify against the ledger before acting. The three state-access hooks (`useAirJamHostState`, `useHostSession`, `useHostRuntimeStateBridge`) are still observably present in the current tree and worth a later deduplication pass.
 
 ---

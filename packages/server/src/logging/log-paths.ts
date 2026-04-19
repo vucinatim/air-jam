@@ -9,7 +9,9 @@ const readPackageName = (cwd: string): string | null => {
   }
 
   try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
+    const packageJson = JSON.parse(
+      fs.readFileSync(packageJsonPath, "utf8"),
+    ) as {
       name?: string;
     };
     return typeof packageJson.name === "string" ? packageJson.name : null;

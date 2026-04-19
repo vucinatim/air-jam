@@ -37,9 +37,7 @@ const preparePlayingState = async (
     .getByTestId("pong-controller-add-bot-team2")
     .click();
 
-  await context.host.game
-    .getByRole("button", { name: "Play" })
-    .click();
+  await context.host.game.getByRole("button", { name: "Play" }).click();
 
   await waitForControllerText(context, "Active Paddle", 20_000);
   await context.sleep(750);
@@ -56,9 +54,7 @@ const prepareEndedState = async (
     .getByTestId("pong-controller-add-bot-team2")
     .click();
 
-  await context.host.game
-    .getByRole("button", { name: "Play" })
-    .click();
+  await context.host.game.getByRole("button", { name: "Play" }).click();
 
   await context.bridge.waitFor(
     (snapshot) => snapshot?.matchPhase === "playing",
@@ -83,7 +79,9 @@ export const visualHarness = defineVisualHarness({
       id: "lobby",
       description:
         "Host lobby with one joined controller staged on team one and standard host/controller shell captures.",
-      run: async (context: VisualScenarioContext<typeof pongVisualHarnessBridge>) => {
+      run: async (
+        context: VisualScenarioContext<typeof pongVisualHarnessBridge>,
+      ) => {
         await prepareLobbyState(context);
         await captureStandardSurfaces(context);
       },
@@ -92,7 +90,9 @@ export const visualHarness = defineVisualHarness({
       id: "playing",
       description:
         "Playing surface after one controller joins team one, a bot is added to team two, and the host starts the match.",
-      run: async (context: VisualScenarioContext<typeof pongVisualHarnessBridge>) => {
+      run: async (
+        context: VisualScenarioContext<typeof pongVisualHarnessBridge>,
+      ) => {
         await preparePlayingState(context);
         await captureStandardSurfaces(context);
       },
@@ -101,7 +101,9 @@ export const visualHarness = defineVisualHarness({
       id: "ended",
       description:
         "Ended surface after a deterministic one-point match where the host awards the winning point through the visual harness bridge.",
-      run: async (context: VisualScenarioContext<typeof pongVisualHarnessBridge>) => {
+      run: async (
+        context: VisualScenarioContext<typeof pongVisualHarnessBridge>,
+      ) => {
         await prepareEndedState(context);
         await captureStandardSurfaces(context);
       },

@@ -1,8 +1,5 @@
+import { AIRJAM_DEV_LOG_EVENTS, createHostGrant } from "@air-jam/sdk/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  AIRJAM_DEV_LOG_EVENTS,
-  createHostGrant,
-} from "@air-jam/sdk/protocol";
 import type { ServerLogger } from "../src/logging/logger";
 import { AuthService } from "../src/services/auth-service";
 
@@ -101,7 +98,8 @@ describe("AuthService", () => {
   it("does not treat a remote DATABASE_URL as an active backend in development unless explicitly enabled", () => {
     process.env.AIR_JAM_AUTH_MODE = "required";
     process.env.NODE_ENV = "development";
-    process.env.DATABASE_URL = "postgresql://user:pass@db.example.com:5432/airjam";
+    process.env.DATABASE_URL =
+      "postgresql://user:pass@db.example.com:5432/airjam";
     delete process.env.AIR_JAM_MASTER_KEY;
     delete process.env.AIR_JAM_HOST_GRANT_SECRET;
     delete process.env.AIR_JAM_ALLOW_REMOTE_DATABASE;

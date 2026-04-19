@@ -15,9 +15,7 @@ import { registerWorkspaceCommands } from "./commands/workspace.mjs";
 
 const program = new Command();
 
-program
-  .name("air-jam-repo")
-  .description("Repo-local Air Jam maintainer CLI");
+program.name("air-jam-repo").description("Repo-local Air Jam maintainer CLI");
 
 registerWorkspaceCommands(program);
 registerDbCommands(program);

@@ -1,9 +1,9 @@
+import type { AirJamDevLogEventName } from "../../protocol";
 import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
   type AirJamDevRuntimeLogLevel,
 } from "../dev-runtime-events";
-import type { AirJamDevLogEventName } from "../../protocol";
 
 export interface RuntimeObservabilityFilter {
   events?: readonly AirJamDevLogEventName[];
@@ -13,8 +13,7 @@ export interface RuntimeObservabilityFilter {
   controllerId?: string;
 }
 
-export interface RuntimeObservabilityEvent
-  extends AirJamDevRuntimeEventDetail {
+export interface RuntimeObservabilityEvent extends AirJamDevRuntimeEventDetail {
   source: "runtime";
   observedAt: string;
 }

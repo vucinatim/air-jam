@@ -3,10 +3,6 @@
 import { ControllerMenuNotch } from "@/components/controller-menu-notch";
 import { PlatformSettingsPanel } from "@/components/platform-settings-panel";
 import {
-  platformShellUtilityButtonActiveClassName,
-  platformShellUtilityButtonClassName,
-} from "@/components/shell-classes";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -55,27 +51,6 @@ import {
   type CSSProperties,
 } from "react";
 
-const controllerMenuHeaderButtonClassName = cn(
-  "rounded-2xl",
-  platformShellUtilityButtonClassName,
-);
-
-const controllerMenuHeaderButtonActiveClassName = cn(
-  "rounded-2xl",
-  platformShellUtilityButtonActiveClassName,
-);
-
-const controllerMenuSectionClassName =
-  "rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
-
-const controllerMenuPrimaryButtonClassName =
-  "w-full rounded-2xl border border-white/10 bg-white text-black hover:bg-white/92";
-
-const controllerMenuSecondaryButtonClassName = cn(
-  "w-full rounded-2xl",
-  platformShellUtilityButtonClassName,
-);
-
 interface ControllerMenuSheetProps {
   routeRoomId: string | null;
   activeUrl: string | null;
@@ -111,7 +86,7 @@ const ControllerMenuLeadingChrome = ({
 }) => (
   <div
     className={cn(
-      "flex min-w-0 flex-1 items-center gap-2.5 pr-2 pl-1",
+      "flex min-w-0 flex-1 items-center gap-2 pr-2 pl-1",
       pointerEventsAuto && "pointer-events-auto",
     )}
   >
@@ -123,8 +98,8 @@ const ControllerMenuLeadingChrome = ({
       />
     ) : null}
     <div className="min-w-0">
-      <div className="flex items-center gap-1.5">
-        <p className="text-[9px] font-semibold tracking-[0.2em] text-white/48 uppercase">
+      <div className="flex items-center gap-1">
+        <p className="text-muted-foreground text-[9px] font-medium tracking-[0.2em] uppercase">
           Room
         </p>
         <span
@@ -133,7 +108,7 @@ const ControllerMenuLeadingChrome = ({
         />
       </div>
       <p
-        className="truncate text-[15px] leading-tight font-semibold tracking-[0.08em] text-white tabular-nums"
+        className="truncate text-base leading-tight font-semibold tracking-wide tabular-nums"
         title={displayedRoomId ?? undefined}
       >
         {displayedRoomId ?? "—"}
@@ -428,28 +403,24 @@ export function ControllerMenuSheet({
       : { marginTop: "env(safe-area-inset-top)" };
   const overlayFrameClass = landscapeMenu
     ? cn(
-        "items-stretch justify-end backdrop-blur-md",
-        highContrast ? "bg-black/84" : "bg-black/68",
+        "items-stretch justify-end backdrop-blur-sm",
+        highContrast ? "bg-black/82" : "bg-black/72",
       )
     : highContrast
       ? "flex-col bg-black"
-      : "flex-col bg-black/82 backdrop-blur-md";
+      : "flex-col bg-black/97";
   const overlayPanelClass = landscapeMenu
     ? cn(
-        "flex h-full w-full max-w-md flex-col shadow-2xl backdrop-blur-xl",
-        highContrast
-          ? "border-l border-white/20 bg-zinc-950"
-          : "border-l border-white/10 bg-zinc-950/96",
+        "flex h-full w-full max-w-md flex-col shadow-2xl",
+        highContrast ? "border-l border-white/20 bg-black" : "bg-black/97",
       )
     : cn(
-        "flex h-full w-full flex-col backdrop-blur-xl",
-        highContrast
-          ? "border-t border-white/15 bg-zinc-950"
-          : "border-t border-white/10 bg-zinc-950/96",
+        "flex h-full w-full flex-col",
+        highContrast ? "border-t border-white/15 bg-black" : "bg-black/97",
       );
   const overlayBodyClass = landscapeMenu
-    ? "min-h-0 flex-1 overflow-y-auto px-4 py-5"
-    : "min-h-0 flex-1 overflow-y-auto px-4 py-5";
+    ? "min-h-0 flex-1 overflow-y-auto px-3 py-5"
+    : "min-h-0 flex-1 overflow-y-auto px-3 py-6";
   const notchIconTransition = reducedMotion
     ? { duration: 0.01 }
     : { duration: 0.15 };
@@ -459,7 +430,7 @@ export function ControllerMenuSheet({
 
   const overlayChrome = (
     <header
-      className="relative flex w-full shrink-0 items-center border-b border-white/10 px-3 pt-2 pb-2"
+      className="relative flex w-full shrink-0 items-center px-3 pt-2 pb-2"
       style={topChromeStyle}
     >
       <span className="sr-only" aria-live="polite">
@@ -477,13 +448,8 @@ export function ControllerMenuSheet({
       <div className="flex min-w-0 flex-1 justify-end gap-2 pl-2">
         <Button
           type="button"
-          variant="outline"
+          variant={hostQrVisible ? "default" : "outline"}
           size="icon-touch"
-          className={
-            hostQrVisible
-              ? controllerMenuHeaderButtonActiveClassName
-              : controllerMenuHeaderButtonClassName
-          }
           onClick={() => {
             if (hapticsEnabled) triggerLocalHaptic("selection");
             emitArcadeAction(airJamArcadePlatformActions.toggleQr);
@@ -497,7 +463,6 @@ export function ControllerMenuSheet({
           type="button"
           variant="outline"
           size="icon-touch"
-          className={controllerMenuHeaderButtonClassName}
           onClick={() => {
             void toggleDocumentFullscreen();
           }}
@@ -511,7 +476,7 @@ export function ControllerMenuSheet({
             type="button"
             variant="outline"
             size="icon-touch"
-            className="rounded-2xl border-red-400/24 bg-red-500/8 text-red-100 hover:border-red-300/32 hover:bg-red-500/14"
+            className="border-red-500 hover:border-red-600"
             onClick={() => setExitGameConfirmOpen(true)}
             aria-label="Exit game"
             title="Exit game"
@@ -540,13 +505,11 @@ export function ControllerMenuSheet({
       <div className="flex min-w-0 flex-1 justify-end gap-2 pl-2">
         <Button
           type="button"
-          variant="outline"
+          variant={hostQrVisible ? "default" : "outline"}
           size="icon-touch"
           className={cn(
             "pointer-events-auto",
-            hostQrVisible
-              ? controllerMenuHeaderButtonActiveClassName
-              : controllerMenuHeaderButtonClassName,
+            hostQrVisible ? "shadow-md" : "bg-background/50 backdrop-blur-sm",
           )}
           onClick={() => {
             if (hapticsEnabled) triggerLocalHaptic("selection");
@@ -561,10 +524,7 @@ export function ControllerMenuSheet({
           type="button"
           variant="outline"
           size="icon-touch"
-          className={cn(
-            "pointer-events-auto",
-            controllerMenuHeaderButtonClassName,
-          )}
+          className="bg-background/50 pointer-events-auto backdrop-blur-sm"
           onClick={() => {
             void toggleDocumentFullscreen();
           }}
@@ -599,7 +559,7 @@ export function ControllerMenuSheet({
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              className="h-14 min-h-14 flex-1 touch-manipulation rounded-xl bg-destructive text-base text-white hover:bg-destructive/90"
+              className="bg-destructive hover:bg-destructive/90 h-14 min-h-14 flex-1 touch-manipulation rounded-xl text-base text-white"
               onClick={() => {
                 controller.sendSystemCommand("exit");
                 setOverlayOpen(false);
@@ -707,20 +667,10 @@ export function ControllerMenuSheet({
               {overlayChrome}
 
               <div className={overlayBodyClass}>
-                <div className="mx-auto flex max-w-md flex-col gap-4">
-                  <section className={cn("flex flex-col gap-3", controllerMenuSectionClassName)}>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-semibold tracking-[0.18em] text-white/48 uppercase">
-                        Profile
-                      </p>
-                      <p className="text-sm leading-6 text-white/62">
-                        Choose how your controller shows up in the room.
-                      </p>
-                    </div>
+                <div className="mx-auto flex max-w-md flex-col gap-8">
+                  <section className="flex flex-col gap-3">
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="aj-display-name" className="text-white/74">
-                        Display name
-                      </Label>
+                      <Label htmlFor="aj-display-name">Display name</Label>
                       <Input
                         id="aj-display-name"
                         value={profileDraft.label}
@@ -735,7 +685,6 @@ export function ControllerMenuSheet({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Label className="text-white/74">Avatar</Label>
                       <div
                         className="flex gap-2 overflow-x-auto px-2 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                         role="group"
@@ -752,10 +701,10 @@ export function ControllerMenuSheet({
                               type="button"
                               aria-pressed={selected}
                               className={cn(
-                                "h-14 w-14 shrink-0 rounded-2xl border p-0 transition-colors",
+                                "bg-secondary/30 h-14 w-14 shrink-0 rounded-xl border-2 p-0 transition-colors",
                                 selected
-                                  ? "border-white/22 bg-white/[0.08] ring-2 ring-white/18 ring-offset-2 ring-offset-black"
-                                  : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]",
+                                  ? "border-primary ring-primary ring-offset-background ring-2 ring-offset-2"
+                                  : "hover:bg-secondary/50 border-transparent",
                               )}
                               onClick={() =>
                                 setProfileDraft((d) => ({
@@ -783,7 +732,7 @@ export function ControllerMenuSheet({
                     <Button
                       type="button"
                       size="touch"
-                      className={controllerMenuPrimaryButtonClassName}
+                      className="w-full"
                       disabled={saveProfileSuccess}
                       onClick={() => {
                         if (hapticsEnabled) triggerLocalHaptic("action");
@@ -832,19 +781,9 @@ export function ControllerMenuSheet({
                     </Button>
                   </section>
 
-                  <section className={cn("flex flex-col gap-3", controllerMenuSectionClassName)}>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-semibold tracking-[0.18em] text-white/48 uppercase">
-                        Room
-                      </p>
-                      <p className="text-sm leading-6 text-white/62">
-                        Join another room directly or scan a phone QR code.
-                      </p>
-                    </div>
+                  <section className="flex flex-col gap-3">
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="aj-room-code" className="text-white/74">
-                        Room code
-                      </Label>
+                      <Label htmlFor="aj-room-code">Room code</Label>
                       <Input
                         id="aj-room-code"
                         value={roomDraft}
@@ -865,7 +804,7 @@ export function ControllerMenuSheet({
                         type="button"
                         variant="outline"
                         size="touch"
-                        className={controllerMenuSecondaryButtonClassName}
+                        className="w-full"
                         disabled={applyRoomSuccess}
                         onClick={() => {
                           if (hapticsEnabled) triggerLocalHaptic("action");
@@ -916,7 +855,7 @@ export function ControllerMenuSheet({
                         type="button"
                         variant="outline"
                         size="touch"
-                        className={controllerMenuSecondaryButtonClassName}
+                        className="w-full"
                         onClick={() => {
                           if (hapticsEnabled) triggerLocalHaptic("action");
                           setScanning(true);
@@ -930,7 +869,6 @@ export function ControllerMenuSheet({
 
                   {sharedPlatformSettings ? (
                     <PlatformSettingsPanel
-                      className="rounded-[1.5rem] border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                       settings={sharedPlatformSettings}
                       onUpdateAudio={(audio) =>
                         onUpdateSharedPlatformSettings({ audio })
@@ -943,7 +881,7 @@ export function ControllerMenuSheet({
                       }
                     />
                   ) : (
-                    <PlatformSettingsPanel className="rounded-[1.5rem] border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]" />
+                    <PlatformSettingsPanel />
                   )}
                 </div>
               </div>
@@ -953,14 +891,13 @@ export function ControllerMenuSheet({
       </AnimatePresence>
 
       {scanning ? (
-        <div className="fixed inset-0 z-70 flex flex-col bg-black/90 p-4 backdrop-blur-md">
+        <div className="fixed inset-0 z-70 flex flex-col bg-black/90 p-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-white">Scan join QR</p>
+            <p className="text-sm font-medium">Scan join QR</p>
             <Button
               type="button"
               variant="ghost"
               size="touch"
-              className="rounded-2xl text-white/80 hover:bg-white/[0.08] hover:text-white"
               onClick={() => setScanning(false)}
             >
               Cancel
@@ -968,7 +905,7 @@ export function ControllerMenuSheet({
           </div>
           <video
             ref={videoRef}
-            className="mt-4 w-full flex-1 rounded-[1.5rem] border border-white/10 object-cover"
+            className="mt-4 w-full flex-1 rounded-lg object-cover"
             controls={false}
             muted
             playsInline

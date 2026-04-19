@@ -186,7 +186,9 @@ export function getPlayerCapabilityHighlights(
     return [];
   }
 
-  const entries = Object.entries(player.capabilities) as Array<[TaskId, number]>;
+  const entries = Object.entries(player.capabilities) as Array<
+    [TaskId, number]
+  >;
 
   return entries
     .sort(([leftTaskId, leftLevel], [rightTaskId, rightLevel]) => {

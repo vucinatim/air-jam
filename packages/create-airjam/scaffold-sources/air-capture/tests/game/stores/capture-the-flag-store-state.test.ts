@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { CaptureTheFlagSnapshot } from "../../../src/game/domain/capture-the-flag";
 import {
-  createInitialCaptureTheFlagState,
   assignPlayerToTeam,
+  createInitialCaptureTheFlagState,
   reduceDropFlagAtPosition,
   reduceHandleBaseEntry,
   reduceManualScore,
@@ -11,7 +12,6 @@ import {
   transitionHandleBaseEntry,
   transitionTryPickupFlag,
 } from "../../../src/game/stores/match/capture-the-flag-store-state";
-import type { CaptureTheFlagSnapshot } from "../../../src/game/domain/capture-the-flag";
 
 const createState = (
   overrides: Partial<CaptureTheFlagSnapshot> = {},

@@ -1,11 +1,11 @@
-import { createReadStream, existsSync, statSync, watch } from "node:fs";
-import path from "node:path";
-import readline from "node:readline";
-import { Command } from "commander";
 import {
   resolveAirJamBrowserConsoleCategory,
   type AirJamDevBrowserConsoleCategory,
 } from "@air-jam/sdk/protocol";
+import { Command } from "commander";
+import { createReadStream, existsSync, statSync, watch } from "node:fs";
+import path from "node:path";
+import readline from "node:readline";
 import { AIR_JAM_WORKSPACE_ROOT } from "./log-paths.js";
 
 type DevLogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
@@ -120,9 +120,7 @@ export const coerceDevLogsCliOptions = (
     DEFAULT_FILE_PATH,
   follow: parsed.follow === true,
   view:
-    parsed.view === "signal" || parsed.view === "full"
-      ? parsed.view
-      : "full",
+    parsed.view === "signal" || parsed.view === "full" ? parsed.view : "full",
   source:
     parsed.source === "server" ||
     parsed.source === "browser" ||
@@ -221,11 +219,18 @@ export const configureDevLogsCommand = (command: Command): Command => {
       ),
     )
     .option("--runtime <kind>", "Limit entries to one runtime kind")
-    .option("--epoch <n>", "Limit entries to one runtime epoch", parseIntegerOption)
+    .option(
+      "--epoch <n>",
+      "Limit entries to one runtime epoch",
+      parseIntegerOption,
+    )
     .option(
       "--console-category <kind>",
       "Limit browser console events by category",
-      validateChoice(["airjam", "app", "framework", "browser"], "console category"),
+      validateChoice(
+        ["airjam", "app", "framework", "browser"],
+        "console category",
+      ),
     )
     .option(
       "--file <path>",
@@ -338,7 +343,11 @@ const passesSignalView = (event: DevLogEvent): boolean => {
       );
     }
 
-    return event.level === "warn" || event.level === "error" || event.level === "fatal";
+    return (
+      event.level === "warn" ||
+      event.level === "error" ||
+      event.level === "fatal"
+    );
   }
 
   if (

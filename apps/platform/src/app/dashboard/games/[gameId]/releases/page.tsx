@@ -1,7 +1,7 @@
 "use client";
 
-import { ReleaseStatusBadge } from "@/components/releases/release-status-badge";
 import { ReleaseDetailPanels } from "@/components/releases/release-detail-panels";
+import { ReleaseStatusBadge } from "@/components/releases/release-status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

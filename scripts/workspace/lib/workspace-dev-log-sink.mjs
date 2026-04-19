@@ -57,7 +57,15 @@ export const createWorkspaceDevLogSink = (options = {}) => {
     fs.appendFileSync(logFilePath, toLine(event), "utf8");
   };
 
-  const createBaseEvent = ({ occurredAt, level, event, processName, tool, command, cwd }) => ({
+  const createBaseEvent = ({
+    occurredAt,
+    level,
+    event,
+    processName,
+    tool,
+    command,
+    cwd,
+  }) => ({
     time: occurredAt,
     occurredAt,
     ingestedAt: occurredAt,
@@ -152,7 +160,9 @@ export const createWorkspaceDevLogSink = (options = {}) => {
         }),
         data: {
           pid:
-            Number.isInteger(metadata.pid) && metadata.pid > 0 ? metadata.pid : null,
+            Number.isInteger(metadata.pid) && metadata.pid > 0
+              ? metadata.pid
+              : null,
         },
         msg: `Process ${metadata.processName} started`,
       });
@@ -175,7 +185,9 @@ export const createWorkspaceDevLogSink = (options = {}) => {
         ...createBaseEvent({
           occurredAt,
           level:
-            typeof metadata.code === "number" && metadata.code !== 0 ? "error" : "info",
+            typeof metadata.code === "number" && metadata.code !== 0
+              ? "error"
+              : "info",
           event: "workspace.process.exit",
           processName: metadata.processName,
           tool: metadata.tool,
@@ -184,7 +196,9 @@ export const createWorkspaceDevLogSink = (options = {}) => {
         }),
         data: {
           pid:
-            Number.isInteger(metadata.pid) && metadata.pid > 0 ? metadata.pid : null,
+            Number.isInteger(metadata.pid) && metadata.pid > 0
+              ? metadata.pid
+              : null,
           code: metadata.code ?? null,
           signal: metadata.signal ?? null,
         },

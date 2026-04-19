@@ -1,8 +1,4 @@
-import {
-  BALL_SIZE,
-  PADDLE_HEIGHT,
-  PADDLE_WIDTH,
-} from "./constants";
+import { BALL_SIZE, PADDLE_HEIGHT, PADDLE_WIDTH } from "./constants";
 
 const rectsOverlap = (
   aMin: number,

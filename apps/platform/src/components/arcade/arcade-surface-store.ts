@@ -1,7 +1,4 @@
-import {
-  createAirJamStore,
-  type AirJamActionContext,
-} from "@air-jam/sdk";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import {
   createInitialArcadeSurfaceState,
@@ -17,10 +14,7 @@ interface ArcadeSurfaceStoreState extends ArcadeSurfaceState {
       payload: { mode: "arcade" | "preview" },
     ) => void;
     /** Host: browser surface; bumps epoch when leaving a game surface. */
-    setBrowserSurface: (
-      ctx: AirJamActionContext,
-      payload: undefined,
-    ) => void;
+    setBrowserSurface: (ctx: AirJamActionContext, payload: undefined) => void;
     /** Host: active game surface; always bumps epoch (incl. game A → game B). */
     setGameSurface: (
       ctx: AirJamActionContext,
@@ -40,8 +34,7 @@ interface ArcadeSurfaceStoreState extends ArcadeSurfaceState {
   };
 }
 
-const assertHost = (ctx: AirJamActionContext): boolean =>
-  ctx.role === "host";
+const assertHost = (ctx: AirJamActionContext): boolean => ctx.role === "host";
 
 export const useArcadeSurfaceStore = createAirJamStore<ArcadeSurfaceStoreState>(
   (set) => ({

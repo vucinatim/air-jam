@@ -8,16 +8,12 @@ import type {
   AirJamActionRpcPayload,
   AirJamStateSyncPayload,
 } from "../protocol";
-import {
-  getControllerRealtimeClient,
-} from "../runtime/controller-realtime-client";
+import { resolveImplicitReplicatedStoreDomainFromWindow } from "../runtime/arcade-runtime-url";
+import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
-import { resolveImplicitReplicatedStoreDomainFromWindow } from "../runtime/arcade-runtime-url";
-import {
-  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-} from "./air-jam-store-domain-constants";
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "./air-jam-store-domain-constants";
 
 const INTERNAL_ACTION_PREFIX = "_";
 const UNRESOLVED_ACTOR_ID = "unknown";
@@ -44,7 +40,11 @@ const isEventLikePayload = (payload: unknown): boolean => {
 const isPlainActionPayload = (
   payload: unknown,
 ): payload is AirJamActionPayload => {
-  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+  if (
+    payload === null ||
+    typeof payload !== "object" ||
+    Array.isArray(payload)
+  ) {
     return false;
   }
 
@@ -62,30 +62,29 @@ export interface AirJamActionContext {
 type AirJamActionHandler = (ctx: AirJamActionContext, payload: any) => unknown;
 type AirJamActionMap = Record<string, AirJamActionHandler>;
 
-type IsValidActionPayloadType<TPayload> =
-  [TPayload] extends [undefined]
-    ? true
-    : TPayload extends readonly unknown[]
-      ? false
-      : TPayload extends object
-        ? true
-        : false;
+type IsValidActionPayloadType<TPayload> = [TPayload] extends [undefined]
+  ? true
+  : TPayload extends readonly unknown[]
+    ? false
+    : TPayload extends object
+      ? true
+      : false;
 
 type InvalidActionPayloadKeys<TActions extends AirJamActionMap> = {
-  [K in keyof TActions]:
-    TActions[K] extends (
-      ctx: AirJamActionContext,
-      payload: infer TPayload,
-    ) => unknown
-      ? IsValidActionPayloadType<TPayload> extends true
-        ? never
-        : K
-      : K;
+  [K in keyof TActions]: TActions[K] extends (
+    ctx: AirJamActionContext,
+    payload: infer TPayload,
+  ) => unknown
+    ? IsValidActionPayloadType<TPayload> extends true
+      ? never
+      : K
+    : K;
 }[keyof TActions];
 
-type AirJamNetworkedState<TActions extends AirJamActionMap = AirJamActionMap> = {
-  actions: TActions;
-};
+type AirJamNetworkedState<TActions extends AirJamActionMap = AirJamActionMap> =
+  {
+    actions: TActions;
+  };
 
 type AirJamActionDispatchMap<TActions extends AirJamActionMap> = {
   [K in keyof TActions]: TActions[K] extends (
@@ -97,8 +96,8 @@ type AirJamActionDispatchMap<TActions extends AirJamActionMap> = {
       : TPayload extends readonly unknown[]
         ? never
         : TPayload extends object
-        ? (payload: TPayload) => TResult
-        : never
+          ? (payload: TPayload) => TResult
+          : never
     : never;
 };
 
@@ -139,9 +138,7 @@ const toActionContext = (
  * (e.g. arcade shell vs running game). When omitted, resolves from the runtime URL: explicit
  * `aj_store_domain`, else embedded Arcade identity (`aj_arcade_*`), else the default domain.
  */
-export function createAirJamStore<
-  T extends AirJamNetworkedState,
->(
+export function createAirJamStore<T extends AirJamNetworkedState>(
   initializer: InvalidActionPayloadKeys<T["actions"]> extends never
     ? StateCreator<T>
     : never,
@@ -156,7 +153,10 @@ export function createAirJamStore<
 
     const explicitDomain = options?.storeDomain;
     let resolvedStoreDomain: string;
-    if (typeof explicitDomain === "string" && explicitDomain.trim().length > 0) {
+    if (
+      typeof explicitDomain === "string" &&
+      explicitDomain.trim().length > 0
+    ) {
       const trimmed = explicitDomain.trim();
       resolvedStoreDomain =
         trimmed.length > 128 ? trimmed.slice(0, 128) : trimmed;
@@ -186,7 +186,11 @@ export function createAirJamStore<
       [players],
     );
     const playerRosterKey = useMemo(
-      () => players.map((player) => player.id).sort().join(","),
+      () =>
+        players
+          .map((player) => player.id)
+          .sort()
+          .join(","),
       [players],
     );
     const socket: AirJamRealtimeClient =
@@ -330,7 +334,9 @@ export function createAirJamStore<
       canBroadcastHostState,
     ]);
 
-    const dispatchedActions = useMemo<AirJamActionDispatchMap<T["actions"]>>(() => {
+    const dispatchedActions = useMemo<
+      AirJamActionDispatchMap<T["actions"]>
+    >(() => {
       const sourceActions = store.getState().actions;
       const actionDispatch = {} as AirJamActionDispatchMap<T["actions"]>;
 
@@ -342,7 +348,10 @@ export function createAirJamStore<
         const sourceAction = sourceActions[actionName];
 
         (
-          actionDispatch as unknown as Record<string, (payload: unknown) => void>
+          actionDispatch as unknown as Record<
+            string,
+            (payload: unknown) => void
+          >
         )[actionName] = (payload: unknown): void => {
           const normalizedPayload = isEventLikePayload(payload)
             ? undefined
@@ -448,7 +457,9 @@ export function createAirJamStore<
 
   const syncedStore = useSyncedStore as AirJamSyncedStoreHook<T>;
   const useActions = (): AirJamActionDispatchMap<T["actions"]> =>
-    useSyncedStore((state) => state.actions) as AirJamActionDispatchMap<T["actions"]>;
+    useSyncedStore((state) => state.actions) as AirJamActionDispatchMap<
+      T["actions"]
+    >;
   syncedStore.useActions = useActions;
 
   return syncedStore;

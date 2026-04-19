@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import {
   parseRuntimeTopology,
   parseRuntimeTopologyFromSearchParams,
@@ -76,7 +76,10 @@ test("topology serializes to and from JSON", () => {
     backendOrigin: "https://api.example.com",
   });
 
-  assert.deepEqual(parseRuntimeTopology(serializeRuntimeTopology(topology)), topology);
+  assert.deepEqual(
+    parseRuntimeTopology(serializeRuntimeTopology(topology)),
+    topology,
+  );
 });
 
 test("readRuntimeTopologyFromEnv reads the first populated canonical env key", () => {

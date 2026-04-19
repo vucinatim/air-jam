@@ -1,9 +1,7 @@
 import type { PlayerProfile } from "@air-jam/sdk";
 import { create } from "zustand";
 import { TEAM_CONFIG, type TeamId } from "../../domain/team";
-import {
-  useCaptureTheFlagStore,
-} from "../match/capture-the-flag-store";
+import { useCaptureTheFlagStore } from "../match/capture-the-flag-store";
 import { useHealthStore } from "./health-store";
 import { usePlayerStatsStore } from "./player-stats-store";
 

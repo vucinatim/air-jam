@@ -28,7 +28,9 @@ export const pruneDisconnectedAssignments = (
 ): Record<string, TeamAssignment> => {
   const connectedSet = withActorConnected(connectedPlayerIds, actorId);
   const nextAssignments = Object.fromEntries(
-    Object.entries(assignments).filter(([playerId]) => connectedSet.has(playerId)),
+    Object.entries(assignments).filter(([playerId]) =>
+      connectedSet.has(playerId),
+    ),
   );
 
   return normalizeAssignments(nextAssignments);
@@ -77,8 +79,7 @@ export const assignmentsEqual = (
   return leftEntries.every(([playerId, assignment]) => {
     const other = right[playerId];
     return (
-      other?.team === assignment.team &&
-      other.position === assignment.position
+      other?.team === assignment.team && other.position === assignment.position
     );
   });
 };

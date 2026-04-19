@@ -1,11 +1,11 @@
+import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
+import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
-import { io, type Socket } from "socket.io-client";
 import { emitWithAck, waitForSocketConnect } from "./helpers/socket-test-utils";
 
 describe("dev disconnect lifecycle logs", () => {
@@ -73,11 +73,18 @@ describe("dev disconnect lifecycle logs", () => {
       reconnection: false,
     });
 
-    await Promise.all([waitForSocketConnect(host), waitForSocketConnect(controller)]);
+    await Promise.all([
+      waitForSocketConnect(host),
+      waitForSocketConnect(controller),
+    ]);
 
-    const bootstrapAck = await emitWithAck<{ ok: boolean }>(host, "host:bootstrap", {
-      appId: "aj_app_disconnect_test",
-    });
+    const bootstrapAck = await emitWithAck<{ ok: boolean }>(
+      host,
+      "host:bootstrap",
+      {
+        appId: "aj_app_disconnect_test",
+      },
+    );
     expect(bootstrapAck.ok).toBe(true);
 
     const createRoomAck = await emitWithAck<{
@@ -87,11 +94,15 @@ describe("dev disconnect lifecycle logs", () => {
     expect(createRoomAck.ok).toBe(true);
     const roomId = createRoomAck.roomId as string;
 
-    const joinAck = await emitWithAck<{ ok: boolean }>(controller, "controller:join", {
-      roomId,
-      controllerId: "ctrl_disconnect_1",
-      nickname: "Disconnect",
-    });
+    const joinAck = await emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_disconnect_1",
+        nickname: "Disconnect",
+      },
+    );
     expect(joinAck.ok).toBe(true);
 
     const launchAck = await emitWithAck<{
@@ -110,10 +121,14 @@ describe("dev disconnect lifecycle logs", () => {
       reconnection: false,
     });
     await waitForSocketConnect(childHost);
-    const childJoinAck = await emitWithAck<{ ok: boolean }>(childHost, "host:joinAsChild", {
-      roomId,
-      capabilityToken: launchAck.launchCapability?.token,
-    });
+    const childJoinAck = await emitWithAck<{ ok: boolean }>(
+      childHost,
+      "host:joinAsChild",
+      {
+        roomId,
+        capabilityToken: launchAck.launchCapability?.token,
+      },
+    );
     expect(childJoinAck.ok).toBe(true);
 
     controller.disconnect();

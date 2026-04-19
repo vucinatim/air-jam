@@ -36,11 +36,11 @@ export function ArcadeLoader() {
           <div className="relative h-16 w-16">
             <div className="bg-airjam-cyan/20 absolute inset-0 animate-ping rounded-full" />
             <div className="bg-airjam-cyan/25 absolute inset-2 animate-pulse rounded-full" />
-            <div className="absolute inset-4 rounded-full bg-linear-to-br from-airjam-cyan to-sky-600 shadow-[0_0_20px_var(--color-airjam-cyan)]" />
+            <div className="from-airjam-cyan absolute inset-4 rounded-full bg-linear-to-br to-sky-600 shadow-[0_0_20px_var(--color-airjam-cyan)]" />
           </div>
 
           <div className="flex flex-col items-center gap-2">
-            <h1 className="text-2xl font-black tracking-[0.2em] text-airjam-cyan drop-shadow-[0_0_10px_var(--color-airjam-cyan)]">
+            <h1 className="text-airjam-cyan text-2xl font-black tracking-[0.2em] drop-shadow-[0_0_10px_var(--color-airjam-cyan)]">
               AIR JAM
             </h1>
             <div className="text-airjam-cyan/80 text-sm font-bold tracking-widest">

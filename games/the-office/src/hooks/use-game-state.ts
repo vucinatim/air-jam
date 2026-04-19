@@ -377,7 +377,9 @@ export function useOfficeGameRuntime({
         continue;
       }
 
-      const player = getPlayerById(gameState.current.playerAssignments[playerId]);
+      const player = getPlayerById(
+        gameState.current.playerAssignments[playerId],
+      );
       if (!player) {
         break;
       }
@@ -386,7 +388,8 @@ export function useOfficeGameRuntime({
         break;
       }
 
-      const lastCompletedAt = gameState.current.lastTaskCompleteTime[playerId] || 0;
+      const lastCompletedAt =
+        gameState.current.lastTaskCompleteTime[playerId] || 0;
       if (Date.now() - lastCompletedAt < 1000) {
         break;
       }
@@ -431,7 +434,9 @@ export function useOfficeGameRuntime({
     actionsRef.current.setBusy({ playerId, taskName: null });
     gameState.current.lastTaskCompleteTime[playerId] = Date.now();
 
-    const completedPlayer = getPlayerById(gameState.current.playerAssignments[playerId]);
+    const completedPlayer = getPlayerById(
+      gameState.current.playerAssignments[playerId],
+    );
     toast.success(
       `${completedPlayer?.name ?? "Igralec"} je končal ${completed.name}!`,
       {
@@ -536,7 +541,9 @@ export function useOfficeGameRuntime({
       if (location.id === "coffee-machine") {
         const task = taskManagerRef.current.getTaskAt(location.id);
         if (task) {
-          const player = getPlayerById(gameState.current.playerAssignments[playerId]);
+          const player = getPlayerById(
+            gameState.current.playerAssignments[playerId],
+          );
           if (!player) {
             break;
           }
@@ -797,7 +804,9 @@ export function useOfficeGameRuntime({
 export function useOfficePendingTasks(
   pendingTasksRef: React.MutableRefObject<ActiveTask[]>,
 ): ActiveTask[] {
-  const [pendingTasks, setPendingTasks] = useState(() => pendingTasksRef.current);
+  const [pendingTasks, setPendingTasks] = useState(
+    () => pendingTasksRef.current,
+  );
 
   useEffect(() => {
     setPendingTasks(pendingTasksRef.current);

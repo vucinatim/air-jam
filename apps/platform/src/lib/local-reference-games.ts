@@ -1,4 +1,5 @@
 import type { ArcadeGame } from "@/components/arcade";
+import { airJamGithubRepoUrl } from "@/lib/social-links";
 import { buildArcadeControllerRuntimeUrl } from "@air-jam/sdk/arcade/url";
 
 type LocalReferenceGameKey =
@@ -14,6 +15,8 @@ type LocalReferenceGameConfig = {
   slug: string;
   name: string;
   defaultDevUrl?: string;
+  sourcePath: string;
+  templateId: string;
 };
 
 type LocalReferenceGameOptions = {
@@ -46,6 +49,8 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
     slug: "local-air-capture",
     name: "Air Capture",
     defaultDevUrl: "http://127.0.0.1:5173",
+    sourcePath: "games/air-capture",
+    templateId: "air-capture",
   },
   {
     key: "pong",
@@ -53,24 +58,32 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
     slug: "local-pong",
     name: "Pong",
     defaultDevUrl: "http://127.0.0.1:5173",
+    sourcePath: "games/pong",
+    templateId: "pong",
   },
   {
     key: "code-review",
     id: "local-reference-code-review",
     slug: "local-code-review",
     name: "Code Review",
+    sourcePath: "games/code-review",
+    templateId: "code-review",
   },
   {
     key: "last-band-standing",
     id: "local-reference-last-band-standing",
     slug: "local-last-band-standing",
     name: "Last Band Standing",
+    sourcePath: "games/last-band-standing",
+    templateId: "last-band-standing",
   },
   {
     key: "the-office",
     id: "local-reference-the-office",
     slug: "local-the-office",
     name: "The Office",
+    sourcePath: "games/the-office",
+    templateId: "the-office",
   },
 ] as const;
 
@@ -172,6 +185,8 @@ const toLocalReferenceArcadeGame = (
     videoUrl: null,
     catalogSource: "local_dev",
     catalogBadgeLabel: LOCAL_REFERENCE_BADGE_LABEL,
+    sourceUrl: `${airJamGithubRepoUrl}/tree/main/${config.sourcePath}`,
+    templateId: config.templateId,
   };
 };
 

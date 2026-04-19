@@ -2,6 +2,7 @@
   "id": "minimal",
   "name": "Minimal",
   "description": "Clean-slate starter. Shared tap counter in ~150 LOC — best when you want empty and will build from scratch.",
+  "category": "showcase",
   "scaffold": true,
   "export": {
     "exclude": [

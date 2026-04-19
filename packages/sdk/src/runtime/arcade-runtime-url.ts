@@ -1,5 +1,5 @@
-import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 import { AIR_JAM_DEFAULT_STORE_DOMAIN } from "../store/air-jam-store-domain-constants";
+import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 
 /**
  * Query param for the canonical replicated store domain in embedded runtimes.

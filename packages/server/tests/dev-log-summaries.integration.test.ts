@@ -1,11 +1,11 @@
+import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
+import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
-import { io, type Socket } from "socket.io-client";
 import { emitWithAck, waitForSocketConnect } from "./helpers/socket-test-utils";
 
 describe("dev log summaries", () => {
@@ -71,11 +71,18 @@ describe("dev log summaries", () => {
       reconnection: false,
     });
 
-    await Promise.all([waitForSocketConnect(host), waitForSocketConnect(controller)]);
+    await Promise.all([
+      waitForSocketConnect(host),
+      waitForSocketConnect(controller),
+    ]);
 
-    const bootstrapAck = await emitWithAck<{ ok: boolean }>(host, "host:bootstrap", {
-      appId: "aj_app_summary_test",
-    });
+    const bootstrapAck = await emitWithAck<{ ok: boolean }>(
+      host,
+      "host:bootstrap",
+      {
+        appId: "aj_app_summary_test",
+      },
+    );
     expect(bootstrapAck.ok).toBe(true);
 
     const createRoomAck = await emitWithAck<{
@@ -176,11 +183,18 @@ describe("dev log summaries", () => {
       reconnection: false,
     });
 
-    await Promise.all([waitForSocketConnect(host), waitForSocketConnect(controller)]);
+    await Promise.all([
+      waitForSocketConnect(host),
+      waitForSocketConnect(controller),
+    ]);
 
-    const bootstrapAck = await emitWithAck<{ ok: boolean }>(host, "host:bootstrap", {
-      appId: "aj_app_summary_test",
-    });
+    const bootstrapAck = await emitWithAck<{ ok: boolean }>(
+      host,
+      "host:bootstrap",
+      {
+        appId: "aj_app_summary_test",
+      },
+    );
     expect(bootstrapAck.ok).toBe(true);
 
     const createRoomAck = await emitWithAck<{

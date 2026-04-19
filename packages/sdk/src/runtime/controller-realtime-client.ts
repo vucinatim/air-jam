@@ -1,10 +1,9 @@
+import type { AirJamSocket } from "../context/socket-manager";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   type ControllerActionRpcPayload,
   type RoomCode,
 } from "../protocol";
-import type { AirJamSocket } from "../context/socket-manager";
-import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import {
   createControllerBridgeCloseMessage,
   createControllerBridgeEmitMessage,
@@ -17,6 +16,7 @@ import {
   type ControllerBridgeServerEventArgs,
   type ControllerBridgeServerEventName,
 } from "./controller-bridge";
+import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import type {
   AirJamRealtimeClient,
   BridgeListener,
@@ -27,10 +27,7 @@ import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
 const CONTROLLER_BRIDGE_RUNTIME_KIND = "arcade-controller-runtime";
-const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set([
-  "game_unloaded",
-  "replaced",
-]);
+const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set(["game_unloaded", "replaced"]);
 const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
 
 type LegacyControllerActionRpcPayload = Omit<

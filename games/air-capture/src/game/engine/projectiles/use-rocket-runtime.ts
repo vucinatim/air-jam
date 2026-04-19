@@ -4,6 +4,15 @@ import { useRef, type RefObject } from "react";
 import { Raycaster, Vector3, type Group } from "three";
 
 import { useHostAudio } from "../../audio/use-host-audio";
+import { useHealthStore } from "../../stores/players/health-store";
+import { useRocketsStore } from "../../stores/projectiles/rockets-store";
+import { useDecalsStore } from "../../stores/world/decals-store";
+import {
+  advanceProjectilePosition,
+  buildProjectileRaySegment,
+  getProjectileRotation,
+  shouldExpireProjectile,
+} from "./flight";
 import {
   buildProjectileDecalPlacement,
   calculateDirectHitDamage,
@@ -13,18 +22,9 @@ import {
   resolveImpactWorldNormal,
 } from "./impact";
 import {
-  advanceProjectilePosition,
-  buildProjectileRaySegment,
-  getProjectileRotation,
-  shouldExpireProjectile,
-} from "./flight";
-import {
   collectProjectileRuntimeTargets,
   forEachControllerRigidBody,
 } from "./runtime";
-import { useDecalsStore } from "../../stores/world/decals-store";
-import { useHealthStore } from "../../stores/players/health-store";
-import { useRocketsStore } from "../../stores/projectiles/rockets-store";
 
 interface UseRocketRuntimeParams {
   id: string;
@@ -147,36 +147,39 @@ export function useRocketRuntime({
           const hitPosition = new Vector3(hitPoint.x, hitPoint.y, hitPoint.z);
           setExplosionPosition([hitPosition.x, hitPosition.y, hitPosition.z]);
 
-          forEachControllerRigidBody(world, ({ body, controllerId: targetId }) => {
-            if (targetId === controllerId) {
-              return;
-            }
+          forEachControllerRigidBody(
+            world,
+            ({ body, controllerId: targetId }) => {
+              if (targetId === controllerId) {
+                return;
+              }
 
-            const shipPos = body.translation();
-            const shipWorldPos = new Vector3(shipPos.x, shipPos.y, shipPos.z);
-            const distance = hitPosition.distanceTo(shipWorldPos);
-            if (distance > explosionRadius) {
-              return;
-            }
+              const shipPos = body.translation();
+              const shipWorldPos = new Vector3(shipPos.x, shipPos.y, shipPos.z);
+              const distance = hitPosition.distanceTo(shipWorldPos);
+              if (distance > explosionRadius) {
+                return;
+              }
 
-            const damageAmount =
-              targetId === hitControllerId
-                ? calculateDirectHitDamage(healthStore.getHealth(targetId))
-                : calculateExplosionDamage(distance, explosionRadius, damage);
+              const damageAmount =
+                targetId === hitControllerId
+                  ? calculateDirectHitDamage(healthStore.getHealth(targetId))
+                  : calculateExplosionDamage(distance, explosionRadius, damage);
 
-            healthStore.reduceHealth(targetId, damageAmount);
+              healthStore.reduceHealth(targetId, damageAmount);
 
-            const knockback = calculateExplosionImpulse({
-              explosionOrigin: hitPosition,
-              targetPosition: shipWorldPos,
-              radius: explosionRadius,
-              maxForce: knockbackForce,
-            });
-            body.applyImpulse(
-              { x: knockback.x, y: knockback.y, z: knockback.z },
-              true,
-            );
-          });
+              const knockback = calculateExplosionImpulse({
+                explosionOrigin: hitPosition,
+                targetPosition: shipWorldPos,
+                radius: explosionRadius,
+                maxForce: knockbackForce,
+              });
+              body.applyImpulse(
+                { x: knockback.x, y: knockback.y, z: knockback.z },
+                true,
+              );
+            },
+          );
 
           audio.play("rocket_explosion");
 

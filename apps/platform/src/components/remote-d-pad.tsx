@@ -8,7 +8,14 @@ import {
   ChevronUp,
   CornerDownLeft,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 interface RemoteDPadProps {
   onMove: (vector: { x: number; y: number }) => void;
@@ -16,6 +23,11 @@ interface RemoteDPadProps {
   onConfirmRelease: () => void;
   hapticsEnabled: boolean;
 }
+
+const remoteDPadSizeStyle: CSSProperties = {
+  width: "clamp(9rem, min(20rem, 82dvw, calc(72dvh - 12.96rem)), 20rem)",
+  maxWidth: "100%",
+};
 
 /**
  * A circular remote-style D-Pad with center confirm button
@@ -48,10 +60,7 @@ export const RemoteDPad = ({
       // Update visual state (causes re-render for UI feedback)
       setMoveDir(direction);
 
-      if (
-        direction !== "none" &&
-        previousDirection !== direction
-      ) {
+      if (direction !== "none" && previousDirection !== direction) {
         if (hapticsEnabled) triggerLocalHaptic("selection");
       }
 
@@ -258,8 +267,8 @@ export const RemoteDPad = ({
       const y = center + iconRadius * Math.sin(angleRad);
       return {
         position: "absolute" as const,
-        left: x,
-        top: y,
+        left: `${(x / size) * 100}%`,
+        top: `${(y / size) * 100}%`,
         transform: "translate(-50%, -50%)",
         pointerEvents: "none" as const,
         opacity: 0.6,
@@ -269,13 +278,16 @@ export const RemoteDPad = ({
   );
 
   return (
-    <div className="relative select-none" style={{ width: size, height: size }}>
+    <div
+      className="relative aspect-square shrink select-none"
+      style={remoteDPadSizeStyle}
+    >
       {/* SVG Ring Segments */}
       <svg
-        width={size}
-        height={size}
+        width="100%"
+        height="100%"
         viewBox={`0 0 ${size} ${size}`}
-        className="overflow-visible"
+        className="overflow-hidden"
       >
         <path {...getSegmentProps("right", 0)} />
         <path {...getSegmentProps("down", 90)} />
@@ -288,8 +300,9 @@ export const RemoteDPad = ({
         ref={centerButtonRef}
         className={`absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-neutral-900 transition-all duration-100 ease-out ${isConfirmPressed ? "scale-95 bg-neutral-700 shadow-inner" : "bg-neutral-800 shadow-xl"} `}
         style={{
-          width: centerBtnRadius * 2,
-          height: centerBtnRadius * 2,
+          width: `${((centerBtnRadius * 2) / size) * 100}%`,
+          height: `${((centerBtnRadius * 2) / size) * 100}%`,
+          borderWidth: "clamp(2px, 1.1dvw, 4px)",
         }}
         onMouseDown={() => handleConfirm(true)}
         onMouseUp={() => handleConfirm(false)}

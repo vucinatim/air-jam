@@ -32,6 +32,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 26. If another launch game needs the same hot-state isolation pattern, extract only the tiny shared pieces that proved reusable here, such as guarded record-merge helpers or narrow replicated-selector utilities, rather than promoting game-specific runtime ownership into a broader framework abstraction too early.
 27. Once a second game has real unit prefabs, generalize the new `repo visual prefab-capture` lane into a broader game-owned prefab capture system so deterministic prefab screenshots/config variants stop depending on Air Capture-specific query conventions.
 28. Once two or three games actually need it, extract a tiny shared scene-population contract for runtime spawn/pool layers that map state or authored layout into many prefab instances, but keep it separate from the prefab definition contract so pooling and population do not leak back into `src/game/prefabs/`.
+29. If real launch traffic shows platform-only Sentry is not enough, add the smallest correct release error-tracking baseline for server and browser-runtime failure stories instead of assuming platform monitoring alone covers the whole product.
+30. Once hosted release ingestion is ready for it, prefill and diff platform-submitted catalog fields from exported `gameMetadata` so the dashboard stays authoritative while code metadata remains useful for tooling and release artifacts; include the new developer-facing source/template fields in that prefill path.
 
 ## Framework Boundary Follow-Ups
 

@@ -9,8 +9,8 @@
  * controller, and in tests without any session wiring.
  */
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
-import type { TeamId } from "./team";
 import type { TeamAssignment } from "../stores";
+import type { TeamId } from "./team";
 
 /** Paddle position within a team: the front paddle is closer to centre. */
 export type PaddleSlotPosition = "front" | "back";
@@ -66,7 +66,10 @@ export const getEffectiveTeamCounts = (
   team2: humanCounts.team2 + botCounts.team2,
 });
 
-const compareAssignments = (left: TeamAssignment, right: TeamAssignment): number => {
+const compareAssignments = (
+  left: TeamAssignment,
+  right: TeamAssignment,
+): number => {
   if (left.position === right.position) {
     return 0;
   }
@@ -103,7 +106,10 @@ export const normalizeTeamAssignments = (
     });
   });
 
-  if (!changed && Object.keys(nextAssignments).length === Object.keys(assignments).length) {
+  if (
+    !changed &&
+    Object.keys(nextAssignments).length === Object.keys(assignments).length
+  ) {
     return assignments;
   }
 
@@ -114,7 +120,8 @@ export const getTeamHumanCount = (
   assignments: Record<string, TeamAssignment>,
   team: TeamId,
 ): number =>
-  Object.values(assignments).filter((assignment) => assignment.team === team).length;
+  Object.values(assignments).filter((assignment) => assignment.team === team)
+    .length;
 
 export const getAvailableTeamSlots = (
   assignments: Record<string, TeamAssignment>,
@@ -134,7 +141,10 @@ export const getBotPositions = (
   botCounts: BotCounts,
   team: TeamId,
 ): PaddleSlotPosition[] =>
-  getAvailableTeamSlots(assignments, team).slice(0, clampBotCount(botCounts[team]));
+  getAvailableTeamSlots(assignments, team).slice(
+    0,
+    clampBotCount(botCounts[team]),
+  );
 
 export const buildTeamSlots = (
   players: PlayerProfile[],

@@ -1,9 +1,19 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { assertGeneratedContentBlogSourceIsFresh, writeGeneratedContentBlogSource } from "../../content/lib/content-blog-source-generator.mjs";
-import { assertGeneratedContentDocsSourceIsFresh, writeGeneratedContentDocsSource } from "../../content/lib/content-docs-source-generator.mjs";
-import { generatePlatformAiPackArtifacts, platformPublicAiPackRoot, readRelativeTree } from "../../platform/lib/platform-ai-pack-artifacts.mjs";
+import {
+  assertGeneratedContentBlogSourceIsFresh,
+  writeGeneratedContentBlogSource,
+} from "../../content/lib/content-blog-source-generator.mjs";
+import {
+  assertGeneratedContentDocsSourceIsFresh,
+  writeGeneratedContentDocsSource,
+} from "../../content/lib/content-docs-source-generator.mjs";
+import {
+  generatePlatformAiPackArtifacts,
+  platformPublicAiPackRoot,
+  readRelativeTree,
+} from "../../platform/lib/platform-ai-pack-artifacts.mjs";
 import { runRepoPlatformDbBackupCommand } from "./platform-db-backup.mjs";
 
 const runPlatformGeneratedPrepare = async () => {
@@ -113,12 +123,16 @@ export const registerPlatformCommands = (program) => {
 
   generatedCommand
     .command("prepare")
-    .description("Generate platform content sources and hosted AI pack artifacts")
+    .description(
+      "Generate platform content sources and hosted AI pack artifacts",
+    )
     .action(runPlatformGeneratedPrepare);
 
   generatedCommand
     .command("check")
-    .description("Verify platform content sources and hosted AI pack artifacts are fresh")
+    .description(
+      "Verify platform content sources and hosted AI pack artifacts are fresh",
+    )
     .action(runPlatformGeneratedCheck);
 
   const aiPackCommand = platformCommand

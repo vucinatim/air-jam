@@ -90,7 +90,9 @@ export const LandingHero = () => {
             >
               <Link
                 href={hero.secondaryCta.href}
-                onClick={() => trackWebsiteEvent("landing_secondary_cta_clicked")}
+                onClick={() =>
+                  trackWebsiteEvent("landing_secondary_cta_clicked")
+                }
               >
                 {hero.secondaryCta.label}
               </Link>

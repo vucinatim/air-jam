@@ -27,24 +27,22 @@ export function GameOverOverlay({
         />
         {/* Main post-it note */}
         <div
-          className="relative flex flex-col items-center justify-center p-10 min-w-[320px] bg-amber-100"
+          className="relative flex min-w-[320px] flex-col items-center justify-center bg-amber-100 p-10"
           style={{
             transform: "rotate(1deg)",
             boxShadow: "3px 4px 12px rgba(0, 0, 0, 0.2)",
           }}
         >
-          <h2 className="text-4xl font-bold text-slate-800 mb-3 tracking-tight">
+          <h2 className="mb-3 text-4xl font-bold tracking-tight text-slate-800">
             KONEC IGRE
           </h2>
-          <p className="text-lg text-slate-600 mb-4">
-            Vsi igralci so umrli
-          </p>
-          <div className="text-xl text-slate-800 font-semibold mb-8">
+          <p className="mb-4 text-lg text-slate-600">Vsi igralci so umrli</p>
+          <div className="mb-8 text-xl font-semibold text-slate-800">
             Končni rezultat: {totalMoney}€
           </div>
           <button
             onClick={onRestart}
-            className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-amber-100 font-semibold text-lg transition-colors"
+            className="bg-slate-800 px-8 py-3 text-lg font-semibold text-amber-100 transition-colors hover:bg-slate-700"
             style={{
               boxShadow: "2px 3px 6px rgba(0, 0, 0, 0.15)",
             }}

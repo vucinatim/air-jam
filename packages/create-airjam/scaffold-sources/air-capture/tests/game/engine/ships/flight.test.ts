@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { Euler, Quaternion, Vector3 } from "three";
+import { describe, expect, it } from "vitest";
 import {
   SHIP_ENGINE_CONFIG,
   advanceShipRotation,
@@ -80,11 +80,16 @@ describe("air-capture ship flight engine", () => {
     });
 
     expect(
-      resolveShipControls(7, 0, { x: 0.25, y: -0.5 }, {
-        mode: "airborne",
-        airControlEnergy: 0,
-        isAirControlDepleted: true,
-      }),
+      resolveShipControls(
+        7,
+        0,
+        { x: 0.25, y: -0.5 },
+        {
+          mode: "airborne",
+          airControlEnergy: 0,
+          isAirControlDepleted: true,
+        },
+      ),
     ).toEqual({
       mode: "airborne",
       isInAir: true,
@@ -131,11 +136,19 @@ describe("air-capture ship flight engine", () => {
       1 / 10,
     );
 
-    const airbornePitch = new Euler().setFromQuaternion(airborneRotation, "YXZ").x;
-    const groundedPitch = new Euler().setFromQuaternion(groundedRotation, "YXZ").x;
+    const airbornePitch = new Euler().setFromQuaternion(
+      airborneRotation,
+      "YXZ",
+    ).x;
+    const groundedPitch = new Euler().setFromQuaternion(
+      groundedRotation,
+      "YXZ",
+    ).x;
 
     expect(airbornePitch).toBeCloseTo(SHIP_ENGINE_CONFIG.MAX_PITCH_UP, 10);
-    expect(Math.abs(groundedPitch)).toBeLessThan(SHIP_ENGINE_CONFIG.MAX_PITCH_UP);
+    expect(Math.abs(groundedPitch)).toBeLessThan(
+      SHIP_ENGINE_CONFIG.MAX_PITCH_UP,
+    );
   });
 
   it("keeps launch arcs and hover correction explicit", () => {
@@ -143,9 +156,9 @@ describe("air-capture ship flight engine", () => {
       calculateShipVerticalVelocityDelta(true, 12, 11, 0, 20, 1 / 60),
     ).toBeLessThanOrEqual(0);
 
-    expect(
-      calculateShipVerticalVelocityDelta(false, 4, -3, 0, 0, 1 / 60),
-    ).toBe(3);
+    expect(calculateShipVerticalVelocityDelta(false, 4, -3, 0, 0, 1 / 60)).toBe(
+      3,
+    );
   });
 
   it("derives pitch velocity from player air control intent", () => {

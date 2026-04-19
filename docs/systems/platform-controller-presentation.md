@@ -6,11 +6,11 @@ How the Air Jam **platform** (`apps/platform`) positions **outer controller chro
 
 **Live** presentation mode for controllers is **not** read from `ArcadeSurfaceState.orientation` on the client.
 
-| Layer | Role |
-|--------|------|
-| **Host** | Sends `orientation` in `host:state` when the game’s phase or layout requires a different controller presentation (e.g. portrait lobby vs landscape match). |
-| **Server** | Persists it on the room session and broadcasts `server:state` to controllers. |
-| **SDK** | `useAirJamController().controllerOrientation` mirrors the latest `server:state` payload. |
+| Layer        | Role                                                                                                                                                                    |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Host**     | Sends `orientation` in `host:state` when the game’s phase or layout requires a different controller presentation (e.g. portrait lobby vs landscape match).              |
+| **Server**   | Persists it on the room session and broadcasts `server:state` to controllers.                                                                                           |
+| **SDK**      | `useAirJamController().controllerOrientation` mirrors the latest `server:state` payload.                                                                                |
 | **Platform** | `apps/platform/src/app/controller/page.tsx` derives notch placement and safe-area classes from that SDK field when `kind === "game"` and the embedded iframe is active. |
 
 `ArcadeSurfaceState.orientation` remains a **launch-time hint** (catalog, replication, host UX). See [Arcade Surface Contract](./arcade-surface-contract.md) § `orientation`.

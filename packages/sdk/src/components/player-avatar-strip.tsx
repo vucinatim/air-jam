@@ -51,7 +51,7 @@ export const PlayerAvatarStrip = ({
       {overflow > 0 && (
         <div
           className={cn(
-            "flex shrink-0 items-center justify-center rounded-full border-2 border-[hsl(var(--border))] bg-secondary/50 font-semibold tabular-nums text-foreground shadow-sm",
+            "bg-secondary/50 text-foreground flex shrink-0 items-center justify-center rounded-full border-2 border-[hsl(var(--border))] font-semibold tabular-nums shadow-sm",
             overflowSizeClasses[size],
             overflowBadgeClassName,
           )}

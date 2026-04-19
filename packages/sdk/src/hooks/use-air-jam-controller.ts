@@ -19,19 +19,19 @@
  * {@link ../runtime/embedded-runtime-adapters.readEmbeddedControllerChildSession}.
  */
 import { useContext } from "react";
+import { useAssertSessionScope } from "../context/session-scope";
+import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
   ControllerOrientation,
   ControllerStatePayload,
   ControllerUpdatePlayerProfileAck,
-  RuntimeState,
   PlayerProfile,
   PlayerProfilePatch,
   RoomCode,
+  RuntimeState,
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import { useAssertSessionScope } from "../context/session-scope";
-import { createAirJamDiagnosticError } from "../diagnostics";
 import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
 
 /**

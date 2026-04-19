@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { bridgeAction, defineVisualHarnessBridge } from "../src/bridge-contract";
+import {
+  bridgeAction,
+  defineVisualHarnessBridge,
+} from "../src/bridge-contract";
 
 describe("bridgeAction", () => {
   it("accepts finite numbers and numeric strings", () => {
@@ -25,7 +28,9 @@ describe("bridgeAction", () => {
         gameId: "pong",
         actionName: "setPointsToWin",
       }),
-    ).toThrow("[visual-harness:pong.setPointsToWin] expected a finite number payload");
+    ).toThrow(
+      "[visual-harness:pong.setPointsToWin] expected a finite number payload",
+    );
   });
 
   it("accepts declared enum literals and rejects unknown values", () => {

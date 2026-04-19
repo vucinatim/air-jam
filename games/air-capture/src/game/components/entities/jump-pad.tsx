@@ -9,8 +9,8 @@ import {
   RingGeometry,
   type Mesh,
 } from "three";
-import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../../constants";
 import { useHostAudio } from "../../audio/use-host-audio";
+import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../../constants";
 import { shipPositions } from "../../engine/ships/runtime";
 
 interface JumpPadProps {
@@ -345,13 +345,13 @@ export function JumpPad({ position, id }: JumpPadProps) {
           <primitive object={gradientGeometry} attach="geometry" />
           <shaderMaterial
             vertexShader={gradientCylinderVertex}
-              fragmentShader={gradientCylinderFragment}
-              transparent
-              blending={AdditiveBlending}
-              depthWrite={false}
-              side={DoubleSide}
-            />
-          </mesh>
+            fragmentShader={gradientCylinderFragment}
+            transparent
+            blending={AdditiveBlending}
+            depthWrite={false}
+            side={DoubleSide}
+          />
+        </mesh>
         {/* Barrel cylinder - hidden, only gradient effect visible */}
         <mesh
           ref={baseRef}

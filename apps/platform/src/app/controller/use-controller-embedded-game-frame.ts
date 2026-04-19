@@ -1,13 +1,15 @@
 "use client";
 
-import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
 import { useArcadeSurfaceStore } from "@/components/arcade";
 import {
   embeddedBridgeForwardShouldClose,
   shouldRejectControllerBridgeHandshake,
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
+import type { ControllerPersistedProfile } from "@/lib/controller-local-profile";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
+import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
+import type { AirJamControllerApi } from "@air-jam/sdk";
 import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
   createControllerBridgeAttachMessage,
@@ -24,7 +26,6 @@ import {
   appendRuntimeQueryParams,
   normalizeRuntimeUrl,
 } from "@air-jam/sdk/arcade/url";
-import type { AirJamControllerApi } from "@air-jam/sdk";
 import type {
   AirJamStateSyncPayload,
   ControllerJoinedNotice,
@@ -37,7 +38,6 @@ import type {
   ServerErrorPayload,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
-import type { ControllerPersistedProfile } from "@/lib/controller-local-profile";
 import {
   useCallback,
   useEffect,
@@ -100,9 +100,9 @@ export function useControllerEmbeddedGameFrame({
   const pendingBridgeTeardownRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const controllerIframeHandshakeDeadlineRef = useRef<
-    ReturnType<typeof setTimeout> | null
-  >(null);
+  const controllerIframeHandshakeDeadlineRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const [bridgeListenerReady, setBridgeListenerReady] = useState(false);
   const [controllerIframeFailed, setControllerIframeFailed] = useState(false);
   const bridgeAttachedIdentityRef = useRef<ArcadeSurfaceRuntimeIdentity | null>(
@@ -142,10 +142,9 @@ export function useControllerEmbeddedGameFrame({
       ...(avatarIdForEmbed ? { aj_player_avatar: avatarIdForEmbed } : {}),
       ...runtimeTopologyToQueryParams(
         buildEmbeddedRuntimeTopology({
-          runtimeMode:
-            platformControllerSessionConfig.topology.runtimeMode as
-              | "arcade-live"
-              | "arcade-built",
+          runtimeMode: platformControllerSessionConfig.topology.runtimeMode as
+            | "arcade-live"
+            | "arcade-built",
           surfaceRole: "controller",
           runtimeUrl: activeUrl,
           parentTopology: platformControllerSessionConfig.topology,
@@ -172,7 +171,9 @@ export function useControllerEmbeddedGameFrame({
   ]);
 
   const controllerIframeSrc =
-    bridgeListenerReady && rawControllerIframeSrc ? rawControllerIframeSrc : null;
+    bridgeListenerReady && rawControllerIframeSrc
+      ? rawControllerIframeSrc
+      : null;
   const controllerIframePending =
     Boolean(rawControllerIframeSrc) && !bridgeListenerReady;
 
@@ -456,11 +457,7 @@ export function useControllerEmbeddedGameFrame({
     return () => {
       clearControllerIframeHandshakeDeadline();
     };
-  }, [
-    activeUrl,
-    clearControllerIframeHandshakeDeadline,
-    controllerIframeSrc,
-  ]);
+  }, [activeUrl, clearControllerIframeHandshakeDeadline, controllerIframeSrc]);
 
   useEffect(() => {
     if (!controller.socket) {

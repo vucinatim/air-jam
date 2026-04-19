@@ -14,9 +14,7 @@ describe("LifecycleActionGroup", () => {
     );
 
     expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: "Back to Lobby" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back to Lobby" })).toBeNull();
   });
 
   it("renders resume and lobby actions for a paused playing state", () => {

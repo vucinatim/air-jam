@@ -1,9 +1,3 @@
-import { Command } from "commander";
-import {
-  defaultWorkspaceGameId,
-  loadRepoGames,
-} from "../../workspace/lib/repo-games.mjs";
-import { runCommand } from "../lib/shell.mjs";
 import { runWorkspaceArcadeTestCommand } from "../../workspace/commands/arcade-test.mjs";
 import {
   runWorkspaceArcadeDevCommand,
@@ -11,6 +5,11 @@ import {
 } from "../../workspace/commands/dev.mjs";
 import { runWorkspaceSecureInitCommand } from "../../workspace/commands/secure-init.mjs";
 import { runWorkspaceTopologyCommand } from "../../workspace/commands/topology.mjs";
+import {
+  defaultWorkspaceGameId,
+  loadRepoGames,
+} from "../../workspace/lib/repo-games.mjs";
+import { runCommand } from "../lib/shell.mjs";
 
 const formatAvailableGames = () => {
   const lines = loadRepoGames().map((game) => `  - ${game.id}`);
@@ -26,7 +25,11 @@ export const registerWorkspaceCommands = (program) => {
     .command("standalone:dev")
     .description("Start live standalone workspace dev for one repo game")
     .option("--game <id>", "Repo game to launch", defaultWorkspaceGameId)
-    .option("--secure", "Run standalone live dev over trusted local HTTPS", false)
+    .option(
+      "--secure",
+      "Run standalone live dev over trusted local HTTPS",
+      false,
+    )
     .action(async (options) => {
       await runWorkspaceStandaloneDevCommand({
         gameId: options.game,
@@ -37,9 +40,17 @@ export const registerWorkspaceCommands = (program) => {
   workspaceCommand
     .command("arcade:dev")
     .description("Start live Arcade workspace dev for one repo game")
-    .option("--game <id>", "Repo game to launch in Arcade", defaultWorkspaceGameId)
+    .option(
+      "--game <id>",
+      "Repo game to launch in Arcade",
+      defaultWorkspaceGameId,
+    )
     .option("--secure", "Run live Arcade dev over trusted local HTTPS", false)
-    .option("--db-studio", "Also start Drizzle Studio for the platform database", false)
+    .option(
+      "--db-studio",
+      "Also start Drizzle Studio for the platform database",
+      false,
+    )
     .action(async (options) => {
       await runWorkspaceArcadeDevCommand({
         gameId: options.game,
@@ -50,9 +61,19 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand
     .command("arcade:test")
-    .description("Run the stable built local Arcade integration stack for one repo game")
-    .option("--game <id>", "Repo game to validate in Arcade", defaultWorkspaceGameId)
-    .option("--secure", "Run the Arcade integration stack over trusted local HTTPS", false)
+    .description(
+      "Run the stable built local Arcade integration stack for one repo game",
+    )
+    .option(
+      "--game <id>",
+      "Repo game to validate in Arcade",
+      defaultWorkspaceGameId,
+    )
+    .option(
+      "--secure",
+      "Run the Arcade integration stack over trusted local HTTPS",
+      false,
+    )
     .action(async (options) => {
       await runWorkspaceArcadeTestCommand({
         gameId: options.game,
@@ -79,7 +100,9 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand
     .command("secure:init")
-    .description("Initialize trusted local HTTPS for secure Arcade and standalone game testing")
+    .description(
+      "Initialize trusted local HTTPS for secure Arcade and standalone game testing",
+    )
     .option("--mode <mode>", "Secure mode to configure (local or tunnel)")
     .option("--hostname <hostname>", "Tunnel hostname for secure tunnel mode")
     .option("--tunnel <name>", "Cloudflare tunnel name for secure tunnel mode")

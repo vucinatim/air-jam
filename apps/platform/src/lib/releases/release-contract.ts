@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const gameReleaseSourceKindValues = ["upload"] as const;
-export type GameReleaseSourceKind = (typeof gameReleaseSourceKindValues)[number];
+export type GameReleaseSourceKind =
+  (typeof gameReleaseSourceKindValues)[number];
 export const gameReleaseSourceKindSchema = z.enum(gameReleaseSourceKindValues);
 
 export const gameReleaseStatusValues = [
@@ -39,14 +40,9 @@ export const releaseReportStatusValues = [
   "reviewed",
   "dismissed",
 ] as const;
-export type ReleaseReportStatus =
-  (typeof releaseReportStatusValues)[number];
+export type ReleaseReportStatus = (typeof releaseReportStatusValues)[number];
 export const releaseReportStatusSchema = z.enum(releaseReportStatusValues);
 
-export const releaseReportSourceValues = [
-  "play_page",
-  "arcade",
-] as const;
-export type ReleaseReportSource =
-  (typeof releaseReportSourceValues)[number];
+export const releaseReportSourceValues = ["play_page", "arcade"] as const;
+export type ReleaseReportSource = (typeof releaseReportSourceValues)[number];
 export const releaseReportSourceSchema = z.enum(releaseReportSourceValues);

@@ -1,6 +1,13 @@
-import { Check, Copy, Maximize2, Minimize2, RefreshCw, RotateCcw } from "lucide-react";
-import { Component, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Check,
+  Copy,
+  Maximize2,
+  Minimize2,
+  RefreshCw,
+  RotateCcw,
+} from "lucide-react";
 import type { CSSProperties, ErrorInfo, JSX, ReactNode } from "react";
+import { Component, useCallback, useEffect, useRef, useState } from "react";
 import { emitAirJamDiagnostic } from "../diagnostics";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
@@ -105,9 +112,10 @@ const copyTextToClipboard = async (text: string): Promise<void> => {
   textarea.focus();
   textarea.select();
 
-  const succeeded = typeof document.execCommand === "function"
-    ? document.execCommand("copy")
-    : false;
+  const succeeded =
+    typeof document.execCommand === "function"
+      ? document.execCommand("copy")
+      : false;
 
   document.body.removeChild(textarea);
 
@@ -172,12 +180,17 @@ const DefaultFallback = ({
 }: AirJamErrorFallbackRenderProps): JSX.Element => {
   const digest = createErrorDigest(error);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
   const copyResetTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (copyResetTimeoutRef.current !== null && typeof window !== "undefined") {
+      if (
+        copyResetTimeoutRef.current !== null &&
+        typeof window !== "undefined"
+      ) {
         window.clearTimeout(copyResetTimeoutRef.current);
       }
     };

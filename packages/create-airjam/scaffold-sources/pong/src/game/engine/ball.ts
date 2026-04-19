@@ -1,9 +1,5 @@
 import type { TeamId } from "../domain/team";
-import {
-  BALL_SIZE,
-  FIELD_HEIGHT,
-  FIELD_WIDTH,
-} from "./constants";
+import { BALL_SIZE, FIELD_HEIGHT, FIELD_WIDTH } from "./constants";
 import type { RuntimeState } from "./types";
 
 export const advanceBall = (
@@ -24,11 +20,9 @@ export const reflectBallOffWalls = (state: RuntimeState): void => {
   }
 };
 
-export const applyPaddleBounce = (
-  state: RuntimeState,
-  team: TeamId,
-): void => {
-  state.ballVX = team === "team1" ? Math.abs(state.ballVX) : -Math.abs(state.ballVX);
+export const applyPaddleBounce = (state: RuntimeState, team: TeamId): void => {
+  state.ballVX =
+    team === "team1" ? Math.abs(state.ballVX) : -Math.abs(state.ballVX);
   state.lastTouchedTeam = team;
 };
 

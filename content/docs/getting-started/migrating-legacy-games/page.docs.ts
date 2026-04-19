@@ -6,7 +6,8 @@ import {
 export const migratingLegacyGamesDocsPage = defineDocsPage({
   title: "Migrating Legacy Games",
   href: "/docs/getting-started/migrating-legacy-games",
-  description: "How to move older Air Jam games onto the current v1 app shape cleanly.",
+  description:
+    "How to move older Air Jam games onto the current v1 app shape cleanly.",
   section: "Getting Started",
   icon: "layers",
   keywords: [
@@ -25,6 +26,4 @@ export const migratingLegacyGamesDocsPage = defineDocsPage({
   lastVerifiedVersion: "1.0.0",
 });
 
-export const metadata = createDocsPageMetadata(
-  migratingLegacyGamesDocsPage,
-);
+export const metadata = createDocsPageMetadata(migratingLegacyGamesDocsPage);

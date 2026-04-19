@@ -1,8 +1,8 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import test from "node:test";
 import {
   appendNextHttpsArgs,
   buildLocalCertificateHosts,
@@ -39,10 +39,9 @@ test("parseSecureInitArgs defaults to local mode", () => {
 
 test("parseGameDevArgs parses secure flags", () => {
   assert.deepEqual(
-    parseGameDevArgs(
-      ["--secure", "--secure-mode=tunnel", "--web-only"],
-      { VITE_PORT: "5317" },
-    ),
+    parseGameDevArgs(["--secure", "--secure-mode=tunnel", "--web-only"], {
+      VITE_PORT: "5317",
+    }),
     {
       secure: true,
       secureMode: SECURE_MODE_TUNNEL,

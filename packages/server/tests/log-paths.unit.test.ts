@@ -47,7 +47,11 @@ describe("log path resolution", () => {
     )}`;
 
     fs.mkdirSync(serverDir, { recursive: true });
-    fs.writeFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n", "utf8");
+    fs.writeFileSync(
+      path.join(repoRoot, "pnpm-workspace.yaml"),
+      "packages:\n  - packages/*\n",
+      "utf8",
+    );
     fs.writeFileSync(
       path.join(serverDir, "package.json"),
       JSON.stringify({ name: "@air-jam/server" }),

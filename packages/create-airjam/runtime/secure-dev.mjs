@@ -9,11 +9,11 @@ import {
   loadEnvFile,
   upsertEnv,
 } from "./dev-utils.mjs";
+import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 import {
   buildStandaloneGameTopology,
   serializeResolvedTopology,
 } from "./runtime-topology.mjs";
-import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 
 export const SECURE_MODE_LOCAL = "local";
 export const SECURE_MODE_TUNNEL = "tunnel";
@@ -98,12 +98,7 @@ export const buildLocalCertificateHosts = (lanIp) => {
   return hosts;
 };
 
-export const resolveSecurePublicHost = ({
-  mode,
-  port,
-  lanIp,
-  tunnelHost,
-}) => {
+export const resolveSecurePublicHost = ({ mode, port, lanIp, tunnelHost }) => {
   if (mode === SECURE_MODE_TUNNEL) {
     return tunnelHost;
   }
@@ -169,7 +164,9 @@ const ensureCloudflaredInstalled = () => {
 const ensureCloudflareLogin = (env = process.env) => {
   const certPath = path.join(env.HOME || "", ".cloudflared", "cert.pem");
   if (!fs.existsSync(certPath)) {
-    throw new Error("Cloudflare login not found. Run: cloudflared tunnel login");
+    throw new Error(
+      "Cloudflare login not found. Run: cloudflared tunnel login",
+    );
   }
 };
 
@@ -372,7 +369,9 @@ export const loadSecureDevState = ({
   const paths = getSecurePaths(cwd);
   const state = readSecureDevState(paths.secureDevStateFile);
   if (!state) {
-    throw new Error("Missing .airjam/secure-dev.json. Run `airjam secure:init` first.");
+    throw new Error(
+      "Missing .airjam/secure-dev.json. Run `airjam secure:init` first.",
+    );
   }
 
   if (
@@ -397,10 +396,12 @@ export const loadSecureDevState = ({
     mode,
     port: gamePort,
     lanIp: state.lanIp ?? null,
-    tunnelHost: runtimeEnv.AIR_JAM_SECURE_PUBLIC_HOST || state.tunnelHost || null,
+    tunnelHost:
+      runtimeEnv.AIR_JAM_SECURE_PUBLIC_HOST || state.tunnelHost || null,
   });
 
-  const tunnelName = runtimeEnv.CLOUDFLARE_TUNNEL_NAME || state.tunnelName || null;
+  const tunnelName =
+    runtimeEnv.CLOUDFLARE_TUNNEL_NAME || state.tunnelName || null;
   if (mode === SECURE_MODE_TUNNEL && !tunnelName) {
     throw new Error(
       "Missing CLOUDFLARE_TUNNEL_NAME for tunnel secure mode. Run `airjam secure:init --mode=tunnel ...` again.",
@@ -418,7 +419,8 @@ export const loadSecureDevState = ({
     platformHost: resolveSecurePlatformHost({
       mode,
       lanIp: state.lanIp ?? null,
-      tunnelHost: runtimeEnv.AIR_JAM_SECURE_PUBLIC_HOST || state.tunnelHost || null,
+      tunnelHost:
+        runtimeEnv.AIR_JAM_SECURE_PUBLIC_HOST || state.tunnelHost || null,
       port: DEFAULT_PLATFORM_PORT,
     }),
   };
@@ -447,10 +449,7 @@ export const buildSecureGameEnv = ({
     : {}),
 });
 
-export const appendNextHttpsArgs = ({
-  env = process.env,
-  args = [],
-} = {}) => {
+export const appendNextHttpsArgs = ({ env = process.env, args = [] } = {}) => {
   const certFile = env.AIR_JAM_DEV_CERT_FILE;
   const keyFile = env.AIR_JAM_DEV_KEY_FILE;
   if (!certFile || !keyFile) {
@@ -479,7 +478,9 @@ export const runSecureInitCli = async ({
     );
     console.log("");
     console.log("Modes:");
-    console.log("  local  Generate trusted local HTTPS certs with mkcert (default)");
+    console.log(
+      "  local  Generate trusted local HTTPS certs with mkcert (default)",
+    );
     console.log(
       "  tunnel Generate local HTTPS certs and configure the optional Cloudflare tunnel fallback",
     );

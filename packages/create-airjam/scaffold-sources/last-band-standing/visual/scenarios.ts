@@ -13,7 +13,7 @@ import { lastBandStandingVisualHarnessBridge } from "./contract";
 const prepareLobbyState = async (
   context: VisualScenarioContext<typeof lastBandStandingVisualHarnessBridge>,
 ): Promise<void> => {
-  await waitForHostText(context, "More friends? Scan to join");
+  await waitForHostText(context, /Open the QR overlay to join|More friends\?/i);
   await context.ensureControllerInteractive();
 
   const nameField = context.controller.game.locator("#player-name");
@@ -29,9 +29,7 @@ const preparePlayingState = async (
 ): Promise<void> => {
   await prepareLobbyState(context);
 
-  await context.host.game
-    .getByRole("button", { name: "Start Match" })
-    .click();
+  await context.host.game.getByRole("button", { name: "Start Match" }).click();
 
   await context.bridge.waitFor(
     (snapshot) => snapshot?.matchPhase === "playing",
@@ -66,7 +64,9 @@ export const visualHarness = defineVisualHarness({
       description:
         "Host lobby with one joined controller, a valid player name, and ready state visible on the host and controller shells.",
       run: async (
-        context: VisualScenarioContext<typeof lastBandStandingVisualHarnessBridge>,
+        context: VisualScenarioContext<
+          typeof lastBandStandingVisualHarnessBridge
+        >,
       ) => {
         await prepareLobbyState(context);
         await captureStandardSurfaces(context);
@@ -77,7 +77,9 @@ export const visualHarness = defineVisualHarness({
       description:
         "First round playing state after one controller joins, enters a valid name, readies up, and the host starts the match.",
       run: async (
-        context: VisualScenarioContext<typeof lastBandStandingVisualHarnessBridge>,
+        context: VisualScenarioContext<
+          typeof lastBandStandingVisualHarnessBridge
+        >,
       ) => {
         await preparePlayingState(context);
         await captureStandardSurfaces(context);
@@ -88,7 +90,9 @@ export const visualHarness = defineVisualHarness({
       description:
         "Game-over state after the host uses a dev-only harness bridge action to finalize the match deterministically.",
       run: async (
-        context: VisualScenarioContext<typeof lastBandStandingVisualHarnessBridge>,
+        context: VisualScenarioContext<
+          typeof lastBandStandingVisualHarnessBridge
+        >,
       ) => {
         await prepareEndedState(context);
         await captureStandardSurfaces(context);

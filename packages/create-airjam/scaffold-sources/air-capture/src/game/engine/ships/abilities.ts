@@ -28,9 +28,9 @@ export function shouldActivateShipAbility(params: {
   const { abilityPressed, wasAbilityPressed, currentAbility } = params;
   return Boolean(
     abilityPressed &&
-      !wasAbilityPressed &&
-      currentAbility &&
-      currentAbility.startTime === null,
+    !wasAbilityPressed &&
+    currentAbility &&
+    currentAbility.startTime === null,
   );
 }
 
@@ -51,7 +51,10 @@ export function stepShipAbility(params: {
   requestDetonateRocket(id: string): void;
   updateActiveAbilities(controllerId: string, delta: number): void;
   playSound(sound: ShipAbilityFeedback["sound"]): void;
-  sendHaptic(pattern: ShipAbilityFeedback["haptic"], controllerId: string): void;
+  sendHaptic(
+    pattern: ShipAbilityFeedback["haptic"],
+    controllerId: string,
+  ): void;
   log?(message: string): void;
 }) {
   const {
@@ -85,7 +88,9 @@ export function stepShipAbility(params: {
       sendHaptic(feedback.haptic, controllerId);
     }
 
-    log?.(`[SHIP] Ability activated for ${controllerId}, ability: ${currentAbility.id}`);
+    log?.(
+      `[SHIP] Ability activated for ${controllerId}, ability: ${currentAbility.id}`,
+    );
   } else if (abilityPressed && !wasAbilityPressed) {
     const activeRocketId = getActiveRocketId(controllerId);
     if (activeRocketId) {

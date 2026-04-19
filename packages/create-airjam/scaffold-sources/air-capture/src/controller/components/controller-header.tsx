@@ -4,10 +4,10 @@ import {
   LifecycleActionGroup,
   PlayerAvatar,
   RuntimeShellHeader,
-  type LifecycleActionKind,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
   useControllerShellStatus,
+  type LifecycleActionKind,
 } from "@air-jam/sdk/ui";
 
 export type ControllerConnectionStatus =
@@ -86,7 +86,7 @@ export const ControllerHeader = ({
           )}
           <div className="min-w-0">
             {shellStatus.hasIdentity ? (
-              <div className="truncate text-sm font-semibold normal-case text-zinc-200">
+              <div className="truncate text-sm font-semibold text-zinc-200 normal-case">
                 {shellStatus.displayName}
               </div>
             ) : null}

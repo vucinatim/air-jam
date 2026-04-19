@@ -8,8 +8,8 @@ import {
 } from "@/lib/games/game-media-policy";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
-import { buildGameMediaStorageKeys } from "./game-media-storage-keys";
 import { getGameMediaStorage } from "./game-media-storage";
+import { buildGameMediaStorageKeys } from "./game-media-storage-keys";
 
 const trimFilename = (value: string): string => value.trim();
 
@@ -34,12 +34,14 @@ const assertValidMediaFilename = ({
   }
 
   const lowerCaseFilename = trimmedFilename.toLowerCase();
-  const hasAllowedExtension = ALLOWED_GAME_MEDIA_FILENAME_EXTENSIONS[
-    kind
-  ].some((extension) => lowerCaseFilename.endsWith(extension));
+  const hasAllowedExtension = ALLOWED_GAME_MEDIA_FILENAME_EXTENSIONS[kind].some(
+    (extension) => lowerCaseFilename.endsWith(extension),
+  );
 
   if (!hasAllowedExtension) {
-    throw new Error(`Unsupported file extension for ${kind.replace("_", " ")}.`);
+    throw new Error(
+      `Unsupported file extension for ${kind.replace("_", " ")}.`,
+    );
   }
 
   return trimmedFilename;
@@ -64,7 +66,10 @@ const assertValidMediaContentType = ({
 
 const getGameMediaSlotColumn = (
   kind: GameMediaKind,
-): "thumbnailMediaAssetId" | "coverMediaAssetId" | "previewVideoMediaAssetId" => {
+):
+  | "thumbnailMediaAssetId"
+  | "coverMediaAssetId"
+  | "previewVideoMediaAssetId" => {
   switch (kind) {
     case "thumbnail":
       return "thumbnailMediaAssetId";

@@ -1,8 +1,8 @@
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 
 type RuntimeUsageDb = PostgresJsDatabase<Record<string, never>>;
@@ -93,7 +93,7 @@ const startDisposableContainer = async (): Promise<{
     ]);
   } catch (error) {
     throw new Error(
-      'Failed to start disposable analytics test Postgres. Ensure Docker Desktop is running, or set AIR_JAM_ANALYTICS_TEST_DATABASE_URL explicitly.',
+      "Failed to start disposable analytics test Postgres. Ensure Docker Desktop is running, or set AIR_JAM_ANALYTICS_TEST_DATABASE_URL explicitly.",
       { cause: error },
     );
   }

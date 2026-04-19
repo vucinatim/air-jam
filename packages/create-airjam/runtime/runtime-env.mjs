@@ -32,8 +32,10 @@ const positiveIntegerFromEnv = (envKey, fallback) =>
 
 const createAirJamRuntimeEnvSchema = z.object({
   VITE_PORT: positiveIntegerFromEnv("VITE_PORT", 5173),
-  AIR_JAM_SECURE_MODE: z
-    .preprocess(trimToUndefined, z.enum(["local", "tunnel"]).optional()),
+  AIR_JAM_SECURE_MODE: z.preprocess(
+    trimToUndefined,
+    z.enum(["local", "tunnel"]).optional(),
+  ),
   AIR_JAM_MKCERT_TRUST_STORES: optionalEnvValue,
   AIR_JAM_SECURE_PUBLIC_HOST: optionalEnvValue,
   CLOUDFLARE_TUNNEL_NAME: optionalEnvValue,
@@ -55,7 +57,9 @@ export const loadCreateAirJamRuntimeEnv = ({
     docsHint:
       "Fix runtime env values in .env / .env.local before running create-airjam runtime commands.",
     keyHints: {
-      VITE_PORT: "Set a positive integer Vite port (for example: VITE_PORT=5173).",
-      AIR_JAM_SECURE_MODE: "Use AIR_JAM_SECURE_MODE=local or AIR_JAM_SECURE_MODE=tunnel.",
+      VITE_PORT:
+        "Set a positive integer Vite port (for example: VITE_PORT=5173).",
+      AIR_JAM_SECURE_MODE:
+        "Use AIR_JAM_SECURE_MODE=local or AIR_JAM_SECURE_MODE=tunnel.",
     },
   });

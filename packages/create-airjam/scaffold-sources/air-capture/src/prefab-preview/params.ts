@@ -3,8 +3,7 @@ import type { PrefabCaptureVariants } from "@air-jam/visual-harness";
 export const AIR_CAPTURE_PREFAB_CAPTURE_SURFACE = "prefab";
 export const AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID =
   "air-capture-prefab-capture-stage";
-export const AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM =
-  "aj_internal_surface";
+export const AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM = "aj_internal_surface";
 export const AIR_CAPTURE_PREFAB_CAPTURE_PREFAB_PARAM = "aj_prefab";
 export const AIR_CAPTURE_PREFAB_CAPTURE_VARIANT_PREFIX = "aj_variant_";
 

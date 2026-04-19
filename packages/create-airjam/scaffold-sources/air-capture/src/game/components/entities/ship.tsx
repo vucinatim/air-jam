@@ -4,19 +4,15 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import { memo, useMemo, useRef, useState } from "react";
-import {
-  MeshBasicMaterial,
-  SphereGeometry,
-  type Group,
-} from "three";
+import { MeshBasicMaterial, SphereGeometry, type Group } from "three";
 
 import { getAbilityVisual, useAbilitiesStore } from "../../abilities-store";
-import { useGameStore } from "../../stores/players/game-store";
-import { useDebugStore } from "../../stores/debug/debug-store";
-import { useHealthStore } from "../../stores/players/health-store";
-import { ShipExplosion } from "../effects/ship-explosion";
 import { useShipRuntime } from "../../engine/ships/use-ship-runtime";
 import { AirCaptureShipVisual } from "../../prefabs/ship";
+import { useDebugStore } from "../../stores/debug/debug-store";
+import { useGameStore } from "../../stores/players/game-store";
+import { useHealthStore } from "../../stores/players/health-store";
+import { ShipExplosion } from "../effects/ship-explosion";
 
 interface ShipProps {
   controllerId: string;

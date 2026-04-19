@@ -17,10 +17,7 @@ export const resolveAirJamBrowserRouterBasename = (): string => {
     return "/";
   }
 
-  const rawBase = Reflect.get(
-    window,
-    AIR_JAM_LOCAL_GAME_PROXY_BASE_WINDOW_KEY,
-  );
+  const rawBase = Reflect.get(window, AIR_JAM_LOCAL_GAME_PROXY_BASE_WINDOW_KEY);
 
   return typeof rawBase === "string" && rawBase.trim()
     ? normalizeBase(rawBase.trim())

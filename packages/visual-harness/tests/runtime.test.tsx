@@ -1,11 +1,16 @@
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { bridgeAction, defineVisualHarnessBridge } from "../src/bridge-contract";
+import {
+  bridgeAction,
+  defineVisualHarnessBridge,
+} from "../src/bridge-contract";
 import { useVisualHarnessBridge } from "../src/runtime";
 import {
   VISUAL_HARNESS_ACTIONS_KEY,
   VISUAL_HARNESS_BRIDGE_KEY,
+  VISUAL_HARNESS_ENABLE_PARAM,
+  VISUAL_HARNESS_ENABLE_VALUE,
   readVisualHarnessBridgeSnapshot,
 } from "../src/runtime-bridge";
 
@@ -95,8 +100,13 @@ const renderHarnessHost = (props: ComponentProps<typeof HarnessHost>) => {
 
 describe("useVisualHarnessBridge", () => {
   afterEach(() => {
-    delete (window as unknown as Record<string, unknown>)[VISUAL_HARNESS_BRIDGE_KEY];
-    delete (window as unknown as Record<string, unknown>)[VISUAL_HARNESS_ACTIONS_KEY];
+    window.history.replaceState(null, "", "/");
+    delete (window as unknown as Record<string, unknown>)[
+      VISUAL_HARNESS_BRIDGE_KEY
+    ];
+    delete (window as unknown as Record<string, unknown>)[
+      VISUAL_HARNESS_ACTIONS_KEY
+    ];
   });
 
   it("publishes snapshots and typed actions", async () => {
@@ -119,9 +129,12 @@ describe("useVisualHarnessBridge", () => {
       points: [1, 2],
     });
 
-    const actions = (window as unknown as Record<string, Record<string, (payload?: unknown) => Promise<unknown>>>)[
-      VISUAL_HARNESS_ACTIONS_KEY
-    ];
+    const actions = (
+      window as unknown as Record<
+        string,
+        Record<string, (payload?: unknown) => Promise<unknown>>
+      >
+    )[VISUAL_HARNESS_ACTIONS_KEY];
     await expect(actions.setPointsToWin("5")).resolves.toBe(5);
     expect(calls).toEqual([5]);
   });
@@ -168,8 +181,32 @@ describe("useVisualHarnessBridge", () => {
 
     expect(readVisualHarnessBridgeSnapshot(window)).toBeNull();
     expect(
-      (window as unknown as Record<string, unknown>)[VISUAL_HARNESS_ACTIONS_KEY],
+      (window as unknown as Record<string, unknown>)[
+        VISUAL_HARNESS_ACTIONS_KEY
+      ],
     ).toBeUndefined();
+  });
+
+  it("publishes bridge state when the URL explicitly enables the harness", () => {
+    window.history.replaceState(
+      null,
+      "",
+      `/?${VISUAL_HARNESS_ENABLE_PARAM}=${VISUAL_HARNESS_ENABLE_VALUE}`,
+    );
+
+    renderHarnessHost({
+      roomId: "room-1",
+      joinUrl: "https://join",
+      matchPhase: "playing",
+      runtimeState: "playing",
+      points: [],
+      calls: [],
+    });
+
+    expect(readVisualHarnessBridgeSnapshot(window)).toMatchObject({
+      matchPhase: "playing",
+      runtimeState: "playing",
+    });
   });
 
   it("cleans up the published bridge state on unmount", () => {
@@ -187,7 +224,9 @@ describe("useVisualHarnessBridge", () => {
 
     expect(readVisualHarnessBridgeSnapshot(window)).toBeNull();
     expect(
-      (window as unknown as Record<string, unknown>)[VISUAL_HARNESS_ACTIONS_KEY],
+      (window as unknown as Record<string, unknown>)[
+        VISUAL_HARNESS_ACTIONS_KEY
+      ],
     ).toBeUndefined();
   });
 });

@@ -7,7 +7,9 @@ export const registerLegacyCommands = (program) => {
 
   legacyCommand
     .command("validate-tarball")
-    .description("Validate legacy ZeroDays games against local SDK/server tarballs")
+    .description(
+      "Validate legacy ZeroDays games against local SDK/server tarballs",
+    )
     .option(
       "--root <path>",
       "Root directory containing the external legacy game checkouts",

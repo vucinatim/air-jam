@@ -21,7 +21,9 @@ const prepareLobbyState = async (
     .click();
 
   await context.host.game
-    .getByText(/Ready\. First to|Add players or bots to|Teams are incomplete\./i)
+    .getByText(
+      /Ready\. First to|Add players or bots to|Teams are incomplete\./i,
+    )
     .waitFor({ state: "visible", timeout: 20_000 });
 
   await context.host.game
@@ -40,9 +42,7 @@ const preparePlayingState = async (
     .getByTestId("air-capture-controller-add-bot-nebulon")
     .click();
 
-  await context.host.game
-    .getByRole("button", { name: "Start Match" })
-    .click();
+  await context.host.game.getByRole("button", { name: "Start Match" }).click();
 
   await context.bridge.waitFor(
     (snapshot) => snapshot?.matchPhase === "playing",

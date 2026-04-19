@@ -47,9 +47,6 @@ export interface PongState {
     startMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
     restartMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
     returnToLobby: (_ctx: AirJamActionContext, _payload: undefined) => void;
-    scorePoint: (
-      _ctx: AirJamActionContext,
-      payload: { team: TeamId },
-    ) => void;
+    scorePoint: (_ctx: AirJamActionContext, payload: { team: TeamId }) => void;
   };
 }

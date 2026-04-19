@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { EnvValidationError } from "@air-jam/env";
+import { describe, expect, it } from "vitest";
 import { loadServerEnv } from "../src/env/server-env";
 
 describe("loadServerEnv", () => {

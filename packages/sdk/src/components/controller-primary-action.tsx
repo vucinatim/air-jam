@@ -38,17 +38,19 @@ export const ControllerPrimaryAction = ({
         )}
       >
         <div className="min-w-0">
-          <div className="truncate text-base font-black uppercase tracking-[0.12em] sm:text-lg">
+          <div className="truncate text-base font-black tracking-[0.12em] uppercase sm:text-lg">
             {label}
           </div>
           {helper ? (
-            <div className="mt-1 text-sm/5 font-medium normal-case tracking-normal opacity-80">
+            <div className="mt-1 text-sm/5 font-medium tracking-normal normal-case opacity-80">
               {helper}
             </div>
           ) : null}
         </div>
         {icon ? (
-          <div className="ml-4 flex shrink-0 items-center justify-center">{icon}</div>
+          <div className="ml-4 flex shrink-0 items-center justify-center">
+            {icon}
+          </div>
         ) : null}
       </Button>
     </div>

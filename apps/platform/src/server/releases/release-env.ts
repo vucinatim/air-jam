@@ -52,7 +52,10 @@ const releaseStorageEnvSchema = z
     ),
   })
   .superRefine((value, context) => {
-    if (!value.AIRJAM_RELEASES_R2_ENDPOINT && !value.AIRJAM_RELEASES_R2_ACCOUNT_ID) {
+    if (
+      !value.AIRJAM_RELEASES_R2_ENDPOINT &&
+      !value.AIRJAM_RELEASES_R2_ACCOUNT_ID
+    ) {
       context.addIssue({
         code: "custom",
         path: ["AIRJAM_RELEASES_R2_ENDPOINT"],
@@ -128,8 +131,10 @@ const releaseModerationEnvSchema = z
     openAi: {
       apiKey: value.OPENAI_API_KEY,
       model:
-        value.AIRJAM_RELEASES_OPENAI_MODERATION_MODEL || "omni-moderation-latest",
-      baseUrl: value.AIRJAM_RELEASES_OPENAI_BASE_URL || "https://api.openai.com/v1",
+        value.AIRJAM_RELEASES_OPENAI_MODERATION_MODEL ||
+        "omni-moderation-latest",
+      baseUrl:
+        value.AIRJAM_RELEASES_OPENAI_BASE_URL || "https://api.openai.com/v1",
       timeoutMs: value.AIRJAM_RELEASES_OPENAI_TIMEOUT_MS,
     },
   }));
@@ -199,5 +204,9 @@ export const resolveConfiguredReleasesBaseUrl = (
       "If configured, NEXT_PUBLIC_RELEASES_BASE_URL / AIRJAM_RELEASES_BASE_URL must be non-empty strings.",
   });
 
-  return parsed.NEXT_PUBLIC_RELEASES_BASE_URL ?? parsed.AIRJAM_RELEASES_BASE_URL ?? null;
+  return (
+    parsed.NEXT_PUBLIC_RELEASES_BASE_URL ??
+    parsed.AIRJAM_RELEASES_BASE_URL ??
+    null
+  );
 };

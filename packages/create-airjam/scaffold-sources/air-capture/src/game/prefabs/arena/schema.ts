@@ -23,7 +23,8 @@ export type AirCaptureArenaPrefabProps = z.infer<
   typeof airCaptureArenaPrefabSchema
 >;
 
-export type AirCaptureArenaPrefabOverrides = Partial<AirCaptureArenaPrefabProps>;
+export type AirCaptureArenaPrefabOverrides =
+  Partial<AirCaptureArenaPrefabProps>;
 
 export const AIR_CAPTURE_ARENA_DEFAULT_PROPS: AirCaptureArenaPrefabProps =
   airCaptureArenaPrefabSchema.parse({

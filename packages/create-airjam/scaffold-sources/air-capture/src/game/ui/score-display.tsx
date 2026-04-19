@@ -1,10 +1,8 @@
 import { memo } from "react";
 import { Fragment } from "react/jsx-runtime";
 import { TEAM_CONFIG, TEAM_IDS } from "../domain/team";
-import {
-  useCaptureTheFlagStore,
-} from "../stores/match/capture-the-flag-store";
 import { useDebugStore } from "../stores/debug/debug-store";
+import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
 import { useGameStore } from "../stores/players/game-store";
 
 export const ScoreDisplay = memo(function ScoreDisplay() {
@@ -21,19 +19,18 @@ export const ScoreDisplay = memo(function ScoreDisplay() {
   const hasLiveMatch = players.length >= 2 && !freeFlyMode;
 
   return (
-    <div
-      className="pointer-events-none fixed top-4 left-1/2 z-50 -translate-x-1/2"
-    >
+    <div className="pointer-events-none fixed top-4 left-1/2 z-50 -translate-x-1/2">
       <div
         className={`border-border/60 flex items-center gap-4 rounded-2xl border px-5 py-3 shadow-2xl backdrop-blur-md ${
-          hasLiveMatch
-            ? "bg-background/78"
-            : "bg-background/55"
+          hasLiveMatch ? "bg-background/78" : "bg-background/55"
         }`}
       >
         {teams.map((team, index) => (
           <Fragment key={team.id}>
-            <div key={team.id} className="flex min-w-[86px] items-center justify-center">
+            <div
+              key={team.id}
+              className="flex min-w-[86px] items-center justify-center"
+            >
               <div className="flex w-full flex-col items-center">
                 <div
                   className={`font-black ${hasLiveMatch ? "text-3xl" : "text-2xl"}`}

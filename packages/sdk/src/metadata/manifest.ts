@@ -51,7 +51,7 @@ const slugSchema = z
     message: "slug must be lowercase kebab-case (e.g. `my-cool-game`)",
   });
 
-const playerCountSchema = z.number().int().min(1).max(8);
+const playerCountSchema = z.number().int().min(1).max(16);
 
 // Accept any npm-style semver range (e.g. "^1.0.0", ">=1.2 <2", "1.x"). We do
 // not resolve it here — consumers like the platform will compare against the

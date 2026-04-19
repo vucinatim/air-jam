@@ -1,18 +1,15 @@
 import {
-  TEAM_IDS,
-  type TeamId,
-} from "../../domain/team";
-import {
   type BaseEntryOutcome,
+  type CaptureTheFlagSnapshot,
   createInitialFlags,
   createInitialScores,
   type FlagPickupOutcome,
   generateRandomBasePositions,
   getEnemyTeam,
-  type CaptureTheFlagSnapshot,
   type TeamPosition,
   type TeamPositions,
 } from "../../domain/capture-the-flag";
+import { TEAM_IDS, type TeamId } from "../../domain/team";
 
 export function createInitialCaptureTheFlagState(
   basePositions: TeamPositions = generateRandomBasePositions(),
@@ -106,7 +103,8 @@ export function reduceRemovePlayer(
 
   if (
     !changed &&
-    Object.keys(updatedPlayerTeams).length === Object.keys(state.playerTeams).length
+    Object.keys(updatedPlayerTeams).length ===
+      Object.keys(state.playerTeams).length
   ) {
     return state;
   }
@@ -148,11 +146,7 @@ export function transitionHandleBaseEntry(
   }
 
   if (playerTeam !== baseTeam) {
-    const result = transitionTryPickupFlag(
-      state,
-      controllerId,
-      baseTeam,
-    );
+    const result = transitionTryPickupFlag(state, controllerId, baseTeam);
     return {
       state: result.state,
       outcome:

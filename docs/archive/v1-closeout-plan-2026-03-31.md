@@ -262,8 +262,8 @@ The release-critical path is:
 2. `pong` quality pass
 3. migration guide
 4. local tarball validation for the three old games
-6. release PR
-7. package publish
+5. release PR
+6. package publish
 
 If this path is solid, the release is real.
 

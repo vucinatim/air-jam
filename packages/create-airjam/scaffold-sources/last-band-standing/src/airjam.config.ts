@@ -6,7 +6,23 @@
  * hold button declared via `input.behavior.latest`.
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { gameInputSchema } from "./game/input";
+
+export const gameMetadata = defineAirJamGameMetadata({
+  slug: "last-band-standing",
+  name: "Last Band Standing",
+  tagline:
+    "Music-quiz party game where the host plays a clip and controllers buzz in.",
+  category: "music",
+  minPlayers: 2,
+  maxPlayers: 10,
+  inputModalities: ["buttons", "audio"],
+  supportedSdkRange: "^1.0.0",
+  maintainer: { name: "Air Jam" },
+  ageRating: "all-ages",
+  tags: ["quiz", "music", "party"],
+});
 
 export const airjam = createAirJamApp({
   runtime: {

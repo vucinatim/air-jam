@@ -1,10 +1,6 @@
 import { memo, useMemo, useRef } from "react";
 import type { Mesh } from "three";
-import {
-  BoxGeometry,
-  MeshStandardMaterial,
-  Vector3,
-} from "three";
+import { BoxGeometry, MeshStandardMaterial, Vector3 } from "three";
 import { getProjectileRotation } from "../../engine/projectiles/flight";
 import { useLaserRuntime } from "../../engine/projectiles/use-laser-runtime";
 

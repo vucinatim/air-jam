@@ -1,9 +1,9 @@
+import fs from "fs-extra";
+import kleur from "kleur";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import fs from "fs-extra";
-import kleur from "kleur";
 
 type LocalAiPackManifest = {
   schemaVersion: number;
@@ -69,7 +69,8 @@ type AiPackComparison = {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DEFAULT_AI_PACK_ROOT_MANIFEST_URL = "https://air-jam.app/ai-pack/manifest.json";
+const DEFAULT_AI_PACK_ROOT_MANIFEST_URL =
+  "https://air-jam.app/ai-pack/manifest.json";
 const PACKAGED_AI_PACK_ROOT = path.resolve(
   __dirname,
   "..",
@@ -102,7 +103,9 @@ const classifyAiPackFileKind = (relativePath: string): string => {
   return "root";
 };
 
-const collectPackagedAiPackFiles = async (sourceDir: string): Promise<string[]> => {
+const collectPackagedAiPackFiles = async (
+  sourceDir: string,
+): Promise<string[]> => {
   const entries = await fs.readdir(sourceDir);
   const files: string[] = [];
 
@@ -118,7 +121,9 @@ const collectPackagedAiPackFiles = async (sourceDir: string): Promise<string[]> 
     files.push(absolutePath);
   }
 
-  return files.filter((relativePath) => !AI_PACK_UNMANAGED_ROOT_FILES.has(relativePath));
+  return files.filter(
+    (relativePath) => !AI_PACK_UNMANAGED_ROOT_FILES.has(relativePath),
+  );
 };
 
 const loadPackagedAiPackVersionManifest =
@@ -126,7 +131,9 @@ const loadPackagedAiPackVersionManifest =
     const manifest = await readJsonFile<LocalAiPackManifest>(
       path.join(PACKAGED_AI_PACK_ROOT, ".airjam", "ai-pack.json"),
     );
-    const absoluteFiles = await collectPackagedAiPackFiles(PACKAGED_AI_PACK_ROOT);
+    const absoluteFiles = await collectPackagedAiPackFiles(
+      PACKAGED_AI_PACK_ROOT,
+    );
     const files = await Promise.all(
       absoluteFiles.map(async (absolutePath) => {
         const relativePath = path
@@ -160,7 +167,9 @@ const fetchJson = async <T>(url: string): Promise<T> => {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
+    );
   }
 
   return (await response.json()) as T;
@@ -174,7 +183,9 @@ const fetchText = async (url: string): Promise<string> => {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
+    );
   }
 
   return response.text();
@@ -253,7 +264,8 @@ const compareAgainstLatestPack = async ({
   manifestUrl?: string;
   manifestFile?: string;
 }): Promise<AiPackComparison> => {
-  const { localManifest, localManifestPath } = await loadLocalAiPackManifest(projectDir);
+  const { localManifest, localManifestPath } =
+    await loadLocalAiPackManifest(projectDir);
   const resolvedManifestUrl =
     manifestUrl ??
     localManifest.update?.manifestUrl ??
@@ -284,7 +296,8 @@ const compareAgainstLatestPack = async ({
     manifestSource = "manifest-file";
   } else {
     try {
-      const rootManifest = await fetchJson<HostedAiPackRootManifest>(resolvedManifestUrl);
+      const rootManifest =
+        await fetchJson<HostedAiPackRootManifest>(resolvedManifestUrl);
       const latestChannel = rootManifest.channels[localManifest.channel];
       if (!latestChannel) {
         throw new Error(
@@ -371,8 +384,10 @@ const compareAgainstLatestPack = async ({
     localManifest,
     latestManifest,
     latestPackVersion,
-    missingCount: differingFiles.filter((file) => file.state === "missing").length,
-    differentCount: differingFiles.filter((file) => file.state === "different").length,
+    missingCount: differingFiles.filter((file) => file.state === "missing")
+      .length,
+    differentCount: differingFiles.filter((file) => file.state === "different")
+      .length,
     differingFiles,
   };
 };
@@ -388,7 +403,9 @@ const printComparisonSummary = (comparison: AiPackComparison) => {
     `Latest pack: ${comparison.latestManifest.channel}@${comparison.latestPackVersion}`,
   );
   console.log(`Manifest source: ${comparison.manifestSource}`);
-  console.log(`Managed files in latest pack: ${comparison.latestManifest.files.length}`);
+  console.log(
+    `Managed files in latest pack: ${comparison.latestManifest.files.length}`,
+  );
 };
 
 export async function runAiPackStatus({
@@ -462,7 +479,11 @@ export async function runAiPackDiff({
   printComparisonSummary(comparison);
 
   if (comparison.differingFiles.length === 0) {
-    console.log(kleur.green("No managed AI pack files differ from the latest hosted pack."));
+    console.log(
+      kleur.green(
+        "No managed AI pack files differ from the latest hosted pack.",
+      ),
+    );
     return;
   }
 
@@ -477,7 +498,10 @@ export async function runAiPackDiff({
   console.log("");
   console.log(kleur.bold("Differing Managed Files"));
   for (const file of comparison.differingFiles) {
-    const label = file.state === "missing" ? kleur.red("missing") : kleur.yellow("different");
+    const label =
+      file.state === "missing"
+        ? kleur.red("missing")
+        : kleur.yellow("different");
     console.log(`- [${label}] ${file.path} (${file.kind})`);
   }
 
@@ -510,11 +534,16 @@ export async function runAiPackUpdate({
   printComparisonSummary(comparison);
 
   if (comparison.differingFiles.length === 0) {
-    console.log(kleur.green("Managed AI pack files already match the latest hosted pack."));
+    console.log(
+      kleur.green(
+        "Managed AI pack files already match the latest hosted pack.",
+      ),
+    );
     return;
   }
 
-  const sameVersion = comparison.localManifest.packVersion === comparison.latestPackVersion;
+  const sameVersion =
+    comparison.localManifest.packVersion === comparison.latestPackVersion;
   if (sameVersion && !force) {
     console.log(
       kleur.yellow(
@@ -523,7 +552,7 @@ export async function runAiPackUpdate({
     );
     console.log(
       kleur.yellow(
-        'Refusing to overwrite same-version managed files without --force.',
+        "Refusing to overwrite same-version managed files without --force.",
       ),
     );
     console.log(
@@ -556,7 +585,9 @@ export async function runAiPackUpdate({
   for (const differingFile of comparison.differingFiles) {
     const latestFile = latestFilesByPath.get(differingFile.path);
     if (!latestFile) {
-      throw new Error(`Missing hosted AI pack file metadata for ${differingFile.path}`);
+      throw new Error(
+        `Missing hosted AI pack file metadata for ${differingFile.path}`,
+      );
     }
 
     const latestContents =

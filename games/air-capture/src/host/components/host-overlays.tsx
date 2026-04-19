@@ -429,8 +429,6 @@ export const StageBackdrop = () => {
     <div className="absolute inset-0 overflow-hidden bg-[#020611]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_bottom,rgba(249,115,22,0.18),transparent_34%),linear-gradient(180deg,rgba(6,11,21,0.9),rgba(2,6,17,1))]" />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-size-[72px_72px] opacity-30" />
-      <div className="absolute inset-x-0 top-[16%] h-px bg-linear-to-r from-transparent via-cyan-300/35 to-transparent" />
-      <div className="absolute inset-x-0 bottom-[18%] h-px bg-linear-to-r from-transparent via-orange-300/35 to-transparent" />
     </div>
   );
 };

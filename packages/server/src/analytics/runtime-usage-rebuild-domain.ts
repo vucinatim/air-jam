@@ -11,8 +11,7 @@ import {
 } from "./runtime-usage-projection-domain.js";
 import type { RuntimeUsageEvent } from "./runtime-usage.js";
 
-export interface RebuiltRuntimeUsageControllerSegment
-  extends RuntimeUsageControllerSegment {
+export interface RebuiltRuntimeUsageControllerSegment extends RuntimeUsageControllerSegment {
   startEventId: string;
   endEventId?: string;
   endReason?: string;
@@ -25,8 +24,7 @@ export interface RebuiltRuntimeUsageGameSegment extends RuntimeUsageGameSegment 
   endReason?: string;
 }
 
-export interface RebuiltRuntimeUsageEligibleSegment
-  extends RuntimeUsageEligibleSegment {
+export interface RebuiltRuntimeUsageEligibleSegment extends RuntimeUsageEligibleSegment {
   startEventId: string;
   endEventId?: string;
   startReason?: string;
@@ -73,7 +71,8 @@ export const buildEligibleSegmentId = (
   runtimeSessionId: string,
   gameId: string | undefined,
   startEventId: string,
-): string => `eligible:${runtimeSessionId}:${gameId ?? "unknown"}:${startEventId}`;
+): string =>
+  `eligible:${runtimeSessionId}:${gameId ?? "unknown"}:${startEventId}`;
 
 export const sortRuntimeUsageEventsForReplay = (
   events: RuntimeUsageEvent[],

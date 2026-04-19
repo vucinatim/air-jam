@@ -130,8 +130,10 @@ export const getGameAnalyticsOverview = async (
     .select({
       bucketDate: runtimeUsageDailyGameMetrics.bucketDate,
       sessionCount: runtimeUsageDailyGameMetrics.sessionCount,
-      totalGameActiveSeconds: runtimeUsageDailyGameMetrics.totalGameActiveSeconds,
-      totalControllerSeconds: runtimeUsageDailyGameMetrics.totalControllerSeconds,
+      totalGameActiveSeconds:
+        runtimeUsageDailyGameMetrics.totalGameActiveSeconds,
+      totalControllerSeconds:
+        runtimeUsageDailyGameMetrics.totalControllerSeconds,
       totalRawEligiblePlaytimeSeconds:
         runtimeUsageDailyGameMetrics.totalRawEligiblePlaytimeSeconds,
       totalEligiblePlaytimeSeconds:

@@ -1,11 +1,6 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import {
-  CylinderGeometry,
-  DoubleSide,
-  PlaneGeometry,
-  type Mesh,
-} from "three";
+import { CylinderGeometry, DoubleSide, PlaneGeometry, type Mesh } from "three";
 
 const FLAG_HEIGHT = 8;
 
@@ -31,10 +26,7 @@ export function FlagModel({
     () => new CylinderGeometry(0.25, 0.25, FLAG_HEIGHT, 8),
     [],
   );
-  const bannerGeometry = useMemo(
-    () => new PlaneGeometry(3.5, 2.5, 8, 6),
-    [],
-  );
+  const bannerGeometry = useMemo(() => new PlaneGeometry(3.5, 2.5, 8, 6), []);
 
   const bannerRef = useRef<Mesh | null>(null);
   const originalPositionsRef = useRef<Float32Array | null>(null);

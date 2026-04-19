@@ -1,30 +1,23 @@
+import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
+import { resolveProjectRuntimeTopology } from "@air-jam/runtime-topology";
 import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
-import type {
-  ResolvedAirJamRuntimeTopology,
-} from "@air-jam/runtime-topology";
-import { resolveProjectRuntimeTopology } from "@air-jam/runtime-topology";
+import type { AirJamGameCapabilityManifest } from "../capabilities/manifest";
 import { CONTROLLER_PATH } from "../constants";
+import { type AirJamProviderProps } from "../context/session-providers";
 import { primeDevBrowserLogSink } from "../dev/browser-log-sink";
-import {
-  type AirJamProviderProps,
-} from "../context/session-providers";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import {
-  AirJamControllerRuntime,
-  AirJamHostRuntime,
-} from "./session-runtimes";
+  resolveAirJamConfig,
+  type ResolveAirJamConfigInput,
+} from "./air-jam-config";
 import {
   AirJamErrorBoundary,
   type AirJamErrorBoundaryProps,
   type AirJamErrorFallbackRenderer,
 } from "./air-jam-error-boundary";
-import {
-  resolveAirJamConfig,
-  type ResolveAirJamConfigInput,
-} from "./air-jam-config";
-import type { AirJamGameCapabilityManifest } from "../capabilities/manifest";
+import { AirJamControllerRuntime, AirJamHostRuntime } from "./session-runtimes";
 
 type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
   AirJamProviderProps<TSchema>,
@@ -33,7 +26,7 @@ type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
 
 type ControllerSessionProps = Omit<AirJamProviderProps, "children" | "input">;
 
-export interface AirJamGameMetadata {
+export interface AirJamGameRuntimeConfig {
   /**
    * Controller route path relative to the game origin.
    * Defaults to "/controller".
@@ -60,7 +53,7 @@ export interface CreateAirJamAppOptions<
   TSchema extends z.ZodSchema = z.ZodSchema,
 > {
   runtime?: ResolveAirJamConfigInput;
-  game?: AirJamGameMetadata;
+  game?: AirJamGameRuntimeConfig;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -138,7 +131,9 @@ export const env = {
   vite: (viteEnvInput?: ViteEnvSource): ResolveAirJamConfigInput => {
     const viteEnv = toViteEnvLike(viteEnvInput) ?? readViteEnv();
     const explicitTopology = viteEnv?.VITE_AIR_JAM_RUNTIME_TOPOLOGY
-      ? (JSON.parse(viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY) as ResolvedAirJamRuntimeTopology)
+      ? (JSON.parse(
+          viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY,
+        ) as ResolvedAirJamRuntimeTopology)
       : null;
     const projectTopology =
       !explicitTopology && viteEnv?.VITE_AIR_JAM_PUBLIC_HOST

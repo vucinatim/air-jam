@@ -128,7 +128,8 @@ const peakConcurrentControllers = (
   return peak;
 };
 
-const toUtcDateBucket = (value: Date): string => value.toISOString().slice(0, 10);
+const toUtcDateBucket = (value: Date): string =>
+  value.toISOString().slice(0, 10);
 
 export const buildRuntimeUsageGameSessionMetrics = (
   gameSegments: RuntimeUsageGameSegment[],
@@ -206,7 +207,8 @@ export const buildRuntimeUsageDailyGameMetrics = (
         sessionCount: 1,
         totalGameActiveSeconds,
         totalControllerSeconds: sessionMetric.controllerSeconds,
-        totalRawEligiblePlaytimeSeconds: sessionMetric.rawEligiblePlaytimeSeconds,
+        totalRawEligiblePlaytimeSeconds:
+          sessionMetric.rawEligiblePlaytimeSeconds,
         totalEligiblePlaytimeSeconds: sessionMetric.eligiblePlaytimeSeconds,
         guardedSessionCount: sessionMetric.trustFlags.length > 0 ? 1 : 0,
         peakConcurrentControllers: sessionMetric.peakConcurrentControllers,

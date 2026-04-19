@@ -41,7 +41,9 @@ export const rebuildRuntimeUsageSessionFromLedger = async (
 
   await db
     .delete(runtimeUsageControllerSegments)
-    .where(eq(runtimeUsageControllerSegments.runtimeSessionId, runtimeSessionId));
+    .where(
+      eq(runtimeUsageControllerSegments.runtimeSessionId, runtimeSessionId),
+    );
   await db
     .delete(runtimeUsageEligibleSegments)
     .where(eq(runtimeUsageEligibleSegments.runtimeSessionId, runtimeSessionId));
@@ -102,5 +104,9 @@ export const rebuildRuntimeUsageSessionFromLedger = async (
     );
   }
 
-  await refreshRuntimeUsageAggregatesForSession(db, runtimeSessionId, referenceTime);
+  await refreshRuntimeUsageAggregatesForSession(
+    db,
+    runtimeSessionId,
+    referenceTime,
+  );
 };

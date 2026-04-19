@@ -42,6 +42,26 @@ const killProcess = (pid, reason, signal = "SIGTERM") => {
   }
 };
 
+const killProcessGroup = (pid, reason, signal = "SIGTERM") => {
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return false;
+  }
+
+  if (process.platform === "win32") {
+    return killProcess(pid, reason, signal);
+  }
+
+  try {
+    process.kill(-pid, signal);
+    console.log(
+      `[dev] Stopped process group ${pid} (${reason})${signal === "SIGKILL" ? " with SIGKILL" : ""}.`,
+    );
+    return true;
+  } catch {
+    return killProcess(pid, reason, signal);
+  }
+};
+
 const readListeningPids = (cwd, port) =>
   readPidList("lsof", ["-nP", `-tiTCP:${port}`, "-sTCP:LISTEN"], cwd);
 
@@ -137,7 +157,9 @@ export const findAvailablePort = async () =>
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
       if (!address || typeof address === "string") {
-        server.close(() => reject(new Error("Could not resolve an available port.")));
+        server.close(() =>
+          reject(new Error("Could not resolve an available port.")),
+        );
         return;
       }
 
@@ -247,12 +269,14 @@ export const createWorkspaceProcessGroup = ({
     shutdownPromise = (async () => {
       for (const childEntry of children) {
         if (!childEntry.child.killed) {
-          childEntry.child.kill("SIGTERM");
+          killProcessGroup(childEntry.child.pid, childEntry.name, "SIGTERM");
         }
       }
 
       await Promise.race([
-        Promise.allSettled(children.map((childEntry) => childEntry.exitPromise)),
+        Promise.allSettled(
+          children.map((childEntry) => childEntry.exitPromise),
+        ),
         delay(2_000),
       ]);
 
@@ -261,11 +285,13 @@ export const createWorkspaceProcessGroup = ({
           continue;
         }
 
-        childEntry.child.kill("SIGKILL");
+        killProcessGroup(childEntry.child.pid, childEntry.name, "SIGKILL");
       }
 
       await Promise.race([
-        Promise.allSettled(children.map((childEntry) => childEntry.exitPromise)),
+        Promise.allSettled(
+          children.map((childEntry) => childEntry.exitPromise),
+        ),
         delay(1_000),
       ]);
 
@@ -299,10 +325,12 @@ export const createWorkspaceProcessGroup = ({
         ...process.env,
         ...(options.env ?? {}),
       },
+      detached: process.platform !== "win32",
       stdio: ["inherit", "pipe", "pipe"],
     });
     const childEntry = {
       child,
+      name,
       exited: false,
       exitPromise: null,
     };

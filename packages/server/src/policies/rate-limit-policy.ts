@@ -104,7 +104,11 @@ export const createScopedRateLimitGuard = (
   windowMs: number,
 ): ((bucket: string, scope: string, limit: number) => boolean) => {
   return (bucket: string, scope: string, limit: number): boolean => {
-    const result = rateLimitService.check(`${bucket}:${scope}`, limit, windowMs);
+    const result = rateLimitService.check(
+      `${bucket}:${scope}`,
+      limit,
+      windowMs,
+    );
     return !result.allowed;
   };
 };

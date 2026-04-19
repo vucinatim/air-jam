@@ -42,7 +42,8 @@ describe("embedded host bridge runtime", () => {
     window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler);
     return {
       events,
-      cleanup: () => window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler),
+      cleanup: () =>
+        window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, handler),
     };
   };
 
@@ -145,7 +146,9 @@ describe("embedded host bridge runtime", () => {
 
     const client = getHostRealtimeClient(
       vi.fn(() => {
-        throw new Error("direct socket should not be requested in embedded mode");
+        throw new Error(
+          "direct socket should not be requested in embedded mode",
+        );
       }),
     );
     const disconnectSpy = vi.fn();
@@ -262,7 +265,9 @@ describe("embedded host bridge runtime", () => {
     client.connect();
 
     const firstRequestCall = getMockCall(postMessageSpy);
-    const firstParentPort = (firstRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    const firstParentPort = (
+      firstRequestCall?.[2] as MessagePort[] | undefined
+    )?.[0];
     expect(firstParentPort).toBeDefined();
 
     firstParentPort!.postMessage({
@@ -304,7 +309,9 @@ describe("embedded host bridge runtime", () => {
       type: "AIRJAM_HOST_BRIDGE_REQUEST",
     });
 
-    const secondParentPort = (secondRequestCall?.[2] as MessagePort[] | undefined)?.[0];
+    const secondParentPort = (
+      secondRequestCall?.[2] as MessagePort[] | undefined
+    )?.[0];
     expect(secondParentPort).toBeDefined();
 
     secondParentPort!.postMessage({

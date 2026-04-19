@@ -5,15 +5,16 @@ import { coerceDevLogsCliOptions } from "../src/logging/dev-logs-cli";
 describe("server cli", () => {
   it("registers start and logs commands", () => {
     const cli = createServerCli();
-    expect(cli.commands.map((command: { name: () => string }) => command.name())).toEqual([
-      "start",
-      "logs",
-    ]);
+    expect(
+      cli.commands.map((command: { name: () => string }) => command.name()),
+    ).toEqual(["start", "logs"]);
   });
 
   it("renders top-level help with logs command", () => {
     expect(formatCliHelp()).toContain("logs [options]");
-    expect(formatCliHelp()).toContain("Read the canonical unified dev log stream");
+    expect(formatCliHelp()).toContain(
+      "Read the canonical unified dev log stream",
+    );
   });
 
   it("describes the default start behavior in help output", () => {
@@ -30,13 +31,7 @@ describe("server cli", () => {
         "--follow",
         "--trace=host_123",
       ]),
-    ).toEqual([
-      "node",
-      "dist/cli.js",
-      "logs",
-      "--follow",
-      "--trace=host_123",
-    ]);
+    ).toEqual(["node", "dist/cli.js", "logs", "--follow", "--trace=host_123"]);
   });
 
   it("coerces commander log options into the canonical filter shape", () => {

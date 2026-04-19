@@ -1,5 +1,24 @@
 import { z } from "zod";
 
+export const gameConfigSourceUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .refine((value) => {
+    const protocol = new URL(value).protocol;
+    return protocol === "https:" || protocol === "http:";
+  }, "Source URL must use http or https");
+
+export const gameConfigTemplateIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(
+    /^[a-z0-9-]+$/,
+    "Template ID must be lowercase alphanumeric with dashes",
+  );
+
 /**
  * Canonical Zod schema for the `games.config` JSONB column.
  *
@@ -13,9 +32,8 @@ import { z } from "zod";
  */
 export const gameConfigSchema = z
   .object({
-    // Reserved for future fields. The empty-object baseline is intentional:
-    // it forces an explicit schema decision for every field added here
-    // instead of allowing arbitrary JSON to accumulate.
+    sourceUrl: gameConfigSourceUrlSchema.optional(),
+    templateId: gameConfigTemplateIdSchema.optional(),
   })
   .strict();
 

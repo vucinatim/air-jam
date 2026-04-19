@@ -49,18 +49,18 @@ export const PlayingControls = ({
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-4 pt-3"
+      className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3 pb-4"
       data-testid="pong-controller-playing-controls"
     >
       <div className="pong-panel rounded-[28px] px-5 py-4 text-center">
         <div className="pong-caption">Active Paddle</div>
         <div
-          className="mt-2 text-2xl font-black uppercase tracking-[0.18em]"
+          className="mt-2 text-2xl font-black tracking-[0.18em] uppercase"
           style={{ color: teamColor }}
         >
           {myTeam ? getTeamLabel(myTeam) : "Join A Team In Lobby"}
         </div>
-        <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+        <div className="mt-2 text-[11px] tracking-[0.16em] text-zinc-500 uppercase">
           Hold to move. Release to stop.
         </div>
       </div>

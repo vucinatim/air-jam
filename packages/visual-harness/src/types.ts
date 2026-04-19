@@ -1,12 +1,12 @@
-import type { Page } from '@playwright/test';
+import type { Page } from "@playwright/test";
 import type {
   AnyVisualHarnessBridgeDefinition,
   InferVisualHarnessBridgeActions,
   InferVisualHarnessBridgeSnapshot,
   VisualHarnessActionInvokerMap,
-} from './bridge-contract.js';
+} from "./bridge-contract.js";
 
-export type VisualHarnessMode = 'standalone-dev' | 'arcade-built';
+export type VisualHarnessMode = "standalone-dev" | "arcade-built";
 
 export type VisualViewport = {
   width: number;
@@ -14,7 +14,7 @@ export type VisualViewport = {
 };
 
 export type VisualScreenshotRecord = {
-  surface: 'host' | 'controller';
+  surface: "host" | "controller";
   viewportName: string;
   width: number;
   height: number;
@@ -33,11 +33,11 @@ export type VisualHarnessUrls = {
 };
 
 export type VisualQuerySurface = {
-  getByLabel: Page['getByLabel'];
-  getByRole: Page['getByRole'];
-  getByTestId: Page['getByTestId'];
-  getByText: Page['getByText'];
-  locator: Page['locator'];
+  getByLabel: Page["getByLabel"];
+  getByRole: Page["getByRole"];
+  getByTestId: Page["getByTestId"];
+  getByText: Page["getByText"];
+  locator: Page["locator"];
 };
 
 export type VisualHarnessPageSurface = {
@@ -57,11 +57,14 @@ export type VisualScenarioBridge<
     description?: string,
     timeout?: number,
   ) => Promise<InferVisualHarnessBridgeSnapshot<TBridge>>;
-  actions: VisualHarnessActionInvokerMap<InferVisualHarnessBridgeActions<TBridge>>;
+  actions: VisualHarnessActionInvokerMap<
+    InferVisualHarnessBridgeActions<TBridge>
+  >;
 };
 
 export type VisualScenarioContext<
-  TBridge extends AnyVisualHarnessBridgeDefinition = AnyVisualHarnessBridgeDefinition,
+  TBridge extends AnyVisualHarnessBridgeDefinition =
+    AnyVisualHarnessBridgeDefinition,
 > = {
   gameId: string;
   scenario: VisualScenario<TBridge>;
@@ -75,15 +78,22 @@ export type VisualScenarioContext<
   sleep: (ms: number) => Promise<void>;
   ensureControllerInteractive: () => Promise<void>;
   bridge: VisualScenarioBridge<TBridge>;
-  captureHost: (viewportName: string, viewport: VisualViewport) => Promise<void>;
-  captureController: (viewportName: string, viewport: VisualViewport) => Promise<void>;
+  captureHost: (
+    viewportName: string,
+    viewport: VisualViewport,
+  ) => Promise<void>;
+  captureController: (
+    viewportName: string,
+    viewport: VisualViewport,
+  ) => Promise<void>;
   screenshotRecords: VisualScreenshotRecord[];
   notes: string[];
   close: () => Promise<void>;
 };
 
 export type VisualScenario<
-  TBridge extends AnyVisualHarnessBridgeDefinition = AnyVisualHarnessBridgeDefinition,
+  TBridge extends AnyVisualHarnessBridgeDefinition =
+    AnyVisualHarnessBridgeDefinition,
 > = {
   id: string;
   description?: string;
@@ -91,7 +101,8 @@ export type VisualScenario<
 };
 
 export type VisualScenarioPack<
-  TBridge extends AnyVisualHarnessBridgeDefinition = AnyVisualHarnessBridgeDefinition,
+  TBridge extends AnyVisualHarnessBridgeDefinition =
+    AnyVisualHarnessBridgeDefinition,
 > = {
   gameId: string;
   bridge: TBridge;
@@ -104,10 +115,10 @@ export type VisualCaptureScenarioMetadata = {
   scenarioDescription: string | null;
   runtimeMode: VisualHarnessMode;
   capturedAt: string;
-  status: 'captured' | 'failed';
-  urls: Omit<VisualHarnessUrls, 'controllerJoinUrl'> | VisualHarnessUrls;
+  status: "captured" | "failed";
+  urls: Omit<VisualHarnessUrls, "controllerJoinUrl"> | VisualHarnessUrls;
   screenshots: Array<{
-    surface: 'host' | 'controller';
+    surface: "host" | "controller";
     viewportName: string;
     width: number;
     height: number;
@@ -128,7 +139,7 @@ export type VisualCaptureSummary = {
   capturedAt: string;
   scenarios: Array<{
     scenarioId: string;
-    status: 'captured' | 'failed';
+    status: "captured" | "failed";
     screenshotCount: number;
     relativeDir: string;
   }>;

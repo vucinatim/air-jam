@@ -9,14 +9,17 @@ import type {
   ControllerUpdatePlayerProfileAck,
   ControllerUpdatePlayerProfilePayload,
 } from "./controller";
-import type { HostBootstrapAck, HostSocketAuthority, HostRegistrationAck } from "./host";
+import type { ServerErrorPayload } from "./errors";
 import type {
   HostActivateEmbeddedGamePayload,
+  HostBootstrapAck,
   HostBootstrapPayload,
   HostCreateRoomPayload,
   HostJoinAsChildPayload,
   HostReconnectPayload,
   HostRegisterSystemPayload,
+  HostRegistrationAck,
+  HostSocketAuthority,
   SystemLaunchGameAck,
   SystemLaunchGamePayload,
 } from "./host";
@@ -28,14 +31,17 @@ import type {
   PlayerUpdatedNotice,
   RoomReadyNotice,
 } from "./notices";
-import type { ServerErrorPayload } from "./errors";
-import type { PlaySoundEventPayload, PlaySoundPayload, SignalPayload } from "./signals";
+import type {
+  PlaySoundEventPayload,
+  PlaySoundPayload,
+  SignalPayload,
+} from "./signals";
 import type {
   AirJamActionRpcPayload,
-  AirJamStateSyncRequestPayload,
   AirJamStateSyncPayload,
-  ControllerStateSyncRequestPayload,
+  AirJamStateSyncRequestPayload,
   ControllerActionRpcPayload,
+  ControllerStateSyncRequestPayload,
   HostStateSyncPayload,
 } from "./sync";
 
@@ -108,9 +114,7 @@ export interface ServerToClientEvents {
   "server:closeChild": () => void;
   "airjam:state_sync": (payload: AirJamStateSyncPayload) => void;
   "airjam:action_rpc": (payload: AirJamActionRpcPayload) => void;
-  "airjam:state_sync_request": (
-    payload: AirJamStateSyncRequestPayload,
-  ) => void;
+  "airjam:state_sync_request": (payload: AirJamStateSyncRequestPayload) => void;
 }
 
 export interface InterServerEvents {

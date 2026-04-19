@@ -1,10 +1,10 @@
-import { type PlayerProfile } from "@air-jam/sdk";
-import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { getLabelForPlayer, createEmptyScore } from "@/utils/player-utils";
 import { PlayerAvatarWithFire } from "@/components/player-avatar-with-fire";
+import { cn } from "@/lib/utils";
 import { type PlayerScore } from "@/store/types";
 import { type GamePhase } from "@/types";
+import { createEmptyScore, getLabelForPlayer } from "@/utils/player-utils";
+import { type PlayerProfile } from "@air-jam/sdk";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface HostPlayerStripProps {
   phase: GamePhase;
@@ -27,13 +27,15 @@ export const HostPlayerStrip = ({
   const inGame = isPlaying || phase === "game-over";
 
   return (
-    <div className="shrink-0 border-t border-border/30 bg-card/50 backdrop-blur-sm">
+    <div className="border-border/30 bg-card/50 shrink-0 border-t backdrop-blur-sm">
       <div className="flex items-stretch justify-center gap-2 overflow-x-auto px-4 py-3">
         <AnimatePresence mode="popLayout">
           {stripPlayerIds.map((playerId, index) => {
-            const player = players.find((entry) => entry.id === playerId) ?? null;
+            const player =
+              players.find((entry) => entry.id === playerId) ?? null;
             const score = scoreboardByPlayerId[playerId] ?? createEmptyScore();
-            const hasAnswered = phase === "round-active" && Boolean(answersByPlayerId[playerId]);
+            const hasAnswered =
+              phase === "round-active" && Boolean(answersByPlayerId[playerId]);
 
             return (
               <motion.div
@@ -51,15 +53,15 @@ export const HostPlayerStrip = ({
                   scale: { type: "spring", stiffness: 400, damping: 15 },
                 }}
                 className={cn(
-                  "relative flex items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-300 bg-primary/10",
-                  hasAnswered && "bg-primary/15 ring-2 ring-primary/40",
+                  "bg-primary/10 relative flex items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-300",
+                  hasAnswered && "bg-primary/15 ring-primary/40 ring-2",
                 )}
               >
                 <div>
                   {inGame && (
                     <span
                       className={cn(
-                        "absolute -left-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-bold tabular-nums",
+                        "absolute -top-2 -left-2 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-bold tabular-nums",
                         index === 0 && "bg-amber-400 text-amber-950",
                         index === 1 && "bg-slate-300 text-slate-800",
                         index === 2 && "bg-amber-600 text-amber-100",
@@ -79,18 +81,22 @@ export const HostPlayerStrip = ({
                           showFire={score.hasStreakFire}
                         />
                       ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                          {getLabelForPlayer(playerId, playerLabelById).charAt(0)}
+                        <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold">
+                          {getLabelForPlayer(playerId, playerLabelById).charAt(
+                            0,
+                          )}
                         </div>
                       )}
                     </div>
 
                     <div className="flex flex-col">
-                      <span className="max-w-[100px] truncate text-sm font-medium leading-tight">
+                      <span className="max-w-[100px] truncate text-sm leading-tight font-medium">
                         {getLabelForPlayer(playerId, playerLabelById)}
                       </span>
                       {inGame && (
-                        <span className="text-sm font-bold tabular-nums">{score.points}</span>
+                        <span className="text-sm font-bold tabular-nums">
+                          {score.points}
+                        </span>
                       )}
                     </div>
                   </div>

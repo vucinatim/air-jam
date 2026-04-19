@@ -203,7 +203,11 @@ describe("dev logs cli", () => {
         tool: "pnpm",
       }),
     ).toEqual(
-      expect.arrayContaining(["processName=pong", "stream=stderr", "tool=pnpm"]),
+      expect.arrayContaining([
+        "processName=pong",
+        "stream=stderr",
+        "tool=pnpm",
+      ]),
     );
   });
 

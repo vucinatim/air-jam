@@ -13,18 +13,14 @@ const gameSurface = {
 
 describe("embeddedBridgeForwardShouldClose", () => {
   it("returns false when attach or active is missing", () => {
-    expect(
-      embeddedBridgeForwardShouldClose(null, gameSurface),
-    ).toBe(false);
-    expect(
-      embeddedBridgeForwardShouldClose(gameSurface, null),
-    ).toBe(false);
+    expect(embeddedBridgeForwardShouldClose(null, gameSurface)).toBe(false);
+    expect(embeddedBridgeForwardShouldClose(gameSurface, null)).toBe(false);
   });
 
   it("returns false when identities match", () => {
-    expect(
-      embeddedBridgeForwardShouldClose(gameSurface, gameSurface),
-    ).toBe(false);
+    expect(embeddedBridgeForwardShouldClose(gameSurface, gameSurface)).toBe(
+      false,
+    );
   });
 
   it("returns true on epoch drift", () => {
@@ -64,7 +60,6 @@ describe("shouldRejectControllerBridgeHandshake", () => {
       }),
     ).toBe(true);
   });
-
 });
 
 describe("shouldRejectHostBridgeHandshake", () => {

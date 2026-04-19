@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
+import { motion } from "framer-motion";
 
 interface ControllerLobbyProps {
   isConnected: boolean;
@@ -50,11 +50,11 @@ export const ControllerLobby = ({
             value={nameDraft}
             onChange={(event) => onNameChange(event.target.value)}
             placeholder="Enter your name"
-            className="h-12 w-full rounded-xl border border-border bg-background px-4 text-[16px] outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="border-border bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring h-12 w-full rounded-xl border px-4 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           />
 
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-foreground">
+            <p className="text-foreground text-sm font-semibold">
               {isReady ? "Locked in" : "Not ready yet"}
             </p>
             <button

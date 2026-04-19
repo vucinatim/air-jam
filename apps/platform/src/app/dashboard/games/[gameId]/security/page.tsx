@@ -20,7 +20,16 @@ import {
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
-import { Check, Copy, Eye, EyeOff, Key, Loader2, RefreshCw, Shield } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Eye,
+  EyeOff,
+  Key,
+  Loader2,
+  RefreshCw,
+  Shield,
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
@@ -28,7 +37,9 @@ export default function GameSecurityPage() {
   const params = useParams();
   const gameId = params.gameId as string;
   const utils = api.useUtils();
-  const [allowedOriginsText, setAllowedOriginsText] = useState<string | null>(null);
+  const [allowedOriginsText, setAllowedOriginsText] = useState<string | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
@@ -68,8 +79,8 @@ export default function GameSecurityPage() {
   };
 
   const handleSavePolicy = () => {
-    const allowedOrigins = allowedOriginsText
-      ?? (appId?.allowedOrigins ?? []).join("\n");
+    const allowedOrigins =
+      allowedOriginsText ?? (appId?.allowedOrigins ?? []).join("\n");
 
     const normalizedAllowedOrigins = allowedOrigins
       .split(/[\n,]/)
@@ -101,7 +112,8 @@ export default function GameSecurityPage() {
         <CardHeader>
           <CardTitle>App ID</CardTitle>
           <CardDescription>
-            This is the runtime identity your game uses when it connects to Air Jam.
+            This is the runtime identity your game uses when it connects to Air
+            Jam.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -109,16 +121,27 @@ export default function GameSecurityPage() {
             <div className="text-sm">
               <div className="font-medium">Current App ID</div>
               <div className="text-muted-foreground">
-                Regenerate this only if the current key is compromised or you want
-                to rotate it deliberately.
+                Regenerate this only if the current key is compromised or you
+                want to rotate it deliberately.
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleCopyAppId} disabled={!appId?.key}>
-                {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+              <Button
+                variant="outline"
+                onClick={handleCopyAppId}
+                disabled={!appId?.key}
+              >
+                {copied ? (
+                  <Check className="mr-2 h-4 w-4" />
+                ) : (
+                  <Copy className="mr-2 h-4 w-4" />
+                )}
                 {copied ? "Copied" : "Copy"}
               </Button>
-              <Button variant="outline" onClick={() => setShowRegenerateDialog(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowRegenerateDialog(true)}
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Regenerate
               </Button>
@@ -136,7 +159,11 @@ export default function GameSecurityPage() {
               onClick={() => setShowKey((value) => !value)}
               className="hover:bg-muted-foreground/10 absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 p-0"
             >
-              {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              {showKey ? (
+                <EyeOff className="h-3 w-3" />
+              ) : (
+                <Eye className="h-3 w-3" />
+              )}
             </Button>
           </div>
         </CardContent>
@@ -152,7 +179,9 @@ export default function GameSecurityPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
-            placeholder={"https://my-game.vercel.app\nhttps://my-game.netlify.app"}
+            placeholder={
+              "https://my-game.vercel.app\nhttps://my-game.netlify.app"
+            }
             rows={6}
             value={displayedAllowedOriginsText}
             onChange={(event) => setAllowedOriginsText(event.target.value)}
@@ -163,7 +192,10 @@ export default function GameSecurityPage() {
             to known production hosts.
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleSavePolicy} disabled={updateAppIdPolicy.isPending}>
+            <Button
+              onClick={handleSavePolicy}
+              disabled={updateAppIdPolicy.isPending}
+            >
               {updateAppIdPolicy.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -183,9 +215,9 @@ export default function GameSecurityPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Regenerate App ID?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will invalidate the current App ID immediately. Any self-hosted
-              or externally deployed build using the old key will stop working
-              until you update it with the new value.
+              This will invalidate the current App ID immediately. Any
+              self-hosted or externally deployed build using the old key will
+              stop working until you update it with the new value.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

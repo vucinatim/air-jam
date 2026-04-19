@@ -15,13 +15,13 @@ const ControllerView = lazy(async () => {
 const LoadingScreen = () => (
   <div className="flex h-screen w-screen items-center justify-center bg-zinc-950 text-white">
     <div className="flex flex-col items-center gap-3 text-center">
-      <div className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+      <div className="text-xs tracking-[0.24em] text-zinc-500 uppercase">
         Air Jam
       </div>
-      <div className="text-3xl font-black uppercase tracking-[0.12em] text-white">
+      <div className="text-3xl font-black tracking-[0.12em] text-white uppercase">
         Pong
       </div>
-      <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">
+      <div className="text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
         Loading match surface
       </div>
     </div>

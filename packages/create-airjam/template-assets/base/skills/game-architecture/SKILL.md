@@ -16,7 +16,7 @@ Use this skill when adding new systems or moving code between boundaries.
 
 Prefer this split:
 
-1. `src/airjam.config.ts` for runtime metadata such as `controllerPath` and input schema
+1. `src/airjam.config.ts` for catalog metadata plus runtime config such as `controllerPath` and input schema
 2. `src/app.tsx` for mounting explicit host/controller runtime boundaries
 3. `src/host/` for host-only composition
 4. `src/controller/` for controller-only composition

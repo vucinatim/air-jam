@@ -55,7 +55,9 @@ export const createSocketAuthorization = (
     }
 
     const session = roomManager.getRoom(roomId);
-    const controllerSession = session?.controllers.get(controllerInfo.controllerId);
+    const controllerSession = session?.controllers.get(
+      controllerInfo.controllerId,
+    );
     if (!controllerSession) {
       return false;
     }

@@ -15,8 +15,8 @@ import {
 } from "./match-store-state";
 import type {
   MatchPhase,
-  MatchSummary,
   MatchStateSnapshot,
+  MatchSummary,
   TeamAssignment,
 } from "./match-store-types";
 

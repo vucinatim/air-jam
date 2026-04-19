@@ -21,10 +21,7 @@ export const moderateReleaseScreenshot = async ({
 }): Promise<ReleaseImageModerationResult> => {
   const config = getReleaseModerationConfig();
   const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    config.openAi.timeoutMs,
-  );
+  const timeout = setTimeout(() => controller.abort(), config.openAi.timeoutMs);
 
   try {
     const dataUrl = `data:image/png;base64,${screenshotBuffer.toString("base64")}`;

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { ErrorCode } from "@air-jam/sdk/protocol";
+import { describe, expect, it } from "vitest";
 import type { AuthService } from "../src/services/auth-service";
 import { setupServerTestHarness } from "./helpers/server-test-harness";
 
@@ -145,10 +145,9 @@ describe("server room lifecycle", () => {
     expect(leftNotice.controllerId).toBe("ctrl_rejoin_1");
 
     const controllerB = await harness.connectSocket();
-    const rejoinedNoticePromise = harness.waitForEvent<{ controllerId: string }>(
-      host,
-      "server:controllerJoined",
-    );
+    const rejoinedNoticePromise = harness.waitForEvent<{
+      controllerId: string;
+    }>(host, "server:controllerJoined");
     const rejoinAck = await harness.emitWithAck<ControllerJoinAck>(
       controllerB,
       "controller:join",
@@ -237,10 +236,9 @@ describe("server room lifecycle", () => {
       }),
     );
 
-    const controllerBLeftPromise = harness.waitForEvent<{ controllerId: string }>(
-      controllerB,
-      "server:controllerLeft",
-    );
+    const controllerBLeftPromise = harness.waitForEvent<{
+      controllerId: string;
+    }>(controllerB, "server:controllerLeft");
     controllerA.emit("controller:leave", {
       roomId,
       controllerId: "ctrl_roster_1",

@@ -2,8 +2,8 @@ import { create } from "zustand";
 import type {
   BaseEntryOutcome,
   CaptureTheFlagSnapshot,
-  FlagState,
   FlagPickupOutcome,
+  FlagState,
 } from "../../domain/capture-the-flag";
 import type { TeamId } from "../../domain/team";
 import {
@@ -29,59 +29,55 @@ interface CaptureTheFlagState {
   getPlayerTeam: (controllerId: string) => TeamId | undefined;
   removePlayer: (controllerId: string) => void;
   resetMatch: () => void;
-  handleBaseEntry: (
-    controllerId: string,
-    baseTeam: TeamId,
-  ) => BaseEntryOutcome;
-  tryPickupFlag: (
-    controllerId: string,
-    flagTeam: TeamId,
-  ) => FlagPickupOutcome;
+  handleBaseEntry: (controllerId: string, baseTeam: TeamId) => BaseEntryOutcome;
+  tryPickupFlag: (controllerId: string, flagTeam: TeamId) => FlagPickupOutcome;
   dropFlagAtPosition: (
     controllerId: string,
     position?: [number, number, number],
   ) => void;
   manualScore: (teamId: TeamId) => void;
 }
-export const useCaptureTheFlagStore = create<CaptureTheFlagState>((set, get) => {
-  const initialState = createInitialCaptureTheFlagState();
-  return {
-    ...initialState,
-    getBasePosition: (teamId: TeamId) => {
-      return get().basePositions[teamId];
-    },
-    assignPlayerToTeam: (controllerId: string) => {
-      const result = assignPlayerToTeam(get(), controllerId);
-      set(result.state);
-      return result.teamId;
-    },
-    setPlayerTeam: (controllerId: string, teamId: TeamId) => {
-      set((state) => reduceSetPlayerTeam(state, controllerId, teamId));
-    },
-    getPlayerTeam: (controllerId: string) => {
-      return get().playerTeams[controllerId];
-    },
-    removePlayer: (controllerId: string) => {
-      set((state) => reduceRemovePlayer(state, controllerId));
-    },
-    resetMatch: () => {
-      set((state) => reduceResetMatch(state));
-    },
-    handleBaseEntry: (controllerId: string, baseTeam: TeamId) => {
-      const result = transitionHandleBaseEntry(get(), controllerId, baseTeam);
-      set(result.state);
-      return result.outcome;
-    },
-    tryPickupFlag: (controllerId: string, flagTeam: TeamId) => {
-      const result = transitionTryPickupFlag(get(), controllerId, flagTeam);
-      set(result.state);
-      return result.outcome;
-    },
-    dropFlagAtPosition: (controllerId: string, position) => {
-      set((state) => reduceDropFlagAtPosition(state, controllerId, position));
-    },
-    manualScore: (teamId: TeamId) => {
-      set((state) => reduceManualScore(state, teamId));
-    },
-  };
-});
+export const useCaptureTheFlagStore = create<CaptureTheFlagState>(
+  (set, get) => {
+    const initialState = createInitialCaptureTheFlagState();
+    return {
+      ...initialState,
+      getBasePosition: (teamId: TeamId) => {
+        return get().basePositions[teamId];
+      },
+      assignPlayerToTeam: (controllerId: string) => {
+        const result = assignPlayerToTeam(get(), controllerId);
+        set(result.state);
+        return result.teamId;
+      },
+      setPlayerTeam: (controllerId: string, teamId: TeamId) => {
+        set((state) => reduceSetPlayerTeam(state, controllerId, teamId));
+      },
+      getPlayerTeam: (controllerId: string) => {
+        return get().playerTeams[controllerId];
+      },
+      removePlayer: (controllerId: string) => {
+        set((state) => reduceRemovePlayer(state, controllerId));
+      },
+      resetMatch: () => {
+        set((state) => reduceResetMatch(state));
+      },
+      handleBaseEntry: (controllerId: string, baseTeam: TeamId) => {
+        const result = transitionHandleBaseEntry(get(), controllerId, baseTeam);
+        set(result.state);
+        return result.outcome;
+      },
+      tryPickupFlag: (controllerId: string, flagTeam: TeamId) => {
+        const result = transitionTryPickupFlag(get(), controllerId, flagTeam);
+        set(result.state);
+        return result.outcome;
+      },
+      dropFlagAtPosition: (controllerId: string, position) => {
+        set((state) => reduceDropFlagAtPosition(state, controllerId, position));
+      },
+      manualScore: (teamId: TeamId) => {
+        set((state) => reduceManualScore(state, teamId));
+      },
+    };
+  },
+);

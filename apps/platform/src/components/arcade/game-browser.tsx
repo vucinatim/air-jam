@@ -1,10 +1,17 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { buildCreateAirJamTemplateCommand } from "@/lib/create-airjam-template-command";
 import { cn } from "@/lib/utils";
 import { AudioRuntime, useAudio, type SoundManifest } from "@air-jam/sdk";
-import { Gamepad2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Code2, Gamepad2, Github } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import type { GamePlayerGame } from "./game-player";
 
 const ARCADE_SOUND_MANIFEST: SoundManifest = {
@@ -16,6 +23,9 @@ const ARCADE_SOUND_MANIFEST: SoundManifest = {
 };
 
 const SCROLL_TOP_THRESHOLD_PX = 12;
+const COPY_FEEDBACK_MS = 1800;
+const DEVELOPER_ACTION_CLASS =
+  "inline-flex size-9 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-lg backdrop-blur-md transition hover:border-airjam-cyan/60 hover:bg-airjam-cyan/18 hover:text-airjam-cyan focus-visible:border-airjam-cyan focus-visible:ring-2 focus-visible:ring-airjam-cyan/50 focus-visible:outline-none";
 
 interface GameBrowserProps {
   games: GamePlayerGame[];
@@ -68,11 +78,17 @@ const GameBrowserContent = ({
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const copyFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const audio = useAudio<"select">();
   const prevSelectedIndexRef = useRef<number | null>(null);
   const [imageLoadErrors, setImageLoadErrors] = useState<
     Record<string, boolean>
   >({});
+  const [copiedTemplateGameId, setCopiedTemplateGameId] = useState<
+    string | null
+  >(null);
   const [videoReady, setVideoReady] = useState<Record<string, boolean>>({});
   const [videoLoadErrors, setVideoLoadErrors] = useState<
     Record<string, boolean>
@@ -134,6 +150,40 @@ const GameBrowserContent = ({
     queueMicrotask(emitScrollTop);
   }, [isVisible, games.length, emitScrollTop]);
 
+  useEffect(
+    () => () => {
+      if (copyFeedbackTimeoutRef.current) {
+        clearTimeout(copyFeedbackTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  const copyTemplateCommand = useCallback(
+    async (event: MouseEvent<HTMLButtonElement>, game: GamePlayerGame) => {
+      event.stopPropagation();
+
+      const command = buildCreateAirJamTemplateCommand(game.templateId);
+      if (!command) return;
+
+      try {
+        await navigator.clipboard.writeText(command);
+      } catch {
+        return;
+      }
+
+      setCopiedTemplateGameId(game.id);
+
+      if (copyFeedbackTimeoutRef.current) {
+        clearTimeout(copyFeedbackTimeoutRef.current);
+      }
+      copyFeedbackTimeoutRef.current = setTimeout(() => {
+        setCopiedTemplateGameId(null);
+      }, COPY_FEEDBACK_MS);
+    },
+    [],
+  );
+
   return (
     <div
       ref={scrollRootRef}
@@ -154,8 +204,7 @@ const GameBrowserContent = ({
       {/* Title: in flow, directly under arcade chrome gutter */}
       <header className="z-40 flex shrink-0 flex-col items-center pb-5 text-center">
         <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
-          Air Jam{" "}
-          <span className="font-bold text-airjam-cyan">Arcade</span>
+          Air Jam <span className="text-airjam-cyan font-bold">Arcade</span>
         </h1>
         <p className="mt-1.5 max-w-md text-sm tracking-wide text-slate-500">
           Select a game using your phone
@@ -178,6 +227,11 @@ const GameBrowserContent = ({
               isSelected && hasVideo && !!videoReady[game.id];
             const shouldShowFallbackIcon =
               !hasThumbnail && !(isSelected && hasVideo);
+            const templateCommand = buildCreateAirJamTemplateCommand(
+              game.templateId,
+            );
+            const hasDeveloperActions = !!game.sourceUrl || !!templateCommand;
+            const didCopyTemplate = copiedTemplateGameId === game.id;
 
             return (
               <Card
@@ -253,7 +307,7 @@ const GameBrowserContent = ({
                         <Gamepad2
                           aria-hidden
                           className={cn(
-                            "absolute right-[-22%] bottom-[-34%] h-[min(125%,26rem)] w-[min(125%,26rem)] max-h-[420px] max-w-[420px] min-h-56 min-w-56 sm:min-h-72 sm:min-w-72 md:min-h-80 md:min-w-80",
+                            "absolute right-[-22%] bottom-[-34%] h-[min(125%,26rem)] max-h-[420px] min-h-56 w-[min(125%,26rem)] max-w-[420px] min-w-56 sm:min-h-72 sm:min-w-72 md:min-h-80 md:min-w-80",
                             "-rotate-26",
                             "text-slate-500 opacity-[0.09]",
                             isSelected && "text-airjam-cyan opacity-[0.14]",
@@ -266,10 +320,45 @@ const GameBrowserContent = ({
 
                   <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/5" />
 
+                  {hasDeveloperActions ? (
+                    <div className="absolute top-3 right-3 z-20 flex gap-2">
+                      {game.sourceUrl ? (
+                        <a
+                          href={game.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={DEVELOPER_ACTION_CLASS}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`Open ${game.name} source on GitHub`}
+                          title="Open source on GitHub"
+                        >
+                          <Github className="size-4" aria-hidden />
+                        </a>
+                      ) : null}
+                      {templateCommand ? (
+                        <button
+                          type="button"
+                          className={DEVELOPER_ACTION_CLASS}
+                          onClick={(event) =>
+                            void copyTemplateCommand(event, game)
+                          }
+                          aria-label={`Copy create-airjam command for ${game.name}`}
+                          title={didCopyTemplate ? "Copied" : templateCommand}
+                        >
+                          {didCopyTemplate ? (
+                            <Check className="size-4" aria-hidden />
+                          ) : (
+                            <Code2 className="size-4" aria-hidden />
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div className="absolute right-0 bottom-0 left-0 p-4">
                     {game.catalogBadgeLabel ? (
                       <div className="mb-3">
-                        <span className="inline-flex rounded-full border border-airjam-cyan/40 bg-airjam-cyan/12 px-2.5 py-1 text-[11px] font-semibold tracking-[0.18em] text-airjam-cyan uppercase">
+                        <span className="border-airjam-cyan/40 bg-airjam-cyan/12 text-airjam-cyan inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.18em] uppercase">
                           {game.catalogBadgeLabel}
                         </span>
                       </div>

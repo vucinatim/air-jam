@@ -55,7 +55,11 @@ const loadPrefabHarness = async (
   };
   const harness = loaded.prefabCaptureHarness ?? null;
 
-  if (!harness || harness.gameId !== gameId || !Array.isArray(harness.prefabs)) {
+  if (
+    !harness ||
+    harness.gameId !== gameId ||
+    !Array.isArray(harness.prefabs)
+  ) {
     throw new Error(
       `Invalid prefab capture harness for "${gameId}" at ${modulePath}.`,
     );
@@ -70,17 +74,13 @@ const parseVariants = (variantPairs: string[]): PrefabCaptureVariants => {
   for (const pair of variantPairs) {
     const separator = pair.indexOf("=");
     if (separator <= 0 || separator === pair.length - 1) {
-      throw new Error(
-        `Invalid --variant value "${pair}". Expected key=value.`,
-      );
+      throw new Error(`Invalid --variant value "${pair}". Expected key=value.`);
     }
 
     const key = pair.slice(0, separator).trim();
     const value = pair.slice(separator + 1).trim();
     if (!key || !value) {
-      throw new Error(
-        `Invalid --variant value "${pair}". Expected key=value.`,
-      );
+      throw new Error(`Invalid --variant value "${pair}". Expected key=value.`);
     }
     variants[key] = value;
   }
@@ -102,7 +102,10 @@ const buildArtifactId = (
 ): string => {
   const variantSuffix = Object.entries(variants)
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `${sanitizeArtifactSegment(key)}-${sanitizeArtifactSegment(value)}`)
+    .map(
+      ([key, value]) =>
+        `${sanitizeArtifactSegment(key)}-${sanitizeArtifactSegment(value)}`,
+    )
     .join("__");
 
   return variantSuffix.length > 0
@@ -134,8 +137,7 @@ export const runVisualPrefabCaptureCommand = async ({
   const harness = await loadPrefabHarness(gameId);
   const variants = parseVariants(variantPairs);
   const prefab = harness.prefabs.find(
-    (candidate) =>
-      candidate.id === prefabId || candidate.prefabId === prefabId,
+    (candidate) => candidate.id === prefabId || candidate.prefabId === prefabId,
   );
 
   if (!prefab) {

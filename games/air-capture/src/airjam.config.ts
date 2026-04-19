@@ -8,7 +8,23 @@
  * the stores under `./game/stores/`.
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { gameInputSchema } from "./game/types";
+
+export const gameMetadata = defineAirJamGameMetadata({
+  slug: "air-capture",
+  name: "Air Capture",
+  tagline:
+    "Advanced 3D arena battler with ships, rockets, flags, physics, bots, and remote audio.",
+  category: "arcade",
+  minPlayers: 1,
+  maxPlayers: 4,
+  inputModalities: ["buttons", "joystick", "touch"],
+  supportedSdkRange: "^1.0.0",
+  maintainer: { name: "Air Jam" },
+  ageRating: "all-ages",
+  tags: ["3d", "physics", "capture-the-flag"],
+});
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),

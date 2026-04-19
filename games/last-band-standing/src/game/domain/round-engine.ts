@@ -37,8 +37,15 @@ export const calculateCorrectGuessPoints = (
   answeredAtMs: number,
   roundWindow: RoundWindow,
 ): number => {
-  const roundDurationMs = Math.max(1, roundWindow.endsAtMs - roundWindow.startedAtMs);
-  const remainingMs = clampNumber(roundWindow.endsAtMs - answeredAtMs, 0, roundDurationMs);
+  const roundDurationMs = Math.max(
+    1,
+    roundWindow.endsAtMs - roundWindow.startedAtMs,
+  );
+  const remainingMs = clampNumber(
+    roundWindow.endsAtMs - answeredAtMs,
+    0,
+    roundDurationMs,
+  );
   const timeLeftRatio = remainingMs / roundDurationMs;
 
   return 100 + Math.floor(400 * timeLeftRatio);
@@ -48,7 +55,9 @@ const hasEveryoneAnswered = (
   expectedPlayerIds: string[],
   answersByPlayerId: Record<string, PlayerAnswer>,
 ): boolean => {
-  return expectedPlayerIds.every((playerId) => Boolean(answersByPlayerId[playerId]));
+  return expectedPlayerIds.every((playerId) =>
+    Boolean(answersByPlayerId[playerId]),
+  );
 };
 
 const hasRapidCorrectAnswer = (
@@ -89,23 +98,32 @@ export const buildRoundResults = (
   correctOptionId: string,
   roundWindow: RoundWindow,
 ): Record<string, RoundPlayerResult> => {
-  return expectedPlayerIds.reduce<Record<string, RoundPlayerResult>>((results, playerId) => {
-    const answer = answersByPlayerId[playerId] ?? null;
-    const isCorrect = answer?.optionId === correctOptionId;
-    const responseMs = answer
-      ? clampNumber(answer.answeredAtMs - roundWindow.startedAtMs, 0, roundWindow.endsAtMs - roundWindow.startedAtMs)
-      : null;
+  return expectedPlayerIds.reduce<Record<string, RoundPlayerResult>>(
+    (results, playerId) => {
+      const answer = answersByPlayerId[playerId] ?? null;
+      const isCorrect = answer?.optionId === correctOptionId;
+      const responseMs = answer
+        ? clampNumber(
+            answer.answeredAtMs - roundWindow.startedAtMs,
+            0,
+            roundWindow.endsAtMs - roundWindow.startedAtMs,
+          )
+        : null;
 
-    results[playerId] = {
-      optionId: answer?.optionId ?? null,
-      answeredAtMs: answer?.answeredAtMs ?? null,
-      responseMs,
-      isCorrect,
-      points: isCorrect ? calculateCorrectGuessPoints(answer.answeredAtMs, roundWindow) : 0,
-    };
+      results[playerId] = {
+        optionId: answer?.optionId ?? null,
+        answeredAtMs: answer?.answeredAtMs ?? null,
+        responseMs,
+        isCorrect,
+        points: isCorrect
+          ? calculateCorrectGuessPoints(answer.answeredAtMs, roundWindow)
+          : 0,
+      };
 
-    return results;
-  }, {});
+      return results;
+    },
+    {},
+  );
 };
 
 export const findFirstCorrectSummary = (
@@ -118,7 +136,12 @@ export const findFirstCorrectSummary = (
     responseMs: number;
   } | null>((bestResult, playerId) => {
     const result = resultsByPlayerId[playerId];
-    if (!result || !result.isCorrect || result.answeredAtMs === null || result.responseMs === null) {
+    if (
+      !result ||
+      !result.isCorrect ||
+      result.answeredAtMs === null ||
+      result.responseMs === null
+    ) {
       return bestResult;
     }
 

@@ -18,12 +18,12 @@ import {
   streamValidatedReleaseArchiveFiles,
 } from "./release-artifact-validation";
 import type { ReleaseModerationSummary } from "./release-moderation-service";
+import { runReleaseModeration } from "./release-moderation-service";
+import { getReleaseStorage } from "./release-storage";
 import {
   buildReleaseSiteObjectKey,
   buildReleaseStorageKeys,
 } from "./release-storage-keys";
-import { runReleaseModeration } from "./release-moderation-service";
-import { getReleaseStorage } from "./release-storage";
 
 type OwnedRelease = Awaited<ReturnType<typeof assertOwnedRelease>>;
 
@@ -58,9 +58,7 @@ const assertValidReleaseUploadFilename = (filename: string): string => {
   }
 
   if (
-    !trimmedFilename
-      .toLowerCase()
-      .endsWith(RELEASE_UPLOAD_FILENAME_EXTENSION)
+    !trimmedFilename.toLowerCase().endsWith(RELEASE_UPLOAD_FILENAME_EXTENSION)
   ) {
     throw new Error("Release uploads must be .zip archives.");
   }
@@ -289,7 +287,10 @@ export const finalizeReleaseUpload = async ({
 
   const uploadedAt = new Date();
 
-  if (uploadedObject.sizeBytes <= 0 || uploadedObject.sizeBytes > MAX_RELEASE_ZIP_BYTES) {
+  if (
+    uploadedObject.sizeBytes <= 0 ||
+    uploadedObject.sizeBytes > MAX_RELEASE_ZIP_BYTES
+  ) {
     const message = `Uploaded archive exceeds the ${MAX_RELEASE_ZIP_BYTES} byte limit.`;
     await markReleaseUploadFailure({
       releaseId: release.id,
@@ -329,7 +330,9 @@ export const finalizeReleaseUpload = async ({
       throw error;
     }
 
-    const contentHash = createHash("sha256").update(archiveBuffer).digest("hex");
+    const contentHash = createHash("sha256")
+      .update(archiveBuffer)
+      .digest("hex");
     const originalFilename =
       uploadedObject.metadata["original-filename"] ?? "artifact.zip";
     const summary = `Validated ${manifest.fileCount} files and extracted ${manifest.extractedSizeBytes} bytes.`;
@@ -394,7 +397,9 @@ export const finalizeReleaseUpload = async ({
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Release artifact validation failed.";
+      error instanceof Error
+        ? error.message
+        : "Release artifact validation failed.";
 
     await markReleaseUploadFailure({
       releaseId: release.id,

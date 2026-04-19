@@ -74,7 +74,7 @@ export const Callout = ({
         <div className="flex min-w-0 flex-col gap-2.5">
           <div className="flex min-w-0 items-center gap-2">
             <Icon className={iconVariants({ variant })} aria-hidden />
-            <p className="text-foreground m-0 text-sm font-semibold leading-tight">
+            <p className="text-foreground m-0 text-sm leading-tight font-semibold">
               {title}
             </p>
           </div>
@@ -92,10 +92,7 @@ export const Callout = ({
       {...props}
     >
       <div className="flex min-w-0 items-start gap-2">
-        <Icon
-          className={cn(iconVariants({ variant }), "mt-0.5")}
-          aria-hidden
-        />
+        <Icon className={cn(iconVariants({ variant }), "mt-0.5")} aria-hidden />
         <div className={cn(bodyTypography, "min-w-0 flex-1")}>{children}</div>
       </div>
     </aside>

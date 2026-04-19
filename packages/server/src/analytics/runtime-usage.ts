@@ -94,7 +94,13 @@ export const createRoomRuntimeUsageEvent = (
   session: RoomSession,
   event: Omit<
     RuntimeUsageEvent,
-    "id" | "occurredAt" | "runtimeSessionId" | "roomId" | "appId" | "gameId" | "hostVerifiedVia"
+    | "id"
+    | "occurredAt"
+    | "runtimeSessionId"
+    | "roomId"
+    | "appId"
+    | "gameId"
+    | "hostVerifiedVia"
   > & {
     occurredAt?: number;
     gameId?: string;

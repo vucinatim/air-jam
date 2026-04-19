@@ -292,7 +292,9 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
       const energyBar = energyBarRef.current;
       const shipPos = shipPositions.get(controllerId);
       const energyFill = energyFillRef.current;
-      const flightState = useFlightStateStore.getState().getFlightState(controllerId);
+      const flightState = useFlightStateStore
+        .getState()
+        .getFlightState(controllerId);
 
       if (energyBar) {
         energyBar.style.display =
@@ -300,7 +302,9 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
       }
       if (energyFill) {
         energyFill.style.width = `${Math.round(flightState.airControlEnergy * 100)}%`;
-        energyFill.style.opacity = flightState.isAirControlDepleted ? "0.55" : "1";
+        energyFill.style.opacity = flightState.isAirControlDepleted
+          ? "0.55"
+          : "1";
       }
 
       if (!element || !shipPos) {

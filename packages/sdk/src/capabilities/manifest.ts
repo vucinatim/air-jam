@@ -29,18 +29,15 @@ interface AirJamGameCapabilityDescriptorBase {
   audience?: AirJamGameCapabilityAudience;
 }
 
-export interface AirJamGameActionCapability
-  extends AirJamGameCapabilityDescriptorBase {
+export interface AirJamGameActionCapability extends AirJamGameCapabilityDescriptorBase {
   kind: AirJamGameActionCapabilityKind;
 }
 
-export interface AirJamGameStateCapability
-  extends AirJamGameCapabilityDescriptorBase {
+export interface AirJamGameStateCapability extends AirJamGameCapabilityDescriptorBase {
   kind: AirJamGameStateCapabilityKind;
 }
 
-export interface AirJamGameEvaluationCapability
-  extends AirJamGameCapabilityDescriptorBase {
+export interface AirJamGameEvaluationCapability extends AirJamGameCapabilityDescriptorBase {
   kind: AirJamGameEvaluationCapabilityKind;
 }
 
@@ -58,7 +55,9 @@ export type DefineAirJamGameCapabilitiesInput = Omit<
   version?: 1;
 };
 
-const cloneSection = <T>(entries: readonly T[] | undefined): readonly T[] | undefined =>
+const cloneSection = <T>(
+  entries: readonly T[] | undefined,
+): readonly T[] | undefined =>
   entries ? Object.freeze([...entries]) : undefined;
 
 export const defineAirJamGameCapabilities = (

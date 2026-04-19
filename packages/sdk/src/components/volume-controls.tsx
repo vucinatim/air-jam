@@ -27,10 +27,7 @@ export function VolumeControls(props: VolumeControlsProps) {
   return <OwnedVolumeControls {...props} />;
 }
 
-function OwnedVolumeControls({
-  className,
-  compact,
-}: VolumeControlsProps) {
+function OwnedVolumeControls({ className, compact }: VolumeControlsProps) {
   const {
     masterVolume,
     musicVolume,

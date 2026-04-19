@@ -1,5 +1,5 @@
-import { clampNumber } from "@/utils/math-utils";
 import { YOUTUBE_MAX_VOLUME } from "@/config";
+import { clampNumber } from "@/utils/math-utils";
 
 export const sendYouTubeCommand = (
   playerFrame: HTMLIFrameElement | null,

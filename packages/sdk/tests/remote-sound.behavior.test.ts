@@ -3,10 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ControllerRemoteAudioRuntime,
-  useAudio,
-} from "../src/audio/hooks";
+import { ControllerRemoteAudioRuntime, useAudio } from "../src/audio/hooks";
 import { ControllerSessionProvider } from "../src/context/session-providers";
 
 const mocked = vi.hoisted(() => {
@@ -80,10 +77,9 @@ vi.mock("howler", () => ({
 }));
 
 vi.mock("../src/context/air-jam-context", async () => {
-  const actual =
-    await vi.importActual<typeof import("../src/context/air-jam-context")>(
-      "../src/context/air-jam-context",
-    );
+  const actual = await vi.importActual<
+    typeof import("../src/context/air-jam-context")
+  >("../src/context/air-jam-context");
 
   return {
     ...actual,
@@ -92,10 +88,9 @@ vi.mock("../src/context/air-jam-context", async () => {
 });
 
 vi.mock("../src/context/session-scope", async () => {
-  const actual =
-    await vi.importActual<typeof import("../src/context/session-scope")>(
-      "../src/context/session-scope",
-    );
+  const actual = await vi.importActual<
+    typeof import("../src/context/session-scope")
+  >("../src/context/session-scope");
 
   return {
     ...actual,

@@ -232,7 +232,9 @@ function OfficeHostGameplaySurface({
           locationImagesRef={locationImagesRef}
           getInput={getInputForPlayer}
           players={players}
-          gameStatePlaying={matchPhase === "playing" && runtimeState === "playing"}
+          gameStatePlaying={
+            matchPhase === "playing" && runtimeState === "playing"
+          }
           updateGame={updateGame}
         />
 
@@ -313,7 +315,9 @@ function OfficeHostLobbyOverlay({
 
         <div className="mb-4 max-h-64 overflow-y-auto border border-[#e5d4ab] bg-[#fff6d8] p-3">
           {host.players.length === 0 ? (
-            <p className="text-sm text-[#6b7280]">Waiting for controllers to join…</p>
+            <p className="text-sm text-[#6b7280]">
+              Waiting for controllers to join…
+            </p>
           ) : (
             <ul className="space-y-2">
               {host.players.map((player) => {

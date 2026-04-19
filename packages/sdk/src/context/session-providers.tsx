@@ -1,20 +1,13 @@
-import {
-  useCallback,
-  useRef,
-  type JSX,
-} from "react";
+import { useCallback, useRef, type JSX } from "react";
 import type { z } from "zod";
 import { createAirJamDiagnosticError } from "../diagnostics";
+import { AirJamProvider, type AirJamProviderProps } from "./air-jam-context";
 import {
   RuntimeOwnerRegistryContext,
-  type RuntimeOwnerKind,
   SessionScopeContext,
+  type RuntimeOwnerKind,
   type SessionScope,
 } from "./session-scope";
-import {
-  AirJamProvider,
-  type AirJamProviderProps,
-} from "./air-jam-context";
 
 type RuntimeOwnerToken = symbol;
 
@@ -37,37 +30,37 @@ const createScopedSessionProvider = (
       >
     >(new Map());
 
-    const claimOwner = useCallback((kind: RuntimeOwnerKind, token: RuntimeOwnerToken, hookName: string) => {
-      const existing = runtimeOwnersRef.current.get(kind);
-      if (existing && existing.token !== token) {
-        throw createAirJamDiagnosticError(
-          "AJ_DUPLICATE_SESSION_OWNER",
-          `${hookName} mounted while another ${kind} already owns this session provider. Mount one runtime owner hook per provider tree and use a read-only session hook in child components instead.`,
-          {
-            scope,
-            kind,
-            hookName,
-            existingHookName: existing.hookName,
-          },
-        );
-      }
-
-      runtimeOwnersRef.current.set(kind, { token, hookName });
-      return () => {
-        const current = runtimeOwnersRef.current.get(kind);
-        if (current?.token === token) {
-          runtimeOwnersRef.current.delete(kind);
+    const claimOwner = useCallback(
+      (kind: RuntimeOwnerKind, token: RuntimeOwnerToken, hookName: string) => {
+        const existing = runtimeOwnersRef.current.get(kind);
+        if (existing && existing.token !== token) {
+          throw createAirJamDiagnosticError(
+            "AJ_DUPLICATE_SESSION_OWNER",
+            `${hookName} mounted while another ${kind} already owns this session provider. Mount one runtime owner hook per provider tree and use a read-only session hook in child components instead.`,
+            {
+              scope,
+              kind,
+              hookName,
+              existingHookName: existing.hookName,
+            },
+          );
         }
-      };
-    }, []);
+
+        runtimeOwnersRef.current.set(kind, { token, hookName });
+        return () => {
+          const current = runtimeOwnersRef.current.get(kind);
+          if (current?.token === token) {
+            runtimeOwnersRef.current.delete(kind);
+          }
+        };
+      },
+      [],
+    );
 
     return (
       <SessionScopeContext.Provider value={scope}>
         <RuntimeOwnerRegistryContext.Provider value={{ claimOwner }}>
-          <AirJamProvider<TSchema>
-            {...providerProps}
-            surfaceRole={scope}
-          >
+          <AirJamProvider<TSchema> {...providerProps} surfaceRole={scope}>
             {children}
           </AirJamProvider>
         </RuntimeOwnerRegistryContext.Provider>

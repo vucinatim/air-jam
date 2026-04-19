@@ -29,9 +29,7 @@ describe("runtime usage publisher seam", () => {
       isVerified: true,
       appId,
       gameId:
-        appId === "aj_app_usage_standalone"
-          ? "game-standalone-1"
-          : undefined,
+        appId === "aj_app_usage_standalone" ? "game-standalone-1" : undefined,
       verifiedVia: "appId",
       verifiedOrigin: "http://127.0.0.1",
     }),

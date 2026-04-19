@@ -6,9 +6,9 @@ import { useAssertSessionScope } from "../context/session-scope";
 import type {
   ConnectionStatus,
   ControllerOrientation,
-  RuntimeState,
   PlayerProfile,
   RoomCode,
+  RuntimeState,
 } from "../protocol";
 
 export interface AirJamControllerSessionState {
@@ -50,8 +50,8 @@ export const useControllerSession = (): AirJamControllerSessionState => {
   const selfPlayer = useMemo(
     () =>
       state.controllerId
-        ? state.players.find((player) => player.id === state.controllerId) ??
-          null
+        ? (state.players.find((player) => player.id === state.controllerId) ??
+          null)
         : null,
     [state.controllerId, state.players],
   );

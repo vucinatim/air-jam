@@ -3,7 +3,7 @@
  * Uses HTML5 Audio API for cross-browser compatibility.
  */
 
-import { useRef, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /** Available sound effect types */
 type SoundType =
@@ -49,31 +49,34 @@ export function useSounds(muted = false) {
    * Play a sound effect by type.
    * Creates audio element on first play, reuses thereafter.
    */
-  const play = useCallback((type: SoundType) => {
-    // Get or create audio element
-    let audio = audioRefs.current[type];
-    if (!audio) {
-      audio = new Audio(SOUND_URLS[type]);
-      audio.volume = muted ? 0 : SFX_VOLUME;
-      audioRefs.current[type] = audio;
-    }
+  const play = useCallback(
+    (type: SoundType) => {
+      // Get or create audio element
+      let audio = audioRefs.current[type];
+      if (!audio) {
+        audio = new Audio(SOUND_URLS[type]);
+        audio.volume = muted ? 0 : SFX_VOLUME;
+        audioRefs.current[type] = audio;
+      }
 
-    if (muted) {
-      return;
-    }
+      if (muted) {
+        return;
+      }
 
-    // Reset and play
-    // eslint-disable-next-line react-hooks/immutability -- HTMLAudioElement playback state is intentionally mutable runtime state.
-    audio.currentTime = 0;
-    const playPromise = audio.play();
+      // Reset and play
+      // eslint-disable-next-line react-hooks/immutability -- HTMLAudioElement playback state is intentionally mutable runtime state.
+      audio.currentTime = 0;
+      const playPromise = audio.play();
 
-    // Handle autoplay restrictions gracefully
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        // Autoplay blocked - ignore error
-      });
-    }
-  }, [muted]);
+      // Handle autoplay restrictions gracefully
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Autoplay blocked - ignore error
+        });
+      }
+    },
+    [muted],
+  );
 
   /**
    * Play task start sound

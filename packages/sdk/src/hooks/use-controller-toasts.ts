@@ -36,7 +36,8 @@ export const useControllerToasts = (
     [getSocket],
   );
   const maxToasts = options.maxToasts ?? DEFAULT_MAX_TOASTS;
-  const defaultDurationMs = options.defaultDurationMs ?? DEFAULT_TOAST_DURATION_MS;
+  const defaultDurationMs =
+    options.defaultDurationMs ?? DEFAULT_TOAST_DURATION_MS;
 
   const [toasts, setToasts] = useState<ControllerToast[]>([]);
   const toastTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(

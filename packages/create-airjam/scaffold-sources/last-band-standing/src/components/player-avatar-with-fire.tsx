@@ -77,12 +77,16 @@ export const PlayerAvatarWithFire = ({
               src="/lottie/Fire.json"
               loop
               autoplay
-              className="relative z-0 h-full w-full scale-[1.7] origin-bottom"
+              className="relative z-0 h-full w-full origin-bottom scale-[1.7]"
             />
           )}
         </div>
       )}
-      <PlayerAvatar player={player} size={size} className={cn("relative z-10", avatarClassName)} />
+      <PlayerAvatar
+        player={player}
+        size={size}
+        className={cn("relative z-10", avatarClassName)}
+      />
     </div>
   );
 };

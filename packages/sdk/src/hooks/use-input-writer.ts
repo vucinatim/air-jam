@@ -9,7 +9,9 @@ import {
 import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
 
-export const useInputWriter = (): ((input: ControllerInputPayload) => boolean) => {
+export const useInputWriter = (): ((
+  input: ControllerInputPayload,
+) => boolean) => {
   useAssertSessionScope("controller", "useInputWriter");
 
   const { store, getSocket } = useAirJamContext();
@@ -38,14 +40,13 @@ export const useInputWriter = (): ((input: ControllerInputPayload) => boolean) =
         emitAirJamDiagnostic({
           code: "AJ_INPUT_WRITER_SESSION_NOT_READY",
           severity: "warn",
-          message: "Input writer blocked: room/controller session is not ready.",
+          message:
+            "Input writer blocked: room/controller session is not ready.",
         });
         return false;
       }
 
-      const socket = getControllerRealtimeClient(
-        (role) => getSocket(role),
-      );
+      const socket = getControllerRealtimeClient((role) => getSocket(role));
       if (!socket.connected) {
         emitAirJamDiagnostic({
           code: "AJ_INPUT_WRITER_SOCKET_DISCONNECTED",
@@ -65,7 +66,8 @@ export const useInputWriter = (): ((input: ControllerInputPayload) => boolean) =
         emitAirJamDiagnostic({
           code: "AJ_INPUT_WRITER_SCHEMA_INVALID",
           severity: "warn",
-          message: "Input writer payload failed controller input schema validation.",
+          message:
+            "Input writer payload failed controller input schema validation.",
           details: {
             issueCount: payload.error.issues.length,
           },

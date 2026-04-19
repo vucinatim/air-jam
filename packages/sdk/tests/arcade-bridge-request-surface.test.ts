@@ -9,9 +9,7 @@ describe("isArcadeSurfaceMismatch", () => {
   };
 
   it("returns false when request matches active", () => {
-    expect(
-      isArcadeSurfaceMismatch(active, { ...active }),
-    ).toBe(false);
+    expect(isArcadeSurfaceMismatch(active, { ...active })).toBe(false);
   });
 
   it("returns true when epoch differs", () => {

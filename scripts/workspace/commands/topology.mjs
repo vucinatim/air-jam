@@ -1,4 +1,5 @@
 import path from "node:path";
+import { loadEnvFile } from "../../../packages/create-airjam/runtime/dev-utils.mjs";
 import {
   buildEmbeddedGameTopology,
   buildPlatformShellTopology,
@@ -10,7 +11,6 @@ import {
   loadSecureDevState,
   SECURE_MODE_LOCAL,
 } from "../../../packages/create-airjam/runtime/secure-dev.mjs";
-import { loadEnvFile } from "../../../packages/create-airjam/runtime/dev-utils.mjs";
 import { resolveWorkspaceArcadeOrigins } from "../lib/workspace-runtime-origins.mjs";
 
 const BACKEND_ORIGIN = "http://127.0.0.1:4000";

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { shuffleList } from "./utils/shuffle";
 import { type RoundGuessKind } from "./types";
+import { shuffleList } from "./utils/shuffle";
 
 const songSchema = z
   .object({
@@ -300,226 +300,226 @@ const rawSongBank = [
     youtubeUrl: "https://www.youtube.com/watch?v=9bZkp7q19f0",
   },
   {
-    "id": "Bohemian Rhapsody-Queen",
-    "title": "Bohemian Rhapsody",
-    "artist": "Queen",
-    "youtubeUrl": "https://youtu.be/fJ9rUzIMcZQ"
+    id: "Bohemian Rhapsody-Queen",
+    title: "Bohemian Rhapsody",
+    artist: "Queen",
+    youtubeUrl: "https://youtu.be/fJ9rUzIMcZQ",
   },
   {
-    "id": "Dancing Queen-ABBA",
-    "title": "Dancing Queen",
-    "artist": "ABBA",
-    "youtubeUrl": "https://youtu.be/xFrGuyw1V8s"
+    id: "Dancing Queen-ABBA",
+    title: "Dancing Queen",
+    artist: "ABBA",
+    youtubeUrl: "https://youtu.be/xFrGuyw1V8s",
   },
   {
-    "id": "Stayin' Alive-Bee Gees",
-    "title": "Stayin' Alive",
-    "artist": "Bee Gees",
-    "youtubeUrl": "https://youtu.be/I_izvAbhExY"
+    id: "Stayin' Alive-Bee Gees",
+    title: "Stayin' Alive",
+    artist: "Bee Gees",
+    youtubeUrl: "https://youtu.be/I_izvAbhExY",
   },
   {
-    "id": "September-Earth, Wind & Fire",
-    "title": "September",
-    "artist": "Earth, Wind & Fire",
-    "youtubeUrl": "https://youtu.be/Gs069dndIYk"
+    id: "September-Earth, Wind & Fire",
+    title: "September",
+    artist: "Earth, Wind & Fire",
+    youtubeUrl: "https://youtu.be/Gs069dndIYk",
   },
   {
-    "id": "I Will Survive-Gloria Gaynor",
-    "title": "I Will Survive",
-    "artist": "Gloria Gaynor",
-    "youtubeUrl": "https://youtu.be/gYkACVDFmeg"
+    id: "I Will Survive-Gloria Gaynor",
+    title: "I Will Survive",
+    artist: "Gloria Gaynor",
+    youtubeUrl: "https://youtu.be/gYkACVDFmeg",
   },
   {
-    "id": "Rocket Man-Elton John",
-    "title": "Rocket Man",
-    "artist": "Elton John",
-    "youtubeUrl": "https://youtu.be/DtVBCG6ThDk"
+    id: "Rocket Man-Elton John",
+    title: "Rocket Man",
+    artist: "Elton John",
+    youtubeUrl: "https://youtu.be/DtVBCG6ThDk",
   },
   {
-    "id": "Thriller-Michael Jackson",
-    "title": "Thriller",
-    "artist": "Michael Jackson",
-    "youtubeUrl": "https://youtu.be/sOnqjkJTMaA?t=258"
+    id: "Thriller-Michael Jackson",
+    title: "Thriller",
+    artist: "Michael Jackson",
+    youtubeUrl: "https://youtu.be/sOnqjkJTMaA?t=258",
   },
   {
-    "id": "Take On Me-a-ha",
-    "title": "Take On Me",
-    "artist": "a-ha",
-    "youtubeUrl": "https://youtu.be/djV11Xbc914?t=22"
+    id: "Take On Me-a-ha",
+    title: "Take On Me",
+    artist: "a-ha",
+    youtubeUrl: "https://youtu.be/djV11Xbc914?t=22",
   },
   {
-    "id": "Never Gonna Give You Up-Rick Astley",
-    "title": "Never Gonna Give You Up",
-    "artist": "Rick Astley",
-    "youtubeUrl": "https://youtu.be/dQw4w9WgXcQ"
+    id: "Never Gonna Give You Up-Rick Astley",
+    title: "Never Gonna Give You Up",
+    artist: "Rick Astley",
+    youtubeUrl: "https://youtu.be/dQw4w9WgXcQ",
   },
   {
-    "id": "I Wanna Dance With Somebody-Whitney Houston",
-    "title": "I Wanna Dance With Somebody",
-    "artist": "Whitney Houston",
-    "youtubeUrl": "https://youtu.be/eH3giaIzONA?t=23"
+    id: "I Wanna Dance With Somebody-Whitney Houston",
+    title: "I Wanna Dance With Somebody",
+    artist: "Whitney Houston",
+    youtubeUrl: "https://youtu.be/eH3giaIzONA?t=23",
   },
   {
-    "id": "Girls Just Want To Have Fun-Cyndi Lauper",
-    "title": "Girls Just Want To Have Fun",
-    "artist": "Cyndi Lauper",
-    "youtubeUrl": "https://youtu.be/PIb6AZdTr-A?t=31"
+    id: "Girls Just Want To Have Fun-Cyndi Lauper",
+    title: "Girls Just Want To Have Fun",
+    artist: "Cyndi Lauper",
+    youtubeUrl: "https://youtu.be/PIb6AZdTr-A?t=31",
   },
   {
-    "id": "Like A Prayer-Madonna",
-    "title": "Like A Prayer",
-    "artist": "Madonna",
-    "youtubeUrl": "https://youtu.be/79fzeNUqQbQ?t=25"
+    id: "Like A Prayer-Madonna",
+    title: "Like A Prayer",
+    artist: "Madonna",
+    youtubeUrl: "https://youtu.be/79fzeNUqQbQ?t=25",
   },
   {
-    "id": "Smells Like Teen Spirit-Nirvana",
-    "title": "Smells Like Teen Spirit",
-    "artist": "Nirvana",
-    "youtubeUrl": "https://youtu.be/hTWKbfoikeg"
+    id: "Smells Like Teen Spirit-Nirvana",
+    title: "Smells Like Teen Spirit",
+    artist: "Nirvana",
+    youtubeUrl: "https://youtu.be/hTWKbfoikeg",
   },
   {
-    "id": "Wonderwall-Oasis",
-    "title": "Wonderwall",
-    "artist": "Oasis",
-    "youtubeUrl": "https://youtu.be/bx1Bh8ZvH84"
+    id: "Wonderwall-Oasis",
+    title: "Wonderwall",
+    artist: "Oasis",
+    youtubeUrl: "https://youtu.be/bx1Bh8ZvH84",
   },
   {
-    "id": "Wannabe-Spice Girls",
-    "title": "Wannabe",
-    "artist": "Spice Girls",
-    "youtubeUrl": "https://youtu.be/gJLIiF15wjQ?t=28"
+    id: "Wannabe-Spice Girls",
+    title: "Wannabe",
+    artist: "Spice Girls",
+    youtubeUrl: "https://youtu.be/gJLIiF15wjQ?t=28",
   },
   {
-    "id": "...Baby One More Time-Britney Spears",
-    "title": "...Baby One More Time",
-    "artist": "Britney Spears",
-    "youtubeUrl": "https://youtu.be/C-u5WLJ9Yk4?t=15"
+    id: "...Baby One More Time-Britney Spears",
+    title: "...Baby One More Time",
+    artist: "Britney Spears",
+    youtubeUrl: "https://youtu.be/C-u5WLJ9Yk4?t=15",
   },
   {
-    "id": "I Want It That Way-Backstreet Boys",
-    "title": "I Want It That Way",
-    "artist": "Backstreet Boys",
-    "youtubeUrl": "https://youtu.be/4fndeDfaWCg"
+    id: "I Want It That Way-Backstreet Boys",
+    title: "I Want It That Way",
+    artist: "Backstreet Boys",
+    youtubeUrl: "https://youtu.be/4fndeDfaWCg",
   },
   {
-    "id": "Creep-Radiohead",
-    "title": "Creep",
-    "artist": "Radiohead",
-    "youtubeUrl": "https://youtu.be/XFkzRNyygfk"
+    id: "Creep-Radiohead",
+    title: "Creep",
+    artist: "Radiohead",
+    youtubeUrl: "https://youtu.be/XFkzRNyygfk",
   },
   {
-    "id": "Hey Ya!-Outkast",
-    "title": "Hey Ya!",
-    "artist": "Outkast",
-    "youtubeUrl": "https://youtu.be/PWgvGjAhvIw?t=48"
+    id: "Hey Ya!-Outkast",
+    title: "Hey Ya!",
+    artist: "Outkast",
+    youtubeUrl: "https://youtu.be/PWgvGjAhvIw?t=48",
   },
   {
-    "id": "Mr. Brightside-The Killers",
-    "title": "Mr. Brightside",
-    "artist": "The Killers",
-    "youtubeUrl": "https://youtu.be/gGdGFtwCNBE"
+    id: "Mr. Brightside-The Killers",
+    title: "Mr. Brightside",
+    artist: "The Killers",
+    youtubeUrl: "https://youtu.be/gGdGFtwCNBE",
   },
   {
-    "id": "Crazy In Love-Beyoncé",
-    "title": "Crazy In Love",
-    "artist": "Beyoncé",
-    "youtubeUrl": "https://youtu.be/ViwtNLUqkMY"
+    id: "Crazy In Love-Beyoncé",
+    title: "Crazy In Love",
+    artist: "Beyoncé",
+    youtubeUrl: "https://youtu.be/ViwtNLUqkMY",
   },
   {
-    "id": "Lose Yourself-Eminem",
-    "title": "Lose Yourself",
-    "artist": "Eminem",
-    "youtubeUrl": "https://youtu.be/_Yhyp-_hX2s"
+    id: "Lose Yourself-Eminem",
+    title: "Lose Yourself",
+    artist: "Eminem",
+    youtubeUrl: "https://youtu.be/_Yhyp-_hX2s",
   },
   {
-    "id": "Viva La Vida-Coldplay",
-    "title": "Viva La Vida",
-    "artist": "Coldplay",
-    "youtubeUrl": "https://youtu.be/dvgZkm1xWPE"
+    id: "Viva La Vida-Coldplay",
+    title: "Viva La Vida",
+    artist: "Coldplay",
+    youtubeUrl: "https://youtu.be/dvgZkm1xWPE",
   },
   {
-    "id": "Bad Romance-Lady Gaga",
-    "title": "Bad Romance",
-    "artist": "Lady Gaga",
-    "youtubeUrl": "https://youtu.be/qrO4YZeyl0I?t=37"
+    id: "Bad Romance-Lady Gaga",
+    title: "Bad Romance",
+    artist: "Lady Gaga",
+    youtubeUrl: "https://youtu.be/qrO4YZeyl0I?t=37",
   },
   {
-    "id": "Umbrella-Rihanna",
-    "title": "Umbrella",
-    "artist": "Rihanna",
-    "youtubeUrl": "https://youtu.be/CvBfHwUxHIk"
+    id: "Umbrella-Rihanna",
+    title: "Umbrella",
+    artist: "Rihanna",
+    youtubeUrl: "https://youtu.be/CvBfHwUxHIk",
   },
   {
-    "id": "Rolling in the Deep-Adele",
-    "title": "Rolling in the Deep",
-    "artist": "Adele",
-    "youtubeUrl": "https://youtu.be/rYEDA3JcQqw"
+    id: "Rolling in the Deep-Adele",
+    title: "Rolling in the Deep",
+    artist: "Adele",
+    youtubeUrl: "https://youtu.be/rYEDA3JcQqw",
   },
   {
-    "id": "Uptown Funk-Mark Ronson ft. Bruno Mars",
-    "title": "Uptown Funk",
-    "artist": "Mark Ronson ft. Bruno Mars",
-    "youtubeUrl": "https://youtu.be/OPf0YbXqDm0?t=16"
+    id: "Uptown Funk-Mark Ronson ft. Bruno Mars",
+    title: "Uptown Funk",
+    artist: "Mark Ronson ft. Bruno Mars",
+    youtubeUrl: "https://youtu.be/OPf0YbXqDm0?t=16",
   },
   {
-    "id": "Shape of You-Ed Sheeran",
-    "title": "Shape of You",
-    "artist": "Ed Sheeran",
-    "youtubeUrl": "https://youtu.be/JGwWNGJdvx8"
+    id: "Shape of You-Ed Sheeran",
+    title: "Shape of You",
+    artist: "Ed Sheeran",
+    youtubeUrl: "https://youtu.be/JGwWNGJdvx8",
   },
   {
-    "id": "Despacito-Luis Fonsi",
-    "title": "Despacito",
-    "artist": "Luis Fonsi",
-    "youtubeUrl": "https://youtu.be/kJQP7kiw5Fk?t=19"
+    id: "Despacito-Luis Fonsi",
+    title: "Despacito",
+    artist: "Luis Fonsi",
+    youtubeUrl: "https://youtu.be/kJQP7kiw5Fk?t=19",
   },
   {
-    "id": "Blank Space-Taylor Swift",
-    "title": "Blank Space",
-    "artist": "Taylor Swift",
-    "youtubeUrl": "https://youtu.be/e-ORhEE9VVg?t=25"
+    id: "Blank Space-Taylor Swift",
+    title: "Blank Space",
+    artist: "Taylor Swift",
+    youtubeUrl: "https://youtu.be/e-ORhEE9VVg?t=25",
   },
   {
-    "id": "bad guy-Billie Eilish",
-    "title": "bad guy",
-    "artist": "Billie Eilish",
-    "youtubeUrl": "https://youtu.be/DyDfgMOUjCI?t=17"
+    id: "bad guy-Billie Eilish",
+    title: "bad guy",
+    artist: "Billie Eilish",
+    youtubeUrl: "https://youtu.be/DyDfgMOUjCI?t=17",
   },
   {
-    "id": "Blinding Lights-The Weeknd",
-    "title": "Blinding Lights",
-    "artist": "The Weeknd",
-    "youtubeUrl": "https://youtu.be/4NRXx6U8ABQ?t=24"
+    id: "Blinding Lights-The Weeknd",
+    title: "Blinding Lights",
+    artist: "The Weeknd",
+    youtubeUrl: "https://youtu.be/4NRXx6U8ABQ?t=24",
   },
   {
-    "id": "Levitating-Dua Lipa",
-    "title": "Levitating",
-    "artist": "Dua Lipa",
-    "youtubeUrl": "https://youtu.be/TUVcZfQe-Kw"
+    id: "Levitating-Dua Lipa",
+    title: "Levitating",
+    artist: "Dua Lipa",
+    youtubeUrl: "https://youtu.be/TUVcZfQe-Kw",
   },
   {
-    "id": "As It Was-Harry Styles",
-    "title": "As It Was",
-    "artist": "Harry Styles",
-    "youtubeUrl": "https://youtu.be/H5v3kku4y6Q"
+    id: "As It Was-Harry Styles",
+    title: "As It Was",
+    artist: "Harry Styles",
+    youtubeUrl: "https://youtu.be/H5v3kku4y6Q",
   },
   {
-    "id": "Flowers-Miley Cyrus",
-    "title": "Flowers",
-    "artist": "Miley Cyrus",
-    "youtubeUrl": "https://youtu.be/G7KNmW9a75Y"
+    id: "Flowers-Miley Cyrus",
+    title: "Flowers",
+    artist: "Miley Cyrus",
+    youtubeUrl: "https://youtu.be/G7KNmW9a75Y",
   },
   {
-    "id": "drivers license-Olivia Rodrigo",
-    "title": "drivers license",
-    "artist": "Olivia Rodrigo",
-    "youtubeUrl": "https://youtu.be/ZmDBbnmKpqQ"
+    id: "drivers license-Olivia Rodrigo",
+    title: "drivers license",
+    artist: "Olivia Rodrigo",
+    youtubeUrl: "https://youtu.be/ZmDBbnmKpqQ",
   },
   {
-    "id": "Kill Bill-SZA",
-    "title": "Kill Bill",
-    "artist": "SZA",
-    "youtubeUrl": "https://youtu.be/SQnc1QibapQ?t=35"
+    id: "Kill Bill-SZA",
+    title: "Kill Bill",
+    artist: "SZA",
+    youtubeUrl: "https://youtu.be/SQnc1QibapQ?t=35",
   },
 ] as const;
 
@@ -578,7 +578,9 @@ export const pickRoundOptionSongIds = (
 
   const distractorPool = songBank
     .map((song) => song.id)
-    .filter((songId) => songId !== correctSongId && songId !== forcedDistractorId);
+    .filter(
+      (songId) => songId !== correctSongId && songId !== forcedDistractorId,
+    );
 
   if (distractorPool.length < distractorCount) {
     throw new Error(
@@ -596,7 +598,9 @@ export const pickRoundOptionSongIds = (
   if (forcedDistractorSong && selectedDistractorIds.length < distractorCount) {
     selectedDistractorIds.push(forcedDistractorSong.id);
     selectedDistractorIdSet.add(forcedDistractorSong.id);
-    usedLabels.add(normalizeLabel(getRoundOptionLabel(forcedDistractorSong, guessKind)));
+    usedLabels.add(
+      normalizeLabel(getRoundOptionLabel(forcedDistractorSong, guessKind)),
+    );
   }
 
   shuffledDistractorIds.forEach((distractorId) => {
@@ -609,7 +613,9 @@ export const pickRoundOptionSongIds = (
       return;
     }
 
-    const distractorLabel = normalizeLabel(getRoundOptionLabel(distractorSong, guessKind));
+    const distractorLabel = normalizeLabel(
+      getRoundOptionLabel(distractorSong, guessKind),
+    );
 
     if (usedLabels.has(distractorLabel)) {
       return;

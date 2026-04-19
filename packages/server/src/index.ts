@@ -9,27 +9,25 @@ import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import { createDatabaseRuntimeUsageLedgerPublisher } from "./analytics/runtime-usage-ledger.js";
+import { type RuntimeUsagePublisher } from "./analytics/runtime-usage.js";
+import { createServerDatabase, type ServerDatabase } from "./db.js";
+import { REMOTE_DATABASE_BLOCKED_MESSAGE } from "./env/database-url-policy.js";
+import { loadServerEnv, type ServerEnvConfig } from "./env/server-env.js";
 import { registerSocketHandlers } from "./gateway/register-socket-handlers.js";
-import {
-  AuthService,
-  type HostBootstrapAuthService,
-} from "./services/auth-service.js";
-import { createServerLogger, type ServerLogger } from "./logging/logger.js";
-import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
 import {
   DevLogCollector,
   type BrowserLogBatchPayload,
   type BrowserLogUnloadPayload,
 } from "./logging/dev-log-collector.js";
-import { createServerDatabase, type ServerDatabase } from "./db.js";
-import { REMOTE_DATABASE_BLOCKED_MESSAGE } from "./env/database-url-policy.js";
+import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
+import { createServerLogger, type ServerLogger } from "./logging/logger.js";
 import {
-  type RuntimeUsagePublisher,
-} from "./analytics/runtime-usage.js";
-import { createDatabaseRuntimeUsageLedgerPublisher } from "./analytics/runtime-usage-ledger.js";
+  AuthService,
+  type HostBootstrapAuthService,
+} from "./services/auth-service.js";
 import { RateLimitService } from "./services/rate-limit-service.js";
 import { RoomManager } from "./services/room-manager.js";
-import { loadServerEnv, type ServerEnvConfig } from "./env/server-env.js";
 
 export type AirJamIoServer = Server<
   ClientToServerEvents,
@@ -93,12 +91,14 @@ export const createAirJamServer = (
   const devLogCollector =
     options.devLogCollector === false
       ? null
-      : options.devLogCollector ??
+      : (options.devLogCollector ??
         new DevLogCollector({
           enabled: envConfig.devLogCollectorEnabled,
           logDir:
-            options.devLogDir ?? envConfig.devLogDir ?? resolveDefaultDevLogDir(),
-        });
+            options.devLogDir ??
+            envConfig.devLogDir ??
+            resolveDefaultDevLogDir(),
+        }));
   const logger =
     options.logger ??
     createServerLogger(
@@ -146,14 +146,19 @@ export const createAirJamServer = (
   }
 
   const defaultPort = envConfig.port;
-  const rateLimitWindowMs = options.rateLimitWindowMs ?? envConfig.rateLimitWindowMs;
+  const rateLimitWindowMs =
+    options.rateLimitWindowMs ?? envConfig.rateLimitWindowMs;
   const hostRegistrationRateLimitMax =
-    options.hostRegistrationRateLimitMax ?? envConfig.hostRegistrationRateLimitMax;
+    options.hostRegistrationRateLimitMax ??
+    envConfig.hostRegistrationRateLimitMax;
   const controllerJoinRateLimitMax =
     options.controllerJoinRateLimitMax ?? envConfig.controllerJoinRateLimitMax;
   const staticAppRateLimitMax =
     options.staticAppRateLimitMax ?? envConfig.staticAppRateLimitMax;
-  const corsOrigin = parseAllowedOrigins(options.allowedOrigins, envConfig.allowedOrigins);
+  const corsOrigin = parseAllowedOrigins(
+    options.allowedOrigins,
+    envConfig.allowedOrigins,
+  );
 
   const app = express();
   app.use(cors({ origin: corsOrigin }));
@@ -191,7 +196,9 @@ export const createAirJamServer = (
       typeof payload.metadata !== "object" ||
       payload.metadata === null
     ) {
-      res.status(400).json({ ok: false, message: "Invalid browser log payload" });
+      res
+        .status(400)
+        .json({ ok: false, message: "Invalid browser log payload" });
       return;
     }
 
@@ -209,7 +216,9 @@ export const createAirJamServer = (
       }
 
       if (typeof req.body !== "string" || req.body.trim().length === 0) {
-        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        res
+          .status(400)
+          .json({ ok: false, message: "Invalid browser unload payload" });
         return;
       }
 
@@ -217,7 +226,9 @@ export const createAirJamServer = (
       try {
         payload = JSON.parse(req.body) as BrowserLogUnloadPayload;
       } catch {
-        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        res
+          .status(400)
+          .json({ ok: false, message: "Invalid browser unload payload" });
         return;
       }
 
@@ -230,7 +241,9 @@ export const createAirJamServer = (
         typeof payload.entry !== "object" ||
         payload.entry === null
       ) {
-        res.status(400).json({ ok: false, message: "Invalid browser unload payload" });
+        res
+          .status(400)
+          .json({ ok: false, message: "Invalid browser unload payload" });
         return;
       }
 
@@ -290,7 +303,9 @@ export const createAirJamServer = (
 
     const address = httpServer.address();
     activePort =
-      typeof address === "object" && address?.port ? address.port : resolvedPort;
+      typeof address === "object" && address?.port
+        ? address.port
+        : resolvedPort;
 
     logger.info(
       {

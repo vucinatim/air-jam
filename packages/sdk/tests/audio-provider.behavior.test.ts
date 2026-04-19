@@ -39,10 +39,9 @@ const mocked = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/context/air-jam-context", async () => {
-  const actual =
-    await vi.importActual<typeof import("../src/context/air-jam-context")>(
-      "../src/context/air-jam-context",
-    );
+  const actual = await vi.importActual<
+    typeof import("../src/context/air-jam-context")
+  >("../src/context/air-jam-context");
 
   return {
     ...actual,

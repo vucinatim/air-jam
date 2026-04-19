@@ -30,10 +30,7 @@ const createSettingsSyncMessage = (settings: PlatformSettingsSnapshot) => ({
   },
 });
 
-export type PlatformSettingsBridgeState =
-  | "unbound"
-  | "waiting_ready"
-  | "ready";
+export type PlatformSettingsBridgeState = "unbound" | "waiting_ready" | "ready";
 
 export type PlatformSettingsBridgeTransport =
   | "bridge_port"
@@ -104,7 +101,12 @@ export const createParentPlatformSettingsBridge = (
   };
 
   const flushSnapshot = (phase: "initial" | "update") => {
-    if (!latestSettings || !targetWindow || !targetOrigin || state !== "ready") {
+    if (
+      !latestSettings ||
+      !targetWindow ||
+      !targetOrigin ||
+      state !== "ready"
+    ) {
       return;
     }
 

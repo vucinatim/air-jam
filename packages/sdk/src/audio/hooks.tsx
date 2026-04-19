@@ -1,11 +1,11 @@
 import {
   createContext,
-  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../context/air-jam-context";
@@ -22,7 +22,9 @@ import {
 
 let globalInitialized = false;
 const audioManagerContext = createContext<AudioHandle<string> | null>(null);
-const audioRuntimeStatusContext = createContext<AudioRuntimeStatus | null>(null);
+const audioRuntimeStatusContext = createContext<AudioRuntimeStatus | null>(
+  null,
+);
 const audioRuntimeControlsContext = createContext<AudioRuntimeControls | null>(
   null,
 );
@@ -129,7 +131,10 @@ function useOwnedAudio<M extends SoundManifest>(
   const role = useStore(store, (state) => state.role);
   const platformSettings = useResolvedPlatformSettingsSnapshot();
   type SoundId = keyof M & string;
-  const manager = useMemo(() => new AudioManager<SoundId>(manifest), [manifest]);
+  const manager = useMemo(
+    () => new AudioManager<SoundId>(manifest),
+    [manifest],
+  );
   const [status, setStatus] = useState<AudioRuntimeStatus>(() =>
     globalInitialized ? "ready" : "idle",
   );

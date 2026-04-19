@@ -1,8 +1,8 @@
+import { asc } from "drizzle-orm";
 import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
-import { asc } from "drizzle-orm";
-import { createServerDatabase, runtimeUsageSessions } from "../src/db.js";
 import { rebuildRuntimeUsageSessionFromLedger } from "../src/analytics/runtime-usage-rebuilder.js";
+import { createServerDatabase, runtimeUsageSessions } from "../src/db.js";
 import {
   REMOTE_DATABASE_BLOCKED_MESSAGE,
   resolveServerRuntimeDatabaseUrl,
@@ -79,7 +79,9 @@ export const formatHelp = (): string => {
   ].join("\n");
 };
 
-const resolveTargetSessionIds = async (options: CliOptions): Promise<string[]> => {
+const resolveTargetSessionIds = async (
+  options: CliOptions,
+): Promise<string[]> => {
   const databasePolicy = resolveServerRuntimeDatabaseUrl(process.env);
   const db = createServerDatabase(databasePolicy.databaseUrl);
   if (!db) {
@@ -139,7 +141,11 @@ async function main(): Promise<void> {
   }
 
   for (const runtimeSessionId of runtimeSessionIds) {
-    await rebuildRuntimeUsageSessionFromLedger(db, runtimeSessionId, referenceTime);
+    await rebuildRuntimeUsageSessionFromLedger(
+      db,
+      runtimeSessionId,
+      referenceTime,
+    );
     console.log(`recomputed ${runtimeSessionId}`);
   }
 

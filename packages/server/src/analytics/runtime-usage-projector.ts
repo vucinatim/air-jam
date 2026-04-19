@@ -1,20 +1,20 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import {
-  type ServerDatabase,
   runtimeUsageControllerSegments,
   runtimeUsageEligibleSegments,
   runtimeUsageGameSegments,
+  type ServerDatabase,
 } from "../db.js";
-import type { RuntimeUsageEvent } from "./runtime-usage.js";
+import {
+  projectRuntimeUsageEvent,
+  type RuntimeUsageProjectionAction,
+} from "./runtime-usage-projection-domain.js";
 import {
   buildControllerSegmentId,
   buildEligibleSegmentId,
   buildGameSegmentId,
 } from "./runtime-usage-rebuild-domain.js";
-import {
-  projectRuntimeUsageEvent,
-  type RuntimeUsageProjectionAction,
-} from "./runtime-usage-projection-domain.js";
+import type { RuntimeUsageEvent } from "./runtime-usage.js";
 
 export const projectRuntimeUsageEventToSegments = async (
   db: ServerDatabase,
@@ -62,7 +62,10 @@ export const projectRuntimeUsageEventToSegments = async (
     .from(runtimeUsageEligibleSegments)
     .where(
       and(
-        eq(runtimeUsageEligibleSegments.runtimeSessionId, event.runtimeSessionId),
+        eq(
+          runtimeUsageEligibleSegments.runtimeSessionId,
+          event.runtimeSessionId,
+        ),
         isNull(runtimeUsageEligibleSegments.endedAt),
       ),
     )
@@ -128,7 +131,10 @@ const applyProjectionAction = async (
               runtimeUsageControllerSegments.runtimeSessionId,
               event.runtimeSessionId!,
             ),
-            eq(runtimeUsageControllerSegments.controllerId, action.controllerId),
+            eq(
+              runtimeUsageControllerSegments.controllerId,
+              action.controllerId,
+            ),
             isNull(runtimeUsageControllerSegments.endedAt),
           ),
         );
@@ -153,7 +159,11 @@ const applyProjectionAction = async (
       return;
     case "open_game_segment":
       await db.insert(runtimeUsageGameSegments).values({
-        id: buildGameSegmentId(event.runtimeSessionId!, action.gameId, event.id),
+        id: buildGameSegmentId(
+          event.runtimeSessionId!,
+          action.gameId,
+          event.id,
+        ),
         runtimeSessionId: event.runtimeSessionId!,
         roomId: event.roomId!,
         appId: event.appId,
@@ -173,7 +183,10 @@ const applyProjectionAction = async (
         })
         .where(
           and(
-            eq(runtimeUsageGameSegments.runtimeSessionId, event.runtimeSessionId!),
+            eq(
+              runtimeUsageGameSegments.runtimeSessionId,
+              event.runtimeSessionId!,
+            ),
             isNull(runtimeUsageGameSegments.endedAt),
           ),
         );

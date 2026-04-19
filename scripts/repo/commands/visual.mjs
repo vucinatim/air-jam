@@ -7,17 +7,15 @@ export const registerVisualCommands = (program) => {
 
   visualCommand
     .command("capture")
-    .description("Capture deterministic host/controller screenshots for one repo game")
+    .description(
+      "Capture deterministic host/controller screenshots for one repo game",
+    )
     .requiredOption("--game <id>", "Repo game to capture")
     .option(
       "--scenario <id>",
       "Capture only one named scenario from the game-owned scenario pack",
     )
-    .option(
-      "--mode <mode>",
-      "Visual harness runtime mode",
-      "standalone-dev",
-    )
+    .option("--mode <mode>", "Visual harness runtime mode", "standalone-dev")
     .option(
       "--secure",
       "Run the visual harness over trusted local HTTPS",
@@ -58,11 +56,7 @@ export const registerVisualCommands = (program) => {
       },
       [],
     )
-    .option(
-      "--mode <mode>",
-      "Visual harness runtime mode",
-      "standalone-dev",
-    )
+    .option("--mode <mode>", "Visual harness runtime mode", "standalone-dev")
     .option(
       "--secure",
       "Run the visual harness over trusted local HTTPS",

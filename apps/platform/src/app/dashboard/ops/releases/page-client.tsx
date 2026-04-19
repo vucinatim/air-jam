@@ -178,14 +178,20 @@ export function OpsReleasesPageClient() {
                       </div>
                       <div className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
                         <span>{release.game?.name ?? "Unknown game"}</span>
-                        <span>{release.game?.owner?.email ?? "Unknown owner"}</span>
+                        <span>
+                          {release.game?.owner?.email ?? "Unknown owner"}
+                        </span>
                         <span>{formatDateShort(release.createdAt)}</span>
-                        <span className="font-mono">{release.id.slice(0, 8)}</span>
+                        <span className="font-mono">
+                          {release.id.slice(0, 8)}
+                        </span>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {["checking", "ready", "live"].includes(release.status) && (
+                      {["checking", "ready", "live"].includes(
+                        release.status,
+                      ) && (
                         <Button
                           size="sm"
                           variant="ghost"

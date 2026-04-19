@@ -1,31 +1,37 @@
 import {
   runVisualHarness,
-  type RunVisualCaptureCommandOptions,
   type AnyVisualHarnessBridgeDefinition,
+  type RunVisualCaptureCommandOptions,
   type VisualHarnessMode,
   type VisualScenarioPack,
-} from '@air-jam/visual-harness';
-import fs from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { repoRoot } from '../lib/paths.mjs';
-import { startWorkspaceArcadeBuiltStack } from '../../workspace/lib/arcade-built-stack.mjs';
-import { startWorkspaceStandaloneLiveStack } from '../../workspace/lib/standalone-live-stack.mjs';
+} from "@air-jam/visual-harness";
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { startWorkspaceArcadeBuiltStack } from "../../workspace/lib/arcade-built-stack.mjs";
+import { startWorkspaceStandaloneLiveStack } from "../../workspace/lib/standalone-live-stack.mjs";
+import { repoRoot } from "../lib/paths.mjs";
 
 export const VISUAL_ARTIFACT_ROOT = path.join(
   repoRoot,
-  '.airjam',
-  'artifacts',
-  'visual',
+  ".airjam",
+  "artifacts",
+  "visual",
 );
 
 const resolveScenarioModulePath = (gameId: string): string => {
-  const tsPath = path.join(repoRoot, 'games', gameId, 'visual', 'scenarios.ts');
+  const tsPath = path.join(repoRoot, "games", gameId, "visual", "scenarios.ts");
   if (fs.existsSync(tsPath)) {
     return tsPath;
   }
 
-  const mjsPath = path.join(repoRoot, 'games', gameId, 'visual', 'scenarios.mjs');
+  const mjsPath = path.join(
+    repoRoot,
+    "games",
+    gameId,
+    "visual",
+    "scenarios.mjs",
+  );
   if (fs.existsSync(mjsPath)) {
     return mjsPath;
   }
@@ -63,17 +69,20 @@ export const startRepoVisualStack = async ({
   gameId,
   mode,
   secure,
+  visualHarness,
 }: {
   gameId: string;
   mode: VisualHarnessMode;
   secure: boolean;
+  visualHarness?: boolean;
 }) => {
-  return mode === 'arcade-built'
+  return mode === "arcade-built"
     ? startWorkspaceArcadeBuiltStack({
         rootDir: repoRoot,
         gameId,
         secure,
-        browserOrigin: 'host',
+        browserOrigin: "host",
+        visualHarness: visualHarness === true,
       })
     : startWorkspaceStandaloneLiveStack({
         rootDir: repoRoot,
@@ -85,7 +94,7 @@ export const startRepoVisualStack = async ({
 export const runVisualCaptureCommand = async ({
   gameId,
   scenarioId = null,
-  mode = 'standalone-dev',
+  mode = "standalone-dev",
   secure = false,
 }: RunVisualCaptureCommandOptions): Promise<void> => {
   const summary = await runVisualHarness({
@@ -96,7 +105,11 @@ export const runVisualCaptureCommand = async ({
     artifactRoot: VISUAL_ARTIFACT_ROOT,
     loadScenarioPack,
     startStack: startRepoVisualStack,
-    onCaptureStart: ({ gameId: activeGameId, mode: activeMode, scenarioCount }) => {
+    onCaptureStart: ({
+      gameId: activeGameId,
+      mode: activeMode,
+      scenarioCount,
+    }) => {
       console.log(
         `[visual] Capturing ${scenarioCount} scenario(s) for ${activeGameId} using ${activeMode}.`,
       );
@@ -106,7 +119,7 @@ export const runVisualCaptureCommand = async ({
     },
     onComplete: (completedSummary) => {
       console.log(
-        `[visual] Capture complete. Artifacts written to ${path.join('.airjam', 'artifacts', 'visual', completedSummary.gameId)}.`,
+        `[visual] Capture complete. Artifacts written to ${path.join(".airjam", "artifacts", "visual", completedSummary.gameId)}.`,
       );
     },
   });

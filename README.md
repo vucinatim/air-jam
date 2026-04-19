@@ -447,11 +447,12 @@ The server can be deployed as a Node.js application:
    ```
 
 2. **Deploy to Railway/Render/Fly.io**:
-  - Set `DATABASE_URL` for app ID lookup and optional origin policy
-  - Optionally set `AIR_JAM_HOST_GRANT_SECRET` if you want signed host-grant mode
-   - (Optional) Set `AIR_JAM_ALLOWED_ORIGINS` to your app domains
-   - Set `PORT` (defaults to 4000)
-   - Run `node dist/cli.js` or `pnpm start`
+
+- Set `DATABASE_URL` for app ID lookup and optional origin policy
+- Optionally set `AIR_JAM_HOST_GRANT_SECRET` if you want signed host-grant mode
+- (Optional) Set `AIR_JAM_ALLOWED_ORIGINS` to your app domains
+- Set `PORT` (defaults to 4000)
+- Run `node dist/cli.js` or `pnpm start`
 
 3. **Or use the npm package**:
    ```bash

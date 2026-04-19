@@ -10,7 +10,23 @@
  * per-frame controller input (joystick, paddle), see the pong template.
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { gameInputSchema } from "./game/input";
+
+export const gameMetadata = defineAirJamGameMetadata({
+  slug: "minimal",
+  name: "Minimal",
+  tagline:
+    "Clean-slate starter with a shared tap counter in a tiny code surface.",
+  category: "showcase",
+  minPlayers: 1,
+  maxPlayers: 4,
+  inputModalities: ["buttons", "touch"],
+  supportedSdkRange: "^1.0.0",
+  maintainer: { name: "Air Jam" },
+  ageRating: "all-ages",
+  tags: ["starter", "minimal", "counter"],
+});
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),

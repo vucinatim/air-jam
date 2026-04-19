@@ -82,11 +82,15 @@ const waitForPostgres = async ({ quiet = false, timeoutMs = 30_000 } = {}) => {
 };
 
 export const registerDbCommands = (program) => {
-  const dbCommand = program.command("db").description("Repo-owned local dev Postgres helpers");
+  const dbCommand = program
+    .command("db")
+    .description("Repo-owned local dev Postgres helpers");
 
   dbCommand
     .command("up")
-    .description("Start the local dev Postgres container and wait until it is ready")
+    .description(
+      "Start the local dev Postgres container and wait until it is ready",
+    )
     .action(async () => {
       ensureDataDir();
       const result = runDockerCompose(["up", "-d", "postgres"]);
@@ -103,10 +107,7 @@ export const registerDbCommands = (program) => {
     .description("Stop the local dev Postgres container")
     .action(() => {
       const result = runDockerCompose(["down"]);
-      assertDockerSucceeded(
-        result,
-        "Failed to stop local dev Postgres.",
-      );
+      assertDockerSucceeded(result, "Failed to stop local dev Postgres.");
       console.log("✓ Local dev Postgres stopped");
     });
 
@@ -119,11 +120,15 @@ export const registerDbCommands = (program) => {
 
   dbCommand
     .command("reset")
-    .description("Stop local dev Postgres and remove the persistent local data directory")
+    .description(
+      "Stop local dev Postgres and remove the persistent local data directory",
+    )
     .action(() => {
       runDockerCompose(["down"], { stdio: "ignore" });
       fs.rmSync(dataDir, { recursive: true, force: true });
-      console.log(`✓ Reset local dev Postgres data at ${path.relative(repoRoot, dataDir)}`);
+      console.log(
+        `✓ Reset local dev Postgres data at ${path.relative(repoRoot, dataDir)}`,
+      );
     });
 
   dbCommand

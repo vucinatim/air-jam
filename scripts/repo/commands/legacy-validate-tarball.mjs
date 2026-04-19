@@ -5,17 +5,14 @@ import { packWorkspacePackage } from "../lib/packaging.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 import { runCommand } from "../lib/shell.mjs";
 
-const legacyGameNames = [
-  "code-review",
-  "last-band-standing",
-  "the-office",
-];
+const legacyGameNames = ["code-review", "last-band-standing", "the-office"];
 
 const resolveLegacyGamesRoot = (explicitRoot) => {
-  const root = explicitRoot?.trim() || process.env.AIRJAM_LEGACY_GAMES_ROOT?.trim();
+  const root =
+    explicitRoot?.trim() || process.env.AIRJAM_LEGACY_GAMES_ROOT?.trim();
   if (!root) {
     throw new Error(
-      'Missing legacy game root. Pass `--root <path>` or set `AIRJAM_LEGACY_GAMES_ROOT`.',
+      "Missing legacy game root. Pass `--root <path>` or set `AIRJAM_LEGACY_GAMES_ROOT`.",
     );
   }
 
@@ -28,7 +25,11 @@ const createLegacyGames = (legacyGamesRoot) =>
     sourceDir: path.join(legacyGamesRoot, name),
   }));
 
-const rewritePackageJsonForTarballs = ({ projectDir, sdkTarball, serverTarball }) => {
+const rewritePackageJsonForTarballs = ({
+  projectDir,
+  sdkTarball,
+  serverTarball,
+}) => {
   const packageJsonPath = path.join(projectDir, "package.json");
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
@@ -50,7 +51,11 @@ const rewritePackageJsonForTarballs = ({ projectDir, sdkTarball, serverTarball }
     },
   };
 
-  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  fs.writeFileSync(
+    packageJsonPath,
+    `${JSON.stringify(packageJson, null, 2)}\n`,
+    "utf8",
+  );
 
   return packageJson;
 };
@@ -84,7 +89,9 @@ const validateLegacyGame = ({ game, sdkTarball, serverTarball, tempRoot }) => {
   });
 
   runCommand("pnpm", ["install", "--no-frozen-lockfile"], { cwd: projectDir });
-  runCommand("pnpm", ["exec", "air-jam-server", "logs", "--help"], { cwd: projectDir });
+  runCommand("pnpm", ["exec", "air-jam-server", "logs", "--help"], {
+    cwd: projectDir,
+  });
   runCommand("pnpm", ["typecheck"], { cwd: projectDir });
 
   if (packageJson.scripts?.test) {
@@ -110,9 +117,15 @@ export const runRepoLegacyValidateTarballCommand = ({ root } = {}) => {
   runCommand("pnpm", ["--filter", "sdk", "build"]);
   runCommand("pnpm", ["--filter", "server", "build"]);
 
-  const sdkTarball = packWorkspacePackage(path.join(repoRoot, "packages", "sdk"));
-  const serverTarball = packWorkspacePackage(path.join(repoRoot, "packages", "server"));
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-legacy-tarball-"));
+  const sdkTarball = packWorkspacePackage(
+    path.join(repoRoot, "packages", "sdk"),
+  );
+  const serverTarball = packWorkspacePackage(
+    path.join(repoRoot, "packages", "server"),
+  );
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "airjam-legacy-tarball-"),
+  );
 
   legacyGames.forEach((game) => {
     validateLegacyGame({ game, sdkTarball, serverTarball, tempRoot });

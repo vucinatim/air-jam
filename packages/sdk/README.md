@@ -58,15 +58,31 @@ pnpm add @air-jam/sdk zod
 
 ## Minimal Setup
 
-Use `createAirJamApp` as the canonical runtime/session wiring API.
+Use `defineAirJamGameMetadata` for catalog-facing identity and
+`createAirJamApp` for runtime/session wiring. Platform submissions can still
+edit metadata in the dashboard; the code export gives tooling a typed default
+to prefill, validate, and compare against release artifacts.
 
 ```tsx
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { z } from "zod";
 
 const inputSchema = z.object({
   vector: z.object({ x: z.number(), y: z.number() }),
   action: z.boolean(),
+});
+
+export const gameMetadata = defineAirJamGameMetadata({
+  slug: "my-game",
+  name: "My Game",
+  tagline: "A short catalog pitch for players.",
+  category: "party",
+  minPlayers: 1,
+  maxPlayers: 4,
+  inputModalities: ["buttons", "touch"],
+  supportedSdkRange: "^1.0.0",
+  maintainer: { name: "Your Name" },
 });
 
 export const airjam = createAirJamApp({
@@ -311,41 +327,22 @@ runtime so hosts can persist their preferred transparency level.
 Keep preview usage inside explicit host-side UI and do not treat it as a stable
 root-SDK contract yet.
 
-## Runtime Contract Leaves (Experimental)
+## Runtime Contract Seams (In-Source, Not Public Exports)
 
-The first machine-facing runtime seams now live under explicit experimental
-leaves instead of being hidden inside preview, Arcade, or the root SDK:
+Air Jam also carries machine-facing runtime seams for control, inspection, and
+observability. Those modules still exist in-source, but they are **not public
+package exports in v1**, so consumers should not import:
 
-```ts
-import {
-  createHostRuntimeControlContract,
-  useControllerRuntimeControlContract,
-} from "@air-jam/sdk/runtime-control";
-import {
-  createHostRuntimeInspectionContract,
-  useControllerRuntimeInspectionContract,
-} from "@air-jam/sdk/runtime-inspection";
-import {
-  subscribeToRuntimeObservability,
-  useRuntimeObservabilitySubscription,
-} from "@air-jam/sdk/runtime-observability";
-```
+1. `@air-jam/sdk/runtime-control`
+2. `@air-jam/sdk/runtime-inspection`
+3. `@air-jam/sdk/runtime-observability`
+4. `@air-jam/sdk/contracts/v2`
 
-Use these leaves when you need explicit machine-usable control, inspection, or
-observability seams on top of the real runtime/session model.
+Current policy:
 
-Important rules:
-
-1. these leaves are experimental and intentionally unstable
-2. they are additive adapters over the real host/controller runtime owners
-3. they are not a second gameplay path and do not replace normal human UI
-4. they are the future-facing namespace for bots, tests, previews, and agent tooling
-
-Current scope:
-
-1. `@air-jam/sdk/runtime-control` exposes narrow host/controller session-driving adapters
-2. `@air-jam/sdk/runtime-inspection` exposes structural host/controller runtime snapshots
-3. `@air-jam/sdk/runtime-observability` exposes machine-readable runtime event filtering over the canonical runtime event stream
+1. keep these seams private until a real first-party consumer lands
+2. treat them as future machine-facing homes for bots, tests, previews, and agent tooling
+3. re-export them later as explicit experimental leaves instead of implying they are stable root-SDK contracts
 
 ## Prefab Contract Leaf (Experimental)
 

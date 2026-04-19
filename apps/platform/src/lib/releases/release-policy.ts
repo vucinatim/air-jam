@@ -25,4 +25,5 @@ export const allowedReleaseStatusTransitions: Record<
 export const canTransitionReleaseStatus = (
   currentStatus: GameReleaseStatus,
   nextStatus: GameReleaseStatus,
-): boolean => allowedReleaseStatusTransitions[currentStatus].includes(nextStatus);
+): boolean =>
+  allowedReleaseStatusTransitions[currentStatus].includes(nextStatus);

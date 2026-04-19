@@ -9,7 +9,13 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 
-export type DevLogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+export type DevLogLevel =
+  | "trace"
+  | "debug"
+  | "info"
+  | "warn"
+  | "error"
+  | "fatal";
 export type DevLogSource = "server" | "browser" | "workspace";
 
 export interface BrowserLogEntry {
@@ -124,15 +130,7 @@ type DevLogEventDraft = Omit<DevLogEvent, "collectorSeq" | "ingestedAt"> & {
 const sanitizeServerEvent = (
   payload: Record<string, unknown>,
 ): DevLogEventDraft => {
-  const {
-    time,
-    occurredAt,
-    level,
-    msg,
-    err,
-    data,
-    ...rest
-  } = payload;
+  const { time, occurredAt, level, msg, err, data, ...rest } = payload;
   const resolvedOccurredAt =
     typeof occurredAt === "string"
       ? occurredAt
@@ -159,10 +157,7 @@ export class DevLogCollector {
   private writeQueue: Promise<void> = Promise.resolve();
   private nextCollectorSeq = 1;
 
-  constructor(options: {
-    enabled: boolean;
-    logDir: string;
-  }) {
+  constructor(options: { enabled: boolean; logDir: string }) {
     this.enabled = options.enabled;
     this.logDir = options.logDir;
     this.latestFilePath = path.join(this.logDir, "dev-latest.ndjson");

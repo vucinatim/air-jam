@@ -45,7 +45,9 @@ export interface GameAnalyticsDebugSnapshot {
   }>;
 }
 
-const summarizePayload = (payload: Record<string, unknown> | null): string | null => {
+const summarizePayload = (
+  payload: Record<string, unknown> | null,
+): string | null => {
   if (!payload) {
     return null;
   }
@@ -88,7 +90,9 @@ const openCountForSession = async (
   const [result] = await db
     .select({ value: count() })
     .from(table)
-    .where(and(eq(table.runtimeSessionId, runtimeSessionId), isNull(table.endedAt)));
+    .where(
+      and(eq(table.runtimeSessionId, runtimeSessionId), isNull(table.endedAt)),
+    );
 
   return result?.value ?? 0;
 };
@@ -119,30 +123,39 @@ export const getGameAnalyticsDebugSnapshot = async (
   }
 
   const runtimeSessionId = latestSessionMetric.runtimeSessionId;
-  const [[session], [rawEventCount], recentEvents, controllerCount, gameCount, eligibleCount, openControllerCount, openGameCount, openEligibleCount] =
-    await Promise.all([
-      db
-        .select()
-        .from(runtimeUsageSessions)
-        .where(eq(runtimeUsageSessions.id, runtimeSessionId))
-        .limit(1),
-      db
-        .select({ value: count() })
-        .from(runtimeUsageEvents)
-        .where(eq(runtimeUsageEvents.runtimeSessionId, runtimeSessionId)),
-      db
-        .select()
-        .from(runtimeUsageEvents)
-        .where(eq(runtimeUsageEvents.runtimeSessionId, runtimeSessionId))
-        .orderBy(desc(runtimeUsageEvents.occurredAt))
-        .limit(12),
-      countForSession(runtimeSessionId, runtimeUsageControllerSegments),
-      countForSession(runtimeSessionId, runtimeUsageGameSegments),
-      countForSession(runtimeSessionId, runtimeUsageEligibleSegments),
-      openCountForSession(runtimeSessionId, runtimeUsageControllerSegments),
-      openCountForSession(runtimeSessionId, runtimeUsageGameSegments),
-      openCountForSession(runtimeSessionId, runtimeUsageEligibleSegments),
-    ]);
+  const [
+    [session],
+    [rawEventCount],
+    recentEvents,
+    controllerCount,
+    gameCount,
+    eligibleCount,
+    openControllerCount,
+    openGameCount,
+    openEligibleCount,
+  ] = await Promise.all([
+    db
+      .select()
+      .from(runtimeUsageSessions)
+      .where(eq(runtimeUsageSessions.id, runtimeSessionId))
+      .limit(1),
+    db
+      .select({ value: count() })
+      .from(runtimeUsageEvents)
+      .where(eq(runtimeUsageEvents.runtimeSessionId, runtimeSessionId)),
+    db
+      .select()
+      .from(runtimeUsageEvents)
+      .where(eq(runtimeUsageEvents.runtimeSessionId, runtimeSessionId))
+      .orderBy(desc(runtimeUsageEvents.occurredAt))
+      .limit(12),
+    countForSession(runtimeSessionId, runtimeUsageControllerSegments),
+    countForSession(runtimeSessionId, runtimeUsageGameSegments),
+    countForSession(runtimeSessionId, runtimeUsageEligibleSegments),
+    openCountForSession(runtimeSessionId, runtimeUsageControllerSegments),
+    openCountForSession(runtimeSessionId, runtimeUsageGameSegments),
+    openCountForSession(runtimeSessionId, runtimeUsageEligibleSegments),
+  ]);
 
   return {
     runtimeSessionId,
@@ -167,7 +180,8 @@ export const getGameAnalyticsDebugSnapshot = async (
       startedAt: latestSessionMetric.startedAt,
       endedAt: latestSessionMetric.endedAt,
       controllerSeconds: latestSessionMetric.controllerSeconds,
-      rawEligiblePlaytimeSeconds: latestSessionMetric.rawEligiblePlaytimeSeconds,
+      rawEligiblePlaytimeSeconds:
+        latestSessionMetric.rawEligiblePlaytimeSeconds,
       eligiblePlaytimeSeconds: latestSessionMetric.eligiblePlaytimeSeconds,
       trustFlags: latestSessionMetric.trustFlags,
       peakConcurrentControllers: latestSessionMetric.peakConcurrentControllers,

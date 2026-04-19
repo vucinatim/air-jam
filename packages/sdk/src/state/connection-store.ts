@@ -3,10 +3,10 @@ import type {
   ConnectionRole,
   ConnectionStatus,
   ControllerOrientation,
-  RuntimeState,
   HostArcadeSessionSnapshot,
   PlayerProfile,
   RunMode,
+  RuntimeState,
 } from "../protocol";
 
 export interface HostArcadeRestoreState {

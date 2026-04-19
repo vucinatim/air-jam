@@ -6,15 +6,10 @@ import {
   getControllerLocalProfileServerSnapshot,
   subscribeControllerLocalProfile,
 } from "@/lib/controller-local-profile";
-import {
-  AirJamControllerRuntime,
-  PlatformSettingsRuntime,
-} from "@air-jam/sdk";
+import { AirJamControllerRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useSyncExternalStore } from "react";
-import {
-  ControllerPageContent,
-} from "./controller-page-content";
+import { ControllerPageContent } from "./controller-page-content";
 import type { ControllerPageSurfaceMode } from "./controller-page-layout";
 
 function ControllerPageInner({

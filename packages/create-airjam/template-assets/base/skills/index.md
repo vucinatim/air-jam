@@ -27,7 +27,7 @@ Pick the one that matches the current problem.
 9. `r3f-3d-scene`
    Use when building or reviewing 3D Air Jam gameplay with React Three Fiber, lighting, shadows, grounding, particles, and physics.
 10. `canvas-2d-gameplay`
-   Use when building or reviewing 2D canvas gameplay, render/simulation separation, scaling, SVG assets, and lightweight collision patterns.
+    Use when building or reviewing 2D canvas gameplay, render/simulation separation, scaling, SVG assets, and lightweight collision patterns.
 
 ## Rule
 

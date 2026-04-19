@@ -75,9 +75,11 @@ test("formatEnvValidationError supports plain and colored output", () => {
   assert.ok(caught instanceof EnvValidationError);
 
   const plain = formatEnvValidationError(caught, { color: false });
-  assert.ok(plain.includes("air-jam.server: invalid environment configuration"));
+  assert.ok(
+    plain.includes("air-jam.server: invalid environment configuration"),
+  );
   assert.ok(plain.includes("AIR_JAM_AUTH_MODE"));
-  assert.ok(plain.includes("received: \"invalid\""));
+  assert.ok(plain.includes('received: "invalid"'));
   assert.ok(!plain.includes("\u001b["));
 
   const colored = formatEnvValidationError(caught, { color: true });

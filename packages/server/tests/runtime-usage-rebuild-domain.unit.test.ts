@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { RuntimeUsageEvent } from "../src/analytics/runtime-usage";
 import {
   rebuildRuntimeUsageFromEvents,
   sortRuntimeUsageEventsForReplay,
 } from "../src/analytics/runtime-usage-rebuild-domain";
-import type { RuntimeUsageEvent } from "../src/analytics/runtime-usage";
 
 const createEvent = (
   partial: Partial<RuntimeUsageEvent> &

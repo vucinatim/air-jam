@@ -1,7 +1,4 @@
-import {
-  useGetInput,
-  useRoom,
-} from "@air-jam/sdk";
+import { useGetInput, useRoom } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { useBotManager } from "../bot-system/bot-manager";

@@ -1,8 +1,8 @@
-import { PlayerAvatar } from "@air-jam/sdk/ui";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
+import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
-import { MatchScoreDisplay, TeamName } from "../../game/ui";
 import type { BotCounts } from "../../game/domain/team-slots";
+import { MatchScoreDisplay, TeamName } from "../../game/ui";
 
 interface ScoreStripProps {
   team1Players: PlayerProfile[];
@@ -35,7 +35,7 @@ export const ScoreStrip = ({
           <div className="pong-caption">
             <TeamName team="team1" uppercase={false} />
           </div>
-          <div className="text-[0.7rem] uppercase tracking-[0.18em] text-orange-200/72">
+          <div className="text-[0.7rem] tracking-[0.18em] text-orange-200/72 uppercase">
             Left Court
           </div>
         </div>
@@ -60,9 +60,7 @@ export const ScoreStrip = ({
       </div>
 
       <div className="flex shrink-0 flex-col items-center px-1">
-        <div className="pong-caption">
-          First to {pointsToWin}
-        </div>
+        <div className="pong-caption">First to {pointsToWin}</div>
         <MatchScoreDisplay
           scores={scores}
           className="flex items-center gap-2 text-3xl font-black tracking-[0.08em] sm:text-4xl"
@@ -94,7 +92,7 @@ export const ScoreStrip = ({
           <div className="pong-caption">
             <TeamName team="team2" uppercase={false} />
           </div>
-          <div className="text-[0.7rem] uppercase tracking-[0.18em] text-cyan-200/72">
+          <div className="text-[0.7rem] tracking-[0.18em] text-cyan-200/72 uppercase">
             Right Court
           </div>
         </div>

@@ -8,15 +8,13 @@
  * means the full match logic is unit-testable with a plain `RuntimeState`.
  */
 import {
-  PADDLE_X,
-} from "./constants";
-import {
   advanceBall,
   applyPaddleBounce,
   getScoringTeam,
   reflectBallOffWalls,
 } from "./ball";
 import { collidesWithPaddle } from "./collision";
+import { PADDLE_X } from "./constants";
 import {
   applyBotPaddleInput,
   applyHumanPaddleInput,

@@ -23,7 +23,8 @@ export const useControllerLifecyclePermissions = ({
   const canPauseToggle = phase === "playing" && canSendSystemCommand;
   const canRestart = phase === "ended" && canSendSystemCommand;
   const canBackToLobby = phase !== "lobby" && canSendSystemCommand;
-  const canInteractForPhase = phase === "lobby" ? canStart : canSendSystemCommand;
+  const canInteractForPhase =
+    phase === "lobby" ? canStart : canSendSystemCommand;
 
   return {
     canStart,

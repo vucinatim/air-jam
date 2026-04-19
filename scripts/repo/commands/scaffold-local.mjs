@@ -22,13 +22,20 @@ export const runRepoScaffoldLocalCommand = ({
 
   runCommand("pnpm", ["--filter", "create-airjam", "build"]);
 
-  const commandArgs = [createAirjamCliEntry, projectName, "--template", template];
+  const commandArgs = [
+    createAirjamCliEntry,
+    projectName,
+    "--template",
+    template,
+  ];
 
   if (source === "tarball") {
     runCommand("pnpm", ["--filter", "sdk", "build"]);
     runCommand("pnpm", ["--filter", "server", "build"]);
 
-    const sdkTarball = packWorkspacePackage(path.join(repoRoot, "packages", "sdk"));
+    const sdkTarball = packWorkspacePackage(
+      path.join(repoRoot, "packages", "sdk"),
+    );
     const serverTarball = packWorkspacePackage(
       path.join(repoRoot, "packages", "server"),
     );

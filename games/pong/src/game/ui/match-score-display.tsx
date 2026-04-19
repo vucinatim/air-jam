@@ -17,17 +17,11 @@ export const MatchScoreDisplay = ({
 }: MatchScoreDisplayProps) => {
   return (
     <div className={className}>
-      <span
-        className={scoreClassName}
-        style={{ color: getTeamColor("team1") }}
-      >
+      <span className={scoreClassName} style={{ color: getTeamColor("team1") }}>
         {scores.team1}
       </span>
       <span className={separatorClassName}>{separator}</span>
-      <span
-        className={scoreClassName}
-        style={{ color: getTeamColor("team2") }}
-      >
+      <span className={scoreClassName} style={{ color: getTeamColor("team2") }}>
         {scores.team2}
       </span>
     </div>

@@ -14,7 +14,9 @@ const parseEndedMatchPayload = (
   };
 } => {
   const candidate =
-    payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : null;
   const finalScores =
     candidate?.finalScores &&
     typeof candidate.finalScores === "object" &&

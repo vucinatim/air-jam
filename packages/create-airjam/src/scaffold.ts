@@ -48,12 +48,18 @@ export interface ScaffoldPackageJson {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const scaffoldSourcesDir = path.resolve(__dirname, "..", "scaffold-sources");
+export const scaffoldSourcesDir = path.resolve(
+  __dirname,
+  "..",
+  "scaffold-sources",
+);
 
 const manifestFileName = "airjam-template.json";
 
 const readTemplateManifest = (filePath: string): ScaffoldTemplateManifest => {
-  const manifest = fs.readJsonSync(filePath) as Partial<ScaffoldTemplateManifest> & {
+  const manifest = fs.readJsonSync(
+    filePath,
+  ) as Partial<ScaffoldTemplateManifest> & {
     category?: unknown;
   };
 
@@ -265,7 +271,9 @@ export const normalizeStandaloneProjectFiles = async (
   targetDir: string,
 ): Promise<void> => {
   await normalizeStandaloneTsconfigFile(path.join(targetDir, "tsconfig.json"));
-  await normalizeStandaloneTsconfigFile(path.join(targetDir, "tsconfig.app.json"));
+  await normalizeStandaloneTsconfigFile(
+    path.join(targetDir, "tsconfig.app.json"),
+  );
   await stripSdkAliasFromConfig(path.join(targetDir, "vite.config.ts"));
   await stripSdkAliasFromConfig(path.join(targetDir, "vitest.config.mjs"));
 };

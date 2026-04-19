@@ -2,7 +2,8 @@ import path from "node:path";
 import { z } from "zod";
 
 export const HOSTED_RELEASE_ENTRY_PATH = "index.html" as const;
-export const HOSTED_RELEASE_MANIFEST_PATH = ".airjam/release-manifest.json" as const;
+export const HOSTED_RELEASE_MANIFEST_PATH =
+  ".airjam/release-manifest.json" as const;
 export const HOSTED_RELEASE_HOST_PATH = "/" as const;
 export const HOSTED_RELEASE_CONTROLLER_PATH = "/controller" as const;
 
@@ -32,7 +33,9 @@ export const createHostedReleaseArtifactManifest =
 const normalizeHostedReleaseRequestPath = (value: string): string =>
   value.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+/g, "/").trim();
 
-export const isHostedReleaseSpaFallbackPath = (relativePath: string): boolean => {
+export const isHostedReleaseSpaFallbackPath = (
+  relativePath: string,
+): boolean => {
   const normalizedPath = normalizeHostedReleaseRequestPath(relativePath);
   if (!normalizedPath) {
     return false;

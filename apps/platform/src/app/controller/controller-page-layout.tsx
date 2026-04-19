@@ -74,33 +74,33 @@ export function ControllerPageLayout({
   const layout = (
     <div
       className={cn(
-        "text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-zinc-950 select-none",
+        "text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-black select-none",
         highContrast && "contrast-125",
       )}
     >
-      {!isPreview ? (
-        <>
+      <>
+        {!isPreview ? (
           <ControllerFullscreenPrompt
             roomId={routeRoomId}
             documentFullscreen={documentFullscreen}
           />
+        ) : null}
 
-          <ControllerMenuSheet
-            routeRoomId={routeRoomId}
-            activeUrl={activeUrl}
-            controller={controller}
-            emitArcadeAction={emitArcadeAction}
-            controllerOrientation={controllerOrientation}
-            documentFullscreen={documentFullscreen}
-            hostQrVisible={hostQrVisible}
-            hapticsEnabled={hapticsEnabled}
-            reducedMotion={reducedMotion}
-            highContrast={highContrast}
-            sharedPlatformSettings={sharedPlatformSettings}
-            onUpdateSharedPlatformSettings={onUpdateSharedPlatformSettings}
-          />
-        </>
-      ) : null}
+        <ControllerMenuSheet
+          routeRoomId={routeRoomId}
+          activeUrl={activeUrl}
+          controller={controller}
+          emitArcadeAction={emitArcadeAction}
+          controllerOrientation={controllerOrientation}
+          documentFullscreen={documentFullscreen}
+          hostQrVisible={hostQrVisible}
+          hapticsEnabled={hapticsEnabled}
+          reducedMotion={reducedMotion}
+          highContrast={highContrast}
+          sharedPlatformSettings={sharedPlatformSettings}
+          onUpdateSharedPlatformSettings={onUpdateSharedPlatformSettings}
+        />
+      </>
 
       <main
         className={cn(
@@ -133,7 +133,7 @@ export function ControllerPageLayout({
 
   if (isPreview) {
     return (
-      <div className="relative flex h-full w-full flex-col bg-zinc-950">
+      <div className="relative flex h-full w-full flex-col bg-black">
         {layout}
       </div>
     );
@@ -144,13 +144,12 @@ export function ControllerPageLayout({
       {!activeUrl ? (
         <SurfaceViewport
           orientation="portrait"
-          preset="controller-phone"
-          contentClassName="h-full w-full bg-zinc-950"
+          contentClassName="h-full w-full bg-black"
         >
           {layout}
         </SurfaceViewport>
       ) : (
-        <div className="relative flex h-dvh w-dvw flex-col bg-zinc-950">
+        <div className="relative flex h-dvh w-dvw flex-col bg-black">
           {layout}
         </div>
       )}

@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import {
   REVEAL_PAUSE_LEAD_MS,
   REVEAL_START_VOLUME,
@@ -6,9 +5,10 @@ import {
   VIDEO_MIX_TICK_MS,
   YOUTUBE_MAX_VOLUME,
 } from "@/config";
-import { clampNumber } from "@/utils/math-utils";
 import { type ActiveRound, type RoundReveal } from "@/store/types";
 import { type GamePhase } from "@/types";
+import { clampNumber } from "@/utils/math-utils";
+import { useEffect, useRef, useState } from "react";
 import {
   parseYouTubeMessageData,
   sendYouTubeCommand,
@@ -82,7 +82,10 @@ export const useYouTubePlayer = ({
     }
 
     const revealStartMs = roundReveal.revealEndsAtMs - revealDurationSec * 1000;
-    const revealDurationMs = Math.max(1, roundReveal.revealEndsAtMs - revealStartMs);
+    const revealDurationMs = Math.max(
+      1,
+      roundReveal.revealEndsAtMs - revealStartMs,
+    );
 
     const applyRevealMix = () => {
       sendYouTubeCommand(youtubePlayerRef.current, "playVideo");

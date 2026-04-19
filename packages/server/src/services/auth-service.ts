@@ -1,12 +1,12 @@
-import { and, eq } from "drizzle-orm";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   verifyHostGrant,
   type HostGrantClaims,
 } from "@air-jam/sdk/protocol";
+import { and, eq } from "drizzle-orm";
+import { appIds, type ServerDatabase } from "../db.js";
 import { resolveServerRuntimeDatabaseUrl } from "../env/database-url-policy.js";
 import { createServerLogger, type ServerLogger } from "../logging/logger.js";
-import { appIds, type ServerDatabase } from "../db.js";
 
 type AuthMode = "disabled" | "required";
 

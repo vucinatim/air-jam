@@ -32,8 +32,7 @@ export const runtimeUrlSchema = z
   .trim()
   .min(1)
   .refine((value) => parseRuntimeUrl(value) !== null, {
-    message:
-      "URL must be a valid http(s) URL without embedded credentials.",
+    message: "URL must be a valid http(s) URL without embedded credentials.",
   });
 
 export const appendRuntimeQueryParams = (

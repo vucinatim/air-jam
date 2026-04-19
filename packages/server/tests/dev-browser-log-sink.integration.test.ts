@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import path from "node:path";
-import os from "node:os";
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
-import { io, type Socket } from "socket.io-client";
 import { emitWithAck, waitForSocketConnect } from "./helpers/socket-test-utils";
 
 const parseEvents = (contents: string): Array<Record<string, unknown>> =>
@@ -149,30 +149,33 @@ describe("dev browser log sink", () => {
 
     expect(appendResponse.status).toBe(200);
 
-    const unloadResponse = await fetch(`${baseUrl}/__airjam/dev/browser-unload`, {
-      method: "POST",
-      headers: {
-        "content-type": "text/plain;charset=UTF-8",
+    const unloadResponse = await fetch(
+      `${baseUrl}/__airjam/dev/browser-unload`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "text/plain;charset=UTF-8",
+        },
+        body: JSON.stringify({
+          sessionId: "session-one",
+          metadata: {
+            appId: "aj_app_test123",
+            traceId: bootstrapAck.traceId,
+            origin: "http://localhost:5173",
+            pathname: "/play",
+          },
+          entry: {
+            occurredAt: "2026-03-26T20:00:01.150Z",
+            level: "info",
+            source: "runtime",
+            sourceSeq: 5,
+            event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
+            message: "Window pagehide observed",
+            data: [{ trigger: "pagehide" }],
+          },
+        }),
       },
-      body: JSON.stringify({
-        sessionId: "session-one",
-        metadata: {
-          appId: "aj_app_test123",
-          traceId: bootstrapAck.traceId,
-          origin: "http://localhost:5173",
-          pathname: "/play",
-        },
-        entry: {
-          occurredAt: "2026-03-26T20:00:01.150Z",
-          level: "info",
-          source: "runtime",
-          sourceSeq: 5,
-          event: AIRJAM_DEV_LOG_EVENTS.runtime.windowPageHide,
-          message: "Window pagehide observed",
-          data: [{ trigger: "pagehide" }],
-        },
-      }),
-    });
+    );
 
     expect(unloadResponse.status).toBe(204);
 
@@ -209,7 +212,10 @@ describe("dev browser log sink", () => {
     await new Promise((resolve) => setTimeout(resolve, 75));
     await runtime?.flushDevLogs();
 
-    const latestContents = await readFile(path.join(tempDir, "dev-latest.ndjson"), "utf8");
+    const latestContents = await readFile(
+      path.join(tempDir, "dev-latest.ndjson"),
+      "utf8",
+    );
     const events = parseEvents(latestContents);
     const browserConsoleEvent = events.find(
       (event) => event.event === AIRJAM_DEV_LOG_EVENTS.browser.console,
@@ -362,7 +368,10 @@ describe("dev browser log sink", () => {
 
     controllerSocket.disconnect();
 
-    const latestContents = await readFile(path.join(tempDir, "dev-latest.ndjson"), "utf8");
+    const latestContents = await readFile(
+      path.join(tempDir, "dev-latest.ndjson"),
+      "utf8",
+    );
 
     expect(latestContents).toContain(
       `"event":"${AIRJAM_DEV_LOG_EVENTS.controller.joinAccepted}"`,

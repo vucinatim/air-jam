@@ -78,7 +78,10 @@ export const ControllerPlayerNameField = ({
 
   return (
     <div className={cn("min-w-0", className)}>
-      <label className={cn("mb-1 block", labelClassName)} htmlFor="airjam-controller-player-name">
+      <label
+        className={cn("mb-1 block", labelClassName)}
+        htmlFor="airjam-controller-player-name"
+      >
         {fieldLabel}
       </label>
       <input

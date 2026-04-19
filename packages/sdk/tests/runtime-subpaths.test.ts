@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import { createPrefabCatalog, definePrefab } from "../src/prefabs";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
 import {
   createHostRuntimeControlContract,
@@ -12,8 +14,6 @@ import {
   createRuntimeObservabilityEvent,
   useRuntimeObservabilitySubscription,
 } from "../src/runtime-observability";
-import { createPrefabCatalog, definePrefab } from "../src/prefabs";
-import { z } from "zod";
 
 describe("runtime experimental subpaths", () => {
   it("re-export the control contract seam from the dedicated leaf", () => {

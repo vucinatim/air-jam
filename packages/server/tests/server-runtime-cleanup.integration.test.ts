@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { io, type Socket } from "socket.io-client";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
 import { RoomManager } from "../src/services/room-manager";
@@ -54,11 +54,18 @@ describe("server runtime cleanup", () => {
       reconnection: false,
     });
 
-    await Promise.all([waitForSocketConnect(host), waitForSocketConnect(controller)]);
+    await Promise.all([
+      waitForSocketConnect(host),
+      waitForSocketConnect(controller),
+    ]);
 
-    const bootstrapAck = await emitWithAck<{ ok: boolean }>(host, "host:bootstrap", {
-      appId: "aj_app_cleanup_test",
-    });
+    const bootstrapAck = await emitWithAck<{ ok: boolean }>(
+      host,
+      "host:bootstrap",
+      {
+        appId: "aj_app_cleanup_test",
+      },
+    );
     expect(bootstrapAck.ok).toBe(true);
 
     const createRoomAck = await emitWithAck<{ ok: boolean; roomId?: string }>(
@@ -69,11 +76,15 @@ describe("server runtime cleanup", () => {
     expect(createRoomAck.ok).toBe(true);
 
     const roomId = createRoomAck.roomId as string;
-    const joinAck = await emitWithAck<{ ok: boolean }>(controller, "controller:join", {
-      roomId,
-      controllerId: "ctrl_cleanup_1",
-      nickname: "Cleanup",
-    });
+    const joinAck = await emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_cleanup_1",
+        nickname: "Cleanup",
+      },
+    );
     expect(joinAck.ok).toBe(true);
     expect(roomManager.getAllRooms().size).toBe(1);
 

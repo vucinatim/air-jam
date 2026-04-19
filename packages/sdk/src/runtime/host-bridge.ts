@@ -139,7 +139,7 @@ const hostBridgeRequestSchema = z
     payload: z
       .object({
         handshake: v2HandshakeSchema,
-            roomId: z.string().min(1),
+        roomId: z.string().min(1),
         capabilityToken: z.string().min(1),
         arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
       })

@@ -3,6 +3,7 @@ import {
   type ServerErrorPayload,
 } from "@air-jam/sdk/protocol";
 import type { RuntimeUsagePublisher } from "../analytics/runtime-usage.js";
+import type { ServerLogger } from "../logging/logger.js";
 import {
   createRateLimitGuard,
   createScopedRateLimitGuard,
@@ -19,7 +20,6 @@ import { registerHostLifecycleHandlers } from "./handlers/register-host-lifecycl
 import { registerRealtimeHandlers } from "./handlers/register-realtime-handlers.js";
 import type { SocketHandlerContext } from "./socket-handler-context.js";
 import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
-import type { ServerLogger } from "../logging/logger.js";
 
 export interface RegisterSocketHandlersOptions {
   io: AirJamIoServer;
@@ -56,8 +56,7 @@ export const registerSocketHandlers = ({
     isHostAuthorizedForRoom,
     isControllerAuthorizedForRoom,
     hasControllerPrivilegeForRoom,
-  } =
-    createSocketAuthorization(socket.id, roomManager);
+  } = createSocketAuthorization(socket.id, roomManager);
 
   const socketIdentifier = resolveSocketIdentifier(
     socket.handshake.headers["x-forwarded-for"],

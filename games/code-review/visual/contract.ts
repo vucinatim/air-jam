@@ -13,7 +13,9 @@ const parseForceEndPayload = (
   };
 } => {
   const candidate =
-    payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : null;
   const scores =
     candidate?.scores && typeof candidate.scores === "object"
       ? (candidate.scores as Record<string, unknown>)
@@ -76,12 +78,18 @@ export const codeReviewVisualHarnessBridge = defineVisualHarnessBridge({
         },
         payload,
       ) => {
-        const team1Diff = Math.max(0, payload.scores.team1 - context.scores.team1);
+        const team1Diff = Math.max(
+          0,
+          payload.scores.team1 - context.scores.team1,
+        );
         for (let index = 0; index < team1Diff; index += 1) {
           context.actions.scorePoint({ team: "team1" });
         }
 
-        const team2Diff = Math.max(0, payload.scores.team2 - context.scores.team2);
+        const team2Diff = Math.max(
+          0,
+          payload.scores.team2 - context.scores.team2,
+        );
         for (let index = 0; index < team2Diff; index += 1) {
           context.actions.scorePoint({ team: "team2" });
         }

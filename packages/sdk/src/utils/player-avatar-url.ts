@@ -28,10 +28,7 @@ export const resolvePlayerAvatarSeed = (player: PlayerProfile): string => {
   const match = /^aj-(\d+)$/.exec(raw);
   if (match) {
     const index = Number(match[1]) - 1;
-    if (
-      index >= 0 &&
-      index < AIRJAM_DEFAULT_AVATAR_SEEDS.length
-    ) {
+    if (index >= 0 && index < AIRJAM_DEFAULT_AVATAR_SEEDS.length) {
       return AIRJAM_DEFAULT_AVATAR_SEEDS[index]!;
     }
   }

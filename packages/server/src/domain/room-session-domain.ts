@@ -116,9 +116,7 @@ export const getChildHostCapabilityTtlMs = (): number => {
     return 24 * 60 * 60 * 1000;
   }
   const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : 24 * 60 * 60 * 1000;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24 * 60 * 60 * 1000;
 };
 
 /**
@@ -153,9 +151,7 @@ export const getControllerCapabilityTtlMs = (): number => {
     return 24 * 60 * 60 * 1000;
   }
   const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : 24 * 60 * 60 * 1000;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24 * 60 * 60 * 1000;
 };
 
 const DEFAULT_CONTROLLER_PRIVILEGED_GRANTS: ControllerPrivilegedGrant[] = [
@@ -370,10 +366,11 @@ export const toControllerJoinedNotice = (
   player: controller.playerProfile,
 });
 
-export const listRoomPlayers = (
-  session: RoomSession,
-): PlayerProfile[] =>
-  Array.from(session.controllers.values(), (controller) => controller.playerProfile);
+export const listRoomPlayers = (session: RoomSession): PlayerProfile[] =>
+  Array.from(
+    session.controllers.values(),
+    (controller) => controller.playerProfile,
+  );
 
 export const getActiveHostSocketId = (session: RoomSession): string =>
   session.focus === "GAME" && session.childHostSocketId
@@ -404,7 +401,10 @@ export const emitControllerJoinedNotice = (
 ): void => {
   const payload = toControllerJoinedNotice(controller, options);
   emitToConnectedControllers(io, session, "server:controllerJoined", payload);
-  io.to(getActiveHostSocketId(session)).emit("server:controllerJoined", payload);
+  io.to(getActiveHostSocketId(session)).emit(
+    "server:controllerJoined",
+    payload,
+  );
 };
 
 export const emitControllerLeftNotice = (

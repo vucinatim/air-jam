@@ -9,7 +9,10 @@ export interface PreviewControllerIdentity {
 }
 
 const generatePreviewDeviceId = (): string => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return `pd_${crypto.randomUUID()}`;
   }
 

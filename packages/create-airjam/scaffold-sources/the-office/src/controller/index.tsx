@@ -320,12 +320,16 @@ function OfficeControllerLobbyView({
 }) {
   const playerAssignments = useSpaceStore((state) => state.playerAssignments);
   const actions = useSpaceStore.useActions();
-  const myPlayerId = controllerId ? playerAssignments[controllerId] ?? null : null;
+  const myPlayerId = controllerId
+    ? (playerAssignments[controllerId] ?? null)
+    : null;
   const characterOwnerById = useMemo(() => {
     const ownerByCharacterId = new Map<string, string>();
-    Object.entries(playerAssignments).forEach(([ownerControllerId, playerId]) => {
-      ownerByCharacterId.set(playerId, ownerControllerId);
-    });
+    Object.entries(playerAssignments).forEach(
+      ([ownerControllerId, playerId]) => {
+        ownerByCharacterId.set(playerId, ownerControllerId);
+      },
+    );
     return ownerByCharacterId;
   }, [playerAssignments]);
   const myPlayer = useMemo(
@@ -343,7 +347,10 @@ function OfficeControllerLobbyView({
             const takenByOtherController =
               ownerControllerId !== undefined &&
               ownerControllerId !== controllerId;
-            const highlights = getPlayerCapabilityHighlights(playerOption.id, 2);
+            const highlights = getPlayerCapabilityHighlights(
+              playerOption.id,
+              2,
+            );
 
             return (
               <button
@@ -462,9 +469,7 @@ function OfficeControllerEndedView({
         <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
           Shift Ended
         </p>
-        <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">
-          Final Earnings
-        </p>
+        <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">Final Earnings</p>
         <p className="mt-2 text-3xl font-black text-[#8b6914]">
           EUR {finalTotalMoney}
         </p>

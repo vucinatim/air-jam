@@ -104,7 +104,8 @@ export const useTeamsSnapshot = (
   );
 
   const readinessText = useMemo(
-    () => getLobbyReadinessText(teamCounts, botCounts, pointsToWin, perspective),
+    () =>
+      getLobbyReadinessText(teamCounts, botCounts, pointsToWin, perspective),
     [botCounts, perspective, pointsToWin, teamCounts],
   );
 

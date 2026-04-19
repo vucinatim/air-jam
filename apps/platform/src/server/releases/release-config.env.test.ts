@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
 import { EnvValidationError } from "@air-jam/env";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   getReleaseModerationAvailability,
   resetReleaseModerationConfigForTests,
@@ -71,7 +71,9 @@ describe("release env contracts", () => {
     process.env.OPENAI_API_KEY = "openai-key";
     process.env.AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH = "invalid";
 
-    expect(() => getReleaseModerationAvailability()).toThrow(EnvValidationError);
+    expect(() => getReleaseModerationAvailability()).toThrow(
+      EnvValidationError,
+    );
   });
 
   it("parses moderation configuration when required values are present", () => {

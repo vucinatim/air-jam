@@ -56,11 +56,14 @@ export function findControllerRigidBody(
 ): ControllerTaggedRigidBody | null {
   let match: ControllerTaggedRigidBody | null = null;
 
-  forEachControllerRigidBody(world, ({ body, controllerId: bodyControllerId }) => {
-    if (bodyControllerId === controllerId) {
-      match = body;
-    }
-  });
+  forEachControllerRigidBody(
+    world,
+    ({ body, controllerId: bodyControllerId }) => {
+      if (bodyControllerId === controllerId) {
+        match = body;
+      }
+    },
+  );
 
   return match;
 }

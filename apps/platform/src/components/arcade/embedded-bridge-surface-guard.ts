@@ -1,5 +1,5 @@
-import { isArcadeSurfaceMismatch } from "@air-jam/sdk/arcade/surface";
 import type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk/arcade/surface";
+import { isArcadeSurfaceMismatch } from "@air-jam/sdk/arcade/surface";
 
 /**
  * After a successful attach, the shell stores `attachIdentity`. Before each shell→iframe

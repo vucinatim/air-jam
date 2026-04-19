@@ -12,7 +12,10 @@ export const registerPerfCommands = (program) => {
     .option("--hz <count>", "Target events per second per controller")
     .option("--durationMs <ms>", "Measurement duration in milliseconds")
     .option("--warmupMs <ms>", "Warmup duration in milliseconds")
-    .option("--reconnectControllers <count>", "Reconnect churn controller count")
+    .option(
+      "--reconnectControllers <count>",
+      "Reconnect churn controller count",
+    )
     .option("--reconnectCycles <count>", "Reconnect churn cycle count")
     .option("--reconnectPauseMs <ms>", "Pause between disconnect and reconnect")
     .option("--strict", "Fail on threshold violations")

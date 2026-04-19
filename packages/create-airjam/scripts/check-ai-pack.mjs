@@ -35,7 +35,9 @@ const listRelativeFiles = async (rootDir) => {
 
 const validateRequiredPaths = () =>
   [...requiredBasePackPaths, ...requiredGeneratedDocPaths]
-    .filter((relativePath) => !fs.existsSync(path.join(basePackRoot, relativePath)))
+    .filter(
+      (relativePath) => !fs.existsSync(path.join(basePackRoot, relativePath)),
+    )
     .map((relativePath) => `Missing required AI pack file: ${relativePath}`);
 
 const validateManifestShape = async () => {
@@ -46,13 +48,19 @@ const validateManifestShape = async () => {
   if (manifest.schemaVersion !== 1) {
     errors.push("AI pack manifest must set schemaVersion to 1.");
   }
-  if (typeof manifest.packVersion !== "string" || manifest.packVersion.length === 0) {
+  if (
+    typeof manifest.packVersion !== "string" ||
+    manifest.packVersion.length === 0
+  ) {
     errors.push("AI pack manifest must include a non-empty packVersion.");
   }
   if (manifest.channel !== "stable" && manifest.channel !== "canary") {
     errors.push('AI pack manifest channel must be "stable" or "canary".');
   }
-  if (typeof manifest.releaseDate !== "string" || manifest.releaseDate.length === 0) {
+  if (
+    typeof manifest.releaseDate !== "string" ||
+    manifest.releaseDate.length === 0
+  ) {
     errors.push("AI pack manifest must include a non-empty releaseDate.");
   }
   if (manifest.source?.mode !== "packaged-snapshot") {
@@ -74,11 +82,16 @@ const validateGeneratedDirectoryShape = async () => {
 
   return actualFiles
     .filter((relativePath) => !allowedFiles.has(relativePath))
-    .map((relativePath) => `Unexpected generated docs file: docs/generated/${relativePath}`);
+    .map(
+      (relativePath) =>
+        `Unexpected generated docs file: docs/generated/${relativePath}`,
+    );
 };
 
 const validateGeneratedDocsFreshness = async () => {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "airjam-docs-pack-check-"));
+  const tempRoot = await fsp.mkdtemp(
+    path.join(os.tmpdir(), "airjam-docs-pack-check-"),
+  );
 
   try {
     await generateBaseDocsPack(tempRoot);
@@ -97,7 +110,10 @@ const validateGeneratedDocsFreshness = async () => {
     }
 
     for (const fileName of expectedFiles) {
-      const expectedContents = await fsp.readFile(path.join(tempRoot, fileName), "utf8");
+      const expectedContents = await fsp.readFile(
+        path.join(tempRoot, fileName),
+        "utf8",
+      );
       const actualPath = path.join(outputDocsRoot, fileName);
 
       if (!fs.existsSync(actualPath)) {

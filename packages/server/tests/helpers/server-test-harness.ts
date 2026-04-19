@@ -1,6 +1,6 @@
+import type { HostSessionKind } from "@air-jam/sdk/protocol";
 import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach } from "vitest";
-import type { HostSessionKind } from "@air-jam/sdk/protocol";
 import {
   createAirJamServer,
   type AirJamServerRuntime,
@@ -8,7 +8,10 @@ import {
 } from "../../src/index";
 import { RateLimitService } from "../../src/services/rate-limit-service";
 import { RoomManager } from "../../src/services/room-manager";
-import { emitWithAck as emitWithAckWithTimeout, waitForSocketConnect } from "./socket-test-utils";
+import {
+  emitWithAck as emitWithAckWithTimeout,
+  waitForSocketConnect,
+} from "./socket-test-utils";
 
 type GenericEventMap = Record<string, (...args: unknown[]) => void>;
 type GenericSocket = Socket<GenericEventMap, GenericEventMap>;
@@ -18,9 +21,7 @@ interface HarnessOptions {
 }
 
 export interface ServerTestHarness {
-  connectSocket: (options?: {
-    origin?: string;
-  }) => Promise<GenericSocket>;
+  connectSocket: (options?: { origin?: string }) => Promise<GenericSocket>;
   bootstrapHost: (
     socket: GenericSocket,
     appId?: string,
