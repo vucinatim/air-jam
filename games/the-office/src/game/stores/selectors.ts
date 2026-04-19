@@ -6,9 +6,6 @@ export const useOfficeMatchPhase = () =>
 
 export const useOfficeGameOver = () => useSpaceStore((state) => state.gameOver);
 
-export const useOfficeGameStartTime = () =>
-  useSpaceStore((state) => state.gameStartTime);
-
 export const useOfficeGameDurationMs = () =>
   useSpaceStore((state) => state.gameDurationMs);
 

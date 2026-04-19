@@ -145,7 +145,7 @@ export function ControllerView() {
   }, []);
 
   const handleMove = (screenX: number, screenY: number) => {
-    movementRef.current = { x: screenY, y: -screenX };
+    movementRef.current = { x: screenX, y: screenY };
     setPadDirection({ x: screenX, y: screenY });
   };
 
@@ -211,95 +211,90 @@ export function ControllerView() {
   };
 
   return (
-    <div className="controller-view-shell">
-      <SurfaceViewport
-        orientation={desiredOrientation}
-        preset="controller-phone"
-      >
-        <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[#5c4a2e]">
-          <RuntimeShellHeader
-            connectionStatus={controller.connectionStatus}
-            leftSlot={
-              <div className="flex min-w-0 items-center gap-3">
-                {myPlayer ? (
-                  <img
-                    src={myPlayer.image}
-                    alt={myPlayer.name}
-                    className="h-10 w-10 rounded-full border border-[#9d8450] object-cover object-top"
-                  />
-                ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#9d8450] bg-[#4a3925] text-[0.6875rem] font-bold text-[#f7e7b1]">
-                    {shellStatus.identityInitial}
-                  </span>
-                )}
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-[#fff1c4]">
-                    {shellStatus.displayName}
-                  </p>
-                  <p className="text-[0.625rem] tracking-[0.16em] text-[#d9bb63] uppercase sm:text-[0.6875rem]">
-                    {shellStatus.roomLine}
-                  </p>
-                </div>
-              </div>
-            }
-            rightSlot={
-              showLobbyView ? null : (
-                <LifecycleActionGroup
-                  phase={matchPhase}
-                  runtimeState={controller.runtimeState}
-                  canInteract={lifecyclePermissions.canInteractForPhase}
-                  onTogglePause={lifecycleIntents.onTogglePause}
-                  onBackToLobby={lifecycleIntents.onBackToLobby}
-                  onRestart={lifecycleIntents.onRestart}
-                  presentation="icon"
-                  visibleKinds={
-                    matchPhase === "playing"
-                      ? ["pause-toggle", "back-to-lobby"]
-                      : ["restart", "back-to-lobby"]
-                  }
-                  buttonClassName="rounded-none border-[#8b6914]/25 bg-[#8b6914]/10 text-[#7a5b11] hover:bg-[#8b6914]/18"
+    <SurfaceViewport orientation={desiredOrientation} preset="controller-phone">
+      <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[#5c4a2e]">
+        <RuntimeShellHeader
+          connectionStatus={controller.connectionStatus}
+          leftSlot={
+            <div className="flex min-w-0 items-center gap-3">
+              {myPlayer ? (
+                <img
+                  src={myPlayer.image}
+                  alt={myPlayer.name}
+                  className="h-10 w-10 rounded-full border border-[#9d8450] object-cover object-top"
                 />
-              )
-            }
-            className="border-[#7d6640] bg-[#3a2f22]/92"
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#9d8450] bg-[#4a3925] text-[0.6875rem] font-bold text-[#f7e7b1]">
+                  {shellStatus.identityInitial}
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-[#fff1c4]">
+                  {shellStatus.displayName}
+                </p>
+                <p className="text-[0.625rem] tracking-[0.16em] text-[#d9bb63] uppercase sm:text-[0.6875rem]">
+                  {shellStatus.roomLine}
+                </p>
+              </div>
+            </div>
+          }
+          rightSlot={
+            showLobbyView ? null : (
+              <LifecycleActionGroup
+                phase={matchPhase}
+                runtimeState={controller.runtimeState}
+                canInteract={lifecyclePermissions.canInteractForPhase}
+                onTogglePause={lifecycleIntents.onTogglePause}
+                onBackToLobby={lifecycleIntents.onBackToLobby}
+                onRestart={lifecycleIntents.onRestart}
+                presentation="icon"
+                visibleKinds={
+                  matchPhase === "playing"
+                    ? ["pause-toggle", "back-to-lobby"]
+                    : ["restart", "back-to-lobby"]
+                }
+                buttonClassName="rounded-none border-[#8b6914]/25 bg-[#8b6914]/10 text-[#7a5b11] hover:bg-[#8b6914]/18"
+              />
+            )
+          }
+          className="border-[#7d6640] bg-[#3a2f22]/92"
+        />
+
+        {showLobbyView ? (
+          <OfficeControllerLobbyView
+            controllerId={controller.controllerId}
+            connectedPlayerCount={connectedPlayerCount}
+            selectedPlayerCount={selectedPlayerCount}
+            canStartMatch={canStartMatch}
+            hasCharacterSelection={hasCharacterSelection}
+            lobbyPrimaryHelper={lobbyPrimaryHelper}
           />
+        ) : null}
 
-          {showLobbyView ? (
-            <OfficeControllerLobbyView
-              controllerId={controller.controllerId}
-              connectedPlayerCount={connectedPlayerCount}
-              selectedPlayerCount={selectedPlayerCount}
-              canStartMatch={canStartMatch}
-              hasCharacterSelection={hasCharacterSelection}
-              lobbyPrimaryHelper={lobbyPrimaryHelper}
-            />
-          ) : null}
+        {showPausedView ? <OfficeControllerPausedView /> : null}
 
-          {showPausedView ? <OfficeControllerPausedView /> : null}
+        {showEndedView ? (
+          <OfficeControllerEndedView
+            matchPhase={matchPhase}
+            runtimeState={controller.runtimeState}
+            canInteract={lifecyclePermissions.canInteractForPhase}
+            onBackToLobby={handleBackToLobby}
+            onRestart={handleRestart}
+          />
+        ) : null}
 
-          {showEndedView ? (
-            <OfficeControllerEndedView
-              matchPhase={matchPhase}
-              runtimeState={controller.runtimeState}
-              canInteract={lifecyclePermissions.canInteractForPhase}
-              onBackToLobby={handleBackToLobby}
-              onRestart={handleRestart}
-            />
-          ) : null}
-
-          {showGameplayView ? (
-            <OfficeControllerGameplayView
-              controllerId={controller.controllerId}
-              padDirection={padDirection}
-              handleAction={handleAction}
-              handlePadPointerDown={handlePadPointerDown}
-              handlePadPointerMove={handlePadPointerMove}
-              resetPad={resetPad}
-            />
-          ) : null}
-        </div>
-      </SurfaceViewport>
-    </div>
+        {showGameplayView ? (
+          <OfficeControllerGameplayView
+            controllerId={controller.controllerId}
+            padDirection={padDirection}
+            handleAction={handleAction}
+            handlePadPointerDown={handlePadPointerDown}
+            handlePadPointerMove={handlePadPointerMove}
+            resetPad={resetPad}
+          />
+        ) : null}
+      </div>
+    </SurfaceViewport>
   );
 }
 

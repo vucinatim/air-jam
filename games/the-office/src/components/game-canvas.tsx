@@ -22,7 +22,6 @@ import {
   WALL_THICKNESS,
   WALLS,
 } from "../game-constants";
-import type { GameInput } from "../game/input";
 import type { PlayerStats } from "../game/stores";
 import { getPlayerById } from "../players";
 import type { TaskManager } from "../task-manager";
@@ -95,15 +94,9 @@ interface GameCanvasProps {
   >;
   playerImagesRef: React.MutableRefObject<Record<string, HTMLImageElement>>;
   locationImagesRef: React.MutableRefObject<Record<string, HTMLImageElement>>;
-  getInput: (playerId: string) => GameInput | null;
+  matchElapsedMsRef: React.MutableRefObject<number>;
+  renderFrameRef: React.MutableRefObject<(() => void) | null>;
   players: { id: string }[];
-  gameStatePlaying: boolean;
-  updateGame: (
-    currentTime: number,
-    players: { id: string }[],
-    getInput: (playerId: string) => GameInput | null,
-    gameStatePlaying: boolean,
-  ) => void;
 }
 
 /**
@@ -115,10 +108,9 @@ export const GameCanvas = memo(function GameCanvas({
   breakroomActivitiesRef,
   playerImagesRef,
   locationImagesRef,
-  getInput,
+  matchElapsedMsRef,
+  renderFrameRef,
   players,
-  gameStatePlaying,
-  updateGame,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -126,8 +118,6 @@ export const GameCanvas = memo(function GameCanvas({
     width: FIELD_WIDTH,
     height: FIELD_HEIGHT,
   });
-  const animationIdRef = useRef<number>(0);
-  const lastUpdateRef = useRef<number>(0);
 
   // Handle canvas resize
   useEffect(() => {
@@ -362,13 +352,17 @@ export const GameCanvas = memo(function GameCanvas({
           return; // Skip stat bars for dead players
         }
 
-        const taskProgress = taskManagerRef.current.getTaskProgress(p.id);
+        const matchElapsedMs = matchElapsedMsRef.current;
+        const taskProgress = taskManagerRef.current.getTaskProgress(
+          p.id,
+          matchElapsedMs,
+        );
         const breakroomActivity = breakroomActivitiesRef.current[p.id];
 
         // Calculate unified progress (breakroom takes priority)
         let unifiedProgress = 0;
         if (breakroomActivity) {
-          const elapsed = performance.now() - breakroomActivity.startTime;
+          const elapsed = matchElapsedMs - breakroomActivity.startTime;
           unifiedProgress = Math.min(
             elapsed / STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS,
             1,
@@ -461,13 +455,15 @@ export const GameCanvas = memo(function GameCanvas({
       canvasSize,
       gameStateRef,
       locationImagesRef,
+      matchElapsedMsRef,
       players,
       playerImagesRef,
       taskManagerRef,
     ],
   );
 
-  // Main game loop
+  // Register an imperative render callback. The host owns scheduling through
+  // `useHostTick`, so this component only exposes how to draw the latest refs.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -475,26 +471,19 @@ export const GameCanvas = memo(function GameCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const gameLoop = (currentTime: number) => {
-      // Throttle updates to target 60fps but allow rendering at display refresh rate
-      if (currentTime - lastUpdateRef.current >= 16) {
-        // ~60fps logic updates
-        updateGame(currentTime, players, getInput, gameStatePlaying);
-        lastUpdateRef.current = currentTime;
-      }
-
-      // Render
+    const renderFrame = () => {
       render(ctx);
-
-      animationIdRef.current = requestAnimationFrame(gameLoop);
     };
 
-    animationIdRef.current = requestAnimationFrame(gameLoop);
+    renderFrameRef.current = renderFrame;
+    renderFrame();
 
     return () => {
-      cancelAnimationFrame(animationIdRef.current);
+      if (renderFrameRef.current === renderFrame) {
+        renderFrameRef.current = null;
+      }
     };
-  }, [gameStatePlaying, getInput, players, render, updateGame]);
+  }, [render, renderFrameRef]);
 
   return (
     <div ref={canvasContainerRef} className="relative h-full w-full">

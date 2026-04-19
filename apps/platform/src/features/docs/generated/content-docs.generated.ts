@@ -1125,7 +1125,7 @@ const generatedContentDocsDocuments = [
         slug: "usehosttick",
         depth: 3,
         excerpt:
-          'Canonical host loop helper. mode: "raf" (default) for render-aligned loops. mode: "interval" for fixed-cadence polling loops. Auto Room Join from URL: Controllers automatically join rooms from URL query parameters: This…',
+          'Canonical host loop helper. mode: "raf" (default) for render-aligned loops. mode: "interval" for fixed-cadence polling loops. mode: "fixed" for deterministic fixed-step simulation loops. In fixed mode, pass onFrame when…',
       },
       {
         title: "Advanced (Non-default)",

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createInitialSpaceGameState,
+  reduceRestartMatch,
   reduceReturnToLobby,
   reduceSelectCharacter,
   reduceStartMatch,
@@ -41,6 +42,37 @@ describe("space store lifecycle reducers", () => {
       beta: { energy: 100, boredom: 100, alive: true },
     });
     expect(nextState.lifecycleVersion).toBe(selectedState.lifecycleVersion + 1);
+  });
+
+  it("starts a rematch with only currently connected character selections", () => {
+    const endedState = {
+      ...createInitialSpaceGameState(),
+      matchPhase: "ended" as const,
+      playerAssignments: {
+        alpha: "michael",
+        disconnected: "dwight",
+      },
+      money: {
+        alpha: 120,
+        disconnected: 80,
+      },
+      playerStats: {
+        alpha: { energy: 0, boredom: 0, alive: false },
+        disconnected: { energy: 0, boredom: 0, alive: false },
+      },
+      gameOver: true,
+    };
+
+    const lobbyState = reduceReturnToLobby(endedState, ["alpha"]);
+    const nextState = reduceRestartMatch(lobbyState, ["alpha"]);
+
+    expect(nextState.matchPhase).toBe("playing");
+    expect(nextState.playerAssignments).toEqual({ alpha: "michael" });
+    expect(nextState.money).toEqual({});
+    expect(nextState.playerStats).toEqual({
+      alpha: { energy: 100, boredom: 100, alive: true },
+    });
+    expect(nextState.gameOver).toBe(false);
   });
 
   it("returns to lobby without carrying ended-state runtime forward", () => {

@@ -344,14 +344,14 @@ export class TaskManager {
     );
 
     if (currentTime - this.lastSpawnTime > this.spawnInterval) {
-      this.spawnTask();
+      this.spawnTask(currentTime);
       this.lastSpawnTime = currentTime;
     }
 
     return expiredTasks;
   }
 
-  spawnTask() {
+  spawnTask(currentTime: number) {
     const availableLocations = LOCATIONS.filter(
       (loc) => !this.tasks.some((t) => t.locationId === loc.id),
     );
@@ -374,7 +374,7 @@ export class TaskManager {
       description: taskDef.description,
       reward: taskDef.reward,
       locationId: location.id,
-      spawnTime: Date.now(),
+      spawnTime: currentTime,
       durationMs: taskDef.baseDurationMs,
     };
 
@@ -393,7 +393,12 @@ export class TaskManager {
     return [...this.tasks];
   }
 
-  startTask(playerId: string, locationId: string, durationMs: number): boolean {
+  startTask(
+    playerId: string,
+    locationId: string,
+    durationMs: number,
+    currentTime: number,
+  ): boolean {
     const task = this.tasks.find((t) => t.locationId === locationId);
     if (!task) return false;
 
@@ -408,7 +413,7 @@ export class TaskManager {
     this.playerTasks.push({
       playerId,
       task: adjustedTask,
-      startTime: Date.now(),
+      startTime: currentTime,
     });
 
     this.tasks = this.tasks.filter((t) => t.id !== task.id);
@@ -417,20 +422,24 @@ export class TaskManager {
 
   updateTaskProgress(
     playerId: string,
+    currentTime: number,
   ): { progress: number; taskName: string } | null {
     const playerTask = this.playerTasks.find((pt) => pt.playerId === playerId);
     if (!playerTask) return null;
 
-    const elapsed = Date.now() - playerTask.startTime;
+    const elapsed = currentTime - playerTask.startTime;
     const progress = Math.min(elapsed / playerTask.task.durationMs, 1);
     return { progress, taskName: playerTask.task.name };
   }
 
-  completeTask(playerId: string): { reward: number; name: string } | null {
+  completeTask(
+    playerId: string,
+    currentTime: number,
+  ): { reward: number; name: string } | null {
     const playerTask = this.playerTasks.find((pt) => pt.playerId === playerId);
     if (!playerTask) return null;
 
-    const elapsed = Date.now() - playerTask.startTime;
+    const elapsed = currentTime - playerTask.startTime;
     const progress = elapsed / playerTask.task.durationMs;
 
     // Require progress >= 1 (100% complete)
@@ -453,10 +462,10 @@ export class TaskManager {
     return this.playerTasks.some((pt) => pt.playerId === playerId);
   }
 
-  getTaskProgress(playerId: string): number {
+  getTaskProgress(playerId: string, currentTime: number): number {
     const playerTask = this.playerTasks.find((pt) => pt.playerId === playerId);
     if (!playerTask) return 0;
-    const elapsed = Date.now() - playerTask.startTime;
+    const elapsed = currentTime - playerTask.startTime;
     return Math.min(elapsed / playerTask.task.durationMs, 1);
   }
 

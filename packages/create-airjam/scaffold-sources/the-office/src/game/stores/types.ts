@@ -12,7 +12,6 @@ export interface SpaceGameState {
   matchPhase: OfficeMatchPhase;
   money: Record<string, number>;
   totalMoneyPenalty: number;
-  gameStartTime: number;
   gameDurationMs: number;
   playerAssignments: Record<string, string>;
   busyPlayers: Record<string, string>;

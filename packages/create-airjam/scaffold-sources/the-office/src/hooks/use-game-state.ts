@@ -14,7 +14,6 @@ import type { GameInput } from "../game/input";
 import {
   useOfficeGameDurationMs,
   useOfficeGameOver,
-  useOfficeGameStartTime,
   useOfficeLifecycleVersion,
   useOfficeMatchPhase,
   useSpaceStore,
@@ -55,11 +54,10 @@ interface UseOfficeGameRuntimeReturn {
   >;
   playerImagesRef: React.MutableRefObject<Record<string, HTMLImageElement>>;
   locationImagesRef: React.MutableRefObject<Record<string, HTMLImageElement>>;
-  initializePlayers: (playerIds: string[]) => void;
   loadPlayerImages: () => Promise<void>;
   loadLocationImages: () => Promise<void>;
   updateGame: (
-    currentTime: number,
+    matchElapsedMs: number,
     players: { id: string }[],
     getInput: (playerId: string) => GameInput | null,
     gameStatePlaying: boolean,
@@ -78,7 +76,6 @@ export function useOfficeGameRuntime({
   const playerAssignments = useSpaceStore((state) => state.playerAssignments);
   const playerStats = useSpaceStore((state) => state.playerStats);
   const gameOver = useOfficeGameOver();
-  const gameStartTime = useOfficeGameStartTime();
   const gameDurationMs = useOfficeGameDurationMs();
   const matchPhase = useOfficeMatchPhase();
   const lifecycleVersion = useOfficeLifecycleVersion();
@@ -148,19 +145,12 @@ export function useOfficeGameRuntime({
     }
   }, [gameOver, playGameOver]);
 
-  const gameStartTimeRef = useRef(gameStartTime);
-  useEffect(() => {
-    gameStartTimeRef.current = gameStartTime;
-  }, [gameStartTime]);
-
   const gameDurationMsRef = useRef(gameDurationMs);
   useEffect(() => {
     gameDurationMsRef.current = gameDurationMs;
   }, [gameDurationMs]);
 
-  const initializePlayers = useCallback((playerIds: string[]) => {
-    actionsRef.current.syncConnectedPlayers({ connectedPlayerIds: playerIds });
-
+  const initializeRuntimePlayers = useCallback((playerIds: string[]) => {
     const connectedSet = new Set(playerIds);
 
     Object.keys(gameState.current.positions).forEach((playerId) => {
@@ -228,14 +218,26 @@ export function useOfficeGameRuntime({
     });
   }, []);
 
+  const connectedPlayerIdsRef = useRef(connectedPlayerIds);
+  useEffect(() => {
+    connectedPlayerIdsRef.current = connectedPlayerIds;
+
+    if (matchPhase === "ended") {
+      return;
+    }
+
+    actionsRef.current.syncConnectedPlayers({
+      connectedPlayerIds,
+    });
+    initializeRuntimePlayers(connectedPlayerIds);
+  }, [connectedPlayerIds, initializeRuntimePlayers, matchPhase]);
+
   const resetRuntimeState = useCallback(
     (
       playerIds: string[],
       nextAssignments: GameState["playerAssignments"],
       nextPlayerStats: GameState["playerStats"],
     ) => {
-      const now = performance.now();
-
       gameState.current.positions = {};
       gameState.current.lastAction = {};
       gameState.current.playerAssignments = nextAssignments;
@@ -245,8 +247,8 @@ export function useOfficeGameRuntime({
 
       taskManagerRef.current.reset();
       pendingTasksRef.current = [];
-      lastTaskUpdateRef.current = now;
-      lastStatUpdateRef.current = now;
+      lastTaskUpdateRef.current = 0;
+      lastStatUpdateRef.current = 0;
       lastTaskCountRef.current = 0;
       breakroomActivitiesRef.current = {};
       playerBoredomDecayTimers.current = {};
@@ -259,11 +261,6 @@ export function useOfficeGameRuntime({
     [],
   );
 
-  const connectedPlayerIdsRef = useRef(connectedPlayerIds);
-  useEffect(() => {
-    connectedPlayerIdsRef.current = connectedPlayerIds;
-  }, [connectedPlayerIds]);
-
   useEffect(() => {
     const playerIds = connectedPlayerIdsRef.current;
     resetRuntimeState(
@@ -272,9 +269,14 @@ export function useOfficeGameRuntime({
       playerStatsRef.current,
     );
     if (matchPhase !== "ended") {
-      initializePlayers(playerIds);
+      initializeRuntimePlayers(playerIds);
     }
-  }, [initializePlayers, lifecycleVersion, matchPhase, resetRuntimeState]);
+  }, [
+    initializeRuntimePlayers,
+    lifecycleVersion,
+    matchPhase,
+    resetRuntimeState,
+  ]);
 
   const loadPlayerImages = useCallback(async () => {
     for (const player of PLAYERS) {
@@ -371,6 +373,7 @@ export function useOfficeGameRuntime({
     playerId: string,
     position: { x: number; y: number },
     locations: Location[],
+    matchElapsedMs: number,
   ): boolean => {
     for (const location of locations) {
       if (!isNearLocation(position.x, position.y, location.id, locations)) {
@@ -390,7 +393,7 @@ export function useOfficeGameRuntime({
 
       const lastCompletedAt =
         gameState.current.lastTaskCompleteTime[playerId] || 0;
-      if (Date.now() - lastCompletedAt < 1000) {
+      if (matchElapsedMs - lastCompletedAt < 1000) {
         break;
       }
 
@@ -404,6 +407,7 @@ export function useOfficeGameRuntime({
         playerId,
         location.id,
         durationMs,
+        matchElapsedMs,
       );
 
       if (!started) {
@@ -421,8 +425,14 @@ export function useOfficeGameRuntime({
     return false;
   };
 
-  const handleTaskComplete = (playerId: string): boolean => {
-    const completed = taskManagerRef.current.completeTask(playerId);
+  const handleTaskComplete = (
+    playerId: string,
+    matchElapsedMs: number,
+  ): boolean => {
+    const completed = taskManagerRef.current.completeTask(
+      playerId,
+      matchElapsedMs,
+    );
     if (!completed) {
       return false;
     }
@@ -432,7 +442,7 @@ export function useOfficeGameRuntime({
       reward: completed.reward,
     });
     actionsRef.current.setBusy({ playerId, taskName: null });
-    gameState.current.lastTaskCompleteTime[playerId] = Date.now();
+    gameState.current.lastTaskCompleteTime[playerId] = matchElapsedMs;
 
     const completedPlayer = getPlayerById(
       gameState.current.playerAssignments[playerId],
@@ -449,14 +459,14 @@ export function useOfficeGameRuntime({
 
   const handleBreakroomActivityComplete = (
     playerId: string,
-    currentTime: number,
+    matchElapsedMs: number,
   ): void => {
     const currentActivity = breakroomActivitiesRef.current[playerId];
     if (!currentActivity) {
       return;
     }
 
-    const elapsed = currentTime - currentActivity.startTime;
+    const elapsed = matchElapsedMs - currentActivity.startTime;
     if (elapsed < STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS) {
       return;
     }
@@ -515,7 +525,7 @@ export function useOfficeGameRuntime({
   const handleBreakroomAction = (
     playerId: string,
     position: { x: number; y: number },
-    currentTime: number,
+    matchElapsedMs: number,
   ): boolean => {
     if (breakroomActivitiesRef.current[playerId]) {
       return false;
@@ -550,7 +560,7 @@ export function useOfficeGameRuntime({
 
           const lastCompletedAt =
             gameState.current.lastTaskCompleteTime[playerId] || 0;
-          if (Date.now() - lastCompletedAt < 1000) {
+          if (matchElapsedMs - lastCompletedAt < 1000) {
             break;
           }
 
@@ -559,6 +569,7 @@ export function useOfficeGameRuntime({
             playerId,
             location.id,
             durationMs,
+            matchElapsedMs,
           );
           if (started) {
             actionsRef.current.setBusy({ playerId, taskName: task.name });
@@ -572,7 +583,7 @@ export function useOfficeGameRuntime({
 
       breakroomActivitiesRef.current[playerId] = {
         locationId: location.id,
-        startTime: currentTime,
+        startTime: matchElapsedMs,
       };
 
       let activityName = "";
@@ -599,7 +610,7 @@ export function useOfficeGameRuntime({
 
   const getNextPlayerStats = (
     playerId: string,
-    currentTime: number,
+    matchElapsedMs: number,
   ): Partial<PlayerStats> | null => {
     const stats = gameState.current.playerStats[playerId];
     if (!stats?.alive) {
@@ -617,7 +628,7 @@ export function useOfficeGameRuntime({
 
     let nextBoredom = stats.boredom;
     const boredomTimer = playerBoredomDecayTimers.current[playerId] || 0;
-    if (currentTime > boredomTimer) {
+    if (matchElapsedMs > boredomTimer) {
       const decayAmount =
         STAT_CONSTANTS.BOREDOM_DECAY_MIN +
         Math.random() *
@@ -629,7 +640,8 @@ export function useOfficeGameRuntime({
         Math.random() *
           (STAT_CONSTANTS.BOREDOM_DECAY_INTERVAL_MAX_MS -
             STAT_CONSTANTS.BOREDOM_DECAY_INTERVAL_MIN_MS);
-      playerBoredomDecayTimers.current[playerId] = currentTime + nextInterval;
+      playerBoredomDecayTimers.current[playerId] =
+        matchElapsedMs + nextInterval;
     }
 
     const nextStats: Partial<PlayerStats> = {
@@ -664,7 +676,7 @@ export function useOfficeGameRuntime({
 
   const updateGame = useCallback(
     (
-      currentTime: number,
+      matchElapsedMs: number,
       players: { id: string }[],
       getInput: (playerId: string) => GameInput | null,
       gameStatePlaying: boolean,
@@ -682,32 +694,32 @@ export function useOfficeGameRuntime({
         return;
       }
 
-      const elapsedTime = currentTime - gameStartTimeRef.current;
-      if (elapsedTime >= gameDurationMsRef.current) {
+      if (matchElapsedMs >= gameDurationMsRef.current) {
         finishMatch();
         return;
       }
 
-      const expiredTasks = taskManagerRef.current.update(currentTime);
+      const expiredTasks = taskManagerRef.current.update(matchElapsedMs);
       if (expiredTasks.length > 0) {
         const totalPenalty = expiredTasks.length * 100;
         actionsRef.current.applyPenalty({ amount: totalPenalty });
         playOrderTimeout();
       }
 
-      if (currentTime - lastTaskUpdateRef.current > 500) {
+      if (matchElapsedMs - lastTaskUpdateRef.current > 500) {
         const currentTasks = taskManagerRef.current.getTasks();
         if (currentTasks.length > lastTaskCountRef.current) {
           playNewOrder();
         }
         lastTaskCountRef.current = currentTasks.length;
         pendingTasksRef.current = currentTasks;
-        lastTaskUpdateRef.current = currentTime;
+        lastTaskUpdateRef.current = matchElapsedMs;
       }
 
       const playerIds = players.map((player) => player.id);
       const progressByPlayerId: Record<string, number> = {};
-      const shouldUpdateStats = currentTime - lastStatUpdateRef.current > 1000;
+      const shouldUpdateStats =
+        matchElapsedMs - lastStatUpdateRef.current > 1000;
       const playerStatsUpdates: Record<string, Partial<PlayerStats>> = {};
 
       players.forEach((player) => {
@@ -722,9 +734,9 @@ export function useOfficeGameRuntime({
 
         if (isDoingTask) {
           progressByPlayerId[player.id] =
-            taskManagerRef.current.getTaskProgress(player.id);
+            taskManagerRef.current.getTaskProgress(player.id, matchElapsedMs);
         } else if (breakroomActivity) {
-          const elapsed = currentTime - breakroomActivity.startTime;
+          const elapsed = matchElapsedMs - breakroomActivity.startTime;
           progressByPlayerId[player.id] = Math.min(
             elapsed / STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS,
             1,
@@ -736,17 +748,22 @@ export function useOfficeGameRuntime({
         }
 
         if (input.action && !gameState.current.lastAction[player.id]) {
-          const taskStarted = handleTaskStart(player.id, position, LOCATIONS);
+          const taskStarted = handleTaskStart(
+            player.id,
+            position,
+            LOCATIONS,
+            matchElapsedMs,
+          );
           if (!taskStarted) {
-            handleBreakroomAction(player.id, position, currentTime);
+            handleBreakroomAction(player.id, position, matchElapsedMs);
           }
         }
 
-        handleTaskComplete(player.id);
-        handleBreakroomActivityComplete(player.id, currentTime);
+        handleTaskComplete(player.id, matchElapsedMs);
+        handleBreakroomActivityComplete(player.id, matchElapsedMs);
 
         if (shouldUpdateStats) {
-          const nextStats = getNextPlayerStats(player.id, currentTime);
+          const nextStats = getNextPlayerStats(player.id, matchElapsedMs);
           if (nextStats) {
             playerStatsUpdates[player.id] = nextStats;
           }
@@ -770,7 +787,7 @@ export function useOfficeGameRuntime({
       }
 
       if (shouldUpdateStats) {
-        lastStatUpdateRef.current = currentTime;
+        lastStatUpdateRef.current = matchElapsedMs;
       }
 
       const allPlayersDead =
@@ -794,7 +811,6 @@ export function useOfficeGameRuntime({
     breakroomActivitiesRef,
     playerImagesRef,
     locationImagesRef,
-    initializePlayers,
     loadPlayerImages,
     loadLocationImages,
     updateGame,
@@ -826,28 +842,51 @@ export function useOfficePendingTasks(
   return pendingTasks;
 }
 
-export function useOfficeMatchClock(isMatchPlaying: boolean): number {
-  const gameStartTime = useOfficeGameStartTime();
+export function useOfficeActiveMatchClock(): {
+  advanceElapsedMs: (deltaMs: number) => number;
+  elapsedMsRef: React.MutableRefObject<number>;
+  timeRemainingMs: number;
+} {
   const gameDurationMs = useOfficeGameDurationMs();
-  const [clockNow, setClockNow] = useState(() => Date.now());
+  const lifecycleVersion = useOfficeLifecycleVersion();
+  const elapsedMsRef = useRef(0);
+  const lastPublishedElapsedMsRef = useRef(0);
+  const [timeRemainingMs, setTimeRemainingMs] = useState(gameDurationMs);
+
+  const clampElapsedMs = useCallback(
+    (elapsedMs: number) => Math.min(Math.max(0, elapsedMs), gameDurationMs),
+    [gameDurationMs],
+  );
+
+  const commitElapsedMs = useCallback(
+    (elapsedMs: number) => {
+      const nextElapsedMs = clampElapsedMs(elapsedMs);
+      elapsedMsRef.current = nextElapsedMs;
+      return nextElapsedMs;
+    },
+    [clampElapsedMs],
+  );
+
+  const advanceElapsedMs = useCallback(
+    (deltaMs: number) => {
+      const nextElapsedMs = commitElapsedMs(elapsedMsRef.current + deltaMs);
+      if (
+        nextElapsedMs - lastPublishedElapsedMsRef.current >= 250 ||
+        nextElapsedMs >= gameDurationMs
+      ) {
+        lastPublishedElapsedMsRef.current = nextElapsedMs;
+        setTimeRemainingMs(Math.max(0, gameDurationMs - nextElapsedMs));
+      }
+      return nextElapsedMs;
+    },
+    [commitElapsedMs, gameDurationMs],
+  );
 
   useEffect(() => {
-    setClockNow(Date.now());
+    elapsedMsRef.current = 0;
+    lastPublishedElapsedMsRef.current = 0;
+    setTimeRemainingMs(gameDurationMs);
+  }, [gameDurationMs, lifecycleVersion]);
 
-    if (!isMatchPlaying) {
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      setClockNow(Date.now());
-    }, 250);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [gameDurationMs, gameStartTime, isMatchPlaying]);
-
-  return isMatchPlaying
-    ? Math.max(0, gameDurationMs - (clockNow - gameStartTime))
-    : gameDurationMs;
+  return { advanceElapsedMs, elapsedMsRef, timeRemainingMs };
 }

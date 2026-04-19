@@ -54,21 +54,25 @@ const createAssignedPlayerStats = (
 const reduceResetRuntimeState = (
   state: SpaceStoreSnapshot,
   phase: SpaceStoreSnapshot["matchPhase"],
+  connectedPlayerIds: string[] | undefined,
 ) => {
+  const baseState = connectedPlayerIds
+    ? pruneConnectedState(state, connectedPlayerIds)
+    : state;
+
   return {
-    ...state,
+    ...baseState,
     matchPhase: phase,
     money: {},
     totalMoneyPenalty: 0,
-    gameStartTime: phase === "playing" ? Date.now() : 0,
     busyPlayers: {},
     taskProgress: {},
     playerStats:
       phase === "playing"
-        ? createAssignedPlayerStats(state.playerAssignments)
+        ? createAssignedPlayerStats(baseState.playerAssignments)
         : {},
     gameOver: false,
-    lifecycleVersion: state.lifecycleVersion + 1,
+    lifecycleVersion: baseState.lifecycleVersion + 1,
   };
 };
 
@@ -76,7 +80,6 @@ export const createInitialSpaceGameState = (): SpaceStoreSnapshot => ({
   matchPhase: "lobby",
   money: {},
   totalMoneyPenalty: 0,
-  gameStartTime: 0,
   gameDurationMs: OFFICE_MATCH_DURATION_MS,
   playerAssignments: {},
   busyPlayers: {},
@@ -93,18 +96,18 @@ export const reduceSyncConnectedPlayers = (
 
 export const reduceStartMatch = (
   state: SpaceStoreSnapshot,
-  _connectedPlayerIds: string[] | undefined,
-) => reduceResetRuntimeState(state, "playing");
+  connectedPlayerIds: string[] | undefined,
+) => reduceResetRuntimeState(state, "playing", connectedPlayerIds);
 
 export const reduceRestartMatch = (
   state: SpaceStoreSnapshot,
-  _connectedPlayerIds: string[] | undefined,
-) => reduceResetRuntimeState(state, "playing");
+  connectedPlayerIds: string[] | undefined,
+) => reduceResetRuntimeState(state, "playing", connectedPlayerIds);
 
 export const reduceReturnToLobby = (
   state: SpaceStoreSnapshot,
-  _connectedPlayerIds: string[] | undefined,
-) => reduceResetRuntimeState(state, "lobby");
+  connectedPlayerIds: string[] | undefined,
+) => reduceResetRuntimeState(state, "lobby", connectedPlayerIds);
 
 export const reduceFinishMatch = (state: SpaceStoreSnapshot) => {
   if (state.matchPhase !== "playing") {

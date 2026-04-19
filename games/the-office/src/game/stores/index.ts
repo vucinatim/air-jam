@@ -1,3 +1,3 @@
 export * from "./selectors";
 export { useSpaceStore } from "./space-store";
-export type { PlayerStats, SpaceGameState } from "./types";
+export type { OfficeMatchPhase, PlayerStats, SpaceGameState } from "./types";

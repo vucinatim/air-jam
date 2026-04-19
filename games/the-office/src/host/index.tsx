@@ -7,7 +7,12 @@
  * host is just chrome over the networked `useSpaceStore` state plus the
  * match-clock / pending-task hooks in `../hooks/use-game-state`.
  */
-import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  useAirJamHost,
+  useHostRuntimeStateBridge,
+  useHostTick,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
@@ -25,6 +30,7 @@ import { GameCanvas } from "../components/game-canvas";
 import { GameOverOverlay } from "../components/game-over-overlay";
 import { TaskSidebar } from "../components/task-sidebar";
 import { gameInputSchema } from "../game/input";
+import { OFFICE_SOUND_MANIFEST } from "../game/sounds";
 import {
   useOfficeFinalTotalMoney,
   useOfficeGameOver,
@@ -33,16 +39,27 @@ import {
   useSpaceStore,
 } from "../game/stores";
 import {
+  useOfficeActiveMatchClock,
   useOfficeGameRuntime,
-  useOfficeMatchClock,
   useOfficePendingTasks,
 } from "../hooks/use-game-state";
 import { getPlayerById, getPlayerCapabilityHighlights } from "../players";
 
 type OfficeHostApi = ReturnType<typeof useAirJamHost<typeof gameInputSchema>>;
 
+const OFFICE_SIMULATION_STEP_MS = 1000 / 60;
+
 export function HostView() {
+  return (
+    <AudioRuntime manifest={OFFICE_SOUND_MANIFEST}>
+      <OfficeHostScreen />
+    </AudioRuntime>
+  );
+}
+
+function OfficeHostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
+  const { connectionStatus, sendState } = host;
   const [audioMuted, setAudioMuted] = useState(false);
   const playerIds = useMemo(
     () => host.players.map((player) => player.id),
@@ -56,7 +73,7 @@ export function HostView() {
     matchPhase === "lobby" &&
     selectedCount > 0 &&
     selectedCount === playerIds.length &&
-    host.connectionStatus === "connected";
+    connectionStatus === "connected";
   const hostLobbyShell = useHostLobbyShell({
     joinUrl: host.joinUrl,
     canStartMatch,
@@ -75,6 +92,24 @@ export function HostView() {
     toggleRuntimeState: host.toggleRuntimeState,
   });
 
+  const controllerOrientation =
+    matchPhase === "playing" ? "landscape" : "portrait";
+  const {
+    advanceElapsedMs,
+    elapsedMsRef: matchElapsedMsRef,
+    timeRemainingMs,
+  } = useOfficeActiveMatchClock();
+
+  useEffect(() => {
+    if (connectionStatus !== "connected") {
+      return;
+    }
+
+    sendState({
+      orientation: controllerOrientation,
+    });
+  }, [connectionStatus, controllerOrientation, sendState]);
+
   const handleRestart = () => {
     storeActions.returnToLobby();
   };
@@ -90,13 +125,15 @@ export function HostView() {
     <>
       <SurfaceViewport preset="host-standard" className="bg-[#fdf6e3]">
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
-          <OfficeHostTopHud isMatchPlaying={matchPhase === "playing"} />
+          <OfficeHostTopHud timeRemainingMs={timeRemainingMs} />
           <OfficeHostGameplaySurface
             players={host.players}
             getInput={host.getInput}
             runtimeState={host.runtimeState}
             muted={audioMuted}
             connectedPlayerIds={playerIds}
+            matchElapsedMsRef={matchElapsedMsRef}
+            advanceMatchClock={advanceElapsedMs}
           />
 
           <div className="mt-4 flex gap-4">
@@ -140,9 +177,8 @@ export function HostView() {
   );
 }
 
-function OfficeHostTopHud({ isMatchPlaying }: { isMatchPlaying: boolean }) {
+function OfficeHostTopHud({ timeRemainingMs }: { timeRemainingMs: number }) {
   const finalTotalMoney = useOfficeFinalTotalMoney();
-  const timeRemaining = useOfficeMatchClock(isMatchPlaying);
 
   return (
     <div className="mb-4 flex w-full items-center justify-center gap-8 text-center">
@@ -150,8 +186,8 @@ function OfficeHostTopHud({ isMatchPlaying }: { isMatchPlaying: boolean }) {
         EUR {finalTotalMoney}
       </span>
       <span className="text-foreground inline-block w-20 text-center text-2xl font-bold">
-        {Math.floor(timeRemaining / 60000)}:
-        {String(Math.floor((timeRemaining % 60000) / 1000)).padStart(2, "0")}
+        {Math.floor(timeRemainingMs / 60000)}:
+        {String(Math.floor((timeRemainingMs % 60000) / 1000)).padStart(2, "0")}
       </span>
     </div>
   );
@@ -163,12 +199,16 @@ function OfficeHostGameplaySurface({
   runtimeState,
   muted,
   connectedPlayerIds,
+  matchElapsedMsRef,
+  advanceMatchClock,
 }: {
   players: OfficeHostApi["players"];
   getInput: OfficeHostApi["getInput"];
   runtimeState: OfficeHostApi["runtimeState"];
   muted: boolean;
   connectedPlayerIds: string[];
+  matchElapsedMsRef: React.MutableRefObject<number>;
+  advanceMatchClock: (deltaMs: number) => number;
 }) {
   const {
     gameStateRef,
@@ -177,7 +217,6 @@ function OfficeHostGameplaySurface({
     breakroomActivitiesRef,
     playerImagesRef,
     locationImagesRef,
-    initializePlayers,
     loadPlayerImages,
     loadLocationImages,
     updateGame,
@@ -188,23 +227,34 @@ function OfficeHostGameplaySurface({
   const matchPhase = useOfficeMatchPhase();
   const gameOver = useOfficeGameOver();
   const pendingTasks = useOfficePendingTasks(pendingTasksRef);
-  const initializedRosterKeyRef = useRef<string | null>(null);
   const imagesPreloadedRef = useRef(false);
+  const renderFrameRef = useRef<(() => void) | null>(null);
 
   const getInputForPlayer = useCallback(
     (playerId: string) => getInput(playerId) ?? null,
     [getInput],
   );
+  const gameStatePlaying =
+    matchPhase === "playing" && runtimeState === "playing";
 
-  useEffect(() => {
-    const rosterKey = [...connectedPlayerIds].sort().join(",");
-    if (initializedRosterKeyRef.current === rosterKey) {
-      return;
-    }
+  useHostTick(
+    ({ deltaMs }) => {
+      if (!gameStatePlaying) {
+        return;
+      }
 
-    initializedRosterKeyRef.current = rosterKey;
-    initializePlayers(connectedPlayerIds);
-  }, [connectedPlayerIds, initializePlayers]);
+      const matchElapsedMs = advanceMatchClock(deltaMs);
+      updateGame(matchElapsedMs, players, getInputForPlayer, true);
+    },
+    {
+      enabled: matchPhase !== "lobby",
+      mode: "fixed",
+      intervalMs: OFFICE_SIMULATION_STEP_MS,
+      onFrame: () => {
+        renderFrameRef.current?.();
+      },
+    },
+  );
 
   useEffect(() => {
     if (imagesPreloadedRef.current) {
@@ -227,12 +277,9 @@ function OfficeHostGameplaySurface({
           breakroomActivitiesRef={breakroomActivitiesRef}
           playerImagesRef={playerImagesRef}
           locationImagesRef={locationImagesRef}
-          getInput={getInputForPlayer}
+          matchElapsedMsRef={matchElapsedMsRef}
+          renderFrameRef={renderFrameRef}
           players={players}
-          gameStatePlaying={
-            matchPhase === "playing" && runtimeState === "playing"
-          }
-          updateGame={updateGame}
         />
 
         {matchPhase === "playing" && gameOver ? (
