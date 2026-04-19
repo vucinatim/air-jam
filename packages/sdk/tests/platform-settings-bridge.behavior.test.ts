@@ -94,6 +94,65 @@ describe("platform settings bridge", () => {
     );
   });
 
+  it("flushes the pending snapshot when child readiness arrives before attach", () => {
+    const port1 = {
+      postMessage: vi.fn(),
+      close: vi.fn(),
+      start: vi.fn(),
+    } as unknown as MessagePort;
+    const port2 = {} as MessagePort;
+    const targetWindow = {
+      postMessage: vi.fn(),
+    } as unknown as Window;
+
+    const bridge = createParentPlatformSettingsBridge({
+      createMessageChannel: () => ({ port1, port2 }) as MessageChannel,
+    });
+
+    bridge.updateSettings({
+      ...DEFAULT_PLATFORM_SETTINGS,
+      audio: {
+        masterVolume: 0.2,
+        musicVolume: 0.05,
+        sfxVolume: 0.9,
+      },
+    });
+
+    bridge.handleMessage(
+      new MessageEvent("message", {
+        source: targetWindow as MessageEventSource,
+        origin: "https://platform.example",
+        data: {
+          type: AIRJAM_SETTINGS_READY,
+          payload: {
+            ready: true,
+          },
+        },
+      }),
+      targetWindow,
+      "https://platform.example",
+    );
+
+    expect(port1.postMessage).not.toHaveBeenCalled();
+
+    bridge.attach(targetWindow, "https://platform.example");
+
+    expect(bridge.getState()).toBe("ready");
+    expect(port1.postMessage).toHaveBeenCalledWith({
+      type: AIRJAM_SETTINGS_SYNC,
+      payload: {
+        settings: {
+          ...DEFAULT_PLATFORM_SETTINGS,
+          audio: {
+            masterVolume: 0.2,
+            musicVolume: 0.05,
+            sfxVolume: 0.9,
+          },
+        },
+      },
+    });
+  });
+
   it("applies fallback window.postMessage snapshots in embedded runtimes", () => {
     const originalParent = window.parent;
     const parentWindow = {

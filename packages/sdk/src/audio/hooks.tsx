@@ -13,7 +13,10 @@ import { useAssertSessionScope } from "../context/session-scope";
 import type { PlaySoundPayload } from "../protocol";
 import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";
-import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
+import {
+  usePlatformSettingsRuntimeStatus,
+  useResolvedPlatformSettingsSnapshot,
+} from "../settings/platform-settings-runtime";
 import {
   AudioManager,
   type AudioHandle,
@@ -130,16 +133,23 @@ function useOwnedAudio<M extends SoundManifest>(
   const roomId = useStore(store, (state) => state.roomId);
   const role = useStore(store, (state) => state.role);
   const platformSettings = useResolvedPlatformSettingsSnapshot();
+  const platformSettingsStatus = usePlatformSettingsRuntimeStatus();
+  const platformSettingsReady = platformSettingsStatus === "ready";
   type SoundId = keyof M & string;
   const manager = useMemo(
     () => new AudioManager<SoundId>(manifest),
     [manifest],
   );
   const [status, setStatus] = useState<AudioRuntimeStatus>(() =>
-    globalInitialized ? "ready" : "idle",
+    globalInitialized && platformSettingsReady ? "ready" : "idle",
   );
 
   const retry = useCallback(async () => {
+    if (!platformSettingsReady) {
+      setStatus("idle");
+      return false;
+    }
+
     const ready = await manager.init();
     if (ready) {
       globalInitialized = true;
@@ -149,11 +159,23 @@ function useOwnedAudio<M extends SoundManifest>(
 
     setStatus((current) => (current === "ready" ? current : "blocked"));
     return false;
-  }, [manager]);
+  }, [manager, platformSettingsReady]);
 
   useEffect(() => {
+    if (!platformSettingsReady) {
+      return;
+    }
+
     manager.applyPlatformAudioSettings(platformSettings.audio);
-  }, [manager, platformSettings.audio]);
+  }, [manager, platformSettings.audio, platformSettingsReady]);
+
+  useEffect(() => {
+    if (platformSettingsReady) {
+      return;
+    }
+
+    setStatus("idle");
+  }, [platformSettingsReady]);
 
   useEffect(() => {
     if (role && roomId) {

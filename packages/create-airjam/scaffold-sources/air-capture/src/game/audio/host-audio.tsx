@@ -1,18 +1,17 @@
 import {
   AudioRuntime,
+  MusicPlaylist,
   useAudio,
   useAudioRuntimeControls,
   useAudioRuntimeStatus,
-  useInheritedPlatformSettings,
 } from "@air-jam/sdk";
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { createHostAudioFacade } from "./host-audio-playback";
 import {
-  createHostAudioFacade,
-  createHostMusicDriver,
-  createRotatingMusicPlayback,
-  type RotatingMusicPlayback,
-} from "./host-audio-playback";
-import { HOST_SFX_MANIFEST, type HostSfxId } from "./sounds";
+  HOST_AUDIO_MANIFEST,
+  HOST_MUSIC_TRACKS,
+  type HostSfxId,
+} from "./sounds";
 
 export function HostAudioProvider({
   children,
@@ -22,7 +21,7 @@ export function HostAudioProvider({
   muted: boolean;
 }) {
   return (
-    <AudioRuntime manifest={HOST_SFX_MANIFEST}>
+    <AudioRuntime manifest={HOST_AUDIO_MANIFEST}>
       <HostAudioLifecycle muted={muted}>{children}</HostAudioLifecycle>
     </AudioRuntime>
   );
@@ -38,41 +37,25 @@ function HostAudioLifecycle({
   const sfxAudio = useAudio<HostSfxId>();
   const audioRuntimeStatus = useAudioRuntimeStatus();
   const audioRuntimeControls = useAudioRuntimeControls();
-  const platformSettings = useInheritedPlatformSettings();
   const facade = useMemo(() => createHostAudioFacade(sfxAudio), [sfxAudio]);
-  const musicAudioRef = useRef<ReturnType<typeof createHostMusicDriver> | null>(
-    null,
-  );
-  if (!musicAudioRef.current) {
-    musicAudioRef.current = createHostMusicDriver();
-  }
-  const musicAudio = musicAudioRef.current;
-  const musicPlaybackRef = useRef<RotatingMusicPlayback | null>(null);
-
-  if (!musicPlaybackRef.current) {
-    musicPlaybackRef.current = createRotatingMusicPlayback(musicAudio);
-  }
 
   useEffect(() => {
     facade.mute(muted);
-    musicAudio.setMuted(muted);
-    musicPlaybackRef.current?.sync(audioRuntimeStatus === "ready" && !muted);
-  }, [audioRuntimeStatus, facade, musicAudio, muted]);
-
-  useEffect(() => {
-    musicAudio.applyPlatformAudioSettings(platformSettings.audio);
-  }, [musicAudio, platformSettings.audio]);
+  }, [facade, muted]);
 
   useEffect(() => {
     void audioRuntimeControls.retry();
   }, [audioRuntimeControls]);
 
-  useEffect(() => {
-    return () => {
-      musicPlaybackRef.current?.dispose();
-      musicAudio.destroy();
-    };
-  }, [musicAudio]);
-
-  return <>{children}</>;
+  return (
+    <>
+      <MusicPlaylist
+        fadeMs={1200}
+        order="shuffle"
+        playing={audioRuntimeStatus === "ready" && !muted}
+        tracks={HOST_MUSIC_TRACKS}
+      />
+      {children}
+    </>
+  );
 }

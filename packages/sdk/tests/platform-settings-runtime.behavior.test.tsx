@@ -14,6 +14,7 @@ import {
   useInheritedPlatformSettings,
   usePlatformAudioSettings,
   usePlatformSettings,
+  usePlatformSettingsRuntimeStatus,
 } from "../src/settings/platform-settings-runtime";
 
 describe("PlatformSettingsRuntime", () => {
@@ -287,6 +288,72 @@ describe("PlatformSettingsRuntime", () => {
       expect(window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY)).toBe(
         null,
       );
+    } finally {
+      Object.defineProperty(window, "parent", {
+        configurable: true,
+        value: originalParent,
+      });
+      Object.defineProperty(document, "referrer", {
+        configurable: true,
+        value: "",
+      });
+    }
+  });
+
+  it("marks inherited settings ready only after the first iframe sync message", async () => {
+    const originalParent = window.parent;
+    const mockParent = {
+      postMessage: vi.fn(),
+    };
+    Object.defineProperty(window, "parent", {
+      configurable: true,
+      value: mockParent,
+    });
+    Object.defineProperty(document, "referrer", {
+      configurable: true,
+      value: "https://platform.example/arcade",
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(PlatformSettingsRuntime, null, children);
+
+    try {
+      const { result } = renderHook(
+        () => ({
+          settings: useInheritedPlatformSettings(),
+          status: usePlatformSettingsRuntimeStatus(),
+        }),
+        { wrapper },
+      );
+
+      expect(result.current.status).toBe("waiting");
+
+      act(() => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            origin: "https://platform.example",
+            source: mockParent as MessageEventSource,
+            data: {
+              type: "AIRJAM_SETTINGS_SYNC",
+              payload: {
+                settings: {
+                  ...DEFAULT_PLATFORM_SETTINGS,
+                  audio: {
+                    masterVolume: 0.2,
+                    musicVolume: 0.05,
+                    sfxVolume: 0.9,
+                  },
+                },
+              },
+            },
+          }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(result.current.status).toBe("ready");
+        expect(result.current.settings.audio.musicVolume).toBe(0.05);
+      });
     } finally {
       Object.defineProperty(window, "parent", {
         configurable: true,

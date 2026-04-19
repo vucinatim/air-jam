@@ -81,6 +81,7 @@ export const createParentPlatformSettingsBridge = (
   let targetWindow: Window | null = null;
   let targetOrigin: string | null = null;
   let initialSnapshotFlushed = false;
+  let childReadySeen = false;
 
   const setState = (next: PlatformSettingsBridgeState) => {
     state = next;
@@ -139,7 +140,7 @@ export const createParentPlatformSettingsBridge = (
       targetWindow = nextTargetWindow;
       targetOrigin = nextTargetOrigin;
       initialSnapshotFlushed = false;
-      setState("waiting_ready");
+      setState(childReadySeen ? "ready" : "waiting_ready");
 
       nextTargetWindow.postMessage(
         createSettingsBridgeInitMessage(),
@@ -150,6 +151,10 @@ export const createParentPlatformSettingsBridge = (
       emit("bridgeAttached", {
         state,
       });
+
+      if (childReadySeen) {
+        flushSnapshot("initial");
+      }
     },
 
     detach() {
@@ -157,6 +162,7 @@ export const createParentPlatformSettingsBridge = (
       targetWindow = null;
       targetOrigin = null;
       initialSnapshotFlushed = false;
+      childReadySeen = false;
       setState("unbound");
     },
 
@@ -184,6 +190,7 @@ export const createParentPlatformSettingsBridge = (
         return false;
       }
 
+      childReadySeen = true;
       setState("ready");
       emit("settingsReady", {
         state,
@@ -200,6 +207,7 @@ export const createParentPlatformSettingsBridge = (
 
 export interface InheritedPlatformSettingsBridgeOptions {
   applySettings: (settings: PlatformSettingsSnapshot) => void;
+  onBridgeUnavailable?: () => void;
   onBridgeAttached?: (origin: string) => void;
   onSettingsReadyRequested?: (origin: string) => void;
   onSnapshotApplied?: (
@@ -210,11 +218,13 @@ export interface InheritedPlatformSettingsBridgeOptions {
 
 export const initializeInheritedPlatformSettingsBridge = ({
   applySettings,
+  onBridgeUnavailable,
   onBridgeAttached,
   onSettingsReadyRequested,
   onSnapshotApplied,
 }: InheritedPlatformSettingsBridgeOptions): (() => void) => {
   if (typeof window === "undefined" || window.parent === window) {
+    onBridgeUnavailable?.();
     return () => {};
   }
 
@@ -226,6 +236,7 @@ export const initializeInheritedPlatformSettingsBridge = ({
     }
   })();
   if (!trustedParentOrigin) {
+    onBridgeUnavailable?.();
     return () => {};
   }
 

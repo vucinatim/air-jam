@@ -17,6 +17,13 @@ export {
   type ControllerRemoteAudioRuntimeProps,
 } from "./audio/hooks";
 export {
+  MusicPlaylist,
+  useAudioCategoryVolume,
+  useMusicVolume,
+  type AudioVolumeCategory,
+  type MusicPlaylistProps,
+} from "./audio/music";
+export {
   DEFAULT_PLATFORM_SETTINGS,
   getEffectiveAudioVolume,
 } from "./settings/platform-settings";

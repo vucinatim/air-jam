@@ -25,9 +25,11 @@ import {
 import { initializeInheritedPlatformSettingsBridge } from "./platform-settings-bridge";
 
 type PlatformSettingsMode = "owner" | "inherited" | "default";
+export type PlatformSettingsRuntimeStatus = "ready" | "waiting";
 
 interface PlatformSettingsContextValue {
   mode: PlatformSettingsMode;
+  status: PlatformSettingsRuntimeStatus;
   settings: PlatformSettingsSnapshot;
   setSettings: (
     next:
@@ -94,6 +96,7 @@ const getInitialMode = (
 
 const createDefaultContextValue = (): PlatformSettingsContextValue => ({
   mode: "default",
+  status: "ready",
   settings: DEFAULT_PLATFORM_SETTINGS,
   setSettings: () => {
     throw new Error(
@@ -117,14 +120,19 @@ export function PlatformSettingsRuntime({
       ? readPersistedPlatformSettings()
       : DEFAULT_PLATFORM_SETTINGS,
   );
+  const [status, setStatus] = useState<PlatformSettingsRuntimeStatus>(() =>
+    mode === "inherited" ? "waiting" : "ready",
+  );
 
   useEffect(() => {
     if (mode === "owner") {
+      setStatus("ready");
       setSettingsState(readPersistedPlatformSettings());
       return;
     }
 
     setSettingsState(DEFAULT_PLATFORM_SETTINGS);
+    setStatus(mode === "inherited" ? "waiting" : "ready");
   }, [mode]);
 
   useEffect(() => {
@@ -168,7 +176,13 @@ export function PlatformSettingsRuntime({
     }
 
     return initializeInheritedPlatformSettingsBridge({
-      applySettings: setSettingsState,
+      applySettings: (nextSettings) => {
+        setSettingsState(nextSettings);
+        setStatus("ready");
+      },
+      onBridgeUnavailable: () => {
+        setStatus("ready");
+      },
       onBridgeAttached: (origin) => {
         emitAirJamDevRuntimeEvent({
           event: AIRJAM_DEV_LOG_EVENTS.browser.runtime,
@@ -241,11 +255,12 @@ export function PlatformSettingsRuntime({
   const value = useMemo<PlatformSettingsContextValue>(
     () => ({
       mode,
+      status,
       settings,
       setSettings,
       updateSettings,
     }),
-    [mode, settings, setSettings, updateSettings],
+    [mode, settings, setSettings, status, updateSettings],
   );
 
   return (
@@ -330,6 +345,10 @@ export function useInheritedPlatformSettings(): Readonly<PlatformSettingsSnapsho
   }
 
   return context.settings;
+}
+
+export function usePlatformSettingsRuntimeStatus(): PlatformSettingsRuntimeStatus {
+  return useContext(platformSettingsContext)?.status ?? "ready";
 }
 
 export function usePlatformAudioSettings(): PlatformAudioSettingsApi {

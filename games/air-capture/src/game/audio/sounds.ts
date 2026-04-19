@@ -73,27 +73,32 @@ export const HOST_MUSIC_MANIFEST = {
   bgm_track_1: {
     src: ["/music/track_1.mp3"],
     volume: 0.4,
-    loop: true,
     html5: true,
+    category: "music",
   },
   bgm_track_2: {
     src: ["/music/track_2.mp3"],
     volume: 0.4,
-    loop: true,
     html5: true,
+    category: "music",
   },
   bgm_track_3: {
     src: ["/music/track_3.mp3"],
     volume: 0.4,
-    loop: true,
     html5: true,
+    category: "music",
   },
   bgm_track_4: {
     src: ["/music/track_4.mp3"],
     volume: 0.4,
-    loop: true,
     html5: true,
+    category: "music",
   },
+} satisfies SoundManifest;
+
+export const HOST_AUDIO_MANIFEST = {
+  ...HOST_SFX_MANIFEST,
+  ...HOST_MUSIC_MANIFEST,
 } satisfies SoundManifest;
 
 export const CONTROLLER_SOUND_MANIFEST = {
@@ -133,4 +138,5 @@ export const HOST_MUSIC_TRACKS = [
 
 export type HostSfxId = keyof typeof HOST_SFX_MANIFEST;
 export type HostMusicId = keyof typeof HOST_MUSIC_MANIFEST;
+export type HostAudioId = keyof typeof HOST_AUDIO_MANIFEST;
 export type ControllerSoundId = keyof typeof CONTROLLER_SOUND_MANIFEST;

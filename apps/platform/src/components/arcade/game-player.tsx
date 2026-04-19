@@ -42,7 +42,7 @@ import type {
   ServerErrorPayload,
 } from "@air-jam/sdk/protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export interface GamePlayerGame {
   id: string;
@@ -183,7 +183,7 @@ export const GamePlayer = ({
   const hostBridgeAttachedIdentityRef =
     useRef<ArcadeSurfaceRuntimeIdentity | null>(null);
   const arcadeIdentityRef = useRef(arcadeSurfaceRuntimeIdentity);
-  const [loadedIframeSrc, setLoadedIframeSrc] = useState<string | null>(null);
+  const settingsBridgeAttachKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     arcadeIdentityRef.current = arcadeSurfaceRuntimeIdentity;
@@ -203,8 +203,6 @@ export const GamePlayer = ({
     arcadeSurface: arcadeSurfaceRuntimeIdentity,
   });
   const iframeTargetOrigin = getRuntimeUrlOrigin(normalizedUrl);
-
-  const iframeLoaded = loadedIframeSrc === iframeSrc;
 
   const establishBridgeChannel = useCallback(() => {
     const contentWindow = iframeRef.current?.contentWindow;
@@ -228,16 +226,38 @@ export const GamePlayer = ({
       return;
     }
 
+    const attachKey = `${iframeSrc}::${iframeTargetOrigin}`;
+    if (settingsBridgeAttachKeyRef.current === attachKey) {
+      return;
+    }
+
+    settingsBridgeAttachKeyRef.current = attachKey;
+    settingsBridgeRef.current.updateSettings(platformSettings);
     settingsBridgeRef.current.attach(contentWindow, iframeTargetOrigin);
-  }, [game.id, iframeTargetOrigin, normalizedUrl, roomId]);
+  }, [
+    game.id,
+    iframeSrc,
+    iframeTargetOrigin,
+    normalizedUrl,
+    platformSettings,
+    roomId,
+  ]);
 
   useEffect(() => {
-    if (!iframeLoaded || !isVisible) {
+    if (!iframeSrc || !isVisible) {
+      return;
+    }
+
+    establishBridgeChannel();
+  }, [establishBridgeChannel, iframeSrc, isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) {
       return;
     }
 
     settingsBridgeRef.current.updateSettings(platformSettings);
-  }, [iframeLoaded, isVisible, platformSettings]);
+  }, [isVisible, platformSettings]);
 
   useEffect(() => {
     const handleSettingsReady = (event: MessageEvent<unknown>) => {
@@ -284,6 +304,7 @@ export const GamePlayer = ({
       // Defer teardown so React dev effect replay does not permanently sever a live iframe bridge.
       pendingBridgeTeardownRef.current = setTimeout(() => {
         settingsBridge.detach();
+        settingsBridgeAttachKeyRef.current = null;
         closeHostBridge("game_unloaded");
         pendingBridgeTeardownRef.current = null;
       }, 0);
@@ -596,7 +617,6 @@ export const GamePlayer = ({
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
           onLoad={() => {
             establishBridgeChannel();
-            setLoadedIframeSrc(iframeSrc);
           }}
           onError={() => {
             emitAirJamDevRuntimeEvent({

@@ -77,6 +77,7 @@ Archived recent baseline plans and completed implementation snapshots:
 16. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
 17. [Game UI Scaling Plan](./archive/game-ui-scaling-plan-2026-04-15.md)
 18. [Stage 3 Polish Plan](./archive/stage-3-polish-plan-2026-04-15.md)
+19. [SDK Audio And Music Standardization Plan](./archive/sdk-audio-and-music-standardization-plan-2026-04-19.md)
 
 Completed transitions / reference plans:
 

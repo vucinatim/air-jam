@@ -9,6 +9,7 @@ const mocked = vi.hoisted(() => {
   const howlRate = vi.fn();
   const howlOnce = vi.fn();
   const howlStop = vi.fn();
+  const howlFade = vi.fn();
   const howlPos = vi.fn();
   const howlPannerAttr = vi.fn();
   const howlMute = vi.fn();
@@ -20,6 +21,7 @@ const mocked = vi.hoisted(() => {
     rate = howlRate;
     once = howlOnce;
     stop = howlStop;
+    fade = howlFade;
     pos = howlPos;
     pannerAttr = howlPannerAttr;
     mute = howlMute;
@@ -46,6 +48,10 @@ const mocked = vi.hoisted(() => {
     howler,
     howlPlay,
     howlVolume,
+    howlLoop,
+    howlOnce,
+    howlStop,
+    howlFade,
   };
 });
 
@@ -62,6 +68,11 @@ describe("AudioManager", () => {
     mocked.howler.ctx.resume.mockReset();
     mocked.howlPlay.mockReset();
     mocked.howlVolume.mockReset();
+    mocked.howlLoop.mockReset();
+    mocked.howlOnce.mockReset();
+    mocked.howlStop.mockReset();
+    mocked.howlFade.mockReset();
+    vi.useRealTimers();
   });
 
   it("drops local playback while the audio context is still suspended", () => {
@@ -109,5 +120,47 @@ describe("AudioManager", () => {
       2,
       expect.closeTo(0.15, 5),
     );
+  });
+
+  it("fades in local playback when requested", () => {
+    mocked.howler.ctx.state = "running";
+
+    const audio = new AudioManager({
+      music: {
+        src: ["/sounds/music.mp3"],
+        volume: 0.5,
+        category: "music",
+      },
+    });
+
+    expect(audio.play("music", { fadeInMs: 300 })).toBe(101);
+
+    expect(mocked.howlVolume).toHaveBeenCalledWith(0, 101);
+    expect(mocked.howlFade).toHaveBeenCalledWith(0, 0.4, 300, 101);
+  });
+
+  it("fades out before stopping an active playback id", () => {
+    vi.useFakeTimers();
+    mocked.howler.ctx.state = "running";
+
+    const audio = new AudioManager({
+      music: {
+        src: ["/sounds/music.mp3"],
+        volume: 0.5,
+        category: "music",
+      },
+    });
+
+    const soundId = audio.play("music");
+    expect(soundId).toBe(101);
+
+    audio.fadeOutAndStop("music", 101, 250);
+
+    expect(mocked.howlFade).toHaveBeenCalledWith(0.4, 0, 250, 101);
+    expect(mocked.howlStop).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(250);
+
+    expect(mocked.howlStop).toHaveBeenCalledWith(101);
   });
 });

@@ -41,6 +41,8 @@ export interface PlayOptions {
   loop?: boolean;
   sprite?: string;
   pitch?: number;
+  fadeInMs?: number;
+  onEnd?: (soundId: number) => void;
 }
 
 export interface AudioHandle<T extends string = string> {
@@ -48,6 +50,7 @@ export interface AudioHandle<T extends string = string> {
   isReady(): boolean;
   play(id: T, options?: PlayOptions): number | null;
   stop(id?: T, soundId?: number): void;
+  fadeOutAndStop(id: T, soundId: number, durationMs: number): void;
   mute(muted: boolean, id?: T, soundId?: number): void;
   isMuted(): boolean;
 }
@@ -171,6 +174,8 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
       loop,
       sprite,
       pitch,
+      fadeInMs,
+      onEnd,
     } = options || {};
 
     void this.init();
@@ -180,7 +185,7 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
       return null;
     }
 
-    return this.playLocal(id, volume, loop, sprite, pitch);
+    return this.playLocal(id, volume, loop, sprite, pitch, fadeInMs, onEnd);
   }
 
   private playLocal(
@@ -189,6 +194,8 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     loop?: boolean,
     sprite?: string,
     pitch?: number,
+    fadeInMs?: number,
+    onEnd?: (soundId: number) => void,
   ): number | null {
     if (!this.isReady()) {
       return null;
@@ -215,11 +222,21 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     const soundId = sound.play(sprite);
     this.activeSoundIds.set(soundId, { soundId: id, category });
 
-    sound.once("end", () => {
-      this.activeSoundIds.delete(soundId);
-    });
+    sound.once(
+      "end",
+      () => {
+        this.activeSoundIds.delete(soundId);
+        onEnd?.(soundId);
+      },
+      soundId,
+    );
 
-    sound.volume(finalVolume, soundId);
+    if (fadeInMs && fadeInMs > 0) {
+      sound.volume(0, soundId);
+      sound.fade(0, finalVolume, fadeInMs, soundId);
+    } else {
+      sound.volume(finalVolume, soundId);
+    }
 
     if (loop !== undefined) sound.loop(loop, soundId);
     if (pitch !== undefined) sound.rate(pitch, soundId);
@@ -303,6 +320,32 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
 
     Howler.stop();
     this.activeSoundIds.clear();
+  }
+
+  public fadeOutAndStop(id: T, soundId: number, durationMs: number) {
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.activeSoundIds.delete(soundId);
+      return;
+    }
+
+    if (durationMs <= 0) {
+      sound.stop(soundId);
+      this.activeSoundIds.delete(soundId);
+      return;
+    }
+
+    const config = this.manifest[id];
+    const category = this.getCategory(id);
+    const fromVolume =
+      (config?.volume ?? 1) *
+      getEffectiveAudioVolume(this.audioSettings, category);
+
+    sound.fade(fromVolume, 0, durationMs, soundId);
+    globalThis.setTimeout(() => {
+      sound.stop(soundId);
+      this.activeSoundIds.delete(soundId);
+    }, durationMs);
   }
 
   public volume(vol: number, id?: T, soundId?: number) {

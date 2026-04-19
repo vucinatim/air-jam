@@ -7,7 +7,15 @@
  * `drawFrame`. Match lifecycle (lobby/playing/ended) is replicated through
  * the networked `useGameStore`.
  */
-import { useAirJamHost, useHostRuntimeStateBridge } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  MusicPlaylist,
+  useAirJamHost,
+  useAudio,
+  useAudioRuntimeControls,
+  useAudioRuntimeStatus,
+  useHostRuntimeStateBridge,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
@@ -53,6 +61,12 @@ import type {
 } from "../game/engine/types";
 import { gameInputSchema } from "../game/input";
 import { MATCH_POINTS_TO_WIN } from "../game/match-config";
+import {
+  CODE_REVIEW_MUSIC_TRACKS,
+  CODE_REVIEW_SOUND_MANIFEST,
+  type CodeReviewSfxId,
+  type CodeReviewSoundId,
+} from "../game/sounds";
 import { useGameStore } from "../game/stores";
 import defendSprite from "/sprites/defend.png";
 import endSprite from "/sprites/end.png";
@@ -62,6 +76,14 @@ import rightExtendedSprite from "/sprites/right-extended.png";
 import rightShortSprite from "/sprites/right-short.png";
 
 export function HostView() {
+  return (
+    <AudioRuntime manifest={CODE_REVIEW_SOUND_MANIFEST}>
+      <CodeReviewHostScreen />
+    </AudioRuntime>
+  );
+}
+
+function CodeReviewHostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -103,12 +125,19 @@ export function HostView() {
   }));
   const [audioMuted, setAudioMuted] = useState(false);
   const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
-  const crowdAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audio = useAudio<CodeReviewSoundId>();
+  const audioRuntimeStatus = useAudioRuntimeStatus();
+  const audioRuntimeControls = useAudioRuntimeControls();
   const audioMutedRef = useRef(false);
 
   useEffect(() => {
     audioMutedRef.current = audioMuted;
-  }, [audioMuted]);
+    audio.mute(audioMuted);
+  }, [audio, audioMuted]);
+
+  useEffect(() => {
+    void audioRuntimeControls.retry();
+  }, [audioRuntimeControls]);
 
   const copyPlayerId = async (playerId: string): Promise<void> => {
     try {
@@ -312,73 +341,36 @@ export function HostView() {
     }
   }, []);
 
-  // Loop crowd ambience with a first-interaction fallback for autoplay policies.
-  useEffect(() => {
-    const crowdAudio = new Audio("/sounds/crowd.mp3");
-    crowdAudioRef.current = crowdAudio;
-    crowdAudio.loop = true;
-    crowdAudio.volume = audioMutedRef.current ? 0 : 0.28;
-
-    const startAudio = () => {
-      void crowdAudio.play().catch(() => {
-        // Browser blocked autoplay; user interaction handlers stay active.
-      });
-    };
-
-    const startOnInteraction = () => {
-      startAudio();
-      window.removeEventListener("pointerdown", startOnInteraction);
-      window.removeEventListener("keydown", startOnInteraction);
-    };
-
-    startAudio();
-    window.addEventListener("pointerdown", startOnInteraction, { once: true });
-    window.addEventListener("keydown", startOnInteraction, { once: true });
-
-    return () => {
-      window.removeEventListener("pointerdown", startOnInteraction);
-      window.removeEventListener("keydown", startOnInteraction);
-      crowdAudio.pause();
-      crowdAudio.currentTime = 0;
-      if (crowdAudioRef.current === crowdAudio) {
-        crowdAudioRef.current = null;
+  const playSfx = useCallback(
+    (key: CodeReviewSfxId) => {
+      if (audioMutedRef.current) {
+        return;
       }
-    };
-  }, []);
+      audio.play(key);
+    },
+    [audio],
+  );
 
+  /** Fire-and-forget a one-shot sound. */
+  const playSfxRef = useRef(playSfx);
   useEffect(() => {
-    const crowdAudio = crowdAudioRef.current;
-    if (!crowdAudio) return;
-    crowdAudio.volume = audioMuted ? 0 : 0.28;
-  }, [audioMuted]);
+    playSfxRef.current = playSfx;
+  }, [playSfx]);
 
-  // Pre-load one-shot sound effects
-  const sfxRef = useRef({
-    bell: new Audio("/sounds/bell.mp3"),
-    hit1: new Audio("/sounds/hit1.mp3"),
-    hit2: new Audio("/sounds/hit2.mp3"),
-    missed: new Audio("/sounds/missed.mp3"),
-  });
-
-  /** Fire-and-forget a one-shot sound, rewinding if already playing. */
-  const playSfx = useRef((key: keyof typeof sfxRef.current) => {
+  const playSfxFromRef = useCallback((key: CodeReviewSfxId) => {
     if (audioMutedRef.current) {
       return;
     }
-    const audio = sfxRef.current[key];
-    audio.currentTime = 0;
-    void audio.play().catch(() => {
-      // Autoplay blocked — ignored for SFX.
-    });
-  });
+    playSfxRef.current(key);
+  }, []);
 
   const prevMatchPhaseRef = useRef(matchPhase);
   useEffect(() => {
     if (prevMatchPhaseRef.current !== "playing" && matchPhase === "playing") {
-      playSfx.current("bell");
+      playSfx("bell");
     }
     prevMatchPhaseRef.current = matchPhase;
-  }, [matchPhase]);
+  }, [matchPhase, playSfx]);
 
   const gameStateRef = useRef(createRuntimePlayerState());
   const hpRef = useRef<HpState>(createHpState());
@@ -430,9 +422,9 @@ export function HostView() {
           dt,
           timestamp,
           getInput: (controllerId) => host.getInput(controllerId),
-          onMiss: () => playSfx.current("missed"),
-          onHit: () => playSfx.current(Math.random() > 0.5 ? "hit1" : "hit2"),
-          onBell: () => playSfx.current("bell"),
+          onMiss: () => playSfxFromRef("missed"),
+          onHit: () => playSfxFromRef(Math.random() > 0.5 ? "hit1" : "hit2"),
+          onBell: () => playSfxFromRef("bell"),
           onScore: (team) => actions.scorePoint({ team }),
           onHeavyHit: (controllerId) => {
             host.sendSignal("HAPTIC", { pattern: "heavy" }, controllerId);
@@ -464,11 +456,17 @@ export function HostView() {
     host,
     matchPhase,
     participantBySlot,
+    playSfxFromRef,
     slotParticipants,
   ]);
 
   return (
     <div className="host-view-shell">
+      <MusicPlaylist
+        fadeMs={800}
+        playing={audioRuntimeStatus === "ready" && !audioMuted}
+        tracks={CODE_REVIEW_MUSIC_TRACKS}
+      />
       <SurfaceViewport
         preset="host-standard"
         className="bg-(--ring-mat-color,#e5e7eb)"

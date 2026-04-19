@@ -8,7 +8,8 @@ import {
 import { type ActiveRound, type RoundReveal } from "@/store/types";
 import { type GamePhase } from "@/types";
 import { clampNumber } from "@/utils/math-utils";
-import { useEffect, useRef, useState } from "react";
+import { useMusicVolume } from "@air-jam/sdk";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   parseYouTubeMessageData,
   sendYouTubeCommand,
@@ -44,6 +45,12 @@ export const useYouTubePlayer = ({
   const lastYouTubeVolumeRef = useRef<number | null>(null);
   const skippedRoundNumberRef = useRef<number | null>(null);
   const [loadedEmbedUrl, setLoadedEmbedUrl] = useState<string | null>(null);
+  const musicVolume = useMusicVolume();
+  const getYouTubeMusicVolume = useCallback(
+    (volume: number) =>
+      Math.round(clampNumber(volume * musicVolume, 0, YOUTUBE_MAX_VOLUME)),
+    [musicVolume],
+  );
 
   // Reset skipped round tracker when leaving round-active
   useEffect(() => {
@@ -67,13 +74,14 @@ export const useYouTubePlayer = ({
         return;
       }
       sendYouTubeCommand(youtubePlayerRef.current, "unMute");
-      setYouTubeVolume(youtubePlayerRef.current, YOUTUBE_MAX_VOLUME);
-      lastYouTubeVolumeRef.current = YOUTUBE_MAX_VOLUME;
+      const nextVolume = getYouTubeMusicVolume(YOUTUBE_MAX_VOLUME);
+      setYouTubeVolume(youtubePlayerRef.current, nextVolume);
+      lastYouTubeVolumeRef.current = nextVolume;
     };
 
     const timerId = window.setTimeout(applyActiveMix, 80);
     return () => window.clearTimeout(timerId);
-  }, [phase, embedUrl, loadedEmbedUrl, muted]);
+  }, [phase, embedUrl, getYouTubeMusicVolume, loadedEmbedUrl, muted]);
 
   // Reveal mix: fade volume down during round-reveal
   useEffect(() => {
@@ -104,7 +112,7 @@ export const useYouTubePlayer = ({
         1,
       );
       const targetVolume = REVEAL_START_VOLUME * (1 - fadeProgress);
-      const nextVolume = Math.round(targetVolume);
+      const nextVolume = getYouTubeMusicVolume(targetVolume);
 
       if (lastYouTubeVolumeRef.current !== nextVolume) {
         setYouTubeVolume(youtubePlayerRef.current, nextVolume);
@@ -129,7 +137,7 @@ export const useYouTubePlayer = ({
       window.clearInterval(intervalId);
       window.clearTimeout(pauseId);
     };
-  }, [phase, roundReveal, revealDurationSec, muted]);
+  }, [phase, roundReveal, revealDurationSec, muted, getYouTubeMusicVolume]);
 
   // Mute during lobby/game-over or when host toggle is muted
   useEffect(() => {
