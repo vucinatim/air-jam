@@ -77,12 +77,25 @@ export function applyPendingShipRespawn(
   }
 
   const [x, y, z] = runtime.pendingRespawnPosition;
+  rigidBody.setEnabled(true);
   rigidBody.setTranslation({ x, y, z }, true);
   rigidBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
   rigidBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
   resetShipRuntimeMotion(runtime);
   runtime.pendingRespawnPosition = null;
   return true;
+}
+
+export function setShipPhysicsActive(
+  rigidBody: RapierRigidBody,
+  active: boolean,
+) {
+  if (!active) {
+    rigidBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    rigidBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
+  }
+
+  rigidBody.setEnabled(active);
 }
 
 export function readShipPhysicsSnapshot(

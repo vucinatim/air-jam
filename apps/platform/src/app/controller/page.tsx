@@ -14,9 +14,11 @@ import type { ControllerPageSurfaceMode } from "./controller-page-layout";
 
 function ControllerPageInner({
   routeRoomId,
+  routeControllerCapabilityToken,
   surfaceMode,
 }: {
   routeRoomId: string | null;
+  routeControllerCapabilityToken: string | null;
   surfaceMode: ControllerPageSurfaceMode;
 }) {
   const localProfile = useSyncExternalStore(
@@ -30,11 +32,13 @@ function ControllerPageInner({
       <AirJamControllerRuntime
         {...platformControllerSessionConfig}
         roomId={routeRoomId ?? undefined}
+        capabilityToken={routeControllerCapabilityToken}
         nickname={localProfile.label}
         avatarId={localProfile.avatarId}
       >
         <ControllerPageContent
           routeRoomId={routeRoomId}
+          hasControllerCapability={Boolean(routeControllerCapabilityToken)}
           surfaceMode={surfaceMode}
         />
       </AirJamControllerRuntime>
@@ -45,6 +49,7 @@ function ControllerPageInner({
 function ControllerRoomKeyedInner() {
   const searchParams = useSearchParams();
   const roomKey = searchParams.get("room");
+  const controllerCapabilityToken = searchParams.get("aj_controller_cap");
   const routeRoomId = useMemo(() => {
     if (!roomKey) {
       return null;
@@ -64,8 +69,9 @@ function ControllerRoomKeyedInner() {
 
   return (
     <ControllerPageInner
-      key={`${surfaceMode}:${routeRoomId ?? ""}`}
+      key={`${surfaceMode}:${routeRoomId ?? ""}:${controllerCapabilityToken ?? ""}`}
       routeRoomId={routeRoomId}
+      routeControllerCapabilityToken={controllerCapabilityToken}
       surfaceMode={surfaceMode}
     />
   );

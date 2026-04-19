@@ -16,11 +16,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface ControllerFullscreenPromptProps {
   roomId: string | null;
   documentFullscreen: boolean;
+  portalContainer?: HTMLElement | null;
 }
 
 export function ControllerFullscreenPrompt({
   roomId,
   documentFullscreen,
+  portalContainer,
 }: ControllerFullscreenPromptProps) {
   const [open, setOpen] = useState(false);
   const acknowledgedRef = useRef(false);
@@ -58,6 +60,7 @@ export function ControllerFullscreenPrompt({
       <DialogContent
         className="sm:max-w-sm"
         showCloseButton={false}
+        portalContainer={portalContainer}
         data-testid="controller-fullscreen-prompt"
       >
         <DialogHeader>

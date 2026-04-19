@@ -7,6 +7,7 @@ import {
   createShipRuntimeState,
   readShipPhysicsSnapshot,
   resetShipRuntimeMotion,
+  setShipPhysicsActive,
   shipPositions,
   shipRotations,
   updateTrackedShipPose,
@@ -42,6 +43,9 @@ describe("air-capture ship runtime helpers", () => {
 
     const calls: Array<[string, unknown]> = [];
     const rigidBody = {
+      setEnabled(value: unknown) {
+        calls.push(["setEnabled", value]);
+      },
       setTranslation(value: unknown) {
         calls.push(["setTranslation", value]);
       },
@@ -57,6 +61,7 @@ describe("air-capture ship runtime helpers", () => {
 
     expect(applied).toBe(true);
     expect(calls).toEqual([
+      ["setEnabled", true],
       ["setTranslation", { x: 4, y: 5, z: 6 }],
       ["setLinvel", { x: 0, y: 0, z: 0 }],
       ["setAngvel", { x: 0, y: 0, z: 0 }],
@@ -65,6 +70,31 @@ describe("air-capture ship runtime helpers", () => {
     expect(runtime.velocity.toArray()).toEqual([0, 0, 0]);
     expect(runtime.angularVelocity).toBe(0);
     expect(runtime.pitchAngularVelocity).toBe(0);
+  });
+
+  it("disables ship physics without tearing down the Rapier body", () => {
+    const calls: Array<[string, unknown]> = [];
+    const rigidBody = {
+      setLinvel(value: unknown) {
+        calls.push(["setLinvel", value]);
+      },
+      setAngvel(value: unknown) {
+        calls.push(["setAngvel", value]);
+      },
+      setEnabled(value: unknown) {
+        calls.push(["setEnabled", value]);
+      },
+    };
+
+    setShipPhysicsActive(rigidBody as never, false);
+    setShipPhysicsActive(rigidBody as never, true);
+
+    expect(calls).toEqual([
+      ["setLinvel", { x: 0, y: 0, z: 0 }],
+      ["setAngvel", { x: 0, y: 0, z: 0 }],
+      ["setEnabled", false],
+      ["setEnabled", true],
+    ]);
   });
 
   it("reads and applies physics through one adapter seam", () => {

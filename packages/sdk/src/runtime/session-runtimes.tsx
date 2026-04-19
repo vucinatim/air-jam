@@ -57,10 +57,17 @@ const ControllerRuntimeOwner = ({
   nickname,
   avatarId,
   controllerId,
+  capabilityToken,
   onState,
 }: Pick<
   AirJamControllerRuntimeProps,
-  "children" | "roomId" | "nickname" | "avatarId" | "controllerId" | "onState"
+  | "children"
+  | "roomId"
+  | "nickname"
+  | "avatarId"
+  | "controllerId"
+  | "capabilityToken"
+  | "onState"
 >): JSX.Element => {
   const runtime = useControllerRuntimeApi(
     {
@@ -68,6 +75,7 @@ const ControllerRuntimeOwner = ({
       nickname,
       avatarId,
       controllerId,
+      capabilityToken,
       onState,
     },
     "AirJamControllerRuntime",
@@ -108,6 +116,7 @@ export const AirJamControllerRuntime = ({
   nickname,
   avatarId,
   controllerId,
+  capabilityToken,
   onState,
   ...providerProps
 }: AirJamControllerRuntimeProps): JSX.Element => {
@@ -119,6 +128,7 @@ export const AirJamControllerRuntime = ({
           nickname={nickname}
           avatarId={avatarId}
           controllerId={controllerId}
+          capabilityToken={capabilityToken}
           onState={onState}
         >
           {children}

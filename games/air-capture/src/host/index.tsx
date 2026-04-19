@@ -96,6 +96,7 @@ const GameplayStage = memo(function GameplayStage({
   lastError,
   matchPhase,
   countdownRemainingSeconds,
+  hidden = false,
 }: {
   sceneMode: "match" | "spectator";
   scenePaused: boolean;
@@ -106,6 +107,7 @@ const GameplayStage = memo(function GameplayStage({
   lastError?: string;
   matchPhase: string;
   countdownRemainingSeconds: number;
+  hidden?: boolean;
 }) {
   const [cameras, setCameras] = useState<
     Array<{
@@ -118,7 +120,12 @@ const GameplayStage = memo(function GameplayStage({
   );
 
   return (
-    <div className="absolute inset-0 transition-all duration-300">
+    <div
+      className={`absolute inset-0 transition-all duration-300 ${
+        hidden ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
+      aria-hidden={hidden}
+    >
       <Suspense fallback={<GameplayFallback />}>
         <GameScene
           mode={sceneMode}
@@ -394,14 +401,23 @@ const HostViewContent = ({
   }, [setAudioMuted]);
 
   const showBackdrop = matchPhase === "lobby" || matchPhase === "ended";
+  const activeScenePhase =
+    matchPhase === "countdown" || matchPhase === "playing";
+  const [sceneHasMounted, setSceneHasMounted] = useState(activeScenePhase);
+
+  useEffect(() => {
+    if (activeScenePhase) {
+      setSceneHasMounted(true);
+    }
+  }, [activeScenePhase]);
+
+  const shouldRenderGameplayStage = activeScenePhase || sceneHasMounted;
 
   return (
     <>
       <SurfaceViewport preset="host-standard" className="bg-background">
         <div className="bg-background relative h-full w-full overflow-hidden">
-          {showBackdrop ? (
-            <StageBackdrop />
-          ) : (
+          {shouldRenderGameplayStage ? (
             <GameplayStage
               sceneMode={sceneMode}
               scenePaused={scenePaused}
@@ -412,8 +428,11 @@ const HostViewContent = ({
               lastError={lastError}
               matchPhase={matchPhase}
               countdownRemainingSeconds={countdownRemainingSeconds}
+              hidden={showBackdrop}
             />
-          )}
+          ) : null}
+
+          {showBackdrop ? <StageBackdrop /> : null}
 
           {showBackdrop ? (
             <>

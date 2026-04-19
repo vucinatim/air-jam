@@ -9,7 +9,7 @@ import type {
   PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import type { CSSProperties, RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { ControllerGameFrame } from "./controller-game-frame";
 import { ControllerIdleSurface } from "./controller-idle-surface";
 
@@ -22,8 +22,8 @@ interface ControllerPageLayoutProps {
   activeUrl: string | null;
   controller: AirJamControllerApi;
   emitArcadeAction: (action: string, payload?: Record<string, unknown>) => void;
+  hasControllerCapability: boolean;
   controllerOrientation: ControllerOrientation;
-  chromeInsetStyle?: CSSProperties;
   iframeRef: RefObject<HTMLIFrameElement | null>;
   controllerIframeSrc: string | null;
   controllerIframePending: boolean;
@@ -51,8 +51,8 @@ export function ControllerPageLayout({
   activeUrl,
   controller,
   emitArcadeAction,
+  hasControllerCapability,
   controllerOrientation,
-  chromeInsetStyle,
   iframeRef,
   controllerIframeSrc,
   controllerIframePending,
@@ -69,7 +69,12 @@ export function ControllerPageLayout({
   onPing,
 }: ControllerPageLayoutProps) {
   const isPreview = surfaceMode === "preview";
-  const mainInsetStyle = isPreview ? undefined : chromeInsetStyle;
+  const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const controllerSurfaceOrientation: ControllerOrientation = activeUrl
+    ? controllerOrientation
+    : "portrait";
 
   const layout = (
     <div
@@ -83,6 +88,7 @@ export function ControllerPageLayout({
           <ControllerFullscreenPrompt
             roomId={routeRoomId}
             documentFullscreen={documentFullscreen}
+            portalContainer={portalContainer}
           />
         ) : null}
 
@@ -91,8 +97,9 @@ export function ControllerPageLayout({
           activeUrl={activeUrl}
           controller={controller}
           emitArcadeAction={emitArcadeAction}
-          controllerOrientation={controllerOrientation}
+          hasControllerCapability={hasControllerCapability}
           documentFullscreen={documentFullscreen}
+          dialogPortalContainer={portalContainer}
           hostQrVisible={hostQrVisible}
           hapticsEnabled={hapticsEnabled}
           reducedMotion={reducedMotion}
@@ -107,7 +114,6 @@ export function ControllerPageLayout({
           "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden",
           !isPreview && "sm:p-4",
         )}
-        style={mainInsetStyle}
       >
         {activeUrl ? (
           <ControllerGameFrame
@@ -115,7 +121,6 @@ export function ControllerPageLayout({
             controllerIframeSrc={controllerIframeSrc}
             controllerIframePending={controllerIframePending}
             controllerIframeFailed={controllerIframeFailed}
-            chromeInsetStyle={mainInsetStyle}
           />
         ) : (
           <ControllerIdleSurface
@@ -131,28 +136,28 @@ export function ControllerPageLayout({
     </div>
   );
 
+  const framedLayout = (
+    <SurfaceViewport
+      orientation={controllerSurfaceOrientation}
+      lockOnGesture={!isPreview}
+      contentClassName="h-full w-full bg-black"
+    >
+      <div
+        ref={setPortalContainer}
+        className="relative h-full w-full overflow-hidden bg-black"
+      >
+        {layout}
+      </div>
+    </SurfaceViewport>
+  );
+
   if (isPreview) {
     return (
-      <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-black">
-        {layout}
+      <div className="dark relative flex h-dvh w-dvw flex-col overflow-hidden bg-black">
+        {framedLayout}
       </div>
     );
   }
 
-  return (
-    <div className="dark">
-      {!activeUrl ? (
-        <SurfaceViewport
-          orientation="portrait"
-          contentClassName="h-full w-full bg-black"
-        >
-          {layout}
-        </SurfaceViewport>
-      ) : (
-        <div className="relative flex h-dvh w-dvw flex-col bg-black">
-          {layout}
-        </div>
-      )}
-    </div>
-  );
+  return <div className="dark">{framedLayout}</div>;
 }

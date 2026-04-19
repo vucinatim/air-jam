@@ -40,6 +40,7 @@ export function collectProjectileRuntimeTargets(
 
     if (
       object.userData?.gameplayHitbox === true &&
+      object.userData?.active !== false &&
       object.userData?.controllerId &&
       object.userData.controllerId !== excludedControllerId
     ) {
@@ -80,16 +81,18 @@ export function forEachControllerRigidBody(
   }
 
   world.bodies.forEach((body) => {
-    const controllerId = readControllerId(body.userData);
-    if (!controllerId) {
+    const controller = readControllerRuntimeMetadata(body.userData);
+    if (!controller || controller.active === false) {
       return;
     }
 
-    visitor({ body, controllerId });
+    visitor({ body, controllerId: controller.controllerId });
   });
 }
 
-function readControllerId(userData: unknown): string | null {
+function readControllerRuntimeMetadata(
+  userData: unknown,
+): { controllerId: string; active: boolean } | null {
   if (!userData || typeof userData !== "object") {
     return null;
   }
@@ -99,5 +102,10 @@ function readControllerId(userData: unknown): string | null {
   }
 
   const controllerId = (userData as { controllerId?: unknown }).controllerId;
-  return typeof controllerId === "string" ? controllerId : null;
+  if (typeof controllerId !== "string") {
+    return null;
+  }
+
+  const active = (userData as { active?: unknown }).active;
+  return { controllerId, active: active !== false };
 }

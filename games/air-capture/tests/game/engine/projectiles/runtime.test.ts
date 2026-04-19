@@ -41,6 +41,21 @@ describe("air-capture projectile runtime helpers", () => {
     expect(targets.ships).toEqual([target]);
   });
 
+  it("ignores inactive ship hitboxes", () => {
+    const scene = new Object3D();
+
+    const inactiveTarget = new Object3D();
+    inactiveTarget.userData.controllerId = "pilot-2";
+    inactiveTarget.userData.gameplayHitbox = true;
+    inactiveTarget.userData.active = false;
+
+    scene.add(inactiveTarget);
+
+    const targets = collectProjectileRuntimeTargets(scene, "pilot-1");
+
+    expect(targets.ships).toEqual([]);
+  });
+
   it("finds a rigid body by controller id", () => {
     const world = {
       bodies: {
@@ -73,5 +88,26 @@ describe("air-capture projectile runtime helpers", () => {
     });
 
     expect(visited).toEqual(["pilot-1", "pilot-2"]);
+  });
+
+  it("skips inactive controller bodies", () => {
+    const visited: string[] = [];
+    const world = {
+      bodies: {
+        forEach(callback: (body: ControllerTaggedRigidBody) => void) {
+          callback(createBody("pilot-1"));
+          callback({
+            ...createBody("pilot-2"),
+            userData: { controllerId: "pilot-2", active: false },
+          });
+        },
+      },
+    };
+
+    forEachControllerRigidBody(world, ({ controllerId }) => {
+      visited.push(controllerId);
+    });
+
+    expect(visited).toEqual(["pilot-1"]);
   });
 });

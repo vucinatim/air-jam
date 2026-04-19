@@ -79,6 +79,11 @@ export interface AirJamControllerOptions {
    */
   controllerId?: string;
   /**
+   * Optional privileged controller capability token.
+   * Undefined falls back to `aj_controller_cap` from the URL; null explicitly disables URL token use.
+   */
+  capabilityToken?: string | null;
+  /**
    * Called when the host sends a state update (game state, messages, etc.)
    */
   onState?: (state: ControllerStatePayload) => void;

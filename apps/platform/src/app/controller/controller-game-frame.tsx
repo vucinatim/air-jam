@@ -1,13 +1,12 @@
 "use client";
 
-import type { CSSProperties, RefObject } from "react";
+import type { RefObject } from "react";
 
 interface ControllerGameFrameProps {
   iframeRef: RefObject<HTMLIFrameElement | null>;
   controllerIframeSrc: string | null;
   controllerIframePending: boolean;
   controllerIframeFailed: boolean;
-  chromeInsetStyle?: CSSProperties;
 }
 
 export function ControllerGameFrame({
@@ -15,13 +14,9 @@ export function ControllerGameFrame({
   controllerIframeSrc,
   controllerIframePending,
   controllerIframeFailed,
-  chromeInsetStyle,
 }: ControllerGameFrameProps) {
   return (
-    <div
-      className="bg-background absolute inset-0 z-20"
-      style={chromeInsetStyle}
-    >
+    <div className="bg-background absolute inset-0 z-20">
       {controllerIframePending ? (
         <div className="flex h-full items-center justify-center px-6 text-center">
           <p className="text-muted-foreground text-sm">

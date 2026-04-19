@@ -64,6 +64,23 @@ describe("room session domain lifecycle", () => {
     });
   });
 
+  it("resets stale runtime state when starting a new game launch", () => {
+    const session = createSession();
+    session.runtimeState = "playing";
+    session.controllerOrientation = "landscape";
+
+    const launchAttempt = beginGameLaunch(
+      session,
+      issueChildHostCapability("token-1"),
+      "g1",
+    );
+
+    expect(launchAttempt).toEqual({ ok: true });
+    expect(session.lifecycleState).toBe("GAME_LAUNCH_PENDING");
+    expect(session.runtimeState).toBe("paused");
+    expect(session.controllerOrientation).toBe("portrait");
+  });
+
   it("resets game and routing fields when returning to system state", () => {
     const session = createSession();
     beginGameLaunch(session, issueChildHostCapability("token-1"), "g1");

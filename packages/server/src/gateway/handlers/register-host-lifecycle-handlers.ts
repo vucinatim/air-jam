@@ -926,6 +926,7 @@ export const registerHostLifecycleHandlers = (
         });
         return;
       }
+      const launchStatePayload = emitRoomState(io, roomId, session);
 
       logHostEvent(
         "info",
@@ -935,6 +936,7 @@ export const registerHostLifecycleHandlers = (
           roomId,
           gameId,
           reused: false,
+          stateVersion: launchStatePayload.state.stateVersion,
         },
       );
       runtimeUsagePublisher.publish(
@@ -1392,14 +1394,17 @@ export const registerHostLifecycleHandlers = (
     beginRoomClosing(session);
     disconnectChildHostIfPresent(io, session);
     transitionToSystemFocus(io, session, {
+      resetGameState: true,
       resyncPlayersToMaster: true,
     });
+    const resetStatePayload = emitRoomState(io, roomId, session);
     logHostEvent(
       "info",
       AIRJAM_DEV_LOG_EVENTS.system.closeGameAccepted,
       "Closed active game and returned room to system focus",
       {
         roomId,
+        stateVersion: resetStatePayload.state.stateVersion,
       },
     );
     runtimeUsagePublisher.publish(

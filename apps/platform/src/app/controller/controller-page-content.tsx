@@ -17,12 +17,7 @@ import {
 } from "@air-jam/sdk";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
-import {
-  useCallback,
-  useRef,
-  useSyncExternalStore,
-  type CSSProperties,
-} from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import {
   ControllerPageLayout,
   type ControllerPageSurfaceMode,
@@ -31,11 +26,13 @@ import { useControllerEmbeddedGameFrame } from "./use-controller-embedded-game-f
 
 interface ControllerPageContentProps {
   routeRoomId: string | null;
+  hasControllerCapability: boolean;
   surfaceMode: ControllerPageSurfaceMode;
 }
 
 export function ControllerPageContent({
   routeRoomId,
+  hasControllerCapability,
   surfaceMode,
 }: ControllerPageContentProps) {
   const documentFullscreen = useDocumentFullscreen();
@@ -139,13 +136,6 @@ export function ControllerPageContent({
     emitArcadeAction(airJamArcadePlatformActions.ping);
   }, [emitArcadeAction, feedback.hapticsEnabled]);
 
-  const controllerChromeInsetStyle: CSSProperties | undefined =
-    !documentFullscreen
-      ? activeUrl && controllerPresentationOrientation === "landscape"
-        ? { paddingRight: "env(safe-area-inset-right)" }
-        : { paddingTop: "env(safe-area-inset-top)" }
-      : undefined;
-
   return (
     <ControllerPageLayout
       surfaceMode={surfaceMode}
@@ -154,8 +144,8 @@ export function ControllerPageContent({
       activeUrl={activeUrl}
       controller={controller}
       emitArcadeAction={emitArcadeAction}
+      hasControllerCapability={hasControllerCapability}
       controllerOrientation={controllerPresentationOrientation}
-      chromeInsetStyle={controllerChromeInsetStyle}
       iframeRef={iframeRef}
       controllerIframeSrc={controllerIframeSrc}
       controllerIframePending={controllerIframePending}

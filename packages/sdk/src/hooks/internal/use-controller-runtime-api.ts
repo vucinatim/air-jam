@@ -110,10 +110,14 @@ export const useControllerRuntimeApi = (
     [],
   );
   const urlRoomId = useMemo(() => getRoomFromLocation(), []);
-  const capabilityToken = useMemo(
+  const locationCapabilityToken = useMemo(
     () => getControllerCapabilityTokenFromLocation(),
     [],
   );
+  const capabilityToken =
+    options.capabilityToken === undefined
+      ? locationCapabilityToken
+      : options.capabilityToken;
   const previewDeviceId = useMemo(
     () => readPreviewControllerDeviceIdFromLocation(),
     [],

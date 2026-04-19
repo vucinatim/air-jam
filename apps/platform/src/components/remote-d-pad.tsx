@@ -25,7 +25,8 @@ interface RemoteDPadProps {
 }
 
 const remoteDPadSizeStyle: CSSProperties = {
-  width: "clamp(9rem, min(20rem, 82dvw, calc(72dvh - 12.96rem)), 20rem)",
+  width:
+    "clamp(13rem, min(20rem, calc(var(--airjam-reference-width, 100dvw) * 0.82), calc(var(--airjam-reference-height, 100dvh) * 0.42)), 20rem)",
   maxWidth: "100%",
 };
 
@@ -302,7 +303,8 @@ export const RemoteDPad = ({
         style={{
           width: `${((centerBtnRadius * 2) / size) * 100}%`,
           height: `${((centerBtnRadius * 2) / size) * 100}%`,
-          borderWidth: "clamp(2px, 1.1dvw, 4px)",
+          borderWidth:
+            "clamp(2px, calc(var(--airjam-reference-width, 100dvw) * 0.011), 4px)",
         }}
         onMouseDown={() => handleConfirm(true)}
         onMouseUp={() => handleConfirm(false)}

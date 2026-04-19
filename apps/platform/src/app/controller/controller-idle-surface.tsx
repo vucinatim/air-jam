@@ -4,6 +4,7 @@ import { RemoteDPad } from "@/components/remote-d-pad";
 import { Button } from "@/components/ui/button";
 import type { AirJamControllerApi } from "@air-jam/sdk";
 import { BellRing, CornerDownLeft } from "lucide-react";
+import type { CSSProperties } from "react";
 
 interface ControllerIdleSurfaceProps {
   controller: AirJamControllerApi;
@@ -14,6 +15,24 @@ interface ControllerIdleSurfaceProps {
   onPing: () => void;
 }
 
+const idleSurfaceStyle: CSSProperties = {
+  gap: "clamp(0.75rem, calc(var(--airjam-reference-height, 100dvh) * 0.025), 2rem)",
+  paddingTop:
+    "clamp(5rem, calc(var(--airjam-reference-height, 100dvh) * 0.12), 6rem)",
+  paddingBottom:
+    "clamp(1rem, calc(var(--airjam-reference-height, 100dvh) * 0.04), 3rem)",
+};
+
+const titleStyle: CSSProperties = {
+  fontSize:
+    "clamp(1.875rem, calc(var(--airjam-reference-width, 100dvw) * 0.08), 2.25rem)",
+};
+
+const subtitleStyle: CSSProperties = {
+  fontSize:
+    "clamp(1.25rem, calc(var(--airjam-reference-width, 100dvw) * 0.055), 1.5rem)",
+};
+
 export function ControllerIdleSurface({
   controller,
   hapticsEnabled,
@@ -23,12 +42,21 @@ export function ControllerIdleSurface({
   onPing,
 }: ControllerIdleSurfaceProps) {
   return (
-    <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-between gap-[clamp(0.75rem,2.5dvh,2rem)] overflow-hidden px-4 pt-[clamp(5rem,12dvh,6rem)] pb-[clamp(1rem,4dvh,3rem)]">
+    <div
+      className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-between overflow-hidden px-4"
+      style={idleSurfaceStyle}
+    >
       <div className="shrink-0 text-center opacity-30">
-        <h1 className="text-[clamp(1.875rem,8vw,2.25rem)] leading-none font-black tracking-tighter uppercase select-none">
+        <h1
+          className="leading-none font-black tracking-tighter uppercase select-none"
+          style={titleStyle}
+        >
           Air Jam
         </h1>
-        <p className="text-primary text-[clamp(1.25rem,5.5vw,1.5rem)] leading-tight font-black tracking-wider uppercase">
+        <p
+          className="text-primary leading-tight font-black tracking-wider uppercase"
+          style={subtitleStyle}
+        >
           Arcade
         </p>
       </div>

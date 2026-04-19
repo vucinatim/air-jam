@@ -3,10 +3,11 @@ import {
   RigidBody,
   type RapierRigidBody,
 } from "@react-three/rapier";
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { MeshBasicMaterial, SphereGeometry, type Group } from "three";
 
 import { getAbilityVisual, useAbilitiesStore } from "../../abilities-store";
+import { setShipPhysicsActive } from "../../engine/ships/runtime";
 import { useShipRuntime } from "../../engine/ships/use-ship-runtime";
 import { AirCaptureShipVisual } from "../../prefabs/ship";
 import { useDebugStore } from "../../stores/debug/debug-store";
@@ -77,31 +78,41 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     setExplosionPosition,
   });
 
+  useEffect(() => {
+    const rigidBody = rigidBodyRef.current;
+    if (!rigidBody) {
+      return;
+    }
+
+    setShipPhysicsActive(rigidBody, !isDead);
+  }, [isDead]);
+
   return (
     <>
-      {!isDead && (
-        <RigidBody
-          ref={rigidBodyRef}
-          type="dynamic"
-          position={initialPosition}
-          lockRotations
-          linearDamping={0.5}
-          colliders={false}
-          userData={{ controllerId }}
-        >
-          <CapsuleCollider
-            args={[
-              SHIP_PHYSICS_COLLIDER_HALF_HEIGHT,
-              SHIP_PHYSICS_COLLIDER_RADIUS,
-            ]}
-            position={SHIP_COLLIDER_CENTER_OFFSET}
-          />
+      <RigidBody
+        ref={rigidBodyRef}
+        type="dynamic"
+        position={initialPosition}
+        lockRotations
+        linearDamping={0.5}
+        colliders={false}
+        userData={{ controllerId, active: !isDead }}
+      >
+        <CapsuleCollider
+          args={[
+            SHIP_PHYSICS_COLLIDER_HALF_HEIGHT,
+            SHIP_PHYSICS_COLLIDER_RADIUS,
+          ]}
+          position={SHIP_COLLIDER_CENTER_OFFSET}
+        />
+        <group visible={!isDead}>
           <mesh
             geometry={gameplayHitboxGeometry}
             material={gameplayHitboxMaterial}
             position={SHIP_COLLIDER_CENTER_OFFSET}
             userData={{
               controllerId,
+              active: !isDead,
               gameplayHitbox: true,
               type: "ship-hitbox",
             }}
@@ -113,8 +124,8 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
             abilityVisual={abilityVisual}
             planeGroupRef={planeGroupRef}
           />
-        </RigidBody>
-      )}
+        </group>
+      </RigidBody>
       {explosionPosition && (
         <ShipExplosion
           position={explosionPosition}
