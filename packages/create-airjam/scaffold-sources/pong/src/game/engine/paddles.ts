@@ -88,6 +88,7 @@ export const applyHumanPaddleInput = (
   players: RuntimePlayer[],
   teamAssignments: Record<string, TeamAssignment>,
   getInput: (playerId: string) => { direction?: number } | undefined,
+  deltaSeconds: number,
 ): void => {
   players.forEach((player) => {
     const assignment = teamAssignments[player.id];
@@ -100,11 +101,11 @@ export const applyHumanPaddleInput = (
     if (assignment.team === "team1") {
       if (assignment.position === "front") {
         state.paddle1FrontY = clampPaddleY(
-          state.paddle1FrontY + direction * PADDLE_SPEED,
+          state.paddle1FrontY + direction * PADDLE_SPEED * deltaSeconds,
         );
       } else {
         state.paddle1BackY = clampPaddleY(
-          state.paddle1BackY + direction * PADDLE_SPEED,
+          state.paddle1BackY + direction * PADDLE_SPEED * deltaSeconds,
         );
       }
       return;
@@ -112,11 +113,11 @@ export const applyHumanPaddleInput = (
 
     if (assignment.position === "front") {
       state.paddle2FrontY = clampPaddleY(
-        state.paddle2FrontY + direction * PADDLE_SPEED,
+        state.paddle2FrontY + direction * PADDLE_SPEED * deltaSeconds,
       );
     } else {
       state.paddle2BackY = clampPaddleY(
-        state.paddle2BackY + direction * PADDLE_SPEED,
+        state.paddle2BackY + direction * PADDLE_SPEED * deltaSeconds,
       );
     }
   });
@@ -127,6 +128,7 @@ const applyBotDirection = (
   team: TeamId,
   position: PaddleSlotPosition,
   targetY: number,
+  deltaSeconds: number,
 ): void => {
   const key =
     team === "team1"
@@ -139,8 +141,8 @@ const applyBotDirection = (
   const currentY = state[key];
   const nextY =
     currentY < targetY
-      ? currentY + PADDLE_SPEED * 0.9
-      : currentY - PADDLE_SPEED * 0.9;
+      ? currentY + PADDLE_SPEED * 0.9 * deltaSeconds
+      : currentY - PADDLE_SPEED * 0.9 * deltaSeconds;
   state[key] = clampPaddleY(nextY);
 };
 
@@ -148,11 +150,12 @@ export const applyBotPaddleInput = (
   state: RuntimeState,
   teamAssignments: Record<string, TeamAssignment>,
   botCounts: BotCounts,
+  deltaSeconds: number,
 ): void => {
   const targetY = state.ballY + BALL_SIZE / 2 - PADDLE_HEIGHT / 2;
   (["team1", "team2"] as const).forEach((team) => {
     getBotPositions(teamAssignments, botCounts, team).forEach((position) => {
-      applyBotDirection(state, team, position, targetY);
+      applyBotDirection(state, team, position, targetY, deltaSeconds);
     });
   });
 };

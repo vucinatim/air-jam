@@ -1,7 +1,7 @@
 /**
- * Single-frame game loop.
+ * Single fixed-step game loop.
  *
- * Call `stepGame` once per requestAnimationFrame tick. It applies input,
+ * Call `stepGame` once per fixed simulation tick. It applies input,
  * moves the ball, resolves paddle collisions, and fires `onPaddleHit` /
  * `onScore` callbacks so the host can trigger audio / haptics / store
  * actions. Keeping the simulation pure (no side effects, no React, no SDK)
@@ -31,6 +31,7 @@ export const stepGame = ({
   isPlaying,
   countdown,
   botCounts,
+  deltaSeconds,
   onPaddleHit,
   onScore,
 }: StepGameOptions): void => {
@@ -38,9 +39,15 @@ export const stepGame = ({
     return;
   }
 
-  applyHumanPaddleInput(state, players, teamAssignments, getInput);
-  applyBotPaddleInput(state, teamAssignments, botCounts);
-  advanceBall(state, countdown);
+  applyHumanPaddleInput(
+    state,
+    players,
+    teamAssignments,
+    getInput,
+    deltaSeconds,
+  );
+  applyBotPaddleInput(state, teamAssignments, botCounts, deltaSeconds);
+  advanceBall(state, countdown, deltaSeconds);
   reflectBallOffWalls(state);
 
   const paddleState = getTeamPaddleState(players, teamAssignments, botCounts);

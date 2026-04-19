@@ -5,13 +5,14 @@ import type { RuntimeState } from "./types";
 export const advanceBall = (
   state: RuntimeState,
   countdown: number | null,
+  deltaSeconds: number,
 ): void => {
   if (countdown !== null) {
     return;
   }
 
-  state.ballX += state.ballVX;
-  state.ballY += state.ballVY;
+  state.ballX += state.ballVX * deltaSeconds;
+  state.ballY += state.ballVY * deltaSeconds;
 };
 
 export const reflectBallOffWalls = (state: RuntimeState): void => {

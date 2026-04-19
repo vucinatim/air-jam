@@ -9,9 +9,9 @@
  *  3. `useHostRuntimeStateBridge` keeps transport pause/play aligned with the
  *     store's `matchPhase` — entering `playing` starts the countdown, exiting
  *     clears it, and returning to lobby resets the ball.
- *  4. The canvas `useEffect` runs the 60fps game loop: `stepGame` advances
- *     simulation from controller inputs, `drawFrame` renders the scene, and
- *     `onScore` dispatches the networked `scorePoint` action.
+ *  4. `useHostTick` runs a fixed-step host simulation: `stepGame` advances from
+ *     controller inputs, `drawFrame` renders the scene, and `onScore` dispatches
+ *     the networked `scorePoint` action.
  *  5. The lobby / match / ended screens are picked by `matchPhase` and wrap
  *     the canvas + score strip when the match is active.
  *
@@ -23,6 +23,7 @@ import {
   useAirJamHost,
   useAudio,
   useHostRuntimeStateBridge,
+  useHostTick,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
@@ -54,6 +55,7 @@ import { usePongFeedback } from "./use-pong-feedback";
 
 /** Countdown length (seconds) shown when a match begins or the ball resets. */
 const COUNTDOWN_SECONDS = 3;
+const PONG_SIMULATION_STEP_MS = 1000 / 60;
 
 export function HostView() {
   return (
@@ -68,6 +70,7 @@ function HostScreen() {
   const audio = useAudio<keyof typeof PONG_SOUND_MANIFEST & string>();
   const { runtimeState, toggleRuntimeState } = host;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContextRef = useRef<CanvasRenderingContext2D | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [audioMuted, setAudioMuted] = useState(false);
 
@@ -159,9 +162,8 @@ function HostScreen() {
     return () => clearTimeout(timer);
   }, [countdown, runtimeState, matchPhase]);
 
-  // Main game loop. Runs at ~60fps via requestAnimationFrame. Simulation reads
-  // controller inputs via `host.getInput`, so this stays host-authoritative:
-  // controllers publish intent, the host decides the world.
+  // Canvas backing store setup is separate from the loop so React renders do not
+  // restart the host simulation.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -174,11 +176,21 @@ function HostScreen() {
     canvas.height = FIELD_HEIGHT * dpr;
     canvas.style.width = `${FIELD_WIDTH}px`;
     canvas.style.height = `${FIELD_HEIGHT}px`;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvasContextRef.current = ctx;
 
-    let animationFrameId: number;
+    return () => {
+      canvasContextRef.current = null;
+    };
+  }, [matchPhase]);
 
-    const loop = () => {
+  // Fixed-step host simulation. Controller input and browser rendering cadence
+  // can vary, but simulation receives the same delta every step.
+  useHostTick(
+    ({ deltaSeconds }) => {
+      const ctx = canvasContextRef.current;
+      if (!ctx) return;
+
       stepGame({
         state: runtimeStateRef.current,
         players: host.players,
@@ -187,6 +199,7 @@ function HostScreen() {
         isPlaying: runtimeState === "playing" && matchPhase === "playing",
         countdown,
         botCounts,
+        deltaSeconds,
         onPaddleHit: (event) => {
           triggerPaddleHitFeedback(event);
         },
@@ -205,24 +218,13 @@ function HostScreen() {
         countdown,
         botCounts,
       });
-
-      animationFrameId = requestAnimationFrame(loop);
-    };
-
-    loop();
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [
-    actions,
-    countdown,
-    runtimeState,
-    host.getInput,
-    host.players,
-    matchPhase,
-    triggerPaddleHitFeedback,
-    triggerScoreFeedback,
-    botCounts,
-    teamAssignments,
-  ]);
+    },
+    {
+      enabled: matchPhase !== "lobby",
+      mode: "fixed",
+      intervalMs: PONG_SIMULATION_STEP_MS,
+    },
+  );
 
   let content: JSX.Element;
 

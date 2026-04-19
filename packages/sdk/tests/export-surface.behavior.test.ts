@@ -77,6 +77,11 @@ describe("sdk export surface", () => {
     expect("useAudioSettings" in sdk).toBe(false);
   });
 
+  it("exposes canonical host loop primitives on root export", () => {
+    expect("useHostTick" in sdk).toBe(true);
+    expect("useControllerTick" in sdk).toBe(true);
+  });
+
   it("keeps package subpath exports limited to public entrypoints", () => {
     const packageJson = JSON.parse(
       readFileSync(new URL("../package.json", import.meta.url), "utf-8"),

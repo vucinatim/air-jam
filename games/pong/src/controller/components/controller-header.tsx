@@ -7,6 +7,7 @@ import {
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
   useControllerShellStatus,
+  type LifecycleActionKind,
 } from "@air-jam/sdk/ui";
 
 interface ControllerHeaderProps {
@@ -52,6 +53,12 @@ export const ControllerHeader = ({
     onBackToLobby: onReturnToLobby,
     onRestart: onRestartMatch,
   });
+  const utilityKinds: LifecycleActionKind[] =
+    matchPhase === "playing"
+      ? ["pause-toggle", "back-to-lobby"]
+      : matchPhase === "ended"
+        ? ["restart", "back-to-lobby"]
+        : [];
 
   return (
     <RuntimeShellHeader
@@ -82,7 +89,7 @@ export const ControllerHeader = ({
         </div>
       }
       rightSlot={
-        matchPhase === "lobby" ? null : (
+        utilityKinds.length > 0 ? (
           <LifecycleActionGroup
             phase={matchPhase}
             runtimeState={runtimeState}
@@ -92,10 +99,11 @@ export const ControllerHeader = ({
             onBackToLobby={lifecycleIntents.onBackToLobby}
             onRestart={lifecycleIntents.onRestart}
             restartLabel="Play Again"
-            className="gap-1.5"
-            buttonClassName="h-8 px-3 text-[0.6875rem] tracking-[0.12em] sm:h-9 sm:px-4 sm:text-[0.75rem] sm:tracking-[0.14em]"
+            presentation="icon"
+            visibleKinds={utilityKinds}
+            buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
           />
-        )
+        ) : null
       }
       className="border-white/10 bg-black/35 px-3 py-2 text-xs uppercase sm:px-3.5"
     />

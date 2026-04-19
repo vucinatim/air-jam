@@ -111,8 +111,10 @@ export type AirJamGameMetadata = z.infer<typeof airJamGameMetadataSchema>;
 
 export type DefineAirJamGameMetadataInput = Omit<
   z.input<typeof airJamGameMetadataSchema>,
-  "version"
+  "inputModalities" | "tags" | "version"
 > & {
+  inputModalities: readonly AirJamGameInputModality[];
+  tags?: readonly string[];
   version?: 1;
 };
 

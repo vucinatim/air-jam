@@ -12,6 +12,8 @@ import {
 } from "../../../src/game/engine/constants";
 import type { RuntimeState } from "../../../src/game/engine/types";
 
+const TEST_STEP_SECONDS = 1 / 60;
+
 const createRuntimeState = (
   overrides: Partial<RuntimeState> = {},
 ): RuntimeState => ({
@@ -21,8 +23,8 @@ const createRuntimeState = (
   paddle2BackY: 0,
   ballX: 50,
   ballY: 50,
-  ballVX: 3,
-  ballVY: 2,
+  ballVX: 360,
+  ballVY: 240,
   lastTouchedTeam: null,
   ...overrides,
 });
@@ -31,13 +33,13 @@ describe("ball runtime helpers", () => {
   it("keeps countdown-gated movement outside the main step loop", () => {
     const state = createRuntimeState();
 
-    advanceBall(state, 3);
+    advanceBall(state, 3, TEST_STEP_SECONDS);
     expect(state.ballX).toBe(50);
     expect(state.ballY).toBe(50);
 
-    advanceBall(state, null);
-    expect(state.ballX).toBe(53);
-    expect(state.ballY).toBe(52);
+    advanceBall(state, null, TEST_STEP_SECONDS);
+    expect(state.ballX).toBe(56);
+    expect(state.ballY).toBe(54);
   });
 
   it("reflects wall collisions and assigns the last touching team on paddle bounce", () => {

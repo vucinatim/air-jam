@@ -34,6 +34,7 @@ export interface StepGameOptions {
   isPlaying: boolean;
   countdown: number | null;
   botCounts: BotCounts;
+  deltaSeconds: number;
   onPaddleHit?: (event: { team: TeamId; playerId: string | null }) => void;
   onScore: (team: TeamId) => void;
 }

@@ -116,4 +116,56 @@ describe("tick hooks", () => {
     });
     expect(ticks.length).toBe(callsBeforeUnmount);
   });
+
+  it("runs useHostTick in fixed mode with stable simulation deltas", () => {
+    let rafId = 0;
+    const rafTimers = new Map<number, ReturnType<typeof setTimeout>>();
+    const frameDelays = [8, 24, 40, 16];
+
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      rafId += 1;
+      const id = rafId;
+      const delay = frameDelays.shift() ?? 16;
+      const timer = setTimeout(() => cb(performance.now()), delay);
+      rafTimers.set(id, timer);
+      return id;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      const timer = rafTimers.get(id);
+      if (timer) {
+        clearTimeout(timer);
+        rafTimers.delete(id);
+      }
+    });
+
+    const calls: Array<{
+      deltaMs: number;
+      deltaSeconds: number;
+      tick: number;
+    }> = [];
+    const { unmount } = renderHook(() =>
+      useHostTick((info) => calls.push(info), {
+        mode: "fixed",
+        intervalMs: 10,
+      }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(80);
+    });
+
+    expect(calls).toHaveLength(7);
+    expect(calls.map((call) => call.tick)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(calls.every((call) => call.deltaMs === 10)).toBe(true);
+    expect(calls.every((call) => call.deltaSeconds === 0.01)).toBe(true);
+
+    unmount();
+    const callsBeforeUnmount = calls.length;
+
+    act(() => {
+      vi.advanceTimersByTime(40);
+    });
+
+    expect(calls).toHaveLength(callsBeforeUnmount);
+  });
 });
