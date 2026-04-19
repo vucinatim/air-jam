@@ -63,7 +63,7 @@ The app boundary follows the same ownership model as the repo reference games:
 
 - The `/youtube-test` route is debug-only (`import.meta.env.DEV` or `VITE_ENABLE_YOUTUBE_TEST_ROUTE=true`).
 - Match timing, reveal flow, and scoring stay host-authoritative.
-- The shell contract is standard: internal phases map through `src/game/domain/match-phase.ts` to `lobby | playing | ended`, and runtime pause/play is owned separately by `runtimeState` with `useHostRuntimeStateBridge(...)`.
+- The shell contract is standard: internal phases map through `src/game/domain/match-phase.ts` to `lobby | playing | ended`, and runtime pause/play is owned separately by explicit pause/resume commands.
 - This game is scaffoldable through `create-airjam`, so keep docs and scripts export-safe.
 
 ## Song Curation Workflow

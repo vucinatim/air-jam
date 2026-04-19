@@ -242,7 +242,7 @@ export const ControllerView = () => {
   );
 
   return (
-    <SurfaceViewport orientation="portrait" preset="controller-phone">
+    <SurfaceViewport orientation="portrait">
       <section>
         <button
           onPointerDown={() =>
@@ -501,18 +501,22 @@ Networked action contract:
 
 Action context includes `connectedPlayerIds`, so host actions can prune stale assignments without custom presence-sync actions.
 
-## Host Lifecycle Bridge
+## Runtime Pause Controls
 
-Use `useHostRuntimeStateBridge` to keep transport pause/play state aligned with your store lifecycle phase transitions.
+Runtime pause/play is independent from your game-owned match phase. Keep lobby,
+playing, and ended state in your game store, and use explicit runtime commands
+only for pause UI.
 
 ```tsx
-import { useHostRuntimeStateBridge } from "@air-jam/sdk";
+const host = useAirJamHost();
 
-useHostRuntimeStateBridge({
-  matchPhase, // "lobby" | "countdown" | "playing" | "ended"
-  runtimeState: host.runtimeState,
-  toggleRuntimeState: host.toggleRuntimeState,
-});
+<button
+  onClick={
+    host.runtimeState === "playing" ? host.pauseRuntime : host.resumeRuntime
+  }
+>
+  {host.runtimeState === "playing" ? "Pause" : "Resume"}
+</button>;
 ```
 
 ## One Correct Way (Default Path)

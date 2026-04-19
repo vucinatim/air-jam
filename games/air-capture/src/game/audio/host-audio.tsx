@@ -1,10 +1,4 @@
-import {
-  AudioRuntime,
-  MusicPlaylist,
-  useAudio,
-  useAudioRuntimeControls,
-  useAudioRuntimeStatus,
-} from "@air-jam/sdk";
+import { AudioRuntime, MusicPlaylist, useAudio } from "@air-jam/sdk";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { createHostAudioFacade } from "./host-audio-playback";
 import {
@@ -35,24 +29,18 @@ function HostAudioLifecycle({
   muted: boolean;
 }) {
   const sfxAudio = useAudio<HostSfxId>();
-  const audioRuntimeStatus = useAudioRuntimeStatus();
-  const audioRuntimeControls = useAudioRuntimeControls();
   const facade = useMemo(() => createHostAudioFacade(sfxAudio), [sfxAudio]);
 
   useEffect(() => {
     facade.mute(muted);
   }, [facade, muted]);
 
-  useEffect(() => {
-    void audioRuntimeControls.retry();
-  }, [audioRuntimeControls]);
-
   return (
     <>
       <MusicPlaylist
         fadeMs={1200}
         order="shuffle"
-        playing={audioRuntimeStatus === "ready" && !muted}
+        playing={!muted}
         tracks={HOST_MUSIC_TRACKS}
       />
       {children}

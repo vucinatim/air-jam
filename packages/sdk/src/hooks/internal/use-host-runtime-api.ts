@@ -3,7 +3,6 @@ import type { z } from "zod";
 import { z as zod } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import { TOGGLE_DEBOUNCE_MS } from "../../constants";
 import { useAirJamContext } from "../../context/air-jam-context";
 import {
   useAssertSessionScope,
@@ -22,6 +21,7 @@ import type {
   HostRegistrationAck,
   PlayerProfile,
   RoomCode,
+  RuntimeState,
   SignalPayload,
   SignalType,
   ToastSignalPayload,
@@ -29,7 +29,6 @@ import type {
 import {
   AIRJAM_DEV_LOG_EVENTS,
   controllerStateSchema,
-  controllerSystemSchema,
   ErrorCode,
   hostBootstrapSchema,
   hostCreateRoomSchema,
@@ -139,7 +138,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     [shouldConnect, getSocket],
   );
 
-  const [lastToggle, setLastToggle] = useState(0);
   const hydrateHostPlayers = useCallback(
     (players?: PlayerProfile[]) => {
       const latestState = store.getState();
@@ -223,28 +221,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     [emitHostRuntimeEvent],
   );
 
-  const toggleRuntimeState = useCallback(() => {
-    const now = Date.now();
-    if (now - lastToggle < TOGGLE_DEBOUNCE_MS) {
-      return;
-    }
-    setLastToggle(now);
-
-    if (!socket || !socket.connected) {
-      return;
-    }
-
-    if (!parsedRoomId) return;
-
-    const payload = controllerSystemSchema.safeParse({
-      roomId: parsedRoomId,
-      command: "toggle_pause",
-    });
-    if (payload.success) {
-      socket.emit("host:system", payload.data);
-    }
-  }, [socket, parsedRoomId, lastToggle]);
-
   const sendState = useCallback(
     (state: ControllerStatePayload): boolean => {
       const activeSocket = socket;
@@ -264,6 +240,28 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     },
     [canEmitAuthoritativeHostState, socket],
   );
+
+  const setRuntimeState = useCallback(
+    (runtimeState: RuntimeState): void => {
+      const activeRoomId = parsedRoomIdRef.current;
+      if (store.getState().runtimeState === runtimeState) {
+        return;
+      }
+      if (!canEmitAuthoritativeHostState(activeRoomId)) {
+        return;
+      }
+      sendState({ runtimeState });
+    },
+    [canEmitAuthoritativeHostState, sendState, store],
+  );
+
+  const pauseRuntime = useCallback((): void => {
+    setRuntimeState("paused");
+  }, [setRuntimeState]);
+
+  const resumeRuntime = useCallback((): void => {
+    setRuntimeState("playing");
+  }, [setRuntimeState]);
 
   const sendSignal = useCallback(
     (
@@ -910,7 +908,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     lastError: connectionState.lastError,
     mode: connectionState.mode,
     runtimeState: connectionState.runtimeState,
-    toggleRuntimeState,
+    pauseRuntime,
+    resumeRuntime,
+    setRuntimeState,
     sendState,
     sendSignal,
     reconnect,

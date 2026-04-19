@@ -118,7 +118,7 @@ describe("embedded host bridge runtime", () => {
 
     client.emit("host:system", {
       roomId: "ROOM1",
-      command: "toggle_pause",
+      command: "pause",
     });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -130,7 +130,7 @@ describe("embedded host bridge runtime", () => {
         args: [
           {
             roomId: "ROOM1",
-            command: "toggle_pause",
+            command: "pause",
           },
         ],
       },

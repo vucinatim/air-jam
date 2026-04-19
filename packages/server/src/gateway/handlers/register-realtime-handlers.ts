@@ -134,29 +134,28 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    if (command === "toggle_pause") {
-      const previousGameState = session.runtimeState;
-      const nextGameState =
-        previousGameState === "playing" ? "paused" : "playing";
-      session.runtimeState = nextGameState;
+    if (command === "pause" || command === "resume") {
+      const previousRuntimeState = session.runtimeState;
+      const nextRuntimeState = command === "pause" ? "paused" : "playing";
+      session.runtimeState = nextRuntimeState;
       const broadcastPayload = emitRoomState(io, roomId, session);
       logRealtimeEvent(
         "info",
         AIRJAM_DEV_LOG_EVENTS.host.systemAccepted,
-        "Host toggled pause state",
+        "Host updated runtime state",
         {
           roomId,
           command,
-          previousGameState,
-          nextGameState,
+          previousRuntimeState,
+          nextRuntimeState,
           stateVersion: broadcastPayload.state.stateVersion,
         },
       );
       hostStateBroadcastSummary.record({
-        key: `${roomId}:host_system_toggle`,
+        key: `${roomId}:host_system_runtime`,
         bindings: { roomId },
         data: {
-          source: "host_system_toggle",
+          source: "host_system_runtime",
           latestStateVersion: broadcastPayload.state.stateVersion ?? 0,
         },
         metrics: {

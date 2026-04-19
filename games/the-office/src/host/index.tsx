@@ -7,12 +7,7 @@
  * host is just chrome over the networked `useSpaceStore` state plus the
  * match-clock / pending-task hooks in `../hooks/use-game-state`.
  */
-import {
-  AudioRuntime,
-  useAirJamHost,
-  useHostRuntimeStateBridge,
-  useHostTick,
-} from "@air-jam/sdk";
+import { AudioRuntime, useAirJamHost, useHostTick } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
@@ -21,9 +16,9 @@ import {
   LifecycleActionGroup,
   PlayerAvatar,
   SurfaceViewport,
-  useHostLobbyShell,
+  useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { theOfficeVisualHarnessBridge } from "../../visual/contract";
 import { GameCanvas } from "../components/game-canvas";
@@ -74,24 +69,11 @@ function OfficeHostScreen() {
     selectedCount > 0 &&
     selectedCount === playerIds.length &&
     connectionStatus === "connected";
-  const hostLobbyShell = useHostLobbyShell({
+  const hostJoinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: () => storeActions.startMatch(),
   });
-  useVisualHarnessBridge(theOfficeVisualHarnessBridge, {
-    host,
-    matchPhase,
-    runtimeState: host.runtimeState,
-    storeActions,
-  });
-
-  useHostRuntimeStateBridge({
-    matchPhase,
-    runtimeState: host.runtimeState,
-    toggleRuntimeState: host.toggleRuntimeState,
-  });
-
   const {
     advanceElapsedMs,
     elapsedMsRef: matchElapsedMsRef,
@@ -111,7 +93,16 @@ function OfficeHostScreen() {
 
   return (
     <>
-      <SurfaceViewport preset="host-standard" className="bg-[#fdf6e3]">
+      <VisualHarnessRuntime
+        bridge={theOfficeVisualHarnessBridge}
+        context={{
+          host,
+          matchPhase,
+          runtimeState: host.runtimeState,
+          storeActions,
+        }}
+      />
+      <SurfaceViewport className="bg-[#fdf6e3]">
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
           <OfficeHostTopHud timeRemainingMs={timeRemainingMs} />
           <OfficeHostGameplaySurface
@@ -135,7 +126,7 @@ function OfficeHostScreen() {
               host={host}
               playerCount={playerIds.length}
               selectedCount={selectedCount}
-              hostLobbyShell={hostLobbyShell}
+              hostJoinControls={hostJoinControls}
               onStart={handleStart}
               canStartMatch={canStartMatch}
             />
@@ -294,14 +285,14 @@ function OfficeHostLobbyOverlay({
   host,
   playerCount,
   selectedCount,
-  hostLobbyShell,
+  hostJoinControls,
   onStart,
   canStartMatch,
 }: {
   host: OfficeHostApi;
   playerCount: number;
   selectedCount: number;
-  hostLobbyShell: ReturnType<typeof useHostLobbyShell>;
+  hostJoinControls: ReturnType<typeof useHostJoinControls>;
   onStart: () => void;
   canStartMatch: boolean;
 }) {
@@ -329,17 +320,17 @@ function OfficeHostLobbyOverlay({
 
         <div className="mb-4 w-full">
           <JoinUrlControls
-            value={hostLobbyShell.joinUrlValue}
+            value={hostJoinControls.joinUrlValue}
             label={
               <span className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
                 Controller link
               </span>
             }
-            copied={hostLobbyShell.copied}
-            onCopy={hostLobbyShell.handleCopy}
-            onOpen={hostLobbyShell.handleOpen}
-            qrVisible={hostLobbyShell.joinQrVisible}
-            onToggleQr={hostLobbyShell.toggleJoinQr}
+            copied={hostJoinControls.copied}
+            onCopy={hostJoinControls.handleCopy}
+            onOpen={hostJoinControls.handleOpen}
+            qrVisible={hostJoinControls.joinQrVisible}
+            onToggleQr={hostJoinControls.toggleJoinQr}
             inputClassName="border-[#e5d4ab] bg-[#fff6d8] text-[#5c4a2e] placeholder:text-[#8b6914]/70"
             buttonClassName="rounded-none border-[#8b6914]/25 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11]"
           />
@@ -414,10 +405,10 @@ function OfficeHostLobbyOverlay({
           buttonClassName="rounded-none border-[#8b6914]/25 bg-[#8b6914] px-5 text-[#fdf6e3] hover:bg-[#7a5b11]"
         />
         <JoinQrOverlay
-          open={hostLobbyShell.joinQrVisible}
-          value={hostLobbyShell.joinUrlValue}
+          open={hostJoinControls.joinQrVisible}
+          value={hostJoinControls.joinUrlValue}
           roomId={host.roomId}
-          onClose={hostLobbyShell.hideJoinQr}
+          onClose={hostJoinControls.hideJoinQr}
           description="Scan with your phone to join The Office as a controller."
         />
       </div>

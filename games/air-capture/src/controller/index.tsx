@@ -80,7 +80,11 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
       runtimeState={runtimeState}
       canSendSystemCommand={canSendSystemCommand}
       canStartMatch={canStartMatch}
-      onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
+      onTogglePause={() =>
+        controller.sendSystemCommand(
+          controller.runtimeState === "playing" ? "pause" : "resume",
+        )
+      }
       onStartMatch={onStartMatch}
       onRestartMatch={onRestartMatch}
       onReturnToLobby={onReturnToLobby}
@@ -189,7 +193,7 @@ const ControllerScreen = () => {
       : "portrait";
 
   return (
-    <SurfaceViewport orientation={desiredOrientation} preset="controller-phone">
+    <SurfaceViewport orientation={desiredOrientation}>
       <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-white">
         <ControllerHeaderRuntime
           myProfile={myProfile}

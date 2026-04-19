@@ -127,11 +127,7 @@ function ControllerScreen({
   }, []);
 
   return (
-    <SurfaceViewport
-      orientation="portrait"
-      preset="controller-phone"
-      className="bg-zinc-950"
-    >
+    <SurfaceViewport orientation="portrait" className="bg-zinc-950">
       <div className="pong-controller-shell pong-safe-screen flex h-full min-h-0 w-full flex-col text-white">
         <ControllerHeader
           roomId={controller.roomId}
@@ -141,7 +137,11 @@ function ControllerScreen({
           runtimeState={controller.runtimeState}
           canSendSystemCommand={canSendSystemCommand}
           canStartMatch={readiness.canStart}
-          onTogglePause={() => controller.sendSystemCommand("toggle_pause")}
+          onTogglePause={() =>
+            controller.sendSystemCommand(
+              controller.runtimeState === "playing" ? "pause" : "resume",
+            )
+          }
           onReturnToLobby={() => actions.returnToLobby()}
           onStartMatch={() => actions.startMatch()}
           onRestartMatch={() => actions.restartMatch()}

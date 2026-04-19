@@ -96,7 +96,13 @@ const HostView = () => {
     <div className="relative min-h-screen bg-black text-white">
       <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/70 px-4 py-2 backdrop-blur">
         <span>Room {host.roomId}</span>
-        <button onClick={host.toggleRuntimeState}>
+        <button
+          onClick={
+            host.runtimeState === "playing"
+              ? host.pauseRuntime
+              : host.resumeRuntime
+          }
+        >
           {host.runtimeState === "playing" ? "Pause" : "Resume"}
         </button>
       </header>

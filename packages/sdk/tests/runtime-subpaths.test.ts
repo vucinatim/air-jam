@@ -17,10 +17,12 @@ import {
 
 describe("runtime experimental subpaths", () => {
   it("re-export the control contract seam from the dedicated leaf", () => {
-    const toggleRuntimeState = vi.fn();
+    const setRuntimeState = vi.fn();
     const contract = createHostRuntimeControlContract({
       runtimeState: "paused",
-      toggleRuntimeState,
+      pauseRuntime: vi.fn(),
+      resumeRuntime: vi.fn(),
+      setRuntimeState,
       reconnect: vi.fn(),
       sendState: vi.fn(() => true),
       sendSignal: vi.fn(),
@@ -29,7 +31,7 @@ describe("runtime experimental subpaths", () => {
     contract.setRuntimeState("playing");
 
     expect(contract.role).toBe("host");
-    expect(toggleRuntimeState).toHaveBeenCalledTimes(1);
+    expect(setRuntimeState).toHaveBeenCalledWith("playing");
     expect(typeof useControllerRuntimeControlContract).toBe("function");
   });
 

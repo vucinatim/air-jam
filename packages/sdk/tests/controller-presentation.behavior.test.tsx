@@ -100,9 +100,7 @@ describe("controller presentation sync", () => {
 
     render(
       <SessionScopeContext.Provider value="controller">
-        <SurfaceViewport orientation="landscape" preset="controller-phone">
-          Controller
-        </SurfaceViewport>
+        <SurfaceViewport orientation="landscape">Controller</SurfaceViewport>
       </SessionScopeContext.Provider>,
     );
 

@@ -292,7 +292,7 @@ Use higher-level host/controller tests only after the pure boundary is already c
 - Remote controller sound playback: use `ControllerRemoteAudioRuntime` instead of manual `server:playSound` socket subscriptions or leaf-level audio ownership.
 - Controller toast signaling: use `useControllerToasts()` to consume host `sendSignal("TOAST", ...)`.
 - Presence-aware action context: every store action receives `ctx.connectedPlayerIds` (no custom presence sync action needed).
-- Host phase/runtime bridge: use `useHostRuntimeStateBridge(...)` for canonical lifecycle-to-pause/play synchronization.
+- Host pause/play: keep match lifecycle in the game store and use explicit runtime pause/resume commands only for pause UI.
 
 ## Environment Variables
 

@@ -27,7 +27,7 @@ export function HostView() {
 
   return (
     <>
-      <SurfaceViewport preset="host-standard" className="bg-neutral-950">
+      <SurfaceViewport className="bg-neutral-950">
         <div className="flex h-full w-full flex-col items-center justify-center gap-10 p-8 text-white">
           <div className="text-xs tracking-[0.3em] text-neutral-500 uppercase">
             Shared Taps

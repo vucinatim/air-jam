@@ -204,7 +204,7 @@ export const startGameLaunch = (
 ): void => {
   session.launchCapability = launchCapability;
   session.activeGameId = gameId;
-  session.runtimeState = "paused";
+  session.runtimeState = "playing";
   session.controllerOrientation = "portrait";
 };
 

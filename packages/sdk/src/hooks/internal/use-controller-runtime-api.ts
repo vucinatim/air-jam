@@ -722,7 +722,7 @@ export const useControllerRuntimeApi = (
   );
 
   const sendSystemCommand = useCallback(
-    (command: "exit" | "toggle_pause") => {
+    (command: "exit" | "pause" | "resume") => {
       const storeState = store.getState();
 
       if (!parsedRoomId || !storeState.controllerId || !socket) return;

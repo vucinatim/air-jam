@@ -85,10 +85,6 @@ export {
 } from "./hooks/use-controller-toasts";
 export { useGetInput } from "./hooks/use-get-input";
 export {
-  useHostRuntimeStateBridge,
-  type UseHostRuntimeStateBridgeOptions,
-} from "./hooks/use-host-runtime-state-bridge";
-export {
   useHostSession,
   type AirJamHostSessionState,
 } from "./hooks/use-host-session";

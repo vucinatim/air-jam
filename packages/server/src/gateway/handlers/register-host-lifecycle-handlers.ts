@@ -102,7 +102,7 @@ export const registerHostLifecycleHandlers = (
       activeGameId: startsInGameFocus ? analytics.gameId : undefined,
       controllers: new Map(),
       maxPlayers,
-      runtimeState: "paused",
+      runtimeState: startsInGameFocus ? "playing" : "paused",
       stateVersion: 0,
       controllerOrientation: "portrait",
       lifecycleState: startsInGameFocus ? "GAME_ACTIVE" : "SYSTEM_IDLE",
@@ -704,21 +704,12 @@ export const registerHostLifecycleHandlers = (
       ) {
         clearPendingRoomCloseTimer(session);
         const previousGameState = session.runtimeState;
-        // Host refresh/reconnect should always return the room to lobby-safe pause state.
-        if (session.runtimeState === "playing") {
-          session.runtimeState = "paused";
-        }
 
         session.masterHostSocketId = socket.id;
         syncRoomAnalyticsState(session.analytics, socket.data.hostAuthority);
         roomManager.setRoom(roomId, session);
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);
-
-        const stateResetPayload =
-          previousGameState !== session.runtimeState
-            ? emitRoomState(io, roomId, session)
-            : undefined;
 
         logHostEvent(
           "info",
@@ -730,7 +721,7 @@ export const registerHostLifecycleHandlers = (
             focus: session.focus,
             previousGameState,
             nextGameState: session.runtimeState,
-            resetToLobbyOnReconnect: previousGameState !== session.runtimeState,
+            resetToLobbyOnReconnect: false,
           },
         );
         logHostEvent(
@@ -741,10 +732,8 @@ export const registerHostLifecycleHandlers = (
             roomId,
             previousGameState,
             nextGameState: session.runtimeState,
-            resetApplied: previousGameState !== session.runtimeState,
-            ...(stateResetPayload
-              ? { stateVersion: stateResetPayload.state.stateVersion }
-              : { stateVersion: session.stateVersion }),
+            resetApplied: false,
+            stateVersion: session.stateVersion,
           },
         );
         callback({

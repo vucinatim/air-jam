@@ -189,7 +189,10 @@ export function ControllerView() {
     canSendSystemCommand: controller.connectionStatus === "connected",
   });
   const lifecycleIntents = useControllerLifecycleIntents({
-    onTogglePause: () => controller.sendSystemCommand("toggle_pause"),
+    onTogglePause: () =>
+      controller.sendSystemCommand(
+        controller.runtimeState === "playing" ? "pause" : "resume",
+      ),
     onBackToLobby: () => actions.resetToLobby(),
     onRestart: () => actions.resetToLobby(),
   });
@@ -354,10 +357,7 @@ export function ControllerView() {
 
   return (
     <div className="controller-view-shell">
-      <SurfaceViewport
-        orientation={desiredOrientation}
-        preset="controller-phone"
-      >
+      <SurfaceViewport orientation={desiredOrientation}>
         <div className="pixel-font flex h-full w-full flex-col">
           <RuntimeShellHeader
             connectionStatus={controller.connectionStatus}

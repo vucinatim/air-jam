@@ -112,12 +112,13 @@ export interface AirJamControllerApi {
   /**
    * Send a system command to the host.
    *
-   * @example Toggle pause
+   * @example Pause or resume
    * ```ts
-   * controller.sendSystemCommand("toggle_pause");
+   * controller.sendSystemCommand("pause");
+   * controller.sendSystemCommand("resume");
    * ```
    */
-  sendSystemCommand: (command: "exit" | "toggle_pause") => void;
+  sendSystemCommand: (command: "exit" | "pause" | "resume") => void;
   /**
    * Update the player nickname (local draft for next join).
    */

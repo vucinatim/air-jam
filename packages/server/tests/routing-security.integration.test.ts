@@ -373,7 +373,7 @@ describe("server routing and security", () => {
 
     controller.emit("controller:system", {
       roomId,
-      command: "toggle_pause",
+      command: "resume",
     });
 
     await harness.delay(50);
@@ -422,7 +422,7 @@ describe("server routing and security", () => {
 
     controller.emit("controller:system", {
       roomId,
-      command: "toggle_pause",
+      command: "resume",
     });
 
     await harness.delay(50);

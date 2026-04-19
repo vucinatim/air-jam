@@ -9,15 +9,19 @@ import {
 } from "../src/runtime/contracts/inspection";
 
 describe("runtime contracts", () => {
-  it("normalizes host runtime control without inventing a second path", () => {
-    const toggleRuntimeState = vi.fn();
+  it("normalizes host runtime control through explicit runtime commands", () => {
+    const pauseRuntime = vi.fn();
+    const resumeRuntime = vi.fn();
+    const setRuntimeState = vi.fn();
     const reconnect = vi.fn();
     const sendState = vi.fn(() => true);
     const sendSignal = vi.fn();
 
     const control = createHostRuntimeControlContract({
       runtimeState: "paused",
-      toggleRuntimeState,
+      pauseRuntime,
+      resumeRuntime,
+      setRuntimeState,
       reconnect,
       sendState,
       sendSignal,
@@ -25,12 +29,17 @@ describe("runtime contracts", () => {
 
     control.setRuntimeState("paused");
     control.setRuntimeState("playing");
-    control.toggleRuntimeState();
+    control.pauseRuntime();
+    control.resumeRuntime();
     control.reconnect();
     control.sendState({ runtimeState: "playing" });
     control.sendSignal("TOAST", { message: "Ready" });
 
-    expect(toggleRuntimeState).toHaveBeenCalledTimes(2);
+    expect(setRuntimeState).toHaveBeenCalledTimes(2);
+    expect(setRuntimeState).toHaveBeenNthCalledWith(1, "paused");
+    expect(setRuntimeState).toHaveBeenNthCalledWith(2, "playing");
+    expect(pauseRuntime).toHaveBeenCalledTimes(1);
+    expect(resumeRuntime).toHaveBeenCalledTimes(1);
     expect(reconnect).toHaveBeenCalledTimes(1);
     expect(sendState).toHaveBeenCalledWith({ runtimeState: "playing" });
     expect(sendSignal).toHaveBeenCalledWith("TOAST", { message: "Ready" });
@@ -58,12 +67,14 @@ describe("runtime contracts", () => {
       reconnect: vi.fn(),
     });
 
-    control.sendSystemCommand("toggle_pause");
+    control.sendSystemCommand("pause");
+    control.sendSystemCommand("resume");
     control.setNicknameDraft("Riley");
     control.setAvatarIdDraft("pilot");
     await control.updatePlayerProfile({ label: "Riley" });
 
-    expect(sendSystemCommand).toHaveBeenCalledWith("toggle_pause");
+    expect(sendSystemCommand).toHaveBeenNthCalledWith(1, "pause");
+    expect(sendSystemCommand).toHaveBeenNthCalledWith(2, "resume");
     expect(setNickname).toHaveBeenCalledWith("Riley");
     expect(setAvatarId).toHaveBeenCalledWith("pilot");
     expect(updatePlayerProfile).toHaveBeenCalledWith({ label: "Riley" });

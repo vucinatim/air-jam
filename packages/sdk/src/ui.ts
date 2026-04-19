@@ -19,7 +19,7 @@ export * from "./components/volume-controls";
 export * from "./hooks/use-controller-lifecycle-intents";
 export * from "./hooks/use-controller-lifecycle-permissions";
 export * from "./hooks/use-controller-shell-status";
-export * from "./hooks/use-host-lobby-shell";
+export * from "./hooks/use-host-join-controls";
 export * from "./hooks/use-lifecycle-action-group-model";
 export {
   AIRJAM_DEFAULT_AVATAR_SEEDS,

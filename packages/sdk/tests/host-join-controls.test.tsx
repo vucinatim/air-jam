@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useHostLobbyShell } from "../src/ui";
+import { useHostJoinControls } from "../src/ui";
 
-describe("useHostLobbyShell", () => {
+describe("useHostJoinControls", () => {
   it("treats a missing join url as unavailable", () => {
     const { result } = renderHook(() =>
-      useHostLobbyShell({
+      useHostJoinControls({
         joinUrl: "",
       }),
     );
@@ -24,7 +24,7 @@ describe("useHostLobbyShell", () => {
     });
 
     const { result } = renderHook(() =>
-      useHostLobbyShell({
+      useHostJoinControls({
         joinUrl: "https://example.com/controller?room=ROOM1",
       }),
     );
@@ -42,7 +42,7 @@ describe("useHostLobbyShell", () => {
   it("guards the start handler behind canStartMatch", () => {
     const onStartMatch = vi.fn();
     const { result } = renderHook(() =>
-      useHostLobbyShell({
+      useHostJoinControls({
         joinUrl: "https://example.com/controller?room=ROOM1",
         canStartMatch: false,
         onStartMatch,
@@ -58,7 +58,7 @@ describe("useHostLobbyShell", () => {
 
   it("toggles QR visibility only when a join url is available", () => {
     const { result } = renderHook(() =>
-      useHostLobbyShell({
+      useHostJoinControls({
         joinUrl: "https://example.com/controller?room=ROOM1",
       }),
     );
@@ -76,7 +76,7 @@ describe("useHostLobbyShell", () => {
 
   it("keeps the QR overlay closed when the join url is unavailable", () => {
     const { result } = renderHook(() =>
-      useHostLobbyShell({
+      useHostJoinControls({
         joinUrl: "",
       }),
     );

@@ -7,19 +7,14 @@
  * wrapper in `../features/youtube` handles cued playback without exposing
  * the iframe API directly to the rest of the code.
  */
-import {
-  AudioRuntime,
-  useAirJamHost,
-  useAudio,
-  useHostRuntimeStateBridge,
-} from "@air-jam/sdk";
+import { AudioRuntime, useAirJamHost, useAudio } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
   SurfaceViewport,
-  useHostLobbyShell,
+  useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { lastBandStandingVisualHarnessBridge } from "../../visual/contract";
@@ -142,7 +137,7 @@ const HostScreen = () => {
     phase === "lobby" &&
     playerOrder.length > 0 &&
     readyCount === playerOrder.length;
-  const hostLobbyShell = useHostLobbyShell({
+  const hostJoinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
@@ -207,18 +202,6 @@ const HostScreen = () => {
       : rankPlayers(scoreboardByPlayerId);
 
   const shellPhase = toShellMatchPhase(phase);
-  useVisualHarnessBridge(lastBandStandingVisualHarnessBridge, {
-    host,
-    matchPhase: shellPhase,
-    runtimeState: host.runtimeState,
-    actions,
-  });
-
-  useHostRuntimeStateBridge({
-    matchPhase: shellPhase,
-    runtimeState: host.runtimeState,
-    toggleRuntimeState: host.toggleRuntimeState,
-  });
 
   const isPlaying = shellPhase === "playing";
   const showVideo = isPlaying && activeSong && embedUrl;
@@ -239,7 +222,16 @@ const HostScreen = () => {
 
   return (
     <>
-      <SurfaceViewport preset="host-standard" className="bg-background">
+      <VisualHarnessRuntime
+        bridge={lastBandStandingVisualHarnessBridge}
+        context={{
+          host,
+          matchPhase: shellPhase,
+          runtimeState: host.runtimeState,
+          actions,
+        }}
+      />
+      <SurfaceViewport className="bg-background">
         <main className="bg-background text-foreground flex h-full w-full flex-col overflow-hidden">
           {phase !== "lobby" && (
             <HostTopBar
@@ -261,13 +253,13 @@ const HostScreen = () => {
             <AnimatePresence mode="wait">
               {phase === "lobby" && (
                 <HostLobby
-                  joinUrl={hostLobbyShell.joinUrlValue}
-                  copiedJoinUrl={hostLobbyShell.copied}
-                  onCopyJoinUrl={hostLobbyShell.handleCopy}
-                  onOpenJoinUrl={hostLobbyShell.handleOpen}
-                  joinQrVisible={hostLobbyShell.joinQrVisible}
-                  onToggleJoinQr={hostLobbyShell.toggleJoinQr}
-                  onCloseJoinQr={hostLobbyShell.hideJoinQr}
+                  joinUrl={hostJoinControls.joinUrlValue}
+                  copiedJoinUrl={hostJoinControls.copied}
+                  onCopyJoinUrl={hostJoinControls.handleCopy}
+                  onOpenJoinUrl={hostJoinControls.handleOpen}
+                  joinQrVisible={hostJoinControls.joinQrVisible}
+                  onToggleJoinQr={hostJoinControls.toggleJoinQr}
+                  onCloseJoinQr={hostJoinControls.hideJoinQr}
                   roomId={host.roomId}
                   lastError={host.lastError ?? null}
                   playerOrder={playerOrder}
@@ -277,7 +269,7 @@ const HostScreen = () => {
                   readyCount={readyCount}
                   players={host.players}
                   canStartMatch={canStartMatch}
-                  onStartMatch={hostLobbyShell.handleStart}
+                  onStartMatch={hostJoinControls.handleStart}
                 />
               )}
 

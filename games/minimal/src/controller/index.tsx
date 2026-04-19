@@ -44,11 +44,7 @@ export function ControllerView() {
   };
 
   return (
-    <SurfaceViewport
-      orientation="portrait"
-      preset="controller-phone"
-      className="bg-neutral-950"
-    >
+    <SurfaceViewport orientation="portrait" className="bg-neutral-950">
       <div className="flex h-full w-full flex-col items-center justify-between gap-4 p-6 text-white">
         <div className="w-full text-center">
           <div className="text-[0.625rem] font-semibold tracking-[0.2em] text-neutral-500 uppercase">

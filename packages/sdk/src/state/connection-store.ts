@@ -44,7 +44,6 @@ export interface AirJamStore {
   setRuntimeState: (state: RuntimeState) => void;
   setControllerOrientation: (orientation: ControllerOrientation) => void;
   setStateMessage: (message?: string) => void;
-  toggleRuntimeState: () => void;
   setError: (message?: string) => void;
   upsertPlayer: (player: PlayerProfile) => void;
   removePlayer: (playerId: string) => void;
@@ -64,7 +63,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     controllerId: null,
     connectionStatus: "idle",
     mode: "standalone",
-    runtimeState: "paused",
+    runtimeState: "playing",
     controllerOrientation: "portrait",
     stateMessage: undefined,
     players: [],
@@ -91,10 +90,6 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     setControllerOrientation: (controllerOrientation) =>
       set({ controllerOrientation }),
     setStateMessage: (stateMessage) => set({ stateMessage }),
-    toggleRuntimeState: () =>
-      set((state) => ({
-        runtimeState: state.runtimeState === "paused" ? "playing" : "paused",
-      })),
     setError: (message) => set({ lastError: message }),
     upsertPlayer: (player) =>
       set((state) => {
@@ -115,7 +110,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     resetPlayers: () => set({ players: [] }),
     resetRuntimeState: () =>
       set({
-        runtimeState: "paused",
+        runtimeState: "playing",
         controllerOrientation: "portrait",
         stateMessage: undefined,
       }),

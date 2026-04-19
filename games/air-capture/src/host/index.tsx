@@ -8,8 +8,8 @@
  *     state, player/roster) and wires them to: the 3D `GameScene`, the bot
  *     manager, the visual-harness bridge, and the lobby / countdown / ended
  *     overlays picked by `matchPhase`.
- *  3. `useHostRuntimeStateBridge` aligns transport pause/play with the
- *     store's match phase. `useMatchCountdown` owns the countdown lifecycle.
+ *  3. Local phase transition effects reset the match runtime. `useMatchCountdown`
+ *     owns the countdown lifecycle.
  *  4. `useBotManager` runs the bot AI loop on the host against the same
  *     runtime the `GameScene` renders from.
  *
@@ -20,16 +20,15 @@ import {
   useAirJamHost,
   useAudioRuntimeControls,
   useAudioRuntimeStatus,
-  useHostRuntimeStateBridge,
   type PlayerProfile,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
   SurfaceViewport,
-  useHostLobbyShell,
+  useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import {
   Suspense,
@@ -38,6 +37,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
@@ -164,14 +164,7 @@ const HostViewContent = ({
   const audioRuntimeControls = useAudioRuntimeControls();
 
   const host = useAirJamHost();
-  const {
-    players,
-    roomId,
-    connectionStatus,
-    runtimeState,
-    lastError,
-    toggleRuntimeState,
-  } = host;
+  const { players, roomId, connectionStatus, runtimeState, lastError } = host;
 
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
   const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);
@@ -191,24 +184,30 @@ const HostViewContent = ({
   const gamePlayers = useGameStore((state) => state.players);
   const setPlayerTeam = useGameStore((state) => state.setPlayerTeam);
   const bumpRound = useGameStore((state) => state.bumpRound);
+  const previousMatchPhaseRef = useRef(matchPhase);
 
   const addBot = useBotManager((state) => state.addBot);
   const removeBot = useBotManager((state) => state.removeBot);
 
-  useHostRuntimeStateBridge({
-    matchPhase,
-    runtimeState,
-    toggleRuntimeState,
-    onEnterActivePhase: () => {
+  useEffect(() => {
+    const previousMatchPhase = previousMatchPhaseRef.current;
+    if (previousMatchPhase === matchPhase) {
+      return;
+    }
+
+    const wasActive =
+      previousMatchPhase === "countdown" || previousMatchPhase === "playing";
+    const isActive = matchPhase === "countdown" || matchPhase === "playing";
+
+    if (!wasActive && isActive) {
       resetMatch();
       bumpRound();
-    },
-    onPhaseTransition: ({ previousPhase, matchPhase: nextPhase }) => {
-      if (previousPhase === "lobby" && nextPhase === "countdown") {
-        resetMatch();
-      }
-    },
-  });
+    } else if (previousMatchPhase === "lobby" && matchPhase === "countdown") {
+      resetMatch();
+    }
+
+    previousMatchPhaseRef.current = matchPhase;
+  }, [bumpRound, matchPhase, resetMatch]);
 
   useEffect(() => {
     if (matchPhase !== "countdown" || !countdownEndsAtMs) {
@@ -358,18 +357,11 @@ const HostViewContent = ({
     return grouped;
   }, [players, teamAssignments]);
 
-  const hostLobbyShell = useHostLobbyShell({
+  const hostJoinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
     onStartMatch: () => matchActions.startMatch(),
   });
-  const joinQrValue = hostLobbyShell.joinUrlValue;
-  useVisualHarnessBridge(airCaptureVisualHarnessBridge, {
-    host,
-    matchPhase,
-    runtimeState,
-    matchActions,
-  });
-
+  const joinQrValue = hostJoinControls.joinUrlValue;
   const showPausedOverlay =
     (matchPhase === "countdown" || matchPhase === "playing") &&
     runtimeState !== "playing";
@@ -400,7 +392,16 @@ const HostViewContent = ({
 
   return (
     <>
-      <SurfaceViewport preset="host-standard" className="bg-background">
+      <VisualHarnessRuntime
+        bridge={airCaptureVisualHarnessBridge}
+        context={{
+          host,
+          matchPhase,
+          runtimeState,
+          matchActions,
+        }}
+      />
+      <SurfaceViewport className="bg-background">
         <div className="bg-background relative h-full w-full overflow-hidden">
           {shouldRenderGameplayStage ? (
             <GameplayStage
@@ -432,12 +433,12 @@ const HostViewContent = ({
               {matchPhase === "lobby" ? (
                 <LobbyOverlay
                   joinQrValue={joinQrValue}
-                  copiedJoinUrl={hostLobbyShell.copied}
-                  onCopyJoinUrl={hostLobbyShell.handleCopy}
-                  onOpenJoinUrl={hostLobbyShell.handleOpen}
-                  joinQrVisible={hostLobbyShell.joinQrVisible}
-                  onToggleJoinQr={hostLobbyShell.toggleJoinQr}
-                  onCloseJoinQr={hostLobbyShell.hideJoinQr}
+                  copiedJoinUrl={hostJoinControls.copied}
+                  onCopyJoinUrl={hostJoinControls.handleCopy}
+                  onOpenJoinUrl={hostJoinControls.handleOpen}
+                  joinQrVisible={hostJoinControls.joinQrVisible}
+                  onToggleJoinQr={hostJoinControls.toggleJoinQr}
+                  onCloseJoinQr={hostJoinControls.hideJoinQr}
                   roomId={roomId}
                   pointsToWin={pointsToWin}
                   botCounts={botCounts}

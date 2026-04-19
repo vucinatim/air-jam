@@ -13,7 +13,6 @@ import {
   resolveSurfaceViewportAvailableSize,
   resolveSurfaceViewportReferenceSize,
   resolveSurfaceViewportScale,
-  type SurfaceViewportPreset,
 } from "./surface-viewport-layout";
 
 type ScreenOrientationWithLock = ScreenOrientation & {
@@ -75,7 +74,6 @@ export interface SurfaceViewportProps {
   className?: string;
   contentClassName?: string;
   style?: CSSProperties;
-  preset?: SurfaceViewportPreset;
   designWidth?: number;
   designHeight?: number;
   uiScaleMultiplier?: number;
@@ -90,7 +88,6 @@ export const SurfaceViewport = ({
   className,
   contentClassName,
   style,
-  preset,
   designWidth,
   designHeight,
   uiScaleMultiplier,
@@ -185,7 +182,7 @@ export const SurfaceViewport = ({
   const referenceSize = useMemo(
     () =>
       resolveSurfaceViewportReferenceSize({
-        preset,
+        sessionScope,
         designWidth,
         designHeight,
         orientation: effectiveOrientation,
@@ -198,7 +195,7 @@ export const SurfaceViewport = ({
       designHeight,
       designWidth,
       effectiveOrientation,
-      preset,
+      sessionScope,
     ],
   );
 

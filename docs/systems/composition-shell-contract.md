@@ -50,7 +50,7 @@ For the default path, prefer composing from small SDK UI pieces:
 
 For shared behavior, prefer the headless hooks:
 
-1. `useHostLobbyShell`
+1. `useHostJoinControls`
 2. `useControllerShellStatus`
 3. `useControllerLifecyclePermissions`
 4. `useControllerLifecycleIntents`

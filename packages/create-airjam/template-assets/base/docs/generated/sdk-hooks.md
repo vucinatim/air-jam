@@ -99,7 +99,9 @@ const HostView = () => {
     getInput, // (controllerId: string) => Input | undefined
     sendSignal, // Send haptics/toasts to controllers
     sendState, // Publish lightweight controller presentation state
-    toggleRuntimeState, // Toggle between playing/paused
+    pauseRuntime, // Set runtimeState to "paused"
+    resumeRuntime, // Set runtimeState to "playing"
+    setRuntimeState, // Explicitly set "playing" | "paused"
     reconnect, // Force reconnection
   } = host;
 
@@ -107,7 +109,9 @@ const HostView = () => {
     <div className="relative min-h-screen bg-black text-white">
       <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/70 px-4 py-2 backdrop-blur">
         <span>Room {roomId}</span>
-        <button onClick={toggleRuntimeState}>
+        <button
+          onClick={runtimeState === "playing" ? pauseRuntime : resumeRuntime}
+        >
           {runtimeState === "playing" ? "Pause" : "Resume"}
         </button>
       </header>
@@ -282,7 +286,7 @@ const ControllerView = () => {
     stateMessage, // Optional message from host
 
     // Functions
-    sendSystemCommand, // "exit" | "toggle_pause"
+    sendSystemCommand, // "exit" | "pause" | "resume"
     setNickname, // Update nickname
     setAvatarId, // Update avatar selection draft
     updatePlayerProfile, // Patch live label/avatar when connected

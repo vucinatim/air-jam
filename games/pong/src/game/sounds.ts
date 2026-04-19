@@ -28,3 +28,5 @@ export const PONG_SOUND_MANIFEST = {
     volume: 0.75,
   },
 } satisfies SoundManifest;
+
+export type PongSoundId = keyof typeof PONG_SOUND_MANIFEST;

@@ -12,9 +12,6 @@ import {
   MusicPlaylist,
   useAirJamHost,
   useAudio,
-  useAudioRuntimeControls,
-  useAudioRuntimeStatus,
-  useHostRuntimeStateBridge,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
@@ -23,9 +20,9 @@ import {
   JoinUrlControls,
   LifecycleActionGroup,
   SurfaceViewport,
-  useHostLobbyShell,
+  useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { codeReviewVisualHarnessBridge } from "../../visual/contract";
 import {
@@ -127,18 +124,12 @@ function CodeReviewHostScreen() {
   const [audioMuted, setAudioMuted] = useState(false);
   const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
   const audio = useAudio<CodeReviewSoundId>();
-  const audioRuntimeStatus = useAudioRuntimeStatus();
-  const audioRuntimeControls = useAudioRuntimeControls();
   const audioMutedRef = useRef(false);
 
   useEffect(() => {
     audioMutedRef.current = audioMuted;
     audio.mute(audioMuted);
   }, [audio, audioMuted]);
-
-  useEffect(() => {
-    void audioRuntimeControls.retry();
-  }, [audioRuntimeControls]);
 
   const copyPlayerId = async (playerId: string): Promise<void> => {
     try {
@@ -280,24 +271,10 @@ function CodeReviewHostScreen() {
       team2Occupancy,
     ],
   );
-  const hostLobbyShell = useHostLobbyShell({
+  const hostJoinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
     canStartMatch,
   });
-  useVisualHarnessBridge(codeReviewVisualHarnessBridge, {
-    host,
-    matchPhase,
-    runtimeState: host.runtimeState,
-    actions,
-    scores,
-  });
-
-  useHostRuntimeStateBridge({
-    matchPhase,
-    runtimeState: host.runtimeState,
-    toggleRuntimeState: host.toggleRuntimeState,
-  });
-
   useEffect(() => {
     actions.syncConnectedPlayers({ connectedPlayerIds });
   }, [actions, connectedPlayerIds]);
@@ -463,15 +440,22 @@ function CodeReviewHostScreen() {
 
   return (
     <div className="host-view-shell">
+      <VisualHarnessRuntime
+        bridge={codeReviewVisualHarnessBridge}
+        context={{
+          host,
+          matchPhase,
+          runtimeState: host.runtimeState,
+          actions,
+          scores,
+        }}
+      />
       <MusicPlaylist
         fadeMs={800}
-        playing={audioRuntimeStatus === "ready" && !audioMuted}
+        playing={!audioMuted}
         tracks={CODE_REVIEW_MUSIC_TRACKS}
       />
-      <SurfaceViewport
-        preset="host-standard"
-        className="bg-(--ring-mat-color,#e5e7eb)"
-      >
+      <SurfaceViewport className="bg-(--ring-mat-color,#e5e7eb)">
         <div
           className="relative flex h-full w-full flex-col items-center justify-center p-4"
           style={{ backgroundColor: "var(--ring-mat-color, #e5e7eb)" }}
@@ -545,13 +529,13 @@ function CodeReviewHostScreen() {
                           </div>
 
                           <JoinUrlControls
-                            value={hostLobbyShell.joinUrlValue}
+                            value={hostJoinControls.joinUrlValue}
                             label="Join URL"
-                            copied={hostLobbyShell.copied}
-                            onCopy={hostLobbyShell.handleCopy}
-                            onOpen={hostLobbyShell.handleOpen}
-                            qrVisible={hostLobbyShell.joinQrVisible}
-                            onToggleQr={hostLobbyShell.toggleJoinQr}
+                            copied={hostJoinControls.copied}
+                            onCopy={hostJoinControls.handleCopy}
+                            onOpen={hostJoinControls.handleOpen}
+                            qrVisible={hostJoinControls.joinQrVisible}
+                            onToggleQr={hostJoinControls.toggleJoinQr}
                             className="pt-1"
                             inputClassName="pixel-font border-2 border-zinc-600 bg-black/80 text-xs text-zinc-100"
                             buttonClassName="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
@@ -635,10 +619,10 @@ function CodeReviewHostScreen() {
                   </div>
                 </div>
                 <JoinQrOverlay
-                  open={hostLobbyShell.joinQrVisible}
-                  value={hostLobbyShell.joinUrlValue}
+                  open={hostJoinControls.joinQrVisible}
+                  value={hostJoinControls.joinUrlValue}
                   roomId={host.roomId}
-                  onClose={hostLobbyShell.hideJoinQr}
+                  onClose={hostJoinControls.hideJoinQr}
                   description="Scan with your phone to join this Code Review room as a controller."
                   panelClassName="rounded-none border-4 border-zinc-300 bg-zinc-950"
                 />

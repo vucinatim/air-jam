@@ -106,11 +106,7 @@ Internally it publishes a local `--airjam-ui-scale` into Tailwind's own spacing,
 ```tsx
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 
-<SurfaceViewport
-  orientation="portrait"
-  preset="controller-phone"
-  className="bg-zinc-950"
->
+<SurfaceViewport orientation="portrait" className="bg-zinc-950">
   <ControllerView />
 </SurfaceViewport>;
 ```
@@ -119,7 +115,6 @@ Props:
 
 - `orientation?: "portrait" | "landscape"`
 - `children: ReactNode` (required)
-- `preset?: "controller-phone" | "host-standard"`
 - `designWidth?: number`
 - `designHeight?: number`
 - `uiScaleMultiplier?: number`

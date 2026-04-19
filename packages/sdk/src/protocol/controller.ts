@@ -61,7 +61,7 @@ export type ControllerLeavePayload = z.infer<typeof controllerLeaveSchema>;
 
 export const controllerSystemSchema = z.object({
   roomId: roomCodeSchema,
-  command: z.enum(["exit", "ready", "toggle_pause"]),
+  command: z.enum(["exit", "pause", "resume"]),
 });
 
 export type ControllerSystemPayload = z.infer<typeof controllerSystemSchema>;

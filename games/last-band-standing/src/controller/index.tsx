@@ -180,11 +180,7 @@ const ControllerScreen = ({
     : -1;
 
   return (
-    <SurfaceViewport
-      orientation="portrait"
-      preset="controller-phone"
-      className="bg-background"
-    >
+    <SurfaceViewport orientation="portrait" className="bg-background">
       <main className="text-foreground absolute inset-0 flex flex-col p-4">
         <RuntimeShellHeader
           connectionStatus={controller.connectionStatus}

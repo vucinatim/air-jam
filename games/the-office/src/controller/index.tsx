@@ -92,7 +92,10 @@ export function ControllerView() {
     canSendSystemCommand: controller.connectionStatus === "connected",
   });
   const lifecycleIntents = useControllerLifecycleIntents({
-    onTogglePause: () => controller.sendSystemCommand("toggle_pause"),
+    onTogglePause: () =>
+      controller.sendSystemCommand(
+        controller.runtimeState === "playing" ? "pause" : "resume",
+      ),
     onBackToLobby: () => actions.returnToLobby(),
     onRestart: () => actions.restartMatch(),
   });
@@ -211,7 +214,7 @@ export function ControllerView() {
   };
 
   return (
-    <SurfaceViewport orientation={desiredOrientation} preset="controller-phone">
+    <SurfaceViewport orientation={desiredOrientation}>
       <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[#5c4a2e]">
         <RuntimeShellHeader
           connectionStatus={controller.connectionStatus}

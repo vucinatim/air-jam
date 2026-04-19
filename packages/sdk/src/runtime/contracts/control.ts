@@ -5,7 +5,9 @@ import type { PlayerProfilePatch, RuntimeState } from "../../protocol";
 type HostControlApi = Pick<
   AirJamHostApi,
   | "runtimeState"
-  | "toggleRuntimeState"
+  | "pauseRuntime"
+  | "resumeRuntime"
+  | "setRuntimeState"
   | "sendSignal"
   | "sendState"
   | "reconnect"
@@ -24,8 +26,9 @@ type ControllerControlApi = Pick<
 export interface HostRuntimeControlContract {
   role: "host";
   reconnect: () => void;
-  toggleRuntimeState: () => void;
   setRuntimeState: (state: RuntimeState) => void;
+  pauseRuntime: () => void;
+  resumeRuntime: () => void;
   sendState: HostControlApi["sendState"];
   sendSignal: HostControlApi["sendSignal"];
 }
@@ -46,12 +49,9 @@ export const createHostRuntimeControlContract = (
 ): HostRuntimeControlContract => ({
   role: "host",
   reconnect: api.reconnect,
-  toggleRuntimeState: api.toggleRuntimeState,
-  setRuntimeState: (state) => {
-    if (api.runtimeState !== state) {
-      api.toggleRuntimeState();
-    }
-  },
+  setRuntimeState: api.setRuntimeState,
+  pauseRuntime: api.pauseRuntime,
+  resumeRuntime: api.resumeRuntime,
   sendState: api.sendState,
   sendSignal: api.sendSignal,
 });

@@ -1,9 +1,8 @@
 import type { CSSProperties } from "react";
+import type { SessionScope } from "../context/session-scope";
 import type { SurfaceOrientation } from "./surface-orientation-layout";
 
-export type SurfaceViewportPreset = "controller-phone" | "host-standard";
-
-interface SurfaceViewportPresetDimensions {
+interface SurfaceViewportReferenceDimensions {
   portrait: {
     width: number;
     height: number;
@@ -14,30 +13,91 @@ interface SurfaceViewportPresetDimensions {
   };
 }
 
-export const SURFACE_VIEWPORT_PRESETS: Record<
-  SurfaceViewportPreset,
-  SurfaceViewportPresetDimensions
-> = {
-  "controller-phone": {
-    portrait: {
-      width: 412,
-      height: 915,
-    },
-    landscape: {
-      width: 915,
-      height: 412,
-    },
+const CONTROLLER_REFERENCE_SIZE: SurfaceViewportReferenceDimensions = {
+  portrait: {
+    width: 412,
+    height: 915,
   },
-  "host-standard": {
-    portrait: {
-      width: 900,
-      height: 1600,
-    },
-    landscape: {
-      width: 1600,
-      height: 900,
-    },
+  landscape: {
+    width: 915,
+    height: 412,
   },
+};
+
+const HOST_REFERENCE_SIZE: SurfaceViewportReferenceDimensions = {
+  portrait: {
+    width: 900,
+    height: 1600,
+  },
+  landscape: {
+    width: 1600,
+    height: 900,
+  },
+};
+
+export const resolveSurfaceViewportScopeReferenceSize = (
+  sessionScope: SessionScope,
+): SurfaceViewportReferenceDimensions | null => {
+  if (sessionScope === "controller") {
+    return CONTROLLER_REFERENCE_SIZE;
+  }
+
+  if (sessionScope === "host") {
+    return HOST_REFERENCE_SIZE;
+  }
+
+  return null;
+};
+
+export const SURFACE_VIEWPORT_REFERENCE_SIZES = {
+  controller: CONTROLLER_REFERENCE_SIZE,
+  host: HOST_REFERENCE_SIZE,
+} as const;
+
+interface ResolveSurfaceViewportReferenceSizeOptions {
+  sessionScope: SessionScope;
+  designWidth?: number;
+  designHeight?: number;
+  orientation: SurfaceOrientation;
+  availableWidth: number;
+  availableHeight: number;
+}
+
+export const resolveSurfaceViewportReferenceSize = ({
+  sessionScope,
+  designWidth,
+  designHeight,
+  orientation,
+  availableWidth,
+  availableHeight,
+}: ResolveSurfaceViewportReferenceSizeOptions): {
+  width: number;
+  height: number;
+} => {
+  if (
+    typeof designWidth === "number" &&
+    Number.isFinite(designWidth) &&
+    designWidth > 0 &&
+    typeof designHeight === "number" &&
+    Number.isFinite(designHeight) &&
+    designHeight > 0
+  ) {
+    return {
+      width: designWidth,
+      height: designHeight,
+    };
+  }
+
+  const scopedReferenceSize =
+    resolveSurfaceViewportScopeReferenceSize(sessionScope);
+  if (scopedReferenceSize) {
+    return scopedReferenceSize[orientation];
+  }
+
+  return {
+    width: Math.max(availableWidth, 1),
+    height: Math.max(availableHeight, 1),
+  };
 };
 
 const SURFACE_VIEWPORT_TEXT_SIZE_BASES = {
@@ -82,50 +142,6 @@ const SURFACE_VIEWPORT_RADIUS_BASES = {
   "3xl": "1.5rem",
   "4xl": "2rem",
 } as const;
-
-interface ResolveSurfaceViewportReferenceSizeOptions {
-  preset?: SurfaceViewportPreset;
-  designWidth?: number;
-  designHeight?: number;
-  orientation: SurfaceOrientation;
-  availableWidth: number;
-  availableHeight: number;
-}
-
-export const resolveSurfaceViewportReferenceSize = ({
-  preset,
-  designWidth,
-  designHeight,
-  orientation,
-  availableWidth,
-  availableHeight,
-}: ResolveSurfaceViewportReferenceSizeOptions): {
-  width: number;
-  height: number;
-} => {
-  if (
-    typeof designWidth === "number" &&
-    Number.isFinite(designWidth) &&
-    designWidth > 0 &&
-    typeof designHeight === "number" &&
-    Number.isFinite(designHeight) &&
-    designHeight > 0
-  ) {
-    return {
-      width: designWidth,
-      height: designHeight,
-    };
-  }
-
-  if (preset) {
-    return SURFACE_VIEWPORT_PRESETS[preset][orientation];
-  }
-
-  return {
-    width: Math.max(availableWidth, 1),
-    height: Math.max(availableHeight, 1),
-  };
-};
 
 export interface ResolveSurfaceViewportAvailableSizeOptions {
   safeViewportWidth: number;

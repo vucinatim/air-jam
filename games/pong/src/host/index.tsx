@@ -6,9 +6,8 @@
  *  2. `HostScreen` pulls the networked `usePongStore` slice through
  *     `useTeamsSnapshot` and wires up the host-side feedback (audio + haptic
  *     signals to controllers).
- *  3. `useHostRuntimeStateBridge` keeps transport pause/play aligned with the
- *     store's `matchPhase` — entering `playing` starts the countdown, exiting
- *     clears it, and returning to lobby resets the ball.
+ *  3. Local phase transition effects reset the simulation buffers when a match
+ *     starts, ends, or returns to lobby.
  *  4. `useHostTick` runs a fixed-step host simulation: `stepGame` advances from
  *     controller inputs, `drawFrame` renders the scene, and `onScore` dispatches
  *     the networked `scorePoint` action.
@@ -22,30 +21,30 @@ import {
   AudioRuntime,
   useAirJamHost,
   useAudio,
-  useHostRuntimeStateBridge,
   useHostTick,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
   SurfaceViewport,
-  useHostLobbyShell,
+  useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { useVisualHarnessBridge } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
 import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
 import { pongVisualHarnessBridge } from "../../visual/contract";
 import {
+  copyRuntimeState,
   createRuntimeState,
   drawFrame,
   FIELD_HEIGHT,
   FIELD_WIDTH,
+  interpolateRuntimeState,
   resetBall,
   stepGame,
-  type RuntimeState,
 } from "../game/engine";
 import { gameInputSchema } from "../game/input";
-import { PONG_SOUND_MANIFEST } from "../game/sounds";
+import { PONG_SOUND_MANIFEST, type PongSoundId } from "../game/sounds";
 import { usePongStore } from "../game/stores";
 import { useTeamsSnapshot } from "../game/use-teams-snapshot";
 import { EndedScreen } from "./components/ended-screen";
@@ -58,46 +57,6 @@ import { usePongFeedback } from "./use-pong-feedback";
 const COUNTDOWN_SECONDS = 3;
 const PONG_SIMULATION_STEP_MS = 1000 / 60;
 
-const copyRuntimeState = (target: RuntimeState, source: RuntimeState): void => {
-  Object.assign(target, source);
-};
-
-const lerp = (from: number, to: number, alpha: number): number =>
-  from + (to - from) * alpha;
-
-const interpolateRuntimeState = (
-  target: RuntimeState,
-  previous: RuntimeState,
-  current: RuntimeState,
-  alpha: number,
-): void => {
-  target.paddle1FrontY = lerp(
-    previous.paddle1FrontY,
-    current.paddle1FrontY,
-    alpha,
-  );
-  target.paddle1BackY = lerp(
-    previous.paddle1BackY,
-    current.paddle1BackY,
-    alpha,
-  );
-  target.paddle2FrontY = lerp(
-    previous.paddle2FrontY,
-    current.paddle2FrontY,
-    alpha,
-  );
-  target.paddle2BackY = lerp(
-    previous.paddle2BackY,
-    current.paddle2BackY,
-    alpha,
-  );
-  target.ballX = lerp(previous.ballX, current.ballX, alpha);
-  target.ballY = lerp(previous.ballY, current.ballY, alpha);
-  target.ballVX = current.ballVX;
-  target.ballVY = current.ballVY;
-  target.lastTouchedTeam = current.lastTouchedTeam;
-};
-
 export function HostView() {
   return (
     <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
@@ -108,8 +67,8 @@ export function HostView() {
 
 function HostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
-  const audio = useAudio<keyof typeof PONG_SOUND_MANIFEST & string>();
-  const { runtimeState, toggleRuntimeState } = host;
+  const audio = useAudio<PongSoundId>();
+  const { runtimeState } = host;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContextRef = useRef<CanvasRenderingContext2D | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -141,18 +100,12 @@ function HostScreen() {
   const runtimeStateRef = useRef(createRuntimeState());
   const previousRuntimeStateRef = useRef(createRuntimeState());
   const renderStateRef = useRef(createRuntimeState());
+  const previousMatchPhaseRef = useRef(matchPhase);
 
-  const hostLobbyShell = useHostLobbyShell({
+  const hostJoinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
-  });
-
-  useVisualHarnessBridge(pongVisualHarnessBridge, {
-    host,
-    matchPhase,
-    runtimeState,
-    actions,
   });
 
   const showPausedOverlay =
@@ -162,32 +115,35 @@ function HostScreen() {
     audio.mute(audioMuted);
   }, [audio, audioMuted]);
 
-  // Keep transport pause/play aligned with store phase transitions.
-  useHostRuntimeStateBridge({
-    matchPhase,
-    runtimeState,
-    toggleRuntimeState,
-    onEnterActivePhase: () => {
+  useEffect(() => {
+    const previousMatchPhase = previousMatchPhaseRef.current;
+    if (previousMatchPhase === matchPhase) {
+      return;
+    }
+
+    if (previousMatchPhase !== "playing" && matchPhase === "playing") {
       setCountdown(COUNTDOWN_SECONDS);
       const nextState = createRuntimeState();
       copyRuntimeState(runtimeStateRef.current, nextState);
       copyRuntimeState(previousRuntimeStateRef.current, nextState);
       copyRuntimeState(renderStateRef.current, nextState);
-    },
-    onExitActivePhase: () => {
+    }
+
+    if (previousMatchPhase === "playing" && matchPhase !== "playing") {
       setCountdown(null);
-    },
-    onPhaseTransition: ({ previousPhase, matchPhase: nextPhase }) => {
-      if (previousPhase === "ended" && nextPhase === "lobby") {
-        resetBall(runtimeStateRef.current);
-        copyRuntimeState(
-          previousRuntimeStateRef.current,
-          runtimeStateRef.current,
-        );
-        copyRuntimeState(renderStateRef.current, runtimeStateRef.current);
-      }
-    },
-  });
+    }
+
+    if (previousMatchPhase === "ended" && matchPhase === "lobby") {
+      resetBall(runtimeStateRef.current);
+      copyRuntimeState(
+        previousRuntimeStateRef.current,
+        runtimeStateRef.current,
+      );
+      copyRuntimeState(renderStateRef.current, runtimeStateRef.current);
+    }
+
+    previousMatchPhaseRef.current = matchPhase;
+  }, [matchPhase]);
 
   // Countdown tick. Once it hits 0 the ball launches, and we clear countdown
   // on the next microtask so the next frame's `stepGame` sees `null`.
@@ -273,12 +229,12 @@ function HostScreen() {
         const ctx = canvasContextRef.current;
         if (!ctx) return;
 
-        interpolateRuntimeState(
-          renderStateRef.current,
-          previousRuntimeStateRef.current,
-          runtimeStateRef.current,
-          fixedStepAlpha,
-        );
+        interpolateRuntimeState({
+          target: renderStateRef.current,
+          previous: previousRuntimeStateRef.current,
+          current: runtimeStateRef.current,
+          alpha: fixedStepAlpha,
+        });
 
         drawFrame({
           ctx,
@@ -297,13 +253,13 @@ function HostScreen() {
   if (matchPhase === "lobby") {
     content = (
       <LobbyScreen
-        joinQrValue={hostLobbyShell.joinUrlValue}
-        copiedJoinUrl={hostLobbyShell.copied}
-        onCopyJoinUrl={hostLobbyShell.handleCopy}
-        onOpenJoinUrl={hostLobbyShell.handleOpen}
-        joinQrVisible={hostLobbyShell.joinQrVisible}
-        onToggleJoinQr={hostLobbyShell.toggleJoinQr}
-        onCloseJoinQr={hostLobbyShell.hideJoinQr}
+        joinQrValue={hostJoinControls.joinUrlValue}
+        copiedJoinUrl={hostJoinControls.copied}
+        onCopyJoinUrl={hostJoinControls.handleCopy}
+        onOpenJoinUrl={hostJoinControls.handleOpen}
+        joinQrVisible={hostJoinControls.joinQrVisible}
+        onToggleJoinQr={hostJoinControls.toggleJoinQr}
+        onCloseJoinQr={hostJoinControls.hideJoinQr}
         roomId={host.roomId}
         botCounts={botCounts}
         pointsToWin={pointsToWin}
@@ -311,7 +267,7 @@ function HostScreen() {
         team1Players={team1Players}
         team2Players={team2Players}
         canStartMatch={canStartMatch}
-        onStartMatch={hostLobbyShell.handleStart}
+        onStartMatch={hostJoinControls.handleStart}
       />
     );
   } else if (matchPhase === "ended") {
@@ -348,7 +304,7 @@ function HostScreen() {
 
         {showPausedOverlay ? (
           <MatchOverlay
-            joinQrValue={hostLobbyShell.joinUrlValue}
+            joinQrValue={hostJoinControls.joinUrlValue}
             roomId={host.roomId}
           />
         ) : null}
@@ -358,9 +314,16 @@ function HostScreen() {
 
   return (
     <>
-      <SurfaceViewport preset="host-standard" className="bg-[#02030a]">
-        {content}
-      </SurfaceViewport>
+      <VisualHarnessRuntime
+        bridge={pongVisualHarnessBridge}
+        context={{
+          host,
+          matchPhase,
+          runtimeState,
+          actions,
+        }}
+      />
+      <SurfaceViewport className="bg-[#02030a]">{content}</SurfaceViewport>
       <HostPreviewControllerWorkspace
         dockAccessory={
           <HostMuteButton

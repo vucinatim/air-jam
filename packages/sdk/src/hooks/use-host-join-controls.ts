@@ -38,14 +38,14 @@ const copyTextToClipboard = async (text: string): Promise<boolean> => {
   }
 };
 
-export interface UseHostLobbyShellOptions {
+export interface UseHostJoinControlsOptions {
   joinUrl: string | null | undefined;
   canStartMatch?: boolean;
   onStartMatch?: () => void;
   copiedDurationMs?: number;
 }
 
-export interface HostLobbyShellApi {
+export interface HostJoinControlsApi {
   joinUrlValue: string;
   hasJoinUrl: boolean;
   copied: boolean;
@@ -59,12 +59,12 @@ export interface HostLobbyShellApi {
   handleStart: () => void;
 }
 
-export const useHostLobbyShell = ({
+export const useHostJoinControls = ({
   joinUrl,
   canStartMatch = false,
   onStartMatch,
   copiedDurationMs = 1800,
-}: UseHostLobbyShellOptions): HostLobbyShellApi => {
+}: UseHostJoinControlsOptions): HostJoinControlsApi => {
   const [copied, setCopied] = useState(false);
   const [joinQrVisible, setJoinQrVisible] = useState(false);
   const resetTimerRef = useRef<number | null>(null);

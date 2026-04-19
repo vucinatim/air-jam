@@ -36,6 +36,10 @@ Release-critical plans:
 2. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
 3. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
 
+Active architecture cleanup plans:
+
+1. [SDK Game Authoring Ergonomics Plan](./plans/sdk-game-authoring-ergonomics-plan.md)
+
 Canonical release sequence:
 
 1. implementation

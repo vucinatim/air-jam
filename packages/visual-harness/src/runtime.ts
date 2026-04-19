@@ -37,7 +37,15 @@ const isVisualHarnessRuntimeEnabled = (): boolean => {
   );
 };
 
-type UseVisualHarnessBridgeOptions = {
+type UseVisualHarnessRuntimeOptions = {
+  enabled?: boolean;
+};
+
+export type VisualHarnessRuntimeProps<
+  TBridge extends AnyVisualHarnessBridgeDefinition,
+> = {
+  bridge: TBridge;
+  context: InferVisualHarnessBridgeContext<TBridge>;
   enabled?: boolean;
 };
 
@@ -69,12 +77,12 @@ const createPublishedActionMap = <
   };
 };
 
-export const useVisualHarnessBridge = <
+const useVisualHarnessRuntime = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
 >(
   bridge: TBridge,
   context: InferVisualHarnessBridgeContext<TBridge>,
-  options?: UseVisualHarnessBridgeOptions,
+  options?: UseVisualHarnessRuntimeOptions,
 ): void => {
   const enabled = options?.enabled ?? isVisualHarnessRuntimeEnabled();
   const contextRef = useRef(context);
@@ -116,6 +124,17 @@ export const useVisualHarnessBridge = <
       clearVisualHarnessBridgeActions();
     };
   }, [enabled]);
+};
+
+export const VisualHarnessRuntime = <
+  TBridge extends AnyVisualHarnessBridgeDefinition,
+>({
+  bridge,
+  context,
+  enabled,
+}: VisualHarnessRuntimeProps<TBridge>) => {
+  useVisualHarnessRuntime(bridge, context, { enabled });
+  return null;
 };
 
 export { bridgeAction, defineVisualHarnessBridge };

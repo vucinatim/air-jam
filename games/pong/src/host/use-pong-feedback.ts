@@ -5,7 +5,7 @@ import {
   createPaddleHitHapticSignal,
 } from "../game/controller-signals";
 import type { TeamId } from "../game/domain/team";
-import { PONG_SOUND_MANIFEST } from "../game/sounds";
+import type { PongSoundId } from "../game/sounds";
 import type { MatchSummary } from "../game/stores";
 
 interface UsePongFeedbackOptions {
@@ -21,7 +21,7 @@ export const usePongFeedback = ({
   matchSummaryWinner,
   matchSummary,
 }: UsePongFeedbackOptions) => {
-  const audio = useAudio<keyof typeof PONG_SOUND_MANIFEST & string>();
+  const audio = useAudio<PongSoundId>();
   const sendSignal = useSendSignal();
   const lastHitAtRef = useRef(0);
   const previousPhaseRef = useRef(matchPhase);

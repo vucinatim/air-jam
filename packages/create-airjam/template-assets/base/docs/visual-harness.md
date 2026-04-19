@@ -15,7 +15,7 @@ Put here:
 2. typed bridge actions
 3. payload validation
 
-Use `useVisualHarnessBridge(...)` from the host and keep the host free of raw bridge `useEffect` plumbing.
+Mount `<VisualHarnessRuntime />` from the host and keep the host free of raw bridge `useEffect` plumbing.
 
 ## `visual/scenarios.ts`
 

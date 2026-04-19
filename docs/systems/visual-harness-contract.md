@@ -24,7 +24,7 @@ Rules:
 3. expose only the minimal deterministic actions needed to stage scenarios
 4. keep snapshot shape small and explicit
 
-The host should consume this contract through `useVisualHarnessBridge(...)` instead of publishing ad hoc bridge globals directly.
+The host should mount this contract through `<VisualHarnessRuntime />` instead of publishing ad hoc bridge globals directly.
 
 ## `visual/scenarios.ts`
 
@@ -42,15 +42,18 @@ Do not abstract away `getByTestId`, `getByRole`, or game-owned DOM knowledge unl
 
 ## Host Pattern
 
-The host should contain one bridge hook call and no raw bridge plumbing:
+The host should mount one runtime component and no raw bridge plumbing:
 
 ```tsx
-useVisualHarnessBridge(pongVisualHarnessBridge, {
-  host,
-  matchPhase,
-  runtimeState,
-  actions,
-});
+<VisualHarnessRuntime
+  bridge={pongVisualHarnessBridge}
+  context={{
+    host,
+    matchPhase,
+    runtimeState,
+    actions,
+  }}
+/>
 ```
 
 That means the host no longer owns:

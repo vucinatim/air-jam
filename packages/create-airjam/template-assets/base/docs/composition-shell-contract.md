@@ -54,7 +54,7 @@ When lifecycle action visibility or labels should stay shared, prefer `useLifecy
 
 For shared shell state and handler wiring, prefer:
 
-1. `useHostLobbyShell`
+1. `useHostJoinControls`
 2. `useControllerShellStatus`
 3. `useControllerLifecyclePermissions`
 4. `useControllerLifecycleIntents`

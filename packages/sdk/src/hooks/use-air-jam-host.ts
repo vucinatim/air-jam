@@ -8,7 +8,7 @@
  * - Player tracking (join/leave events, player list)
  * - Input handling (typed and behavior-aware controller input)
  * - Signaling (send haptic feedback, toast notifications to controllers)
- * - Game state management (pause/play, broadcast state)
+ * - Runtime pause/play controls and controller state broadcasts
  *
  * **Standalone (default):** creates or reconnects a room from session storage / options.
  *
@@ -102,10 +102,14 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   lastError?: string;
   /** Current run mode (standalone, arcade, platform) */
   mode: RunMode;
-  /** Current game state (paused or playing) */
+  /** Current runtime pause/play state */
   runtimeState: RuntimeState;
-  /** Toggle between paused and playing states */
-  toggleRuntimeState: () => void;
+  /** Pause the runtime for every connected surface. */
+  pauseRuntime: () => void;
+  /** Resume the runtime for every connected surface. */
+  resumeRuntime: () => void;
+  /** Set the runtime pause/play state explicitly. */
+  setRuntimeState: (state: RuntimeState) => void;
   /**
    * Send state update to all connected controllers.
    * Use for syncing game state, messages, etc.
@@ -176,7 +180,7 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * - Real-time player join/leave events
  * - Typed input with validation and behavior defaults
  * - Haptic feedback and toast notifications
- * - Game state synchronization
+ * - Runtime state synchronization
  *
  * @template TSchema - Zod schema for input validation (from provider)
  * @returns API object with state and functions
@@ -191,8 +195,14 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  *       <h1>Room: {host.roomId}</h1>
  *       <QRCode value={host.joinUrl} />
  *       <p>Players: {host.players.length}</p>
- *       <button onClick={host.toggleRuntimeState}>
- *         {host.runtimeState === "playing" ? "Pause" : "Play"}
+ *       <button
+ *         onClick={
+ *           host.runtimeState === "playing"
+ *             ? host.pauseRuntime
+ *             : host.resumeRuntime
+ *         }
+ *       >
+ *         {host.runtimeState === "playing" ? "Pause" : "Resume"}
  *       </button>
  *     </div>
  *   );

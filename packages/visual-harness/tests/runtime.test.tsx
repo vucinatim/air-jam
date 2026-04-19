@@ -5,7 +5,7 @@ import {
   bridgeAction,
   defineVisualHarnessBridge,
 } from "../src/bridge-contract";
-import { useVisualHarnessBridge } from "../src/runtime";
+import { VisualHarnessRuntime } from "../src/runtime";
 import {
   VISUAL_HARNESS_ACTIONS_KEY,
   VISUAL_HARNESS_BRIDGE_KEY,
@@ -58,22 +58,20 @@ const HarnessHost = (props: {
   points: number[];
   calls: number[];
 }) => {
-  useVisualHarnessBridge(
-    bridge,
-    {
-      roomId: props.roomId,
-      joinUrl: props.joinUrl,
-      matchPhase: props.matchPhase,
-      runtimeState: props.runtimeState,
-      points: props.points,
-      calls: props.calls,
-    },
-    {
-      enabled: props.enabled,
-    },
+  return (
+    <VisualHarnessRuntime
+      bridge={bridge}
+      context={{
+        roomId: props.roomId,
+        joinUrl: props.joinUrl,
+        matchPhase: props.matchPhase,
+        runtimeState: props.runtimeState,
+        points: props.points,
+        calls: props.calls,
+      }}
+      enabled={props.enabled}
+    />
   );
-
-  return null;
 };
 
 const renderHarnessHost = (props: ComponentProps<typeof HarnessHost>) => {
@@ -98,7 +96,7 @@ const renderHarnessHost = (props: ComponentProps<typeof HarnessHost>) => {
   };
 };
 
-describe("useVisualHarnessBridge", () => {
+describe("VisualHarnessRuntime", () => {
   afterEach(() => {
     window.history.replaceState(null, "", "/");
     delete (window as unknown as Record<string, unknown>)[

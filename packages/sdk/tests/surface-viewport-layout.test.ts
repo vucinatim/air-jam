@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  SURFACE_VIEWPORT_PRESETS,
+  SURFACE_VIEWPORT_REFERENCE_SIZES,
   createSurfaceViewportScaleStyle,
   resolveSurfaceViewportAvailableSize,
   resolveSurfaceViewportReferenceSize,
@@ -8,30 +8,30 @@ import {
 } from "../src/components/surface-viewport-layout";
 
 describe("surface viewport layout", () => {
-  it("uses preset reference dimensions in the requested orientation", () => {
+  it("uses session-scope reference dimensions in the requested orientation", () => {
     expect(
       resolveSurfaceViewportReferenceSize({
-        preset: "controller-phone",
+        sessionScope: "controller",
         orientation: "portrait",
         availableWidth: 320,
         availableHeight: 640,
       }),
-    ).toEqual(SURFACE_VIEWPORT_PRESETS["controller-phone"].portrait);
+    ).toEqual(SURFACE_VIEWPORT_REFERENCE_SIZES.controller.portrait);
 
     expect(
       resolveSurfaceViewportReferenceSize({
-        preset: "controller-phone",
+        sessionScope: "host",
         orientation: "landscape",
         availableWidth: 640,
         availableHeight: 320,
       }),
-    ).toEqual(SURFACE_VIEWPORT_PRESETS["controller-phone"].landscape);
+    ).toEqual(SURFACE_VIEWPORT_REFERENCE_SIZES.host.landscape);
   });
 
-  it("prefers explicit reference dimensions over presets", () => {
+  it("prefers explicit reference dimensions over scope defaults", () => {
     expect(
       resolveSurfaceViewportReferenceSize({
-        preset: "controller-phone",
+        sessionScope: "controller",
         designWidth: 500,
         designHeight: 700,
         orientation: "portrait",
@@ -41,6 +41,20 @@ describe("surface viewport layout", () => {
     ).toEqual({
       width: 500,
       height: 700,
+    });
+  });
+
+  it("falls back to the available frame size without a session scope", () => {
+    expect(
+      resolveSurfaceViewportReferenceSize({
+        sessionScope: "unscoped",
+        orientation: "landscape",
+        availableWidth: 1280,
+        availableHeight: 720,
+      }),
+    ).toEqual({
+      width: 1280,
+      height: 720,
     });
   });
 
