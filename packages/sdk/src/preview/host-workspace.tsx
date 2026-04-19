@@ -2,28 +2,37 @@ import { useAirJamHost } from "../hooks/use-air-jam-host";
 import { useOptionalPlatformSettingsOwnerApi } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
+  resolveHostPreviewControllerWorkspaceEnabled,
+  type HostPreviewControllerWorkspaceEnabled,
+} from "./ownership";
+import {
   PreviewControllerWorkspace,
   type PreviewControllerWorkspaceProps,
 } from "./workspace";
 
 export type HostPreviewControllerWorkspaceProps = Omit<
   PreviewControllerWorkspaceProps,
-  "joinUrl"
->;
+  "enabled" | "joinUrl"
+> & {
+  enabled?: HostPreviewControllerWorkspaceEnabled;
+};
 
 export const HostPreviewControllerWorkspace = ({
-  enabled = false,
+  enabled = "auto",
   className,
   ...props
 }: HostPreviewControllerWorkspaceProps) => {
   const host = useAirJamHost();
   const platformSettingsOwner = useOptionalPlatformSettingsOwnerApi();
+  const resolvedEnabled = resolveHostPreviewControllerWorkspaceEnabled({
+    enabled,
+  });
   const joinUrl =
     host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
 
   return (
     <PreviewControllerWorkspace
-      enabled={enabled}
+      enabled={resolvedEnabled}
       joinUrl={joinUrl}
       onActiveOpacityChange={(activeOpacity) =>
         platformSettingsOwner?.updatePreviewControllers({ activeOpacity })

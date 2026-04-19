@@ -168,4 +168,50 @@ describe("tick hooks", () => {
 
     expect(calls).toHaveLength(callsBeforeUnmount);
   });
+
+  it("runs useHostTick fixed render frames on every RAF", () => {
+    let rafId = 0;
+    const rafTimers = new Map<number, ReturnType<typeof setTimeout>>();
+    const frameDelays = [5, 5, 5, 5];
+
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      rafId += 1;
+      const id = rafId;
+      const delay = frameDelays.shift() ?? 5;
+      const timer = setTimeout(() => cb(performance.now()), delay);
+      rafTimers.set(id, timer);
+      return id;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      const timer = rafTimers.get(id);
+      if (timer) {
+        clearTimeout(timer);
+        rafTimers.delete(id);
+      }
+    });
+
+    const simulationTicks: number[] = [];
+    const renderFrames: Array<{ frame: number; fixedStepAlpha: number }> = [];
+    const { unmount } = renderHook(() =>
+      useHostTick(({ tick }) => simulationTicks.push(tick), {
+        mode: "fixed",
+        intervalMs: 10,
+        onFrame: ({ frame, fixedStepAlpha }) => {
+          renderFrames.push({ frame, fixedStepAlpha });
+        },
+      }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+
+    expect(renderFrames.map((frame) => frame.frame)).toEqual([1, 2, 3, 4]);
+    expect(simulationTicks).toEqual([1, 2]);
+    expect(renderFrames.map((frame) => frame.fixedStepAlpha)).toEqual([
+      0.5, 0, 0.5, 0,
+    ]);
+
+    unmount();
+  });
 });

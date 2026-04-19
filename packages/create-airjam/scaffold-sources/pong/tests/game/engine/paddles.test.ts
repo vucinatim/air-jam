@@ -3,7 +3,26 @@ import {
   createEmptyBotCounts,
   getBotPositions,
 } from "../../../src/game/domain/team-slots";
-import { getTeamPaddleState } from "../../../src/game/engine/paddles";
+import {
+  applyBotPaddleInput,
+  getTeamPaddleState,
+} from "../../../src/game/engine/paddles";
+import type { RuntimeState } from "../../../src/game/engine/types";
+
+const createRuntimeState = (
+  overrides: Partial<RuntimeState> = {},
+): RuntimeState => ({
+  paddle1FrontY: 100,
+  paddle1BackY: 100,
+  paddle2FrontY: 100,
+  paddle2BackY: 100,
+  ballX: 200,
+  ballY: 146.5,
+  ballVX: 360,
+  ballVY: 360,
+  lastTouchedTeam: null,
+  ...overrides,
+});
 
 describe("paddle occupancy", () => {
   it("fills remaining team slots with bots after human assignments", () => {
@@ -34,5 +53,13 @@ describe("paddle occupancy", () => {
       team1: { hasFront: false, hasBack: false },
       team2: { hasFront: false, hasBack: false },
     });
+  });
+
+  it("clamps bot movement at the target instead of overshooting", () => {
+    const state = createRuntimeState();
+
+    applyBotPaddleInput(state, {}, { team1: 1, team2: 0 }, 1 / 60);
+
+    expect(state.paddle1FrontY).toBe(104);
   });
 });

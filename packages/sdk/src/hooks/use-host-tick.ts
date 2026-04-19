@@ -8,12 +8,21 @@ export interface HostTickInfo {
   tick: number;
 }
 
+export interface HostFrameInfo {
+  now: number;
+  deltaMs: number;
+  deltaSeconds: number;
+  frame: number;
+  fixedStepAlpha: number;
+}
+
 export interface HostTickOptions {
   enabled?: boolean;
   mode?: "raf" | "interval" | "fixed";
   intervalMs?: number;
   maxDeltaMs?: number;
   maxStepsPerFrame?: number;
+  onFrame?: (info: HostFrameInfo) => void;
 }
 
 const DEFAULT_HOST_TICK_MS = 16;
@@ -39,15 +48,21 @@ export const useHostTick = (
     intervalMs = DEFAULT_HOST_TICK_MS,
     maxDeltaMs = DEFAULT_HOST_MAX_DELTA_MS,
     maxStepsPerFrame = DEFAULT_HOST_MAX_STEPS_PER_FRAME,
+    onFrame,
   } = options;
   const tickIntervalMs = Math.max(1, intervalMs);
   const frameDeltaCapMs = Math.max(tickIntervalMs, maxDeltaMs);
   const frameStepCap = Math.max(1, maxStepsPerFrame);
   const callbackRef = useRef(callback);
+  const onFrameRef = useRef(onFrame);
 
   useEffect(() => {
     callbackRef.current = callback;
   }, [callback]);
+
+  useEffect(() => {
+    onFrameRef.current = onFrame;
+  }, [onFrame]);
 
   useEffect(() => {
     if (!enabled) {
@@ -58,6 +73,7 @@ export const useHostTick = (
     }
 
     let tick = 0;
+    let frameCount = 0;
     let lastTime = performance.now();
 
     if (mode === "interval") {
@@ -90,6 +106,7 @@ export const useHostTick = (
           0,
           Math.min(now - lastTime, frameDeltaCapMs),
         );
+        frameCount += 1;
         lastTime = now;
         accumulatorMs += frameDeltaMs;
 
@@ -112,6 +129,14 @@ export const useHostTick = (
         if (stepsThisFrame === frameStepCap) {
           accumulatorMs = 0;
         }
+
+        onFrameRef.current?.({
+          now,
+          deltaMs: frameDeltaMs,
+          deltaSeconds: frameDeltaMs / 1000,
+          frame: frameCount,
+          fixedStepAlpha: Math.min(1, accumulatorMs / tickIntervalMs),
+        });
 
         rafId = window.requestAnimationFrame(frame);
       };

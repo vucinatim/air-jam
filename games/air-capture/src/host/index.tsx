@@ -364,7 +364,6 @@ const HostViewContent = ({
     onStartMatch: () => matchActions.startMatch(),
   });
   const joinQrValue = hostLobbyShell.joinUrlValue;
-  const previewControllersEnabled = import.meta.env.DEV;
   useVisualHarnessBridge(airCaptureVisualHarnessBridge, {
     host,
     matchPhase,
@@ -497,7 +496,6 @@ const HostViewContent = ({
         </div>
       </SurfaceViewport>
       <HostPreviewControllerWorkspace
-        enabled={previewControllersEnabled}
         dockAccessory={
           <HostMuteButton muted={audioMuted} onToggle={toggleAudio} />
         }

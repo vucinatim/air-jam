@@ -147,8 +147,6 @@ const HostScreen = () => {
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
   });
-  const previewControllersEnabled = import.meta.env.DEV;
-
   const answeredCount = currentRound
     ? currentRound.expectedPlayerIds.filter(
         (playerId) => answersByPlayerId[playerId],
@@ -322,7 +320,6 @@ const HostScreen = () => {
         </main>
       </SurfaceViewport>
       <HostPreviewControllerWorkspace
-        enabled={previewControllersEnabled}
         dockAccessory={
           <div className="flex items-center gap-2">
             <HostMuteButton

@@ -63,7 +63,6 @@ import rightShortSprite from "/sprites/right-short.png";
 
 export function HostView() {
   const host = useAirJamHost<typeof gameInputSchema>();
-  const previewControllersEnabled = import.meta.env.DEV;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const spritesRef = useRef<Record<SpriteKey, HTMLCanvasElement | null>>(
@@ -711,7 +710,6 @@ export function HostView() {
         </div>
       </SurfaceViewport>
       <HostPreviewControllerWorkspace
-        enabled={previewControllersEnabled}
         dockAccessory={
           <HostMuteButton
             muted={audioMuted}

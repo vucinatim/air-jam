@@ -359,6 +359,12 @@ Canonical host loop helper.
 
 - `mode: "raf"` (default) for render-aligned loops.
 - `mode: "interval"` for fixed-cadence polling loops.
+- `mode: "fixed"` for deterministic fixed-step simulation loops.
+
+In fixed mode, pass `onFrame` when rendering should happen every animation
+frame while simulation still advances at the fixed cadence. The frame info
+includes `fixedStepAlpha`, which games can use to interpolate between previous
+and current simulation state.
 
 **Auto Room Join from URL:**
 

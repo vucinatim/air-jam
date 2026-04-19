@@ -16,6 +16,7 @@
  * any of that. See `pong` for a host that drives a 60fps simulation.
  */
 import { useAirJamHost } from "@air-jam/sdk";
+import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { RoomQrCode, SurfaceViewport } from "@air-jam/sdk/ui";
 import { useMinimalStore } from "../game/store";
 
@@ -25,38 +26,41 @@ export function HostView() {
   const actions = useMinimalStore.useActions();
 
   return (
-    <SurfaceViewport preset="host-standard" className="bg-neutral-950">
-      <div className="flex h-full w-full flex-col items-center justify-center gap-10 p-8 text-white">
-        <div className="text-xs tracking-[0.3em] text-neutral-500 uppercase">
-          Shared Taps
-        </div>
-
-        <div className="text-[22vmin] leading-none font-black tabular-nums">
-          {totalCount}
-        </div>
-
-        <div className="flex flex-col items-center gap-4">
-          <div className="text-xs tracking-[0.2em] text-neutral-400 uppercase">
-            Scan to join
+    <>
+      <SurfaceViewport preset="host-standard" className="bg-neutral-950">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-10 p-8 text-white">
+          <div className="text-xs tracking-[0.3em] text-neutral-500 uppercase">
+            Shared Taps
           </div>
-          {host.joinUrl ? (
-            <RoomQrCode value={host.joinUrl} size={180} />
-          ) : (
-            <div className="text-sm text-neutral-500">Connecting…</div>
-          )}
-          <div className="text-xs text-neutral-500">
-            Room: {host.roomId ?? "—"} · {host.players.length} connected
-          </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => actions.reset()}
-          className="rounded-full border border-neutral-700 bg-neutral-900 px-6 py-2 text-xs font-semibold tracking-[0.2em] text-neutral-300 uppercase hover:bg-neutral-800"
-        >
-          Reset
-        </button>
-      </div>
-    </SurfaceViewport>
+          <div className="text-[22vmin] leading-none font-black tabular-nums">
+            {totalCount}
+          </div>
+
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-xs tracking-[0.2em] text-neutral-400 uppercase">
+              Scan to join
+            </div>
+            {host.joinUrl ? (
+              <RoomQrCode value={host.joinUrl} size={180} />
+            ) : (
+              <div className="text-sm text-neutral-500">Connecting…</div>
+            )}
+            <div className="text-xs text-neutral-500">
+              Room: {host.roomId ?? "—"} · {host.players.length} connected
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => actions.reset()}
+            className="rounded-full border border-neutral-700 bg-neutral-900 px-6 py-2 text-xs font-semibold tracking-[0.2em] text-neutral-300 uppercase hover:bg-neutral-800"
+          >
+            Reset
+          </button>
+        </div>
+      </SurfaceViewport>
+      <HostPreviewControllerWorkspace />
+    </>
   );
 }

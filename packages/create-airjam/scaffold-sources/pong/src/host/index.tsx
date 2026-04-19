@@ -42,6 +42,7 @@ import {
   FIELD_WIDTH,
   resetBall,
   stepGame,
+  type RuntimeState,
 } from "../game/engine";
 import { gameInputSchema } from "../game/input";
 import { PONG_SOUND_MANIFEST } from "../game/sounds";
@@ -56,6 +57,46 @@ import { usePongFeedback } from "./use-pong-feedback";
 /** Countdown length (seconds) shown when a match begins or the ball resets. */
 const COUNTDOWN_SECONDS = 3;
 const PONG_SIMULATION_STEP_MS = 1000 / 60;
+
+const copyRuntimeState = (target: RuntimeState, source: RuntimeState): void => {
+  Object.assign(target, source);
+};
+
+const lerp = (from: number, to: number, alpha: number): number =>
+  from + (to - from) * alpha;
+
+const interpolateRuntimeState = (
+  target: RuntimeState,
+  previous: RuntimeState,
+  current: RuntimeState,
+  alpha: number,
+): void => {
+  target.paddle1FrontY = lerp(
+    previous.paddle1FrontY,
+    current.paddle1FrontY,
+    alpha,
+  );
+  target.paddle1BackY = lerp(
+    previous.paddle1BackY,
+    current.paddle1BackY,
+    alpha,
+  );
+  target.paddle2FrontY = lerp(
+    previous.paddle2FrontY,
+    current.paddle2FrontY,
+    alpha,
+  );
+  target.paddle2BackY = lerp(
+    previous.paddle2BackY,
+    current.paddle2BackY,
+    alpha,
+  );
+  target.ballX = lerp(previous.ballX, current.ballX, alpha);
+  target.ballY = lerp(previous.ballY, current.ballY, alpha);
+  target.ballVX = current.ballVX;
+  target.ballVY = current.ballVY;
+  target.lastTouchedTeam = current.lastTouchedTeam;
+};
 
 export function HostView() {
   return (
@@ -98,15 +139,14 @@ function HostScreen() {
   // Host-authoritative runtime state lives in a ref (not React state) so the
   // 60fps game loop can mutate it without triggering renders.
   const runtimeStateRef = useRef(createRuntimeState());
+  const previousRuntimeStateRef = useRef(createRuntimeState());
+  const renderStateRef = useRef(createRuntimeState());
 
   const hostLobbyShell = useHostLobbyShell({
     joinUrl: host.joinUrl,
     canStartMatch,
     onStartMatch: () => actions.startMatch(),
   });
-
-  // Preview controllers are a dev-only affordance. Never shown in production.
-  const previewControllersEnabled = import.meta.env.DEV;
 
   useVisualHarnessBridge(pongVisualHarnessBridge, {
     host,
@@ -129,7 +169,10 @@ function HostScreen() {
     toggleRuntimeState,
     onEnterActivePhase: () => {
       setCountdown(COUNTDOWN_SECONDS);
-      Object.assign(runtimeStateRef.current, createRuntimeState());
+      const nextState = createRuntimeState();
+      copyRuntimeState(runtimeStateRef.current, nextState);
+      copyRuntimeState(previousRuntimeStateRef.current, nextState);
+      copyRuntimeState(renderStateRef.current, nextState);
     },
     onExitActivePhase: () => {
       setCountdown(null);
@@ -137,6 +180,11 @@ function HostScreen() {
     onPhaseTransition: ({ previousPhase, matchPhase: nextPhase }) => {
       if (previousPhase === "ended" && nextPhase === "lobby") {
         resetBall(runtimeStateRef.current);
+        copyRuntimeState(
+          previousRuntimeStateRef.current,
+          runtimeStateRef.current,
+        );
+        copyRuntimeState(renderStateRef.current, runtimeStateRef.current);
       }
     },
   });
@@ -149,6 +197,11 @@ function HostScreen() {
 
     if (countdown === 0) {
       resetBall(runtimeStateRef.current);
+      copyRuntimeState(
+        previousRuntimeStateRef.current,
+        runtimeStateRef.current,
+      );
+      copyRuntimeState(renderStateRef.current, runtimeStateRef.current);
       setTimeout(() => {
         setCountdown(null);
       }, 0);
@@ -188,8 +241,10 @@ function HostScreen() {
   // can vary, but simulation receives the same delta every step.
   useHostTick(
     ({ deltaSeconds }) => {
-      const ctx = canvasContextRef.current;
-      if (!ctx) return;
+      copyRuntimeState(
+        previousRuntimeStateRef.current,
+        runtimeStateRef.current,
+      );
 
       stepGame({
         state: runtimeStateRef.current,
@@ -209,20 +264,31 @@ function HostScreen() {
           setCountdown(COUNTDOWN_SECONDS);
         },
       });
-
-      drawFrame({
-        ctx,
-        state: runtimeStateRef.current,
-        players: host.players,
-        teamAssignments,
-        countdown,
-        botCounts,
-      });
     },
     {
       enabled: matchPhase !== "lobby",
       mode: "fixed",
       intervalMs: PONG_SIMULATION_STEP_MS,
+      onFrame: ({ fixedStepAlpha }) => {
+        const ctx = canvasContextRef.current;
+        if (!ctx) return;
+
+        interpolateRuntimeState(
+          renderStateRef.current,
+          previousRuntimeStateRef.current,
+          runtimeStateRef.current,
+          fixedStepAlpha,
+        );
+
+        drawFrame({
+          ctx,
+          state: renderStateRef.current,
+          players: host.players,
+          teamAssignments,
+          countdown,
+          botCounts,
+        });
+      },
     },
   );
 
@@ -296,7 +362,6 @@ function HostScreen() {
         {content}
       </SurfaceViewport>
       <HostPreviewControllerWorkspace
-        enabled={previewControllersEnabled}
         dockAccessory={
           <HostMuteButton
             muted={audioMuted}

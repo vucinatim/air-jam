@@ -87,6 +87,7 @@ export {
 } from "./hooks/use-host-session";
 export {
   useHostTick,
+  type HostFrameInfo,
   type HostTickInfo,
   type HostTickOptions,
 } from "./hooks/use-host-tick";

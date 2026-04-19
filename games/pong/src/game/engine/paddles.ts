@@ -139,10 +139,12 @@ const applyBotDirection = (
         ? "paddle2FrontY"
         : "paddle2BackY";
   const currentY = state[key];
+  const distance = targetY - currentY;
+  const maxMove = PADDLE_SPEED * 0.9 * deltaSeconds;
   const nextY =
-    currentY < targetY
-      ? currentY + PADDLE_SPEED * 0.9 * deltaSeconds
-      : currentY - PADDLE_SPEED * 0.9 * deltaSeconds;
+    Math.abs(distance) <= maxMove
+      ? targetY
+      : currentY + Math.sign(distance) * maxMove;
   state[key] = clampPaddleY(nextY);
 };
 

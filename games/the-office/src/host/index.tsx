@@ -62,8 +62,6 @@ export function HostView() {
     canStartMatch,
     onStartMatch: () => storeActions.startMatch(),
   });
-  const previewControllersEnabled = import.meta.env.DEV;
-
   useVisualHarnessBridge(theOfficeVisualHarnessBridge, {
     host,
     matchPhase,
@@ -131,7 +129,6 @@ export function HostView() {
         </div>
       </SurfaceViewport>
       <HostPreviewControllerWorkspace
-        enabled={previewControllersEnabled}
         dockAccessory={
           <HostMuteButton
             muted={audioMuted}

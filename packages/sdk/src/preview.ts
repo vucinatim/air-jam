@@ -20,6 +20,12 @@ export {
   type UsePreviewControllerManagerResult,
 } from "./preview/manager";
 export {
+  isEmbeddedArcadeRuntimeSearchParams,
+  resolveHostPreviewControllerWorkspaceEnabled,
+  type HostPreviewControllerWorkspaceEnabled,
+  type ResolveHostPreviewControllerWorkspaceEnabledOptions,
+} from "./preview/ownership";
+export {
   buildPreviewControllerUrl,
   createPreviewControllerLaunch,
   type BuildPreviewControllerUrlOptions,
