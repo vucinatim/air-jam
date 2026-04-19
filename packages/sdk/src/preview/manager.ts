@@ -3,7 +3,15 @@ import type { ControllerOrientation } from "../protocol/controller";
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
 import {
   type PreviewControllerBounds,
+  type PreviewControllerResizeHandle,
+  DEFAULT_PREVIEW_CONTROLLER_SCALE,
+  PREVIEW_WINDOW_TITLEBAR_HEIGHT,
   getDefaultPreviewWindowBounds,
+  getPreviewControllerScaleForResize,
+  getPreviewControllerScaleConstraints,
+  getPreviewControllerScaleForBounds,
+  getPreviewControllerViewportSize,
+  getPreviewWindowBoundsForScale,
   getPreviewWindowSizeConstraints,
 } from "./layout";
 import { createPreviewControllerLaunch } from "./url";
@@ -32,6 +40,9 @@ export interface PreviewControllerSession {
   y: number;
   width: number;
   height: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  displayScale: number;
   zIndex: number;
 }
 
@@ -65,6 +76,8 @@ export interface UsePreviewControllerManagerResult {
 export interface PreviewControllerBoundsClampOptions {
   preserveRight?: boolean;
   preserveBottom?: boolean;
+  resizeHandle?: PreviewControllerResizeHandle;
+  originBounds?: PreviewControllerBounds;
 }
 
 const getViewportSize = () => {
@@ -120,6 +133,43 @@ const clampSize = (
   };
 };
 
+const clampScaleForViewport = (
+  orientation: ControllerOrientation,
+  scale: number,
+) => {
+  const viewport = getViewportSize();
+  const deviceViewport = getPreviewControllerViewportSize(orientation);
+  const constraints = getPreviewControllerScaleConstraints();
+  const maxByViewport = Math.min(
+    (viewport.width - PREVIEW_WINDOW_MARGIN * 2) / deviceViewport.width,
+    (viewport.height -
+      PREVIEW_WINDOW_MARGIN * 2 -
+      PREVIEW_WINDOW_TITLEBAR_HEIGHT) /
+      deviceViewport.height,
+  );
+
+  return Math.min(
+    Math.max(scale, constraints.min),
+    Math.max(constraints.min, Math.min(constraints.max, maxByViewport)),
+  );
+};
+
+const getPreviewWindowBounds = (
+  orientation: ControllerOrientation,
+  scale: number,
+) => {
+  const displayScale = clampScaleForViewport(orientation, scale);
+  const viewport = getPreviewControllerViewportSize(orientation);
+  const bounds = getPreviewWindowBoundsForScale(orientation, displayScale);
+
+  return {
+    ...bounds,
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+    displayScale,
+  };
+};
+
 const clampPosition = (
   orientation: ControllerOrientation,
   x: number,
@@ -150,32 +200,26 @@ const clampBounds = (
   orientation: ControllerOrientation,
   bounds: PreviewControllerBounds,
   options: PreviewControllerBoundsClampOptions = {},
+  currentBounds?: PreviewControllerBounds,
 ): PreviewControllerBounds => {
-  const viewport = getViewportSize();
-  const constraints = getPreviewWindowSizeConstraints(orientation);
-  const maxWidth = Math.max(
-    constraints.minWidth,
-    Math.min(constraints.maxWidth, viewport.width - PREVIEW_WINDOW_MARGIN * 2),
-  );
-  const maxHeight = Math.max(
-    constraints.minHeight,
-    Math.min(
-      constraints.maxHeight,
-      viewport.height - PREVIEW_WINDOW_MARGIN * 2,
-    ),
-  );
-
   const right = bounds.x + bounds.width;
   const bottom = bounds.y + bounds.height;
-
-  const width = Math.min(
-    Math.max(constraints.minWidth, bounds.width),
-    maxWidth,
-  );
-  const height = Math.min(
-    Math.max(constraints.minHeight, bounds.height),
-    maxHeight,
-  );
+  const resizeMode =
+    currentBounds &&
+    (bounds.width < currentBounds.width || bounds.height < currentBounds.height)
+      ? "shrink"
+      : "grow";
+  const scale =
+    options.resizeHandle && options.originBounds
+      ? getPreviewControllerScaleForResize({
+          orientation,
+          bounds,
+          originBounds: options.originBounds,
+          handle: options.resizeHandle,
+        })
+      : getPreviewControllerScaleForBounds(orientation, bounds, resizeMode);
+  const nextWindowBounds = getPreviewWindowBounds(orientation, scale);
+  const { width, height } = nextWindowBounds;
 
   const x = options.preserveRight ? right - width : bounds.x;
   const y = options.preserveBottom ? bottom - height : bounds.y;
@@ -194,7 +238,10 @@ const getInitialWindowPosition = (
   orientation: ControllerOrientation,
 ) => {
   const viewport = getViewportSize();
-  const defaultBounds = getDefaultPreviewWindowBounds(orientation);
+  const defaultBounds = getPreviewWindowBounds(
+    orientation,
+    DEFAULT_PREVIEW_CONTROLLER_SCALE,
+  );
   const cascadeCount = Math.min(sessions.length, 3);
   const offset = cascadeCount * PREVIEW_WINDOW_CASCADE_OFFSET;
   const defaultX = (viewport.width - defaultBounds.width) / 2 + offset;
@@ -313,7 +360,10 @@ export const usePreviewControllerManager = ({
         const zIndex = nextZIndexRef.current++;
         const sessionId = `preview_session_${nextSessionIdRef.current++}`;
         const orientation = DEFAULT_PREVIEW_CONTROLLER_ORIENTATION;
-        const defaultBounds = getDefaultPreviewWindowBounds(orientation);
+        const defaultBounds = getPreviewWindowBounds(
+          orientation,
+          DEFAULT_PREVIEW_CONTROLLER_SCALE,
+        );
         const position = getInitialWindowPosition(current, orientation);
         nextSession = {
           id: sessionId,
@@ -330,6 +380,9 @@ export const usePreviewControllerManager = ({
           y: position.y,
           width: defaultBounds.width,
           height: defaultBounds.height,
+          viewportWidth: defaultBounds.viewportWidth,
+          viewportHeight: defaultBounds.viewportHeight,
+          displayScale: defaultBounds.displayScale,
           zIndex,
         };
 
@@ -415,12 +468,27 @@ export const usePreviewControllerManager = ({
             return session;
           }
 
-          const nextBounds = clampBounds(session.orientation, bounds, options);
+          const nextBounds = clampBounds(session.orientation, bounds, options, {
+            x: session.x,
+            y: session.y,
+            width: session.width,
+            height: session.height,
+          });
+          const nextWindowBounds = getPreviewWindowBounds(
+            session.orientation,
+            getPreviewControllerScaleForBounds(
+              session.orientation,
+              nextBounds,
+            ),
+          );
 
           return {
             ...session,
-            width: nextBounds.width,
-            height: nextBounds.height,
+            width: nextWindowBounds.width,
+            height: nextWindowBounds.height,
+            viewportWidth: nextWindowBounds.viewportWidth,
+            viewportHeight: nextWindowBounds.viewportHeight,
+            displayScale: nextWindowBounds.displayScale,
             x: nextBounds.x,
             y: nextBounds.y,
           };
@@ -441,15 +509,23 @@ export const usePreviewControllerManager = ({
           session.orientation === "portrait" ? "landscape" : "portrait";
         const centerX = session.x + session.width / 2;
         const centerY = session.y + session.height / 2;
+        const nextWindowBounds = getPreviewWindowBounds(
+          nextOrientation,
+          session.displayScale,
+        );
         const nextBounds = clampBounds(
           nextOrientation,
           {
-            x: centerX - session.height / 2,
-            y: centerY - session.width / 2,
-            width: session.height,
-            height: session.width,
+            x: centerX - nextWindowBounds.width / 2,
+            y: centerY - nextWindowBounds.height / 2,
+            width: nextWindowBounds.width,
+            height: nextWindowBounds.height,
           },
           {},
+        );
+        const clampedWindowBounds = getPreviewWindowBounds(
+          nextOrientation,
+          getPreviewControllerScaleForBounds(nextOrientation, nextBounds),
         );
 
         return {
@@ -457,8 +533,11 @@ export const usePreviewControllerManager = ({
           orientation: nextOrientation,
           x: nextBounds.x,
           y: nextBounds.y,
-          width: nextBounds.width,
-          height: nextBounds.height,
+          width: clampedWindowBounds.width,
+          height: clampedWindowBounds.height,
+          viewportWidth: clampedWindowBounds.viewportWidth,
+          viewportHeight: clampedWindowBounds.viewportHeight,
+          displayScale: clampedWindowBounds.displayScale,
         };
       }),
     );

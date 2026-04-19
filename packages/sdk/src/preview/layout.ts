@@ -1,19 +1,130 @@
 import type { ControllerOrientation } from "../protocol/controller";
 
 export const PREVIEW_WORKSPACE_Z_INDEX = 2_147_483_000;
+export const PREVIEW_WINDOW_TITLEBAR_HEIGHT = 38;
+export const PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE = 12;
+export const PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE = 20;
+
+export interface PreviewControllerDeviceProfile {
+  id: string;
+  label: string;
+  portrait: { width: number; height: number };
+}
+
+export const IPHONE_16_PREVIEW_DEVICE: PreviewControllerDeviceProfile = {
+  id: "iphone-16",
+  label: "iPhone 16 browser",
+  portrait: {
+    width: 393,
+    height: 740,
+  },
+};
+
+export const DEFAULT_PREVIEW_CONTROLLER_DEVICE = IPHONE_16_PREVIEW_DEVICE;
+export const DEFAULT_PREVIEW_CONTROLLER_SCALE = 0.8;
+export const PREVIEW_CONTROLLER_MIN_SCALE = 0.55;
+export const PREVIEW_CONTROLLER_MAX_SCALE = 1.12;
+
+export const getPreviewControllerViewportSize = (
+  orientation: ControllerOrientation,
+  device: PreviewControllerDeviceProfile = DEFAULT_PREVIEW_CONTROLLER_DEVICE,
+) =>
+  orientation === "portrait"
+    ? device.portrait
+    : {
+        width: device.portrait.height,
+        height: device.portrait.width,
+      };
+
+export const getPreviewControllerScaleConstraints = () => ({
+  min: PREVIEW_CONTROLLER_MIN_SCALE,
+  max: PREVIEW_CONTROLLER_MAX_SCALE,
+});
+
+export const getPreviewWindowBoundsForScale = (
+  orientation: ControllerOrientation,
+  scale: number,
+  device: PreviewControllerDeviceProfile = DEFAULT_PREVIEW_CONTROLLER_DEVICE,
+) => {
+  const viewport = getPreviewControllerViewportSize(orientation, device);
+  return {
+    width: viewport.width * scale,
+    height: PREVIEW_WINDOW_TITLEBAR_HEIGHT + viewport.height * scale,
+  };
+};
+
+export const getPreviewControllerScaleForBounds = (
+  orientation: ControllerOrientation,
+  bounds: { width: number; height: number },
+  mode: "grow" | "shrink" | "fit" = "fit",
+  device: PreviewControllerDeviceProfile = DEFAULT_PREVIEW_CONTROLLER_DEVICE,
+): number => {
+  const viewport = getPreviewControllerViewportSize(orientation, device);
+  const widthScale = bounds.width / viewport.width;
+  const heightScale =
+    (bounds.height - PREVIEW_WINDOW_TITLEBAR_HEIGHT) / viewport.height;
+  const rawScale =
+    mode === "grow"
+      ? Math.max(widthScale, heightScale)
+      : mode === "shrink"
+        ? Math.min(widthScale, heightScale)
+        : Math.min(widthScale, heightScale);
+  const constraints = getPreviewControllerScaleConstraints();
+
+  return Math.min(Math.max(rawScale, constraints.min), constraints.max);
+};
+
+export const getPreviewControllerScaleForResize = ({
+  orientation,
+  bounds,
+  originBounds,
+  handle,
+  device = DEFAULT_PREVIEW_CONTROLLER_DEVICE,
+}: {
+  orientation: ControllerOrientation;
+  bounds: { width: number; height: number };
+  originBounds: { width: number; height: number };
+  handle: PreviewControllerResizeHandle;
+  device?: PreviewControllerDeviceProfile;
+}): number => {
+  const viewport = getPreviewControllerViewportSize(orientation, device);
+  const widthScale = bounds.width / viewport.width;
+  const heightScale =
+    (bounds.height - PREVIEW_WINDOW_TITLEBAR_HEIGHT) / viewport.height;
+
+  if (handle === "e" || handle === "w") {
+    const constraints = getPreviewControllerScaleConstraints();
+    return Math.min(Math.max(widthScale, constraints.min), constraints.max);
+  }
+
+  if (handle === "n" || handle === "s") {
+    const constraints = getPreviewControllerScaleConstraints();
+    return Math.min(Math.max(heightScale, constraints.min), constraints.max);
+  }
+
+  const widthDelta = Math.abs(bounds.width - originBounds.width);
+  const heightDelta = Math.abs(bounds.height - originBounds.height);
+  const rawScale =
+    widthDelta / viewport.width >= heightDelta / viewport.height
+      ? widthScale
+      : heightScale;
+  const constraints = getPreviewControllerScaleConstraints();
+
+  return Math.min(Math.max(rawScale, constraints.min), constraints.max);
+};
 
 export const PREVIEW_WINDOW_DEFAULT_BOUNDS: Record<
   ControllerOrientation,
   { width: number; height: number }
 > = {
-  portrait: {
-    width: 312,
-    height: 554,
-  },
-  landscape: {
-    width: 554,
-    height: 312,
-  },
+  portrait: getPreviewWindowBoundsForScale(
+    "portrait",
+    DEFAULT_PREVIEW_CONTROLLER_SCALE,
+  ),
+  landscape: getPreviewWindowBoundsForScale(
+    "landscape",
+    DEFAULT_PREVIEW_CONTROLLER_SCALE,
+  ),
 };
 
 export const PREVIEW_WINDOW_SIZE_CONSTRAINTS: Record<
@@ -26,21 +137,42 @@ export const PREVIEW_WINDOW_SIZE_CONSTRAINTS: Record<
   }
 > = {
   portrait: {
-    minWidth: 260,
-    minHeight: 440,
-    maxWidth: 480,
-    maxHeight: 860,
+    minWidth: getPreviewWindowBoundsForScale(
+      "portrait",
+      PREVIEW_CONTROLLER_MIN_SCALE,
+    ).width,
+    minHeight: getPreviewWindowBoundsForScale(
+      "portrait",
+      PREVIEW_CONTROLLER_MIN_SCALE,
+    ).height,
+    maxWidth: getPreviewWindowBoundsForScale(
+      "portrait",
+      PREVIEW_CONTROLLER_MAX_SCALE,
+    ).width,
+    maxHeight: getPreviewWindowBoundsForScale(
+      "portrait",
+      PREVIEW_CONTROLLER_MAX_SCALE,
+    ).height,
   },
   landscape: {
-    minWidth: 440,
-    minHeight: 260,
-    maxWidth: 860,
-    maxHeight: 480,
+    minWidth: getPreviewWindowBoundsForScale(
+      "landscape",
+      PREVIEW_CONTROLLER_MIN_SCALE,
+    ).width,
+    minHeight: getPreviewWindowBoundsForScale(
+      "landscape",
+      PREVIEW_CONTROLLER_MIN_SCALE,
+    ).height,
+    maxWidth: getPreviewWindowBoundsForScale(
+      "landscape",
+      PREVIEW_CONTROLLER_MAX_SCALE,
+    ).width,
+    maxHeight: getPreviewWindowBoundsForScale(
+      "landscape",
+      PREVIEW_CONTROLLER_MAX_SCALE,
+    ).height,
   },
 };
-export const PREVIEW_WINDOW_TITLEBAR_HEIGHT = 38;
-export const PREVIEW_WINDOW_RESIZE_EDGE_HIT_SIZE = 12;
-export const PREVIEW_WINDOW_RESIZE_CORNER_HIT_SIZE = 20;
 
 export type PreviewControllerResizeHandle =
   | "n"

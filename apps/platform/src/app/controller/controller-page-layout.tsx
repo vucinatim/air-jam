@@ -133,7 +133,7 @@ export function ControllerPageLayout({
 
   if (isPreview) {
     return (
-      <div className="relative flex h-full w-full flex-col bg-black">
+      <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-black">
         {layout}
       </div>
     );

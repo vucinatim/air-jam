@@ -4,7 +4,11 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { usePreviewControllerManager } from "../src/preview";
 import {
+  DEFAULT_PREVIEW_CONTROLLER_SCALE,
+  IPHONE_16_PREVIEW_DEVICE,
+  PREVIEW_WINDOW_TITLEBAR_HEIGHT,
   getDefaultPreviewWindowBounds,
+  getPreviewControllerViewportSize,
   getResizedPreviewBounds,
 } from "../src/preview/layout";
 
@@ -29,6 +33,15 @@ describe("usePreviewControllerManager", () => {
     expect(result.current.sessions[0]?.y).toBeTypeOf("number");
     expect(result.current.sessions[0]?.width).toBeTypeOf("number");
     expect(result.current.sessions[0]?.height).toBeTypeOf("number");
+    expect(result.current.sessions[0]?.viewportWidth).toBe(
+      IPHONE_16_PREVIEW_DEVICE.portrait.width,
+    );
+    expect(result.current.sessions[0]?.viewportHeight).toBe(
+      IPHONE_16_PREVIEW_DEVICE.portrait.height,
+    );
+    expect(result.current.sessions[0]?.displayScale).toBeCloseTo(
+      DEFAULT_PREVIEW_CONTROLLER_SCALE,
+    );
   });
 
   it("spawns new preview sessions near the center of the viewport", () => {
@@ -264,8 +277,15 @@ describe("usePreviewControllerManager", () => {
       });
     });
 
-    expect(result.current.sessions[0]!.width).toBeGreaterThanOrEqual(260);
-    expect(result.current.sessions[0]!.height).toBeGreaterThanOrEqual(440);
+    expect(result.current.sessions[0]!.viewportWidth).toBe(
+      IPHONE_16_PREVIEW_DEVICE.portrait.width,
+    );
+    expect(result.current.sessions[0]!.viewportHeight).toBe(
+      IPHONE_16_PREVIEW_DEVICE.portrait.height,
+    );
+    expect(result.current.sessions[0]!.displayScale).toBeLessThan(
+      initialSize.width / IPHONE_16_PREVIEW_DEVICE.portrait.width,
+    );
 
     act(() => {
       result.current.setPreviewControllerBounds(sessionId, {
@@ -286,7 +306,77 @@ describe("usePreviewControllerManager", () => {
     expect(result.current.sessions[0]!.y).toBeLessThanOrEqual(initialSize.y);
   });
 
-  it("rotates preview controllers by swapping orientation-aware bounds", () => {
+  it("resizes preview display scale from the active resize handle", () => {
+    const { result } = renderHook(() =>
+      usePreviewControllerManager({
+        joinUrl: "https://platform.example/controller?room=ROOM1",
+      }),
+    );
+
+    act(() => {
+      result.current.spawnPreviewController();
+    });
+
+    const sessionId = result.current.sessions[0]!.id;
+    const initialBounds = {
+      x: result.current.sessions[0]!.x,
+      y: result.current.sessions[0]!.y,
+      width: result.current.sessions[0]!.width,
+      height: result.current.sessions[0]!.height,
+    };
+    const viewport = IPHONE_16_PREVIEW_DEVICE.portrait;
+    const grownWidth = initialBounds.width + 20;
+    const grownScale = grownWidth / viewport.width;
+
+    act(() => {
+      result.current.setPreviewControllerBounds(
+        sessionId,
+        {
+          ...initialBounds,
+          width: grownWidth,
+        },
+        {
+          resizeHandle: "e",
+          originBounds: initialBounds,
+        },
+      );
+    });
+
+    expect(result.current.sessions[0]!.displayScale).toBeCloseTo(grownScale);
+    expect(result.current.sessions[0]!.width).toBeCloseTo(
+      viewport.width * grownScale,
+    );
+    expect(result.current.sessions[0]!.height).toBeCloseTo(
+      PREVIEW_WINDOW_TITLEBAR_HEIGHT + viewport.height * grownScale,
+    );
+
+    const shrunkWidth = initialBounds.width - 20;
+    const shrunkScale = shrunkWidth / viewport.width;
+
+    act(() => {
+      result.current.setPreviewControllerBounds(
+        sessionId,
+        {
+          ...initialBounds,
+          width: shrunkWidth,
+        },
+        {
+          resizeHandle: "e",
+          originBounds: initialBounds,
+        },
+      );
+    });
+
+    expect(result.current.sessions[0]!.displayScale).toBeCloseTo(shrunkScale);
+    expect(result.current.sessions[0]!.width).toBeCloseTo(
+      viewport.width * shrunkScale,
+    );
+    expect(result.current.sessions[0]!.height).toBeCloseTo(
+      PREVIEW_WINDOW_TITLEBAR_HEIGHT + viewport.height * shrunkScale,
+    );
+  });
+
+  it("rotates preview controllers by swapping the emulated device viewport", () => {
     const { result } = renderHook(() =>
       usePreviewControllerManager({
         joinUrl: "https://platform.example/controller?room=ROOM1",
@@ -301,6 +391,7 @@ describe("usePreviewControllerManager", () => {
     const initialBounds = {
       width: result.current.sessions[0]!.width,
       height: result.current.sessions[0]!.height,
+      displayScale: result.current.sessions[0]!.displayScale,
     };
 
     act(() => {
@@ -308,10 +399,17 @@ describe("usePreviewControllerManager", () => {
     });
 
     expect(result.current.sessions[0]!.orientation).toBe("landscape");
-    expect(result.current.sessions[0]!.width).toBeGreaterThanOrEqual(440);
-    expect(result.current.sessions[0]!.height).toBeGreaterThanOrEqual(260);
-    expect(result.current.sessions[0]!.width).toBe(initialBounds.height);
-    expect(result.current.sessions[0]!.height).toBe(initialBounds.width);
+    expect(result.current.sessions[0]!.viewportWidth).toBe(
+      getPreviewControllerViewportSize("landscape").width,
+    );
+    expect(result.current.sessions[0]!.viewportHeight).toBe(
+      getPreviewControllerViewportSize("landscape").height,
+    );
+    expect(result.current.sessions[0]!.displayScale).toBeCloseTo(
+      initialBounds.displayScale,
+    );
+    expect(result.current.sessions[0]!.width).not.toBe(initialBounds.width);
+    expect(result.current.sessions[0]!.height).not.toBe(initialBounds.height);
   });
 
   it("keeps the dragged edge fixed when bounds are clamped", () => {

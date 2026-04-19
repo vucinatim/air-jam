@@ -174,12 +174,12 @@ export const PreviewControllerWindow = ({
   const windowOpacity = isVisible
     ? activeOpacity
     : Math.min(activeOpacity, 0.62);
+  const settingsShelfHeight =
+    settingsOpen && onActiveOpacityChange
+      ? PREVIEW_WINDOW_SETTINGS_SHELF_HEIGHT
+      : 0;
   const contentHeight = Math.max(
-    session.height -
-      PREVIEW_WINDOW_TITLEBAR_HEIGHT -
-      (settingsOpen && onActiveOpacityChange
-        ? PREVIEW_WINDOW_SETTINGS_SHELF_HEIGHT
-        : 0),
+    session.height - PREVIEW_WINDOW_TITLEBAR_HEIGHT,
     0,
   );
   const nextOrientationLabel =
@@ -198,7 +198,7 @@ export const PreviewControllerWindow = ({
         left: session.x,
         top: session.y,
         width: session.width,
-        height: session.height,
+        height: session.height + settingsShelfHeight,
         zIndex: session.zIndex,
         pointerEvents: "none",
       }}
@@ -342,18 +342,31 @@ export const PreviewControllerWindow = ({
             }
           }}
         >
-          <div className="relative overflow-hidden bg-black">
+          <div
+            className="relative overflow-hidden bg-black"
+            style={{
+              width: session.width,
+              height: contentHeight,
+            }}
+          >
             <div
+              className="origin-top-left"
               style={{
-                width: session.width,
-                height: contentHeight,
+                width: session.viewportWidth,
+                height: session.viewportHeight,
+                transform: `scale(${session.displayScale})`,
+                transformOrigin: "top left",
               }}
             >
               <iframe
                 src={session.url}
                 title={`${session.label} controller`}
                 data-testid={`preview-controller-frame-${session.ordinal}`}
-                className="h-full w-full border-none bg-black"
+                className="border-none bg-black"
+                style={{
+                  width: session.viewportWidth,
+                  height: session.viewportHeight,
+                }}
                 allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
                 onLoad={onReady}

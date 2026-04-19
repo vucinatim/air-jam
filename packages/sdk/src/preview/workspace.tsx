@@ -268,6 +268,8 @@ export const PreviewControllerWorkspace = ({
               {
                 preserveRight: resizeState.handle.includes("w"),
                 preserveBottom: resizeState.handle.includes("n"),
+                resizeHandle: resizeState.handle,
+                originBounds: resizeState.originBounds,
               },
             );
           }}
