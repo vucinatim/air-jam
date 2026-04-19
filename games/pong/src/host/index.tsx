@@ -34,14 +34,15 @@ import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
 import { pongVisualHarnessBridge } from "../../visual/contract";
 import {
-  copyRuntimeState,
-  createRuntimeState,
+  captureRuntimeStateStep,
+  createRuntimeStateBuffers,
   drawFrame,
   FIELD_HEIGHT,
   FIELD_WIDTH,
-  interpolateRuntimeState,
-  resetBall,
+  resetRuntimeStateBufferBall,
+  resetRuntimeStateBuffers,
   stepGame,
+  updateRuntimeRenderState,
 } from "../game/engine";
 import { gameInputSchema } from "../game/input";
 import { PONG_SOUND_MANIFEST, type PongSoundId } from "../game/sounds";
@@ -95,11 +96,9 @@ function HostScreen() {
     matchSummary,
   });
 
-  // Host-authoritative runtime state lives in a ref (not React state) so the
-  // 60fps game loop can mutate it without triggering renders.
-  const runtimeStateRef = useRef(createRuntimeState());
-  const previousRuntimeStateRef = useRef(createRuntimeState());
-  const renderStateRef = useRef(createRuntimeState());
+  // Host-authoritative simulation buffers live in a ref so the 60fps game loop
+  // can mutate them without triggering React renders.
+  const runtimeBuffersRef = useRef(createRuntimeStateBuffers());
   const previousMatchPhaseRef = useRef(matchPhase);
 
   const hostJoinControls = useHostJoinControls({
@@ -123,10 +122,7 @@ function HostScreen() {
 
     if (previousMatchPhase !== "playing" && matchPhase === "playing") {
       setCountdown(COUNTDOWN_SECONDS);
-      const nextState = createRuntimeState();
-      copyRuntimeState(runtimeStateRef.current, nextState);
-      copyRuntimeState(previousRuntimeStateRef.current, nextState);
-      copyRuntimeState(renderStateRef.current, nextState);
+      resetRuntimeStateBuffers(runtimeBuffersRef.current);
     }
 
     if (previousMatchPhase === "playing" && matchPhase !== "playing") {
@@ -134,12 +130,7 @@ function HostScreen() {
     }
 
     if (previousMatchPhase === "ended" && matchPhase === "lobby") {
-      resetBall(runtimeStateRef.current);
-      copyRuntimeState(
-        previousRuntimeStateRef.current,
-        runtimeStateRef.current,
-      );
-      copyRuntimeState(renderStateRef.current, runtimeStateRef.current);
+      resetRuntimeStateBufferBall(runtimeBuffersRef.current);
     }
 
     previousMatchPhaseRef.current = matchPhase;
@@ -152,12 +143,7 @@ function HostScreen() {
     if (runtimeState !== "playing" || matchPhase !== "playing") return;
 
     if (countdown === 0) {
-      resetBall(runtimeStateRef.current);
-      copyRuntimeState(
-        previousRuntimeStateRef.current,
-        runtimeStateRef.current,
-      );
-      copyRuntimeState(renderStateRef.current, runtimeStateRef.current);
+      resetRuntimeStateBufferBall(runtimeBuffersRef.current);
       setTimeout(() => {
         setCountdown(null);
       }, 0);
@@ -195,15 +181,16 @@ function HostScreen() {
 
   // Fixed-step host simulation. Controller input and browser rendering cadence
   // can vary, but simulation receives the same delta every step.
-  useHostTick(
-    ({ deltaSeconds }) => {
-      copyRuntimeState(
-        previousRuntimeStateRef.current,
-        runtimeStateRef.current,
-      );
+  useHostTick({
+    enabled: matchPhase !== "lobby",
+    mode: "fixed",
+    intervalMs: PONG_SIMULATION_STEP_MS,
+    onTick: ({ deltaSeconds }) => {
+      const buffers = runtimeBuffersRef.current;
+      captureRuntimeStateStep(buffers);
 
       stepGame({
-        state: runtimeStateRef.current,
+        state: buffers.current,
         players: host.players,
         teamAssignments,
         getInput: host.getInput,
@@ -221,32 +208,25 @@ function HostScreen() {
         },
       });
     },
-    {
-      enabled: matchPhase !== "lobby",
-      mode: "fixed",
-      intervalMs: PONG_SIMULATION_STEP_MS,
-      onFrame: ({ fixedStepAlpha }) => {
-        const ctx = canvasContextRef.current;
-        if (!ctx) return;
+    onFrame: ({ fixedStepAlpha }) => {
+      const ctx = canvasContextRef.current;
+      if (!ctx) return;
 
-        interpolateRuntimeState({
-          target: renderStateRef.current,
-          previous: previousRuntimeStateRef.current,
-          current: runtimeStateRef.current,
-          alpha: fixedStepAlpha,
-        });
+      const renderState = updateRuntimeRenderState(
+        runtimeBuffersRef.current,
+        fixedStepAlpha,
+      );
 
-        drawFrame({
-          ctx,
-          state: renderStateRef.current,
-          players: host.players,
-          teamAssignments,
-          countdown,
-          botCounts,
-        });
-      },
+      drawFrame({
+        ctx,
+        state: renderState,
+        players: host.players,
+        teamAssignments,
+        countdown,
+        botCounts,
+      });
     },
-  );
+  });
 
   let content: JSX.Element;
 

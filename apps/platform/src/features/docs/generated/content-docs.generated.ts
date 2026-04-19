@@ -1125,7 +1125,7 @@ const generatedContentDocsDocuments = [
         slug: "usehosttick",
         depth: 3,
         excerpt:
-          'Canonical host loop helper. mode: "raf" (default) for render-aligned loops. mode: "interval" for fixed-cadence polling loops. mode: "fixed" for deterministic fixed-step simulation loops. In fixed mode, pass onFrame when…',
+          'Canonical host loop helper. Pass a named options object with onTick plus the loop mode/options. mode: "raf" (default) for render-aligned loops. mode: "interval" for fixed-cadence polling loops. mode: "fixed" for…',
       },
       {
         title: "Advanced (Non-default)",

@@ -488,8 +488,15 @@ export const ArcadeSystem = ({
   }, [games, state.selectedIndex, surfaceKind, host, activeGame]);
 
   // Canonical host polling loop for browser navigation.
-  useHostTick(
-    () => {
+  useHostTick({
+    enabled:
+      !!host.getInput &&
+      games.length > 0 &&
+      mode === "arcade" &&
+      surfaceKind === "browser",
+    mode: "interval",
+    intervalMs: 16,
+    onTick: () => {
       host.players.forEach((player) => {
         const latchedInput = host.getInput?.(player.id);
         if (!latchedInput) return;
@@ -549,16 +556,7 @@ export const ArcadeSystem = ({
         }
       }
     },
-    {
-      enabled:
-        !!host.getInput &&
-        games.length > 0 &&
-        mode === "arcade" &&
-        surfaceKind === "browser",
-      mode: "interval",
-      intervalMs: 16,
-    },
-  );
+  });
 
   const launchGame = useCallback(
     async (game: ArcadeGame) => {

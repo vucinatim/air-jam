@@ -55,12 +55,13 @@ describe("tick hooks", () => {
   it("runs useHostTick in interval mode and stops on unmount", () => {
     const deltas: number[] = [];
     const { unmount } = renderHook(() =>
-      useHostTick(
-        ({ deltaMs }) => {
+      useHostTick({
+        onTick: ({ deltaMs }) => {
           deltas.push(deltaMs);
         },
-        { mode: "interval", intervalMs: 20 },
-      ),
+        mode: "interval",
+        intervalMs: 20,
+      }),
     );
 
     act(() => {
@@ -100,7 +101,9 @@ describe("tick hooks", () => {
 
     const ticks: number[] = [];
     const { unmount } = renderHook(() =>
-      useHostTick(({ tick }) => ticks.push(tick)),
+      useHostTick({
+        onTick: ({ tick }) => ticks.push(tick),
+      }),
     );
 
     act(() => {
@@ -144,7 +147,8 @@ describe("tick hooks", () => {
       tick: number;
     }> = [];
     const { unmount } = renderHook(() =>
-      useHostTick((info) => calls.push(info), {
+      useHostTick({
+        onTick: (info) => calls.push(info),
         mode: "fixed",
         intervalMs: 10,
       }),
@@ -193,7 +197,8 @@ describe("tick hooks", () => {
     const simulationTicks: number[] = [];
     const renderFrames: Array<{ frame: number; fixedStepAlpha: number }> = [];
     const { unmount } = renderHook(() =>
-      useHostTick(({ tick }) => simulationTicks.push(tick), {
+      useHostTick({
+        onTick: ({ tick }) => simulationTicks.push(tick),
         mode: "fixed",
         intervalMs: 10,
         onFrame: ({ frame, fixedStepAlpha }) => {

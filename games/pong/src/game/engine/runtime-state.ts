@@ -33,6 +33,42 @@ export const copyRuntimeState = (
   Object.assign(target, source);
 };
 
+export interface RuntimeStateBuffers {
+  current: RuntimeState;
+  previous: RuntimeState;
+  render: RuntimeState;
+}
+
+export const createRuntimeStateBuffers = (): RuntimeStateBuffers => {
+  const current = createRuntimeState();
+  return {
+    current,
+    previous: { ...current },
+    render: { ...current },
+  };
+};
+
+export const resetRuntimeStateBuffers = (
+  buffers: RuntimeStateBuffers,
+  nextState = createRuntimeState(),
+): void => {
+  copyRuntimeState(buffers.current, nextState);
+  copyRuntimeState(buffers.previous, nextState);
+  copyRuntimeState(buffers.render, nextState);
+};
+
+export const resetRuntimeStateBufferBall = (
+  buffers: RuntimeStateBuffers,
+): void => {
+  resetBall(buffers.current);
+  copyRuntimeState(buffers.previous, buffers.current);
+  copyRuntimeState(buffers.render, buffers.current);
+};
+
+export const captureRuntimeStateStep = (buffers: RuntimeStateBuffers): void => {
+  copyRuntimeState(buffers.previous, buffers.current);
+};
+
 const lerp = (from: number, to: number, alpha: number): number =>
   from + (to - from) * alpha;
 
@@ -72,4 +108,18 @@ export const interpolateRuntimeState = ({
   target.ballVX = current.ballVX;
   target.ballVY = current.ballVY;
   target.lastTouchedTeam = current.lastTouchedTeam;
+};
+
+export const updateRuntimeRenderState = (
+  buffers: RuntimeStateBuffers,
+  alpha: number,
+): RuntimeState => {
+  interpolateRuntimeState({
+    target: buffers.render,
+    previous: buffers.previous,
+    current: buffers.current,
+    alpha,
+  });
+
+  return buffers.render;
 };

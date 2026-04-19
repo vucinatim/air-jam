@@ -17,6 +17,7 @@ export interface HostFrameInfo {
 }
 
 export interface HostTickOptions {
+  onTick: (info: HostTickInfo) => void;
   enabled?: boolean;
   mode?: "raf" | "interval" | "fixed";
   intervalMs?: number;
@@ -36,13 +37,11 @@ const DEFAULT_HOST_MAX_STEPS_PER_FRAME = 5;
  * - `mode: "interval"` for fixed-cadence host polling loops.
  * - `mode: "fixed"` for deterministic fixed-step host simulation loops.
  */
-export const useHostTick = (
-  callback: (info: HostTickInfo) => void,
-  options: HostTickOptions = {},
-): void => {
+export const useHostTick = (options: HostTickOptions): void => {
   useAssertSessionScope("host", "useHostTick");
 
   const {
+    onTick,
     enabled = true,
     mode = "raf",
     intervalMs = DEFAULT_HOST_TICK_MS,
@@ -53,12 +52,12 @@ export const useHostTick = (
   const tickIntervalMs = Math.max(1, intervalMs);
   const frameDeltaCapMs = Math.max(tickIntervalMs, maxDeltaMs);
   const frameStepCap = Math.max(1, maxStepsPerFrame);
-  const callbackRef = useRef(callback);
+  const onTickRef = useRef(onTick);
   const onFrameRef = useRef(onFrame);
 
   useEffect(() => {
-    callbackRef.current = callback;
-  }, [callback]);
+    onTickRef.current = onTick;
+  }, [onTick]);
 
   useEffect(() => {
     onFrameRef.current = onFrame;
@@ -83,7 +82,7 @@ export const useHostTick = (
         lastTime = now;
         tick += 1;
 
-        callbackRef.current({
+        onTickRef.current({
           now,
           deltaMs,
           deltaSeconds: deltaMs / 1000,
@@ -116,7 +115,7 @@ export const useHostTick = (
           stepsThisFrame < frameStepCap
         ) {
           tick += 1;
-          callbackRef.current({
+          onTickRef.current({
             now,
             deltaMs: tickIntervalMs,
             deltaSeconds: tickIntervalMs / 1000,
@@ -153,7 +152,7 @@ export const useHostTick = (
       lastTime = now;
       tick += 1;
 
-      callbackRef.current({
+      onTickRef.current({
         now,
         deltaMs,
         deltaSeconds: deltaMs / 1000,

@@ -216,8 +216,11 @@ function OfficeHostGameplaySurface({
   const gameStatePlaying =
     matchPhase === "playing" && runtimeState === "playing";
 
-  useHostTick(
-    ({ deltaMs }) => {
+  useHostTick({
+    enabled: matchPhase !== "lobby",
+    mode: "fixed",
+    intervalMs: OFFICE_SIMULATION_STEP_MS,
+    onTick: ({ deltaMs }) => {
       if (!gameStatePlaying) {
         return;
       }
@@ -225,15 +228,10 @@ function OfficeHostGameplaySurface({
       const matchElapsedMs = advanceMatchClock(deltaMs);
       updateGame(matchElapsedMs, players, getInputForPlayer, true);
     },
-    {
-      enabled: matchPhase !== "lobby",
-      mode: "fixed",
-      intervalMs: OFFICE_SIMULATION_STEP_MS,
-      onFrame: () => {
-        renderFrameRef.current?.();
-      },
+    onFrame: () => {
+      renderFrameRef.current?.();
     },
-  );
+  });
 
   useEffect(() => {
     if (imagesPreloadedRef.current) {

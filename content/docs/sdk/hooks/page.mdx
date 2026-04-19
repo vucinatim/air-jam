@@ -359,7 +359,8 @@ Fixed-cadence helper for controller loops. Use it with `useInputWriter` instead 
 
 ### `useHostTick`
 
-Canonical host loop helper.
+Canonical host loop helper. Pass a named options object with `onTick` plus
+the loop mode/options.
 
 - `mode: "raf"` (default) for render-aligned loops.
 - `mode: "interval"` for fixed-cadence polling loops.
@@ -369,6 +370,19 @@ In fixed mode, pass `onFrame` when rendering should happen every animation
 frame while simulation still advances at the fixed cadence. The frame info
 includes `fixedStepAlpha`, which games can use to interpolate between previous
 and current simulation state.
+
+```tsx
+useHostTick({
+  mode: "fixed",
+  intervalMs: 16,
+  onTick: ({ deltaSeconds }) => {
+    stepSimulation(deltaSeconds);
+  },
+  onFrame: ({ fixedStepAlpha }) => {
+    renderInterpolatedFrame(fixedStepAlpha);
+  },
+});
+```
 
 **Auto Room Join from URL:**
 
