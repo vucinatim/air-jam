@@ -254,12 +254,8 @@ const ControllerScreen = () => {
 };
 
 export const ControllerView = (): JSX.Element => {
-  const connectionStatus = useAirJamControllerState(
-    (state) => state.connectionStatus,
-  );
-
   return (
-    <ControllerAudioProvider remoteEnabled={connectionStatus === "connected"}>
+    <ControllerAudioProvider>
       <ControllerScreen />
     </ControllerAudioProvider>
   );

@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ControllerRemoteAudioRuntime, useAudio } from "../src/audio/hooks";
+import { AudioRuntime, useAudio } from "../src/audio/hooks";
 import { ControllerSessionProvider } from "../src/context/session-providers";
 
 const mocked = vi.hoisted(() => {
@@ -56,7 +56,6 @@ const mocked = vi.hoisted(() => {
     listeners,
     howlPlay,
     useAirJamContext: vi.fn(),
-    useAssertSessionScope: vi.fn(),
     MockHowl,
   };
 });
@@ -87,18 +86,7 @@ vi.mock("../src/context/air-jam-context", async () => {
   };
 });
 
-vi.mock("../src/context/session-scope", async () => {
-  const actual = await vi.importActual<
-    typeof import("../src/context/session-scope")
-  >("../src/context/session-scope");
-
-  return {
-    ...actual,
-    useAssertSessionScope: mocked.useAssertSessionScope,
-  };
-});
-
-describe("ControllerRemoteAudioRuntime", () => {
+describe("AudioRuntime controller remote sound playback", () => {
   const manifest: Record<"hit" | "score", { src: string[] }> = {
     hit: { src: ["/sounds/hit.wav"] },
     score: { src: ["/sounds/score.wav"] },
@@ -108,7 +96,11 @@ describe("ControllerRemoteAudioRuntime", () => {
     mocked.useAirJamContext.mockReturnValue({
       getSocket: () => mocked.socket,
       store: {
-        getState: () => ({ role: "controller", roomId: "room-1" }),
+        getState: () => ({
+          role: "controller",
+          roomId: "room-1",
+          connectionStatus: "connected",
+        }),
         subscribe: () => () => {},
       },
     });
@@ -120,15 +112,16 @@ describe("ControllerRemoteAudioRuntime", () => {
     vi.restoreAllMocks();
   });
 
-  it("plays only manifest-known remote sounds", () => {
+  it("plays only manifest-known remote sounds", async () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(
         ControllerSessionProvider,
         null,
-        createElement(ControllerRemoteAudioRuntime, { manifest, children }),
+        createElement(AudioRuntime, { manifest, children }),
       );
 
     renderHook(() => useAudio<"hit" | "score">(), { wrapper });
+    await act(async () => {});
 
     act(() => {
       mocked.socket.trigger("server:playSound", {

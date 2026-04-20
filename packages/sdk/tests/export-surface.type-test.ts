@@ -24,7 +24,7 @@ export type __assert_controller_runtime_exported = AssertTrue<
   Has<"AirJamControllerRuntime">
 >;
 export type __assert_audio_runtime_exported = AssertTrue<Has<"AudioRuntime">>;
-export type __assert_controller_remote_audio_runtime_exported = AssertTrue<
+export type __assert_controller_remote_audio_runtime_not_exported = AssertFalse<
   Has<"ControllerRemoteAudioRuntime">
 >;
 export type __assert_use_audio_exported = AssertTrue<Has<"useAudio">>;

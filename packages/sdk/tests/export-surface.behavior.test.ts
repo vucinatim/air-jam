@@ -61,9 +61,9 @@ describe("sdk export surface", () => {
     expect("isInternalActionName" in sdk).toBe(false);
   });
 
-  it("exposes explicit audio runtimes and consumer hooks on root export", () => {
+  it("exposes the canonical audio runtime and consumer hooks on root export", () => {
     expect("AudioRuntime" in sdk).toBe(true);
-    expect("ControllerRemoteAudioRuntime" in sdk).toBe(true);
+    expect("ControllerRemoteAudioRuntime" in sdk).toBe(false);
     expect("useAudio" in sdk).toBe(true);
     expect("useAudioRuntimeStatus" in sdk).toBe(true);
     expect("useAudioRuntimeControls" in sdk).toBe(true);

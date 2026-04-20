@@ -204,16 +204,11 @@ src/
   │   │       ├── schema.ts       # Defaults and serializable config rules
   │   │       ├── paint.ts        # Runtime render helper used by the prefab contract
   │   │       └── preview.ts      # Future catalog/preview descriptor
-  │   ├── scene-population/       # Optional runtime spawn/pool layers when many prefab instances are mapped from state
-  │   ├── debug/
-  │   │   └── field-debug.ts      # Isolated debug-only toggles
   │   ├── ui/
   │   │   ├── team-name.tsx       # Shared game-facing team presentation
   │   │   ├── match-score-display.tsx # Shared game-facing score rendering
-  │   │   ├── team-slot-tile.tsx  # Shared team-slot surface used by host and controller
-  │   │   └── game-icons.tsx      # Curated gameplay icon wrappers
-  │   └── shared/
-  │       └── sounds.ts           # Shared sound manifest
+  │   │   └── team-slot-tile.tsx  # Shared team-slot surface used by host and controller
+  │   └── sounds.ts               # Shared sound manifest
   └── main.tsx                    # Entry point
 tests/
   └── game/
@@ -281,15 +276,15 @@ Use higher-level host/controller tests only after the pure boundary is already c
 - Keep host shell code in `src/host/`, controller shell code in `src/controller/`, and gameplay logic in `src/game/`.
 - Keep feedback centralized in host feedback modules (`use-pong-feedback`): no scattered side-effects.
 - Let the Air Jam runtime boundary provide platform-settings context for game surfaces; mount `PlatformSettingsRuntime persistence="local"` only in the platform shell when you need a persisted owner runtime.
-- Mount `AudioRuntime` / `ControllerRemoteAudioRuntime` once per host/controller surface, then use `useAudio()` only below that boundary.
+- Mount `AudioRuntime` once per host/controller surface, then use `useAudio()` only below that boundary.
 - Target controller feedback explicitly when needed (e.g., hitter-only hit cue) and keep broad cues host-local by default.
 - Keep reusable authored content in `src/game/prefabs/` once it is meant to be scanned, configured, or reused.
-- Keep debug-only toggles and diagnostics isolated in `src/game/debug/`.
-- Prefer local icon wrappers in `src/ui/icons/` and `src/game/ui/` instead of importing vendor icon packages directly into arbitrary components.
+- Keep debug-only toggles and diagnostics isolated in focused game modules instead of mixing them into host/controller views.
+- Keep shared game-facing UI in `src/game/ui/`; do not add a separate top-level `src/ui/` folder for Pong-specific components.
 
 ## What SDK Handles For You
 
-- Remote controller sound playback: use `ControllerRemoteAudioRuntime` instead of manual `server:playSound` socket subscriptions or leaf-level audio ownership.
+- Remote controller sound playback: use `AudioRuntime` instead of manual `server:playSound` socket subscriptions or leaf-level audio ownership.
 - Controller toast signaling: use `useControllerToasts()` to consume host `sendSignal("TOAST", ...)`.
 - Presence-aware action context: every store action receives `ctx.connectedPlayerIds` (no custom presence sync action needed).
 - Host pause/play: keep match lifecycle in the game store and use explicit runtime pause/resume commands only for pause UI.

@@ -1,8 +1,8 @@
 /**
  * Pong sound manifest.
  *
- * Declared once and mounted on both host (`AudioRuntime`) and controllers
- * (`ControllerRemoteAudioRuntime`). The host triggers sounds directly with
+ * Declared once and mounted on both host and controller surfaces with
+ * `AudioRuntime`. The host triggers sounds directly with
  * `audio.play(id)`, and also forwards "remote" ones to a specific controller
  * via `audio.play(id, { remote: true, target: playerId })`.
  *

@@ -7,14 +7,12 @@ export type {
 } from "./audio/audio-manager";
 export {
   AudioRuntime,
-  ControllerRemoteAudioRuntime,
   useAudio,
   useAudioRuntimeControls,
   useAudioRuntimeStatus,
   type AudioRuntimeControls,
   type AudioRuntimeProps,
   type AudioRuntimeStatus,
-  type ControllerRemoteAudioRuntimeProps,
 } from "./audio/hooks";
 export {
   MusicPlaylist,

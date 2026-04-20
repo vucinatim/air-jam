@@ -9,7 +9,6 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../context/air-jam-context";
-import { useAssertSessionScope } from "../context/session-scope";
 import type { PlaySoundPayload } from "../protocol";
 import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";
@@ -49,31 +48,7 @@ export function AudioRuntime<M extends SoundManifest>({
 }: AudioRuntimeProps<M>) {
   const { manager, status, controls } = useOwnedAudio(manifest);
 
-  return (
-    <audioRuntimeStatusContext.Provider value={status}>
-      <audioRuntimeControlsContext.Provider value={controls}>
-        <audioManagerContext.Provider value={manager as AudioHandle<string>}>
-          {children}
-        </audioManagerContext.Provider>
-      </audioRuntimeControlsContext.Provider>
-    </audioRuntimeStatusContext.Provider>
-  );
-}
-
-export interface ControllerRemoteAudioRuntimeProps<
-  M extends SoundManifest = SoundManifest,
-> extends AudioRuntimeProps<M> {
-  enabled?: boolean;
-}
-
-export function ControllerRemoteAudioRuntime<M extends SoundManifest>({
-  manifest,
-  enabled = true,
-  children,
-}: ControllerRemoteAudioRuntimeProps<M>) {
-  const { manager, status, controls } = useOwnedAudio(manifest);
-
-  useRemoteSound(manifest, manager, { enabled });
+  useRemoteSound(manifest, manager);
 
   return (
     <audioRuntimeStatusContext.Provider value={status}>
@@ -90,9 +65,7 @@ export function useAudio<T extends string = string>(): AudioHandle<T> {
   const manager = useContext(audioManagerContext);
 
   if (!manager) {
-    throw new Error(
-      "useAudio must be used within an AudioRuntime or ControllerRemoteAudioRuntime",
-    );
+    throw new Error("useAudio must be used within an AudioRuntime");
   }
 
   return manager as AudioHandle<T>;
@@ -103,7 +76,7 @@ export function useAudioRuntimeStatus(): AudioRuntimeStatus {
 
   if (!status) {
     throw new Error(
-      "useAudioRuntimeStatus must be used within an AudioRuntime or ControllerRemoteAudioRuntime",
+      "useAudioRuntimeStatus must be used within an AudioRuntime",
     );
   }
 
@@ -115,7 +88,7 @@ export function useAudioRuntimeControls(): AudioRuntimeControls {
 
   if (!controls) {
     throw new Error(
-      "useAudioRuntimeControls must be used within an AudioRuntime or ControllerRemoteAudioRuntime",
+      "useAudioRuntimeControls must be used within an AudioRuntime",
     );
   }
 
@@ -237,23 +210,21 @@ const isManifestSoundId = <M extends SoundManifest>(
   typeof soundId === "string" &&
   Object.prototype.hasOwnProperty.call(manifest, soundId);
 
-export interface UseRemoteSoundOptions {
-  enabled?: boolean;
-}
-
 function useRemoteSound<M extends SoundManifest>(
   manifest: M,
   audio: Pick<AudioHandle<keyof M & string>, "play">,
-  options: UseRemoteSoundOptions = {},
 ): void {
-  useAssertSessionScope("controller", "useRemoteSound");
+  const { getSocket, store } = useAirJamContext();
+  const role = useStore(store, (state) => state.role);
+  const connectionStatus = useStore(store, (state) => state.connectionStatus);
+  const socket = useMemo(() => {
+    if (role !== "controller") {
+      return null;
+    }
 
-  const { getSocket } = useAirJamContext();
-  const socket = useMemo(
-    () => getControllerRealtimeClient((role) => getSocket(role)),
-    [getSocket],
-  );
-  const enabled = options.enabled ?? true;
+    return getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole));
+  }, [getSocket, role]);
+  const enabled = role === "controller" && connectionStatus === "connected";
 
   useEffect(() => {
     if (!socket || !enabled) {

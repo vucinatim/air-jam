@@ -1,13 +1,9 @@
 /**
- * Controller surface for pong. The exported view mounts the remote audio
+ * Controller surface for pong. The exported view mounts the game audio
  * runtime; the private controller child renders the phone UI beneath that
  * provider. Game panels read SDK/session and replicated store state directly.
  */
-import {
-  ControllerRemoteAudioRuntime,
-  useAirJamController,
-  useControllerToasts,
-} from "@air-jam/sdk";
+import { AudioRuntime, useControllerToasts } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { PONG_SOUND_MANIFEST } from "../game/sounds";
 import { usePongStore } from "../game/stores";
@@ -19,15 +15,10 @@ import { useControllerConnectionNotice } from "./use-controller-connection-notic
 import { usePongControllerInputRuntime } from "./use-pong-controller-input-runtime";
 
 export function ControllerView() {
-  const controller = useAirJamController();
-
   return (
-    <ControllerRemoteAudioRuntime
-      manifest={PONG_SOUND_MANIFEST}
-      enabled={controller.connectionStatus === "connected"}
-    >
+    <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
       <PongController />
-    </ControllerRemoteAudioRuntime>
+    </AudioRuntime>
   );
 }
 

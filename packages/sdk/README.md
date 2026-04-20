@@ -378,15 +378,10 @@ Current scope:
 
 ## Controller Feedback Helpers
 
-Use explicit audio ownership at the controller boundary, then consume that runtime-owned manager below it.
+Use explicit audio ownership at each host/controller surface boundary, then consume that runtime-owned manager below it. `AudioRuntime` is role-aware: controller surfaces automatically receive host-triggered remote sounds.
 
 ```tsx
-import {
-  AudioRuntime,
-  ControllerRemoteAudioRuntime,
-  useAudio,
-  useControllerToasts,
-} from "@air-jam/sdk";
+import { AudioRuntime, useAudio, useControllerToasts } from "@air-jam/sdk";
 
 const manifest = {
   hit: { src: ["/sounds/hit.wav"] },
@@ -400,14 +395,14 @@ const ControllerHud = () => {
 };
 
 const ControllerShell = () => (
-  <ControllerRemoteAudioRuntime manifest={manifest}>
+  <AudioRuntime manifest={manifest}>
     <ControllerHud />
-  </ControllerRemoteAudioRuntime>
+  </AudioRuntime>
 );
 ```
 
 Host-side `sendSignal("TOAST", ...)` now pairs directly with `useControllerToasts()`.
-Mount `AudioRuntime` / `ControllerRemoteAudioRuntime` once per runtime surface, then call `useAudio()` only below that boundary.
+Mount `AudioRuntime` once per runtime surface, then call `useAudio()` only below that boundary.
 
 ## Shared Platform Settings
 

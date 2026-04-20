@@ -93,7 +93,7 @@ describe("AudioRuntime", () => {
   it("throws outside an audio runtime", async () => {
     const hooks = await import("../src/audio/hooks");
     expect(() => renderHook(() => hooks.useAudio())).toThrow(
-      "useAudio must be used within an AudioRuntime or ControllerRemoteAudioRuntime",
+      "useAudio must be used within an AudioRuntime",
     );
   });
 

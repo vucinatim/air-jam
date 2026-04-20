@@ -5,11 +5,7 @@
  * on the networked `matchPhase`. The active-round panel exposes the buzz-in
  * button; the reveal panel shows round results once the host finalises them.
  */
-import {
-  ControllerRemoteAudioRuntime,
-  useAirJamController,
-  useAudio,
-} from "@air-jam/sdk";
+import { AudioRuntime, useAirJamController, useAudio } from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   RuntimeShellHeader,
@@ -39,12 +35,9 @@ export const ControllerView = () => {
   const controller = useAirJamController();
 
   return (
-    <ControllerRemoteAudioRuntime
-      manifest={soundManifest}
-      enabled={controller.connectionStatus === "connected"}
-    >
+    <AudioRuntime manifest={soundManifest}>
       <ControllerScreen controller={controller} />
-    </ControllerRemoteAudioRuntime>
+    </AudioRuntime>
   );
 };
 
