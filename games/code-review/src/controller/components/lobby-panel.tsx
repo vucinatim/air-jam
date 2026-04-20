@@ -1,13 +1,15 @@
-import type { PlayerProfile } from "@air-jam/sdk/protocol";
+import { useAirJamController } from "@air-jam/sdk";
 import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
+import { MATCH_POINTS_TO_WIN } from "../../game/domain/match-rules";
 import {
   buildTeamSlots,
   MAX_TEAM_SLOTS,
   type TeamId,
 } from "../../game/domain/team-slots";
-import { MATCH_POINTS_TO_WIN } from "../../game/match-config";
+import { useGameStore } from "../../game/stores";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
-import { PRESS_FEEL_CLASS } from "../constants";
+import { useCodeReviewControllerTeams } from "../hooks/use-code-review-controller-teams";
+import { PRESS_FEEL_CLASS } from "./classes";
 
 const TEAM1_COLOR = "#dc2626";
 const TEAM2_COLOR = "#2563eb";
@@ -22,38 +24,30 @@ const TEAM_COLOR: Record<TeamId, string> = {
   team2: TEAM2_COLOR,
 };
 
-type TeamCounts = { team1: number; team2: number };
-
 interface LobbyPanelProps {
-  myTeam: TeamId | null;
-  teamCounts: TeamCounts;
-  botCounts: TeamCounts;
-  team1Players: PlayerProfile[];
-  team2Players: PlayerProfile[];
-  controlsDisabled: boolean;
-  canStartMatch: boolean;
-  readinessText: string;
-  onJoinTeam: (team: TeamId) => void;
-  onSetBotCount: (team: TeamId, count: number) => void;
-  onStartMatch: () => void;
+  onRequestPermissions: () => void;
 }
 
 const capturePanelClass =
   "rounded-none border-4 border-zinc-600 bg-zinc-900/85 shadow-[6px_6px_0_rgba(0,0,0,0.55)]";
 
-export const LobbyPanel = ({
-  myTeam,
-  teamCounts,
-  botCounts,
-  team1Players,
-  team2Players,
-  controlsDisabled,
-  canStartMatch,
-  readinessText,
-  onJoinTeam,
-  onSetBotCount,
-  onStartMatch,
-}: LobbyPanelProps) => {
+export const LobbyPanel = ({ onRequestPermissions }: LobbyPanelProps) => {
+  const controller = useAirJamController();
+  const actions = useGameStore.useActions();
+  const teams = useCodeReviewControllerTeams(controller);
+  const controlsDisabled = controller.connectionStatus !== "connected";
+  const canStartMatch =
+    controller.connectionStatus === "connected" && teams.readiness.canStart;
+
+  const joinTeam = (team: TeamId) => {
+    actions.joinTeam({ team });
+    onRequestPermissions();
+  };
+
+  const setBotCount = (team: TeamId, count: number) => {
+    actions.setBotCount({ team, count });
+  };
+
   return (
     <div
       className="pixel-font flex min-h-0 flex-1 flex-col"
@@ -62,12 +56,13 @@ export const LobbyPanel = ({
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
         <div className="grid gap-2 sm:grid-cols-2">
           {(["team1", "team2"] as const).map((team) => {
-            const botCount = botCounts[team];
-            const humanCount = teamCounts[team];
-            const teamPlayers = team === "team1" ? team1Players : team2Players;
+            const botCount = teams.botCounts[team];
+            const humanCount = teams.teamHumanCounts[team];
+            const teamPlayers =
+              team === "team1" ? teams.team1Players : teams.team2Players;
             const slots = buildTeamSlots(teamPlayers, botCount);
             const teamIsFull = humanCount + botCount >= MAX_TEAM_SLOTS;
-            const joined = myTeam === team;
+            const joined = teams.myTeam === team;
             const teamColor = TEAM_COLOR[team];
 
             return (
@@ -97,7 +92,7 @@ export const LobbyPanel = ({
                         : undefined,
                     }}
                     disabled={controlsDisabled || (teamIsFull && !joined)}
-                    onClick={() => onJoinTeam(team)}
+                    onClick={() => joinTeam(team)}
                   >
                     {joined ? "Joined" : teamIsFull ? "Full" : "Join Team"}
                   </button>
@@ -110,7 +105,7 @@ export const LobbyPanel = ({
                         : "border-cyan-500/55 bg-zinc-950 text-cyan-100"
                     }`}
                     disabled={controlsDisabled || teamIsFull}
-                    onClick={() => onSetBotCount(team, botCount + 1)}
+                    onClick={() => setBotCount(team, botCount + 1)}
                   >
                     Add Bot
                   </button>
@@ -127,7 +122,7 @@ export const LobbyPanel = ({
                         disabled={!canRemoveBot}
                         onBotAction={() => {
                           if (canRemoveBot) {
-                            onSetBotCount(team, Math.max(0, botCount - 1));
+                            setBotCount(team, Math.max(0, botCount - 1));
                           }
                         }}
                       />
@@ -161,9 +156,9 @@ export const LobbyPanel = ({
 
         <ControllerPrimaryAction
           label="Play Match"
-          helper={readinessText}
+          helper={teams.readinessText}
           disabled={!canStartMatch}
-          onPress={onStartMatch}
+          onPress={() => actions.startMatch()}
           className="pb-1"
           icon={<PlayIcon />}
           buttonClassName="rounded-none border-4 border-zinc-400 bg-white text-black hover:bg-zinc-100 disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500"

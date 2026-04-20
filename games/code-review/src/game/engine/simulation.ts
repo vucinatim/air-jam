@@ -1,6 +1,6 @@
+import type { GameInput } from "../contracts/input";
+import { PUNCH_COOLDOWN_MS, PUNCH_DURATION_MS } from "../domain/combat-rules";
 import type { Team } from "../domain/team-assignments";
-import type { GameInput } from "../input";
-import { PUNCH_COOLDOWN_MS, PUNCH_DURATION_MS } from "../input";
 import {
   ACCELERATION,
   BOT_APPROACH_INTENT,

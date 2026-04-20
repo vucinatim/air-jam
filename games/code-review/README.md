@@ -8,7 +8,8 @@ Players join from their phones, pick a team slot, and control fighters inside a 
 ## What This Game Teaches
 
 - explicit host and controller runtime ownership
-- a small Air Jam store with domain logic separated from presentation
+- a small Air Jam store with contracts, domain rules, and engine code separated from presentation
+- focused host/controller hooks for input, canvas, audio, sprites, and runtime loops
 - a simple browser-first party-game loop that is easy to extend
 - hosted release bundling through `airjam release bundle`
 
@@ -43,15 +44,24 @@ pnpm dev -- --web-only
 ```text
 src/
   host/
+    components/
+    hooks/
+    index.tsx
   controller/
+    components/
+    hooks/
+    index.tsx
   game/
+    contracts/
     domain/
+    engine/
     stores/
-    input.ts
-  routes/
+    ui/
   airjam.config.ts
   app.tsx
   main.tsx
+tests/
+  game/
 public/
   sounds/
   sprites/
@@ -60,5 +70,6 @@ public/
 ## Notes
 
 - Public runtime art and audio live under `public/`.
+- `host/` and `controller/` are surface-specific; `game/` is shared by both.
 - Source Photoshop/export helper files are intentionally not included in scaffolded projects.
 - The scaffolded template keeps the same runtime structure as this source game.

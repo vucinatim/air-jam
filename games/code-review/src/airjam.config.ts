@@ -7,7 +7,7 @@
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
-import { gameInputSchema } from "./game/input";
+import { gameInputSchema } from "./game/contracts/input";
 
 export const gameMetadata = defineAirJamGameMetadata({
   slug: "code-review",

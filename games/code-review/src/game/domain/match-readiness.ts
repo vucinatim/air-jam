@@ -1,4 +1,4 @@
-import { MATCH_POINTS_TO_WIN } from "../match-config";
+import { MATCH_POINTS_TO_WIN } from "./match-rules";
 
 export type TeamCounts = { team1: number; team2: number };
 
