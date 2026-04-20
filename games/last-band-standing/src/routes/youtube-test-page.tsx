@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { extractYouTubeVideoId, getYouTubeEmbedUrl } from "@/features/youtube";
+import { Button } from "@/game/ui/button";
+import { extractYouTubeVideoId, getYouTubeEmbedUrl } from "@/host/youtube";
 import { useMemo, useState } from "react";
 
 const DEFAULT_URL = "https://www.youtube.com/watch?v=4NRXx6U8ABQ";

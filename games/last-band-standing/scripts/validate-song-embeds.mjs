@@ -8,7 +8,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
-const DEFAULT_SOURCE = path.resolve(projectRoot, "src/song-bank.ts");
+const DEFAULT_SOURCE = path.resolve(
+  projectRoot,
+  "src/game/content/song-bank.ts",
+);
 const DEFAULT_OUTPUT = path.resolve(
   projectRoot,
   "reports/song-embed-report.json",
@@ -24,7 +27,7 @@ const SONG_ENTRY_REGEX =
 
 const usage = () => {
   console.log(
-    `Usage: node ./scripts/validate-song-embeds.mjs [options]\n\nOptions:\n  --source <path>           Song bank source file (default: src/song-bank.ts)\n  --output <path>           JSON report output path (default: reports/song-embed-report.json)\n  --timeout-ms <number>     HTTP timeout per video check (default: ${DEFAULT_TIMEOUT_MS})\n  --concurrency <number>    Parallel checks (default: ${DEFAULT_CONCURRENCY})\n  --fail-on-invalid         Exit with code 1 when any song is blocked/invalid\n  --help                    Show this help\n`,
+    `Usage: node ./scripts/validate-song-embeds.mjs [options]\n\nOptions:\n  --source <path>           Song bank source file (default: src/game/content/song-bank.ts)\n  --output <path>           JSON report output path (default: reports/song-embed-report.json)\n  --timeout-ms <number>     HTTP timeout per video check (default: ${DEFAULT_TIMEOUT_MS})\n  --concurrency <number>    Parallel checks (default: ${DEFAULT_CONCURRENCY})\n  --fail-on-invalid         Exit with code 1 when any song is blocked/invalid\n  --help                    Show this help\n`,
   );
 };
 
@@ -113,7 +116,7 @@ const parseSongEntries = (sourceText) => {
 
   if (songs.length === 0) {
     throw new Error(
-      "No songs found in source file. Expected raw song objects in src/song-bank.ts",
+      "No songs found in source file. Expected raw song objects in src/game/content/song-bank.ts",
     );
   }
 

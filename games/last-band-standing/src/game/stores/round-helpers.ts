@@ -1,19 +1,19 @@
-import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "@/config";
+import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "@/game/constants";
+import {
+  getRoundOptionLabel,
+  getSongById,
+  pickRoundOptionSongIds,
+  songBank,
+} from "@/game/content/song-bank";
+import { createEmptyScore } from "@/game/domain/player-utils";
 import {
   buildRoundResults,
   findFirstCorrectSummary,
   shouldFinalizeRound,
   type RoundPlayerResult,
 } from "@/game/domain/round-engine";
-import {
-  getRoundOptionLabel,
-  getSongById,
-  pickRoundOptionSongIds,
-  songBank,
-} from "@/song-bank";
-import { type RoundGuessKind } from "@/types";
-import { createEmptyScore } from "@/utils/player-utils";
-import { shuffleList } from "@/utils/shuffle";
+import { shuffleList } from "@/game/domain/shuffle";
+import { type RoundGuessKind } from "@/game/domain/types";
 import { type ActiveRound, type PlayerScore, type QuizState } from "./types";
 
 export const pickPlaylistSongIds = (count: number): string[] => {

@@ -34,7 +34,7 @@ pnpm dev -- --secure --secure-mode=tunnel
 - `pnpm typecheck` runs TypeScript without emitting
 - `pnpm test` runs Vitest once
 - `pnpm build` creates the production build
-- `pnpm songs:validate` checks every `youtubeUrl` in `src/song-bank.ts` and writes a curation report
+- `pnpm songs:validate` checks every `youtubeUrl` in `src/game/content/song-bank.ts` and writes a curation report
 - `pnpm exec airjam release bundle --dir .` creates the hosted release zip for the dashboard
 
 ## Project Shape
@@ -46,9 +46,11 @@ src/
   host/
   controller/
   game/
+    content/
+    contracts/
     domain/
     stores/
-  features/
+    ui/
   routes/
 ```
 
@@ -56,8 +58,11 @@ The app boundary follows the same ownership model as the repo reference games:
 
 - `host/` mounts host-only runtime ownership
 - `controller/` mounts controller-only runtime ownership
+- `game/contracts/` holds SDK-facing input and audio contracts
+- `game/content/` holds curated song data
 - `game/domain/` holds pure match logic
 - `game/stores/` holds state ownership and helpers
+- `game/ui/` holds shared game-specific presentation pieces
 
 ## Notes
 
@@ -70,5 +75,5 @@ The app boundary follows the same ownership model as the repo reference games:
 
 1. Run `pnpm songs:validate`.
 2. Review `reports/song-embed-report.json`.
-3. Remove or replace entries in `src/song-bank.ts` where `embeddable` is `false` or `duplicateId` is `true`.
+3. Remove or replace entries in `src/game/content/song-bank.ts` where `embeddable` is `false` or `duplicateId` is `true`.
 4. Re-run validation until only embeddable, unique IDs remain.

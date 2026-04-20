@@ -1,0 +1,70 @@
+import { type GamePhase } from "@/game/domain/types";
+import { type RoundReveal } from "@/game/stores/types";
+import { useAudio } from "@air-jam/sdk";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+interface UseHostAudioCuesInput {
+  phase: GamePhase;
+  roundReveal: RoundReveal | null;
+  countdownSeconds: number;
+}
+
+export const useHostAudioCues = ({
+  phase,
+  roundReveal,
+  countdownSeconds,
+}: UseHostAudioCuesInput) => {
+  const audio = useAudio();
+  const [muted, setMuted] = useState(false);
+  const previousPhaseRef = useRef<string>(phase);
+  const previousCountdownRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    audio.mute(muted);
+  }, [audio, muted]);
+
+  useEffect(() => {
+    const previousPhase = previousPhaseRef.current;
+    previousPhaseRef.current = phase;
+    if (previousPhase === phase) return;
+
+    if (phase === "round-active") {
+      audio.play("round-start");
+    }
+
+    if (phase === "round-reveal" && roundReveal) {
+      const anyCorrect = Object.values(roundReveal.resultsByPlayerId).some(
+        (result) => result.isCorrect,
+      );
+      audio.play(anyCorrect ? "correct" : "wrong");
+    }
+
+    if (phase === "game-over") {
+      audio.play("victory");
+    }
+  }, [audio, phase, roundReveal]);
+
+  useEffect(() => {
+    if (phase !== "round-active") {
+      previousCountdownRef.current = null;
+      return;
+    }
+
+    if (
+      previousCountdownRef.current !== null &&
+      countdownSeconds < previousCountdownRef.current &&
+      countdownSeconds > 0 &&
+      countdownSeconds <= 5
+    ) {
+      audio.play("countdown-tick");
+    }
+
+    previousCountdownRef.current = countdownSeconds;
+  }, [audio, phase, countdownSeconds]);
+
+  const toggleMuted = useCallback(() => {
+    setMuted((previous) => !previous);
+  }, []);
+
+  return { muted, toggleMuted };
+};

@@ -1,4 +1,4 @@
-import { isGenericPlayerLabel } from "@/utils/player-utils";
+import { isGenericPlayerLabel } from "@/game/domain/player-utils";
 import { type ConnectedPlayer } from "./types";
 
 export const buildPlayerLabelMap = (

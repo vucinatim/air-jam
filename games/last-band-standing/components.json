@@ -15,11 +15,11 @@
   "menuColor": "default-translucent",
   "menuAccent": "subtle",
   "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
+    "components": "@/game/ui",
+    "utils": "@/game/ui/classes",
+    "ui": "@/game/ui",
+    "lib": "@/game/ui",
+    "hooks": "@/game/hooks"
   },
   "registries": {
     "@aceternity": "https://ui.aceternity.com/registry/{name}.json"

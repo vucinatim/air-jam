@@ -1,23 +1,16 @@
+import { type PlayerScore } from "@/game/domain/player-utils";
 import {
   type PlayerAnswer,
   type RoundPlayerResult,
 } from "@/game/domain/round-engine";
-import { type GamePhase, type RoundGuessKind } from "@/types";
+import { type GamePhase, type RoundGuessKind } from "@/game/domain/types";
 import { type AirJamActionContext } from "@air-jam/sdk";
+
+export type { PlayerScore };
 
 export interface ConnectedPlayer {
   id: string;
   label: string;
-}
-
-export interface PlayerScore {
-  points: number;
-  correct: number;
-  wrong: number;
-  totalResponseMs: number;
-  answeredRounds: number;
-  mostPointsStreak: number;
-  hasStreakFire: boolean;
 }
 
 export interface ActiveRound {

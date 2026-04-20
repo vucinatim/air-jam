@@ -1,4 +1,4 @@
-import type { GamePhase } from "@/types";
+import type { GamePhase } from "@/game/domain/types";
 import type { ShellMatchPhase } from "@air-jam/sdk";
 
 export const toShellMatchPhase = (phase: GamePhase): ShellMatchPhase => {

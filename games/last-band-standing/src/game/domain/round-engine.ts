@@ -1,5 +1,5 @@
-import { type RoundEndPolicy } from "@/types";
-import { clampNumber } from "@/utils/math-utils";
+import { clampNumber } from "@/game/domain/math-utils";
+import { type RoundEndPolicy } from "@/game/domain/types";
 
 export interface PlayerAnswer {
   optionId: string;

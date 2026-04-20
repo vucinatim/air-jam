@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-04-11T21:06:08.912Z",
-  "sourceFile": "src/song-bank.ts",
+  "generatedAt": "2026-04-20T19:05:01.265Z",
+  "sourceFile": "src/game/content/song-bank.ts",
   "summary": {
     "totalSongs": 77,
     "embeddable": 77,
@@ -433,7 +433,7 @@
       "embeddable": true,
       "status": "ok",
       "httpStatus": 200,
-      "detail": "{\"title\":\"Whitney Houston - I Wanna Dance With Somebody (Official 4K Video)\",\"author_name\":\"whitneyhoustonVEVO\",\"author_url\":\"https://www.youtube.com/@whitneyhoustonVEVO\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\"",
+      "detail": "{\"title\":\"Whitney Houston - I Wanna Dance With Somebody (Who Loves Me) (Official 4K Video)\",\"author_name\":\"whitneyhoustonVEVO\",\"author_url\":\"https://www.youtube.com/@whitneyhoustonVEVO\",\"type\":\"video\",\"height\":150,\"width",
       "fixHint": null,
       "duplicateId": false
     },
@@ -987,12 +987,12 @@
       "id": "youre-beautiful-but-its-groan-tube",
       "title": "You're Beautiful",
       "artist": "Groan Tube",
-      "youtubeUrl": "https://www.youtube.com/watch?v=2vlO40rDw0s",
-      "videoId": "2vlO40rDw0s",
+      "youtubeUrl": "https://www.youtube.com/watch?v=XglGUAV2iKU",
+      "videoId": "XglGUAV2iKU",
       "embeddable": true,
       "status": "ok",
       "httpStatus": 200,
-      "detail": "{\"title\":\"You\\u0027re Beautiful, But It\\u0027s Groan Tube\",\"author_name\":\"Carmina music\",\"author_url\":\"https://www.youtube.com/@RealCarminamusic\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"Y",
+      "detail": "{\"title\":\"Youre Beautiful But its Groan Tube ( eugh eugh eugh )\",\"author_name\":\"INERTIANOTA.\",\"author_url\":\"https://www.youtube.com/@900bz\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube",
       "fixHint": null,
       "duplicateId": false
     },

@@ -7,8 +7,7 @@ import {
   shouldFinalizeRound,
   type PlayerAnswer,
   type RoundWindow,
-} from "../round-engine";
-// Root export remains for compatibility, but tests should follow the canonical game seam.
+} from "../game/domain/round-engine";
 
 const makeWindow = (startMs: number, durationMs: number): RoundWindow => ({
   startedAtMs: startMs,

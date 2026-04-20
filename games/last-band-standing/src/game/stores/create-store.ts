@@ -2,9 +2,9 @@ import {
   DEFAULT_REVEAL_DURATION_SEC,
   DEFAULT_ROUND_DURATION_SEC,
   DEFAULT_TOTAL_ROUNDS,
-} from "@/config";
+} from "@/game/constants";
+import { normalizePlayerName } from "@/game/domain/player-utils";
 import { rankPlayers } from "@/game/domain/round-engine";
-import { normalizePlayerName } from "@/utils/player-utils";
 import { createAirJamStore } from "@air-jam/sdk";
 import {
   buildNextPlayerLabelMap,
