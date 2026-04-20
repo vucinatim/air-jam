@@ -116,7 +116,7 @@ export const runWorkspaceTopologyCommand = async ({
     const embeddedHostRuntimeUrl =
       mode === "arcade-built"
         ? `${arcadeOrigins.publicPlatformOrigin}/airjam-local-builds/${gameId}`
-        : arcadeOrigins.publicGameOrigin;
+        : arcadeOrigins.hostGameOrigin;
     const embeddedControllerRuntimeUrl =
       mode === "arcade-built"
         ? `${arcadeOrigins.publicPlatformOrigin}/airjam-local-builds/${gameId}/controller`

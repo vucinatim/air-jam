@@ -41,6 +41,11 @@ Optional env for local Arcade entries:
 1. `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT=air-capture|pong`
 2. `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL=http://127.0.0.1:5173`
 3. `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL=http://127.0.0.1:4173`
+4. `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_CONTROLLER_URL=http://192.168.0.33:4173/controller`
+
+Use a separate `*_CONTROLLER_URL` when the desktop Arcade should embed the
+host surface from `localhost`, but controller phones need the LAN-reachable
+controller URL.
 
 ## Sentry Error Monitoring (Optional)
 

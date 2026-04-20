@@ -614,7 +614,8 @@ export const GamePlayer = ({
           data-testid="arcade-host-game-frame"
           className="h-full w-full border-none bg-black"
           style={{ backgroundColor: "#000000" }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; gamepad"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share; gamepad"
+          allowFullScreen
           onLoad={() => {
             establishBridgeChannel();
           }}

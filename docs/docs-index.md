@@ -40,6 +40,7 @@ Active architecture cleanup plans:
 
 1. [SDK Game Authoring Ergonomics Plan](./plans/sdk-game-authoring-ergonomics-plan.md)
 2. [Code Review Reference Cleanup Plan](./plans/code-review-reference-cleanup-plan.md)
+3. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
 
 Canonical release sequence:
 

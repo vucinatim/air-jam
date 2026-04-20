@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-19
+Last updated: 2026-04-20
 Status: active
 
 This is the single active repo-wide ledger.
@@ -59,6 +59,7 @@ Plans:
 1. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
 2. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
 3. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
+4. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
 
 Immediate next work:
 
@@ -96,6 +97,7 @@ Latest progress inside this focus:
 25. embedded controller orientation is now SDK-owned: controller-side `SurfaceViewport orientation` publishes presentation sync to the active Arcade controller shell with surface identity validation, first-party games no longer send host-owned orientation solely for Arcade chrome, and Last Band Standing now uses `SurfaceViewport` on its controller like the rest of the launch set
 26. `create-airjam` scaffold templates are now packaged generated artifacts instead of live editor-visible TypeScript projects: the old `scaffold-sources` tree is removed during generation, generated templates live under `scaffold-templates` as zip archives plus a manifest, and the CLI extracts the selected archive before standalone project normalization
 27. the SDK authoring ergonomics review is captured in [SDK Game Authoring Ergonomics Plan](./plans/sdk-game-authoring-ergonomics-plan.md), including agreed audio, `SurfaceViewport`, join-controls, Pong helper, and sound-type cleanups plus the open runtime-state decision
+28. Last Band Standing's next bounded polish pass is captured in [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md), covering controller lobby/start/home fixes, host gameplay layout polish, controller game-over scrolling, song buckets, and randomized clip starts
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

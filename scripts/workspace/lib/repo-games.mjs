@@ -13,6 +13,9 @@ export const defaultWorkspaceGameId = "air-capture";
 export const toLocalReferenceUrlEnvKey = (gameId) =>
   `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_${gameId.replace(/-/g, "_").toUpperCase()}_URL`;
 
+export const toLocalReferenceControllerUrlEnvKey = (gameId) =>
+  `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_${gameId.replace(/-/g, "_").toUpperCase()}_CONTROLLER_URL`;
+
 const isRepoGameManifest = (value) =>
   value &&
   typeof value === "object" &&

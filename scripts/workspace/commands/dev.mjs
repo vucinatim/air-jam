@@ -13,6 +13,7 @@ import {
 import {
   defaultWorkspaceGameId,
   findRepoGame,
+  toLocalReferenceControllerUrlEnvKey,
   toLocalReferenceUrlEnvKey,
 } from "../lib/repo-games.mjs";
 import { resolveWorkspaceArcadeOrigins } from "../lib/workspace-runtime-origins.mjs";
@@ -169,7 +170,9 @@ export const runWorkspaceArcadeDevCommand = async ({
     ),
     NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: arcadeOrigins.publicPlatformOrigin,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: activeGame.id,
-    [toLocalReferenceUrlEnvKey(activeGame.id)]: arcadeOrigins.publicGameOrigin,
+    [toLocalReferenceUrlEnvKey(activeGame.id)]: arcadeOrigins.hostGameOrigin,
+    [toLocalReferenceControllerUrlEnvKey(activeGame.id)]:
+      `${arcadeOrigins.publicGameOrigin}/controller`,
     ...(secureState
       ? {
           AIR_JAM_SECURE_MODE: secureState.mode,

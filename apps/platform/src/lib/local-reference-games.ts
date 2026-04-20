@@ -30,14 +30,25 @@ const CLIENT_LOCAL_REFERENCE_ENV: NodeJS.ProcessEnv = {
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL:
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_CONTROLLER_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_CONTROLLER_URL,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL:
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_CONTROLLER_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_CONTROLLER_URL,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL:
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_CONTROLLER_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_CONTROLLER_URL,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_URL:
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_CONTROLLER_URL:
+    process.env
+      .NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_CONTROLLER_URL,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_URL:
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_CONTROLLER_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_CONTROLLER_URL,
 };
 
 const DEFAULT_LOCAL_REFERENCE_GAME: LocalReferenceGameKey = "air-capture";
@@ -127,6 +138,36 @@ const readConfiguredLocalReferenceUrl = (
   }
 };
 
+const readConfiguredLocalReferenceControllerUrl = (
+  gameKey: LocalReferenceGameKey,
+  env: NodeJS.ProcessEnv,
+): string | null => {
+  switch (gameKey) {
+    case "air-capture":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_CONTROLLER_URL,
+      );
+    case "pong":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_CONTROLLER_URL,
+      );
+    case "code-review":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_CONTROLLER_URL,
+      );
+    case "last-band-standing":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_CONTROLLER_URL,
+      );
+    case "the-office":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_THE_OFFICE_CONTROLLER_URL,
+      );
+    default:
+      return null;
+  }
+};
+
 const resolveDefaultLocalReferenceKey = (
   env: NodeJS.ProcessEnv,
 ): LocalReferenceGameKey => {
@@ -166,8 +207,11 @@ const resolveLocalReferenceGameUrl = (
 const toLocalReferenceArcadeGame = (
   config: LocalReferenceGameConfig,
   url: string,
+  env: NodeJS.ProcessEnv,
 ): ArcadeGame => {
-  const controllerUrl = buildArcadeControllerRuntimeUrl(url);
+  const controllerUrl =
+    readConfiguredLocalReferenceControllerUrl(config.key, env) ??
+    buildArcadeControllerRuntimeUrl(url);
   if (!controllerUrl) {
     throw new Error(
       `Unable to derive local reference controller URL for ${config.key}.`,
@@ -209,7 +253,9 @@ export const getLocalReferenceArcadeGames = (
       defaultGameKey,
     );
 
-    return resolvedUrl ? [toLocalReferenceArcadeGame(config, resolvedUrl)] : [];
+    return resolvedUrl
+      ? [toLocalReferenceArcadeGame(config, resolvedUrl, env)]
+      : [];
   });
 };
 
@@ -246,5 +292,5 @@ export const getLocalReferenceArcadeGame = (
     return null;
   }
 
-  return toLocalReferenceArcadeGame(config, resolvedUrl);
+  return toLocalReferenceArcadeGame(config, resolvedUrl, env);
 };

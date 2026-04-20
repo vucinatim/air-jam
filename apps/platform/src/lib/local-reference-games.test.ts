@@ -72,6 +72,26 @@ describe("local reference games", () => {
     expect(games[2]?.templateId).toBe("code-review");
   });
 
+  it("allows local reference host and controller URLs to be configured separately", () => {
+    const games = getLocalReferenceArcadeGames({
+      env: {
+        NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: "last-band-standing",
+        NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_URL:
+          "http://localhost:5173",
+        NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_LAST_BAND_STANDING_CONTROLLER_URL:
+          "http://192.168.0.33:5173/controller",
+      },
+      nodeEnv: "development",
+    });
+
+    expect(games).toHaveLength(1);
+    expect(games[0]).toMatchObject({
+      slug: "local-last-band-standing",
+      url: "http://localhost:5173",
+      controllerUrl: "http://192.168.0.33:5173/controller",
+    });
+  });
+
   it("does not expose local reference games in production", () => {
     expect(
       getLocalReferenceArcadeGames({
