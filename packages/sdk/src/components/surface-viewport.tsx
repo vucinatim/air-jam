@@ -1,5 +1,5 @@
 import type { CSSProperties, JSX, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSessionScope } from "../context/session-scope";
 import { publishEmbeddedControllerPresentation } from "../runtime/controller-presentation";
 import { cn } from "../utils/cn";
@@ -24,16 +24,60 @@ interface ViewportSize {
   height: number;
 }
 
-const readViewportSize = (): ViewportSize => {
+const readLayoutViewportSize = (): ViewportSize => {
   if (typeof window === "undefined") {
     return { width: 0, height: 0 };
   }
 
-  const viewport = window.visualViewport;
   return {
-    width: viewport?.width ?? window.innerWidth,
-    height: viewport?.height ?? window.innerHeight,
+    width: window.innerWidth,
+    height: window.innerHeight,
   };
+};
+
+const isTextEntryElement = (element: Element | null): boolean => {
+  if (!element) {
+    return false;
+  }
+
+  if (element instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  if (element instanceof HTMLInputElement) {
+    return ![
+      "button",
+      "checkbox",
+      "color",
+      "file",
+      "hidden",
+      "image",
+      "radio",
+      "range",
+      "reset",
+      "submit",
+    ].includes(element.type);
+  }
+
+  return element instanceof HTMLElement && element.isContentEditable;
+};
+
+const isKeyboardResize = (
+  previous: ViewportSize | null,
+  next: ViewportSize,
+): boolean => {
+  if (!previous || typeof document === "undefined") {
+    return false;
+  }
+
+  if (!isTextEntryElement(document.activeElement)) {
+    return false;
+  }
+
+  const sameWidth = Math.abs(previous.width - next.width) <= 2;
+  const heightShrank = next.height < previous.height;
+
+  return sameWidth && heightShrank;
 };
 
 const getOrientation = ({
@@ -95,6 +139,7 @@ export const SurfaceViewport = ({
   maxScale,
 }: SurfaceViewportProps): JSX.Element => {
   const [viewport, setViewport] = useState<ViewportSize | null>(null);
+  const viewportRef = useRef<ViewportSize | null>(null);
   const sessionScope = useSessionScope();
 
   useEffect(() => {
@@ -102,15 +147,25 @@ export const SurfaceViewport = ({
       return;
     }
 
-    const updateViewport = () => setViewport(readViewportSize());
+    const updateViewport = () => {
+      const nextViewport = readLayoutViewportSize();
+      if (isKeyboardResize(viewportRef.current, nextViewport)) {
+        return;
+      }
+
+      viewportRef.current = nextViewport;
+      setViewport(nextViewport);
+    };
 
     updateViewport();
     window.addEventListener("resize", updateViewport);
     window.visualViewport?.addEventListener("resize", updateViewport);
+    window.addEventListener("orientationchange", updateViewport);
 
     return () => {
       window.removeEventListener("resize", updateViewport);
       window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
     };
   }, []);
 
@@ -200,23 +255,34 @@ export const SurfaceViewport = ({
   );
 
   const scale = useMemo(
-    () =>
-      resolveSurfaceViewportScale({
+    () => {
+      const scaleMode =
+        sessionScope === "controller"
+          ? effectiveOrientation === "portrait"
+            ? "width"
+            : "height"
+          : "fit";
+
+      return resolveSurfaceViewportScale({
         availableWidth: availableSize.width,
         availableHeight: availableSize.height,
         referenceWidth: referenceSize.width,
         referenceHeight: referenceSize.height,
+        scaleMode,
         uiScaleMultiplier,
         minScale,
         maxScale,
-      }),
+      });
+    },
     [
       availableSize.height,
       availableSize.width,
+      effectiveOrientation,
       maxScale,
       minScale,
       referenceSize.height,
       referenceSize.width,
+      sessionScope,
       uiScaleMultiplier,
     ],
   );

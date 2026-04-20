@@ -13,7 +13,10 @@ import { getControllerRealtimeClient } from "../runtime/controller-realtime-clie
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
-import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "./air-jam-store-domain-constants";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  AIR_JAM_DEFAULT_STORE_DOMAIN,
+} from "./air-jam-store-domain-constants";
 
 const INTERNAL_ACTION_PREFIX = "_";
 const UNRESOLVED_ACTOR_ID = "unknown";
@@ -101,6 +104,23 @@ type AirJamActionDispatchMap<TActions extends AirJamActionMap> = {
     : never;
 };
 
+interface StoreRuntimeSnapshot {
+  socket: AirJamRealtimeClient | null;
+  role: AirJamActionActorRole | null;
+  roomId: string | null;
+  resolvedStoreDomain: string;
+  connectionStatus: string | null;
+  canBroadcastHostState: boolean;
+  connectedPlayerIds: string[];
+}
+
+interface StoreRuntimeBinding {
+  refCount: number;
+  flushHostStateSync?: () => void;
+  lastHostFlushKey?: string;
+  cleanup: () => void;
+}
+
 export type AirJamSyncedStoreHook<T extends AirJamNetworkedState> = {
   <U>(selector?: (state: T) => U): U;
   useActions: () => AirJamActionDispatchMap<T["actions"]>;
@@ -145,6 +165,143 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
   options?: CreateAirJamStoreOptions,
 ): AirJamSyncedStoreHook<T> {
   const store = create<T>((set, get, api) => initializer(set, get, api));
+  const runtimeSnapshotRef: { current: StoreRuntimeSnapshot } = {
+    current: {
+      socket: null,
+      role: null,
+      roomId: null,
+      resolvedStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      connectionStatus: null,
+      canBroadcastHostState: false,
+      connectedPlayerIds: [],
+    },
+  };
+  const runtimeBindings = new Map<string, StoreRuntimeBinding>();
+
+  const createRuntimeBinding = ({
+    socket,
+    role,
+    roomId,
+    resolvedStoreDomain,
+  }: {
+    socket: AirJamRealtimeClient;
+    role: AirJamActionActorRole;
+    roomId: string;
+    resolvedStoreDomain: string;
+  }): StoreRuntimeBinding => {
+    if (role === "host") {
+      const flushHostStateSync = (): void => {
+        const runtime = runtimeSnapshotRef.current;
+        if (
+          runtime.role !== "host" ||
+          runtime.roomId !== roomId ||
+          runtime.resolvedStoreDomain !== resolvedStoreDomain ||
+          !runtime.canBroadcastHostState ||
+          !runtime.socket
+        ) {
+          return;
+        }
+
+        const stateData = stripActionsFromState(store.getState());
+        runtime.socket.emit("host:state_sync", {
+          roomId,
+          data: stateData,
+          storeDomain: resolvedStoreDomain,
+        });
+      };
+
+      const unsubscribe = store.subscribe((newState) => {
+        const runtime = runtimeSnapshotRef.current;
+        if (
+          runtime.role !== "host" ||
+          runtime.roomId !== roomId ||
+          runtime.resolvedStoreDomain !== resolvedStoreDomain ||
+          !runtime.canBroadcastHostState ||
+          !runtime.socket
+        ) {
+          return;
+        }
+
+        const { actions, ...stateData } = newState;
+        runtime.socket.emit("host:state_sync", {
+          roomId,
+          data: stateData,
+          storeDomain: resolvedStoreDomain,
+        });
+      });
+
+      const handleAction = (payload: AirJamActionRpcPayload) => {
+        if (payload.storeDomain !== resolvedStoreDomain) {
+          return;
+        }
+        const { actionName } = payload;
+        if (isInternalActionName(actionName)) {
+          return;
+        }
+
+        const runtime = runtimeSnapshotRef.current;
+        const actionFn = store.getState().actions[actionName];
+        if (typeof actionFn === "function") {
+          actionFn(
+            toActionContext(payload, runtime.connectedPlayerIds),
+            payload.payload,
+          );
+        }
+      };
+
+      const handleStateSyncRequest = (payload: {
+        roomId: string;
+        storeDomain: string;
+      }): void => {
+        if (payload.roomId !== roomId) {
+          return;
+        }
+        if (payload.storeDomain !== resolvedStoreDomain) {
+          return;
+        }
+        flushHostStateSync();
+      };
+
+      socket.on("server:controllerJoined", flushHostStateSync);
+      socket.on("airjam:state_sync_request", handleStateSyncRequest);
+      socket.on("airjam:action_rpc", handleAction);
+
+      return {
+        refCount: 0,
+        flushHostStateSync,
+        cleanup: () => {
+          unsubscribe();
+          socket.off("server:controllerJoined", flushHostStateSync);
+          socket.off("airjam:state_sync_request", handleStateSyncRequest);
+          socket.off("airjam:action_rpc", handleAction);
+        },
+      };
+    }
+
+    const handleSync = (payload: AirJamStateSyncPayload) => {
+      if (payload.storeDomain !== resolvedStoreDomain) {
+        return;
+      }
+      const stateData = stripActionsFromState(payload.data as Partial<T>);
+      store.setState(stateData);
+    };
+
+    socket.on("airjam:state_sync", handleSync);
+
+    if (runtimeSnapshotRef.current.connectionStatus === "connected") {
+      socket.emit("controller:state_sync_request", {
+        roomId,
+        storeDomain: resolvedStoreDomain,
+      });
+    }
+
+    return {
+      refCount: 0,
+      cleanup: () => {
+        socket.off("airjam:state_sync", handleSync);
+      },
+    };
+  };
 
   const useSyncedStore = <U>(
     selector: (state: T) => U = (state) => state as unknown as U,
@@ -207,131 +364,107 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       connectedPlayerIdsRef.current = connectedPlayerIds;
     }, [connectedPlayerIds]);
 
-    useEffect(() => {
-      if (!socket || !roomId || !role) {
-        return;
-      }
-
-      if (role === "host") {
-        const flushHostStateSync = (): void => {
-          if (!canBroadcastHostState) {
-            return;
-          }
-          const stateData = stripActionsFromState(store.getState());
-          socket.emit("host:state_sync", {
-            roomId,
-            data: stateData,
-            storeDomain: resolvedStoreDomain,
-          });
-        };
-
-        const unsubscribe = store.subscribe((newState) => {
-          if (!canBroadcastHostState) {
-            return;
-          }
-          const { actions, ...stateData } = newState;
-          socket.emit("host:state_sync", {
-            roomId,
-            data: stateData,
-            storeDomain: resolvedStoreDomain,
-          });
-        });
-
-        const handleAction = (payload: AirJamActionRpcPayload) => {
-          if (payload.storeDomain !== resolvedStoreDomain) {
-            return;
-          }
-          const { actionName } = payload;
-          if (isInternalActionName(actionName)) {
-            return;
-          }
-
-          const actionFn = store.getState().actions[actionName];
-          if (typeof actionFn === "function") {
-            actionFn(
-              toActionContext(payload, connectedPlayerIdsRef.current),
-              payload.payload,
-            );
-          }
-        };
-
-        const handleStateSyncRequest = (payload: {
-          roomId: string;
-          storeDomain: string;
-        }): void => {
-          if (payload.roomId !== roomId) {
-            return;
-          }
-          if (payload.storeDomain !== resolvedStoreDomain) {
-            return;
-          }
-          flushHostStateSync();
-        };
-
-        socket.on("server:controllerJoined", flushHostStateSync);
-        socket.on("airjam:state_sync_request", handleStateSyncRequest);
-        socket.on("airjam:action_rpc", handleAction);
-
-        return () => {
-          unsubscribe();
-          socket.off("server:controllerJoined", flushHostStateSync);
-          socket.off("airjam:state_sync_request", handleStateSyncRequest);
-          socket.off("airjam:action_rpc", handleAction);
-        };
-      }
-
-      if (role === "controller") {
-        const handleSync = (payload: AirJamStateSyncPayload) => {
-          if (payload.storeDomain !== resolvedStoreDomain) {
-            return;
-          }
-          const stateData = stripActionsFromState(payload.data as Partial<T>);
-          store.setState(stateData);
-        };
-
-        socket.on("airjam:state_sync", handleSync);
-
-        if (roomId && connectionStatus === "connected") {
-          socket.emit("controller:state_sync_request", {
-            roomId,
-            storeDomain: resolvedStoreDomain,
-          });
-        }
-
-        return () => {
-          socket.off("airjam:state_sync", handleSync);
-        };
-      }
-    }, [
+    runtimeSnapshotRef.current = {
       socket,
       role,
       roomId,
-      registeredRoomId,
+      resolvedStoreDomain,
       connectionStatus,
+      canBroadcastHostState,
+      connectedPlayerIds,
+    };
+
+    const runtimeBindingKey =
+      socket && roomId && role
+        ? [
+            role,
+            roomId,
+            resolvedStoreDomain,
+            socket.id ?? "socket",
+            role === "controller" ? connectionStatus : "host",
+          ].join(":")
+        : null;
+
+    useEffect(() => {
+      if (!runtimeBindingKey || !socket || !roomId || !role) {
+        return;
+      }
+
+      let binding = runtimeBindings.get(runtimeBindingKey);
+      if (!binding) {
+        binding = createRuntimeBinding({
+          socket,
+          role,
+          roomId,
+          resolvedStoreDomain,
+        });
+        runtimeBindings.set(runtimeBindingKey, binding);
+      }
+
+      binding.refCount += 1;
+
+      return () => {
+        const currentBinding = runtimeBindings.get(runtimeBindingKey);
+        if (!currentBinding) {
+          return;
+        }
+
+        currentBinding.refCount -= 1;
+        if (currentBinding.refCount > 0) {
+          return;
+        }
+
+        currentBinding.cleanup();
+        runtimeBindings.delete(runtimeBindingKey);
+      };
+    }, [
+      runtimeBindingKey,
+      socket,
+      role,
+      roomId,
       socket?.id,
       resolvedStoreDomain,
-      canBroadcastHostState,
     ]);
 
     useEffect(() => {
-      if (!canBroadcastHostState || !socket || !roomId) {
+      if (
+        !runtimeBindingKey ||
+        role !== "host" ||
+        !canBroadcastHostState ||
+        !roomId
+      ) {
         return;
       }
-      const stateData = stripActionsFromState(store.getState());
-      socket.emit("host:state_sync", {
+
+      const binding = runtimeBindings.get(runtimeBindingKey);
+      if (!binding?.flushHostStateSync) {
+        return;
+      }
+
+      const flushKey = [
         roomId,
-        data: stateData,
-        storeDomain: resolvedStoreDomain,
-      });
+        registeredRoomId,
+        socket?.id ?? "socket",
+        resolvedStoreDomain,
+        playerRosterKey,
+        canBroadcastHostState ? "broadcast" : "blocked",
+      ].join(":");
+
+      if (binding.lastHostFlushKey === flushKey) {
+        return;
+      }
+
+      binding.lastHostFlushKey = flushKey;
+      binding.flushHostStateSync();
     }, [
       role,
-      socket,
       roomId,
       registeredRoomId,
       socket?.id,
       playerRosterKey,
       resolvedStoreDomain,
       canBroadcastHostState,
+      runtimeBindingKey,
     ]);
 
     const dispatchedActions = useMemo<

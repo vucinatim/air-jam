@@ -29,6 +29,8 @@ When no game iframe is shown (Arcade browser surface or disconnected), the shell
 
 Games configure controller presentation by wrapping the controller root in `SurfaceViewport` and passing the live desired `orientation`. In standalone runs this handles local layout/rotation. In Arcade embedded runs the same component also tells the parent Arcade controller chrome which orientation to use.
 
+Controller `SurfaceViewport` scaling is intentionally based on the stable ergonomic axis for the active orientation: width in portrait and height in landscape. Browser chrome, keyboard, and iframe focus can change the visible viewport height on mobile browsers, especially outside fullscreen, but those changes should not resize controller text, buttons, or platform chrome. Host surfaces still use fit-style scaling against both axes because they are presentation surfaces rather than handheld controls.
+
 Hosts should not call `sendState({ orientation })` just to rotate Arcade controller chrome. Keep host state for gameplay/runtime metadata that truly belongs to the host session.
 
 ## Related code

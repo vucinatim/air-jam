@@ -134,6 +134,22 @@ const createTestStore = () =>
     },
   }));
 
+interface CounterStoreState {
+  count: number;
+  actions: {
+    increment: (ctx: AirJamActionContext, payload: { amount: number }) => void;
+  };
+}
+
+const createCounterStore = () =>
+  createAirJamStore<CounterStoreState>((set) => ({
+    count: 0,
+    actions: {
+      increment: (_ctx, { amount }) =>
+        set((state) => ({ count: state.count + amount })),
+    },
+  }));
+
 describe("createAirJamStore networked behavior", () => {
   let hostSocket: MockSocket;
   let controllerSocket: MockSocket;
@@ -663,6 +679,75 @@ describe("createAirJamStore networked behavior", () => {
     actorHook.unmount();
     roleHook.unmount();
     connectedIdsHook.unmount();
+  });
+
+  it("executes one host-side action RPC with multiple store consumers", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createCounterStore();
+    const firstHook = renderHook(() => useStore((state) => state.count));
+    const secondHook = renderHook(() => useStore((state) => state.count));
+    const actionsHook = renderHook(() => useStore.useActions());
+
+    act(() => {
+      hostSocket.trigger("airjam:action_rpc", {
+        actionName: "increment",
+        payload: { amount: 1 },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        actor: {
+          id: "ctrl_remote",
+          role: "controller",
+        },
+      });
+    });
+
+    expect(firstHook.result.current).toBe(1);
+    expect(secondHook.result.current).toBe(1);
+
+    firstHook.unmount();
+    secondHook.unmount();
+    actionsHook.unmount();
+  });
+
+  it("emits one host state sync per mutation with multiple store consumers", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createCounterStore();
+    const firstHook = renderHook(() => useStore((state) => state.count));
+    const secondHook = renderHook(() => useStore((state) => state.count));
+    const actionsHook = renderHook(() => useStore.useActions());
+
+    hostSocket.emitted.length = 0;
+
+    act(() => {
+      actionsHook.result.current.increment({ amount: 1 });
+    });
+
+    expect(firstHook.result.current).toBe(1);
+    expect(
+      hostSocket.emitted.filter((call) => call.event === "host:state_sync"),
+    ).toHaveLength(1);
+
+    firstHook.unmount();
+    secondHook.unmount();
+    actionsHook.unmount();
+  });
+
+  it("emits one controller state sync request with multiple store consumers", () => {
+    const useStore = createTestStore();
+    const firstHook = renderHook(() => useStore((state) => state.phase));
+    const secondHook = renderHook(() => useStore((state) => state.phase));
+    const actionsHook = renderHook(() => useStore.useActions());
+
+    expect(
+      controllerSocket.emitted.filter(
+        (call) => call.event === "controller:state_sync_request",
+      ),
+    ).toHaveLength(1);
+
+    firstHook.unmount();
+    secondHook.unmount();
+    actionsHook.unmount();
   });
 
   it("executes host local dispatches with host action context", () => {

@@ -15,6 +15,7 @@ import {
   useControllerShellStatus,
 } from "@air-jam/sdk/ui";
 import { AnimatePresence } from "framer-motion";
+import { getUniqueSongCountForBuckets } from "../game/content/song-bank";
 import { soundManifest } from "../game/contracts/sounds";
 import { toShellMatchPhase } from "../game/domain/match-phase";
 import { useGameStore } from "../game/stores";
@@ -34,15 +35,20 @@ export const ControllerView = () => {
 
 const ControllerScreen = () => {
   const roomId = useAirJamController((state) => state.roomId);
-  const controllerId = useAirJamController((state) => state.controllerId);
   const connectionStatus = useAirJamController(
     (state) => state.connectionStatus,
   );
   const runtimeState = useAirJamController((state) => state.runtimeState);
+  const selfPlayerLabel = useAirJamController(
+    (state) => state.selfPlayer?.label ?? null,
+  );
   const phase = useGameStore((state) => state.phase);
   const playerOrder = useGameStore((state) => state.playerOrder);
-  const playerLabelById = useGameStore((state) => state.playerLabelById);
   const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
+  const totalRounds = useGameStore((state) => state.totalRounds);
+  const selectedSongBucketIds = useGameStore(
+    (state) => state.selectedSongBucketIds,
+  );
   const actions = useGameStore.useActions();
   useControllerAudioCues();
 
@@ -50,15 +56,18 @@ const ControllerScreen = () => {
   const readyCount = playerOrder.filter(
     (playerId) => readyByPlayerId[playerId],
   ).length;
+  const hasEnoughSongs =
+    getUniqueSongCountForBuckets(selectedSongBucketIds) >= totalRounds;
   const canStartMatch =
     phase === "lobby" &&
     playerOrder.length > 0 &&
-    readyCount === playerOrder.length;
+    readyCount === playerOrder.length &&
+    hasEnoughSongs;
   const shellPhase = toShellMatchPhase(phase);
   const shellStatus = useControllerShellStatus({
     roomId,
     connectionStatus,
-    playerLabel: controllerId ? (playerLabelById[controllerId] ?? null) : null,
+    playerLabel: selfPlayerLabel,
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
     phase: shellPhase,
@@ -103,7 +112,7 @@ const ControllerScreen = () => {
                 visibleKinds={
                   shellPhase === "playing"
                     ? ["pause-toggle", "back-to-lobby"]
-                    : ["restart", "back-to-lobby"]
+                    : ["back-to-lobby"]
                 }
               />
             )

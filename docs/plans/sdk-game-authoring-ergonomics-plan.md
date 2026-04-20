@@ -106,6 +106,11 @@ Target authoring model:
 1. host defaults to the host reference size
 2. controller defaults to the phone reference size
 
+Default scale semantics:
+
+1. host surfaces fit against both available axes
+2. controller surfaces scale from the ergonomic axis for the active orientation, width in portrait and height in landscape, so mobile browser chrome and keyboard viewport changes do not resize controller controls
+
 Advanced users can still pass `designWidth` and `designHeight` directly.
 
 ## 4. Pong Runtime Buffers

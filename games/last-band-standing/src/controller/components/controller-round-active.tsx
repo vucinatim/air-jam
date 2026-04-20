@@ -55,7 +55,7 @@ export const ControllerRoundActive = () => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="px-5 pb-2">
+      <div className="px-5 pt-5 pb-2">
         <h2 className="title text-2xl">
           {getRoundPrompt(currentRound.guessKind)}
         </h2>

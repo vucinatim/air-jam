@@ -3,7 +3,7 @@ import {
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
 } from "@air-jam/runtime-topology";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionScopeContext } from "../src/context/session-scope";
 import {
@@ -48,11 +48,23 @@ const installParentPostMessageSpy = () => {
   return postMessage;
 };
 
+const setViewportSize = (width: number, height: number) => {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: height,
+  });
+};
+
 describe("controller presentation sync", () => {
   const originalParent = window.parent;
 
   afterEach(() => {
     vi.restoreAllMocks();
+    setViewportSize(1024, 768);
     Object.defineProperty(window, "parent", {
       configurable: true,
       value: originalParent,
@@ -115,5 +127,60 @@ describe("controller presentation sync", () => {
         "https://platform.example",
       );
     });
+  });
+
+  it("keeps controller scale stable during keyboard-like input focus resize", async () => {
+    setViewportSize(412, 915);
+
+    const { container, getByLabelText } = render(
+      <SessionScopeContext.Provider value="controller">
+        <SurfaceViewport orientation="portrait">
+          <label htmlFor="name">Name</label>
+          <input id="name" />
+        </SurfaceViewport>
+      </SessionScopeContext.Provider>,
+    );
+
+    const viewport = container.querySelector<HTMLElement>(
+      "[data-airjam-surface-viewport]",
+    );
+
+    await waitFor(() => {
+      expect(viewport?.style.getPropertyValue("--airjam-ui-scale")).toBe("1");
+    });
+
+    getByLabelText("Name").focus();
+    setViewportSize(412, 520);
+    fireEvent(window, new Event("resize"));
+
+    expect(viewport?.style.getPropertyValue("--airjam-ui-scale")).toBe("1");
+  });
+
+  it("keeps portrait controller scale stable when mobile browser chrome changes height", async () => {
+    setViewportSize(360, 640);
+
+    const { container } = render(
+      <SessionScopeContext.Provider value="controller">
+        <SurfaceViewport orientation="portrait">Controller</SurfaceViewport>
+      </SessionScopeContext.Provider>,
+    );
+
+    const viewport = container.querySelector<HTMLElement>(
+      "[data-airjam-surface-viewport]",
+    );
+    const expectedScale = String(360 / 412);
+
+    await waitFor(() => {
+      expect(viewport?.style.getPropertyValue("--airjam-ui-scale")).toBe(
+        expectedScale,
+      );
+    });
+
+    setViewportSize(360, 780);
+    fireEvent(window, new Event("resize"));
+
+    expect(viewport?.style.getPropertyValue("--airjam-ui-scale")).toBe(
+      expectedScale,
+    );
   });
 });

@@ -24,7 +24,6 @@ import { useGameStore } from "../game/stores";
 import { FullscreenToggle } from "./components/fullscreen-toggle";
 import { HostGameOver } from "./components/host-game-over";
 import { HostLobby } from "./components/host-lobby";
-import { HostPlayerStrip } from "./components/host-player-strip";
 import { HostTimerBar } from "./components/host-timer-bar";
 import { HostTopBar } from "./components/host-top-bar";
 import { HostVideoStage } from "./components/host-video-stage";
@@ -61,8 +60,10 @@ const HostScreen = () => {
     return null;
   }, [phase, currentRound, roundReveal]);
 
+  const activeClipStartSeconds =
+    currentRound?.clipStartSeconds ?? roundReveal?.clipStartSeconds ?? null;
   const embedUrl = activeSong
-    ? getYouTubeEmbedUrl(activeSong.youtubeUrl, true)
+    ? getYouTubeEmbedUrl(activeSong.youtubeUrl, true, activeClipStartSeconds)
     : null;
 
   const countdownSeconds = currentRound
@@ -124,8 +125,6 @@ const HostScreen = () => {
               {phase === "game-over" && <HostGameOver />}
             </AnimatePresence>
           </div>
-
-          {phase !== "lobby" && <HostPlayerStrip />}
         </main>
       </SurfaceViewport>
       <HostPreviewControllerWorkspace

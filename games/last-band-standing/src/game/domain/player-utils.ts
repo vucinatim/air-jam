@@ -17,10 +17,6 @@ export const getLabelForPlayer = (
   return playerLabelById[playerId] ?? `Player ${playerId.slice(0, 4)}`;
 };
 
-export const isGenericPlayerLabel = (value: string): boolean => {
-  return /^player\b/i.test(value.trim());
-};
-
 export const normalizePlayerName = (value: string): string => {
   return value.trim().replace(/\s+/g, " ").slice(0, PLAYER_NAME_MAX_LENGTH);
 };

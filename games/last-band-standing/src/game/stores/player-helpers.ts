@@ -1,4 +1,3 @@
-import { isGenericPlayerLabel } from "@/game/domain/player-utils";
 import { type ConnectedPlayer } from "./types";
 
 export const buildPlayerLabelMap = (
@@ -8,37 +7,6 @@ export const buildPlayerLabelMap = (
     labelById[player.id] = player.label;
     return labelById;
   }, {});
-};
-
-export const buildNextPlayerLabelMap = (
-  nextPlayerOrder: string[],
-  incomingLabelById: Record<string, string>,
-  existingLabelById: Record<string, string>,
-): Record<string, string> => {
-  return nextPlayerOrder.reduce<Record<string, string>>(
-    (nextLabelById, playerId) => {
-      const existingLabel = existingLabelById[playerId];
-      const incomingLabel =
-        incomingLabelById[playerId] ?? `Player ${playerId.slice(0, 4)}`;
-
-      if (!existingLabel) {
-        nextLabelById[playerId] = incomingLabel;
-        return nextLabelById;
-      }
-
-      if (
-        isGenericPlayerLabel(existingLabel) &&
-        !isGenericPlayerLabel(incomingLabel)
-      ) {
-        nextLabelById[playerId] = incomingLabel;
-        return nextLabelById;
-      }
-
-      nextLabelById[playerId] = existingLabel;
-      return nextLabelById;
-    },
-    {},
-  );
 };
 
 export const filterRecordByPlayerIds = <T>(

@@ -3,8 +3,7 @@
 import { useArcadePlatformSettingsStore } from "@/components/arcade/arcade-platform-settings-store";
 import {
   getControllerLocalProfileClientSnapshot,
-  getControllerLocalProfileServerSnapshot,
-  subscribeControllerLocalProfile,
+  writeControllerLocalProfile,
 } from "@/lib/controller-local-profile";
 import { triggerLocalHaptic } from "@/lib/local-haptics";
 import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
@@ -17,7 +16,7 @@ import {
 } from "@air-jam/sdk";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
-import { useCallback, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ControllerPageLayout,
   type ControllerPageSurfaceMode,
@@ -36,11 +35,6 @@ export function ControllerPageContent({
   surfaceMode,
 }: ControllerPageContentProps) {
   const documentFullscreen = useDocumentFullscreen();
-  const localProfile = useSyncExternalStore(
-    subscribeControllerLocalProfile,
-    getControllerLocalProfileClientSnapshot,
-    getControllerLocalProfileServerSnapshot,
-  );
   const controller = useAirJamController();
   const localPlatformSettings = useInheritedPlatformSettings();
   const sharedPlatformSettings = useArcadePlatformSettingsStore(
@@ -58,12 +52,34 @@ export function ControllerPageContent({
     iframeRef,
   } = useControllerEmbeddedGameFrame({
     controller,
-    localProfile,
   });
 
   const vectorRef = useRef({ x: 0, y: 0 });
   const actionRef = useRef(false);
   const lastLoopFailLogRef = useRef(0);
+  const selfPlayerLabel = controller.selfPlayer?.label?.trim() ?? "";
+  const selfPlayerAvatarId = controller.selfPlayer?.avatarId?.trim() ?? "";
+
+  useEffect(() => {
+    if (!selfPlayerLabel) {
+      return;
+    }
+
+    const currentProfile = getControllerLocalProfileClientSnapshot();
+    const nextProfile = {
+      label: selfPlayerLabel.slice(0, 24),
+      avatarId: selfPlayerAvatarId || currentProfile.avatarId,
+    };
+
+    if (
+      currentProfile.label === nextProfile.label &&
+      currentProfile.avatarId === nextProfile.avatarId
+    ) {
+      return;
+    }
+
+    writeControllerLocalProfile(nextProfile);
+  }, [selfPlayerAvatarId, selfPlayerLabel]);
 
   useControllerTick(
     () => {

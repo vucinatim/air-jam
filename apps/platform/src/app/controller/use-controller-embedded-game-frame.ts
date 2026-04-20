@@ -6,7 +6,6 @@ import {
   shouldRejectControllerBridgeHandshake,
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
-import type { ControllerPersistedProfile } from "@/lib/controller-local-profile";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
 import type { AirJamControllerApi, ControllerOrientation } from "@air-jam/sdk";
@@ -52,7 +51,6 @@ import { useShallow } from "zustand/react/shallow";
 
 interface UseControllerEmbeddedGameFrameOptions {
   controller: AirJamControllerApi;
-  localProfile: ControllerPersistedProfile;
 }
 
 interface ControllerSurfaceOrientationOverride {
@@ -78,7 +76,6 @@ const arcadeSurfaceKey = (surface: {
 
 export function useControllerEmbeddedGameFrame({
   controller,
-  localProfile,
 }: UseControllerEmbeddedGameFrameOptions): ControllerEmbeddedGameFrameState {
   const arcadeSurface = useArcadeSurfaceStore(
     useShallow((state) => ({
@@ -157,15 +154,9 @@ export function useControllerEmbeddedGameFrame({
       return null;
     }
 
-    const labelForEmbed = controller.selfPlayer?.label || localProfile.label;
-    const avatarIdForEmbed =
-      controller.selfPlayer?.avatarId || localProfile.avatarId;
-
     return appendRuntimeQueryParams(activeUrl, {
       aj_controller_id: controller.controllerId,
       aj_room: controller.roomId,
-      ...(labelForEmbed ? { aj_player_label: labelForEmbed } : {}),
-      ...(avatarIdForEmbed ? { aj_player_avatar: avatarIdForEmbed } : {}),
       ...runtimeTopologyToQueryParams(
         buildEmbeddedRuntimeTopology({
           runtimeMode: platformControllerSessionConfig.topology.runtimeMode as
@@ -191,9 +182,6 @@ export function useControllerEmbeddedGameFrame({
     arcadeSurface.kind,
     controller.controllerId,
     controller.roomId,
-    controller.selfPlayer,
-    localProfile.avatarId,
-    localProfile.label,
   ]);
 
   const controllerIframeSrc =

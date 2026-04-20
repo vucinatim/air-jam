@@ -1,5 +1,7 @@
 import {
   createEmptyScore,
+  formatAverageResponseTime,
+  formatResponseTime,
   getLabelForPlayer,
 } from "@/game/domain/player-utils";
 import { rankPlayers } from "@/game/domain/round-engine";
@@ -14,6 +16,8 @@ export const HostPlayerStrip = () => {
   const phase = useGameStore((state) => state.phase);
   const playerOrder = useGameStore((state) => state.playerOrder);
   const playerLabelById = useGameStore((state) => state.playerLabelById);
+  const currentRound = useGameStore((state) => state.currentRound);
+  const roundReveal = useGameStore((state) => state.roundReveal);
   const answersByPlayerId = useGameStore((state) => state.answersByPlayerId);
   const scoreboardByPlayerId = useGameStore(
     (state) => state.scoreboardByPlayerId,
@@ -30,15 +34,33 @@ export const HostPlayerStrip = () => {
   const stripPlayerIds = inGame ? rankingPlayerIds : playerOrder;
 
   return (
-    <div className="border-border/30 bg-card/50 shrink-0 border-t backdrop-blur-sm">
-      <div className="flex items-stretch justify-center gap-2 overflow-x-auto px-4 py-3">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-5">
+      <div className="flex items-stretch justify-center gap-3 overflow-x-auto pt-20 pb-10">
         <AnimatePresence mode="popLayout">
           {stripPlayerIds.map((playerId, index) => {
             const player =
               players.find((entry) => entry.id === playerId) ?? null;
             const score = scoreboardByPlayerId[playerId] ?? createEmptyScore();
-            const hasAnswered =
-              phase === "round-active" && Boolean(answersByPlayerId[playerId]);
+            const answer = answersByPlayerId[playerId] ?? null;
+            const roundResult =
+              roundReveal?.resultsByPlayerId[playerId] ?? null;
+            const hasAnswered = phase === "round-active" && Boolean(answer);
+            const responseLabel = (() => {
+              if (
+                roundResult?.responseMs !== null &&
+                roundResult?.responseMs !== undefined
+              ) {
+                return formatResponseTime(roundResult.responseMs);
+              }
+
+              if (answer && currentRound) {
+                return formatResponseTime(
+                  answer.answeredAtMs - currentRound.startedAtMs,
+                );
+              }
+
+              return null;
+            })();
 
             return (
               <motion.div
@@ -56,51 +78,58 @@ export const HostPlayerStrip = () => {
                   scale: { type: "spring", stiffness: 400, damping: 15 },
                 }}
                 className={cn(
-                  "bg-primary/10 relative flex items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-300",
-                  hasAnswered && "bg-primary/15 ring-primary/40 ring-2",
+                  "relative min-w-[11rem] rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-white shadow-2xl backdrop-blur-md transition-colors duration-300",
+                  hasAnswered && "ring-primary/50 bg-primary/20 ring-2",
+                  roundResult?.isCorrect === true &&
+                    "ring-primary/60 bg-primary/25",
+                  roundResult?.isCorrect === false &&
+                    "ring-destructive/50 bg-destructive/20",
                 )}
               >
-                <div>
-                  {inGame && (
-                    <span
-                      className={cn(
-                        "absolute -top-2 -left-2 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-bold tabular-nums",
-                        index === 0 && "bg-amber-400 text-amber-950",
-                        index === 1 && "bg-slate-300 text-slate-800",
-                        index === 2 && "bg-amber-600 text-amber-100",
-                        index > 2 && "bg-white/90 text-slate-800",
-                      )}
-                    >
-                      #{index + 1}
+                {inGame && (
+                  <span
+                    className={cn(
+                      "absolute -top-2 -left-2 flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-xs font-black tabular-nums shadow-lg",
+                      index === 0 && "bg-amber-400 text-amber-950",
+                      index === 1 && "bg-slate-300 text-slate-800",
+                      index === 2 && "bg-amber-600 text-amber-100",
+                      index > 2 && "bg-white/90 text-slate-800",
+                    )}
+                  >
+                    #{index + 1}
+                  </span>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    {player ? (
+                      <PlayerAvatarWithFire
+                        player={player}
+                        size="md"
+                        showFire={score.hasStreakFire}
+                      />
+                    ) : (
+                      <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full text-base font-bold">
+                        {getLabelForPlayer(playerId, playerLabelById).charAt(0)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <span className="block max-w-[140px] truncate text-base leading-tight font-black">
+                      {getLabelForPlayer(playerId, playerLabelById)}
                     </span>
-                  )}
-
-                  <div className="flex items-center gap-3 p-1">
-                    <div className="relative shrink-0">
-                      {player ? (
-                        <PlayerAvatarWithFire
-                          player={player}
-                          size="sm"
-                          showFire={score.hasStreakFire}
-                        />
-                      ) : (
-                        <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold">
-                          {getLabelForPlayer(playerId, playerLabelById).charAt(
-                            0,
-                          )}
-                        </div>
-                      )}
+                    <div className="mt-1 flex flex-col text-lg font-bold tabular-nums">
+                      <span>{score.points} pts</span>
+                      <span>{score.correct} correct</span>
                     </div>
-
-                    <div className="flex flex-col">
-                      <span className="max-w-[100px] truncate text-sm leading-tight font-medium">
-                        {getLabelForPlayer(playerId, playerLabelById)}
-                      </span>
-                      {inGame && (
-                        <span className="text-sm font-bold tabular-nums">
-                          {score.points}
-                        </span>
-                      )}
+                    <div className="mt-1 text-sm font-medium text-white/70">
+                      {responseLabel
+                        ? `Answer ${responseLabel}`
+                        : `Avg ${formatAverageResponseTime(
+                            score.totalResponseMs,
+                            score.answeredRounds,
+                          )}`}
                     </div>
                   </div>
                 </div>

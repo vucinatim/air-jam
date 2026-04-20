@@ -2,8 +2,11 @@ import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "@/game/constants";
 import {
   getRoundOptionLabel,
   getSongById,
+  getSongCanonicalKey,
+  getUniqueSongsForBuckets,
   pickRoundOptionSongIds,
-  songBank,
+  pickSongClipStartSeconds,
+  type SongBucketId,
 } from "@/game/content/song-bank";
 import { createEmptyScore } from "@/game/domain/player-utils";
 import {
@@ -16,9 +19,55 @@ import { shuffleList } from "@/game/domain/shuffle";
 import { type RoundGuessKind } from "@/game/domain/types";
 import { type ActiveRound, type PlayerScore, type QuizState } from "./types";
 
-export const pickPlaylistSongIds = (count: number): string[] => {
-  const shuffledSongs = shuffleList([...songBank]);
-  return shuffledSongs.slice(0, count).map((song) => song.id);
+export interface PlaylistSelection {
+  songIds: string[];
+  songKeys: string[];
+  uniqueSongCount: number;
+}
+
+export const pickPlaylistSongs = (
+  count: number,
+  selectedSongBucketIds: readonly SongBucketId[],
+  playedSongKeys: readonly string[] = [],
+): PlaylistSelection => {
+  const uniqueSongs = getUniqueSongsForBuckets(selectedSongBucketIds);
+  if (uniqueSongs.length < count) {
+    return {
+      songIds: [],
+      songKeys: [],
+      uniqueSongCount: uniqueSongs.length,
+    };
+  }
+
+  const playedSongKeySet = new Set(playedSongKeys);
+  const unplayedSongs = shuffleList(
+    uniqueSongs.filter(
+      (song) => !playedSongKeySet.has(getSongCanonicalKey(song)),
+    ),
+  );
+  const fallbackSongs = shuffleList(
+    uniqueSongs.filter((song) =>
+      playedSongKeySet.has(getSongCanonicalKey(song)),
+    ),
+  );
+  const selectedSongs = [...unplayedSongs, ...fallbackSongs].slice(0, count);
+
+  return {
+    songIds: selectedSongs.map((song) => song.id),
+    songKeys: selectedSongs.map(getSongCanonicalKey),
+    uniqueSongCount: uniqueSongs.length,
+  };
+};
+
+export const appendPlayedSongKeys = (
+  existingSongKeys: readonly string[],
+  playedSongKeys: readonly string[],
+): string[] => {
+  const nextPlayedSongKeySet = new Set(playedSongKeys);
+  return [
+    ...existingSongKeys.filter((songKey) => !nextPlayedSongKeySet.has(songKey)),
+    ...playedSongKeys,
+  ];
 };
 
 export const pickPlaylistGuessKinds = (count: number): RoundGuessKind[] => {
@@ -53,6 +102,7 @@ export const createRound = (
   return {
     roundNumber,
     songId,
+    clipStartSeconds: pickSongClipStartSeconds(song),
     guessKind,
     optionOrder,
     startedAtMs: nowMs,
@@ -196,6 +246,7 @@ export const finalizeRoundState = (
     roundReveal: {
       roundNumber: state.currentRound.roundNumber,
       songId: state.currentRound.songId,
+      clipStartSeconds: state.currentRound.clipStartSeconds,
       songTitle: song.title,
       songArtist: song.artist,
       guessKind: state.currentRound.guessKind,

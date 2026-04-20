@@ -36,28 +36,30 @@ export const ControllerGameOver = () => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5">
-        <p className="text-muted-foreground text-sm tracking-widest uppercase">
-          Your Placement
-        </p>
-        <p className="title text-7xl">#{myRank >= 0 ? myRank + 1 : "?"}</p>
-        {myScore && (
-          <div className="flex flex-col items-center gap-1">
-            <p className="text-2xl font-bold">{myScore.points} pts</p>
-            <p className="text-muted-foreground text-sm">
-              {myScore.correct} correct · {myScore.wrong} wrong
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Avg answer:{" "}
-              {formatAverageResponseTime(
-                myScore.totalResponseMs,
-                myScore.answeredRounds,
-              )}
-            </p>
-          </div>
-        )}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 pt-5">
+        <div className="flex shrink-0 flex-col items-center gap-3">
+          <p className="text-muted-foreground text-sm tracking-widest uppercase">
+            Your Placement
+          </p>
+          <p className="title text-7xl">#{myRank >= 0 ? myRank + 1 : "?"}</p>
+          {myScore && (
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-2xl font-bold">{myScore.points} pts</p>
+              <p className="text-muted-foreground text-sm">
+                {myScore.correct} correct · {myScore.wrong} wrong
+              </p>
+              <p className="text-muted-foreground text-xs">
+                Avg answer:{" "}
+                {formatAverageResponseTime(
+                  myScore.totalResponseMs,
+                  myScore.answeredRounds,
+                )}
+              </p>
+            </div>
+          )}
+        </div>
 
-        <div className="mt-4 flex w-full flex-col gap-1">
+        <div className="min-h-0 w-full flex-1 overflow-y-auto rounded-2xl pb-2">
           {rankingPlayerIds.map((playerId, index) => {
             const score = scoreboardByPlayerId[playerId];
             if (!score) return null;

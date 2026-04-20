@@ -9,6 +9,7 @@ import { PlayerAvatarWithFire } from "@/game/ui/player-avatar-with-fire";
 import { getRoundPrompt } from "@/game/ui/round-prompt";
 import { useAirJamHost } from "@air-jam/sdk";
 import { motion } from "framer-motion";
+import { HostPlayerStrip } from "./host-player-strip";
 
 const centerVariants = {
   initial: { opacity: 0, scale: 0.96 },
@@ -79,7 +80,7 @@ export const HostVideoStage = ({
       />
 
       {phase === "round-active" && currentRound && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center px-8 pb-28">
           <motion.div
             className="flex flex-col items-center gap-3"
             initial={{ opacity: 0, y: 20 }}
@@ -94,27 +95,29 @@ export const HostVideoStage = ({
       )}
 
       {phase === "round-reveal" && roundReveal && (
-        <div className="from-background/90 absolute inset-x-0 bottom-0 h-full bg-linear-to-t to-transparent p-8">
+        <div className="from-background/80 absolute inset-0 bg-linear-to-t to-transparent p-8">
           <motion.div
-            className="mx-auto flex h-full w-full max-w-5xl flex-col items-center justify-end gap-4"
+            className="mx-auto flex h-full w-full max-w-5xl flex-col items-center justify-center gap-4 pb-28"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <p className="text-muted-foreground text-sm tracking-widest uppercase">
-              Round {roundReveal.roundNumber} — Answer
-            </p>
-            <h2 className="title text-center text-4xl md:text-5xl">
-              {roundReveal.songArtist} - {roundReveal.songTitle}
-            </h2>
-            <p className="text-muted-foreground text-sm tracking-wider uppercase">
-              Correct {roundReveal.guessKind === "artist" ? "Artist" : "Song"}
-            </p>
+            <div className="bg-background/25 flex flex-col items-center gap-3 rounded-3xl px-8 py-5 text-center shadow-[0_22px_80px_rgba(0,0,0,0.5)] ring-1 ring-white/10 backdrop-blur-md [text-shadow:0_3px_18px_rgba(0,0,0,0.85)]">
+              <p className="text-muted-foreground text-sm tracking-widest uppercase">
+                Round {roundReveal.roundNumber} — Answer
+              </p>
+              <h2 className="title text-4xl md:text-5xl">
+                {roundReveal.songArtist} - {roundReveal.songTitle}
+              </h2>
+              <p className="text-muted-foreground text-sm tracking-wider uppercase">
+                Correct {roundReveal.guessKind === "artist" ? "Artist" : "Song"}
+              </p>
+            </div>
 
             {roundReveal.firstCorrectResponseMs !== null &&
             firstCorrectPlayerLabel ? (
               <div className="flex justify-center">
-                <div className="border-primary/30 bg-primary/10 flex items-center gap-3 rounded-2xl border px-4 py-3">
+                <div className="border-primary/45 bg-background/65 shadow-primary/10 flex items-center gap-3 rounded-2xl border px-5 py-4 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
                   {firstCorrectPlayer ? (
                     <PlayerAvatarWithFire
                       player={firstCorrectPlayer}
@@ -147,6 +150,8 @@ export const HostVideoStage = ({
           </motion.div>
         </div>
       )}
+
+      <HostPlayerStrip />
     </motion.div>
   );
 };

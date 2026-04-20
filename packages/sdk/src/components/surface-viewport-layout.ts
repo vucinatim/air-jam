@@ -177,6 +177,7 @@ export interface ResolveSurfaceViewportScaleOptions {
   availableHeight: number;
   referenceWidth: number;
   referenceHeight: number;
+  scaleMode?: "fit" | "width" | "height";
   uiScaleMultiplier?: number;
   minScale?: number;
   maxScale?: number;
@@ -187,6 +188,7 @@ export const resolveSurfaceViewportScale = ({
   availableHeight,
   referenceWidth,
   referenceHeight,
+  scaleMode = "fit",
   uiScaleMultiplier = 1,
   minScale,
   maxScale,
@@ -196,11 +198,16 @@ export const resolveSurfaceViewportScale = ({
   const safeReferenceWidth = Math.max(referenceWidth, 1);
   const safeReferenceHeight = Math.max(referenceHeight, 1);
 
-  let scale =
-    Math.min(
-      safeAvailableWidth / safeReferenceWidth,
-      safeAvailableHeight / safeReferenceHeight,
-    ) * uiScaleMultiplier;
+  const widthScale = safeAvailableWidth / safeReferenceWidth;
+  const heightScale = safeAvailableHeight / safeReferenceHeight;
+  const baseScale =
+    scaleMode === "width"
+      ? widthScale
+      : scaleMode === "height"
+        ? heightScale
+        : Math.min(widthScale, heightScale);
+
+  let scale = baseScale * uiScaleMultiplier;
 
   if (typeof minScale === "number" && Number.isFinite(minScale)) {
     scale = Math.max(scale, minScale);

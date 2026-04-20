@@ -1,4 +1,8 @@
 import {
+  getUniqueSongCountForBuckets,
+  songBuckets,
+} from "@/game/content/song-bank";
+import {
   createEmptyScore,
   getLabelForPlayer,
 } from "@/game/domain/player-utils";
@@ -37,6 +41,10 @@ export const HostLobby = () => {
   const playerOrder = useGameStore((state) => state.playerOrder);
   const playerLabelById = useGameStore((state) => state.playerLabelById);
   const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
+  const totalRounds = useGameStore((state) => state.totalRounds);
+  const selectedSongBucketIds = useGameStore(
+    (state) => state.selectedSongBucketIds,
+  );
   const scoreboardByPlayerId = useGameStore(
     (state) => state.scoreboardByPlayerId,
   );
@@ -44,10 +52,13 @@ export const HostLobby = () => {
   const readyCount = playerOrder.filter(
     (playerId) => readyByPlayerId[playerId],
   ).length;
+  const uniqueSongCount = getUniqueSongCountForBuckets(selectedSongBucketIds);
+  const hasEnoughSongs = uniqueSongCount >= totalRounds;
   const canStartMatch =
     phase === "lobby" &&
     playerOrder.length > 0 &&
-    readyCount === playerOrder.length;
+    readyCount === playerOrder.length &&
+    hasEnoughSongs;
   const hostJoinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
     canStartMatch,
@@ -126,6 +137,40 @@ export const HostLobby = () => {
                 buttonClassName="border-border/30 bg-background/60 text-foreground hover:bg-background/80"
               />
             </motion.div>
+
+            <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3">
+              {songBuckets.map((bucket) => {
+                const selected = selectedSongBucketIds.includes(bucket.id);
+
+                return (
+                  <button
+                    key={bucket.id}
+                    type="button"
+                    onClick={() =>
+                      actions.toggleSongBucket({ bucketId: bucket.id })
+                    }
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-xs font-black tracking-[0.08em] uppercase backdrop-blur-sm transition-all",
+                      selected
+                        ? "border-primary/50 bg-primary/20 text-primary"
+                        : "border-border/30 bg-background/35 text-muted-foreground hover:bg-background/55",
+                    )}
+                  >
+                    {bucket.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p
+              className={cn(
+                "text-center text-xs font-bold tracking-[0.12em] uppercase",
+                hasEnoughSongs ? "text-muted-foreground" : "text-destructive",
+              )}
+            >
+              {hasEnoughSongs
+                ? `${uniqueSongCount} unique songs in rotation`
+                : `Need ${totalRounds - uniqueSongCount} more unique songs for ${totalRounds} rounds`}
+            </p>
 
             {hasPlayers && (
               <motion.div

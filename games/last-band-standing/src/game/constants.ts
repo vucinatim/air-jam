@@ -19,6 +19,5 @@ export const SKIPPABLE_YOUTUBE_ERROR_CODES = new Set([
 ]);
 
 // ── Player name ──
-export const PLAYER_NAME_STORAGE_KEY = "last-band-standing:player-name";
 export const PLAYER_NAME_MAX_LENGTH = 24;
 export const PLAYER_NAME_MIN_LENGTH = 2;

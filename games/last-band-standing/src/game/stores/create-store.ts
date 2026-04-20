@@ -3,20 +3,20 @@ import {
   DEFAULT_ROUND_DURATION_SEC,
   DEFAULT_TOTAL_ROUNDS,
 } from "@/game/constants";
-import { normalizePlayerName } from "@/game/domain/player-utils";
+import {
+  defaultSelectedSongBucketIds,
+  toggleSelectedSongBucketIds,
+} from "@/game/content/song-bank";
 import { rankPlayers } from "@/game/domain/round-engine";
 import { createAirJamStore } from "@air-jam/sdk";
+import { buildPlayerLabelMap, filterRecordByPlayerIds } from "./player-helpers";
 import {
-  buildNextPlayerLabelMap,
-  buildPlayerLabelMap,
-  filterRecordByPlayerIds,
-} from "./player-helpers";
-import {
+  appendPlayedSongKeys,
   createInitialScoreboard,
   createRound,
   finalizeRoundState,
   pickPlaylistGuessKinds,
-  pickPlaylistSongIds,
+  pickPlaylistSongs,
   resetLobbyState,
 } from "./round-helpers";
 import { type QuizState } from "./types";
@@ -30,6 +30,8 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
   totalRounds: DEFAULT_TOTAL_ROUNDS,
   roundDurationSec: DEFAULT_ROUND_DURATION_SEC,
   revealDurationSec: DEFAULT_REVEAL_DURATION_SEC,
+  selectedSongBucketIds: defaultSelectedSongBucketIds,
+  playedSongKeys: [],
 
   activePlayerIds: [],
   playlistSongIds: [],
@@ -58,11 +60,13 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
           (playerId) => !retainedOrder.includes(playerId),
         );
         const nextPlayerOrder = [...retainedOrder, ...newPlayerIds];
-        const nextPlayerLabelById = buildNextPlayerLabelMap(
-          nextPlayerOrder,
-          incomingLabelById,
-          state.playerLabelById,
-        );
+        const nextPlayerLabelById = nextPlayerOrder.reduce<
+          Record<string, string>
+        >((nextLabels, playerId) => {
+          nextLabels[playerId] =
+            incomingLabelById[playerId] ?? `Player ${playerId.slice(0, 4)}`;
+          return nextLabels;
+        }, {});
 
         const nextReadyByPlayerId = nextPlayerOrder.reduce<
           Record<string, boolean>
@@ -145,30 +149,6 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    setPlayerName: ({ actorId }, { name }) => {
-      if (!actorId) {
-        return;
-      }
-
-      set((state) => {
-        const normalizedName = normalizePlayerName(name);
-        if (!normalizedName) {
-          return state;
-        }
-
-        if (state.playerLabelById[actorId] === normalizedName) {
-          return state;
-        }
-
-        return {
-          playerLabelById: {
-            ...state.playerLabelById,
-            [actorId]: normalizedName,
-          },
-        };
-      });
-    },
-
     setReady: ({ actorId }, { ready }) => {
       if (!actorId) {
         return;
@@ -188,13 +168,38 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    startMatch: ({ role }) => {
-      if (role !== "host") {
-        return;
-      }
-
+    toggleSongBucket: (_ctx, { bucketId }) => {
       set((state) => {
         if (state.phase !== "lobby") {
+          return state;
+        }
+
+        if (
+          state.selectedSongBucketIds.length === 1 &&
+          state.selectedSongBucketIds[0] === bucketId
+        ) {
+          return state;
+        }
+
+        return {
+          selectedSongBucketIds: toggleSelectedSongBucketIds(
+            state.selectedSongBucketIds,
+            bucketId,
+          ),
+        };
+      });
+    },
+
+    startMatch: ({ actorId, role }) => {
+      set((state) => {
+        if (state.phase !== "lobby") {
+          return state;
+        }
+
+        if (
+          role !== "host" &&
+          (!actorId || state.readyByPlayerId[actorId] !== true)
+        ) {
           return state;
         }
 
@@ -206,12 +211,21 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
           return state;
         }
 
-        const playlistSongIds = pickPlaylistSongIds(state.totalRounds);
+        const playlistSelection = pickPlaylistSongs(
+          state.totalRounds,
+          state.selectedSongBucketIds,
+          state.playedSongKeys,
+        );
+        const playlistSongIds = playlistSelection.songIds;
         const playlistGuessKinds = pickPlaylistGuessKinds(state.totalRounds);
         const firstSongId = playlistSongIds[0];
         const firstGuessKind = playlistGuessKinds[0];
 
-        if (!firstSongId || !firstGuessKind) {
+        if (
+          playlistSelection.uniqueSongCount < state.totalRounds ||
+          !firstSongId ||
+          !firstGuessKind
+        ) {
           return state;
         }
 
@@ -222,6 +236,10 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
           activePlayerIds,
           playlistSongIds,
           playlistGuessKinds,
+          playedSongKeys: appendPlayedSongKeys(
+            state.playedSongKeys,
+            playlistSelection.songKeys,
+          ),
           completedRoundCount: 0,
           currentRound: createRound(
             1,
@@ -352,8 +370,8 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
       }));
     },
 
-    resetLobby: ({ role }) => {
-      if (role !== "host") {
+    resetLobby: ({ actorId, role }) => {
+      if (role !== "host" && !actorId) {
         return;
       }
 

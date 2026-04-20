@@ -83,6 +83,28 @@ describe("surface viewport layout", () => {
     ).toBe(2);
   });
 
+  it("can scale controller UI from the stable ergonomic axis", () => {
+    expect(
+      resolveSurfaceViewportScale({
+        availableWidth: 360,
+        availableHeight: 640,
+        referenceWidth: 412,
+        referenceHeight: 915,
+        scaleMode: "width",
+      }),
+    ).toBeCloseTo(360 / 412);
+
+    expect(
+      resolveSurfaceViewportScale({
+        availableWidth: 640,
+        availableHeight: 360,
+        referenceWidth: 915,
+        referenceHeight: 412,
+        scaleMode: "height",
+      }),
+    ).toBeCloseTo(360 / 412);
+  });
+
   it("applies the scale multiplier and publishes scoped theme vars", () => {
     const scale = resolveSurfaceViewportScale({
       availableWidth: 824,

@@ -42,6 +42,7 @@ export const extractYouTubeVideoId = (youtubeUrl: string): string | null => {
 export const getYouTubeEmbedUrl = (
   youtubeUrl: string,
   autoplay: boolean,
+  clipStartSeconds?: number | null,
 ): string | null => {
   const videoId = extractYouTubeVideoId(youtubeUrl);
 
@@ -58,7 +59,7 @@ export const getYouTubeEmbedUrl = (
   if (typeof window !== "undefined") {
     params.set("origin", window.location.origin);
   }
-  const start = extractYouTubeStartSeconds(youtubeUrl);
+  const start = clipStartSeconds ?? extractYouTubeStartSeconds(youtubeUrl);
   if (start !== null && start > 0) {
     params.set("start", String(start));
   }

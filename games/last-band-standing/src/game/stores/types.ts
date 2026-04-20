@@ -1,3 +1,4 @@
+import { type SongBucketId } from "@/game/content/song-bank";
 import { type PlayerScore } from "@/game/domain/player-utils";
 import {
   type PlayerAnswer,
@@ -16,6 +17,7 @@ export interface ConnectedPlayer {
 export interface ActiveRound {
   roundNumber: number;
   songId: string;
+  clipStartSeconds: number;
   guessKind: RoundGuessKind;
   optionOrder: string[];
   startedAtMs: number;
@@ -26,6 +28,7 @@ export interface ActiveRound {
 export interface RoundReveal {
   roundNumber: number;
   songId: string;
+  clipStartSeconds: number;
   songTitle: string;
   songArtist: string;
   guessKind: RoundGuessKind;
@@ -46,6 +49,8 @@ export interface QuizState {
   totalRounds: number;
   roundDurationSec: number;
   revealDurationSec: number;
+  selectedSongBucketIds: SongBucketId[];
+  playedSongKeys: string[];
 
   activePlayerIds: string[];
   playlistSongIds: string[];
@@ -62,11 +67,11 @@ export interface QuizState {
       ctx: AirJamActionContext,
       payload: { players: ConnectedPlayer[] },
     ) => void;
-    setPlayerName: (
-      ctx: AirJamActionContext,
-      payload: { name: string },
-    ) => void;
     setReady: (ctx: AirJamActionContext, payload: { ready: boolean }) => void;
+    toggleSongBucket: (
+      ctx: AirJamActionContext,
+      payload: { bucketId: SongBucketId },
+    ) => void;
     startMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
     submitGuess: (
       ctx: AirJamActionContext,

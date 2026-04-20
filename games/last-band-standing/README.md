@@ -52,6 +52,10 @@ src/
     stores/
     ui/
   routes/
+tests/
+  game/
+    content/
+    domain/
 ```
 
 The app boundary follows the same ownership model as the repo reference games:

@@ -2,6 +2,39 @@ import { z } from "zod";
 import { shuffleList } from "../domain/shuffle";
 import { type RoundGuessKind } from "../domain/types";
 
+export const songBuckets = [
+  { id: "global-pop", label: "Global Pop" },
+  { id: "meme", label: "Meme" },
+  { id: "slovenian", label: "Slovenian" },
+  { id: "balkan", label: "Balkan" },
+  { id: "rock-classics", label: "Rock / Classics" },
+  { id: "throwbacks", label: "Throwbacks" },
+] as const;
+
+export type SongBucketId = (typeof songBuckets)[number]["id"];
+
+export const defaultSelectedSongBucketIds: SongBucketId[] = songBuckets.map(
+  (bucket) => bucket.id,
+);
+
+export const toggleSelectedSongBucketIds = (
+  selectedBucketIds: readonly SongBucketId[],
+  bucketId: SongBucketId,
+): SongBucketId[] => {
+  const selected = new Set(selectedBucketIds);
+  if (selected.has(bucketId)) {
+    selected.delete(bucketId);
+  } else {
+    selected.add(bucketId);
+  }
+
+  if (selected.size === 0) {
+    return [...selectedBucketIds];
+  }
+
+  return defaultSelectedSongBucketIds.filter((id) => selected.has(id));
+};
+
 const songSchema = z
   .object({
     id: z.string().min(1),
@@ -529,6 +562,163 @@ export type SongEntry = z.infer<typeof songSchema>;
 
 const songById = new Map(songBank.map((song) => [song.id, song]));
 
+const normalizeCanonicalValue = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const songBucketIdsBySongId: Partial<Record<string, SongBucketId[]>> = {
+  "bara-bada-bastu": ["global-pop", "meme"],
+  "moja-treba": ["balkan"],
+  "najjaci-si": ["balkan", "meme"],
+  "the-7th-element": ["meme", "throwbacks"],
+  "zmija-i-zaba": ["balkan"],
+  aspirin: ["balkan"],
+  "koktel-ljubavi": ["balkan"],
+  "kuku-lele": ["slovenian", "balkan"],
+  "barbie-and-ken": ["balkan", "meme"],
+  silvo: ["slovenian"],
+  "youre-beautiful-but-its-groan-tube": ["meme"],
+  "kej-si": ["slovenian"],
+  "creva-na-plot": ["slovenian", "meme"],
+  "all-my-friends-are-dead": ["slovenian"],
+  prjatucki: ["slovenian"],
+  "never-gonna-give-you-up": ["meme", "throwbacks"],
+  ppap: ["meme"],
+  sandstorm: ["meme", "throwbacks"],
+  "crab-rave": ["meme"],
+  "running-in-the-90s": ["meme", "throwbacks"],
+  scatman: ["meme", "throwbacks"],
+  "coffin-dance": ["meme"],
+  buttercup: ["meme"],
+  "all-star": ["meme", "throwbacks"],
+  "lemon-tree": ["throwbacks"],
+  ymca: ["throwbacks", "rock-classics"],
+  "gangnam-style": ["meme", "global-pop"],
+  "Bohemian Rhapsody-Queen": ["rock-classics", "throwbacks"],
+  "Dancing Queen-ABBA": ["rock-classics", "throwbacks"],
+  "Stayin' Alive-Bee Gees": ["rock-classics", "throwbacks"],
+  "September-Earth, Wind & Fire": ["rock-classics", "throwbacks"],
+  "I Will Survive-Gloria Gaynor": ["rock-classics", "throwbacks"],
+  "Rocket Man-Elton John": ["rock-classics", "throwbacks"],
+  "Thriller-Michael Jackson": ["global-pop", "throwbacks"],
+  "Take On Me-a-ha": ["global-pop", "throwbacks"],
+  "Never Gonna Give You Up-Rick Astley": ["meme", "throwbacks"],
+  "I Wanna Dance With Somebody-Whitney Houston": ["global-pop", "throwbacks"],
+  "Girls Just Want To Have Fun-Cyndi Lauper": ["global-pop", "throwbacks"],
+  "Like A Prayer-Madonna": ["global-pop", "throwbacks"],
+  "Smells Like Teen Spirit-Nirvana": ["rock-classics", "throwbacks"],
+  "Wonderwall-Oasis": ["rock-classics", "throwbacks"],
+  "Wannabe-Spice Girls": ["global-pop", "throwbacks"],
+  "...Baby One More Time-Britney Spears": ["global-pop", "throwbacks"],
+  "I Want It That Way-Backstreet Boys": ["global-pop", "throwbacks"],
+  "Creep-Radiohead": ["rock-classics", "throwbacks"],
+  "Hey Ya!-Outkast": ["global-pop", "throwbacks"],
+  "Mr. Brightside-The Killers": ["rock-classics", "throwbacks"],
+  "Crazy In Love-Beyoncé": ["global-pop"],
+  "Lose Yourself-Eminem": ["global-pop"],
+  "Viva La Vida-Coldplay": ["global-pop", "rock-classics"],
+  "Bad Romance-Lady Gaga": ["global-pop"],
+  "Umbrella-Rihanna": ["global-pop"],
+  "Rolling in the Deep-Adele": ["global-pop"],
+  "Uptown Funk-Mark Ronson ft. Bruno Mars": ["global-pop"],
+  "Shape of You-Ed Sheeran": ["global-pop"],
+  "Despacito-Luis Fonsi": ["global-pop"],
+  "Blank Space-Taylor Swift": ["global-pop"],
+  "bad guy-Billie Eilish": ["global-pop"],
+  "Blinding Lights-The Weeknd": ["global-pop"],
+  "Levitating-Dua Lipa": ["global-pop"],
+  "As It Was-Harry Styles": ["global-pop"],
+  "Flowers-Miley Cyrus": ["global-pop"],
+  "drivers license-Olivia Rodrigo": ["global-pop"],
+  "Kill Bill-SZA": ["global-pop"],
+};
+
+export const getSongBucketIds = (songId: string): SongBucketId[] => {
+  return songBucketIdsBySongId[songId] ?? ["global-pop"];
+};
+
+export const getSongsForBuckets = (
+  selectedBucketIds: readonly SongBucketId[],
+): SongEntry[] => {
+  const selected = new Set(selectedBucketIds);
+  if (selected.size === 0) {
+    return songBank;
+  }
+
+  return songBank.filter((song) =>
+    getSongBucketIds(song.id).some((bucketId) => selected.has(bucketId)),
+  );
+};
+
+export const getSongCanonicalKey = (song: SongEntry): string => {
+  return [
+    normalizeCanonicalValue(song.artist),
+    normalizeCanonicalValue(song.title),
+  ].join("::");
+};
+
+export const getUniqueSongsForBuckets = (
+  selectedBucketIds: readonly SongBucketId[],
+): SongEntry[] => {
+  const uniqueSongsByKey = new Map<string, SongEntry>();
+
+  getSongsForBuckets(selectedBucketIds).forEach((song) => {
+    const canonicalKey = getSongCanonicalKey(song);
+    if (!uniqueSongsByKey.has(canonicalKey)) {
+      uniqueSongsByKey.set(canonicalKey, song);
+    }
+  });
+
+  return Array.from(uniqueSongsByKey.values());
+};
+
+export const getUniqueSongCountForBuckets = (
+  selectedBucketIds: readonly SongBucketId[],
+): number => {
+  return getUniqueSongsForBuckets(selectedBucketIds).length;
+};
+
+const extractYouTubeStartSeconds = (youtubeUrl: string): number => {
+  const url = new URL(youtubeUrl, "https://youtube.com");
+  const t = url.searchParams.get("t") ?? url.searchParams.get("start");
+  if (!t) {
+    return 0;
+  }
+
+  const asNumber = Number.parseInt(t, 10);
+  if (!Number.isNaN(asNumber)) {
+    return asNumber;
+  }
+
+  const match = t.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/);
+  if (!match) {
+    return 0;
+  }
+
+  const [, h, m, s] = match;
+  return (
+    parseInt(h ?? "0", 10) * 3600 +
+    parseInt(m ?? "0", 10) * 60 +
+    parseInt(s ?? "0", 10)
+  );
+};
+
+export const pickSongClipStartSeconds = (song: SongEntry): number => {
+  const curatedStartSeconds = extractYouTubeStartSeconds(song.youtubeUrl);
+  const shouldUseCuratedStart = curatedStartSeconds > 0 && Math.random() < 0.5;
+
+  if (shouldUseCuratedStart) {
+    return curatedStartSeconds;
+  }
+
+  return Math.floor(Math.random() * 61);
+};
+
 /**
  * Returns a song from the static song bank by id.
  */
@@ -536,7 +726,7 @@ export const getSongById = (songId: string): SongEntry | null => {
   return songById.get(songId) ?? null;
 };
 
-const normalizeLabel = (value: string): string => value.trim().toLowerCase();
+const normalizeLabel = normalizeCanonicalValue;
 
 /**
  * Returns the label used for an option based on the round guess kind.
