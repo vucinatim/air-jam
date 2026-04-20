@@ -8,9 +8,11 @@ import { buildTeamSlots, MAX_TEAM_SLOTS } from "../../game/domain/team-slots";
 import { usePongStore } from "../../game/stores";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
-import { POINTS_TO_WIN_OPTIONS, PRESS_FEEL_CLASS } from "../constants";
-import { useControllerConnectionNotice } from "../use-controller-connection-notice";
-import { usePongControllerTeams } from "../use-pong-controller-teams";
+import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
+import { usePongControllerTeams } from "../hooks/use-pong-controller-teams";
+import { PRESS_FEEL_CLASS } from "./classes";
+
+const POINTS_TO_WIN_OPTIONS = [3, 5, 7, 11] as const;
 
 export const LobbyPanel = () => {
   const actions = usePongStore.useActions();

@@ -175,16 +175,16 @@ src/
   │   ├── components/             # Header, lobby, playing controls, ended panel
   │   ├── hooks/                  # Controller connection guard/use-case hooks
   │   └── constants.ts            # Controller-only presentation constants
-  ├── ui/
-  │   └── icons/                  # Local wrappers for general UI/system icons
   ├── game/
-  │   ├── input.ts                # Input schema/types
+  │   ├── contracts/
+  │   │   ├── input.ts            # Input schema/types
+  │   │   ├── sounds.ts           # Shared sound manifest
+  │   │   └── controller-signals.ts # Host/controller signal payload mapping
   │   ├── domain/
   │   │   ├── team.ts             # Team ids, labels, colors
   │   │   ├── team-slots.ts       # Team occupancy and bot-slot rules
+  │   │   ├── teams-snapshot.ts   # Shared team projection used by both surfaces
   │   │   └── match-readiness.ts  # Lobby readiness/domain rules
-  │   ├── adapters/
-  │   │   └── controller-signals.ts # Host/controller signal payload mapping
   │   ├── stores/
   │   │   ├── pong-store-types.ts # Shared replicated state shapes
   │   │   ├── pong-store-state.ts # Thin state entrypoint + shared defaults
@@ -196,6 +196,7 @@ src/
   │   │   ├── runtime-state.ts    # Hot runtime values outside React state
   │   │   ├── ball.ts             # Ball movement and scoring helpers
   │   │   ├── render.ts           # Canvas draw layer
+  │   │   ├── debug.ts            # Isolated render debug toggles
   │   │   ├── collision.ts        # Focused collision helpers
   │   │   └── paddles.ts          # Paddle movement helpers
   │   ├── prefabs/
@@ -208,7 +209,6 @@ src/
   │   │   ├── team-name.tsx       # Shared game-facing team presentation
   │   │   ├── match-score-display.tsx # Shared game-facing score rendering
   │   │   └── team-slot-tile.tsx  # Shared team-slot surface used by host and controller
-  │   └── sounds.ts               # Shared sound manifest
   └── main.tsx                    # Entry point
 tests/
   └── game/
@@ -236,8 +236,11 @@ When extending this template, inspect these modules before adding new code:
 - `src/game/stores/pong-store-state.ts` for the thin state entrypoint and initial defaults
 - `src/game/stores/pong-store-lobby.ts` for lobby-phase transitions and team setup rules
 - `src/game/stores/pong-store-match.ts` for match lifecycle and scoring reducers
-- `src/game/adapters/controller-signals.ts` for host-to-controller signal payloads and transport-facing mapping
+- `src/game/contracts/input.ts` for the controller input schema and behavior contract
+- `src/game/contracts/sounds.ts` for the shared sound manifest
+- `src/game/contracts/controller-signals.ts` for host-to-controller signal payloads and transport-facing mapping
 - `src/game/domain/team-slots.ts` for the canonical mixed human/bot slot model used by both surfaces
+- `src/game/domain/teams-snapshot.ts` for the shared team projection used by host and controller UI
 - `src/game/ui/team-name.tsx` and `src/game/ui/match-score-display.tsx` for shared game-facing UI primitives used by both host and controller surfaces
 - `src/game/ui/team-slot-tile.tsx` for the shared team-slot presentation used by both host and controller lobbies
 - `src/game/engine/simulation.ts` for the main runtime orchestration loop
@@ -246,7 +249,6 @@ When extending this template, inspect these modules before adding new code:
 - `src/game/prefabs/arena/schema.ts` for defaults and config validation
 - `src/game/prefabs/arena/paint.ts` for the prefab-owned render helper
 - `src/game/scene-population/` when a game needs runtime spawn or pooling layers that should not be treated as prefab definitions
-- `src/game/debug/field-debug.ts` for isolated debug-only helpers
 
 Use these as the default boundaries instead of introducing new mixed files.
 

@@ -3,7 +3,7 @@ import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
 import { usePongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
-import { usePongHostTeams } from "../use-pong-host-teams";
+import { usePongHostTeams } from "../hooks/use-pong-host-teams";
 
 const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
   id: `bot-${team}-${index}`,

@@ -3,7 +3,13 @@ import { LifecycleActionGroup } from "@air-jam/sdk/ui";
 import { getTeamColor } from "../../game/domain/team";
 import { usePongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
-import { formatMatchDuration } from "../constants";
+
+const formatMatchDuration = (durationMs: number): string => {
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
 
 export const EndedPanel = () => {
   const controller = useAirJamController();

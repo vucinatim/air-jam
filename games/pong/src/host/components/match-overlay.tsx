@@ -1,6 +1,6 @@
 import { useAirJamHost } from "@air-jam/sdk";
 import { RoomQrCode } from "@air-jam/sdk/ui";
-import { gameInputSchema } from "../../game/input";
+import { gameInputSchema } from "../../game/contracts/input";
 
 export const MatchOverlay = () => {
   const host = useAirJamHost<typeof gameInputSchema>();

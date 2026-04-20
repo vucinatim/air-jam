@@ -1,6 +1,6 @@
 import { useAirJamHost } from "@air-jam/sdk";
 import type { RefObject } from "react";
-import { gameInputSchema } from "../../game/input";
+import { gameInputSchema } from "../../game/contracts/input";
 import { usePongStore } from "../../game/stores";
 import { MatchOverlay } from "./match-overlay";
 import { ScoreStrip } from "./score-strip";

@@ -1,12 +1,12 @@
 import { useAirJamHost } from "@air-jam/sdk";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
+import { gameInputSchema } from "../../game/contracts/input";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
 import { buildTeamSlots } from "../../game/domain/team-slots";
-import { gameInputSchema } from "../../game/input";
 import { usePongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
-import { usePongHostTeams } from "../use-pong-host-teams";
+import { usePongHostTeams } from "../hooks/use-pong-host-teams";
 
 const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
   id: `bot-${team}-${index}`,

@@ -9,6 +9,8 @@ import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
 import { pongVisualHarnessBridge } from "../../visual/contract";
+import { gameInputSchema } from "../game/contracts/input";
+import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
 import {
   captureRuntimeStateStep,
   drawFrame,
@@ -17,16 +19,15 @@ import {
   stepGame,
   updateRuntimeRenderState,
 } from "../game/engine";
-import { gameInputSchema } from "../game/input";
-import { PONG_SOUND_MANIFEST } from "../game/sounds";
 import { usePongStore } from "../game/stores";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
 import { PlayingScreen } from "./components/playing-screen";
-import { PONG_SIMULATION_STEP_MS } from "./constants";
-import { usePongCanvas } from "./use-pong-canvas";
-import { usePongFeedback } from "./use-pong-feedback";
-import { usePongHostRuntimeState } from "./use-pong-host-runtime-state";
+import { usePongCanvas } from "./hooks/use-pong-canvas";
+import { usePongFeedback } from "./hooks/use-pong-feedback";
+import { usePongHostRuntimeState } from "./hooks/use-pong-host-runtime-state";
+
+const PONG_SIMULATION_STEP_MS = 1000 / 60;
 
 export function HostView() {
   return (

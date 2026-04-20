@@ -7,13 +7,13 @@ import {
   PlayerAvatar,
   useHostJoinControls,
 } from "@air-jam/sdk/ui";
+import { gameInputSchema } from "../../game/contracts/input";
 import { type TeamId } from "../../game/domain/team";
 import { buildTeamSlots } from "../../game/domain/team-slots";
-import { gameInputSchema } from "../../game/input";
 import { usePongStore } from "../../game/stores";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
-import { usePongHostTeams } from "../use-pong-host-teams";
+import { usePongHostTeams } from "../hooks/use-pong-host-teams";
 
 interface TeamCardProps {
   team: TeamId;

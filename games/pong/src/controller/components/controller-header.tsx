@@ -9,8 +9,8 @@ import {
   type LifecycleActionKind,
 } from "@air-jam/sdk/ui";
 import { usePongStore } from "../../game/stores";
-import { useControllerConnectionNotice } from "../use-controller-connection-notice";
-import { usePongControllerTeams } from "../use-pong-controller-teams";
+import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
+import { usePongControllerTeams } from "../hooks/use-pong-controller-teams";
 
 export const ControllerHeader = () => {
   const controller = useAirJamController();

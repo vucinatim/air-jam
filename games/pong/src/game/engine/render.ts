@@ -1,4 +1,3 @@
-import { SHOW_PONG_FIELD_BOUNDS } from "../debug";
 import { PONG_ARENA_PREFAB } from "../prefabs/arena";
 import {
   BALL_SIZE,
@@ -12,6 +11,8 @@ import {
 } from "./constants";
 import { getTeamPaddleState } from "./paddles";
 import type { DrawFrameOptions } from "./types";
+
+const SHOW_PONG_FIELD_BOUNDS = false;
 
 export const drawFrame = ({
   ctx,

@@ -5,14 +5,14 @@
  */
 import { AudioRuntime, useControllerToasts } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { PONG_SOUND_MANIFEST } from "../game/sounds";
+import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
 import { usePongStore } from "../game/stores";
 import { ControllerHeader } from "./components/controller-header";
 import { EndedPanel } from "./components/ended-panel";
 import { LobbyPanel } from "./components/lobby-panel";
 import { PlayingControls } from "./components/playing-controls";
-import { useControllerConnectionNotice } from "./use-controller-connection-notice";
-import { usePongControllerInputRuntime } from "./use-pong-controller-input-runtime";
+import { useControllerConnectionNotice } from "./hooks/use-controller-connection-notice";
+import { usePongControllerInputRuntime } from "./hooks/use-pong-controller-input-runtime";
 
 export function ControllerView() {
   return (

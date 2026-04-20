@@ -1,8 +1,8 @@
 import { getTeamColor, getTeamLabel } from "../../game/domain/team";
-import { PRESS_FEEL_CLASS } from "../constants";
-import { useControllerConnectionNotice } from "../use-controller-connection-notice";
-import type { PongControllerDirection } from "../use-pong-controller-input-runtime";
-import { usePongControllerTeams } from "../use-pong-controller-teams";
+import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
+import type { PongControllerDirection } from "../hooks/use-pong-controller-input-runtime";
+import { usePongControllerTeams } from "../hooks/use-pong-controller-teams";
+import { PRESS_FEEL_CLASS } from "./classes";
 
 interface PlayingControlsProps {
   onDirectionChange: (direction: PongControllerDirection) => void;

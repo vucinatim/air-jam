@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createMatchWinnerToastSignal,
   createPaddleHitHapticSignal,
-} from "../../src/game/controller-signals";
+} from "../../src/game/contracts/controller-signals";
 
 describe("controller signal adapters", () => {
   it("keeps targeted paddle-hit haptics in one reusable payload helper", () => {
