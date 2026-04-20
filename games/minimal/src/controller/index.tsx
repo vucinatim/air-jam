@@ -7,21 +7,15 @@
  *  2. `useMinimalStore` reads the replicated game state. `actions.tap()` is
  *     the star of the show — calling it on the controller RPCs the action to
  *     the host, which runs the reducer and broadcasts the new state back.
- *  3. `useSendSignal()` lets the host trigger haptics / toasts on a specific
- *     controller. We use it here the other way round — the controller
- *     triggers its *own* haptic on tap, so the tap feels physical even
- *     before the round-trip completes.
- *
  * No input writer, no tick loop — taps are discrete events, not per-frame
  * intent. See `pong` for the input-lane pattern.
  */
-import { useAirJamController, useSendSignal } from "@air-jam/sdk";
+import { useAirJamController } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { useMinimalStore } from "../game/store";
 
 export function ControllerView() {
   const controller = useAirJamController();
-  const sendSignal = useSendSignal();
   const actions = useMinimalStore.useActions();
 
   const myControllerId = controller.controllerId;
@@ -35,12 +29,6 @@ export function ControllerView() {
   const handleTap = () => {
     if (!canTap) return;
     actions.tap();
-    // Self-targeted haptic: gives the tap physical feedback the instant it's
-    // pressed, independent of network latency. The server forwards this back
-    // to the same controller because `target` matches the caller.
-    if (controller.controllerId) {
-      sendSignal("HAPTIC", { pattern: "light" }, controller.controllerId);
-    }
   };
 
   return (

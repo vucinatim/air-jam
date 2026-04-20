@@ -28,11 +28,11 @@ files in `game/`, `host/`, and `controller/`.
 
 The SDK offers three ways to move data between the host and controllers:
 
-| Lane   | What it's for                             | Used here?                      |
-| ------ | ----------------------------------------- | ------------------------------- |
-| State  | Replicated store + host-authoritative RPC | Yes — `useMinimalStore`         |
-| Signal | Out-of-band UX (haptics, toasts)          | Yes — self-target HAPTIC on tap |
-| Input  | High-frequency per-frame controller input | No — taps are discrete events   |
+| Lane   | What it's for                             | Used here?                    |
+| ------ | ----------------------------------------- | ----------------------------- |
+| State  | Replicated store + host-authoritative RPC | Yes — `useMinimalStore`       |
+| Signal | Out-of-band UX (haptics, toasts)          | No — keep this starter simple |
+| Input  | High-frequency per-frame controller input | No — taps are discrete events |
 
 When you need continuous controller input (joystick, paddle, motion),
 `useInputWriter` / `useControllerTick` on the controller + `host.getInput()`
@@ -61,8 +61,9 @@ Good places to grow from here:
 3. **Add per-player identity.** `controller.selfPlayer` exposes the connected
    player profile (name, color). Show it on both surfaces. Plug
    `ControllerPlayerNameField` into the controller for editable names.
-4. **Add a toast.** `sendSignal("TOAST", { message: "…" })` from the host
-   shows a banner on every controller — good for round results.
+4. **Add a toast.** Use `useSendSignal()` on the host and call
+   `sendSignal("TOAST", { message: "…" })` to show a banner on controllers —
+   good for round results.
 
 When any of those grow, look at `pong` as a reference for the same primitives
 in a fuller shape.
