@@ -1,4 +1,4 @@
-import type { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController } from "@air-jam/sdk";
 import { useMemo } from "react";
 import {
   getLobbyReadinessText,
@@ -9,19 +9,17 @@ import { useGameStore } from "../../game/stores";
 const TEAM1_COLOR = "#dc2626";
 const TEAM2_COLOR = "#2563eb";
 
-type ControllerSession = ReturnType<typeof useAirJamController>;
-
-export const useCodeReviewControllerTeams = (controller: ControllerSession) => {
+export const useCodeReviewControllerTeams = () => {
+  const controllerId = useAirJamController((state) => state.controllerId);
+  const players = useAirJamController((state) => state.players);
   const teamAssignments = useGameStore((state) => state.teamAssignments);
   const botCounts = useGameStore((state) => state.botCounts);
 
-  const myAssignment = controller.controllerId
-    ? teamAssignments[controller.controllerId]
+  const myAssignment = controllerId
+    ? teamAssignments[controllerId]
     : null;
-  const myProfile = controller.controllerId
-    ? (controller.players.find(
-        (player) => player.id === controller.controllerId,
-      ) ?? null)
+  const myProfile = controllerId
+    ? (players.find((player) => player.id === controllerId) ?? null)
     : null;
   const myTeam = myAssignment?.team ?? null;
   const teamColor =
@@ -29,8 +27,8 @@ export const useCodeReviewControllerTeams = (controller: ControllerSession) => {
   const teamAccent = teamColor ?? "#27272a";
 
   const connectedPlayerIdSet = useMemo(
-    () => new Set(controller.players.map((player) => player.id)),
-    [controller.players],
+    () => new Set(players.map((player) => player.id)),
+    [players],
   );
   const connectedTeamAssignments = useMemo(
     () =>
@@ -50,7 +48,7 @@ export const useCodeReviewControllerTeams = (controller: ControllerSession) => {
   );
   const team1Players = useMemo(
     () =>
-      controller.players
+      players
         .filter((player) => teamAssignments[player.id]?.team === "team1")
         .sort((left, right) => {
           const leftPosition =
@@ -59,11 +57,11 @@ export const useCodeReviewControllerTeams = (controller: ControllerSession) => {
             teamAssignments[right.id]?.position === "front" ? 0 : 1;
           return leftPosition - rightPosition;
         }),
-    [controller.players, teamAssignments],
+    [players, teamAssignments],
   );
   const team2Players = useMemo(
     () =>
-      controller.players
+      players
         .filter((player) => teamAssignments[player.id]?.team === "team2")
         .sort((left, right) => {
           const leftPosition =
@@ -72,7 +70,7 @@ export const useCodeReviewControllerTeams = (controller: ControllerSession) => {
             teamAssignments[right.id]?.position === "front" ? 0 : 1;
           return leftPosition - rightPosition;
         }),
-    [controller.players, teamAssignments],
+    [players, teamAssignments],
   );
   const readiness = useMemo(
     () => getMatchReadiness(teamHumanCounts, botCounts),

@@ -7,7 +7,13 @@
  * host is just chrome over the networked `useSpaceStore` state plus the
  * match-clock / pending-task hooks in `../hooks/use-game-state`.
  */
-import { AudioRuntime, useAirJamHost, useHostTick } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  useAirJamHost,
+  useGetInput,
+  useHostTick,
+  type AirJamHostApi,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import {
   HostMuteButton,
@@ -40,7 +46,7 @@ import {
 } from "../hooks/use-game-state";
 import { getPlayerById, getPlayerCapabilityHighlights } from "../players";
 
-type OfficeHostApi = ReturnType<typeof useAirJamHost<typeof gameInputSchema>>;
+type OfficeHostApi = AirJamHostApi<typeof gameInputSchema>;
 
 const OFFICE_SIMULATION_STEP_MS = 1000 / 60;
 
@@ -54,11 +60,14 @@ export function HostView() {
 
 function OfficeHostScreen() {
   const host = useAirJamHost<typeof gameInputSchema>();
-  const { connectionStatus } = host;
+  const players = useAirJamHost((state) => state.players);
+  const connectionStatus = useAirJamHost((state) => state.connectionStatus);
+  const runtimeState = useAirJamHost((state) => state.runtimeState);
+  const getInput = useGetInput<typeof gameInputSchema>();
   const [audioMuted, setAudioMuted] = useState(false);
   const playerIds = useMemo(
-    () => host.players.map((player) => player.id),
-    [host.players],
+    () => players.map((player) => player.id),
+    [players],
   );
   const matchPhase = useOfficeMatchPhase();
   const selectedCount = useOfficeSelectedPlayerCount(playerIds);
@@ -98,7 +107,7 @@ function OfficeHostScreen() {
         context={{
           host,
           matchPhase,
-          runtimeState: host.runtimeState,
+          runtimeState,
           storeActions,
         }}
       />
@@ -106,9 +115,9 @@ function OfficeHostScreen() {
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
           <OfficeHostTopHud timeRemainingMs={timeRemainingMs} />
           <OfficeHostGameplaySurface
-            players={host.players}
-            getInput={host.getInput}
-            runtimeState={host.runtimeState}
+            players={players}
+            getInput={getInput}
+            runtimeState={runtimeState}
             muted={audioMuted}
             connectedPlayerIds={playerIds}
             matchElapsedMsRef={matchElapsedMsRef}
@@ -116,14 +125,15 @@ function OfficeHostScreen() {
           />
 
           <div className="mt-4 flex gap-4">
-            {host.players.slice(0, 2).map((player) => (
+            {players.slice(0, 2).map((player) => (
               <PlayerAvatar key={player.id} player={player} size="sm" />
             ))}
           </div>
 
           {matchPhase === "lobby" ? (
             <OfficeHostLobbyOverlay
-              host={host}
+              roomId={host.roomId}
+              players={players}
               playerCount={playerIds.length}
               selectedCount={selectedCount}
               hostJoinControls={hostJoinControls}
@@ -134,12 +144,12 @@ function OfficeHostScreen() {
 
           {matchPhase === "ended" ? (
             <OfficeHostEndedOverlay
-              players={host.players}
+              players={players}
               onRestart={handleRestart}
             />
           ) : null}
 
-          {matchPhase === "playing" && host.runtimeState !== "playing" ? (
+          {matchPhase === "playing" && runtimeState !== "playing" ? (
             <OfficeHostPausedOverlay />
           ) : null}
         </div>
@@ -280,14 +290,16 @@ function OfficePlayingGameOverOverlay() {
 }
 
 function OfficeHostLobbyOverlay({
-  host,
+  roomId,
+  players,
   playerCount,
   selectedCount,
   hostJoinControls,
   onStart,
   canStartMatch,
 }: {
-  host: OfficeHostApi;
+  roomId: OfficeHostApi["roomId"];
+  players: OfficeHostApi["players"];
   playerCount: number;
   selectedCount: number;
   hostJoinControls: ReturnType<typeof useHostJoinControls>;
@@ -304,7 +316,7 @@ function OfficeHostLobbyOverlay({
             <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
               Room
             </p>
-            <p className="text-xl font-bold">{host.roomId ?? "----"}</p>
+            <p className="text-xl font-bold">{roomId ?? "----"}</p>
           </div>
           <div className="text-right">
             <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
@@ -335,13 +347,13 @@ function OfficeHostLobbyOverlay({
         </div>
 
         <div className="mb-4 max-h-64 overflow-y-auto border border-[#e5d4ab] bg-[#fff6d8] p-3">
-          {host.players.length === 0 ? (
+          {players.length === 0 ? (
             <p className="text-sm text-[#6b7280]">
               Waiting for controllers to join…
             </p>
           ) : (
             <ul className="space-y-2">
-              {host.players.map((player) => {
+              {players.map((player) => {
                 const selectedCharacterId = playerAssignments[player.id];
                 const selectedCharacter = selectedCharacterId
                   ? getPlayerById(selectedCharacterId)
@@ -405,7 +417,7 @@ function OfficeHostLobbyOverlay({
         <JoinQrOverlay
           open={hostJoinControls.joinQrVisible}
           value={hostJoinControls.joinUrlValue}
-          roomId={host.roomId}
+          roomId={roomId}
           onClose={hostJoinControls.hideJoinQr}
           description="Scan with your phone to join The Office as a controller."
         />

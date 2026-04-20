@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useHostSession } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
 import { useEffect, useMemo, useState } from "react";
 import {
   getAbilityIconPath,
@@ -24,7 +24,7 @@ const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 const MAX_TEAM_SIZE = 2;
 
 export function BotsSection() {
-  const { players: connectedPlayers } = useHostSession();
+  const connectedPlayers = useAirJamHost((state) => state.players);
   const botCounts = usePrototypeMatchStore((state) => state.botCounts);
   const teamAssignments = usePrototypeMatchStore(
     (state) => state.teamAssignments,

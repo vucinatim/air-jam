@@ -1076,14 +1076,14 @@ const generatedContentDocsDocuments = [
         slug: "host-hooks",
         depth: 2,
         excerpt:
-          "useAirJamHost Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Use useAirJamHostState(selector) when a component…",
+          "useAirJamHost Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Call useAirJamHost(selector) when a component…",
       },
       {
         title: "useAirJamHost",
         slug: "useairjamhost",
         depth: 3,
         excerpt:
-          "Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Use useAirJamHostState(selector) when a component only needs a…",
+          "Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Call useAirJamHost(selector) when a component only needs a…",
       },
       {
         title: "useGetInput",
@@ -1104,14 +1104,14 @@ const generatedContentDocsDocuments = [
         slug: "controller-hooks",
         depth: 2,
         excerpt:
-          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Use…",
+          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Call…",
       },
       {
         title: "useAirJamController",
         slug: "useairjamcontroller",
         depth: 3,
         excerpt:
-          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Use useAirJamControllerState(selector) when a…",
+          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Call useAirJamController(selector) when a…",
       },
       {
         title: "useControllerTick",

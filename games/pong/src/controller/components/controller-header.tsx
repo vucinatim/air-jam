@@ -14,14 +14,20 @@ import { usePongControllerTeams } from "../hooks/use-pong-controller-teams";
 
 export const ControllerHeader = () => {
   const controller = useAirJamController();
+  const roomId = useAirJamController((state) => state.roomId);
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
+  const runtimeState = useAirJamController((state) => state.runtimeState);
+  const selfPlayer = useAirJamController((state) => state.selfPlayer);
   const actions = usePongStore.useActions();
   const matchPhase = usePongStore((state) => state.matchPhase);
   const { readiness } = usePongControllerTeams();
   const { canSendSystemCommand } = useControllerConnectionNotice();
   const shellStatus = useControllerShellStatus({
-    roomId: controller.roomId,
-    connectionStatus: controller.connectionStatus,
-    playerLabel: controller.selfPlayer?.label ?? null,
+    roomId,
+    connectionStatus,
+    playerLabel: selfPlayer?.label ?? null,
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
     phase: matchPhase,
@@ -32,7 +38,7 @@ export const ControllerHeader = () => {
     onStart: () => actions.startMatch(),
     onTogglePause: () =>
       controller.sendSystemCommand(
-        controller.runtimeState === "playing" ? "pause" : "resume",
+        runtimeState === "playing" ? "pause" : "resume",
       ),
     onBackToLobby: () => actions.returnToLobby(),
     onRestart: () => actions.restartMatch(),
@@ -46,12 +52,12 @@ export const ControllerHeader = () => {
 
   return (
     <RuntimeShellHeader
-      connectionStatus={controller.connectionStatus}
+      connectionStatus={connectionStatus}
       leftSlot={
         <div className="flex min-w-0 items-center gap-3">
-          {controller.selfPlayer ? (
+          {selfPlayer ? (
             <PlayerAvatar
-              player={controller.selfPlayer}
+              player={selfPlayer}
               size="sm"
               className="h-11 w-11 border-2 ring-2 ring-white/12"
             />
@@ -76,7 +82,7 @@ export const ControllerHeader = () => {
         utilityKinds.length > 0 ? (
           <LifecycleActionGroup
             phase={matchPhase}
-            runtimeState={controller.runtimeState}
+            runtimeState={runtimeState}
             canInteract={lifecyclePermissions.canInteractForPhase}
             onStart={lifecycleIntents.onStart}
             onTogglePause={lifecycleIntents.onTogglePause}

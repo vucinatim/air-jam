@@ -4,7 +4,10 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
+import { fileURLToPath } from "node:url";
 import tseslint from "typescript-eslint";
+
+const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig([
   globalIgnores([
@@ -42,7 +45,7 @@ export default defineConfig([
       sourceType: "module",
       globals: globals.node,
       parserOptions: {
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir,
       },
     },
     extends: [js.configs.recommended, tseslint.configs.recommended],
@@ -71,7 +74,7 @@ export default defineConfig([
       sourceType: "module",
       globals: globals.browser,
       parserOptions: {
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir,
       },
     },
     extends: [
@@ -109,7 +112,7 @@ export default defineConfig([
       sourceType: "module",
       globals: globals.node,
       parserOptions: {
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir,
       },
     },
     extends: [js.configs.recommended, tseslint.configs.recommended],
@@ -122,33 +125,6 @@ export default defineConfig([
           caughtErrorsIgnorePattern: "^_",
           destructuredArrayIgnorePattern: "^_",
           ignoreRestSiblings: true,
-        },
-      ],
-    },
-  },
-  {
-    files: ["apps/**/*.{ts,tsx}"],
-    ignores: [
-      "**/dist/**",
-      "**/src/routes/host-view.tsx",
-      "**/src/routes/controller-view.tsx",
-      "**/src/host/index.tsx",
-      "**/src/controller/index.tsx",
-      "**/src/game/host/index.tsx",
-      "**/src/game/controller/index.tsx",
-    ],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "@air-jam/sdk",
-              importNames: ["useAirJamHost", "useAirJamController"],
-              message:
-                "Mount runtime owner hooks only in the host/controller entry files. Child components should use useHostSession() or useControllerSession() instead.",
-            },
-          ],
         },
       ],
     },

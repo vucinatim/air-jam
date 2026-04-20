@@ -135,7 +135,7 @@ Shared framework helpers are still fine when they are narrow and honest, like:
 
 1. `SurfaceViewport`
 2. `PlayerAvatar`
-3. controller/session hooks
+3. host/controller consumer hooks
 
 But they should not define the app’s structure for it.
 

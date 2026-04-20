@@ -7,7 +7,10 @@ import {
 import { useGameStore } from "../../game/stores";
 
 export const EndedPanel = () => {
-  const controller = useAirJamController();
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
+  const runtimeState = useAirJamController((state) => state.runtimeState);
   const matchPhase = useGameStore((state) => state.matchPhase);
   const matchSummary = useGameStore((state) => state.matchSummary);
   const scores = useGameStore((state) => state.scores);
@@ -15,13 +18,9 @@ export const EndedPanel = () => {
   const lifecyclePermissions = useControllerLifecyclePermissions({
     phase: matchPhase,
     canStartMatch: false,
-    canSendSystemCommand: controller.connectionStatus === "connected",
+    canSendSystemCommand: connectionStatus === "connected",
   });
   const lifecycleIntents = useControllerLifecycleIntents({
-    onTogglePause: () =>
-      controller.sendSystemCommand(
-        controller.runtimeState === "playing" ? "pause" : "resume",
-      ),
     onBackToLobby: () => actions.resetToLobby(),
     onRestart: () => actions.resetToLobby(),
   });
@@ -64,7 +63,7 @@ export const EndedPanel = () => {
 
         <LifecycleActionGroup
           phase={matchPhase}
-          runtimeState={controller.runtimeState}
+          runtimeState={runtimeState}
           canInteract={lifecyclePermissions.canInteractForPhase}
           onBackToLobby={lifecycleIntents.onBackToLobby}
           onRestart={lifecycleIntents.onRestart}

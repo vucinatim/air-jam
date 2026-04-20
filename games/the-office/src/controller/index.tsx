@@ -54,6 +54,13 @@ import {
 
 export function ControllerView() {
   const controller = useAirJamController();
+  const roomId = useAirJamController((state) => state.roomId);
+  const controllerId = useAirJamController((state) => state.controllerId);
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
+  const runtimeState = useAirJamController((state) => state.runtimeState);
+  const players = useAirJamController((state) => state.players);
   const writeInput = useInputWriter();
   const movementRef = useRef({ x: 0, y: 0 });
   const actionRef = useRef(false);
@@ -61,40 +68,40 @@ export function ControllerView() {
   const [padDirection, setPadDirection] = useState({ x: 0, y: 0 });
 
   const matchPhase = useOfficeMatchPhase();
-  const myPlayerId = useOfficePlayerAssignment(controller.controllerId);
+  const myPlayerId = useOfficePlayerAssignment(controllerId);
   const myPlayer = useMemo(
     () => (myPlayerId ? getPlayerById(myPlayerId) : null),
     [myPlayerId],
   );
-  const myTaskName = useOfficePlayerBusyTask(controller.controllerId);
+  const myTaskName = useOfficePlayerBusyTask(controllerId);
   const isBusy = Boolean(myTaskName);
   const connectedPlayerIds = useMemo(
-    () => controller.players.map((player) => player.id),
-    [controller.players],
+    () => players.map((player) => player.id),
+    [players],
   );
   const selectedPlayerCount = useOfficeSelectedPlayerCount(connectedPlayerIds);
-  const connectedPlayerCount = controller.players.length;
+  const connectedPlayerCount = players.length;
   const hasCharacterSelection = Boolean(myPlayerId);
   const canStartMatch =
-    controller.connectionStatus === "connected" &&
+    connectionStatus === "connected" &&
     selectedPlayerCount > 0 &&
     selectedPlayerCount === connectedPlayerCount;
 
   const actions = useSpaceStore.useActions();
   const shellStatus = useControllerShellStatus({
-    roomId: controller.roomId,
-    connectionStatus: controller.connectionStatus,
+    roomId,
+    connectionStatus,
     playerLabel: myPlayer?.name ?? null,
     roomFallback: "Connecting...",
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
     phase: matchPhase,
-    canSendSystemCommand: controller.connectionStatus === "connected",
+    canSendSystemCommand: connectionStatus === "connected",
   });
   const lifecycleIntents = useControllerLifecycleIntents({
     onTogglePause: () =>
       controller.sendSystemCommand(
-        controller.runtimeState === "playing" ? "pause" : "resume",
+        runtimeState === "playing" ? "pause" : "resume",
       ),
     onBackToLobby: () => actions.returnToLobby(),
     onRestart: () => actions.restartMatch(),
@@ -105,7 +112,7 @@ export function ControllerView() {
   const showLobbyView = matchPhase === "lobby";
   const showEndedView = matchPhase === "ended";
   const showGameplayView =
-    matchPhase === "playing" && controller.runtimeState === "playing";
+    matchPhase === "playing" && runtimeState === "playing";
   const showPausedView = matchPhase === "playing" && !showGameplayView;
   const desiredOrientation =
     showLobbyView || showEndedView ? "portrait" : "landscape";
@@ -125,9 +132,9 @@ export function ControllerView() {
     },
     {
       enabled:
-        controller.connectionStatus === "connected" &&
+        connectionStatus === "connected" &&
         matchPhase === "playing" &&
-        controller.runtimeState === "playing",
+        runtimeState === "playing",
       intervalMs: 16,
     },
   );
@@ -217,7 +224,7 @@ export function ControllerView() {
     <SurfaceViewport orientation={desiredOrientation}>
       <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[#5c4a2e]">
         <RuntimeShellHeader
-          connectionStatus={controller.connectionStatus}
+          connectionStatus={connectionStatus}
           leftSlot={
             <div className="flex min-w-0 items-center gap-3">
               {myPlayer ? (
@@ -245,7 +252,7 @@ export function ControllerView() {
             showLobbyView ? null : (
               <LifecycleActionGroup
                 phase={matchPhase}
-                runtimeState={controller.runtimeState}
+                runtimeState={runtimeState}
                 canInteract={lifecyclePermissions.canInteractForPhase}
                 onTogglePause={lifecycleIntents.onTogglePause}
                 onBackToLobby={lifecycleIntents.onBackToLobby}
@@ -265,7 +272,7 @@ export function ControllerView() {
 
         {showLobbyView ? (
           <OfficeControllerLobbyView
-            controllerId={controller.controllerId}
+            controllerId={controllerId}
             connectedPlayerCount={connectedPlayerCount}
             selectedPlayerCount={selectedPlayerCount}
             canStartMatch={canStartMatch}
@@ -279,7 +286,7 @@ export function ControllerView() {
         {showEndedView ? (
           <OfficeControllerEndedView
             matchPhase={matchPhase}
-            runtimeState={controller.runtimeState}
+            runtimeState={runtimeState}
             canInteract={lifecyclePermissions.canInteractForPhase}
             onBackToLobby={handleBackToLobby}
             onRestart={handleRestart}
@@ -288,7 +295,7 @@ export function ControllerView() {
 
         {showGameplayView ? (
           <OfficeControllerGameplayView
-            controllerId={controller.controllerId}
+            controllerId={controllerId}
             padDirection={padDirection}
             handleAction={handleAction}
             handlePadPointerDown={handlePadPointerDown}

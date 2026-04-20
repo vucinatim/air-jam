@@ -41,10 +41,9 @@ function CodeReviewHost() {
 
   const canvas = useCodeReviewCanvas();
   const sprites = useCodeReviewSprites();
-  const teams = useCodeReviewHostTeams(host);
+  const teams = useCodeReviewHostTeams();
   const audio = useCodeReviewAudio(matchPhase);
   const runtime = useCodeReviewHostRuntime({
-    host,
     matchPhase,
     participantBySlot: teams.participantBySlot,
     slotParticipants: teams.slotParticipants,
@@ -81,7 +80,10 @@ function CodeReviewHost() {
 
           {matchPhase === "lobby" ? (
             <LobbyScreen
-              host={host}
+              joinUrl={host.joinUrl}
+              roomId={host.roomId}
+              connectionStatus={host.connectionStatus}
+              players={host.players}
               teams={teams}
               onStartMatch={() => actions.startMatch()}
             />

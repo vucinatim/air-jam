@@ -1,4 +1,3 @@
-import { useAirJamController } from "@air-jam/sdk";
 import { useCodeReviewControllerTeams } from "../hooks/use-code-review-controller-teams";
 
 interface PlayingControlsProps {
@@ -14,8 +13,7 @@ export const PlayingControls = ({
   onDefendStart,
   onDefendEnd,
 }: PlayingControlsProps) => {
-  const controller = useAirJamController();
-  const { teamAccent } = useCodeReviewControllerTeams(controller);
+  const { teamAccent } = useCodeReviewControllerTeams();
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col bg-[linear-gradient(180deg,rgba(24,24,27,0.96)_0%,rgba(12,10,9,0.98)_100%)] p-3">

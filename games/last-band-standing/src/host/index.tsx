@@ -45,6 +45,10 @@ export const HostView = () => {
 
 const HostScreen = () => {
   const host = useAirJamHost<typeof gameInputSchema>();
+  const players = useAirJamHost((state) => state.players);
+  const roomId = useAirJamHost((state) => state.roomId);
+  const lastError = useAirJamHost((state) => state.lastError);
+  const runtimeState = useAirJamHost((state) => state.runtimeState);
   const nowMs = useNowTick(NOW_TICK_MS);
 
   const phase = useGameStore((state) => state.phase);
@@ -98,8 +102,8 @@ const HostScreen = () => {
   // ── Sync players from Air Jam host ──
   const playersForStore = useMemo(
     () =>
-      host.players.map((player) => ({ id: player.id, label: player.label })),
-    [host.players],
+      players.map((player) => ({ id: player.id, label: player.label })),
+    [players],
   );
   const playersSignature = playersForStore
     .map((player) => `${player.id}:${player.label}`)
@@ -227,7 +231,7 @@ const HostScreen = () => {
         context={{
           host,
           matchPhase: shellPhase,
-          runtimeState: host.runtimeState,
+          runtimeState,
           actions,
         }}
       />
@@ -260,14 +264,14 @@ const HostScreen = () => {
                   joinQrVisible={hostJoinControls.joinQrVisible}
                   onToggleJoinQr={hostJoinControls.toggleJoinQr}
                   onCloseJoinQr={hostJoinControls.hideJoinQr}
-                  roomId={host.roomId}
-                  lastError={host.lastError ?? null}
+                  roomId={roomId}
+                  lastError={lastError ?? null}
                   playerOrder={playerOrder}
                   playerLabelById={playerLabelById}
                   readyByPlayerId={readyByPlayerId}
                   scoreboardByPlayerId={scoreboardByPlayerId}
                   readyCount={readyCount}
-                  players={host.players}
+                  players={players}
                   canStartMatch={canStartMatch}
                   onStartMatch={hostJoinControls.handleStart}
                 />
@@ -282,7 +286,7 @@ const HostScreen = () => {
                   roundReveal={roundReveal}
                   playerLabelById={playerLabelById}
                   scoreboardByPlayerId={scoreboardByPlayerId}
-                  players={host.players}
+                  players={players}
                   youtubePlayerRef={youtubePlayerRef}
                   onIframeLoad={onIframeLoad}
                 />
@@ -306,7 +310,7 @@ const HostScreen = () => {
               playerLabelById={playerLabelById}
               scoreboardByPlayerId={scoreboardByPlayerId}
               answersByPlayerId={answersByPlayerId}
-              players={host.players}
+              players={players}
             />
           )}
         </main>

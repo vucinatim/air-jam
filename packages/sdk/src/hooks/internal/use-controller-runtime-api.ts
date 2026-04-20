@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../../context/air-jam-context";
 import {
   useAssertSessionScope,
@@ -15,7 +14,6 @@ import type {
   PlayerProfile,
   PlayerProfilePatch,
   RoomCode,
-  RuntimeState,
   SignalPayload,
 } from "../../protocol";
 import {
@@ -44,8 +42,8 @@ import type { AirJamRealtimeClient } from "../../runtime/realtime-client";
 import { generateControllerId } from "../../utils/ids";
 import { detectRunMode } from "../../utils/mode";
 import type {
-  AirJamControllerApi,
   AirJamControllerOptions,
+  AirJamControllerRuntimeControls,
 } from "../use-air-jam-controller";
 
 const getRoomFromLocation = (): string | null => {
@@ -89,7 +87,7 @@ export const resolveControllerJoinSource = ({
 export const useControllerRuntimeApi = (
   options: AirJamControllerOptions,
   hookName: string,
-): AirJamControllerApi => {
+): AirJamControllerRuntimeControls => {
   useAssertSessionScope("controller", hookName);
   useClaimSessionRuntimeOwner("controller-runtime", hookName);
 
@@ -180,36 +178,16 @@ export const useControllerRuntimeApi = (
     onStateRef.current = options.onState;
   }, [options.onState]);
 
-  const connectionState = useStore(
-    store,
-    useShallow((state) => ({
-      connectionStatus: state.connectionStatus,
-      lastError: state.lastError,
-      controllerId: state.controllerId,
-      players: state.players,
-      runtimeState: state.runtimeState,
-      controllerOrientation: state.controllerOrientation,
-      stateMessage: state.stateMessage,
-    })),
-  );
-  const selfPlayer = useMemo(
-    () =>
-      connectionState.controllerId
-        ? (connectionState.players.find(
-            (player) => player.id === connectionState.controllerId,
-          ) ?? null)
-        : null,
-    [connectionState.controllerId, connectionState.players],
-  );
+  const activeControllerId = useStore(store, (state) => state.controllerId);
 
   useEffect(() => {
     updateDevBrowserLogContext({
       role: "controller",
       traceId: undefined,
       roomId: parsedRoomId ?? undefined,
-      controllerId: connectionState.controllerId ?? controllerId ?? undefined,
+      controllerId: activeControllerId ?? controllerId ?? undefined,
     });
-  }, [connectionState.controllerId, controllerId, parsedRoomId]);
+  }, [activeControllerId, controllerId, parsedRoomId]);
 
   useEffect(() => {
     return () => {
@@ -740,21 +718,22 @@ export const useControllerRuntimeApi = (
     [parsedRoomId, socket, store],
   );
 
-  return {
-    roomId: parsedRoomId,
-    controllerId: connectionState.controllerId,
-    connectionStatus: connectionState.connectionStatus,
-    lastError: connectionState.lastError,
-    runtimeState: connectionState.runtimeState as RuntimeState,
-    controllerOrientation: connectionState.controllerOrientation,
-    stateMessage: connectionState.stateMessage,
-    sendSystemCommand,
-    setNickname,
-    setAvatarId,
-    updatePlayerProfile,
-    reconnect,
-    players: connectionState.players,
-    selfPlayer,
-    socket,
-  };
+  return useMemo(
+    () => ({
+      sendSystemCommand,
+      setNickname,
+      setAvatarId,
+      updatePlayerProfile,
+      reconnect,
+      socket,
+    }),
+    [
+      reconnect,
+      sendSystemCommand,
+      setAvatarId,
+      setNickname,
+      socket,
+      updatePlayerProfile,
+    ],
+  );
 };

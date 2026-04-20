@@ -32,12 +32,13 @@ const capturePanelClass =
   "rounded-none border-4 border-zinc-600 bg-zinc-900/85 shadow-[6px_6px_0_rgba(0,0,0,0.55)]";
 
 export const LobbyPanel = ({ onRequestPermissions }: LobbyPanelProps) => {
-  const controller = useAirJamController();
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
   const actions = useGameStore.useActions();
-  const teams = useCodeReviewControllerTeams(controller);
-  const controlsDisabled = controller.connectionStatus !== "connected";
-  const canStartMatch =
-    controller.connectionStatus === "connected" && teams.readiness.canStart;
+  const teams = useCodeReviewControllerTeams();
+  const controlsDisabled = connectionStatus !== "connected";
+  const canStartMatch = connectionStatus === "connected" && teams.readiness.canStart;
 
   const joinTeam = (team: TeamId) => {
     actions.joinTeam({ team });

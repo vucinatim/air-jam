@@ -82,6 +82,13 @@ describe("sdk export surface", () => {
     expect("useControllerTick" in sdk).toBe(true);
   });
 
+  it("keeps duplicate session/state hook aliases off the root export", () => {
+    expect("useAirJamControllerState" in sdk).toBe(false);
+    expect("useAirJamHostState" in sdk).toBe(false);
+    expect("useControllerSession" in sdk).toBe(false);
+    expect("useHostSession" in sdk).toBe(false);
+  });
+
   it("keeps package subpath exports limited to public entrypoints", () => {
     const packageJson = JSON.parse(
       readFileSync(new URL("../package.json", import.meta.url), "utf-8"),

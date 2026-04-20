@@ -5,7 +5,11 @@
  * on the networked `matchPhase`. The active-round panel exposes the buzz-in
  * button; the reveal panel shows round results once the host finalises them.
  */
-import { AudioRuntime, useAirJamController, useAudio } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  useAirJamController,
+  useAudio,
+} from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   RuntimeShellHeader,
@@ -32,20 +36,21 @@ import { soundManifest } from "../sounds";
 import { normalizePlayerName } from "../utils/player-utils";
 
 export const ControllerView = () => {
-  const controller = useAirJamController();
-
   return (
     <AudioRuntime manifest={soundManifest}>
-      <ControllerScreen controller={controller} />
+      <ControllerScreen />
     </AudioRuntime>
   );
 };
 
-const ControllerScreen = ({
-  controller,
-}: {
-  controller: ReturnType<typeof useAirJamController>;
-}) => {
+const ControllerScreen = () => {
+  const controller = useAirJamController();
+  const roomId = useAirJamController((state) => state.roomId);
+  const controllerId = useAirJamController((state) => state.controllerId);
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
+  const runtimeState = useAirJamController((state) => state.runtimeState);
   const nowMs = useNowTick(NOW_TICK_MS);
   const [nameDraft, setNameDraft] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -69,8 +74,7 @@ const ControllerScreen = ({
   );
   const actions = useGameStore.useActions();
 
-  const controllerId = controller.controllerId;
-  const isConnected = controller.connectionStatus === "connected";
+  const isConnected = connectionStatus === "connected";
   const isReady = controllerId
     ? (readyByPlayerId[controllerId] ?? false)
     : false;
@@ -87,8 +91,8 @@ const ControllerScreen = ({
     readyCount === playerOrder.length;
   const shellPhase = toShellMatchPhase(phase);
   const shellStatus = useControllerShellStatus({
-    roomId: controller.roomId,
-    connectionStatus: controller.connectionStatus,
+    roomId,
+    connectionStatus,
     playerLabel: nameDraft.trim() || null,
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
@@ -176,7 +180,7 @@ const ControllerScreen = ({
     <SurfaceViewport orientation="portrait" className="bg-background">
       <main className="text-foreground absolute inset-0 flex flex-col p-4">
         <RuntimeShellHeader
-          connectionStatus={controller.connectionStatus}
+          connectionStatus={connectionStatus}
           leftSlot={
             <div className="flex min-w-0 items-center gap-3">
               <span className="border-border bg-background text-foreground flex h-9 w-9 items-center justify-center rounded-full border text-[10px] font-bold uppercase">
@@ -196,7 +200,7 @@ const ControllerScreen = ({
             shellPhase === "lobby" ? null : (
               <LifecycleActionGroup
                 phase={shellPhase}
-                runtimeState={controller.runtimeState}
+                runtimeState={runtimeState}
                 canInteract={lifecyclePermissions.canInteractForPhase}
                 onBackToLobby={lifecycleIntents.onBackToLobby}
                 onRestart={lifecycleIntents.onRestart}
@@ -215,7 +219,7 @@ const ControllerScreen = ({
           {phase === "lobby" && (
             <ControllerLobby
               isConnected={isConnected}
-              roomId={controller.roomId}
+              roomId={roomId}
               readyCount={readyCount}
               playerCount={playerOrder.length}
               nameDraft={nameDraft}

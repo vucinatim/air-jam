@@ -1,4 +1,9 @@
-import { useHostTick, type useAirJamHost } from "@air-jam/sdk";
+import {
+  useAirJamHost,
+  useGetInput,
+  useHostTick,
+  useSendSignal,
+} from "@air-jam/sdk";
 import {
   useCallback,
   useEffect,
@@ -29,10 +34,7 @@ import type { CodeReviewMatchPhase } from "../../game/stores/code-review-store-t
 
 const CODE_REVIEW_SIMULATION_STEP_MS = 1000 / 60;
 
-type CodeReviewHost = ReturnType<typeof useAirJamHost<typeof gameInputSchema>>;
-
 interface UseCodeReviewHostRuntimeOptions {
-  host: CodeReviewHost;
   matchPhase: CodeReviewMatchPhase;
   participantBySlot: Partial<Record<PlayerKey, SlotParticipant>>;
   slotParticipants: SlotParticipant[];
@@ -48,7 +50,6 @@ interface UseCodeReviewHostRuntimeOptions {
 }
 
 export const useCodeReviewHostRuntime = ({
-  host,
   matchPhase,
   participantBySlot,
   slotParticipants,
@@ -58,6 +59,9 @@ export const useCodeReviewHostRuntime = ({
   getTintedOverlaySprite,
   playSfxFromRef,
 }: UseCodeReviewHostRuntimeOptions) => {
+  const runtimeState = useAirJamHost((state) => state.runtimeState);
+  const getInput = useGetInput<typeof gameInputSchema>();
+  const sendSignal = useSendSignal();
   const actions = useGameStore.useActions();
   const scores = useGameStore((state) => state.scores);
   const gameStateRef = useRef(createRuntimePlayerState());
@@ -87,7 +91,7 @@ export const useCodeReviewHostRuntime = ({
     mode: "fixed",
     intervalMs: CODE_REVIEW_SIMULATION_STEP_MS,
     onTick: ({ deltaMs }) => {
-      if (matchPhase !== "playing" || host.runtimeState !== "playing") {
+      if (matchPhase !== "playing" || runtimeState !== "playing") {
         return;
       }
 
@@ -99,13 +103,13 @@ export const useCodeReviewHostRuntime = ({
         koState: koRef.current,
         dt: deltaMs,
         timestamp: Date.now(),
-        getInput: (controllerId) => host.getInput(controllerId),
+        getInput,
         onMiss: () => playSfxFromRef("missed"),
         onHit: () => playSfxFromRef(Math.random() > 0.5 ? "hit1" : "hit2"),
         onBell: () => playSfxFromRef("bell"),
         onScore: (team) => actions.scorePoint({ team }),
         onHeavyHit: (controllerId) => {
-          host.sendSignal("HAPTIC", { pattern: "heavy" }, controllerId);
+          sendSignal("HAPTIC", { pattern: "heavy" }, controllerId);
         },
       });
     },

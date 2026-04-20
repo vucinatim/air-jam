@@ -101,7 +101,7 @@ const GameplayStage = memo(function GameplayStage({
   sceneMode: "match" | "spectator";
   scenePaused: boolean;
   showPausedOverlay: boolean;
-  roomId: string;
+  roomId: string | null;
   joinQrValue: string;
   connectionStatus: HostConnectionStatus;
   lastError?: string;
@@ -164,7 +164,11 @@ const HostViewContent = ({
   const audioRuntimeControls = useAudioRuntimeControls();
 
   const host = useAirJamHost();
-  const { players, roomId, connectionStatus, runtimeState, lastError } = host;
+  const players = useAirJamHost((state) => state.players);
+  const roomId = useAirJamHost((state) => state.roomId);
+  const connectionStatus = useAirJamHost((state) => state.connectionStatus);
+  const runtimeState = useAirJamHost((state) => state.runtimeState);
+  const lastError = useAirJamHost((state) => state.lastError);
 
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
   const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);

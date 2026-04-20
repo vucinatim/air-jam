@@ -4,7 +4,10 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
+import { fileURLToPath } from "node:url";
 import tseslint from "typescript-eslint";
+
+const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig([
   globalIgnores(["dist", "node_modules", "**/*.json", "**/*.css"]),
@@ -16,7 +19,7 @@ export default defineConfig([
       sourceType: "module",
       globals: globals.browser,
       parserOptions: {
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir,
       },
     },
     extends: [

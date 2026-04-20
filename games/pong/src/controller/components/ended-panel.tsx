@@ -12,7 +12,7 @@ const formatMatchDuration = (durationMs: number): string => {
 };
 
 export const EndedPanel = () => {
-  const controller = useAirJamController();
+  const runtimeState = useAirJamController((state) => state.runtimeState);
   const actions = usePongStore.useActions();
   const matchSummary = usePongStore((state) => state.matchSummary);
   const winner = matchSummary?.winner;
@@ -50,7 +50,7 @@ export const EndedPanel = () => {
         </div>
         <LifecycleActionGroup
           phase="ended"
-          runtimeState={controller.runtimeState}
+          runtimeState={runtimeState}
           canInteract
           onBackToLobby={() => actions.returnToLobby()}
           onRestart={() => actions.restartMatch()}

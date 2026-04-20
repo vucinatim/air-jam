@@ -12,24 +12,28 @@ import { useCodeReviewControllerTeams } from "../hooks/use-code-review-controlle
 
 export const ControllerHeader = () => {
   const controller = useAirJamController();
+  const roomId = useAirJamController((state) => state.roomId);
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
+  const runtimeState = useAirJamController((state) => state.runtimeState);
   const matchPhase = useGameStore((state) => state.matchPhase);
   const actions = useGameStore.useActions();
-  const teams = useCodeReviewControllerTeams(controller);
+  const teams = useCodeReviewControllerTeams();
   const shellStatus = useControllerShellStatus({
-    roomId: controller.roomId,
-    connectionStatus: controller.connectionStatus,
+    roomId,
+    connectionStatus,
     playerLabel: teams.myProfile?.label ?? null,
   });
   const lifecyclePermissions = useControllerLifecyclePermissions({
     phase: matchPhase,
-    canStartMatch:
-      controller.connectionStatus === "connected" && teams.readiness.canStart,
-    canSendSystemCommand: controller.connectionStatus === "connected",
+    canStartMatch: connectionStatus === "connected" && teams.readiness.canStart,
+    canSendSystemCommand: connectionStatus === "connected",
   });
   const lifecycleIntents = useControllerLifecycleIntents({
     onTogglePause: () =>
       controller.sendSystemCommand(
-        controller.runtimeState === "playing" ? "pause" : "resume",
+        runtimeState === "playing" ? "pause" : "resume",
       ),
     onBackToLobby: () => actions.resetToLobby(),
     onRestart: () => actions.resetToLobby(),
@@ -37,7 +41,7 @@ export const ControllerHeader = () => {
 
   return (
     <RuntimeShellHeader
-      connectionStatus={controller.connectionStatus}
+      connectionStatus={connectionStatus}
       leftSlot={
         <div className="flex min-w-0 items-center gap-3">
           {teams.myProfile ? (
@@ -65,7 +69,7 @@ export const ControllerHeader = () => {
         matchPhase === "lobby" ? null : (
           <LifecycleActionGroup
             phase={matchPhase}
-            runtimeState={controller.runtimeState}
+            runtimeState={runtimeState}
             canInteract={lifecyclePermissions.canInteractForPhase}
             onTogglePause={lifecycleIntents.onTogglePause}
             onBackToLobby={lifecycleIntents.onBackToLobby}

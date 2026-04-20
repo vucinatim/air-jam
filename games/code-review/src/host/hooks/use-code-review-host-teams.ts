@@ -1,25 +1,24 @@
-import type { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
 import { useEffect, useMemo } from "react";
-import { gameInputSchema } from "../../game/contracts/input";
 import { FIGHTER_SLOTS } from "../../game/engine/constants";
 import type { PlayerKey, SlotParticipant } from "../../game/engine/types";
 import { useGameStore } from "../../game/stores";
 
-type CodeReviewHost = ReturnType<typeof useAirJamHost<typeof gameInputSchema>>;
-
-export const useCodeReviewHostTeams = (host: CodeReviewHost) => {
+export const useCodeReviewHostTeams = () => {
+  const players = useAirJamHost((state) => state.players);
+  const connectionStatus = useAirJamHost((state) => state.connectionStatus);
   const teamAssignments = useGameStore((state) => state.teamAssignments);
   const botCounts = useGameStore((state) => state.botCounts);
   const matchPhase = useGameStore((state) => state.matchPhase);
   const actions = useGameStore.useActions();
 
   const connectedPlayerIds = useMemo(
-    () => host.players.map((player) => player.id),
-    [host.players],
+    () => players.map((player) => player.id),
+    [players],
   );
   const assignedHumanPlayers = useMemo(
-    () => host.players.filter((player) => teamAssignments[player.id]),
-    [host.players, teamAssignments],
+    () => players.filter((player) => teamAssignments[player.id]),
+    [players, teamAssignments],
   );
   const humanBySlotKey = useMemo(() => {
     const bySlot = new Map<PlayerKey, { id: string; label: string }>();
@@ -115,13 +114,13 @@ export const useCodeReviewHostTeams = (host: CodeReviewHost) => {
   const canStartMatch = useMemo(
     () =>
       matchPhase === "lobby" &&
-      host.connectionStatus === "connected" &&
+      connectionStatus === "connected" &&
       team1Occupancy > 0 &&
       team2Occupancy > 0 &&
       assignedHumanPlayers.length > 0,
     [
       assignedHumanPlayers.length,
-      host.connectionStatus,
+      connectionStatus,
       matchPhase,
       team1Occupancy,
       team2Occupancy,

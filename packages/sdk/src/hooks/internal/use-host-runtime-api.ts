@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { z } from "zod";
 import { z as zod } from "zod";
 import { useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../../context/air-jam-context";
 import {
   useAssertSessionScope,
@@ -45,13 +44,14 @@ import { urlBuilder } from "../../utils/url-builder";
 import type {
   AirJamHostApi,
   AirJamHostOptions,
+  AirJamHostRuntimeControls,
   JoinUrlStatus,
 } from "../use-air-jam-host";
 
 export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   options: AirJamHostOptions,
   hookName: string,
-): AirJamHostApi<TSchema> => {
+): AirJamHostRuntimeControls<TSchema> => {
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
 
@@ -121,17 +121,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     parsedRoomIdRef.current = parsedRoomId;
   }, [parsedRoomId]);
 
-  const connectionState = useStore(
-    store,
-    useShallow((state) => ({
-      connectionStatus: state.connectionStatus,
-      lastError: state.lastError,
-      players: state.players,
-      runtimeState: state.runtimeState,
-      mode: state.mode,
-      roomId: state.roomId,
-    })),
-  );
   const socket = useMemo<AirJamRealtimeClient | null>(
     () =>
       shouldConnect ? getHostRealtimeClient((role) => getSocket(role)) : null,
@@ -899,22 +888,33 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     [inputManager],
   );
 
-  return {
-    roomId: parsedRoomId ?? ("" as RoomCode),
-    joinUrl,
-    joinUrlStatus,
-    connectionStatus: connectionState.connectionStatus,
-    players: connectionState.players,
-    lastError: connectionState.lastError,
-    mode: connectionState.mode,
-    runtimeState: connectionState.runtimeState,
-    pauseRuntime,
-    resumeRuntime,
-    setRuntimeState,
-    sendState,
-    sendSignal,
-    reconnect,
-    socket: socket ?? getHostRealtimeClient((role) => getSocket(role)),
-    getInput,
-  };
+  return useMemo(
+    () => ({
+      roomId: parsedRoomId ?? ("" as RoomCode),
+      joinUrl,
+      joinUrlStatus,
+      pauseRuntime,
+      resumeRuntime,
+      setRuntimeState,
+      sendState,
+      sendSignal,
+      reconnect,
+      socket: socket ?? getHostRealtimeClient((role) => getSocket(role)),
+      getInput,
+    }),
+    [
+      getInput,
+      getSocket,
+      joinUrl,
+      joinUrlStatus,
+      parsedRoomId,
+      pauseRuntime,
+      reconnect,
+      resumeRuntime,
+      sendSignal,
+      sendState,
+      setRuntimeState,
+      socket,
+    ],
+  );
 };

@@ -4,7 +4,12 @@
  * Screen components read the replicated store/session data they render instead
  * of receiving large prop bundles from this hub.
  */
-import { AudioRuntime, useAirJamHost, useHostTick } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  useAirJamHost,
+  useGetInput,
+  useHostTick,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
@@ -39,6 +44,9 @@ export function HostView() {
 
 function PongHost() {
   const host = useAirJamHost<typeof gameInputSchema>();
+  const players = useAirJamHost((state) => state.players);
+  const runtimeState = useAirJamHost((state) => state.runtimeState);
+  const getInput = useGetInput<typeof gameInputSchema>();
 
   const matchPhase = usePongStore((state) => state.matchPhase);
   const teamAssignments = usePongStore((state) => state.teamAssignments);
@@ -53,7 +61,7 @@ function PongHost() {
   });
   const hostRuntime = usePongHostRuntimeState({
     matchPhase,
-    runtimeState: host.runtimeState,
+    runtimeState,
   });
 
   useHostTick({
@@ -66,10 +74,10 @@ function PongHost() {
 
       stepGame({
         state: buffers.current,
-        players: host.players,
+        players,
         teamAssignments,
-        getInput: host.getInput,
-        isPlaying: host.runtimeState === "playing" && matchPhase === "playing",
+        getInput,
+        isPlaying: runtimeState === "playing" && matchPhase === "playing",
         countdown: hostRuntime.countdownValue,
         botCounts,
         deltaSeconds,
@@ -95,7 +103,7 @@ function PongHost() {
       drawFrame({
         ctx,
         state: renderState,
-        players: host.players,
+        players,
         teamAssignments,
         countdown: hostRuntime.countdownValue,
         botCounts,
@@ -110,7 +118,7 @@ function PongHost() {
         context={{
           host,
           matchPhase,
-          runtimeState: host.runtimeState,
+          runtimeState,
           actions,
         }}
       />

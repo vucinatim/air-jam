@@ -9,13 +9,16 @@ import { PlayingControls } from "./components/playing-controls";
 import { useCodeReviewControllerInput } from "./hooks/use-code-review-controller-input";
 
 export function ControllerView() {
-  const controller = useAirJamController();
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
+  const runtimeState = useAirJamController((state) => state.runtimeState);
   const matchPhase = useGameStore((state) => state.matchPhase);
 
   const canUseGameplayControls =
-    controller.connectionStatus === "connected" &&
+    connectionStatus === "connected" &&
     matchPhase === "playing" &&
-    controller.runtimeState === "playing";
+    runtimeState === "playing";
   const desiredOrientation =
     matchPhase === "playing" ? "landscape" : "portrait";
   const {

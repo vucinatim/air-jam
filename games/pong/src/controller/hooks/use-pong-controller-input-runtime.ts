@@ -16,7 +16,10 @@ interface UsePongControllerInputRuntimeOptions {
 export const usePongControllerInputRuntime = ({
   controlsDisabled,
 }: UsePongControllerInputRuntimeOptions) => {
-  const controller = useAirJamController();
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
+  const runtimeState = useAirJamController((state) => state.runtimeState);
   const writeInput = useInputWriter();
   const directionRef = useRef<PongControllerDirection>(0);
 
@@ -28,8 +31,7 @@ export const usePongControllerInputRuntime = ({
     },
     {
       enabled:
-        controller.connectionStatus === "connected" &&
-        controller.runtimeState === "playing",
+        connectionStatus === "connected" && runtimeState === "playing",
       intervalMs: PONG_CONTROLLER_INPUT_TICK_MS,
     },
   );

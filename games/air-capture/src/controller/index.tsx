@@ -17,7 +17,6 @@
  */
 import {
   useAirJamController,
-  useAirJamControllerState,
   useControllerTick,
   useInputWriter,
   type PlayerProfile,
@@ -82,7 +81,7 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
       canStartMatch={canStartMatch}
       onTogglePause={() =>
         controller.sendSystemCommand(
-          controller.runtimeState === "playing" ? "pause" : "resume",
+          runtimeState === "playing" ? "pause" : "resume",
         )
       }
       onStartMatch={onStartMatch}
@@ -95,7 +94,7 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
 const ControllerScreen = () => {
   const writeInput = useInputWriter();
   const [store] = useState(() => createControllerStore());
-  const controllerState = useAirJamControllerState(
+  const controllerState = useAirJamController(
     useShallow((state) => ({
       roomId: state.roomId,
       controllerId: state.controllerId,
@@ -145,7 +144,7 @@ const ControllerScreen = () => {
     : undefined;
   const myTeam = myAssignment?.teamId ?? null;
 
-  const myProfile = useAirJamControllerState((state) =>
+  const myProfile = useAirJamController((state) =>
     state.controllerId
       ? (state.players.find((player) => player.id === state.controllerId) ??
         null)

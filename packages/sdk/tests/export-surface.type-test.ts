@@ -49,8 +49,11 @@ export type __assert_use_platform_audio_settings_exported = AssertTrue<
 export type __assert_get_effective_audio_volume_exported = AssertTrue<
   Has<"getEffectiveAudioVolume">
 >;
-export type __assert_controller_session_hook_exported = AssertTrue<
+export type __assert_controller_session_hook_not_exported = AssertFalse<
   Has<"useControllerSession">
+>;
+export type __assert_controller_state_hook_not_exported = AssertFalse<
+  Has<"useAirJamControllerState">
 >;
 export type __assert_create_airjam_app_exported = AssertTrue<
   Has<"createAirJamApp">
@@ -59,8 +62,11 @@ export type __assert_define_airjam_game_capabilities_not_exported = AssertFalse<
   Has<"defineAirJamGameCapabilities">
 >;
 export type __assert_env_exported = AssertTrue<Has<"env">>;
-export type __assert_host_session_hook_exported = AssertTrue<
+export type __assert_host_session_hook_not_exported = AssertFalse<
   Has<"useHostSession">
+>;
+export type __assert_host_state_hook_not_exported = AssertFalse<
+  Has<"useAirJamHostState">
 >;
 export type __assert_player_profile_importable = AssertTrue<
   PlayerProfile extends object ? true : false

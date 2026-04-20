@@ -36,7 +36,7 @@ const createScopedSessionProvider = (
         if (existing && existing.token !== token) {
           throw createAirJamDiagnosticError(
             "AJ_DUPLICATE_SESSION_OWNER",
-            `${hookName} mounted while another ${kind} already owns this session provider. Mount one runtime owner hook per provider tree and use a read-only session hook in child components instead.`,
+            `${hookName} mounted while another ${kind} already owns this session provider. Mount one runtime owner hook per provider tree and use useAirJamHost() or useAirJamController() in child components instead.`,
             {
               scope,
               kind,

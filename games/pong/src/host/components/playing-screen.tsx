@@ -1,6 +1,5 @@
 import { useAirJamHost } from "@air-jam/sdk";
 import type { RefObject } from "react";
-import { gameInputSchema } from "../../game/contracts/input";
 import { usePongStore } from "../../game/stores";
 import { MatchOverlay } from "./match-overlay";
 import { ScoreStrip } from "./score-strip";
@@ -10,10 +9,10 @@ interface PlayingScreenProps {
 }
 
 export const PlayingScreen = ({ canvasRef }: PlayingScreenProps) => {
-  const host = useAirJamHost<typeof gameInputSchema>();
+  const runtimeState = useAirJamHost((state) => state.runtimeState);
   const matchPhase = usePongStore((state) => state.matchPhase);
   const showPausedOverlay =
-    matchPhase === "playing" && host.runtimeState !== "playing";
+    matchPhase === "playing" && runtimeState !== "playing";
 
   return (
     <div className="pong-app-shell h-full w-full text-white">

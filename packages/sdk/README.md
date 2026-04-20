@@ -124,8 +124,10 @@ The SDK fetches the host grant automatically before `host:bootstrap`. Game code 
 
 Mount runtime ownership explicitly at the host boundary, then read it from child code with `useAirJamHost()`.
 
-If a component only needs replicated host session state, prefer
-`useAirJamHostState(selector)` to avoid rerendering on unrelated runtime fields.
+If a component only needs host session state, call `useAirJamHost(selector)` to
+avoid rerendering on unrelated runtime fields.
+Selectors receive state fields only; call `useAirJamHost()` when a component
+also needs runtime controls such as `joinUrl`, `sendSignal`, or `getInput`.
 
 ```tsx
 import { AirJamHostRuntime, env, useAirJamHost } from "@air-jam/sdk";
@@ -198,9 +200,11 @@ Notes:
 
 Mount runtime ownership explicitly at the controller boundary, then read it from child code with `useAirJamController()`.
 
-If a component only needs replicated controller session state, prefer
-`useAirJamControllerState(selector)` to avoid rerendering on unrelated runtime
+If a component only needs controller session state, call
+`useAirJamController(selector)` to avoid rerendering on unrelated runtime
 updates.
+Selectors receive state fields only; call `useAirJamController()` when a
+component also needs controls such as `sendSystemCommand`.
 
 ```tsx
 import {

@@ -18,6 +18,9 @@
  */
 import { useContext } from "react";
 import type { z } from "zod";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
@@ -32,6 +35,7 @@ import type {
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
+import type { AirJamStore } from "../state/connection-store";
 
 export type JoinUrlStatus = "loading" | "ready" | "unavailable";
 
@@ -162,6 +166,41 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   getInput: (controllerId: string) => z.infer<TSchema> | undefined;
 }
 
+export interface AirJamHostState {
+  roomId: RoomCode | null;
+  connectionStatus: ConnectionStatus;
+  players: PlayerProfile[];
+  lastError?: string;
+  mode: RunMode;
+  runtimeState: RuntimeState;
+}
+
+export type AirJamHostRuntimeControls<
+  TSchema extends z.ZodSchema = z.ZodSchema,
+> = Pick<
+  AirJamHostApi<TSchema>,
+  | "roomId"
+  | "joinUrl"
+  | "joinUrlStatus"
+  | "pauseRuntime"
+  | "resumeRuntime"
+  | "setRuntimeState"
+  | "sendState"
+  | "sendSignal"
+  | "reconnect"
+  | "socket"
+  | "getInput"
+>;
+
+const toHostState = (state: AirJamStore): AirJamHostState => ({
+  roomId: state.roomId,
+  connectionStatus: state.connectionStatus,
+  players: state.players,
+  lastError: state.lastError,
+  mode: state.mode,
+  runtimeState: state.runtimeState,
+});
+
 /**
  * Read the mounted host runtime API.
  *
@@ -240,12 +279,31 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
  * };
  * ```
  */
-export const useAirJamHost = <
+export function useAirJamHost<
   TSchema extends z.ZodSchema = z.ZodSchema,
->(): AirJamHostApi<TSchema> => {
+>(): AirJamHostApi<TSchema>;
+export function useAirJamHost<TSelected>(
+  selector: (state: AirJamHostState) => TSelected,
+): TSelected;
+export function useAirJamHost<
+  TSchema extends z.ZodSchema = z.ZodSchema,
+  TSelected = AirJamHostApi<TSchema>,
+>(
+  selector?: (state: AirJamHostState) => TSelected,
+): AirJamHostApi<TSchema> | TSelected {
   useAssertSessionScope("host", "useAirJamHost");
 
-  const runtime = useContext(hostRuntimeContext);
+  const { store } = useAirJamContext();
+  const selectedState = useStore(
+    store,
+    useShallow((state) => {
+      const hostState = toHostState(state);
+      return selector ? selector(hostState) : hostState;
+    }),
+  );
+  const runtime = useContext(hostRuntimeContext) as
+    | AirJamHostRuntimeControls<TSchema>
+    | null;
   if (!runtime) {
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",
@@ -258,5 +316,12 @@ export const useAirJamHost = <
     );
   }
 
-  return runtime as AirJamHostApi<TSchema>;
-};
+  if (selector) {
+    return selectedState as TSelected;
+  }
+
+  return {
+    ...(selectedState as AirJamHostState),
+    ...runtime,
+  };
+}

@@ -1,7 +1,6 @@
 import { useAirJamHost } from "@air-jam/sdk";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
-import { gameInputSchema } from "../../game/contracts/input";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
 import { buildTeamSlots } from "../../game/domain/team-slots";
 import { usePongStore } from "../../game/stores";
@@ -22,7 +21,7 @@ const formatDuration = (durationMs: number): string => {
 };
 
 export const EndedScreen = () => {
-  const host = useAirJamHost<typeof gameInputSchema>();
+  const roomId = useAirJamHost((state) => state.roomId);
   const matchSummary = usePongStore((state) => state.matchSummary);
   const { botCounts, team1Players, team2Players } = usePongHostTeams();
   const winner = matchSummary?.winner;
@@ -49,7 +48,7 @@ export const EndedScreen = () => {
                   )}
                 </div>
                 <div className="mt-2 text-sm tracking-[0.2em] text-zinc-400 uppercase">
-                  Room {host.roomId ?? "----"}
+                  Room {roomId ?? "----"}
                 </div>
               </div>
               <div className="pong-status-pill self-center sm:self-auto">

@@ -1,7 +1,9 @@
 import { useAirJamController } from "@air-jam/sdk";
 
 export const useControllerConnectionNotice = () => {
-  const { connectionStatus } = useAirJamController();
+  const connectionStatus = useAirJamController(
+    (state) => state.connectionStatus,
+  );
   const canSendSystemCommand = connectionStatus === "connected";
   const controlsDisabled = !canSendSystemCommand;
   const isConnecting =

@@ -19,6 +19,9 @@
  * {@link ../runtime/embedded-runtime-adapters.readEmbeddedControllerChildSession}.
  */
 import { useContext } from "react";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
@@ -33,6 +36,7 @@ import type {
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
+import type { AirJamStore } from "../state/connection-store";
 
 /**
  * Options for configuring the controller runtime boundary.
@@ -145,6 +149,47 @@ export interface AirJamControllerApi {
   socket: AirJamRealtimeClient | null;
 }
 
+export interface AirJamControllerState {
+  roomId: RoomCode | null;
+  controllerId: string | null;
+  connectionStatus: ConnectionStatus;
+  lastError?: string;
+  runtimeState: RuntimeState;
+  controllerOrientation: ControllerOrientation;
+  stateMessage?: string;
+  players: PlayerProfile[];
+  selfPlayer: PlayerProfile | null;
+}
+
+export type AirJamControllerRuntimeControls = Pick<
+  AirJamControllerApi,
+  | "sendSystemCommand"
+  | "setNickname"
+  | "setAvatarId"
+  | "updatePlayerProfile"
+  | "reconnect"
+  | "socket"
+>;
+
+const toControllerState = (state: AirJamStore): AirJamControllerState => {
+  const selfPlayer = state.controllerId
+    ? (state.players.find((player) => player.id === state.controllerId) ??
+      null)
+    : null;
+
+  return {
+    roomId: state.roomId,
+    controllerId: state.controllerId,
+    connectionStatus: state.connectionStatus,
+    lastError: state.lastError,
+    runtimeState: state.runtimeState,
+    controllerOrientation: state.controllerOrientation,
+    stateMessage: state.stateMessage,
+    players: state.players,
+    selfPlayer,
+  };
+};
+
 /**
  * Read the mounted controller runtime API.
  *
@@ -192,10 +237,26 @@ export interface AirJamControllerApi {
  * </AirJamControllerRuntime>
  * ```
  */
-export const useAirJamController = (): AirJamControllerApi => {
+export function useAirJamController(): AirJamControllerApi;
+export function useAirJamController<TSelected>(
+  selector: (state: AirJamControllerState) => TSelected,
+): TSelected;
+export function useAirJamController<TSelected>(
+  selector?: (state: AirJamControllerState) => TSelected,
+): AirJamControllerApi | TSelected {
   useAssertSessionScope("controller", "useAirJamController");
 
-  const runtime = useContext(controllerRuntimeContext);
+  const { store } = useAirJamContext();
+  const selectedState = useStore(
+    store,
+    useShallow((state) => {
+      const controllerState = toControllerState(state);
+      return selector ? selector(controllerState) : controllerState;
+    }),
+  );
+  const runtime = useContext(controllerRuntimeContext) as
+    | AirJamControllerRuntimeControls
+    | null;
   if (!runtime) {
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",
@@ -208,5 +269,12 @@ export const useAirJamController = (): AirJamControllerApi => {
     );
   }
 
-  return runtime as AirJamControllerApi;
-};
+  if (selector) {
+    return selectedState as TSelected;
+  }
+
+  return {
+    ...(selectedState as AirJamControllerState),
+    ...runtime,
+  };
+}

@@ -57,20 +57,16 @@ export {
   useAirJamController,
   type AirJamControllerApi,
   type AirJamControllerOptions,
+  type AirJamControllerState,
 } from "./hooks/use-air-jam-controller";
-export { useAirJamControllerState } from "./hooks/use-air-jam-controller-state";
 export {
   useAirJamHost,
   type AirJamHostApi,
   type AirJamHostOptions,
+  type AirJamHostState,
   type JoinUrlStatus,
 } from "./hooks/use-air-jam-host";
-export { useAirJamHostState } from "./hooks/use-air-jam-host-state";
 export { useConnectionStatus } from "./hooks/use-connection-status";
-export {
-  useControllerSession,
-  type AirJamControllerSessionState,
-} from "./hooks/use-controller-session";
 export {
   useControllerTick,
   type ControllerTickInfo,
@@ -82,10 +78,6 @@ export {
   type UseControllerToastsOptions,
 } from "./hooks/use-controller-toasts";
 export { useGetInput } from "./hooks/use-get-input";
-export {
-  useHostSession,
-  type AirJamHostSessionState,
-} from "./hooks/use-host-session";
 export {
   useHostTick,
   type HostFrameInfo,

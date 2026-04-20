@@ -1,4 +1,4 @@
-import type { useAirJamHost } from "@air-jam/sdk";
+import type { PlayerProfile } from "@air-jam/sdk";
 import {
   JoinQrOverlay,
   JoinUrlControls,
@@ -10,23 +10,28 @@ import { useClipboardCopy } from "../hooks/use-clipboard-copy";
 import type { CodeReviewHostTeams } from "../hooks/use-code-review-host-teams";
 
 interface LobbyScreenProps {
-  host: ReturnType<typeof useAirJamHost>;
+  joinUrl: string;
+  roomId: string | null;
+  connectionStatus: string;
+  players: PlayerProfile[];
   teams: CodeReviewHostTeams;
   onStartMatch: () => void;
 }
 
 export const LobbyScreen = ({
-  host,
+  joinUrl,
+  roomId,
+  connectionStatus,
+  players,
   teams,
   onStartMatch,
 }: LobbyScreenProps) => {
   const clipboard = useClipboardCopy();
   const hostJoinControls = useHostJoinControls({
-    joinUrl: host.joinUrl,
+    joinUrl,
     canStartMatch: teams.canStartMatch,
   });
-  const hostStatusText =
-    HOST_STATUS_COPY[host.connectionStatus] ?? host.connectionStatus;
+  const hostStatusText = HOST_STATUS_COPY[connectionStatus] ?? connectionStatus;
 
   return (
     <div className="absolute inset-0 z-50 overflow-y-auto bg-black/65 p-2 sm:p-3 md:p-4">
@@ -54,7 +59,7 @@ export const LobbyScreen = ({
                     <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
                       Room
                     </p>
-                    <p className="text-lg text-white">{host.roomId}</p>
+                    <p className="text-lg text-white">{roomId}</p>
                   </div>
 
                   <div className="inline-flex text-xs tracking-[0.22em] uppercase">
@@ -81,7 +86,7 @@ export const LobbyScreen = ({
                   <div className="flex h-full min-h-0 flex-col">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[10px] tracking-[0.22em] text-zinc-400 uppercase">
-                        Connected Players ({host.players.length})
+                        Connected Players ({players.length})
                       </p>
                       <span className="text-[10px] tracking-[0.18em] text-zinc-400 uppercase">
                         Humans {teams.assignedHumanPlayers.length}
@@ -156,7 +161,7 @@ export const LobbyScreen = ({
         <JoinQrOverlay
           open={hostJoinControls.joinQrVisible}
           value={hostJoinControls.joinUrlValue}
-          roomId={host.roomId}
+          roomId={roomId}
           onClose={hostJoinControls.hideJoinQr}
           description="Scan with your phone to join this Code Review room as a controller."
           panelClassName="rounded-none border-4 border-zinc-300 bg-zinc-950"
