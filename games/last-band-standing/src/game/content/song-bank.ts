@@ -28,10 +28,6 @@ export const toggleSelectedSongBucketIds = (
     selected.add(bucketId);
   }
 
-  if (selected.size === 0) {
-    return [...selectedBucketIds];
-  }
-
   return defaultSelectedSongBucketIds.filter((id) => selected.has(id));
 };
 

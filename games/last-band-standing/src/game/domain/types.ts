@@ -14,6 +14,7 @@ export type RoundGuessKind = z.infer<typeof roundGuessKindSchema>;
 
 export const gamePhaseSchema = z.enum([
   "lobby",
+  "match-countdown",
   "round-active",
   "round-reveal",
   "game-over",

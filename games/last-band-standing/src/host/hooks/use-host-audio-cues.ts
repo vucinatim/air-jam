@@ -1,3 +1,4 @@
+import { MATCH_START_COUNTDOWN_SEC } from "@/game/constants";
 import { type GamePhase } from "@/game/domain/types";
 import { type RoundReveal } from "@/game/stores/types";
 import { useAudio } from "@air-jam/sdk";
@@ -6,17 +7,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface UseHostAudioCuesInput {
   phase: GamePhase;
   roundReveal: RoundReveal | null;
+  matchCountdownSeconds: number;
   countdownSeconds: number;
 }
 
 export const useHostAudioCues = ({
   phase,
   roundReveal,
+  matchCountdownSeconds,
   countdownSeconds,
 }: UseHostAudioCuesInput) => {
   const audio = useAudio();
   const [muted, setMuted] = useState(false);
   const previousPhaseRef = useRef<string>(phase);
+  const previousMatchCountdownRef = useRef<number | null>(null);
   const previousCountdownRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -43,6 +47,23 @@ export const useHostAudioCues = ({
       audio.play("victory");
     }
   }, [audio, phase, roundReveal]);
+
+  useEffect(() => {
+    if (phase !== "match-countdown") {
+      previousMatchCountdownRef.current = null;
+      return;
+    }
+
+    if (
+      matchCountdownSeconds > 0 &&
+      matchCountdownSeconds <= MATCH_START_COUNTDOWN_SEC &&
+      previousMatchCountdownRef.current !== matchCountdownSeconds
+    ) {
+      audio.play("countdown-tick");
+    }
+
+    previousMatchCountdownRef.current = matchCountdownSeconds;
+  }, [audio, phase, matchCountdownSeconds]);
 
   useEffect(() => {
     if (phase !== "round-active") {

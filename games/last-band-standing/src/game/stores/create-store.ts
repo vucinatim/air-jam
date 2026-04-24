@@ -2,6 +2,7 @@ import {
   DEFAULT_REVEAL_DURATION_SEC,
   DEFAULT_ROUND_DURATION_SEC,
   DEFAULT_TOTAL_ROUNDS,
+  MATCH_START_COUNTDOWN_SEC,
 } from "@/game/constants";
 import {
   defaultSelectedSongBucketIds,
@@ -174,13 +175,6 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
           return state;
         }
 
-        if (
-          state.selectedSongBucketIds.length === 1 &&
-          state.selectedSongBucketIds[0] === bucketId
-        ) {
-          return state;
-        }
-
         return {
           selectedSongBucketIds: toggleSelectedSongBucketIds(
             state.selectedSongBucketIds,
@@ -229,10 +223,10 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
           return state;
         }
 
-        const nowMs = Date.now();
+        const roundStartsAtMs = Date.now() + MATCH_START_COUNTDOWN_SEC * 1000;
 
         return {
-          phase: "round-active",
+          phase: "match-countdown",
           activePlayerIds,
           playlistSongIds,
           playlistGuessKinds,
@@ -246,13 +240,45 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
             firstSongId,
             firstGuessKind,
             activePlayerIds,
-            nowMs,
+            roundStartsAtMs,
             state.roundDurationSec,
           ),
           answersByPlayerId: {},
           roundReveal: null,
           scoreboardByPlayerId: createInitialScoreboard(activePlayerIds),
           finalRankingPlayerIds: [],
+        };
+      });
+    },
+
+    completeMatchCountdown: ({ role }, { nowMs }) => {
+      if (role !== "host") {
+        return;
+      }
+
+      set((state) => {
+        if (state.phase !== "match-countdown" || !state.currentRound) {
+          return state;
+        }
+
+        const currentTimeMs = nowMs ?? Date.now();
+        if (currentTimeMs < state.currentRound.startedAtMs) {
+          return state;
+        }
+
+        const startDelayMs = currentTimeMs - state.currentRound.startedAtMs;
+        const currentRound =
+          startDelayMs > 0
+            ? {
+                ...state.currentRound,
+                startedAtMs: currentTimeMs,
+                endsAtMs: state.currentRound.endsAtMs + startDelayMs,
+              }
+            : state.currentRound;
+
+        return {
+          phase: "round-active",
+          currentRound,
         };
       });
     },

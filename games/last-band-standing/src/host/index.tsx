@@ -24,6 +24,7 @@ import { useGameStore } from "../game/stores";
 import { FullscreenToggle } from "./components/fullscreen-toggle";
 import { HostGameOver } from "./components/host-game-over";
 import { HostLobby } from "./components/host-lobby";
+import { HostMatchCountdown } from "./components/host-match-countdown";
 import { HostTimerBar } from "./components/host-timer-bar";
 import { HostTopBar } from "./components/host-top-bar";
 import { HostVideoStage } from "./components/host-video-stage";
@@ -69,12 +70,17 @@ const HostScreen = () => {
   const countdownSeconds = currentRound
     ? Math.max(0, Math.ceil((currentRound.endsAtMs - nowMs) / 1000))
     : 0;
+  const matchCountdownSeconds =
+    phase === "match-countdown" && currentRound
+      ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
+      : 0;
 
   useHostPlayerSync(players, actions);
-  useHostRoundEffects({ actions, phase, roundReveal });
+  useHostRoundEffects({ actions, phase, currentRound, roundReveal });
   const hostAudio = useHostAudioCues({
     phase,
     roundReveal,
+    matchCountdownSeconds,
     countdownSeconds,
   });
 
@@ -112,6 +118,8 @@ const HostScreen = () => {
           <div className="relative flex flex-1 items-center justify-center overflow-hidden">
             <AnimatePresence mode="wait">
               {phase === "lobby" && <HostLobby />}
+
+              {phase === "match-countdown" && <HostMatchCountdown />}
 
               {showVideo && (
                 <HostVideoStage

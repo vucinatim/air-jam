@@ -7,6 +7,7 @@ import { getRoundPrompt, optionColors } from "@/game/ui/round-prompt";
 import { useAirJamController } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
+import { playControllerHaptic } from "../haptics";
 
 export const ControllerRoundActive = () => {
   const nowMs = useNowTick(NOW_TICK_MS);
@@ -100,7 +101,10 @@ export const ControllerRoundActive = () => {
             <motion.button
               key={option.id}
               type="button"
-              onClick={() => actions.submitGuess({ optionId: option.id })}
+              onClick={() => {
+                playControllerHaptic("confirm");
+                actions.submitGuess({ optionId: option.id });
+              }}
               className={cn(
                 "flex items-center justify-center rounded-2xl p-3 text-center text-lg font-bold text-white transition-all active:scale-[0.96]",
                 optionColors[i % optionColors.length],

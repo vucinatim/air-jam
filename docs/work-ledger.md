@@ -208,6 +208,23 @@ Execution note:
 1. this plan is intentionally late in the sequence
 2. it should begin only after implementation, fixes, polish, cleanup, devex checks, and security checks are complete enough that the overpass is meaningful
 
+### Planned Future Systems Track. Air Jam MCP And Agent Devtools
+
+Status: planned architecture  
+Plan: [Air Jam MCP And Agent Devtools Plan](./plans/air-jam-mcp-and-agent-devtools-plan.md)
+
+Current intent:
+
+1. build shared `devtools-core` services first and keep MCP as a thin adapter
+2. make the same MCP work in this monorepo and in generated `create-airjam` games
+3. ship project-local MCP setup and agent guidance by default in generated games, with opt-out
+4. expose Air Jam-native tools for project inspection, logs, topology, visual harness captures, quality gates, and eventually runtime control
+
+Execution note:
+
+1. this is not part of the current v1 release-critical path
+2. it should become an implementation track after the active prerelease/release proof work is complete or explicitly paused
+
 ## Completed / Archived Baselines
 
 These plans were removed from the active surface in the 2026-04-09 cleanup:

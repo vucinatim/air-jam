@@ -5,11 +5,13 @@ import {
 import {
   getUniqueSongCountForBuckets,
   songBuckets,
+  type SongBucketId,
 } from "@/game/content/song-bank";
 import { normalizePlayerName } from "@/game/domain/player-utils";
 import { useGameStore } from "@/game/stores";
 import { useAirJamController } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { playControllerHaptic } from "../haptics";
 
 const PLAYER_NAME_PUSH_DEBOUNCE_MS = 350;
 
@@ -138,7 +140,21 @@ export const useControllerLobbyState = () => {
   const toggleReady = () => {
     if (!canReadyToggle) return;
     if (!isReady && !commitPlayerName()) return;
+    playControllerHaptic(isReady ? "cancel" : "confirm");
     actions.setReady({ ready: !isReady });
+  };
+
+  const startMatch = () => {
+    if (!canStartMatch) return;
+    playControllerHaptic("confirm");
+    actions.startMatch();
+  };
+
+  const toggleBucket = ({ bucketId }: { bucketId: SongBucketId }) => {
+    if (phase !== "lobby") return;
+    const isSelected = selectedSongBucketIds.includes(bucketId);
+    playControllerHaptic(isSelected ? "cancel" : "confirm");
+    actions.toggleSongBucket({ bucketId });
   };
 
   const bucketOptions = songBuckets.map((bucket) => ({
@@ -163,8 +179,8 @@ export const useControllerLobbyState = () => {
     readyCount,
     selectedBucketCount,
     startMatchHelper,
-    startMatch: actions.startMatch,
-    toggleBucket: actions.toggleSongBucket,
+    startMatch,
+    toggleBucket,
     toggleReady,
     totalRounds,
     uniqueSongCount,

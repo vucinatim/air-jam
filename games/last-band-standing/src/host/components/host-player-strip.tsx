@@ -25,7 +25,10 @@ export const HostPlayerStrip = () => {
   const finalRankingPlayerIds = useGameStore(
     (state) => state.finalRankingPlayerIds,
   );
-  const isPlaying = phase === "round-active" || phase === "round-reveal";
+  const isPlaying =
+    phase === "match-countdown" ||
+    phase === "round-active" ||
+    phase === "round-reveal";
   const inGame = isPlaying || phase === "game-over";
   const rankingPlayerIds =
     phase === "game-over" && finalRankingPlayerIds.length > 0

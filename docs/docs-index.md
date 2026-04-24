@@ -42,6 +42,10 @@ Active architecture cleanup plans:
 2. [Code Review Reference Cleanup Plan](./plans/code-review-reference-cleanup-plan.md)
 3. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
 
+Planned future architecture tracks:
+
+1. [Air Jam MCP And Agent Devtools Plan](./plans/air-jam-mcp-and-agent-devtools-plan.md)
+
 Canonical release sequence:
 
 1. implementation

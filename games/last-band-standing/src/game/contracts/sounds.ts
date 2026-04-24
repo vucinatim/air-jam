@@ -13,7 +13,7 @@ export const soundManifest = {
   },
   "countdown-tick": {
     src: ["/sounds/countdown-tick.wav"],
-    volume: 0.3,
+    volume: 0.8,
     category: "sfx",
   },
   "round-start": {

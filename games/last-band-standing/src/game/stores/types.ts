@@ -73,6 +73,10 @@ export interface QuizState {
       payload: { bucketId: SongBucketId },
     ) => void;
     startMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
+    completeMatchCountdown: (
+      ctx: AirJamActionContext,
+      payload: { nowMs?: number },
+    ) => void;
     submitGuess: (
       ctx: AirJamActionContext,
       payload: { optionId: string },

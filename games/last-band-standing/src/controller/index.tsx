@@ -21,6 +21,7 @@ import { toShellMatchPhase } from "../game/domain/match-phase";
 import { useGameStore } from "../game/stores";
 import { ControllerGameOver } from "./components/controller-game-over";
 import { ControllerLobby } from "./components/controller-lobby";
+import { ControllerMatchCountdown } from "./components/controller-match-countdown";
 import { ControllerRoundActive } from "./components/controller-round-active";
 import { ControllerRoundReveal } from "./components/controller-round-reveal";
 import { useControllerAudioCues } from "./hooks/use-controller-audio-cues";
@@ -121,6 +122,8 @@ const ControllerScreen = () => {
         />
         <AnimatePresence mode="wait">
           {phase === "lobby" && <ControllerLobby />}
+
+          {phase === "match-countdown" && <ControllerMatchCountdown />}
 
           {phase === "round-active" && <ControllerRoundActive />}
 

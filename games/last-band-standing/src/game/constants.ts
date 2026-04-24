@@ -3,6 +3,7 @@ export const DEFAULT_TOTAL_ROUNDS = 10;
 export const DEFAULT_ROUND_DURATION_SEC = 30;
 export const DEFAULT_REVEAL_DURATION_SEC = 7;
 export const DEFAULT_OPTION_COUNT = 4;
+export const MATCH_START_COUNTDOWN_SEC = 3;
 export const STREAK_FIRE_MIN_ROUNDS = 2;
 
 // ── Timing intervals (ms) ──

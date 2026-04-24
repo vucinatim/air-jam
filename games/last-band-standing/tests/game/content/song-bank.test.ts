@@ -36,12 +36,12 @@ describe("song bank buckets", () => {
     expect(uniqueSongs.length).toBeLessThan(songBank.length);
   });
 
-  it("toggles visible buckets without allowing an empty selection", () => {
+  it("toggles visible buckets and allows an empty selection", () => {
     expect(
       toggleSelectedSongBucketIds(defaultSelectedSongBucketIds, "meme"),
     ).not.toContain("meme");
 
-    expect(toggleSelectedSongBucketIds(["meme"], "meme")).toEqual(["meme"]);
+    expect(toggleSelectedSongBucketIds(["meme"], "meme")).toEqual([]);
   });
 });
 

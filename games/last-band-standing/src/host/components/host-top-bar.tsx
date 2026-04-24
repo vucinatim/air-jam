@@ -12,7 +12,10 @@ export const HostTopBar = () => {
   const currentRound = useGameStore((state) => state.currentRound);
   const answersByPlayerId = useGameStore((state) => state.answersByPlayerId);
   const roundReveal = useGameStore((state) => state.roundReveal);
-  const isPlaying = phase === "round-active" || phase === "round-reveal";
+  const isPlaying =
+    phase === "match-countdown" ||
+    phase === "round-active" ||
+    phase === "round-reveal";
   const answeredCount = currentRound
     ? currentRound.expectedPlayerIds.filter(
         (playerId) => answersByPlayerId[playerId],
@@ -23,6 +26,9 @@ export const HostTopBar = () => {
     : 0;
   const revealCountdownSeconds = roundReveal
     ? Math.max(0, Math.ceil((roundReveal.revealEndsAtMs - nowMs) / 1000))
+    : 0;
+  const matchCountdownSeconds = currentRound
+    ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
     : 0;
 
   return (
@@ -56,6 +62,12 @@ export const HostTopBar = () => {
               {countdownSeconds}
             </span>
           </div>
+        )}
+
+        {phase === "match-countdown" && currentRound && (
+          <span className="text-muted-foreground text-sm">
+            Starting in {matchCountdownSeconds}s
+          </span>
         )}
 
         {phase === "round-reveal" && roundReveal && (
