@@ -3,7 +3,7 @@ import {
   type PrefabCaptureHarness,
   type PrefabCaptureVariants,
   type VisualHarnessMode,
-} from "@air-jam/visual-harness";
+} from "@air-jam/harness";
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";

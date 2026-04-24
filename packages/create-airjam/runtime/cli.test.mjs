@@ -55,3 +55,10 @@ test("create-airjam keeps release bundle help", () => {
   assert.match(output, /Usage: airjam release bundle/);
   assert.match(output, /--dist-dir <path>/);
 });
+
+test("create-airjam exposes mcp help", () => {
+  const output = runCliHelp("mcp", "doctor");
+
+  assert.match(output, /Usage: airjam mcp doctor/);
+  assert.match(output, /--dir <path>/);
+});

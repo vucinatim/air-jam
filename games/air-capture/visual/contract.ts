@@ -1,7 +1,7 @@
 import {
   bridgeAction,
   defineVisualHarnessBridge,
-} from "@air-jam/visual-harness/runtime";
+} from "@air-jam/harness/runtime";
 
 const parseEndedMatchPayload = (
   payload: unknown,
@@ -30,7 +30,7 @@ const parseEndedMatchPayload = (
     typeof finalScores?.nebulon !== "number"
   ) {
     throw new Error(
-      `[visual-harness:${gameId}.endMatch] expected { winner, finalScores } with numeric Solaris and Nebulon scores`,
+      `[harness:${gameId}.endMatch] expected { winner, finalScores } with numeric Solaris and Nebulon scores`,
     );
   }
 
@@ -73,6 +73,14 @@ export const airCaptureVisualHarnessBridge = defineVisualHarnessBridge({
   }),
   actions: {
     endMatch: bridgeAction.custom(
+      {
+        description:
+          "Finish the current match with an explicit winner and final scoreline.",
+        payloadDescription:
+          'Object shape: { winner: "solaris" | "nebulon", finalScores: { solaris: number, nebulon: number } }.',
+        resultDescription:
+          "The host ends the match and publishes the requested winner and scores.",
+      },
       (payload, meta) => parseEndedMatchPayload(payload, meta.gameId),
       (
         context: {

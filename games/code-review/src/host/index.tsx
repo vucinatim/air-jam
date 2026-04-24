@@ -7,7 +7,7 @@
 import { AudioRuntime, MusicPlaylist, useAirJamHost } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
-import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { codeReviewVisualHarnessBridge } from "../../visual/contract";
 import { gameInputSchema } from "../game/contracts/input";
 import {

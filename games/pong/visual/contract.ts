@@ -1,7 +1,7 @@
 import {
   bridgeAction,
   defineVisualHarnessBridge,
-} from "@air-jam/visual-harness/runtime";
+} from "@air-jam/harness/runtime";
 
 export const pongVisualHarnessBridge = defineVisualHarnessBridge({
   gameId: "pong",
@@ -28,6 +28,12 @@ export const pongVisualHarnessBridge = defineVisualHarnessBridge({
   }),
   actions: {
     setPointsToWin: bridgeAction.number(
+      {
+        description: "Set the score needed to win the match.",
+        payloadDescription: "The numeric points-to-win target.",
+        resultDescription:
+          "The host lobby keeps the new points-to-win value for the next match.",
+      },
       (
         context: {
           actions: {
@@ -41,6 +47,12 @@ export const pongVisualHarnessBridge = defineVisualHarnessBridge({
     ),
     scorePoint: bridgeAction.enum(
       ["team1", "team2"] as const,
+      {
+        description: "Award one point to the chosen team.",
+        payloadDescription: "The team that should receive the point.",
+        resultDescription:
+          "The selected team score increments by one in the live match.",
+      },
       (
         context: {
           actions: {

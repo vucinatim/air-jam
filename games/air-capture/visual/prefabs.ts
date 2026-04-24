@@ -1,4 +1,4 @@
-import { definePrefabCaptureHarness } from "@air-jam/visual-harness";
+import { definePrefabCaptureHarness } from "@air-jam/harness";
 import { AIR_CAPTURE_PREFABS } from "../src/game/prefabs";
 import {
   AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID,

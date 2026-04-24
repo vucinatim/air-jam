@@ -1,13 +1,13 @@
 import type {
   VisualScenarioContext,
   VisualScenarioPack,
-} from "@air-jam/visual-harness";
+} from "@air-jam/harness";
 import {
   captureStandardSurfaces,
   defineVisualHarness,
   waitForControllerText,
   waitForHostText,
-} from "@air-jam/visual-harness";
+} from "@air-jam/harness";
 import { codeReviewVisualHarnessBridge } from "./contract";
 
 const prepareLobbyState = async (

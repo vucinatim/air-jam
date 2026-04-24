@@ -12,7 +12,7 @@ import {
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { pongVisualHarnessBridge } from "../../visual/contract";
 import { gameInputSchema } from "../game/contracts/input";
 import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";

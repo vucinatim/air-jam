@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-20
+Last updated: 2026-04-24
 Status: active
 
 This is the single active repo-wide ledger.
@@ -81,7 +81,7 @@ Latest progress inside this focus:
 9. the late 2026-04-18 audit closed two hidden release blockers: repo/scaffold template manifests now include required `category` values, and the platform CSP now allows local loopback `http:`/`ws:` frame and connect traffic in non-production so browser smoke matches the real local Arcade stack
 10. Arcade cards now expose optional developer actions: source links and generated `create-airjam` template commands are carried through the typed catalog shape, first-party local reference games set both fields automatically, and dashboard-hosted games can set them through schema-owned `games.config`
 11. automated arcade-built visual captures are green for the five launch games (`air-capture`, `code-review`, `last-band-standing`, `pong`, and `the-office`), and the secure arcade-built `air-capture` visual capture is also green
-12. the visual harness now has an explicit production-build opt-in query contract, local Arcade build caching invalidates when game `visual/` contracts or visual-harness runtime code changes, and workspace process cleanup now terminates spawned process groups cleanly
+12. the visual harness now has an explicit production-build opt-in query contract, local Arcade build caching invalidates when game `visual/` contracts or harness runtime code changes, and workspace process cleanup now terminates spawned process groups cleanly
 13. the Arcade navbar was rolled back from the shared rounded shell-card treatment to the cleaner flat Arcade header; this is a visual correction, not a runtime contract change
 14. the platform CSP now keeps production frame ancestors same-origin while allowing non-production localhost/LAN Arcade embeds, and explicitly allows the mounted Umami and Vercel Speed Insights script hosts
 15. the Arcade controller sheet, fullscreen prompt, and controller page background were rolled back from the shared rounded shell-card treatment to the earlier flatter controller presentation
@@ -210,7 +210,7 @@ Execution note:
 
 ### Planned Future Systems Track. Air Jam MCP And Agent Devtools
 
-Status: planned architecture  
+Status: usable V2 landed  
 Plan: [Air Jam MCP And Agent Devtools Plan](./plans/air-jam-mcp-and-agent-devtools-plan.md)
 
 Current intent:
@@ -220,10 +220,50 @@ Current intent:
 3. ship project-local MCP setup and agent guidance by default in generated games, with opt-out
 4. expose Air Jam-native tools for project inspection, logs, topology, visual harness captures, quality gates, and eventually runtime control
 
+Latest progress:
+
+1. Phase 0's first slice landed with a new `@air-jam/devtools-core` workspace package
+2. the first slice owns project detection, project inspection, game listing/inspection, unified-log command wrapping, and basic quality-gate execution
+3. focused tests cover monorepo detection, standalone game fixture detection, repo game discovery, game inspection, and repo-only quality-gate filtering
+4. an initial public `@air-jam/mcp-server` package now exists with thin MCP tools for project inspection, game inspection, log reads, quality gates, and visual capture summary reads
+5. `create-airjam` now scaffolds `@air-jam/mcp-server`, adds a `mcp` script, ships local MCP docs and skill guidance, and exposes `airjam mcp doctor|config|init`
+6. targeted scaffold smoke for the `minimal` template passed with the new MCP package, docs, commands, and generated project validation path
+7. the current V2 slice is now implemented: `@air-jam/harness` replaced the old `@air-jam/visual-harness` package, `devtools-core` now owns managed dev lifecycle, topology inspection, visual scenario discovery, visual capture execution, live harness snapshot reads, and harness action invocation, and `@air-jam/mcp-server` now exposes `start_dev`, `stop_dev`, `status`, `topology`, `list_visual_scenarios`, `capture_visuals`, `read_harness_snapshot`, and `invoke_harness_action`
+8. `create-airjam` now writes a committed project-local `.mcp.json` by default, keeps `airjam mcp init` as a repair/regenerate path, updates generated agent guidance toward MCP-first workflows, and the scaffold smoke still passes end to end after the harness rename and runtime-control additions
+9. live harness sessions can now register with the local dev server through a dedicated dev-control broker, `devtools-core` can list and prefer those registered sessions over isolated headless harness browsers, and MCP now exposes `airjam.list_harness_sessions` so agents can target an already-open visible host session instead of always acting in a separate hidden browser context
+10. the repo root now ships a committed `.mcp.json` plus `pnpm mcp`, so the monorepo is directly MCP-usable without package-internal working-directory assumptions
+11. harness actions now publish optional action metadata, the MCP surfaces that metadata to agents, and first-party games now document their action semantics directly in the harness contract
+12. Last Band Standing now exposes a game-owned `returnToLobby` harness action, so the visible-tab MCP loop can move both into game-over and back to lobby without browser UI clicks
+13. `airjam.capture_visuals` now runs as a task-backed MCP tool with in-memory task-store support, and a real stdio MCP client proof now completes a `last-band-standing` lobby capture through `client.experimental.tasks.callToolStream(...)` without leaving managed Air Jam dev processes behind
+14. the Arcade follow-up proof is now landed too: `airjam.capture_visuals` completes a real `pong` `arcade-test` lobby capture through the MCP task stream after fixing cross-origin iframe readiness and controller join-origin normalization in the harness session layer
+15. the first orchestration consolidation slice is now in place: repo game discovery, local-reference env keys, Arcade origin resolution, and repo topology surface builders now live in `packages/devtools-core/runtime/repo-workspace.mjs`, while `scripts/workspace` topology/dev helpers consume that shared module instead of rebuilding the same knowledge locally
+16. the second consolidation slice is now in place too: workspace process groups, build-artifact reuse, URL readiness probing, standalone live stack startup, and Arcade built stack startup now live under `packages/devtools-core/runtime/`, while `scripts/workspace/lib/*` is reduced to thin re-export wrappers
+17. the third consolidation slice is now in place too: foreground repo `standalone:dev` / `arcade:dev` command logic now lives in `packages/devtools-core/runtime/workspace-dev-commands.mjs`, repo visual stack/capture orchestration now lives in `packages/devtools-core/runtime/repo-visual.mjs`, and a real `last-band-standing` standalone visual capture completed successfully through that new owner path
+18. the managed monorepo path now uses that same shared runtime layer too: `packages/devtools-core/src/dev.ts` no longer shells through repo CLI scripts for monorepo start/topology, and instead invokes `packages/devtools-core/runtime/workspace-runtime-cli.mjs`, with focused tests still green afterward
+
+Execution note:
+
+1. this is still not part of the current v1 release-critical path
+2. the meaningful remaining work is now follow-on architecture cleanup and deeper runtime control, not baseline MCP enablement
+
+### Planned Future Product/Runtime Track. Remote Rooms And Display Surfaces
+
+Status: planned architecture  
+Plan: [Remote Rooms And Display Surfaces Plan](./plans/remote-rooms-and-display-surfaces-plan.md)
+
+Current intent:
+
+1. keep browser host authority as the simple default
+2. grow Air Jam from phone-first couch rooms into shareable player-owned rooms
+3. allow controllers to become broader player input surfaces, including phones, desktop browsers, gamepads, and future agents
+4. add optional display/spectator surfaces through typed display snapshots rather than automatic pixel mirroring
+5. defer server-authoritative runtime modes and SpacetimeDB-like adapters until after the remote-room and display-snapshot model proves it needs them
+
 Execution note:
 
 1. this is not part of the current v1 release-critical path
-2. it should become an implementation track after the active prerelease/release proof work is complete or explicitly paused
+2. prerelease preparation should stay limited to docs, naming, and avoiding new phone-only assumptions
+3. implementation should wait until after v1 release proof unless it becomes explicitly prioritized
 
 ## Completed / Archived Baselines
 

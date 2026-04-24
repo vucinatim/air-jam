@@ -1,5 +1,9 @@
 import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
-import { Command } from "commander";
+import {
+  AIRJAM_PROJECT_MCP_FILE,
+  createProjectLocalMcpConfig,
+} from "@air-jam/mcp-server";
+import { Command, type OptionValues } from "commander";
 import fs from "fs-extra";
 import kleur from "kleur";
 import { execSync } from "node:child_process";
@@ -11,6 +15,7 @@ import { runGameDevCli } from "../runtime/game-dev.mjs";
 import { runSecureInitCli } from "../runtime/secure-dev.mjs";
 import { runProjectTopologyCli } from "../runtime/topology.mjs";
 import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
+import { runMcpConfig, runMcpDoctor, runMcpInit } from "./mcp";
 import {
   extractScaffoldTemplateArchive,
   findScaffoldTemplate,
@@ -320,7 +325,7 @@ const assertHostedReleaseControllerPath = async (
 const normalizeRuntimeCliArgv = (argv: string[]) =>
   argv.filter((value) => value !== "--");
 
-const resolveActionOptions = <T>(value: unknown): T => {
+const resolveActionOptions = <T extends OptionValues>(value: unknown): T => {
   if (
     value &&
     typeof value === "object" &&
@@ -580,6 +585,7 @@ const runScaffoldCommand = async (
     const normalizedPkg = normalizeScaffoldPackageJson({
       pkg,
       serverVersion: manifest["@air-jam/server"],
+      mcpServerVersion: manifest["@air-jam/mcp-server"],
       createAirJamVersion,
     });
     normalizedPkg.name = packageName;
@@ -594,6 +600,12 @@ const runScaffoldCommand = async (
     applyNamedSpecs(normalizedPkg, depSpecs, overrideSpecs);
     await fs.writeJson(pkgPath, normalizedPkg, { spaces: 2 });
   }
+
+  await fs.writeJson(
+    path.join(targetDir, AIRJAM_PROJECT_MCP_FILE),
+    createProjectLocalMcpConfig(),
+    { spaces: 2 },
+  );
 
   await writeAiPackManifest({
     targetDir,
@@ -793,6 +805,52 @@ const buildProgram = () => {
 
   releaseCommand.action(() => {
     releaseCommand.outputHelp();
+  });
+
+  const mcpCommand = program
+    .command("mcp")
+    .description("Inspect or initialize project-local Air Jam MCP setup");
+
+  mcpCommand
+    .command("doctor")
+    .description("Inspect the current project's Air Jam MCP setup")
+    .option("--dir <path>", "Project directory to inspect")
+    .action(async (options: unknown) => {
+      await runMcpDoctor(
+        resolveActionOptions<{
+          dir?: string;
+        }>(options),
+      );
+    });
+
+  mcpCommand
+    .command("init")
+    .description(`Write ${AIRJAM_PROJECT_MCP_FILE} for the current project`)
+    .option("--dir <path>", "Project directory to inspect")
+    .option("--force", "Overwrite an existing project-local MCP config", false)
+    .action(async (options: unknown) => {
+      await runMcpInit(
+        resolveActionOptions<{
+          dir?: string;
+          force?: boolean;
+        }>(options),
+      );
+    });
+
+  mcpCommand
+    .command("config")
+    .description("Print the recommended project-local MCP config JSON")
+    .option("--dir <path>", "Project directory to inspect")
+    .action(async (options: unknown) => {
+      await runMcpConfig(
+        resolveActionOptions<{
+          dir?: string;
+        }>(options),
+      );
+    });
+
+  mcpCommand.action(() => {
+    mcpCommand.outputHelp();
   });
 
   program

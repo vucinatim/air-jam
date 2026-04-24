@@ -182,10 +182,12 @@ export const findScaffoldTemplate = (
 export const normalizeScaffoldPackageJson = ({
   pkg,
   serverVersion,
+  mcpServerVersion,
   createAirJamVersion,
 }: {
   pkg: ScaffoldPackageJson;
   serverVersion?: string;
+  mcpServerVersion?: string;
   createAirJamVersion: string;
 }): ScaffoldPackageJson => {
   const existingScripts =
@@ -213,6 +215,7 @@ export const normalizeScaffoldPackageJson = ({
     dev: "pnpm exec airjam dev",
     topology: "pnpm exec airjam topology",
     "secure:init": "pnpm exec airjam secure:init",
+    mcp: "pnpm exec airjam-mcp",
   };
 
   const nextDevDependencies = {
@@ -220,6 +223,9 @@ export const normalizeScaffoldPackageJson = ({
       ? (pkg.devDependencies as Record<string, string>)
       : {}),
     ...(serverVersion ? { "@air-jam/server": `^${serverVersion}` } : {}),
+    ...(mcpServerVersion
+      ? { "@air-jam/mcp-server": `^${mcpServerVersion}` }
+      : {}),
     "create-airjam": `^${createAirJamVersion}`,
   };
 

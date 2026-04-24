@@ -14,9 +14,13 @@ const serverPackageJsonPath = path.resolve(
   packageRoot,
   "../server/package.json",
 );
-const visualHarnessPackageJsonPath = path.resolve(
+const harnessPackageJsonPath = path.resolve(
   packageRoot,
-  "../visual-harness/package.json",
+  "../harness/package.json",
+);
+const mcpServerPackageJsonPath = path.resolve(
+  packageRoot,
+  "../mcp-server/package.json",
 );
 const manifestPath = path.join(packageRoot, "template-version-manifest.json");
 
@@ -32,7 +36,8 @@ const manifest = {
   "create-airjam": readPackageVersion(createAirJamPackageJsonPath),
   "@air-jam/sdk": readPackageVersion(sdkPackageJsonPath),
   "@air-jam/server": readPackageVersion(serverPackageJsonPath),
-  "@air-jam/visual-harness": readPackageVersion(visualHarnessPackageJsonPath),
+  "@air-jam/harness": readPackageVersion(harnessPackageJsonPath),
+  "@air-jam/mcp-server": readPackageVersion(mcpServerPackageJsonPath),
 };
 
 fs.writeFileSync(

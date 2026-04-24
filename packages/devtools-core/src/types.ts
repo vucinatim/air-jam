@@ -1,0 +1,370 @@
+export type AirJamProjectMode = "monorepo" | "standalone-game" | "unknown";
+
+export type JsonObject = Record<string, unknown>;
+
+export type PackageJson = JsonObject & {
+  name?: string;
+  version?: string;
+  private?: boolean;
+  scripts?: Record<string, string>;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+};
+
+export type AirJamPackageManager = "pnpm" | "npm" | "yarn" | "unknown";
+
+export type AirJamProjectContext = {
+  rootDir: string;
+  mode: AirJamProjectMode;
+  packageManager: AirJamPackageManager;
+  packageJsonPath: string | null;
+  packageJson: PackageJson | null;
+  workspaceRoot: string | null;
+  reasons: string[];
+};
+
+export type AirJamCapabilityGroup =
+  | "project"
+  | "games"
+  | "logs"
+  | "runtime"
+  | "visual"
+  | "quality"
+  | "repo-workspace"
+  | "ai-pack";
+
+export type AirJamProjectInspection = {
+  context: AirJamProjectContext;
+  capabilities: AirJamCapabilityGroup[];
+  scripts: Record<string, string>;
+  airJamPackages: Record<string, string>;
+  files: {
+    agents: string | null;
+    plan: string | null;
+    suggestions: string | null;
+    docsIndex: string | null;
+  };
+};
+
+export type AirJamGameSummary = {
+  id: string;
+  name: string;
+  rootDir: string;
+  packageName: string | null;
+  description: string | null;
+  category: string | null;
+  scaffold: boolean | null;
+  manifestPath: string | null;
+  configPath: string | null;
+  visual: {
+    hasContract: boolean;
+    hasScenarios: boolean;
+    hasPrefabs: boolean;
+  };
+};
+
+export type AirJamGameInspection = AirJamGameSummary & {
+  packageJsonPath: string | null;
+  scripts: Record<string, string>;
+  metadataExportLikely: boolean;
+  controllerPathLikely: string | null;
+  qualityGates: AirJamQualityGate[];
+};
+
+export type AirJamQualityGate =
+  | "typecheck"
+  | "lint"
+  | "test"
+  | "build"
+  | "format-check"
+  | "scaffold-smoke"
+  | "release-check";
+
+export type CommandResult = {
+  command: string;
+  args: string[];
+  cwd: string;
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  ok: boolean;
+};
+
+export type ReadDevLogsOptions = {
+  cwd?: string;
+  view?: "signal" | "full" | string;
+  source?: string;
+  trace?: string;
+  room?: string;
+  controller?: string;
+  event?: string;
+  process?: string;
+  level?: string;
+  runtime?: string;
+  epoch?: number;
+  consoleCategory?: string;
+  file?: string;
+  tail?: number;
+};
+
+export type RunQualityGateOptions = {
+  cwd?: string;
+  gate: AirJamQualityGate;
+  packageFilter?: string;
+};
+
+export type AirJamDevMode = "standalone-dev" | "arcade-dev" | "arcade-test";
+
+export type AirJamVisualArtifactMode = "standalone-dev" | "arcade-built";
+
+export type AirJamVisualCaptureMode = "standalone-dev" | "arcade-test";
+
+export type AirJamManagedDevProcess = {
+  id: string;
+  pid: number;
+  cwd: string;
+  projectMode: Exclude<AirJamProjectMode, "unknown">;
+  mode: AirJamDevMode;
+  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built";
+  secure: boolean;
+  gameId: string | null;
+  command: string;
+  args: string[];
+  logPath: string;
+  expectedLogPath: string | null;
+  startedAt: string;
+};
+
+export type AirJamSurfaceUrlSummary = {
+  appOrigin: string | null;
+  hostUrl: string | null;
+  controllerBaseUrl: string | null;
+  publicHost: string | null;
+  localBuildUrl: string | null;
+  browserBuildUrl: string | null;
+};
+
+export type AirJamRuntimeTopology = {
+  projectMode: Exclude<AirJamProjectMode, "unknown">;
+  mode: AirJamDevMode;
+  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built";
+  gameId: string | null;
+  secure: boolean;
+  surfaces: Record<string, JsonObject>;
+  urls: AirJamSurfaceUrlSummary;
+  process: AirJamManagedDevProcess | null;
+};
+
+export type StartDevOptions = {
+  cwd?: string;
+  gameId?: string;
+  mode?: AirJamDevMode;
+  secure?: boolean;
+};
+
+export type StartDevResult = {
+  process: AirJamManagedDevProcess;
+  reusedExistingProcess: boolean;
+  topology: AirJamRuntimeTopology;
+};
+
+export type StopDevOptions = {
+  cwd?: string;
+  processId?: string;
+  mode?: AirJamDevMode;
+};
+
+export type StopDevResult = {
+  stopped: AirJamManagedDevProcess[];
+};
+
+export type GetDevStatusOptions = {
+  cwd?: string;
+};
+
+export type AirJamDevStatus = {
+  processes: AirJamManagedDevProcess[];
+};
+
+export type GetTopologyOptions = {
+  cwd?: string;
+  gameId?: string;
+  mode?: AirJamDevMode;
+  secure?: boolean;
+};
+
+export type AirJamVisualScenarioSummary = {
+  gameId: string;
+  scenarioId: string;
+  description: string | null;
+  supportedModes: AirJamVisualCaptureMode[];
+};
+
+export type AirJamHarnessActionDescriptor = {
+  name: string;
+  description: string | null;
+  payload: {
+    kind: "none" | "number" | "enum" | "json";
+    description: string | null;
+    allowedValues?: string[];
+  };
+  resultDescription: string | null;
+};
+
+export type AirJamVisualScenarioList = {
+  gameId: string;
+  scenarioModulePath: string;
+  hasBridgeActions: boolean;
+  bridgeActions: string[];
+  actionMetadata: AirJamHarnessActionDescriptor[];
+  scenarios: AirJamVisualScenarioSummary[];
+};
+
+export type ListVisualScenariosOptions = {
+  cwd?: string;
+  gameId?: string;
+};
+
+export type CaptureVisualsOptions = {
+  cwd?: string;
+  gameId?: string;
+  scenarioId?: string;
+  mode?: AirJamVisualCaptureMode;
+  secure?: boolean;
+};
+
+export type AirJamVisualScenarioMetadata = {
+  gameId: string;
+  scenarioId: string;
+  scenarioDescription: string | null;
+  runtimeMode: AirJamVisualArtifactMode;
+  capturedAt: string;
+  status: "captured" | "failed";
+  urls: JsonObject;
+  screenshots: Array<{
+    surface: "host" | "controller";
+    viewportName: string;
+    width: number;
+    height: number;
+    fileName: string;
+    relativePath: string;
+  }>;
+  notes: string[];
+  error: {
+    message: string;
+    stack: string | null;
+  } | null;
+};
+
+export type CaptureVisualsResult = {
+  gameId: string;
+  artifactRoot: string;
+  summaryPath: string;
+  summary: AirJamVisualCaptureSummary;
+  scenarios: AirJamVisualScenarioMetadata[];
+};
+
+export type ListHarnessSessionsOptions = {
+  cwd?: string;
+  gameId?: string;
+  mode?: AirJamDevMode;
+  secure?: boolean;
+  roomId?: string;
+};
+
+export type ReadHarnessSnapshotOptions = {
+  cwd?: string;
+  gameId?: string;
+  mode?: AirJamDevMode;
+  secure?: boolean;
+  roomId?: string;
+  sessionId?: string;
+  timeoutMs?: number;
+};
+
+export type InvokeHarnessActionOptions = {
+  cwd?: string;
+  gameId?: string;
+  mode?: AirJamDevMode;
+  secure?: boolean;
+  roomId?: string;
+  sessionId?: string;
+  actionName: string;
+  payload?: unknown;
+  timeoutMs?: number;
+};
+
+export type AirJamHarnessSessionRecord = {
+  sessionId: string;
+  gameId: string;
+  role: "host" | "controller";
+  roomId: string | null;
+  origin: string | null;
+  href: string | null;
+  title: string | null;
+  actions: AirJamHarnessActionDescriptor[];
+  availableActions: string[];
+  snapshot: JsonObject | null;
+  registeredAt: string;
+  lastSeenAt: string;
+};
+
+export type AirJamHarnessSessionList = {
+  projectMode: Exclude<AirJamProjectMode, "unknown">;
+  mode: AirJamDevMode;
+  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built";
+  secure: boolean;
+  process: AirJamManagedDevProcess | null;
+  sessions: AirJamHarnessSessionRecord[];
+};
+
+export type AirJamHarnessSessionSummary = {
+  gameId: string;
+  projectMode: Exclude<AirJamProjectMode, "unknown">;
+  mode: AirJamDevMode;
+  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built";
+  secure: boolean;
+  roomId: string | null;
+  sessionId: string | null;
+  controlSurface: "registered-session" | "isolated-session";
+  process: AirJamManagedDevProcess | null;
+  actions: AirJamHarnessActionDescriptor[];
+  availableActions: string[];
+  urls: AirJamSurfaceUrlSummary & {
+    controllerJoinUrl: string | null;
+  };
+};
+
+export type AirJamHarnessSnapshotInspection = AirJamHarnessSessionSummary & {
+  snapshot: JsonObject | null;
+};
+
+export type AirJamHarnessActionInvocation = AirJamHarnessSessionSummary & {
+  actionName: string;
+  payload?: unknown;
+  result: unknown;
+  snapshotBefore: JsonObject | null;
+  snapshotAfter: JsonObject | null;
+};
+
+export type AirJamVisualCaptureSummary = {
+  gameId: string;
+  mode: AirJamVisualArtifactMode;
+  secure: boolean;
+  capturedAt: string;
+  scenarios: Array<{
+    scenarioId: string;
+    status: "captured" | "failed";
+    screenshotCount: number;
+    relativeDir: string;
+  }>;
+};
+
+export type AirJamVisualCaptureInspection = {
+  gameId: string;
+  summaryPath: string;
+  summary: AirJamVisualCaptureSummary;
+};

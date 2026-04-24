@@ -146,7 +146,7 @@ Weakness in the story: monetization and moderation are unstated. Deferred is fin
 
 1. Entry points (`main.tsx` → `airjam.config.ts` → `app.tsx` with `airjam.Host` / `airjam.Controller`) are **uniform across all five games** — good validation that the SDK shape is right.
 2. Pong is the true canonical starter (~400 LOC game logic, 8 test files).
-3. Air-capture is a hybrid reference game + SDK stress test + dev harness. The prefab-preview subsystem (`games/air-capture/src/prefab-preview/` + conditional routing in `src/app.tsx`) is dev tooling leaking into the game — should live in `@air-jam/visual-harness` or a dedicated harness app.
+3. Air-capture is a hybrid reference game + SDK stress test + dev harness. The prefab-preview subsystem (`games/air-capture/src/prefab-preview/` + conditional routing in `src/app.tsx`) is dev tooling leaking into the game — should live in `@air-jam/harness` or a dedicated harness app.
 4. code-review, the-office, and last-band-standing have thinner test coverage than pong and air-capture — not "no tests," just less depth.
 5. No shared `@air-jam/game-template` helper package yet — boilerplate for input schema / store / session setup is duplicated per game. **Do not abstract early.** Wait for two or three repeated pain points before introducing a shared helper; per-game ownership of these is a feature, not a defect.
 6. Per-game input schemas are correct and expected. Different games should own different inputs. Introduce shared factories only for patterns that repeat with obvious duplication.
@@ -242,7 +242,7 @@ Estimate (one person, realistic): **1–2 weeks of focused work.**
 ### 7.2 Do soon — post-launch but near-term, before external creator onboarding
 
 1. **Typed canonical game metadata contract** before external creator onboarding. Category, min/max players, input modality, supported SDK range, maintainer. Does not need to be a literal `airjam-game.json` — the shape matters, the filename doesn't. Lock the contract before third-party devs ship 20 games against it.
-2. **Extract prefab-preview out of `games/air-capture`** (verified leak at [`games/air-capture/src/app.tsx:7`](../../games/air-capture/src/app.tsx)). Either into `@air-jam/visual-harness` or a dedicated harness app. Don't ship dev tooling inside a shipping game.
+2. **Extract prefab-preview out of `games/air-capture`** (verified leak at [`games/air-capture/src/app.tsx:7`](../../games/air-capture/src/app.tsx)). Either into `@air-jam/harness` or a dedicated harness app. Don't ship dev tooling inside a shipping game.
 3. **Host-grant revocation / rotation story.** Important once grant usage is a real external contract.
 4. **CSP allowlist per embedded game.** As the catalog grows beyond first-party-only.
 5. **Audit experimental SDK subpath exports individually** against the three-part test (owner + experimental status + real near-term purpose). Keep the named leaves; drop or defer any that fail the third part.

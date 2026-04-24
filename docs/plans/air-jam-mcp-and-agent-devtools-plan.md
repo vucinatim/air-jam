@@ -1,14 +1,32 @@
 # Air Jam MCP And Agent Devtools Plan
 
 Last updated: 2026-04-24  
-Status: planned architecture
+Status: usable V2 landed
+
+Current status:
+
+1. Phase 0 and the usable V2 slice are implemented.
+2. `@air-jam/devtools-core` now covers managed dev lifecycle, topology, visual scenario discovery, visual capture execution, logs, project inspection, and quality gates.
+3. `@air-jam/mcp-server` now exposes the read tools plus `airjam.start_dev`, `airjam.stop_dev`, `airjam.status`, `airjam.topology`, `airjam.list_visual_scenarios`, `airjam.capture_visuals`, `airjam.list_harness_sessions`, `airjam.read_harness_snapshot`, and `airjam.invoke_harness_action`.
+4. `create-airjam` now scaffolds `@air-jam/mcp-server`, a committed `.mcp.json`, MCP-first agent guidance, and the `mcp` script by default.
+5. `@air-jam/harness` is now the canonical package name for the harness system; visual scenarios and captures remain the primary shipped harness capability in this track.
+6. live harness browser sessions can now register with the local dev server through a dedicated broker, so agents can discover and target an already-open visible host session instead of always launching an isolated hidden harness browser.
+7. the monorepo itself now ships a committed root `.mcp.json` plus `pnpm mcp`, so the repo is MCP-usable without package-internal working-directory tricks.
+8. harness actions now publish optional action metadata, `list_visual_scenarios` / live session inspection surface that metadata to agents, and first-party games now describe their harness verbs more explicitly.
+9. Last Band Standing now exposes a game-owned `returnToLobby` harness action, so the visible-tab MCP demo can round-trip without falling back to browser clicks.
+10. `airjam.capture_visuals` is now registered as a task-backed MCP tool with task-store support, so long-running visual captures can complete through the MCP task stream instead of timing out as plain request/response calls.
+11. the task-backed capture path is now proven against both `standalone-dev` and `arcade-test`: a real stdio MCP client can complete `last-band-standing` standalone capture and `pong` Arcade lobby capture through `client.experimental.tasks.callToolStream(...)`.
+12. the first repo-orchestration consolidation slice is landed too: repo game discovery, Arcade origin resolution, local-reference env key helpers, and repo topology surface builders now live in `packages/devtools-core/runtime/repo-workspace.mjs`, and the workspace CLI topology/dev helpers now consume that shared runtime module instead of carrying duplicate builder logic.
+13. the second consolidation slice is landed too: workspace process-group helpers, build-artifact reuse helpers, URL readiness probing, standalone live stack startup, and Arcade built stack startup now live under `packages/devtools-core/runtime/`, leaving `scripts/workspace/lib/*` as thin re-export wrappers instead of a second owner of the same orchestration logic.
+14. the third consolidation slice is landed too: foreground repo `standalone:dev` / `arcade:dev` orchestration now lives in `packages/devtools-core/runtime/workspace-dev-commands.mjs`, repo visual stack/capture orchestration now lives in `packages/devtools-core/runtime/repo-visual.mjs`, and a real standalone visual capture still completes through that new runtime-owner path.
+15. the managed monorepo path now goes through that same shared runtime layer too: `packages/devtools-core/src/dev.ts` uses `packages/devtools-core/runtime/workspace-runtime-cli.mjs` for monorepo start/topology instead of bouncing through repo CLI scripts, so the remaining difference is mostly lifecycle policy rather than duplicate orchestration ownership.
 
 Related docs:
 
 1. [Vision](../vision.md)
 2. [Framework Paradigm](../framework-paradigm.md)
 3. [AI-Native Development Workflow](../systems/ai-native-development-workflow.md)
-4. [Visual Harness Contract](../systems/visual-harness-contract.md)
+4. [Harness Visual Contract](../systems/harness-visual-contract.md)
 5. [Monorepo Operating System](../monorepo-operating-system.md)
 6. [Work Ledger](../work-ledger.md)
 
@@ -69,6 +87,38 @@ The MCP must stay thin.
 
 It should translate MCP requests into official Air Jam devtools operations. It should not become the owner of process orchestration, visual capture, log parsing, runtime inspection, or scaffold maintenance.
 
+## Lifecycle Policy
+
+The current lifecycle split is intentional.
+
+Keep two local dev modes:
+
+1. foreground repo CLI flow for humans
+2. managed devtools flow for MCP and agents
+
+Foreground repo CLI flow:
+
+1. owns long-running terminal sessions for `standalone:dev`, `arcade:dev`, and `arcade:test`
+2. is optimized for human-visible logs, direct Ctrl+C interruptibility, and maintainer workflows
+
+Managed devtools flow:
+
+1. owns `airjam.start_dev`, `airjam.stop_dev`, `airjam.status`, and agent-oriented start/inspect/act/stop loops
+2. is optimized for machine-usable lifecycle and process tracking under `.airjam/devtools/`
+
+The important constraint is not “one lifecycle style everywhere.” The important constraint is:
+
+1. both modes must reuse the same shared runtime owners
+2. neither mode should privately own topology building, stack startup, readiness, or visual stack orchestration
+3. if one mode breaks and the other does not, the shared runtime layer is the first place to inspect
+
+Only revisit a full lifecycle unification if we see real friction such as:
+
+1. duplicate lifecycle bugs
+2. mismatched cleanup semantics
+3. agents needing foreground attach/detach behavior
+4. humans needing managed session reuse
+
 ## Non-Goals
 
 This plan does not try to:
@@ -104,7 +154,7 @@ The existing repo already has major pieces:
 
 1. `air-jam-server logs` as the canonical unified dev log stream
 2. repo workspace commands for standalone, Arcade, and topology modes
-3. `@air-jam/visual-harness` scenario packs, bridge snapshots, actions, and screenshots
+3. `@air-jam/harness` scenario packs, bridge snapshots, actions, and screenshots
 4. `create-airjam` AI-pack files such as `AGENTS.md`, docs, skills, `plan.md`, and `suggestions.md`
 
 The missing piece is one official machine-facing devtools surface that agents can discover and use without memorizing repo-specific commands.
@@ -680,19 +730,21 @@ Project-local setup is good. Silent global mutation is not.
 
 ### Phase 0. Contract Spike
 
+Status: initial slice complete
+
 Goal:
 
 1. prove the tool surface and project detection model without committing too much API
 
 Work:
 
-1. create a small `@air-jam/devtools-core` package
-2. implement project context detection
-3. implement `inspect_project`
-4. implement `list_games`
-5. implement `read_logs`
-6. implement `run_quality_gate` for a narrow set
-7. add tests for monorepo and generated-game detection
+1. create a small `@air-jam/devtools-core` package - done
+2. implement project context detection - done
+3. implement `inspect_project` - done
+4. implement `list_games` - done
+5. implement `read_logs` - done
+6. implement `run_quality_gate` for a narrow set - done
+7. add tests for monorepo and generated-game detection - done
 
 Done when:
 
@@ -701,6 +753,8 @@ Done when:
 3. no MCP code owns core behavior
 
 ### Phase 1. MCP V1
+
+Status: complete
 
 Goal:
 
@@ -735,6 +789,8 @@ Done when:
 
 ### Phase 2. `create-airjam` Default Integration
 
+Status: complete
+
 Goal:
 
 1. make generated projects MCP-ready by default
@@ -758,6 +814,8 @@ Done when:
 
 ### Phase 3. Repo CLI Consolidation
 
+Status: partial follow-on
+
 Goal:
 
 1. reduce duplicate orchestration by moving repo CLI internals toward `devtools-core`
@@ -776,6 +834,8 @@ Done when:
 
 ### Phase 4. Runtime Control And Snapshot Loop
 
+Status: initial slice complete
+
 Goal:
 
 1. support deeper agent feedback loops beyond screenshots and logs
@@ -784,7 +844,7 @@ Work:
 
 1. design direct virtual-controller join/control contract
 2. expose runtime snapshot reads through a stable devtools surface
-3. expose game-owned harness action invocation outside full capture runs
+3. expose game-owned harness action invocation outside full capture runs - done
 4. add scenario loop helpers for repeated trials
 5. define output shape for agent evaluation reports
 
@@ -831,14 +891,14 @@ Repo docs:
 2. add or update an MCP/devtools system doc once implementation starts
 3. update [AI-Native Development Workflow](../systems/ai-native-development-workflow.md)
 4. update [Monorepo Operating System](../monorepo-operating-system.md) if repo CLI internals move
-5. update [Visual Harness Contract](../systems/visual-harness-contract.md) if manifests or artifact contracts change
+5. update [Harness Visual Contract](../systems/harness-visual-contract.md) if manifests or artifact contracts change
 
 Generated docs:
 
 1. add `docs/agent-mcp.md`
 2. update `docs/development-loop.md`
 3. update `docs/debug-and-testing.md`
-4. update `docs/visual-harness.md`
+4. update the harness visual docs when the live session contract changes
 5. update `AGENTS.md`
 6. add `skills/airjam-mcp/SKILL.md` if the local skill model stays useful
 

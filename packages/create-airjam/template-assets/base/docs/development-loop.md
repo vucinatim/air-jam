@@ -12,8 +12,9 @@ Use this as the default implementation loop.
 
 1. read `plan.md`
 2. read the relevant local docs page
-3. read the matching skill only if the task fits that skill boundary
-4. if the scaffold template includes a concrete example map in its `README.md`, inspect the starter modules it points to before inventing a new location for the work
+3. use the Air Jam MCP first when the task fits Air Jam-native devtools flows such as project inspection, logs, or quality gates
+4. read the matching skill only if the task fits that skill boundary
+5. if the scaffold template includes a concrete example map in its `README.md`, inspect the starter modules it points to before inventing a new location for the work
 
 ## 3. Implement Minimal Correct Changes
 
@@ -36,6 +37,8 @@ Run the checks that match the change:
 2. lint
 3. tests
 4. build
+
+When the Air Jam MCP is available, prefer its quality-gate tools before ad hoc shell commands.
 
 ## 6. Update Contracts
 

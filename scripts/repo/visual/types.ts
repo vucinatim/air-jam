@@ -11,4 +11,4 @@ export type {
   VisualScenarioPack,
   VisualScreenshotRecord,
   VisualViewport,
-} from "@air-jam/visual-harness";
+} from "@air-jam/harness";

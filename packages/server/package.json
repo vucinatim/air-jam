@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@air-jam/env": "workspace:^",
+    "@air-jam/harness": "workspace:^",
     "@air-jam/sdk": "workspace:*",
     "color": "^5.0.3",
     "commander": "^14.0.0",

@@ -1,7 +1,7 @@
 import {
   bridgeAction,
   defineVisualHarnessBridge,
-} from "@air-jam/visual-harness/runtime";
+} from "@air-jam/harness/runtime";
 
 export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
   gameId: "the-office",
@@ -28,6 +28,11 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
   }),
   actions: {
     startMatch: bridgeAction.custom(
+      {
+        description: "Start the match from the lobby state.",
+        resultDescription:
+          "The host leaves the lobby and enters the active match flow.",
+      },
       (context: {
         matchPhase: string | null;
         storeActions: {
@@ -36,7 +41,7 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
       }) => {
         if (context.matchPhase !== "lobby") {
           throw new Error(
-            "[visual-harness:the-office.startMatch] can only run during the lobby phase",
+            "[harness:the-office.startMatch] can only run during the lobby phase",
           );
         }
 
@@ -44,6 +49,10 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
       },
     ),
     forceEndMatch: bridgeAction.custom(
+      {
+        description: "Finish the active match immediately.",
+        resultDescription: "The host transitions to the match end state.",
+      },
       (context: {
         matchPhase: string | null;
         storeActions: {
@@ -52,7 +61,7 @@ export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
       }) => {
         if (context.matchPhase !== "playing") {
           throw new Error(
-            "[visual-harness:the-office.forceEndMatch] can only run during the playing phase",
+            "[harness:the-office.forceEndMatch] can only run during the playing phase",
           );
         }
 

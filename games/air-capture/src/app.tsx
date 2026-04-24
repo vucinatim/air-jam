@@ -9,7 +9,7 @@ import {
   AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM,
 } from "./prefab-preview/params";
 
-// Prefab-preview is dev-only tooling for the visual-harness capture lane.
+// Prefab-preview is dev-only tooling for the harness visual capture lane.
 // `import.meta.env.DEV` resolves to a compile-time boolean, so production
 // builds tree-shake the lazy factory (and therefore the chunk for
 // `./prefab-preview`) out of the bundle. Only the tiny params constants and

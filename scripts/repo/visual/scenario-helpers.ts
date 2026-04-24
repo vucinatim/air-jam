@@ -4,4 +4,4 @@ export {
   captureStandardSurfaces,
   waitForControllerText,
   waitForHostText,
-} from "@air-jam/visual-harness";
+} from "@air-jam/harness";

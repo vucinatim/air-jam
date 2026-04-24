@@ -85,6 +85,29 @@ Do not load all skills for every task.
 
 Use the one that matches the current problem.
 
+## Air Jam MCP Rule
+
+Use the Air Jam MCP first for Air Jam-native workflows:
+
+1. inspect the project and available games
+2. inspect one game's config and visual support
+3. read the canonical unified dev logs
+4. start dev, inspect dev status, and inspect runtime topology
+5. list visual scenarios and run visual captures
+6. read live harness snapshots and invoke harness actions when a game exposes them
+7. run focused quality gates
+8. inspect visual capture summaries when they exist
+9. read harness action metadata before guessing payloads or intended effects
+
+Start with:
+
+1. `pnpm exec airjam mcp doctor --dir .`
+2. `pnpm exec airjam mcp init --dir . --force` only if you need to repair or regenerate the project-local MCP config
+
+Use shell commands only when the Air Jam MCP does not expose the needed operation.
+
+If the current game does not expose the action an agent needs, add a small game-owned harness action first instead of defaulting to browser-only UI automation.
+
 ## Architecture Rules
 
 Keep boundaries explicit:

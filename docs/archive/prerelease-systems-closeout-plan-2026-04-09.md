@@ -132,7 +132,7 @@ Exact intended repo changes:
 
 Primary code areas:
 
-1. `packages/visual-harness/src/*`
+1. `packages/harness/src/*`
 2. `scripts/repo/visual/*`
 3. `scripts/workspace/lib/*visual*` and related stack launchers
 4. `games/*/visual/scenarios.ts`

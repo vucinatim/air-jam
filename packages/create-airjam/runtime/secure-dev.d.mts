@@ -8,3 +8,9 @@ export function resolveRequestedSecureMode(options?: {
   env?: NodeJS.ProcessEnv;
   defaultMode?: "local" | "tunnel";
 }): "local" | "tunnel";
+
+export declare const runSecureInitCli: (options?: {
+  cwd?: string;
+  argv?: string[];
+  env?: NodeJS.ProcessEnv;
+}) => Promise<void>;

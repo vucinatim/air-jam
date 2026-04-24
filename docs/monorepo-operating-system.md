@@ -212,6 +212,33 @@ When touching shared secure-dev behavior, local Arcade launch paths, or generate
    `appOrigin`, `backendOrigin`, `socketOrigin`, `publicHost`, `assetBasePath`, `runtimeMode`, `surfaceRole`, and `proxyStrategy`
 8. debug endpoint confusion with `pnpm topology --game=<id> --mode=<mode> [--secure]` before adding more ad hoc logging or new env variables
 
+### 7.5. Foreground Vs Managed Dev
+
+Air Jam now keeps two intentional local dev lifecycle styles.
+
+Use the foreground repo CLI flow for human development:
+
+1. `pnpm standalone:dev --game=<id>`
+2. `pnpm arcade:dev --game=<id>`
+3. `pnpm arcade:test --game=<id>`
+4. terminal-owned logs, direct interruptibility, and maintainer-visible long-running sessions
+
+Use the managed devtools flow for MCP and agent work:
+
+1. `airjam.start_dev`
+2. `airjam.stop_dev`
+3. `airjam.status`
+4. `airjam.topology`
+5. process registry under `.airjam/devtools/`
+6. machine-usable lifecycle for start, inspect, act, capture, and stop loops
+
+The rule is:
+
+1. both flows must reuse the same shared runtime owners in `packages/devtools-core/runtime/`
+2. neither flow should rebuild topology, stack startup, visual capture startup, or process helper logic privately
+3. if behavior diverges, fix the shared runtime owner first
+4. only unify the lifecycle styles themselves if there is real user or agent friction; do not collapse them just to remove a distinction that is now legitimate
+
 ### 8. Database Modes
 
 Keep the repo DB stories explicit:

@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",
-    "@air-jam/visual-harness": "workspace:*",
+    "@air-jam/harness": "workspace:*",
     "@fontsource/press-start-2p": "^5.2.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

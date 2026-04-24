@@ -1,7 +1,7 @@
 import {
   bridgeAction,
   defineVisualHarnessBridge,
-} from "@air-jam/visual-harness/runtime";
+} from "@air-jam/harness/runtime";
 
 const parseForceEndPayload = (
   payload: unknown,
@@ -23,7 +23,7 @@ const parseForceEndPayload = (
 
   if (typeof scores?.team1 !== "number" || typeof scores?.team2 !== "number") {
     throw new Error(
-      `[visual-harness:${gameId}.forceEndMatch] expected { scores: { team1: number, team2: number } }`,
+      `[harness:${gameId}.forceEndMatch] expected { scores: { team1: number, team2: number } }`,
     );
   }
 
@@ -64,6 +64,14 @@ export const codeReviewVisualHarnessBridge = defineVisualHarnessBridge({
   }),
   actions: {
     forceEndMatch: bridgeAction.custom(
+      {
+        description:
+          "Set the final team scores and immediately finish the match.",
+        payloadDescription:
+          "Object shape: { scores: { team1: number, team2: number } }.",
+        resultDescription:
+          "The host applies the requested scores and transitions to the end state.",
+      },
       (payload, meta) => parseForceEndPayload(payload, meta.gameId),
       (
         context: {

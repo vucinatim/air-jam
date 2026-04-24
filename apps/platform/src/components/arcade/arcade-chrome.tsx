@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 interface ArcadeChromeProps {
   roomId?: string;
@@ -70,14 +71,20 @@ export const ArcadeChrome = ({
     >
       <div className="flex w-full items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Image
-            src="/images/airjam-logo.png"
-            alt="Air Jam"
-            width={160}
-            height={40}
-            className="h-7 w-auto shrink-0 object-contain"
-            priority={false}
-          />
+          <Link
+            href="/"
+            aria-label="Go to Air Jam home"
+            className="shrink-0 rounded-sm focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
+          >
+            <Image
+              src="/images/airjam-logo.png"
+              alt="Air Jam"
+              width={160}
+              height={40}
+              className="h-7 w-auto object-contain"
+              priority={false}
+            />
+          </Link>
           <div title={lastError ?? `Connection ${connectionStatus}`}>
             <span className="sr-only">{`Connection ${connectionStatus}. `}</span>
             <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">

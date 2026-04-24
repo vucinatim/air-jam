@@ -6,7 +6,7 @@
  *     to `HostScreen`.
  *  2. `HostScreen` pulls the three networked stores (match, capture-the-flag
  *     state, player/roster) and wires them to: the 3D `GameScene`, the bot
- *     manager, the visual-harness bridge, and the lobby / countdown / ended
+ *     manager, the harness bridge, and the lobby / countdown / ended
  *     overlays picked by `matchPhase`.
  *  3. Local phase transition effects reset the match runtime. `useMatchCountdown`
  *     owns the countdown lifecycle.
@@ -28,7 +28,7 @@ import {
   SurfaceViewport,
   useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import {
   Suspense,

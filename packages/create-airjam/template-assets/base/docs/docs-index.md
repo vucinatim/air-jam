@@ -28,15 +28,16 @@ For broader public framework docs, use the hosted docs site after checking these
 ## Local Supplements
 
 1. [Development Loop](./development-loop.md)
-2. [Iconography](./iconography.md)
-3. [Visual System](./visual-system.md)
-4. [Composition Shell Contract](./composition-shell-contract.md)
-5. [Debug And Testing](./debug-and-testing.md)
-6. [Prefab Authoring](./prefab-authoring.md)
-7. [R3F 3D Scene](./r3f-3d-scene.md)
-8. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
-9. [Preview Controllers](./preview-controllers.md)
-10. [Visual Harness](./visual-harness.md)
+2. [Agent MCP](./agent-mcp.md)
+3. [Iconography](./iconography.md)
+4. [Visual System](./visual-system.md)
+5. [Composition Shell Contract](./composition-shell-contract.md)
+6. [Debug And Testing](./debug-and-testing.md)
+7. [Prefab Authoring](./prefab-authoring.md)
+8. [R3F 3D Scene](./r3f-3d-scene.md)
+9. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
+10. [Preview Controllers](./preview-controllers.md)
+11. [Harness Visual Workflows](./harness-visual.md)
 
 ## Hosted Canonical Docs
 

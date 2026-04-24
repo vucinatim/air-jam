@@ -1,3 +1,8 @@
+import type {
+  DevHarnessCompleteCommandPayload,
+  DevHarnessInvokePayload,
+  DevHarnessRegisterPayload,
+} from "@air-jam/harness/dev-control";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   type ClientToServerEvents,
@@ -26,6 +31,7 @@ import {
   AuthService,
   type HostBootstrapAuthService,
 } from "./services/auth-service.js";
+import { DevHarnessRegistry } from "./services/dev-harness-registry.js";
 import { RateLimitService } from "./services/rate-limit-service.js";
 import { RoomManager } from "./services/room-manager.js";
 
@@ -115,6 +121,7 @@ export const createAirJamServer = (
     );
   }
   const roomManagerInstance = options.roomManager ?? new RoomManager();
+  const devHarnessRegistry = new DevHarnessRegistry();
   const rateLimitServiceInstance =
     options.rateLimitService ?? new RateLimitService();
   const db = options.db ?? createServerDatabase(envConfig.databaseUrl);
@@ -251,6 +258,117 @@ export const createAirJamServer = (
       res.status(204).end();
     },
   );
+
+  app.post("/__airjam/dev/harness/register", async (req, res) => {
+    const payload = req.body as DevHarnessRegisterPayload | undefined;
+    if (
+      !payload ||
+      typeof payload.sessionId !== "string" ||
+      !payload.sessionId ||
+      typeof payload.gameId !== "string" ||
+      !payload.gameId ||
+      (payload.role !== "host" && payload.role !== "controller") ||
+      !Array.isArray(payload.actions)
+    ) {
+      res
+        .status(400)
+        .json({ ok: false, message: "Invalid dev harness register payload" });
+      return;
+    }
+
+    const session = devHarnessRegistry.register(payload);
+    res.json({ ok: true, session });
+  });
+
+  app.get("/__airjam/dev/harness/sessions", async (req, res) => {
+    const roomId =
+      typeof req.query.roomId === "string" ? req.query.roomId : undefined;
+    const gameId =
+      typeof req.query.gameId === "string" ? req.query.gameId : undefined;
+    const role =
+      req.query.role === "host" || req.query.role === "controller"
+        ? req.query.role
+        : undefined;
+
+    res.json({
+      sessions: devHarnessRegistry.listSessions({ roomId, gameId, role }),
+    });
+  });
+
+  app.get("/__airjam/dev/harness/commands", async (req, res) => {
+    const sessionId =
+      typeof req.query.sessionId === "string" ? req.query.sessionId : null;
+    const waitMsRaw =
+      typeof req.query.waitMs === "string" ? Number(req.query.waitMs) : NaN;
+    const waitMs =
+      Number.isFinite(waitMsRaw) && waitMsRaw > 0 ? waitMsRaw : undefined;
+
+    if (!sessionId) {
+      res
+        .status(400)
+        .json({ ok: false, message: "Missing harness sessionId query param" });
+      return;
+    }
+
+    const command = await devHarnessRegistry.awaitNextCommand(
+      sessionId,
+      waitMs,
+    );
+    if (!command) {
+      res.status(204).end();
+      return;
+    }
+
+    res.json(command);
+  });
+
+  app.post("/__airjam/dev/harness/commands/complete", async (req, res) => {
+    const payload = req.body as DevHarnessCompleteCommandPayload | undefined;
+    if (
+      !payload ||
+      typeof payload.commandId !== "string" ||
+      !payload.commandId ||
+      typeof payload.result !== "object" ||
+      payload.result === null
+    ) {
+      res
+        .status(400)
+        .json({ ok: false, message: "Invalid dev harness completion payload" });
+      return;
+    }
+
+    devHarnessRegistry.completeCommand(payload);
+    res.status(204).end();
+  });
+
+  app.post("/__airjam/dev/harness/invoke", async (req, res) => {
+    const payload = req.body as DevHarnessInvokePayload | undefined;
+    if (
+      !payload ||
+      typeof payload.actionName !== "string" ||
+      !payload.actionName
+    ) {
+      res
+        .status(400)
+        .json({ ok: false, message: "Invalid dev harness invoke payload" });
+      return;
+    }
+
+    try {
+      const result = await devHarnessRegistry.invoke(payload);
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      res
+        .status(
+          message === "No matching live harness session found." ? 404 : 500,
+        )
+        .json({
+          ok: false,
+          message,
+        });
+    }
+  });
 
   const httpServer = createServer(app);
 

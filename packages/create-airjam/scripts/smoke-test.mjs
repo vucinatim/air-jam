@@ -274,6 +274,8 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       });
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
+      run("pnpm --filter @air-jam/devtools-core build", repoRoot);
+      run("pnpm --filter @air-jam/mcp-server build", repoRoot);
 
       const sdkTarball = packWorkspacePackage({
         packageDir: path.join(repoRoot, "packages", "sdk"),
@@ -283,24 +285,34 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         packageDir: path.join(repoRoot, "packages", "server"),
         outDir: tarballDir,
       });
-      const visualHarnessTarball = packWorkspacePackage({
-        packageDir: path.join(repoRoot, "packages", "visual-harness"),
+      const harnessTarball = packWorkspacePackage({
+        packageDir: path.join(repoRoot, "packages", "harness"),
+        outDir: tarballDir,
+      });
+      const mcpServerTarball = packWorkspacePackage({
+        packageDir: path.join(repoRoot, "packages", "mcp-server"),
+        outDir: tarballDir,
+      });
+      const devtoolsCoreTarball = packWorkspacePackage({
+        packageDir: path.join(repoRoot, "packages", "devtools-core"),
         outDir: tarballDir,
       });
       cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
-      cliArgs.push(
-        `--dep-spec=@air-jam/visual-harness=file:${visualHarnessTarball}`,
-      );
+      cliArgs.push(`--dep-spec=@air-jam/harness=file:${harnessTarball}`);
+      cliArgs.push(`--dep-spec=@air-jam/mcp-server=file:${mcpServerTarball}`);
       cliArgs.push(`--dep-spec=create-airjam=file:${createAirJamTarball}`);
       cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(
-        `--override-spec=@air-jam/visual-harness=file:${visualHarnessTarball}`,
+        `--override-spec=@air-jam/devtools-core=file:${devtoolsCoreTarball}`,
       );
+      cliArgs.push(`--override-spec=@air-jam/harness=file:${harnessTarball}`);
     } else if (source === "workspace") {
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
-      run("pnpm --filter @air-jam/visual-harness build", repoRoot);
+      run("pnpm --filter @air-jam/devtools-core build", repoRoot);
+      run("pnpm --filter @air-jam/harness build", repoRoot);
+      run("pnpm --filter @air-jam/mcp-server build", repoRoot);
 
       const sdkPkg = JSON.parse(
         fs.readFileSync(
@@ -315,7 +327,10 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `--dep-spec=@air-jam/server=link:${path.join(repoRoot, "packages", "server")}`,
       );
       cliArgs.push(
-        `--dep-spec=@air-jam/visual-harness=link:${path.join(repoRoot, "packages", "visual-harness")}`,
+        `--dep-spec=@air-jam/harness=link:${path.join(repoRoot, "packages", "harness")}`,
+      );
+      cliArgs.push(
+        `--dep-spec=@air-jam/mcp-server=link:${path.join(repoRoot, "packages", "mcp-server")}`,
       );
       cliArgs.push(
         `--dep-spec=create-airjam=link:${path.join(repoRoot, "packages", "create-airjam")}`,
@@ -327,7 +342,10 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `--override-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
       );
       cliArgs.push(
-        `--override-spec=@air-jam/visual-harness=link:${path.join(repoRoot, "packages", "visual-harness")}`,
+        `--override-spec=@air-jam/devtools-core=link:${path.join(repoRoot, "packages", "devtools-core")}`,
+      );
+      cliArgs.push(
+        `--override-spec=@air-jam/harness=link:${path.join(repoRoot, "packages", "harness")}`,
       );
     }
 
@@ -339,6 +357,19 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
     if (scaffoldPkg.name !== projectName) {
       throw new Error(
         `Expected scaffold package name "${projectName}", received "${scaffoldPkg.name}"`,
+      );
+    }
+    if (typeof scaffoldPkg.scripts?.mcp !== "string") {
+      throw new Error('Expected scaffold project to define an "mcp" script.');
+    }
+    if (!scaffoldPkg.devDependencies?.["@air-jam/mcp-server"]) {
+      throw new Error(
+        'Expected scaffold project to depend on "@air-jam/mcp-server".',
+      );
+    }
+    if (!fs.existsSync(path.join(projectDir, ".mcp.json"))) {
+      throw new Error(
+        'Expected scaffold project to include a committed ".mcp.json".',
       );
     }
 
@@ -354,6 +385,10 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
     }
 
     run("pnpm exec air-jam-server logs --help", projectDir);
+    run("pnpm exec airjam mcp doctor --dir .", projectDir);
+    run("pnpm exec airjam mcp config --dir .", projectDir);
+    run("pnpm exec airjam mcp init --dir . --force", projectDir);
+    run("pnpm exec airjam-mcp --help", projectDir);
     await verifyGeneratedDevLogLifecycle(projectDir);
     run("pnpm typecheck", projectDir);
     run("pnpm test", projectDir);

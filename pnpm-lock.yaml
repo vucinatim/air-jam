@@ -8,12 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@air-jam/harness':
+        specifier: workspace:^
+        version: link:packages/harness
       '@air-jam/runtime-topology':
         specifier: workspace:^
         version: link:packages/runtime-topology
-      '@air-jam/visual-harness':
-        specifier: workspace:^
-        version: link:packages/visual-harness
       '@eslint/js':
         specifier: ^9.39.1
         version: 9.39.1
@@ -300,12 +300,12 @@ importers:
 
   games/air-capture:
     dependencies:
+      '@air-jam/harness':
+        specifier: workspace:^
+        version: link:../../packages/harness
       '@air-jam/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
-      '@air-jam/visual-harness':
-        specifier: workspace:^
-        version: link:../../packages/visual-harness
       '@dimforge/rapier3d-compat':
         specifier: ^0.19.2
         version: 0.19.2
@@ -421,12 +421,12 @@ importers:
 
   games/code-review:
     dependencies:
+      '@air-jam/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
       '@air-jam/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@air-jam/visual-harness':
-        specifier: workspace:*
-        version: link:../../packages/visual-harness
       '@fontsource/press-start-2p':
         specifier: ^5.2.7
         version: 5.2.7
@@ -500,12 +500,12 @@ importers:
 
   games/last-band-standing:
     dependencies:
+      '@air-jam/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
       '@air-jam/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@air-jam/visual-harness':
-        specifier: workspace:*
-        version: link:../../packages/visual-harness
       '@fontsource-variable/outfit':
         specifier: ^5.2.8
         version: 5.2.8
@@ -691,12 +691,12 @@ importers:
 
   games/pong:
     dependencies:
+      '@air-jam/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
       '@air-jam/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@air-jam/visual-harness':
-        specifier: workspace:*
-        version: link:../../packages/visual-harness
       '@tabler/icons-react':
         specifier: ^3.41.0
         version: 3.41.0(react@19.2.0)
@@ -773,12 +773,12 @@ importers:
 
   games/the-office:
     dependencies:
+      '@air-jam/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
       '@air-jam/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@air-jam/visual-harness':
-        specifier: workspace:*
-        version: link:../../packages/visual-harness
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.8
@@ -876,9 +876,15 @@ importers:
 
   packages/create-airjam:
     dependencies:
+      '@air-jam/devtools-core':
+        specifier: workspace:^
+        version: link:../devtools-core
       '@air-jam/env':
         specifier: workspace:^
         version: link:../env
+      '@air-jam/mcp-server':
+        specifier: workspace:^
+        version: link:../mcp-server
       '@air-jam/runtime-topology':
         specifier: workspace:^
         version: link:../runtime-topology
@@ -929,11 +935,92 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
 
+  packages/devtools-core:
+    dependencies:
+      '@air-jam/harness':
+        specifier: workspace:^
+        version: link:../harness
+      tsx:
+        specifier: ^4.20.6
+        version: 4.20.6
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.1
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.30.2)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)
+
   packages/env:
     dependencies:
       zod:
         specifier: ^4.2.1
         version: 4.2.1
+
+  packages/harness:
+    dependencies:
+      '@playwright/test':
+        specifier: ^1.56.1
+        version: 1.58.2
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.6))(@types/react@19.2.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@types/react':
+        specifier: ^19.2.5
+        version: 19.2.6
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.6)
+      jsdom:
+        specifier: ^29.0.1
+        version: 29.0.1(@noble/hashes@2.0.1)
+      react:
+        specifier: ^19.2.0
+        version: 19.2.0
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.2.0(react@19.2.0)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.30.2)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)
+
+  packages/mcp-server:
+    dependencies:
+      '@air-jam/devtools-core':
+        specifier: workspace:^
+        version: link:../devtools-core
+      '@modelcontextprotocol/sdk':
+        specifier: 1.29.0
+        version: 1.29.0(zod@4.2.1)
+      zod:
+        specifier: ^4.2.1
+        version: 4.2.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.1
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.30.2)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)
 
   packages/runtime-topology: {}
 
@@ -1079,40 +1166,6 @@ importers:
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.30.2)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)
-
-  packages/visual-harness:
-    dependencies:
-      '@playwright/test':
-        specifier: ^1.56.1
-        version: 1.58.2
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-    devDependencies:
-      '@testing-library/react':
-        specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.6))(@types/react@19.2.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@types/react':
-        specifier: ^19.2.5
-        version: 19.2.6
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.6)
-      jsdom:
-        specifier: ^29.0.1
-        version: 29.0.1(@noble/hashes@2.0.1)
-      react:
-        specifier: ^19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: ^19.2.0
-        version: 19.2.0(react@19.2.0)
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.30.2)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)
@@ -10531,6 +10584,28 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@modelcontextprotocol/sdk@1.29.0(zod@4.2.1)':
+    dependencies:
+      '@hono/node-server': 1.19.12(hono@4.12.10)
+      ajv: 8.18.0
+      ajv-formats: 3.0.1(ajv@8.18.0)
+      content-type: 1.0.5
+      cors: 2.8.5
+      cross-spawn: 7.0.6
+      eventsource: 3.0.7
+      eventsource-parser: 3.0.6
+      express: 5.2.1
+      express-rate-limit: 8.3.2(express@5.2.1)
+      hono: 4.12.10
+      jose: 6.1.3
+      json-schema-typed: 8.0.2
+      pkce-challenge: 5.0.1
+      raw-body: 3.0.2
+      zod: 4.2.1
+      zod-to-json-schema: 3.25.2(zod@4.2.1)
+    transitivePeerDependencies:
+      - supports-color
+
   '@monogrid/gainmap-js@3.2.0(three@0.172.0)':
     dependencies:
       promise-worker-transferable: 1.0.4
@@ -13744,7 +13819,7 @@ snapshots:
       bytes: 3.1.2
       content-type: 1.0.5
       debug: 4.4.3
-      http-errors: 2.0.0
+      http-errors: 2.0.1
       iconv-lite: 0.7.2
       on-finished: 2.4.1
       qs: 6.15.0
@@ -14339,7 +14414,7 @@ snapshots:
   esast-util-from-js@2.0.1:
     dependencies:
       '@types/estree-jsx': 1.0.5
-      acorn: 8.15.0
+      acorn: 8.16.0
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.3
 
@@ -14447,7 +14522,7 @@ snapshots:
       eslint: 9.39.1(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react-hooks: 7.0.1(eslint@9.39.1(jiti@2.6.1))
@@ -14484,7 +14559,7 @@ snapshots:
       tinyglobby: 0.2.15
       unrs-resolver: 1.11.1
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -14499,7 +14574,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -14795,7 +14870,7 @@ snapshots:
       etag: 1.8.1
       finalhandler: 2.1.1
       fresh: 2.0.0
-      http-errors: 2.0.0
+      http-errors: 2.0.1
       merge-descriptors: 2.0.0
       mime-types: 3.0.2
       on-finished: 2.4.1
@@ -14807,7 +14882,7 @@ snapshots:
       router: 2.2.0
       send: 1.2.1
       serve-static: 2.2.1
-      statuses: 2.0.1
+      statuses: 2.0.2
       type-is: 2.0.1
       vary: 1.1.2
     transitivePeerDependencies:
@@ -14897,7 +14972,7 @@ snapshots:
       escape-html: 1.0.3
       on-finished: 2.4.1
       parseurl: 1.3.3
-      statuses: 2.0.1
+      statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
 
@@ -18679,6 +18754,10 @@ snapshots:
   zod-to-json-schema@3.25.2(zod@3.25.76):
     dependencies:
       zod: 3.25.76
+
+  zod-to-json-schema@3.25.2(zod@4.2.1):
+    dependencies:
+      zod: 4.2.1
 
   zod-validation-error@4.0.2(zod@3.25.76):
     dependencies:

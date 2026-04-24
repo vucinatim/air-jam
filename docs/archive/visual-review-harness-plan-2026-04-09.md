@@ -180,7 +180,7 @@ That coupling is the wrong architecture for a deterministic automation system.
 
 The rewrite should follow these rules:
 
-1. move the reusable harness core into an internal workspace package: `packages/visual-harness`
+1. move the reusable harness core into an internal workspace package: `packages/harness`
 2. keep repo commands and repo stack boot only as thin adapters on top of that package
 3. stop treating `airjam dev` as the harness runtime; use a dedicated visual stack boot path instead
 4. expose canonical runtime data to the harness through a structured dev bridge instead of DOM/UI scraping
@@ -193,7 +193,7 @@ This reset should happen before wider rollout across more games.
 
 The professional architecture for Phase 1 is:
 
-1. `packages/visual-harness`
+1. `packages/harness`
    1. scenario types
    2. artifact writers
    3. viewport presets
@@ -218,7 +218,7 @@ The harness package must stay internal for now. It should not be published until
 
 ## Decision Summary
 
-1. build an internal `packages/visual-harness` package instead of growing a script-only subsystem
+1. build an internal `packages/harness` package instead of growing a script-only subsystem
 2. keep repo commands and runtime launch details as thin adapters over that package
 3. use dedicated visual stack boot paths instead of reusing interactive `airjam dev` directly
 4. expose canonical runtime data through a structured dev bridge, not DOM/UI scraping
@@ -269,7 +269,7 @@ Out of scope:
 
 ### Workstream A. Internal Package Extraction
 
-1. create `packages/visual-harness`
+1. create `packages/harness`
 2. move scenario types, artifact types, viewport presets, and runner logic into the package
 3. keep repo command entrypoints in `scripts/repo`, but make them thin adapters
 4. do not publish the package yet

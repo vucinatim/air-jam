@@ -24,7 +24,7 @@ import {
   SurfaceViewport,
   useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { VisualHarnessRuntime } from "@air-jam/visual-harness/runtime";
+import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { theOfficeVisualHarnessBridge } from "../../visual/contract";
 import { GameCanvas } from "../components/game-canvas";

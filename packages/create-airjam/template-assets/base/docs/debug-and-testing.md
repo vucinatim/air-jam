@@ -6,7 +6,7 @@ Debuggability and testability should be designed in from the start.
 
 Use this order:
 
-1. inspect the canonical Air Jam dev log stream first
+1. inspect the canonical Air Jam dev log stream first, preferably through the Air Jam MCP when available
 2. use framework diagnostics second
 3. use domain-level debug helpers third
 4. add custom logs only where they add real value
@@ -21,9 +21,10 @@ The standard Air Jam development path writes one unified local stream to:
 
 Use:
 
-1. `pnpm exec air-jam-server logs --view=signal`
-2. `pnpm exec air-jam-server logs`
-3. direct file reads when you need the raw NDJSON stream
+1. `airjam.read_logs` with `view=signal`
+2. `pnpm exec air-jam-server logs --view=signal`
+3. `pnpm exec air-jam-server logs`
+4. direct file reads when you need the raw NDJSON stream
 
 Important behavior:
 

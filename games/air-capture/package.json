@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:^",
-    "@air-jam/visual-harness": "workspace:^",
+    "@air-jam/harness": "workspace:^",
     "@dimforge/rapier3d-compat": "^0.19.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
