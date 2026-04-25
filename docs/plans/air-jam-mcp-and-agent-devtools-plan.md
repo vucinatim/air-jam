@@ -26,6 +26,7 @@ Current status:
 19. `last-band-standing` is the first real adopter of that higher-level lane, and the live stdio MCP path is now proven against a visible host room for contract inspection, controller connect, projected game snapshot reads, semantic ready/start/guess actions, and reveal/score readback.
 20. `pong` is now the second real adopter of the same lane, and the live stdio MCP path is also proven against a visible Pong host room for two-controller join flow, lobby settings changes, semantic match start, semantic score awards, ended-state readback, and semantic return-to-lobby.
 21. `src/airjam.config.ts` is now the canonical declaration site for machine-facing contracts too: `createAirJamApp({ game.machine })` carries semantic game-agent contracts directly and explicit visual-scenarios module declarations, and the high-level `@air-jam/devtools-core` / MCP / repo-visual path now requires those explicit declarations instead of falling back to convention-scanned contract files.
+22. the closeout validation race is now removed at the test boundary: `@air-jam/mcp-server` tests no longer rebuild sibling workspace packages, both test suites resolve workspace package source directly through Vitest aliases, and `@air-jam/devtools-core` is the only suite that still prebuilds `@air-jam/sdk` because it dynamically imports real repo game configs that consume published SDK subpaths.
 
 Related docs:
 

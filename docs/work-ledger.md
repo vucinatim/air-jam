@@ -98,6 +98,7 @@ Latest progress inside this focus:
 26. `create-airjam` scaffold templates are now packaged generated artifacts instead of live editor-visible TypeScript projects: the old `scaffold-sources` tree is removed during generation, generated templates live under `scaffold-templates` as zip archives plus a manifest, and the CLI extracts the selected archive before standalone project normalization
 27. the SDK authoring ergonomics review is captured in [SDK Game Authoring Ergonomics Plan](./plans/sdk-game-authoring-ergonomics-plan.md), including agreed audio, `SurfaceViewport`, join-controls, Pong helper, and sound-type cleanups plus the open runtime-state decision
 28. Last Band Standing's next bounded polish pass is captured in [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md), covering controller lobby/start/home fixes, host gameplay layout polish, controller game-over scrolling, song buckets, and randomized clip starts
+29. the MCP/devtools closeout no longer relies on `mcp-server` tests rebuilding `@air-jam/devtools-core`; `mcp-server` tests resolve workspace siblings from source, while `devtools-core` tests explicitly prebuild `@air-jam/sdk` because repo game configs import real SDK subpaths during dynamic config loading, which removes the concurrent validation race without inventing new build machinery
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

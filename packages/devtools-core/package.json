@@ -32,7 +32,7 @@
   ],
   "scripts": {
     "build": "pnpm --filter @air-jam/sdk build && tsup",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "pnpm --filter @air-jam/sdk build && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
