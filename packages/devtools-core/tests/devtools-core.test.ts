@@ -1,28 +1,46 @@
+import type {
+  ClientToServerEvents,
+  ControllerActionRpcPayload,
+  ControllerInputEvent,
+  ControllerStateSyncRequestPayload,
+  ServerToClientEvents,
+} from "@air-jam/sdk/protocol";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { Server as SocketIoServer } from "socket.io";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  connectController,
   detectProjectContext,
+  disconnectController,
   getDevStatus,
   getTopology,
   inspectGame,
+  inspectGameAgentContract,
   inspectProject,
+  invokeControllerAction,
+  invokeGameAction,
   invokeHarnessAction,
   listGames,
   listHarnessSessions,
   listVisualCaptureSummaries,
   listVisualScenarios,
+  readGameSnapshot,
   readHarnessSnapshot,
+  readRuntimeSnapshot,
   readVisualCaptureSummary,
   runQualityGate,
+  sendControllerInput,
   startDev,
   stopDev,
 } from "../src/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tempRoots: string[] = [];
+const fixtureClosers: Array<() => Promise<void>> = [];
 const originalFetch = globalThis.fetch;
 
 const createTempRoot = async (): Promise<string> => {
@@ -56,7 +74,7 @@ const createStandaloneDevFixture = async (): Promise<{
   await mkdir(path.join(root, "src"), { recursive: true });
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    'export const airjam = { game: { controllerPath: "/controller" } };\n',
+    'export const airjam = { game: { controllerPath: "/controller", machine: { visualScenariosModule: "../visual/scenarios.mjs" } } };\n',
     "utf8",
   );
   await writeFile(
@@ -180,8 +198,204 @@ console.log(JSON.stringify({
   return { root, port };
 };
 
+const createControllerSocketFixture = async (): Promise<{
+  root: string;
+  joinUrl: string;
+  receivedInputs: ControllerInputEvent[];
+  receivedActions: ControllerActionRpcPayload[];
+  receivedStateSyncRequests: ControllerStateSyncRequestPayload[];
+  receivedLeaves: { roomId: string; controllerId: string }[];
+}> => {
+  const root = await createTempRoot();
+  await writeJson(path.join(root, "package.json"), {
+    name: "socket-fixture",
+    type: "module",
+    dependencies: {
+      "@air-jam/sdk": "^1.0.0",
+    },
+  });
+  await mkdir(path.join(root, "src"), { recursive: true });
+  await writeFile(
+    path.join(root, "src", "airjam.config.ts"),
+    'import { gameAgentContract } from "./game/contracts/agent";\nexport const airjam = { game: { controllerPath: "/controller", machine: { agent: gameAgentContract } } };\n',
+    "utf8",
+  );
+  await mkdir(path.join(root, "src", "game", "contracts"), {
+    recursive: true,
+  });
+  await writeFile(
+    path.join(root, "src", "game", "contracts", "agent.ts"),
+    `export const gameAgentContract = {
+  gameId: "socket-fixture",
+  snapshotStoreDomains: ["default"],
+  snapshotDescription: "Fixture game snapshot for devtools tests.",
+  projectSnapshot: ({ stores, controllerId }) => {
+    const state = stores.default ?? {};
+    return {
+      phase: state.phase ?? null,
+      score: state.score ?? null,
+      controllerId,
+    };
+  },
+  actions: {
+    set_score: {
+      target: {
+        kind: "controller",
+        actionName: "setScore",
+        storeDomain: "default",
+      },
+      description: "Set the score from a numeric payload.",
+      payload: {
+        kind: "number",
+        description: "The score to send.",
+      },
+      resolveInput: (input) => ({
+        score: Number(input),
+      }),
+      resultDescription: "The score action is routed to the host.",
+    },
+  },
+};
+`,
+    "utf8",
+  );
+
+  const receivedInputs: ControllerInputEvent[] = [];
+  const receivedActions: ControllerActionRpcPayload[] = [];
+  const receivedStateSyncRequests: ControllerStateSyncRequestPayload[] = [];
+  const receivedLeaves: { roomId: string; controllerId: string }[] = [];
+  const storePayloads = new Map<string, Record<string, unknown>>([
+    ["default", { phase: "lobby", score: 3 }],
+    ["scoreboard", { home: 3, away: 1 }],
+  ]);
+
+  const httpServer = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end("<!doctype html><html><body>controller fixture</body></html>");
+  });
+  const io = new SocketIoServer<ClientToServerEvents, ServerToClientEvents>(
+    httpServer,
+    {
+      cors: {
+        origin: "*",
+      },
+    },
+  );
+
+  io.on("connection", (socket) => {
+    socket.on("controller:join", (payload, callback) => {
+      callback({
+        ok: true,
+        controllerId: payload.controllerId,
+        roomId: payload.roomId,
+      });
+      socket.emit("server:welcome", {
+        controllerId: payload.controllerId,
+        roomId: payload.roomId,
+        player: {
+          id: payload.controllerId,
+          label: payload.nickname ?? payload.controllerId,
+          avatarId: payload.avatarId,
+        },
+        players: [
+          {
+            id: payload.controllerId,
+            label: payload.nickname ?? payload.controllerId,
+            avatarId: payload.avatarId,
+          },
+        ],
+      });
+      socket.emit("server:state", {
+        roomId: payload.roomId,
+        state: {
+          orientation: "landscape",
+          runtimeState: "playing",
+          stateVersion: 1,
+        },
+      });
+    });
+
+    socket.on("controller:input", (payload) => {
+      receivedInputs.push(payload);
+    });
+
+    socket.on("controller:action_rpc", (payload) => {
+      receivedActions.push(payload);
+    });
+
+    socket.on("controller:state_sync_request", (payload) => {
+      receivedStateSyncRequests.push(payload);
+      const data = storePayloads.get(payload.storeDomain);
+      if (!data) {
+        return;
+      }
+
+      socket.emit("airjam:state_sync", {
+        roomId: payload.roomId,
+        storeDomain: payload.storeDomain,
+        data,
+      });
+    });
+
+    (
+      socket as unknown as {
+        on: (
+          event: string,
+          listener: (
+            payload: { roomId: string; controllerId: string },
+            callback: (ack: { ok: true }) => void,
+          ) => void,
+        ) => void;
+      }
+    ).on("controller:leave", (payload, callback) => {
+      receivedLeaves.push(payload);
+      socket.emit("server:controllerLeft", {
+        controllerId: payload.controllerId,
+      });
+      callback({ ok: true });
+    });
+  });
+
+  const port = await new Promise<number>((resolve, reject) => {
+    httpServer.once("error", reject);
+    httpServer.listen(0, "127.0.0.1", () => {
+      const address = httpServer.address();
+      if (!address || typeof address === "string") {
+        reject(new Error("Failed to resolve controller socket fixture port."));
+        return;
+      }
+      resolve(address.port);
+    });
+  });
+
+  fixtureClosers.push(async () => {
+    await new Promise<void>((resolve, reject) => {
+      io.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+  });
+
+  return {
+    root,
+    joinUrl: `http://127.0.0.1:${port}/controller?room=ROOM1&aj_controller_cap=cap_fixture`,
+    receivedInputs,
+    receivedActions,
+    receivedStateSyncRequests,
+    receivedLeaves,
+  };
+};
+
 afterEach(async () => {
   globalThis.fetch = originalFetch;
+  while (fixtureClosers.length > 0) {
+    const close = fixtureClosers.pop();
+    await close?.();
+  }
   await Promise.all(
     tempRoots
       .splice(0)
@@ -287,6 +501,34 @@ describe("listGames and inspectGame", () => {
     expect(game.visual.hasContract).toBe(true);
     expect(game.qualityGates).toContain("typecheck");
     expect(game.qualityGates).toContain("release-check");
+  });
+
+  it("does not infer visual machine support from a file that config does not publish", async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      name: "unpublished-visual-fixture",
+      type: "module",
+      dependencies: {
+        "@air-jam/sdk": "^1.0.0",
+      },
+    });
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await mkdir(path.join(root, "visual"), { recursive: true });
+    await writeFile(
+      path.join(root, "src", "airjam.config.ts"),
+      'export const airjam = { game: { controllerPath: "/controller" } };\n',
+      "utf8",
+    );
+    await writeFile(
+      path.join(root, "visual", "scenarios.ts"),
+      "export const visualHarness = { gameId: 'unpublished-visual-fixture', bridge: { gameId: 'unpublished-visual-fixture', actions: {} }, scenarios: [] };\n",
+      "utf8",
+    );
+
+    const game = await inspectGame({ cwd: root });
+
+    expect(game.visual.hasContract).toBe(false);
+    expect(game.visual.hasScenarios).toBe(false);
   });
 
   it("lists the current game in standalone mode", async () => {
@@ -409,6 +651,7 @@ describe("visual scenarios", () => {
 
     expect(scenarios.gameId).toBe("pong");
     expect(scenarios.hasBridgeActions).toBe(true);
+    expect(scenarios.scenarioModulePath).toMatch(/visual\/scenarios\.ts$/);
     expect(scenarios.bridgeActions).toEqual(
       expect.arrayContaining(["setPointsToWin", "scorePoint"]),
     );
@@ -431,6 +674,33 @@ describe("visual scenarios", () => {
     );
     expect(scenarios.scenarios.map((scenario) => scenario.scenarioId)).toEqual(
       expect.arrayContaining(["lobby", "playing", "ended"]),
+    );
+  });
+
+  it("does not fall back to visual scenario files when config does not publish them", async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      name: "unpublished-visual-fixture",
+      type: "module",
+      dependencies: {
+        "@air-jam/sdk": "^1.0.0",
+      },
+    });
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await mkdir(path.join(root, "visual"), { recursive: true });
+    await writeFile(
+      path.join(root, "src", "airjam.config.ts"),
+      'export const airjam = { game: { controllerPath: "/controller" } };\n',
+      "utf8",
+    );
+    await writeFile(
+      path.join(root, "visual", "scenarios.ts"),
+      "export const visualHarness = { gameId: 'unpublished-visual-fixture', bridge: { gameId: 'unpublished-visual-fixture', actions: {} }, scenarios: [] };\n",
+      "utf8",
+    );
+
+    await expect(listVisualScenarios({ cwd: root })).rejects.toThrow(
+      /No visual harness published/,
     );
   });
 });
@@ -621,5 +891,273 @@ describe("harness runtime control", () => {
     } finally {
       await stopDev({ cwd: root, processId: started.process.id });
     }
+  });
+});
+
+describe("virtual controller runtime control", () => {
+  it("connects a virtual controller, sends input, invokes actions, reads synced runtime state, and disconnects", async () => {
+    const fixture = await createControllerSocketFixture();
+
+    const connected = await connectController({
+      cwd: fixture.root,
+      controllerJoinUrl: fixture.joinUrl,
+      nickname: "DevCtrl",
+      avatarId: "aj-2",
+    });
+
+    expect(connected.roomId).toBe("ROOM1");
+    expect(connected.connected).toBe(true);
+    expect(connected.controllerState?.runtimeState).toBe("playing");
+    expect(connected.players).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: connected.controllerId,
+          label: "DevCtrl",
+          avatarId: "aj-2",
+        }),
+      ]),
+    );
+
+    const inputResult = await sendControllerInput({
+      controllerSessionId: connected.controllerSessionId,
+      input: {
+        buttons: {
+          confirm: true,
+        },
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(inputResult.controllerId).toBe(connected.controllerId);
+    expect(fixture.receivedInputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          roomId: "ROOM1",
+          controllerId: connected.controllerId,
+          input: {
+            buttons: {
+              confirm: true,
+            },
+          },
+        }),
+      ]),
+    );
+
+    const actionResult = await invokeControllerAction({
+      controllerSessionId: connected.controllerSessionId,
+      actionName: "joinTeam",
+      storeDomain: "default",
+      payload: {
+        team: "blue",
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(actionResult.actionName).toBe("joinTeam");
+    expect(fixture.receivedActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          roomId: "ROOM1",
+          actionName: "joinTeam",
+          storeDomain: "default",
+          payload: {
+            team: "blue",
+          },
+        }),
+      ]),
+    );
+
+    const runtimeSnapshot = await readRuntimeSnapshot({
+      controllerSessionId: connected.controllerSessionId,
+      storeDomains: ["default", "scoreboard"],
+      requestSync: true,
+      timeoutMs: 1_000,
+    });
+    expect(runtimeSnapshot.requestedStoreDomains).toEqual([
+      "default",
+      "scoreboard",
+    ]);
+    expect(runtimeSnapshot.missingStoreDomains).toEqual([]);
+    expect(runtimeSnapshot.storeSnapshots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          storeDomain: "default",
+          data: {
+            phase: "lobby",
+            score: 3,
+          },
+        }),
+        expect.objectContaining({
+          storeDomain: "scoreboard",
+          data: {
+            home: 3,
+            away: 1,
+          },
+        }),
+      ]),
+    );
+    expect(fixture.receivedStateSyncRequests).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          roomId: "ROOM1",
+          storeDomain: "default",
+        }),
+        expect.objectContaining({
+          roomId: "ROOM1",
+          storeDomain: "scoreboard",
+        }),
+      ]),
+    );
+
+    const disconnected = await disconnectController({
+      controllerSessionId: connected.controllerSessionId,
+    });
+    expect(disconnected.disconnected).toBe(true);
+    expect(disconnected.session.connected).toBe(false);
+    expect(fixture.receivedLeaves).toEqual([
+      expect.objectContaining({
+        roomId: "ROOM1",
+        controllerId: connected.controllerId,
+      }),
+    ]);
+
+    await expect(
+      readRuntimeSnapshot({
+        controllerSessionId: connected.controllerSessionId,
+      }),
+    ).rejects.toThrow(/Unknown Air Jam controller session/);
+  });
+});
+
+describe("game agent contracts", () => {
+  it("inspects a repo game agent contract", async () => {
+    const contract = await inspectGameAgentContract({
+      cwd: path.resolve(__dirname, "../../.."),
+      gameId: "last-band-standing",
+    });
+
+    expect(contract.hasContract).toBe(true);
+    expect(contract.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actionId: "set_ready",
+          target: expect.objectContaining({
+            actionName: "setReady",
+          }),
+        }),
+        expect.objectContaining({
+          actionId: "submit_guess",
+          target: expect.objectContaining({
+            actionName: "submitGuess",
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("inspects a second repo game agent contract", async () => {
+    const contract = await inspectGameAgentContract({
+      cwd: path.resolve(__dirname, "../../.."),
+      gameId: "pong",
+    });
+
+    expect(contract.hasContract).toBe(true);
+    expect(contract.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actionId: "join_team",
+          target: expect.objectContaining({
+            actionName: "joinTeam",
+          }),
+        }),
+        expect.objectContaining({
+          actionId: "award_point",
+          target: expect.objectContaining({
+            actionName: "scorePoint",
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("projects a game snapshot and invokes semantic game actions through a controller session", async () => {
+    const fixture = await createControllerSocketFixture();
+
+    const connected = await connectController({
+      cwd: fixture.root,
+      gameId: "socket-fixture",
+      controllerJoinUrl: fixture.joinUrl,
+      nickname: "AgentCtrl",
+    });
+
+    const projected = await readGameSnapshot({
+      controllerSessionId: connected.controllerSessionId,
+      requestSync: true,
+      timeoutMs: 1_000,
+    });
+    expect(projected.snapshotStoreDomains).toEqual(["default"]);
+    expect(projected.snapshot).toMatchObject({
+      phase: "lobby",
+      score: 3,
+      controllerId: connected.controllerId,
+    });
+
+    const invoked = await invokeGameAction({
+      controllerSessionId: connected.controllerSessionId,
+      actionId: "set_score",
+      payload: 7,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    expect(invoked.actionId).toBe("set_score");
+    expect(invoked.actionName).toBe("setScore");
+    expect(invoked.storeDomain).toBe("default");
+    expect(fixture.receivedActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actionName: "setScore",
+          storeDomain: "default",
+          payload: {
+            score: 7,
+          },
+        }),
+      ]),
+    );
+
+    await disconnectController({
+      controllerSessionId: connected.controllerSessionId,
+    });
+  });
+
+  it("does not infer an agent contract from a file that config does not publish", async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      name: "unpublished-agent-fixture",
+      type: "module",
+      dependencies: {
+        "@air-jam/sdk": "^1.0.0",
+      },
+    });
+    await mkdir(path.join(root, "src", "game", "contracts"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(root, "src", "airjam.config.ts"),
+      'export const airjam = { game: { controllerPath: "/controller" } };\n',
+      "utf8",
+    );
+    await writeFile(
+      path.join(root, "src", "game", "contracts", "agent.ts"),
+      `export const gameAgentContract = {
+  gameId: "unpublished-agent-fixture",
+  snapshotStoreDomains: ["default"],
+  projectSnapshot: ({ stores }) => stores.default ?? {},
+  actions: {},
+};\n`,
+      "utf8",
+    );
+
+    const contract = await inspectGameAgentContract({ cwd: root });
+
+    expect(contract.hasContract).toBe(false);
+    expect(contract.actions).toEqual([]);
   });
 });

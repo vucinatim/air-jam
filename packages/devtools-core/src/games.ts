@@ -8,6 +8,7 @@ import {
   readPackageJson,
   resolveCandidatePath,
 } from "./fs-utils.js";
+import { resolveVisualScenarioModulePathFromConfig } from "./tooling/airjam-machine.js";
 import type {
   AirJamGameInspection,
   AirJamGameSummary,
@@ -43,34 +44,30 @@ const getConfigPath = async (rootDir: string): Promise<string | null> =>
     "airjam.config.mjs",
   ]);
 
-const getVisualSupport = async (
-  rootDir: string,
-): Promise<AirJamGameSummary["visual"]> => ({
-  hasContract: Boolean(
-    await resolveCandidatePath(rootDir, [
-      "visual/contract.ts",
-      "visual/contract.tsx",
-      "visual/contract.js",
-      "visual/contract.mjs",
-    ]),
-  ),
-  hasScenarios: Boolean(
-    await resolveCandidatePath(rootDir, [
-      "visual/scenarios.ts",
-      "visual/scenarios.tsx",
-      "visual/scenarios.js",
-      "visual/scenarios.mjs",
-    ]),
-  ),
-  hasPrefabs: Boolean(
-    await resolveCandidatePath(rootDir, [
-      "visual/prefabs.ts",
-      "visual/prefabs.tsx",
-      "visual/prefabs.js",
-      "visual/prefabs.mjs",
-    ]),
-  ),
-});
+const getVisualSupport = async ({
+  rootDir,
+  configPath,
+}: {
+  rootDir: string;
+  configPath: string | null;
+}): Promise<AirJamGameSummary["visual"]> => {
+  const explicitVisualScenarios = configPath
+    ? await resolveVisualScenarioModulePathFromConfig(configPath)
+    : null;
+
+  return {
+    hasContract: Boolean(explicitVisualScenarios),
+    hasScenarios: Boolean(explicitVisualScenarios),
+    hasPrefabs: Boolean(
+      await resolveCandidatePath(rootDir, [
+        "visual/prefabs.ts",
+        "visual/prefabs.tsx",
+        "visual/prefabs.js",
+        "visual/prefabs.mjs",
+      ]),
+    ),
+  };
+};
 
 const readRepoGameSummary = async (
   rootDir: string,
@@ -83,6 +80,7 @@ const readRepoGameSummary = async (
   const manifest = await readJsonFile<JsonObject>(manifestPath);
   const packageJson = await readPackageJson(rootDir);
   const packageName = packageJson?.value.name ?? null;
+  const configPath = await getConfigPath(rootDir);
 
   return {
     id:
@@ -95,8 +93,8 @@ const readRepoGameSummary = async (
     category: toStringOrNull(manifest.category),
     scaffold: toBooleanOrNull(manifest.scaffold),
     manifestPath,
-    configPath: await getConfigPath(rootDir),
-    visual: await getVisualSupport(rootDir),
+    configPath,
+    visual: await getVisualSupport({ rootDir, configPath }),
   };
 };
 
@@ -116,7 +114,10 @@ const readStandaloneGameSummary = async (
     scaffold: null,
     manifestPath: null,
     configPath,
-    visual: await getVisualSupport(context.rootDir),
+    visual: await getVisualSupport({
+      rootDir: context.rootDir,
+      configPath,
+    }),
   };
 };
 

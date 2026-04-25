@@ -214,9 +214,70 @@ export type AirJamHarnessActionDescriptor = {
   resultDescription: string | null;
 };
 
+export type AirJamGameAgentActionDescriptor = {
+  actionId: string;
+  target: {
+    kind: "controller";
+    actionName: string;
+    storeDomain: string;
+  };
+  description: string | null;
+  availability: string | null;
+  payload: {
+    kind: "none" | "boolean" | "number" | "string" | "enum" | "json";
+    description: string | null;
+    allowedValues?: string[];
+  };
+  resultDescription: string | null;
+};
+
+export type AirJamGameAgentContractInspection = {
+  gameId: string;
+  rootDir: string;
+  hasContract: boolean;
+  snapshotStoreDomains: string[];
+  snapshotDescription: string | null;
+  actions: AirJamGameAgentActionDescriptor[];
+};
+
+export type InspectGameAgentContractOptions = {
+  cwd?: string;
+  gameId?: string;
+};
+
+export type ReadGameSnapshotOptions = {
+  controllerSessionId: string;
+  requestSync?: boolean;
+  timeoutMs?: number;
+};
+
+export type AirJamGameSnapshotInspection = {
+  controllerSessionId: string;
+  gameId: string;
+  snapshotStoreDomains: string[];
+  snapshotDescription: string | null;
+  actions: AirJamGameAgentActionDescriptor[];
+  snapshot: JsonObject;
+  rawStores: AirJamRuntimeStoreSnapshot[];
+};
+
+export type InvokeGameActionOptions = {
+  controllerSessionId: string;
+  actionId: string;
+  payload?: unknown;
+};
+
+export type InvokeGameActionResult = AirJamVirtualControllerSessionSummary & {
+  actionId: string;
+  actionName: string;
+  storeDomain: string;
+  payload?: unknown;
+  sentAt: string;
+};
+
 export type AirJamVisualScenarioList = {
   gameId: string;
-  scenarioModulePath: string;
+  scenarioModulePath: string | null;
   hasBridgeActions: boolean;
   bridgeActions: string[];
   actionMetadata: AirJamHarnessActionDescriptor[];
@@ -349,6 +410,104 @@ export type AirJamHarnessActionInvocation = AirJamHarnessSessionSummary & {
   snapshotBefore: JsonObject | null;
   snapshotAfter: JsonObject | null;
 };
+
+export type ConnectControllerOptions = {
+  cwd?: string;
+  gameId?: string;
+  mode?: AirJamDevMode;
+  secure?: boolean;
+  roomId?: string;
+  harnessSessionId?: string;
+  controllerJoinUrl?: string;
+  controllerId?: string;
+  deviceId?: string;
+  nickname?: string;
+  avatarId?: string;
+  capabilityToken?: string;
+  timeoutMs?: number;
+};
+
+export type SendControllerInputOptions = {
+  controllerSessionId: string;
+  input: JsonObject;
+};
+
+export type InvokeControllerActionOptions = {
+  controllerSessionId: string;
+  actionName: string;
+  storeDomain: string;
+  payload?: JsonObject;
+};
+
+export type DisconnectControllerOptions = {
+  controllerSessionId: string;
+};
+
+export type ReadRuntimeSnapshotOptions = {
+  controllerSessionId: string;
+  storeDomains?: string[];
+  requestSync?: boolean;
+  timeoutMs?: number;
+};
+
+export type AirJamRuntimeStoreSnapshot = {
+  storeDomain: string;
+  data: JsonObject;
+  updatedAt: string;
+};
+
+export type AirJamVirtualControllerSessionSummary = {
+  controllerSessionId: string;
+  gameId: string | null;
+  projectMode: AirJamProjectMode;
+  mode: AirJamDevMode | null;
+  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built" | null;
+  secure: boolean;
+  process: AirJamManagedDevProcess | null;
+  roomId: string;
+  controllerId: string;
+  deviceId: string;
+  controllerJoinUrl: string;
+  socketOrigin: string;
+  connected: boolean;
+  connectedAt: string;
+  disconnectedAt: string | null;
+  disconnectReason: string | null;
+};
+
+export type AirJamVirtualControllerSession =
+  AirJamVirtualControllerSessionSummary & {
+    welcome: JsonObject | null;
+    controllerState: JsonObject | null;
+    players: JsonObject[];
+    harnessSnapshot: JsonObject | null;
+    storeSnapshots: AirJamRuntimeStoreSnapshot[];
+    lastSignal: JsonObject | null;
+    lastError: JsonObject | null;
+    requestedStoreDomains: string[];
+    missingStoreDomains: string[];
+  };
+
+export type SendControllerInputResult =
+  AirJamVirtualControllerSessionSummary & {
+    input: JsonObject;
+    sentAt: string;
+  };
+
+export type InvokeControllerActionResult =
+  AirJamVirtualControllerSessionSummary & {
+    actionName: string;
+    storeDomain: string;
+    payload?: JsonObject;
+    sentAt: string;
+  };
+
+export type DisconnectControllerResult = {
+  disconnected: boolean;
+  session: AirJamVirtualControllerSessionSummary;
+};
+
+export type AirJamRuntimeSnapshotInspection = AirJamVirtualControllerSession;
 
 export type AirJamVisualCaptureSummary = {
   gameId: string;

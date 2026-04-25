@@ -89,7 +89,7 @@ export const createAirJamMcpServer = async ({
 
             void (async () => {
               try {
-                const result = await tool.run(args);
+                const result = await tool.run(args as never);
                 await taskStore.storeTaskResult(
                   task.taskId,
                   "completed",

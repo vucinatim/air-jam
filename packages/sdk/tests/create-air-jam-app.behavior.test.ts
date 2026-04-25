@@ -1,6 +1,7 @@
 import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { defineAirJamGameAgentContract } from "../src/agent/game-agent-contract";
 import { createAirJamApp } from "../src/runtime/create-air-jam-app";
 
 describe("createAirJamApp", () => {
@@ -65,5 +66,28 @@ describe("createAirJamApp", () => {
       "https://play.example.com",
     );
     expect("input" in airjam.session.controller).toBe(false);
+  });
+
+  it("exposes machine-facing contracts on the returned app config", () => {
+    const agent = defineAirJamGameAgentContract({
+      gameId: "fixture-game",
+      projectSnapshot: () => ({ phase: "lobby" }),
+      actions: {},
+    });
+    const airjam = createAirJamApp({
+      game: {
+        controllerPath: "controller",
+        machine: {
+          agent,
+          visualScenariosModule: "../visual/scenarios.ts",
+        },
+      },
+    });
+
+    expect(airjam.game.controllerPath).toBe("/controller");
+    expect(airjam.game.machine?.agent).toBe(agent);
+    expect(airjam.game.machine?.visualScenariosModule).toBe(
+      "../visual/scenarios.ts",
+    );
   });
 });

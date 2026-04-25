@@ -108,6 +108,14 @@ Use shell commands only when the Air Jam MCP does not expose the needed operatio
 
 If the current game does not expose the action an agent needs, add a small game-owned harness action first instead of defaulting to browser-only UI automation.
 
+## Game Agent Contract Rule
+
+If the template ships `src/game/contracts/agent.ts`, treat that file as the canonical semantic agent surface for the game.
+
+Use it before inferring gameplay semantics from raw store domains, controller RPC names, or visible UI.
+
+Do not generate a second parallel agent contract when the template already owns one.
+
 ## Architecture Rules
 
 Keep boundaries explicit:

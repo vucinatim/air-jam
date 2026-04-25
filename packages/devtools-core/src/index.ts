@@ -1,4 +1,6 @@
+export * from "./agent.js";
 export * from "./context.js";
+export * from "./controller.js";
 export * from "./dev.js";
 export * from "./games.js";
 export * from "./logs.js";

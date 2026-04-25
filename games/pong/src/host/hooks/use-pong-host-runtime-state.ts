@@ -16,8 +16,11 @@ type PongHostPhaseEffect =
   | "reset-match-buffers"
   | "reset-ball";
 
+type PongScoreState = PongState["scores"];
+
 interface UsePongHostRuntimeStateOptions {
   matchPhase: PongState["matchPhase"];
+  scores: PongScoreState;
   runtimeState: RuntimeState;
 }
 
@@ -27,29 +30,61 @@ interface PongHostRuntimeState {
   startCountdown: () => void;
 }
 
-const getPongHostPhaseEffects = ({
+const haveScoresChanged = ({
+  previousScores,
+  scores,
+}: {
+  previousScores: PongScoreState;
+  scores: PongScoreState;
+}): boolean =>
+  previousScores.team1 !== scores.team1 ||
+  previousScores.team2 !== scores.team2;
+
+export const getPongHostRuntimeEffects = ({
   previousPhase,
   matchPhase,
+  previousScores,
+  scores,
 }: {
   previousPhase: PongState["matchPhase"];
   matchPhase: PongState["matchPhase"];
+  previousScores: PongScoreState;
+  scores: PongScoreState;
 }): PongHostPhaseEffect[] => {
-  if (previousPhase === matchPhase) {
-    return [];
-  }
-
   const effects: PongHostPhaseEffect[] = [];
 
-  if (previousPhase !== "playing" && matchPhase === "playing") {
+  if (
+    previousPhase !== matchPhase &&
+    previousPhase !== "playing" &&
+    matchPhase === "playing"
+  ) {
     effects.push("reset-match-buffers", "start-countdown");
   }
 
-  if (previousPhase === "playing" && matchPhase !== "playing") {
+  if (
+    previousPhase !== matchPhase &&
+    previousPhase === "playing" &&
+    matchPhase !== "playing"
+  ) {
     effects.push("clear-countdown");
   }
 
-  if (previousPhase === "ended" && matchPhase === "lobby") {
+  if (
+    previousPhase !== matchPhase &&
+    previousPhase === "ended" &&
+    matchPhase === "lobby"
+  ) {
     effects.push("reset-ball");
+  }
+
+  if (
+    matchPhase === "playing" &&
+    haveScoresChanged({
+      previousScores,
+      scores,
+    })
+  ) {
+    effects.push("start-countdown");
   }
 
   return effects;
@@ -57,10 +92,12 @@ const getPongHostPhaseEffects = ({
 
 export const usePongHostRuntimeState = ({
   matchPhase,
+  scores,
   runtimeState,
 }: UsePongHostRuntimeStateOptions): PongHostRuntimeState => {
   const runtimeBuffersRef = useRef(createRuntimeStateBuffers());
   const previousMatchPhaseRef = useRef(matchPhase);
+  const previousScoresRef = useRef(scores);
 
   const launchBall = useCallback(() => {
     resetRuntimeStateBufferBall(runtimeBuffersRef.current);
@@ -80,14 +117,20 @@ export const usePongHostRuntimeState = ({
 
   useEffect(() => {
     const previousMatchPhase = previousMatchPhaseRef.current;
-    if (previousMatchPhase === matchPhase) {
-      return;
-    }
-
-    const effects = getPongHostPhaseEffects({
+    const previousScores = previousScoresRef.current;
+    const effects = getPongHostRuntimeEffects({
       previousPhase: previousMatchPhase,
       matchPhase,
+      previousScores,
+      scores,
     });
+
+    previousMatchPhaseRef.current = matchPhase;
+    previousScoresRef.current = scores;
+
+    if (effects.length === 0) {
+      return;
+    }
 
     if (effects.includes("reset-match-buffers")) {
       resetRuntimeStateBuffers(runtimeBuffersRef.current);
@@ -101,9 +144,7 @@ export const usePongHostRuntimeState = ({
     if (effects.includes("reset-ball")) {
       resetRuntimeStateBufferBall(runtimeBuffersRef.current);
     }
-
-    previousMatchPhaseRef.current = matchPhase;
-  }, [clearCountdown, matchPhase, startCountdown]);
+  }, [clearCountdown, matchPhase, scores, startCountdown]);
 
   return {
     runtimeBuffersRef,

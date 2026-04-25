@@ -218,7 +218,17 @@ Current intent:
 1. build shared `devtools-core` services first and keep MCP as a thin adapter
 2. make the same MCP work in this monorepo and in generated `create-airjam` games
 3. ship project-local MCP setup and agent guidance by default in generated games, with opt-out
-4. expose Air Jam-native tools for project inspection, logs, topology, visual harness captures, quality gates, and eventually runtime control
+4. keep pushing the agent-control surface upward from transport primitives toward game-owned semantic contracts that real games can publish and agents can discover
+5. use those contracts to prove full host-visible gameplay loops through MCP before broadening the next layer of framework ergonomics
+
+Latest progress inside this track:
+
+1. a new game-owned agent-contract lane is now landed across `@air-jam/sdk`, `@air-jam/devtools-core`, and `@air-jam/mcp-server`: games can publish semantic `actions` plus a `projectSnapshot(...)` view instead of forcing agents to reason only in raw store domains and controller RPC names
+2. `last-band-standing` is now the first real adopter of that lane, with a portable `src/game/contracts/agent.ts` that publishes lobby/round/reveal snapshot shape plus semantic actions for ready, start, guess submission, bucket toggles, and lobby reset
+3. the live stdio MCP path is now proven end to end against the visible host room: inspect contract, connect controller, read game snapshot, set ready, start the match, submit a guess, and read the reveal/score result without falling back to browser clicks
+4. `pong` is now the second real adopter of the semantic contract lane, with a portable game snapshot plus semantic actions for team joins, points-to-win changes, bot counts, match start, score awards, restart, and return-to-lobby
+5. the live stdio MCP path is now proven end to end against a visible Pong room too: connect two controllers to the browser-visible room, join opposite teams, change the win target, start the match, award points to end it, and return to the lobby through semantic game actions
+6. expose Air Jam-native tools for project inspection, logs, topology, visual harness captures, quality gates, and eventually runtime control
 
 Latest progress:
 
@@ -240,11 +250,17 @@ Latest progress:
 16. the second consolidation slice is now in place too: workspace process groups, build-artifact reuse, URL readiness probing, standalone live stack startup, and Arcade built stack startup now live under `packages/devtools-core/runtime/`, while `scripts/workspace/lib/*` is reduced to thin re-export wrappers
 17. the third consolidation slice is now in place too: foreground repo `standalone:dev` / `arcade:dev` command logic now lives in `packages/devtools-core/runtime/workspace-dev-commands.mjs`, repo visual stack/capture orchestration now lives in `packages/devtools-core/runtime/repo-visual.mjs`, and a real `last-band-standing` standalone visual capture completed successfully through that new owner path
 18. the managed monorepo path now uses that same shared runtime layer too: `packages/devtools-core/src/dev.ts` no longer shells through repo CLI scripts for monorepo start/topology, and instead invokes `packages/devtools-core/runtime/workspace-runtime-cli.mjs`, with focused tests still green afterward
+19. the first agent input/runtime-inspection slice is now landed: `@air-jam/devtools-core` owns virtual controller sessions over the real controller Socket.IO protocol, including controller connect/disconnect, raw input sends, controller action RPC sends, and runtime snapshot reads that can request authoritative `airjam:state_sync` store payloads before returning
+20. `@air-jam/mcp-server` now exposes that controller/runtime lane through `airjam.connect_controller`, `airjam.send_controller_input`, `airjam.invoke_controller_action`, `airjam.read_runtime_snapshot`, and `airjam.disconnect_controller`, and focused socket-backed `devtools-core` tests now prove join/input/action/state-sync/disconnect behavior without mocking the transport
+21. explicit controller leave is now a first-class acknowledged protocol path instead of a fire-and-forget best-effort emit: server/controller/devtools all speak a `controller:leave` ack, devtools waits for that ack before tearing sockets down, and preview-controller close now uses a parent/iframe handshake so local preview sessions leave immediately without weakening the normal 30-second reconnect lease for real controllers
+22. `create-airjam` template ownership is now explicit for semantic game-agent contracts too: scaffold template verification checks packaged archives for `src/game/contracts/agent.ts` parity with their source games, scaffold smoke now proves both a template that owns an agent contract (`pong`) and one that intentionally omits it (`minimal`), and generated AI-pack guidance now tells agents to treat a template-owned `src/game/contracts/agent.ts` as the canonical semantic game surface
+23. Pong's semantic `award_point` QA lane now drives the same host countdown/reset behavior as natural scoring: the host runtime derives score-side effects from replicated score changes instead of only the simulation callback, so live MCP score awards no longer race the ball loop and the browser-visible Pong demo now ends deterministically with the intended winner and score
+24. machine-facing contract ownership is now explicit in `src/airjam.config.ts`: `createAirJamApp({ game.machine })` carries semantic game-agent contracts directly and explicit visual-scenarios module declarations, first-party template games wire their published harness/agent surfaces there, and the high-level devtools/MCP/repo-visual path no longer falls back to convention-scanned agent or visual contract files
 
 Execution note:
 
 1. this is still not part of the current v1 release-critical path
-2. the meaningful remaining work is now follow-on architecture cleanup and deeper runtime control, not baseline MCP enablement
+2. the meaningful remaining work is now follow-on runtime ergonomics and richer game-owned runtime contracts, not baseline MCP enablement
 
 ### Planned Future Product/Runtime Track. Remote Rooms And Display Surfaces
 

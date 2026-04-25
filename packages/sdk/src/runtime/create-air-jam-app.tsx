@@ -2,16 +2,13 @@ import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
 import { resolveProjectRuntimeTopology } from "@air-jam/runtime-topology";
 import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
+import type { AirJamGameAgentContract } from "../agent/game-agent-contract";
 import type { AirJamGameCapabilityManifest } from "../capabilities/manifest";
 import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
-import { primeDevBrowserLogSink } from "../dev/browser-log-sink";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
-import {
-  resolveAirJamConfig,
-  type ResolveAirJamConfigInput,
-} from "./air-jam-config";
+import { type ResolveAirJamConfigInput } from "./air-jam-config";
 import {
   AirJamErrorBoundary,
   type AirJamErrorBoundaryProps,
@@ -37,6 +34,23 @@ export interface AirJamGameRuntimeConfig {
    * inspection, and evaluation workflows.
    */
   capabilities?: AirJamGameCapabilityManifest;
+  /**
+   * Optional machine-facing contracts published by the game.
+   *
+   * These are consumed by Air Jam devtools and MCP adapters through
+   * `airjam.config.ts` instead of inferred filesystem conventions.
+   */
+  machine?: {
+    agent?: AirJamGameAgentContract;
+    /**
+     * Explicit module specifier for the game's visual scenario pack.
+     *
+     * This stays as a module reference instead of an imported object because
+     * visual scenario packs are Node-only authoring artifacts that should not
+     * be pulled into the browser bundle through `airjam.config.ts`.
+     */
+    visualScenariosModule?: string;
+  };
 }
 
 export interface AirJamRuntimeErrorBoundaryOptions {
@@ -71,6 +85,11 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
     controller: ControllerSessionProps;
   };
   runtime: ResolveAirJamConfigInput;
+  game: {
+    controllerPath: string;
+    capabilities?: AirJamGameCapabilityManifest;
+    machine?: AirJamGameRuntimeConfig["machine"];
+  };
 }
 
 const resolveControllerPath = (controllerPath?: string): string => {
@@ -179,17 +198,6 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   input,
   errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
-  const initialConfig = resolveAirJamConfig(runtime);
-
-  // Install the shared dev sink as early as possible so render-time browser
-  // crashes are queued before the provider effect resolves config.
-  primeDevBrowserLogSink({
-    appOrigin: initialConfig.appOrigin,
-    backendOrigin: initialConfig.backendOrigin,
-    proxyStrategy: initialConfig.proxyStrategy,
-    appId: initialConfig.appId,
-  });
-
   const controllerPath = resolveControllerPath(game?.controllerPath);
 
   const hostSession: HostSessionProps<TSchema> = input
@@ -258,5 +266,10 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
       controller: controllerSession,
     },
     runtime,
+    game: {
+      controllerPath,
+      capabilities: game?.capabilities,
+      machine: game?.machine,
+    },
   };
 };

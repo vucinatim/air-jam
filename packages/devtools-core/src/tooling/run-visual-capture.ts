@@ -1,5 +1,5 @@
 import { runVisualHarness } from "@air-jam/harness";
-import { loadVisualScenarioPack } from "./visual-pack.js";
+import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -12,6 +12,7 @@ const getFlagValue = (flag: string): string | null => {
 };
 
 const modulePath = getFlagValue("--module-path");
+const configPath = getFlagValue("--config");
 const artifactRoot = getFlagValue("--artifact-root");
 const hostUrl = getFlagValue("--host-url");
 const appOrigin = getFlagValue("--app-origin");
@@ -24,7 +25,7 @@ const requestedMode = getFlagValue("--mode") ?? "standalone-dev";
 const secure = process.argv.includes("--secure");
 
 if (
-  !modulePath ||
+  (!modulePath && !configPath) ||
   !artifactRoot ||
   !hostUrl ||
   !appOrigin ||
@@ -36,7 +37,10 @@ if (
   );
 }
 
-const scenarioPack = await loadVisualScenarioPack(modulePath);
+const scenarioPack = await loadVisualScenarioPackFromModuleOrConfig({
+  modulePath,
+  configPath,
+});
 const mode =
   requestedMode === "arcade-test" ? "arcade-built" : "standalone-dev";
 

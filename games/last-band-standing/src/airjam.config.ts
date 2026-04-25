@@ -7,6 +7,7 @@
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import { gameAgentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/contracts/input";
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -31,6 +32,10 @@ export const airjam = createAirJamApp({
   },
   game: {
     controllerPath: "/controller",
+    machine: {
+      agent: gameAgentContract,
+      visualScenariosModule: "../visual/scenarios.ts",
+    },
   },
   input: {
     schema: gameInputSchema,

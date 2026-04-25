@@ -69,6 +69,22 @@ When you own the game code and the existing harness action surface is too thin:
 2. prefer explicit verbs like `returnToLobby`, `startRound`, `setScore`, or `finishMatch`
 3. include action descriptions and payload descriptions so future agents can discover the contract without source diving
 
+## Semantic Game Rule
+
+If the scaffolded template includes `src/game/contracts/agent.ts`, treat `src/airjam.config.ts` as the canonical machine manifest and the template-owned contract file as the portable implementation it wires through `game.machine.agent`.
+
+If the template includes visual scenarios, the same config should explicitly declare `game.machine.visualScenariosModule` instead of making devtools guess a convention path.
+
+That contract is template-owned. Do not create a second generated agent surface on top of it, and do not rely on devtools guessing its filesystem path when the config already declares it.
+
+Use:
+
+1. `airjam.inspect_game_agent_contract`
+2. `airjam.read_game_snapshot`
+3. `airjam.invoke_game_action`
+
+before falling back to raw controller RPC names or store-domain inference.
+
 ## Quality Rule
 
 Before finishing meaningful work:

@@ -4,7 +4,7 @@ import {
   openVisualHarnessHostSession,
   type VisualHarnessMode,
 } from "@air-jam/harness";
-import { loadVisualScenarioPack } from "./visual-pack.js";
+import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -23,6 +23,7 @@ const parseJsonFlag = (flag: string): unknown => {
 
 const operation = getFlagValue("--operation");
 const modulePath = getFlagValue("--module-path");
+const configPath = getFlagValue("--config");
 const hostUrl = getFlagValue("--host-url");
 const appOrigin = getFlagValue("--app-origin");
 const controllerBaseUrl = getFlagValue("--controller-base-url");
@@ -53,7 +54,7 @@ const readRoomIdFromJoinUrl = (
 
 if (
   !operation ||
-  !modulePath ||
+  (!modulePath && !configPath) ||
   !hostUrl ||
   !appOrigin ||
   !controllerBaseUrl ||
@@ -72,7 +73,10 @@ if (operation === "invoke" && !actionName) {
   throw new Error("Missing required --action-name for harness invocation.");
 }
 
-const scenarioPack = await loadVisualScenarioPack(modulePath);
+const scenarioPack = await loadVisualScenarioPackFromModuleOrConfig({
+  modulePath,
+  configPath,
+});
 const availableActions = Object.keys(scenarioPack.bridge.actions ?? {});
 const actionMetadata = describeVisualHarnessActions(
   scenarioPack.bridge.actions ?? {},

@@ -538,6 +538,11 @@ export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   game: {
     controllerPath: "/controller",
+    // Optional machine-facing contracts belong here too.
+    // machine: {
+    //   agent: gameAgentContract,
+    //   visualScenariosModule: "../visual/scenarios.ts",
+    // },
   },
   input: {
     schema: gameInputSchema,
@@ -571,7 +576,7 @@ export const App = () => (
 );
 ```
 
-This keeps runtime config, host input schema, and route path ownership in one place.
+This keeps runtime config, host input schema, route path ownership, and optional machine-facing contracts in one place.
 
 Optional future-facing game capability metadata should also live here, but the schema is intentionally experimental and lives in `@air-jam/sdk/capabilities`.
 

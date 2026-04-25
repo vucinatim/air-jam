@@ -88,10 +88,14 @@ describe("server stability churn", () => {
         "server:controllerLeft",
       );
 
-      controller.emit("controller:leave", {
-        roomId,
-        controllerId,
-      });
+      await harness.emitWithAck<{ ok: boolean }>(
+        controller,
+        "controller:leave",
+        {
+          roomId,
+          controllerId,
+        },
+      );
 
       const leftNotice = await leftNoticePromise;
       expect(leftNotice.controllerId).toBe(controllerId);

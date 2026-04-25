@@ -4,6 +4,7 @@
  * Screen components read the replicated store/session data they render instead
  * of receiving large prop bundles from this hub.
  */
+import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import {
   AudioRuntime,
   useAirJamHost,
@@ -12,7 +13,6 @@ import {
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { pongVisualHarnessBridge } from "../../visual/contract";
 import { gameInputSchema } from "../game/contracts/input";
 import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
@@ -49,6 +49,7 @@ function PongHost() {
   const getInput = useGetInput<typeof gameInputSchema>();
 
   const matchPhase = usePongStore((state) => state.matchPhase);
+  const scores = usePongStore((state) => state.scores);
   const teamAssignments = usePongStore((state) => state.teamAssignments);
   const botCounts = usePongStore((state) => state.botCounts);
   const actions = usePongStore.useActions();
@@ -61,6 +62,7 @@ function PongHost() {
   });
   const hostRuntime = usePongHostRuntimeState({
     matchPhase,
+    scores,
     runtimeState,
   });
 
@@ -87,7 +89,6 @@ function PongHost() {
         onScore: (team) => {
           triggerScoreFeedback();
           actions.scorePoint({ team });
-          hostRuntime.startCountdown();
         },
       });
     },

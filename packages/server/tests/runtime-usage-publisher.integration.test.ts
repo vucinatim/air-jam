@@ -80,7 +80,7 @@ describe("runtime usage publisher seam", () => {
     );
     expect(joinAck.ok).toBe(true);
 
-    controller.emit("controller:leave", {
+    await harness.emitWithAck<{ ok: boolean }>(controller, "controller:leave", {
       roomId,
       controllerId: "ctrl_usage_1",
     });

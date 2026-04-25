@@ -3,6 +3,7 @@ import type {
   VisualScenarioPack,
 } from "@air-jam/harness";
 import { pathToFileURL } from "node:url";
+import { loadVisualScenarioPackFromConfig } from "./airjam-machine.js";
 
 export const loadVisualScenarioPack = async (
   modulePath: string,
@@ -27,4 +28,24 @@ export const loadVisualScenarioPack = async (
   }
 
   return scenarioPack;
+};
+
+export const loadVisualScenarioPackFromModuleOrConfig = async ({
+  modulePath,
+  configPath,
+}: {
+  modulePath?: string | null;
+  configPath?: string | null;
+}): Promise<VisualScenarioPack<AnyVisualHarnessBridgeDefinition>> => {
+  if (configPath) {
+    return loadVisualScenarioPackFromConfig(configPath);
+  }
+
+  if (modulePath) {
+    return loadVisualScenarioPack(modulePath);
+  }
+
+  throw new Error(
+    "Missing visual scenario source. Expected --config or --module-path.",
+  );
 };

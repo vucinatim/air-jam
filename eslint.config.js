@@ -33,9 +33,14 @@ export default defineConfig([
   ]),
   {
     files: [
+      "packages/devtools-core/**/*.{ts,tsx}",
+      "packages/env/**/*.{ts,tsx}",
+      "packages/harness/**/*.{ts,tsx}",
+      "packages/mcp-server/**/*.{ts,tsx}",
+      "packages/runtime-topology/**/*.{ts,tsx}",
       "packages/server/**/*.{ts,tsx}",
       "packages/create-airjam/**/*.{ts,tsx}",
-      "packages/visual-harness/**/*.{ts,tsx}",
+      "packages/*/tests/**/*.{ts,tsx}",
       "scripts/**/*.{ts,tsx}",
       "games/*/visual/**/*.{ts,tsx}",
     ],

@@ -26,6 +26,7 @@ import { useAssertSessionScope } from "../context/session-scope";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
+  ControllerLeaveAck,
   ControllerOrientation,
   ControllerStatePayload,
   ControllerUpdatePlayerProfileAck,
@@ -139,6 +140,8 @@ export interface AirJamControllerApi {
   updatePlayerProfile: (
     patch: PlayerProfilePatch,
   ) => Promise<ControllerUpdatePlayerProfileAck>;
+  /** Explicitly leave the current room and release the controller binding. */
+  leave: () => Promise<ControllerLeaveAck>;
   /** Force reconnection to the room */
   reconnect: () => void;
   /** List of all connected players in the room */
@@ -167,14 +170,14 @@ export type AirJamControllerRuntimeControls = Pick<
   | "setNickname"
   | "setAvatarId"
   | "updatePlayerProfile"
+  | "leave"
   | "reconnect"
   | "socket"
 >;
 
 const toControllerState = (state: AirJamStore): AirJamControllerState => {
   const selfPlayer = state.controllerId
-    ? (state.players.find((player) => player.id === state.controllerId) ??
-      null)
+    ? (state.players.find((player) => player.id === state.controllerId) ?? null)
     : null;
 
   return {
@@ -254,9 +257,9 @@ export function useAirJamController<TSelected>(
       return selector ? selector(controllerState) : controllerState;
     }),
   );
-  const runtime = useContext(controllerRuntimeContext) as
-    | AirJamControllerRuntimeControls
-    | null;
+  const runtime = useContext(
+    controllerRuntimeContext,
+  ) as AirJamControllerRuntimeControls | null;
   if (!runtime) {
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",

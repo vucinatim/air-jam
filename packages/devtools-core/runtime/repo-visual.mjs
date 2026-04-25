@@ -10,33 +10,44 @@ const resolveRepoRoot = (rootDir) => path.resolve(rootDir ?? process.cwd());
 export const getRepoVisualArtifactRoot = ({ rootDir } = {}) =>
   path.join(resolveRepoRoot(rootDir), ".airjam", "artifacts", "visual");
 
-const resolveScenarioModulePath = ({ rootDir, gameId }) => {
+const resolveConfigPath = ({ rootDir, gameId }) => {
   const repoRoot = resolveRepoRoot(rootDir);
-  const tsPath = path.join(repoRoot, "games", gameId, "visual", "scenarios.ts");
-  if (fs.existsSync(tsPath)) {
-    return tsPath;
-  }
+  const candidates = [
+    path.join(repoRoot, "games", gameId, "src", "airjam.config.ts"),
+    path.join(repoRoot, "games", gameId, "airjam.config.ts"),
+  ];
 
-  const mjsPath = path.join(
-    repoRoot,
-    "games",
-    gameId,
-    "visual",
-    "scenarios.mjs",
-  );
-  if (fs.existsSync(mjsPath)) {
-    return mjsPath;
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
   }
 
   throw new Error(
-    `No visual harness scenario pack found for "${gameId}" in games/${gameId}/visual/.`,
+    `No Air Jam config found for "${gameId}" in games/${gameId}.`,
   );
 };
 
 const loadScenarioPack = async ({ rootDir, gameId }) => {
-  const scenarioModulePath = resolveScenarioModulePath({ rootDir, gameId });
+  const configPath = resolveConfigPath({ rootDir, gameId });
+  const loadedConfigModule = await import(pathToFileURL(configPath).href);
+  const airjam =
+    loadedConfigModule.airjam ?? loadedConfigModule.default ?? null;
+  const moduleSpecifier = airjam?.game?.machine?.visualScenariosModule ?? null;
+
+  if (typeof moduleSpecifier !== "string" || moduleSpecifier.trim() === "") {
+    throw new Error(
+      `Air Jam config "${configPath}" does not publish game.machine.visualScenariosModule.`,
+    );
+  }
+
+  const scenarioModulePath = path.resolve(
+    path.dirname(configPath),
+    moduleSpecifier,
+  );
   const loaded = await import(pathToFileURL(scenarioModulePath).href);
-  const scenarioPack = loaded.visualHarness ?? null;
+  const scenarioPack =
+    loaded.visualHarness ?? loaded.visualScenarios ?? loaded.harness ?? null;
 
   if (
     !scenarioPack ||

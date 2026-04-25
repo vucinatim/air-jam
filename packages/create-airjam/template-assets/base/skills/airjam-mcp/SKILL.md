@@ -27,6 +27,8 @@ Prefer the Air Jam MCP for:
 
 If the game does not yet expose the control an agent needs, prefer adding a small game-owned harness action over automating the visible browser UI.
 
+If the template ships `src/game/contracts/agent.ts`, treat that file as the canonical semantic game-agent surface and use the MCP game-agent tools before inferring raw controller/store semantics.
+
 Prefer direct shell commands for:
 
 1. raw git operations

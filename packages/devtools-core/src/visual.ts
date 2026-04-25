@@ -9,8 +9,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCommandResult } from "./commands.js";
 import { getTopology, startDev, stopDev } from "./dev.js";
-import { pathExists, readJsonFile, resolveCandidatePath } from "./fs-utils.js";
+import { pathExists, readJsonFile } from "./fs-utils.js";
 import { inspectGame, readVisualCaptureSummary } from "./games.js";
+import { resolveVisualScenarioModulePathFromConfig } from "./tooling/airjam-machine.js";
 import type {
   AirJamHarnessActionInvocation,
   AirJamHarnessSessionList,
@@ -48,15 +49,10 @@ const resolveTsxCliPath = (): string =>
     "cli.mjs",
   );
 
-const resolveScenarioModulePath = async (
-  rootDir: string,
-): Promise<string | null> =>
-  resolveCandidatePath(rootDir, [
-    "visual/scenarios.ts",
-    "visual/scenarios.tsx",
-    "visual/scenarios.js",
-    "visual/scenarios.mjs",
-  ]);
+type ResolvedVisualSource = {
+  configPath: string;
+  scenarioModulePath: string;
+};
 
 const resolveVisualArtifactRoot = (rootDir: string): string =>
   path.join(rootDir, ".airjam", "artifacts", "visual");
@@ -128,6 +124,25 @@ const runTsxHelper = <T>({
   }
 
   return parseHelperJson<T>(result.stdout);
+};
+
+const resolveVisualSource = async ({
+  configPath,
+}: {
+  configPath: string | null;
+}): Promise<ResolvedVisualSource | null> => {
+  if (configPath) {
+    const scenarioModulePath =
+      await resolveVisualScenarioModulePathFromConfig(configPath);
+    if (scenarioModulePath) {
+      return {
+        configPath,
+        scenarioModulePath,
+      };
+    }
+  }
+
+  return null;
 };
 
 const readScenarioMetadata = async ({
@@ -263,14 +278,15 @@ export const listVisualScenarios = async ({
   gameId,
 }: ListVisualScenariosOptions = {}): Promise<AirJamVisualScenarioList> => {
   const game = await inspectGame({ cwd, gameId });
-  const scenarioModulePath = await resolveScenarioModulePath(game.rootDir);
-  if (!scenarioModulePath) {
+  const source = await resolveVisualSource({ configPath: game.configPath });
+  if (!source) {
     throw new Error(
-      `No visual scenarios module found for "${game.id}" in ${game.rootDir}.`,
+      `No visual harness published for "${game.id}" in ${game.rootDir}.`,
     );
   }
 
   const helperResult = runTsxHelper<{
+    hasVisualHarness?: boolean;
     gameId: string;
     bridgeActions: string[];
     actionMetadata: AirJamVisualScenarioList["actionMetadata"];
@@ -279,12 +295,12 @@ export const listVisualScenarios = async ({
   }>({
     helperFile: resolveHelperScriptPath("list-visual-scenarios.ts"),
     cwd: game.rootDir,
-    args: [`--module-path=${scenarioModulePath}`],
+    args: [`--config=${source.configPath}`],
   });
 
   return {
     gameId: helperResult.gameId,
-    scenarioModulePath,
+    scenarioModulePath: source.scenarioModulePath,
     hasBridgeActions: helperResult.hasBridgeActions,
     bridgeActions: helperResult.bridgeActions,
     actionMetadata: helperResult.actionMetadata,
@@ -305,15 +321,17 @@ const withHarnessSession = async <T>({
   secure?: boolean;
   run: (input: {
     game: Awaited<ReturnType<typeof inspectGame>>;
-    scenarioModulePath: string;
+    visualSource: ResolvedVisualSource;
     started: Awaited<ReturnType<typeof startDev>>;
   }) => Promise<T>;
 }): Promise<T> => {
   const game = await inspectGame({ cwd, gameId });
-  const scenarioModulePath = await resolveScenarioModulePath(game.rootDir);
-  if (!scenarioModulePath) {
+  const visualSource = await resolveVisualSource({
+    configPath: game.configPath,
+  });
+  if (!visualSource) {
     throw new Error(
-      `No visual scenarios module found for "${game.id}" in ${game.rootDir}.`,
+      `No visual harness published for "${game.id}" in ${game.rootDir}.`,
     );
   }
 
@@ -327,7 +345,7 @@ const withHarnessSession = async <T>({
   try {
     return await run({
       game,
-      scenarioModulePath,
+      visualSource,
       started,
     });
   } finally {
@@ -342,6 +360,7 @@ const withHarnessSession = async <T>({
 
 const runHarnessSessionHelper = <T>({
   operation,
+  configPath,
   scenarioModulePath,
   topology,
   timeoutMs,
@@ -351,7 +370,8 @@ const runHarnessSessionHelper = <T>({
   cwd,
 }: {
   operation: "read" | "invoke";
-  scenarioModulePath: string;
+  configPath?: string | null;
+  scenarioModulePath?: string | null;
   topology: Awaited<ReturnType<typeof getTopology>>;
   timeoutMs?: number;
   actionName?: string;
@@ -364,7 +384,8 @@ const runHarnessSessionHelper = <T>({
     cwd,
     args: [
       `--operation=${operation}`,
-      `--module-path=${scenarioModulePath}`,
+      ...(configPath ? [`--config=${configPath}`] : []),
+      ...(scenarioModulePath ? [`--module-path=${scenarioModulePath}`] : []),
       `--mode=${normalizeSessionMode(topology.topologyMode)}`,
       `--app-origin=${topology.urls.appOrigin}`,
       `--host-url=${withTargetRoomId({
@@ -432,7 +453,7 @@ export const readHarnessSnapshot = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, scenarioModulePath, started }) => {
+    run: async ({ game, visualSource, started }) => {
       const normalizedRoomId = normalizeRoomId(roomId);
       const sessions = await readRegisteredHarnessSessions({
         topology: started.topology,
@@ -477,7 +498,8 @@ export const readHarnessSnapshot = async ({
         snapshot: Record<string, unknown> | null;
       }>({
         operation: "read",
-        scenarioModulePath,
+        configPath: visualSource.configPath,
+        scenarioModulePath: visualSource.scenarioModulePath,
         topology: started.topology,
         roomId: normalizedRoomId,
         timeoutMs,
@@ -521,7 +543,7 @@ export const invokeHarnessAction = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, scenarioModulePath, started }) => {
+    run: async ({ game, visualSource, started }) => {
       const normalizedRoomId = normalizeRoomId(roomId);
       const sessions = await readRegisteredHarnessSessions({
         topology: started.topology,
@@ -615,7 +637,8 @@ export const invokeHarnessAction = async ({
         snapshotAfter: Record<string, unknown> | null;
       }>({
         operation: "invoke",
-        scenarioModulePath,
+        configPath: visualSource.configPath,
+        scenarioModulePath: visualSource.scenarioModulePath,
         topology: started.topology,
         roomId: normalizedRoomId,
         timeoutMs,
@@ -661,7 +684,7 @@ export const captureVisuals = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, scenarioModulePath, started }) => {
+    run: async ({ game, visualSource, started }) => {
       const topology = started.topology;
       const artifactRoot = resolveVisualArtifactRoot(
         topology.process?.cwd ?? game.rootDir,
@@ -671,7 +694,12 @@ export const captureVisuals = async ({
         helperFile: resolveHelperScriptPath("run-visual-capture.ts"),
         cwd: game.rootDir,
         args: [
-          `--module-path=${scenarioModulePath}`,
+          ...(visualSource.configPath
+            ? [`--config=${visualSource.configPath}`]
+            : []),
+          ...(visualSource.scenarioModulePath
+            ? [`--module-path=${visualSource.scenarioModulePath}`]
+            : []),
           `--artifact-root=${artifactRoot}`,
           `--mode=${mode}`,
           `--app-origin=${topology.urls.appOrigin}`,

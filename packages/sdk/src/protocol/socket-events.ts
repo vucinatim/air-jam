@@ -2,6 +2,7 @@ import type {
   ControllerInputEvent,
   ControllerJoinAck,
   ControllerJoinPayload,
+  ControllerLeaveAck,
   ControllerLeavePayload,
   ControllerSocketAuthority,
   ControllerStateMessage,
@@ -84,7 +85,10 @@ export interface ClientToServerEvents {
     payload: ControllerUpdatePlayerProfilePayload,
     callback: (ack: ControllerUpdatePlayerProfileAck) => void,
   ) => void;
-  "controller:leave": (payload: ControllerLeavePayload) => void;
+  "controller:leave": (
+    payload: ControllerLeavePayload,
+    callback: (ack: ControllerLeaveAck) => void,
+  ) => void;
   "controller:input": (payload: ControllerInputEvent) => void;
   "controller:system": (payload: ControllerSystemPayload) => void;
   "host:system": (payload: ControllerSystemPayload) => void;

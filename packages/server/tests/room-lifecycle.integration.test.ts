@@ -137,10 +137,14 @@ describe("server room lifecycle", () => {
       host,
       "server:controllerLeft",
     );
-    controllerA.emit("controller:leave", {
-      roomId,
-      controllerId: "ctrl_rejoin_1",
-    });
+    await harness.emitWithAck<{ ok: boolean }>(
+      controllerA,
+      "controller:leave",
+      {
+        roomId,
+        controllerId: "ctrl_rejoin_1",
+      },
+    );
     const leftNotice = await leftNoticePromise;
     expect(leftNotice.controllerId).toBe("ctrl_rejoin_1");
 
@@ -239,10 +243,14 @@ describe("server room lifecycle", () => {
     const controllerBLeftPromise = harness.waitForEvent<{
       controllerId: string;
     }>(controllerB, "server:controllerLeft");
-    controllerA.emit("controller:leave", {
-      roomId,
-      controllerId: "ctrl_roster_1",
-    });
+    await harness.emitWithAck<{ ok: boolean }>(
+      controllerA,
+      "controller:leave",
+      {
+        roomId,
+        controllerId: "ctrl_roster_1",
+      },
+    );
 
     expect(await controllerBLeftPromise).toEqual({
       controllerId: "ctrl_roster_1",

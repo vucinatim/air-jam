@@ -7,8 +7,13 @@ import {
 } from "../../context/session-scope";
 import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import { readPreviewControllerDeviceIdFromLocation } from "../../preview/identity";
+import {
+  AIR_JAM_PREVIEW_CLOSE_RESULT,
+  isPreviewCloseRequestMessage,
+} from "../../preview/messages";
 import type {
   ControllerJoinAck,
+  ControllerLeaveAck,
   ControllerStateMessage,
   ControllerUpdatePlayerProfileAck,
   PlayerProfile,
@@ -19,6 +24,7 @@ import type {
 import {
   AIRJAM_DEV_LOG_EVENTS,
   controllerJoinSchema,
+  controllerLeaveSchema,
   controllerSystemSchema,
   playerProfilePatchSchema,
   roomCodeSchema,
@@ -200,6 +206,7 @@ export const useControllerRuntimeApi = (
   }, []);
 
   const [reconnectKey, setReconnectKey] = useState(0);
+  const leaveIssuedRef = useRef(false);
   const emitControllerRuntimeEvent = useCallback(
     ({
       event,
@@ -276,6 +283,63 @@ export const useControllerRuntimeApi = (
     setReconnectKey((prev) => prev + 1);
   }, [parsedRoomId, disconnectSocket, socket, embeddedController]);
 
+  const leave = useCallback(async (): Promise<ControllerLeaveAck> => {
+    const storeState = store.getState();
+    const activeControllerId = storeState.controllerId;
+
+    if (!socket || !parsedRoomId || !activeControllerId) {
+      return { ok: false, message: "Not connected" };
+    }
+
+    if (!socket.connected) {
+      return { ok: true };
+    }
+
+    const payload = controllerLeaveSchema.safeParse({
+      roomId: parsedRoomId,
+      controllerId: activeControllerId,
+    });
+
+    if (!payload.success) {
+      return {
+        ok: false,
+        message: payload.error.message,
+      };
+    }
+
+    const applyLocalLeaveState = () => {
+      if (parsedRoomId) {
+        clearControllerRoomBinding(parsedRoomId);
+      }
+      const latestState = store.getState();
+      latestState.removePlayer(activeControllerId);
+      latestState.setControllerId(null);
+      latestState.setStatus("disconnected");
+      latestState.resetRuntimeState();
+    };
+
+    leaveIssuedRef.current = true;
+
+    if (embeddedController) {
+      socket.emit("controller:leave", payload.data);
+      applyLocalLeaveState();
+      return { ok: true };
+    }
+
+    return await new Promise<ControllerLeaveAck>((resolve) => {
+      socket.emit(
+        "controller:leave",
+        payload.data,
+        (ack: ControllerLeaveAck) => {
+          if (ack.ok) {
+            applyLocalLeaveState();
+          }
+          resolve(ack);
+        },
+      );
+    });
+  }, [embeddedController, parsedRoomId, socket, store]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -316,6 +380,73 @@ export const useControllerRuntimeApi = (
       socket.off("server:signal", handleSignal);
     };
   }, [socket]);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !previewDeviceId ||
+      embeddedController ||
+      !socket
+    ) {
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== window.parent) {
+        return;
+      }
+
+      if (!isPreviewCloseRequestMessage(event.data)) {
+        return;
+      }
+
+      void leave()
+        .catch(() => ({ ok: false }) satisfies ControllerLeaveAck)
+        .then((ack) => {
+          window.parent.postMessage(
+            {
+              type: AIR_JAM_PREVIEW_CLOSE_RESULT,
+              ok: ack.ok,
+            },
+            "*",
+          );
+          socket.disconnect();
+          disconnectSocket("controller");
+        });
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [disconnectSocket, embeddedController, leave, previewDeviceId, socket]);
+
+  useEffect(() => {
+    if (!previewDeviceId || !parsedRoomId || embeddedController || !socket) {
+      return;
+    }
+
+    return () => {
+      const controllerIdForLeave = store.getState().controllerId;
+      if (
+        leaveIssuedRef.current ||
+        !controllerIdForLeave ||
+        !socket.connected
+      ) {
+        return;
+      }
+
+      leaveIssuedRef.current = true;
+      socket.emit(
+        "controller:leave",
+        {
+          roomId: parsedRoomId,
+          controllerId: controllerIdForLeave,
+        },
+        () => {},
+      );
+    };
+  }, [embeddedController, parsedRoomId, previewDeviceId, socket, store]);
 
   useEffect(() => {
     const storeState = store.getState();
@@ -724,10 +855,12 @@ export const useControllerRuntimeApi = (
       setNickname,
       setAvatarId,
       updatePlayerProfile,
+      leave,
       reconnect,
       socket,
     }),
     [
+      leave,
       reconnect,
       sendSystemCommand,
       setAvatarId,

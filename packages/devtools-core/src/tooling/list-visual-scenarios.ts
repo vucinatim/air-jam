@@ -1,5 +1,6 @@
 import { describeVisualHarnessActions } from "@air-jam/harness";
-import { loadVisualScenarioPack } from "./visual-pack.js";
+import { resolveVisualScenarioModulePathFromConfig } from "./airjam-machine.js";
+import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -12,15 +13,35 @@ const getFlagValue = (flag: string): string | null => {
 };
 
 const modulePath = getFlagValue("--module-path");
-if (!modulePath) {
-  throw new Error("Missing required --module-path.");
+const configPath = getFlagValue("--config");
+if (!modulePath && !configPath) {
+  throw new Error("Missing required --config or --module-path.");
 }
 
-const scenarioPack = await loadVisualScenarioPack(modulePath);
+if (configPath) {
+  if (!(await resolveVisualScenarioModulePathFromConfig(configPath))) {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          hasVisualHarness: false,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    process.exit(0);
+  }
+}
+
+const scenarioPack = await loadVisualScenarioPackFromModuleOrConfig({
+  modulePath,
+  configPath,
+});
 
 process.stdout.write(
   `${JSON.stringify(
     {
+      hasVisualHarness: true,
       gameId: scenarioPack.gameId,
       bridgeActions: Object.keys(scenarioPack.bridge.actions ?? {}),
       actionMetadata: describeVisualHarnessActions(

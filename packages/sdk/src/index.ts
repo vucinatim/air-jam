@@ -142,6 +142,16 @@ export {
 export { resolveAirJamBrowserRouterBasename } from "./runtime/router-basename";
 
 export {
+  defineAirJamGameAgentContract,
+  type AirJamGameAgentActionContract,
+  type AirJamGameAgentActionTarget,
+  type AirJamGameAgentContract,
+  type AirJamGameAgentJsonObject,
+  type AirJamGameAgentPayloadKind,
+  type AirJamGameAgentPayloadMetadata,
+  type AirJamGameAgentSnapshotContext,
+} from "./agent/game-agent-contract";
+export {
   createAirJamStore,
   type AirJamActionContext,
   type AirJamSyncedStoreHook,

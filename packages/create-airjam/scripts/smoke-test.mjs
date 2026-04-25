@@ -4,8 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { requiredScaffoldPaths } from "./ai-pack-contract.mjs";
+import { loadScaffoldableRepoGameManifests } from "./lib/scaffold-source-manifests.mjs";
 
 const SMOKE_SOURCES = ["registry", "tarball", "workspace"];
+const AGENT_CONTRACT_PATH = path.join("src", "game", "contracts", "agent.ts");
 
 const run = (command, cwd) => {
   execSync(command, {
@@ -212,6 +214,17 @@ const loadScaffoldTemplateIds = (repoRoot) => {
     .map((manifest) => manifest.id);
 };
 
+const resolveTemplateAgentContractExpectation = (templateId) => {
+  const entry = loadScaffoldableRepoGameManifests().find(
+    (candidate) => candidate.manifest.id === templateId,
+  );
+  if (!entry) {
+    throw new Error(`Unknown scaffold template "${templateId}"`);
+  }
+
+  return fs.existsSync(path.join(entry.gameDir, AGENT_CONTRACT_PATH));
+};
+
 const toExactVersion = (value) => {
   if (!value) return undefined;
   return value.replace(/^[~^]/, "");
@@ -350,6 +363,21 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
     }
 
     run(cliArgs.join(" "), tempRoot);
+
+    const expectedAgentContract =
+      resolveTemplateAgentContractExpectation(template);
+    const generatedAgentContractPath = path.join(
+      projectDir,
+      AGENT_CONTRACT_PATH,
+    );
+    const generatedHasAgentContract = fs.existsSync(generatedAgentContractPath);
+    if (generatedHasAgentContract !== expectedAgentContract) {
+      throw new Error(
+        expectedAgentContract
+          ? `Generated project lost ${AGENT_CONTRACT_PATH} for template "${template}".`
+          : `Generated project unexpectedly added ${AGENT_CONTRACT_PATH} for template "${template}".`,
+      );
+    }
 
     const scaffoldPkg = JSON.parse(
       fs.readFileSync(path.join(projectDir, "package.json"), "utf-8"),

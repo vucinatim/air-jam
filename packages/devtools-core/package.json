@@ -31,17 +31,20 @@
     "src"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "pnpm --filter @air-jam/sdk build && tsup",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@air-jam/sdk": "workspace:^",
     "@air-jam/harness": "workspace:^",
+    "socket.io-client": "^4.8.1",
     "tsx": "^4.20.6"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "socket.io": "^4.8.1",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",
     "vitest": "^3.2.4"

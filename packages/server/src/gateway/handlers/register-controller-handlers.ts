@@ -594,79 +594,101 @@ export const registerControllerHandlers = (
     },
   );
 
-  socket.on("controller:leave", (payload: ControllerLeavePayload) => {
-    const parsed = controllerLeaveSchema.safeParse(payload);
-    if (!parsed.success) {
-      logControllerEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
-        "Rejected controller leave with invalid payload",
-        {
-          reason: "invalid_payload",
-          issues: parsed.error.issues,
-        },
-      );
-      return;
-    }
+  socket.on(
+    "controller:leave",
+    (
+      payload: ControllerLeavePayload,
+      callback: (ack: { ok: boolean; message?: string; code?: string }) => void,
+    ) => {
+      const parsed = controllerLeaveSchema.safeParse(payload);
+      if (!parsed.success) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
+          "Rejected controller leave with invalid payload",
+          {
+            reason: "invalid_payload",
+            issues: parsed.error.issues,
+          },
+        );
+        callback({
+          ok: false,
+          message: parsed.error.message,
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
 
-    const { roomId, controllerId } = parsed.data;
-    if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+      const { roomId, controllerId } = parsed.data;
+      if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
+          "Rejected controller leave because socket is unauthorized",
+          {
+            roomId,
+            controllerId,
+            reason: "unauthorized",
+          },
+        );
+        callback({
+          ok: false,
+          message: "Unauthorized controller leave request",
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
+          "Rejected controller leave because room was not found",
+          {
+            roomId,
+            controllerId,
+            reason: "room_not_found",
+          },
+        );
+        callback({
+          ok: false,
+          message: "Room not found",
+          code: ErrorCode.ROOM_NOT_FOUND,
+        });
+        return;
+      }
+
+      const controllerSession = session.controllers.get(controllerId);
+      if (controllerSession?.pendingDisconnectTimer) {
+        clearTimeout(controllerSession.pendingDisconnectTimer);
+        controllerSession.pendingDisconnectTimer = undefined;
+      }
+      session.controllers.delete(controllerId);
+      roomManager.deleteController(socket.id);
+      delete socket.data.controllerAuthority;
+      emitControllerLeftNotice(io, session, controllerId);
+      socket.leave(roomId);
       logControllerEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
-        "Rejected controller leave because socket is unauthorized",
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.controller.leaveAccepted,
+        "Controller left room",
         {
           roomId,
           controllerId,
-          reason: "unauthorized",
         },
       );
-      return;
-    }
-
-    const session = roomManager.getRoom(roomId);
-    if (!session) {
-      logControllerEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
-        "Rejected controller leave because room was not found",
-        {
-          roomId,
-          controllerId,
-          reason: "room_not_found",
-        },
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "controller_left",
+          payload: {
+            controllerId,
+          },
+        }),
       );
-      return;
-    }
-
-    const controllerSession = session.controllers.get(controllerId);
-    if (controllerSession?.pendingDisconnectTimer) {
-      clearTimeout(controllerSession.pendingDisconnectTimer);
-      controllerSession.pendingDisconnectTimer = undefined;
-    }
-    session.controllers.delete(controllerId);
-    roomManager.deleteController(socket.id);
-    delete socket.data.controllerAuthority;
-    emitControllerLeftNotice(io, session, controllerId);
-    socket.leave(roomId);
-    logControllerEvent(
-      "info",
-      AIRJAM_DEV_LOG_EVENTS.controller.leaveAccepted,
-      "Controller left room",
-      {
-        roomId,
-        controllerId,
-      },
-    );
-    runtimeUsagePublisher.publish(
-      createRoomRuntimeUsageEvent(session, {
-        kind: "controller_left",
-        payload: {
-          controllerId,
-        },
-      }),
-    );
-  });
+      callback({ ok: true });
+    },
+  );
 
   socket.on("controller:input", (payload: ControllerInputEvent) => {
     const now = Date.now();

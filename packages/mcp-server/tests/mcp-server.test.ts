@@ -49,6 +49,9 @@ describe("createAirJamMcpServer", () => {
     expect(listed.tools.map((tool) => tool.name)).toContain("airjam.read_logs");
     expect(listed.tools.map((tool) => tool.name)).toContain("airjam.start_dev");
     expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.inspect_game_agent_contract",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.list_visual_scenarios",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
@@ -56,6 +59,18 @@ describe("createAirJamMcpServer", () => {
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.list_harness_sessions",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.connect_controller",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.read_runtime_snapshot",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.read_game_snapshot",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.invoke_game_action",
     );
     expect(
       listed.tools.find((tool) => tool.name === "airjam.capture_visuals")
