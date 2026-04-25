@@ -1,3 +1,4 @@
+import type { HostSessionKind } from "@air-jam/sdk/protocol";
 import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach } from "vitest";
 import {
@@ -7,6 +8,10 @@ import {
 } from "../../src/index";
 import { RateLimitService } from "../../src/services/rate-limit-service";
 import { RoomManager } from "../../src/services/room-manager";
+import {
+  emitWithAck as emitWithAckWithTimeout,
+  waitForSocketConnect,
+} from "./socket-test-utils";
 
 type GenericEventMap = Record<string, (...args: unknown[]) => void>;
 type GenericSocket = Socket<GenericEventMap, GenericEventMap>;
@@ -16,7 +21,12 @@ interface HarnessOptions {
 }
 
 export interface ServerTestHarness {
-  connectSocket: () => Promise<GenericSocket>;
+  connectSocket: (options?: { origin?: string }) => Promise<GenericSocket>;
+  bootstrapHost: (
+    socket: GenericSocket,
+    appId?: string,
+    hostSessionKind?: HostSessionKind,
+  ) => Promise<{ ok: boolean; code?: string; message?: string }>;
   emitWithAck: <TAck>(
     socket: GenericSocket,
     event: string,
@@ -44,8 +54,15 @@ export const setupServerTestHarness = (
   let roomManager = new RoomManager();
   const sockets: GenericSocket[] = [];
   let baseUrl = "";
+  let previousChildTeardownMs: string | undefined;
+  let previousControllerResumeLeaseMs: string | undefined;
 
   beforeEach(async () => {
+    previousChildTeardownMs = process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
+    previousControllerResumeLeaseMs =
+      process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS;
+    process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = "50";
+    process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS = "100";
     roomManager = new RoomManager();
     const rateLimitService = new RateLimitService();
     runtime = createAirJamServer({
@@ -69,29 +86,35 @@ export const setupServerTestHarness = (
       runtime = null;
     }
     baseUrl = "";
+    if (previousChildTeardownMs === undefined) {
+      delete process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
+    } else {
+      process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = previousChildTeardownMs;
+    }
+    if (previousControllerResumeLeaseMs === undefined) {
+      delete process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS;
+    } else {
+      process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS =
+        previousControllerResumeLeaseMs;
+    }
   });
 
-  const connectSocket = async (): Promise<GenericSocket> => {
-    const socket = await new Promise<GenericSocket>((resolve, reject) => {
-      const nextSocket = io(baseUrl, {
-        transports: ["websocket"],
-        forceNew: true,
-        reconnection: false,
-      });
-
-      const onConnectError = (error: Error) => {
-        nextSocket.off("connect", onConnect);
-        reject(error);
-      };
-
-      const onConnect = () => {
-        nextSocket.off("connect_error", onConnectError);
-        resolve(nextSocket as GenericSocket);
-      };
-
-      nextSocket.once("connect_error", onConnectError);
-      nextSocket.once("connect", onConnect);
+  const connectSocket = async (options?: {
+    origin?: string;
+  }): Promise<GenericSocket> => {
+    const nextSocket = io(baseUrl, {
+      transports: ["websocket"],
+      forceNew: true,
+      reconnection: false,
+      extraHeaders: options?.origin
+        ? {
+            origin: options.origin,
+          }
+        : undefined,
     });
+
+    await waitForSocketConnect(nextSocket as GenericSocket);
+    const socket = nextSocket as GenericSocket;
 
     sockets.push(socket);
     return socket;
@@ -102,8 +125,17 @@ export const setupServerTestHarness = (
     event: string,
     payload: unknown,
   ): Promise<TAck> => {
-    return await new Promise((resolve) => {
-      socket.emit(event, payload, (ack: TAck) => resolve(ack));
+    return await emitWithAckWithTimeout<TAck>(socket, event, payload);
+  };
+
+  const bootstrapHost = async (
+    socket: GenericSocket,
+    appId?: string,
+    hostSessionKind: HostSessionKind = "system",
+  ): Promise<{ ok: boolean; code?: string; message?: string }> => {
+    return await emitWithAck(socket, "host:bootstrap", {
+      appId,
+      hostSessionKind,
     });
   };
 
@@ -154,6 +186,7 @@ export const setupServerTestHarness = (
 
   return {
     connectSocket,
+    bootstrapHost,
     emitWithAck,
     waitForEvent,
     expectNoEvent,

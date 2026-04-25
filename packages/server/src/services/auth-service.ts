@@ -1,105 +1,330 @@
+import {
+  AIRJAM_DEV_LOG_EVENTS,
+  verifyHostGrant,
+  type HostGrantClaims,
+} from "@air-jam/sdk/protocol";
 import { and, eq } from "drizzle-orm";
-import { apiKeys, db } from "../db.js";
+import { appIds, type ServerDatabase } from "../db.js";
+import { resolveServerRuntimeDatabaseUrl } from "../env/database-url-policy.js";
+import { createServerLogger, type ServerLogger } from "../logging/logger.js";
 
 type AuthMode = "disabled" | "required";
 
 /**
- * API key verification result
+ * App identity verification result
  */
 export interface VerificationResult {
   isVerified: boolean;
   error?: string;
 }
 
+export interface VerifyAppIdContext {
+  origin?: string;
+}
+
+export interface VerifyHostBootstrapInput {
+  appId?: string;
+  hostGrant?: string;
+  origin?: string;
+}
+
+export interface HostBootstrapVerificationResult extends VerificationResult {
+  appId?: string;
+  gameId?: string;
+  verifiedVia?: "appId" | "hostGrant";
+  verifiedOrigin?: string;
+  grantClaims?: HostGrantClaims;
+}
+
+export interface HostBootstrapAuthService {
+  verifyHostBootstrap: (
+    input: VerifyHostBootstrapInput,
+  ) => Promise<HostBootstrapVerificationResult>;
+  getStartupConfigurationError?: () => string | null;
+}
+
+export interface AuthServiceEnvironment {
+  authMode?: AuthMode;
+  masterKey?: string;
+  hostGrantSecret?: string;
+  databaseUrl?: string;
+  nodeEnv?: string;
+}
+
+export interface AuthServiceOptions {
+  logger?: ServerLogger;
+  env?: AuthServiceEnvironment;
+  db?: ServerDatabase | null;
+}
+
+const normalizeOrigin = (value?: string): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+
+const resolveActiveAppIdRecord = async ({
+  appId,
+  db,
+}: {
+  appId?: string;
+  db: ServerDatabase | null;
+}) => {
+  if (!appId || !db) {
+    return null;
+  }
+
+  const [keyRecord] = await db
+    .select()
+    .from(appIds)
+    .where(and(eq(appIds.key, appId), eq(appIds.isActive, true)))
+    .limit(1);
+
+  return keyRecord ?? null;
+};
+
 /**
  * Authentication service
- * Handles API key verification
+ * Handles app identity verification.
  * In local/dev mode, allows all connections by default.
  * In production, defaults to required auth (fail-closed).
  */
 export class AuthService {
+  private logger: ServerLogger;
   private masterKey: string | undefined;
+  private hostGrantSecret: string | undefined;
   private databaseUrl: string | undefined;
   private authMode: AuthMode;
+  private db: ServerDatabase | null;
 
-  constructor() {
-    this.masterKey = process.env.AIR_JAM_MASTER_KEY;
-    this.databaseUrl = process.env.DATABASE_URL;
-    this.authMode = this.resolveAuthMode();
+  constructor(options: AuthServiceOptions = {}) {
+    this.logger = options.logger ?? createServerLogger({ component: "auth" });
+    this.masterKey = options.env?.masterKey ?? process.env.AIR_JAM_MASTER_KEY;
+    this.hostGrantSecret =
+      options.env?.hostGrantSecret ?? process.env.AIR_JAM_HOST_GRANT_SECRET;
+    this.databaseUrl =
+      options.env?.databaseUrl ??
+      resolveServerRuntimeDatabaseUrl(process.env).databaseUrl;
+    this.authMode = this.resolveAuthMode(options.env);
+    this.db = options.db ?? null;
 
     if (this.authMode === "disabled") {
-      console.log(
-        "[server] Running in development mode - authentication disabled",
+      this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled },
+        "Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce app identity checks)",
       );
-    } else if (this.masterKey && !this.databaseUrl) {
-      console.log(
-        "[server] Running with master key authentication (no database required)",
+    } else if (this.masterKey && !this.databaseUrl && !this.hostGrantSecret) {
+      this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeMasterKey },
+        "Running with master key authentication (no database required)",
+      );
+    } else if (this.databaseUrl && this.hostGrantSecret) {
+      this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDatabaseAndHostGrant },
+        "Running with database authentication and signed host-grant verification",
       );
     } else if (this.databaseUrl) {
-      console.log("[server] Running with database authentication");
+      this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDatabase },
+        "Running with database authentication",
+      );
+    } else if (this.hostGrantSecret) {
+      this.logger.info(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.modeHostGrantOnly },
+        "Running with signed host-grant authentication only (app ID bootstrap disabled because DATABASE_URL is not configured)",
+      );
     } else {
-      console.log(
-        "[server] Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
+      this.logger.warn(
+        { event: AIRJAM_DEV_LOG_EVENTS.auth.backendMissing },
+        "Authentication required, but no auth backend is configured (set AIR_JAM_MASTER_KEY or DATABASE_URL)",
       );
     }
   }
 
+  getStartupConfigurationError(): string | null {
+    if (this.authMode !== "required") {
+      return null;
+    }
+
+    if (this.masterKey || this.databaseUrl || this.hostGrantSecret) {
+      return null;
+    }
+
+    return [
+      "AIR_JAM_AUTH_MODE=required requires an auth backend.",
+      "Configure DATABASE_URL for app ID bootstrap, AIR_JAM_HOST_GRANT_SECRET for signed host grants, or AIR_JAM_MASTER_KEY for the legacy fallback.",
+    ].join(" ");
+  }
+
+  async verifyHostBootstrap({
+    appId,
+    hostGrant,
+    origin,
+  }: VerifyHostBootstrapInput): Promise<HostBootstrapVerificationResult> {
+    const normalizedOrigin = normalizeOrigin(origin) ?? undefined;
+
+    if (hostGrant) {
+      if (!this.hostGrantSecret) {
+        return {
+          isVerified: false,
+          error:
+            "Unauthorized: Host grant verification is not configured on the server",
+        };
+      }
+
+      const grantResult = await verifyHostGrant({
+        secret: this.hostGrantSecret,
+        token: hostGrant,
+      });
+      if (!grantResult.ok || !grantResult.claims) {
+        return {
+          isVerified: false,
+          error: grantResult.error ?? "Unauthorized: Invalid Host Grant",
+        };
+      }
+
+      const grantOrigins = (grantResult.claims.origins ?? [])
+        .map((value) => normalizeOrigin(value))
+        .filter((value): value is string => value !== null);
+
+      if (grantOrigins.length > 0) {
+        if (!normalizedOrigin) {
+          return {
+            isVerified: false,
+            error: "Unauthorized: Missing or Invalid Origin",
+          };
+        }
+
+        if (!grantOrigins.includes(normalizedOrigin)) {
+          return {
+            isVerified: false,
+            error: "Unauthorized: Origin not allowed by Host Grant",
+          };
+        }
+      }
+
+      const keyRecord = await resolveActiveAppIdRecord({
+        appId: grantResult.claims.appId,
+        db: this.db,
+      });
+      return {
+        isVerified: true,
+        appId: grantResult.claims.appId,
+        gameId: keyRecord?.gameId,
+        verifiedVia: "hostGrant",
+        verifiedOrigin: normalizedOrigin,
+        grantClaims: grantResult.claims,
+      };
+    }
+
+    const appIdResult = await this.verifyAppId(appId, { origin });
+    return {
+      ...appIdResult,
+      appId: appIdResult.isVerified ? appId : undefined,
+      verifiedVia: appIdResult.isVerified ? "appId" : undefined,
+      verifiedOrigin: appIdResult.isVerified ? normalizedOrigin : undefined,
+    };
+  }
+
   /**
-   * Verify an API key
+   * Verify a browser-supplied app ID.
    * Returns verification result with optional error message
    * In local/dev mode, always returns success
    */
-  async verifyApiKey(apiKey?: string): Promise<VerificationResult> {
+  async verifyAppId(
+    appId?: string,
+    context?: VerifyAppIdContext,
+  ): Promise<VerificationResult> {
     // Local/dev mode: no auth required
     if (this.authMode === "disabled") {
       return { isVerified: true };
     }
 
-    if (!apiKey) {
+    if (!appId) {
       return {
         isVerified: false,
-        error: "Unauthorized: Invalid or Missing API Key",
+        error: "Unauthorized: Invalid or Missing App ID",
       };
     }
 
     // Check master key first
-    if (this.masterKey && apiKey === this.masterKey) {
+    if (this.masterKey && appId === this.masterKey) {
       return { isVerified: true };
     }
 
     // Check database (only if database URL is configured)
-    if (!this.databaseUrl || !db) {
+    if (!this.databaseUrl || !this.db) {
       return {
         isVerified: false,
-        error: "Unauthorized: Invalid or Missing API Key",
+        error: "Unauthorized: Invalid or Missing App ID",
       };
     }
 
     try {
-      const [keyRecord] = await db
-        .select()
-        .from(apiKeys)
-        .where(and(eq(apiKeys.key, apiKey), eq(apiKeys.isActive, true)))
-        .limit(1);
+      const keyRecord = await resolveActiveAppIdRecord({
+        appId,
+        db: this.db,
+      });
 
       if (keyRecord) {
+        const allowedOrigins = keyRecord.allowedOrigins ?? [];
+        if (allowedOrigins.length > 0) {
+          const requestOrigin = normalizeOrigin(context?.origin);
+          if (!requestOrigin) {
+            return {
+              isVerified: false,
+              error: "Unauthorized: Missing or Invalid Origin",
+            };
+          }
+
+          const normalizedAllowedOrigins = allowedOrigins
+            .map((value) => normalizeOrigin(value))
+            .filter((value): value is string => value !== null);
+
+          if (!normalizedAllowedOrigins.includes(requestOrigin)) {
+            return {
+              isVerified: false,
+              error: "Unauthorized: Origin not allowed for this App ID",
+            };
+          }
+        }
+
         // Update last used timestamp (fire and forget)
-        db.update(apiKeys)
+        this.db
+          .update(appIds)
           .set({ lastUsedAt: new Date() })
-          .where(eq(apiKeys.id, keyRecord.id))
-          .catch((err: unknown) =>
-            console.error("[server] Failed to update lastUsedAt", err),
-          );
+          .where(eq(appIds.id, keyRecord.id))
+          .catch((err: unknown) => {
+            this.logger.warn(
+              {
+                event: AIRJAM_DEV_LOG_EVENTS.auth.appIdLastUsedAtUpdateFailed,
+                err,
+              },
+              "Failed to update app ID lastUsedAt",
+            );
+          });
 
         return { isVerified: true };
       }
 
       return {
         isVerified: false,
-        error: "Unauthorized: Invalid or Missing API Key",
+        error: "Unauthorized: Invalid or Missing App ID",
       };
     } catch (error) {
-      console.error("[server] Database error during key verification", error);
+      this.logger.error(
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.appIdVerificationDatabaseError,
+          err: error,
+        },
+        "Database error during app ID verification",
+      );
       return {
         isVerified: false,
         error: "Internal Server Error",
@@ -107,8 +332,9 @@ export class AuthService {
     }
   }
 
-  private resolveAuthMode(): AuthMode {
-    const configuredMode = process.env.AIR_JAM_AUTH_MODE?.toLowerCase();
+  private resolveAuthMode(env?: AuthServiceEnvironment): AuthMode {
+    const configuredMode =
+      env?.authMode ?? process.env.AIR_JAM_AUTH_MODE?.toLowerCase();
 
     if (configuredMode === "disabled") {
       return "disabled";
@@ -119,22 +345,13 @@ export class AuthService {
     }
 
     // Auto mode (default):
-    // - Require auth whenever credentials are configured.
-    // - Fail closed in production even if credentials are missing.
-    // - Keep local development friction-free.
-    if (this.masterKey || this.databaseUrl) {
-      return "required";
-    }
-
-    if (process.env.NODE_ENV === "production") {
+    // - Production defaults to required.
+    // - Development defaults to disabled for friction-free local iteration.
+    // - Use AIR_JAM_AUTH_MODE=required to enforce auth in development.
+    if ((env?.nodeEnv ?? process.env.NODE_ENV) === "production") {
       return "required";
     }
 
     return "disabled";
   }
 }
-
-/**
- * Singleton instance
- */
-export const authService = new AuthService();

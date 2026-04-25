@@ -1,5 +1,6 @@
 "use client";
 
+import { triggerLocalHaptic } from "@/lib/local-haptics";
 import {
   ChevronDown,
   ChevronLeft,
@@ -7,13 +8,27 @@ import {
   ChevronUp,
   CornerDownLeft,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 interface RemoteDPadProps {
   onMove: (vector: { x: number; y: number }) => void;
   onConfirm: () => void;
   onConfirmRelease: () => void;
+  hapticsEnabled: boolean;
 }
+
+const remoteDPadSizeStyle: CSSProperties = {
+  width:
+    "clamp(13rem, min(20rem, calc(var(--airjam-reference-width, 100dvw) * 0.82), calc(var(--airjam-reference-height, 100dvh) * 0.42)), 20rem)",
+  maxWidth: "100%",
+};
 
 /**
  * A circular remote-style D-Pad with center confirm button
@@ -24,6 +39,7 @@ export const RemoteDPad = ({
   onMove,
   onConfirm,
   onConfirmRelease,
+  hapticsEnabled,
 }: RemoteDPadProps) => {
   // Use refs to track state without causing re-renders
   const moveDirRef = useRef<"up" | "down" | "left" | "right" | "none">("none");
@@ -37,11 +53,17 @@ export const RemoteDPad = ({
 
   const handleMove = useCallback(
     (direction: "up" | "down" | "left" | "right" | "none") => {
+      const previousDirection = moveDirRef.current;
+
       // Update ref immediately (no re-render)
       moveDirRef.current = direction;
 
       // Update visual state (causes re-render for UI feedback)
       setMoveDir(direction);
+
+      if (direction !== "none" && previousDirection !== direction) {
+        if (hapticsEnabled) triggerLocalHaptic("selection");
+      }
 
       // Call callback immediately with new value
       switch (direction) {
@@ -62,7 +84,7 @@ export const RemoteDPad = ({
           break;
       }
     },
-    [onMove],
+    [hapticsEnabled, onMove],
   );
 
   const handleMoveEnd = useCallback(
@@ -81,12 +103,13 @@ export const RemoteDPad = ({
       setConfirmPressed(pressed);
 
       if (pressed) {
+        if (hapticsEnabled) triggerLocalHaptic("confirm");
         onConfirm();
       } else {
         onConfirmRelease();
       }
     },
-    [onConfirm, onConfirmRelease],
+    [hapticsEnabled, onConfirm, onConfirmRelease],
   );
 
   // SVG Geometry Config
@@ -245,8 +268,8 @@ export const RemoteDPad = ({
       const y = center + iconRadius * Math.sin(angleRad);
       return {
         position: "absolute" as const,
-        left: x,
-        top: y,
+        left: `${(x / size) * 100}%`,
+        top: `${(y / size) * 100}%`,
         transform: "translate(-50%, -50%)",
         pointerEvents: "none" as const,
         opacity: 0.6,
@@ -256,13 +279,16 @@ export const RemoteDPad = ({
   );
 
   return (
-    <div className="relative select-none" style={{ width: size, height: size }}>
+    <div
+      className="relative aspect-square shrink select-none"
+      style={remoteDPadSizeStyle}
+    >
       {/* SVG Ring Segments */}
       <svg
-        width={size}
-        height={size}
+        width="100%"
+        height="100%"
         viewBox={`0 0 ${size} ${size}`}
-        className="overflow-visible"
+        className="overflow-hidden"
       >
         <path {...getSegmentProps("right", 0)} />
         <path {...getSegmentProps("down", 90)} />
@@ -275,8 +301,10 @@ export const RemoteDPad = ({
         ref={centerButtonRef}
         className={`absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-neutral-900 transition-all duration-100 ease-out ${isConfirmPressed ? "scale-95 bg-neutral-700 shadow-inner" : "bg-neutral-800 shadow-xl"} `}
         style={{
-          width: centerBtnRadius * 2,
-          height: centerBtnRadius * 2,
+          width: `${((centerBtnRadius * 2) / size) * 100}%`,
+          height: `${((centerBtnRadius * 2) / size) * 100}%`,
+          borderWidth:
+            "clamp(2px, calc(var(--airjam-reference-width, 100dvw) * 0.011), 4px)",
         }}
         onMouseDown={() => handleConfirm(true)}
         onMouseUp={() => handleConfirm(false)}

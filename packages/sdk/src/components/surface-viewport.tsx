@@ -1,0 +1,317 @@
+import type { CSSProperties, JSX, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSessionScope } from "../context/session-scope";
+import { publishEmbeddedControllerPresentation } from "../runtime/controller-presentation";
+import { cn } from "../utils/cn";
+import {
+  createSurfaceViewportOuterStyle,
+  resolveForcedOrientationFrameStyle,
+  type SurfaceOrientation,
+} from "./surface-orientation-layout";
+import {
+  createSurfaceViewportScaleStyle,
+  resolveSurfaceViewportAvailableSize,
+  resolveSurfaceViewportReferenceSize,
+  resolveSurfaceViewportScale,
+} from "./surface-viewport-layout";
+
+type ScreenOrientationWithLock = ScreenOrientation & {
+  lock?: (orientation: SurfaceOrientation) => Promise<void>;
+};
+
+interface ViewportSize {
+  width: number;
+  height: number;
+}
+
+const readLayoutViewportSize = (): ViewportSize => {
+  if (typeof window === "undefined") {
+    return { width: 0, height: 0 };
+  }
+
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+};
+
+const isTextEntryElement = (element: Element | null): boolean => {
+  if (!element) {
+    return false;
+  }
+
+  if (element instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  if (element instanceof HTMLInputElement) {
+    return ![
+      "button",
+      "checkbox",
+      "color",
+      "file",
+      "hidden",
+      "image",
+      "radio",
+      "range",
+      "reset",
+      "submit",
+    ].includes(element.type);
+  }
+
+  return element instanceof HTMLElement && element.isContentEditable;
+};
+
+const isKeyboardResize = (
+  previous: ViewportSize | null,
+  next: ViewportSize,
+): boolean => {
+  if (!previous || typeof document === "undefined") {
+    return false;
+  }
+
+  if (!isTextEntryElement(document.activeElement)) {
+    return false;
+  }
+
+  const sameWidth = Math.abs(previous.width - next.width) <= 2;
+  const heightShrank = next.height < previous.height;
+
+  return sameWidth && heightShrank;
+};
+
+const getOrientation = ({
+  width,
+  height,
+}: ViewportSize): SurfaceOrientation => {
+  if (typeof window !== "undefined") {
+    if (window.matchMedia) {
+      if (window.matchMedia("(orientation: portrait)").matches) {
+        return "portrait";
+      }
+      if (window.matchMedia("(orientation: landscape)").matches) {
+        return "landscape";
+      }
+    }
+
+    if (window.screen?.orientation?.type) {
+      if (window.screen.orientation.type.startsWith("portrait")) {
+        return "portrait";
+      }
+      if (window.screen.orientation.type.startsWith("landscape")) {
+        return "landscape";
+      }
+    }
+  }
+
+  if (width > 0 && height > 0) {
+    return width >= height ? "landscape" : "portrait";
+  }
+
+  return width >= height ? "landscape" : "portrait";
+};
+
+export interface SurfaceViewportProps {
+  children: ReactNode;
+  orientation?: SurfaceOrientation;
+  lockOnGesture?: boolean;
+  className?: string;
+  contentClassName?: string;
+  style?: CSSProperties;
+  designWidth?: number;
+  designHeight?: number;
+  uiScaleMultiplier?: number;
+  minScale?: number;
+  maxScale?: number;
+}
+
+export const SurfaceViewport = ({
+  children,
+  orientation,
+  lockOnGesture = true,
+  className,
+  contentClassName,
+  style,
+  designWidth,
+  designHeight,
+  uiScaleMultiplier,
+  minScale,
+  maxScale,
+}: SurfaceViewportProps): JSX.Element => {
+  const [viewport, setViewport] = useState<ViewportSize | null>(null);
+  const viewportRef = useRef<ViewportSize | null>(null);
+  const sessionScope = useSessionScope();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const updateViewport = () => {
+      const nextViewport = readLayoutViewportSize();
+      if (isKeyboardResize(viewportRef.current, nextViewport)) {
+        return;
+      }
+
+      viewportRef.current = nextViewport;
+      setViewport(nextViewport);
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    window.addEventListener("orientationchange", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !orientation || !lockOnGesture) {
+      return;
+    }
+
+    const tryLock = () => {
+      if (!("orientation" in screen)) {
+        return;
+      }
+
+      const screenOrientation = screen.orientation as ScreenOrientationWithLock;
+      if (!screenOrientation?.lock) {
+        return;
+      }
+
+      void screenOrientation.lock(orientation).catch(() => {
+        // Best-effort only. Some browsers reject lock outside fullscreen.
+      });
+    };
+
+    const onFirstGesture = () => {
+      tryLock();
+      window.removeEventListener("pointerdown", onFirstGesture, true);
+    };
+
+    window.addEventListener("pointerdown", onFirstGesture, true);
+
+    return () => {
+      window.removeEventListener("pointerdown", onFirstGesture, true);
+    };
+  }, [orientation, lockOnGesture]);
+
+  useEffect(() => {
+    if (!orientation || sessionScope !== "controller") {
+      return;
+    }
+
+    publishEmbeddedControllerPresentation(orientation);
+  }, [orientation, sessionScope]);
+
+  const currentOrientation = viewport ? getOrientation(viewport) : "portrait";
+  const effectiveOrientation = orientation ?? currentOrientation;
+  const needsRotation = orientation
+    ? currentOrientation !== orientation
+    : false;
+
+  const shellStyle = useMemo<CSSProperties>(
+    () =>
+      orientation
+        ? resolveForcedOrientationFrameStyle(orientation, needsRotation)
+        : resolveForcedOrientationFrameStyle(effectiveOrientation, false),
+    [effectiveOrientation, needsRotation, orientation],
+  );
+
+  const availableSize = useMemo(
+    () =>
+      resolveSurfaceViewportAvailableSize({
+        safeViewportWidth: viewport?.width ?? 0,
+        safeViewportHeight: viewport?.height ?? 0,
+        orientation,
+        needsRotation,
+      }),
+    [needsRotation, orientation, viewport],
+  );
+
+  const referenceSize = useMemo(
+    () =>
+      resolveSurfaceViewportReferenceSize({
+        sessionScope,
+        designWidth,
+        designHeight,
+        orientation: effectiveOrientation,
+        availableWidth: availableSize.width,
+        availableHeight: availableSize.height,
+      }),
+    [
+      availableSize.height,
+      availableSize.width,
+      designHeight,
+      designWidth,
+      effectiveOrientation,
+      sessionScope,
+    ],
+  );
+
+  const scale = useMemo(
+    () => {
+      const scaleMode =
+        sessionScope === "controller"
+          ? effectiveOrientation === "portrait"
+            ? "width"
+            : "height"
+          : "fit";
+
+      return resolveSurfaceViewportScale({
+        availableWidth: availableSize.width,
+        availableHeight: availableSize.height,
+        referenceWidth: referenceSize.width,
+        referenceHeight: referenceSize.height,
+        scaleMode,
+        uiScaleMultiplier,
+        minScale,
+        maxScale,
+      });
+    },
+    [
+      availableSize.height,
+      availableSize.width,
+      effectiveOrientation,
+      maxScale,
+      minScale,
+      referenceSize.height,
+      referenceSize.width,
+      sessionScope,
+      uiScaleMultiplier,
+    ],
+  );
+
+  return (
+    <div
+      className={cn("fixed inset-0 overflow-hidden", className)}
+      style={{
+        ...createSurfaceViewportOuterStyle(),
+        ...style,
+      }}
+    >
+      <div style={shellStyle}>
+        <div
+          className={cn("h-full w-full overflow-hidden", contentClassName)}
+          data-airjam-surface-viewport="true"
+          style={createSurfaceViewportScaleStyle({
+            scale,
+            referenceWidth: referenceSize.width,
+            referenceHeight: referenceSize.height,
+          })}
+        >
+          <div className="h-full w-full" data-airjam-surface-root="true">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export type { SurfaceOrientation };

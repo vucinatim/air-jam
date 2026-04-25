@@ -10,7 +10,7 @@ export const SdkArchitectureDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
-      data-figure-description="SDK architecture diagram: AirJamProvider wraps the app and provides context. SocketClient manages WebSocket connections. InputManager handles input validation with Zod schemas and applies latching for boolean/vector fields. Zustand store maintains state. Hooks (useAirJamHost, useAirJamController, useGetInput, useSendSignal) provide access to functionality."
+      data-figure-description="SDK architecture diagram: createAirJamApp composes explicit runtime boundaries around the app. Those runtime owners mount scoped session providers internally. The realtime client manages socket or bridge-backed connections. Session state is stored in Zustand-backed runtime state. InputManager handles input validation with Zod schemas and applies input behavior semantics (pulse/hold/latest). Consumer hooks expose host, controller, input, and signal access below the mounted runtime."
     >
       <svg
         viewBox="0 0 700 400"
@@ -34,7 +34,7 @@ export const SdkArchitectureDiagram = () => {
           </marker>
         </defs>
 
-        {/* AirJamProvider Container */}
+        {/* Runtime boundary container */}
         <rect
           x="50"
           y="20"
@@ -53,10 +53,10 @@ export const SdkArchitectureDiagram = () => {
           fontSize="18"
           fontWeight="600"
         >
-          AirJamProvider
+          createAirJamApp / Runtime Boundaries
         </text>
 
-        {/* SocketManager */}
+        {/* Realtime client */}
         <rect
           x="80"
           y="80"
@@ -75,7 +75,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="13"
           fontWeight="600"
         >
-          SocketManager
+          Realtime Client
         </text>
         <text
           x="180"
@@ -96,7 +96,7 @@ export const SdkArchitectureDiagram = () => {
           Connection handling
         </text>
 
-        {/* Zustand Store */}
+        {/* Session/runtime state */}
         <rect
           x="320"
           y="80"
@@ -115,7 +115,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="13"
           fontWeight="600"
         >
-          Zustand Store
+          Runtime State
         </text>
         <text
           x="460"
@@ -124,7 +124,7 @@ export const SdkArchitectureDiagram = () => {
           fill={diagramColors.textSecondary}
           fontSize="11"
         >
-          (Connection State)
+          (Zustand-backed)
         </text>
         <text
           x="460"
@@ -173,7 +173,7 @@ export const SdkArchitectureDiagram = () => {
           fill={diagramColors.textSecondary}
           fontSize="11"
         >
-          • Input Latching
+          • Input Behavior (pulse / hold / latest)
         </text>
         <text
           x="340"
@@ -186,7 +186,7 @@ export const SdkArchitectureDiagram = () => {
         </text>
 
         {/* Arrows down from InputManager to hooks */}
-        {/* useAirJamHost center: x=170 (80 + 180/2), top: y=355 */}
+        {/* host consumer hook center: x=170 (80 + 180/2), top: y=355 */}
         <line
           x1="170"
           y1="320"
@@ -206,7 +206,7 @@ export const SdkArchitectureDiagram = () => {
           strokeWidth="2"
           markerEnd="url(#arrowhead-down)"
         />
-        {/* useAirJamController center: x=520 (440 + 160/2), top: y=355 */}
+        {/* controller consumer hook center: x=520 (440 + 160/2), top: y=355 */}
         <line
           x1="520"
           y1="320"
@@ -236,7 +236,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="12"
           fontWeight="600"
         >
-          useAirJamHost
+          useAirJamHost()
         </text>
         <text
           x="170"
@@ -245,7 +245,7 @@ export const SdkArchitectureDiagram = () => {
           fill={diagramColors.textTertiary}
           fontSize="9"
         >
-          (Full API)
+          (consumer)
         </text>
 
         <rect
@@ -296,7 +296,7 @@ export const SdkArchitectureDiagram = () => {
           fontSize="12"
           fontWeight="600"
         >
-          useAirJamController
+          useAirJamController()
         </text>
         <text
           x="520"

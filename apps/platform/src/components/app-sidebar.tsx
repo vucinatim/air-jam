@@ -2,10 +2,13 @@
 
 import {
   BookOpen,
+  Bug,
   ChevronLeft,
+  ImageIcon,
   LayoutDashboard,
   LineChart,
-  Settings,
+  Package,
+  Shield,
   UserRound,
   Variable,
 } from "lucide-react";
@@ -27,6 +30,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { airJamGithubIssuesUrl } from "@/lib/social-links";
 import { api } from "@/trpc/react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -39,6 +43,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { id: gameId! },
     { enabled: !!gameId },
   );
+  const { data: viewer } = api.user.me.useQuery();
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -103,11 +108,46 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname.includes("/settings")}
+                    isActive={pathname.includes("/releases")}
                   >
-                    <Link href={`/dashboard/games/${gameId}/settings`}>
-                      <Settings />
-                      <span>Configuration</span>
+                    <Link href={`/dashboard/games/${gameId}/releases`}>
+                      <Package />
+                      <span>Arcade Releases</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.includes("/media")}
+                  >
+                    <Link href={`/dashboard/games/${gameId}/media`}>
+                      <ImageIcon />
+                      <span>Media</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.includes("/security")}
+                  >
+                    <Link href={`/dashboard/games/${gameId}/security`}>
+                      <Shield />
+                      <span>Security</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={
+                      pathname === `/dashboard/games/${gameId}/analytics`
+                    }
+                  >
+                    <Link href={`/dashboard/games/${gameId}/analytics`}>
+                      <LineChart />
+                      <span>Analytics</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -117,14 +157,49 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <span>Variables</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>Resources</SidebarGroupLabel>
+              <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton disabled>
-                    <LineChart />
-                    <span>Analytics</span>
+                  <SidebarMenuButton asChild>
+                    <Link href="/docs" target="_blank">
+                      <BookOpen />
+                      <span>Documentation</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href={airJamGithubIssuesUrl} target="_blank">
+                      <Bug />
+                      <span>Report a Bug</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
+
+            {viewer?.role === "ops_admin" && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Internal</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith("/dashboard/ops/releases")}
+                      tooltip="Internal release moderation and enforcement."
+                    >
+                      <Link href="/dashboard/ops/releases">
+                        <Shield />
+                        <span>Release Ops</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </>
         ) : (
           // GLOBAL CONTEXT SIDEBAR
@@ -136,6 +211,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === "/dashboard/games"}
+                    tooltip="Manage and publish games."
                   >
                     <Link href="/dashboard/games">
                       <LayoutDashboard />
@@ -174,8 +250,36 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href={airJamGithubIssuesUrl} target="_blank">
+                      <Bug />
+                      <span>Report a Bug</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
+
+            {viewer?.role === "ops_admin" && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Internal</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith("/dashboard/ops/releases")}
+                      tooltip="Internal release moderation and enforcement."
+                    >
+                      <Link href="/dashboard/ops/releases">
+                        <Shield />
+                        <span>Release Ops</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </>
         )}
       </SidebarContent>

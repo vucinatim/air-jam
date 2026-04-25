@@ -1,0 +1,431 @@
+import { metadata } from "./page.docs";
+
+export { metadata };
+
+# Migrating Legacy Games
+
+This guide is for older Air Jam games that still use the pre-v1 app shape.
+
+If you are starting fresh, use [Quick Start](/docs/getting-started/quick-start) instead.
+
+<Callout variant="info" title="Tip">
+  If you are using an LLM to help with the migration, copy this guide into the
+  conversation first. Codex or Claude are the best fit for this kind of
+  repo-wide migration work.
+</Callout>
+
+## When You Need This Guide
+
+You are likely on the old shape if your game still has some of these patterns:
+
+- `AirJamProvider` in `App.tsx`
+- flat files like `src/host-view.tsx`, `src/controller-view.tsx`, and `src/store.ts`
+- `HostShell` / `ControllerShell`
+- old store actions like `joinTeam(team, playerId?)`
+- controller code that calls `controller.sendInput(...)` directly in a loop
+
+The v1 goal is not “make old code barely compile”.
+
+The goal is:
+
+1. move to the canonical v1 runtime shape
+2. keep boundaries clean between runtime, replicated state, and game logic
+3. remove old shell/provider assumptions instead of carrying them forward
+
+## Prerelease Local Migration Note
+
+If you are migrating an old game against a local unreleased Air Jam workspace before packages are published, keep the setup split clean:
+
+1. install `@air-jam/sdk` from the local package or a local tarball
+2. do not depend on `@air-jam/server` through a direct `file:` package reference if it still carries monorepo-only `workspace:*` internals
+3. for prerelease local dev, resolve `air-jam-server` from your nearby Air Jam workspace checkout or use tarballs once you are doing package validation
+
+This is only a prerelease migration concern. The release goal is published packages or tarball validation, not permanent cross-repo path coupling.
+
+## The Target Shape
+
+The current canonical app shape looks like this:
+
+```text
+src/
+  airjam.config.ts
+  app.tsx
+  routes/
+    host-view.tsx
+    controller-view.tsx
+  game/
+    input.ts
+    store.ts
+    ...
+```
+
+Not every migrated game must match that exact folder tree.
+
+What matters is the boundary model:
+
+1. `createAirJamApp(...)` defines runtime and input config
+2. `app.tsx` owns route-level `<airjam.Host>` and `<airjam.Controller>` wrappers
+3. host/controller runtime owner hooks mount only in those route entry files
+4. replicated state uses the current `createAirJamStore` action contract
+5. host-local simulation stays separate from replicated store state
+
+## Migration Checklist
+
+Use this order. Do not jump around randomly.
+
+1. Replace `AirJamProvider` bootstrap with `createAirJamApp`
+2. Move host/controller ownership into route wrappers
+3. Migrate replicated store actions to `(ctx, payload)`
+4. Remove `HostShell` / `ControllerShell`
+5. Decide what belongs in replicated store state versus host-local simulation
+6. Modernize controller input only if the game actually has continuous input
+7. Clean up old shell/theme workarounds and dead legacy branches
+8. Re-run local validation before changing game behavior
+
+## Step 1: Move Runtime Setup Into `airjam.config.ts`
+
+Old shape:
+
+```tsx filename="src/App.tsx"
+import { AirJamProvider } from "@air-jam/sdk";
+import { gameInputSchema } from "./types";
+
+export function App() {
+  return (
+    <AirJamProvider
+      serverUrl={import.meta.env.VITE_AIR_JAM_SERVER_URL}
+      publicHost={import.meta.env.VITE_AIR_JAM_PUBLIC_HOST}
+      input={{
+        schema: gameInputSchema,
+        latch: {
+          booleanFields: ["action"],
+        },
+      }}
+    >
+      ...
+    </AirJamProvider>
+  );
+}
+```
+
+Target shape:
+
+```tsx filename="src/airjam.config.ts"
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { gameInputSchema } from "./game/input";
+
+export const airjam = createAirJamApp({
+  runtime: env.vite(import.meta.env),
+  game: {
+    controllerPath: "/controller",
+  },
+  input: {
+    schema: gameInputSchema,
+  },
+});
+```
+
+This removes runtime wiring noise from your app tree and gives you one canonical config surface.
+
+## Step 2: Move Host And Controller Ownership Into `app.tsx`
+
+Old shape:
+
+```tsx filename="src/App.tsx"
+<Routes>
+  <Route path="/" element={<HostView />} />
+  <Route path="/controller" element={<ControllerView />} />
+</Routes>
+```
+
+Target shape:
+
+```tsx filename="src/app.tsx"
+import { Route, Routes } from "react-router-dom";
+import { airjam } from "./airjam.config";
+
+export function App() {
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <airjam.Host>
+            <HostView />
+          </airjam.Host>
+        }
+      />
+      <Route
+        path={airjam.paths.controller}
+        element={
+          <airjam.Controller>
+            <ControllerView />
+          </airjam.Controller>
+        }
+      />
+    </Routes>
+  );
+}
+```
+
+This is the runtime boundary. Keep it explicit.
+
+## Step 3: Fix Store Actions First
+
+This is the most important migration after bootstrap.
+
+Old actions often looked like this:
+
+```tsx filename="src/store.ts"
+actions: {
+  joinTeam: (team, playerId) => {
+    if (!playerId) return;
+    ...
+  },
+  setReady: (ready, playerId) => {
+    if (!playerId) return;
+    ...
+  },
+}
+```
+
+The current action model is:
+
+The `src/game/stores/game-store.ts` path below is a starter-friendly example.
+If your project already uses a different store module layout, keep the same action contract and ownership rules while migrating.
+
+```tsx filename="src/game/stores/game-store.ts"
+actions: {
+  joinTeam: ({ actorId, connectedPlayerIds }, { team }) =>
+    set((state) => {
+      if (!actorId) return state;
+      ...
+    }),
+
+  setReady: ({ actorId }, { ready }) =>
+    set((state) => {
+      if (!actorId) return state;
+      ...
+    }),
+}
+```
+
+Controller-side dispatch should always look like:
+
+```tsx filename="src/routes/controller-view.tsx"
+const actions = useGameStore.useActions();
+
+actions.joinTeam({ team: "team1" });
+actions.setReady({ ready: true });
+```
+
+Do not keep trailing `playerId` arguments around.
+
+For the full store model, see [Networked State](/docs/sdk/networked-state).
+
+## Step 4: Remove `HostShell` And `ControllerShell`
+
+Treat the old shell components as migration targets, not as permanent app structure.
+
+Why:
+
+1. they hide app-owned layout inside generic wrappers
+2. they can leak presentational concerns into the app
+3. they make theme and layout cleanup harder than it should be
+
+Use app-owned layout instead.
+
+If you still need a narrow layout helper, use one intentionally, for example `SurfaceViewport` for shared full-screen controller or host UI scaling.
+
+Do not rebuild your app around a generic shell.
+
+## Step 5: Choose The Right Migration Branch
+
+Not every legacy game should be migrated the same way.
+
+### Branch A: Flat Legacy App
+
+If your app still looks like:
+
+```text
+src/
+  App.tsx
+  host-view.tsx
+  controller-view.tsx
+  store.ts
+  types.ts
+```
+
+then do the full cleanup:
+
+1. add `src/airjam.config.ts`
+2. rename to `src/app.tsx`
+3. move runtime entry files to `src/routes/`
+4. move input/store/domain files into `src/game/`
+
+This is the cleanest migration for older minimal apps.
+
+### Branch B: Already Modular Legacy App
+
+If your app already has good structure like:
+
+```text
+src/
+  features/
+  store/
+  hooks/
+  components/
+```
+
+then do not force a cosmetic rewrite just to match a template.
+
+Instead:
+
+1. modernize bootstrap and route ownership
+2. modernize the store action contract
+3. keep healthy feature/domain modules mostly where they are
+
+The migration guide is about boundaries, not folder cosplay.
+
+### Branch C: Host-Simulation-Heavy App
+
+If most of the game logic lives in a host-side hook or engine module, keep that boundary explicit:
+
+1. replicated store state owns shared, synchronized state
+2. host-local hook/engine owns timers, refs, physics, media loading, and simulation details
+3. only the minimum necessary state should cross between them
+
+This is usually cleaner than trying to stuff the whole game loop into the replicated store.
+
+## Step 6: Migrate Input Based On Input Type
+
+Do not overgeneralize input migration.
+
+### Continuous Input Games
+
+If your controller sends directional or analog-style input every frame, prefer:
+
+1. local refs/state
+2. `useInputWriter()`
+3. `useControllerTick(...)`
+
+Example:
+
+```tsx filename="src/routes/controller-view.tsx"
+import {
+  useAirJamController,
+  useControllerTick,
+  useInputWriter,
+} from "@air-jam/sdk";
+import { useRef } from "react";
+
+export function ControllerView() {
+  const controller = useAirJamController();
+  const writeInput = useInputWriter();
+  const movementRef = useRef({ x: 0, y: 0 });
+  const actionRef = useRef(false);
+
+  useControllerTick(
+    () => {
+      writeInput({
+        movementX: movementRef.current.x,
+        movementY: movementRef.current.y,
+        action: actionRef.current,
+      });
+    },
+    {
+      enabled:
+        controller.connectionStatus === "connected" &&
+        controller.runtimeState === "playing",
+      intervalMs: 16,
+    },
+  );
+}
+```
+
+### Action-Only Or Choice-Driven Games
+
+If the controller mainly sends taps, choices, or store actions, do not add per-frame input machinery just because another game needed it.
+
+Use the simpler model that matches your game.
+
+For more input details, see [Input System](/docs/sdk/input-system).
+
+## Step 7: Clean Up Old `latch` Usage Carefully
+
+Older games may still configure input through `latch`.
+
+For most games, the right migration is smaller than you think:
+
+- move the schema into `airjam.config.ts`
+- remove `latch` entirely
+- keep the default input behavior unless you have a real non-default need
+
+Only add `input.behavior` overrides when the defaults are not enough.
+
+## Step 8: Remove Legacy Workarounds
+
+After bootstrap, shell, and action migration, remove old hacks that only existed because of the old shape.
+
+Common examples:
+
+1. theme fixes that fight shell-injected classes
+2. old child-mode or shell-mode presentation branches
+3. duplicated route aliases like `/host` unless you truly still need them
+4. stale README instructions that still describe the old app shape
+
+This step matters. A migration is not complete if the old assumptions are still quietly shaping the code.
+
+## Identity Rules To Recheck
+
+During migration, be explicit about identity.
+
+You should know:
+
+1. what is the Air Jam controller/session identity
+2. what is the in-game avatar or character identity
+3. which store keys use which identity
+
+Do not leave this implicit.
+
+This becomes especially important when:
+
+1. controllers are assigned to in-game characters
+2. bots exist
+3. host simulation uses different IDs than controller presence
+
+## Validation Checklist
+
+Before calling a migration done, verify:
+
+1. host route boots cleanly with `<airjam.Host>`
+2. controller route joins cleanly with `<airjam.Controller>`
+3. store actions no longer rely on trailing `playerId` arguments
+4. no child component mounts a second runtime owner hook
+5. shell-removal cleanup is complete
+6. README and local dev commands match the migrated app shape
+7. `pnpm run typecheck`
+8. `pnpm run build`
+9. the game still behaves correctly in local host/controller play
+
+## Recommended Order For Real Migrations
+
+When migrating multiple games, do them in this order:
+
+1. smallest flat app first
+2. host-simulation-heavy app second
+3. already-modular app third
+
+That order usually sharpens the guide fastest:
+
+1. first app proves the basic recipe
+2. second app forces the harder boundary decisions
+3. third app benefits from the refined guide and should migrate more cleanly
+
+## Related Docs
+
+1. [Quick Start](/docs/getting-started/quick-start)
+2. [Debugging and Logs](/docs/getting-started/debugging)
+3. [Input System](/docs/sdk/input-system)
+4. [Networked State](/docs/sdk/networked-state)
+5. [Hooks](/docs/sdk/hooks)

@@ -20,6 +20,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
+      "@content/*": ["../../content/*"],
       "@air-jam/sdk": ["../../packages/sdk/src/index.ts"],
       "@air-jam/sdk/*": ["../../packages/sdk/src/*"]
     }
@@ -30,7 +31,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-smoke/types/**/*.ts",
+    ".next-smoke/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "**/*.test.ts", "vitest.config.ts"]
 }

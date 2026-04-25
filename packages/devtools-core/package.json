@@ -1,0 +1,56 @@
+{
+  "name": "@air-jam/devtools-core",
+  "version": "1.0.0",
+  "description": "Shared Air Jam devtools operations for repo CLIs, MCP adapters, and generated projects",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vucinatim/air-jam.git",
+    "directory": "packages/devtools-core"
+  },
+  "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "bugs": {
+    "url": "https://github.com/vucinatim/air-jam/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @air-jam/sdk build && tsup",
+    "test": "pnpm --filter @air-jam/sdk build && vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "typecheck": "pnpm --filter @air-jam/sdk build && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@air-jam/sdk": "workspace:^",
+    "@air-jam/harness": "workspace:^",
+    "socket.io-client": "^4.8.1",
+    "tsx": "^4.20.6",
+    "yauzl": "^3.2.1",
+    "yazl": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/yauzl": "^2.10.3",
+    "@types/yazl": "^2.4.5",
+    "socket.io": "^4.8.1",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

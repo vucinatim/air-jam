@@ -1,12 +1,97 @@
 import { db } from "@/db";
-import { apiKeys, games, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  appIds,
+  gameReleaseArtifacts,
+  gameReleases,
+  games,
+  users,
+} from "@/db/schema";
+import { arcadeVisibilitySchema } from "@/lib/games/arcade-visibility";
+import {
+  gameConfigSourceUrlSchema,
+  gameConfigTemplateIdSchema,
+  parseGameConfig,
+  parseGameConfigLenient,
+} from "@/lib/games/game-config-contract";
+import {
+  HOSTED_RELEASE_CONTROLLER_PATH,
+  HOSTED_RELEASE_HOST_PATH,
+} from "@/lib/releases/hosted-release-artifact";
+import { assertOwnedGame } from "@/server/games/assert-owned-game";
+import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
+import {
+  buildHostedReleaseSnapshot,
+  findPublicReleaseBySlugOrId,
+  getLiveReleaseForGame,
+} from "@/server/releases/public-release-record";
+import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
+import { buildArcadeControllerRuntimeUrl } from "@air-jam/sdk/arcade/url";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+  RATE_LIMITS,
+  rateLimitMiddleware,
+} from "../trpc";
+
+const normalizeAllowedOrigins = (values: string[]): string[] => {
+  const normalized = values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => new URL(value).origin);
+
+  return Array.from(new Set(normalized));
+};
+
+const addManagedGameMediaUrls = <
+  T extends {
+    id: string;
+    thumbnailMediaAssetId: string | null;
+    coverMediaAssetId: string | null;
+    previewVideoMediaAssetId: string | null;
+  },
+>(
+  game: T,
+) => ({
+  ...game,
+  thumbnailUrl: buildManagedGameMediaUrl({
+    gameId: game.id,
+    assetId: game.thumbnailMediaAssetId,
+    kind: "thumbnail",
+  }),
+  coverUrl: buildManagedGameMediaUrl({
+    gameId: game.id,
+    assetId: game.coverMediaAssetId,
+    kind: "cover",
+  }),
+  videoUrl: buildManagedGameMediaUrl({
+    gameId: game.id,
+    assetId: game.previewVideoMediaAssetId,
+    kind: "preview_video",
+  }),
+});
+
+const addDeveloperCatalogFields = <T extends { config: unknown }>(game: T) => {
+  const config = parseGameConfigLenient(game.config);
+
+  return {
+    ...game,
+    sourceUrl: config.sourceUrl ?? null,
+    templateId: config.templateId ?? null,
+  };
+};
 
 export const gameRouter = createTRPCRouter({
   create: protectedProcedure
-    .input(z.object({ name: z.string().min(1), url: z.string().url() }))
+    .use(rateLimitMiddleware("game.create", RATE_LIMITS.gameCreate))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        url: z.string().url().optional(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       const gameId = crypto.randomUUID();
 
@@ -16,69 +101,177 @@ export const gameRouter = createTRPCRouter({
         .values({
           id: gameId,
           name: input.name,
-          url: input.url,
+          url: input.url ?? null,
           userId: ctx.user.id,
         })
         .returning();
 
-      // Auto-generate API key for the game
-      const apiKey = `aj_live_${crypto.randomUUID().replace(/-/g, "")}`;
-      await db.insert(apiKeys).values({
+      // Auto-generate app ID for the game
+      const appId = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
+      await db.insert(appIds).values({
         id: crypto.randomUUID(),
         gameId: gameId,
-        key: apiKey,
+        key: appId,
       });
 
       return game;
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
-    return await db.select().from(games).where(eq(games.userId, ctx.user.id));
+    const ownedGames = await db
+      .select()
+      .from(games)
+      .where(eq(games.userId, ctx.user.id));
+
+    return ownedGames.map(addManagedGameMediaUrls);
   }),
 
   getAllPublic: publicProcedure.query(async () => {
-    return await db
+    const rows = await db
       .select({
         id: games.id,
         name: games.name,
         slug: games.slug,
-        url: games.url,
-        thumbnailUrl: games.thumbnailUrl,
-        videoUrl: games.videoUrl,
+        config: games.config,
+        thumbnailMediaAssetId: games.thumbnailMediaAssetId,
+        previewVideoMediaAssetId: games.previewVideoMediaAssetId,
+        coverMediaAssetId: games.coverMediaAssetId,
         ownerName: users.name,
+        releaseId: gameReleases.id,
+        releaseVersionLabel: gameReleases.versionLabel,
+        releasePublishedAt: gameReleases.publishedAt,
       })
       .from(games)
       .innerJoin(users, eq(games.userId, users.id))
-      .where(eq(games.isPublished, true));
+      .innerJoin(
+        gameReleases,
+        and(eq(gameReleases.gameId, games.id), eq(gameReleases.status, "live")),
+      )
+      .innerJoin(
+        gameReleaseArtifacts,
+        eq(gameReleaseArtifacts.releaseId, gameReleases.id),
+      )
+      .where(eq(games.arcadeVisibility, "listed"));
+
+    return rows.map((row) => {
+      const config = parseGameConfigLenient(row.config);
+
+      return {
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+        url: buildHostedReleaseAssetUrl({
+          gameId: row.id,
+          releaseId: row.releaseId,
+          assetPath: HOSTED_RELEASE_HOST_PATH,
+        }),
+        thumbnailUrl: buildManagedGameMediaUrl({
+          gameId: row.id,
+          assetId: row.thumbnailMediaAssetId,
+          kind: "thumbnail",
+        }),
+        videoUrl: buildManagedGameMediaUrl({
+          gameId: row.id,
+          assetId: row.previewVideoMediaAssetId,
+          kind: "preview_video",
+        }),
+        coverUrl: buildManagedGameMediaUrl({
+          gameId: row.id,
+          assetId: row.coverMediaAssetId,
+          kind: "cover",
+        }),
+        ownerName: row.ownerName,
+        sourceUrl: config.sourceUrl ?? null,
+        templateId: config.templateId ?? null,
+        liveRelease: buildHostedReleaseSnapshot({
+          gameId: row.id,
+          releaseId: row.releaseId,
+          versionLabel: row.releaseVersionLabel,
+          publishedAt: row.releasePublishedAt,
+        }),
+        controllerUrl: buildHostedReleaseAssetUrl({
+          gameId: row.id,
+          releaseId: row.releaseId,
+          assetPath: HOSTED_RELEASE_CONTROLLER_PATH,
+        }),
+      };
+    });
   }),
 
   /** Look up a game by slug first, then fall back to ID. Public for shareable URLs. */
   getBySlugOrId: publicProcedure
     .input(z.object({ slugOrId: z.string() }))
-    .query(async ({ input }) => {
-      // Try slug first
+    .query(async ({ input, ctx }) => {
       let game = await db.query.games.findFirst({
-        where: (games, { eq }) => eq(games.slug, input.slugOrId),
+        where: (table, { eq }) => eq(table.slug, input.slugOrId),
       });
-      // Fall back to ID
       if (!game) {
         game = await db.query.games.findFirst({
-          where: (games, { eq }) => eq(games.id, input.slugOrId),
+          where: (table, { eq }) => eq(table.id, input.slugOrId),
         });
       }
-      if (!game) throw new Error("Game not found");
-      return game;
+
+      if (!game) {
+        throw new Error("Game not found");
+      }
+
+      const isOwner = ctx.user?.id === game.userId;
+      const liveRelease = await getLiveReleaseForGame(game.id);
+
+      if (isOwner) {
+        if (game.url) {
+          const controllerUrl = buildArcadeControllerRuntimeUrl(game.url);
+          if (!controllerUrl) {
+            throw new Error(
+              "This game preview URL does not produce a valid controller route.",
+            );
+          }
+
+          return {
+            ...addDeveloperCatalogFields(addManagedGameMediaUrls(game)),
+            url: game.url,
+            controllerUrl,
+            selfHostedUrl: game.url,
+            launchSource: "self_hosted" as const,
+            liveRelease,
+          };
+        }
+
+        if (liveRelease) {
+          return {
+            ...addDeveloperCatalogFields(addManagedGameMediaUrls(game)),
+            url: liveRelease.url,
+            controllerUrl: liveRelease.controllerUrl,
+            selfHostedUrl: game.url,
+            launchSource: "hosted_release" as const,
+            liveRelease,
+          };
+        }
+
+        throw new Error(
+          "This game does not have a preview URL or a live hosted release yet.",
+        );
+      }
+
+      const publicRelease = await findPublicReleaseBySlugOrId(input.slugOrId);
+
+      return {
+        ...addDeveloperCatalogFields(
+          addManagedGameMediaUrls(publicRelease.game),
+        ),
+        url: publicRelease.liveRelease.url,
+        controllerUrl: publicRelease.liveRelease.controllerUrl,
+        selfHostedUrl: publicRelease.game.url,
+        launchSource: "hosted_release" as const,
+        liveRelease: publicRelease.liveRelease,
+      };
     }),
 
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.id), eq(games.userId, ctx.user.id)),
-      });
-      if (!game) throw new Error("Game not found");
-      return game;
+      const game = await assertOwnedGame(input.id, ctx.user.id);
+      return addManagedGameMediaUrls(game);
     }),
 
   update: protectedProcedure
@@ -88,23 +281,52 @@ export const gameRouter = createTRPCRouter({
         name: z.string().min(1).optional(),
         slug: z.string().min(1).optional(),
         description: z.string().optional(),
-        url: z.string().url().optional(),
-        thumbnailUrl: z.string().url().optional().or(z.literal("")),
-        videoUrl: z.string().url().optional().or(z.literal("")),
-        coverUrl: z.string().url().optional().or(z.literal("")),
-        isPublished: z.boolean().optional(),
+        url: z.string().url().nullable().optional(),
+        arcadeVisibility: arcadeVisibilitySchema.optional(),
+        sourceUrl: gameConfigSourceUrlSchema.nullable().optional(),
+        templateId: gameConfigTemplateIdSchema.nullable().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const { id, ...data } = input;
+      const { id, sourceUrl, templateId, ...data } = input;
 
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, id), eq(games.userId, ctx.user.id)),
-      });
+      const existingGame = await assertOwnedGame(id, ctx.user.id);
 
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
+      if (data.arcadeVisibility === "listed") {
+        const liveRelease = await db.query.gameReleases.findFirst({
+          where: (table, { and, eq }) =>
+            and(eq(table.gameId, id), eq(table.status, "live")),
+        });
+
+        if (!liveRelease) {
+          throw new Error(
+            "A game can only be listed in Arcade after a hosted release is made live.",
+          );
+        }
+      }
+
+      const hasConfigUpdate =
+        sourceUrl !== undefined || templateId !== undefined;
+      const configPatch = hasConfigUpdate
+        ? { ...parseGameConfigLenient(existingGame.config) }
+        : null;
+
+      if (configPatch) {
+        if (sourceUrl !== undefined) {
+          if (sourceUrl) {
+            configPatch.sourceUrl = sourceUrl;
+          } else {
+            delete configPatch.sourceUrl;
+          }
+        }
+
+        if (templateId !== undefined) {
+          if (templateId) {
+            configPatch.templateId = templateId;
+          } else {
+            delete configPatch.templateId;
+          }
+        }
       }
 
       try {
@@ -112,6 +334,7 @@ export const gameRouter = createTRPCRouter({
           .update(games)
           .set({
             ...data,
+            ...(configPatch ? { config: parseGameConfig(configPatch) } : {}),
             updatedAt: new Date(),
           })
           .where(eq(games.id, id))
@@ -126,24 +349,16 @@ export const gameRouter = createTRPCRouter({
       }
     }),
 
-  getApiKey: protectedProcedure
+  getAppId: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input, ctx }) => {
-      // Verify game belongs to user
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
+      await assertOwnedGame(input.gameId, ctx.user.id);
+
+      const appId = await db.query.appIds.findFirst({
+        where: (appIds, { eq }) => eq(appIds.gameId, input.gameId),
       });
 
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
-      }
-
-      const apiKey = await db.query.apiKeys.findFirst({
-        where: (apiKeys, { eq }) => eq(apiKeys.gameId, input.gameId),
-      });
-
-      return apiKey;
+      return appId;
     }),
 
   /** Check if a slug is available (excludes the current game if editing) */
@@ -166,33 +381,53 @@ export const gameRouter = createTRPCRouter({
       return { available: isAvailable };
     }),
 
-  regenerateApiKey: protectedProcedure
+  regenerateAppId: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      // Verify game belongs to user
-      const game = await db.query.games.findFirst({
-        where: (games, { eq, and }) =>
-          and(eq(games.id, input.gameId), eq(games.userId, ctx.user.id)),
-      });
+      await assertOwnedGame(input.gameId, ctx.user.id);
 
-      if (!game) {
-        throw new Error("Game not found or unauthorized");
-      }
+      // Generate new app ID
+      const newKey = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
 
-      // Generate new API key
-      const newKey = `aj_live_${crypto.randomUUID().replace(/-/g, "")}`;
-
-      // Update existing API key record
-      const [updatedApiKey] = await db
-        .update(apiKeys)
+      // Update existing app ID record
+      const [updatedAppId] = await db
+        .update(appIds)
         .set({
           key: newKey,
           isActive: true,
           lastUsedAt: null, // Reset last used timestamp
         })
-        .where(eq(apiKeys.gameId, input.gameId))
+        .where(eq(appIds.gameId, input.gameId))
         .returning();
 
-      return updatedApiKey;
+      return updatedAppId;
+    }),
+
+  updateAppIdPolicy: protectedProcedure
+    .input(
+      z.object({
+        gameId: z.string(),
+        allowedOrigins: z.array(z.string().url()).default([]),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      await assertOwnedGame(input.gameId, ctx.user.id);
+
+      const normalizedAllowedOrigins = normalizeAllowedOrigins(
+        input.allowedOrigins,
+      );
+
+      const [updatedAppId] = await db
+        .update(appIds)
+        .set({
+          allowedOrigins:
+            normalizedAllowedOrigins.length > 0
+              ? normalizedAllowedOrigins
+              : null,
+        })
+        .where(eq(appIds.gameId, input.gameId))
+        .returning();
+
+      return updatedAppId;
     }),
 });

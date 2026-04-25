@@ -34,7 +34,8 @@ export default function NewGamePage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Create New Game</h1>
         <p className="text-muted-foreground">
-          Register a new game to start integrating with Air Jam.
+          Register a new game to start integrating with Air Jam. Public Arcade
+          distribution happens through hosted releases later.
         </p>
       </div>
 
@@ -54,14 +55,15 @@ export default function NewGamePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label>Game URL</Label>
+            <Label>Preview URL (optional)</Label>
             <Input
-              placeholder="https://your-game-url.com"
+              placeholder="http://localhost:5173 or https://your-site.com"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              Where your game is hosted. You can change this later.
+              Only used for private creator preview inside the dashboard. Public
+              Arcade uses hosted releases, not this URL.
             </p>
           </div>
         </CardContent>
@@ -73,8 +75,13 @@ export default function NewGamePage() {
             Cancel
           </Button>
           <Button
-            onClick={() => createGame.mutate({ name, url })}
-            disabled={createGame.isPending || !name || !url}
+            onClick={() =>
+              createGame.mutate({
+                name,
+                url: url.trim() ? url.trim() : undefined,
+              })
+            }
+            disabled={createGame.isPending || !name}
           >
             {createGame.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

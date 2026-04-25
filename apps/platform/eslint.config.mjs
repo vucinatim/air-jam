@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next-smoke/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
@@ -23,6 +24,16 @@ const eslintConfig = defineConfig([
       ...prettierConfig.rules,
       "react-hooks/purity": "off",
       "react-hooks/refs": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
 ]);

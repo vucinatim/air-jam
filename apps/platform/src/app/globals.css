@@ -84,6 +84,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Shiki code panels (landing + anywhere we override pre.shiki) */
+  --shiki-code-bg: oklch(0.14 0.01 260);
 }
 
 .dark {
@@ -121,6 +123,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --shiki-code-bg: oklch(18.22% 0.00002 271.152);
 }
 
 @layer base {
@@ -133,53 +136,9 @@
 }
 
 @layer components {
-  /* Neon Glow Button */
-  .neon-glow-button {
-    box-shadow:
-      0 0 10px rgba(0, 211, 243, 0.8),
-      0 0 30px rgba(0, 211, 243, 0.6),
-      0 0 60px rgba(0, 211, 243, 0.5),
-      0 0 100px rgba(0, 211, 243, 0.4),
-      0 0 150px rgba(0, 211, 243, 0.3),
-      inset 0 0 20px rgba(0, 211, 243, 0.1);
-    animation: neon-pulse 2s ease-in-out infinite;
-  }
-
-  .neon-glow-button:hover {
-    box-shadow:
-      0 0 15px rgba(0, 211, 243, 1),
-      0 0 40px rgba(0, 211, 243, 0.8),
-      0 0 80px rgba(0, 211, 243, 0.7),
-      0 0 120px rgba(0, 211, 243, 0.6),
-      0 0 180px rgba(0, 211, 243, 0.4),
-      inset 0 0 30px rgba(0, 211, 243, 0.15);
-  }
-
-  @keyframes neon-pulse {
-    0%,
-    100% {
-      box-shadow:
-        0 0 10px rgba(0, 211, 243, 0.8),
-        0 0 30px rgba(0, 211, 243, 0.6),
-        0 0 60px rgba(0, 211, 243, 0.5),
-        0 0 100px rgba(0, 211, 243, 0.4),
-        0 0 150px rgba(0, 211, 243, 0.3),
-        inset 0 0 20px rgba(0, 211, 243, 0.1);
-    }
-    50% {
-      box-shadow:
-        0 0 15px rgba(0, 211, 243, 1),
-        0 0 40px rgba(0, 211, 243, 0.8),
-        0 0 80px rgba(0, 211, 243, 0.7),
-        0 0 120px rgba(0, 211, 243, 0.6),
-        0 0 180px rgba(0, 211, 243, 0.4),
-        inset 0 0 30px rgba(0, 211, 243, 0.15);
-    }
-  }
-
   /* MDX Code Block Styling */
   .prose pre {
-    @apply overflow-x-auto rounded-lg border bg-black px-4 py-4;
+    @apply max-w-full min-w-0 overflow-x-auto rounded-lg border bg-black px-4 py-4;
   }
 
   .prose code {
@@ -192,12 +151,12 @@
 
   /* Syntax Highlighting */
   figure[data-rehype-pretty-code-figure] {
-    @apply my-0;
+    @apply my-0 max-w-full min-w-0;
   }
 
   figure[data-rehype-pretty-code-figure] pre {
-    @apply m-0 overflow-x-auto rounded-none border-0 px-4 py-4;
-    background-color: #111111 !important;
+    @apply m-0 max-w-full min-w-0 overflow-x-auto rounded-none border-0 px-4 py-4;
+    background-color: var(--shiki-code-bg) !important;
   }
 
   figure[data-rehype-pretty-code-figure] code {
@@ -224,5 +183,49 @@
     counter-increment: line;
     content: counter(line);
     @apply mr-4 inline-block w-4 text-right text-gray-500;
+  }
+
+  pre:not(.shiki) {
+    background-color: var(--sidebar) !important;
+  }
+
+  /*
+   * Shiki emits inline background-color on <pre>; override via token + !important.
+   * Docs use PreBlock (pre.shiki), not figure[data-rehype-pretty-code-figure].
+   */
+  .prose pre.shiki,
+  pre.shiki {
+    --shiki-dark-bg: var(--shiki-code-bg);
+    --shiki-light-bg: var(--shiki-code-bg);
+    max-width: 100%;
+    min-width: 0;
+    background-color: var(--shiki-code-bg) !important;
+  }
+
+  /*
+   * Landing SDK snippets only: wrap long lines, no horizontal scroll.
+   * Docs use figure[data-rehype-pretty-code-figure] pre { overflow-x: auto } unchanged.
+   */
+  .landing-sdk-snippet pre.shiki {
+    max-width: 100%;
+    overflow-x: hidden !important;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-sdk-snippet pre.shiki code {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-sdk-snippet pre.shiki .line {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 }

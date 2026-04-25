@@ -12,16 +12,18 @@
  *
  * **When to use this vs useAirJamHost().sendSignal:**
  * - Use `useSendSignal()` in components that render frequently (projectiles, collectibles)
- * - Use `useAirJamHost().sendSignal` when you already need other host state
+ * - Use `useAirJamHost().sendSignal` when you already read host runtime state for other reasons
  */
 import { useCallback } from "react";
 import { useAirJamContext } from "../context/air-jam-context";
+import { useAssertSessionScope } from "../context/session-scope";
 import type {
   HapticSignalPayload,
   SignalPayload,
   SignalType,
   ToastSignalPayload,
 } from "../protocol";
+import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 
 /**
  * Function signature for sending signals to controllers.
@@ -136,6 +138,8 @@ export interface SendSignalFn {
  * ```
  */
 export const useSendSignal = (): SendSignalFn => {
+  useAssertSessionScope("host", "useSendSignal");
+
   const { getSocket } = useAirJamContext();
 
   // Get socket directly without subscribing to store state
@@ -146,7 +150,7 @@ export const useSendSignal = (): SendSignalFn => {
       payload: HapticSignalPayload | ToastSignalPayload,
       targetId?: string,
     ): void => {
-      const socket = getSocket("host");
+      const socket = getHostRealtimeClient((role) => getSocket(role));
       if (!socket || !socket.connected) {
         return;
       }

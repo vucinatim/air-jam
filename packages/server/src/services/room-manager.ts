@@ -1,5 +1,6 @@
 import type { RoomCode } from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
+import { markRoomTeardown } from "../domain/room-session-domain.js";
 import type { ControllerIndexEntry, RoomSession } from "../types.js";
 
 /**
@@ -10,6 +11,25 @@ export class RoomManager {
   private rooms = new Map<RoomCode, RoomSession>();
   private hostIndex = new Map<string, RoomCode>();
   private controllerIndex = new Map<string, ControllerIndexEntry>();
+
+  private clearRoomTimers(session: RoomSession): void {
+    if (session.pendingChildTeardownTimer) {
+      clearTimeout(session.pendingChildTeardownTimer);
+      session.pendingChildTeardownTimer = undefined;
+    }
+
+    if (session.pendingRoomCloseTimer) {
+      clearTimeout(session.pendingRoomCloseTimer);
+      session.pendingRoomCloseTimer = undefined;
+    }
+
+    session.controllers.forEach((controller) => {
+      if (controller.pendingDisconnectTimer) {
+        clearTimeout(controller.pendingDisconnectTimer);
+        controller.pendingDisconnectTimer = undefined;
+      }
+    });
+  }
 
   /**
    * Get a room by ID
@@ -90,12 +110,18 @@ export class RoomManager {
     const session = this.rooms.get(roomId);
     if (!session) return;
 
+    this.clearRoomTimers(session);
+
+    markRoomTeardown(session);
+
     // Notify all clients
     io.to(roomId).emit("server:hostLeft", { roomId, reason });
 
     // Clean up controller indices
     session.controllers.forEach((controller) => {
-      this.controllerIndex.delete(controller.socketId);
+      if (controller.socketId) {
+        this.controllerIndex.delete(controller.socketId);
+      }
     });
 
     // Clean up host indices
@@ -106,6 +132,12 @@ export class RoomManager {
 
     // Remove room
     this.rooms.delete(roomId);
+  }
+
+  clearAllRooms(io: Server, reason: string): void {
+    for (const roomId of Array.from(this.rooms.keys())) {
+      this.removeRoom(roomId, io, reason);
+    }
   }
 
   /**

@@ -1,3 +1,4 @@
+import { createLoginHref } from "@/lib/auth-redirect";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function proxy(request: NextRequest) {
@@ -7,7 +8,10 @@ export async function proxy(request: NextRequest) {
   );
 
   if (!sessionCookie && !secureSessionCookie) {
-    return NextResponse.redirect(new URL("/", request.url));
+    const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+    return NextResponse.redirect(
+      new URL(createLoginHref(nextPath), request.url),
+    );
   }
   return NextResponse.next();
 }

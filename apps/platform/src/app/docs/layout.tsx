@@ -33,10 +33,10 @@ export default function DocsLayout({
             <Github className="h-5 w-5" />
           </Link>
         </header>
-        <div className="flex flex-1 flex-col p-4 md:p-6 lg:p-8">
-          <div className="mx-auto w-full max-w-5xl">
-            <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[1fr_200px] xl:gap-12">
-              <div className="prose dark:prose-invert prose-code:before:content-none prose-code:after:content-none max-w-none">
+        <div className="flex min-w-0 flex-1 flex-col p-4 md:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-5xl min-w-0">
+            <div className="flex min-w-0 flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,200px)] xl:gap-12">
+              <div className="prose dark:prose-invert prose-code:before:content-none prose-code:after:content-none max-w-full min-w-0">
                 {children}
               </div>
               <TableOfContents />

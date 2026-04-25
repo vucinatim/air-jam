@@ -1,140 +1,250 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useRef } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../context/air-jam-context";
-import { AudioManager, SoundManifest } from "./audio-manager";
+import type { PlaySoundPayload } from "../protocol";
+import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
+import { getHostRealtimeClient } from "../runtime/host-realtime-client";
+import {
+  usePlatformSettingsRuntimeStatus,
+  useResolvedPlatformSettingsSnapshot,
+} from "../settings/platform-settings-runtime";
+import {
+  AudioManager,
+  type AudioHandle,
+  type SoundManifest,
+} from "./audio-manager";
 
-// Module-level singleton manager cache
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const managerCache = new WeakMap<SoundManifest, AudioManager<any>>();
 let globalInitialized = false;
+const audioManagerContext = createContext<AudioHandle<string> | null>(null);
+const audioRuntimeStatusContext = createContext<AudioRuntimeStatus | null>(
+  null,
+);
+const audioRuntimeControlsContext = createContext<AudioRuntimeControls | null>(
+  null,
+);
 
-/**
- * Hook to use audio with a sound manifest
- * Creates a singleton AudioManager for the manifest and handles socket injection
- * @param manifest The sound manifest configuration
- * @returns The AudioManager instance with type-safe sound IDs
- */
-export function useAudio<M extends SoundManifest>(
-  manifest: M,
-): AudioManager<keyof M & string> {
-  const { store, getSocket } = useAirJamContext();
-  const roomId = useStore(store, (state) => state.roomId);
-  const role = useStore(store, (state) => state.role);
-  const initRef = useRef(false);
+export type AudioRuntimeStatus = "idle" | "blocked" | "ready";
 
-  // Get or create singleton manager for this manifest
-  type SoundId = keyof M & string;
-  let manager = managerCache.get(manifest) as AudioManager<SoundId> | undefined;
-  if (!manager) {
-    manager = new AudioManager<SoundId>(manifest);
-    managerCache.set(manifest, manager);
-  }
-
-  // Inject socket into manager when connection is available
-  useEffect(() => {
-    if (role && roomId) {
-      const socket = getSocket(role);
-      manager.setSocket(socket, roomId);
-    }
-  }, [manager, role, roomId, getSocket]);
-
-  // Ensure audio context is resumed on first interaction (only once globally)
-  useEffect(() => {
-    if (initRef.current || globalInitialized) return;
-
-    const handleInteraction = () => {
-      manager.init();
-      globalInitialized = true;
-      initRef.current = true;
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
-    };
-
-    window.addEventListener("click", handleInteraction);
-    window.addEventListener("touchstart", handleInteraction);
-    window.addEventListener("keydown", handleInteraction);
-
-    return () => {
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
-    };
-  }, [manager]);
-
-  return manager;
+export interface AudioRuntimeControls {
+  retry: () => Promise<boolean>;
 }
 
-// Legacy exports for backward compatibility (can be removed later)
-const LegacyAudioContext = createContext<AudioManager | null>(null);
+export interface AudioRuntimeProps<M extends SoundManifest = SoundManifest> {
+  manifest: M;
+  children: ReactNode;
+}
 
-export const AudioProvider = ({
+export function AudioRuntime<M extends SoundManifest>({
+  manifest,
   children,
-  manager,
-}: {
-  children: React.ReactNode;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  manager: AudioManager<any>;
-}) => {
+}: AudioRuntimeProps<M>) {
+  const { manager, status, controls } = useOwnedAudio(manifest);
+
+  useRemoteSound(manifest, manager);
+
+  return (
+    <audioRuntimeStatusContext.Provider value={status}>
+      <audioRuntimeControlsContext.Provider value={controls}>
+        <audioManagerContext.Provider value={manager as AudioHandle<string>}>
+          {children}
+        </audioManagerContext.Provider>
+      </audioRuntimeControlsContext.Provider>
+    </audioRuntimeStatusContext.Provider>
+  );
+}
+
+export function useAudio<T extends string = string>(): AudioHandle<T> {
+  const manager = useContext(audioManagerContext);
+
+  if (!manager) {
+    throw new Error("useAudio must be used within an AudioRuntime");
+  }
+
+  return manager as AudioHandle<T>;
+}
+
+export function useAudioRuntimeStatus(): AudioRuntimeStatus {
+  const status = useContext(audioRuntimeStatusContext);
+
+  if (!status) {
+    throw new Error(
+      "useAudioRuntimeStatus must be used within an AudioRuntime",
+    );
+  }
+
+  return status;
+}
+
+export function useAudioRuntimeControls(): AudioRuntimeControls {
+  const controls = useContext(audioRuntimeControlsContext);
+
+  if (!controls) {
+    throw new Error(
+      "useAudioRuntimeControls must be used within an AudioRuntime",
+    );
+  }
+
+  return controls;
+}
+
+function useOwnedAudio<M extends SoundManifest>(
+  manifest: M,
+): {
+  manager: AudioManager<keyof M & string>;
+  status: AudioRuntimeStatus;
+  controls: AudioRuntimeControls;
+} {
   const { store, getSocket } = useAirJamContext();
   const roomId = useStore(store, (state) => state.roomId);
   const role = useStore(store, (state) => state.role);
+  const platformSettings = useResolvedPlatformSettingsSnapshot();
+  const platformSettingsStatus = usePlatformSettingsRuntimeStatus();
+  const platformSettingsReady = platformSettingsStatus === "ready";
+  type SoundId = keyof M & string;
+  const manager = useMemo(
+    () => new AudioManager<SoundId>(manifest),
+    [manifest],
+  );
+  const [status, setStatus] = useState<AudioRuntimeStatus>(() =>
+    globalInitialized && platformSettingsReady ? "ready" : "idle",
+  );
 
-  // Inject socket into manager
+  const retry = useCallback(async () => {
+    if (!platformSettingsReady) {
+      setStatus("idle");
+      return false;
+    }
+
+    const ready = await manager.init();
+    if (ready) {
+      globalInitialized = true;
+      setStatus("ready");
+      return true;
+    }
+
+    setStatus((current) => (current === "ready" ? current : "blocked"));
+    return false;
+  }, [manager, platformSettingsReady]);
+
+  useEffect(() => {
+    if (!platformSettingsReady) {
+      return;
+    }
+
+    manager.applyPlatformAudioSettings(platformSettings.audio);
+  }, [manager, platformSettings.audio, platformSettingsReady]);
+
+  useEffect(() => {
+    if (platformSettingsReady) {
+      return;
+    }
+
+    setStatus("idle");
+  }, [platformSettingsReady]);
+
   useEffect(() => {
     if (role && roomId) {
-      const socket = getSocket(role);
-      manager.setSocket(socket, roomId);
+      const socket =
+        role === "controller"
+          ? getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole))
+          : getHostRealtimeClient((runtimeRole) => getSocket(runtimeRole));
+      manager.setSocket(socket, roomId, role);
     }
   }, [manager, role, roomId, getSocket]);
 
-  // Ensure audio context is resumed on first interaction
   useEffect(() => {
+    return () => {
+      manager.destroy();
+    };
+  }, [manager]);
+
+  useEffect(() => {
+    void retry();
+  }, [retry]);
+
+  useEffect(() => {
+    if (status === "ready") {
+      return;
+    }
+
     const handleInteraction = () => {
-      manager.init();
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
+      void retry();
     };
 
     window.addEventListener("click", handleInteraction);
     window.addEventListener("touchstart", handleInteraction);
     window.addEventListener("keydown", handleInteraction);
+    window.addEventListener("pointerdown", handleInteraction);
+    window.addEventListener("mousedown", handleInteraction);
 
     return () => {
       window.removeEventListener("click", handleInteraction);
       window.removeEventListener("touchstart", handleInteraction);
       window.removeEventListener("keydown", handleInteraction);
+      window.removeEventListener("pointerdown", handleInteraction);
+      window.removeEventListener("mousedown", handleInteraction);
     };
-  }, [manager]);
+  }, [retry, status]);
 
-  return (
-    <LegacyAudioContext.Provider value={manager}>
-      {children}
-    </LegacyAudioContext.Provider>
-  );
-};
+  return {
+    manager,
+    status,
+    controls: {
+      retry,
+    },
+  };
+}
 
-export const useAudioLegacy = <T extends string = string>() => {
-  const manager = useContext(LegacyAudioContext);
-  if (!manager) {
-    throw new Error("useAudioLegacy must be used within an AudioProvider");
-  }
-  return manager as AudioManager<T>;
-};
+const isManifestSoundId = <M extends SoundManifest>(
+  manifest: M,
+  soundId: unknown,
+): soundId is keyof M & string =>
+  typeof soundId === "string" &&
+  Object.prototype.hasOwnProperty.call(manifest, soundId);
 
-/**
- * Hook to create a stable AudioManager instance
- */
-export const useAudioManager = <T extends string = string>(
-  manifest: SoundManifest,
-) => {
-  const managerRef = useRef<AudioManager<T> | null>(null);
+function useRemoteSound<M extends SoundManifest>(
+  manifest: M,
+  audio: Pick<AudioHandle<keyof M & string>, "play">,
+): void {
+  const { getSocket, store } = useAirJamContext();
+  const role = useStore(store, (state) => state.role);
+  const connectionStatus = useStore(store, (state) => state.connectionStatus);
+  const socket = useMemo(() => {
+    if (role !== "controller") {
+      return null;
+    }
 
-  if (!managerRef.current) {
-    managerRef.current = new AudioManager<T>(manifest);
-  }
+    return getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole));
+  }, [getSocket, role]);
+  const enabled = role === "controller" && connectionStatus === "connected";
 
-  return managerRef.current;
-};
+  useEffect(() => {
+    if (!socket || !enabled) {
+      return;
+    }
+
+    const handlePlaySound = (payload: PlaySoundPayload): void => {
+      if (!isManifestSoundId(manifest, payload.id)) {
+        return;
+      }
+
+      audio.play(payload.id, {
+        volume: payload.volume,
+        loop: payload.loop,
+      });
+    };
+
+    socket.on("server:playSound", handlePlaySound);
+    return () => {
+      socket.off("server:playSound", handlePlaySound);
+    };
+  }, [audio, enabled, manifest, socket]);
+}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,9 +26,11 @@ import { authClient } from "@/lib/auth-client";
 export function NavUser() {
   const { isMobile } = useSidebar();
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(
-    null,
-  );
+  const [user, setUser] = useState<{
+    name: string;
+    email: string;
+    image?: string | null;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -37,23 +39,20 @@ export function NavUser() {
     const fetchUser = async () => {
       try {
         const session = await authClient.getSession();
-        console.log("Full session response:", JSON.stringify(session, null, 2));
 
         // better-auth client returns user at session.data.user
         const sessionUser = session?.data?.user ?? null;
 
         if (sessionUser) {
-          console.log("Found user:", sessionUser);
           setUser({
             name:
               sessionUser.name || sessionUser.email?.split("@")[0] || "User",
             email: sessionUser.email || "",
+            image: sessionUser.image,
           });
-        } else {
-          console.warn("No user found in session:", session);
         }
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
+      } catch {
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -102,6 +101,7 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
+                <AvatarImage src={user.image || undefined} alt={user.name} />
                 <AvatarFallback className="rounded-lg">
                   {initials}
                 </AvatarFallback>
@@ -122,6 +122,7 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarImage src={user.image || undefined} alt={user.name} />
                   <AvatarFallback className="rounded-lg">
                     {initials}
                   </AvatarFallback>

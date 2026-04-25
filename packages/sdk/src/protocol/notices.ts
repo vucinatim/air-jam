@@ -1,0 +1,35 @@
+import type { PlayerProfile } from "./controller";
+import type { RoomCode } from "./core";
+
+export interface ControllerWelcomePayload {
+  controllerId: string;
+  roomId: RoomCode;
+  resumed?: boolean;
+  player?: PlayerProfile;
+  players?: PlayerProfile[];
+}
+
+export interface ControllerJoinedNotice {
+  controllerId: string;
+  nickname?: string;
+  resumed?: boolean;
+  player?: PlayerProfile;
+}
+
+export interface ControllerLeftNotice {
+  controllerId: string;
+}
+
+/** Emitted when a controller updates their profile (label / avatar) after join. */
+export interface PlayerUpdatedNotice {
+  player: PlayerProfile;
+}
+
+export interface RoomReadyNotice {
+  roomId: RoomCode;
+}
+
+export interface HostLeftNotice {
+  roomId: RoomCode;
+  reason: string;
+}
