@@ -1,3 +1,19 @@
+import {
+  bundleLocalRelease,
+  getPlatformAuthStoragePath,
+  getPlatformMachineProfile,
+  inspectLocalRelease,
+  inspectPlatformRelease,
+  listPlatformReleaseTargets,
+  listPlatformReleases,
+  loginPlatformWithDeviceFlow,
+  logoutPlatformMachineSession,
+  publishPlatformRelease,
+  readStoredPlatformMachineSession,
+  submitPlatformRelease,
+  validateLocalRelease,
+  type AirJamLocalReleaseIssue,
+} from "@air-jam/devtools-core";
 import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
 import {
   AIRJAM_PROJECT_MCP_FILE,
@@ -10,7 +26,6 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
-import yazl from "yazl";
 import { runGameDevCli } from "../runtime/game-dev.mjs";
 import { runSecureInitCli } from "../runtime/secure-dev.mjs";
 import { runProjectTopologyCli } from "../runtime/topology.mjs";
@@ -43,21 +58,6 @@ const templateAssetsBaseDir = path.resolve(
 );
 
 type TemplateVersionManifest = Record<string, string>;
-type SupportedPackageManager = "pnpm" | "npm" | "yarn" | "bun";
-
-const HOSTED_RELEASE_MANIFEST_PATH = ".airjam/release-manifest.json" as const;
-const HOSTED_RELEASE_ENTRY_PATH = "index.html" as const;
-const HOSTED_RELEASE_HOST_PATH = "/" as const;
-const HOSTED_RELEASE_CONTROLLER_PATH = "/controller" as const;
-
-type HostedReleaseBundleManifest = {
-  schemaVersion: 1;
-  kind: "airjam-hosted-release";
-  routes: {
-    host: typeof HOSTED_RELEASE_HOST_PATH;
-    controller: typeof HOSTED_RELEASE_CONTROLLER_PATH;
-  };
-};
 
 const loadTemplateVersionManifest = (): TemplateVersionManifest => {
   if (!fs.existsSync(manifestPath)) {
@@ -81,15 +81,6 @@ const loadCreateAirJamPackageVersion = (): string => {
 
   return pkg.version;
 };
-
-const createHostedReleaseBundleManifest = (): HostedReleaseBundleManifest => ({
-  schemaVersion: 1,
-  kind: "airjam-hosted-release",
-  routes: {
-    host: HOSTED_RELEASE_HOST_PATH,
-    controller: HOSTED_RELEASE_CONTROLLER_PATH,
-  },
-});
 
 const normalizeWorkspaceSpecs = (
   deps: Record<string, string> | undefined,
@@ -199,129 +190,6 @@ const writeAiPackManifest = async ({
   await fs.writeJson(manifestFilePath, manifest, { spaces: 2 });
 };
 
-const loadProjectPackageJson = async (
-  targetDir: string,
-): Promise<{
-  name?: string;
-  version?: string;
-  packageManager?: string;
-  scripts?: Record<string, string>;
-}> => {
-  const targetPackageJsonPath = path.join(targetDir, "package.json");
-  if (!(await fs.pathExists(targetPackageJsonPath))) {
-    throw new Error(`Missing package.json in ${targetDir}`);
-  }
-
-  return fs.readJson(targetPackageJsonPath);
-};
-
-const detectPackageManager = async (
-  targetDir: string,
-  packageManagerField?: string,
-): Promise<SupportedPackageManager> => {
-  const configuredPackageManager = packageManagerField?.split("@")[0];
-  if (
-    configuredPackageManager === "pnpm" ||
-    configuredPackageManager === "npm" ||
-    configuredPackageManager === "yarn" ||
-    configuredPackageManager === "bun"
-  ) {
-    return configuredPackageManager;
-  }
-
-  if (await fs.pathExists(path.join(targetDir, "pnpm-lock.yaml"))) {
-    return "pnpm";
-  }
-
-  if (await fs.pathExists(path.join(targetDir, "bun.lockb"))) {
-    return "bun";
-  }
-
-  if (await fs.pathExists(path.join(targetDir, "yarn.lock"))) {
-    return "yarn";
-  }
-
-  return "npm";
-};
-
-const runBuildScript = ({
-  targetDir,
-  packageManager,
-  scripts,
-}: {
-  targetDir: string;
-  packageManager: SupportedPackageManager;
-  scripts: Record<string, string> | undefined;
-}) => {
-  if (!scripts?.build) {
-    throw new Error(
-      `Project at ${targetDir} does not define a build script. Add one or pass --skip-build.`,
-    );
-  }
-
-  const command =
-    packageManager === "npm" ? "npm run build" : `${packageManager} build`;
-
-  execSync(command, {
-    cwd: targetDir,
-    stdio: "inherit",
-  });
-};
-
-const sanitizePathSegment = (value: string): string =>
-  value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
-
-const getDefaultReleaseBundlePath = ({
-  targetDir,
-  packageName,
-  packageVersion,
-}: {
-  targetDir: string;
-  packageName?: string;
-  packageVersion?: string;
-}): string => {
-  const normalizedReleaseLabel = sanitizePathSegment(packageVersion || "dev");
-  const normalizedPackageName = sanitizePathSegment(
-    packageName || "airjam-game",
-  );
-
-  return path.join(
-    targetDir,
-    ".airjam",
-    "releases",
-    normalizedReleaseLabel,
-    `${normalizedPackageName}-hosted-release.zip`,
-  );
-};
-
-const readConfiguredControllerPath = async (
-  targetDir: string,
-): Promise<string | null> => {
-  const configPath = path.join(targetDir, "src", "airjam.config.ts");
-  if (!(await fs.pathExists(configPath))) {
-    return null;
-  }
-
-  const source = await fs.readFile(configPath, "utf8");
-  const match = source.match(/controllerPath\s*:\s*["'`](?<path>[^"'`]+)["'`]/);
-  return match?.groups?.path?.trim() || null;
-};
-
-const assertHostedReleaseControllerPath = async (
-  targetDir: string,
-): Promise<void> => {
-  const configuredControllerPath =
-    await readConfiguredControllerPath(targetDir);
-  if (
-    configuredControllerPath &&
-    configuredControllerPath !== HOSTED_RELEASE_CONTROLLER_PATH
-  ) {
-    throw new Error(
-      `Hosted Air Jam bundles require controllerPath to be ${HOSTED_RELEASE_CONTROLLER_PATH}. This project is configured for ${configuredControllerPath}. Self-hosted mode can keep custom routes; the hosted dashboard lane cannot.`,
-    );
-  }
-};
-
 const normalizeRuntimeCliArgv = (argv: string[]) =>
   argv.filter((value) => value !== "--");
 
@@ -338,70 +206,61 @@ const resolveActionOptions = <T extends OptionValues>(value: unknown): T => {
   return value as T;
 };
 
-const collectBundleFiles = async (sourceDir: string): Promise<string[]> => {
-  const entries = await fs.readdir(sourceDir);
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const absolutePath = path.join(sourceDir, entry);
-    const stats = await fs.stat(absolutePath);
-
-    if (stats.isDirectory()) {
-      files.push(...(await collectBundleFiles(absolutePath)));
-      continue;
+const printReleaseIssues = (issues: AirJamLocalReleaseIssue[]) => {
+  for (const issue of issues) {
+    const color = issue.severity === "error" ? kleur.red : kleur.yellow;
+    const prefix = issue.severity === "error" ? "error" : "warning";
+    console.log(color(`- ${prefix}: ${issue.message}`));
+    if (issue.path) {
+      console.log(kleur.dim(`  path: ${issue.path}`));
     }
-
-    files.push(absolutePath);
   }
-
-  return files;
 };
 
-const writeHostedReleaseBundle = async ({
-  sourceDir,
-  outputFile,
+const printReleaseDoctor = async ({
+  dir,
+  distDir,
 }: {
-  sourceDir: string;
-  outputFile: string;
-}): Promise<void> => {
-  const files = await collectBundleFiles(sourceDir);
-  const zipFile = new yazl.ZipFile();
-
-  await fs.ensureDir(path.dirname(outputFile));
-
-  const output = fs.createWriteStream(outputFile);
-  const closePromise = new Promise<void>((resolve, reject) => {
-    output.on("close", resolve);
-    output.on("error", reject);
-    zipFile.outputStream.on("error", reject);
+  dir?: string;
+  distDir?: string;
+}) => {
+  const doctor = await inspectLocalRelease({
+    cwd: path.resolve(dir || process.cwd()),
+    distDir,
   });
 
-  zipFile.outputStream.pipe(output);
+  console.log(
+    doctor.canBundle
+      ? kleur.green("\n✓ Hosted release doctor passed\n")
+      : kleur.red("\n✗ Hosted release doctor failed\n"),
+  );
+  console.log(`Project: ${kleur.cyan(doctor.projectDir)}`);
+  console.log(`Dist: ${kleur.cyan(doctor.distDir)}`);
+  console.log(
+    `Build script: ${doctor.buildScript ? kleur.cyan("present") : kleur.red("missing")}`,
+  );
+  console.log(
+    `Metadata export: ${doctor.metadataExportLikely ? kleur.cyan("present") : kleur.yellow("missing")}`,
+  );
+  console.log(
+    `Hosted contract: ${kleur.dim(
+      `${doctor.hostedContract.hostPath} (host), ${doctor.hostedContract.controllerPath} (controller), ${doctor.hostedContract.manifestPath} manifest`,
+    )}`,
+  );
 
-  for (const filePath of files) {
-    const relativePath = path.relative(sourceDir, filePath).replace(/\\/g, "/");
-    if (!relativePath || relativePath === HOSTED_RELEASE_MANIFEST_PATH) {
-      continue;
-    }
-
-    zipFile.addFile(filePath, relativePath);
+  if (doctor.issues.length > 0) {
+    console.log("");
+    printReleaseIssues(doctor.issues);
   }
 
-  zipFile.addBuffer(
-    Buffer.from(
-      `${JSON.stringify(createHostedReleaseBundleManifest(), null, 2)}\n`,
-      "utf8",
-    ),
-    HOSTED_RELEASE_MANIFEST_PATH,
-  );
-  zipFile.end();
-
-  await closePromise;
+  if (!doctor.canBundle) {
+    process.exitCode = 1;
+  }
 };
 
 const runReleaseBundleCommand = async ({
   dir,
-  distDir: configuredDistDir,
+  distDir,
   out,
   skipBuild = false,
 }: {
@@ -410,59 +269,302 @@ const runReleaseBundleCommand = async ({
   out?: string;
   skipBuild?: boolean;
 }) => {
-  const targetDir = path.resolve(dir || process.cwd());
-  const distDir = path.resolve(targetDir, configuredDistDir || "dist");
-  const outputOverride = out;
-
-  const projectPackageJson = await loadProjectPackageJson(targetDir);
-  const packageManager = await detectPackageManager(
-    targetDir,
-    projectPackageJson.packageManager,
-  );
-
-  await assertHostedReleaseControllerPath(targetDir);
-
-  if (!skipBuild) {
-    console.log(kleur.cyan(`Building project in ${targetDir}...\n`));
-    runBuildScript({
-      targetDir,
-      packageManager,
-      scripts: projectPackageJson.scripts,
-    });
-  }
-
-  if (!(await fs.pathExists(distDir))) {
-    throw new Error(
-      `Build output directory not found at ${distDir}. Run the build first or pass --dist-dir.`,
-    );
-  }
-
-  if (!(await fs.pathExists(path.join(distDir, HOSTED_RELEASE_ENTRY_PATH)))) {
-    throw new Error(
-      `Hosted bundle build output must contain ${HOSTED_RELEASE_ENTRY_PATH} at ${distDir}.`,
-    );
-  }
-
-  const outputFile = outputOverride
-    ? path.resolve(targetDir, outputOverride)
-    : getDefaultReleaseBundlePath({
-        targetDir,
-        packageName: projectPackageJson.name,
-        packageVersion: projectPackageJson.version,
-      });
-
-  await writeHostedReleaseBundle({
-    sourceDir: distDir,
-    outputFile,
+  const result = await bundleLocalRelease({
+    cwd: path.resolve(dir || process.cwd()),
+    distDir,
+    out,
+    skipBuild,
   });
 
+  if (result.buildResult?.stdout.trim()) {
+    console.log(result.buildResult.stdout.trimEnd());
+  }
+  if (result.buildResult?.stderr.trim()) {
+    console.error(result.buildResult.stderr.trimEnd());
+  }
+
   console.log(kleur.green("\n✓ Hosted release bundle created\n"));
-  console.log(`Artifact: ${kleur.cyan(outputFile)}`);
+  console.log(`Artifact: ${kleur.cyan(result.outputFile)}`);
   console.log(
     kleur.dim(
-      `Hosted contract: ${HOSTED_RELEASE_HOST_PATH} (host), ${HOSTED_RELEASE_CONTROLLER_PATH} (controller), ${HOSTED_RELEASE_MANIFEST_PATH} manifest`,
+      `Hosted contract: / (host), /controller (controller), .airjam/release-manifest.json manifest`,
     ),
   );
+  console.log(
+    kleur.dim(
+      `Validated ${result.validation.fileCount} files (${result.validation.extractedSizeBytes} bytes extracted)`,
+    ),
+  );
+};
+
+const runReleaseValidateCommand = async ({
+  dir,
+  distDir,
+  bundle,
+  skipBuild = false,
+}: {
+  dir?: string;
+  distDir?: string;
+  bundle?: string;
+  skipBuild?: boolean;
+}) => {
+  const validation = await validateLocalRelease({
+    cwd: path.resolve(dir || process.cwd()),
+    distDir,
+    bundlePath: bundle,
+    skipBuild,
+  });
+
+  console.log(
+    validation.ok
+      ? kleur.green("\n✓ Hosted release validation passed\n")
+      : kleur.red("\n✗ Hosted release validation failed\n"),
+  );
+
+  if (validation.source.kind === "bundle") {
+    console.log(`Bundle: ${kleur.cyan(validation.source.bundlePath)}`);
+  } else {
+    console.log(`Project: ${kleur.cyan(validation.source.projectDir)}`);
+    console.log(`Dist: ${kleur.cyan(validation.source.distDir)}`);
+  }
+
+  console.log(
+    kleur.dim(
+      `Validated ${validation.fileCount} files (${validation.extractedSizeBytes} bytes extracted)`,
+    ),
+  );
+
+  if (validation.issues.length > 0) {
+    console.log("");
+    printReleaseIssues(validation.issues);
+  }
+
+  if (!validation.ok) {
+    process.exitCode = 1;
+  }
+};
+
+const runReleaseListCommand = async ({
+  platformUrl,
+  game,
+}: {
+  platformUrl?: string;
+  game?: string;
+}) => {
+  if (game?.trim()) {
+    const result = await listPlatformReleases({
+      platformUrl,
+      slugOrId: game.trim(),
+    });
+
+    console.log(
+      kleur.green(
+        `\n✓ Hosted releases for ${result.game.name}${result.game.slug ? ` (${result.game.slug})` : ""}\n`,
+      ),
+    );
+
+    if (result.releases.length === 0) {
+      console.log(kleur.dim("No hosted releases found."));
+      return;
+    }
+
+    for (const release of result.releases) {
+      console.log(
+        `${kleur.cyan(release.id)}  ${kleur.yellow(release.status)}  ${release.versionLabel ?? "(untitled)"}  ${kleur.dim(release.createdAt)}`,
+      );
+    }
+
+    return;
+  }
+
+  const result = await listPlatformReleaseTargets({ platformUrl });
+  console.log(kleur.green("\n✓ Hosted release targets\n"));
+
+  if (result.games.length === 0) {
+    console.log(kleur.dim("No owned hosted games found."));
+    return;
+  }
+
+  for (const ownedGame of result.games) {
+    console.log(
+      `${kleur.cyan(ownedGame.id)}  ${ownedGame.slug ? kleur.yellow(ownedGame.slug) : kleur.dim("(no slug)")}  ${ownedGame.name}`,
+    );
+  }
+};
+
+const runReleaseInspectCommand = async ({
+  platformUrl,
+  releaseId,
+}: {
+  platformUrl?: string;
+  releaseId: string;
+}) => {
+  const result = await inspectPlatformRelease({
+    platformUrl,
+    releaseId,
+  });
+  const release = result.release;
+
+  console.log(kleur.green("\n✓ Hosted release\n"));
+  console.log(`Release: ${kleur.cyan(release.id)}`);
+  console.log(`Game: ${kleur.cyan(release.game.name)}`);
+  console.log(`Status: ${kleur.cyan(release.status)}`);
+  console.log(`Version: ${kleur.cyan(release.versionLabel ?? "(untitled)")}`);
+  console.log(`Created: ${kleur.cyan(release.createdAt)}`);
+  if (release.hostUrl) {
+    console.log(`Host URL: ${kleur.cyan(release.hostUrl)}`);
+  }
+  if (release.controllerUrl) {
+    console.log(`Controller URL: ${kleur.cyan(release.controllerUrl)}`);
+  }
+  if (release.artifact) {
+    console.log(
+      `Artifact: ${kleur.cyan(release.artifact.originalFilename)} (${release.artifact.sizeBytes} bytes)`,
+    );
+  }
+  if (release.checks.length > 0) {
+    console.log("");
+    console.log(kleur.dim("Checks:"));
+    for (const check of release.checks) {
+      console.log(
+        `- ${check.kind}: ${check.status}${check.summary ? ` (${check.summary})` : ""}`,
+      );
+    }
+  }
+};
+
+const runReleaseSubmitCommand = async ({
+  platformUrl,
+  game,
+  versionLabel,
+  dir,
+  distDir,
+  bundle,
+  skipBuild = false,
+  publish = false,
+}: {
+  platformUrl?: string;
+  game: string;
+  versionLabel?: string;
+  dir?: string;
+  distDir?: string;
+  bundle?: string;
+  skipBuild?: boolean;
+  publish?: boolean;
+}) => {
+  const result = await submitPlatformRelease({
+    platformUrl,
+    slugOrId: game,
+    versionLabel,
+    cwd: path.resolve(dir || process.cwd()),
+    distDir,
+    bundlePath: bundle,
+    skipBuild,
+    publish,
+  });
+
+  console.log(kleur.green("\n✓ Hosted release submitted\n"));
+  console.log(`Bundle: ${kleur.cyan(result.bundlePath)}`);
+  console.log(`Draft: ${kleur.cyan(result.createdRelease.id)}`);
+  console.log(
+    `Finalized: ${kleur.cyan(result.finalizedRelease.id)} (${kleur.yellow(result.finalizedRelease.status)})`,
+  );
+  if (result.publishedRelease) {
+    console.log(
+      `Published: ${kleur.cyan(result.publishedRelease.id)} (${kleur.yellow(result.publishedRelease.status)})`,
+    );
+  }
+};
+
+const runReleasePublishCommand = async ({
+  platformUrl,
+  releaseId,
+}: {
+  platformUrl?: string;
+  releaseId: string;
+}) => {
+  const result = await publishPlatformRelease({
+    platformUrl,
+    releaseId,
+  });
+
+  console.log(kleur.green("\n✓ Hosted release published\n"));
+  console.log(`Release: ${kleur.cyan(result.release.id)}`);
+  console.log(`Status: ${kleur.cyan(result.release.status)}`);
+  if (result.release.hostUrl) {
+    console.log(`Host URL: ${kleur.cyan(result.release.hostUrl)}`);
+  }
+};
+
+const runAuthLoginCommand = async ({
+  platformUrl,
+  clientName,
+}: {
+  platformUrl?: string;
+  clientName?: string;
+}) => {
+  console.log(kleur.cyan("\nStarting Air Jam platform login...\n"));
+
+  const result = await loginPlatformWithDeviceFlow({
+    platformUrl,
+    clientName,
+    onPrompt: async (authorization) => {
+      console.log(
+        `Verification URL: ${kleur.cyan(authorization.verificationUrl)}`,
+      );
+      console.log(`Approval code: ${kleur.cyan(authorization.userCode)}`);
+      console.log(
+        kleur.dim(
+          "Sign in on the dashboard, approve the CLI request, and this command will finish automatically.\n",
+        ),
+      );
+    },
+  });
+
+  console.log(kleur.green("\n✓ Logged in to the Air Jam platform\n"));
+  console.log(`Platform: ${kleur.cyan(result.authenticated.platformBaseUrl)}`);
+  console.log(`User: ${kleur.cyan(result.authenticated.user.name)}`);
+  console.log(`Email: ${kleur.cyan(result.authenticated.user.email)}`);
+  console.log(`Session file: ${kleur.dim(getPlatformAuthStoragePath())}`);
+};
+
+const runAuthWhoAmICommand = async ({
+  platformUrl,
+}: {
+  platformUrl?: string;
+}) => {
+  const storedSession = await readStoredPlatformMachineSession();
+  if (!storedSession) {
+    console.log(kleur.red("No stored Air Jam platform session was found."));
+    console.log(kleur.dim(`Expected at ${getPlatformAuthStoragePath()}`));
+    process.exitCode = 1;
+    return;
+  }
+
+  const profile = await getPlatformMachineProfile({ platformUrl });
+
+  console.log(kleur.green("\n✓ Air Jam platform session is valid\n"));
+  console.log(`Platform: ${kleur.cyan(profile.platformBaseUrl)}`);
+  console.log(`User: ${kleur.cyan(profile.user.name)}`);
+  console.log(`Email: ${kleur.cyan(profile.user.email)}`);
+  console.log(`Role: ${kleur.cyan(profile.user.role)}`);
+  console.log(`Expires: ${kleur.cyan(profile.session.expiresAt)}`);
+  console.log(`Session file: ${kleur.dim(getPlatformAuthStoragePath())}`);
+};
+
+const runAuthLogoutCommand = async ({
+  platformUrl,
+}: {
+  platformUrl?: string;
+}) => {
+  const storedSession = await readStoredPlatformMachineSession();
+  if (!storedSession) {
+    console.log(kleur.yellow("No stored Air Jam platform session was found."));
+    return;
+  }
+
+  await logoutPlatformMachineSession({ platformUrl });
+  console.log(kleur.green("\n✓ Logged out of the Air Jam platform\n"));
 };
 
 type ScaffoldCommandOptions = {
@@ -782,6 +884,22 @@ const buildProgram = () => {
     .description("Work with hosted release bundles");
 
   releaseCommand
+    .command("doctor")
+    .description(
+      "Inspect whether a project is ready for hosted release bundling",
+    )
+    .option("--dir <path>", "Project directory to inspect")
+    .option("--dist-dir <path>", "Built static output directory")
+    .action(async (options: unknown) => {
+      await printReleaseDoctor(
+        resolveActionOptions<{
+          dir?: string;
+          distDir?: string;
+        }>(options),
+      );
+    });
+
+  releaseCommand
     .command("bundle")
     .description("Create a hosted release zip from a built game project")
     .option("--dir <path>", "Project directory to bundle")
@@ -803,8 +921,163 @@ const buildProgram = () => {
       );
     });
 
+  releaseCommand
+    .command("validate")
+    .description(
+      "Validate hosted release inputs or an existing hosted release zip",
+    )
+    .option("--dir <path>", "Project directory to inspect")
+    .option("--dist-dir <path>", "Built static output directory")
+    .option("--bundle <path>", "Existing hosted release zip to validate")
+    .option(
+      "--skip-build",
+      "Reuse the existing dist directory without building",
+      false,
+    )
+    .action(async (options: unknown) => {
+      await runReleaseValidateCommand(
+        resolveActionOptions<{
+          dir?: string;
+          distDir?: string;
+          bundle?: string;
+          skipBuild?: boolean;
+        }>(options),
+      );
+    });
+
+  releaseCommand
+    .command("list")
+    .description("List owned hosted games or releases for one hosted game")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .option("--game <slug-or-id>", "List releases for one owned hosted game")
+    .action(async (options: unknown) => {
+      await runReleaseListCommand(
+        resolveActionOptions<{
+          platformUrl?: string;
+          game?: string;
+        }>(options),
+      );
+    });
+
+  releaseCommand
+    .command("inspect")
+    .description("Inspect one hosted release from the Air Jam platform")
+    .requiredOption("--release <id>", "Hosted release ID to inspect")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        release: string;
+      }>(options);
+      await runReleaseInspectCommand({
+        platformUrl: resolved.platformUrl,
+        releaseId: resolved.release,
+      });
+    });
+
+  releaseCommand
+    .command("submit")
+    .description("Bundle a game and submit it as a hosted release draft")
+    .requiredOption("--game <slug-or-id>", "Owned hosted game slug or ID")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .option("--version-label <label>", "Optional hosted release version label")
+    .option("--dir <path>", "Project directory to bundle")
+    .option("--dist-dir <path>", "Built static output directory")
+    .option("--bundle <path>", "Existing hosted release zip to submit")
+    .option(
+      "--skip-build",
+      "Reuse the existing dist directory without building",
+      false,
+    )
+    .option("--publish", "Publish immediately after successful finalize", false)
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        game: string;
+        versionLabel?: string;
+        dir?: string;
+        distDir?: string;
+        bundle?: string;
+        skipBuild?: boolean;
+        publish?: boolean;
+      }>(options);
+
+      await runReleaseSubmitCommand({
+        platformUrl: resolved.platformUrl,
+        game: resolved.game,
+        versionLabel: resolved.versionLabel,
+        dir: resolved.dir,
+        distDir: resolved.distDir,
+        bundle: resolved.bundle,
+        skipBuild: resolved.skipBuild,
+        publish: resolved.publish,
+      });
+    });
+
+  releaseCommand
+    .command("publish")
+    .description("Publish one ready hosted release")
+    .requiredOption("--release <id>", "Hosted release ID to publish")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        release: string;
+      }>(options);
+      await runReleasePublishCommand({
+        platformUrl: resolved.platformUrl,
+        releaseId: resolved.release,
+      });
+    });
+
   releaseCommand.action(() => {
     releaseCommand.outputHelp();
+  });
+
+  const authCommand = program
+    .command("auth")
+    .description("Authenticate the local Air Jam CLI with the hosted platform");
+
+  authCommand
+    .command("login")
+    .description("Start browser-assisted Air Jam CLI login")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .option("--client-name <name>", "Optional machine-readable client label")
+    .action(async (options: unknown) => {
+      await runAuthLoginCommand(
+        resolveActionOptions<{
+          platformUrl?: string;
+          clientName?: string;
+        }>(options),
+      );
+    });
+
+  authCommand
+    .command("whoami")
+    .description("Inspect the current stored Air Jam platform session")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      await runAuthWhoAmICommand(
+        resolveActionOptions<{
+          platformUrl?: string;
+        }>(options),
+      );
+    });
+
+  authCommand
+    .command("logout")
+    .description("Revoke the current stored Air Jam platform session")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      await runAuthLogoutCommand(
+        resolveActionOptions<{
+          platformUrl?: string;
+        }>(options),
+      );
+    });
+
+  authCommand.action(() => {
+    authCommand.outputHelp();
   });
 
   const mcpCommand = program

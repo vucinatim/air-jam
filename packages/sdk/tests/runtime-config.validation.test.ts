@@ -1,4 +1,7 @@
-import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import {
+  AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY,
+  resolveRuntimeTopology,
+} from "@air-jam/runtime-topology";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   onAirJamDiagnostic,
@@ -9,6 +12,7 @@ import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import { env } from "../src/runtime/create-air-jam-app";
 
 const originalEnv = { ...process.env };
+const originalWindow = globalThis.window;
 
 describe("runtime config validation", () => {
   beforeEach(() => {
@@ -20,6 +24,14 @@ describe("runtime config validation", () => {
   afterEach(() => {
     process.env = { ...originalEnv };
     resetAirJamDiagnosticsForTests();
+    if (originalWindow === undefined) {
+      delete (globalThis as { window?: Window }).window;
+    } else {
+      globalThis.window = originalWindow;
+      delete (globalThis.window as unknown as Record<string, unknown>)[
+        AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY
+      ];
+    }
   });
 
   it("throws actionable error when resolveEnv is disabled and topology is missing", () => {
@@ -113,5 +125,42 @@ describe("runtime config validation", () => {
       hostGrantEndpoint: "https://example.com/api/airjam/host-grant",
       resolveEnv: false,
     });
+  });
+
+  it("prefers an explicit window bootstrap topology over runtime inference", () => {
+    globalThis.window = {
+      location: {
+        search: "",
+      },
+    } as unknown as Window & typeof globalThis;
+    (globalThis.window as unknown as Record<string, unknown>)[
+      AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY
+    ] = {
+      runtimeMode: "hosted-release",
+      surfaceRole: "host",
+      appOrigin: "https://play.example.com",
+      backendOrigin: "https://api.example.com",
+      publicHost: "https://play.example.com",
+      assetBasePath: "/releases/g/game-1/r/release-1",
+      secureTransport: true,
+      embedded: false,
+      proxyStrategy: "none",
+    };
+
+    const resolved = resolveAirJamConfig({});
+
+    expect(resolved.topology).toEqual(
+      resolveRuntimeTopology({
+        runtimeMode: "hosted-release",
+        surfaceRole: "host",
+        appOrigin: "https://play.example.com",
+        backendOrigin: "https://api.example.com",
+        publicHost: "https://play.example.com",
+        assetBasePath: "/releases/g/game-1/r/release-1",
+        secureTransport: true,
+        embedded: false,
+        proxyStrategy: "none",
+      }),
+    );
   });
 });

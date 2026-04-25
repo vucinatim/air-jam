@@ -1,4 +1,4 @@
-import type { JSX, ReactNode } from "react";
+import { useId, type JSX, type ReactNode } from "react";
 import { cn } from "../utils/cn";
 import {
   shellFieldClassName,
@@ -12,6 +12,8 @@ export interface JoinUrlFieldProps {
   helperText?: ReactNode;
   className?: string;
   inputClassName?: string;
+  inputId?: string;
+  inputName?: string;
 }
 
 export const JoinUrlField = ({
@@ -20,13 +22,21 @@ export const JoinUrlField = ({
   helperText,
   className,
   inputClassName,
+  inputId,
+  inputName = "airjam-controller-link",
 }: JoinUrlFieldProps): JSX.Element => {
   const hasValue = Boolean(value && value.trim().length > 0);
+  const generatedInputId = useId();
+  const resolvedInputId = inputId ?? generatedInputId;
 
   return (
     <div className={cn("space-y-2.5", className)}>
-      <div className={shellLabelClassName}>{label}</div>
+      <label className={shellLabelClassName} htmlFor={resolvedInputId}>
+        {label}
+      </label>
       <input
+        id={resolvedInputId}
+        name={inputName}
         type="text"
         readOnly
         value={value ?? ""}

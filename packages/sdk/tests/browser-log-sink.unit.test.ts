@@ -221,4 +221,32 @@ describe("browser log sink", () => {
       "http://192.168.0.33:3000/__airjam/dev/browser-logs",
     );
   });
+
+  it("does not install the browser log sink for hosted release runtimes", async () => {
+    const fetchMock = vi.mocked(fetch);
+
+    ensureDevBrowserLogSink({
+      serverUrl: "http://localhost:3001",
+      topology: {
+        runtimeMode: "hosted-release",
+      },
+    });
+
+    window.dispatchEvent(
+      new ErrorEvent("error", {
+        message: "Published release error",
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      (
+        globalThis as {
+          __airJamBrowserLogSink__?: unknown;
+        }
+      ).__airJamBrowserLogSink__,
+    ).toBeUndefined();
+  });
 });

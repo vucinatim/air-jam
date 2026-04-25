@@ -8,7 +8,7 @@ import {
   readPackageJson,
   resolveCandidatePath,
 } from "./fs-utils.js";
-import { resolveVisualScenarioModulePathFromConfig } from "./tooling/airjam-machine.js";
+import { inspectAirJamMachineConfig } from "./tooling/airjam-machine-inspection.js";
 import type {
   AirJamGameInspection,
   AirJamGameSummary,
@@ -52,7 +52,9 @@ const getVisualSupport = async ({
   configPath: string | null;
 }): Promise<AirJamGameSummary["visual"]> => {
   const explicitVisualScenarios = configPath
-    ? await resolveVisualScenarioModulePathFromConfig(configPath)
+    ? await inspectAirJamMachineConfig(configPath)
+        .then((inspection) => inspection.visualScenariosModulePath)
+        .catch(() => null)
     : null;
 
   return {

@@ -24,7 +24,11 @@ import {
   requestReleaseUploadTarget,
 } from "@/server/releases/release-artifact-service";
 import { runReleaseModeration } from "@/server/releases/release-moderation-service";
-import { quarantineRelease } from "@/server/releases/release-status-service";
+import {
+  archiveRelease,
+  publishRelease,
+  quarantineRelease,
+} from "@/server/releases/release-status-service";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -288,43 +292,8 @@ export const releaseRouter = createTRPCRouter({
         throw new Error("Only ready releases can be published.");
       }
 
-      const now = new Date();
-      return db.transaction(async (tx) => {
-        const existingLiveReleases = await tx
-          .select({ id: gameReleases.id })
-          .from(gameReleases)
-          .where(
-            and(
-              eq(gameReleases.gameId, release.gameId),
-              eq(gameReleases.status, "live"),
-            ),
-          );
-
-        const existingLiveReleaseIds = existingLiveReleases.map(
-          (item) => item.id,
-        );
-        if (existingLiveReleaseIds.length > 0) {
-          await tx
-            .update(gameReleases)
-            .set({
-              status: "archived",
-              archivedAt: now,
-            })
-            .where(inArray(gameReleases.id, existingLiveReleaseIds));
-        }
-
-        const [publishedRelease] = await tx
-          .update(gameReleases)
-          .set({
-            status: "live",
-            publishedAt: now,
-            archivedAt: null,
-            quarantinedAt: null,
-          })
-          .where(eq(gameReleases.id, input.releaseId))
-          .returning();
-
-        return publishedRelease;
+      return publishRelease({
+        releaseId: input.releaseId,
       });
     }),
 
@@ -336,27 +305,8 @@ export const releaseRouter = createTRPCRouter({
         return release;
       }
 
-      return db.transaction(async (tx) => {
-        const [archivedRelease] = await tx
-          .update(gameReleases)
-          .set({
-            status: "archived",
-            archivedAt: new Date(),
-          })
-          .where(eq(gameReleases.id, input.releaseId))
-          .returning();
-
-        if (release.status === "live") {
-          await tx
-            .update(games)
-            .set({
-              arcadeVisibility: "hidden",
-              updatedAt: new Date(),
-            })
-            .where(eq(games.id, release.gameId));
-        }
-
-        return archivedRelease;
+      return archiveRelease({
+        releaseId: input.releaseId,
       });
     }),
 

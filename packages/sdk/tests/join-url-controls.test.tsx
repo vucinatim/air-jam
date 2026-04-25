@@ -18,6 +18,11 @@ describe("join url controls", () => {
       screen.getByDisplayValue("https://example.com/controller?room=ROOM1"),
     ).toBeTruthy();
     expect(screen.getByText("Share this with players.")).toBeTruthy();
+    expect(
+      screen
+        .getByDisplayValue("https://example.com/controller?room=ROOM1")
+        .getAttribute("name"),
+    ).toBe("airjam-controller-link");
   });
 
   it("disables copy and open buttons when no join url exists", () => {

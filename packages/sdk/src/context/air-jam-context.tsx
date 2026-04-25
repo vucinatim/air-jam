@@ -47,6 +47,7 @@ import type {
   RuntimeTopologyInput,
   SurfaceRole,
 } from "@air-jam/runtime-topology";
+import { isLocalDevControlSurfaceTopology } from "@air-jam/runtime-topology";
 import {
   createContext,
   useCallback,
@@ -191,25 +192,6 @@ interface DevProviderMountWindow extends Window {
   __airJamDevProviderMountSent__?: boolean;
 }
 
-interface ProcessLike {
-  env?: Record<string, string | undefined>;
-}
-
-const isDevelopmentRuntime = (): boolean => {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
-    if (meta?.env && typeof meta.env.DEV === "boolean") {
-      return meta.env.DEV;
-    }
-  } catch {
-    // Ignore environments without import.meta
-  }
-
-  const processLike = (globalThis as { process?: ProcessLike }).process;
-  return processLike?.env?.NODE_ENV !== "production";
-};
-
 // ============================================================================
 // Provider Component
 // ============================================================================
@@ -303,6 +285,10 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       resolveEnv,
     ],
   );
+  const localDevControlSurfacesEnabled = useMemo(
+    () => isLocalDevControlSurfaceTopology(config.topology),
+    [config.topology],
+  );
 
   // Create InputManager from input config if provided
   const inputManager = useMemo(() => {
@@ -329,7 +315,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
         typeof window !== "undefined"
           ? (window as unknown as DevProviderMountWindow)
           : undefined;
-      if (devWindow && isDevelopmentRuntime()) {
+      if (devWindow && localDevControlSurfacesEnabled) {
         try {
           emitAirJamDevRuntimeEvent({
             event: AIRJAM_DEV_LOG_EVENTS.runtime.providerUnmounted,
@@ -350,7 +336,13 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       }
       socketManager.disconnectAll();
     };
-  }, [config.appId, config.backendOrigin, config.socketOrigin, socketManager]);
+  }, [
+    config.appId,
+    config.backendOrigin,
+    config.socketOrigin,
+    localDevControlSurfacesEnabled,
+    socketManager,
+  ]);
 
   useEffect(() => {
     ensureDevBrowserLogSink({
@@ -358,6 +350,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       backendOrigin: config.backendOrigin,
       proxyStrategy: config.proxyStrategy,
       appId: config.appId,
+      topology: config.topology,
     });
 
     const devWindow =
@@ -367,7 +360,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
 
     if (
       devWindow &&
-      isDevelopmentRuntime() &&
+      localDevControlSurfacesEnabled &&
       !devWindow.__airJamDevProviderMountSent__
     ) {
       try {
@@ -411,6 +404,8 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
     config.backendOrigin,
     config.proxyStrategy,
     config.socketOrigin,
+    config.topology,
+    localDevControlSurfacesEnabled,
   ]);
 
   // Stable function references - don't recreate when config changes

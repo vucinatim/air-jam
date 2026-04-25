@@ -1,6 +1,7 @@
 import {
   parseRuntimeTopologyFromSearchParams,
   readRuntimeTopologyFromEnv,
+  readRuntimeTopologyFromWindow,
   resolveProjectRuntimeTopology,
   resolveRuntimeTopology,
   type ProxyStrategy,
@@ -170,7 +171,7 @@ const readRuntimeTopologyFromViteEnv =
     });
   };
 
-const readRuntimeTopologyFromWindow =
+const readRuntimeTopologyFromWindowSearchParams =
   (): ResolvedAirJamRuntimeTopology | null => {
     if (typeof window === "undefined") {
       return null;
@@ -246,7 +247,8 @@ export const resolveAirJamConfig = ({
       ? applySurfaceRoleOverride(
           readRuntimeTopologyFromViteEnv() ??
             readRuntimeTopologyFromEnv(getNodeEnv()) ??
-            readRuntimeTopologyFromWindow() ??
+            readRuntimeTopologyFromWindow(window as unknown as object) ??
+            readRuntimeTopologyFromWindowSearchParams() ??
             resolveProjectTopologyFromEnv(surfaceRole),
           surfaceRole,
         )

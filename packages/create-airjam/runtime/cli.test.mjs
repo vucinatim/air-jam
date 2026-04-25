@@ -56,6 +56,70 @@ test("create-airjam keeps release bundle help", () => {
   assert.match(output, /--dist-dir <path>/);
 });
 
+test("create-airjam exposes release doctor help", () => {
+  const output = runCliHelp("release", "doctor");
+
+  assert.match(output, /Usage: airjam release doctor/);
+  assert.match(output, /--dist-dir <path>/);
+});
+
+test("create-airjam exposes release validate help", () => {
+  const output = runCliHelp("release", "validate");
+
+  assert.match(output, /Usage: airjam release validate/);
+  assert.match(output, /--bundle <path>/);
+});
+
+test("create-airjam exposes release list help", () => {
+  const output = runCliHelp("release", "list");
+
+  assert.match(output, /Usage: airjam release list/);
+  assert.match(output, /--game <slug-or-id>/);
+});
+
+test("create-airjam exposes release inspect help", () => {
+  const output = runCliHelp("release", "inspect");
+
+  assert.match(output, /Usage: airjam release inspect/);
+  assert.match(output, /--release <id>/);
+});
+
+test("create-airjam exposes release submit help", () => {
+  const output = runCliHelp("release", "submit");
+
+  assert.match(output, /Usage: airjam release submit/);
+  assert.match(output, /--game <slug-or-id>/);
+  assert.match(output, /--publish/);
+});
+
+test("create-airjam exposes release publish help", () => {
+  const output = runCliHelp("release", "publish");
+
+  assert.match(output, /Usage: airjam release publish/);
+  assert.match(output, /--release <id>/);
+});
+
+test("create-airjam exposes auth login help", () => {
+  const output = runCliHelp("auth", "login");
+
+  assert.match(output, /Usage: airjam auth login/);
+  assert.match(output, /--platform-url <url>/);
+});
+
+test("create-airjam exposes auth whoami help", () => {
+  const output = runCliHelp("auth", "whoami");
+
+  assert.match(output, /Usage: airjam auth whoami/);
+  assert.match(output, /--platform-url <url>/);
+});
+
+test("create-airjam exposes auth logout help", () => {
+  const output = runCliHelp("auth", "logout");
+
+  assert.match(output, /Usage: airjam auth logout/);
+  assert.match(output, /--platform-url <url>/);
+});
+
 test("create-airjam exposes mcp help", () => {
   const output = runCliHelp("mcp", "doctor");
 

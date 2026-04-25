@@ -1,3 +1,4 @@
+import { useAirJamConfig } from "../context/air-jam-context";
 import { useAirJamHost } from "../hooks/use-air-jam-host";
 import { useOptionalPlatformSettingsOwnerApi } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
@@ -23,9 +24,11 @@ export const HostPreviewControllerWorkspace = ({
   ...props
 }: HostPreviewControllerWorkspaceProps) => {
   const host = useAirJamHost();
+  const config = useAirJamConfig();
   const platformSettingsOwner = useOptionalPlatformSettingsOwnerApi();
   const resolvedEnabled = resolveHostPreviewControllerWorkspaceEnabled({
     enabled,
+    topology: config.topology,
   });
   const joinUrl =
     host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;

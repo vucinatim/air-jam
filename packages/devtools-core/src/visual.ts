@@ -11,7 +11,7 @@ import { runCommandResult } from "./commands.js";
 import { getTopology, startDev, stopDev } from "./dev.js";
 import { pathExists, readJsonFile } from "./fs-utils.js";
 import { inspectGame, readVisualCaptureSummary } from "./games.js";
-import { resolveVisualScenarioModulePathFromConfig } from "./tooling/airjam-machine.js";
+import { inspectAirJamMachineConfig } from "./tooling/airjam-machine-inspection.js";
 import type {
   AirJamHarnessActionInvocation,
   AirJamHarnessSessionList,
@@ -132,8 +132,9 @@ const resolveVisualSource = async ({
   configPath: string | null;
 }): Promise<ResolvedVisualSource | null> => {
   if (configPath) {
-    const scenarioModulePath =
-      await resolveVisualScenarioModulePathFromConfig(configPath);
+    const scenarioModulePath = await inspectAirJamMachineConfig(
+      configPath,
+    ).then((inspection) => inspection.visualScenariosModulePath);
     if (scenarioModulePath) {
       return {
         configPath,

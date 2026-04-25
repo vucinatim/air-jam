@@ -1,4 +1,10 @@
 import { rewriteRootRelativeAssetUrlsInText } from "@/lib/asset-url-rewrite";
+import {
+  AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY,
+  resolveRuntimeTopology,
+  serializeRuntimeTopology,
+} from "@air-jam/runtime-topology";
+import { HOSTED_RELEASE_CONTROLLER_PATH } from "@air-jam/sdk/release";
 
 export const RELEASES_PATH_PREFIX = "/releases";
 
@@ -79,18 +85,62 @@ export const logicalHostedReleaseRoutePath = ({
   return `/${trimSlashes(requestedAssetPath)}`;
 };
 
+export const buildHostedReleaseRuntimeTopology = ({
+  gameId,
+  releaseId,
+  requestedAssetPath,
+  entryPath,
+  appOrigin,
+  backendOrigin,
+}: {
+  gameId: string;
+  releaseId: string;
+  requestedAssetPath: string;
+  entryPath: string;
+  appOrigin: string;
+  backendOrigin: string;
+}): string => {
+  const logicalPath = logicalHostedReleaseRoutePath({
+    requestedAssetPath,
+    entryPath,
+  });
+  const hostedBasePath = buildHostedReleaseBasePath({
+    gameId,
+    releaseId,
+  });
+
+  return serializeRuntimeTopology(
+    resolveRuntimeTopology({
+      runtimeMode: "hosted-release",
+      surfaceRole:
+        logicalPath === HOSTED_RELEASE_CONTROLLER_PATH ||
+        logicalPath.startsWith(`${HOSTED_RELEASE_CONTROLLER_PATH}/`)
+          ? "controller"
+          : "host",
+      appOrigin,
+      backendOrigin,
+      publicHost: appOrigin,
+      assetBasePath: hostedBasePath,
+      secureTransport: appOrigin.startsWith("https://"),
+      proxyStrategy: "none",
+    }),
+  );
+};
+
 export const injectHostedReleaseHtmlRuntimeBase = ({
   html,
   gameId,
   releaseId,
   requestedAssetPath,
   entryPath,
+  runtimeTopology,
 }: {
   html: string;
   gameId: string;
   releaseId: string;
   requestedAssetPath: string;
   entryPath: string;
+  runtimeTopology?: string;
 }): string => {
   const hostedBasePath = buildHostedReleaseBasePath({
     gameId,
@@ -101,7 +151,7 @@ export const injectHostedReleaseHtmlRuntimeBase = ({
     entryPath,
   });
   const normalizedBaseHref = `${hostedBasePath}/`;
-  const bootstrapScript = `<script>window.__AIRJAM_HOSTED_RELEASE_BASE__=${JSON.stringify(hostedBasePath)};window.__AIRJAM_HOSTED_RELEASE_ROUTE__=${JSON.stringify(logicalPath)};(function(){var targetPath=window.__AIRJAM_HOSTED_RELEASE_ROUTE__||"/";var targetUrl=targetPath+window.location.search+window.location.hash;if(window.location.pathname!==targetPath){window.history.replaceState(window.history.state,"",targetUrl);}})();</script>`;
+  const bootstrapScript = `<script>window.__AIRJAM_HOSTED_RELEASE_BASE__=${JSON.stringify(hostedBasePath)};window.__AIRJAM_HOSTED_RELEASE_ROUTE__=${JSON.stringify(logicalPath)};${runtimeTopology ? `window[${JSON.stringify(AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY)}]=${runtimeTopology};` : ""}(function(){var targetPath=window.__AIRJAM_HOSTED_RELEASE_ROUTE__||"/";var targetUrl=targetPath+window.location.search+window.location.hash;if(window.location.pathname!==targetPath){window.history.replaceState(window.history.state,"",targetUrl);}})();</script>`;
 
   const withBaseTag = html.includes("<base ")
     ? html.replace(

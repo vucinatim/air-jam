@@ -38,7 +38,7 @@ const resolveContractFromModule = async (
   return contractModule.gameAgentContract ?? contractModule.default ?? null;
 };
 
-const resolvedContract =
+const resolvedContract: AirJamGameAgentContract | null =
   configPath && operation === "inspect"
     ? ((await loadAirJamAppConfig(configPath)).game.machine?.agent ?? null)
     : configPath

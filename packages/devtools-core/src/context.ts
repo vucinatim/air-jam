@@ -36,6 +36,12 @@ const detectPackageManager = async (
   if (await pathExists(path.join(rootDir, "yarn.lock"))) {
     return "yarn";
   }
+  if (
+    (await pathExists(path.join(rootDir, "bun.lock"))) ||
+    (await pathExists(path.join(rootDir, "bun.lockb")))
+  ) {
+    return "bun";
+  }
   return "unknown";
 };
 

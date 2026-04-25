@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { isHostedReleaseSpaFallbackPath } from "@/lib/releases/hosted-release-artifact";
 import {
+  buildHostedReleaseRuntimeTopology,
   injectHostedReleaseHtmlRuntimeBase,
   normalizeRequestedReleaseAssetPath,
   rewriteHostedReleaseHtmlAssetUrls,
@@ -115,12 +116,23 @@ export async function GET(
       gameId,
       releaseId,
     });
+    const requestOrigin = new URL(request.url).origin;
+    const runtimeTopology = buildHostedReleaseRuntimeTopology({
+      gameId,
+      releaseId,
+      requestedAssetPath: resolvedAssetPath,
+      entryPath: artifact.entryPath,
+      appOrigin: requestOrigin,
+      backendOrigin:
+        process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL?.trim() || requestOrigin,
+    });
     const html = injectHostedReleaseHtmlRuntimeBase({
       html: htmlWithScopedAssets,
       gameId,
       releaseId,
       requestedAssetPath: resolvedAssetPath,
       entryPath: artifact.entryPath,
+      runtimeTopology,
     });
 
     return new Response(html, {

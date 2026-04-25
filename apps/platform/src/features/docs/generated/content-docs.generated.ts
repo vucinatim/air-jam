@@ -247,7 +247,7 @@ const generatedContentDocsDocuments = [
         slug: "6-publish-a-hosted-arcade-release",
         depth: 2,
         excerpt:
-          "The official Arcade hosting lane is now artifact-based. Self-hosted URLs are still useful for private preview, but public Arcade hosting should use a hosted release artifact. Build a hosted bundle from your project…",
+          "The official Arcade hosting lane is now artifact-based. Self-hosted URLs are still useful for private preview, but public Arcade hosting should use a hosted release artifact. Run the local hosted-release preflight from…",
       },
     ],
     loadComponent: () =>

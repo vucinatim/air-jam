@@ -1,3 +1,10 @@
+import type {
+  PlatformMachineGetReleaseResult,
+  PlatformMachineListOwnedGamesResult,
+  PlatformMachineListReleasesResult,
+  PlatformMachinePublishReleaseResult,
+} from "@air-jam/sdk/platform-machine";
+
 export type AirJamProjectMode = "monorepo" | "standalone-game" | "unknown";
 
 export type JsonObject = Record<string, unknown>;
@@ -6,13 +13,14 @@ export type PackageJson = JsonObject & {
   name?: string;
   version?: string;
   private?: boolean;
+  packageManager?: string;
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
 };
 
-export type AirJamPackageManager = "pnpm" | "npm" | "yarn" | "unknown";
+export type AirJamPackageManager = "pnpm" | "npm" | "yarn" | "bun" | "unknown";
 
 export type AirJamProjectContext = {
   rootDir: string;
@@ -80,6 +88,139 @@ export type AirJamQualityGate =
   | "format-check"
   | "scaffold-smoke"
   | "release-check";
+
+export type AirJamLocalReleaseIssue = {
+  code: string;
+  severity: "error" | "warning";
+  message: string;
+  path: string | null;
+};
+
+export type InspectLocalReleaseOptions = {
+  cwd?: string;
+  distDir?: string;
+};
+
+export type AirJamLocalReleaseDoctor = {
+  projectDir: string;
+  packageJsonPath: string | null;
+  packageName: string | null;
+  packageVersion: string | null;
+  packageManager: AirJamPackageManager;
+  configPath: string | null;
+  buildScript: string | null;
+  metadataExportLikely: boolean;
+  controllerPath: string | null;
+  distDir: string;
+  distExists: boolean;
+  distEntryExists: boolean;
+  recommendedBundlePath: string;
+  canBundle: boolean;
+  issues: AirJamLocalReleaseIssue[];
+  hostedContract: {
+    entryPath: string;
+    manifestPath: string;
+    hostPath: string;
+    controllerPath: string;
+  };
+};
+
+export type ValidateLocalReleaseOptions = {
+  cwd?: string;
+  distDir?: string;
+  bundlePath?: string;
+  skipBuild?: boolean;
+};
+
+export type AirJamLocalReleaseValidation = {
+  source:
+    | {
+        kind: "project";
+        projectDir: string;
+        distDir: string;
+        bundlePath: null;
+      }
+    | {
+        kind: "bundle";
+        projectDir: null;
+        distDir: null;
+        bundlePath: string;
+      };
+  ok: boolean;
+  issues: AirJamLocalReleaseIssue[];
+  manifest: JsonObject | null;
+  entryPath: string | null;
+  wrapperDirectory: string | null;
+  fileCount: number;
+  extractedSizeBytes: number;
+};
+
+export type BundleLocalReleaseOptions = {
+  cwd?: string;
+  distDir?: string;
+  out?: string;
+  skipBuild?: boolean;
+};
+
+export type BundleLocalReleaseResult = {
+  projectDir: string;
+  distDir: string;
+  outputFile: string;
+  built: boolean;
+  buildResult: CommandResult | null;
+  validation: AirJamLocalReleaseValidation;
+};
+
+export type ListPlatformReleaseTargetsOptions = {
+  platformUrl?: string;
+  token?: string;
+};
+
+export type ListPlatformReleasesOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+};
+
+export type InspectPlatformReleaseOptions = {
+  platformUrl?: string;
+  token?: string;
+  releaseId: string;
+};
+
+export type PublishPlatformReleaseOptions = {
+  platformUrl?: string;
+  token?: string;
+  releaseId: string;
+};
+
+export type SubmitPlatformReleaseOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+  versionLabel?: string;
+  cwd?: string;
+  distDir?: string;
+  bundlePath?: string;
+  skipBuild?: boolean;
+  publish?: boolean;
+};
+
+export type ListPlatformReleaseTargetsResult =
+  PlatformMachineListOwnedGamesResult;
+
+export type ListPlatformReleasesResult = PlatformMachineListReleasesResult;
+
+export type InspectPlatformReleaseResult = PlatformMachineGetReleaseResult;
+
+export type PublishPlatformReleaseResult = PlatformMachinePublishReleaseResult;
+
+export type SubmitPlatformReleaseResult = {
+  bundlePath: string;
+  createdRelease: PlatformMachineGetReleaseResult["release"];
+  finalizedRelease: PlatformMachineGetReleaseResult["release"];
+  publishedRelease: PlatformMachineGetReleaseResult["release"] | null;
+};
 
 export type CommandResult = {
   command: string;
@@ -526,4 +667,57 @@ export type AirJamVisualCaptureInspection = {
   gameId: string;
   summaryPath: string;
   summary: AirJamVisualCaptureSummary;
+};
+
+export type AirJamPlatformMachineSessionStore = {
+  version: 1;
+  platformBaseUrl: string;
+  clientName: string | null;
+  storedAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "creator" | "ops_admin";
+  };
+  session: {
+    id: string;
+    token: string;
+    expiresAt: string;
+    createdAt: string;
+    userAgent: string;
+  };
+};
+
+export type StartPlatformDeviceAuthorizationOptions = {
+  platformUrl?: string;
+  clientName?: string;
+};
+
+export type PollPlatformDeviceAuthorizationOptions = {
+  platformUrl?: string;
+  deviceCode: string;
+};
+
+export type LoginPlatformWithDeviceFlowOptions = {
+  platformUrl?: string;
+  clientName?: string;
+  onPrompt?: (payload: {
+    deviceCode: string;
+    userCode: string;
+    verificationUrl: string;
+    verificationUriComplete: string;
+    expiresAt: string;
+    intervalSeconds: number;
+  }) => void | Promise<void>;
+};
+
+export type GetPlatformMachineProfileOptions = {
+  platformUrl?: string;
+  token?: string;
+};
+
+export type LogoutPlatformMachineSessionOptions = {
+  platformUrl?: string;
+  token?: string;
 };

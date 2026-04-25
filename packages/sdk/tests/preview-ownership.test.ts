@@ -8,7 +8,9 @@ describe("host preview controller ownership", () => {
   it("enables standalone development host previews by default", () => {
     expect(
       resolveHostPreviewControllerWorkspaceEnabled({
-        isDevelopmentRuntime: true,
+        topology: {
+          runtimeMode: "standalone-dev",
+        },
         searchParams: "",
       }),
     ).toBe(true);
@@ -17,7 +19,9 @@ describe("host preview controller ownership", () => {
   it("disables game-owned previews inside embedded Arcade runtimes", () => {
     expect(
       resolveHostPreviewControllerWorkspaceEnabled({
-        isDevelopmentRuntime: true,
+        topology: {
+          runtimeMode: "arcade-live",
+        },
         searchParams:
           "aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
       }),
@@ -27,7 +31,9 @@ describe("host preview controller ownership", () => {
   it("disables automatic previews outside development", () => {
     expect(
       resolveHostPreviewControllerWorkspaceEnabled({
-        isDevelopmentRuntime: false,
+        topology: {
+          runtimeMode: "hosted-release",
+        },
         searchParams: "",
       }),
     ).toBe(false);
@@ -40,7 +46,9 @@ describe("host preview controller ownership", () => {
     expect(
       resolveHostPreviewControllerWorkspaceEnabled({
         enabled: true,
-        isDevelopmentRuntime: false,
+        topology: {
+          runtimeMode: "hosted-release",
+        },
         searchParams: embeddedSearchParams,
       }),
     ).toBe(true);

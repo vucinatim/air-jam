@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  RELEASES_PATH_PREFIX,
   buildHostedReleaseAssetPath,
   buildHostedReleaseBasePath,
+  buildHostedReleaseRuntimeTopology,
   injectHostedReleaseHtmlRuntimeBase,
   logicalHostedReleaseRoutePath,
   normalizeRequestedReleaseAssetPath,
+  RELEASES_PATH_PREFIX,
   rewriteHostedReleaseHtmlAssetUrls,
   rewriteHostedReleaseTextAssetUrls,
 } from "./release-url";
@@ -141,11 +142,33 @@ describe("injectHostedReleaseHtmlRuntimeBase", () => {
       releaseId: "release-1",
       requestedAssetPath: "index.html",
       entryPath: "index.html",
+      runtimeTopology:
+        '{"runtimeMode":"hosted-release","surfaceRole":"host","appOrigin":"https://play.example.com","backendOrigin":"https://api.example.com","socketOrigin":"https://api.example.com","publicHost":"https://play.example.com","assetBasePath":"/releases/g/game-1/r/release-1","secureTransport":true,"embedded":false,"proxyStrategy":"none"}',
     });
 
     expect(rewritten).toContain(
       `<base href="${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/">`,
     );
     expect(rewritten).toContain(`window.__AIRJAM_HOSTED_RELEASE_ROUTE__="/"`);
+    expect(rewritten).toContain(`window["__AIR_JAM_RUNTIME_TOPOLOGY__"]`);
+  });
+});
+
+describe("buildHostedReleaseRuntimeTopology", () => {
+  it("publishes an explicit hosted release topology for controller routes", () => {
+    const serialized = buildHostedReleaseRuntimeTopology({
+      gameId: "game-1",
+      releaseId: "release-1",
+      requestedAssetPath: "controller",
+      entryPath: "index.html",
+      appOrigin: "https://play.example.com",
+      backendOrigin: "https://api.example.com",
+    });
+
+    expect(serialized).toContain(`"runtimeMode":"hosted-release"`);
+    expect(serialized).toContain(`"surfaceRole":"controller"`);
+    expect(serialized).toContain(
+      `"assetBasePath":"${RELEASES_PATH_PREFIX}/g/game-1/r/release-1"`,
+    );
   });
 });

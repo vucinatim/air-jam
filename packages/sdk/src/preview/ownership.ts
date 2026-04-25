@@ -1,9 +1,14 @@
+import {
+  isLocalDevControlSurfaceRuntimeMode,
+  type ResolvedAirJamRuntimeTopology,
+} from "@air-jam/runtime-topology";
 import { parseOptionalArcadeSurfaceFromSearchParams } from "../runtime/arcade-runtime-url";
 
 export type HostPreviewControllerWorkspaceEnabled = boolean | "auto";
 
 export interface ResolveHostPreviewControllerWorkspaceEnabledOptions {
   enabled?: HostPreviewControllerWorkspaceEnabled;
+  topology?: Pick<ResolvedAirJamRuntimeTopology, "runtimeMode">;
   isDevelopmentRuntime?: boolean;
   searchParams?: URLSearchParams | string;
 }
@@ -57,6 +62,7 @@ export const isEmbeddedArcadeRuntimeSearchParams = (
 
 export const resolveHostPreviewControllerWorkspaceEnabled = ({
   enabled = "auto",
+  topology,
   isDevelopmentRuntime = readDevelopmentRuntime(),
   searchParams,
 }: ResolveHostPreviewControllerWorkspaceEnabledOptions = {}): boolean => {
@@ -64,7 +70,13 @@ export const resolveHostPreviewControllerWorkspaceEnabled = ({
     return enabled;
   }
 
+  const localDevControlSurfacesEnabled =
+    topology != null
+      ? isLocalDevControlSurfaceRuntimeMode(topology.runtimeMode)
+      : isDevelopmentRuntime;
+
   return (
-    isDevelopmentRuntime && !isEmbeddedArcadeRuntimeSearchParams(searchParams)
+    localDevControlSurfacesEnabled &&
+    !isEmbeddedArcadeRuntimeSearchParams(searchParams)
   );
 };

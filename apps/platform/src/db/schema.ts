@@ -12,6 +12,7 @@ import type {
   ReleaseReportSource,
   ReleaseReportStatus,
 } from "@/lib/releases/release-contract";
+import type { PlatformMachineDeviceGrantStatus } from "@air-jam/sdk/platform-machine";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -77,6 +78,36 @@ export const verificationTokens = pgTable("verification_tokens", {
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+export const machineAuthDeviceGrants = pgTable(
+  "machine_auth_device_grants",
+  {
+    id: text("id").primaryKey(),
+    deviceCode: text("device_code").notNull().unique(),
+    userCode: text("user_code").notNull().unique(),
+    clientName: text("client_name"),
+    status: text("status").$type<PlatformMachineDeviceGrantStatus>().notNull(),
+    userId: text("user_id").references(() => users.id),
+    sessionToken: text("session_token"),
+    expiresAt: timestamp("expires_at").notNull(),
+    approvedAt: timestamp("approved_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    deviceCodeIdx: index("machine_auth_device_grants_device_code_idx").on(
+      table.deviceCode,
+    ),
+    userCodeIdx: index("machine_auth_device_grants_user_code_idx").on(
+      table.userCode,
+    ),
+    statusIdx: index("machine_auth_device_grants_status_idx").on(table.status),
+    expiresAtIdx: index("machine_auth_device_grants_expires_at_idx").on(
+      table.expiresAt,
+    ),
+    userIdx: index("machine_auth_device_grants_user_id_idx").on(table.userId),
+  }),
+);
 
 export const games = pgTable(
   "games",

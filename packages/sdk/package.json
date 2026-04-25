@@ -109,6 +109,16 @@
       "import": "./dist/preview.js",
       "require": "./dist/preview.cjs"
     },
+    "./release": {
+      "types": "./dist/release.d.ts",
+      "import": "./dist/release.js",
+      "require": "./dist/release.cjs"
+    },
+    "./platform-machine": {
+      "types": "./dist/platform-machine.d.ts",
+      "import": "./dist/platform-machine.js",
+      "require": "./dist/platform-machine.cjs"
+    },
     "./styles.css": "./src/styles.css"
   },
   "files": [
@@ -155,6 +165,12 @@
       ],
       "prefabs": [
         "dist/prefabs.d.ts"
+      ],
+      "release": [
+        "dist/release.d.ts"
+      ],
+      "platform-machine": [
+        "dist/platform-machine.d.ts"
       ],
       "preview": [
         "dist/preview.d.ts"

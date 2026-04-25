@@ -1,3 +1,4 @@
+import { AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY } from "@air-jam/runtime-topology";
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -133,6 +134,11 @@ describe("VisualHarnessRuntime", () => {
     delete (window as unknown as Record<string, unknown>)[
       VISUAL_HARNESS_ACTIONS_KEY
     ];
+    delete (window as unknown as Record<string, unknown>)[
+      AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY
+    ];
+    delete (window as unknown as { __airJamDevProviderMountSent__?: boolean })
+      .__airJamDevProviderMountSent__;
     globalThis.fetch = originalFetch;
   });
 
@@ -241,6 +247,38 @@ describe("VisualHarnessRuntime", () => {
       matchPhase: "playing",
       runtimeState: "playing",
     });
+  });
+
+  it("does not auto-enable on hosted release runtimes", () => {
+    (window as unknown as Record<string, unknown>)[
+      AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY
+    ] = {
+      runtimeMode: "hosted-release",
+      surfaceRole: "host",
+      appOrigin: "https://play.example.com",
+      backendOrigin: "https://api.example.com",
+      publicHost: "https://play.example.com",
+      assetBasePath: "/releases/g/game-1/r/release-1",
+      secureTransport: true,
+      embedded: false,
+      proxyStrategy: "none",
+    };
+    (
+      window as unknown as { __airJamDevProviderMountSent__?: boolean }
+    ).__airJamDevProviderMountSent__ = true;
+
+    activeViews.push(
+      renderHarnessHost({
+        roomId: "room-1",
+        joinUrl: "https://join",
+        matchPhase: "playing",
+        runtimeState: "playing",
+        points: [],
+        calls: [],
+      }),
+    );
+
+    expect(readVisualHarnessBridgeSnapshot(window)).toBeNull();
   });
 
   it("registers the live harness session with the local dev broker", async () => {

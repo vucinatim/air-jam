@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY,
+  isLocalDevControlSurfaceRuntimeMode,
+  isLocalDevControlSurfaceTopology,
   parseRuntimeTopology,
   parseRuntimeTopologyFromSearchParams,
   readRuntimeTopologyFromEnv,
+  readRuntimeTopologyFromWindow,
   resolveProjectRuntimeTopology,
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
@@ -99,6 +103,35 @@ test("readRuntimeTopologyFromEnv reads the first populated canonical env key", (
   assert.equal(topology?.surfaceRole, "controller");
 });
 
+test("readRuntimeTopologyFromWindow reads the explicit window bootstrap payload", () => {
+  const topology = readRuntimeTopologyFromWindow({
+    [AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY]: {
+      runtimeMode: "hosted-release",
+      surfaceRole: "host",
+      appOrigin: "https://play.example.com",
+      backendOrigin: "https://api.example.com",
+      publicHost: "https://play.example.com",
+      assetBasePath: "/releases/g/game-1/r/release-1",
+      secureTransport: true,
+      embedded: false,
+      proxyStrategy: "none",
+    },
+  });
+
+  assert.deepEqual(topology, {
+    runtimeMode: "hosted-release",
+    surfaceRole: "host",
+    appOrigin: "https://play.example.com",
+    backendOrigin: "https://api.example.com",
+    socketOrigin: "https://api.example.com",
+    publicHost: "https://play.example.com",
+    assetBasePath: "/releases/g/game-1/r/release-1",
+    secureTransport: true,
+    embedded: false,
+    proxyStrategy: "none",
+  });
+});
+
 test("resolveProjectRuntimeTopology defaults standalone dev to dev-proxy", () => {
   const topology = resolveProjectRuntimeTopology({
     surfaceRole: "host",
@@ -121,4 +154,27 @@ test("resolveProjectRuntimeTopology defaults production projects to direct backe
 
   assert.equal(topology.proxyStrategy, "none");
   assert.equal(topology.socketOrigin, "https://api.example.com");
+});
+
+test("local dev control surfaces only auto-enable on local runtime modes", () => {
+  assert.equal(isLocalDevControlSurfaceRuntimeMode("standalone-dev"), true);
+  assert.equal(isLocalDevControlSurfaceRuntimeMode("arcade-built"), true);
+  assert.equal(
+    isLocalDevControlSurfaceRuntimeMode("self-hosted-production"),
+    false,
+  );
+  assert.equal(isLocalDevControlSurfaceRuntimeMode("hosted-release"), false);
+
+  assert.equal(
+    isLocalDevControlSurfaceTopology({
+      runtimeMode: "standalone-secure",
+    }),
+    true,
+  );
+  assert.equal(
+    isLocalDevControlSurfaceTopology({
+      runtimeMode: "hosted-release",
+    }),
+    false,
+  );
 });

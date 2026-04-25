@@ -1,4 +1,8 @@
-import type { ProxyStrategy } from "@air-jam/runtime-topology";
+import {
+  isLocalDevControlSurfaceTopology,
+  type ProxyStrategy,
+  type ResolvedAirJamRuntimeTopology,
+} from "@air-jam/runtime-topology";
 import {
   onAirJamDiagnostic,
   type AirJamDiagnostic,
@@ -74,6 +78,7 @@ interface BrowserLogSinkOptions {
   appOrigin?: string;
   proxyStrategy?: ProxyStrategy;
   appId?: string;
+  topology?: Pick<ResolvedAirJamRuntimeTopology, "runtimeMode">;
 }
 
 interface BrowserLogSinkController {
@@ -871,11 +876,22 @@ class BrowserLogSinkRuntime {
 export const ensureDevBrowserLogSink = (
   options: BrowserLogSinkOptions,
 ): void => {
-  if (typeof window === "undefined" || !isDevelopmentRuntime()) {
+  if (typeof window === "undefined") {
     return;
   }
 
   const globalState = globalThis as BrowserLogSinkGlobal;
+  const autoEnabled =
+    options.topology != null
+      ? isLocalDevControlSurfaceTopology(options.topology)
+      : isDevelopmentRuntime();
+
+  if (!autoEnabled) {
+    globalState.__airJamBrowserLogSink__?.dispose?.();
+    delete globalState.__airJamBrowserLogSink__;
+    return;
+  }
+
   if (!globalState.__airJamBrowserLogSink__) {
     const runtime = new BrowserLogSinkRuntime();
     runtime.update(options);

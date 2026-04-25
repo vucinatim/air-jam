@@ -197,7 +197,14 @@ That endpoint is also where you can add your own rules, for example checking the
 
 The official Arcade hosting lane is now artifact-based. Self-hosted URLs are still useful for private preview, but public Arcade hosting should use a hosted release artifact.
 
-1. Build a hosted bundle from your project root:
+1. Run the local hosted-release preflight from your project root:
+
+```bash
+pnpm exec airjam release doctor --dir .
+pnpm exec airjam release validate --dir .
+```
+
+2. Build a hosted bundle from your project root:
 
 ```bash
 pnpm exec airjam release bundle --dir .
@@ -217,10 +224,10 @@ The hosted artifact contract is fixed:
 - host entry at `/`
 - controller entry at `/controller`
 
-2. Go to your game's **Arcade Releases** page in the [Dashboard](/dashboard).
-3. Upload the generated zip artifact.
-4. Make the validated release live.
-5. Upload managed thumbnail, cover, and preview media in the Dashboard.
-6. Set the game's Arcade visibility to listed.
+3. Go to your game's **Arcade Releases** page in the [Dashboard](/dashboard).
+4. Upload the generated zip artifact.
+5. Make the validated release live.
+6. Upload managed thumbnail, cover, and preview media in the Dashboard.
+7. Set the game's Arcade visibility to listed.
 
 Your game is now live in the public Arcade on Air Jam-hosted infrastructure.

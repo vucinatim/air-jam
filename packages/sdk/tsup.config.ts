@@ -22,6 +22,8 @@ export default defineConfig({
     "src/capabilities.ts",
     "src/metadata.ts",
     "src/prefabs.ts",
+    "src/release.ts",
+    "src/platform-machine.ts",
     "src/preview.ts",
   ],
   format: ["cjs", "esm"],

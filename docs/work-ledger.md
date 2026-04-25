@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-24
+Last updated: 2026-04-25
 Status: active
 
 This is the single active repo-wide ledger.
@@ -99,6 +99,7 @@ Latest progress inside this focus:
 27. the SDK authoring ergonomics review is captured in [SDK Game Authoring Ergonomics Plan](./plans/sdk-game-authoring-ergonomics-plan.md), including agreed audio, `SurfaceViewport`, join-controls, Pong helper, and sound-type cleanups plus the open runtime-state decision
 28. Last Band Standing's next bounded polish pass is captured in [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md), covering controller lobby/start/home fixes, host gameplay layout polish, controller game-over scrolling, song buckets, and randomized clip starts
 29. the MCP/devtools closeout no longer relies on `mcp-server` tests rebuilding `@air-jam/devtools-core`; `mcp-server` tests resolve workspace siblings from source, while `devtools-core` tests explicitly prebuild `@air-jam/sdk` because repo game configs import real SDK subpaths during dynamic config loading, which removes the concurrent validation race without inventing new build machinery
+30. hosted release serving now injects one explicit `hosted-release` runtime topology into the served HTML bootstrap, and both the SDK runtime resolver and harness runtime consume that same published topology before falling back to looser inference; this removes the leaked `__airjam/dev/*` control-surface traffic from published builds and routes hosted sockets to the configured backend origin instead of accidentally defaulting to the local platform origin
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 
@@ -219,44 +220,55 @@ Current intent:
 1. build shared `devtools-core` services first and keep MCP as a thin adapter
 2. make the same MCP work in this monorepo and in generated `create-airjam` games
 3. ship project-local MCP setup and agent guidance by default in generated games, with opt-out
-4. keep pushing the agent-control surface upward from transport primitives toward game-owned semantic contracts that real games can publish and agents can discover
-5. use those contracts to prove full host-visible gameplay loops through MCP before broadening the next layer of framework ergonomics
+
+### Planned Future Systems Track. Hosted Release CLI And MCP
+
+Status: Phase 3 CLI release flow landed  
+Plan: [Hosted Release CLI And MCP Plan](./plans/hosted-release-cli-and-mcp-plan.md)
+
+Current intent:
+
+1. preserve the existing hosted release artifact model and platform release domain
+2. move local hosted release bundle/validation logic into shared release-core ownership
+3. add a first-party browser-assisted CLI auth flow before generic OAuth work
+4. expose the same release submission/publish flow through CLI first, then MCP
+5. keep pushing the agent-control surface upward from transport primitives toward game-owned semantic contracts that real games can publish and agents can discover
+6. use those contracts to prove full host-visible gameplay loops through MCP before broadening the next layer of framework ergonomics
 
 Latest progress inside this track:
 
-1. a new game-owned agent-contract lane is now landed across `@air-jam/sdk`, `@air-jam/devtools-core`, and `@air-jam/mcp-server`: games can publish semantic `actions` plus a `projectSnapshot(...)` view instead of forcing agents to reason only in raw store domains and controller RPC names
-2. `last-band-standing` is now the first real adopter of that lane, with a portable `src/game/contracts/agent.ts` that publishes lobby/round/reveal snapshot shape plus semantic actions for ready, start, guess submission, bucket toggles, and lobby reset
-3. the live stdio MCP path is now proven end to end against the visible host room: inspect contract, connect controller, read game snapshot, set ready, start the match, submit a guess, and read the reveal/score result without falling back to browser clicks
-4. `pong` is now the second real adopter of the semantic contract lane, with a portable game snapshot plus semantic actions for team joins, points-to-win changes, bot counts, match start, score awards, restart, and return-to-lobby
-5. the live stdio MCP path is now proven end to end against a visible Pong room too: connect two controllers to the browser-visible room, join opposite teams, change the win target, start the match, award points to end it, and return to the lobby through semantic game actions
-6. expose Air Jam-native tools for project inspection, logs, topology, visual harness captures, quality gates, and eventually runtime control
-
-Latest progress:
-
-1. Phase 0's first slice landed with a new `@air-jam/devtools-core` workspace package
-2. the first slice owns project detection, project inspection, game listing/inspection, unified-log command wrapping, and basic quality-gate execution
-3. focused tests cover monorepo detection, standalone game fixture detection, repo game discovery, game inspection, and repo-only quality-gate filtering
-4. an initial public `@air-jam/mcp-server` package now exists with thin MCP tools for project inspection, game inspection, log reads, quality gates, and visual capture summary reads
-5. `create-airjam` now scaffolds `@air-jam/mcp-server`, adds a `mcp` script, ships local MCP docs and skill guidance, and exposes `airjam mcp doctor|config|init`
-6. targeted scaffold smoke for the `minimal` template passed with the new MCP package, docs, commands, and generated project validation path
-7. the current V2 slice is now implemented: `@air-jam/harness` replaced the old `@air-jam/visual-harness` package, `devtools-core` now owns managed dev lifecycle, topology inspection, visual scenario discovery, visual capture execution, live harness snapshot reads, and harness action invocation, and `@air-jam/mcp-server` now exposes `start_dev`, `stop_dev`, `status`, `topology`, `list_visual_scenarios`, `capture_visuals`, `read_harness_snapshot`, and `invoke_harness_action`
-8. `create-airjam` now writes a committed project-local `.mcp.json` by default, keeps `airjam mcp init` as a repair/regenerate path, updates generated agent guidance toward MCP-first workflows, and the scaffold smoke still passes end to end after the harness rename and runtime-control additions
-9. live harness sessions can now register with the local dev server through a dedicated dev-control broker, `devtools-core` can list and prefer those registered sessions over isolated headless harness browsers, and MCP now exposes `airjam.list_harness_sessions` so agents can target an already-open visible host session instead of always acting in a separate hidden browser context
-10. the repo root now ships a committed `.mcp.json` plus `pnpm mcp`, so the monorepo is directly MCP-usable without package-internal working-directory assumptions
-11. harness actions now publish optional action metadata, the MCP surfaces that metadata to agents, and first-party games now document their action semantics directly in the harness contract
-12. Last Band Standing now exposes a game-owned `returnToLobby` harness action, so the visible-tab MCP loop can move both into game-over and back to lobby without browser UI clicks
-13. `airjam.capture_visuals` now runs as a task-backed MCP tool with in-memory task-store support, and a real stdio MCP client proof now completes a `last-band-standing` lobby capture through `client.experimental.tasks.callToolStream(...)` without leaving managed Air Jam dev processes behind
-14. the Arcade follow-up proof is now landed too: `airjam.capture_visuals` completes a real `pong` `arcade-test` lobby capture through the MCP task stream after fixing cross-origin iframe readiness and controller join-origin normalization in the harness session layer
-15. the first orchestration consolidation slice is now in place: repo game discovery, local-reference env keys, Arcade origin resolution, and repo topology surface builders now live in `packages/devtools-core/runtime/repo-workspace.mjs`, while `scripts/workspace` topology/dev helpers consume that shared module instead of rebuilding the same knowledge locally
-16. the second consolidation slice is now in place too: workspace process groups, build-artifact reuse, URL readiness probing, standalone live stack startup, and Arcade built stack startup now live under `packages/devtools-core/runtime/`, while `scripts/workspace/lib/*` is reduced to thin re-export wrappers
-17. the third consolidation slice is now in place too: foreground repo `standalone:dev` / `arcade:dev` command logic now lives in `packages/devtools-core/runtime/workspace-dev-commands.mjs`, repo visual stack/capture orchestration now lives in `packages/devtools-core/runtime/repo-visual.mjs`, and a real `last-band-standing` standalone visual capture completed successfully through that new owner path
-18. the managed monorepo path now uses that same shared runtime layer too: `packages/devtools-core/src/dev.ts` no longer shells through repo CLI scripts for monorepo start/topology, and instead invokes `packages/devtools-core/runtime/workspace-runtime-cli.mjs`, with focused tests still green afterward
-19. the first agent input/runtime-inspection slice is now landed: `@air-jam/devtools-core` owns virtual controller sessions over the real controller Socket.IO protocol, including controller connect/disconnect, raw input sends, controller action RPC sends, and runtime snapshot reads that can request authoritative `airjam:state_sync` store payloads before returning
-20. `@air-jam/mcp-server` now exposes that controller/runtime lane through `airjam.connect_controller`, `airjam.send_controller_input`, `airjam.invoke_controller_action`, `airjam.read_runtime_snapshot`, and `airjam.disconnect_controller`, and focused socket-backed `devtools-core` tests now prove join/input/action/state-sync/disconnect behavior without mocking the transport
-21. explicit controller leave is now a first-class acknowledged protocol path instead of a fire-and-forget best-effort emit: server/controller/devtools all speak a `controller:leave` ack, devtools waits for that ack before tearing sockets down, and preview-controller close now uses a parent/iframe handshake so local preview sessions leave immediately without weakening the normal 30-second reconnect lease for real controllers
-22. `create-airjam` template ownership is now explicit for semantic game-agent contracts too: scaffold template verification checks packaged archives for `src/game/contracts/agent.ts` parity with their source games, scaffold smoke now proves both a template that owns an agent contract (`pong`) and one that intentionally omits it (`minimal`), and generated AI-pack guidance now tells agents to treat a template-owned `src/game/contracts/agent.ts` as the canonical semantic game surface
-23. Pong's semantic `award_point` QA lane now drives the same host countdown/reset behavior as natural scoring: the host runtime derives score-side effects from replicated score changes instead of only the simulation callback, so live MCP score awards no longer race the ball loop and the browser-visible Pong demo now ends deterministically with the intended winner and score
-24. machine-facing contract ownership is now explicit in `src/airjam.config.ts`: `createAirJamApp({ game.machine })` carries semantic game-agent contracts directly and explicit visual-scenarios module declarations, first-party template games wire their published harness/agent surfaces there, and the high-level devtools/MCP/repo-visual path no longer falls back to convention-scanned agent or visual contract files
+1. the hosted release artifact contract now lives in one shared SDK leaf, `@air-jam/sdk/release`
+2. platform hosted-release code now reuses that SDK leaf instead of carrying its own duplicate hosted artifact contract constants/schema
+3. local hosted release operations now live in `@air-jam/devtools-core`, including structured `inspectLocalRelease`, `bundleLocalRelease`, and `validateLocalRelease`
+4. `create-airjam` now exposes `airjam release doctor`, `airjam release bundle`, and `airjam release validate` as thin adapters over shared release-core logic
+5. focused release-core tests now cover project readiness inspection, invalid hosted controller-path rejection, hosted bundle creation, and hosted archive validation
+6. release CLI help/tests and scaffold docs now reflect the local preflight flow before later auth/submit/publish work
+7. targeted scaffold smoke for the `minimal` template passed with the new MCP package, docs, commands, and generated project validation path
+8. the current V2 slice is now implemented: `@air-jam/harness` replaced the old `@air-jam/visual-harness` package, `devtools-core` now owns managed dev lifecycle, topology inspection, visual scenario discovery, visual capture execution, live harness snapshot reads, and harness action invocation, and `@air-jam/mcp-server` now exposes `start_dev`, `stop_dev`, `status`, `topology`, `list_visual_scenarios`, `capture_visuals`, `read_harness_snapshot`, and `invoke_harness_action`
+9. `create-airjam` now writes a committed project-local `.mcp.json` by default, keeps `airjam mcp init` as a repair/regenerate path, updates generated agent guidance toward MCP-first workflows, and the scaffold smoke still passes end to end after the harness rename and runtime-control additions
+10. live harness sessions can now register with the local dev server through a dedicated dev-control broker, `devtools-core` can list and prefer those registered sessions over isolated headless harness browsers, and MCP now exposes `airjam.list_harness_sessions` so agents can target an already-open visible host session instead of always acting in a separate hidden browser context
+11. the repo root now ships a committed `.mcp.json` plus `pnpm mcp`, so the monorepo is directly MCP-usable without package-internal working-directory assumptions
+12. harness actions now publish optional action metadata, the MCP surfaces that metadata to agents, and first-party games now document their action semantics directly in the harness contract
+13. Last Band Standing now exposes a game-owned `returnToLobby` harness action, so the visible-tab MCP loop can move both into game-over and back to lobby without browser UI clicks
+14. `airjam.capture_visuals` now runs as a task-backed MCP tool with in-memory task-store support, and a real stdio MCP client proof now completes a `last-band-standing` lobby capture through `client.experimental.tasks.callToolStream(...)` without leaving managed Air Jam dev processes behind
+15. the Arcade follow-up proof is now landed too: `airjam.capture_visuals` completes a real `pong` `arcade-test` lobby capture through the MCP task stream after fixing cross-origin iframe readiness and controller join-origin normalization in the harness session layer
+16. the first orchestration consolidation slice is now in place: repo game discovery, local-reference env keys, Arcade origin resolution, and repo topology surface builders now live in `packages/devtools-core/runtime/repo-workspace.mjs`, while `scripts/workspace` topology/dev helpers consume that shared module instead of rebuilding the same knowledge locally
+17. the second consolidation slice is now in place too: workspace process groups, build-artifact reuse, URL readiness probing, standalone live stack startup, and Arcade built stack startup now live under `packages/devtools-core/runtime/`, while `scripts/workspace/lib/*` is reduced to thin re-export wrappers
+18. the third consolidation slice is now in place too: foreground repo `standalone:dev` / `arcade:dev` command logic now lives in `packages/devtools-core/runtime/workspace-dev-commands.mjs`, repo visual stack/capture orchestration now lives in `packages/devtools-core/runtime/repo-visual.mjs`, and a real `last-band-standing` standalone visual capture completed successfully through that new owner path
+19. the managed monorepo path now uses that same shared runtime layer too: `packages/devtools-core/src/dev.ts` no longer shells through repo CLI scripts for monorepo start/topology, and instead invokes `packages/devtools-core/runtime/workspace-runtime-cli.mjs`, with focused tests still green afterward
+20. the first agent input/runtime-inspection slice is now landed: `@air-jam/devtools-core` owns virtual controller sessions over the real controller Socket.IO protocol, including controller connect/disconnect, raw input sends, controller action RPC sends, and runtime snapshot reads that can request authoritative `airjam:state_sync` store payloads before returning
+21. `@air-jam/mcp-server` now exposes that controller/runtime lane through `airjam.connect_controller`, `airjam.send_controller_input`, `airjam.invoke_controller_action`, `airjam.read_runtime_snapshot`, and `airjam.disconnect_controller`, and focused socket-backed `devtools-core` tests now prove join/input/action/state-sync/disconnect behavior without mocking the transport
+22. explicit controller leave is now a first-class acknowledged protocol path instead of a fire-and-forget best-effort emit: server/controller/devtools all speak a `controller:leave` ack, devtools waits for that ack before tearing sockets down, and preview-controller close now uses a parent/iframe handshake so local preview sessions leave immediately without weakening the normal 30-second reconnect lease for real controllers
+23. the hosted release publishing lane now extends past local bundle prep: platform exposes bearer-authenticated machine release endpoints for owned games, release listing/detail, draft creation, upload-target issuance, finalize, and publish under `/api/cli/games/*` and `/api/cli/releases/*`
+24. `@air-jam/devtools-core` now owns the remote hosted-release client flow too, including list targets, list releases, inspect release, submit local bundle, and publish ready release over the machine API
+25. `create-airjam` now exposes `airjam release list`, `airjam release inspect`, `airjam release submit`, and `airjam release publish` as thin adapters over that shared release client, and focused tests now cover the draft/upload/finalize/publish sequence end to end
+26. `create-airjam` template ownership is now explicit for semantic game-agent contracts too: scaffold template verification checks packaged archives for `src/game/contracts/agent.ts` parity with their source games, scaffold smoke now proves both a template that owns an agent contract (`pong`) and one that intentionally omits it (`minimal`), and generated AI-pack guidance now tells agents to treat a template-owned `src/game/contracts/agent.ts` as the canonical semantic game surface
+27. Pong's semantic `award_point` QA lane now drives the same host countdown/reset behavior as natural scoring: the host runtime derives score-side effects from replicated score changes instead of only the simulation callback, so live MCP score awards no longer race the ball loop and the browser-visible Pong demo now ends deterministically with the intended winner and score
+28. machine-facing contract ownership is now explicit in `src/airjam.config.ts`: `createAirJamApp({ game.machine })` carries semantic game-agent contracts directly and explicit visual-scenarios module declarations, first-party template games wire their published harness/agent surfaces there, and the high-level devtools/MCP/repo-visual path no longer falls back to convention-scanned agent or visual contract files
+29. hosted release auth now has a real machine lane: the platform exposes browser-assisted device login under `/api/cli/auth/*`, backed by a dedicated `machine_auth_device_grants` table plus the existing Better Auth `sessions` table for issued machine tokens, and `create-airjam` now ships `airjam auth login`, `airjam auth whoami`, and `airjam auth logout` over shared `@air-jam/devtools-core` auth helpers
+30. real hosted-release QA is now proven against the local platform lane too: device login works end to end, standalone generated Pong can be submitted and published through `airjam release submit` / `airjam release publish`, and the shipped devtools release inspection path now resolves generated `src/airjam.config.ts` through a `tsx` helper instead of falsely reporting `missing-config` when the built CLI inspects standalone TypeScript game configs
+31. hosted release runtime gating is now explicit at the topology boundary: SDK-owned browser log sink and host preview workspace only auto-enable on local dev runtime modes, so hosted and self-hosted production builds no longer inherit local dev control surfaces through provider-mount side effects
+32. hosted release moderation policy is now documented as fail-closed to match the existing platform release service, instead of implying that skipped moderation can still publish with warning checks
 
 Execution note:
 

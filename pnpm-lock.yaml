@@ -949,10 +949,22 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
+      yauzl:
+        specifier: ^3.2.1
+        version: 3.2.1
+      yazl:
+        specifier: ^3.3.1
+        version: 3.3.1
     devDependencies:
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
+      '@types/yauzl':
+        specifier: ^2.10.3
+        version: 2.10.3
+      '@types/yazl':
+        specifier: ^2.4.5
+        version: 2.4.6
       socket.io:
         specifier: ^4.8.1
         version: 4.8.1

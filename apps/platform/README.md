@@ -117,7 +117,7 @@ Optional:
 
 For v1, the simplest setup is to keep hosted releases on the same platform origin and leave the release base URL vars unset.
 
-If screenshot moderation is not configured, hosted releases still publish normally. The release dashboard will record warning checks showing that browser-based moderation was skipped.
+If screenshot moderation is not configured, hosted releases fail closed during finalize/publish. The release remains failed until the moderation runtime is available again, which keeps the platform policy aligned with the server-side release checks.
 
 ## Managed Media
 

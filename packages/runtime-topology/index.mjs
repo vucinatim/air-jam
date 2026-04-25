@@ -21,6 +21,12 @@ const PROJECT_RUNTIME_MODES = new Set([
   "self-hosted-production",
   "hosted-release",
 ]);
+const LOCAL_DEV_CONTROL_SURFACE_RUNTIME_MODES = new Set([
+  "standalone-dev",
+  "standalone-secure",
+  "arcade-live",
+  "arcade-built",
+]);
 
 export const AIR_JAM_RUNTIME_TOPOLOGY_ENV_KEYS = [
   "VITE_AIR_JAM_RUNTIME_TOPOLOGY",
@@ -29,6 +35,8 @@ export const AIR_JAM_RUNTIME_TOPOLOGY_ENV_KEYS = [
 ];
 
 export const AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX = "aj_topology_";
+export const AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY =
+  "__AIR_JAM_RUNTIME_TOPOLOGY__";
 
 const REQUIRED_QUERY_KEYS = [
   "runtime_mode",
@@ -288,6 +296,14 @@ export const resolveProjectRuntimeTopology = (input) => {
   });
 };
 
+export const isLocalDevControlSurfaceRuntimeMode = (runtimeMode) =>
+  LOCAL_DEV_CONTROL_SURFACE_RUNTIME_MODES.has(
+    assertString(runtimeMode, "runtimeMode"),
+  );
+
+export const isLocalDevControlSurfaceTopology = (topology) =>
+  isLocalDevControlSurfaceRuntimeMode(topology.runtimeMode);
+
 export const serializeRuntimeTopology = (topology) =>
   JSON.stringify(resolveRuntimeTopology(topology));
 
@@ -310,6 +326,23 @@ export const readRuntimeTopologyFromEnv = (env = process.env) => {
     if (typeof candidate === "string" && candidate.trim().length > 0) {
       return parseRuntimeTopology(candidate);
     }
+  }
+
+  return null;
+};
+
+export const readRuntimeTopologyFromWindow = (target = globalThis.window) => {
+  if (!target || typeof target !== "object") {
+    return null;
+  }
+
+  const candidate = target[AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY];
+  if (typeof candidate === "string" && candidate.trim().length > 0) {
+    return parseRuntimeTopology(candidate);
+  }
+
+  if (isObject(candidate)) {
+    return resolveRuntimeTopology(candidate);
   }
 
   return null;

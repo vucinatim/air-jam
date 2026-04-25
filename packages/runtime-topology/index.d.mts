@@ -62,6 +62,7 @@ export interface ResolvedAirJamRuntimeTopology {
 
 export declare const AIR_JAM_RUNTIME_TOPOLOGY_ENV_KEYS: string[];
 export declare const AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX: string;
+export declare const AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY: string;
 
 export declare const resolveRuntimeTopology: (
   input: RuntimeTopologyInput,
@@ -70,6 +71,14 @@ export declare const resolveRuntimeTopology: (
 export declare const resolveProjectRuntimeTopology: (
   input: ProjectRuntimeTopologyInput,
 ) => ResolvedAirJamRuntimeTopology;
+
+export declare const isLocalDevControlSurfaceRuntimeMode: (
+  runtimeMode: RuntimeMode,
+) => boolean;
+
+export declare const isLocalDevControlSurfaceTopology: (
+  topology: Pick<ResolvedAirJamRuntimeTopology, "runtimeMode">,
+) => boolean;
 
 export declare const serializeRuntimeTopology: (
   topology: RuntimeTopologyInput | ResolvedAirJamRuntimeTopology,
@@ -81,6 +90,10 @@ export declare const parseRuntimeTopology: (
 
 export declare const readRuntimeTopologyFromEnv: (
   env?: Record<string, string | undefined>,
+) => ResolvedAirJamRuntimeTopology | null;
+
+export declare const readRuntimeTopologyFromWindow: (
+  target?: object | undefined,
 ) => ResolvedAirJamRuntimeTopology | null;
 
 export declare const runtimeTopologyToQueryParams: (

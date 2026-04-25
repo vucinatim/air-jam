@@ -1,3 +1,7 @@
+import {
+  isLocalDevControlSurfaceTopology,
+  readRuntimeTopologyFromWindow,
+} from "@air-jam/runtime-topology";
 import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import {
   bridgeAction,
@@ -23,6 +27,21 @@ type VisualHarnessDevWindow = Window & {
 };
 
 const isVisualHarnessRuntimeEnabled = (): boolean => {
+  if (typeof window !== "undefined") {
+    const explicitlyEnabled =
+      new URLSearchParams(window.location.search).get(
+        VISUAL_HARNESS_ENABLE_PARAM,
+      ) === VISUAL_HARNESS_ENABLE_VALUE;
+    if (explicitlyEnabled) {
+      return true;
+    }
+
+    const topology = readRuntimeTopologyFromWindow(window as unknown as object);
+    if (topology) {
+      return isLocalDevControlSurfaceTopology(topology);
+    }
+  }
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const meta = import.meta as any;
@@ -42,11 +61,7 @@ const isVisualHarnessRuntimeEnabled = (): boolean => {
     return true;
   }
 
-  return (
-    new URLSearchParams(window.location.search).get(
-      VISUAL_HARNESS_ENABLE_PARAM,
-    ) === VISUAL_HARNESS_ENABLE_VALUE
-  );
+  return false;
 };
 
 type UseVisualHarnessRuntimeOptions = {

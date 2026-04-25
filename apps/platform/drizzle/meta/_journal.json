@@ -134,6 +134,13 @@
       "when": 1776000000000,
       "tag": "0018_games_user_id_index",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1777075200000,
+      "tag": "0019_machine_auth_device_grants",
+      "breakpoints": true
     }
   ]
 }

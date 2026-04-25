@@ -46,6 +46,7 @@ Planned future architecture tracks:
 
 1. [Air Jam MCP And Agent Devtools Plan](./plans/air-jam-mcp-and-agent-devtools-plan.md)
 2. [Remote Rooms And Display Surfaces Plan](./plans/remote-rooms-and-display-surfaces-plan.md)
+3. [Hosted Release CLI And MCP Plan](./plans/hosted-release-cli-and-mcp-plan.md)
 
 Prerelease future-proofing guides:
 
