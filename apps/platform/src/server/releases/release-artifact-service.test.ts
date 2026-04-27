@@ -11,6 +11,15 @@ describe("resolveReleasePostModerationAction", () => {
     ).toEqual({ kind: "ready" });
   });
 
+  it("promotes explicitly disabled image moderation outcomes to ready", () => {
+    expect(
+      resolveReleasePostModerationAction({
+        outcome: "disabled",
+        reason: "Local capture-only mode.",
+      }),
+    ).toEqual({ kind: "ready" });
+  });
+
   it("preserves quarantined moderation outcomes", () => {
     expect(
       resolveReleasePostModerationAction({

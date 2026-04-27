@@ -35,6 +35,25 @@ const positiveIntegerFromEnv = (envKey: string, fallback: number) =>
     return parsed;
   });
 
+const releaseImageModerationModeFromEnv = optionalEnvValue.transform(
+  (value, context) => {
+    if (!value) {
+      return "openai" as const;
+    }
+
+    if (value === "openai" || value === "disabled") {
+      return value;
+    }
+
+    context.addIssue({
+      code: "custom",
+      message:
+        "AIRJAM_RELEASES_IMAGE_MODERATION_MODE must be either 'openai' or 'disabled'.",
+    });
+    return z.NEVER;
+  },
+);
+
 const releaseStorageEnvSchema = z
   .object({
     AIRJAM_RELEASES_R2_BUCKET: requiredEnvValue("AIRJAM_RELEASES_R2_BUCKET"),
@@ -81,7 +100,8 @@ const releaseModerationEnvSchema = z
     AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: requiredEnvValue(
       "AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN",
     ),
-    OPENAI_API_KEY: requiredEnvValue("OPENAI_API_KEY"),
+    OPENAI_API_KEY: optionalEnvValue,
+    AIRJAM_RELEASES_IMAGE_MODERATION_MODE: releaseImageModerationModeFromEnv,
     AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS: positiveIntegerFromEnv(
       "AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS",
       20_000,
@@ -117,6 +137,18 @@ const releaseModerationEnvSchema = z
           "Configure AIRJAM_RELEASES_BROWSER_WS_ENDPOINT or AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH to enable screenshot moderation.",
       });
     }
+
+    if (
+      value.AIRJAM_RELEASES_IMAGE_MODERATION_MODE === "openai" &&
+      !value.OPENAI_API_KEY
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["OPENAI_API_KEY"],
+        message:
+          "OPENAI_API_KEY is required when AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai.",
+      });
+    }
   })
   .transform((value) => ({
     internalAccessSecret: value.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN,
@@ -128,21 +160,32 @@ const releaseModerationEnvSchema = z
       viewportWidth: value.AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH,
       viewportHeight: value.AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT,
     },
-    openAi: {
-      apiKey: value.OPENAI_API_KEY,
-      model:
-        value.AIRJAM_RELEASES_OPENAI_MODERATION_MODEL ||
-        "omni-moderation-latest",
-      baseUrl:
-        value.AIRJAM_RELEASES_OPENAI_BASE_URL || "https://api.openai.com/v1",
-      timeoutMs: value.AIRJAM_RELEASES_OPENAI_TIMEOUT_MS,
-    },
+    imageModeration:
+      value.AIRJAM_RELEASES_IMAGE_MODERATION_MODE === "disabled"
+        ? {
+            mode: "disabled" as const,
+            openAi: null,
+          }
+        : {
+            mode: "openai" as const,
+            openAi: {
+              apiKey: value.OPENAI_API_KEY ?? "",
+              model:
+                value.AIRJAM_RELEASES_OPENAI_MODERATION_MODEL ||
+                "omni-moderation-latest",
+              baseUrl:
+                value.AIRJAM_RELEASES_OPENAI_BASE_URL ||
+                "https://api.openai.com/v1",
+              timeoutMs: value.AIRJAM_RELEASES_OPENAI_TIMEOUT_MS,
+            },
+          },
   }));
 
 const releaseModerationAvailabilityProbeSchema = z.object({
   AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: optionalEnvValue,
   AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH: optionalEnvValue,
   AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: optionalEnvValue,
+  AIRJAM_RELEASES_IMAGE_MODERATION_MODE: releaseImageModerationModeFromEnv,
   OPENAI_API_KEY: optionalEnvValue,
 });
 
@@ -176,7 +219,7 @@ export const loadReleaseModerationEnv = (
     schema: releaseModerationEnvSchema,
     env,
     docsHint:
-      "Set AIRJAM_RELEASES_* moderation variables and OPENAI_API_KEY in apps/platform/.env.local (or deployment env).",
+      "Set AIRJAM_RELEASES_* moderation variables in apps/platform/.env.local (or deployment env), and add OPENAI_API_KEY when AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai.",
   });
 
 export const loadReleaseModerationAvailabilityProbeEnv = (

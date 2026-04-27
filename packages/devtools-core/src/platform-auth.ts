@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import type {
+  AirJamPlatformAuthStatus,
   AirJamPlatformMachineSessionStore,
   GetPlatformMachineProfileOptions,
   LoginPlatformWithDeviceFlowOptions,
@@ -315,5 +316,37 @@ export const logoutPlatformMachineSession = async ({
   await clearStoredPlatformMachineSession();
   return result;
 };
+
+export const getPlatformMachineAuthStatus =
+  async (): Promise<AirJamPlatformAuthStatus> => {
+    const stored = await readStoredPlatformMachineSession();
+
+    if (!stored) {
+      return {
+        authenticated: false,
+        storagePath: PLATFORM_AUTH_FILE,
+        platformBaseUrl: null,
+        clientName: null,
+        storedAt: null,
+        user: null,
+        session: null,
+      };
+    }
+
+    return {
+      authenticated: true,
+      storagePath: PLATFORM_AUTH_FILE,
+      platformBaseUrl: stored.platformBaseUrl,
+      clientName: stored.clientName,
+      storedAt: stored.storedAt,
+      user: stored.user,
+      session: {
+        id: stored.session.id,
+        expiresAt: stored.session.expiresAt,
+        createdAt: stored.session.createdAt,
+        userAgent: stored.session.userAgent,
+      },
+    };
+  };
 
 export const getPlatformAuthStoragePath = () => PLATFORM_AUTH_FILE;

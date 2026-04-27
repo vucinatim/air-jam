@@ -1,19 +1,26 @@
 import {
+  bundleLocalRelease,
   captureVisuals,
   connectController,
   disconnectController,
   getDevStatus,
+  getPlatformMachineAuthStatus,
   getTopology,
   inspectGame,
   inspectGameAgentContract,
+  inspectLocalRelease,
+  inspectPlatformRelease,
   inspectProject,
   invokeControllerAction,
   invokeGameAction,
   invokeHarnessAction,
   listGames,
   listHarnessSessions,
+  listPlatformReleaseTargets,
+  listPlatformReleases,
   listVisualCaptureSummaries,
   listVisualScenarios,
+  publishPlatformRelease,
   readDevLogs,
   readGameSnapshot,
   readHarnessSnapshot,
@@ -23,6 +30,8 @@ import {
   sendControllerInput,
   startDev,
   stopDev,
+  submitPlatformRelease,
+  validateLocalRelease,
   type AirJamProjectMode,
   type AirJamQualityGate,
 } from "@air-jam/devtools-core";
@@ -112,6 +121,47 @@ const buildHarnessModeSchema = (projectMode: AirJamProjectMode) =>
   projectMode === "monorepo"
     ? z.enum(["standalone-dev", "arcade-dev", "arcade-test"]).optional()
     : z.literal("standalone-dev").optional();
+
+const RELEASE_PROJECT_INPUT_SCHEMA = z.object({
+  cwd: z.string().optional(),
+  distDir: z.string().optional(),
+});
+
+const RELEASE_PLATFORM_INPUT_SCHEMA = z.object({
+  platformUrl: z.string().url().optional(),
+});
+
+const RELEASE_VALIDATE_INPUT_SCHEMA = RELEASE_PROJECT_INPUT_SCHEMA.extend({
+  bundle: z.string().optional(),
+  skipBuild: z.boolean().optional(),
+});
+
+const RELEASE_BUNDLE_INPUT_SCHEMA = RELEASE_PROJECT_INPUT_SCHEMA.extend({
+  out: z.string().optional(),
+  skipBuild: z.boolean().optional(),
+});
+
+const RELEASE_LIST_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  game: z.string().optional(),
+});
+
+const RELEASE_INSPECT_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  releaseId: z.string().min(1),
+});
+
+const RELEASE_SUBMIT_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  game: z.string().min(1),
+  versionLabel: z.string().optional(),
+  cwd: z.string().optional(),
+  distDir: z.string().optional(),
+  bundle: z.string().optional(),
+  skipBuild: z.boolean().optional(),
+  publish: z.boolean().optional(),
+});
+
+const RELEASE_PUBLISH_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  releaseId: z.string().min(1),
+});
 
 export const READ_LOGS_INPUT_SCHEMA = z.object({
   cwd: z.string().optional(),
@@ -276,6 +326,140 @@ export const buildToolDefinitions = ({
       inputSchema: runQualityGateInputSchema,
       run: async (input: z.infer<typeof runQualityGateInputSchema>) =>
         withJsonText(await runQualityGate(input)),
+    },
+    "airjam.auth_status": {
+      description:
+        "Inspect the locally stored Air Jam platform machine session used for hosted release operations.",
+      inputSchema: z.object({}),
+      run: async () => withJsonText(await getPlatformMachineAuthStatus()),
+    },
+    "airjam.release_doctor": {
+      description:
+        "Inspect a standalone Air Jam game project for hosted release readiness and return structured local doctor output.",
+      inputSchema: RELEASE_PROJECT_INPUT_SCHEMA,
+      run: async ({
+        cwd,
+        distDir,
+      }: z.infer<typeof RELEASE_PROJECT_INPUT_SCHEMA>) =>
+        withJsonText(await inspectLocalRelease({ cwd, distDir })),
+    },
+    "airjam.release_validate": {
+      description:
+        "Validate hosted release inputs for a standalone Air Jam game project or an existing hosted release zip.",
+      inputSchema: RELEASE_VALIDATE_INPUT_SCHEMA,
+      run: async ({
+        cwd,
+        distDir,
+        bundle,
+        skipBuild,
+      }: z.infer<typeof RELEASE_VALIDATE_INPUT_SCHEMA>) =>
+        withJsonText(
+          await validateLocalRelease({
+            cwd,
+            distDir,
+            bundlePath: bundle,
+            skipBuild,
+          }),
+        ),
+    },
+    "airjam.release_bundle": {
+      description:
+        "Build and bundle a hosted release zip from a standalone Air Jam game project.",
+      inputSchema: RELEASE_BUNDLE_INPUT_SCHEMA,
+      execution: {
+        taskSupport: "required",
+      },
+      run: async ({
+        cwd,
+        distDir,
+        out,
+        skipBuild,
+      }: z.infer<typeof RELEASE_BUNDLE_INPUT_SCHEMA>) =>
+        withJsonText(
+          await bundleLocalRelease({
+            cwd,
+            distDir,
+            out,
+            skipBuild,
+          }),
+        ),
+    },
+    "airjam.release_list": {
+      description:
+        "List owned hosted games or, when given a game slug or id, list its hosted releases.",
+      inputSchema: RELEASE_LIST_INPUT_SCHEMA,
+      run: async ({
+        platformUrl,
+        game,
+      }: z.infer<typeof RELEASE_LIST_INPUT_SCHEMA>) =>
+        withJsonText(
+          game
+            ? await listPlatformReleases({
+                platformUrl,
+                slugOrId: game,
+              })
+            : await listPlatformReleaseTargets({
+                platformUrl,
+              }),
+        ),
+    },
+    "airjam.release_inspect": {
+      description: "Inspect one hosted release on the Air Jam platform.",
+      inputSchema: RELEASE_INSPECT_INPUT_SCHEMA,
+      run: async ({
+        platformUrl,
+        releaseId,
+      }: z.infer<typeof RELEASE_INSPECT_INPUT_SCHEMA>) =>
+        withJsonText(
+          await inspectPlatformRelease({
+            platformUrl,
+            releaseId,
+          }),
+        ),
+    },
+    "airjam.release_submit": {
+      description:
+        "Bundle a standalone Air Jam game if needed, upload it as a hosted release draft, finalize it, and optionally publish it.",
+      inputSchema: RELEASE_SUBMIT_INPUT_SCHEMA,
+      execution: {
+        taskSupport: "required",
+      },
+      run: async ({
+        platformUrl,
+        game,
+        versionLabel,
+        cwd,
+        distDir,
+        bundle,
+        skipBuild,
+        publish,
+      }: z.infer<typeof RELEASE_SUBMIT_INPUT_SCHEMA>) =>
+        withJsonText(
+          await submitPlatformRelease({
+            platformUrl,
+            slugOrId: game,
+            versionLabel,
+            cwd,
+            distDir,
+            bundlePath: bundle,
+            skipBuild,
+            publish,
+          }),
+        ),
+    },
+    "airjam.release_publish": {
+      description: "Publish one ready hosted release on the Air Jam platform.",
+      inputSchema: RELEASE_PUBLISH_INPUT_SCHEMA,
+      run: async ({
+        platformUrl,
+        releaseId,
+      }: z.infer<typeof RELEASE_PUBLISH_INPUT_SCHEMA>) =>
+        withJsonText(
+          await publishPlatformRelease({
+            platformUrl,
+            releaseId,
+          }),
+        ),
     },
     "airjam.start_dev": {
       description:
@@ -462,14 +646,55 @@ export type AirJamMcpToolDefinitions = ReturnType<typeof buildToolDefinitions>;
 export const getRegisteredToolNamesForProjectMode = (
   projectMode: AirJamProjectMode,
 ): ReadonlyArray<keyof AirJamMcpToolDefinitions> => {
-  if (projectMode === "monorepo" || projectMode === "standalone-game") {
+  if (projectMode === "monorepo") {
     return [
       "airjam.inspect_project",
+      "airjam.auth_status",
       "airjam.list_games",
       "airjam.inspect_game",
       "airjam.inspect_game_agent_contract",
       "airjam.read_logs",
       "airjam.run_quality_gate",
+      "airjam.release_list",
+      "airjam.release_inspect",
+      "airjam.release_publish",
+      "airjam.start_dev",
+      "airjam.stop_dev",
+      "airjam.status",
+      "airjam.topology",
+      "airjam.list_visual_scenarios",
+      "airjam.capture_visuals",
+      "airjam.list_harness_sessions",
+      "airjam.read_harness_snapshot",
+      "airjam.invoke_harness_action",
+      "airjam.connect_controller",
+      "airjam.send_controller_input",
+      "airjam.invoke_controller_action",
+      "airjam.read_runtime_snapshot",
+      "airjam.read_game_snapshot",
+      "airjam.invoke_game_action",
+      "airjam.disconnect_controller",
+      "airjam.list_visual_capture_summaries",
+      "airjam.read_visual_capture_summary",
+    ] as const;
+  }
+
+  if (projectMode === "standalone-game") {
+    return [
+      "airjam.inspect_project",
+      "airjam.auth_status",
+      "airjam.list_games",
+      "airjam.inspect_game",
+      "airjam.inspect_game_agent_contract",
+      "airjam.read_logs",
+      "airjam.run_quality_gate",
+      "airjam.release_doctor",
+      "airjam.release_validate",
+      "airjam.release_bundle",
+      "airjam.release_list",
+      "airjam.release_inspect",
+      "airjam.release_submit",
+      "airjam.release_publish",
       "airjam.start_dev",
       "airjam.stop_dev",
       "airjam.status",

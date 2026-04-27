@@ -786,7 +786,47 @@ export const inspectLocalRelease = async ({
 }: InspectLocalReleaseOptions = {}): Promise<AirJamLocalReleaseDoctor> => {
   const projectDir = path.resolve(cwd);
   const resolvedDistDir = path.resolve(projectDir, distDir || "dist");
+  const context = await detectProjectContext({ cwd: projectDir });
   const packageManager = await resolvePackageManager(projectDir);
+
+  if (context.mode === "monorepo") {
+    return {
+      projectDir,
+      packageJsonPath: context.packageJsonPath,
+      packageName: context.packageJson?.name ?? null,
+      packageVersion: context.packageJson?.version ?? null,
+      packageManager,
+      configPath: null,
+      buildScript: null,
+      metadataExportLikely: false,
+      controllerPath: null,
+      distDir: resolvedDistDir,
+      distExists: await pathExists(resolvedDistDir),
+      distEntryExists: await pathExists(
+        path.join(resolvedDistDir, HOSTED_RELEASE_ENTRY_PATH),
+      ),
+      recommendedBundlePath: getDefaultReleaseBundlePath({
+        projectDir,
+        packageName: context.packageJson?.name ?? null,
+        packageVersion: context.packageJson?.version ?? null,
+      }),
+      canBundle: false,
+      issues: [
+        createIssue(
+          "unsupported-monorepo-project",
+          "error",
+          "Local hosted release bundling currently supports standalone Air Jam game projects only. Use a generated project directory for doctor/validate/bundle/submit, or use remote release list/inspect/publish tools from the monorepo.",
+          context.packageJsonPath,
+        ),
+      ],
+      hostedContract: {
+        entryPath: HOSTED_RELEASE_ENTRY_PATH,
+        manifestPath: HOSTED_RELEASE_MANIFEST_PATH,
+        hostPath: HOSTED_RELEASE_HOST_PATH,
+        controllerPath: HOSTED_RELEASE_CONTROLLER_PATH,
+      },
+    };
+  }
 
   return inspectProjectRelease({
     projectDir,

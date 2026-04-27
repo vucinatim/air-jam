@@ -85,9 +85,29 @@ describe("release env contracts", () => {
 
     expect(availability.available).toBe(true);
     if (availability.available) {
-      expect(availability.config.openAi.model).toBe("omni-moderation-latest");
+      expect(availability.config.imageModeration.mode).toBe("openai");
+      expect(availability.config.imageModeration.openAi?.model).toBe(
+        "omni-moderation-latest",
+      );
       expect(availability.config.browserLaunch.viewportWidth).toBe(1440);
       expect(availability.config.internalAccessSecret).toBe("token");
+    }
+  });
+
+  it("parses capture-only moderation configuration without OpenAI", () => {
+    process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT = "ws://localhost:9222";
+    process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
+    process.env.AIRJAM_RELEASES_IMAGE_MODERATION_MODE = "disabled";
+    delete process.env.OPENAI_API_KEY;
+
+    const availability = getReleaseModerationAvailability();
+
+    expect(availability.available).toBe(true);
+    if (availability.available) {
+      expect(availability.config.imageModeration).toEqual({
+        mode: "disabled",
+        openAi: null,
+      });
     }
   });
 });

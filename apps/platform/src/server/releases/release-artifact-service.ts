@@ -143,6 +143,7 @@ export const resolveReleasePostModerationAction = (
 ) => {
   switch (moderation.outcome) {
     case "passed":
+    case "disabled":
       return { kind: "ready" } as const;
     case "flagged":
       return { kind: "quarantined" } as const;

@@ -87,7 +87,8 @@ Infrastructure requirements:
 
 1. Postgres migrations applied
 2. one Cloudflare R2 bucket for release artifacts and game media assets
-3. optional screenshot moderation runtime with browser access plus an OpenAI API key
+3. screenshot moderation runtime with browser access
+4. optional OpenAI image moderation when you want automated image-policy enforcement
 
 The database migrations have already been added under [drizzle](./drizzle) and can be applied with:
 
@@ -107,8 +108,9 @@ Minimum additional env needed for storage:
 Optional env for screenshot moderation:
 
 1. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
-2. `OPENAI_API_KEY`
-3. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT` or `AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH`
+2. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT` or `AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH`
+3. `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai|disabled`
+4. `OPENAI_API_KEY` when `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai`
 
 Optional:
 
@@ -118,6 +120,8 @@ Optional:
 For v1, the simplest setup is to keep hosted releases on the same platform origin and leave the release base URL vars unset.
 
 If screenshot moderation is not configured, hosted releases fail closed during finalize/publish. The release remains failed until the moderation runtime is available again, which keeps the platform policy aligned with the server-side release checks.
+
+If screenshot moderation is configured but `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=disabled`, the platform still captures the canonical screenshot and records an `image_moderation` warning check, but the release can become `ready`. That mode is intended for local or other non-production environments where you want deterministic release QA without making OpenAI moderation a hard requirement.
 
 ## Managed Media
 

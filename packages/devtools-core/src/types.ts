@@ -222,6 +222,30 @@ export type SubmitPlatformReleaseResult = {
   publishedRelease: PlatformMachineGetReleaseResult["release"] | null;
 };
 
+export type AirJamPlatformAuthStatus = {
+  authenticated: boolean;
+  storagePath: string;
+  platformBaseUrl: string | null;
+  clientName: string | null;
+  storedAt: string | null;
+  user:
+    | {
+        id: string;
+        name: string;
+        email: string;
+        role: "creator" | "ops_admin";
+      }
+    | null;
+  session:
+    | {
+        id: string;
+        expiresAt: string;
+        createdAt: string;
+        userAgent: string;
+      }
+    | null;
+};
+
 export type CommandResult = {
   command: string;
   args: string[];

@@ -16,11 +16,14 @@ export type ReleaseModerationConfig = {
     viewportWidth: number;
     viewportHeight: number;
   };
-  openAi: {
-    apiKey: string;
-    model: string;
-    baseUrl: string;
-    timeoutMs: number;
+  imageModeration: {
+    mode: "openai" | "disabled";
+    openAi: {
+      apiKey: string;
+      model: string;
+      baseUrl: string;
+      timeoutMs: number;
+    } | null;
   };
 };
 
@@ -55,6 +58,7 @@ export const getReleaseModerationAvailability = () => {
   const executablePath = probe.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null;
   const internalAccessSecret =
     probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
+  const imageModerationMode = probe.AIRJAM_RELEASES_IMAGE_MODERATION_MODE;
   const openAiApiKey = probe.OPENAI_API_KEY ?? null;
 
   if (!wsEndpoint && !executablePath) {
@@ -75,11 +79,11 @@ export const getReleaseModerationAvailability = () => {
     return cachedReleaseModerationAvailability;
   }
 
-  if (!openAiApiKey) {
+  if (imageModerationMode === "openai" && !openAiApiKey) {
     cachedReleaseModerationAvailability = {
       available: false,
       reason:
-        "Release screenshot moderation is not configured. Set OPENAI_API_KEY to enable it.",
+        "Release image moderation is not configured. Set OPENAI_API_KEY or set AIRJAM_RELEASES_IMAGE_MODERATION_MODE=disabled for local capture-only releases.",
     };
     return cachedReleaseModerationAvailability;
   }
@@ -92,7 +96,7 @@ export const getReleaseModerationAvailability = () => {
       "",
     ),
     browserLaunch: parsed.browserLaunch,
-    openAi: parsed.openAi,
+    imageModeration: parsed.imageModeration,
   };
 
   cachedReleaseModerationAvailability = {

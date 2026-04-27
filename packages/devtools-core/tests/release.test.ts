@@ -69,6 +69,37 @@ const createReleaseFixture = async ({
   return root;
 };
 
+const createMonorepoFixture = async (): Promise<string> => {
+  const root = await createTempRoot();
+  await mkdir(path.join(root, "packages", "sdk"), { recursive: true });
+  await mkdir(path.join(root, "packages", "create-airjam"), {
+    recursive: true,
+  });
+  await mkdir(path.join(root, "scripts", "repo"), { recursive: true });
+
+  await writeFile(
+    path.join(root, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "air-jam",
+        version: "1.0.0",
+        private: true,
+        packageManager: "pnpm@10.19.0",
+        scripts: {
+          build: "pnpm -r build",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await writeFile(path.join(root, "pnpm-lock.yaml"), "", "utf8");
+  await writeFile(path.join(root, "scripts", "repo", "cli.mjs"), "", "utf8");
+
+  return root;
+};
+
 afterEach(async () => {
   await Promise.all(
     tempRoots
@@ -111,6 +142,22 @@ describe("local release tooling", () => {
         expect.objectContaining({
           code: "missing-game-metadata",
           severity: "warning",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects monorepo roots for local hosted release tooling", async () => {
+    const root = await createMonorepoFixture();
+
+    const doctor = await inspectLocalRelease({ cwd: root });
+
+    expect(doctor.canBundle).toBe(false);
+    expect(doctor.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unsupported-monorepo-project",
+          severity: "error",
         }),
       ]),
     );

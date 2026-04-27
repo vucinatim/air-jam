@@ -272,6 +272,19 @@ export const finalizeReleaseUploadForMachine = async ({
   try {
     await finalizeReleaseUpload({ release });
   } catch (error) {
+    const updatedRelease = await assertOwnedReleaseForMachine({
+      releaseId,
+      userId,
+    });
+
+    if (
+      updatedRelease.status === "ready" ||
+      updatedRelease.status === "quarantined" ||
+      updatedRelease.status === "failed"
+    ) {
+      return serializeReleaseForMachine(updatedRelease);
+    }
+
     throw toMachineConflictError(
       error instanceof Error
         ? error.message

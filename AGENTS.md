@@ -81,14 +81,18 @@ Preferred order:
 
 Treat `.airjam/logs/dev-latest.ndjson` as the canonical local debugging stream for server, browser/runtime, platform/Arcade, and workspace-process stories.
 
-## Chrome MCP Rule
+## Browser Testing Rule
 
-When using Chrome DevTools MCP in this repository, always use the
-`chrome-devtools-airjam` server.
+When agents need to open, inspect, click through, or verify local Air Jam
+surfaces, use the in-app browser through the internal `browser-use` feature.
 
-Do not use any shared or other-project Chrome MCP server for this repo.
-If the named server is unavailable, say so explicitly instead of silently
-falling back to another Chrome DevTools server.
+Use that path for:
+
+1. opening local host/controller/dashboard/release URLs
+2. clicking through flows and verifying visible UI behavior
+3. showing the user what is rendering in the actual browser surface
+
+Keep that browser workflow as the canonical path for interactive local UI work in this repo.
 
 ## Documentation Discipline
 

@@ -20,20 +20,30 @@ export const moderateReleaseScreenshot = async ({
   screenshotBuffer: Buffer;
 }): Promise<ReleaseImageModerationResult> => {
   const config = getReleaseModerationConfig();
+  if (
+    config.imageModeration.mode !== "openai" ||
+    !config.imageModeration.openAi
+  ) {
+    throw new Error(
+      "Release image moderation is disabled for this environment.",
+    );
+  }
+
+  const openAi = config.imageModeration.openAi;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.openAi.timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), openAi.timeoutMs);
 
   try {
     const dataUrl = `data:image/png;base64,${screenshotBuffer.toString("base64")}`;
-    const response = await fetch(`${config.openAi.baseUrl}/moderations`, {
+    const response = await fetch(`${openAi.baseUrl}/moderations`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${config.openAi.apiKey}`,
+        authorization: `Bearer ${openAi.apiKey}`,
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: config.openAi.model,
+        model: openAi.model,
         input: [
           {
             type: "image_url",

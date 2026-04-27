@@ -20,7 +20,7 @@ export type ReleaseModerationSummary = {
   moderation: ReleaseImageModerationResult | null;
   skipped: boolean;
   reason: string | null;
-  outcome: "passed" | "skipped" | "flagged";
+  outcome: "passed" | "skipped" | "flagged" | "disabled";
 };
 
 const insertReleaseCheck = async ({
@@ -172,6 +172,25 @@ export const runReleaseModeration = async ({
       height: screenshot.height,
     },
   });
+
+  if (moderationAvailability.config.imageModeration.mode === "disabled") {
+    const reason =
+      "Automated image moderation is disabled for this environment; screenshot capture still completed.";
+
+    await insertSkippedReleaseCheck({
+      releaseId,
+      kind: IMAGE_MODERATION_KIND,
+      reason,
+    });
+
+    return {
+      screenshot,
+      moderation: null,
+      skipped: false,
+      reason,
+      outcome: "disabled",
+    };
+  }
 
   let moderation: ReleaseImageModerationResult;
   try {

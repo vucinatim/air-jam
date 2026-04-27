@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,32 @@ const tempRoots: string[] = [];
 const createTempRoot = async (): Promise<string> => {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-mcp-server-"));
   tempRoots.push(root);
+  return root;
+};
+
+const createStandaloneGameRoot = async (): Promise<string> => {
+  const root = await createTempRoot();
+  await mkdir(path.join(root, "src"), { recursive: true });
+  await writeFile(
+    path.join(root, "package.json"),
+    JSON.stringify(
+      {
+        name: "standalone-airjam-fixture",
+        private: true,
+        dependencies: {
+          "@air-jam/sdk": "^1.0.0",
+        },
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+  await writeFile(
+    path.join(root, "src", "airjam.config.ts"),
+    "export const airjam = { game: { controllerPath: '/controller' } };\n",
+    "utf8",
+  );
   return root;
 };
 
@@ -46,7 +72,31 @@ describe("createAirJamMcpServer", () => {
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.inspect_project",
     );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.auth_status",
+    );
     expect(listed.tools.map((tool) => tool.name)).toContain("airjam.read_logs");
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_list",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_inspect",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_publish",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.release_doctor",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.release_validate",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.release_bundle",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.release_submit",
+    );
     expect(listed.tools.map((tool) => tool.name)).toContain("airjam.start_dev");
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.inspect_game_agent_contract",
@@ -74,6 +124,49 @@ describe("createAirJamMcpServer", () => {
     );
     expect(
       listed.tools.find((tool) => tool.name === "airjam.capture_visuals")
+        ?.execution,
+    ).toEqual({
+      taskSupport: "required",
+    });
+  });
+
+  it("registers standalone release tools for standalone game projects", async () => {
+    const root = await createStandaloneGameRoot();
+    const server = await createAirJamMcpServer({ cwd: root });
+    const client = new Client({
+      name: "test-client",
+      version: "1.0.0",
+    });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const listed = await client.listTools();
+
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_doctor",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_validate",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_bundle",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_submit",
+    );
+    expect(
+      listed.tools.find((tool) => tool.name === "airjam.release_bundle")
+        ?.execution,
+    ).toEqual({
+      taskSupport: "required",
+    });
+    expect(
+      listed.tools.find((tool) => tool.name === "airjam.release_submit")
         ?.execution,
     ).toEqual({
       taskSupport: "required",

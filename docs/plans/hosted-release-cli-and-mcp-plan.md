@@ -1,7 +1,7 @@
 # Hosted Release CLI And MCP Plan
 
-Last updated: 2026-04-25  
-Status: Phase 3 CLI release flow landed
+Last updated: 2026-04-27  
+Status: end-to-end local proof complete
 
 Related docs:
 
@@ -55,7 +55,7 @@ The repo already has a real hosted-release foundation.
 3. The platform release flow is browser/dashboard-only today.
 4. There is no stable machine-facing platform release API for CLI or MCP.
 5. There is no non-browser auth flow for local CLI or agents.
-6. MCP can inspect, run, and validate games locally, but it cannot submit or publish a hosted release.
+6. the original missing release bridge is now closed: MCP can submit, inspect, and publish hosted releases through the same shared release core the CLI uses.
 
 ### Latest progress
 
@@ -73,6 +73,11 @@ The repo already has a real hosted-release foundation.
 12. hosted release runtime gating is now explicit at the SDK topology boundary, so browser log sinks and preview-controller workspace do not auto-boot inside hosted/self-hosted production builds
 13. the platform moderation story is now intentionally fail-closed in docs as well as code: skipped moderation leaves the release failed instead of publishing with warnings
 14. hosted release HTML bootstrap now publishes one explicit `hosted-release` runtime topology for the current surface, and both the SDK resolver and harness runtime consume that before any looser env/window inference; a fresh local published Pong release no longer emits `__airjam/dev/harness/*` or `__airjam/dev/browser-logs` traffic and connects its host socket directly to the configured backend origin
+15. release moderation now has one explicit policy switch: screenshot capture remains required, but `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=disabled` allows deterministic local capture-only releases to become `ready` without calling OpenAI, while `openai` remains the default mode for real automated image-policy enforcement
+16. that local capture-only path is now proven end to end too: a fresh generated Pong release finalized `ready`, published `live`, and recorded `artifact_validation: passed`, `screenshot_capture: passed`, and `image_moderation: warning`
+17. the hosted release CLI lane is now proven end to end against the local platform: real device auth, real submit, real finalize, real publish, and real hosted browser verification
+18. the hosted release MCP lane is now proven end to end too from a generated standalone project: `airjam.auth_status`, task-backed `airjam.release_submit`, `airjam.release_publish`, and `airjam.release_inspect` all complete successfully against the local platform
+19. the remaining work on this track is no longer baseline implementation; it is prerelease proof against the launch set, deployment/CI validation, and later production hardening such as stronger moderation infrastructure or background moderation workflows
 
 ## Core Decision
 
@@ -480,6 +485,328 @@ Acceptance:
 1. an agent can prepare, submit, inspect, and publish a hosted release through Air Jam-native tools
 
 Status: pending
+
+## Phase 4 Detailed Execution Plan
+
+This is the next implementation slice.
+
+The core rule stays the same:
+
+```text
+shared release core -> CLI -> MCP
+```
+
+MCP should not invent a second release workflow. It should expose the
+already-landed `@air-jam/devtools-core` release functions with the smallest
+correct MCP surface.
+
+### Current code reality
+
+This repo already has the right owners in place:
+
+1. `@air-jam/devtools-core/src/release.ts` owns local release doctor/bundle/validate plus remote release list/inspect/submit/publish
+2. `create-airjam` is already a thin CLI adapter over those shared release functions
+3. `@air-jam/mcp-server` already has:
+   - mode-aware tool registration
+   - task support wiring in `src/server.ts`
+   - one existing task-backed tool (`airjam.capture_visuals`)
+
+That means Phase 4 should be additive and narrow:
+
+1. add release tools to `packages/mcp-server/src/tools.ts`
+2. mark only the long-running ones as task-backed
+3. keep auth/session ownership in `devtools-core`
+4. do not add a second auth flow inside MCP
+
+### Proposed MCP tool set
+
+Start with this exact surface:
+
+1. `airjam.release_doctor`
+2. `airjam.release_validate`
+3. `airjam.release_bundle`
+4. `airjam.release_list`
+5. `airjam.release_inspect`
+6. `airjam.release_submit`
+7. `airjam.release_publish`
+8. `airjam.auth_status`
+
+#### Why this set
+
+1. it mirrors the landed CLI/release-core operations closely
+2. it covers the whole release lifecycle an agent actually needs
+3. it avoids creating new publishing concepts or names
+4. it gives the agent one lightweight way to inspect auth state without trying to drive browser login itself
+
+### Tool-by-tool contract
+
+#### `airjam.auth_status`
+
+Purpose:
+
+1. inspect the locally stored platform machine session
+2. tell the agent whether remote release actions can proceed
+
+Backs onto:
+
+1. stored session resolution in `@air-jam/devtools-core/src/platform-auth.ts`
+2. ideally a small exported helper in `devtools-core` if one is not already present
+
+Behavior:
+
+1. returns `authenticated: false` with a short actionable reason if no stored session exists
+2. returns the resolved platform base URL plus current user/session summary if authenticated
+3. does **not** launch login or browser approval
+
+Reasoning:
+
+1. MCP should reuse the shared auth session model
+2. human approval for device login still belongs in CLI/browser flows
+3. agents need a readable auth preflight, not a second interactive auth system
+
+#### `airjam.release_doctor`
+
+Purpose:
+
+1. run local preflight for a project directory
+2. return structured issues before any build/upload
+
+Behavior:
+
+1. plain blocking tool
+2. defaults to the current working directory
+3. returns the structured `doctor` result from release-core, not only a text summary
+
+#### `airjam.release_validate`
+
+Purpose:
+
+1. validate a local project or an existing hosted release zip
+
+Behavior:
+
+1. plain blocking tool
+2. supports the same input family as CLI:
+   - `cwd`
+   - `distDir`
+   - `bundle`
+   - `skipBuild`
+3. returns the structured validation result
+
+#### `airjam.release_bundle`
+
+Purpose:
+
+1. build and bundle a local hosted release artifact
+
+Behavior:
+
+1. task-backed tool
+2. supports:
+   - `cwd`
+   - `distDir`
+   - `out`
+   - `skipBuild`
+3. returns the structured bundle result including output path and manifest summary
+
+Why task-backed:
+
+1. builds are long-running
+2. bundling is the first place agents will otherwise hit request timeouts
+
+#### `airjam.release_list`
+
+Purpose:
+
+1. list owned hosted games
+2. or list releases for one owned game
+
+Behavior:
+
+1. plain blocking tool
+2. supports:
+   - `platformUrl`
+   - optional `game`
+
+#### `airjam.release_inspect`
+
+Purpose:
+
+1. inspect one hosted release on the platform
+
+Behavior:
+
+1. plain blocking tool
+2. supports:
+   - `platformUrl`
+   - required `releaseId`
+
+#### `airjam.release_submit`
+
+Purpose:
+
+1. bundle or reuse a bundle
+2. create draft
+3. upload
+4. finalize
+5. optionally publish
+
+Behavior:
+
+1. task-backed tool
+2. supports:
+   - `platformUrl`
+   - required `game`
+   - `versionLabel`
+   - `cwd`
+   - `distDir`
+   - `bundle`
+   - `skipBuild`
+   - `publish`
+
+Output:
+
+1. structured result from `devtools-core`
+2. must include:
+   - bundle path
+   - release id
+   - resulting status
+   - host/controller URLs when known
+
+Why task-backed:
+
+1. build + upload + finalize can be slow
+2. this is the highest-value agent tool and the most timeout-prone
+
+#### `airjam.release_publish`
+
+Purpose:
+
+1. publish one ready hosted release
+
+Behavior:
+
+1. start as a plain blocking tool
+2. supports:
+   - `platformUrl`
+   - required `releaseId`
+
+Why not task-backed first:
+
+1. publish itself is usually short once the release is already ready
+2. the long path is already covered by `release_submit`
+3. we can upgrade it later if real publish latency proves otherwise
+
+### MCP auth policy
+
+The clean behavior is:
+
+1. MCP release tools reuse the same stored machine session as the CLI
+2. if auth is missing, remote tools return a clear error that points to:
+   - `airjam auth login`
+   - or the local session not matching the requested platform URL
+3. MCP does **not** implement `airjam.auth_login` in this phase
+
+This is intentional.
+
+Reasoning:
+
+1. device approval is human/browser work
+2. the shared auth flow already exists and is good enough
+3. adding MCP login now would duplicate browser/device semantics without improving the architecture
+
+### Server and tool registration policy
+
+Extend `packages/mcp-server/src/tools.ts` using the same pattern as the current tools:
+
+1. add Zod schemas for each release tool
+2. keep descriptions short and machine-usable
+3. register release tools for valid Air Jam projects only
+
+Tool execution policy:
+
+1. `airjam.release_bundle` -> `taskSupport: "required"`
+2. `airjam.release_submit` -> `taskSupport: "required"`
+3. everything else blocking for now
+
+There is explicit monorepo-vs-standalone gating for local release tools:
+
+1. generated standalone games get:
+   - `release_doctor`
+   - `release_validate`
+   - `release_bundle`
+   - `release_submit`
+2. monorepo MCP stays on the remote release surface:
+   - `auth_status`
+   - `release_list`
+   - `release_inspect`
+   - `release_publish`
+
+This is intentional. The current local hosted-release bundling contract is standalone-project-owned. First-party monorepo game publishing needs a separate explicit repo release owner instead of pretending the repo root is a publishable project.
+
+### `devtools-core` cleanup expected before wiring
+
+Phase 4 should stay mostly MCP-only, but one small release-core cleanup is worth doing if needed:
+
+1. add one explicit `getPlatformAuthStatus()` helper
+
+That keeps `auth_status` from reaching into storage details directly from MCP.
+
+If the current release/auth API surface already exposes enough, skip extra refactoring.
+
+### Testing plan for Phase 4
+
+#### Unit / registration
+
+1. `mcp-server` tool list includes all release tools in valid Air Jam projects
+2. `release_bundle` and `release_submit` advertise `execution.taskSupport = "required"`
+3. non-project roots still only expose `airjam.inspect_project`
+
+#### Release tool behavior
+
+1. `airjam.release_doctor` returns structured local doctor output
+2. `airjam.release_validate` returns structured local validation output
+3. `airjam.release_list` and `airjam.release_inspect` wrap the existing release-core client correctly
+4. `release_submit` returns a structured finalized release even when platform finalize lands in `failed` or `quarantined`, instead of collapsing that into a transport-level MCP failure
+
+#### Task-backed flows
+
+1. task-backed `release_bundle` completes and returns bundle metadata
+2. task-backed `release_submit` completes and returns release metadata
+3. task failure surfaces readable errors when auth is missing or upload/finalize fails
+
+#### Real proof
+
+After the MCP tools land, do one real end-to-end QA pass:
+
+1. confirm CLI auth session exists
+2. scaffold a real standalone generated project
+3. call `airjam.release_submit` through that generated project's real stdio MCP server
+4. call `airjam.release_inspect`
+5. if needed, call `airjam.release_publish`
+6. open the resulting hosted URL and verify it renders
+
+This should reuse the same local platform setup already proven during Phase 3.
+
+### Recommended implementation order
+
+1. add `devtools-core` auth-status helper only if needed
+2. add release schemas and tool definitions to `packages/mcp-server/src/tools.ts`
+3. mark `release_bundle` and `release_submit` as task-backed in server registration
+4. add focused `mcp-server` tests for registration + task support
+5. run one real stdio MCP release submit/inspect flow against the local platform from a standalone generated project
+
+### What not to do in Phase 4
+
+Do **not**:
+
+1. add a separate platform client package
+2. add a separate publish subsystem name
+3. add MCP-native browser/device login
+4. add a second release workflow path outside `devtools-core`
+5. make every release tool task-backed by default
+
+That would add surface area without real leverage.
 
 ## Test Plan
 
