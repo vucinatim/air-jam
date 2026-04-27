@@ -8,7 +8,7 @@ export const registerPackCommands = (program) => {
   packCommand
     .command("local")
     .description(
-      "Pack local SDK/server/create-airjam tarballs under .airjam/tarballs",
+      "Pack the full local prerelease scaffold package set under .airjam/tarballs",
     )
     .action(() => {
       runRepoPackLocalCommand();

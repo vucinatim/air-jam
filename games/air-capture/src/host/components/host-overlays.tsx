@@ -7,7 +7,7 @@ import {
   RoomQrCode,
 } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "../../game/debug/ui/button";
 import {
   getLobbyReadinessText,
   getMatchReadiness,

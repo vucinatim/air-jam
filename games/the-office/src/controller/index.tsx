@@ -36,6 +36,11 @@ import {
   type PointerEvent,
 } from "react";
 import {
+  getPlayerById,
+  getPlayerCapabilityHighlights,
+  PLAYERS,
+} from "../game/content/players";
+import {
   useOfficeFinalTotalMoney,
   useOfficeGameOver,
   useOfficeMatchPhase,
@@ -46,11 +51,6 @@ import {
   useOfficeTotalMoney,
   useSpaceStore,
 } from "../game/stores";
-import {
-  getPlayerById,
-  getPlayerCapabilityHighlights,
-  PLAYERS,
-} from "../players";
 
 export function ControllerView() {
   const controller = useAirJamController();

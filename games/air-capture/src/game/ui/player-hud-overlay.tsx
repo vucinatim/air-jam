@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
-import { cn } from "../../lib/utils";
 import { getAbilityIconPath, useAbilitiesStore } from "../abilities-store";
+import { cn } from "../debug/ui/utils";
 import { shipPositions } from "../engine/ships/runtime";
 import { useFlightStateStore } from "../stores/players/flight-state-store";
 import { useGameStore } from "../stores/players/game-store";

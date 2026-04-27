@@ -1,7 +1,12 @@
-import fs from "node:fs";
-import path from "node:path";
-import { packWorkspacePackage } from "../lib/packaging.mjs";
-import { createAirjamCliEntry, repoRoot } from "../lib/paths.mjs";
+import {
+  buildLocalScaffoldPackageSet,
+  getLocalScaffoldExactZodVersion,
+  listLocalScaffoldDirectDependencyNames,
+  listLocalScaffoldOverrideDependencyNames,
+  packLocalScaffoldPackageSet,
+  resolveLocalScaffoldWorkspaceSpecs,
+} from "../lib/local-scaffold-packages.mjs";
+import { createAirjamCliEntry } from "../lib/paths.mjs";
 import { runCommand } from "../lib/shell.mjs";
 
 export const runRepoScaffoldLocalCommand = ({
@@ -20,8 +25,6 @@ export const runRepoScaffoldLocalCommand = ({
     throw new Error(`Unsupported --source value "${source}"`);
   }
 
-  runCommand("pnpm", ["--filter", "create-airjam", "build"]);
-
   const commandArgs = [
     createAirjamCliEntry,
     projectName,
@@ -29,47 +32,57 @@ export const runRepoScaffoldLocalCommand = ({
     template,
   ];
 
+  if (source === "registry") {
+    runCommand("pnpm", ["--filter", "create-airjam", "build"]);
+  } else {
+    buildLocalScaffoldPackageSet();
+  }
+
   if (source === "tarball") {
-    runCommand("pnpm", ["--filter", "sdk", "build"]);
-    runCommand("pnpm", ["--filter", "server", "build"]);
+    const tarballs = packLocalScaffoldPackageSet();
 
-    const sdkTarball = packWorkspacePackage(
-      path.join(repoRoot, "packages", "sdk"),
-    );
-    const serverTarball = packWorkspacePackage(
-      path.join(repoRoot, "packages", "server"),
-    );
+    for (const packageName of listLocalScaffoldDirectDependencyNames()) {
+      const spec = tarballs.get(packageName);
+      if (!spec) {
+        throw new Error(`Missing local scaffold tarball for "${packageName}"`);
+      }
+      commandArgs.push("--dep-spec", `${packageName}=file:${spec}`);
+    }
 
-    commandArgs.push("--dep-spec", `@air-jam/sdk=file:${sdkTarball}`);
-    commandArgs.push("--dep-spec", `@air-jam/server=file:${serverTarball}`);
-    commandArgs.push("--override-spec", `@air-jam/sdk=file:${sdkTarball}`);
+    for (const packageName of listLocalScaffoldOverrideDependencyNames()) {
+      const spec = tarballs.get(packageName);
+      if (!spec) {
+        throw new Error(`Missing local scaffold tarball for "${packageName}"`);
+      }
+      commandArgs.push("--override-spec", `${packageName}=file:${spec}`);
+    }
   } else if (source === "workspace") {
-    runCommand("pnpm", ["--filter", "sdk", "build"]);
-    runCommand("pnpm", ["--filter", "server", "build"]);
+    const workspaceSpecs = resolveLocalScaffoldWorkspaceSpecs();
 
-    const sdkPackageJson = JSON.parse(
-      fs.readFileSync(
-        path.join(repoRoot, "packages", "sdk", "package.json"),
-        "utf-8",
-      ),
-    );
+    for (const packageName of listLocalScaffoldDirectDependencyNames()) {
+      const spec = workspaceSpecs.get(packageName);
+      if (!spec) {
+        throw new Error(
+          `Missing local scaffold workspace spec for "${packageName}"`,
+        );
+      }
+      commandArgs.push("--dep-spec", `${packageName}=${spec}`);
+    }
 
-    commandArgs.push(
-      "--dep-spec",
-      `@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
-    );
-    commandArgs.push(
-      "--dep-spec",
-      `@air-jam/server=link:${path.join(repoRoot, "packages", "server")}`,
-    );
-    commandArgs.push(
-      "--dep-spec",
-      `zod=${String(sdkPackageJson.dependencies?.zod ?? "").replace(/^[~^]/, "")}`,
-    );
-    commandArgs.push(
-      "--override-spec",
-      `@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
-    );
+    const zodVersion = getLocalScaffoldExactZodVersion();
+    if (zodVersion) {
+      commandArgs.push("--dep-spec", `zod=${zodVersion}`);
+    }
+
+    for (const packageName of listLocalScaffoldOverrideDependencyNames()) {
+      const spec = workspaceSpecs.get(packageName);
+      if (!spec) {
+        throw new Error(
+          `Missing local scaffold workspace spec for "${packageName}"`,
+        );
+      }
+      commandArgs.push("--override-spec", `${packageName}=${spec}`);
+    }
   }
 
   runCommand("node", commandArgs, { cwd });

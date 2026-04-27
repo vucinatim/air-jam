@@ -36,7 +36,7 @@ Canonical prerelease plan: [V1 Release Launch Plan](./plans/v1-release-launch-pl
 After the 2026-04-09 planning audit:
 
 1. several plans were archived because their implementation was already complete or only manual verification remained
-2. the broad implementation surface was intentionally emptied after that audit; the only new active implementation work now is the bounded final prerelease hardening pass
+2. the broad implementation surface was intentionally emptied after that audit; the one late structure-alignment pass that was reopened before prerelease QA is now complete
 3. all scattered manual verification now belongs in one final prerelease plan instead of staying spread across subsystem docs
 
 ## Active Plans
@@ -102,6 +102,7 @@ Latest progress inside this focus:
 30. hosted release serving now injects one explicit `hosted-release` runtime topology into the served HTML bootstrap, and both the SDK runtime resolver and harness runtime consume that same published topology before falling back to looser inference; this removes the leaked `__airjam/dev/*` control-surface traffic from published builds and routes hosted sockets to the configured backend origin instead of accidentally defaulting to the local platform origin
 31. the next publishing step is now explicitly planned as MCP Phase 4 on top of the landed release core and CLI: release doctor/validate/bundle/list/inspect/submit/publish plus `auth_status`, with only bundle and submit task-backed and no separate MCP-native login flow
 32. MCP release Phase 4 is now landed: standalone generated projects expose task-backed `release_bundle` and `release_submit` plus the blocking release/auth tools over `pnpm mcp`, monorepo MCP stays on the remote release surface instead of pretending the repo root is a publishable app, and real stdio QA against a generated Pong project now completes with structured release metadata even when platform finalize ends in `failed`
+33. the late game-structure alignment pass is complete: `the-office` now follows the canonical ownership model, `code-review` now publishes a semantic agent contract from config, Last Band Standing no longer ships the YouTube test route, and Air Capture's leftover debug/input seams are narrowed into the intended game-owned locations
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 
@@ -115,6 +116,21 @@ Current truth:
 3. the code-side hardening surfaced by the 2026-04-15 review is landed or intentionally deferred
 4. the remaining non-manual items are explicit defer/cut decisions rather than hidden blockers: broader server/runtime release error tracking and optional full extraction of `air-capture`'s dev-only prefab-preview surface
 5. execution should now move directly into the final manual prerelease proof
+
+### Recently Completed Implementation Track. Game Structure Alignment
+
+Status: completed  
+Plan: [Game Structure Alignment Plan](./plans/game-structure-alignment-plan.md)
+
+Current truth:
+
+1. `pong` remains the practical canonical baseline for first-party Air Jam game structure
+2. `the-office` now follows that ownership model cleanly, with gameplay-owned files under `src/game/*`, host-owned files under `src/host/*`, a semantic game-agent contract, and tests no longer mixed into `src/`
+3. `code-review` now publishes a semantic agent contract from config like the newer machine-contract adopters
+4. Last Band Standing no longer carries the YouTube test route in the shipped app tree
+5. Air Capture's root-level debug/input leftovers are narrowed into explicit game-owned locations instead of teaching accidental repo drift
+6. the late follow-up composition pass is also complete: `the-office` host orchestration is split back into real host components/hooks and its `src/host/index.tsx` is back down to a thin 70-line shell, while `air-capture` now keeps its heavier lifecycle/sync logic in one dedicated host runtime hook and its `src/host/index.tsx` is reduced to a clearer 259-line composition shell
+7. prerelease QA can now run against a more coherent first-party authoring model instead of mixed structural generations
 
 ### Recently Archived Implementation Track. Game UI Scaling
 
@@ -328,6 +344,7 @@ The audit confirmed:
 12. the repo is ready to move into the final manual release proof, hosted-lane checks, deploy, and live validation, assuming no new prerelease implementation is intentionally added
 13. the visual harness host integration now uses the mounted `<VisualHarnessRuntime />` runtime component as the public authoring surface; the previous hook shape is private implementation detail only
 14. `useHostTick` now has one canonical named-object API with `onTick` and optional `onFrame`; first-party hosts, SDK tests, generated docs, scaffold docs, and hosted AI-pack docs use that shape
+15. the repo-local prerelease scaffold lane is now first-class: `pnpm run repo -- scaffold local <target> --source=tarball|workspace --template <id>` carries the full unpublished Air Jam package graph, and `pnpm run repo -- pack local` now prepares the full matching tarball set instead of only `sdk`, `server`, and `create-airjam`
 
 ## Documentation Hygiene Tasks
 

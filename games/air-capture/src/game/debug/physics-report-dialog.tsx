@@ -1,4 +1,6 @@
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import type { PhysicsFrame } from "./physics-recorder";
+import { Button } from "./ui/button";
 import {
   Dialog,
   DialogContent,
@@ -6,10 +8,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
-import type { PhysicsFrame } from "./physics-recorder";
+} from "./ui/dialog";
+import { Textarea } from "./ui/textarea";
 
 interface PhysicsReportDialogProps {
   frames: PhysicsFrame[];

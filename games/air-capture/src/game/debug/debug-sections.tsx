@@ -1,5 +1,3 @@
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useAirJamHost } from "@air-jam/sdk";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -18,6 +16,8 @@ import { useLasersStore } from "../stores/projectiles/lasers-store";
 import { useDecalsStore } from "../stores/world/decals-store";
 import { DebugSection } from "./debug-section";
 import { TeamBotControls } from "./team-bot-controls";
+import { Button } from "./ui/button";
+import { cn } from "./ui/utils";
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 

@@ -3,8 +3,8 @@ import { ControllerPrimaryAction, LifecycleActionGroup } from "@air-jam/sdk/ui";
 import { Target, Zap, type LucideIcon } from "lucide-react";
 import { memo, useRef, useState, type PointerEvent } from "react";
 import { useStore } from "zustand";
-import { Button } from "../../components/ui/button";
 import { createControllerStore } from "../../game/controller-store";
+import { Button } from "../../game/debug/ui/button";
 import type { TeamCounts } from "../../game/domain/match-readiness";
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import { buildTeamSlots, MAX_TEAM_SLOTS } from "../../game/domain/team-slots";
@@ -454,7 +454,9 @@ const ActionControl = ({
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
-      onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={(event: PointerEvent<HTMLButtonElement>) =>
+        event.preventDefault()
+      }
       aria-label={label}
     >
       <Icon className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10" />

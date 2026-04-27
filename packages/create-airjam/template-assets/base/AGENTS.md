@@ -108,6 +108,22 @@ Use shell commands only when the Air Jam MCP does not expose the needed operatio
 
 If the current game does not expose the action an agent needs, add a small game-owned harness action first instead of defaulting to browser-only UI automation.
 
+## Browser And Machine Workflow Rule
+
+For local host/controller UI work:
+
+1. use the current agent or client's built-in browser or in-app browser tooling first when available
+2. prefer a visible local browser session for real host/controller verification
+3. use the Air Jam MCP alongside browser work for logs, topology, harness actions, runtime inspection, and quality gates
+4. use secondary browser MCPs such as Chrome DevTools only when the built-in browser tooling is unavailable or when low-level DOM, network, or performance inspection is required
+5. do not treat browser automation as the primary game-control path when a harness action or semantic game action can express the intent directly
+
+When a clean-slate game stops being trivial:
+
+1. add `src/game/contracts/agent.ts` and wire it through `src/airjam.config.ts` `game.machine.agent` once the game has named phases, semantic actions, or non-trivial lobby/setup rules
+2. add `visual/contract.ts` and `visual/scenarios.ts` once deterministic staging, reset actions, or repeatable visual proof would materially help iteration
+3. prefer these small explicit machine seams over leaving important semantics trapped in UI-only flows
+
 ## Game Agent Contract Rule
 
 If the template ships `src/game/contracts/agent.ts`, treat that file as the canonical semantic agent surface for the game.

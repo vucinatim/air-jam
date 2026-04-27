@@ -1,8 +1,8 @@
 import { Quaternion, Vector3 } from "three";
 import { useAbilitiesStore } from "../abilities-store";
 import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
+import type { GameLoopInput } from "../contracts/input";
 import { botDebugLog } from "../debug-logging";
-import type { GameLoopInput } from "../types";
 import { GameContext } from "./game-context";
 import { ReachabilityChecker, type JumpPadInfo } from "./reachability-checker";
 

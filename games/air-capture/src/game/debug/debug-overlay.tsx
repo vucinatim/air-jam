@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { Bug, X } from "lucide-react";
 import type React from "react";
 import { useDebugStore } from "../stores/debug/debug-store";
+import { Button } from "./ui/button";
+import { cn } from "./ui/utils";
 
 interface DebugOverlayProps {
   children: React.ReactNode;

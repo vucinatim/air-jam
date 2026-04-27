@@ -49,6 +49,15 @@ Use direct shell commands only when:
 1. the MCP does not expose the required operation
 2. you are doing one-off repo maintenance work outside Air Jam devtools boundaries
 
+## Browser Tooling Rule
+
+When local UI verification matters:
+
+1. use the current agent or client's built-in browser or in-app browser tooling first when available
+2. prefer visible host/controller browser sessions over hidden automation when you need to verify what a player actually sees
+3. pair that browser workflow with Air Jam MCP for logs, topology, snapshots, harness actions, and quality gates
+4. use secondary browser MCPs such as Chrome DevTools only when the first-party browser tooling is unavailable or when you need lower-level DOM, network, or performance diagnostics
+
 ## Debugging Rule
 
 For runtime or multiplayer issues:
@@ -84,6 +93,13 @@ Use:
 3. `airjam.invoke_game_action`
 
 before falling back to raw controller RPC names or store-domain inference.
+
+If a clean-slate project does not ship those files yet but the game is growing beyond a trivial single-screen flow:
+
+1. add `src/game/contracts/agent.ts` early
+2. wire it through `src/airjam.config.ts` `game.machine.agent`
+3. publish a small semantic action set for the important game verbs instead of leaving them implicit in visible UI only
+4. add `visual/contract.ts` and `visual/scenarios.ts` once deterministic staging or repeatable visual proof becomes useful
 
 ## Quality Rule
 

@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { create } from "zustand";
+import type { GameLoopInput } from "../contracts/input";
 import { useGameStore } from "../stores/players/game-store";
-import type { GameLoopInput } from "../types";
 import { BotController } from "./bot-controller";
 
 interface BotManagerState {

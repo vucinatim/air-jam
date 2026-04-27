@@ -8,7 +8,7 @@ export const registerScaffoldCommands = (program) => {
   scaffoldCommand
     .command("local <projectName>")
     .description(
-      "Scaffold a local game against workspace, tarball, or registry dependencies",
+      "Scaffold a local game against the full workspace, tarball, or registry package graph",
     )
     .option("--source <source>", "Dependency source to use", "tarball")
     .option("--template <template>", "Template game to scaffold", "pong")

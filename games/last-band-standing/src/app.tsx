@@ -12,17 +12,6 @@ const ControllerView = lazy(async () => {
   return { default: module.ControllerView };
 });
 
-const showYouTubeTestRoute =
-  import.meta.env.DEV ||
-  import.meta.env.VITE_ENABLE_YOUTUBE_TEST_ROUTE === "true";
-
-const YoutubeTestPage = showYouTubeTestRoute
-  ? lazy(async () => {
-      const module = await import("./routes/youtube-test-page");
-      return { default: module.YoutubeTestPage };
-    })
-  : null;
-
 const RouteFallback = () => {
   return <div className="bg-background h-screen w-screen" />;
 };
@@ -47,9 +36,6 @@ export const App = () => {
             </airjam.Controller>
           }
         />
-        {showYouTubeTestRoute && YoutubeTestPage ? (
-          <Route path="/youtube-test" element={<YoutubeTestPage />} />
-        ) : null}
       </Routes>
     </Suspense>
   );

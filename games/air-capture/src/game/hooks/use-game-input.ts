@@ -2,8 +2,8 @@ import { useGetInput, useRoom } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { useBotManager } from "../bot-system/bot-manager";
+import { type GameLoopInput, gameInputSchema } from "../contracts/input";
 import { usePrototypeMatchStore } from "../stores/match/match-store";
-import { type GameLoopInput, gameInputSchema } from "../types";
 
 export const useGameInput = () => {
   // Get getInput without subscribing to connection state

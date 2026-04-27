@@ -1,4 +1,4 @@
-import { getPlayerById } from "../../players";
+import { getPlayerById } from "../content/players";
 import { createDefaultPlayerStats, pruneRecord } from "./space-store-helpers";
 import type { SpaceGameState } from "./types";
 
