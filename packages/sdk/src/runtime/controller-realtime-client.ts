@@ -8,6 +8,7 @@ import {
   createControllerBridgeCloseMessage,
   createControllerBridgeEmitMessage,
   createControllerBridgeRequestMessage,
+  parseControllerBridgeResponseMessage,
   parseControllerBridgeAttachMessage,
   parseControllerBridgeCloseMessage,
   parseControllerBridgeEventMessage,
@@ -26,6 +27,7 @@ import { readEmbeddedControllerRuntimeParams } from "./runtime-session-params";
 import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach";
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
+const BRIDGE_ACK_TIMEOUT_MS = 5_000;
 const CONTROLLER_BRIDGE_RUNTIME_KIND = "arcade-controller-runtime";
 const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set(["game_unloaded", "replaced"]);
 const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
@@ -104,6 +106,34 @@ class DirectControllerRealtimeClient implements AirJamRealtimeClient {
     ).call(this.socket, event, ...normalizeControllerEmitArgs(event, args));
     return this;
   }
+
+  emitWithAck<TAck>(event: string, ...args: unknown[]): Promise<TAck> {
+    return new Promise<TAck>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(
+          new Error(
+            `Timed out waiting for acknowledgement for realtime event "${event}".`,
+          ),
+        );
+      }, BRIDGE_ACK_TIMEOUT_MS);
+
+      (
+        this.socket.emit as unknown as (
+          this: AirJamSocket,
+          event: string,
+          ...args: unknown[]
+        ) => void
+      ).call(
+        this.socket,
+        event,
+        ...normalizeControllerEmitArgs(event, args),
+        (ack: TAck) => {
+          clearTimeout(timeoutId);
+          resolve(ack);
+        },
+      );
+    });
+  }
 }
 
 class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
@@ -117,6 +147,14 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   private requested = false;
   private lastAttachedArcadeEpoch: number | null = null;
   private allowReconnect = true;
+  private pendingAcks = new Map<
+    string,
+    {
+      resolve: (ack: unknown) => void;
+      reject: (error: Error) => void;
+      timeoutId: ReturnType<typeof setTimeout>;
+    }
+  >();
 
   connect(): this {
     const runtimeParams = readEmbeddedControllerRuntimeParams();
@@ -227,7 +265,60 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
     return this;
   }
 
+  emitWithAck<TAck>(event: string, ...args: unknown[]): Promise<TAck> {
+    if (!this.port || !this.connected) {
+      return Promise.reject(
+        new Error(
+          `Cannot emit acknowledged realtime event "${event}" because the embedded controller bridge is not connected.`,
+        ),
+      );
+    }
+
+    const requestId = globalThis.crypto?.randomUUID?.() ??
+      `ack-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+    return new Promise<TAck>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        this.pendingAcks.delete(requestId);
+        reject(
+          new Error(
+            `Timed out waiting for acknowledgement for bridge event "${event}".`,
+          ),
+        );
+      }, BRIDGE_ACK_TIMEOUT_MS);
+
+      this.pendingAcks.set(requestId, {
+        resolve: (ack) => resolve(ack as TAck),
+        reject,
+        timeoutId,
+      });
+
+      const bridgeEvent = event as ControllerBridgeClientEventName;
+      const normalizedArgs = normalizeControllerEmitArgs(event, args);
+      this.port?.postMessage(
+        createControllerBridgeEmitMessage(
+          bridgeEvent,
+          ...(normalizedArgs as ControllerBridgeClientEventArgs[typeof bridgeEvent]),
+          { requestId },
+        ),
+      );
+    });
+  }
+
   private handlePortMessage(message: unknown): void {
+    const responseMessage = parseControllerBridgeResponseMessage(message);
+    if (responseMessage) {
+      const pending = this.pendingAcks.get(responseMessage.payload.requestId);
+      if (!pending) {
+        return;
+      }
+
+      clearTimeout(pending.timeoutId);
+      this.pendingAcks.delete(responseMessage.payload.requestId);
+      pending.resolve(responseMessage.payload.ack);
+      return;
+    }
+
     const attachMessage = parseControllerBridgeAttachMessage(message);
     if (attachMessage) {
       if (
@@ -378,6 +469,14 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       this.port.close();
       this.port = null;
     }
+
+    for (const pending of this.pendingAcks.values()) {
+      clearTimeout(pending.timeoutId);
+      pending.reject(
+        new Error("Embedded controller bridge disconnected before acknowledgement."),
+      );
+    }
+    this.pendingAcks.clear();
 
     if (shouldNotify) {
       this.notify("disconnect", reason);

@@ -1,4 +1,8 @@
 import type {
+  AirJamActionInvocationResult,
+  AirJamMachineActionPayloadKind,
+} from "@air-jam/sdk";
+import type {
   PlatformMachineGetReleaseResult,
   PlatformMachineListOwnedGamesResult,
   PlatformMachineListReleasesResult,
@@ -372,7 +376,7 @@ export type AirJamHarnessActionDescriptor = {
   name: string;
   description: string | null;
   payload: {
-    kind: "none" | "number" | "enum" | "json";
+    kind: AirJamMachineActionPayloadKind;
     description: string | null;
     allowedValues?: string[];
   };
@@ -430,7 +434,18 @@ export type InvokeGameActionOptions = {
   controllerSessionId: string;
   actionId: string;
   payload?: unknown;
+  timeoutMs?: number;
 };
+
+export type AirJamGameActionAcknowledgementObservation =
+  | "host-acknowledged"
+  | "host-acknowledgement-not-observed";
+
+export type AirJamGameActionOutcome =
+  | "accepted"
+  | "rejected"
+  | "acknowledgement-not-observed-state-changed"
+  | "acknowledgement-not-observed-no-state-change-observed";
 
 export type InvokeGameActionResult = AirJamVirtualControllerSessionSummary & {
   actionId: string;
@@ -438,6 +453,29 @@ export type InvokeGameActionResult = AirJamVirtualControllerSessionSummary & {
   storeDomain: string;
   payload?: unknown;
   sentAt: string;
+  acknowledgement: AirJamActionInvocationResult;
+  acknowledgementObservation: AirJamGameActionAcknowledgementObservation;
+  outcome: AirJamGameActionOutcome;
+  snapshotBefore: AirJamGameSnapshotInspection;
+  snapshotAfter: AirJamGameSnapshotInspection;
+  snapshotAfterStatus:
+    | "committed-update-observed"
+    | "no-new-commit-before-timeout";
+  observedStateChange: boolean;
+};
+
+export type AirJamGameSessionActionDescriptor = {
+  actionId: string;
+  lane: "player" | "host";
+  source: "semantic-game" | "visual-harness";
+  description: string | null;
+  availability: string | null;
+  payload: {
+    kind: "none" | "boolean" | "number" | "string" | "enum" | "json";
+    description: string | null;
+    allowedValues?: string[];
+  };
+  resultDescription: string | null;
 };
 
 export type AirJamVisualScenarioList = {
@@ -574,6 +612,9 @@ export type AirJamHarnessActionInvocation = AirJamHarnessSessionSummary & {
   result: unknown;
   snapshotBefore: JsonObject | null;
   snapshotAfter: JsonObject | null;
+  snapshotAfterStatus:
+    | "committed-update-observed"
+    | "no-new-commit-before-timeout";
 };
 
 export type ConnectControllerOptions = {
@@ -665,6 +706,7 @@ export type InvokeControllerActionResult =
     storeDomain: string;
     payload?: JsonObject;
     sentAt: string;
+    acknowledgement: AirJamActionInvocationResult;
   };
 
 export type DisconnectControllerResult = {
@@ -673,6 +715,80 @@ export type DisconnectControllerResult = {
 };
 
 export type AirJamRuntimeSnapshotInspection = AirJamVirtualControllerSession;
+
+export type OpenGameSessionOptions = ConnectControllerOptions;
+
+export type ReadGameSessionOptions = {
+  gameSessionId: string;
+  requestSync?: boolean;
+  timeoutMs?: number;
+};
+
+export type SendGameSessionInputOptions = {
+  gameSessionId: string;
+  input: JsonObject;
+};
+
+export type InvokeGameSessionActionOptions = {
+  gameSessionId: string;
+  actionId: string;
+  payload?: unknown;
+  timeoutMs?: number;
+};
+
+export type CloseGameSessionOptions = {
+  gameSessionId: string;
+};
+
+export type AirJamGameSessionSummary = {
+  gameSessionId: string;
+  cwd: string;
+  gameId: string | null;
+  controllerSessionId: string;
+  projectMode: AirJamProjectMode;
+  mode: AirJamDevMode | null;
+  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built" | null;
+  secure: boolean;
+  process: AirJamManagedDevProcess | null;
+  roomId: string;
+  controllerId: string;
+  deviceId: string;
+  controllerJoinUrl: string;
+  socketOrigin: string;
+  connected: boolean;
+  connectedAt: string;
+  disconnectedAt: string | null;
+  disconnectReason: string | null;
+  harnessSessionId: string | null;
+  harnessControlSurface: "registered-session" | "isolated-session" | null;
+  hasHarnessBridge: boolean;
+  hasAgentContract: boolean;
+  actions: AirJamGameSessionActionDescriptor[];
+};
+
+export type AirJamGameSessionInspection = AirJamGameSessionSummary & {
+  runtimeSnapshot: AirJamRuntimeSnapshotInspection;
+  gameSnapshot: AirJamGameSnapshotInspection | null;
+  harnessSnapshot: AirJamHarnessSnapshotInspection | null;
+};
+
+export type SendGameSessionInputResult = AirJamGameSessionSummary & {
+  input: JsonObject;
+  sentAt: string;
+};
+
+export type InvokeGameSessionActionResult = AirJamGameSessionSummary & {
+  actionId: string;
+  lane: "player" | "host";
+  invocation:
+    | InvokeGameActionResult
+    | AirJamHarnessActionInvocation;
+};
+
+export type CloseGameSessionResult = {
+  closed: boolean;
+  session: AirJamGameSessionSummary;
+};
 
 export type AirJamVisualCaptureSummary = {
   gameId: string;

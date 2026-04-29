@@ -1,4 +1,5 @@
 import type { JSX, ReactNode } from "react";
+import { useEffect } from "react";
 import type { z } from "zod";
 import {
   ControllerSessionProvider,
@@ -7,8 +8,16 @@ import {
 } from "../context/session-providers";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
+import {
+  useControllerRuntimeInspectionContract,
+  useHostRuntimeInspectionContract,
+} from "../runtime-inspection";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
+import {
+  publishRuntimeInspectionContract,
+  readRuntimeInspectionContract,
+} from "./contracts/inspection";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
 import {
   controllerRuntimeContext,
@@ -25,6 +34,44 @@ export type AirJamControllerRuntimeProps = AirJamProviderProps &
   AirJamControllerOptions & {
     children: ReactNode;
   };
+
+const HostRuntimeInspectionPublisher = (): null => {
+  const inspection = useHostRuntimeInspectionContract();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    publishRuntimeInspectionContract(window, inspection);
+    return () => {
+      if (readRuntimeInspectionContract(window)?.role === "host") {
+        publishRuntimeInspectionContract(window, null);
+      }
+    };
+  }, [inspection]);
+
+  return null;
+};
+
+const ControllerRuntimeInspectionPublisher = (): null => {
+  const inspection = useControllerRuntimeInspectionContract();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    publishRuntimeInspectionContract(window, inspection);
+    return () => {
+      if (readRuntimeInspectionContract(window)?.role === "controller") {
+        publishRuntimeInspectionContract(window, null);
+      }
+    };
+  }, [inspection]);
+
+  return null;
+};
 
 const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   children,
@@ -46,6 +93,7 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
 
   return (
     <hostRuntimeContext.Provider value={runtime}>
+      <HostRuntimeInspectionPublisher />
       {children}
     </hostRuntimeContext.Provider>
   );
@@ -83,6 +131,7 @@ const ControllerRuntimeOwner = ({
 
   return (
     <controllerRuntimeContext.Provider value={runtime}>
+      <ControllerRuntimeInspectionPublisher />
       {children}
     </controllerRuntimeContext.Provider>
   );

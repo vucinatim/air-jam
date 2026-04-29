@@ -10,11 +10,12 @@ The goal is to keep the game easy to grow, easy to test, and easy to refactor as
 
 For any non-trivial task, read these in order:
 
-1. `plan.md`
-2. `docs/docs-index.md`
-3. `skills/index.md`
-4. the relevant code you are about to change
-5. the template `README.md` if it includes a concrete starter module map
+1. `docs/agent-gold-path.md`
+2. `plan.md`
+3. `docs/docs-index.md`
+4. `skills/index.md`
+5. the relevant code you are about to change
+6. the template `README.md` if it includes a concrete starter module map
 
 Do not treat chat history as the source of truth for project state.
 
@@ -68,6 +69,8 @@ This is the local operational docs pack.
 
 Use local docs first.
 
+If you only need the shortest correct operational path, start with `docs/agent-gold-path.md` before reading the broader index.
+
 Use hosted Air Jam docs only when:
 
 1. local docs do not cover the topic
@@ -94,10 +97,10 @@ Use the Air Jam MCP first for Air Jam-native workflows:
 3. read the canonical unified dev logs
 4. start dev, inspect dev status, and inspect runtime topology
 5. list visual scenarios and run visual captures
-6. read live harness snapshots and invoke harness actions when a game exposes them
+6. read live game-session snapshots and invoke host staging actions when a game exposes them
 7. run focused quality gates
 8. inspect visual capture summaries when they exist
-9. read harness action metadata before guessing payloads or intended effects
+9. read action metadata before guessing payloads or intended effects
 
 Start with:
 
@@ -106,7 +109,7 @@ Start with:
 
 Use shell commands only when the Air Jam MCP does not expose the needed operation.
 
-If the current game does not expose the action an agent needs, add a small game-owned harness action first instead of defaulting to browser-only UI automation.
+If the current game does not expose the action an agent needs, add a small game-owned host staging action first instead of defaulting to browser-only UI automation.
 
 ## Browser And Machine Workflow Rule
 
@@ -114,15 +117,18 @@ For local host/controller UI work:
 
 1. use the current agent or client's built-in browser or in-app browser tooling first when available
 2. prefer a visible local browser session for real host/controller verification
-3. use the Air Jam MCP alongside browser work for logs, topology, harness actions, runtime inspection, and quality gates
+3. use the Air Jam MCP alongside browser work for logs, topology, host staging actions, runtime inspection, and quality gates
 4. use secondary browser MCPs such as Chrome DevTools only when the built-in browser tooling is unavailable or when low-level DOM, network, or performance inspection is required
-5. do not treat browser automation as the primary game-control path when a harness action or semantic game action can express the intent directly
+5. do not treat browser automation as the primary game-control path when a host staging action or semantic game action can express the intent directly
+6. if a browser/preview tool wants to launch the local app command itself and expects one foreground web process, use `pnpm run dev:preview` instead of `pnpm run dev`
+7. `pnpm run dev:preview` is local HTTP only; if you need HTTPS/secure dev, use the normal `pnpm run dev -- --secure` flow instead
 
 When a clean-slate game stops being trivial:
 
-1. add `src/game/contracts/agent.ts` and wire it through `src/airjam.config.ts` `game.machine.agent` once the game has named phases, semantic actions, or non-trivial lobby/setup rules
+1. add `src/game/contracts/agent.ts` and wire it through `src/airjam.config.ts` `game.agent` once the game has named phases, semantic actions, or non-trivial lobby/setup rules
 2. add `visual/contract.ts` and `visual/scenarios.ts` once deterministic staging, reset actions, or repeatable visual proof would materially help iteration
 3. prefer these small explicit machine seams over leaving important semantics trapped in UI-only flows
+4. remember that `airjam.capture_visuals` is task-backed; if your MCP client cannot execute task-backed tools, switch to a task-capable client or run the equivalent Air Jam CLI or repo visual command directly
 
 ## Game Agent Contract Rule
 

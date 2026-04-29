@@ -2,6 +2,7 @@ import type {
   ChildHostCapability,
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
+  ControllerSource,
   ControllerStateMessage,
   HostSessionKind,
   PlayerProfile,
@@ -26,6 +27,7 @@ export interface ControllerSession {
   pendingDisconnectTimer?: ReturnType<typeof setTimeout>;
   playerProfile: PlayerProfile;
   privilegedGrants: ControllerPrivilegedGrant[];
+  source: ControllerSource;
 }
 
 export interface RoomAnalyticsState {

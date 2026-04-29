@@ -8,6 +8,7 @@ export interface AirJamRealtimeClient {
   on(event: string, listener: BridgeListener): this;
   off(event: string, listener?: BridgeListener): this;
   emit(event: string, ...args: unknown[]): this;
+  emitWithAck<TAck>(event: string, ...args: unknown[]): Promise<TAck>;
 }
 
 export type BridgeListener = {

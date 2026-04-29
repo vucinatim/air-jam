@@ -1,4 +1,4 @@
-import type { PrefabCaptureVariants } from "@air-jam/harness";
+import type { PrefabCaptureVariants } from "@air-jam/harness/visual";
 
 export const AIR_CAPTURE_PREFAB_CAPTURE_SURFACE = "prefab";
 export const AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID =

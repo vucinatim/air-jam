@@ -20,6 +20,29 @@ export const controllerOrientationSchema = z.enum(["portrait", "landscape"]);
 
 export type ControllerOrientation = z.infer<typeof controllerOrientationSchema>;
 
+export const controllerSourceSchema = z.enum(["phone", "preview", "virtual"]);
+
+export type ControllerSource = z.infer<typeof controllerSourceSchema>;
+
+export const PREVIEW_CONTROLLER_DEVICE_ID_PREFIX = "pd_";
+export const VIRTUAL_CONTROLLER_DEVICE_ID_PREFIX = "aj-mcp-device-";
+
+export const inferControllerSourceFromDeviceId = (
+  deviceId: string | null | undefined,
+): ControllerSource => {
+  const normalized = deviceId?.trim();
+  if (!normalized) {
+    return "phone";
+  }
+  if (normalized.startsWith(PREVIEW_CONTROLLER_DEVICE_ID_PREFIX)) {
+    return "preview";
+  }
+  if (normalized.startsWith(VIRTUAL_CONTROLLER_DEVICE_ID_PREFIX)) {
+    return "virtual";
+  }
+  return "phone";
+};
+
 export const controllerStateSchema = z.object({
   roomId: roomCodeSchema,
   state: z.object({

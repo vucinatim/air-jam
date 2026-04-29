@@ -186,6 +186,7 @@ When touching `create-airjam`, scaffoldable games, or package-boundary behavior:
 5. Validate unpublished-package behavior with `pnpm test:scaffold:tarball`.
 6. If you need a standalone prerelease test project from the current repo state, use `pnpm run repo -- scaffold local /absolute/path/to/project --source=tarball --template <id>`.
 7. If you need the raw local prerelease tarballs themselves for another workflow, use `pnpm run repo -- pack local`.
+8. The local scaffold/tarball commands now preflight missing workspace links, refresh the install state automatically when recent package changes left the repo half-installed, and create immutable per-run tarball set directories so generated projects never point at a tarball path whose contents can later change.
 
 ### 6. Legacy Game Migration Proof
 

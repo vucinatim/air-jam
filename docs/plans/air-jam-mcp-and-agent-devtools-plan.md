@@ -1,7 +1,12 @@
 # Air Jam MCP And Agent Devtools Plan
 
-Last updated: 2026-04-24  
-Status: usable V2 landed
+Last updated: 2026-04-27  
+Status: historical V2 snapshot, superseded for machine control by Agent Control System Rewrite Plan
+
+Note:
+
+1. this plan records the path that landed the earlier low-level MCP controller and harness lanes
+2. the current repo direction is stricter: machine-control authoring now centers on flat `game.agent` / `game.visualScenariosModule` config and the public MCP happy path is the unified game-session lane, not the older separate controller/harness/game-action tool families
 
 Current status:
 
@@ -25,7 +30,7 @@ Current status:
 18. a new game-owned semantic agent-contract lane is now landed too: `@air-jam/sdk` publishes a `defineAirJamGameAgentContract(...)` helper with `projectSnapshot(...)` plus semantic `actions`, `@air-jam/devtools-core` can inspect/project/invoke those contracts for live controller sessions, and MCP now exposes `airjam.inspect_game_agent_contract`, `airjam.read_game_snapshot`, and `airjam.invoke_game_action`.
 19. `last-band-standing` is the first real adopter of that higher-level lane, and the live stdio MCP path is now proven against a visible host room for contract inspection, controller connect, projected game snapshot reads, semantic ready/start/guess actions, and reveal/score readback.
 20. `pong` is now the second real adopter of the same lane, and the live stdio MCP path is also proven against a visible Pong host room for two-controller join flow, lobby settings changes, semantic match start, semantic score awards, ended-state readback, and semantic return-to-lobby.
-21. `src/airjam.config.ts` is now the canonical declaration site for machine-facing contracts too: `createAirJamApp({ game.machine })` carries semantic game-agent contracts directly and explicit visual-scenarios module declarations, and the high-level `@air-jam/devtools-core` / MCP / repo-visual path now requires those explicit declarations instead of falling back to convention-scanned contract files.
+21. `src/airjam.config.ts` is now the canonical declaration site for machine-facing contracts too: flat `createAirJamApp({ game: { agent, visualScenariosModule } })` carries semantic game-agent contracts directly and explicit visual-scenarios module declarations, and the high-level `@air-jam/devtools-core` / MCP / repo-visual path now requires those explicit declarations instead of falling back to convention-scanned contract files.
 22. the closeout validation race is now removed at the test boundary: `@air-jam/mcp-server` tests no longer rebuild sibling workspace packages, both test suites resolve workspace package source directly through Vitest aliases, and `@air-jam/devtools-core` is the only suite that still prebuilds `@air-jam/sdk` because it dynamically imports real repo game configs that consume published SDK subpaths.
 
 Related docs:

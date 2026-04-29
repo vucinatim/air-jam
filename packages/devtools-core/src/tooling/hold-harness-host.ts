@@ -2,7 +2,7 @@ import {
   launchHarnessBrowser,
   openVisualHarnessHostSession,
   type VisualHarnessMode,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));

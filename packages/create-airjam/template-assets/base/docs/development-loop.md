@@ -15,6 +15,7 @@ Use this as the default implementation loop.
 3. use the Air Jam MCP first when the task fits Air Jam-native devtools flows such as project inspection, logs, or quality gates
 4. read the matching skill only if the task fits that skill boundary
 5. if the scaffold template includes a concrete example map in its `README.md`, inspect the starter modules it points to before inventing a new location for the work
+6. if a browser or preview tool needs to launch the local app command itself, use `pnpm run dev:preview` instead of raw `vite`
 
 ## 3. Implement Minimal Correct Changes
 

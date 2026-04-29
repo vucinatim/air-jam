@@ -25,6 +25,9 @@ import { useAssertSessionScope } from "../context/session-scope";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
+  HostControllerActionAck,
+  HostRegistrationAck,
+  ControllerPresenceNotice,
   ControllerStatePayload,
   HapticSignalPayload,
   PlayerProfile,
@@ -102,6 +105,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   connectionStatus: ConnectionStatus;
   /** List of currently connected players */
   players: PlayerProfile[];
+  /** Full controller-session roster for the current room, including source and lease state. */
+  controllers: ControllerPresenceNotice[];
   /** Last error message, if any */
   lastError?: string;
   /** Current run mode (standalone, arcade, platform) */
@@ -141,6 +146,10 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   };
   /** Reconnect to the server */
   reconnect: () => void;
+  /** Remove one controller from the room immediately. */
+  removeController: (controllerId: string) => Promise<HostControllerActionAck>;
+  /** Tear down the current room and create a fresh empty room for this host. */
+  resetRoom: () => Promise<HostRegistrationAck>;
   /** Realtime client for host events (socket-backed standalone, bridge-backed in arcade embeds) */
   socket: AirJamRealtimeClient;
   /**
@@ -170,6 +179,7 @@ export interface AirJamHostState {
   roomId: RoomCode | null;
   connectionStatus: ConnectionStatus;
   players: PlayerProfile[];
+  controllers: ControllerPresenceNotice[];
   lastError?: string;
   mode: RunMode;
   runtimeState: RuntimeState;
@@ -188,6 +198,8 @@ export type AirJamHostRuntimeControls<
   | "sendState"
   | "sendSignal"
   | "reconnect"
+  | "removeController"
+  | "resetRoom"
   | "socket"
   | "getInput"
 >;
@@ -196,6 +208,7 @@ const toHostState = (state: AirJamStore): AirJamHostState => ({
   roomId: state.roomId,
   connectionStatus: state.connectionStatus,
   players: state.players,
+  controllers: state.controllerSessions,
   lastError: state.lastError,
   mode: state.mode,
   runtimeState: state.runtimeState,

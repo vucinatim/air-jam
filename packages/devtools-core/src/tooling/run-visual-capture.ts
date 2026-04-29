@@ -1,4 +1,4 @@
-import { runVisualHarness } from "@air-jam/harness";
+import { runVisualHarness } from "@air-jam/harness/visual";
 import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
@@ -22,6 +22,7 @@ const localBuildUrl = getFlagValue("--local-build-url");
 const browserBuildUrl = getFlagValue("--browser-build-url");
 const scenarioId = getFlagValue("--scenario-id");
 const requestedMode = getFlagValue("--mode") ?? "standalone-dev";
+const gameId = getFlagValue("--game-id");
 const secure = process.argv.includes("--secure");
 
 if (
@@ -30,10 +31,11 @@ if (
   !hostUrl ||
   !appOrigin ||
   !controllerBaseUrl ||
-  !publicHost
+  !publicHost ||
+  !gameId
 ) {
   throw new Error(
-    "Missing required visual capture inputs. Expected module path, artifact root, and resolved topology URLs.",
+    "Missing required visual capture inputs. Expected game id, module path, artifact root, and resolved topology URLs.",
   );
 }
 
@@ -45,7 +47,7 @@ const mode =
   requestedMode === "arcade-test" ? "arcade-built" : "standalone-dev";
 
 const summary = await runVisualHarness({
-  gameId: scenarioPack.gameId,
+  gameId,
   scenarioId: scenarioId ?? null,
   mode,
   secure,

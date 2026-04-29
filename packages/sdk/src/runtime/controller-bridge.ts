@@ -41,6 +41,8 @@ export const AIRJAM_CONTROLLER_BRIDGE_CLOSE =
   "AIRJAM_CONTROLLER_BRIDGE_CLOSE" as const;
 export const AIRJAM_CONTROLLER_PRESENTATION_SYNC =
   "AIRJAM_CONTROLLER_PRESENTATION_SYNC" as const;
+export const AIRJAM_CONTROLLER_BRIDGE_RESPONSE =
+  "AIRJAM_CONTROLLER_BRIDGE_RESPONSE" as const;
 
 export const controllerBridgeClientEvents = [
   "controller:input",
@@ -132,6 +134,7 @@ export interface ControllerBridgeEventMessage {
   payload: {
     event: ControllerBridgeServerEventName;
     args: unknown[];
+    requestId?: string;
   };
 }
 
@@ -140,6 +143,15 @@ export interface ControllerBridgeEmitMessage {
   payload: {
     event: ControllerBridgeClientEventName;
     args: unknown[];
+    requestId?: string;
+  };
+}
+
+export interface ControllerBridgeResponseMessage {
+  type: typeof AIRJAM_CONTROLLER_BRIDGE_RESPONSE;
+  payload: {
+    requestId: string;
+    ack: unknown;
   };
 }
 
@@ -162,7 +174,8 @@ export type ControllerBridgePortMessage =
   | ControllerBridgeAttachMessage
   | ControllerBridgeEventMessage
   | ControllerBridgeEmitMessage
-  | ControllerBridgeCloseMessage;
+  | ControllerBridgeCloseMessage
+  | ControllerBridgeResponseMessage;
 
 const bridgeRequestSchema = z
   .object({
@@ -208,6 +221,7 @@ const bridgeEventSchema = z
       .object({
         event: z.enum(controllerBridgeServerEvents),
         args: z.array(z.unknown()),
+        requestId: z.string().min(1).optional(),
       })
       .strict(),
   })
@@ -220,6 +234,19 @@ const bridgeEmitSchema = z
       .object({
         event: z.enum(controllerBridgeClientEvents),
         args: z.array(z.unknown()),
+        requestId: z.string().min(1).optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
+const bridgeResponseSchema = z
+  .object({
+    type: z.literal(AIRJAM_CONTROLLER_BRIDGE_RESPONSE),
+    payload: z
+      .object({
+        requestId: z.string().min(1),
+        ack: z.unknown(),
       })
       .strict(),
   })
@@ -284,29 +311,70 @@ export const createControllerBridgeAttachMessage = (
   },
 });
 
+const splitControllerBridgeArgs = (
+  args: unknown[],
+): {
+  eventArgs: unknown[];
+  requestId?: string;
+} => {
+  const maybeOptions = args[args.length - 1] as
+    | { requestId?: string }
+    | undefined;
+  const hasOptions =
+    typeof maybeOptions === "object" &&
+    maybeOptions !== null &&
+    "requestId" in maybeOptions;
+
+  return {
+    eventArgs: hasOptions ? args.slice(0, -1) : args,
+    ...(hasOptions && maybeOptions.requestId
+      ? { requestId: maybeOptions.requestId }
+      : {}),
+  };
+};
+
 export const createControllerBridgeEventMessage = <
   TEvent extends ControllerBridgeServerEventName,
 >(
   event: TEvent,
-  ...args: ControllerBridgeServerEventArgs[TEvent]
-): ControllerBridgeEventMessage => ({
-  type: AIRJAM_CONTROLLER_BRIDGE_EVENT,
-  payload: {
-    event,
-    args,
-  },
-});
+  ...args: [...ControllerBridgeServerEventArgs[TEvent], { requestId?: string }?]
+): ControllerBridgeEventMessage => {
+  const { eventArgs, requestId } = splitControllerBridgeArgs(args as unknown[]);
+  return {
+    type: AIRJAM_CONTROLLER_BRIDGE_EVENT,
+    payload: {
+      event,
+      args: eventArgs,
+      ...(requestId ? { requestId } : {}),
+    },
+  };
+};
 
 export const createControllerBridgeEmitMessage = <
   TEvent extends ControllerBridgeClientEventName,
 >(
   event: TEvent,
-  ...args: ControllerBridgeClientEventArgs[TEvent]
-): ControllerBridgeEmitMessage => ({
-  type: AIRJAM_CONTROLLER_BRIDGE_EMIT,
+  ...args: [...ControllerBridgeClientEventArgs[TEvent], { requestId?: string }?]
+): ControllerBridgeEmitMessage => {
+  const { eventArgs, requestId } = splitControllerBridgeArgs(args as unknown[]);
+  return {
+    type: AIRJAM_CONTROLLER_BRIDGE_EMIT,
+    payload: {
+      event,
+      args: eventArgs,
+      ...(requestId ? { requestId } : {}),
+    },
+  };
+};
+
+export const createControllerBridgeResponseMessage = (
+  requestId: string,
+  ack: unknown,
+): ControllerBridgeResponseMessage => ({
+  type: AIRJAM_CONTROLLER_BRIDGE_RESPONSE,
   payload: {
-    event,
-    args,
+    requestId,
+    ack,
   },
 });
 
@@ -355,6 +423,13 @@ export const parseControllerBridgeEmitMessage = (
 ): ControllerBridgeEmitMessage | null => {
   const result = bridgeEmitSchema.safeParse(value);
   return result.success ? (result.data as ControllerBridgeEmitMessage) : null;
+};
+
+export const parseControllerBridgeResponseMessage = (
+  value: unknown,
+): ControllerBridgeResponseMessage | null => {
+  const result = bridgeResponseSchema.safeParse(value);
+  return result.success ? (result.data as ControllerBridgeResponseMessage) : null;
 };
 
 export const parseControllerBridgeCloseMessage = (

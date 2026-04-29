@@ -154,9 +154,47 @@ export const HostView = () => {
 2. Always dispatch via `useActions()`; do not call `state.actions.*` directly.
 3. Use one payload object per action for stable evolution.
 4. Root payloads must be omitted or plain objects.
-5. Nested values must stay RPC-serializable.
-6. Use `ctx.actorId` for identity-aware actions (team join, ownership, etc.).
-7. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
+5. `T | undefined` payload unions are not valid roots. If an action has no payload, omit it entirely.
+6. Nested values must stay RPC-serializable.
+7. Use `ctx.actorId` for identity-aware actions (team join, ownership, etc.).
+8. `ctx.actorId` is always the dispatcher identity. If host code dispatches through `useActions()`, then `ctx.actorId` is the host.
+9. If the host intentionally needs to run the same semantic player action as controller `X`, use `useStore.asPlayer("X")` instead of inventing a target payload for an actor-owned action.
+10. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
+
+## Accept And Reject Examples
+
+If a store action returns `void`, Air Jam treats it as accepted.
+
+Return `rejectAirJamAction(...)` when the semantic action should fail with a machine-readable reason, and return `acceptAirJamAction(result)` when the semantic action should succeed with explicit result data:
+
+```tsx
+import {
+  acceptAirJamAction,
+  createAirJamStore,
+  rejectAirJamAction,
+} from "@air-jam/sdk";
+
+export const useGameStore = createAirJamStore((set) => ({
+  aliveByPlayerId: {} as Record<string, boolean>,
+  cooldownMsByPlayerId: {} as Record<string, number>,
+  actions: {
+    fire: ({ actorId }) =>
+      set((state) => {
+        if (!actorId || state.aliveByPlayerId[actorId] === false) {
+          return rejectAirJamAction(
+            "player_dead",
+            "Dead players cannot fire.",
+          );
+        }
+
+        const cooldownMs = 4500;
+        return acceptAirJamAction({ cooldownMs });
+      }),
+  },
+}));
+```
+
+Use this pattern when the caller needs a real semantic outcome.
 
 ## Embedded Arcade Runtimes
 
@@ -174,5 +212,6 @@ The SDK/runtime automatically resolves the correct replicated store domain from 
 
 1. Zustand-compatible hook for selectors.
 2. `useActions()` dispatch map with `() => void` or `(payloadObject) => void` signatures.
+3. `asPlayer(controllerId)` host-only dispatch map for explicit player impersonation of semantic actions.
 
 `T` must include an `actions` object with host handlers `(ctx, payload) => void`, where `payload` is `undefined` or a plain object.

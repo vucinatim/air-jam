@@ -24,6 +24,26 @@ export type AirJamActionPayload = Record<string, unknown>;
 
 export const airJamActionPayloadSchema = z.record(z.string(), z.unknown());
 
+export interface AirJamActionAccepted<TResult = unknown> {
+  ok: true;
+  status: "accepted";
+  source: "client" | "host";
+  result?: TResult;
+}
+
+export interface AirJamActionRejected {
+  ok: false;
+  status: "rejected";
+  source: "client" | "server" | "host";
+  reason: string;
+  message: string;
+  details?: AirJamActionPayload;
+}
+
+export type AirJamActionInvocationResult<TResult = unknown> =
+  | AirJamActionAccepted<TResult>
+  | AirJamActionRejected;
+
 export interface ControllerActionRpcPayload {
   roomId: string;
   actionName: string;

@@ -213,6 +213,7 @@ export const normalizeScaffoldPackageJson = ({
   const nextScripts = {
     ...existingScripts,
     dev: "pnpm exec airjam dev",
+    "dev:preview": "pnpm exec airjam dev --preview-managed",
     topology: "pnpm exec airjam topology",
     "secure:init": "pnpm exec airjam secure:init",
     mcp: "pnpm exec airjam-mcp",

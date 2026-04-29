@@ -1,4 +1,11 @@
-import { defineAirJamGameAgentContract } from "@air-jam/sdk";
+import {
+  defineAirJamGameAgentContract,
+  defineAirJamGameAgentStores,
+  gameAgentAction,
+  gameAgentStore,
+  machineActionInput,
+  readAirJamDefaultGameStore,
+} from "@air-jam/sdk";
 import {
   getPlayerById,
   getPlayerCapabilityHighlights,
@@ -7,6 +14,9 @@ import {
 } from "../content/players";
 
 const DEFAULT_STORE_DOMAIN = "default";
+const snapshotStores = defineAirJamGameAgentStores({
+  [DEFAULT_STORE_DOMAIN]: gameAgentStore<OfficeState>(),
+});
 
 type OfficeMatchPhase = "lobby" | "playing" | "ended";
 
@@ -27,17 +37,6 @@ interface OfficeState {
   playerStats: Record<string, PlayerStats>;
   gameOver: boolean;
 }
-
-const readOfficeState = (
-  stores: Record<string, Record<string, unknown>>,
-): OfficeState | null => {
-  const candidate = stores[DEFAULT_STORE_DOMAIN];
-  if (!candidate) {
-    return null;
-  }
-
-  return candidate as unknown as OfficeState;
-};
 
 const summarizePlayer = (
   player: Player,
@@ -69,12 +68,12 @@ const summarizePlayer = (
 };
 
 export const gameAgentContract = defineAirJamGameAgentContract({
-  gameId: "the-office",
-  snapshotStoreDomains: [DEFAULT_STORE_DOMAIN],
+  snapshotStores,
   snapshotDescription:
     "Game-focused snapshot for The Office with character selection, live assignment state, and score totals.",
-  projectSnapshot: ({ controllerId, stores }) => {
-    const state = readOfficeState(stores);
+  projectSnapshot: (context) => {
+    const { controllerId } = context;
+    const state = readAirJamDefaultGameStore(context);
     if (!state) {
       return {
         phase: "unavailable",
@@ -129,66 +128,67 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    select_character: {
-      target: {
-        kind: "controller",
+    select_character: gameAgentAction.player(
+      {
         actionName: "selectCharacter",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Assign the current controller to one Office coworker in the lobby.",
-      availability: "Lobby only. Requires a connected controller identity.",
-      payload: {
-        kind: "enum",
-        description: "The coworker to control.",
-        allowedValues: PLAYERS.map((player) => player.id),
+      {
+        input: machineActionInput.enum(
+          PLAYERS.map((player) => player.id) as [
+            string,
+            ...string[],
+          ],
+          {
+            payloadDescription: "The coworker to control.",
+          },
+        ),
+        toPayload: (playerId) => ({ playerId }),
+        description:
+          "Assign the current controller to one Office coworker in the lobby.",
+        availability: "Lobby only. Requires a connected controller identity.",
+        resultDescription:
+          "The controller claims that coworker if another controller has not already selected them.",
       },
-      resolveInput: (input) => ({
-        playerId: String(input),
-      }),
-      resultDescription:
-        "The controller claims that coworker if another controller has not already selected them.",
-    },
-    start_match: {
-      target: {
-        kind: "controller",
+    ),
+    start_match: gameAgentAction.player(
+      {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Start the Office match after at least one coworker is selected.",
-      availability: "Lobby only.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description:
+          "Start the Office match after at least one coworker is selected.",
+        availability: "Lobby only.",
+        resultDescription: "The match phase switches from lobby to playing.",
       },
-      resultDescription: "The match phase switches from lobby to playing.",
-    },
-    return_to_lobby: {
-      target: {
-        kind: "controller",
+    ),
+    return_to_lobby: gameAgentAction.player(
+      {
         actionName: "returnToLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Return the Office match to the lobby.",
-      availability: "Playing or ended phases.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description: "Return the Office match to the lobby.",
+        availability: "Playing or ended phases.",
+        resultDescription:
+          "The game returns to the lobby and clears live match state.",
       },
-      resultDescription:
-        "The game returns to the lobby and clears live match state.",
-    },
-    restart_match: {
-      target: {
-        kind: "controller",
+    ),
+    restart_match: gameAgentAction.player(
+      {
         actionName: "restartMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Restart the Office match immediately from the ended state.",
-      availability: "Ended phase.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description:
+          "Restart the Office match immediately from the ended state.",
+        availability: "Ended phase.",
+        resultDescription: "The game restarts into a fresh playing state.",
       },
-      resultDescription: "The game restarts into a fresh playing state.",
-    },
+    ),
   },
 });

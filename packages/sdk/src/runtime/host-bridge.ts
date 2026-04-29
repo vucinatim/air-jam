@@ -29,6 +29,7 @@ export const AIRJAM_HOST_BRIDGE_ATTACH = "AIRJAM_HOST_BRIDGE_ATTACH" as const;
 export const AIRJAM_HOST_BRIDGE_EVENT = "AIRJAM_HOST_BRIDGE_EVENT" as const;
 export const AIRJAM_HOST_BRIDGE_EMIT = "AIRJAM_HOST_BRIDGE_EMIT" as const;
 export const AIRJAM_HOST_BRIDGE_CLOSE = "AIRJAM_HOST_BRIDGE_CLOSE" as const;
+export const AIRJAM_HOST_BRIDGE_RESPONSE = "AIRJAM_HOST_BRIDGE_RESPONSE" as const;
 
 export const hostBridgeClientEvents = [
   "host:state",
@@ -77,7 +78,10 @@ export type HostBridgeServerEventArgs = {
   "server:state": [payload: ControllerStateMessage];
   "server:hostLeft": [payload: HostLeftNotice];
   "server:playSound": [payload: PlaySoundPayload];
-  "airjam:action_rpc": [payload: AirJamActionRpcPayload];
+  "airjam:action_rpc": [
+    payload: AirJamActionRpcPayload,
+    callback?: (ack: unknown) => void,
+  ];
   "server:closeChild": [];
 };
 
@@ -115,6 +119,7 @@ export interface HostBridgeEventMessage {
   payload: {
     event: HostBridgeServerEventName;
     args: unknown[];
+    requestId?: string;
   };
 }
 
@@ -123,6 +128,15 @@ export interface HostBridgeEmitMessage {
   payload: {
     event: HostBridgeClientEventName;
     args: unknown[];
+    requestId?: string;
+  };
+}
+
+export interface HostBridgeResponseMessage {
+  type: typeof AIRJAM_HOST_BRIDGE_RESPONSE;
+  payload: {
+    requestId: string;
+    ack: unknown;
   };
 }
 
@@ -176,6 +190,7 @@ const hostBridgeEventSchema = z
       .object({
         event: z.enum(hostBridgeServerEvents),
         args: z.array(z.unknown()),
+        requestId: z.string().min(1).optional(),
       })
       .strict(),
   })
@@ -188,6 +203,19 @@ const hostBridgeEmitSchema = z
       .object({
         event: z.enum(hostBridgeClientEvents),
         args: z.array(z.unknown()),
+        requestId: z.string().min(1).optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
+const hostBridgeResponseSchema = z
+  .object({
+    type: z.literal(AIRJAM_HOST_BRIDGE_RESPONSE),
+    payload: z
+      .object({
+        requestId: z.string().min(1),
+        ack: z.unknown(),
       })
       .strict(),
   })
@@ -240,29 +268,70 @@ export const createHostBridgeAttachMessage = (
   },
 });
 
+const splitHostBridgeArgs = (
+  args: unknown[],
+): {
+  eventArgs: unknown[];
+  requestId?: string;
+} => {
+  const maybeOptions = args[args.length - 1] as
+    | { requestId?: string }
+    | undefined;
+  const hasOptions =
+    typeof maybeOptions === "object" &&
+    maybeOptions !== null &&
+    "requestId" in maybeOptions;
+
+  return {
+    eventArgs: hasOptions ? args.slice(0, -1) : args,
+    ...(hasOptions && maybeOptions.requestId
+      ? { requestId: maybeOptions.requestId }
+      : {}),
+  };
+};
+
 export const createHostBridgeEventMessage = <
   TEvent extends HostBridgeServerEventName,
 >(
   event: TEvent,
-  ...args: HostBridgeServerEventArgs[TEvent]
-): HostBridgeEventMessage => ({
-  type: AIRJAM_HOST_BRIDGE_EVENT,
-  payload: {
-    event,
-    args,
-  },
-});
+  ...args: [...HostBridgeServerEventArgs[TEvent], { requestId?: string }?]
+): HostBridgeEventMessage => {
+  const { eventArgs, requestId } = splitHostBridgeArgs(args as unknown[]);
+  return {
+    type: AIRJAM_HOST_BRIDGE_EVENT,
+    payload: {
+      event,
+      args: eventArgs,
+      ...(requestId ? { requestId } : {}),
+    },
+  };
+};
 
 export const createHostBridgeEmitMessage = <
   TEvent extends HostBridgeClientEventName,
 >(
   event: TEvent,
-  ...args: HostBridgeClientEventArgs[TEvent]
-): HostBridgeEmitMessage => ({
-  type: AIRJAM_HOST_BRIDGE_EMIT,
+  ...args: [...HostBridgeClientEventArgs[TEvent], { requestId?: string }?]
+): HostBridgeEmitMessage => {
+  const { eventArgs, requestId } = splitHostBridgeArgs(args as unknown[]);
+  return {
+    type: AIRJAM_HOST_BRIDGE_EMIT,
+    payload: {
+      event,
+      args: eventArgs,
+      ...(requestId ? { requestId } : {}),
+    },
+  };
+};
+
+export const createHostBridgeResponseMessage = (
+  requestId: string,
+  ack: unknown,
+): HostBridgeResponseMessage => ({
+  type: AIRJAM_HOST_BRIDGE_RESPONSE,
   payload: {
-    event,
-    args,
+    requestId,
+    ack,
   },
 });
 
@@ -301,6 +370,13 @@ export const parseHostBridgeEmitMessage = (
 ): HostBridgeEmitMessage | null => {
   const result = hostBridgeEmitSchema.safeParse(value);
   return result.success ? (result.data as HostBridgeEmitMessage) : null;
+};
+
+export const parseHostBridgeResponseMessage = (
+  value: unknown,
+): HostBridgeResponseMessage | null => {
+  const result = hostBridgeResponseSchema.safeParse(value);
+  return result.success ? (result.data as HostBridgeResponseMessage) : null;
 };
 
 export const parseHostBridgeCloseMessage = (

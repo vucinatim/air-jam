@@ -5,7 +5,9 @@ import {
   hostBootstrapSchema,
   hostCreateRoomSchema,
   hostJoinAsChildSchema,
+  hostRemoveControllerSchema,
   hostReconnectSchema,
+  hostResetRoomSchema,
   hostRegisterSystemSchema,
   systemLaunchGameSchema,
   type AirJamDevLogEventName,
@@ -14,12 +16,14 @@ import {
   type HostBootstrapPayload,
   type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
+  type HostRemoveControllerPayload,
   type HostReconnectPayload,
   type HostRegisterSystemPayload,
   type HostRegistrationAck,
   type HostSessionKind,
   type PlayerProfile,
   type SystemLaunchGamePayload,
+  type HostResetRoomPayload,
 } from "@air-jam/sdk/protocol";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -39,11 +43,14 @@ import {
   buildRoomStateMessage,
   canBeginGameLaunch,
   disconnectChildHostIfPresent,
+  emitControllerLeftNotice,
   emitRoomState,
+  getActiveHostSocketId,
   getRoomLifecyclePhase,
   isChildHostCapabilityExpired,
   issueChildHostCapability,
   issueControllerPrivilegedCapability,
+  listRoomControllerPresences,
   toControllerJoinedNotice,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
@@ -115,6 +122,9 @@ export const registerHostLifecycleHandlers = (
       (controller) => controller.playerProfile,
     );
 
+  const buildHostControllerSnapshot = (session: RoomSession) =>
+    listRoomControllerPresences(session);
+
   const getControllerCapabilityForAck = (session: RoomSession) =>
     buildControllerCapabilityForHostAck(session, uuidv4);
 
@@ -126,6 +136,55 @@ export const registerHostLifecycleHandlers = (
     clearTimeout(session.pendingRoomCloseTimer);
     session.pendingRoomCloseTimer = undefined;
   };
+
+  const generateUniqueRoomId = (): string | null => {
+    let roomId: string;
+    let attempts = 0;
+    do {
+      roomId = generateRoomCode();
+      attempts += 1;
+      if (attempts > 10) {
+        return null;
+      }
+    } while (roomManager.getRoom(roomId));
+
+    return roomId;
+  };
+
+  const createAndBindRoomForHost = ({
+    roomId,
+    maxPlayers,
+    hostSessionKind,
+  }: {
+    roomId?: string;
+    maxPlayers: number;
+    hostSessionKind: HostSessionKind;
+  }): RoomSession | null => {
+    const nextRoomId = roomId ?? generateUniqueRoomId();
+    if (!nextRoomId) {
+      return null;
+    }
+
+    const session = createInitialRoomSession(
+      nextRoomId,
+      maxPlayers,
+      hostSessionKind,
+    );
+    roomManager.setRoom(nextRoomId, session);
+    roomManager.setHostRoom(socket.id, nextRoomId);
+    socket.join(nextRoomId);
+    return session;
+  };
+
+  const buildHostRegistrationAck = (
+    session: RoomSession,
+  ): HostRegistrationAck => ({
+    ok: true,
+    roomId: session.roomId,
+    players: buildHostRosterSnapshot(session),
+    controllers: buildHostControllerSnapshot(session),
+    controllerCapability: getControllerCapabilityForAck(session),
+  });
 
   const getHostLogger = (bindings: Record<string, unknown> = {}) => {
     const traceId = socket.data.hostAuthority?.traceId;
@@ -526,54 +585,36 @@ export const registerHostLifecycleHandlers = (
             "Host createRoom reused existing room",
             { roomId: existingRoomId, reused: true },
           );
-          callback({
-            ok: true,
-            roomId: existingRoomId,
-            players: buildHostRosterSnapshot(existingSession),
-            controllerCapability:
-              getControllerCapabilityForAck(existingSession),
-          });
+          callback(buildHostRegistrationAck(existingSession));
           return;
         }
       }
 
-      let roomId: string;
-      let attempts = 0;
-      do {
-        roomId = generateRoomCode();
-        attempts += 1;
-        if (attempts > 10) {
-          logHostEvent(
-            "warn",
-            AIRJAM_DEV_LOG_EVENTS.host.createRoomRejected,
-            "Rejected host createRoom because a unique room ID could not be generated",
-            { reason: "room_id_generation_failed" },
-          );
-          callback({
-            ok: false,
-            message: "Failed to generate unique room ID",
-            code: ErrorCode.CONNECTION_FAILED,
-          });
-          return;
-        }
-      } while (roomManager.getRoom(roomId));
-
-      const session = createInitialRoomSession(
-        roomId,
-        maxPlayers ?? 8,
-        socket.data.hostAuthority?.hostSessionKind ?? "game",
-      );
-
-      roomManager.setRoom(roomId, session);
-      roomManager.setHostRoom(socket.id, roomId);
-      socket.join(roomId);
+      const session = createAndBindRoomForHost({
+        maxPlayers: maxPlayers ?? 8,
+        hostSessionKind: socket.data.hostAuthority?.hostSessionKind ?? "game",
+      });
+      if (!session) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.createRoomRejected,
+          "Rejected host createRoom because a unique room ID could not be generated",
+          { reason: "room_id_generation_failed" },
+        );
+        callback({
+          ok: false,
+          message: "Failed to generate unique room ID",
+          code: ErrorCode.CONNECTION_FAILED,
+        });
+        return;
+      }
 
       logHostEvent(
         "info",
         AIRJAM_DEV_LOG_EVENTS.host.createRoomAccepted,
         "Host created room",
         {
-          roomId,
+          roomId: session.roomId,
           maxPlayers,
           reused: false,
         },
@@ -597,14 +638,9 @@ export const registerHostLifecycleHandlers = (
           }),
         );
       }
-      callback({
-        ok: true,
-        roomId,
-        players: buildHostRosterSnapshot(session),
-        controllerCapability: getControllerCapabilityForAck(session),
-      });
-      socket.emit("server:state", buildRoomStateMessage(roomId, session));
-      io.to(roomId).emit("server:roomReady", { roomId });
+      callback(buildHostRegistrationAck(session));
+      socket.emit("server:state", buildRoomStateMessage(session.roomId, session));
+      io.to(session.roomId).emit("server:roomReady", { roomId: session.roomId });
     },
   );
 
@@ -741,6 +777,7 @@ export const registerHostLifecycleHandlers = (
           roomId,
           arcadeSession: buildArcadeSessionForHostAck(session, uuidv4),
           players: buildHostRosterSnapshot(session),
+          controllers: buildHostControllerSnapshot(session),
           controllerCapability: getControllerCapabilityForAck(session),
         });
         socket.emit("server:state", buildRoomStateMessage(roomId, session));
@@ -761,6 +798,254 @@ export const registerHostLifecycleHandlers = (
           code: ErrorCode.ALREADY_CONNECTED,
         });
       }
+    },
+  );
+
+  socket.on(
+    "host:resetRoom",
+    async (
+      payload: HostResetRoomPayload,
+      callback: (ack: HostRegistrationAck) => void,
+    ) => {
+      if (
+        context.isRateLimited(
+          "host-registration",
+          context.hostRegistrationRateLimitMax,
+        )
+      ) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.resetRoomRejected,
+          "Rejected host resetRoom due to socket rate limit",
+          { reason: "rate_limited" },
+        );
+        callback({
+          ok: false,
+          message: "Too many host lifecycle attempts. Please try again.",
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        return;
+      }
+
+      if (!ensureHostAuthority("host:resetRoom", callback)) {
+        return;
+      }
+
+      const parsed = hostResetRoomSchema.safeParse(payload);
+      if (!parsed.success) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.resetRoomRejected,
+          "Rejected host resetRoom with invalid payload",
+          {
+            reason: "invalid_payload",
+            issues: parsed.error.issues,
+          },
+        );
+        callback({
+          ok: false,
+          message: parsed.error.message,
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      const { roomId } = parsed.data;
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.resetRoomRejected,
+          "Rejected host resetRoom because room was not found",
+          {
+            roomId,
+            reason: "room_not_found",
+          },
+        );
+        callback({
+          ok: false,
+          message: "Room not found",
+          code: ErrorCode.ROOM_NOT_FOUND,
+        });
+        return;
+      }
+
+      if (session.masterHostSocketId !== socket.id) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.resetRoomRejected,
+          "Rejected host resetRoom from non-master host",
+          {
+            roomId,
+            reason: "unauthorized",
+          },
+        );
+        callback({
+          ok: false,
+          message: "Only the master host may reset the room",
+          code: ErrorCode.UNAUTHORIZED,
+        });
+        return;
+      }
+
+      const nextRoomId = generateUniqueRoomId();
+      if (!nextRoomId) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.resetRoomRejected,
+          "Rejected host resetRoom because a fresh room ID could not be generated",
+          {
+            roomId,
+            reason: "room_id_generation_failed",
+          },
+        );
+        callback({
+          ok: false,
+          message: "Failed to generate a fresh room ID",
+          code: ErrorCode.CONNECTION_FAILED,
+        });
+        return;
+      }
+
+      roomManager.removeRoom(roomId, io, "room_reset");
+      const nextSession = createAndBindRoomForHost({
+        roomId: nextRoomId,
+        maxPlayers: session.maxPlayers,
+        hostSessionKind: session.analytics.hostSessionKind,
+      });
+      if (!nextSession) {
+        callback({
+          ok: false,
+          message: "Failed to create a fresh room after reset",
+          code: ErrorCode.CONNECTION_FAILED,
+        });
+        return;
+      }
+
+      logHostEvent(
+        "info",
+        AIRJAM_DEV_LOG_EVENTS.host.resetRoomAccepted,
+        "Host reset room and created a fresh room",
+        {
+          previousRoomId: roomId,
+          nextRoomId: nextSession.roomId,
+          maxPlayers: nextSession.maxPlayers,
+        },
+      );
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(nextSession, {
+          kind: "room_created",
+          payload: {
+            maxPlayers: nextSession.maxPlayers,
+            hostSessionKind: nextSession.analytics.hostSessionKind,
+            resetSource: "host_reset_room",
+          } as Record<string, unknown>,
+        }),
+      );
+      if (nextSession.lifecycleState === "GAME_ACTIVE") {
+        runtimeUsagePublisher.publish(
+          createRoomRuntimeUsageEvent(nextSession, {
+            kind: "game_became_active",
+            payload: {
+              activation: "host_reset_room",
+            },
+          }),
+        );
+      }
+
+      callback(buildHostRegistrationAck(nextSession));
+      socket.emit(
+        "server:state",
+        buildRoomStateMessage(nextSession.roomId, nextSession),
+      );
+      io.to(nextSession.roomId).emit("server:roomReady", {
+        roomId: nextSession.roomId,
+      });
+    },
+  );
+
+  socket.on(
+    "host:removeController",
+    async (
+      payload: HostRemoveControllerPayload,
+      callback: (ack: { ok: boolean; message?: string; code?: string }) => void,
+    ) => {
+      if (!ensureHostAuthority("host:removeController", callback)) {
+        return;
+      }
+
+      const parsed = hostRemoveControllerSchema.safeParse(payload);
+      if (!parsed.success) {
+        callback({
+          ok: false,
+          message: parsed.error.message,
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      const { roomId, controllerId } = parsed.data;
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        callback({
+          ok: false,
+          message: "Room not found",
+          code: ErrorCode.ROOM_NOT_FOUND,
+        });
+        return;
+      }
+
+      if (getActiveHostSocketId(session) !== socket.id) {
+        callback({
+          ok: false,
+          message: "Only the active host may remove controllers",
+          code: ErrorCode.INVALID_PAYLOAD,
+        });
+        return;
+      }
+
+      const controllerSession = session.controllers.get(controllerId);
+      if (!controllerSession) {
+        callback({
+          ok: false,
+          message: "Controller not found",
+          code: ErrorCode.ROOM_NOT_FOUND,
+        });
+        return;
+      }
+
+      if (controllerSession.pendingDisconnectTimer) {
+        clearTimeout(controllerSession.pendingDisconnectTimer);
+        controllerSession.pendingDisconnectTimer = undefined;
+      }
+
+      session.controllers.delete(controllerId);
+      emitControllerLeftNotice(io, session, controllerId);
+      runtimeUsagePublisher.publish(
+        createRoomRuntimeUsageEvent(session, {
+          kind: "controller_left",
+          payload: {
+            controllerId,
+            reason: "host_removed",
+          },
+        }),
+      );
+
+      if (controllerSession.socketId) {
+        roomManager.deleteController(controllerSession.socketId);
+        const controllerSocket = io.sockets.sockets.get(controllerSession.socketId);
+        if (controllerSocket) {
+          delete controllerSocket.data.controllerAuthority;
+          controllerSocket.leave(roomId);
+          controllerSocket.emit("server:error", {
+            code: ErrorCode.ROOM_NOT_FOUND,
+            message: "Controller was removed by the host.",
+          });
+          controllerSocket.disconnect(true);
+        }
+      }
+
+      callback({ ok: true });
     },
   );
 

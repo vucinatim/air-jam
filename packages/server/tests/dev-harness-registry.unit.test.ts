@@ -59,6 +59,7 @@ describe("DevHarnessRegistry", () => {
           runtimeState: "playing",
           updatedAt: new Date().toISOString(),
         },
+        snapshotAfterStatus: "committed-update-observed",
         snapshotAfter: {
           roomId: "ROOM1",
           controllerJoinUrl: "http://127.0.0.1:5173/controller?room=ROOM1",

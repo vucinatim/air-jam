@@ -10,7 +10,9 @@ import {
 import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import { emitAirJamDiagnostic } from "../../diagnostics";
 import type {
+  ControllerPresenceNotice,
   ControllerInputEvent,
+  ControllerJoinedNotice,
   ControllerPrivilegedCapability,
   ControllerStateMessage,
   ControllerStatePayload,
@@ -31,7 +33,9 @@ import {
   ErrorCode,
   hostBootstrapSchema,
   hostCreateRoomSchema,
+  hostRemoveControllerSchema,
   hostReconnectSchema,
+  hostResetRoomSchema,
   roomCodeSchema,
 } from "../../protocol";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
@@ -126,13 +130,21 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       shouldConnect ? getHostRealtimeClient((role) => getSocket(role)) : null,
     [shouldConnect, getSocket],
   );
+  const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
 
-  const hydrateHostPlayers = useCallback(
-    (players?: PlayerProfile[]) => {
+  const hydrateHostRoster = useCallback(
+    (
+      players?: PlayerProfile[],
+      controllers?: ControllerPresenceNotice[],
+    ) => {
       const latestState = store.getState();
       latestState.resetPlayers();
       players?.forEach((player) => {
         latestState.upsertPlayer(player);
+      });
+      latestState.resetControllerSessions();
+      controllers?.forEach((controller) => {
+        latestState.upsertControllerSession(controller);
       });
     },
     [store],
@@ -281,6 +293,81 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     }
   }, [socket, embeddedHost, disconnectSocket]);
 
+  const removeController = useCallback(
+    async (controllerId: string) => {
+      const activeRoomId = parsedRoomIdRef.current;
+      if (!socket || !activeRoomId) {
+        return {
+          ok: false,
+          message: "Host is not connected to a room.",
+        };
+      }
+
+      const payload = hostRemoveControllerSchema.parse({
+        roomId: activeRoomId,
+        controllerId,
+      });
+
+      return socket.emitWithAck<{
+        ok: boolean;
+        message?: string;
+        code?: string;
+      }>("host:removeController", payload);
+    },
+    [socket],
+  );
+
+  const resetRoom = useCallback(async (): Promise<HostRegistrationAck> => {
+    const activeRoomId = parsedRoomIdRef.current;
+    if (!socket || !activeRoomId) {
+      return {
+        ok: false,
+        message: "Host is not connected to a room.",
+      };
+    }
+
+    const payload = hostResetRoomSchema.parse({
+      roomId: activeRoomId,
+    });
+
+    emitHostRuntimeEvent({
+      event: AIRJAM_DEV_LOG_EVENTS.runtime.hostResetRoomRequested,
+      message: "Host requested local room reset",
+      roomId: activeRoomId,
+    });
+
+    const ack = await socket.emitWithAck<HostRegistrationAck>(
+      "host:resetRoom",
+      payload,
+    );
+
+    if (!ack.ok || !ack.roomId) {
+      return ack;
+    }
+
+    const latestState = store.getState();
+    latestState.setStatus("connected");
+    latestState.setRoomId(ack.roomId);
+    latestState.setError(undefined);
+    latestState.clearHostArcadeRestore();
+    latestState.resetRuntimeState();
+    hydrateHostRoster(ack.players, ack.controllers);
+    setRegisteredRoomId(ack.roomId);
+    setControllerCapability(ack.controllerCapability ?? null);
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("airjam_room_id", ack.roomId);
+    }
+
+    return ack;
+  }, [
+    emitHostRuntimeEvent,
+    hydrateHostRoster,
+    setRegisteredRoomId,
+    socket,
+    store,
+  ]);
+
   useEffect(() => {
     if (embeddedHost?.joinUrl) {
       return;
@@ -344,7 +431,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             ? "ready"
             : "loading";
 
-  const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
   const reconnectRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -402,7 +488,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         const latestState = store.getState();
         latestState.setStatus("connected");
         latestState.setRoomId(childRoomId);
-        hydrateHostPlayers();
+        hydrateHostRoster();
         setRegisteredRoomId(childRoomId);
         setControllerCapability(null);
         return;
@@ -537,7 +623,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             latestState.setStatus("connected");
             latestState.setRoomId(ack.roomId);
             latestState.clearHostArcadeRestore();
-            hydrateHostPlayers(ack.players);
+            hydrateHostRoster(ack.players, ack.controllers);
             setRegisteredRoomId(ack.roomId);
             setControllerCapability(ack.controllerCapability ?? null);
 
@@ -586,7 +672,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                 if (ack.ok && ack.roomId) {
                   latestState.setStatus("connected");
                   latestState.setRoomId(ack.roomId);
-                  hydrateHostPlayers(ack.players);
+            hydrateHostRoster(ack.players, ack.controllers);
                   setControllerCapability(ack.controllerCapability ?? null);
                   latestState.setHostArcadeRestore(
                     ack.arcadeSession
@@ -694,11 +780,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       });
     };
 
-    const handleJoin = (payload: {
-      controllerId: string;
-      nickname?: string;
-      player?: PlayerProfile;
-    }): void => {
+    const handleJoin = (payload: ControllerJoinedNotice): void => {
+      store.getState().upsertControllerSession(payload);
       if (!payload.player) {
         return;
       }
@@ -709,12 +792,24 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     };
 
     const handleLeave = (payload: { controllerId: string }): void => {
-      store.getState().removePlayer(payload.controllerId);
+      const latestState = store.getState();
+      latestState.removePlayer(payload.controllerId);
+      latestState.removeControllerSession(payload.controllerId);
       onPlayerLeaveRef.current?.(payload.controllerId);
     };
 
     const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
-      store.getState().upsertPlayer(payload.player);
+      const latestState = store.getState();
+      latestState.upsertPlayer(payload.player);
+      const existingSession = latestState.controllerSessions.find(
+        (controller) => controller.controllerId === payload.player.id,
+      );
+      if (existingSession) {
+        latestState.upsertControllerSession({
+          ...existingSession,
+          player: payload.player,
+        });
+      }
     };
 
     const handleInput = (payload: ControllerInputEvent): void => {
@@ -873,7 +968,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     hostGrantResponseSchema,
     emitHostRuntimeEvent,
     emitInvariantOnce,
-    hydrateHostPlayers,
+    hydrateHostRoster,
   ]);
 
   const getInput = useCallback(
@@ -899,6 +994,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       sendState,
       sendSignal,
       reconnect,
+      removeController,
+      resetRoom,
       socket: socket ?? getHostRealtimeClient((role) => getSocket(role)),
       getInput,
     }),
@@ -910,6 +1007,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       parsedRoomId,
       pauseRuntime,
       reconnect,
+      removeController,
+      resetRoom,
       resumeRuntime,
       sendSignal,
       sendState,

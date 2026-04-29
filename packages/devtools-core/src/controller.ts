@@ -12,6 +12,7 @@ import type {
   ServerToClientEvents,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
+import type { HostRuntimeInspectionContract } from "@air-jam/sdk";
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -238,6 +239,28 @@ const emitLeaveWithAck = async ({
     });
   });
 
+const emitControllerActionWithAck = async ({
+  socket,
+  payload,
+  timeoutMs,
+}: {
+  socket: ControllerSocket;
+  payload: Parameters<ClientToServerEvents["controller:action_rpc"]>[0];
+  timeoutMs: number;
+}): Promise<Parameters<NonNullable<Parameters<ClientToServerEvents["controller:action_rpc"]>[1]>>[0]> =>
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(
+        new Error("Timed out waiting for controller action acknowledgement."),
+      );
+    }, timeoutMs);
+
+    socket.emit("controller:action_rpc", payload, (ack) => {
+      clearTimeout(timeout);
+      resolve(ack);
+    });
+  });
+
 const parseJoinRoomId = (joinUrl: URL): string | null => {
   const roomId =
     joinUrl.searchParams.get("room") ?? joinUrl.searchParams.get("aj_room");
@@ -270,6 +293,17 @@ const isRoomNotFoundJoinError = (error: unknown): boolean => {
   }
 
   return /room not found/i.test(error.message);
+};
+
+const isMissingVisualHarnessError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    /no visual harness published/i.test(error.message) ||
+    /does not publish game\.visualScenariosModule/i.test(error.message)
+  );
 };
 
 const terminateIsolatedHarnessOwner = async (
@@ -327,6 +361,44 @@ const resolveSocketOriginFromTopology = async (
   }
 
   return null;
+};
+
+const resolveControllerJoinUrlFromTopology = async ({
+  cwd,
+  gameId,
+  mode,
+  secure,
+  roomId,
+  capabilityToken,
+}: {
+  cwd: string;
+  gameId?: string;
+  mode: NonNullable<ConnectControllerOptions["mode"]>;
+  secure: boolean;
+  roomId?: string;
+  capabilityToken?: string;
+}): Promise<string | null> => {
+  if (!roomId) {
+    return null;
+  }
+
+  const topology = await getTopology({
+    cwd,
+    gameId,
+    mode,
+    secure,
+  });
+  if (!topology.urls.controllerBaseUrl) {
+    return null;
+  }
+
+  const joinUrl = new URL(topology.urls.controllerBaseUrl);
+  joinUrl.searchParams.set("room", roomId);
+  if (capabilityToken?.trim()) {
+    joinUrl.searchParams.set("aj_controller_cap", capabilityToken.trim());
+  }
+
+  return joinUrl.toString();
 };
 
 const startIsolatedHarnessOwner = async ({
@@ -405,7 +477,16 @@ const startIsolatedHarnessOwner = async ({
     const timeout = setTimeout(() => {
       cleanup();
       void terminateIsolatedHarnessOwner(helperProcess).finally(() => {
-        reject(new Error("Timed out waiting for isolated harness ownership."));
+        const stderrSummary = stderrBuffer.trim();
+        const stderrSuffix = stderrSummary
+          ? ` Helper stderr: ${stderrSummary}`
+          : "";
+        reject(
+          new Error(
+            "Timed out waiting for isolated harness ownership. Another local game session may still own the isolated harness lease. Close the previous game session and try again." +
+              stderrSuffix,
+          ),
+        );
       });
     }, timeoutMs);
 
@@ -463,6 +544,165 @@ const startIsolatedHarnessOwner = async ({
         new Error(
           [
             "Isolated harness owner exited before producing a join URL.",
+            stderrBuffer.trim(),
+            `exit=${code ?? "null"} signal=${signal ?? "null"}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        ),
+      );
+    };
+
+    helperProcess.stdout?.on("data", onStdout);
+    helperProcess.stderr?.on("data", onStderr);
+    helperProcess.once("error", onError);
+    helperProcess.once("exit", onExit);
+  });
+};
+
+const startIsolatedRuntimeOwner = async ({
+  cwd,
+  gameId,
+  mode,
+  secure,
+  roomId,
+  timeoutMs,
+}: {
+  cwd: string;
+  gameId?: string;
+  mode: NonNullable<ConnectControllerOptions["mode"]>;
+  secure: boolean;
+  roomId?: string;
+  timeoutMs: number;
+}): Promise<{
+  process: ChildProcess;
+  roomId: string | null;
+  controllerJoinUrl: string | null;
+  inspection: HostRuntimeInspectionContract | null;
+}> => {
+  const topology = await getTopology({
+    cwd,
+    gameId,
+    mode,
+    secure,
+  });
+
+  const appOrigin = topology.urls.appOrigin;
+  const hostUrl = topology.urls.hostUrl;
+  const controllerBaseUrl = topology.urls.controllerBaseUrl;
+  const publicHost = topology.urls.publicHost;
+  if (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost) {
+    throw new Error(
+      "Unable to start an isolated runtime owner because the resolved topology is incomplete.",
+    );
+  }
+
+  const helperFile = resolveHelperScriptPath("hold-runtime-host.ts");
+  const args = [
+    resolveTsxCliPath(),
+    helperFile,
+    "--app-origin",
+    appOrigin,
+    "--host-url",
+    hostUrl,
+    "--controller-base-url",
+    controllerBaseUrl,
+    "--public-host",
+    publicHost,
+    "--mode",
+    mode,
+    "--timeout-ms",
+    String(timeoutMs),
+  ];
+  if (topology.urls.localBuildUrl) {
+    args.push("--local-build-url", topology.urls.localBuildUrl);
+  }
+  if (topology.urls.browserBuildUrl) {
+    args.push("--browser-build-url", topology.urls.browserBuildUrl);
+  }
+  if (roomId) {
+    args.push("--room-id", roomId);
+  }
+
+  const helperProcess = spawn(process.execPath, args, {
+    cwd,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  return await new Promise((resolve, reject) => {
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
+    let settled = false;
+    const timeout = setTimeout(() => {
+      cleanup();
+      void terminateIsolatedHarnessOwner(helperProcess).finally(() => {
+        const stderrSummary = stderrBuffer.trim();
+        const stderrSuffix = stderrSummary
+          ? ` Helper stderr: ${stderrSummary}`
+          : "";
+        reject(
+          new Error(
+            "Timed out waiting for isolated runtime ownership. Another local game session may still own the isolated runtime lease. Close the previous game session and try again." +
+              stderrSuffix,
+          ),
+        );
+      });
+    }, timeoutMs);
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      helperProcess.stdout?.off("data", onStdout);
+      helperProcess.stderr?.off("data", onStderr);
+      helperProcess.off("exit", onExit);
+      helperProcess.off("error", onError);
+    };
+
+    const maybeResolve = () => {
+      try {
+        const payload = parseHelperJson<{
+          roomId: string | null;
+          controllerJoinUrl: string | null;
+          inspection: HostRuntimeInspectionContract | null;
+        }>(stdoutBuffer);
+        settled = true;
+        cleanup();
+        resolve({
+          process: helperProcess,
+          roomId: payload.roomId,
+          controllerJoinUrl: payload.controllerJoinUrl,
+          inspection: payload.inspection,
+        });
+      } catch {
+        // Wait for the full JSON payload.
+      }
+    };
+
+    const onStdout = (chunk: Buffer | string) => {
+      stdoutBuffer += chunk.toString();
+      maybeResolve();
+    };
+
+    const onStderr = (chunk: Buffer | string) => {
+      stderrBuffer += chunk.toString();
+    };
+
+    const onError = (error: Error) => {
+      if (settled) {
+        return;
+      }
+      cleanup();
+      reject(error);
+    };
+
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+      if (settled) {
+        return;
+      }
+      cleanup();
+      reject(
+        new Error(
+          [
+            "Isolated runtime owner exited before producing a join URL.",
             stderrBuffer.trim(),
             `exit=${code ?? "null"} signal=${signal ?? "null"}`,
           ]
@@ -668,6 +908,7 @@ export const connectController = async ({
 }: ConnectControllerOptions = {}): Promise<AirJamVirtualControllerSession> => {
   const context = await detectProjectContext({ cwd });
   const normalizedRequestedRoomId = roomId?.trim().toUpperCase() || undefined;
+  const normalizedCapabilityToken = capabilityToken?.trim() || undefined;
   const harnessSession =
     controllerJoinUrl === undefined
       ? await readHarnessSnapshot({
@@ -678,6 +919,11 @@ export const connectController = async ({
           roomId: normalizedRequestedRoomId,
           sessionId: harnessSessionId,
           timeoutMs,
+        }).catch((error) => {
+          if (isMissingVisualHarnessError(error)) {
+            return null;
+          }
+          throw error;
         })
       : null;
   const canUseIsolatedOwner =
@@ -708,15 +954,28 @@ export const connectController = async ({
       `ctrl_mcp_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const resolvedDeviceId =
       deviceId?.trim() || `aj-mcp-device-${randomUUID()}`;
+    const resolvedGameId =
+      harnessSession?.gameId ??
+      gameId ??
+      (await getTopology({
+        cwd,
+        gameId,
+        mode,
+        secure,
+      })
+        .then((topology) => topology.gameId)
+        .catch(() => null));
     const resolvedSocketOrigin =
       (await resolveSocketOriginFromTopology({
         cwd,
-        gameId: harnessSession?.gameId ?? gameId,
+        gameId: resolvedGameId ?? undefined,
         mode,
         secure,
       })) ?? joinUrl.origin;
     const resolvedCapabilityToken =
-      capabilityToken?.trim() || parseJoinCapabilityToken(joinUrl) || undefined;
+      normalizedCapabilityToken ||
+      parseJoinCapabilityToken(joinUrl) ||
+      undefined;
     const controllerSessionId = randomUUID();
 
     const socket = io(resolvedSocketOrigin, {
@@ -729,7 +988,7 @@ export const connectController = async ({
       cwd,
       summary: {
         controllerSessionId,
-        gameId: harnessSession?.gameId ?? gameId ?? null,
+        gameId: resolvedGameId,
         projectMode: context.mode,
         mode: harnessSession?.mode ?? mode,
         topologyMode: harnessSession?.topologyMode ?? null,
@@ -828,11 +1087,43 @@ export const connectController = async ({
   }
 
   const resolvedJoinUrl =
-    controllerJoinUrl ?? harnessSession?.urls.controllerJoinUrl ?? null;
+    controllerJoinUrl ??
+    harnessSession?.urls.controllerJoinUrl ??
+    (await resolveControllerJoinUrlFromTopology({
+      cwd,
+      gameId: harnessSession?.gameId ?? gameId,
+      mode,
+      secure,
+      roomId: normalizedRequestedRoomId,
+      capabilityToken: normalizedCapabilityToken,
+    }));
   if (!resolvedJoinUrl) {
-    throw new Error(
-      "Unable to resolve a controller join URL. Start from a harness session or provide controllerJoinUrl explicitly.",
-    );
+    if (!canUseIsolatedOwner) {
+      throw new Error(
+        "Unable to resolve a controller join URL. Provide roomId or controllerJoinUrl, or open a visual host staging surface first.",
+      );
+    }
+
+    const owner = await startIsolatedRuntimeOwner({
+      cwd,
+      gameId: harnessSession?.gameId ?? gameId,
+      mode,
+      secure,
+      roomId: normalizedRequestedRoomId,
+      timeoutMs,
+    });
+    if (!owner.controllerJoinUrl) {
+      await terminateIsolatedHarnessOwner(owner.process);
+      throw new Error(
+        "Isolated runtime owner did not produce a controller join URL.",
+      );
+    }
+
+    return connectWithJoinUrl({
+      joinUrlString: owner.controllerJoinUrl,
+      ownedHarnessProcess: owner.process,
+      snapshot: null,
+    });
   }
 
   try {
@@ -906,11 +1197,15 @@ export const invokeControllerAction = async ({
   }
 
   const normalizedPayload = payload ? { ...payload } : undefined;
-  session.socket.emit("controller:action_rpc", {
-    roomId: session.summary.roomId,
-    actionName,
-    payload: normalizedPayload,
-    storeDomain,
+  const acknowledgement = await emitControllerActionWithAck({
+    socket: session.socket,
+    payload: {
+      roomId: session.summary.roomId,
+      actionName,
+      payload: normalizedPayload,
+      storeDomain,
+    },
+    timeoutMs: DEFAULT_TIMEOUT_MS,
   });
 
   return {
@@ -919,6 +1214,7 @@ export const invokeControllerAction = async ({
     storeDomain,
     ...(normalizedPayload ? { payload: normalizedPayload } : {}),
     sentAt: nowIso(),
+    acknowledgement,
   };
 };
 

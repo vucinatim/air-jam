@@ -748,6 +748,11 @@ const runScaffoldCommand = async (
   );
   console.log(
     kleur.cyan(
+      "  pnpm run dev:preview # Optional: preview-managed browser/agent dev",
+    ),
+  );
+  console.log(
+    kleur.cyan(
       "  pnpm run dev -- --web-only  # Optional: official backend only",
     ),
   );
@@ -1136,6 +1141,11 @@ const buildProgram = () => {
     .option(
       "--secure-mode <mode>",
       "Secure mode to use when --secure is enabled (local or tunnel)",
+    )
+    .option(
+      "--preview-managed",
+      "Start preview-friendly dev with a background server and foreground Vite",
+      false,
     )
     .option("--web-only", "Start only the game app", false)
     .option("--server-only", "Start only the local Air Jam server", false)

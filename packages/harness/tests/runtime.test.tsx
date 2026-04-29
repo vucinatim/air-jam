@@ -13,6 +13,7 @@ import {
   VISUAL_HARNESS_ENABLE_VALUE,
   readVisualHarnessBridgeSnapshot,
 } from "../src/core/runtime-bridge";
+import { VisualHarnessDevControlClient } from "../src/visual/dev-control-client";
 import { VisualHarnessRuntime } from "../src/runtime";
 
 Object.assign(globalThis, {
@@ -20,7 +21,6 @@ Object.assign(globalThis, {
 });
 
 const bridge = defineVisualHarnessBridge({
-  gameId: "pong",
   selectSnapshot: (context: {
     roomId: string;
     joinUrl: string | null;
@@ -63,6 +63,7 @@ const HarnessHost = (props: {
 }) => {
   return (
     <VisualHarnessRuntime
+      gameId="pong"
       bridge={bridge}
       context={{
         roomId: props.roomId,
@@ -346,6 +347,96 @@ describe("VisualHarnessRuntime", () => {
           },
         },
       ],
+    });
+  });
+
+  it("reports when no new committed snapshot is observed before timeout", async () => {
+    let commandServed = false;
+    let completedPayload: Record<string, unknown> | null = null;
+    let resolveCompleted: (() => void) | null = null;
+    const completed = new Promise<void>((resolve) => {
+      resolveCompleted = resolve;
+    });
+    const snapshot = {
+      roomId: "ROOM1",
+      controllerJoinUrl: "https://join",
+      matchPhase: "lobby",
+      runtimeState: "playing",
+      updatedAt: "2026-04-27T10:00:00.000Z",
+    };
+
+    globalThis.fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = String(input);
+        if (href.endsWith("/__airjam/dev/harness/register")) {
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        if (
+          href.includes("/__airjam/dev/harness/commands?") &&
+          !commandServed
+        ) {
+          commandServed = true;
+          return new Response(
+            JSON.stringify({
+              commandId: "command-1",
+              actionName: "setPointsToWin",
+              payload: 7,
+              issuedAt: "2026-04-27T10:00:01.000Z",
+            }),
+            {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            },
+          );
+        }
+
+        if (href.endsWith("/__airjam/dev/harness/commands/complete")) {
+          completedPayload = JSON.parse(String(init?.body ?? "{}")) as Record<
+            string,
+            unknown
+          >;
+          resolveCompleted?.();
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        return new Response(null, { status: 204 });
+      },
+    ) as typeof fetch;
+
+    const client = new VisualHarnessDevControlClient({
+      gameId: "pong",
+      readSnapshot: () => snapshot,
+      waitForCommittedSnapshot: async () => ({
+        snapshot,
+        status: "no-new-commit-before-timeout",
+      }),
+      listActions: () => [],
+      invokeAction: async () => ({ ok: true }),
+    });
+
+    client.start();
+    await completed;
+    client.stop();
+
+    expect(completedPayload).toMatchObject({
+      commandId: "command-1",
+      result: {
+        actionName: "setPointsToWin",
+        snapshotAfterStatus: "no-new-commit-before-timeout",
+        snapshotBefore: expect.objectContaining({
+          updatedAt: "2026-04-27T10:00:00.000Z",
+        }),
+        snapshotAfter: expect.objectContaining({
+          updatedAt: "2026-04-27T10:00:00.000Z",
+        }),
+      },
     });
   });
 

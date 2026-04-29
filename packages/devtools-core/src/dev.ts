@@ -330,8 +330,12 @@ const resolveTopologyCommand = async ({
     );
   }
 
+  const topologyScript = context.packageJson?.scripts?.topology?.trim();
+  const topologyScriptUsesAirJamCli =
+    typeof topologyScript === "string" &&
+    /\bairjam\s+topology\b/.test(topologyScript);
   const args =
-    context.packageJson?.scripts?.topology !== undefined
+    topologyScript && !topologyScriptUsesAirJamCli
       ? ["run", "topology", "--", "--mode=standalone-dev"]
       : ["exec", "airjam", "topology", "--mode=standalone-dev"];
   appendArg(args, "--secure", secure);
@@ -479,6 +483,32 @@ const waitForTopologyReady = async ({
   throw new Error(
     `Timed out waiting for Air Jam dev endpoints: ${urls.join(", ")}`,
   );
+};
+
+export const tryAttachToRunningDev = async ({
+  cwd = process.cwd(),
+  gameId,
+  mode = "standalone-dev",
+  secure = false,
+  timeoutMs = 2_500,
+}: GetTopologyOptions & {
+  timeoutMs?: number;
+} = {}): Promise<AirJamRuntimeTopology | null> => {
+  try {
+    const topology = await getTopology({
+      cwd,
+      gameId,
+      mode,
+      secure,
+    });
+    await waitForTopologyReady({
+      topology,
+      timeoutMs,
+    });
+    return topology;
+  } catch {
+    return null;
+  }
 };
 
 const readManagedProcessLogTail = async (

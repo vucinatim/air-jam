@@ -1,37 +1,32 @@
 import {
   bundleLocalRelease,
   captureVisuals,
-  connectController,
-  disconnectController,
   getDevStatus,
   getPlatformMachineAuthStatus,
   getTopology,
+  openGameSession,
+  readGameSession,
+  sendGameSessionInput,
   inspectGame,
   inspectGameAgentContract,
   inspectLocalRelease,
   inspectPlatformRelease,
   inspectProject,
-  invokeControllerAction,
-  invokeGameAction,
-  invokeHarnessAction,
+  invokeGameSessionAction,
   listGames,
-  listHarnessSessions,
   listPlatformReleaseTargets,
   listPlatformReleases,
   listVisualCaptureSummaries,
   listVisualScenarios,
   publishPlatformRelease,
   readDevLogs,
-  readGameSnapshot,
-  readHarnessSnapshot,
-  readRuntimeSnapshot,
   readVisualCaptureSummary,
   runQualityGate,
-  sendControllerInput,
   startDev,
   stopDev,
   submitPlatformRelease,
   validateLocalRelease,
+  closeGameSession,
   type AirJamProjectMode,
   type AirJamQualityGate,
 } from "@air-jam/devtools-core";
@@ -191,23 +186,6 @@ export const STOP_DEV_INPUT_SCHEMA = z.object({
   mode: z.enum(["standalone-dev", "arcade-dev", "arcade-test"]).optional(),
 });
 
-const buildReadHarnessSnapshotSchema = (projectMode: AirJamProjectMode) =>
-  z.object({
-    cwd: z.string().optional(),
-    gameId: z.string().optional(),
-    mode: buildHarnessModeSchema(projectMode),
-    secure: z.boolean().optional(),
-    roomId: z.string().min(1).optional(),
-    sessionId: z.string().min(1).optional(),
-    timeoutMs: z.number().int().positive().optional(),
-  });
-
-const buildInvokeHarnessActionSchema = (projectMode: AirJamProjectMode) =>
-  buildReadHarnessSnapshotSchema(projectMode).extend({
-    actionName: z.string().min(1),
-    payload: z.unknown().optional(),
-  });
-
 const buildConnectControllerSchema = (projectMode: AirJamProjectMode) =>
   z.object({
     cwd: z.string().optional(),
@@ -225,10 +203,6 @@ const buildConnectControllerSchema = (projectMode: AirJamProjectMode) =>
     timeoutMs: z.number().int().positive().optional(),
   });
 
-const CONTROLLER_SESSION_INPUT_SCHEMA = z.object({
-  controllerSessionId: z.string().min(1),
-});
-
 export const buildToolDefinitions = ({
   projectMode,
 }: {
@@ -238,46 +212,25 @@ export const buildToolDefinitions = ({
   const startDevInputSchema = buildStartDevSchema(projectMode);
   const topologyInputSchema = buildTopologySchema(projectMode);
   const captureVisualsInputSchema = buildCaptureVisualsSchema(projectMode);
-  const listHarnessSessionsInputSchema = z.object({
-    cwd: z.string().optional(),
-    gameId: z.string().optional(),
-    mode: buildHarnessModeSchema(projectMode),
-    secure: z.boolean().optional(),
-    roomId: z.string().min(1).optional(),
-  });
-  const readHarnessSnapshotInputSchema =
-    buildReadHarnessSnapshotSchema(projectMode);
-  const invokeHarnessActionInputSchema =
-    buildInvokeHarnessActionSchema(projectMode);
-  const connectControllerInputSchema =
-    buildConnectControllerSchema(projectMode);
   const inspectGameAgentContractInputSchema = z.object({
     cwd: z.string().optional(),
     gameId: z.string().optional(),
   });
-  const sendControllerInputSchema = CONTROLLER_SESSION_INPUT_SCHEMA.extend({
+  const openGameSessionInputSchema = buildConnectControllerSchema(projectMode);
+  const gameSessionInputSchema = z.object({
+    gameSessionId: z.string().min(1),
+  });
+  const sendGameSessionInputSchema = gameSessionInputSchema.extend({
     input: z.record(z.string(), z.unknown()),
   });
-  const invokeControllerActionInputSchema =
-    CONTROLLER_SESSION_INPUT_SCHEMA.extend({
-      actionName: z.string().min(1),
-      storeDomain: z.string().min(1),
-      payload: z.record(z.string(), z.unknown()).optional(),
-    });
-  const readRuntimeSnapshotInputSchema = CONTROLLER_SESSION_INPUT_SCHEMA.extend(
-    {
-      storeDomains: z.array(z.string().min(1)).optional(),
-      requestSync: z.boolean().optional(),
-      timeoutMs: z.number().int().positive().optional(),
-    },
-  );
-  const readGameSnapshotInputSchema = CONTROLLER_SESSION_INPUT_SCHEMA.extend({
+  const readGameSessionInputSchema = gameSessionInputSchema.extend({
     requestSync: z.boolean().optional(),
     timeoutMs: z.number().int().positive().optional(),
   });
-  const invokeGameActionInputSchema = CONTROLLER_SESSION_INPUT_SCHEMA.extend({
+  const invokeGameSessionActionInputSchema = gameSessionInputSchema.extend({
     actionId: z.string().min(1),
     payload: z.unknown().optional(),
+    timeoutMs: z.number().int().positive().optional(),
   });
 
   return {
@@ -508,119 +461,40 @@ export const buildToolDefinitions = ({
       run: async (input: z.infer<typeof captureVisualsInputSchema>) =>
         withJsonText(await captureVisuals(input)),
     },
-    "airjam.list_harness_sessions": {
+    "airjam.open_game_session": {
       description:
-        "List live Air Jam harness sessions currently registered by browser runtimes, including room ids, action metadata, and the latest published snapshot.",
-      inputSchema: listHarnessSessionsInputSchema,
-      run: async (input: z.infer<typeof listHarnessSessionsInputSchema>) =>
-        withJsonText(await listHarnessSessions(input)),
+        "Open one high-level Air Jam game session by connecting a virtual controller and discovering any published semantic or harness control surfaces for the same room.",
+      inputSchema: openGameSessionInputSchema,
+      run: async (input: z.infer<typeof openGameSessionInputSchema>) =>
+        withJsonText(await openGameSession(input)),
     },
-    "airjam.read_harness_snapshot": {
+    "airjam.send_game_session_input": {
       description:
-        "Open a live Air Jam harness session, resolve the controller join URL, and read the current published harness bridge snapshot plus action metadata.",
-      inputSchema: readHarnessSnapshotInputSchema,
-      run: async (input: z.infer<typeof readHarnessSnapshotInputSchema>) =>
-        withJsonText(await readHarnessSnapshot(input)),
+        "Send one real player-style input payload through a previously opened Air Jam game session.",
+      inputSchema: sendGameSessionInputSchema,
+      run: async (input: z.infer<typeof sendGameSessionInputSchema>) =>
+        withJsonText(await sendGameSessionInput(input)),
     },
-    "airjam.invoke_harness_action": {
+    "airjam.read_game_session": {
       description:
-        "Invoke one published Air Jam harness bridge action against a live dev session and return the result plus before/after snapshots.",
-      inputSchema: invokeHarnessActionInputSchema,
-      run: async (input: z.infer<typeof invokeHarnessActionInputSchema>) =>
-        withJsonText(await invokeHarnessAction(input)),
+        "Read one high-level Air Jam game session, including runtime controller state plus any available semantic game snapshot and harness snapshot surfaces.",
+      inputSchema: readGameSessionInputSchema,
+      run: async (input: z.infer<typeof readGameSessionInputSchema>) =>
+        withJsonText(await readGameSession(input)),
     },
-    "airjam.connect_controller": {
+    "airjam.invoke_game_session_action": {
       description:
-        "Connect a virtual Air Jam controller to a room using a published controller join URL or a live harness session.",
-      inputSchema: connectControllerInputSchema,
-      run: async (input: z.infer<typeof connectControllerInputSchema>) =>
-        withJsonText(await connectController(input)),
+        "Invoke one discovered game-session action by its unified session action id, without manually choosing between player-semantic and host-staging internals.",
+      inputSchema: invokeGameSessionActionInputSchema,
+      run: async (input: z.infer<typeof invokeGameSessionActionInputSchema>) =>
+        withJsonText(await invokeGameSessionAction(input)),
     },
-    "airjam.send_controller_input": {
+    "airjam.close_game_session": {
       description:
-        "Send one controller input payload through a previously connected virtual controller session.",
-      inputSchema: sendControllerInputSchema,
-      run: async (input: z.infer<typeof sendControllerInputSchema>) =>
-        withJsonText(await sendControllerInput(input)),
-    },
-    "airjam.invoke_controller_action": {
-      description:
-        "Send one controller action RPC through a previously connected virtual controller session.",
-      inputSchema: invokeControllerActionInputSchema,
-      run: async ({
-        controllerSessionId,
-        actionName,
-        storeDomain,
-        payload,
-      }: z.infer<typeof invokeControllerActionInputSchema>) =>
-        withJsonText(
-          await invokeControllerAction({
-            controllerSessionId,
-            actionName,
-            storeDomain,
-            payload,
-          }),
-        ),
-    },
-    "airjam.read_runtime_snapshot": {
-      description:
-        "Read the current runtime snapshot for one connected virtual controller session, optionally requesting authoritative store syncs first.",
-      inputSchema: readRuntimeSnapshotInputSchema,
-      run: async ({
-        controllerSessionId,
-        storeDomains,
-        requestSync,
-        timeoutMs,
-      }: z.infer<typeof readRuntimeSnapshotInputSchema>) =>
-        withJsonText(
-          await readRuntimeSnapshot({
-            controllerSessionId,
-            storeDomains,
-            requestSync,
-            timeoutMs,
-          }),
-        ),
-    },
-    "airjam.read_game_snapshot": {
-      description:
-        "Read one game-owned agent snapshot for a connected controller session. This projects synced store data into a game-specific, machine-usable view.",
-      inputSchema: readGameSnapshotInputSchema,
-      run: async ({
-        controllerSessionId,
-        requestSync,
-        timeoutMs,
-      }: z.infer<typeof readGameSnapshotInputSchema>) =>
-        withJsonText(
-          await readGameSnapshot({
-            controllerSessionId,
-            requestSync,
-            timeoutMs,
-          }),
-        ),
-    },
-    "airjam.invoke_game_action": {
-      description:
-        "Invoke one semantic game-owned controller action through a connected controller session using the current game's agent contract.",
-      inputSchema: invokeGameActionInputSchema,
-      run: async ({
-        controllerSessionId,
-        actionId,
-        payload,
-      }: z.infer<typeof invokeGameActionInputSchema>) =>
-        withJsonText(
-          await invokeGameAction({
-            controllerSessionId,
-            actionId,
-            payload,
-          }),
-        ),
-    },
-    "airjam.disconnect_controller": {
-      description:
-        "Disconnect and forget one virtual controller session managed by Air Jam devtools.",
-      inputSchema: CONTROLLER_SESSION_INPUT_SCHEMA,
-      run: async ({ controllerSessionId }: { controllerSessionId: string }) =>
-        withJsonText(await disconnectController({ controllerSessionId })),
+        "Close one previously opened Air Jam game session and disconnect its virtual controller.",
+      inputSchema: gameSessionInputSchema,
+      run: async ({ gameSessionId }: { gameSessionId: string }) =>
+        withJsonText(await closeGameSession({ gameSessionId })),
     },
     "airjam.list_visual_capture_summaries": {
       description:
@@ -664,16 +538,11 @@ export const getRegisteredToolNamesForProjectMode = (
       "airjam.topology",
       "airjam.list_visual_scenarios",
       "airjam.capture_visuals",
-      "airjam.list_harness_sessions",
-      "airjam.read_harness_snapshot",
-      "airjam.invoke_harness_action",
-      "airjam.connect_controller",
-      "airjam.send_controller_input",
-      "airjam.invoke_controller_action",
-      "airjam.read_runtime_snapshot",
-      "airjam.read_game_snapshot",
-      "airjam.invoke_game_action",
-      "airjam.disconnect_controller",
+      "airjam.open_game_session",
+      "airjam.send_game_session_input",
+      "airjam.read_game_session",
+      "airjam.invoke_game_session_action",
+      "airjam.close_game_session",
       "airjam.list_visual_capture_summaries",
       "airjam.read_visual_capture_summary",
     ] as const;
@@ -701,16 +570,11 @@ export const getRegisteredToolNamesForProjectMode = (
       "airjam.topology",
       "airjam.list_visual_scenarios",
       "airjam.capture_visuals",
-      "airjam.list_harness_sessions",
-      "airjam.read_harness_snapshot",
-      "airjam.invoke_harness_action",
-      "airjam.connect_controller",
-      "airjam.send_controller_input",
-      "airjam.invoke_controller_action",
-      "airjam.read_runtime_snapshot",
-      "airjam.read_game_snapshot",
-      "airjam.invoke_game_action",
-      "airjam.disconnect_controller",
+      "airjam.open_game_session",
+      "airjam.send_game_session_input",
+      "airjam.read_game_session",
+      "airjam.invoke_game_session_action",
+      "airjam.close_game_session",
       "airjam.list_visual_capture_summaries",
       "airjam.read_visual_capture_summary",
     ] as const;

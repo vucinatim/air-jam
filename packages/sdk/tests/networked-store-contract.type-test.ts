@@ -55,3 +55,24 @@ createAirJamStore<InvalidArrayPayloadStore>((set) => ({
     ) => set({ phase: payload[0] ?? "lobby" }),
   },
 }));
+
+interface InvalidOptionalUnionPayloadStore {
+  phase: "lobby" | "playing";
+  actions: {
+    joinTeam: (
+      ctx: AirJamActionContext,
+      payload: { team?: "red" | "blue" } | undefined,
+    ) => void;
+  };
+}
+
+// @ts-expect-error networked actions must use exactly undefined or exactly one plain-object payload root
+createAirJamStore<InvalidOptionalUnionPayloadStore>((set) => ({
+  phase: "lobby",
+  actions: {
+    joinTeam: (
+      _ctx: AirJamActionContext,
+      payload: { team?: "red" | "blue" } | undefined,
+    ) => set({ phase: payload?.team === "blue" ? "playing" : "lobby" }),
+  },
+}));

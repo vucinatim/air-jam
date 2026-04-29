@@ -1,8 +1,14 @@
-import type { AirJamGameAgentContract } from "@air-jam/sdk";
+import {
+  getAirJamGameAgentStoreDomains,
+  getAirJamGameAgentActionMetadata,
+  resolveAirJamGameAgentActionPayload,
+  type AirJamGameAgentContract,
+} from "@air-jam/sdk";
 import { pathToFileURL } from "node:url";
 import {
   loadAirJamAppConfig,
   loadGameAgentContractFromConfig,
+  resolveAirJamConfigGameId,
 } from "./airjam-machine.js";
 
 const getFlagValue = (flag: string): string | null => {
@@ -18,6 +24,7 @@ const getFlagValue = (flag: string): string | null => {
 const operation = getFlagValue("--operation");
 const contractPath = getFlagValue("--contract");
 const configPath = getFlagValue("--config");
+const gameId = getFlagValue("--game-id");
 
 if (!operation || (!contractPath && !configPath)) {
   throw new Error(
@@ -38,12 +45,16 @@ const resolveContractFromModule = async (
   return contractModule.gameAgentContract ?? contractModule.default ?? null;
 };
 
-const resolvedContract: AirJamGameAgentContract | null =
+const inspectedConfig =
   configPath && operation === "inspect"
-    ? ((await loadAirJamAppConfig(configPath)).game.machine?.agent ?? null)
-    : configPath
-      ? await loadGameAgentContractFromConfig(configPath)
-      : await resolveContractFromModule(contractPath!);
+    ? await loadAirJamAppConfig(configPath)
+    : null;
+
+const resolvedContract: AirJamGameAgentContract | null = inspectedConfig
+  ? inspectedConfig.game.agent ?? null
+  : configPath
+    ? await loadGameAgentContractFromConfig(configPath)
+    : await resolveContractFromModule(contractPath!);
 
 if (!resolvedContract) {
   if (configPath && operation === "inspect") {
@@ -61,40 +72,41 @@ if (!resolvedContract) {
 
   throw new Error(
     configPath
-      ? `Air Jam config "${configPath}" does not export a valid game.machine.agent contract.`
+      ? `Air Jam config "${configPath}" does not export a valid game.agent contract.`
       : `Game agent contract module "${contractPath}" does not export gameAgentContract.`,
   );
 }
 
 if (operation === "inspect") {
+  const snapshotStoreDomains = getAirJamGameAgentStoreDomains(resolvedContract);
   process.stdout.write(
     `${JSON.stringify(
       {
         hasContract: true,
-        gameId: resolvedContract.gameId,
-        snapshotStoreDomains: resolvedContract.snapshotStoreDomains ?? [
-          "default",
-        ],
+        snapshotStoreDomains,
         snapshotDescription: resolvedContract.snapshotDescription ?? null,
         actions: Object.entries(resolvedContract.actions).map(
-          ([actionId, action]) => ({
-            actionId,
-            target: {
-              kind: action.target.kind,
-              actionName: action.target.actionName,
-              storeDomain: action.target.storeDomain ?? "default",
-            },
-            description: action.description ?? null,
-            availability: action.availability ?? null,
-            payload: {
-              kind: action.payload.kind,
-              description: action.payload.description ?? null,
-              ...(action.payload.allowedValues
-                ? { allowedValues: [...action.payload.allowedValues] }
-                : {}),
-            },
-            resultDescription: action.resultDescription ?? null,
-          }),
+          ([actionId, action]) => {
+            const metadata = getAirJamGameAgentActionMetadata(action);
+            return {
+              actionId,
+              target: {
+                kind: action.target.kind,
+                actionName: action.target.actionName,
+                storeDomain: action.target.storeDomain ?? "default",
+              },
+              description: metadata.description ?? null,
+              availability: action.availability ?? null,
+              payload: {
+                kind: metadata.payload.kind,
+                description: metadata.payload.description ?? null,
+                ...(metadata.payload.allowedValues
+                  ? { allowedValues: [...metadata.payload.allowedValues] }
+                  : {}),
+              },
+              resultDescription: metadata.resultDescription ?? null,
+            };
+          },
         ),
       },
       null,
@@ -143,24 +155,27 @@ if (operation === "read-action") {
 
   process.stdout.write(
     `${JSON.stringify(
-      {
-        actionId,
-        target: {
-          kind: action.target.kind,
-          actionName: action.target.actionName,
-          storeDomain: action.target.storeDomain ?? "default",
-        },
-        description: action.description ?? null,
-        availability: action.availability ?? null,
-        payload: {
-          kind: action.payload.kind,
-          description: action.payload.description ?? null,
-          ...(action.payload.allowedValues
-            ? { allowedValues: [...action.payload.allowedValues] }
-            : {}),
-        },
-        resultDescription: action.resultDescription ?? null,
-      },
+      (() => {
+        const metadata = getAirJamGameAgentActionMetadata(action);
+        return {
+          actionId,
+          target: {
+            kind: action.target.kind,
+            actionName: action.target.actionName,
+            storeDomain: action.target.storeDomain ?? "default",
+          },
+          description: metadata.description ?? null,
+          availability: action.availability ?? null,
+          payload: {
+            kind: metadata.payload.kind,
+            description: metadata.payload.description ?? null,
+            ...(metadata.payload.allowedValues
+              ? { allowedValues: [...metadata.payload.allowedValues] }
+              : {}),
+          },
+          resultDescription: metadata.resultDescription ?? null,
+        };
+      })(),
       null,
       2,
     )}\n`,
@@ -183,12 +198,16 @@ if (operation === "resolve-input") {
   const payload = JSON.parse(
     Buffer.from(payloadBase64, "base64url").toString("utf8"),
   ) as unknown;
-  const resolvedPayload =
-    action.payload.kind === "none"
-      ? undefined
-      : action.resolveInput
-        ? action.resolveInput(payload)
-        : payload;
+  const resolvedPayload = resolveAirJamGameAgentActionPayload(action, payload, {
+    gameId:
+      gameId ??
+      (configPath
+        ? (resolveAirJamConfigGameId(await loadAirJamAppConfig(configPath)) ??
+          "unknown-game")
+        : "unknown-game"),
+    actionName: actionId,
+    contractKind: "agent",
+  });
 
   process.stdout.write(
     `${JSON.stringify(

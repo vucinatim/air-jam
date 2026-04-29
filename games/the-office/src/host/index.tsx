@@ -13,6 +13,7 @@ import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { useState } from "react";
 import { theOfficeVisualHarnessBridge } from "../../visual/contract";
+import { gameMetadata } from "../airjam.config";
 import { OFFICE_SOUND_MANIFEST } from "../game/contracts/sounds";
 import { OfficeHostGameplaySurface } from "./components/host-gameplay-surface";
 import { OfficeHostOverlays } from "./components/host-overlays";
@@ -37,6 +38,7 @@ function OfficeHostScreen() {
   return (
     <>
       <VisualHarnessRuntime
+        gameId={gameMetadata.slug}
         bridge={theOfficeVisualHarnessBridge}
         context={{
           host: session.host,

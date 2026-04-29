@@ -130,7 +130,7 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
       }
 
       const declaresAgent =
-        configSource.includes("machine:") && configSource.includes("agent:");
+        configSource.includes("game:") && configSource.includes("agent:");
       const declaresVisualScenarios = configSource.includes(
         "visualScenariosModule:",
       );
@@ -138,16 +138,16 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
       if (sourceHasAgentContract !== declaresAgent) {
         missing.push(
           sourceHasAgentContract
-            ? `scaffold template ${templateId} ships ${AGENT_CONTRACT_PATH} but ${CONFIG_PATH} does not declare game.machine.agent`
-            : `scaffold template ${templateId} declares game.machine.agent without shipping ${AGENT_CONTRACT_PATH}`,
+            ? `scaffold template ${templateId} ships ${AGENT_CONTRACT_PATH} but ${CONFIG_PATH} does not declare game.agent`
+            : `scaffold template ${templateId} declares game.agent without shipping ${AGENT_CONTRACT_PATH}`,
         );
       }
 
       if (sourceHasVisualScenarios !== declaresVisualScenarios) {
         missing.push(
           sourceHasVisualScenarios
-            ? `scaffold template ${templateId} ships ${VISUAL_SCENARIOS_PATH} but ${CONFIG_PATH} does not declare game.machine.visualScenariosModule`
-            : `scaffold template ${templateId} declares game.machine.visualScenariosModule without shipping ${VISUAL_SCENARIOS_PATH}`,
+            ? `scaffold template ${templateId} ships ${VISUAL_SCENARIOS_PATH} but ${CONFIG_PATH} does not declare game.visualScenariosModule`
+            : `scaffold template ${templateId} declares game.visualScenariosModule without shipping ${VISUAL_SCENARIOS_PATH}`,
         );
       }
     }

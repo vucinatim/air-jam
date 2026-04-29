@@ -6,6 +6,7 @@ import {
   controllerSystemSchema,
   hostStateSyncSchema,
   isAirJamArcadePlatformPrefixAction,
+  type AirJamActionInvocationResult,
   type AirJamActionRpcPayload,
   type AirJamDevLogEventName,
   type AirJamStateSyncPayload,
@@ -45,6 +46,21 @@ export const registerRealtimeHandlers = (
     event: AIRJAM_DEV_LOG_EVENTS.host.stateBroadcastSummary,
     msg: "Host state broadcast summary",
   });
+  const rejectActionRpc = (
+    callback: ((ack: AirJamActionInvocationResult) => void) | undefined,
+    reason: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): void => {
+    callback?.({
+      ok: false,
+      status: "rejected",
+      source: "server",
+      reason,
+      message,
+      ...(details ? { details } : {}),
+    });
+  };
 
   const getRealtimeLogger = (bindings: Record<string, unknown> = {}) => {
     const mergedBindings = {
@@ -520,7 +536,12 @@ export const registerRealtimeHandlers = (
     );
   });
 
-  socket.on("controller:action_rpc", (payload: ControllerActionRpcPayload) => {
+  socket.on(
+    "controller:action_rpc",
+    (
+      payload: ControllerActionRpcPayload,
+      callback?: (ack: AirJamActionInvocationResult) => void,
+    ) => {
     const parsed = controllerActionRpcSchema.safeParse(payload);
     if (!parsed.success) {
       logRealtimeEvent(
@@ -531,6 +552,11 @@ export const registerRealtimeHandlers = (
           reason: "invalid_payload",
           issues: parsed.error.issues,
         },
+      );
+      rejectActionRpc(
+        callback,
+        "invalid_payload",
+        "Rejected controller action RPC with invalid payload.",
       );
       return;
     }
@@ -553,6 +579,15 @@ export const registerRealtimeHandlers = (
           reason: "reserved_action",
         },
       );
+      rejectActionRpc(
+        callback,
+        "reserved_action",
+        `Rejected controller action RPC because action "${actionName}" is reserved.`,
+        {
+          actionName,
+          storeDomain,
+        },
+      );
       return;
     }
 
@@ -568,6 +603,16 @@ export const registerRealtimeHandlers = (
           reason: "unauthorized",
         },
       );
+      rejectActionRpc(
+        callback,
+        "unauthorized",
+        "Rejected controller action RPC because socket is unauthorized for this room.",
+        {
+          roomId,
+          actionName,
+          storeDomain,
+        },
+      );
       return;
     }
 
@@ -581,6 +626,16 @@ export const registerRealtimeHandlers = (
           actionName,
           storeDomain,
           reason: "missing_capability",
+        },
+      );
+      rejectActionRpc(
+        callback,
+        "missing_capability",
+        "Rejected controller action RPC because the controller capability is missing.",
+        {
+          roomId,
+          actionName,
+          storeDomain,
         },
       );
       return;
@@ -599,6 +654,16 @@ export const registerRealtimeHandlers = (
           reason: "room_not_found",
         },
       );
+      rejectActionRpc(
+        callback,
+        "room_not_found",
+        "Rejected controller action RPC because the room was not found.",
+        {
+          roomId,
+          actionName,
+          storeDomain,
+        },
+      );
       return;
     }
 
@@ -613,6 +678,16 @@ export const registerRealtimeHandlers = (
           actionName,
           storeDomain,
           reason: "controller_mapping_missing",
+        },
+      );
+      rejectActionRpc(
+        callback,
+        "controller_mapping_missing",
+        "Rejected controller action RPC because the controller mapping was missing.",
+        {
+          roomId,
+          actionName,
+          storeDomain,
         },
       );
       return;
@@ -633,6 +708,17 @@ export const registerRealtimeHandlers = (
           reason: "controller_session_missing",
         },
       );
+      rejectActionRpc(
+        callback,
+        "controller_session_missing",
+        "Rejected controller action RPC because the controller session was not found.",
+        {
+          roomId,
+          controllerId,
+          actionName,
+          storeDomain,
+        },
+      );
       return;
     }
 
@@ -650,7 +736,63 @@ export const registerRealtimeHandlers = (
           role: "controller",
         },
       };
-      io.to(hostId).emit("airjam:action_rpc", rpcPayload);
+      const hostSocket = io.sockets.sockets.get(hostId);
+      if (!hostSocket) {
+        rejectActionRpc(
+          callback,
+          "host_target_missing",
+          "Rejected controller action RPC because the host target was not available.",
+          {
+            roomId,
+            controllerId,
+            actionName,
+            storeDomain,
+          },
+        );
+        return;
+      }
+
+      (
+        hostSocket.timeout(1_500).emit as unknown as (
+          event: string,
+          payload: AirJamActionRpcPayload,
+          callback: (
+            error: Error | null,
+            responses?: AirJamActionInvocationResult[],
+          ) => void,
+        ) => void
+      )("airjam:action_rpc", rpcPayload, (error, responses) => {
+        if (error) {
+          rejectActionRpc(
+            callback,
+            "host_ack_timeout",
+            `Timed out waiting for the host to acknowledge action "${actionName}".`,
+            {
+              roomId,
+              controllerId,
+              storeDomain,
+            },
+          );
+          return;
+        }
+
+        const ack = responses?.[0];
+        if (!ack) {
+          rejectActionRpc(
+            callback,
+            "host_ack_missing",
+            `Host did not return an acknowledgement for action "${actionName}".`,
+            {
+              roomId,
+              controllerId,
+              storeDomain,
+            },
+          );
+          return;
+        }
+
+        callback?.(ack);
+      });
       controllerActionRpcSummary.record({
         key: `${roomId}:${controllerId}:${storeDomain}:${actionName}:${shouldRouteToMaster ? "master" : "active"}`,
         bindings: {
@@ -681,5 +823,17 @@ export const registerRealtimeHandlers = (
         reason: "host_target_missing",
       },
     );
-  });
+    rejectActionRpc(
+      callback,
+      "host_target_missing",
+      "Rejected controller action RPC because no host target was available.",
+      {
+        roomId,
+        controllerId,
+        actionName,
+        storeDomain,
+      },
+    );
+  },
+);
 };

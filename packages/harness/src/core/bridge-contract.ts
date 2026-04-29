@@ -1,49 +1,29 @@
+import {
+  createMachineActionMetadata,
+  defineMachineActionInput,
+  describeMachineActionInputs,
+  machineActionInput,
+  type AirJamMachineActionCustomOptions,
+  type AirJamMachineActionDescriptor,
+  type AirJamMachineActionInputDefinition,
+  type AirJamMachineActionMetadata,
+  type AirJamMachineActionOptions,
+  type AirJamMachineActionParseMeta,
+  type AirJamMachineActionPayloadKind,
+  type AirJamMachineActionPayloadMetadata,
+} from "@air-jam/sdk";
 import type { VisualHarnessBridgeSnapshot } from "./runtime-bridge.js";
 
-type VisualHarnessActionParseMeta = {
-  gameId: string;
-  actionName: string;
-};
+type VisualHarnessActionParseMeta = AirJamMachineActionParseMeta;
 
-export type VisualHarnessActionPayloadKind =
-  | "none"
-  | "number"
-  | "enum"
-  | "json";
+export type VisualHarnessActionPayloadKind = AirJamMachineActionPayloadKind;
 
-export type VisualHarnessActionPayloadMetadata = {
-  kind: VisualHarnessActionPayloadKind;
-  description?: string;
-  allowedValues?: string[];
-};
+export type VisualHarnessActionPayloadMetadata =
+  AirJamMachineActionPayloadMetadata;
 
-export type VisualHarnessActionMetadata = {
-  description?: string;
-  payload: VisualHarnessActionPayloadMetadata;
-  resultDescription?: string;
-};
+export type VisualHarnessActionMetadata = AirJamMachineActionMetadata;
 
-export type VisualHarnessActionDescriptor = {
-  name: string;
-  description: string | null;
-  payload: {
-    kind: VisualHarnessActionPayloadKind;
-    description: string | null;
-    allowedValues?: string[];
-  };
-  resultDescription: string | null;
-};
-
-type VisualHarnessActionOptions = {
-  description?: string;
-  payloadDescription?: string;
-  resultDescription?: string;
-};
-
-type VisualHarnessCustomActionOptions = VisualHarnessActionOptions & {
-  payloadKind?: VisualHarnessActionPayloadKind;
-  allowedValues?: string[];
-};
+export type VisualHarnessActionDescriptor = AirJamMachineActionDescriptor;
 
 export type VisualHarnessActionHandler<
   TContext,
@@ -56,6 +36,7 @@ export type VisualHarnessActionDefinition<
   TPayload,
   TResult = unknown,
 > = {
+  input: AirJamMachineActionInputDefinition<TPayload>;
   parse: (payload: unknown, meta: VisualHarnessActionParseMeta) => TPayload;
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>;
   metadata: VisualHarnessActionMetadata;
@@ -71,7 +52,6 @@ export type VisualHarnessBridgeDefinition<
   TSnapshot extends VisualHarnessBridgeSnapshot,
   TActions extends VisualHarnessActionDefinitions<TContext>,
 > = {
-  gameId: string;
   selectSnapshot: (context: TContext) => TSnapshot;
   actions: TActions;
 };
@@ -122,96 +102,57 @@ export type VisualHarnessActionInvokerMap<TActions> = {
   [K in keyof TActions]: VisualHarnessActionInvoker<TActions[K]>;
 };
 
-const createActionError = (
-  gameId: string,
-  actionName: string,
-  message: string,
-): Error => {
-  return new Error(`[harness:${gameId}.${actionName}] ${message}`);
-};
-
-const createActionDefinition = <TContext, TPayload, TResult>(
-  parse: (payload: unknown, meta: VisualHarnessActionParseMeta) => TPayload,
-  run: VisualHarnessActionHandler<TContext, TPayload, TResult>,
-  metadata: VisualHarnessActionMetadata,
-): VisualHarnessActionDefinition<TContext, TPayload, TResult> => ({
-  parse,
-  run,
-  metadata,
-});
-
-const createActionMetadata = (
-  payload: VisualHarnessActionPayloadMetadata,
-  options?: VisualHarnessActionOptions,
-): VisualHarnessActionMetadata => ({
-  description: options?.description,
-  payload: {
-    ...payload,
-    description: options?.payloadDescription,
-  },
-  resultDescription: options?.resultDescription,
-});
-
-const parseFiniteNumber = (
-  payload: unknown,
-  meta: VisualHarnessActionParseMeta,
-): number => {
-  const nextValue =
-    typeof payload === "number" && Number.isFinite(payload)
-      ? payload
-      : typeof payload === "string"
-        ? Number(payload)
-        : Number.NaN;
-
-  if (!Number.isFinite(nextValue)) {
-    throw createActionError(
-      meta.gameId,
-      meta.actionName,
-      "expected a finite number payload",
-    );
-  }
-
-  return nextValue;
-};
-
-const parseEnumValue = <const TValues extends readonly string[]>(
-  values: TValues,
-  payload: unknown,
-  meta: VisualHarnessActionParseMeta,
-): TValues[number] => {
-  if (typeof payload !== "string" || !values.includes(payload)) {
-    throw createActionError(
-      meta.gameId,
-      meta.actionName,
-      `expected one of: ${values.join(", ")}`,
-    );
-  }
-
-  return payload as TValues[number];
-};
-
 type VisualHarnessCustomParser<TPayload> = (
   payload: unknown,
   meta: VisualHarnessActionParseMeta,
 ) => TPayload;
 
+const createActionDefinition = <TContext, TPayload, TResult>(
+  input: AirJamMachineActionInputDefinition<TPayload>,
+  run: VisualHarnessActionHandler<TContext, TPayload, TResult>,
+): VisualHarnessActionDefinition<TContext, TPayload, TResult> => ({
+  input,
+  parse: (payload, meta) =>
+    input.parse(payload, {
+      ...meta,
+      contractKind: meta.contractKind ?? "harness",
+    }),
+  run,
+  metadata: input.metadata,
+});
+
+const createNoPayloadInput = (
+  options?: AirJamMachineActionCustomOptions,
+): AirJamMachineActionInputDefinition<void> =>
+  defineMachineActionInput(
+    () => undefined,
+    createMachineActionMetadata(
+      {
+        kind: options?.payloadKind ?? "none",
+        ...(options?.allowedValues
+          ? { allowedValues: options.allowedValues }
+          : {}),
+      },
+      options,
+    ),
+  );
+
 const resolveNumberAction = <TContext, TResult>(
   optionsOrRun:
-    | VisualHarnessActionOptions
+    | AirJamMachineActionOptions
     | VisualHarnessActionHandler<TContext, number, TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult> => {
-  const options = typeof optionsOrRun === "function" ? undefined : optionsOrRun;
+  const input =
+    typeof optionsOrRun === "function"
+      ? machineActionInput.number()
+      : machineActionInput.number(optionsOrRun);
   const run =
     typeof optionsOrRun === "function"
       ? optionsOrRun
       : (maybeRun as VisualHarnessActionHandler<TContext, number, TResult>);
 
-  return createActionDefinition(
-    parseFiniteNumber,
-    run,
-    createActionMetadata({ kind: "number" }, options),
-  );
+  return createActionDefinition(input, run);
 };
 
 const resolveEnumAction = <
@@ -221,11 +162,14 @@ const resolveEnumAction = <
 >(
   values: TValues,
   optionsOrRun:
-    | VisualHarnessActionOptions
+    | AirJamMachineActionOptions
     | VisualHarnessActionHandler<TContext, TValues[number], TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, TValues[number], TResult>,
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult> => {
-  const options = typeof optionsOrRun === "function" ? undefined : optionsOrRun;
+  const input =
+    typeof optionsOrRun === "function"
+      ? machineActionInput.enum(values)
+      : machineActionInput.enum(values, optionsOrRun);
   const run =
     typeof optionsOrRun === "function"
       ? optionsOrRun
@@ -235,29 +179,19 @@ const resolveEnumAction = <
           TResult
         >);
 
-  return createActionDefinition(
-    (payload, meta) => parseEnumValue(values, payload, meta),
-    run,
-    createActionMetadata(
-      {
-        kind: "enum",
-        allowedValues: [...values],
-      },
-      options,
-    ),
-  );
+  return createActionDefinition(input, run);
 };
 
 function numberAction<TContext, TResult>(
   run: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult>;
 function numberAction<TContext, TResult>(
-  options: VisualHarnessActionOptions,
+  options: AirJamMachineActionOptions,
   run: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult>;
 function numberAction<TContext, TResult>(
   optionsOrRun:
-    | VisualHarnessActionOptions
+    | AirJamMachineActionOptions
     | VisualHarnessActionHandler<TContext, number, TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult> {
@@ -270,13 +204,13 @@ function enumAction<TContext, const TValues extends readonly string[], TResult>(
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult>;
 function enumAction<TContext, const TValues extends readonly string[], TResult>(
   values: TValues,
-  options: VisualHarnessActionOptions,
+  options: AirJamMachineActionOptions,
   run: VisualHarnessActionHandler<TContext, TValues[number], TResult>,
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult>;
 function enumAction<TContext, const TValues extends readonly string[], TResult>(
   values: TValues,
   optionsOrRun:
-    | VisualHarnessActionOptions
+    | AirJamMachineActionOptions
     | VisualHarnessActionHandler<TContext, TValues[number], TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, TValues[number], TResult>,
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult> {
@@ -287,7 +221,7 @@ function customAction<TContext, TResult>(
   run: (context: TContext) => TResult | Promise<TResult>,
 ): VisualHarnessActionDefinition<TContext, void, TResult>;
 function customAction<TContext, TResult>(
-  options: VisualHarnessCustomActionOptions,
+  options: AirJamMachineActionCustomOptions,
   run: (context: TContext) => TResult | Promise<TResult>,
 ): VisualHarnessActionDefinition<TContext, void, TResult>;
 function customAction<TContext, TPayload, TResult>(
@@ -295,13 +229,13 @@ function customAction<TContext, TPayload, TResult>(
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>,
 ): VisualHarnessActionDefinition<TContext, TPayload, TResult>;
 function customAction<TContext, TPayload, TResult>(
-  options: VisualHarnessCustomActionOptions,
+  options: AirJamMachineActionCustomOptions,
   parse: VisualHarnessCustomParser<TPayload>,
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>,
 ): VisualHarnessActionDefinition<TContext, TPayload, TResult>;
 function customAction<TContext, TPayload, TResult>(
   optionsOrParseOrRun:
-    | VisualHarnessCustomActionOptions
+    | AirJamMachineActionCustomOptions
     | VisualHarnessCustomParser<TPayload>
     | ((context: TContext) => TResult | Promise<TResult>),
   maybeParseOrRun?:
@@ -313,14 +247,13 @@ function customAction<TContext, TPayload, TResult>(
   | VisualHarnessActionDefinition<TContext, void, TResult> {
   if (typeof optionsOrParseOrRun === "function" && !maybeParseOrRun) {
     return createActionDefinition<TContext, void, TResult>(
-      () => undefined,
+      createNoPayloadInput(),
       (context) =>
         (
           optionsOrParseOrRun as (
             context: TContext,
           ) => TResult | Promise<TResult>
         )(context),
-      createActionMetadata({ kind: "none" }),
     );
   }
 
@@ -331,26 +264,20 @@ function customAction<TContext, TPayload, TResult>(
     !maybeRun
   ) {
     return createActionDefinition<TContext, void, TResult>(
-      () => undefined,
+      createNoPayloadInput(optionsOrParseOrRun),
       (context) =>
         (maybeParseOrRun as (context: TContext) => TResult | Promise<TResult>)(
           context,
         ),
-      createActionMetadata(
-        {
-          kind: optionsOrParseOrRun.payloadKind ?? "none",
-          allowedValues: optionsOrParseOrRun.allowedValues,
-        },
-        optionsOrParseOrRun,
-      ),
     );
   }
 
   if (typeof optionsOrParseOrRun === "function" && maybeRun) {
     return createActionDefinition<TContext, TPayload, TResult>(
-      optionsOrParseOrRun as VisualHarnessCustomParser<TPayload>,
+      machineActionInput.custom(
+        optionsOrParseOrRun as VisualHarnessCustomParser<TPayload>,
+      ),
       maybeRun,
-      createActionMetadata({ kind: "json" }),
     );
   }
 
@@ -361,15 +288,11 @@ function customAction<TContext, TPayload, TResult>(
     maybeRun
   ) {
     return createActionDefinition<TContext, TPayload, TResult>(
-      maybeParseOrRun as VisualHarnessCustomParser<TPayload>,
-      maybeRun,
-      createActionMetadata(
-        {
-          kind: optionsOrParseOrRun.payloadKind ?? "json",
-          allowedValues: optionsOrParseOrRun.allowedValues,
-        },
+      machineActionInput.custom(
         optionsOrParseOrRun,
+        maybeParseOrRun as VisualHarnessCustomParser<TPayload>,
       ),
+      maybeRun,
     );
   }
 
@@ -397,7 +320,6 @@ export const defineVisualHarness = <
     run: (...args: any[]) => Promise<void>;
   },
   TPack extends {
-    gameId: string;
     bridge: TBridge;
     scenarios: ReadonlyArray<TScenario>;
   },
@@ -409,20 +331,4 @@ export const describeVisualHarnessActions = <
   TActions extends VisualHarnessActionDefinitions<any>,
 >(
   actions: TActions,
-): VisualHarnessActionDescriptor[] =>
-  Object.entries(actions)
-    .map(([name, definition]) => ({
-      name,
-      description: definition.metadata?.description ?? null,
-      payload: {
-        kind: definition.metadata?.payload.kind ?? "json",
-        description: definition.metadata?.payload.description ?? null,
-        ...(definition.metadata?.payload.allowedValues
-          ? {
-              allowedValues: [...definition.metadata.payload.allowedValues],
-            }
-          : {}),
-      },
-      resultDescription: definition.metadata?.resultDescription ?? null,
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
+): VisualHarnessActionDescriptor[] => describeMachineActionInputs(actions);

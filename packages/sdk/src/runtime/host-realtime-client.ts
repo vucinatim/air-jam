@@ -1,9 +1,12 @@
+import type { AirJamSocket } from "../context/socket-manager";
 import { AIRJAM_DEV_LOG_EVENTS, type RoomCode } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import {
   createHostBridgeCloseMessage,
   createHostBridgeEmitMessage,
   createHostBridgeRequestMessage,
+  createHostBridgeResponseMessage,
+  parseHostBridgeResponseMessage,
   parseHostBridgeAttachMessage,
   parseHostBridgeCloseMessage,
   parseHostBridgeEventMessage,
@@ -21,9 +24,81 @@ import { readChildHostRuntimeParams } from "./runtime-session-params";
 import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach";
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
+const BRIDGE_ACK_TIMEOUT_MS = 5_000;
 const HOST_BRIDGE_RUNTIME_KIND = "arcade-host-runtime";
 const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set(["game_unloaded", "replaced"]);
 const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
+
+class DirectHostRealtimeClient implements AirJamRealtimeClient {
+  constructor(private readonly socket: AirJamSocket) {}
+
+  get connected(): boolean {
+    return this.socket.connected;
+  }
+
+  get id(): string | undefined {
+    return this.socket.id;
+  }
+
+  connect(): this {
+    this.socket.connect();
+    return this;
+  }
+
+  disconnect(): this {
+    this.socket.disconnect();
+    return this;
+  }
+
+  on(event: string, listener: BridgeListener): this {
+    this.socket.on(event as never, listener as never);
+    return this;
+  }
+
+  off(event: string, listener?: BridgeListener): this {
+    if (!listener) {
+      this.socket.off(event as never);
+      return this;
+    }
+
+    this.socket.off(event as never, listener as never);
+    return this;
+  }
+
+  emit(event: string, ...args: unknown[]): this {
+    (
+      this.socket.emit as unknown as (
+        this: AirJamSocket,
+        event: string,
+        ...args: unknown[]
+      ) => void
+    ).call(this.socket, event, ...args);
+    return this;
+  }
+
+  emitWithAck<TAck>(event: string, ...args: unknown[]): Promise<TAck> {
+    return new Promise<TAck>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(
+          new Error(
+            `Timed out waiting for acknowledgement for realtime event "${event}".`,
+          ),
+        );
+      }, BRIDGE_ACK_TIMEOUT_MS);
+
+      (
+        this.socket.emit as unknown as (
+          this: AirJamSocket,
+          event: string,
+          ...args: unknown[]
+        ) => void
+      ).call(this.socket, event, ...args, (ack: TAck) => {
+        clearTimeout(timeoutId);
+        resolve(ack);
+      });
+    });
+  }
+}
 
 class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
   public connected = false;
@@ -36,6 +111,14 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
   private requested = false;
   private lastAttachedArcadeEpoch: number | null = null;
   private allowReconnect = true;
+  private pendingAcks = new Map<
+    string,
+    {
+      resolve: (ack: unknown) => void;
+      reject: (error: Error) => void;
+      timeoutId: ReturnType<typeof setTimeout>;
+    }
+  >();
 
   connect(): this {
     const runtimeParams = readChildHostRuntimeParams();
@@ -146,7 +229,60 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
     return this;
   }
 
+  emitWithAck<TAck>(event: string, ...args: unknown[]): Promise<TAck> {
+    if (!this.port || !this.connected) {
+      return Promise.reject(
+        new Error(
+          `Cannot emit acknowledged realtime event "${event}" because the embedded host bridge is not connected.`,
+        ),
+      );
+    }
+
+    const requestId =
+      globalThis.crypto?.randomUUID?.() ??
+      `ack-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+    return new Promise<TAck>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        this.pendingAcks.delete(requestId);
+        reject(
+          new Error(
+            `Timed out waiting for acknowledgement for bridge event "${event}".`,
+          ),
+        );
+      }, BRIDGE_ACK_TIMEOUT_MS);
+
+      this.pendingAcks.set(requestId, {
+        resolve: (ack) => resolve(ack as TAck),
+        reject,
+        timeoutId,
+      });
+
+      const bridgeEvent = event as HostBridgeClientEventName;
+      this.port?.postMessage(
+        createHostBridgeEmitMessage(
+          bridgeEvent,
+          ...(args as HostBridgeClientEventArgs[typeof bridgeEvent]),
+          { requestId },
+        ),
+      );
+    });
+  }
+
   private handlePortMessage(message: unknown): void {
+    const responseMessage = parseHostBridgeResponseMessage(message);
+    if (responseMessage) {
+      const pending = this.pendingAcks.get(responseMessage.payload.requestId);
+      if (!pending) {
+        return;
+      }
+
+      clearTimeout(pending.timeoutId);
+      this.pendingAcks.delete(responseMessage.payload.requestId);
+      pending.resolve(responseMessage.payload.ack);
+      return;
+    }
+
     const attachMessage = parseHostBridgeAttachMessage(message);
     if (attachMessage) {
       if (
@@ -220,7 +356,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 
     const eventMessage = parseHostBridgeEventMessage(message);
     if (eventMessage) {
-      const { event, args } = eventMessage.payload;
+      const { event, args, requestId } = eventMessage.payload;
 
       if (event === "connect") {
         this.connected = true;
@@ -228,6 +364,18 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 
       if (event === "disconnect") {
         this.connected = false;
+      }
+
+      if (event === "airjam:action_rpc" && requestId && this.port) {
+        const [payload] = args as [HostBridgeServerEventArgs["airjam:action_rpc"][0]];
+        this.notify(
+          event,
+          payload,
+          (ack: unknown) => {
+            this.port?.postMessage(createHostBridgeResponseMessage(requestId, ack));
+          },
+        );
+        return;
       }
 
       this.notify(event, ...(args as HostBridgeServerEventArgs[typeof event]));
@@ -287,6 +435,14 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
       this.port.close();
       this.port = null;
     }
+
+    for (const pending of this.pendingAcks.values()) {
+      clearTimeout(pending.timeoutId);
+      pending.reject(
+        new Error("Embedded host bridge disconnected before acknowledgement."),
+      );
+    }
+    this.pendingAcks.clear();
 
     if (shouldNotify) {
       this.notify("disconnect", reason);
@@ -361,6 +517,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 }
 
 let embeddedHostClient: EmbeddedHostBridgeClient | null = null;
+const directHostClients = new WeakMap<AirJamSocket, DirectHostRealtimeClient>();
 
 export const isEmbeddedHostRuntime = (): boolean =>
   readChildHostRuntimeParams() !== null;
@@ -369,7 +526,15 @@ export const getHostRealtimeClient = (
   getSocket: DirectSocketGetter<"host">,
 ): AirJamRealtimeClient => {
   if (!isEmbeddedHostRuntime()) {
-    return getSocket("host") as unknown as AirJamRealtimeClient;
+    const socket = getSocket("host");
+    const existing = directHostClients.get(socket);
+    if (existing) {
+      return existing;
+    }
+
+    const client = new DirectHostRealtimeClient(socket);
+    directHostClients.set(socket, client);
+    return client;
   }
 
   if (!embeddedHostClient) {

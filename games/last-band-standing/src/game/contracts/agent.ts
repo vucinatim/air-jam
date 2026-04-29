@@ -1,4 +1,11 @@
-import { defineAirJamGameAgentContract } from "@air-jam/sdk";
+import {
+  defineAirJamGameAgentContract,
+  defineAirJamGameAgentStores,
+  gameAgentAction,
+  gameAgentStore,
+  machineActionInput,
+  readAirJamDefaultGameStore,
+} from "@air-jam/sdk";
 import {
   defaultSelectedSongBucketIds,
   getRoundOptionLabel,
@@ -9,6 +16,9 @@ import {
 } from "../content/song-bank";
 
 const DEFAULT_STORE_DOMAIN = "default";
+const snapshotStores = defineAirJamGameAgentStores({
+  [DEFAULT_STORE_DOMAIN]: gameAgentStore<QuizState>(),
+});
 type GamePhase =
   | "lobby"
   | "match-countdown"
@@ -83,17 +93,6 @@ const getRoundPrompt = (guessKind: RoundGuessKind): string => {
   return guessKind === "artist" ? "Who is the artist?" : "What song is this?";
 };
 
-const readQuizState = (
-  stores: Record<string, Record<string, unknown>>,
-): QuizState | null => {
-  const candidate = stores[DEFAULT_STORE_DOMAIN];
-  if (!candidate) {
-    return null;
-  }
-
-  return candidate as unknown as QuizState;
-};
-
 const describeBucketSelection = (
   selectedBucketIds: readonly SongBucketId[],
   totalRounds: number,
@@ -114,12 +113,12 @@ const describeBucketSelection = (
 };
 
 export const gameAgentContract = defineAirJamGameAgentContract({
-  gameId: "last-band-standing",
-  snapshotStoreDomains: [DEFAULT_STORE_DOMAIN],
+  snapshotStores,
   snapshotDescription:
     "Game-focused snapshot for Last Band Standing with lobby settings, player readiness, round prompts, answer options, reveal state, and scoreboard information.",
-  projectSnapshot: ({ controllerId, stores }) => {
-    const state = readQuizState(stores);
+  projectSnapshot: (context) => {
+    const { controllerId } = context;
+    const state = readAirJamDefaultGameStore(context);
     if (!state) {
       return {
         phase: "unavailable",
@@ -249,95 +248,87 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    set_ready: {
-      target: {
-        kind: "controller",
+    set_ready: gameAgentAction.player(
+      {
         actionName: "setReady",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Mark the current controller as ready or unready in the lobby.",
-      availability: "Lobby only. Requires a connected controller identity.",
-      payload: {
-        kind: "boolean",
-        description: "Whether this controller should be ready.",
+      {
+        input: machineActionInput.boolean({
+          payloadDescription: "Whether this controller should be ready.",
+        }),
+        toPayload: (ready) => ({ ready }),
+        description:
+          "Mark the current controller as ready or unready in the lobby.",
+        availability: "Lobby only. Requires a connected controller identity.",
+        resultDescription:
+          "The current controller's readiness updates in the lobby roster.",
       },
-      resolveInput: (input) => ({
-        ready: Boolean(input),
-      }),
-      resultDescription:
-        "The current controller's readiness updates in the lobby roster.",
-    },
-    toggle_song_bucket: {
-      target: {
-        kind: "controller",
+    ),
+    toggle_song_bucket: gameAgentAction.player(
+      {
         actionName: "toggleSongBucket",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Toggle one song bucket on or off from the lobby settings carousel.",
-      availability: "Lobby only.",
-      payload: {
-        kind: "enum",
-        description: "The song bucket id to toggle.",
-        allowedValues: [...defaultSelectedSongBucketIds],
+      {
+        input: machineActionInput.enum(defaultSelectedSongBucketIds, {
+          payloadDescription: "The song bucket id to toggle.",
+        }),
+        toPayload: (bucketId) => ({ bucketId }),
+        description:
+          "Toggle one song bucket on or off from the lobby settings carousel.",
+        availability: "Lobby only.",
+        resultDescription:
+          "The lobby song bucket selection updates immediately.",
       },
-      resolveInput: (input) => ({
-        bucketId: input,
-      }),
-      resultDescription: "The lobby song bucket selection updates immediately.",
-    },
-    start_match: {
-      target: {
-        kind: "controller",
+    ),
+    start_match: gameAgentAction.player(
+      {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Start the match from the lobby once all active players are ready.",
-      availability:
-        "Lobby only. Controllers can start when they are ready and all ready checks pass.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description:
+          "Start the match from the lobby once all active players are ready.",
+        availability:
+          "Lobby only. Controllers can start when they are ready and all ready checks pass.",
+        resultDescription:
+          "The game enters match countdown and then progresses into the first round.",
       },
-      resultDescription:
-        "The game enters match countdown and then progresses into the first round.",
-    },
-    submit_guess: {
-      target: {
-        kind: "controller",
+    ),
+    submit_guess: gameAgentAction.player(
+      {
         actionName: "submitGuess",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Submit one answer option during an active round using an option id from the current snapshot.",
-      availability:
-        "Active round only. One submission per controller per round.",
-      payload: {
-        kind: "string",
+      {
+        input: machineActionInput.string({
+          payloadDescription:
+            "The current round option id to submit. Read `round.options` from the game snapshot first.",
+        }),
+        toPayload: (optionId) => ({ optionId }),
         description:
-          "The current round option id to submit. Read `round.options` from the game snapshot first.",
+          "Submit one answer option during an active round using an option id from the current snapshot.",
+        availability:
+          "Active round only. One submission per controller per round.",
+        resultDescription:
+          "The controller's answer is locked in for the current round.",
       },
-      resolveInput: (input) => ({
-        optionId: input,
-      }),
-      resultDescription:
-        "The controller's answer is locked in for the current round.",
-    },
-    reset_lobby: {
-      target: {
-        kind: "controller",
+    ),
+    reset_lobby: gameAgentAction.player(
+      {
         actionName: "resetLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Return the match to a clean lobby state without restarting dev.",
-      availability: "Any phase.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description:
+          "Return the match to a clean lobby state without restarting dev.",
+        availability: "Any phase.",
+        resultDescription:
+          "The match returns to the lobby and clears current round progress.",
       },
-      resultDescription:
-        "The match returns to the lobby and clears current round progress.",
-    },
+    ),
   },
 });

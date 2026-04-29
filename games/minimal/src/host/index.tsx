@@ -18,12 +18,42 @@
 import { useAirJamHost } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { RoomQrCode, SurfaceViewport } from "@air-jam/sdk/ui";
+import { useEffect, useState } from "react";
 import { useMinimalStore } from "../game/store";
 
 export function HostView() {
   const host = useAirJamHost();
   const totalCount = useMinimalStore((state) => state.totalCount);
   const actions = useMinimalStore.useActions();
+  const [hostNotice, setHostNotice] = useState<string | null>(null);
+
+  // Host-only local UI effects should react here instead of going through
+  // replicated state. This keeps the store authoritative but not bloated with
+  // ephemeral presentation commands.
+  useMinimalStore.useHostActionListener((event) => {
+    if (event.actionName === "tap") {
+      setHostNotice(`Tap from ${event.context.actorId}`);
+      return;
+    }
+
+    if (event.actionName === "reset") {
+      setHostNotice("Counter reset");
+    }
+  });
+
+  useEffect(() => {
+    if (!hostNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHostNotice(null);
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [hostNotice]);
 
   return (
     <>
@@ -48,6 +78,9 @@ export function HostView() {
             )}
             <div className="text-xs text-neutral-500">
               Room: {host.roomId ?? "—"} · {host.players.length} connected
+            </div>
+            <div className="min-h-4 text-[0.625rem] tracking-[0.16em] text-emerald-400 uppercase">
+              {hostNotice ?? "Host local effects stay local"}
             </div>
           </div>
 

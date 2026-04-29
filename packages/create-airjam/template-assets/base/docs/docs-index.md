@@ -27,17 +27,19 @@ For broader public framework docs, use the hosted docs site after checking these
 
 ## Local Supplements
 
-1. [Development Loop](./development-loop.md)
-2. [Agent MCP](./agent-mcp.md)
-3. [Iconography](./iconography.md)
-4. [Visual System](./visual-system.md)
-5. [Composition Shell Contract](./composition-shell-contract.md)
-6. [Debug And Testing](./debug-and-testing.md)
-7. [Prefab Authoring](./prefab-authoring.md)
-8. [R3F 3D Scene](./r3f-3d-scene.md)
-9. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
-10. [Preview Controllers](./preview-controllers.md)
-11. [Harness Visual Workflows](./harness-visual.md)
+1. [Agent Gold Path](./agent-gold-path.md)
+2. [Development Loop](./development-loop.md)
+3. [Agent MCP](./agent-mcp.md)
+4. [State Lanes Cookbook](./state-lanes-cookbook.md)
+5. [Iconography](./iconography.md)
+6. [Visual System](./visual-system.md)
+7. [Composition Shell Contract](./composition-shell-contract.md)
+8. [Debug And Testing](./debug-and-testing.md)
+9. [Prefab Authoring](./prefab-authoring.md)
+10. [R3F 3D Scene](./r3f-3d-scene.md)
+11. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
+12. [Preview Controllers](./preview-controllers.md)
+13. [Harness Visual Workflows](./harness-visual.md)
 
 ## Hosted Canonical Docs
 
@@ -51,6 +53,7 @@ For broader public framework docs, use the hosted docs site after checking these
 
 ## Usage Rule
 
-1. use generated canonical docs first for framework guidance
-2. use local supplements for project operating rules and template-specific patterns
-3. use hosted docs when you need broader framework detail or newer canonical public guidance
+1. if you are an agent starting a real task, read `docs/agent-gold-path.md` first
+2. use generated canonical docs for framework guidance
+3. use local supplements for project operating rules and template-specific patterns
+4. use hosted docs when you need broader framework detail or newer canonical public guidance

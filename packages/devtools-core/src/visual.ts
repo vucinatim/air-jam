@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCommandResult } from "./commands.js";
-import { getTopology, startDev, stopDev } from "./dev.js";
+import { getTopology, startDev, stopDev, tryAttachToRunningDev } from "./dev.js";
 import { pathExists, readJsonFile } from "./fs-utils.js";
 import { inspectGame, readVisualCaptureSummary } from "./games.js";
 import { inspectAirJamMachineConfig } from "./tooling/airjam-machine-inspection.js";
@@ -323,7 +323,12 @@ const withHarnessSession = async <T>({
   run: (input: {
     game: Awaited<ReturnType<typeof inspectGame>>;
     visualSource: ResolvedVisualSource;
-    started: Awaited<ReturnType<typeof startDev>>;
+    session: {
+      topology: Awaited<ReturnType<typeof getTopology>>;
+      reusedExistingProcess: boolean;
+      attachedToRunningDev: boolean;
+      managedProcessId: string | null;
+    };
   }) => Promise<T>;
 }): Promise<T> => {
   const game = await inspectGame({ cwd, gameId });
@@ -336,24 +341,42 @@ const withHarnessSession = async <T>({
     );
   }
 
-  const started = await startDev({
+  const attachedTopology = await tryAttachToRunningDev({
     cwd,
     gameId: game.id,
     mode,
     secure,
   });
+  const session = attachedTopology
+    ? {
+        topology: attachedTopology,
+        reusedExistingProcess: true,
+        attachedToRunningDev: true,
+        managedProcessId: attachedTopology.process?.id ?? null,
+      }
+    : await startDev({
+        cwd,
+        gameId: game.id,
+        mode,
+        secure,
+      }).then((started) => ({
+        topology: started.topology,
+        reusedExistingProcess: started.reusedExistingProcess,
+        attachedToRunningDev: false,
+        managedProcessId: started.process.id,
+      }));
 
   try {
     return await run({
       game,
       visualSource,
-      started,
+      session,
     });
   } finally {
-    if (!started.reusedExistingProcess) {
+    if (!session.reusedExistingProcess && session.managedProcessId) {
       await stopDev({
         cwd,
-        processId: started.process.id,
+        processId: session.managedProcessId,
       });
     }
   }
@@ -361,6 +384,7 @@ const withHarnessSession = async <T>({
 
 const runHarnessSessionHelper = <T>({
   operation,
+  gameId,
   configPath,
   scenarioModulePath,
   topology,
@@ -371,6 +395,7 @@ const runHarnessSessionHelper = <T>({
   cwd,
 }: {
   operation: "read" | "invoke";
+  gameId: string;
   configPath?: string | null;
   scenarioModulePath?: string | null;
   topology: Awaited<ReturnType<typeof getTopology>>;
@@ -385,6 +410,7 @@ const runHarnessSessionHelper = <T>({
     cwd,
     args: [
       `--operation=${operation}`,
+      `--game-id=${gameId}`,
       ...(configPath ? [`--config=${configPath}`] : []),
       ...(scenarioModulePath ? [`--module-path=${scenarioModulePath}`] : []),
       `--mode=${normalizeSessionMode(topology.topologyMode)}`,
@@ -422,19 +448,19 @@ export const listHarnessSessions = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, started }) => {
+    run: async ({ game, session }) => {
       const sessions = await readRegisteredHarnessSessions({
-        topology: started.topology,
+        topology: session.topology,
         gameId: game.id,
         roomId: normalizeRoomId(roomId),
       });
 
       return {
-        projectMode: started.topology.projectMode,
+        projectMode: session.topology.projectMode,
         mode,
-        topologyMode: started.topology.topologyMode,
+        topologyMode: session.topology.topologyMode,
         secure,
-        process: started.topology.process,
+        process: session.topology.process,
         sessions,
       };
     },
@@ -454,10 +480,10 @@ export const readHarnessSnapshot = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, visualSource, started }) => {
+    run: async ({ game, visualSource, session }) => {
       const normalizedRoomId = normalizeRoomId(roomId);
       const sessions = await readRegisteredHarnessSessions({
-        topology: started.topology,
+        topology: session.topology,
         gameId: game.id,
         roomId: normalizedRoomId,
       }).catch(() => []);
@@ -469,18 +495,18 @@ export const readHarnessSnapshot = async ({
       if (registeredSession) {
         return {
           gameId: registeredSession.gameId,
-          projectMode: started.topology.projectMode,
+          projectMode: session.topology.projectMode,
           mode,
-          topologyMode: started.topology.topologyMode,
+          topologyMode: session.topology.topologyMode,
           secure,
           roomId: registeredSession.roomId,
           sessionId: registeredSession.sessionId,
           controlSurface: "registered-session" as const,
-          process: started.topology.process,
+          process: session.topology.process,
           actions: registeredSession.actions,
           availableActions: registeredSession.availableActions,
           urls: {
-            ...started.topology.urls,
+            ...session.topology.urls,
             controllerJoinUrl:
               typeof registeredSession.snapshot?.controllerJoinUrl === "string"
                 ? registeredSession.snapshot.controllerJoinUrl
@@ -490,18 +516,19 @@ export const readHarnessSnapshot = async ({
         };
       }
 
-      const helperResult = runHarnessSessionHelper<{
+        const helperResult = runHarnessSessionHelper<{
         gameId: string;
         actions: AirJamHarnessSnapshotInspection["actions"];
         availableActions: string[];
         roomId: string | null;
         controllerJoinUrl: string | null;
         snapshot: Record<string, unknown> | null;
-      }>({
-        operation: "read",
-        configPath: visualSource.configPath,
+        }>({
+          operation: "read",
+          gameId: game.id,
+          configPath: visualSource.configPath,
         scenarioModulePath: visualSource.scenarioModulePath,
-        topology: started.topology,
+        topology: session.topology,
         roomId: normalizedRoomId,
         timeoutMs,
         cwd: game.rootDir,
@@ -509,18 +536,18 @@ export const readHarnessSnapshot = async ({
 
       return {
         gameId: helperResult.gameId,
-        projectMode: started.topology.projectMode,
+        projectMode: session.topology.projectMode,
         mode,
-        topologyMode: started.topology.topologyMode,
+        topologyMode: session.topology.topologyMode,
         secure,
         roomId: helperResult.roomId,
         sessionId: null,
         controlSurface: "isolated-session",
-        process: started.topology.process,
+        process: session.topology.process,
         actions: helperResult.actions,
         availableActions: helperResult.availableActions,
         urls: {
-          ...started.topology.urls,
+          ...session.topology.urls,
           controllerJoinUrl: helperResult.controllerJoinUrl,
         },
         snapshot: helperResult.snapshot,
@@ -544,10 +571,10 @@ export const invokeHarnessAction = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, visualSource, started }) => {
+    run: async ({ game, visualSource, session }) => {
       const normalizedRoomId = normalizeRoomId(roomId);
       const sessions = await readRegisteredHarnessSessions({
-        topology: started.topology,
+        topology: session.topology,
         gameId: game.id,
         roomId: normalizedRoomId,
       }).catch(() => []);
@@ -560,7 +587,7 @@ export const invokeHarnessAction = async ({
         const response = await fetch(
           new URL(
             DEV_HARNESS_INVOKE_PATH,
-            resolveHarnessServiceOrigin(started.topology),
+            resolveHarnessServiceOrigin(session.topology),
           ),
           {
             method: "POST",
@@ -595,18 +622,18 @@ export const invokeHarnessAction = async ({
 
         return {
           gameId: result.session.gameId,
-          projectMode: started.topology.projectMode,
+          projectMode: session.topology.projectMode,
           mode,
-          topologyMode: started.topology.topologyMode,
+          topologyMode: session.topology.topologyMode,
           secure,
           roomId: result.session.roomId,
           sessionId: result.session.sessionId,
           controlSurface: "registered-session",
-          process: started.topology.process,
+          process: session.topology.process,
           actions: mapRegisteredHarnessSession(result.session).actions,
           availableActions: [...result.session.actionNames],
           urls: {
-            ...started.topology.urls,
+            ...session.topology.urls,
             controllerJoinUrl,
           },
           actionName: result.invocation.actionName,
@@ -622,6 +649,7 @@ export const invokeHarnessAction = async ({
             typeof result.invocation.snapshotAfter === "object"
               ? (result.invocation.snapshotAfter as Record<string, unknown>)
               : null,
+          snapshotAfterStatus: result.invocation.snapshotAfterStatus,
         };
       }
 
@@ -636,11 +664,15 @@ export const invokeHarnessAction = async ({
         result: unknown;
         snapshotBefore: Record<string, unknown> | null;
         snapshotAfter: Record<string, unknown> | null;
+        snapshotAfterStatus:
+          | "committed-update-observed"
+          | "no-new-commit-before-timeout";
       }>({
         operation: "invoke",
+        gameId: game.id,
         configPath: visualSource.configPath,
         scenarioModulePath: visualSource.scenarioModulePath,
-        topology: started.topology,
+        topology: session.topology,
         roomId: normalizedRoomId,
         timeoutMs,
         actionName,
@@ -650,18 +682,18 @@ export const invokeHarnessAction = async ({
 
       return {
         gameId: helperResult.gameId,
-        projectMode: started.topology.projectMode,
+        projectMode: session.topology.projectMode,
         mode,
-        topologyMode: started.topology.topologyMode,
+        topologyMode: session.topology.topologyMode,
         secure,
         roomId: helperResult.roomId,
         sessionId: null,
         controlSurface: "isolated-session",
-        process: started.topology.process,
+        process: session.topology.process,
         actions: helperResult.actions,
         availableActions: helperResult.availableActions,
         urls: {
-          ...started.topology.urls,
+          ...session.topology.urls,
           controllerJoinUrl: helperResult.controllerJoinUrl,
         },
         actionName: helperResult.actionName,
@@ -669,6 +701,7 @@ export const invokeHarnessAction = async ({
         result: helperResult.result,
         snapshotBefore: helperResult.snapshotBefore,
         snapshotAfter: helperResult.snapshotAfter,
+        snapshotAfterStatus: helperResult.snapshotAfterStatus,
       };
     },
   });
@@ -685,8 +718,8 @@ export const captureVisuals = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, visualSource, started }) => {
-      const topology = started.topology;
+    run: async ({ game, visualSource, session }) => {
+      const topology = session.topology;
       const artifactRoot = resolveVisualArtifactRoot(
         topology.process?.cwd ?? game.rootDir,
       );
@@ -695,6 +728,7 @@ export const captureVisuals = async ({
         helperFile: resolveHelperScriptPath("run-visual-capture.ts"),
         cwd: game.rootDir,
         args: [
+          `--game-id=${game.id}`,
           ...(visualSource.configPath
             ? [`--config=${visualSource.configPath}`]
             : []),

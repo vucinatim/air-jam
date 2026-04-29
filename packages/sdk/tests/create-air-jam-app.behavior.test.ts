@@ -1,8 +1,18 @@
 import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { defineAirJamGameAgentContract } from "../src/agent/game-agent-contract";
+import {
+  defineAirJamGameAgentContract,
+  defineAirJamGameAgentStores,
+  gameAgentStore,
+} from "../src/agent/game-agent-contract";
+import { defineAirJamGameMetadata } from "../src/metadata";
 import { createAirJamApp } from "../src/runtime/create-air-jam-app";
+import {
+  AIR_JAM_RUNTIME_INSPECTION_KEY,
+  publishRuntimeInspectionContract,
+  readRuntimeInspectionContract,
+} from "../src/runtime-inspection";
 
 describe("createAirJamApp", () => {
   it("normalizes controller path and provides defaults", () => {
@@ -70,24 +80,64 @@ describe("createAirJamApp", () => {
 
   it("exposes machine-facing contracts on the returned app config", () => {
     const agent = defineAirJamGameAgentContract({
-      gameId: "fixture-game",
+      snapshotStores: defineAirJamGameAgentStores({
+        default: gameAgentStore<{ phase: string }>(),
+      }),
       projectSnapshot: () => ({ phase: "lobby" }),
       actions: {},
     });
+    const metadata = defineAirJamGameMetadata({
+      slug: "fixture-game",
+      name: "Fixture Game",
+      tagline: "Fixture",
+      category: "arcade",
+      minPlayers: 1,
+      maxPlayers: 4,
+      inputModalities: ["buttons"],
+      supportedSdkRange: "^1.0.0",
+      maintainer: { name: "Air Jam" },
+    });
     const airjam = createAirJamApp({
+      metadata,
       game: {
         controllerPath: "controller",
-        machine: {
-          agent,
-          visualScenariosModule: "../visual/scenarios.ts",
-        },
+        agent,
+        visualScenariosModule: "../visual/scenarios.ts",
       },
     });
 
     expect(airjam.game.controllerPath).toBe("/controller");
-    expect(airjam.game.machine?.agent).toBe(agent);
-    expect(airjam.game.machine?.visualScenariosModule).toBe(
-      "../visual/scenarios.ts",
-    );
+    expect(airjam.metadata?.slug).toBe("fixture-game");
+    expect(airjam.game.agent).toBe(agent);
+    expect(airjam.game.visualScenariosModule).toBe("../visual/scenarios.ts");
+  });
+
+  it("publishes and reads runtime inspection contracts through one SDK key", () => {
+    const target: Record<string, unknown> = {};
+
+    publishRuntimeInspectionContract(target, {
+      role: "host",
+      roomId: "ROOM1",
+      joinUrl: "http://127.0.0.1:5173/controller?room=ROOM1",
+      joinUrlStatus: "ready",
+      connectionStatus: "connected",
+      players: [],
+      controllers: [],
+      mode: "standalone",
+      runtimeState: "playing",
+    });
+
+    expect(target[AIR_JAM_RUNTIME_INSPECTION_KEY]).toMatchObject({
+      role: "host",
+      roomId: "ROOM1",
+    });
+    expect(readRuntimeInspectionContract(target)).toMatchObject({
+      role: "host",
+      roomId: "ROOM1",
+      joinUrlStatus: "ready",
+    });
+
+    publishRuntimeInspectionContract(target, null);
+    expect(readRuntimeInspectionContract(target)).toBeNull();
   });
 });

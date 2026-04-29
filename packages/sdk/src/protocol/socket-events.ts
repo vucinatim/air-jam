@@ -14,10 +14,13 @@ import type { ServerErrorPayload } from "./errors";
 import type {
   HostActivateEmbeddedGamePayload,
   HostBootstrapAck,
+  HostControllerActionAck,
   HostBootstrapPayload,
   HostCreateRoomPayload,
   HostJoinAsChildPayload,
+  HostRemoveControllerPayload,
   HostReconnectPayload,
+  HostResetRoomPayload,
   HostRegisterSystemPayload,
   HostRegistrationAck,
   HostSocketAuthority,
@@ -38,6 +41,7 @@ import type {
   SignalPayload,
 } from "./signals";
 import type {
+  AirJamActionInvocationResult,
   AirJamActionRpcPayload,
   AirJamStateSyncPayload,
   AirJamStateSyncRequestPayload,
@@ -62,6 +66,14 @@ export interface ClientToServerEvents {
   "host:reconnect": (
     payload: HostReconnectPayload,
     callback: (ack: HostRegistrationAck) => void,
+  ) => void;
+  "host:resetRoom": (
+    payload: HostResetRoomPayload,
+    callback: (ack: HostRegistrationAck) => void,
+  ) => void;
+  "host:removeController": (
+    payload: HostRemoveControllerPayload,
+    callback: (ack: HostControllerActionAck) => void,
   ) => void;
   "system:launchGame": (
     payload: SystemLaunchGamePayload,
@@ -96,7 +108,10 @@ export interface ClientToServerEvents {
   "host:play_sound": (payload: PlaySoundEventPayload) => void;
   "controller:play_sound": (payload: PlaySoundEventPayload) => void;
   "host:state_sync": (payload: HostStateSyncPayload) => void;
-  "controller:action_rpc": (payload: ControllerActionRpcPayload) => void;
+  "controller:action_rpc": (
+    payload: ControllerActionRpcPayload,
+    callback?: (ack: AirJamActionInvocationResult) => void,
+  ) => void;
   "controller:state_sync_request": (
     payload: ControllerStateSyncRequestPayload,
   ) => void;
@@ -117,7 +132,10 @@ export interface ServerToClientEvents {
   "server:redirect": (url: string) => void;
   "server:closeChild": () => void;
   "airjam:state_sync": (payload: AirJamStateSyncPayload) => void;
-  "airjam:action_rpc": (payload: AirJamActionRpcPayload) => void;
+  "airjam:action_rpc": (
+    payload: AirJamActionRpcPayload,
+    callback?: (ack: AirJamActionInvocationResult) => void,
+  ) => void;
   "airjam:state_sync_request": (payload: AirJamStateSyncRequestPayload) => void;
 }
 

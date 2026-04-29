@@ -59,6 +59,18 @@ The preview workspace supports:
 4. minimize and close controls
 5. per-window portrait or landscape rotation from the title bar
 6. shared active-opacity control for preview windows through platform settings
+7. a room controller roster with source-aware `Kick` controls for manual local recovery
+8. a `Reset room` escape hatch that creates a fresh empty room and reloads the local host page so gameplay state and controller state both reset cleanly
+
+`host.players` stays the gameplay-facing list.
+
+`host.controllers` is the richer room-session roster. Use it when you need:
+
+1. controller source (`phone`, `preview`, `virtual`)
+2. connected versus disconnected session state
+3. resume-lease awareness
+4. manual host recovery controls such as removing a stuck controller
+5. local-dev recovery flows such as resetting the current room
 
 ## Production Rule
 

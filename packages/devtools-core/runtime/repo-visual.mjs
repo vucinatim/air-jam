@@ -1,4 +1,4 @@
-import { runVisualHarness } from "@air-jam/harness";
+import { runVisualHarness } from "@air-jam/harness/visual";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -33,11 +33,11 @@ const loadScenarioPack = async ({ rootDir, gameId }) => {
   const loadedConfigModule = await import(pathToFileURL(configPath).href);
   const airjam =
     loadedConfigModule.airjam ?? loadedConfigModule.default ?? null;
-  const moduleSpecifier = airjam?.game?.machine?.visualScenariosModule ?? null;
+  const moduleSpecifier = airjam?.game?.visualScenariosModule ?? null;
 
   if (typeof moduleSpecifier !== "string" || moduleSpecifier.trim() === "") {
     throw new Error(
-      `Air Jam config "${configPath}" does not publish game.machine.visualScenariosModule.`,
+      `Air Jam config "${configPath}" does not publish game.visualScenariosModule.`,
     );
   }
 
@@ -49,13 +49,7 @@ const loadScenarioPack = async ({ rootDir, gameId }) => {
   const scenarioPack =
     loaded.visualHarness ?? loaded.visualScenarios ?? loaded.harness ?? null;
 
-  if (
-    !scenarioPack ||
-    scenarioPack.gameId !== gameId ||
-    !scenarioPack.bridge ||
-    scenarioPack.bridge.gameId !== gameId ||
-    !Array.isArray(scenarioPack.scenarios)
-  ) {
+  if (!scenarioPack || !scenarioPack.bridge || !Array.isArray(scenarioPack.scenarios)) {
     throw new Error(
       `Invalid visual harness scenario pack for "${gameId}" at ${scenarioModulePath}.`,
     );

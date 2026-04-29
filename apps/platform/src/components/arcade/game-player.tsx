@@ -12,6 +12,8 @@ import {
   AIRJAM_HOST_BRIDGE_EVENT,
   createHostBridgeAttachMessage,
   createHostBridgeCloseMessage,
+  createHostBridgeResponseMessage,
+  parseHostBridgeResponseMessage,
   parseHostBridgeEmitMessage,
   parseHostBridgeRequestMessage,
   type AirJamRealtimeClient,
@@ -99,6 +101,9 @@ export const GamePlayer = ({
 }: GamePlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hostBridgePortRef = useRef<MessagePort | null>(null);
+  const hostBridgePendingAcksRef = useRef(
+    new Map<string, (ack: unknown) => void>(),
+  );
   const pendingBridgeTeardownRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -289,6 +294,7 @@ export const GamePlayer = ({
     currentPort.onmessage = null;
     currentPort.close();
     hostBridgePortRef.current = null;
+    hostBridgePendingAcksRef.current.clear();
     hostBridgeAttachedIdentityRef.current = null;
   }, []);
 
@@ -319,15 +325,44 @@ export const GamePlayer = ({
       port.start?.();
 
       port.onmessage = (event) => {
+        const response = parseHostBridgeResponseMessage(event.data);
+        if (response) {
+          const pending = hostBridgePendingAcksRef.current.get(
+            response.payload.requestId,
+          );
+          if (!pending) {
+            return;
+          }
+
+          hostBridgePendingAcksRef.current.delete(response.payload.requestId);
+          pending(response.payload.ack);
+          return;
+        }
+
         const message = parseHostBridgeEmitMessage(event.data);
         if (!message) {
           return;
         }
 
-        hostSocket.emit(
-          message.payload.event,
-          ...(message.payload.args as never[]),
-        );
+        if (message.payload.requestId) {
+          (
+            hostSocket.emit as unknown as (
+              event: string,
+              ...args: unknown[]
+            ) => void
+          )(
+            message.payload.event,
+            ...(message.payload.args as never[]),
+            (ack: unknown) => {
+              port.postMessage(
+                createHostBridgeResponseMessage(message.payload.requestId!, ack),
+              );
+            },
+          );
+          return;
+        }
+
+        hostSocket.emit(message.payload.event, ...(message.payload.args as never[]));
       };
 
       const playerNotices: ControllerJoinedNotice[] = players.map((player) => ({
@@ -372,6 +407,27 @@ export const GamePlayer = ({
       const active = arcadeIdentityRef.current;
       if (embeddedBridgeForwardShouldClose(attached, active)) {
         closeHostBridge("arcade_surface_changed");
+        return;
+      }
+
+      if (
+        eventName === "airjam:action_rpc" &&
+        typeof args[args.length - 1] === "function"
+      ) {
+        const callback = args[args.length - 1] as (ack: unknown) => void;
+        const eventArgs = args.slice(0, -1);
+        const requestId =
+          globalThis.crypto?.randomUUID?.() ??
+          `host-bridge-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+        hostBridgePendingAcksRef.current.set(requestId, callback);
+        currentPort.postMessage({
+          type: AIRJAM_HOST_BRIDGE_EVENT,
+          payload: {
+            event: eventName,
+            args: eventArgs,
+            requestId,
+          },
+        });
         return;
       }
 

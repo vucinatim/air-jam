@@ -4,7 +4,7 @@ import {
   beginRoomClosing,
   emitControllerLeftNotice,
   getChildHostDisconnectTeardownMs,
-  getControllerResumeLeaseMs,
+  getControllerResumeLeaseMsForSource,
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
@@ -156,8 +156,11 @@ export const registerDisconnectHandler = (
       const controllerSession = session.controllers.get(
         controller.controllerId,
       );
-      const resumeLeaseMs = getControllerResumeLeaseMs();
-      const resumeLeaseExpiresAt = Date.now() + resumeLeaseMs;
+      const resumeLeaseMs = getControllerResumeLeaseMsForSource(
+        controllerSession?.source ?? "phone",
+      );
+      const resumeLeaseExpiresAt =
+        resumeLeaseMs > 0 ? Date.now() + resumeLeaseMs : null;
 
       if (controllerSession) {
         if (controllerSession.pendingDisconnectTimer) {
@@ -166,28 +169,54 @@ export const registerDisconnectHandler = (
         controllerSession.connected = false;
         controllerSession.socketId = undefined;
         controllerSession.resumeLeaseExpiresAt = resumeLeaseExpiresAt;
-        controllerSession.pendingDisconnectTimer = setTimeout(() => {
-          const currentSession = roomManager.getRoom(controller.roomId);
-          const currentController = currentSession?.controllers.get(
-            controller.controllerId,
-          );
-          if (
-            !currentSession ||
-            !currentController ||
-            currentController.connected ||
-            currentController.resumeLeaseExpiresAt !== resumeLeaseExpiresAt
-          ) {
-            return;
-          }
-          currentController.pendingDisconnectTimer = undefined;
-          currentSession.controllers.delete(controller.controllerId);
-          emitControllerLeftNotice(io, currentSession, controller.controllerId);
+        if (resumeLeaseMs > 0 && resumeLeaseExpiresAt !== null) {
+          controllerSession.pendingDisconnectTimer = setTimeout(() => {
+            const currentSession = roomManager.getRoom(controller.roomId);
+            const currentController = currentSession?.controllers.get(
+              controller.controllerId,
+            );
+            if (
+              !currentSession ||
+              !currentController ||
+              currentController.connected ||
+              currentController.resumeLeaseExpiresAt !== resumeLeaseExpiresAt
+            ) {
+              return;
+            }
+            currentController.pendingDisconnectTimer = undefined;
+            currentSession.controllers.delete(controller.controllerId);
+            emitControllerLeftNotice(io, currentSession, controller.controllerId);
+            runtimeUsagePublisher.publish(
+              createRoomRuntimeUsageEvent(currentSession, {
+                kind: "controller_left",
+                payload: {
+                  controllerId: controller.controllerId,
+                  reason: "resume_lease_expired",
+                },
+              }),
+            );
+            getDisconnectLogger({
+              roomId: controller.roomId,
+              controllerId: controller.controllerId,
+            }).info(
+              {
+                event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectLeaseExpired,
+                reason,
+                resumeLeaseMs,
+                source: currentController.source,
+              },
+              "Controller resume lease expired and was removed from room",
+            );
+          }, resumeLeaseMs);
+        } else {
+          session.controllers.delete(controller.controllerId);
+          emitControllerLeftNotice(io, session, controller.controllerId);
           runtimeUsagePublisher.publish(
-            createRoomRuntimeUsageEvent(currentSession, {
+            createRoomRuntimeUsageEvent(session, {
               kind: "controller_left",
               payload: {
                 controllerId: controller.controllerId,
-                reason: "resume_lease_expired",
+                reason: "no_resume_lease",
               },
             }),
           );
@@ -196,37 +225,41 @@ export const registerDisconnectHandler = (
             controllerId: controller.controllerId,
           }).info(
             {
-              event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectLeaseExpired,
+              event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectApplied,
               reason,
               resumeLeaseMs,
+              source: controllerSession.source,
             },
-            "Controller resume lease expired and was removed from room",
+            "Controller disconnected and was removed immediately",
           );
-        }, resumeLeaseMs);
+        }
       }
 
-      runtimeUsagePublisher.publish(
-        createRoomRuntimeUsageEvent(session, {
-          kind: "controller_disconnected",
-          payload: {
-            controllerId: controller.controllerId,
+      if (resumeLeaseMs > 0) {
+        runtimeUsagePublisher.publish(
+          createRoomRuntimeUsageEvent(session, {
+            kind: "controller_disconnected",
+            payload: {
+              controllerId: controller.controllerId,
+              reason,
+              resumable: true,
+              resumeLeaseMs,
+            },
+          }),
+        );
+        getDisconnectLogger({
+          roomId: controller.roomId,
+          controllerId: controller.controllerId,
+        }).info(
+          {
+            event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectPendingResume,
             reason,
-            resumable: true,
             resumeLeaseMs,
+            source: controllerSession?.source ?? "phone",
           },
-        }),
-      );
-      getDisconnectLogger({
-        roomId: controller.roomId,
-        controllerId: controller.controllerId,
-      }).info(
-        {
-          event: AIRJAM_DEV_LOG_EVENTS.controller.disconnectPendingResume,
-          reason,
-          resumeLeaseMs,
-        },
-        "Controller disconnected and entered resume lease window",
-      );
+          "Controller disconnected and entered resume lease window",
+        );
+      }
     }
     roomManager.deleteController(socket.id);
     delete socket.data.controllerAuthority;

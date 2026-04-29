@@ -13,6 +13,7 @@ import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { AnimatePresence } from "framer-motion";
 import { lastBandStandingVisualHarnessBridge } from "../../visual/contract";
+import { gameMetadata } from "../airjam.config";
 import { soundManifest } from "../game/contracts/sounds";
 import { FullscreenToggle } from "./components/fullscreen-toggle";
 import { HostGameOver } from "./components/host-game-over";
@@ -37,6 +38,7 @@ const HostScreen = () => {
   return (
     <>
       <VisualHarnessRuntime
+        gameId={gameMetadata.slug}
         bridge={lastBandStandingVisualHarnessBridge}
         context={{
           host: runtime.host,

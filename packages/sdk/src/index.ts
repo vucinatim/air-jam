@@ -94,6 +94,18 @@ export {
   type AirJamControllerRuntimeProps,
   type AirJamHostRuntimeProps,
 } from "./runtime/session-runtimes";
+export {
+  AIR_JAM_RUNTIME_INSPECTION_KEY,
+  createControllerRuntimeInspectionContract,
+  createHostRuntimeInspectionContract,
+  publishRuntimeInspectionContract,
+  readRuntimeInspectionContract,
+  useControllerRuntimeInspectionContract,
+  useHostRuntimeInspectionContract,
+  type ControllerRuntimeInspectionContract,
+  type HostRuntimeInspectionContract,
+  type RuntimeInspectionContract,
+} from "./runtime-inspection";
 
 export {
   isActiveMatchPhase,
@@ -103,6 +115,11 @@ export {
   toShellMatchPhase,
 } from "./lifecycle";
 export type { ShellMatchPhase, StandardMatchPhase } from "./lifecycle";
+export type {
+  AirJamActionAccepted,
+  AirJamActionInvocationResult,
+  AirJamActionRejected,
+} from "./protocol";
 export type {
   ControllerOrientation,
   ControllerStatePayload,
@@ -143,17 +160,53 @@ export { resolveAirJamBrowserRouterBasename } from "./runtime/router-basename";
 
 export {
   defineAirJamGameAgentContract,
+  defineAirJamGameAgentStores,
+  gameAgentAction,
+  gameAgentStore,
+  getAirJamGameAgentStoreDomains,
+  getAirJamGameAgentActionMetadata,
+  readAirJamDefaultGameStore,
+  readAirJamGameStore,
+  resolveAirJamGameAgentActionPayload,
   type AirJamGameAgentActionContract,
+  type AirJamGameAgentActionOptions,
   type AirJamGameAgentActionTarget,
   type AirJamGameAgentContract,
   type AirJamGameAgentJsonObject,
   type AirJamGameAgentPayloadKind,
   type AirJamGameAgentPayloadMetadata,
+  type AirJamGameAgentResolvedActionContract,
+  type AirJamGameAgentStoreDeclaration,
+  type AirJamGameAgentStoreDeclarations,
   type AirJamGameAgentSnapshotContext,
+  type AirJamGameAgentStores,
+  type InferAirJamGameAgentStores,
 } from "./agent/game-agent-contract";
 export {
+  createMachineActionMetadata,
+  defineMachineActionInput,
+  describeMachineActionInputs,
+  machineActionInput,
+  type AirJamMachineActionCustomOptions,
+  type AirJamMachineActionDescriptor,
+  type AirJamMachineActionInputDefinition,
+  type AirJamMachineActionMetadata,
+  type AirJamMachineActionOptions,
+  type AirJamMachineActionParseMeta,
+  type AirJamMachineActionPayloadKind,
+  type AirJamMachineActionPayloadMetadata,
+  type InferAirJamMachineActionInputPayload,
+} from "./agent/machine-action";
+export {
+  acceptAirJamAction,
   createAirJamStore,
+  rejectAirJamAction,
   type AirJamActionContext,
+  type AirJamActionAcceptance,
+  type AirJamHostActionEvent,
+  type AirJamHostActionListener,
+  type AirJamHostActionSubscriptionOptions,
+  type AirJamActionRejection,
   type AirJamSyncedStoreHook,
   type CreateAirJamStoreOptions,
 } from "./store/create-air-jam-store";

@@ -1,5 +1,9 @@
+import {
+  inferControllerSourceFromDeviceId,
+} from "@air-jam/sdk/protocol";
 import type {
   ChildHostCapability,
+  ControllerPresenceNotice,
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
   ControllerStateMessage,
@@ -131,6 +135,10 @@ export const getControllerResumeLeaseMs = (): number => {
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 30_000;
 };
+
+export const getControllerResumeLeaseMsForSource = (
+  source: ReturnType<typeof inferControllerSourceFromDeviceId>,
+): number => (source === "virtual" ? 0 : getControllerResumeLeaseMs());
 
 export const issueChildHostCapability = (
   token: string,
@@ -359,16 +367,26 @@ export const markRoomTeardown = (
   return transitionRoomLifecycle(session, "TEARDOWN");
 };
 
+export const toControllerPresenceNotice = (
+  controller: ControllerSession,
+): ControllerPresenceNotice => ({
+  controllerId: controller.controllerId,
+  deviceId: controller.deviceId,
+  nickname: controller.nickname,
+  source: controller.source,
+  connected: controller.connected,
+  resumeLeaseExpiresAt: controller.resumeLeaseExpiresAt,
+  player: controller.playerProfile,
+});
+
 export const toControllerJoinedNotice = (
   controller: ControllerSession,
   options: {
     resumed?: boolean;
   } = {},
 ) => ({
-  controllerId: controller.controllerId,
-  nickname: controller.nickname,
+  ...toControllerPresenceNotice(controller),
   resumed: options.resumed,
-  player: controller.playerProfile,
 });
 
 export const listRoomPlayers = (session: RoomSession): PlayerProfile[] =>
@@ -376,6 +394,11 @@ export const listRoomPlayers = (session: RoomSession): PlayerProfile[] =>
     session.controllers.values(),
     (controller) => controller.playerProfile,
   );
+
+export const listRoomControllerPresences = (
+  session: RoomSession,
+): ControllerPresenceNotice[] =>
+  Array.from(session.controllers.values(), toControllerPresenceNotice);
 
 export const getActiveHostSocketId = (session: RoomSession): string =>
   session.focus === "GAME" && session.childHostSocketId

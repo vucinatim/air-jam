@@ -1,13 +1,13 @@
 import type {
   VisualScenarioContext,
   VisualScenarioPack,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 import {
   captureStandardSurfaces,
   defineVisualHarness,
   waitForControllerText,
   waitForHostText,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 import { airCaptureVisualHarnessBridge } from "./contract";
 
 const prepareLobbyState = async (
@@ -76,7 +76,6 @@ const prepareEndedState = async (
 };
 
 export const visualHarness = defineVisualHarness({
-  gameId: "air-capture",
   bridge: airCaptureVisualHarnessBridge,
   scenarios: [
     {

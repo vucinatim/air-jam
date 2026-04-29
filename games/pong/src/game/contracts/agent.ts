@@ -1,4 +1,11 @@
-import { defineAirJamGameAgentContract } from "@air-jam/sdk";
+import {
+  defineAirJamGameAgentContract,
+  defineAirJamGameAgentStores,
+  gameAgentAction,
+  gameAgentStore,
+  machineActionInput,
+  readAirJamDefaultGameStore,
+} from "@air-jam/sdk";
 import { getMatchReadiness } from "../domain/match-readiness";
 import { getTeamLabel, type TeamId } from "../domain/team";
 import { getEffectiveTeamCounts, getTeamCounts } from "../domain/team-slots";
@@ -9,19 +16,11 @@ import type {
 } from "../stores/pong-store-types";
 
 const DEFAULT_STORE_DOMAIN = "default";
+const snapshotStores = defineAirJamGameAgentStores({
+  [DEFAULT_STORE_DOMAIN]: gameAgentStore<PongState>(),
+});
 
 const TEAM_IDS = ["team1", "team2"] as const satisfies readonly TeamId[];
-
-const readPongState = (
-  stores: Record<string, Record<string, unknown>>,
-): PongState | null => {
-  const candidate = stores[DEFAULT_STORE_DOMAIN];
-  if (!candidate) {
-    return null;
-  }
-
-  return candidate as unknown as PongState;
-};
 
 const summarizeTeam = (
   team: TeamId,
@@ -63,12 +62,12 @@ const summarizeMatch = (matchSummary: MatchSummary | null) => {
 };
 
 export const gameAgentContract = defineAirJamGameAgentContract({
-  gameId: "pong",
-  snapshotStoreDomains: [DEFAULT_STORE_DOMAIN],
+  snapshotStores,
   snapshotDescription:
     "Game-focused Pong snapshot with team composition, lobby readiness, live score, and ended-match summary for agent-driven joins, starts, and score control.",
-  projectSnapshot: ({ controllerId, stores }) => {
-    const state = readPongState(stores);
+  projectSnapshot: (context) => {
+    const { controllerId } = context;
+    const state = readAirJamDefaultGameStore(context);
     if (!state) {
       return {
         matchPhase: "unavailable",
@@ -117,129 +116,126 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    join_team: {
-      target: {
-        kind: "controller",
+    join_team: gameAgentAction.player(
+      {
         actionName: "joinTeam",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Assign the current controller to a Pong team in the lobby.",
-      availability: "Lobby only. Requires a connected controller identity.",
-      payload: {
-        kind: "enum",
-        description: "The team to join.",
-        allowedValues: [...TEAM_IDS],
+      {
+        input: machineActionInput.enum(TEAM_IDS, {
+          payloadDescription: "The team to join.",
+        }),
+        toPayload: (team) => ({
+          team,
+        }),
+        description: "Assign the current controller to a Pong team in the lobby.",
+        availability: "Lobby only. Requires a connected controller identity.",
+        resultDescription:
+          "The controller joins the requested team if a slot is available.",
       },
-      resolveInput: (input) => ({
-        team: input,
-      }),
-      resultDescription:
-        "The controller joins the requested team if a slot is available.",
-    },
-    set_points_to_win: {
-      target: {
-        kind: "controller",
+    ),
+    set_points_to_win: gameAgentAction.player(
+      {
         actionName: "setPointsToWin",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Update the Pong win condition from the lobby.",
-      availability: "Lobby only.",
-      payload: {
-        kind: "number",
-        description: "Target score required to win the match.",
+      {
+        input: machineActionInput.number({
+          payloadDescription: "Target score required to win the match.",
+        }),
+        toPayload: (pointsToWin) => ({
+          pointsToWin,
+        }),
+        description: "Update the Pong win condition from the lobby.",
+        availability: "Lobby only.",
+        resultDescription: "The lobby updates the match win condition.",
       },
-      resolveInput: (input) => ({
-        pointsToWin: Number(input),
-      }),
-      resultDescription: "The lobby updates the match win condition.",
-    },
-    set_bot_count: {
-      target: {
-        kind: "controller",
+    ),
+    set_bot_count: gameAgentAction.player(
+      {
         actionName: "setBotCount",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Add or remove bots on one Pong team from the lobby.",
-      availability: "Lobby only.",
-      payload: {
-        kind: "json",
-        description:
-          'A JSON object like {"team":"team1","count":1} selecting the team and desired bot count.',
+      {
+        input: machineActionInput.custom(
+          {
+            payloadDescription:
+              'A JSON object like {"team":"team1","count":1} selecting the team and desired bot count.',
+          },
+          (input) => {
+            const payload =
+              typeof input === "object" && input !== null
+                ? (input as Record<string, unknown>)
+                : {};
+            return {
+              team: payload.team === "team2" ? "team2" : "team1",
+              count: Number(payload.count ?? 0),
+            };
+          },
+        ),
+        description: "Add or remove bots on one Pong team from the lobby.",
+        availability: "Lobby only.",
+        resultDescription:
+          "The requested team bot count updates, subject to team slot limits.",
       },
-      resolveInput: (input) => {
-        const payload =
-          typeof input === "object" && input !== null
-            ? (input as Record<string, unknown>)
-            : {};
-        return {
-          team: payload.team === "team2" ? "team2" : "team1",
-          count: Number(payload.count ?? 0),
-        };
-      },
-      resultDescription:
-        "The requested team bot count updates, subject to team slot limits.",
-    },
-    start_match: {
-      target: {
-        kind: "controller",
+    ),
+    start_match: gameAgentAction.player(
+      {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Start the Pong match once each team has at least one participant.",
-      availability: "Lobby only.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description:
+          "Start the Pong match once each team has at least one participant.",
+        availability: "Lobby only.",
+        resultDescription: "The match phase switches from lobby to playing.",
       },
-      resultDescription: "The match phase switches from lobby to playing.",
-    },
-    award_point: {
-      target: {
-        kind: "controller",
+    ),
+    award_point: gameAgentAction.player(
+      {
         actionName: "scorePoint",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Award one point to a Pong team. Useful for agent QA and deterministic match-end checks.",
-      availability: "Playing only.",
-      payload: {
-        kind: "enum",
-        description: "The team that should receive the point.",
-        allowedValues: [...TEAM_IDS],
+      {
+        input: machineActionInput.enum(TEAM_IDS, {
+          payloadDescription: "The team that should receive the point.",
+        }),
+        toPayload: (team) => ({
+          team,
+        }),
+        description:
+          "Award one point to a Pong team. Useful for agent QA and deterministic match-end checks.",
+        availability: "Playing only.",
+        resultDescription:
+          "The score increments, and the match can end if the win threshold is reached.",
       },
-      resolveInput: (input) => ({
-        team: input,
-      }),
-      resultDescription:
-        "The score increments, and the match can end if the win threshold is reached.",
-    },
-    restart_match: {
-      target: {
-        kind: "controller",
+    ),
+    restart_match: gameAgentAction.player(
+      {
         actionName: "restartMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Restart Pong immediately from the ended screen.",
-      availability: "Ended matches only.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description: "Restart Pong immediately from the ended screen.",
+        availability: "Ended matches only.",
+        resultDescription:
+          "The score resets and the match returns to the playing phase.",
       },
-      resultDescription:
-        "The score resets and the match returns to the playing phase.",
-    },
-    return_to_lobby: {
-      target: {
-        kind: "controller",
+    ),
+    return_to_lobby: gameAgentAction.player(
+      {
         actionName: "returnToLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Return the Pong match to the lobby without restarting dev.",
-      availability: "Any phase.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description: "Return the Pong match to the lobby without restarting dev.",
+        availability: "Any phase.",
+        resultDescription:
+          "The match returns to the lobby with scores cleared and the current roster preserved.",
       },
-      resultDescription:
-        "The match returns to the lobby with scores cleared and the current roster preserved.",
-    },
+    ),
   },
 });

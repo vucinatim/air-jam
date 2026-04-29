@@ -10,19 +10,19 @@ export const inspectAirJamMachineDeclaration = async (
   configPath: string,
 ): Promise<AirJamMachineDeclaration> => {
   const airjam = await loadAirJamAppConfig(configPath);
-  const moduleSpecifier = airjam.game.machine?.visualScenariosModule ?? null;
+  const moduleSpecifier = airjam.game.visualScenariosModule ?? null;
 
   if (
     moduleSpecifier !== null &&
     (typeof moduleSpecifier !== "string" || moduleSpecifier.trim() === "")
   ) {
     throw new Error(
-      `Air Jam config "${configPath}" exports an invalid game.machine.visualScenariosModule value.`,
+      `Air Jam config "${configPath}" exports an invalid game.visualScenariosModule value.`,
     );
   }
 
   return {
-    hasAgent: Boolean(airjam.game.machine?.agent),
+    hasAgent: Boolean(airjam.game.agent),
     visualScenariosModulePath:
       typeof moduleSpecifier === "string"
         ? path.resolve(path.dirname(configPath), moduleSpecifier)

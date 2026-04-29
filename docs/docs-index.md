@@ -19,7 +19,7 @@ Core system docs:
 7. [Environment Contracts](./systems/env-contracts.md)
 8. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 9. [Composition Shell Contract](./systems/composition-shell-contract.md)
-10. [Harness Visual Contract](./systems/harness-visual-contract.md)
+10. [Visual Proof And Host Staging Contract](./systems/harness-visual-contract.md)
 
 Strategy and operations:
 
@@ -45,8 +45,9 @@ Active architecture cleanup plans:
 Planned future architecture tracks:
 
 1. [Air Jam MCP And Agent Devtools Plan](./plans/air-jam-mcp-and-agent-devtools-plan.md)
-2. [Remote Rooms And Display Surfaces Plan](./plans/remote-rooms-and-display-surfaces-plan.md)
-3. [Hosted Release CLI And MCP Plan](./plans/hosted-release-cli-and-mcp-plan.md)
+2. [Agent Control System Rewrite Plan](./plans/agent-control-system-rewrite-plan.md)
+3. [Remote Rooms And Display Surfaces Plan](./plans/remote-rooms-and-display-surfaces-plan.md)
+4. [Hosted Release CLI And MCP Plan](./plans/hosted-release-cli-and-mcp-plan.md)
 
 Prerelease future-proofing guides:
 

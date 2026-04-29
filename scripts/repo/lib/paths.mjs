@@ -6,6 +6,7 @@ const __dirname = path.dirname(__filename);
 
 export const repoRoot = path.resolve(__dirname, "../../..");
 export const tarballDir = path.join(repoRoot, ".airjam", "tarballs");
+export const tarballSetsDir = path.join(tarballDir, "sets");
 export const createAirjamCliEntry = path.join(
   repoRoot,
   "packages",

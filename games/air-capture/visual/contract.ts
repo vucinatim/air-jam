@@ -44,7 +44,6 @@ const parseEndedMatchPayload = (
 };
 
 export const airCaptureVisualHarnessBridge = defineVisualHarnessBridge({
-  gameId: "air-capture",
   selectSnapshot: (context: {
     host: {
       roomId: string | null;

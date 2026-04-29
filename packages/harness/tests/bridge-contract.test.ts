@@ -89,7 +89,6 @@ describe("bridgeAction", () => {
 describe("defineVisualHarnessBridge", () => {
   it("preserves the declared bridge contract", () => {
     const bridge = defineVisualHarnessBridge({
-      gameId: "pong",
       selectSnapshot: (_context: Record<string, never>) => ({
         roomId: "room-1",
         controllerJoinUrl: null,
@@ -104,7 +103,6 @@ describe("defineVisualHarnessBridge", () => {
       },
     });
 
-    expect(bridge.gameId).toBe("pong");
     expect(bridge.selectSnapshot({})).toMatchObject({
       roomId: "room-1",
       matchPhase: "lobby",

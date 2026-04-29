@@ -1,7 +1,7 @@
 import type {
   AnyVisualHarnessBridgeDefinition,
   VisualScenarioPack,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 import { pathToFileURL } from "node:url";
 import { loadVisualScenarioPackFromConfig } from "./airjam-machine.js";
 
@@ -17,13 +17,7 @@ export const loadVisualScenarioPack = async (
   const scenarioPack =
     loaded.visualHarness ?? loaded.visualScenarios ?? loaded.harness ?? null;
 
-  if (
-    !scenarioPack ||
-    typeof scenarioPack.gameId !== "string" ||
-    !scenarioPack.bridge ||
-    scenarioPack.bridge.gameId !== scenarioPack.gameId ||
-    !Array.isArray(scenarioPack.scenarios)
-  ) {
+  if (!scenarioPack || !scenarioPack.bridge || !Array.isArray(scenarioPack.scenarios)) {
     throw new Error(`Invalid Air Jam visual scenario pack at ${modulePath}.`);
   }
 

@@ -13,6 +13,7 @@ import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
   createControllerBridgeAttachMessage,
   createControllerBridgeCloseMessage,
+  createControllerBridgeResponseMessage,
   parseControllerBridgeEmitMessage,
   parseControllerBridgeRequestMessage,
   parseControllerPresentationSyncMessage,
@@ -303,10 +304,26 @@ export function useControllerEmbeddedGameFrame({
           return;
         }
 
-        socket.emit(
-          message.payload.event,
-          ...(message.payload.args as never[]),
-        );
+        const requestId = message.payload.requestId;
+        if (requestId) {
+          (
+            socket.emit as unknown as (
+              event: string,
+              ...args: unknown[]
+            ) => void
+          )(
+            message.payload.event,
+            ...(message.payload.args as never[]),
+            (ack: unknown) => {
+              port.postMessage(
+                createControllerBridgeResponseMessage(requestId, ack),
+              );
+            },
+          );
+          return;
+        }
+
+        socket.emit(message.payload.event, ...(message.payload.args as never[]));
       };
 
       const session = controllerSessionRef.current;

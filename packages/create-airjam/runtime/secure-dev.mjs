@@ -59,6 +59,7 @@ export const parseGameDevArgs = (argv = [], env = process.env) => {
   return {
     secure: hasFlag(argv, "--secure"),
     secureMode: resolveRequestedSecureMode({ argv, env: runtimeEnv }),
+    previewManaged: hasFlag(argv, "--preview-managed"),
     webOnly: hasFlag(argv, "--web-only"),
     serverOnly: hasFlag(argv, "--server-only"),
     allowExistingGame: hasFlag(argv, "--allow-existing-game"),

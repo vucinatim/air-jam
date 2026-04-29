@@ -30,12 +30,11 @@ export const airjam = createAirJamApp({
     ...env.vite(import.meta.env),
     maxPlayers: 10,
   },
+  metadata: gameMetadata,
   game: {
     controllerPath: "/controller",
-    machine: {
-      agent: gameAgentContract,
-      visualScenariosModule: "../visual/scenarios.ts",
-    },
+    agent: gameAgentContract,
+    visualScenariosModule: "../visual/scenarios.ts",
   },
   input: {
     schema: gameInputSchema,

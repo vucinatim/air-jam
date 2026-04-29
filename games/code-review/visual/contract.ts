@@ -36,7 +36,6 @@ const parseForceEndPayload = (
 };
 
 export const codeReviewVisualHarnessBridge = defineVisualHarnessBridge({
-  gameId: "code-review",
   selectSnapshot: (context: {
     host: {
       roomId: string | null;

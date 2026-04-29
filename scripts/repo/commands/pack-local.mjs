@@ -5,10 +5,12 @@ import {
 
 export const runRepoPackLocalCommand = () => {
   buildLocalScaffoldPackageSet();
-  const tarballs = packLocalScaffoldPackageSet();
+  const { manifestPath, setDir, setId, tarballs } = packLocalScaffoldPackageSet();
 
   console.log("");
-  console.log("Local tarballs ready:");
+  console.log(`Local tarballs ready in immutable set ${setId}:`);
+  console.log(`- set dir: ${setDir}`);
+  console.log(`- manifest: ${manifestPath}`);
   for (const [packageName, tarballPath] of tarballs.entries()) {
     console.log(`- ${packageName}: ${tarballPath}`);
   }

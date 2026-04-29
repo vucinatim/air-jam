@@ -1,5 +1,9 @@
-import { describeVisualHarnessActions } from "@air-jam/harness";
-import { resolveVisualScenarioModulePathFromConfig } from "./airjam-machine.js";
+import { describeVisualHarnessActions } from "@air-jam/harness/visual";
+import {
+  loadAirJamAppConfig,
+  resolveAirJamConfigGameId,
+  resolveVisualScenarioModulePathFromConfig,
+} from "./airjam-machine.js";
 import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
@@ -37,12 +41,16 @@ const scenarioPack = await loadVisualScenarioPackFromModuleOrConfig({
   modulePath,
   configPath,
 });
+const effectiveGameId =
+  (configPath
+    ? resolveAirJamConfigGameId(await loadAirJamAppConfig(configPath))
+    : null) ?? "unknown-game";
 
 process.stdout.write(
   `${JSON.stringify(
     {
       hasVisualHarness: true,
-      gameId: scenarioPack.gameId,
+      gameId: effectiveGameId,
       bridgeActions: Object.keys(scenarioPack.bridge.actions ?? {}),
       actionMetadata: describeVisualHarnessActions(
         scenarioPack.bridge.actions ?? {},

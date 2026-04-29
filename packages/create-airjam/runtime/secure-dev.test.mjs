@@ -39,12 +39,33 @@ test("parseSecureInitArgs defaults to local mode", () => {
 
 test("parseGameDevArgs parses secure flags", () => {
   assert.deepEqual(
-    parseGameDevArgs(["--secure", "--secure-mode=tunnel", "--web-only"], {
-      VITE_PORT: "5317",
-    }),
+    parseGameDevArgs(
+      ["--secure", "--secure-mode=tunnel", "--preview-managed"],
+      {
+        VITE_PORT: "5317",
+      },
+    ),
     {
       secure: true,
       secureMode: SECURE_MODE_TUNNEL,
+      previewManaged: true,
+      webOnly: false,
+      serverOnly: false,
+      allowExistingGame: false,
+      port: 5317,
+    },
+  );
+});
+
+test("parseGameDevArgs keeps legacy web-only shape", () => {
+  assert.deepEqual(
+    parseGameDevArgs(["--web-only"], {
+      VITE_PORT: "5317",
+    }),
+    {
+      secure: false,
+      secureMode: SECURE_MODE_LOCAL,
+      previewManaged: false,
       webOnly: true,
       serverOnly: false,
       allowExistingGame: false,

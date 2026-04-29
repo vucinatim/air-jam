@@ -1,5 +1,15 @@
-import type { PlayerProfile } from "./controller";
+import type { ControllerSource, PlayerProfile } from "./controller";
 import type { RoomCode } from "./core";
+
+export interface ControllerPresenceNotice {
+  controllerId: string;
+  deviceId?: string;
+  nickname?: string;
+  source: ControllerSource;
+  connected: boolean;
+  resumeLeaseExpiresAt: number | null;
+  player?: PlayerProfile;
+}
 
 export interface ControllerWelcomePayload {
   controllerId: string;
@@ -7,13 +17,11 @@ export interface ControllerWelcomePayload {
   resumed?: boolean;
   player?: PlayerProfile;
   players?: PlayerProfile[];
+  controllers?: ControllerPresenceNotice[];
 }
 
-export interface ControllerJoinedNotice {
-  controllerId: string;
-  nickname?: string;
+export interface ControllerJoinedNotice extends ControllerPresenceNotice {
   resumed?: boolean;
-  player?: PlayerProfile;
 }
 
 export interface ControllerLeftNotice {

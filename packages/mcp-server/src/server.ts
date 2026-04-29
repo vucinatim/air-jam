@@ -12,6 +12,19 @@ import {
 } from "./tools.js";
 
 const DEFAULT_TASK_TTL_MS = 5 * 60 * 1000;
+const TASK_CAPABLE_CLIENT_NOTE =
+  " Requires an MCP client with task-backed tool execution support.";
+
+const describeToolForRegistration = ({
+  description,
+  requiresTaskSupport,
+}: {
+  description: string;
+  requiresTaskSupport: boolean;
+}): string =>
+  requiresTaskSupport
+    ? `${description}${TASK_CAPABLE_CLIENT_NOTE}`
+    : description;
 
 const createToolErrorResult = (error: unknown): CallToolResult => ({
   content: [
@@ -57,15 +70,19 @@ export const createAirJamMcpServer = async ({
         },
       },
       instructions:
-        "Use Air Jam tools before falling back to raw shell commands for Air Jam-native workflows. Start with inspect_project, read_logs with view=signal, and inspect_game when debugging runtime or game issues.",
+        "Use Air Jam tools before falling back to raw shell commands for Air Jam-native workflows. Start with inspect_project, read_logs with view=signal, and inspect_game when debugging runtime or game issues. If a tool advertises task-backed execution support as required, call it through an MCP client flow that supports tasks instead of assuming one blocking request/response call.",
       taskStore,
     },
   );
 
   for (const toolName of registeredToolNames) {
     const tool = toolDefinitions[toolName];
-    const baseConfig = {
+    const description = describeToolForRegistration({
       description: tool.description,
+      requiresTaskSupport: tool.execution?.taskSupport === "required",
+    });
+    const baseConfig = {
+      description,
       inputSchema: tool.inputSchema,
     };
 

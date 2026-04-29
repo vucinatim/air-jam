@@ -2,6 +2,7 @@ import { create, type StoreApi } from "zustand";
 import type {
   ConnectionRole,
   ConnectionStatus,
+  ControllerPresenceNotice,
   ControllerOrientation,
   HostArcadeSessionSnapshot,
   PlayerProfile,
@@ -24,6 +25,7 @@ export interface AirJamStore {
   controllerOrientation: ControllerOrientation;
   stateMessage?: string;
   players: PlayerProfile[];
+  controllerSessions: ControllerPresenceNotice[];
   lastError?: string;
   registeredRoomId: string | null;
   /**
@@ -48,6 +50,9 @@ export interface AirJamStore {
   upsertPlayer: (player: PlayerProfile) => void;
   removePlayer: (playerId: string) => void;
   resetPlayers: () => void;
+  upsertControllerSession: (controller: ControllerPresenceNotice) => void;
+  removeControllerSession: (controllerId: string) => void;
+  resetControllerSessions: () => void;
   resetRuntimeState: () => void;
   setRegisteredRoomId: (roomId: string | null) => void;
 }
@@ -67,6 +72,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     controllerOrientation: "portrait",
     stateMessage: undefined,
     players: [],
+    controllerSessions: [],
     lastError: undefined,
     registeredRoomId: null,
     hostArcadeRestore: {
@@ -108,6 +114,25 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
         players: state.players.filter((player) => player.id !== playerId),
       })),
     resetPlayers: () => set({ players: [] }),
+    upsertControllerSession: (controller) =>
+      set((state) => {
+        const existingIndex = state.controllerSessions.findIndex(
+          (entry) => entry.controllerId === controller.controllerId,
+        );
+        if (existingIndex >= 0) {
+          const nextSessions = [...state.controllerSessions];
+          nextSessions[existingIndex] = controller;
+          return { controllerSessions: nextSessions };
+        }
+        return { controllerSessions: [...state.controllerSessions, controller] };
+      }),
+    removeControllerSession: (controllerId) =>
+      set((state) => ({
+        controllerSessions: state.controllerSessions.filter(
+          (controller) => controller.controllerId !== controllerId,
+        ),
+      })),
+    resetControllerSessions: () => set({ controllerSessions: [] }),
     resetRuntimeState: () =>
       set({
         runtimeState: "playing",

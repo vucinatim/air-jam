@@ -27,12 +27,11 @@ export const gameMetadata = defineAirJamGameMetadata({
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
+  metadata: gameMetadata,
   game: {
     controllerPath: "/controller",
-    machine: {
-      agent: gameAgentContract,
-      visualScenariosModule: "../visual/scenarios.ts",
-    },
+    agent: gameAgentContract,
+    visualScenariosModule: "../visual/scenarios.ts",
   },
   input: {
     schema: gameInputSchema,

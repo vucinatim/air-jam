@@ -1,13 +1,13 @@
 import type {
   VisualScenarioContext,
   VisualScenarioPack,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 import {
   captureStandardSurfaces,
   defineVisualHarness,
   waitForControllerText,
   waitForHostText,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 import { pongVisualHarnessBridge } from "./contract";
 
 const prepareLobbyState = async (
@@ -72,7 +72,6 @@ const prepareEndedState = async (
 };
 
 export const visualHarness = defineVisualHarness({
-  gameId: "pong",
   bridge: pongVisualHarnessBridge,
   scenarios: [
     {

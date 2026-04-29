@@ -4,7 +4,6 @@ import {
 } from "@air-jam/harness/runtime";
 
 export const pongVisualHarnessBridge = defineVisualHarnessBridge({
-  gameId: "pong",
   selectSnapshot: (context: {
     host: {
       roomId: string | null;

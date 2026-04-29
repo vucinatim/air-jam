@@ -105,21 +105,36 @@ describe("createAirJamMcpServer", () => {
       "airjam.list_visual_scenarios",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.open_game_session",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.send_game_session_input",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.read_game_session",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.invoke_game_session_action",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.close_game_session",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.read_harness_snapshot",
     );
-    expect(listed.tools.map((tool) => tool.name)).toContain(
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.list_harness_sessions",
     );
-    expect(listed.tools.map((tool) => tool.name)).toContain(
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.connect_controller",
     );
-    expect(listed.tools.map((tool) => tool.name)).toContain(
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.read_runtime_snapshot",
     );
-    expect(listed.tools.map((tool) => tool.name)).toContain(
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.read_game_snapshot",
     );
-    expect(listed.tools.map((tool) => tool.name)).toContain(
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.invoke_game_action",
     );
     expect(
@@ -128,6 +143,10 @@ describe("createAirJamMcpServer", () => {
     ).toEqual({
       taskSupport: "required",
     });
+    expect(
+      listed.tools.find((tool) => tool.name === "airjam.capture_visuals")
+        ?.description,
+    ).toContain("Requires an MCP client with task-backed tool execution support.");
   });
 
   it("registers standalone release tools for standalone game projects", async () => {
@@ -171,6 +190,14 @@ describe("createAirJamMcpServer", () => {
     ).toEqual({
       taskSupport: "required",
     });
+    expect(
+      listed.tools.find((tool) => tool.name === "airjam.release_bundle")
+        ?.description,
+    ).toContain("Requires an MCP client with task-backed tool execution support.");
+    expect(
+      listed.tools.find((tool) => tool.name === "airjam.release_submit")
+        ?.description,
+    ).toContain("Requires an MCP client with task-backed tool execution support.");
   });
 
   it("runs inspect_project through MCP", async () => {

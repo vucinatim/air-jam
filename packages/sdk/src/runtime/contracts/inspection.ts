@@ -5,6 +5,7 @@ import type {
 } from "../../hooks/use-air-jam-host";
 import type {
   ConnectionStatus,
+  ControllerPresenceNotice,
   ControllerOrientation,
   PlayerProfile,
   RoomCode,
@@ -19,6 +20,7 @@ type HostInspectionApi = Pick<
   | "joinUrlStatus"
   | "connectionStatus"
   | "players"
+  | "controllers"
   | "lastError"
   | "mode"
   | "runtimeState"
@@ -44,6 +46,7 @@ export interface HostRuntimeInspectionContract {
   joinUrlStatus: JoinUrlStatus;
   connectionStatus: ConnectionStatus;
   players: readonly PlayerProfile[];
+  controllers: readonly ControllerPresenceNotice[];
   lastError?: string;
   mode: RunMode;
   runtimeState: RuntimeState;
@@ -66,6 +69,8 @@ export type RuntimeInspectionContract =
   | HostRuntimeInspectionContract
   | ControllerRuntimeInspectionContract;
 
+export const AIR_JAM_RUNTIME_INSPECTION_KEY = "__airJamRuntimeInspection";
+
 export const createHostRuntimeInspectionContract = (
   api: HostInspectionApi,
 ): HostRuntimeInspectionContract => ({
@@ -75,6 +80,7 @@ export const createHostRuntimeInspectionContract = (
   joinUrlStatus: api.joinUrlStatus,
   connectionStatus: api.connectionStatus,
   players: api.players,
+  controllers: api.controllers,
   lastError: api.lastError,
   mode: api.mode,
   runtimeState: api.runtimeState,
@@ -94,3 +100,60 @@ export const createControllerRuntimeInspectionContract = (
   controllerOrientation: api.controllerOrientation,
   stateMessage: api.stateMessage,
 });
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isHostRuntimeInspectionContract = (
+  value: unknown,
+): value is HostRuntimeInspectionContract =>
+  isRecord(value) &&
+  value.role === "host" &&
+  typeof value.roomId === "string" &&
+  typeof value.joinUrl === "string" &&
+  typeof value.joinUrlStatus === "string" &&
+  typeof value.connectionStatus === "string" &&
+  Array.isArray(value.players) &&
+  Array.isArray(value.controllers) &&
+  typeof value.mode === "string" &&
+  typeof value.runtimeState === "string";
+
+const isControllerRuntimeInspectionContract = (
+  value: unknown,
+): value is ControllerRuntimeInspectionContract =>
+  isRecord(value) &&
+  value.role === "controller" &&
+  (typeof value.roomId === "string" || value.roomId === null) &&
+  (typeof value.controllerId === "string" || value.controllerId === null) &&
+  typeof value.connectionStatus === "string" &&
+  Array.isArray(value.players) &&
+  typeof value.runtimeState === "string" &&
+  typeof value.controllerOrientation === "string";
+
+export const readRuntimeInspectionContract = (
+  target: object,
+): RuntimeInspectionContract | null => {
+  const candidate = (target as Record<string, unknown>)[
+    AIR_JAM_RUNTIME_INSPECTION_KEY
+  ];
+  if (isHostRuntimeInspectionContract(candidate)) {
+    return candidate;
+  }
+  if (isControllerRuntimeInspectionContract(candidate)) {
+    return candidate;
+  }
+  return null;
+};
+
+export const publishRuntimeInspectionContract = (
+  target: object,
+  contract: RuntimeInspectionContract | null,
+): void => {
+  const hostTarget = target as Record<string, unknown>;
+  if (contract) {
+    hostTarget[AIR_JAM_RUNTIME_INSPECTION_KEY] = contract;
+    return;
+  }
+
+  delete hostTarget[AIR_JAM_RUNTIME_INSPECTION_KEY];
+};

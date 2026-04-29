@@ -1,7 +1,7 @@
 import type {
   AnyVisualHarnessBridgeDefinition,
   VisualScenarioPack,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 import type { AirJamApp, AirJamGameAgentContract } from "@air-jam/sdk";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,17 +11,27 @@ type AirJamConfigModule = {
   default?: AirJamApp;
 };
 
+const readPublishedGameMachine = (
+  airjam: AirJamApp,
+): {
+  agent: AirJamGameAgentContract | null;
+  visualScenariosModule: string | null;
+} => ({
+  agent: airjam.game.agent ?? null,
+  visualScenariosModule: airjam.game.visualScenariosModule ?? null,
+});
+
 const isVisualScenarioPack = (
   value: unknown,
 ): value is VisualScenarioPack<AnyVisualHarnessBridgeDefinition> =>
   Boolean(
     value &&
     typeof value === "object" &&
-    typeof (value as { gameId?: unknown }).gameId === "string" &&
-    typeof (value as { bridge?: { gameId?: unknown } }).bridge?.gameId ===
-      "string" &&
     Array.isArray((value as { scenarios?: unknown[] }).scenarios),
   );
+
+export const resolveAirJamConfigGameId = (airjam: AirJamApp): string | null =>
+  airjam.metadata?.slug ?? null;
 
 export const loadAirJamAppConfig = async (
   configPath: string,
@@ -44,11 +54,11 @@ export const loadGameAgentContractFromConfig = async (
   configPath: string,
 ): Promise<AirJamGameAgentContract> => {
   const airjam = await loadAirJamAppConfig(configPath);
-  const contract = airjam.game.machine?.agent ?? null;
+  const contract = readPublishedGameMachine(airjam).agent;
 
   if (!contract) {
     throw new Error(
-      `Air Jam config "${configPath}" does not publish game.machine.agent.`,
+      `Air Jam config "${configPath}" does not publish game.agent.`,
     );
   }
 
@@ -59,7 +69,7 @@ export const resolveVisualScenarioModulePathFromConfig = async (
   configPath: string,
 ): Promise<string | null> => {
   const airjam = await loadAirJamAppConfig(configPath);
-  const moduleSpecifier = airjam.game.machine?.visualScenariosModule ?? null;
+  const moduleSpecifier = readPublishedGameMachine(airjam).visualScenariosModule;
 
   if (!moduleSpecifier) {
     return null;
@@ -67,7 +77,7 @@ export const resolveVisualScenarioModulePathFromConfig = async (
 
   if (typeof moduleSpecifier !== "string" || moduleSpecifier.trim() === "") {
     throw new Error(
-      `Air Jam config "${configPath}" exports an invalid game.machine.visualScenariosModule value.`,
+      `Air Jam config "${configPath}" exports an invalid game.visualScenariosModule value.`,
     );
   }
 
@@ -81,7 +91,7 @@ export const loadVisualScenarioPackFromConfig = async (
     await resolveVisualScenarioModulePathFromConfig(configPath);
   if (!modulePath) {
     throw new Error(
-      `Air Jam config "${configPath}" does not publish game.machine.visualScenariosModule.`,
+      `Air Jam config "${configPath}" does not publish game.visualScenariosModule.`,
     );
   }
 

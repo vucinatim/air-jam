@@ -4,7 +4,6 @@ import {
 } from "@air-jam/harness/runtime";
 
 export const theOfficeVisualHarnessBridge = defineVisualHarnessBridge({
-  gameId: "the-office",
   selectSnapshot: (context: {
     host: {
       roomId: string | null;

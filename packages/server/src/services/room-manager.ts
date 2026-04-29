@@ -116,6 +116,7 @@ export class RoomManager {
 
     // Notify all clients
     io.to(roomId).emit("server:hostLeft", { roomId, reason });
+    io.in(roomId).socketsLeave(roomId);
 
     // Clean up controller indices
     session.controllers.forEach((controller) => {

@@ -39,7 +39,11 @@ export const runRepoScaffoldLocalCommand = ({
   }
 
   if (source === "tarball") {
-    const tarballs = packLocalScaffoldPackageSet();
+    const { setDir, setId, tarballs } = packLocalScaffoldPackageSet();
+
+    console.log("");
+    console.log(`Using immutable local tarball set ${setId}:`);
+    console.log(`- ${setDir}`);
 
     for (const packageName of listLocalScaffoldDirectDependencyNames()) {
       const spec = tarballs.get(packageName);

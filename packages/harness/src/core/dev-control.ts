@@ -53,6 +53,10 @@ export interface DevHarnessCommandResultError {
   message: string;
 }
 
+export type DevHarnessSnapshotAfterStatus =
+  | "committed-update-observed"
+  | "no-new-commit-before-timeout";
+
 export interface DevHarnessCommandResultPayload {
   sessionId: string;
   roomId: string | null;
@@ -62,6 +66,7 @@ export interface DevHarnessCommandResultPayload {
   error?: DevHarnessCommandResultError;
   snapshotBefore: PublishedVisualHarnessBridgeSnapshot | null;
   snapshotAfter: PublishedVisualHarnessBridgeSnapshot | null;
+  snapshotAfterStatus: DevHarnessSnapshotAfterStatus;
 }
 
 export interface DevHarnessCompleteCommandPayload {

@@ -8,6 +8,7 @@ import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
+import type { AirJamGameMetadata } from "../metadata/manifest";
 import { type ResolveAirJamConfigInput } from "./air-jam-config";
 import {
   AirJamErrorBoundary,
@@ -35,22 +36,17 @@ export interface AirJamGameRuntimeConfig {
    */
   capabilities?: AirJamGameCapabilityManifest;
   /**
-   * Optional machine-facing contracts published by the game.
-   *
-   * These are consumed by Air Jam devtools and MCP adapters through
-   * `airjam.config.ts` instead of inferred filesystem conventions.
+   * Optional semantic game-owned agent contract published by the game.
    */
-  machine?: {
-    agent?: AirJamGameAgentContract;
-    /**
-     * Explicit module specifier for the game's visual scenario pack.
-     *
-     * This stays as a module reference instead of an imported object because
-     * visual scenario packs are Node-only authoring artifacts that should not
-     * be pulled into the browser bundle through `airjam.config.ts`.
-     */
-    visualScenariosModule?: string;
-  };
+  agent?: AirJamGameAgentContract;
+  /**
+   * Explicit module specifier for the game's visual scenario pack.
+   *
+   * This stays as a module reference instead of an imported object because
+   * visual scenario packs are Node-only authoring artifacts that should not
+   * be pulled into the browser bundle through `airjam.config.ts`.
+   */
+  visualScenariosModule?: string;
 }
 
 export interface AirJamRuntimeErrorBoundaryOptions {
@@ -67,6 +63,7 @@ export interface CreateAirJamAppOptions<
   TSchema extends z.ZodSchema = z.ZodSchema,
 > {
   runtime?: ResolveAirJamConfigInput;
+  metadata?: AirJamGameMetadata;
   game?: AirJamGameRuntimeConfig;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
@@ -85,10 +82,12 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
     controller: ControllerSessionProps;
   };
   runtime: ResolveAirJamConfigInput;
+  metadata?: AirJamGameMetadata;
   game: {
     controllerPath: string;
     capabilities?: AirJamGameCapabilityManifest;
-    machine?: AirJamGameRuntimeConfig["machine"];
+    agent?: AirJamGameAgentContract;
+    visualScenariosModule?: string;
   };
 }
 
@@ -194,6 +193,7 @@ export const env = {
 
 export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   runtime = {},
+  metadata,
   game,
   input,
   errorBoundary,
@@ -266,10 +266,12 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
       controller: controllerSession,
     },
     runtime,
+    metadata,
     game: {
       controllerPath,
       capabilities: game?.capabilities,
-      machine: game?.machine,
+      agent: game?.agent,
+      visualScenariosModule: game?.visualScenariosModule,
     },
   };
 };

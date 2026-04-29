@@ -3,6 +3,7 @@ export * from "./context.js";
 export * from "./controller.js";
 export * from "./dev.js";
 export * from "./games.js";
+export * from "./game-session.js";
 export * from "./logs.js";
 export * from "./platform-auth.js";
 export * from "./quality.js";

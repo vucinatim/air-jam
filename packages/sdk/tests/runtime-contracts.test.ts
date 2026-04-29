@@ -87,6 +87,15 @@ describe("runtime contracts", () => {
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [{ id: "p1", label: "Player 1" }],
+      controllers: [
+        {
+          controllerId: "p1",
+          source: "phone",
+          connected: true,
+          resumeLeaseExpiresAt: null,
+          player: { id: "p1", label: "Player 1" },
+        },
+      ],
       lastError: undefined,
       mode: "standalone",
       runtimeState: "playing",
@@ -99,6 +108,15 @@ describe("runtime contracts", () => {
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [{ id: "p1", label: "Player 1" }],
+      controllers: [
+        {
+          controllerId: "p1",
+          source: "phone",
+          connected: true,
+          resumeLeaseExpiresAt: null,
+          player: { id: "p1", label: "Player 1" },
+        },
+      ],
       lastError: undefined,
       mode: "standalone",
       runtimeState: "playing",

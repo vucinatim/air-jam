@@ -4,7 +4,6 @@ import {
 } from "@air-jam/harness/runtime";
 
 export const lastBandStandingVisualHarnessBridge = defineVisualHarnessBridge({
-  gameId: "last-band-standing",
   selectSnapshot: (context: {
     host: {
       roomId: string | null;

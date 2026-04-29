@@ -8,6 +8,10 @@ import {
   invokeControllerAction,
   readRuntimeSnapshot,
 } from "./controller.js";
+import {
+  classifyGameActionOutcome,
+  computeGameSnapshotObservation,
+} from "./game-action-observation.js";
 import { inspectGame } from "./games.js";
 import type {
   AirJamGameAgentContractInspection,
@@ -130,7 +134,6 @@ export const inspectGameAgentContract = async ({
   }
 
   const helperResult = runGameAgentHelper<{
-    gameId: string;
     snapshotStoreDomains: string[];
     snapshotDescription: string | null;
     actions: AirJamGameAgentContractInspection["actions"];
@@ -141,7 +144,7 @@ export const inspectGameAgentContract = async ({
   });
 
   return {
-    gameId: helperResult.gameId,
+    gameId: game.id,
     rootDir: game.rootDir,
     hasContract: true,
     snapshotStoreDomains: helperResult.snapshotStoreDomains,
@@ -220,6 +223,7 @@ export const invokeGameAction = async ({
   controllerSessionId,
   actionId,
   payload,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 }: InvokeGameActionOptions): Promise<InvokeGameActionResult> => {
   const session = inspectControllerSessionContext(controllerSessionId);
   if (!session.gameId) {
@@ -247,6 +251,12 @@ export const invokeGameAction = async ({
     );
   }
 
+  const snapshotBefore = await readGameSnapshot({
+    controllerSessionId,
+    requestSync: true,
+    timeoutMs,
+  });
+
   const resolvedPayload =
     action.payload.kind === "none"
       ? undefined
@@ -262,6 +272,8 @@ export const invokeGameAction = async ({
           ).configPath,
           operation: "resolve-input",
           args: [
+            "--game-id",
+            session.gameId,
             "--action-id",
             actionId,
             "--payload-base64",
@@ -277,9 +289,29 @@ export const invokeGameAction = async ({
     storeDomain: action.target.storeDomain,
     payload: resolvedPayload,
   });
+  const snapshotAfter = await readGameSnapshot({
+    controllerSessionId,
+    requestSync: true,
+    timeoutMs,
+  });
+  const { snapshotAfterStatus, observedStateChange } =
+    computeGameSnapshotObservation({
+      snapshotBefore,
+      snapshotAfter,
+    });
+  const { acknowledgementObservation, outcome } = classifyGameActionOutcome({
+    acknowledgement: result.acknowledgement,
+    observedStateChange,
+  });
 
   return {
     ...result,
     actionId,
+    acknowledgementObservation,
+    outcome,
+    snapshotBefore,
+    snapshotAfter,
+    snapshotAfterStatus,
+    observedStateChange,
   };
 };

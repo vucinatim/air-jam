@@ -1,4 +1,11 @@
-import { defineAirJamGameAgentContract } from "@air-jam/sdk";
+import {
+  defineAirJamGameAgentContract,
+  defineAirJamGameAgentStores,
+  gameAgentAction,
+  gameAgentStore,
+  machineActionInput,
+  readAirJamDefaultGameStore,
+} from "@air-jam/sdk";
 import { getMatchReadiness } from "../domain/match-readiness";
 import { type Team, type TeamAssignment } from "../domain/team-assignments";
 import type {
@@ -8,21 +15,13 @@ import type {
 } from "../stores/code-review-store-types";
 
 const DEFAULT_STORE_DOMAIN = "default";
+const snapshotStores = defineAirJamGameAgentStores({
+  [DEFAULT_STORE_DOMAIN]: gameAgentStore<CodeReviewGameState>(),
+});
 const TEAM_IDS = ["team1", "team2"] as const satisfies readonly Team[];
 const TEAM_LABEL: Record<Team, string> = {
   team1: "Coder",
   team2: "Reviewer",
-};
-
-const readCodeReviewState = (
-  stores: Record<string, Record<string, unknown>>,
-): CodeReviewGameState | null => {
-  const candidate = stores[DEFAULT_STORE_DOMAIN];
-  if (!candidate) {
-    return null;
-  }
-
-  return candidate as unknown as CodeReviewGameState;
 };
 
 const summarizeTeam = (
@@ -64,12 +63,12 @@ const summarizeMatch = (matchSummary: CodeReviewMatchSummary | null) => {
 };
 
 export const gameAgentContract = defineAirJamGameAgentContract({
-  gameId: "code-review",
-  snapshotStoreDomains: [DEFAULT_STORE_DOMAIN],
+  snapshotStores,
   snapshotDescription:
     "Game-focused Code Review snapshot with lobby team composition, bot counts, readiness, live score, and ended-match summary.",
-  projectSnapshot: ({ controllerId, stores }) => {
-    const state = readCodeReviewState(stores);
+  projectSnapshot: (context) => {
+    const { controllerId } = context;
+    const state = readAirJamDefaultGameStore(context);
     if (!state) {
       return {
         matchPhase: "unavailable",
@@ -115,99 +114,95 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    join_team: {
-      target: {
-        kind: "controller",
+    join_team: gameAgentAction.player(
+      {
         actionName: "joinTeam",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Assign the current controller to the Coder or Reviewer team in the lobby.",
-      availability: "Lobby only. Requires a connected controller identity.",
-      payload: {
-        kind: "enum",
-        description: "The team to join.",
-        allowedValues: [...TEAM_IDS],
+      {
+        input: machineActionInput.enum(TEAM_IDS, {
+          payloadDescription: "The team to join.",
+        }),
+        toPayload: (team) => ({ team }),
+        description:
+          "Assign the current controller to the Coder or Reviewer team in the lobby.",
+        availability: "Lobby only. Requires a connected controller identity.",
+        resultDescription:
+          "The controller joins the requested team if a slot is available.",
       },
-      resolveInput: (input) => ({
-        team: input,
-      }),
-      resultDescription:
-        "The controller joins the requested team if a slot is available.",
-    },
-    set_bot_count: {
-      target: {
-        kind: "controller",
+    ),
+    set_bot_count: gameAgentAction.player(
+      {
         actionName: "setBotCount",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Add or remove bots on one Code Review team from the lobby.",
-      availability: "Lobby only.",
-      payload: {
-        kind: "json",
+      {
+        input: machineActionInput.custom(
+          {
+            payloadKind: "json",
+            payloadDescription:
+              'A JSON object like {"team":"team1","count":1} selecting the team and desired bot count.',
+          },
+          (input) => {
+            const payload =
+              typeof input === "object" && input !== null
+                ? (input as Record<string, unknown>)
+                : {};
+            return {
+              team: payload.team === "team2" ? "team2" : "team1",
+              count: Number(payload.count ?? 0),
+            };
+          },
+        ),
         description:
-          'A JSON object like {"team":"team1","count":1} selecting the team and desired bot count.',
+          "Add or remove bots on one Code Review team from the lobby.",
+        availability: "Lobby only.",
+        resultDescription:
+          "The requested team bot count updates, subject to team slot limits.",
       },
-      resolveInput: (input) => {
-        const payload =
-          typeof input === "object" && input !== null
-            ? (input as Record<string, unknown>)
-            : {};
-        return {
-          team: payload.team === "team2" ? "team2" : "team1",
-          count: Number(payload.count ?? 0),
-        };
-      },
-      resultDescription:
-        "The requested team bot count updates, subject to team slot limits.",
-    },
-    start_match: {
-      target: {
-        kind: "controller",
+    ),
+    start_match: gameAgentAction.player(
+      {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Start the Code Review match once both sides have at least one participant.",
-      availability: "Lobby only.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description:
+          "Start the Code Review match once both sides have at least one participant.",
+        availability: "Lobby only.",
+        resultDescription: "The match phase switches from lobby to playing.",
       },
-      resultDescription: "The match phase switches from lobby to playing.",
-    },
-    award_point: {
-      target: {
-        kind: "controller",
+    ),
+    award_point: gameAgentAction.player(
+      {
         actionName: "scorePoint",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description:
-        "Award one point to a Code Review team for deterministic QA and ended-state checks.",
-      availability: "Playing only.",
-      payload: {
-        kind: "enum",
-        description: "The team that should receive the point.",
-        allowedValues: [...TEAM_IDS],
+      {
+        input: machineActionInput.enum(TEAM_IDS, {
+          payloadDescription: "The team that should receive the point.",
+        }),
+        toPayload: (team) => ({ team }),
+        description:
+          "Award one point to a Code Review team for deterministic QA and ended-state checks.",
+        availability: "Playing only.",
+        resultDescription:
+          "The score increments for the requested team and can drive the match into its ended state.",
       },
-      resolveInput: (input) => ({
-        team: input,
-      }),
-      resultDescription:
-        "The score increments for the requested team and can drive the match into its ended state.",
-    },
-    return_to_lobby: {
-      target: {
-        kind: "controller",
+    ),
+    return_to_lobby: gameAgentAction.player(
+      {
         actionName: "resetToLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
-      description: "Return the Code Review match to the lobby.",
-      availability: "Playing or ended phases.",
-      payload: {
-        kind: "none",
+      {
+        input: machineActionInput.none(),
+        description: "Return the Code Review match to the lobby.",
+        availability: "Playing or ended phases.",
+        resultDescription:
+          "The game returns to the lobby and clears the live score state.",
       },
-      resultDescription:
-        "The game returns to the lobby and clears the live score state.",
-    },
+    ),
   },
 });

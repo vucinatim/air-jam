@@ -6,6 +6,7 @@ import {
   type DevHarnessCompleteCommandPayload,
   type DevHarnessRegisterPayload,
   type DevHarnessRole,
+  type DevHarnessSnapshotAfterStatus,
 } from "../core/dev-control.js";
 import type { PublishedVisualHarnessBridgeSnapshot } from "../core/runtime-bridge.js";
 
@@ -52,6 +53,12 @@ type VisualHarnessDevControlClientOptions = {
   gameId: string;
   role?: DevHarnessRole;
   readSnapshot: () => PublishedVisualHarnessBridgeSnapshot | null;
+  waitForCommittedSnapshot: (
+    previousUpdatedAt: string | null,
+  ) => Promise<{
+    snapshot: PublishedVisualHarnessBridgeSnapshot | null;
+    status: DevHarnessSnapshotAfterStatus;
+  }>;
   listActions: () => DevHarnessActionDescriptor[];
   invokeAction: (actionName: string, payload?: unknown) => Promise<unknown>;
 };
@@ -66,6 +73,12 @@ export class VisualHarnessDevControlClient {
   private readonly gameId: string;
   private readonly role: DevHarnessRole;
   private readonly readSnapshot: () => PublishedVisualHarnessBridgeSnapshot | null;
+  private readonly waitForCommittedSnapshot: (
+    previousUpdatedAt: string | null,
+  ) => Promise<{
+    snapshot: PublishedVisualHarnessBridgeSnapshot | null;
+    status: DevHarnessSnapshotAfterStatus;
+  }>;
   private readonly listActions: () => DevHarnessActionDescriptor[];
   private readonly invokeAction: (
     actionName: string,
@@ -78,6 +91,7 @@ export class VisualHarnessDevControlClient {
     this.gameId = options.gameId;
     this.role = options.role ?? "host";
     this.readSnapshot = options.readSnapshot;
+    this.waitForCommittedSnapshot = options.waitForCommittedSnapshot;
     this.listActions = options.listActions;
     this.invokeAction = options.invokeAction;
   }
@@ -205,6 +219,9 @@ export class VisualHarnessDevControlClient {
         command.actionName,
         command.payload,
       );
+      const snapshotAfter = await this.waitForCommittedSnapshot(
+        snapshotBefore?.updatedAt ?? null,
+      );
       payload = {
         commandId: command.commandId,
         result: {
@@ -214,10 +231,14 @@ export class VisualHarnessDevControlClient {
           actionName: command.actionName,
           result,
           snapshotBefore,
-          snapshotAfter: this.readSnapshot(),
+          snapshotAfter: snapshotAfter.snapshot,
+          snapshotAfterStatus: snapshotAfter.status,
         },
       };
     } catch (error) {
+      const snapshotAfter = await this.waitForCommittedSnapshot(
+        snapshotBefore?.updatedAt ?? null,
+      );
       payload = {
         commandId: command.commandId,
         result: {
@@ -229,7 +250,8 @@ export class VisualHarnessDevControlClient {
             message: error instanceof Error ? error.message : String(error),
           },
           snapshotBefore,
-          snapshotAfter: this.readSnapshot(),
+          snapshotAfter: snapshotAfter.snapshot,
+          snapshotAfterStatus: snapshotAfter.status,
         },
       };
     }

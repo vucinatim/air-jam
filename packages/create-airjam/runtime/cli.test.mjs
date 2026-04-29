@@ -23,6 +23,7 @@ test("create-airjam exposes dev help", () => {
 
   assert.match(output, /Usage: airjam dev/);
   assert.match(output, /--secure/);
+  assert.match(output, /--preview-managed/);
   assert.match(output, /--server-only/);
 });
 

@@ -1,5 +1,8 @@
 import { z } from "zod";
 import type {
+  ControllerPresenceNotice,
+} from "./notices";
+import type {
   ControllerPrivilegedCapability,
   PlayerProfile,
 } from "./controller";
@@ -34,6 +37,8 @@ export interface HostRegistrationAck {
   arcadeSession?: HostArcadeSessionSnapshot;
   /** Authoritative controller roster snapshot for the connected room. */
   players?: PlayerProfile[];
+  /** Authoritative controller-session roster for the connected room. */
+  controllers?: ControllerPresenceNotice[];
   /** Official Air Jam controller capability bundle for privileged controller channels. */
   controllerCapability?: ControllerPrivilegedCapability;
 }
@@ -105,6 +110,27 @@ export const hostReconnectSchema = z.object({
 });
 
 export type HostReconnectPayload = z.infer<typeof hostReconnectSchema>;
+
+export const hostResetRoomSchema = z.object({
+  roomId: roomCodeSchema,
+});
+
+export type HostResetRoomPayload = z.infer<typeof hostResetRoomSchema>;
+
+export const hostRemoveControllerSchema = z.object({
+  roomId: roomCodeSchema,
+  controllerId: z.string().min(3),
+});
+
+export type HostRemoveControllerPayload = z.infer<
+  typeof hostRemoveControllerSchema
+>;
+
+export interface HostControllerActionAck {
+  ok: boolean;
+  message?: string;
+  code?: ErrorCode | string;
+}
 
 export interface SystemLaunchGameAck {
   ok: boolean;

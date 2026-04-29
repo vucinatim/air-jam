@@ -18,7 +18,12 @@ const resolveHelperScriptPath = (fileName: string): string => {
     return builtHelperPath;
   }
 
-  return path.resolve(__dirname, "..", "tooling", fileName);
+  const sourceHelperPath = path.resolve(__dirname, "..", "tooling", fileName);
+  if (existsSync(sourceHelperPath)) {
+    return sourceHelperPath;
+  }
+
+  return path.resolve(__dirname, "..", "src", "tooling", fileName);
 };
 
 const resolveTsxCliPath = (): string =>

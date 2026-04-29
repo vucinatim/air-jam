@@ -14,6 +14,7 @@ import {
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { pongVisualHarnessBridge } from "../../visual/contract";
+import { gameMetadata } from "../airjam.config";
 import { gameInputSchema } from "../game/contracts/input";
 import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
 import {
@@ -115,6 +116,7 @@ function PongHost() {
   return (
     <>
       <VisualHarnessRuntime
+        gameId={gameMetadata.slug}
         bridge={pongVisualHarnessBridge}
         context={{
           host,

@@ -104,7 +104,6 @@ export type VisualScenarioPack<
   TBridge extends AnyVisualHarnessBridgeDefinition =
     AnyVisualHarnessBridgeDefinition,
 > = {
-  gameId: string;
   bridge: TBridge;
   scenarios: ReadonlyArray<VisualScenario<TBridge>>;
 };

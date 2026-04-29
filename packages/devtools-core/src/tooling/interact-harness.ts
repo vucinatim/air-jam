@@ -1,9 +1,10 @@
 import {
+  type DevHarnessSnapshotAfterStatus,
   describeVisualHarnessActions,
   launchHarnessBrowser,
   openVisualHarnessHostSession,
   type VisualHarnessMode,
-} from "@air-jam/harness";
+} from "@air-jam/harness/visual";
 import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
@@ -35,6 +36,7 @@ const requestedRoomId = getFlagValue("--room-id")?.trim().toUpperCase() ?? null;
 const actionName = getFlagValue("--action-name");
 const timeoutMs = Number(getFlagValue("--timeout-ms") ?? "10000");
 const payload = parseJsonFlag("--payload-json");
+const gameId = getFlagValue("--game-id") ?? "unknown-game";
 
 const readRoomIdFromJoinUrl = (
   value: string | null | undefined,
@@ -83,7 +85,7 @@ const actionMetadata = describeVisualHarnessActions(
 );
 if (actionName && !availableActions.includes(actionName)) {
   throw new Error(
-    `Unknown harness action "${actionName}" for "${scenarioPack.gameId}". Available actions: ${availableActions.join(", ") || "(none)"}`,
+    `Unknown harness action "${actionName}" for "${gameId}". Available actions: ${availableActions.join(", ") || "(none)"}`,
   );
 }
 
@@ -114,7 +116,7 @@ try {
       process.stdout.write(
         `${JSON.stringify(
           {
-            gameId: scenarioPack.gameId,
+            gameId,
             actions: actionMetadata,
             availableActions,
             roomId:
@@ -128,12 +130,26 @@ try {
         )}\n`,
       );
     } else {
+      const previousUpdatedAt = snapshot?.updatedAt ?? null;
       const result = await session.invokeBridgeAction(actionName!, payload);
-      const snapshotAfter = await session.readBridgeSnapshot();
+      let snapshotAfterStatus: DevHarnessSnapshotAfterStatus =
+        "committed-update-observed";
+      const snapshotAfter = await session
+        .waitForBridgeSnapshot(
+          (value) =>
+            previousUpdatedAt === null ||
+            value?.updatedAt !== previousUpdatedAt,
+          "committed harness bridge snapshot",
+          timeoutMs,
+        )
+        .catch(async () => {
+          snapshotAfterStatus = "no-new-commit-before-timeout";
+          return session.readBridgeSnapshot();
+        });
       process.stdout.write(
         `${JSON.stringify(
           {
-            gameId: scenarioPack.gameId,
+            gameId,
             actions: actionMetadata,
             availableActions,
             roomId:
@@ -149,6 +165,7 @@ try {
             result,
             snapshotBefore: snapshot,
             snapshotAfter,
+            snapshotAfterStatus,
           },
           null,
           2,

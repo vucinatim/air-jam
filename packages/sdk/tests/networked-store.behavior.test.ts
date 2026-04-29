@@ -14,6 +14,7 @@ import {
 } from "../src/store/air-jam-store-domain-constants";
 import {
   createAirJamStore,
+  rejectAirJamAction,
   type AirJamActionContext,
 } from "../src/store/create-air-jam-store";
 
@@ -86,6 +87,20 @@ class MockSocket {
 
   emit(event: string, ...args: unknown[]): void {
     this.emitted.push({ event, args });
+    const callback = args[args.length - 1];
+    if (typeof callback === "function" && event === "controller:action_rpc") {
+      (
+        callback as (ack: {
+          ok: true;
+          status: "accepted";
+          source: "host";
+        }) => void
+      )({
+        ok: true,
+        status: "accepted",
+        source: "host",
+      });
+    }
   }
 
   trigger(event: string, ...args: unknown[]): void {
@@ -196,12 +211,15 @@ describe("createAirJamStore networked behavior", () => {
     resetAirJamDiagnosticsForTests();
   });
 
-  it("proxies controller public actions over action RPC", () => {
+  it("proxies controller public actions over action RPC", async () => {
     const useStore = createTestStore();
     const { result, unmount } = renderHook(() => useStore.useActions());
 
-    act(() => {
-      result.current.joinTeam({ team: "red" });
+    let acknowledgement:
+      | Awaited<ReturnType<typeof result.current.joinTeam>>
+      | undefined;
+    await act(async () => {
+      acknowledgement = await result.current.joinTeam({ team: "red" });
     });
 
     const rpcEmit = controllerSocket.emitted.find(
@@ -219,6 +237,56 @@ describe("createAirJamStore networked behavior", () => {
         (call) => call.event === "controller:input",
       ),
     ).toBe(false);
+    expect(acknowledgement).toEqual({
+      ok: true,
+      status: "accepted",
+      source: "host",
+    });
+
+    unmount();
+  });
+
+  it("exposes imperative getState and subscribe on the synced store hook", () => {
+    const useStore = createCounterStore();
+    const observedCounts: number[] = [];
+    const mountedStore = renderHook(() => useStore());
+
+    const unsubscribe = useStore.subscribe((state) => {
+      observedCounts.push(state.count);
+    });
+
+    expect(useStore.getState().count).toBe(0);
+
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        data: { count: 3 },
+      });
+    });
+
+    expect(useStore.getState().count).toBe(3);
+    expect(observedCounts).toContain(3);
+
+    unsubscribe();
+    mountedStore.unmount();
+  });
+
+  it("provides a supported live state ref hook for runtime extensions", () => {
+    const useStore = createCounterStore();
+    const { result, unmount } = renderHook(() => useStore.useLiveStateRef());
+
+    expect(result.current.current.count).toBe(0);
+
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        data: { count: 5 },
+      });
+    });
+
+    expect(result.current.current.count).toBe(5);
 
     unmount();
   });
@@ -776,6 +844,340 @@ describe("createAirJamStore networked behavior", () => {
     actorHook.unmount();
     roleHook.unmount();
     connectedIdsHook.unmount();
+  });
+
+  it("executes host player-actions dispatches with controller action context", async () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const storeHook = renderHook(() => useStore((state) => state.phase));
+    const playerActions = useStore.asPlayer("ctrl_2");
+    const phaseHook = renderHook(() => useStore((state) => state.phase));
+    const actorHook = renderHook(() => useStore((state) => state.lastActor));
+    const roleHook = renderHook(() => useStore((state) => state.lastRole));
+    const connectedIdsHook = renderHook(() =>
+      useStore((state) => state.lastConnectedPlayerIds),
+    );
+
+    let acknowledgement:
+      | Awaited<ReturnType<typeof playerActions.joinTeam>>
+      | undefined;
+    await act(async () => {
+      acknowledgement = await playerActions.joinTeam({ team: "blue" });
+    });
+
+    expect(acknowledgement).toEqual({
+      ok: true,
+      status: "accepted",
+      source: "host",
+    });
+    expect(phaseHook.result.current).toBe("blue");
+    expect(actorHook.result.current).toBe("ctrl_2");
+    expect(roleHook.result.current).toBe("controller");
+    expect(connectedIdsHook.result.current).toEqual(["ctrl_1", "ctrl_2"]);
+
+    storeHook.unmount();
+    phaseHook.unmount();
+    actorHook.unmount();
+    roleHook.unmount();
+    connectedIdsHook.unmount();
+  });
+
+  it("rejects player-actions dispatches outside the host runtime", async () => {
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      diagnostics.push(diagnostic.code);
+    });
+
+    const useStore = createTestStore();
+    const storeHook = renderHook(() => useStore((state) => state.phase));
+    const playerActions = useStore.asPlayer("ctrl_2");
+
+    let acknowledgement:
+      | Awaited<ReturnType<typeof playerActions.joinTeam>>
+      | undefined;
+    await act(async () => {
+      acknowledgement = await playerActions.joinTeam({ team: "blue" });
+    });
+
+    expect(acknowledgement).toEqual({
+      ok: false,
+      status: "rejected",
+      source: "client",
+      reason: "player_actions_host_only",
+      message:
+        'Store action "joinTeam" cannot impersonate a player outside the host runtime.',
+      details: {
+        actionName: "joinTeam",
+        role: "controller",
+        controllerId: "ctrl_2",
+      },
+    });
+    expect(diagnostics).toContain("AJ_STORE_PLAYER_ACTIONS_HOST_ONLY");
+
+    storeHook.unmount();
+    unsubscribe();
+  });
+
+  it("rejects player-actions dispatches for disconnected controllers", async () => {
+    mockedContext.state.role = "host";
+
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      diagnostics.push(diagnostic.code);
+    });
+
+    const useStore = createTestStore();
+    const storeHook = renderHook(() => useStore((state) => state.phase));
+    const playerActions = useStore.asPlayer("ctrl_missing");
+
+    let acknowledgement:
+      | Awaited<ReturnType<typeof playerActions.joinTeam>>
+      | undefined;
+    await act(async () => {
+      acknowledgement = await playerActions.joinTeam({ team: "blue" });
+    });
+
+    expect(acknowledgement).toEqual({
+      ok: false,
+      status: "rejected",
+      source: "client",
+      reason: "player_not_connected",
+      message:
+        'Store action "joinTeam" cannot impersonate controller "ctrl_missing" because it is not currently connected.',
+      details: {
+        actionName: "joinTeam",
+        controllerId: "ctrl_missing",
+      },
+    });
+    expect(diagnostics).toContain(
+      "AJ_STORE_PLAYER_ACTIONS_PLAYER_NOT_CONNECTED",
+    );
+
+    storeHook.unmount();
+    unsubscribe();
+  });
+
+  it("notifies host action listeners for accepted host local dispatches", async () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const observedEvents: unknown[] = [];
+    const listenerHook = renderHook(() =>
+      useStore.useHostActionListener((event) => {
+        observedEvents.push(event);
+      }),
+    );
+    const actionsHook = renderHook(() => useStore.useActions());
+
+    await act(async () => {
+      await actionsHook.result.current.setPhase({ phase: "playing" });
+    });
+
+    expect(observedEvents).toEqual([
+      {
+        actionName: "setPhase",
+        payload: { phase: "playing" },
+        context: {
+          actorId: "host",
+          role: "host",
+          connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+        },
+        acknowledgement: {
+          ok: true,
+          status: "accepted",
+          source: "host",
+        },
+        invocationKind: "local",
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      },
+    ]);
+
+    listenerHook.unmount();
+    actionsHook.unmount();
+  });
+
+  it("notifies host action listeners for accepted host player-actions dispatches", async () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const observedEvents: unknown[] = [];
+    const listenerHook = renderHook(() =>
+      useStore.useHostActionListener((event) => {
+        observedEvents.push(event);
+      }),
+    );
+    const storeHook = renderHook(() => useStore((state) => state.phase));
+    const playerActions = useStore.asPlayer("ctrl_2");
+
+    await act(async () => {
+      await playerActions.setPhase({ phase: "playing" });
+    });
+
+    expect(observedEvents).toEqual([
+      {
+        actionName: "setPhase",
+        payload: { phase: "playing" },
+        context: {
+          actorId: "ctrl_2",
+          role: "controller",
+          connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+        },
+        acknowledgement: {
+          ok: true,
+          status: "accepted",
+          source: "host",
+        },
+        invocationKind: "local",
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      },
+    ]);
+
+    listenerHook.unmount();
+    storeHook.unmount();
+  });
+
+  it("notifies host action listeners for accepted RPC dispatches", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const observedEvents: unknown[] = [];
+    const unsubscribe = useStore.subscribeHostActions((event) => {
+      observedEvents.push(event);
+    });
+    const storeHook = renderHook(() => useStore());
+
+    let acknowledgement: unknown;
+    act(() => {
+      hostSocket.trigger(
+        "airjam:action_rpc",
+        {
+          roomId: "ROOM1",
+          actionName: "setPhase",
+          payload: { phase: "ended" },
+          actor: {
+            id: "ctrl_2",
+            role: "controller",
+          },
+          storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        },
+        (nextAcknowledgement: unknown) => {
+          acknowledgement = nextAcknowledgement;
+        },
+      );
+    });
+
+    expect(acknowledgement).toEqual({
+      ok: true,
+      status: "accepted",
+      source: "host",
+    });
+    expect(observedEvents).toEqual([
+      {
+        actionName: "setPhase",
+        payload: { phase: "ended" },
+        context: {
+          actorId: "ctrl_2",
+          role: "controller",
+          connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+        },
+        acknowledgement: {
+          ok: true,
+          status: "accepted",
+          source: "host",
+        },
+        invocationKind: "rpc",
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      },
+    ]);
+
+    unsubscribe();
+    storeHook.unmount();
+  });
+
+  it("filters rejected host actions unless the listener opts in", async () => {
+    mockedContext.state.role = "host";
+
+    const useRejectingStore = createAirJamStore<{
+      phase: string;
+      actions: {
+        failPhaseChange: (
+          ctx: AirJamActionContext,
+          payload: { phase: string },
+        ) => ReturnType<typeof rejectAirJamAction>;
+      };
+    }>(() => ({
+      phase: "lobby",
+      actions: {
+        failPhaseChange: (_ctx, { phase }) =>
+          rejectAirJamAction(
+            "phase_locked",
+            `Phase "${phase}" is locked.`,
+            { phase },
+          ),
+      },
+    }));
+
+    const acceptedOnlyEvents: unknown[] = [];
+    const rejectedEvents: unknown[] = [];
+    const unsubscribeAcceptedOnly = useRejectingStore.subscribeHostActions(
+      (event) => {
+        acceptedOnlyEvents.push(event);
+      },
+    );
+    const unsubscribeRejected = useRejectingStore.subscribeHostActions(
+      (event) => {
+        rejectedEvents.push(event);
+      },
+      { includeRejected: true },
+    );
+    const actionsHook = renderHook(() => useRejectingStore.useActions());
+
+    let acknowledgement: unknown;
+    await act(async () => {
+      acknowledgement = await actionsHook.result.current.failPhaseChange({
+        phase: "playing",
+      });
+    });
+
+    expect(acknowledgement).toEqual({
+      ok: false,
+      status: "rejected",
+      source: "host",
+      reason: "phase_locked",
+      message: 'Phase "playing" is locked.',
+      details: { phase: "playing" },
+    });
+    expect(acceptedOnlyEvents).toEqual([]);
+    expect(rejectedEvents).toEqual([
+      {
+        actionName: "failPhaseChange",
+        payload: { phase: "playing" },
+        context: {
+          actorId: "host",
+          role: "host",
+          connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+        },
+        acknowledgement: {
+          ok: false,
+          status: "rejected",
+          source: "host",
+          reason: "phase_locked",
+          message: 'Phase "playing" is locked.',
+          details: { phase: "playing" },
+        },
+        invocationKind: "local",
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      },
+    ]);
+
+    unsubscribeAcceptedOnly();
+    unsubscribeRejected();
+    actionsHook.unmount();
   });
 
   it("suppresses arcade.shell host:state_sync while reconnect ack is pending, then emits when cleared", () => {

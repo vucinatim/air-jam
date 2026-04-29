@@ -1,3 +1,5 @@
+import { execFileSync, spawn } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import {
   createProcessGroup,
@@ -21,6 +23,14 @@ import {
 } from "./secure-dev.mjs";
 
 const START_TIMEOUT_MS = 20_000;
+const PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH = path.join(
+  ".airjam",
+  "preview-managed-server.log",
+);
+const PREVIEW_MANAGED_SERVER_STATE_RELATIVE_PATH = path.join(
+  ".airjam",
+  "preview-managed-server.json",
+);
 
 const holdProcessOpen = async () => {
   await new Promise(() => {
@@ -30,7 +40,7 @@ const holdProcessOpen = async () => {
 
 const usage = () => {
   console.log(
-    "Usage: airjam dev [--secure] [--secure-mode=local|tunnel] [--web-only] [--server-only] [--allow-existing-game]",
+    "Usage: airjam dev [--secure] [--secure-mode=local|tunnel] [--preview-managed] [--web-only] [--server-only] [--allow-existing-game]",
   );
   console.log("");
   console.log("Modes:");
@@ -40,6 +50,9 @@ const usage = () => {
   console.log("  --secure              Start secure local game dev");
   console.log(
     "  --secure-mode=tunnel  Use Cloudflare tunnel fallback instead of local-only secure host",
+  );
+  console.log(
+    "  --preview-managed     Start background server + foreground Vite for preview/browser launch tools",
   );
   console.log("  --web-only            Start only the game app");
   console.log("  --server-only         Start only the local Air Jam server");
@@ -106,6 +119,168 @@ const startGameIfNeeded = async (
   return true;
 };
 
+const ensurePreviewManagedServer = async ({ cwd, serverPort }) => {
+  const hasExistingServer = await isPortOpen(serverPort);
+  if (hasExistingServer) {
+    console.log(`[dev] Reusing existing preview-managed server on :${serverPort}`);
+    return false;
+  }
+
+  const airJamDir = path.join(cwd, ".airjam");
+  fs.mkdirSync(airJamDir, { recursive: true });
+
+  const logFile = path.join(cwd, PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH);
+  const stateFile = path.join(cwd, PREVIEW_MANAGED_SERVER_STATE_RELATIVE_PATH);
+  const logFd = fs.openSync(logFile, "a");
+  const child = spawn("pnpm", ["exec", "air-jam-server"], {
+    cwd,
+    env: process.env,
+    detached: true,
+    stdio: ["ignore", logFd, logFd],
+  });
+
+  child.unref();
+  fs.closeSync(logFd);
+
+  fs.writeFileSync(
+    stateFile,
+    `${JSON.stringify(
+      {
+        pid: child.pid,
+        port: serverPort,
+        startedAt: new Date().toISOString(),
+        logFile,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+
+  console.log(`[dev] Started preview-managed background server on :${serverPort}`);
+  console.log(`[dev] Background server log: ${logFile}`);
+  return true;
+};
+
+const runForegroundGame = ({ cwd, env }) =>
+  new Promise((resolve, reject) => {
+    const child = spawn("pnpm", ["exec", "vite"], {
+      cwd,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        ...env,
+      },
+    });
+
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (signal) {
+        process.kill(process.pid, signal);
+        return;
+      }
+
+      resolve(code ?? 0);
+    });
+
+    process.on("SIGINT", () => child.kill("SIGINT"));
+    process.on("SIGTERM", () => child.kill("SIGTERM"));
+  });
+
+const readPreviewProxyTargetPort = (publicPort) => {
+  try {
+    const lsofOutput = execFileSync(
+      "lsof",
+      ["-nP", `-iTCP:${publicPort}`, "-sTCP:LISTEN", "-Fp"],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    const pidMatch = lsofOutput.match(/^p(\d+)$/m);
+    if (!pidMatch) {
+      return null;
+    }
+
+    const command = execFileSync("ps", ["-p", pidMatch[1], "-o", "command="], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const proxyMatch = command.match(/preview-proxy\.mjs\s+(\d+)\s+(\d+)\b/);
+    if (!proxyMatch) {
+      return null;
+    }
+
+    const proxyPublicPort = Number(proxyMatch[1]);
+    const proxyTargetPort = Number(proxyMatch[2]);
+    if (
+      !Number.isInteger(proxyPublicPort) ||
+      !Number.isInteger(proxyTargetPort) ||
+      proxyPublicPort !== publicPort
+    ) {
+      return null;
+    }
+
+    return proxyTargetPort;
+  } catch {
+    return null;
+  }
+};
+
+const resolvePreviewManagedPorts = async ({ port }) => {
+  const publicPort = port;
+  const publicPortInUse = await isPortOpen(publicPort);
+  if (!publicPortInUse) {
+    return {
+      publicPort,
+      vitePort: publicPort,
+      usesPreviewProxy: false,
+    };
+  }
+
+  const proxyTargetPort = readPreviewProxyTargetPort(publicPort);
+  if (!proxyTargetPort) {
+    throw new Error(
+      `Port ${publicPort} is already in use. Close the existing process or choose a different VITE_PORT before running preview-managed dev.`,
+    );
+  }
+
+  const targetPortInUse = await isPortOpen(proxyTargetPort);
+  if (targetPortInUse) {
+    throw new Error(
+      `Preview proxy port ${publicPort} is already forwarding to ${proxyTargetPort}, but that target port is also busy. Close the existing preview stack and retry.`,
+    );
+  }
+
+  return {
+    publicPort,
+    vitePort: proxyTargetPort,
+    usesPreviewProxy: true,
+  };
+};
+
+export const validateGameDevMode = ({ args }) => {
+  if (args.webOnly && args.serverOnly) {
+    throw new Error("Cannot combine --web-only and --server-only.");
+  }
+  if (args.previewManaged && args.webOnly) {
+    throw new Error("Cannot combine --preview-managed and --web-only.");
+  }
+  if (args.previewManaged && args.serverOnly) {
+    throw new Error("Cannot combine --preview-managed and --server-only.");
+  }
+  if (args.previewManaged && args.allowExistingGame) {
+    throw new Error(
+      "Cannot combine --preview-managed and --allow-existing-game.",
+    );
+  }
+  if (args.previewManaged && args.secure) {
+    throw new Error(
+      "Preview-managed mode does not support --secure. Use the normal `pnpm run dev` flow instead.",
+    );
+  }
+};
+
 export const runGameDevCli = async ({
   cwd = process.cwd(),
   argv = process.argv.slice(2),
@@ -129,9 +304,14 @@ export const runGameDevCli = async ({
   }
 
   const args = parseGameDevArgs(argv, runtimeEnv);
-  if (args.webOnly && args.serverOnly) {
-    throw new Error("Cannot combine --web-only and --server-only.");
-  }
+  validateGameDevMode({ args });
+
+  const requestedGamePort = args.port || DEFAULT_GAME_PORT;
+  const previewManagedPorts = args.previewManaged
+    ? await resolvePreviewManagedPorts({ port: requestedGamePort })
+    : null;
+  const publicGamePort = previewManagedPorts?.publicPort ?? requestedGamePort;
+  const viteGamePort = previewManagedPorts?.vitePort ?? requestedGamePort;
 
   const processGroup = createProcessGroup();
   processGroup.registerSignalHandlers();
@@ -148,6 +328,49 @@ export const runGameDevCli = async ({
       console.log(`[dev] Secure mode: ${secureState.mode}`);
       console.log(`[dev] Public host: ${secureState.publicHost}`);
     }
+    validateGameDevMode({ args });
+
+    const gameEnv = args.secure
+      ? buildSecureGameEnv({
+          secureState,
+          webOnly: args.webOnly,
+          env: runtimeEnv,
+        })
+      : {
+          VITE_AIR_JAM_RUNTIME_TOPOLOGY: serializeResolvedTopology(
+            buildStandaloneGameTopology({
+              surfaceRole: "host",
+              publicHost: getDefaultPublicHost(env, publicGamePort),
+            }),
+          ),
+          VITE_AIR_JAM_PUBLIC_HOST: getDefaultPublicHost(env, publicGamePort),
+          VITE_PORT: String(viteGamePort),
+          ...(args.webOnly && runtimeEnv.VITE_AIR_JAM_SERVER_URL
+            ? {
+                VITE_AIR_JAM_SERVER_URL: runtimeEnv.VITE_AIR_JAM_SERVER_URL,
+              }
+            : {}),
+        };
+
+    if (args.previewManaged) {
+      await ensurePreviewManagedServer({
+        cwd,
+        serverPort,
+      });
+      if (previewManagedPorts?.usesPreviewProxy) {
+        console.log(
+          `[dev] Detected browser preview proxy on :${publicGamePort}; binding Vite to :${viteGamePort} behind it.`,
+        );
+      }
+      console.log(
+        "[dev] Preview-managed mode: foreground Vite is ready for browser/preview launch tools.",
+      );
+      const exitCode = await runForegroundGame({
+        cwd,
+        env: gameEnv,
+      });
+      process.exit(exitCode);
+    }
 
     let startedServer = false;
     if (!args.webOnly) {
@@ -161,33 +384,8 @@ export const runGameDevCli = async ({
     let startedGame = false;
     if (!args.serverOnly) {
       startedGame = await startGameIfNeeded(processGroup, {
-        gamePort: args.port || DEFAULT_GAME_PORT,
-        env: args.secure
-          ? buildSecureGameEnv({
-              secureState,
-              webOnly: args.webOnly,
-              env: runtimeEnv,
-            })
-          : {
-              VITE_AIR_JAM_RUNTIME_TOPOLOGY: serializeResolvedTopology(
-                buildStandaloneGameTopology({
-                  surfaceRole: "host",
-                  publicHost: getDefaultPublicHost(
-                    env,
-                    args.port || DEFAULT_GAME_PORT,
-                  ),
-                }),
-              ),
-              VITE_AIR_JAM_PUBLIC_HOST: getDefaultPublicHost(
-                env,
-                args.port || DEFAULT_GAME_PORT,
-              ),
-              ...(args.webOnly && runtimeEnv.VITE_AIR_JAM_SERVER_URL
-                ? {
-                    VITE_AIR_JAM_SERVER_URL: runtimeEnv.VITE_AIR_JAM_SERVER_URL,
-                  }
-                : {}),
-            },
+        gamePort: viteGamePort,
+        env: gameEnv,
         allowExistingGame: args.allowExistingGame,
       });
     }

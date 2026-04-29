@@ -22,6 +22,7 @@ import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import { Suspense, lazy, memo, useCallback, useState } from "react";
+import { gameMetadata } from "../airjam.config";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { airCaptureVisualHarnessBridge } from "../../visual/contract";
 import { HostAudioProvider } from "../game/audio/host-audio";
@@ -150,6 +151,7 @@ const HostViewContent = ({
   return (
     <>
       <VisualHarnessRuntime
+        gameId={gameMetadata.slug}
         bridge={airCaptureVisualHarnessBridge}
         context={{
           host: hostRuntime.host,

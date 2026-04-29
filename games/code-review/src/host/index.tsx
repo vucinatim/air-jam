@@ -9,6 +9,7 @@ import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { codeReviewVisualHarnessBridge } from "../../visual/contract";
+import { gameMetadata } from "../airjam.config";
 import { gameInputSchema } from "../game/contracts/input";
 import {
   CODE_REVIEW_MUSIC_TRACKS,
@@ -57,6 +58,7 @@ function CodeReviewHost() {
   return (
     <div className="host-view-shell">
       <VisualHarnessRuntime
+        gameId={gameMetadata.slug}
         bridge={codeReviewVisualHarnessBridge}
         context={{
           host,

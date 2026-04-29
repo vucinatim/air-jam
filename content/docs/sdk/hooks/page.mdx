@@ -98,6 +98,7 @@ const HostView = () => {
     joinUrlStatus, // "loading" | "ready" | "unavailable"
     connectionStatus, // "connected" | "connecting" | "disconnected" | "idle"
     players, // Array of PlayerProfile
+    controllers, // Rich controller-session roster with source + lease state
     runtimeState, // "playing" | "paused"
     lastError, // Error message if any
     mode, // "standalone" | "platform"
@@ -127,6 +128,9 @@ const HostView = () => {
   );
 };
 ```
+
+Use `players` for normal gameplay-facing iteration. Use `controllers` when you
+need controller provenance or local recovery tooling.
 
 **Reading Input in Game Loops:**
 

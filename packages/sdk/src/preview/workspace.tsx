@@ -3,10 +3,12 @@ import {
   ChevronUp,
   MonitorSmartphone,
   Plus,
+  Smartphone,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import type { ControllerPresenceNotice } from "../protocol";
 import {
   shellInsetPanelClassName,
   shellPanelClassName,
@@ -29,6 +31,9 @@ import {
 
 export interface PreviewControllerWorkspaceProps {
   joinUrl: string | null;
+  controllers?: readonly ControllerPresenceNotice[];
+  onRemoveController?: (controllerId: string) => Promise<unknown> | unknown;
+  onResetRoom?: () => Promise<unknown> | unknown;
   enabled?: boolean;
   highContrast?: boolean;
   onActiveOpacityChange?: (opacity: number) => void;
@@ -59,6 +64,9 @@ interface ResizeState {
 
 export const PreviewControllerWorkspace = ({
   joinUrl,
+  controllers = [],
+  onRemoveController,
+  onResetRoom,
   enabled = false,
   highContrast = false,
   onActiveOpacityChange,
@@ -72,6 +80,10 @@ export const PreviewControllerWorkspace = ({
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [removingControllerId, setRemovingControllerId] = useState<string | null>(
+    null,
+  );
+  const [resettingRoom, setResettingRoom] = useState(false);
   const dockRef = useRef<HTMLDivElement | null>(null);
   const {
     sessions,
@@ -146,6 +158,13 @@ export const PreviewControllerWorkspace = ({
   const openSessions = useMemo(
     () => sessions.filter((session) => !session.minimized),
     [sessions],
+  );
+  const sortedControllers = useMemo(
+    () =>
+      [...controllers].sort((left, right) =>
+        left.controllerId.localeCompare(right.controllerId),
+      ),
+    [controllers],
   );
 
   if (!enabled || !mounted || typeof document === "undefined") {
@@ -379,6 +398,95 @@ export const PreviewControllerWorkspace = ({
               </div>
 
               <div className="space-y-4">
+                {sortedControllers.length > 0 || onResetRoom ? (
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold tracking-[0.18em] text-white/54 uppercase">
+                          Room controllers
+                        </p>
+                        <p className="mt-2 text-sm text-white/86">
+                          {sortedControllers.length === 0
+                            ? "No controllers in this room"
+                            : `${sortedControllers.length} in this room`}
+                        </p>
+                      </div>
+                      {onResetRoom ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 shrink-0 rounded-full px-3 text-[10px] text-amber-100 hover:bg-amber-400/10 hover:text-amber-50 disabled:text-white/35"
+                          disabled={resettingRoom}
+                          onClick={async () => {
+                            try {
+                              setResettingRoom(true);
+                              await onResetRoom();
+                            } finally {
+                              setResettingRoom(false);
+                            }
+                          }}
+                        >
+                          Reset room
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      {sortedControllers.map((controller) => (
+                        <div
+                          key={controller.controllerId}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-2xl px-3 py-2.5",
+                            shellInsetPanelClassName,
+                          )}
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70">
+                            <Smartphone className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-semibold text-white/92">
+                                {controller.player?.label ??
+                                  controller.nickname ??
+                                  controller.controllerId}
+                              </span>
+                              <span className="rounded-full border border-white/12 bg-white/6 px-1.5 py-0.5 text-[9px] leading-none font-semibold tracking-[0.12em] text-white/70 uppercase">
+                                {controller.source}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[10px] tracking-[0.14em] text-white/50 uppercase">
+                              {controller.connected ? "Connected" : "Disconnected"}
+                              {controller.resumeLeaseExpiresAt ? " · resumable" : ""}
+                            </p>
+                          </div>
+                          {onRemoveController ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 rounded-full px-3 text-[10px] text-rose-200 hover:bg-rose-400/10 hover:text-rose-100 disabled:text-white/35"
+                              disabled={removingControllerId === controller.controllerId}
+                              onClick={async () => {
+                                try {
+                                  setRemovingControllerId(controller.controllerId);
+                                  await onRemoveController(controller.controllerId);
+                                } finally {
+                                  setRemovingControllerId((current) =>
+                                    current === controller.controllerId ? null : current,
+                                  );
+                                }
+                              }}
+                            >
+                              Kick
+                            </Button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-px bg-white/10" />
+                  </div>
+                ) : null}
+
                 {sortedSessions.length > 0 ? (
                   <div className="space-y-3">
                     {sortedSessions.map((session) => (

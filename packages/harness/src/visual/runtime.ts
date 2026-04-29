@@ -2,7 +2,13 @@ import {
   isLocalDevControlSurfaceTopology,
   readRuntimeTopologyFromWindow,
 } from "@air-jam/runtime-topology";
-import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type MutableRefObject,
+} from "react";
 import {
   bridgeAction,
   defineVisualHarnessBridge,
@@ -17,9 +23,11 @@ import {
   publishVisualHarnessBridgeActions,
   publishVisualHarnessBridgeSnapshot,
   readVisualHarnessBridgeSnapshot,
+  type PublishedVisualHarnessBridgeSnapshot,
   VISUAL_HARNESS_ENABLE_PARAM,
   VISUAL_HARNESS_ENABLE_VALUE,
 } from "../core/runtime-bridge.js";
+import type { DevHarnessSnapshotAfterStatus } from "../core/dev-control.js";
 import { VisualHarnessDevControlClient } from "./dev-control-client.js";
 
 type VisualHarnessDevWindow = Window & {
@@ -68,9 +76,15 @@ type UseVisualHarnessRuntimeOptions = {
   enabled?: boolean;
 };
 
+type CommittedSnapshotObservation = {
+  snapshot: PublishedVisualHarnessBridgeSnapshot | null;
+  status: DevHarnessSnapshotAfterStatus;
+};
+
 export type VisualHarnessRuntimeProps<
   TBridge extends AnyVisualHarnessBridgeDefinition,
 > = {
+  gameId: string;
   bridge: TBridge;
   context: InferVisualHarnessBridgeContext<TBridge>;
   enabled?: boolean;
@@ -79,6 +93,7 @@ export type VisualHarnessRuntimeProps<
 const createPublishedActionMap = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
 >(
+  gameId: string,
   bridge: TBridge,
   contextRef: MutableRefObject<InferVisualHarnessBridgeContext<TBridge>>,
 ) => {
@@ -86,7 +101,7 @@ const createPublishedActionMap = <
     ([actionName, actionDefinition]) => {
       const publishedAction = async (payload?: unknown) => {
         const nextPayload = actionDefinition.parse(payload, {
-          gameId: bridge.gameId,
+          gameId,
           actionName,
         });
 
@@ -107,6 +122,7 @@ const createPublishedActionMap = <
 const useVisualHarnessRuntime = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
 >(
+  gameId: string,
   bridge: TBridge,
   context: InferVisualHarnessBridgeContext<TBridge>,
   options?: UseVisualHarnessRuntimeOptions,
@@ -114,19 +130,83 @@ const useVisualHarnessRuntime = <
   const enabled = options?.enabled ?? isVisualHarnessRuntimeEnabled();
   const contextRef = useRef(context);
   contextRef.current = context;
+  const snapshotRef = useRef<PublishedVisualHarnessBridgeSnapshot | null>(null);
+  const snapshotWaitersRef = useRef<
+    Array<{
+      previousUpdatedAt: string | null;
+      resolve: (snapshot: PublishedVisualHarnessBridgeSnapshot | null) => void;
+      timeoutId: ReturnType<typeof setTimeout>;
+    }>
+  >([]);
 
   const publishedActions = useMemo(
-    () => createPublishedActionMap(bridge, contextRef),
-    [bridge],
+    () => createPublishedActionMap(gameId, bridge, contextRef),
+    [bridge, gameId],
   );
   const devControlClientRef = useRef<VisualHarnessDevControlClient | null>(
     null,
   );
 
+  const resolveSnapshotWaiters = (
+    snapshot: PublishedVisualHarnessBridgeSnapshot | null,
+  ) => {
+    const nextPending: typeof snapshotWaitersRef.current = [];
+    for (const waiter of snapshotWaitersRef.current) {
+      if (
+        waiter.previousUpdatedAt === null ||
+        snapshot?.updatedAt !== waiter.previousUpdatedAt
+      ) {
+        clearTimeout(waiter.timeoutId);
+        waiter.resolve(snapshot);
+        continue;
+      }
+
+      nextPending.push(waiter);
+    }
+
+    snapshotWaitersRef.current = nextPending;
+  };
+
+  const waitForCommittedSnapshot = (previousUpdatedAt: string | null) =>
+    new Promise<CommittedSnapshotObservation>((resolve) => {
+        const currentSnapshot = snapshotRef.current;
+        if (
+          previousUpdatedAt === null ||
+          currentSnapshot?.updatedAt !== previousUpdatedAt
+        ) {
+          resolve({
+            snapshot: currentSnapshot,
+            status: "committed-update-observed",
+          });
+          return;
+        }
+
+        const timeoutId = setTimeout(() => {
+          snapshotWaitersRef.current = snapshotWaitersRef.current.filter(
+            (waiter) => waiter.timeoutId !== timeoutId,
+          );
+          resolve({
+            snapshot: snapshotRef.current,
+            status: "no-new-commit-before-timeout",
+          });
+        }, 1_500);
+
+        snapshotWaitersRef.current.push({
+          previousUpdatedAt,
+          resolve: (snapshot) =>
+            resolve({
+              snapshot,
+              status: "committed-update-observed",
+            }),
+          timeoutId,
+        });
+      });
+
   if (!devControlClientRef.current) {
     devControlClientRef.current = new VisualHarnessDevControlClient({
-      gameId: bridge.gameId,
-      readSnapshot: () => readVisualHarnessBridgeSnapshot(globalThis),
+      gameId,
+      readSnapshot: () => snapshotRef.current,
+      waitForCommittedSnapshot,
       listActions: () => describeVisualHarnessActions(bridge.actions),
       invokeAction: (actionName, payload) => {
         const action = publishedActions[actionName];
@@ -138,14 +218,21 @@ const useVisualHarnessRuntime = <
     });
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled) {
+      snapshotRef.current = null;
+      resolveSnapshotWaiters(null);
       clearVisualHarnessBridgeSnapshot();
       devControlClientRef.current?.stop();
       return;
     }
 
     publishVisualHarnessBridgeSnapshot(bridge.selectSnapshot(context));
+    snapshotRef.current =
+      readVisualHarnessBridgeSnapshot<PublishedVisualHarnessBridgeSnapshot>(
+        globalThis,
+      );
+    resolveSnapshotWaiters(snapshotRef.current);
     devControlClientRef.current?.start();
     devControlClientRef.current?.sync();
   });
@@ -169,6 +256,13 @@ const useVisualHarnessRuntime = <
 
     return () => {
       devControlClientRef.current?.stop();
+      snapshotRef.current = null;
+      resolveSnapshotWaiters(null);
+      for (const waiter of snapshotWaitersRef.current) {
+        clearTimeout(waiter.timeoutId);
+        waiter.resolve(null);
+      }
+      snapshotWaitersRef.current = [];
       clearVisualHarnessBridgeSnapshot();
       clearVisualHarnessBridgeActions();
     };
@@ -178,11 +272,12 @@ const useVisualHarnessRuntime = <
 export const VisualHarnessRuntime = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
 >({
+  gameId,
   bridge,
   context,
   enabled,
 }: VisualHarnessRuntimeProps<TBridge>) => {
-  useVisualHarnessRuntime(bridge, context, { enabled });
+  useVisualHarnessRuntime(gameId, bridge, context, { enabled });
   return null;
 };
 

@@ -325,6 +325,152 @@ describe("server room lifecycle", () => {
     );
   });
 
+  it("removes virtual controllers immediately on disconnect instead of holding a resume lease", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const controller = await harness.connectSocket();
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_virtual_1",
+        deviceId: "aj-mcp-device-test",
+        nickname: "Virtual",
+      },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const leftNoticePromise = harness.waitForEvent<{ controllerId: string }>(
+      host,
+      "server:controllerLeft",
+    );
+    controller.disconnect();
+
+    const leftNotice = await leftNoticePromise;
+    expect(leftNotice.controllerId).toBe("ctrl_virtual_1");
+
+    host.disconnect();
+    await harness.delay(30);
+
+    const reconnectHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(reconnectHost)).ok).toBe(true);
+    const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
+      reconnectHost,
+      "host:reconnect",
+      { roomId },
+    );
+
+    expect(reconnectAck.ok).toBe(true);
+    expect(reconnectAck.players ?? []).not.toContainEqual(
+      expect.objectContaining({ id: "ctrl_virtual_1" }),
+    );
+  });
+
+  it("lets the active host remove a controller explicitly", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const controller = await harness.connectSocket();
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId, controllerId: "ctrl_remove_1", nickname: "Remove Me" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const leftNoticePromise = harness.waitForEvent<{ controllerId: string }>(
+      host,
+      "server:controllerLeft",
+    );
+    const removeAck = await harness.emitWithAck<{ ok: boolean }>(
+      host,
+      "host:removeController",
+      { roomId, controllerId: "ctrl_remove_1" },
+    );
+
+    expect(removeAck.ok).toBe(true);
+    expect(await leftNoticePromise).toEqual({
+      controllerId: "ctrl_remove_1",
+    });
+
+    host.disconnect();
+    await harness.delay(30);
+
+    const reconnectHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(reconnectHost)).ok).toBe(true);
+    const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
+      reconnectHost,
+      "host:reconnect",
+      { roomId },
+    );
+
+    expect(reconnectAck.ok).toBe(true);
+    expect(reconnectAck.players ?? []).not.toContainEqual(
+      expect.objectContaining({ id: "ctrl_remove_1" }),
+    );
+  });
+
+  it("lets the master host reset the room into a fresh empty room", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const previousRoomId = createAck.roomId!;
+
+    const controller = await harness.connectSocket();
+    const hostLeftPromise = harness.waitForEvent<{ roomId: string; reason: string }>(
+      controller,
+      "server:hostLeft",
+    );
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      { roomId: previousRoomId, controllerId: "ctrl_reset_1", nickname: "Reset Me" },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    const resetAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:resetRoom",
+      { roomId: previousRoomId },
+    );
+
+    expect(resetAck.ok).toBe(true);
+    expect(resetAck.roomId).toBeTypeOf("string");
+    expect(resetAck.roomId).not.toBe(previousRoomId);
+    expect(resetAck.players ?? []).toEqual([]);
+
+    expect(await hostLeftPromise).toEqual({
+      roomId: previousRoomId,
+      reason: "room_reset",
+    });
+    expect(harness.getRoomManager().getRoom(previousRoomId)).toBeUndefined();
+    expect(harness.getRoomManager().getRoom(resetAck.roomId!)).toBeDefined();
+  });
+
   it("rejects resume attempts when a different device id tries to claim an existing controller binding", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);

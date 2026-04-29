@@ -11,6 +11,10 @@
  * the current `connectedPlayerIds`. Treat it as the trustworthy identity of
  * the caller — never use fields from the payload for auth-adjacent logic.
  *
+ * Important: if host code dispatches through `useStore.useActions()`, then
+ * `ctx.actorId` is the host. If the host intentionally needs to run the same
+ * semantic action as controller `X`, use `useStore.asPlayer("X")`.
+ *
  * The reducers live here as pure functions (no SDK imports, no React) so
  * they can be unit-tested without a running session.
  */

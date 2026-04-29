@@ -22,6 +22,10 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts"
     },
+    "./visual": {
+      "types": "./src/visual.ts",
+      "import": "./src/visual.ts"
+    },
     "./dev-control": {
       "types": "./src/core/dev-control.ts",
       "import": "./src/core/dev-control.ts"
@@ -40,10 +44,11 @@
   ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "pnpm --filter @air-jam/sdk build && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@air-jam/sdk": "workspace:^",
     "@playwright/test": "^1.56.1",
     "typescript": "~5.9.3"
   },

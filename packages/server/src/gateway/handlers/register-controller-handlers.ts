@@ -6,6 +6,7 @@ import {
   controllerSystemSchema,
   controllerUpdatePlayerProfileSchema,
   ErrorCode,
+  inferControllerSourceFromDeviceId,
   type AirJamDevLogEventName,
   type ControllerInputEvent,
   type ControllerJoinPayload,
@@ -408,6 +409,7 @@ export const registerControllerHandlers = (
         resumeLeaseExpiresAt: null,
         playerProfile,
         privilegedGrants: grantedPrivileges,
+        source: inferControllerSourceFromDeviceId(deviceId),
       };
       session.controllers.set(controllerId, controllerSession);
     }

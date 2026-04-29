@@ -156,6 +156,12 @@ export const HostView = () => {
 };
 ```
 
+Use `host.players` for gameplay-facing player iteration. Use `host.controllers`
+when you need the richer controller-session roster with source
+(`phone | preview | virtual`), connected state, and resume-lease metadata.
+Use `host.resetRoom()` when you need a fresh empty room without restarting the
+local backend.
+
 Use `host.getInput(controllerId)` in your game loop.
 
 Default input behavior:
@@ -300,6 +306,11 @@ Important rules:
 2. preview controllers are not a second topology or fake simulator path
 3. preview controllers use the real controller route and join the same room as normal controllers
 4. production should stay explicit opt-in
+
+The preview workspace also exposes local recovery controls:
+
+1. source-aware `Kick` controls for room controllers
+2. `Reset room`, which creates a fresh empty room and reloads the local host page
 
 Recommended host usage:
 
@@ -492,13 +503,75 @@ actions.setPhase({ phase: "playing" });
 
 Use `useGameStore.useActions()` for action dispatch. On controllers, action calls are proxied to the host automatically and actor identity is attached by the server.
 
+Important identity rule:
+
+1. `ctx.actorId` is always the identity of the dispatcher
+2. if host code calls `useActions()`, then `ctx.actorId === "host"`
+3. if host code intentionally wants to run the same semantic action as controller `X`, use `useGameStore.asPlayer("X")` instead of smuggling `controllerId` through an unrelated payload
+
+Every action dispatch now resolves to an acknowledgement:
+
+1. `{ ok: true, status: "accepted", source, result? }`
+2. `{ ok: false, status: "rejected", source, reason, message, details? }`
+
 Networked action contract:
 
-1. `() => void` for no-payload actions
-2. `(payloadObject) => void` for payload actions
-3. payload roots must be plain objects, not primitives, arrays, or DOM events
+1. `() => Promise<ack>` for no-payload actions
+2. `(payloadObject) => Promise<ack>` for payload actions
+3. payload roots must be plain objects, not primitives, arrays, DOM events, or `T | undefined` unions
+4. if an action has no payload, omit it entirely instead of using `undefined` as part of an object-union payload type
 
 Action context includes `connectedPlayerIds`, so host actions can prune stale assignments without custom presence-sync actions.
+
+For host-only local side effects such as sounds, local sim refs, or one-shot animations, use the store's host action listener seam instead of queueing ephemeral commands through replicated state:
+
+```tsx
+useGameStore.useHostActionListener((event) => {
+  if (event.actionName !== "fireProjectile") {
+    return;
+  }
+
+  projectileRuntimeRef.current.spawn(event.payload);
+});
+```
+
+For explicit host-side player impersonation, use the host-only player-action lane:
+
+```tsx
+const playerActions = useGameStore.asPlayer("ctrl_2");
+
+await playerActions.joinTeam({ team: "red" });
+```
+
+When a store action should return an explicit semantic result or rejection, use
+`acceptAirJamAction(...)` and `rejectAirJamAction(...)`:
+
+```tsx
+import {
+  acceptAirJamAction,
+  createAirJamStore,
+  rejectAirJamAction,
+} from "@air-jam/sdk";
+
+export const useGameStore = createAirJamStore((set) => ({
+  aliveByPlayerId: {} as Record<string, boolean>,
+  actions: {
+    fire: ({ actorId }) =>
+      set((state) => {
+        if (!actorId || state.aliveByPlayerId[actorId] === false) {
+          return rejectAirJamAction(
+            "player_dead",
+            "Dead players cannot fire.",
+          );
+        }
+
+        return acceptAirJamAction({ cooldownMs: 4500 });
+      }),
+  },
+}));
+```
+
+If an action returns `void`, Air Jam treats it as accepted automatically.
 
 ## Runtime Pause Controls
 
@@ -523,8 +596,9 @@ const host = useAirJamHost();
 1. Define one `airjam` app config with `createAirJamApp`.
 2. On controllers, publish input with `useControllerTick` + `useInputWriter`.
 3. On hosts, read input with `getInput` / `useGetInput`.
-4. Keep replicated gameplay state in `createAirJamStore`.
-5. Dispatch all store actions through `useActions()` zero-arg or payload-object calls.
+4. For host gameplay loops, prefer `useHostTick(...)` over hand-rolled `requestAnimationFrame` or `setInterval` loops.
+5. Keep replicated gameplay state in `createAirJamStore`.
+6. Dispatch all store actions through `useActions()` zero-arg or payload-object calls and check the returned acknowledgement when outcome matters.
 
 ## Canonical `airjam.config.ts`
 
@@ -539,10 +613,8 @@ export const airjam = createAirJamApp({
   game: {
     controllerPath: "/controller",
     // Optional machine-facing contracts belong here too.
-    // machine: {
-    //   agent: gameAgentContract,
-    //   visualScenariosModule: "../visual/scenarios.ts",
-    // },
+    // agent: gameAgentContract,
+    // visualScenariosModule: "../visual/scenarios.ts",
   },
   input: {
     schema: gameInputSchema,

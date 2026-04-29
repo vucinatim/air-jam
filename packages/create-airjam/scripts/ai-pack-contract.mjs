@@ -19,6 +19,7 @@ export const requiredBasePackPaths = [
   ".airjam/ai-pack.json",
   "docs/debug-and-testing.md",
   "docs/development-loop.md",
+  "docs/agent-gold-path.md",
   "docs/agent-mcp.md",
   "docs/docs-index.md",
   "docs/iconography.md",
