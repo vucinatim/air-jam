@@ -1,10 +1,9 @@
 import {
-  defineAirJamGameAgentContract,
-  defineAirJamGameAgentStores,
-  gameAgentAction,
-  gameAgentStore,
-  machineActionInput,
-  readAirJamDefaultGameStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+  agentAction,
+  agentStore,
+  agentActionInput,
 } from "@air-jam/sdk";
 import { getMatchReadiness } from "../domain/match-readiness";
 import { getTeamLabel, type TeamId } from "../domain/team";
@@ -16,8 +15,8 @@ import type {
 } from "../stores/pong-store-types";
 
 const DEFAULT_STORE_DOMAIN = "default";
-const snapshotStores = defineAirJamGameAgentStores({
-  [DEFAULT_STORE_DOMAIN]: gameAgentStore<PongState>(),
+const stores = defineAirJamAgentStores({
+  [DEFAULT_STORE_DOMAIN]: agentStore<PongState>(),
 });
 
 const TEAM_IDS = ["team1", "team2"] as const satisfies readonly TeamId[];
@@ -61,13 +60,13 @@ const summarizeMatch = (matchSummary: MatchSummary | null) => {
   };
 };
 
-export const gameAgentContract = defineAirJamGameAgentContract({
-  snapshotStores,
+export const agentContract = defineAirJamAgentContract({
+  stores,
   snapshotDescription:
     "Game-focused Pong snapshot with team composition, lobby readiness, live score, and ended-match summary for agent-driven joins, starts, and score control.",
   projectSnapshot: (context) => {
     const { controllerId } = context;
-    const state = readAirJamDefaultGameStore(context);
+    const state = context.stores.default;
     if (!state) {
       return {
         matchPhase: "unavailable",
@@ -116,13 +115,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    join_team: gameAgentAction.player(
+    join_team: agentAction.participant(
       {
         actionName: "joinTeam",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.enum(TEAM_IDS, {
+        input: agentActionInput.enum(TEAM_IDS, {
           payloadDescription: "The team to join.",
         }),
         toPayload: (team) => ({
@@ -134,13 +133,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The controller joins the requested team if a slot is available.",
       },
     ),
-    set_points_to_win: gameAgentAction.player(
+    set_points_to_win: agentAction.participant(
       {
         actionName: "setPointsToWin",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.number({
+        input: agentActionInput.number({
           payloadDescription: "Target score required to win the match.",
         }),
         toPayload: (pointsToWin) => ({
@@ -151,13 +150,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
         resultDescription: "The lobby updates the match win condition.",
       },
     ),
-    set_bot_count: gameAgentAction.player(
+    set_bot_count: agentAction.participant(
       {
         actionName: "setBotCount",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.custom(
+        input: agentActionInput.custom(
           {
             payloadDescription:
               'A JSON object like {"team":"team1","count":1} selecting the team and desired bot count.',
@@ -179,26 +178,26 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The requested team bot count updates, subject to team slot limits.",
       },
     ),
-    start_match: gameAgentAction.player(
+    start_match: agentAction.participant(
       {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Start the Pong match once each team has at least one participant.",
         availability: "Lobby only.",
         resultDescription: "The match phase switches from lobby to playing.",
       },
     ),
-    award_point: gameAgentAction.player(
+    award_point: agentAction.participant(
       {
         actionName: "scorePoint",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.enum(TEAM_IDS, {
+        input: agentActionInput.enum(TEAM_IDS, {
           payloadDescription: "The team that should receive the point.",
         }),
         toPayload: (team) => ({
@@ -211,26 +210,26 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The score increments, and the match can end if the win threshold is reached.",
       },
     ),
-    restart_match: gameAgentAction.player(
+    restart_match: agentAction.participant(
       {
         actionName: "restartMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description: "Restart Pong immediately from the ended screen.",
         availability: "Ended matches only.",
         resultDescription:
           "The score resets and the match returns to the playing phase.",
       },
     ),
-    return_to_lobby: gameAgentAction.player(
+    return_to_lobby: agentAction.participant(
       {
         actionName: "returnToLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description: "Return the Pong match to the lobby without restarting dev.",
         availability: "Any phase.",
         resultDescription:

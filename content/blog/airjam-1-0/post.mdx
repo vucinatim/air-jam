@@ -33,9 +33,7 @@ import { z } from "zod";
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
-  game: {
-    controllerPath: "/controller",
-  },
+  controllerPath: "/controller",
   input: {
     schema: z.object({
       action: z.boolean().optional(),

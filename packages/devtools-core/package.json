@@ -31,10 +31,10 @@
     "src"
   ],
   "scripts": {
-    "build": "pnpm --filter @air-jam/sdk build && tsup",
-    "test": "pnpm --filter @air-jam/sdk build && tsup && vitest run --config vitest.config.ts",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "pnpm --filter @air-jam/sdk build && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:^",

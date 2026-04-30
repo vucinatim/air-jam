@@ -2,7 +2,7 @@ import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
 import { resolveProjectRuntimeTopology } from "@air-jam/runtime-topology";
 import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
-import type { AirJamGameAgentContract } from "../agent/game-agent-contract";
+import type { AirJamAgentContract } from "../agent/agent-contract";
 import type { AirJamGameCapabilityManifest } from "../capabilities/manifest";
 import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
@@ -24,31 +24,6 @@ type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
 
 type ControllerSessionProps = Omit<AirJamProviderProps, "children" | "input">;
 
-export interface AirJamGameRuntimeConfig {
-  /**
-   * Controller route path relative to the game origin.
-   * Defaults to "/controller".
-   */
-  controllerPath?: string;
-  /**
-   * Experimental game capability metadata for future machine-facing control,
-   * inspection, and evaluation workflows.
-   */
-  capabilities?: AirJamGameCapabilityManifest;
-  /**
-   * Optional semantic game-owned agent contract published by the game.
-   */
-  agent?: AirJamGameAgentContract;
-  /**
-   * Explicit module specifier for the game's visual scenario pack.
-   *
-   * This stays as a module reference instead of an imported object because
-   * visual scenario packs are Node-only authoring artifacts that should not
-   * be pulled into the browser bundle through `airjam.config.ts`.
-   */
-  visualScenariosModule?: string;
-}
-
 export interface AirJamRuntimeErrorBoundaryOptions {
   renderFallback?: AirJamErrorFallbackRenderer;
   onError?: AirJamErrorBoundaryProps["onError"];
@@ -64,7 +39,28 @@ export interface CreateAirJamAppOptions<
 > {
   runtime?: ResolveAirJamConfigInput;
   metadata?: AirJamGameMetadata;
-  game?: AirJamGameRuntimeConfig;
+  /**
+   * Controller route path relative to the app origin.
+   * Defaults to "/controller".
+   */
+  controllerPath?: string;
+  /**
+   * Experimental capability metadata for future agent-facing control,
+   * inspection, and evaluation workflows.
+   */
+  capabilities?: AirJamGameCapabilityManifest;
+  /**
+   * Optional semantic agent contract published by the app.
+   */
+  agent?: AirJamAgentContract;
+  /**
+   * Explicit module specifier for the app's visual scenario pack.
+   *
+   * This stays as a module reference instead of an imported object because
+   * visual scenario packs are Node-only authoring artifacts that should not
+   * be pulled into the browser bundle through `airjam.config.ts`.
+   */
+  visualScenariosModule?: string;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -83,12 +79,10 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   };
   runtime: ResolveAirJamConfigInput;
   metadata?: AirJamGameMetadata;
-  game: {
-    controllerPath: string;
-    capabilities?: AirJamGameCapabilityManifest;
-    agent?: AirJamGameAgentContract;
-    visualScenariosModule?: string;
-  };
+  controllerPath: string;
+  capabilities?: AirJamGameCapabilityManifest;
+  agent?: AirJamAgentContract;
+  visualScenariosModule?: string;
 }
 
 const resolveControllerPath = (controllerPath?: string): string => {
@@ -194,11 +188,14 @@ export const env = {
 export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   runtime = {},
   metadata,
-  game,
+  controllerPath: requestedControllerPath,
+  capabilities,
+  agent,
+  visualScenariosModule,
   input,
   errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
-  const controllerPath = resolveControllerPath(game?.controllerPath);
+  const controllerPath = resolveControllerPath(requestedControllerPath);
 
   const hostSession: HostSessionProps<TSchema> = input
     ? {
@@ -267,11 +264,9 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     },
     runtime,
     metadata,
-    game: {
-      controllerPath,
-      capabilities: game?.capabilities,
-      agent: game?.agent,
-      visualScenariosModule: game?.visualScenariosModule,
-    },
+    controllerPath,
+    capabilities,
+    agent,
+    visualScenariosModule,
   };
 };

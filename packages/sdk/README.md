@@ -19,7 +19,7 @@ against v1:
    `@air-jam/sdk/metadata`, and `@air-jam/sdk/prefabs` are intentionally
    unstable future-facing seams. They may change within `1.x` — each carries
    a documented purpose in its leaf, and changes are noted in release notes.
-   The machine-facing `runtime-control`, `runtime-inspection`,
+   The agent-facing `runtime-control`, `runtime-inspection`,
    `runtime-observability`, and `contracts/v2` seams exist in-source but are
    **not exported publicly** until a first-party consumer lands; they will be
    re-exported as explicit experimental leaves when that happens.
@@ -87,7 +87,7 @@ export const gameMetadata = defineAirJamGameMetadata({
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
-  game: { controllerPath: "/controller" },
+  controllerPath: "/controller",
   input: { schema: inputSchema },
 });
 ```
@@ -345,7 +345,7 @@ root-SDK contract yet.
 
 ## Runtime Contract Seams (In-Source, Not Public Exports)
 
-Air Jam also carries machine-facing runtime seams for control, inspection, and
+Air Jam also carries agent-facing runtime seams for control, inspection, and
 observability. Those modules still exist in-source, but they are **not public
 package exports in v1**, so consumers should not import:
 
@@ -357,7 +357,7 @@ package exports in v1**, so consumers should not import:
 Current policy:
 
 1. keep these seams private until a real first-party consumer lands
-2. treat them as future machine-facing homes for bots, tests, previews, and agent tooling
+2. treat them as future agent-facing homes for bots, tests, previews, and agent tooling
 3. re-export them later as explicit experimental leaves instead of implying they are stable root-SDK contracts
 
 ## Prefab Contract Leaf (Experimental)
@@ -610,12 +610,10 @@ import { gameInputSchema } from "./types";
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
-  game: {
-    controllerPath: "/controller",
-    // Optional machine-facing contracts belong here too.
-    // agent: gameAgentContract,
-    // visualScenariosModule: "../visual/scenarios.ts",
-  },
+  controllerPath: "/controller",
+  // Optional agent-facing contracts belong here too.
+  // agent: agentContract,
+  // visualScenariosModule: "../visual/scenarios.ts",
   input: {
     schema: gameInputSchema,
   },
@@ -648,7 +646,7 @@ export const App = () => (
 );
 ```
 
-This keeps runtime config, host input schema, route path ownership, and optional machine-facing contracts in one place.
+This keeps runtime config, host input schema, route path ownership, and optional agent-facing contracts in one place.
 
 Optional future-facing game capability metadata should also live here, but the schema is intentionally experimental and lives in `@air-jam/sdk/capabilities`.
 

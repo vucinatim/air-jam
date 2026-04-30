@@ -33,11 +33,11 @@ const loadScenarioPack = async ({ rootDir, gameId }) => {
   const loadedConfigModule = await import(pathToFileURL(configPath).href);
   const airjam =
     loadedConfigModule.airjam ?? loadedConfigModule.default ?? null;
-  const moduleSpecifier = airjam?.game?.visualScenariosModule ?? null;
+  const moduleSpecifier = airjam?.visualScenariosModule ?? null;
 
   if (typeof moduleSpecifier !== "string" || moduleSpecifier.trim() === "") {
     throw new Error(
-      `Air Jam config "${configPath}" does not publish game.visualScenariosModule.`,
+      `Air Jam config "${configPath}" does not publish visualScenariosModule.`,
     );
   }
 

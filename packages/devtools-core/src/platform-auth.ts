@@ -139,7 +139,7 @@ export const requestPlatformMachineApi = async <T>({
 
     throw new AirJamPlatformApiError({
       code: "invalid_request",
-      message: `Platform machine API request failed: ${response.status}`,
+      message: `Platform agent API request failed: ${response.status}`,
       status: response.status,
     });
   }

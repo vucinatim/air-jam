@@ -31,9 +31,7 @@ type GameInput = z.infer<typeof gameInputSchema>;
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
-  game: {
-    controllerPath: "/controller",
-  },
+  controllerPath: "/controller",
   input: {
     schema: gameInputSchema,
   },
@@ -57,9 +55,7 @@ Use `input.behavior` only when your game has specialized needs.
 ```tsx filename="src/airjam.config.ts"
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
-  game: {
-    controllerPath: "/controller",
-  },
+  controllerPath: "/controller",
   input: {
     schema: gameInputSchema,
     behavior: {

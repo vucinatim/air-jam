@@ -1,10 +1,9 @@
 import {
-  defineAirJamGameAgentContract,
-  defineAirJamGameAgentStores,
-  gameAgentAction,
-  gameAgentStore,
-  machineActionInput,
-  readAirJamDefaultGameStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+  agentAction,
+  agentStore,
+  agentActionInput,
 } from "@air-jam/sdk";
 import { getMatchReadiness } from "../domain/match-readiness";
 import { type Team, type TeamAssignment } from "../domain/team-assignments";
@@ -15,8 +14,8 @@ import type {
 } from "../stores/code-review-store-types";
 
 const DEFAULT_STORE_DOMAIN = "default";
-const snapshotStores = defineAirJamGameAgentStores({
-  [DEFAULT_STORE_DOMAIN]: gameAgentStore<CodeReviewGameState>(),
+const stores = defineAirJamAgentStores({
+  [DEFAULT_STORE_DOMAIN]: agentStore<CodeReviewGameState>(),
 });
 const TEAM_IDS = ["team1", "team2"] as const satisfies readonly Team[];
 const TEAM_LABEL: Record<Team, string> = {
@@ -62,13 +61,13 @@ const summarizeMatch = (matchSummary: CodeReviewMatchSummary | null) => {
   };
 };
 
-export const gameAgentContract = defineAirJamGameAgentContract({
-  snapshotStores,
+export const agentContract = defineAirJamAgentContract({
+  stores,
   snapshotDescription:
     "Game-focused Code Review snapshot with lobby team composition, bot counts, readiness, live score, and ended-match summary.",
   projectSnapshot: (context) => {
     const { controllerId } = context;
-    const state = readAirJamDefaultGameStore(context);
+    const state = context.stores.default;
     if (!state) {
       return {
         matchPhase: "unavailable",
@@ -114,13 +113,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    join_team: gameAgentAction.player(
+    join_team: agentAction.participant(
       {
         actionName: "joinTeam",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.enum(TEAM_IDS, {
+        input: agentActionInput.enum(TEAM_IDS, {
           payloadDescription: "The team to join.",
         }),
         toPayload: (team) => ({ team }),
@@ -131,13 +130,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The controller joins the requested team if a slot is available.",
       },
     ),
-    set_bot_count: gameAgentAction.player(
+    set_bot_count: agentAction.participant(
       {
         actionName: "setBotCount",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.custom(
+        input: agentActionInput.custom(
           {
             payloadKind: "json",
             payloadDescription:
@@ -161,26 +160,26 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The requested team bot count updates, subject to team slot limits.",
       },
     ),
-    start_match: gameAgentAction.player(
+    start_match: agentAction.participant(
       {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Start the Code Review match once both sides have at least one participant.",
         availability: "Lobby only.",
         resultDescription: "The match phase switches from lobby to playing.",
       },
     ),
-    award_point: gameAgentAction.player(
+    award_point: agentAction.participant(
       {
         actionName: "scorePoint",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.enum(TEAM_IDS, {
+        input: agentActionInput.enum(TEAM_IDS, {
           payloadDescription: "The team that should receive the point.",
         }),
         toPayload: (team) => ({ team }),
@@ -191,13 +190,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The score increments for the requested team and can drive the match into its ended state.",
       },
     ),
-    return_to_lobby: gameAgentAction.player(
+    return_to_lobby: agentAction.participant(
       {
         actionName: "resetToLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description: "Return the Code Review match to the lobby.",
         availability: "Playing or ended phases.",
         resultDescription:

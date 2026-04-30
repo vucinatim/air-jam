@@ -1,12 +1,12 @@
 # Air Jam MCP And Agent Devtools Plan
 
 Last updated: 2026-04-27  
-Status: historical V2 snapshot, superseded for machine control by Agent Control System Rewrite Plan
+Status: historical V2 snapshot, superseded for agent control by Agent Control System Rewrite Plan
 
 Note:
 
 1. this plan records the path that landed the earlier low-level MCP controller and harness lanes
-2. the current repo direction is stricter: machine-control authoring now centers on flat `game.agent` / `game.visualScenariosModule` config and the public MCP happy path is the unified game-session lane, not the older separate controller/harness/game-action tool families
+2. the current repo direction is stricter: agent-control authoring now centers on flat `agent` / `visualScenariosModule` config and the public MCP happy path is the unified game-session lane, not the older separate controller/harness/game-action tool families
 
 Current status:
 
@@ -27,10 +27,10 @@ Current status:
 15. the managed monorepo path now goes through that same shared runtime layer too: `packages/devtools-core/src/dev.ts` uses `packages/devtools-core/runtime/workspace-runtime-cli.mjs` for monorepo start/topology instead of bouncing through repo CLI scripts, so the remaining difference is mostly lifecycle policy rather than duplicate orchestration ownership.
 16. the first virtual-controller/runtime-inspection lane is now landed: `@air-jam/devtools-core` owns controller-session connect/disconnect, raw controller input sends, controller action RPC sends, and runtime snapshot reads that can request authoritative `airjam:state_sync` store payloads over the real controller Socket.IO protocol.
 17. those controller/runtime operations are now surfaced through MCP as first-class tools, and focused socket-backed `devtools-core` tests prove the transport end to end without falling back to browser automation or fake protocol stubs.
-18. a new game-owned semantic agent-contract lane is now landed too: `@air-jam/sdk` publishes a `defineAirJamGameAgentContract(...)` helper with `projectSnapshot(...)` plus semantic `actions`, `@air-jam/devtools-core` can inspect/project/invoke those contracts for live controller sessions, and MCP now exposes `airjam.inspect_game_agent_contract`, `airjam.read_game_snapshot`, and `airjam.invoke_game_action`.
+18. a new game-owned semantic agent-contract lane is now landed too: `@air-jam/sdk` publishes a `defineAirJamAgentContract(...)` helper with `projectSnapshot(...)` plus semantic `actions`, `@air-jam/devtools-core` can inspect/project/invoke those contracts for live controller sessions, and MCP now exposes `airjam.inspect_game_agent_contract`, `airjam.read_game_snapshot`, and `airjam.invoke_game_action`.
 19. `last-band-standing` is the first real adopter of that higher-level lane, and the live stdio MCP path is now proven against a visible host room for contract inspection, controller connect, projected game snapshot reads, semantic ready/start/guess actions, and reveal/score readback.
 20. `pong` is now the second real adopter of the same lane, and the live stdio MCP path is also proven against a visible Pong host room for two-controller join flow, lobby settings changes, semantic match start, semantic score awards, ended-state readback, and semantic return-to-lobby.
-21. `src/airjam.config.ts` is now the canonical declaration site for machine-facing contracts too: flat `createAirJamApp({ game: { agent, visualScenariosModule } })` carries semantic game-agent contracts directly and explicit visual-scenarios module declarations, and the high-level `@air-jam/devtools-core` / MCP / repo-visual path now requires those explicit declarations instead of falling back to convention-scanned contract files.
+21. `src/airjam.config.ts` is now the canonical declaration site for agent-facing contracts too: flat `createAirJamApp({ agent, visualScenariosModule })` carries semantic agent contracts directly and explicit visual-scenarios module declarations, and the high-level `@air-jam/devtools-core` / MCP / repo-visual path now requires those explicit declarations instead of falling back to convention-scanned contract files.
 22. the closeout validation race is now removed at the test boundary: `@air-jam/mcp-server` tests no longer rebuild sibling workspace packages, both test suites resolve workspace package source directly through Vitest aliases, and `@air-jam/devtools-core` is the only suite that still prebuilds `@air-jam/sdk` because it dynamically imports real repo game configs that consume published SDK subpaths.
 
 Related docs:
@@ -116,7 +116,7 @@ Foreground repo CLI flow:
 Managed devtools flow:
 
 1. owns `airjam.start_dev`, `airjam.stop_dev`, `airjam.status`, and agent-oriented start/inspect/act/stop loops
-2. is optimized for machine-usable lifecycle and process tracking under `.airjam/devtools/`
+2. is optimized for agent-usable lifecycle and process tracking under `.airjam/devtools/`
 
 The important constraint is not “one lifecycle style everywhere.” The important constraint is:
 
@@ -169,7 +169,7 @@ The existing repo already has major pieces:
 3. `@air-jam/harness` scenario packs, bridge snapshots, actions, and screenshots
 4. `create-airjam` AI-pack files such as `AGENTS.md`, docs, skills, `plan.md`, and `suggestions.md`
 
-The missing piece is one official machine-facing devtools surface that agents can discover and use without memorizing repo-specific commands.
+The missing piece is one official agent-facing devtools surface that agents can discover and use without memorizing repo-specific commands.
 
 ## Runtime Modes
 

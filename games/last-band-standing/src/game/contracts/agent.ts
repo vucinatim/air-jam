@@ -1,10 +1,9 @@
 import {
-  defineAirJamGameAgentContract,
-  defineAirJamGameAgentStores,
-  gameAgentAction,
-  gameAgentStore,
-  machineActionInput,
-  readAirJamDefaultGameStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+  agentAction,
+  agentStore,
+  agentActionInput,
 } from "@air-jam/sdk";
 import {
   defaultSelectedSongBucketIds,
@@ -16,8 +15,8 @@ import {
 } from "../content/song-bank";
 
 const DEFAULT_STORE_DOMAIN = "default";
-const snapshotStores = defineAirJamGameAgentStores({
-  [DEFAULT_STORE_DOMAIN]: gameAgentStore<QuizState>(),
+const stores = defineAirJamAgentStores({
+  [DEFAULT_STORE_DOMAIN]: agentStore<QuizState>(),
 });
 type GamePhase =
   | "lobby"
@@ -112,13 +111,13 @@ const describeBucketSelection = (
   };
 };
 
-export const gameAgentContract = defineAirJamGameAgentContract({
-  snapshotStores,
+export const agentContract = defineAirJamAgentContract({
+  stores,
   snapshotDescription:
     "Game-focused snapshot for Last Band Standing with lobby settings, player readiness, round prompts, answer options, reveal state, and scoreboard information.",
   projectSnapshot: (context) => {
     const { controllerId } = context;
-    const state = readAirJamDefaultGameStore(context);
+    const state = context.stores.default;
     if (!state) {
       return {
         phase: "unavailable",
@@ -248,13 +247,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    set_ready: gameAgentAction.player(
+    set_ready: agentAction.participant(
       {
         actionName: "setReady",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.boolean({
+        input: agentActionInput.boolean({
           payloadDescription: "Whether this controller should be ready.",
         }),
         toPayload: (ready) => ({ ready }),
@@ -265,13 +264,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The current controller's readiness updates in the lobby roster.",
       },
     ),
-    toggle_song_bucket: gameAgentAction.player(
+    toggle_song_bucket: agentAction.participant(
       {
         actionName: "toggleSongBucket",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.enum(defaultSelectedSongBucketIds, {
+        input: agentActionInput.enum(defaultSelectedSongBucketIds, {
           payloadDescription: "The song bucket id to toggle.",
         }),
         toPayload: (bucketId) => ({ bucketId }),
@@ -282,13 +281,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The lobby song bucket selection updates immediately.",
       },
     ),
-    start_match: gameAgentAction.player(
+    start_match: agentAction.participant(
       {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Start the match from the lobby once all active players are ready.",
         availability:
@@ -297,13 +296,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The game enters match countdown and then progresses into the first round.",
       },
     ),
-    submit_guess: gameAgentAction.player(
+    submit_guess: agentAction.participant(
       {
         actionName: "submitGuess",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.string({
+        input: agentActionInput.string({
           payloadDescription:
             "The current round option id to submit. Read `round.options` from the game snapshot first.",
         }),
@@ -316,13 +315,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The controller's answer is locked in for the current round.",
       },
     ),
-    reset_lobby: gameAgentAction.player(
+    reset_lobby: agentAction.participant(
       {
         actionName: "resetLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Return the match to a clean lobby state without restarting dev.",
         availability: "Any phase.",

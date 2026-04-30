@@ -1,10 +1,9 @@
 import {
-  defineAirJamGameAgentContract,
-  defineAirJamGameAgentStores,
-  gameAgentAction,
-  gameAgentStore,
-  machineActionInput,
-  readAirJamDefaultGameStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+  agentAction,
+  agentStore,
+  agentActionInput,
 } from "@air-jam/sdk";
 import {
   getPlayerById,
@@ -14,8 +13,8 @@ import {
 } from "../content/players";
 
 const DEFAULT_STORE_DOMAIN = "default";
-const snapshotStores = defineAirJamGameAgentStores({
-  [DEFAULT_STORE_DOMAIN]: gameAgentStore<OfficeState>(),
+const stores = defineAirJamAgentStores({
+  [DEFAULT_STORE_DOMAIN]: agentStore<OfficeState>(),
 });
 
 type OfficeMatchPhase = "lobby" | "playing" | "ended";
@@ -67,13 +66,13 @@ const summarizePlayer = (
   };
 };
 
-export const gameAgentContract = defineAirJamGameAgentContract({
-  snapshotStores,
+export const agentContract = defineAirJamAgentContract({
+  stores,
   snapshotDescription:
     "Game-focused snapshot for The Office with character selection, live assignment state, and score totals.",
   projectSnapshot: (context) => {
     const { controllerId } = context;
-    const state = readAirJamDefaultGameStore(context);
+    const state = context.stores.default;
     if (!state) {
       return {
         phase: "unavailable",
@@ -128,13 +127,13 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    select_character: gameAgentAction.player(
+    select_character: agentAction.participant(
       {
         actionName: "selectCharacter",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.enum(
+        input: agentActionInput.enum(
           PLAYERS.map((player) => player.id) as [
             string,
             ...string[],
@@ -151,39 +150,39 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The controller claims that coworker if another controller has not already selected them.",
       },
     ),
-    start_match: gameAgentAction.player(
+    start_match: agentAction.participant(
       {
         actionName: "startMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Start the Office match after at least one coworker is selected.",
         availability: "Lobby only.",
         resultDescription: "The match phase switches from lobby to playing.",
       },
     ),
-    return_to_lobby: gameAgentAction.player(
+    return_to_lobby: agentAction.participant(
       {
         actionName: "returnToLobby",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description: "Return the Office match to the lobby.",
         availability: "Playing or ended phases.",
         resultDescription:
           "The game returns to the lobby and clears live match state.",
       },
     ),
-    restart_match: gameAgentAction.player(
+    restart_match: agentAction.participant(
       {
         actionName: "restartMatch",
         storeDomain: DEFAULT_STORE_DOMAIN,
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Restart the Office match immediately from the ended state.",
         availability: "Ended phase.",

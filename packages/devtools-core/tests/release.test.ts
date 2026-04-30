@@ -51,7 +51,7 @@ const createReleaseFixture = async ({
 
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    `${metadata ? 'export const gameMetadata = { title: "Fixture" };\n' : ""}export const airjam = { game: { controllerPath: "${controllerPath}" } };\n`,
+    `${metadata ? 'export const gameMetadata = { title: "Fixture" };\n' : ""}export const airjam = { controllerPath: "${controllerPath}" };\n`,
     "utf8",
   );
 
@@ -193,7 +193,7 @@ describe("local release tooling", () => {
     });
   });
 
-  it("lists owned hosted release targets through the machine API", async () => {
+  it("lists owned hosted release targets through the agent API", async () => {
     const fetchMock = vi.fn(async (input) => {
       expect(String(input)).toBe("https://platform.airjam.test/api/cli/games");
 
@@ -218,14 +218,14 @@ describe("local release tooling", () => {
 
     const result = await listPlatformReleaseTargets({
       platformUrl: "https://platform.airjam.test",
-      token: "machine-token",
+      token: "agent-token",
     });
 
     expect(result.games).toHaveLength(1);
     expect(result.games[0]?.slug).toBe("pong");
   });
 
-  it("submits and publishes a hosted release through the machine API", async () => {
+  it("submits and publishes a hosted release through the agent API", async () => {
     const root = await createReleaseFixture();
     const bundled = await bundleLocalRelease({
       cwd: root,
@@ -431,7 +431,7 @@ describe("local release tooling", () => {
 
     const result = await submitPlatformRelease({
       platformUrl: "https://platform.airjam.test",
-      token: "machine-token",
+      token: "agent-token",
       slugOrId: "pong",
       versionLabel: "v1",
       bundlePath: bundled.outputFile,

@@ -226,7 +226,7 @@ At minimum, run:
    1. `typecheck`
    2. `test`
    3. `build`
-2. focused MCP/game-agent inspection where agent contracts are added
+2. focused MCP/agent-contract inspection where agent contracts are added
 3. one local browser-use smoke per game if the refactor touches host/controller wiring
 
 Recommended final confidence pass after the whole plan:

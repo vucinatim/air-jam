@@ -14,7 +14,7 @@ import {
 } from "./game-action-observation.js";
 import { inspectGame } from "./games.js";
 import type {
-  AirJamGameAgentContractInspection,
+  AirJamAgentContractInspection,
   AirJamGameSnapshotInspection,
   InspectGameAgentContractOptions,
   InvokeGameActionOptions,
@@ -75,7 +75,7 @@ const runGameAgentHelper = <T>({
     command: process.execPath,
     args: [
       resolveTsxCliPath(),
-      resolveHelperScriptPath("game-agent-contract.ts"),
+      resolveHelperScriptPath("agent-contract.ts"),
       "--operation",
       operation,
       ...(configPath ? ["--config", configPath] : []),
@@ -87,7 +87,7 @@ const runGameAgentHelper = <T>({
 
   if (!result.ok) {
     throw new Error(
-      `Air Jam game agent helper failed.\n\n${result.stderr || result.stdout}`,
+      `Air Jam agent helper failed.\n\n${result.stderr || result.stdout}`,
     );
   }
 
@@ -118,7 +118,7 @@ const resolveGameAgentSource = async ({
 export const inspectGameAgentContract = async ({
   cwd = process.cwd(),
   gameId,
-}: InspectGameAgentContractOptions = {}): Promise<AirJamGameAgentContractInspection> => {
+}: InspectGameAgentContractOptions = {}): Promise<AirJamAgentContractInspection> => {
   const game = await inspectGame({ cwd, gameId });
   const source = await resolveGameAgentSource({ configPath: game.configPath });
 
@@ -136,7 +136,7 @@ export const inspectGameAgentContract = async ({
   const helperResult = runGameAgentHelper<{
     snapshotStoreDomains: string[];
     snapshotDescription: string | null;
-    actions: AirJamGameAgentContractInspection["actions"];
+    actions: AirJamAgentContractInspection["actions"];
   }>({
     cwd: game.rootDir,
     configPath: source.configPath,

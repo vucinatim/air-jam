@@ -165,7 +165,7 @@ export const HostView = () => {
 
 If a store action returns `void`, Air Jam treats it as accepted.
 
-Return `rejectAirJamAction(...)` when the semantic action should fail with a machine-readable reason, and return `acceptAirJamAction(result)` when the semantic action should succeed with explicit result data:
+Return `rejectAirJamAction(...)` when the semantic action should fail with a clear machine-readable reason, and return `acceptAirJamAction(result)` when the semantic action should succeed with explicit result data:
 
 ```tsx
 import {

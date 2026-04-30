@@ -44,7 +44,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "pnpm --filter @air-jam/sdk build && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {

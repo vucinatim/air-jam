@@ -14,13 +14,13 @@ Related docs:
 
 ## Purpose
 
-Rewrite Air Jam's machine-facing game control system into one minimal, obvious, hard-to-misuse architecture.
+Rewrite Air Jam's agent-facing game control system into one minimal, obvious, hard-to-misuse architecture.
 
 The goal is not to add more agent tooling. The goal is to remove duplicated concepts, collapse overlapping control lanes, and make the correct workflow the default workflow in both code and docs.
 
 The desired end state is:
 
-1. every Air Jam game exposes one clear machine-facing contract
+1. every Air Jam game exposes one clear agent-facing contract
 2. browser preview stays the canonical visual verification path
 3. precise host-side staging and real player-like control both work through one coherent session model
 4. visual capture and scenario tooling become optional consumers of that same contract instead of a second competing control system
@@ -31,25 +31,27 @@ Latest progress:
 1. the first Phase 1 package-boundary repair is now landed: `@air-jam/harness` root no longer exports the Playwright/session runner surface, browser/runtime authoring stays on `@air-jam/harness/runtime`, and the mixed visual-scenario/capture surface now lives behind explicit `@air-jam/harness/visual` imports
 2. the second Phase 1 happy-path repair is now landed in `devtools-core` for harness/session tooling: these flows now try to attach to a compatible already-running local dev session before starting a managed one, which removes the default port-collision path for live MCP/browser work
 3. the third Phase 1 live-state primitive is now landed in `@air-jam/sdk`: synced stores officially expose `getState()` and `subscribe(...)`, plus a React-safe `useLiveStateRef()` hook so bridge/runtime code can consume the latest replicated store state without hand-rolled mirror refs
-4. the first concrete Phase 2 unification slice is now landed: shared machine-action input definitions live in `@air-jam/sdk`, visual harness actions now consume that same core instead of carrying their own parser/metadata system, game-agent contracts use the `gameAgentAction.player(...)` builder, and Pong proved the first strict contract path
-5. the second concrete Phase 2 unification slice is now landed: `src/airjam.config.ts` now publishes machine-facing seams only through flat `game.agent` and `game.visualScenariosModule` fields, the `game.machine` alias is gone, `@air-jam/devtools-core` and MCP now expose one high-level `open_game_session` / `send_game_session_input` / `read_game_session` / `invoke_game_session_action` / `close_game_session` lane, and the older public controller/harness/game-action MCP control tools are no longer registered as first-class agent choices
+4. the first concrete Phase 2 unification slice is now landed: shared agent-action input definitions live in `@air-jam/sdk`, visual harness actions now consume that same core instead of carrying their own parser/metadata system, agent contracts use the `agentAction.participant(...)` builder, and Pong proved the first strict contract path
+5. the second concrete Phase 2 unification slice is now landed: `src/airjam.config.ts` now publishes agent-facing seams only through flat `agent` and `visualScenariosModule` fields, the `game.agent` alias is gone, `@air-jam/devtools-core` and MCP now expose one high-level `open_game_session` / `send_game_session_input` / `read_game_session` / `invoke_game_session_action` / `close_game_session` lane, and the older public controller/harness/game-action MCP control tools are no longer registered as first-class agent choices
 6. the third concrete Phase 2 strictness slice is now landed: first-party games no longer ship the old raw `payload` / `resolveInput` contract shape, the SDK no longer exports or normalizes that legacy action form, and `invoke_game_session_action` now resolves one unified action namespace with explicit `player:*` and `host:*` ids instead of a public surface discriminator
 7. the fourth concrete Phase 2 strictness slice is now landed: `createAirJamApp({ metadata: gameMetadata, ... })` now carries canonical game identity, first-party semantic contracts and visual scenario packs no longer repeat `gameId`, `<VisualHarnessRuntime />` now receives canonical `gameId` explicitly at mount time, and harness command completion now waits for a committed published snapshot instead of sampling React state too early
-8. the fifth concrete Phase 2 strictness slice is now landed: semantic game contracts now declare named snapshot stores through explicit typed `snapshotStores` bindings instead of raw domain arrays, first-party game contracts no longer need ad hoc generic casts to read the default store, and harness/game-session action results now report whether they observed a new committed snapshot or timed out without one
+8. the fifth concrete Phase 2 strictness slice is now landed: semantic game contracts now declare named snapshot stores through explicit typed `stores` bindings instead of raw domain arrays, first-party game contracts no longer need ad hoc generic casts to read the default store, and harness/game-session action results now report whether they observed a new committed snapshot or timed out without one
 9. the sixth concrete Phase 2 strictness slice is now landed: controller store dispatch, server action forwarding, and high-level game-session/devtools results now all publish first-class accepted/rejected action acknowledgements so callers can distinguish rejection from “accepted but no visible change yet” without inferring from logs or snapshots
 10. the seventh concrete Phase 2 strictness slice is now landed: `createAirJamStore(...)` now exposes `useHostActionListener(...)` and `subscribeHostActions(...)` as the canonical host-only imperative reaction seam, so games can react to accepted semantic actions with local runtime effects without queueing ephemeral commands through replicated state
-11. the first concrete Phase 4 template-reset slice is now landed: the `minimal` starter now ships `src/game/contracts/agent.ts` wired through `game.agent`, and its host proves the new `useHostActionListener(...)` seam with a tiny host-only local effect instead of replicated queue-and-drain state
+11. the first concrete Phase 4 template-reset slice is now landed: the `minimal` starter now ships `src/game/contracts/agent.ts` wired through `agent`, and its host proves the new `useHostActionListener(...)` seam with a tiny host-only local effect instead of replicated queue-and-drain state
 12. the second concrete Phase 4 docs-reset slice is now landed: generated projects now ship a short `docs/agent-gold-path.md`, the local docs index points at it first, `AGENTS.md` tells agents to read it before the broader pack, and the AI-pack contract now requires that file so the shortest correct workflow cannot silently disappear from future scaffolds
 13. the third concrete Phase 4 docs-reset slice is now landed: task-backed MCP tools now advertise the client capability requirement directly in registered tool descriptions, the MCP server instructions call that execution model out explicitly, and the generated visual/MCP docs now frame `src/game/contracts/agent.ts` as primary while treating `visual/*` as optional host staging plus visual proof instead of a competing control surface
 14. the local prerelease acceptance lane is now more resilient too: repo-local `scaffold local` and `pack local` preflight missing workspace dependency links before tarball packing, try a frozen install first, and fall back to a normal install when recent workspace package changes left the lockfile and node_modules out of sync
 15. the local prerelease tarball lane is now immutable per run too: `pack local` and `scaffold local --source=tarball` now create dedicated tarball-set directories plus manifests under `.airjam/tarballs/sets/<set-id>/`, generated projects keep pointing at their original set after later repacks, `pnpm install --frozen-lockfile` stays clean across those later repacks, and a fresh tarball-backed minimal scaffold was re-proved through `typecheck`, `test`, `build`, in-app browser host render, and installed-tarball `open_game_session`
 16. the first actor-semantics hardening slice is now landed: `createAirJamStore(...)` exposes a host-only `asPlayer(controllerId)` impersonation lane for explicit semantic player dispatch, the path rejects non-host usage and disconnected controller ids instead of mutating ambiguous state, and the first-read SDK/scaffold docs now teach that `ctx.actorId` always means the dispatcher identity
-17. the second actor-and-machine-DX hardening slice is now landed: `machineActionInput.zod(...)` is now the first-class schema-backed machine-action helper, invalid networked-store payload roots now surface a named `__airJamInvalidActionPayloads__` type marker instead of collapsing to anonymous `never`, and the public/generated docs now state explicitly that payload roots must be omitted or exactly one plain object instead of `T | undefined` unions
+17. the second actor-and-agent-DX hardening slice is now landed: `agentActionInput.zod(...)` is now the first-class schema-backed agent-action helper, invalid networked-store payload roots now surface a named `__airJamInvalidActionPayloads__` type marker instead of collapsing to anonymous `never`, and the public/generated docs now state explicitly that payload roots must be omitted or exactly one plain object instead of `T | undefined` unions
 18. the third actor-and-outcome hardening slice is now landed: high-level semantic game-action invocation now returns `snapshotBefore`, `snapshotAfter`, `snapshotAfterStatus`, `observedStateChange`, `acknowledgementObservation`, and a normalized `outcome`, so `host_ack_missing` / `host_ack_timeout` no longer read like semantic rejection when the game state visibly changed
 19. the first controller-ownership hardening slice is now landed: controller provenance is now explicit at the shared protocol/server boundary, host runtime inspection can carry a controller-session roster separate from plain player profiles, and virtual/MCP controllers no longer inherit the normal human reconnect lease when their owning tooling session disappears
 20. the second controller-ownership hardening slice is now landed: hosts now have one explicit `removeController(controllerId)` recovery control, the preview workspace can surface the live room controller roster with source-aware kick actions, and manual local recovery no longer depends on waiting for stale sessions or restarting the whole background stack
 21. the third controller-recovery slice is now landed: hosts now have a first-class `resetRoom()` lifecycle operation, server-side room teardown cleanly evicts sockets from the old room before rebinding the host to a fresh empty room, and the preview workspace exposes that path as a local-dev panic button that reloads the host page so gameplay state and controller state reset together instead of trapping developers in a dirty room
-22. the latest DX-clarity slice is now landed too: semantic game contracts now use `gameAgentAction.player(...)` as the canonical builder name, the docs pack now ships a dedicated state-lanes cookbook, `acceptAirJamAction(...)` / `rejectAirJamAction(...)` have first-read worked examples, `resultDescription` is now documented as effect-description metadata rather than implicit runtime result data, and isolated harness/runtime ownership timeouts now tell builders to close the previous game session before treating the issue as gameplay breakage
+22. the latest DX-clarity slice is now landed too: semantic game contracts now use `agentAction.participant(...)` as the canonical builder name, the docs pack now ships a dedicated state-lanes cookbook, `acceptAirJamAction(...)` / `rejectAirJamAction(...)` have first-read worked examples, `resultDescription` is now documented as effect-description metadata rather than implicit runtime result data, and isolated harness/runtime ownership timeouts now tell builders to close the previous game session before treating the issue as gameplay breakage
+23. the public API-pruning slice is now landed too: the SDK root now exposes only the neutral agent authoring surface (`defineAirJamAgentContract`, `defineAirJamAgentStores`, `agentStore`, `agentAction`, `agentActionInput`), agent-inspection helpers moved to the dedicated `@air-jam/sdk/agent-tooling` subpath, `createAirJamApp(...)` now publishes `controllerPath`, `agent`, and `visualScenariosModule` as flat top-level fields instead of nested `game.*`, and first-party games/devtools/scaffolds now follow that single strict path
+24. the final naming-cleanup slice is now landed too: the public contract story is now consistently `agent`, not `machine`, repo file/module names and helper scripts were renamed to match that vocabulary, and active docs/template guidance now teach only the `agent` surface instead of a mixed `machine`/`agent` story
 
 ## Why This Rewrite Exists
 
@@ -59,7 +61,7 @@ The agent eventually completed the task, but it took a noisy path:
 
 1. it mixed up harness sessions and controller sessions
 2. it misdiagnosed an intentional helper-path fallback as a packaging/path bug
-3. it treated the visual harness bridge as if it were the primary way to unlock machine control
+3. it treated the visual harness bridge as if it were the primary way to unlock agent control
 4. it fell back to direct harness HTTP endpoints instead of staying on the official MCP path
 5. it had to discover important authoring structure while already in the middle of gameplay debugging
 
@@ -71,7 +73,7 @@ That means the current architecture works, but the model we expose is not yet in
 
 Today an agent can encounter all of these:
 
-1. semantic game-agent actions
+1. semantic agent actions
 2. visual-harness bridge actions
 3. controller sessions
 4. harness sessions
@@ -88,7 +90,7 @@ The current harness story mixes two different responsibilities:
 
 Those should not be the same conceptual thing.
 
-The first is a core machine-control primitive. The second is optional visual tooling.
+The first is a core agent-control primitive. The second is optional visual tooling.
 
 ### 3. Package Boundaries Do Not Enforce Safe Usage
 
@@ -108,7 +110,7 @@ Agents should think about intent, not transport.
 
 ### 5. The Minimal Template Still Depends On Mid-Task Architecture Invention
 
-The current guidance tells agents when to add machine seams, which is better than nothing, but it still leaves too much discretion during the task itself.
+The current guidance tells agents when to add agent seams, which is better than nothing, but it still leaves too much discretion during the task itself.
 
 For agent-first development, the seam should already exist in the minimal template in the smallest possible form.
 
@@ -118,7 +120,7 @@ The recent external-agent run surfaced concrete friction that should be treated 
 
 ### Highest-Signal Findings
 
-1. the semantic game-agent contract and the visual-harness bridge feel like two parallel agent surfaces with no sharp operational line
+1. the semantic agent contract and the visual-harness bridge feel like two parallel agent surfaces with no sharp operational line
 2. `@air-jam/harness` root is not browser-safe and silently pulls Playwright-side code into browser bundling
 3. the synced store authoring path does not expose a clean supported way to produce imperative live snapshots for bridge/runtime control
 4. `snapshotBefore` / `snapshotAfter` semantics are not trustworthy enough if "after" can still mean "before the next React commit"
@@ -127,8 +129,8 @@ The recent external-agent run surfaced concrete friction that should be treated 
 7. MCP harness wrappers fight existing live dev servers instead of attaching to them
 8. bootstrap/runtime wrapper failures are too easy to misdiagnose, which causes agents to lose trust in the official path
 9. task-backed MCP tools do not explain the execution model clearly enough for non-task-aware clients
-10. `gameId` and machine-related config are duplicated in too many places
-11. machine config nesting and string module paths are more fragile and less obvious than they should be
+10. `gameId` and agent-related config are duplicated in too many places
+11. agent config nesting and string module paths are more fragile and less obvious than they should be
 12. the generated docs do not yet contain enough of the practical operational knowledge needed to stay on the happy path
 
 ### Interpretation
@@ -141,7 +143,7 @@ These findings reinforce the same core conclusion:
 
 ## Consolidated Improvement Ledger
 
-This section is the durable rollup of the machine-control and SDK-DX improvements discovered through the recent external-agent build, the follow-up self-check, and local repo review.
+This section is the durable rollup of the agent-control and SDK-DX improvements discovered through the recent external-agent build, the follow-up self-check, and local repo review.
 
 It intentionally mixes:
 
@@ -166,7 +168,7 @@ Why this matters:
 
 Suggested solution:
 
-1. add explicit parity checks that validate packed tarballs against current source for the critical machine-control seams
+1. add explicit parity checks that validate packed tarballs against current source for the critical agent-control seams
 2. make scaffold smoke prove the shipped template, packed SDK, packed harness package, and packed MCP path all agree on the same authoring story
 3. fail release preparation if current docs mention APIs or config shapes that the packed artifacts do not yet ship
 4. treat source-artifact drift as a release-blocking product bug, not just a packaging detail
@@ -175,7 +177,7 @@ Suggested solution:
 
 Problem:
 
-The current public story still makes builders think about semantic game-agent contracts, visual-harness bridge actions, session types, and staging lanes as adjacent concepts instead of one coherent system.
+The current public story still makes builders think about semantic agent contracts, visual-harness bridge actions, session types, and staging lanes as adjacent concepts instead of one coherent system.
 
 Why this matters:
 
@@ -185,7 +187,7 @@ Why this matters:
 
 Suggested solution:
 
-1. expose one canonical game-owned machine contract with `snapshot` plus `actions`
+1. expose one canonical game-owned agent contract with `snapshot` plus `actions`
 2. make action lanes explicit as `player` and `host` instead of forcing users to reason about separate public subsystems
 3. keep visual tooling as a consumer of that contract, not a second authoring model
 4. continue deleting or de-emphasizing legacy public surfaces that require users to choose transport details themselves
@@ -207,7 +209,7 @@ Suggested solution:
 1. keep `open_game_session` / `read_game_session` / `invoke_game_session_action` / `close_game_session` as the only primary external story
 2. make internal session ids, broker polling, and registration details implementation-private unless a user explicitly needs low-level debugging
 3. keep attaching to an already-running compatible local dev session as the default behavior
-4. ensure every machine-visible action is discoverable through one unified session read path
+4. ensure every agent-visible action is discoverable through one unified session read path
 
 ### 4. Add First-Class Action Acknowledgement And Rejection Semantics
 
@@ -219,13 +221,13 @@ Why this matters:
 
 1. games duplicate host rules on the client just to explain why nothing happened
 2. silent no-op behavior erodes trust in the action API
-3. machine-driven testing becomes harder because callers cannot distinguish "accepted but no visible change yet" from "rejected"
+3. agent-driven testing becomes harder because callers cannot distinguish "accepted but no visible change yet" from "rejected"
 
 Suggested solution:
 
 1. add a first-class action acknowledgement channel with explicit accepted/rejected outcomes
 2. include a typed rejection reason or action result payload where appropriate
-3. make the controller and machine-control lanes consume the same acknowledgement model
+3. make the controller and agent-control lanes consume the same acknowledgement model
 4. keep diagnostics for debugging, but do not rely on diagnostics alone as the product-facing result contract
 
 ### 5. Add A First-Class Host Imperative Reaction Seam
@@ -256,7 +258,7 @@ If post-action reporting can read "after" state before the next committed publis
 Why this matters:
 
 1. agents and builders naturally treat `snapshotAfter` as committed truth
-2. ambiguous timing makes the official machine-control path feel unreliable
+2. ambiguous timing makes the official agent-control path feel unreliable
 3. it pushes users toward polling or raw browser inspection just to verify success
 
 Suggested solution:
@@ -308,17 +310,17 @@ Suggested solution:
 
 Problem:
 
-The SDK already teaches Zod strongly in adjacent surfaces, but the machine-action input builder still makes Zod users drop to the lower-level `custom(...)` API.
+The SDK already teaches Zod strongly in adjacent surfaces, but the agent-action input builder still makes Zod users drop to the lower-level `custom(...)` API.
 
 Why this matters:
 
-1. it makes the machine-control surface feel less first-class than the rest of the SDK
+1. it makes the agent-control surface feel less first-class than the rest of the SDK
 2. it creates a false "maybe this lane is not meant for schemas" impression
 3. it is a tiny missing ergonomic that creates disproportionate hesitation during authoring
 
 Suggested solution:
 
-1. add `machineActionInput.zod(schema, options?)` as the obvious typed helper
+1. add `agentActionInput.zod(schema, options?)` as the obvious typed helper
 2. keep `custom(...)` as the low-level escape hatch, not the default Zod story
 3. use the new helper in first-party examples and generated docs immediately so it becomes the learned path
 
@@ -331,7 +333,7 @@ The protocol now has accepted/rejected action result types, but some higher-leve
 Why this matters:
 
 1. it makes working behavior look broken
-2. agents lose trust in the official machine-control lane and start adding local debug seams
+2. agents lose trust in the official agent-control lane and start adding local debug seams
 3. users end up reading logs or source to interpret a result that should already be explicit
 
 Suggested solution:
@@ -381,7 +383,7 @@ Suggested solution:
 
 The next slice should not be treated as a bag of unrelated fixes.
 
-It should be one clean DX-hardening pass around actor semantics, machine-action ergonomics, and outcome clarity.
+It should be one clean DX-hardening pass around actor semantics, agent-action ergonomics, and outcome clarity.
 
 ### 1. Keep The Dispatcher Model Strict
 
@@ -438,7 +440,7 @@ The clean next bundle is:
 
 1. actor semantics and host-only impersonation API
 2. payload-error diagnostics
-3. `machineActionInput.zod(...)`
+3. `agentActionInput.zod(...)`
 4. `host_ack_missing` and action-outcome result clarity
 
 ### 5. Fix Local Controller Ownership And Recovery Semantics
@@ -482,13 +484,13 @@ The game snapshot/store context is still too stringly in places. Builders can st
 Why this matters:
 
 1. it weakens the clean contract story that the rest of the system is aiming for
-2. it makes machine-control extensions feel more internal than public
+2. it makes agent-control extensions feel more internal than public
 3. it prevents games from publishing richer contracts without leaking local implementation knowledge
 
 Suggested solution:
 
-1. let machine contracts declare or bind named store domains more explicitly
-2. provide typed helpers for reading the canonical store/domain context inside machine contracts
+1. let agent contracts declare or bind named store domains more explicitly
+2. provide typed helpers for reading the canonical store/domain context inside agent contracts
 3. reduce ad hoc `Record<string, ...>` access where the contract can be stronger
 4. keep the contract explicit rather than hiding store ownership behind magic discovery
 
@@ -506,7 +508,7 @@ Why this matters:
 
 Suggested solution:
 
-1. keep converging on one shared machine-action input definition model
+1. keep converging on one shared agent-action input definition model
 2. prefer the same schema language and metadata shape wherever possible
 3. make visual tooling consume the same action-definition core instead of re-describing payloads
 4. reserve separate schema systems only where the underlying runtime constraints are genuinely different
@@ -545,7 +547,7 @@ Why this matters:
 Suggested solution:
 
 1. update the default starter to demonstrate the intended runtime/config story, not merely the smallest possible story
-2. show the canonical machine seam in the smallest useful form instead of leaving architecture invention for mid-task
+2. show the canonical agent seam in the smallest useful form instead of leaving architecture invention for mid-task
 3. include a minimal example of live-state access and host-side staging where that materially improves discoverability
 4. keep the starter small, but make it representative of the intended product path rather than a bare minimum demo
 
@@ -564,7 +566,7 @@ Why this matters:
 Suggested solution:
 
 1. surface the most important ergonomic primitives in the starter, README, and generated docs, not only in deep system docs
-2. add one short "gold path" section for authoring, one for machine control, and one for visual capture
+2. add one short "gold path" section for authoring, one for agent control, and one for visual capture
 3. make docs prioritize "when do I use this?" rather than listing features without decision guidance
 4. keep operational docs honest about what is already solved versus what is still in rewrite
 
@@ -591,18 +593,18 @@ Suggested solution:
 
 Problem:
 
-Game identity used to drift across metadata, machine contracts, visual scenarios, and runtime mounting sites. That duplication made contracts more fragile and increased the chance of configuration skew.
+Game identity used to drift across metadata, agent contracts, visual scenarios, and runtime mounting sites. That duplication made contracts more fragile and increased the chance of configuration skew.
 
 Why this matters:
 
 1. identity duplication is simple but high-friction configuration debt
-2. every repeated `gameId` or machine-side identity field is another place for drift
-3. clean machine-control authoring depends on one obvious declaration site
+2. every repeated `gameId` or agent-side identity field is another place for drift
+3. clean agent-control authoring depends on one obvious declaration site
 
 Suggested solution:
 
 1. keep canonical game identity flowing from one source of truth
-2. continue removing repeated machine-facing identity declarations where the runtime/config can derive them safely
+2. continue removing repeated agent-facing identity declarations where the runtime/config can derive them safely
 3. preserve explicitness at mount/runtime boundaries only where it protects bundling or ownership semantics
 4. add parity tests so future package or scaffold changes do not reintroduce drift
 
@@ -616,7 +618,7 @@ Why this matters:
 
 1. builders may misread client limitations as Air Jam tool failures
 2. long-running tooling is part of the official DX story and should fail legibly
-3. machine-control trust depends on clear contracts at the protocol layer too
+3. agent-control trust depends on clear contracts at the protocol layer too
 
 Suggested solution:
 
@@ -646,8 +648,8 @@ Suggested solution:
 
 ## Rewrite Principles
 
-1. one obvious machine-control contract per game
-2. browser preview and machine control are complementary, not fused
+1. one obvious agent-control contract per game
+2. browser preview and agent control are complementary, not fused
 3. visual tooling consumes the control contract but does not define a second control language
 4. runtime-safe imports and Node/Playwright imports must be enforced by package structure
 5. generated templates must teach the ideal path by default
@@ -657,7 +659,7 @@ Suggested solution:
 
 ## Core Decision
 
-Air Jam should have one canonical game-owned machine contract.
+Air Jam should have one canonical game-owned agent contract.
 
 That contract should be the primary authoring and tooling abstraction.
 
@@ -689,7 +691,7 @@ The full architecture reset should remain the main goal, but several high-fricti
 3. make action invocation result semantics trustworthy, especially around `snapshotAfter`
 4. make MCP harness/game-session tools attach to an already-running compatible local dev server instead of racing to start a duplicate one
 5. improve task-backed tool messaging so clients and users understand what is required
-6. reduce machine config duplication and string-path fragility where that can be done without waiting for the full rewrite
+6. reduce agent config duplication and string-path fragility where that can be done without waiting for the full rewrite
 
 ### Hardening Rule
 
@@ -718,7 +720,7 @@ The primary contract helper should live on the main game-authoring path, not und
 Target shape:
 
 1. `@air-jam/sdk` continues to own standard game authoring
-2. `@air-jam/sdk/agent` owns the game machine-contract definition and types
+2. `@air-jam/sdk/agent` owns the agent-contract definition and types
 3. `@air-jam/sdk/agent-runtime` owns the browser-safe runtime adapter used by the host
 4. optional visual tooling moves behind an explicitly separate package or subpath that is clearly Playwright/Node-side only
 
@@ -780,7 +782,7 @@ That means:
 
 ### 5. Template-Owned Seam By Default
 
-The minimal template should ship a tiny default machine seam:
+The minimal template should ship a tiny default agent seam:
 
 1. `src/game/contracts/agent.ts`
 2. `src/host/agent-runtime.tsx` or equivalent tiny host mount
@@ -792,7 +794,7 @@ This seam should be small enough not to burden humans, but present enough that a
 The generated docs for that seam must also answer the practical first questions directly:
 
 1. which import path is browser-safe
-2. how to read live game state for machine control
+2. how to read live game state for agent control
 3. when to use a host-targeted action versus player-like input
 4. how to run the official MCP/browser workflow without dropping to raw HTTP endpoints
 
@@ -863,7 +865,7 @@ That means one shared definition shape for:
 
 The visual layer should consume that model, not redefine it.
 
-Use one schema language across the machine-facing surfaces wherever possible.
+Use one schema language across the agent-facing surfaces wherever possible.
 
 The default choice should be the same schema story the input lane already uses unless a clearly better unified alternative appears.
 
@@ -909,7 +911,7 @@ Concrete scope:
 2. update all scaffold examples, docs, and first-party browser runtime imports to the browser-safe entry
 3. fix harness/game-session wrapper logic so live compatible local dev is reused before any new process startup is attempted
 4. audit and fix the known wrapper/bootstrap failure paths that currently push agents toward raw HTTP fallbacks
-5. provide one first-class supported live-state access path for machine control instead of requiring ad hoc ref mirroring
+5. provide one first-class supported live-state access path for agent control instead of requiring ad hoc ref mirroring
 6. tighten `snapshotAfter` behavior or semantics so action results are trustworthy enough for external consumers
 7. improve task-backed tool messaging so the failure mode explains what kind of client support is missing
 
@@ -933,8 +935,8 @@ This is the core architecture slice.
 
 Primary goals:
 
-1. collapse semantic game-agent actions and visual-bridge actions into one canonical contract model
-2. choose one schema story for machine-facing payloads
+1. collapse semantic agent actions and visual-bridge actions into one canonical contract model
+2. choose one schema story for agent-facing payloads
 3. define one clear typed snapshot model with explicit action timing semantics
 
 Concrete scope:
@@ -943,11 +945,11 @@ Concrete scope:
 2. add action execution-lane metadata as part of that contract
 3. fold visual bridge actions into the same underlying action-definition model
 4. replace stringly snapshot-store stories with a more typed and readable authoring model
-5. reduce duplicated `gameId` ownership and other machine-config drift where possible
+5. reduce duplicated `gameId` ownership and other agent-config drift where possible
 
 Phase 2 exit criteria:
 
-1. there is one primary machine-facing contract story in code and docs
+1. there is one primary agent-facing contract story in code and docs
 2. visual tooling consumes that contract instead of defining a parallel action language
 3. payload definitions no longer require agents to learn multiple competing metadata systems
 
@@ -982,7 +984,7 @@ Primary goals:
 
 Concrete scope:
 
-1. ship the minimal machine seam by default in `minimal`
+1. ship the minimal agent seam by default in `minimal`
 2. reduce config nesting and string-module references where practical
 3. derive repeated identifiers from one source where possible
 4. rewrite generated docs around the five-step agent mental model
@@ -990,7 +992,7 @@ Concrete scope:
 
 Phase 4 exit criteria:
 
-1. a new generated project already contains the machine seam
+1. a new generated project already contains the agent seam
 2. the core generated docs fit on one short page
 3. an external agent does not need repo archaeology to discover the correct workflow
 
@@ -1021,7 +1023,7 @@ The first implementation pass should begin with exactly these three tracks in pa
 
 1. package-boundary repair for browser-safe runtime imports
 2. live-dev attachment and MCP/devtools happy-path repair
-3. supported live-state snapshot primitive for machine control
+3. supported live-state snapshot primitive for agent control
 
 Those three fixes reduce the most immediate friction while also preparing the codebase for the deeper Phase 2 contract collapse.
 
@@ -1106,7 +1108,7 @@ Recommended proving slice:
 
 The rewrite is only complete when all of these are true:
 
-1. a fresh minimal project already contains the machine seam
+1. a fresh minimal project already contains the agent seam
 2. an external agent can discover the correct control path without repo archaeology
 3. browser-safe code has no accidental Playwright import trap
 4. visual capture still works through the new contract instead of a parallel control layer

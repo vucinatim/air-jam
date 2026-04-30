@@ -6,7 +6,7 @@ If you only want the shortest correct mental model first, read `docs/agent-gold-
 
 ## What It Is
 
-The project-local Air Jam MCP is the intended machine-facing path for:
+The project-local Air Jam MCP is the intended agent-facing path for:
 
 1. project inspection
 2. game inspection
@@ -84,7 +84,7 @@ For runtime or multiplayer issues:
 
 ## Visual Staging Rule
 
-`src/game/contracts/agent.ts` is the primary machine-facing contract.
+`src/game/contracts/agent.ts` is the primary agent-facing contract.
 
 `visual/contract.ts` is optional. Use it only when you need deterministic host staging or visual-proof helpers that should stay separate from semantic player verbs.
 
@@ -93,15 +93,15 @@ When you own the game code and the existing host staging surface is too thin:
 1. add a small game-owned host staging action instead of automating the visible browser UI
 2. prefer explicit verbs like `returnToLobby`, `startRound`, `setScore`, or `finishMatch`
 3. include action descriptions and payload descriptions so future agents can discover the contract without source diving
-4. for schema-backed semantic action payloads, prefer `machineActionInput.zod(...)` over ad hoc custom parsers when Zod already expresses the shape cleanly
+4. for schema-backed semantic action payloads, prefer `agentActionInput.zod(...)` over ad hoc custom parsers when Zod already expresses the shape cleanly
 5. `resultDescription` should describe the expected semantic effect for agents and humans; it is not automatic runtime result data
 6. if a semantic action must return actual runtime result data, the underlying store action should return `acceptAirJamAction(result)` and callers should read that result from the acknowledgement or session action response
 
 ## Semantic Game Rule
 
-If the scaffolded template includes `src/game/contracts/agent.ts`, treat `src/airjam.config.ts` as the canonical machine manifest and the template-owned contract file as the portable implementation it wires through `game.agent`.
+If the scaffolded template includes `src/game/contracts/agent.ts`, treat `src/airjam.config.ts` as the canonical agent manifest and the template-owned contract file as the portable implementation it wires through `agent`.
 
-If the template includes visual scenarios, the same config should explicitly declare `game.visualScenariosModule` instead of making devtools guess a convention path.
+If the template includes visual scenarios, the same config should explicitly declare `visualScenariosModule` instead of making devtools guess a convention path.
 
 That contract is template-owned. Do not create a second generated agent surface on top of it, and do not rely on devtools guessing its filesystem path when the config already declares it.
 
@@ -116,7 +116,7 @@ Use:
 If a clean-slate project does not ship those files yet but the game is growing beyond a trivial single-screen flow:
 
 1. add `src/game/contracts/agent.ts` early
-2. wire it through `src/airjam.config.ts` `game.agent`
+2. wire it through `src/airjam.config.ts` `agent`
 3. publish a small semantic action set for the important game verbs instead of leaving them implicit in visible UI only
 4. add `visual/contract.ts` and `visual/scenarios.ts` only once deterministic host staging or repeatable visual proof becomes useful
 

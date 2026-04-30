@@ -5,7 +5,7 @@ Preview controllers are the fast local desktop tryout path for host surfaces.
 They are useful in local development when you want to:
 
 1. verify the controller UI without picking up a phone first
-2. test host + controller interplay on one machine
+2. test host + controller interplay on one agent
 3. mix one desktop preview controller with one real phone/browser controller in the same room
 
 ## Product Position

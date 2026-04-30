@@ -116,9 +116,7 @@ import { gameInputSchema } from "./game/input";
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
-  game: {
-    controllerPath: "/controller",
-  },
+  controllerPath: "/controller",
   input: {
     schema: gameInputSchema,
   },

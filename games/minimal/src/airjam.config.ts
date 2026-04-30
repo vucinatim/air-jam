@@ -11,7 +11,7 @@
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
-import { gameAgentContract } from "./game/contracts/agent";
+import { agentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/input";
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -32,10 +32,8 @@ export const gameMetadata = defineAirJamGameMetadata({
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   metadata: gameMetadata,
-  game: {
-    controllerPath: "/controller",
-    agent: gameAgentContract,
-  },
+  controllerPath: "/controller",
+  agent: agentContract,
   input: {
     schema: gameInputSchema,
   },

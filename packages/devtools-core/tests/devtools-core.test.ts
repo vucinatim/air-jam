@@ -79,7 +79,7 @@ const createStandaloneDevFixture = async (): Promise<{
   await mkdir(path.join(root, "src"), { recursive: true });
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    'export const airjam = { game: { controllerPath: "/controller", visualScenariosModule: "../visual/scenarios.mjs" } };\n',
+    'export const airjam = { controllerPath: "/controller", visualScenariosModule: "../visual/scenarios.mjs" };\n',
     "utf8",
   );
   await writeFile(
@@ -225,7 +225,7 @@ const createControllerSocketFixture = async (): Promise<{
   await mkdir(path.join(root, "src"), { recursive: true });
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    'import { gameAgentContract } from "./game/contracts/agent";\nexport const airjam = { game: { controllerPath: "/controller", agent: gameAgentContract, visualScenariosModule: "../visual/scenarios.mjs" } };\n',
+    'import { agentContract } from "./game/contracts/agent";\nexport const airjam = { controllerPath: "/controller", agent: agentContract, visualScenariosModule: "../visual/scenarios.mjs" };\n',
     "utf8",
   );
   await mkdir(path.join(root, "src", "game", "contracts"), {
@@ -233,8 +233,8 @@ const createControllerSocketFixture = async (): Promise<{
   });
   await writeFile(
     path.join(root, "src", "game", "contracts", "agent.ts"),
-    `export const gameAgentContract = {
-  snapshotStores: {
+    `export const agentContract = {
+  stores: {
     default: {},
   },
   snapshotDescription: "Fixture game snapshot for devtools tests.",
@@ -521,7 +521,7 @@ describe("detectProjectContext", () => {
     await mkdir(path.join(root, "src"), { recursive: true });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const gameMetadata = {}; export const airjam = { game: { controllerPath: "/controller" } };\n',
+      'export const gameMetadata = {}; export const airjam = { controllerPath: "/controller" };\n',
       "utf8",
     );
 
@@ -593,7 +593,7 @@ describe("listGames and inspectGame", () => {
     expect(game.qualityGates).toContain("release-check");
   });
 
-  it("does not infer visual machine support from a file that config does not publish", async () => {
+  it("does not infer visual agent support from a file that config does not publish", async () => {
     const root = await createTempRoot();
     await writeJson(path.join(root, "package.json"), {
       name: "unpublished-visual-fixture",
@@ -606,7 +606,7 @@ describe("listGames and inspectGame", () => {
     await mkdir(path.join(root, "visual"), { recursive: true });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { game: { controllerPath: "/controller" } };\n',
+      'export const airjam = { controllerPath: "/controller" };\n',
       "utf8",
     );
     await writeFile(
@@ -636,7 +636,7 @@ describe("listGames and inspectGame", () => {
     await mkdir(path.join(root, "src"), { recursive: true });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { game: { controllerPath: "/phone" } };\n',
+      'export const airjam = { controllerPath: "/phone" };\n',
       "utf8",
     );
 
@@ -780,7 +780,7 @@ describe("visual scenarios", () => {
     await mkdir(path.join(root, "visual"), { recursive: true });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { game: { controllerPath: "/controller" } };\n',
+      'export const airjam = { controllerPath: "/controller" };\n',
       "utf8",
     );
     await writeFile(
@@ -1126,8 +1126,8 @@ describe("virtual controller runtime control", () => {
   });
 });
 
-describe("game agent contracts", () => {
-  it("inspects a repo game agent contract", async () => {
+describe("agent contracts", () => {
+  it("inspects a repo agent contract", async () => {
     const contract = await inspectGameAgentContract({
       cwd: path.resolve(__dirname, "../../.."),
       gameId: "last-band-standing",
@@ -1152,7 +1152,7 @@ describe("game agent contracts", () => {
     );
   });
 
-  it("inspects a second repo game agent contract", async () => {
+  it("inspects a second repo agent contract", async () => {
     const contract = await inspectGameAgentContract({
       cwd: path.resolve(__dirname, "../../.."),
       gameId: "pong",
@@ -1245,13 +1245,13 @@ describe("game agent contracts", () => {
     });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { game: { controllerPath: "/controller" } };\n',
+      'export const airjam = { controllerPath: "/controller" };\n',
       "utf8",
     );
     await writeFile(
       path.join(root, "src", "game", "contracts", "agent.ts"),
-      `export const gameAgentContract = {
-  snapshotStores: {
+      `export const agentContract = {
+  stores: {
     default: {},
   },
   projectSnapshot: ({ stores }) => stores.default ?? {},

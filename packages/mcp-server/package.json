@@ -34,10 +34,10 @@
     "src"
   ],
   "scripts": {
-    "build": "pnpm --filter @air-jam/devtools-core build && tsup",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "pnpm --filter @air-jam/devtools-core build && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@air-jam/devtools-core": "workspace:^",

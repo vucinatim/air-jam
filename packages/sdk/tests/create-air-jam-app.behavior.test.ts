@@ -2,10 +2,10 @@ import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  defineAirJamGameAgentContract,
-  defineAirJamGameAgentStores,
-  gameAgentStore,
-} from "../src/agent/game-agent-contract";
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+  agentStore,
+} from "../src/agent/agent-contract";
 import { defineAirJamGameMetadata } from "../src/metadata";
 import { createAirJamApp } from "../src/runtime/create-air-jam-app";
 import {
@@ -32,9 +32,7 @@ describe("createAirJamApp", () => {
       runtime: {
         topology: baseTopology,
       },
-      game: {
-        controllerPath: "custom-controller",
-      },
+      controllerPath: "custom-controller",
     });
 
     expect(withDefaultPath.paths.controller).toBe("/controller");
@@ -78,10 +76,10 @@ describe("createAirJamApp", () => {
     expect("input" in airjam.session.controller).toBe(false);
   });
 
-  it("exposes machine-facing contracts on the returned app config", () => {
-    const agent = defineAirJamGameAgentContract({
-      snapshotStores: defineAirJamGameAgentStores({
-        default: gameAgentStore<{ phase: string }>(),
+  it("exposes agent-facing contracts on the returned app config", () => {
+    const agent = defineAirJamAgentContract({
+      stores: defineAirJamAgentStores({
+        default: agentStore<{ phase: string }>(),
       }),
       projectSnapshot: () => ({ phase: "lobby" }),
       actions: {},
@@ -99,17 +97,15 @@ describe("createAirJamApp", () => {
     });
     const airjam = createAirJamApp({
       metadata,
-      game: {
-        controllerPath: "controller",
-        agent,
-        visualScenariosModule: "../visual/scenarios.ts",
-      },
+      controllerPath: "controller",
+      agent,
+      visualScenariosModule: "../visual/scenarios.ts",
     });
 
-    expect(airjam.game.controllerPath).toBe("/controller");
+    expect(airjam.controllerPath).toBe("/controller");
     expect(airjam.metadata?.slug).toBe("fixture-game");
-    expect(airjam.game.agent).toBe(agent);
-    expect(airjam.game.visualScenariosModule).toBe("../visual/scenarios.ts");
+    expect(airjam.agent).toBe(agent);
+    expect(airjam.visualScenariosModule).toBe("../visual/scenarios.ts");
   });
 
   it("publishes and reads runtime inspection contracts through one SDK key", () => {

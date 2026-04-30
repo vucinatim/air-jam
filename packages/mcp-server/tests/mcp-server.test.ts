@@ -36,7 +36,7 @@ const createStandaloneGameRoot = async (): Promise<string> => {
   );
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    "export const airjam = { game: { controllerPath: '/controller' } };\n",
+    "export const airjam = { controllerPath: '/controller' };\n",
     "utf8",
   );
   return root;

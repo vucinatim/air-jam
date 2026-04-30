@@ -3,7 +3,7 @@ import type {
   VisualScenarioPack,
 } from "@air-jam/harness/visual";
 import { pathToFileURL } from "node:url";
-import { loadVisualScenarioPackFromConfig } from "./airjam-machine.js";
+import { loadVisualScenarioPackFromConfig } from "./airjam-agent.js";
 
 export const loadVisualScenarioPack = async (
   modulePath: string,

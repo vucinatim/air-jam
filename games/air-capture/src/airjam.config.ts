@@ -29,10 +29,8 @@ export const gameMetadata = defineAirJamGameMetadata({
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   metadata: gameMetadata,
-  game: {
-    controllerPath: "/controller",
-    visualScenariosModule: "../visual/scenarios.ts",
-  },
+  controllerPath: "/controller",
+  visualScenariosModule: "../visual/scenarios.ts",
   input: {
     schema: gameInputSchema,
   },

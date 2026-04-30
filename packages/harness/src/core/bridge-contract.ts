@@ -1,29 +1,31 @@
 import {
-  createMachineActionMetadata,
-  defineMachineActionInput,
-  describeMachineActionInputs,
-  machineActionInput,
-  type AirJamMachineActionCustomOptions,
-  type AirJamMachineActionDescriptor,
-  type AirJamMachineActionInputDefinition,
-  type AirJamMachineActionMetadata,
-  type AirJamMachineActionOptions,
-  type AirJamMachineActionParseMeta,
-  type AirJamMachineActionPayloadKind,
-  type AirJamMachineActionPayloadMetadata,
+  agentActionInput,
+  type AirJamAgentActionCustomOptions,
 } from "@air-jam/sdk";
+import {
+  createAgentActionMetadata,
+  defineAgentActionInput,
+  describeAgentActionInputs,
+  type AirJamAgentActionDescriptor,
+  type AirJamAgentActionInputDefinition,
+  type AirJamAgentActionMetadata,
+  type AirJamAgentActionOptions,
+  type AirJamAgentActionParseMeta,
+  type AirJamAgentActionPayloadKind,
+  type AirJamAgentActionPayloadMetadata,
+} from "@air-jam/sdk/agent-tooling";
 import type { VisualHarnessBridgeSnapshot } from "./runtime-bridge.js";
 
-type VisualHarnessActionParseMeta = AirJamMachineActionParseMeta;
+type VisualHarnessActionParseMeta = AirJamAgentActionParseMeta;
 
-export type VisualHarnessActionPayloadKind = AirJamMachineActionPayloadKind;
+export type VisualHarnessActionPayloadKind = AirJamAgentActionPayloadKind;
 
 export type VisualHarnessActionPayloadMetadata =
-  AirJamMachineActionPayloadMetadata;
+  AirJamAgentActionPayloadMetadata;
 
-export type VisualHarnessActionMetadata = AirJamMachineActionMetadata;
+export type VisualHarnessActionMetadata = AirJamAgentActionMetadata;
 
-export type VisualHarnessActionDescriptor = AirJamMachineActionDescriptor;
+export type VisualHarnessActionDescriptor = AirJamAgentActionDescriptor;
 
 export type VisualHarnessActionHandler<
   TContext,
@@ -36,7 +38,7 @@ export type VisualHarnessActionDefinition<
   TPayload,
   TResult = unknown,
 > = {
-  input: AirJamMachineActionInputDefinition<TPayload>;
+  input: AirJamAgentActionInputDefinition<TPayload>;
   parse: (payload: unknown, meta: VisualHarnessActionParseMeta) => TPayload;
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>;
   metadata: VisualHarnessActionMetadata;
@@ -108,7 +110,7 @@ type VisualHarnessCustomParser<TPayload> = (
 ) => TPayload;
 
 const createActionDefinition = <TContext, TPayload, TResult>(
-  input: AirJamMachineActionInputDefinition<TPayload>,
+  input: AirJamAgentActionInputDefinition<TPayload>,
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>,
 ): VisualHarnessActionDefinition<TContext, TPayload, TResult> => ({
   input,
@@ -122,11 +124,11 @@ const createActionDefinition = <TContext, TPayload, TResult>(
 });
 
 const createNoPayloadInput = (
-  options?: AirJamMachineActionCustomOptions,
-): AirJamMachineActionInputDefinition<void> =>
-  defineMachineActionInput(
+  options?: AirJamAgentActionCustomOptions,
+): AirJamAgentActionInputDefinition<void> =>
+  defineAgentActionInput(
     () => undefined,
-    createMachineActionMetadata(
+    createAgentActionMetadata(
       {
         kind: options?.payloadKind ?? "none",
         ...(options?.allowedValues
@@ -139,14 +141,14 @@ const createNoPayloadInput = (
 
 const resolveNumberAction = <TContext, TResult>(
   optionsOrRun:
-    | AirJamMachineActionOptions
+    | AirJamAgentActionOptions
     | VisualHarnessActionHandler<TContext, number, TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult> => {
   const input =
     typeof optionsOrRun === "function"
-      ? machineActionInput.number()
-      : machineActionInput.number(optionsOrRun);
+      ? agentActionInput.number()
+      : agentActionInput.number(optionsOrRun);
   const run =
     typeof optionsOrRun === "function"
       ? optionsOrRun
@@ -162,14 +164,14 @@ const resolveEnumAction = <
 >(
   values: TValues,
   optionsOrRun:
-    | AirJamMachineActionOptions
+    | AirJamAgentActionOptions
     | VisualHarnessActionHandler<TContext, TValues[number], TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, TValues[number], TResult>,
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult> => {
   const input =
     typeof optionsOrRun === "function"
-      ? machineActionInput.enum(values)
-      : machineActionInput.enum(values, optionsOrRun);
+      ? agentActionInput.enum(values)
+      : agentActionInput.enum(values, optionsOrRun);
   const run =
     typeof optionsOrRun === "function"
       ? optionsOrRun
@@ -186,12 +188,12 @@ function numberAction<TContext, TResult>(
   run: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult>;
 function numberAction<TContext, TResult>(
-  options: AirJamMachineActionOptions,
+  options: AirJamAgentActionOptions,
   run: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult>;
 function numberAction<TContext, TResult>(
   optionsOrRun:
-    | AirJamMachineActionOptions
+    | AirJamAgentActionOptions
     | VisualHarnessActionHandler<TContext, number, TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, number, TResult>,
 ): VisualHarnessActionDefinition<TContext, number, TResult> {
@@ -204,13 +206,13 @@ function enumAction<TContext, const TValues extends readonly string[], TResult>(
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult>;
 function enumAction<TContext, const TValues extends readonly string[], TResult>(
   values: TValues,
-  options: AirJamMachineActionOptions,
+  options: AirJamAgentActionOptions,
   run: VisualHarnessActionHandler<TContext, TValues[number], TResult>,
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult>;
 function enumAction<TContext, const TValues extends readonly string[], TResult>(
   values: TValues,
   optionsOrRun:
-    | AirJamMachineActionOptions
+    | AirJamAgentActionOptions
     | VisualHarnessActionHandler<TContext, TValues[number], TResult>,
   maybeRun?: VisualHarnessActionHandler<TContext, TValues[number], TResult>,
 ): VisualHarnessActionDefinition<TContext, TValues[number], TResult> {
@@ -221,7 +223,7 @@ function customAction<TContext, TResult>(
   run: (context: TContext) => TResult | Promise<TResult>,
 ): VisualHarnessActionDefinition<TContext, void, TResult>;
 function customAction<TContext, TResult>(
-  options: AirJamMachineActionCustomOptions,
+  options: AirJamAgentActionCustomOptions,
   run: (context: TContext) => TResult | Promise<TResult>,
 ): VisualHarnessActionDefinition<TContext, void, TResult>;
 function customAction<TContext, TPayload, TResult>(
@@ -229,13 +231,13 @@ function customAction<TContext, TPayload, TResult>(
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>,
 ): VisualHarnessActionDefinition<TContext, TPayload, TResult>;
 function customAction<TContext, TPayload, TResult>(
-  options: AirJamMachineActionCustomOptions,
+  options: AirJamAgentActionCustomOptions,
   parse: VisualHarnessCustomParser<TPayload>,
   run: VisualHarnessActionHandler<TContext, TPayload, TResult>,
 ): VisualHarnessActionDefinition<TContext, TPayload, TResult>;
 function customAction<TContext, TPayload, TResult>(
   optionsOrParseOrRun:
-    | AirJamMachineActionCustomOptions
+    | AirJamAgentActionCustomOptions
     | VisualHarnessCustomParser<TPayload>
     | ((context: TContext) => TResult | Promise<TResult>),
   maybeParseOrRun?:
@@ -274,7 +276,7 @@ function customAction<TContext, TPayload, TResult>(
 
   if (typeof optionsOrParseOrRun === "function" && maybeRun) {
     return createActionDefinition<TContext, TPayload, TResult>(
-      machineActionInput.custom(
+      agentActionInput.custom(
         optionsOrParseOrRun as VisualHarnessCustomParser<TPayload>,
       ),
       maybeRun,
@@ -288,7 +290,7 @@ function customAction<TContext, TPayload, TResult>(
     maybeRun
   ) {
     return createActionDefinition<TContext, TPayload, TResult>(
-      machineActionInput.custom(
+      agentActionInput.custom(
         optionsOrParseOrRun,
         maybeParseOrRun as VisualHarnessCustomParser<TPayload>,
       ),
@@ -331,4 +333,4 @@ export const describeVisualHarnessActions = <
   TActions extends VisualHarnessActionDefinitions<any>,
 >(
   actions: TActions,
-): VisualHarnessActionDescriptor[] => describeMachineActionInputs(actions);
+): VisualHarnessActionDescriptor[] => describeAgentActionInputs(actions);

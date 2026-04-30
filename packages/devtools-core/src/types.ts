@@ -1,6 +1,6 @@
 import type {
   AirJamActionInvocationResult,
-  AirJamMachineActionPayloadKind,
+  AirJamAgentActionPayloadKind,
 } from "@air-jam/sdk";
 import type {
   PlatformMachineGetReleaseResult,
@@ -376,7 +376,7 @@ export type AirJamHarnessActionDescriptor = {
   name: string;
   description: string | null;
   payload: {
-    kind: AirJamMachineActionPayloadKind;
+    kind: AirJamAgentActionPayloadKind;
     description: string | null;
     allowedValues?: string[];
   };
@@ -386,7 +386,7 @@ export type AirJamHarnessActionDescriptor = {
 export type AirJamGameAgentActionDescriptor = {
   actionId: string;
   target: {
-    kind: "controller";
+    kind: "participant";
     actionName: string;
     storeDomain: string;
   };
@@ -400,7 +400,7 @@ export type AirJamGameAgentActionDescriptor = {
   resultDescription: string | null;
 };
 
-export type AirJamGameAgentContractInspection = {
+export type AirJamAgentContractInspection = {
   gameId: string;
   rootDir: string;
   hasContract: boolean;

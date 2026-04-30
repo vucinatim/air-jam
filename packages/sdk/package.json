@@ -119,6 +119,11 @@
       "import": "./dist/platform-machine.js",
       "require": "./dist/platform-machine.cjs"
     },
+    "./agent-tooling": {
+      "types": "./dist/agent-tooling.d.ts",
+      "import": "./dist/agent-tooling.js",
+      "require": "./dist/agent-tooling.cjs"
+    },
     "./styles.css": "./src/styles.css"
   },
   "files": [
@@ -171,6 +176,9 @@
       ],
       "platform-machine": [
         "dist/platform-machine.d.ts"
+      ],
+      "agent-tooling": [
+        "dist/agent-tooling.d.ts"
       ],
       "preview": [
         "dist/preview.d.ts"

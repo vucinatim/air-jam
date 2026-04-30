@@ -25,6 +25,7 @@ export default defineConfig({
     "src/release.ts",
     "src/platform-machine.ts",
     "src/preview.ts",
+    "src/agent-tooling.ts",
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files

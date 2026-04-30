@@ -27,7 +27,7 @@ Prefer the Air Jam MCP for:
 
 If the game does not yet expose the control an agent needs, prefer adding a small game-owned host staging action over automating the visible browser UI.
 
-If the template ships `src/game/contracts/agent.ts`, treat that file as the canonical semantic game-agent surface and use the MCP game-agent tools before inferring raw controller/store semantics.
+If the template ships `src/game/contracts/agent.ts`, treat that file as the canonical semantic agent surface and use the MCP agent tools before inferring raw controller/store semantics.
 
 When local UI verification matters, pair the Air Jam MCP with the current agent or client's built-in browser or in-app browser tooling first.
 
@@ -36,7 +36,7 @@ If that browser or preview tool wants to launch the local app command itself and
 
 Use secondary browser MCPs such as Chrome DevTools only when that first-party browser tooling is unavailable or when lower-level DOM, network, or performance inspection is required.
 
-If a clean-slate project becomes non-trivial, add a small `src/game/contracts/agent.ts` surface and wire it through `src/airjam.config.ts` `game.agent` before the game's important semantics drift into UI-only flows.
+If a clean-slate project becomes non-trivial, add a small `src/game/contracts/agent.ts` surface and wire it through `src/airjam.config.ts` `agent` before the game's important semantics drift into UI-only flows.
 
 Remember that `airjam.capture_visuals` is task-backed. If your MCP client cannot execute task-backed tools, switch to a task-capable client or run the equivalent Air Jam CLI or repo visual command directly.
 

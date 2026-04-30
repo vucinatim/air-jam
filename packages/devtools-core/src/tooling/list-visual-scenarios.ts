@@ -3,7 +3,7 @@ import {
   loadAirJamAppConfig,
   resolveAirJamConfigGameId,
   resolveVisualScenarioModulePathFromConfig,
-} from "./airjam-machine.js";
+} from "./airjam-agent.js";
 import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {

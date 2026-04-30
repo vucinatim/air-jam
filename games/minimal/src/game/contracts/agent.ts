@@ -1,23 +1,22 @@
 import {
-  defineAirJamGameAgentContract,
-  defineAirJamGameAgentStores,
-  gameAgentAction,
-  gameAgentStore,
-  machineActionInput,
-  readAirJamDefaultGameStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+  agentAction,
+  agentStore,
+  agentActionInput,
 } from "@air-jam/sdk";
 import type { MinimalState } from "../store";
 
-const snapshotStores = defineAirJamGameAgentStores({
-  default: gameAgentStore<MinimalState>(),
+const stores = defineAirJamAgentStores({
+  default: agentStore<MinimalState>(),
 });
 
-export const gameAgentContract = defineAirJamGameAgentContract({
-  snapshotStores,
+export const agentContract = defineAirJamAgentContract({
+  stores,
   snapshotDescription:
     "Shared tap counter snapshot with semantic actions for tapping and resetting the starter state.",
   projectSnapshot: (context) => {
-    const state = readAirJamDefaultGameStore(context);
+    const state = context.stores.default;
     if (!state) {
       return {
         available: false,
@@ -43,12 +42,12 @@ export const gameAgentContract = defineAirJamGameAgentContract({
     };
   },
   actions: {
-    tap: gameAgentAction.player(
+    tap: agentAction.participant(
       {
         actionName: "tap",
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Increment the shared tap counter as the current controller.",
         availability: "Requires a connected controller identity.",
@@ -56,12 +55,12 @@ export const gameAgentContract = defineAirJamGameAgentContract({
           "The shared counter and the current controller's personal count increment by one.",
       },
     ),
-    reset_counter: gameAgentAction.player(
+    reset_counter: agentAction.participant(
       {
         actionName: "reset",
       },
       {
-        input: machineActionInput.none(),
+        input: agentActionInput.none(),
         description:
           "Reset the minimal starter counter back to zero for deterministic retesting.",
         availability: "Any time.",

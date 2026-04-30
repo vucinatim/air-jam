@@ -13,7 +13,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 ## Five-Step Mental Model
 
 1. Need to see the game: use your built-in browser or in-app browser.
-2. Need machine-readable game state: use `airjam.open_game_session` then `airjam.read_game_session`.
+2. Need structured game state: use `airjam.open_game_session` then `airjam.read_game_session`.
 3. Need to trigger a semantic game verb: use `airjam.invoke_game_session_action` with a `player:*` action id.
 4. Need deterministic host staging or reset actions: use `host:*` session actions when the game exposes them.
 5. Need repeatable screenshots or visual proof: use visual scenarios and `airjam.capture_visuals`.
@@ -31,7 +31,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 : Declares the runtime, metadata, controller path, semantic game contract, and optional visual scenarios.
 
 `src/game/contracts/agent.ts`
-: Owns the semantic machine contract. Keep snapshot projection and semantic actions here.
+: Owns the semantic agent contract. Keep snapshot projection and semantic actions here.
 
 `visual/contract.ts`
 : Optional browser-safe host staging surface for deterministic visual workflows and visual proof only.
@@ -56,12 +56,12 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 
 1. Browser/runtime code imports harness runtime symbols from `@air-jam/harness/runtime`.
 2. Visual scenario files import Playwright-side helpers from `@air-jam/harness/visual`.
-3. If you need imperative live replicated state in React-owned machine code, use `useStore.useLiveStateRef()`.
+3. If you need imperative live replicated state in React-owned agent code, use `useStore.useLiveStateRef()`.
 
 ## Browser + MCP Pairing
 
 1. Browser is the visual truth.
-2. Air Jam MCP is the machine-control and runtime-inspection path.
+2. Air Jam MCP is the agent-control and runtime-inspection path.
 3. Use both together instead of forcing browser automation to do semantic work.
 
 ## Task-Backed Rule

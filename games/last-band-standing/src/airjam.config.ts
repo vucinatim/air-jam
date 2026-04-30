@@ -7,7 +7,7 @@
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
-import { gameAgentContract } from "./game/contracts/agent";
+import { agentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/contracts/input";
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -31,11 +31,9 @@ export const airjam = createAirJamApp({
     maxPlayers: 10,
   },
   metadata: gameMetadata,
-  game: {
-    controllerPath: "/controller",
-    agent: gameAgentContract,
-    visualScenariosModule: "../visual/scenarios.ts",
-  },
+  controllerPath: "/controller",
+  agent: agentContract,
+  visualScenariosModule: "../visual/scenarios.ts",
   input: {
     schema: gameInputSchema,
     behavior: {
