@@ -29,7 +29,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { DOCS_SECTIONS, type DocsIcon } from "@/lib/docs-index";
+import { getDocsSections, type DocsIcon } from "@/features/docs";
 
 const ICONS: Record<DocsIcon, LucideIcon> = {
   info: Info,
@@ -47,6 +47,7 @@ export function DocsSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const docsSections = getDocsSections();
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -77,7 +78,7 @@ export function DocsSidebar({
       </div>
 
       <SidebarContent>
-        {DOCS_SECTIONS.map((section) => (
+        {docsSections.map((section) => (
           <SidebarGroup key={section.title}>
             <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
             <SidebarMenu>

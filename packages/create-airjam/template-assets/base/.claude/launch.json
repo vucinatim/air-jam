@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "airjam-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "dev", "--", "--preview-managed"],
+      "port": 5173,
+      "autoPort": false
+    }
+  ]
+}

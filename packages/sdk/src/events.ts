@@ -8,9 +8,9 @@
  */
 export const HostEvents = {
   /**
-   * Register as a master host (standalone mode)
+   * Bootstrap host authority for the current socket.
    */
-  REGISTER: "host:register",
+  BOOTSTRAP: "host:bootstrap",
 
   /**
    * Register as the system/arcade master host
@@ -93,6 +93,11 @@ export const ServerEvents = {
   CONTROLLER_LEFT: "server:controllerLeft",
 
   /**
+   * Player profile updated (label / avatar) after join
+   */
+  PLAYER_UPDATED: "server:playerUpdated",
+
+  /**
    * Host left notification
    */
   HOST_LEFT: "server:hostLeft",
@@ -109,36 +114,6 @@ export const ServerEvents = {
 } as const;
 
 /**
- * Client events (server -> controller shell)
- */
-export const ClientEvents = {
-  /**
-   * Load a game UI in the controller iframe
-   */
-  LOAD_UI: "client:loadUi",
-
-  /**
-   * Unload the game UI from the controller iframe
-   */
-  UNLOAD_UI: "client:unloadUi",
-
-  /**
-   * Update game state display
-   */
-  STATE: "client:state",
-} as const;
-
-/**
- * Child events (server -> child host)
- */
-export const ChildEvents = {
-  /**
-   * Server requests child to close
-   */
-  CLOSE: "child:close",
-} as const;
-
-/**
  * All events combined for easy reference
  */
 export const Events = {
@@ -146,6 +121,4 @@ export const Events = {
   Controller: ControllerEvents,
   System: SystemEvents,
   Server: ServerEvents,
-  Client: ClientEvents,
-  Child: ChildEvents,
 } as const;

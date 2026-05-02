@@ -10,7 +10,7 @@ export const SocketEventsDiagram = () => {
         backgroundColor: diagramColors.bgPrimary,
         borderColor: diagramColors.borderPrimary,
       }}
-      data-figure-description="Socket events diagram showing all WebSocket events: Host events (host:register, host:signal, host:state, host:exit), Controller events (controller:join, controller:input, controller:systemCommand), and Server events (server:welcome, server:controllerJoined, server:controllerLeft, server:input, server:signal, server:state, server:error)."
+      data-figure-description="Socket events diagram showing all WebSocket events: Host events (host:createRoom, host:signal, host:state, system:closeGame), Controller events (controller:join, controller:input, controller:system), and Server events (server:welcome, server:controllerJoined, server:controllerLeft, server:input, server:signal, server:state, server:error)."
     >
       <svg
         viewBox="0 0 800 500"
@@ -122,7 +122,7 @@ export const SocketEventsDiagram = () => {
           Controller
         </text>
 
-        {/* host:register - Host → Server */}
+        {/* host:createRoom - Host → Server */}
         {/* Host right edge: x=230, Server left edge: x=310 */}
         <line
           x1="230"
@@ -141,7 +141,7 @@ export const SocketEventsDiagram = () => {
           fontSize="10"
           fontWeight="500"
         >
-          host:register
+          host:createRoom
         </text>
         <text
           x="140"

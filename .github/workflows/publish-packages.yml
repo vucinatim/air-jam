@@ -1,8 +1,6 @@
 name: Publish Packages
 
 on:
-  release:
-    types: [created]
   workflow_dispatch:
     inputs:
       package:
@@ -15,21 +13,91 @@ on:
           - sdk
           - server
           - create-airjam
-      version:
-        description: "Version bump type (patch, minor, major)"
-        required: true
-        default: "patch"
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+
+concurrency:
+  group: publish-packages
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve Publish Matrix
+        id: resolve
+        env:
+          INPUT_PACKAGE: ${{ github.event.inputs.package }}
+        run: |
+          node <<'EOF'
+          const fs = require("node:fs");
+
+          const selected = process.env.INPUT_PACKAGE;
+          const readVersion = (path) =>
+            JSON.parse(fs.readFileSync(path, "utf8")).version;
+
+          const versions = {
+            sdk: readVersion("./packages/sdk/package.json"),
+            server: readVersion("./packages/server/package.json"),
+            "create-airjam": readVersion("./packages/create-airjam/package.json"),
+          };
+
+          const packages = {
+            sdk: {
+              id: "sdk",
+              packageName: "@air-jam/sdk",
+              packageFilter: "@air-jam/sdk",
+              workingDirectory: "packages/sdk",
+              version: versions.sdk,
+              tag: `sdk-v${versions.sdk}`,
+              releaseName: `@air-jam/sdk v${versions.sdk}`,
+            },
+            server: {
+              id: "server",
+              packageName: "@air-jam/server",
+              packageFilter: "@air-jam/server",
+              workingDirectory: "packages/server",
+              version: versions.server,
+              tag: `server-v${versions.server}`,
+              releaseName: `@air-jam/server v${versions.server}`,
+            },
+            "create-airjam": {
+              id: "create-airjam",
+              packageName: "create-airjam",
+              packageFilter: "create-airjam",
+              workingDirectory: "packages/create-airjam",
+              version: versions["create-airjam"],
+              tag: `create-airjam-v${versions["create-airjam"]}`,
+              releaseName: `create-airjam v${versions["create-airjam"]}`,
+            },
+          };
+
+          const ids =
+            selected === "all"
+              ? Object.keys(packages)
+              : selected && packages[selected]
+                ? [selected]
+                : [];
+
+          if (ids.length === 0) {
+            console.error(`Invalid package selection: ${selected ?? "<empty>"}`);
+            process.exit(1);
+          }
+
+          const matrix = ids.map((id) => packages[id]);
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `matrix=${JSON.stringify(matrix)}\n`,
+          );
+          EOF
+
+  validate-release:
+    runs-on: ubuntu-latest
+    needs: prepare
     permissions:
-      contents: write
       id-token: write
     steps:
       - name: Checkout
@@ -45,8 +113,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure npm CLI Supports Trusted Publishing
+        run: |
+          npm install -g npm@latest
+          node --version
+          npm --version
 
       - name: Install pnpm
         run: corepack enable && corepack prepare pnpm@9.9.0 --activate
@@ -54,26 +128,92 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm build
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
 
-      - name: Publish SDK
-        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'sdk' || github.event_name == 'release'
-        working-directory: packages/sdk
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Validate Release
+        run: pnpm check:release
 
-      - name: Publish Server
-        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'server' || github.event_name == 'release'
-        working-directory: packages/server
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  publish:
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - validate-release
+    permissions:
+      contents: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Publish Create AirJam CLI
-        if: github.event.inputs.package == 'all' || github.event.inputs.package == 'create-airjam' || github.event_name == 'release'
-        working-directory: packages/create-airjam
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure npm CLI Supports Trusted Publishing
+        run: |
+          npm install -g npm@latest
+          node --version
+          npm --version
+
+      - name: Install pnpm
+        run: corepack enable && corepack prepare pnpm@9.9.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Tag Availability
+        run: |
+          if git rev-parse "${{ matrix.tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ matrix.tag }} already exists"
+            exit 1
+          fi
+
+      - name: Verify npm Version Availability
+        run: |
+          if npm view "${{ matrix.packageName }}@${{ matrix.version }}" version >/dev/null 2>&1; then
+            echo "${{ matrix.packageName }}@${{ matrix.version }} is already published on npm"
+            exit 1
+          fi
+
+      - name: Build Selected Package
+        run: pnpm --filter "${{ matrix.packageFilter }}" build
+
+      - name: Publish Package
+        working-directory: ${{ matrix.workingDirectory }}
+        run: npm publish --access public
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create Tag
+        run: |
+          TAG="${{ matrix.tag }}"
+          git rev-parse "$TAG" >/dev/null 2>&1 && {
+            echo "Tag $TAG already exists"
+            exit 1
+          }
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ matrix.tag }}
+          name: ${{ matrix.releaseName }}
+          generate_release_notes: true

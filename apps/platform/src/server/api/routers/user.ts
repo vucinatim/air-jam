@@ -26,6 +26,7 @@ export const userRouter = createTRPCRouter({
       id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
     };
   }),
 
@@ -43,6 +44,7 @@ export const userRouter = createTRPCRouter({
           id: users.id,
           name: users.name,
           email: users.email,
+          role: users.role,
         });
 
       if (!updated) {
@@ -52,4 +54,3 @@ export const userRouter = createTRPCRouter({
       return updated;
     }),
 });
-

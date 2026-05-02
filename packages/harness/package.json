@@ -1,0 +1,82 @@
+{
+  "name": "@air-jam/harness",
+  "version": "1.0.0",
+  "description": "Air Jam internal automation support",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vucinatim/airjam.git",
+    "directory": "packages/harness"
+  },
+  "homepage": "https://github.com/vucinatim/airjam#readme",
+  "bugs": {
+    "url": "https://github.com/vucinatim/airjam/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./visual": {
+      "types": "./dist/visual.d.ts",
+      "import": "./dist/visual.js"
+    },
+    "./dev-control": {
+      "types": "./dist/core/dev-control.d.ts",
+      "import": "./dist/core/dev-control.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "typesVersions": {
+    "*": {
+      "visual": [
+        "dist/visual.d.ts"
+      ],
+      "dev-control": [
+        "dist/core/dev-control.d.ts"
+      ],
+      "runtime": [
+        "dist/runtime.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@air-jam/sdk": "workspace:^",
+    "@playwright/test": "^1.56.1",
+    "typescript": "~5.9.3"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

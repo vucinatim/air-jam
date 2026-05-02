@@ -28,7 +28,7 @@ export default function FigureBlock({
   // Only handle Shiki-transformed code blocks
   if (!isShikiFigure) {
     return (
-      <figure className={className} {...props}>
+      <figure className={cn("max-w-full min-w-0", className)} {...props}>
         {children}
       </figure>
     );
@@ -106,13 +106,13 @@ export default function FigureBlock({
       {...props}
       data-rehype-pretty-code-figure={isShikiFigure}
       className={cn(
-        "border-border/50 my-6 overflow-hidden rounded-2xl border bg-zinc-950",
+        "border-border/50 my-6 max-w-full min-w-0 overflow-hidden rounded-2xl border bg-zinc-950",
         className,
       )}
     >
       {(fileName || language) && (
-        <div className="border-border/50 flex items-center justify-between border-b bg-zinc-900/50 px-4 py-2.5">
-          <div className="flex items-center gap-2">
+        <div className="border-border/50 flex min-w-0 items-center justify-between gap-2 border-b bg-zinc-900/50 px-4 py-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {fileName && (
               <>
                 <svg
@@ -128,7 +128,7 @@ export default function FigureBlock({
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <span className="text-muted-foreground font-mono text-sm">
+                <span className="text-muted-foreground min-w-0 truncate font-mono text-sm">
                   {fileName}
                 </span>
               </>

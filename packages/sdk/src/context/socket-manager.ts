@@ -1,5 +1,4 @@
 import { io, type Socket } from "socket.io-client";
-import { DEFAULT_SERVER_PORT } from "../constants";
 import type {
   ClientToServerEvents,
   ConnectionRole,
@@ -14,10 +13,10 @@ export type AirJamSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
  */
 export class SocketManager {
   private sockets: Partial<Record<ConnectionRole, AirJamSocket>> = {};
-  private serverUrl: string;
+  private socketOrigin: string;
 
-  constructor(serverUrl?: string) {
-    this.serverUrl = this.resolveServerUrl(serverUrl);
+  constructor(socketOrigin: string) {
+    this.socketOrigin = this.normalizeOrigin(socketOrigin);
   }
 
   /**
@@ -30,7 +29,7 @@ export class SocketManager {
       return existing;
     }
 
-    const socket = io(this.serverUrl, {
+    const socket = io(this.socketOrigin, {
       autoConnect: false,
       query: { role },
     }) as AirJamSocket;
@@ -65,27 +64,10 @@ export class SocketManager {
   }
 
   /**
-   * Get the resolved server URL
+   * Deprecated compatibility alias. Returns the resolved socket origin.
    */
   getServerUrl(): string {
-    return this.serverUrl;
-  }
-
-  /**
-   * Resolve server URL with fallbacks
-   */
-  private resolveServerUrl(explicit?: string): string {
-    if (explicit) {
-      return this.normalizeOrigin(explicit);
-    }
-
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.port = String(DEFAULT_SERVER_PORT);
-      return url.origin;
-    }
-
-    return `http://localhost:${DEFAULT_SERVER_PORT}`;
+    return this.socketOrigin;
   }
 
   private normalizeOrigin(origin: string): string {

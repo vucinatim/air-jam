@@ -5,7 +5,7 @@ import { diagramColors } from "./diagram-colors";
 export const HooksComparisonTable = () => {
   const rows = [
     {
-      useCase: "Main host component with UI",
+      useCase: "Host screens below the mounted runtime boundary",
       hook: "useAirJamHost",
     },
     {
@@ -25,7 +25,7 @@ export const HooksComparisonTable = () => {
   return (
     <div
       className="my-8 flex justify-start overflow-x-auto"
-      data-figure-description="Table comparing when to use useAirJamHost vs useGetInput: Use useAirJamHost for main host component with UI and components needing player list. Use useGetInput for individual game objects (ships, projectiles) and components that render every frame."
+      data-figure-description="Table comparing when to use useAirJamHost versus useGetInput: useAirJamHost is the consumer hook for host-facing UI or any child component that needs room state or player lists below a mounted host runtime. Use useGetInput for individual game objects and other hot paths that should avoid store subscriptions."
     >
       <table className="w-full max-w-2xl border-collapse">
         <thead>

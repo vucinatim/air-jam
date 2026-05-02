@@ -1,51 +1,28 @@
 /**
  * @module InputManager
- * @description Internal class for managing controller input with validation and latching.
+ * @description Internal input runtime used by host hooks.
  *
- * The InputManager is created internally by the AirJamProvider when input configuration
- * is provided. It handles:
- *
- * 1. **Input Buffering** - Stores the latest input for each controller
- * 2. **Validation** - Validates input against a Zod schema (optional)
- * 3. **Latching** - Ensures rapid button presses and stick flicks are never missed
- *
- * ## What is Latching?
- *
- * Game loops typically run at 60fps, but network events may arrive between frames.
- * Without latching, a quick button tap might be missed if it starts and ends between
- * two consecutive `getInput()` calls.
- *
- * **Latching solves this by:**
- * - Boolean fields: Keeping `true` values until consumed
- * - Vector fields: Keeping non-zero values for one frame after release
- *
- * ## Example: Without Latching (Bug)
- * ```
- * Frame 1: getInput() → action: false
- * [Network: action: true arrives, then action: false arrives]
- * Frame 2: getInput() → action: false ← Tap missed!
- * ```
- *
- * ## Example: With Latching (Fixed)
- * ```
- * Frame 1: getInput() → action: false
- * [Network: action: true arrives, then action: false arrives]
- * Frame 2: getInput() → action: true  ← Tap captured!
- * Frame 3: getInput() → action: false ← Consumed, resets
- * ```
+ * Public API terms:
+ * - `pulse`: consume-on-read, tap-safe behavior (default for booleans)
+ * - `hold`: keep last active vector until a new active value arrives
+ * - `latest`: read current value as-is (default for vectors and other fields)
  *
  * @internal This class is not exported publicly. Use hooks to access input.
  */
 import type { z } from "zod";
 import type { ControllerInputEvent } from "../protocol";
 
-// Throttling for debug logging
-let lastInputManagerLogTime = 0;
+type InputFieldBehavior = "pulse" | "hold" | "latest";
+
+interface VectorValue {
+  x: number;
+  y: number;
+}
 
 /**
- * Configuration for input handling with optional validation and latching.
+ * Configuration for input handling with optional validation and per-field behavior.
  *
- * Provided to `AirJamProvider` to enable typed, validated, and latched input.
+ * Provided to `HostSessionProvider` to enable typed and behavior-aware input reads.
  *
  * @template TSchema - Zod schema type for input validation
  *
@@ -59,13 +36,14 @@ let lastInputManagerLogTime = 0;
  * };
  * ```
  *
- * @example With latching for button and stick
+ * @example With custom behavior overrides
  * ```ts
  * const config: InputConfig = {
  *   schema: gameInputSchema,
- *   latch: {
- *     booleanFields: ["action", "ability", "jump"],
- *     vectorFields: ["vector", "aim"],
+ *   behavior: {
+ *     pulse: ["action", "ability"], // consume-on-read
+ *     latest: ["aim"],              // read latest value
+ *     hold: ["menuVector"],         // keep last non-zero vector
  *   },
  * };
  * ```
@@ -90,57 +68,45 @@ export interface InputConfig<TSchema extends z.ZodSchema = z.ZodSchema> {
    * ```
    */
   schema?: TSchema;
-  /**
-   * Latching configuration to ensure rapid taps and flicks are never missed.
-   *
-   * Latching "holds" boolean true values and non-zero vectors until the next
-   * `getInput()` call, preventing missed inputs between game frames.
-   */
-  latch?: {
+  behavior?: {
     /**
-     * Boolean field names that should be latched.
+     * Consume-on-read behavior. Useful for tap-safe buttons and one-shot vectors.
      *
-     * When a boolean field is latched:
-     * - If it becomes `true`, it stays `true` until consumed by `getInput()`
-     * - After consumption, it resets to the actual current value
-     *
-     * Use for: buttons, triggers, action inputs
-     *
-     * @example ["action", "ability", "jump", "fire"]
+     * Defaults: booleans use `pulse` even without explicit config.
      */
-    booleanFields?: string[];
+    pulse?: string[];
     /**
-     * Vector field names that should be latched.
-     *
-     * When a vector field is latched:
-     * - Non-zero vectors are kept for one frame after returning to zero
-     * - Ensures quick stick flicks register in the game loop
-     *
-     * Use for: joysticks, d-pads, directional inputs
-     *
-     * @example ["vector", "movement", "aim"]
+     * Sticky behavior. For vectors, keeps the last non-zero direction until
+     * another non-zero direction arrives.
      */
-    vectorFields?: string[];
+    hold?: string[];
+    /**
+     * Stateless behavior. Returns the latest raw value.
+     *
+     * Defaults: vectors and non-boolean fields use `latest`.
+     */
+    latest?: string[];
   };
 }
 
 /**
- * Internal state for tracking latch values per controller.
+ * Internal behavior state per controller.
  * @internal
  */
-interface LatchState<TInput = Record<string, unknown>> {
-  /** The most recent raw input from the controller */
-  raw: TInput;
-  /** The latched input (with consumed values held) */
-  latched: TInput;
-  /** Hash of raw input to detect changes */
-  lastRawHash?: string;
+interface ControllerBehaviorState {
+  pulseBooleans: Set<string>;
+  pulseVectors: Map<string, VectorValue>;
+  holdVectors: Map<string, VectorValue>;
 }
 
 /**
- * Internal class that manages input buffering, validation, and latching.
+ * Internal class that manages input buffering, validation, and behavior semantics.
  *
- * Created automatically by `AirJamProvider` when input configuration is provided.
+ * **Single input lane:** one `InputManager` per `HostSessionProvider`, fed only by `server:input`.
+ * Multiple `createAirJamStore` domains in the same room (e.g. `arcade.surface` + embedded game)
+ * do not duplicate or fork input — gameplay still reads controller input through this manager only.
+ *
+ * Created automatically by `HostSessionProvider` when input configuration is provided.
  * Access input via `useGetInput()` or `useAirJamHost().getInput()`.
  *
  * @template TSchema - Zod schema type for input validation
@@ -149,10 +115,10 @@ interface LatchState<TInput = Record<string, unknown>> {
  *
  * @example How it's used internally
  * ```ts
- * // In AirJamProvider
+ * // In HostSessionProvider
  * const inputManager = new InputManager({
  *   schema: gameInputSchema,
- *   latch: { booleanFields: ["action"] },
+ *   behavior: { pulse: ["action"] },
  * });
  *
  * // In useAirJamHost (socket handler)
@@ -166,11 +132,13 @@ interface LatchState<TInput = Record<string, unknown>> {
  */
 export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
   private inputBuffer = new Map<string, Record<string, unknown>>();
-  private latchState = new Map<string, LatchState>();
+  private behaviorState = new Map<string, ControllerBehaviorState>();
+  private behaviorOverrides = new Map<string, InputFieldBehavior>();
   private config: InputConfig<TSchema>;
 
   constructor(config: InputConfig<TSchema> = {}) {
     this.config = config;
+    this.behaviorOverrides = this.createBehaviorOverrides(config.behavior);
   }
 
   /**
@@ -178,39 +146,15 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
    * Should be called when 'server:input' event is received.
    */
   handleInput(payload: ControllerInputEvent): void {
-    // Note: We don't filter by roomId here because:
-    // 1. The server already routes input correctly to the right host
-    // 2. Multiple host instances might share the same InputManager instance
-    // 3. The roomId check was causing false rejections when hosts re-register
-
-    // Store raw input as-is (arbitrary structure)
+    // The server already routes by room; keep host runtime hot path minimal.
     this.inputBuffer.set(payload.controllerId, payload.input);
-
-    // Throttled logging - only log active input, once per second max
-    const now = Date.now();
-    const input = payload?.input;
-    const hasActiveInput =
-      input &&
-      (input.action === true ||
-        (typeof input.vector === "object" &&
-          input.vector !== null &&
-          (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) >
-            0.01 ||
-            Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
-              0.01)));
-
-    if (
-      hasActiveInput &&
-      (!lastInputManagerLogTime || now - lastInputManagerLogTime > 1000)
-    ) {
-      lastInputManagerLogTime = now;
-    }
+    this.captureTransientBehaviors(payload.controllerId, payload.input);
   }
 
   /**
    * Gets input for a specific controller.
    * Returns validated and typed input if schema is provided, otherwise raw Record.
-   * If latching is configured, applies latching logic.
+   * Applies configured input behavior semantics.
    */
   getInput(controllerId: string): z.infer<TSchema> | undefined {
     const rawInput = this.inputBuffer.get(controllerId);
@@ -234,15 +178,10 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
       validatedInput = result.data as Record<string, unknown>;
     }
 
-    // Apply latching if configured
-    if (this.config.latch) {
-      return this.getLatched(
-        controllerId,
-        validatedInput as Record<string, unknown>,
-      ) as z.infer<TSchema>;
-    }
-
-    return validatedInput as z.infer<TSchema>;
+    return this.applyBehaviors(
+      controllerId,
+      validatedInput as Record<string, unknown>,
+    ) as z.infer<TSchema>;
   }
 
   /**
@@ -250,127 +189,168 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
    */
   clearInput(controllerId: string): void {
     this.inputBuffer.delete(controllerId);
-    this.latchState.delete(controllerId);
+    this.behaviorState.delete(controllerId);
   }
 
-  /**
-   * Internal method to apply latching logic.
-   */
-  private getLatched<TInput extends Record<string, unknown>>(
+  private getBehaviorState(controllerId: string): ControllerBehaviorState {
+    const existing = this.behaviorState.get(controllerId);
+    if (existing) {
+      return existing;
+    }
+
+    const created: ControllerBehaviorState = {
+      pulseBooleans: new Set<string>(),
+      pulseVectors: new Map<string, VectorValue>(),
+      holdVectors: new Map<string, VectorValue>(),
+    };
+    this.behaviorState.set(controllerId, created);
+    return created;
+  }
+
+  private createBehaviorOverrides(
+    behavior: InputConfig<TSchema>["behavior"],
+  ): Map<string, InputFieldBehavior> {
+    const overrides = new Map<string, InputFieldBehavior>();
+
+    const assign = (fields: string[] | undefined, mode: InputFieldBehavior) => {
+      for (const field of fields ?? []) {
+        const existing = overrides.get(field);
+        if (existing && existing !== mode) {
+          throw new Error(
+            `[InputManager] Field "${field}" is configured for both "${existing}" and "${mode}".`,
+          );
+        }
+        overrides.set(field, mode);
+      }
+    };
+
+    assign(behavior?.pulse, "pulse");
+    assign(behavior?.hold, "hold");
+    assign(behavior?.latest, "latest");
+
+    return overrides;
+  }
+
+  private resolveFieldBehavior(
+    field: string,
+    value: unknown,
+  ): InputFieldBehavior {
+    const override = this.behaviorOverrides.get(field);
+    if (override) {
+      return override;
+    }
+    if (typeof value === "boolean") {
+      return "pulse";
+    }
+    if (this.isVectorValue(value)) {
+      return "latest";
+    }
+    return "latest";
+  }
+
+  private isVectorValue(value: unknown): value is VectorValue {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return false;
+    }
+    const vector = value as { x?: unknown; y?: unknown };
+    return typeof vector.x === "number" && typeof vector.y === "number";
+  }
+
+  private isActiveVector(vector: VectorValue): boolean {
+    return vector.x !== 0 || vector.y !== 0;
+  }
+
+  private captureTransientBehaviors(
     controllerId: string,
-    rawInput: TInput,
-  ): TInput | undefined {
-    const { booleanFields = [], vectorFields = [] } = this.config.latch!;
-    const state = this.latchState.get(controllerId);
+    rawInput: Record<string, unknown>,
+  ): void {
+    const state = this.getBehaviorState(controllerId);
 
-    // Simple hash to detect if raw input changed
-    const rawHash = JSON.stringify(rawInput);
-    const rawChanged = rawHash !== state?.lastRawHash;
+    for (const [field, value] of Object.entries(rawInput)) {
+      const behavior = this.resolveFieldBehavior(field, value);
 
-    // If raw hasn't changed and we have previous state, we already consumed
-    // Return raw (reset behavior - like old popInput did)
-    if (!rawChanged && state) {
-      // Reset latched to raw for next frame (consume behavior)
-      const resetLatched = { ...rawInput } as TInput;
-      const resetLatchedRecord = resetLatched as Record<string, unknown>;
-      const actualRawRecord = rawInput as Record<string, unknown>;
-
-      // Reset boolean fields to raw
-      for (const field of booleanFields) {
-        const rawValue = actualRawRecord[field];
-        resetLatchedRecord[field] = rawValue ?? false;
+      if (behavior === "pulse") {
+        if (typeof value === "boolean") {
+          if (value) {
+            state.pulseBooleans.add(field);
+          }
+          continue;
+        }
+        if (this.isVectorValue(value) && this.isActiveVector(value)) {
+          state.pulseVectors.set(field, value);
+        }
+        continue;
       }
 
-      // Reset vector fields to raw
-      for (const field of vectorFields) {
-        const rawValue = actualRawRecord[field];
-        if (
-          rawValue &&
-          typeof rawValue === "object" &&
-          !Array.isArray(rawValue)
-        ) {
-          const rawVec = rawValue as { x?: unknown; y?: unknown };
-          if (typeof rawVec.x === "number" && typeof rawVec.y === "number") {
-            resetLatchedRecord[field] = rawVec;
-          } else {
-            resetLatchedRecord[field] = { x: 0, y: 0 };
+      if (behavior === "hold" && this.isVectorValue(value)) {
+        if (this.isActiveVector(value)) {
+          state.holdVectors.set(field, value);
+        }
+      }
+    }
+  }
+
+  private applyBehaviors<TInput extends Record<string, unknown>>(
+    controllerId: string,
+    validatedInput: TInput,
+  ): TInput {
+    const state = this.getBehaviorState(controllerId);
+    const output = { ...validatedInput } as Record<string, unknown>;
+    const processedFields = new Set<string>();
+
+    for (const [field, value] of Object.entries(validatedInput)) {
+      processedFields.add(field);
+      const behavior = this.resolveFieldBehavior(field, value);
+
+      if (behavior === "latest") {
+        continue;
+      }
+
+      if (behavior === "pulse") {
+        if (typeof value === "boolean") {
+          const pending = state.pulseBooleans.has(field);
+          output[field] = value === true || pending;
+          state.pulseBooleans.delete(field);
+          continue;
+        }
+
+        if (this.isVectorValue(value)) {
+          const pending = state.pulseVectors.get(field);
+          if (pending) {
+            output[field] = this.isActiveVector(value) ? value : pending;
+            state.pulseVectors.delete(field);
           }
+          continue;
+        }
+
+        continue;
+      }
+
+      // hold
+      if (this.isVectorValue(value)) {
+        if (this.isActiveVector(value)) {
+          state.holdVectors.set(field, value);
+          output[field] = value;
         } else {
-          resetLatchedRecord[field] = { x: 0, y: 0 };
-        }
-      }
-
-      // Update state with reset values
-      this.latchState.set(controllerId, {
-        raw: rawInput,
-        latched: resetLatched,
-        lastRawHash: rawHash,
-      });
-
-      return resetLatched; // Return raw (consumed)
-    }
-
-    // New input or first call - calculate latched
-    const prevLatched = state?.latched ?? ({} as TInput);
-
-    const latched = { ...rawInput } as TInput;
-    const latchedRecord = latched as Record<string, unknown>;
-    const actualRawRecord = rawInput as Record<string, unknown>;
-    const prevLatchedRecord = prevLatched as Record<string, unknown>;
-
-    // Latch boolean fields
-    for (const field of booleanFields) {
-      const rawValue = actualRawRecord[field];
-      const prevValue = prevLatchedRecord[field];
-
-      if (typeof rawValue === "boolean") {
-        // Latch: true if currently true OR was true last frame
-        latchedRecord[field] = rawValue || prevValue === true;
-      }
-    }
-
-    // Latch vector fields (with zero detection)
-    for (const field of vectorFields) {
-      const rawValue = actualRawRecord[field];
-      const prevValue = prevLatchedRecord[field];
-
-      if (
-        rawValue &&
-        typeof rawValue === "object" &&
-        !Array.isArray(rawValue)
-      ) {
-        const rawVec = rawValue as { x?: unknown; y?: unknown };
-        const prevVec = prevValue as { x?: unknown; y?: unknown } | undefined;
-
-        if (typeof rawVec.x === "number" && typeof rawVec.y === "number") {
-          const isRawActive = rawVec.x !== 0 || rawVec.y !== 0;
-          const isPrevActive =
-            prevVec &&
-            typeof prevVec.x === "number" &&
-            typeof prevVec.y === "number" &&
-            (prevVec.x !== 0 || prevVec.y !== 0);
-
-          if (isRawActive) {
-            // Currently active - use current value
-            latchedRecord[field] = rawVec;
-          } else if (isPrevActive) {
-            // Just released but was active - keep previous value (flick)
-            latchedRecord[field] = prevVec;
-          } else {
-            // Not active - use zero
-            latchedRecord[field] = { x: 0, y: 0 };
-          }
+          output[field] = state.holdVectors.get(field) ?? { x: 0, y: 0 };
         }
       }
     }
 
-    // Store state for next frame
-    this.latchState.set(controllerId, {
-      raw: rawInput,
-      latched,
-      lastRawHash: rawHash,
-    });
+    // Include pending pulse values for optional fields not present in current payload.
+    for (const field of Array.from(state.pulseBooleans)) {
+      if (!processedFields.has(field)) {
+        output[field] = true;
+        state.pulseBooleans.delete(field);
+      }
+    }
+    for (const [field, vector] of Array.from(state.pulseVectors.entries())) {
+      if (!processedFields.has(field)) {
+        output[field] = vector;
+        state.pulseVectors.delete(field);
+      }
+    }
 
-    return latched;
+    return output as TInput;
   }
 }

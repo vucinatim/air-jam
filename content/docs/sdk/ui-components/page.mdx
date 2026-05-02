@@ -1,0 +1,229 @@
+import { metadata } from "./page.docs";
+
+export { metadata };
+
+# SDK UI Components
+
+`@air-jam/sdk` is headless by default. `@air-jam/sdk/ui` provides optional, composable UI primitives you can drop into your own game layout.
+
+```tsx
+import {
+  SurfaceViewport,
+  PlayerAvatar,
+  RoomQrCode,
+  VolumeControls,
+  Button,
+  Slider,
+} from "@air-jam/sdk/ui";
+```
+
+## Canonical Components
+
+### `RoomQrCode`
+
+Render a room join QR code from any URL string.
+
+```tsx
+import { RoomQrCode } from "@air-jam/sdk/ui";
+import { useAirJamHost } from "@air-jam/sdk";
+
+const LobbyQr = () => {
+  const host = useAirJamHost();
+
+  if (host.joinUrlStatus !== "ready") {
+    return null;
+  }
+
+  return (
+    <RoomQrCode
+      value={host.joinUrl}
+      size={180}
+      padding={1}
+      className="rounded-xl border border-white/20 bg-black/50 p-2"
+    />
+  );
+};
+```
+
+If you are rendering before the join URL has been resolved, prefer gating with `host.joinUrlStatus === "ready"` and show your own loading state until then.
+
+Props:
+
+- `value: string` (required)
+- `size?: number` default `180`
+- `padding?: number` default `1`
+- `foregroundColor?: string` default `#111111`
+- `backgroundColor?: string` default `#ffffff`
+- `errorCorrectionLevel?: "L" | "M" | "Q" | "H"` default `"M"`
+- `className?: string`
+- `style?: CSSProperties`
+- `alt?: string` default `"Room join QR code"`
+
+Use it for:
+
+- lobby overlays
+- pause overlays
+- spectator join prompts
+
+Avoid:
+
+- generating URLs manually when `host.joinUrl` / `controller.joinUrl` already exists
+
+---
+
+### `PlayerAvatar`
+
+Render a stable avatar ringed by player color from `PlayerProfile`. Set `isBot` when you want the same shell to represent an AI-controlled slot with a bot icon instead of player artwork.
+
+```tsx
+import { PlayerAvatar } from "@air-jam/sdk/ui";
+
+<PlayerAvatar player={player} size="md" />;
+<PlayerAvatar player={player} isBot size="md" />;
+```
+
+Props:
+
+- `player: PlayerProfile` (required)
+- `isBot?: boolean` render the shared bot icon instead of the player avatar image
+- `size?: "sm" | "md" | "lg"` default `"md"`
+- `className?: string`
+
+Use it for:
+
+- team strips
+- connected player rows
+- controller headers
+
+---
+
+### `SurfaceViewport`
+
+Own safe-area, orientation, and page-level UI scaling for a game surface.
+It should fill the available screen while scaling the UI system proportionally, rather than letterboxing a fixed contained stage.
+Internally it publishes a local `--airjam-ui-scale` into Tailwind's own spacing, text, radius, and container variables so normal Tailwind utilities keep working.
+
+```tsx
+import { SurfaceViewport } from "@air-jam/sdk/ui";
+
+<SurfaceViewport orientation="portrait" className="bg-zinc-950">
+  <ControllerView />
+</SurfaceViewport>;
+```
+
+Props:
+
+- `orientation?: "portrait" | "landscape"`
+- `children: ReactNode` (required)
+- `designWidth?: number`
+- `designHeight?: number`
+- `uiScaleMultiplier?: number`
+- `minScale?: number`
+- `maxScale?: number`
+- `lockOnGesture?: boolean` default `true`
+- `className?: string`
+- `contentClassName?: string`
+- `style?: CSSProperties`
+
+Use it for:
+
+- controller routes that should keep a stable phone-like UI feel while still filling the screen
+- host routes that should scale proportionally without collapsing into ordinary website behavior
+
+Avoid:
+
+- nesting multiple surface viewports
+- treating it like a centered black-bar stage wrapper
+- depending on arbitrary raw `px` values for most of the UI chrome when a normal Tailwind scale utility would do
+- assuming native OS/browser lock is guaranteed everywhere
+
+---
+
+### `VolumeControls`
+
+Ready-made control block for master/music/sfx sliders bound to the shared platform settings runtime.
+
+```tsx
+import { VolumeControls } from "@air-jam/sdk/ui";
+
+<VolumeControls className="w-full max-w-xs" compact />;
+```
+
+Mount it below `PlatformSettingsRuntime` when you want slider changes to persist in Arcade and inherit into embedded games.
+
+Props:
+
+- `className?: string`
+- `compact?: boolean`
+
+Use it for:
+
+- in-game settings overlays
+- pause/settings drawers
+- Arcade- or platform-owned settings panels
+
+---
+
+## Base Primitives
+
+### `Button`
+
+Styling primitive for consistent buttons.
+
+```tsx
+import { Button } from "@air-jam/sdk/ui";
+
+<Button variant="secondary" size="lg">
+  Start Match
+</Button>;
+```
+
+Common props:
+
+- `variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"`
+- `size?: "default" | "sm" | "lg" | "icon" | "icon-sm" | "icon-lg"`
+- `asChild?: boolean`
+
+### `Slider`
+
+Styling primitive for ranges and tuning inputs.
+
+```tsx
+import { Slider } from "@air-jam/sdk/ui";
+
+<Slider
+  value={[pointsToWin]}
+  min={3}
+  max={15}
+  step={1}
+  onValueChange={([value]) => setPointsToWin(value)}
+/>;
+```
+
+---
+
+## Composition Patterns
+
+### Lobby Overlay
+
+Combine:
+
+- `RoomQrCode` for quick join
+- `PlayerAvatar` for team roster
+- `Button` for start/ready actions
+
+### Controller Route
+
+Combine:
+
+- `SurfaceViewport` for shared full-screen UI scaling
+- `PlayerAvatar` in a compact header
+- `Button` + `Slider` for controls/options
+
+---
+
+## Anti-Patterns
+
+- Do not build gameplay input on UI components; keep input lane in `useInputWriter` / `useGetInput`.
+- Do not rely on UI primitives for room/session lifecycle; lifecycle stays in headless SDK hooks.
+- Do not fork component behavior in each game if composition solves it; prefer small wrappers around canonical primitives.

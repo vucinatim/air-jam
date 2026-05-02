@@ -167,7 +167,7 @@ export const SystemOverviewDiagram = () => {
           fontSize="11"
           fontWeight="500"
         >
-          Controller Shell
+          Controller Runtime
         </text>
         <text
           x="600"
@@ -279,7 +279,7 @@ export const SystemOverviewDiagram = () => {
           fill={diagramColors.textSecondary}
           fontSize="10"
         >
-          (API Keys)
+          (App IDs)
         </text>
 
         <rect

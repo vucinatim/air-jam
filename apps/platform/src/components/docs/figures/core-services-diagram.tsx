@@ -110,7 +110,7 @@ export const CoreServicesDiagram = () => {
           fill={diagramColors.textSecondary}
           fontSize="11"
         >
-          Validates API keys
+          Validates app IDs
         </text>
         <text
           x="510"

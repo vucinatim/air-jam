@@ -6,7 +6,7 @@ export const FocusSystemDiagram = () => {
   return (
     <div
       className="flex justify-center overflow-x-auto"
-      data-figure-description="Focus system table: Shows how server-authoritative focus controls input routing. Focus can be SYSTEM (inputs go to platform/arcade), GAME (inputs go to your game), or CONTROLLER (direct controller-to-host). The server maintains authoritative control to prevent rogue games from stealing input."
+      data-figure-description="Focus system table: Shows how server-authoritative focus controls input routing. Focus can be SYSTEM (inputs go to the outer Arcade app) or GAME (inputs go to your embedded game). The server maintains authoritative control to prevent rogue games from stealing input."
     >
       <svg
         viewBox="0 0 604 200"
@@ -89,7 +89,7 @@ export const FocusSystemDiagram = () => {
           fontSize="11"
           dominantBaseline="middle"
         >
-          Master Host (Arcade)
+          Outer Arcade App
         </text>
         <text
           x="502"
@@ -133,7 +133,7 @@ export const FocusSystemDiagram = () => {
           fontSize="11"
           dominantBaseline="middle"
         >
-          Child Host (Your Game)
+          Embedded Game Host
         </text>
         <text
           x="502"

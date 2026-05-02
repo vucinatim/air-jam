@@ -5,14 +5,26 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { auth } from "@/lib/auth";
+import { createLoginHref } from "@/lib/auth-redirect";
 import { Github } from "lucide-react";
+import { headers } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session?.session || !session.user) {
+    redirect(createLoginHref("/dashboard"));
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -23,7 +35,7 @@ export default function DashboardLayout({
             <DynamicBreadcrumbs />
           </div>
           <Link
-            href="https://github.com/vucinatim/air-jam"
+            href="https://github.com/vucinatim/airjam"
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground transition-colors"

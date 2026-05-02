@@ -168,8 +168,8 @@ export function TableOfContents() {
   if (items.length === 0) return null;
 
   return (
-    <div className="hidden xl:block">
-      <div className="sticky top-10 max-h-[calc(100vh-8rem)] w-full overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="hidden min-w-0 xl:block">
+      <div className="sticky top-10 max-h-[calc(100vh-8rem)] w-full min-w-0 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="space-y-3">
           <Button
             variant="outline"

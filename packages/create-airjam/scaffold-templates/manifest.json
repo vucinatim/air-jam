@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "archive": "air-capture.zip",
+      "manifest": {
+        "id": "air-capture",
+        "name": "Air Capture",
+        "description": "Advanced 3D arena battler. Fly ships, shoot rockets, capture flags — references physics, bots, abilities, and remote audio.",
+        "category": "arcade",
+        "scaffold": true,
+        "export": {
+          "exclude": [
+            ".airjam",
+            ".bundle-analyze",
+            "dist",
+            "dist-ssr",
+            "node_modules",
+            "coverage",
+            "tsconfig.tsbuildinfo"
+          ]
+        }
+      }
+    },
+    {
+      "archive": "code-review.zip",
+      "manifest": {
+        "id": "code-review",
+        "name": "Code Review",
+        "description": "2D fighting arena with gyroscope controls. Teams punch each other down in a code-review-themed brawler.",
+        "category": "arcade",
+        "scaffold": true,
+        "export": {
+          "exclude": [
+            ".airjam",
+            ".bundle-analyze",
+            ".cloudflared",
+            "dist",
+            "dist-ssr",
+            "node_modules",
+            "coverage",
+            "tsconfig.tsbuildinfo",
+            "sprites/export.jsx",
+            "sprites/sprites.psd"
+          ]
+        }
+      }
+    },
+    {
+      "archive": "last-band-standing.zip",
+      "manifest": {
+        "id": "last-band-standing",
+        "name": "Last Band Standing",
+        "description": "Music-quiz party game. Host plays a YouTube clip, controllers buzz in — good reference for round-based play.",
+        "category": "music",
+        "scaffold": true,
+        "export": {
+          "exclude": [
+            ".airjam",
+            ".bundle-analyze",
+            ".cloudflared",
+            "dist",
+            "dist-ssr",
+            "node_modules",
+            "coverage",
+            "tsconfig.tsbuildinfo"
+          ]
+        }
+      }
+    },
+    {
+      "archive": "minimal.zip",
+      "manifest": {
+        "id": "minimal",
+        "name": "Minimal",
+        "description": "Clean-slate starter. Shared tap counter in ~150 LOC — best when you want empty and will build from scratch.",
+        "category": "showcase",
+        "scaffold": true,
+        "export": {
+          "exclude": [
+            ".airjam",
+            "dist",
+            "dist-ssr",
+            "node_modules",
+            "coverage",
+            "tsconfig.tsbuildinfo"
+          ]
+        }
+      }
+    },
+    {
+      "archive": "pong.zip",
+      "manifest": {
+        "id": "pong",
+        "name": "Pong",
+        "description": "Basic 2D canvas starter. Team paddle game with lobby, bots, scoring, and audio — the canonical reference for a complete Air Jam game.",
+        "category": "arcade",
+        "default": true,
+        "scaffold": true,
+        "export": {
+          "exclude": [
+            ".airjam",
+            "dist",
+            "dist-ssr",
+            "node_modules",
+            "coverage",
+            "tsconfig.tsbuildinfo"
+          ]
+        }
+      }
+    },
+    {
+      "archive": "the-office.zip",
+      "manifest": {
+        "id": "the-office",
+        "name": "The Office",
+        "description": "Workplace co-op chaos. Assign personas, cooperate on pending tasks on a shared 2D office map before time runs out.",
+        "category": "party",
+        "scaffold": true,
+        "export": {
+          "exclude": [
+            ".airjam",
+            ".bundle-analyze",
+            ".cloudflared",
+            "dist",
+            "dist-ssr",
+            "node_modules",
+            "coverage",
+            "tsconfig.tsbuildinfo"
+          ]
+        }
+      }
+    }
+  ]
+}
