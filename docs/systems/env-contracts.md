@@ -28,6 +28,7 @@ Each boundary owns its own env schema and defaults:
 1. `@air-jam/server` startup env contract
 2. `apps/platform` releases env contract (storage/moderation/public base URL)
 3. `create-airjam` runtime env contract (`dev`, `secure:init`, `topology`)
+4. `@air-jam/release-browser-worker` runtime env contract for the dedicated Playwright moderation worker
 
 No monorepo-wide mega schema is used.
 

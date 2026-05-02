@@ -69,6 +69,7 @@ Immediate next work:
 3. finish release media/blogs and the final landing-page overlook
 4. merge into `master`, deploy, and run live validation in the canonical release order
 5. harden the local agent/dev loop enough that the next external one-shot game test starts from one command, one visible preview surface, and one reset path
+6. turn the now-live deployment split into an explicit production topology and env contract, including the dedicated release moderation/browser-runtime lane
 
 Latest progress inside this focus:
 

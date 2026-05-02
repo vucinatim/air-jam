@@ -1,0 +1,43 @@
+{
+  "name": "@air-jam/release-browser-worker",
+  "version": "1.0.0",
+  "description": "Dedicated Playwright browser worker for Air Jam hosted release screenshot capture and moderation.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vucinatim/airjam.git",
+    "directory": "packages/release-browser-worker"
+  },
+  "homepage": "https://github.com/vucinatim/airjam#readme",
+  "bugs": {
+    "url": "https://github.com/vucinatim/airjam/issues"
+  },
+  "bin": {
+    "air-jam-release-browser-worker": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "start": "node dist/cli.js",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@air-jam/env": "workspace:^",
+    "http-proxy": "^1.18.1",
+    "playwright-core": "1.58.2",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/http-proxy": "^1.17.16",
+    "@types/node": "^24.10.1",
+    "tsup": "^8.5.1",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3"
+  }
+}

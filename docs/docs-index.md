@@ -24,10 +24,11 @@ Strategy and operations:
 
 1. [Release Workflow](./strategy/release-workflow.md)
 2. [Performance Baseline](./strategy/performance-baseline.md)
-3. [Deployment and Monetization Strategy](./strategy/deployment-and-monetization-strategy.md)
-4. [Production Observability Baseline](./strategy/production-observability-baseline.md)
-5. [Public Arcade Release Strategy](./strategy/public-arcade-release-strategy.md)
-6. [Project Review (2026-04-15)](./strategy/project-review-2026-04-15.md)
+3. [Deployment Topology](./strategy/deployment-topology.md)
+4. [Deployment and Monetization Strategy](./strategy/deployment-and-monetization-strategy.md)
+5. [Production Observability Baseline](./strategy/production-observability-baseline.md)
+6. [Public Arcade Release Strategy](./strategy/public-arcade-release-strategy.md)
+7. [Project Review (2026-04-15)](./strategy/project-review-2026-04-15.md)
 
 Release-critical plans:
 
