@@ -26,6 +26,8 @@ dist-ssr
 
 # Local package artifacts and disposable validation copies
 .airjam/
+!packages/create-airjam/template-assets/base/.airjam/
+!packages/create-airjam/template-assets/base/.airjam/ai-pack.json
 backups/
 
 # Generated hosted AI pack artifacts

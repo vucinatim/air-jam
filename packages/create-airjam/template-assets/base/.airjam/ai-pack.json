@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "packVersion": "0.1.0",
+  "channel": "stable",
+  "releaseDate": "2026-03-29T00:00:00.000Z",
+  "source": {
+    "mode": "packaged-snapshot",
+    "canonicalDocsSource": "content/docs",
+    "canonicalBasePackSource": "packages/create-airjam/template-assets/base"
+  },
+  "scaffold": {
+    "template": null,
+    "createAirjamVersion": null
+  },
+  "update": {
+    "manifestUrl": "https://air-jam.app/ai-pack/manifest.json",
+    "docsBaseUrl": "https://air-jam.app/docs"
+  }
+}
