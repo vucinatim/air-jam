@@ -609,7 +609,7 @@ export default function GameOverviewPage() {
                           <FormLabel>Source Repository URL</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="https://github.com/vucinatim/air-jam/tree/main/games/pong"
+                              placeholder="https://github.com/vucinatim/airjam/tree/main/games/pong"
                               {...field}
                             />
                           </FormControl>

@@ -7,12 +7,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vucinatim/air-jam.git",
+    "url": "git+https://github.com/vucinatim/airjam.git",
     "directory": "packages/server"
   },
-  "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "homepage": "https://github.com/vucinatim/airjam#readme",
   "bugs": {
-    "url": "https://github.com/vucinatim/air-jam/issues"
+    "url": "https://github.com/vucinatim/airjam/issues"
   },
   "publishConfig": {
     "access": "public"

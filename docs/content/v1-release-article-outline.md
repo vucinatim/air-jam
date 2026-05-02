@@ -267,7 +267,7 @@ games are the ones you play with people in the room.
 - **Platform:** https://air-jam.app
 - **Docs:** https://air-jam.app/docs
 - **Arcade:** https://air-jam.app/arcade (all published games playable here)
-- **GitHub:** https://github.com/vucinatim/air-jam
+- **GitHub:** https://github.com/vucinatim/airjam
 - **Server:** wss://api.air-jam.app (free public server)
 - **npm packages:**
   - `@air-jam/sdk` -- https://www.npmjs.com/package/@air-jam/sdk
