@@ -23,8 +23,11 @@ import * as yauzl from "yauzl";
 import yazl from "yazl";
 import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
-import { pathExists, readPackageJson } from "./fs-utils.js";
-import { inspectGame } from "./games.js";
+import {
+  pathExists,
+  readPackageJson,
+  resolveCandidatePath,
+} from "./fs-utils.js";
 import {
   requestPlatformMachineApi,
   resolvePlatformMachineAuth,
@@ -121,6 +124,20 @@ const readConfiguredControllerPath = async (
   const match = source.match(/controllerPath\s*:\s*["'`](?<path>[^"'`]+)["'`]/);
   return match?.groups?.path?.trim() || null;
 };
+
+const getLocalAirJamConfigPath = async (
+  projectDir: string,
+): Promise<string | null> =>
+  resolveCandidatePath(projectDir, [
+    "src/airjam.config.ts",
+    "src/airjam.config.tsx",
+    "src/airjam.config.js",
+    "src/airjam.config.mjs",
+    "airjam.config.ts",
+    "airjam.config.tsx",
+    "airjam.config.js",
+    "airjam.config.mjs",
+  ]);
 
 const collectDirectoryFiles = async (sourceDir: string): Promise<string[]> => {
   const entries = await readdir(sourceDir);
@@ -367,13 +384,13 @@ const inspectProjectRelease = async ({
   packageManager: AirJamPackageManager;
 }): Promise<AirJamLocalReleaseDoctor> => {
   const packageJson = await readPackageJson(projectDir);
-  const gameInspection = await inspectGame({ cwd: projectDir }).catch(
-    () => null,
-  );
-  const configPath = gameInspection?.configPath ?? null;
+  const configPath = await getLocalAirJamConfigPath(projectDir);
+  const configSource = configPath
+    ? await readFile(configPath, "utf8").catch(() => "")
+    : "";
   const controllerPath =
-    gameInspection?.controllerPathLikely ??
-    (await readConfiguredControllerPath(configPath));
+    (await readConfiguredControllerPath(configPath)) ??
+    null;
   const distExists = await pathExists(distDir);
   const distEntryExists = distExists
     ? await pathExists(path.join(distDir, HOSTED_RELEASE_ENTRY_PATH))
@@ -412,7 +429,7 @@ const inspectProjectRelease = async ({
     );
   }
 
-  if (!gameInspection?.metadataExportLikely) {
+  if (!/\bgameMetadata\b/.test(configSource)) {
     issues.push(
       createIssue(
         "missing-game-metadata",
@@ -442,7 +459,7 @@ const inspectProjectRelease = async ({
     packageManager,
     configPath,
     buildScript: packageJson?.value.scripts?.build ?? null,
-    metadataExportLikely: Boolean(gameInspection?.metadataExportLikely),
+    metadataExportLikely: /\bgameMetadata\b/.test(configSource),
     controllerPath,
     distDir,
     distExists,
@@ -789,7 +806,7 @@ export const inspectLocalRelease = async ({
   const context = await detectProjectContext({ cwd: projectDir });
   const packageManager = await resolvePackageManager(projectDir);
 
-  if (context.mode === "monorepo") {
+  if (context.mode === "monorepo" && context.rootDir === projectDir) {
     return {
       projectDir,
       packageJsonPath: context.packageJsonPath,

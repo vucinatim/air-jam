@@ -63,7 +63,7 @@ export const captureReleaseScreenshot = async ({
     try {
       const page = await context.newPage();
       await page.goto(targetUrl, {
-        waitUntil: "networkidle",
+        waitUntil: "load",
         timeout: config.browserLaunch.navigationTimeoutMs,
       });
       if (config.browserLaunch.waitAfterLoadMs > 0) {

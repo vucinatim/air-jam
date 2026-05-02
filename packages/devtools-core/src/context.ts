@@ -50,6 +50,25 @@ const findPackageRoot = async (cwd: string): Promise<string> => {
   return packageJsonPath ? path.dirname(packageJsonPath) : path.resolve(cwd);
 };
 
+const findMonorepoRoot = async (cwd: string): Promise<string | null> => {
+  let currentDir = path.resolve(cwd);
+
+  while (true) {
+    const packageJsonResult = await readPackageJson(currentDir);
+    const packageJson = packageJsonResult?.value ?? null;
+
+    if (await isMonorepoRoot(currentDir, packageJson)) {
+      return currentDir;
+    }
+
+    const parent = path.dirname(currentDir);
+    if (parent === currentDir) {
+      return null;
+    }
+    currentDir = parent;
+  }
+};
+
 const isMonorepoRoot = async (
   rootDir: string,
   packageJson: PackageJson | null,
@@ -96,7 +115,8 @@ export const detectProjectContext = async ({
 }: {
   cwd?: string;
 } = {}): Promise<AirJamProjectContext> => {
-  const rootDir = await findPackageRoot(cwd);
+  const monorepoRoot = await findMonorepoRoot(cwd);
+  const rootDir = monorepoRoot ?? (await findPackageRoot(cwd));
   const packageJsonResult = await readPackageJson(rootDir);
   const packageJson = packageJsonResult?.value ?? null;
   const reasons: string[] = [];
@@ -104,7 +124,7 @@ export const detectProjectContext = async ({
   let workspaceRoot: string | null = null;
   let mode: AirJamProjectContext["mode"] = "unknown";
 
-  if (await isMonorepoRoot(rootDir, packageJson)) {
+  if (monorepoRoot && rootDir === monorepoRoot) {
     mode = "monorepo";
     workspaceRoot = rootDir;
     reasons.push("Detected Air Jam monorepo root package and repo CLI.");

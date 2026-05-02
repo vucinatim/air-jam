@@ -651,6 +651,18 @@ describe("detectProjectContext", () => {
     expect(context.reasons.join(" ")).toContain("monorepo");
   });
 
+  it("detects the Air Jam monorepo from a nested repo game directory", async () => {
+    const repoRoot = path.resolve(__dirname, "../../..");
+    const context = await detectProjectContext({
+      cwd: path.join(repoRoot, "games", "pong"),
+    });
+
+    expect(context.mode).toBe("monorepo");
+    expect(context.rootDir).toBe(repoRoot);
+    expect(context.workspaceRoot).toBe(repoRoot);
+    expect(context.packageManager).toBe("pnpm");
+  });
+
   it("detects a standalone game fixture", async () => {
     const root = await createTempRoot();
     await writeJson(path.join(root, "package.json"), {

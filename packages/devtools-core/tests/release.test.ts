@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +12,7 @@ import {
 } from "../src/index.js";
 
 const tempRoots: string[] = [];
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 const createTempRoot = async (): Promise<string> => {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-release-"));
@@ -160,6 +162,18 @@ describe("local release tooling", () => {
           severity: "error",
         }),
       ]),
+    );
+  });
+
+  it("allows nested repo games inside the monorepo to bundle locally", async () => {
+    const gameRoot = path.join(repoRoot, "games", "pong");
+    const doctor = await inspectLocalRelease({ cwd: gameRoot });
+
+    expect(doctor.canBundle).toBe(true);
+    expect(doctor.packageManager).toBe("pnpm");
+    expect(doctor.packageJsonPath).toBe(path.join(gameRoot, "package.json"));
+    expect(doctor.configPath).toBe(
+      path.join(gameRoot, "src", "airjam.config.ts"),
     );
   });
 
