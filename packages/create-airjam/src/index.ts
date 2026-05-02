@@ -485,7 +485,11 @@ const resolveCreateGameInput = async ({
             }
           : {}),
       ...(previewUrl?.trim() ? { url: previewUrl.trim() } : {}),
-      ...(sourceUrl?.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
+      ...(sourceUrl?.trim()
+        ? { sourceUrl: sourceUrl.trim() }
+        : localDefaults?.sourceUrl
+          ? { sourceUrl: localDefaults.sourceUrl }
+          : {}),
       ...(templateId?.trim() || localDefaults?.template.id
         ? { templateId: templateId?.trim() || localDefaults?.template.id! }
         : {}),

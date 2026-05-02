@@ -3,6 +3,7 @@ import {
   type AirJamGameMetadata,
 } from "@air-jam/sdk/metadata";
 import { createRequire } from "node:module";
+import { readFile } from "node:fs/promises";
 import {
   platformMachineCreateOwnedGameResultSchema,
   platformMachineGetOwnedGameResultSchema,
@@ -11,8 +12,8 @@ import {
 } from "@air-jam/sdk/platform-machine";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { findUp, pathExists, readJsonFile, readPackageJson } from "./fs-utils.js";
 import { inspectGame } from "./games.js";
-import { readJsonFile, readPackageJson } from "./fs-utils.js";
 import {
   requestPlatformMachineApi,
   resolvePlatformMachineAuth,
@@ -28,6 +29,93 @@ import type {
 
 const require = createRequire(import.meta.url);
 const tsxLoaderPath = require.resolve("tsx/esm");
+
+const normalizeGithubRemoteUrl = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("git@github.com:")) {
+    const repoPath = trimmed.slice("git@github.com:".length).replace(/\.git$/, "");
+    return repoPath ? `https://github.com/${repoPath}` : null;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (url.hostname !== "github.com") {
+      return null;
+    }
+
+    return `https://github.com${url.pathname.replace(/\.git$/, "")}`.replace(
+      /\/$/,
+      "",
+    );
+  } catch {
+    return null;
+  }
+};
+
+const readGitRemoteFromConfig = async (
+  gitDirOrFilePath: string,
+): Promise<string | null> => {
+  let configPath: string | null = null;
+
+  const statsFile = await readFile(gitDirOrFilePath, "utf8").catch(() => null);
+  if (statsFile?.startsWith("gitdir:")) {
+    const relativeGitDir = statsFile.slice("gitdir:".length).trim();
+    const resolvedGitDir = path.resolve(
+      path.dirname(gitDirOrFilePath),
+      relativeGitDir,
+    );
+    configPath = path.join(resolvedGitDir, "config");
+  } else {
+    configPath = path.join(gitDirOrFilePath, "config");
+  }
+
+  if (!(await pathExists(configPath))) {
+    return null;
+  }
+
+  const config = await readFile(configPath, "utf8");
+  const remoteBlockMatch = config.match(
+    /\[remote "origin"\][\s\S]*?(?:\n\[|$)/,
+  );
+  if (!remoteBlockMatch) {
+    return null;
+  }
+
+  const urlMatch = remoteBlockMatch[0].match(/^\s*url\s*=\s*(.+)$/m);
+  return urlMatch?.[1]?.trim() || null;
+};
+
+const resolveRepoSourceUrl = async ({
+  projectDir,
+}: {
+  projectDir: string;
+}): Promise<string | null> => {
+  const gitMarkerPath = await findUp(projectDir, ".git");
+  if (!gitMarkerPath) {
+    return null;
+  }
+
+  const repoRoot = path.dirname(gitMarkerPath);
+  const remoteUrl = await readGitRemoteFromConfig(gitMarkerPath);
+  const normalizedRemoteUrl = remoteUrl
+    ? normalizeGithubRemoteUrl(remoteUrl)
+    : null;
+
+  if (!normalizedRemoteUrl) {
+    return null;
+  }
+
+  const relativeProjectPath = path.relative(repoRoot, projectDir);
+  if (!relativeProjectPath || relativeProjectPath.startsWith("..")) {
+    return null;
+  }
+
+  return `${normalizedRemoteUrl}/tree/main/${relativeProjectPath.replaceAll(path.sep, "/")}`;
+};
 
 type LocalTemplateManifest = {
   id?: unknown;
@@ -111,10 +199,11 @@ export const readLocalHostedGameDefaults = async ({
   cwd?: string;
 } = {}): Promise<AirJamLocalHostedGameDefaults> => {
   const game = await inspectGame({ cwd });
-  const [template, packageJson, metadata] = await Promise.all([
+  const [template, packageJson, metadata, sourceUrl] = await Promise.all([
     loadTemplateManifest(game.rootDir),
     readPackageJson(game.rootDir),
     loadGameMetadataFromConfig(game.configPath),
+    resolveRepoSourceUrl({ projectDir: game.rootDir }),
   ]);
 
   return {
@@ -123,6 +212,7 @@ export const readLocalHostedGameDefaults = async ({
     manifestPath: template.path,
     packageJsonPath: packageJson?.path ?? null,
     packageName: game.packageName,
+    sourceUrl,
     metadata: {
       name: metadata?.name ?? null,
       slug: metadata?.slug ?? null,

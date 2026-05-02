@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -30,9 +31,10 @@ afterEach(async () => {
 describe("platform game tooling", () => {
   it("reads local hosted game defaults from metadata and template manifest", async () => {
     const root = await createTempRoot();
-    await mkdir(path.join(root, "src"), { recursive: true });
+    const gameRoot = path.join(root, "games", "minimal");
+    await mkdir(path.join(gameRoot, "src"), { recursive: true });
     await writeFile(
-      path.join(root, "package.json"),
+      path.join(gameRoot, "package.json"),
       `${JSON.stringify(
         {
           name: "minimal",
@@ -48,7 +50,7 @@ describe("platform game tooling", () => {
       "utf8",
     );
     await writeFile(
-      path.join(root, "airjam-template.json"),
+      path.join(gameRoot, "airjam-template.json"),
       `${JSON.stringify(
         {
           id: "minimal",
@@ -62,7 +64,7 @@ describe("platform game tooling", () => {
       "utf8",
     );
     await writeFile(
-      path.join(root, "src", "airjam.config.ts"),
+      path.join(gameRoot, "src", "airjam.config.ts"),
       `
         export const gameMetadata = {
           version: 1,
@@ -80,13 +82,22 @@ describe("platform game tooling", () => {
       `,
       "utf8",
     );
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "https://github.com/vucinatim/airjam.git"],
+      { cwd: root },
+    );
 
-    const defaults = await readLocalHostedGameDefaults({ cwd: root });
+    const defaults = await readLocalHostedGameDefaults({ cwd: gameRoot });
 
     expect(defaults.metadata.name).toBe("Minimal");
     expect(defaults.metadata.slug).toBe("minimal");
     expect(defaults.metadata.description).toBe("Clean-slate starter.");
     expect(defaults.template.id).toBe("minimal");
+    expect(defaults.sourceUrl).toBe(
+      "https://github.com/vucinatim/airjam/tree/main/games/minimal",
+    );
   });
 
   it("lists, inspects, creates, and updates platform games through the machine API", async () => {

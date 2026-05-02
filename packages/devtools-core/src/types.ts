@@ -89,6 +89,7 @@ export type AirJamLocalHostedGameDefaults = {
   manifestPath: string | null;
   packageJsonPath: string | null;
   packageName: string | null;
+  sourceUrl: string | null;
   metadata: {
     name: string | null;
     slug: string | null;
