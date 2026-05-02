@@ -31,18 +31,19 @@
     "src"
   ],
   "scripts": {
-    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup",
-    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup && vitest run --config vitest.config.ts",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@air-jam/sdk": "workspace:^",
     "@air-jam/harness": "workspace:^",
+    "@air-jam/sdk": "workspace:^",
     "socket.io-client": "^4.8.1",
     "tsx": "^4.20.6",
     "yauzl": "^3.2.1",
-    "yazl": "^3.3.1"
+    "yazl": "^3.3.1",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

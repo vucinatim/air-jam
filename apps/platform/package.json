@@ -72,7 +72,8 @@
     "three": "^0.172.0",
     "turbopack-mdx-loader": "file:./loader",
     "yauzl": "^3.2.1",
-    "zod": "^4.2.1"
+    "zod": "^4.2.1",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@mdx-js/mdx": "^3.1.1",
