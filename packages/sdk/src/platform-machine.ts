@@ -135,6 +135,9 @@ export const platformMachineOwnedGameSummarySchema = z.object({
   id: z.string().min(1),
   slug: z.string().min(1).nullable(),
   name: z.string().min(1),
+  description: z.string().nullable(),
+  url: z.string().url().nullable(),
+  arcadeVisibility: z.enum(["hidden", "listed"]),
   sourceUrl: z.string().url().nullable(),
   templateId: z.string().min(1).nullable(),
   createdAt: z.string().min(1),
@@ -222,6 +225,75 @@ export const platformMachineListOwnedGamesResultSchema = z.object({
 
 export type PlatformMachineListOwnedGamesResult = z.infer<
   typeof platformMachineListOwnedGamesResultSchema
+>;
+
+export const platformMachineGetOwnedGameResultSchema = z.object({
+  game: platformMachineOwnedGameSummarySchema,
+});
+
+export type PlatformMachineGetOwnedGameResult = z.infer<
+  typeof platformMachineGetOwnedGameResultSchema
+>;
+
+export const platformMachineCreateOwnedGameInputSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  slug: z.string().trim().min(1).max(64).optional(),
+  description: z.string().trim().max(240).optional(),
+  url: z.string().url().optional(),
+  arcadeVisibility: z.enum(["hidden", "listed"]).optional(),
+  sourceUrl: z.string().url().optional(),
+  templateId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .optional(),
+});
+
+export type PlatformMachineCreateOwnedGameInput = z.infer<
+  typeof platformMachineCreateOwnedGameInputSchema
+>;
+
+export const platformMachineCreateOwnedGameResultSchema = z.object({
+  game: platformMachineOwnedGameSummarySchema,
+});
+
+export type PlatformMachineCreateOwnedGameResult = z.infer<
+  typeof platformMachineCreateOwnedGameResultSchema
+>;
+
+export const platformMachineUpdateOwnedGameInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    slug: z.string().trim().min(1).max(64).optional(),
+    description: z.string().trim().max(240).nullable().optional(),
+    url: z.string().url().nullable().optional(),
+    arcadeVisibility: z.enum(["hidden", "listed"]).optional(),
+    sourceUrl: z.string().url().nullable().optional(),
+    templateId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+      .nullable()
+      .optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field must be provided.",
+  });
+
+export type PlatformMachineUpdateOwnedGameInput = z.infer<
+  typeof platformMachineUpdateOwnedGameInputSchema
+>;
+
+export const platformMachineUpdateOwnedGameResultSchema = z.object({
+  game: platformMachineOwnedGameSummarySchema,
+});
+
+export type PlatformMachineUpdateOwnedGameResult = z.infer<
+  typeof platformMachineUpdateOwnedGameResultSchema
 >;
 
 export const platformMachineListReleasesResultSchema = z.object({

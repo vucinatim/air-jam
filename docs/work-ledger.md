@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-05-02
+Last updated: 2026-05-03
 Status: active
 
 This is the single active repo-wide ledger.
@@ -70,6 +70,7 @@ Immediate next work:
 4. merge into `master`, deploy, and run live validation in the canonical release order
 5. harden the local agent/dev loop enough that the next external one-shot game test starts from one command, one visible preview surface, and one reset path
 6. turn the now-live deployment split into an explicit production topology and env contract, including the dedicated release moderation/browser-runtime lane
+7. remove the dashboard-only hosted game creation gap so platform game records can be created and maintained cleanly from the `airjam` CLI before release submission
 
 Latest progress inside this focus:
 
@@ -106,6 +107,8 @@ Latest progress inside this focus:
 31. the late game-structure alignment pass is complete: `the-office` now follows the canonical ownership model, `code-review` now publishes a semantic agent contract from config, Last Band Standing no longer ships the YouTube test route, and Air Capture's leftover debug/input seams are narrowed into the intended game-owned locations
 32. the first prerelease agent/dev-loop hardening slice is landed and validation-clean for the touched packages: generated projects and the repo root now point agents at one normal `pnpm run dev` path, generated/root agent and Claude guidance tells agents to use visible preview controllers only through real click/drag/release gestures and semantic agent actions for reliable gameplay proof, local status/reset now exposes and cleans stale known-port listeners, session/log errors are more actionable, the preview controller dock now shows phone, preview, and virtual/agent controllers in one source-badged roster, the packaged minimal scaffold already ships a wired semantic agent contract, create-airjam CLI tests cover the new recovery command help surfaces, devtools-core directly tests unmanaged-listener status/reset behavior on an isolated test port, and the SDK test nullability blocker that was preventing package typecheck is fixed
 33. the visual-harness isolation pass is complete and archived: generated projects no longer ship visual harness files/config/docs, first-party games no longer publish visual harness contracts by default, the public SDK/devtools story no longer advertises visual harness as a normal path, and the remaining harness code is now intentionally internal experimental infrastructure instead of a public authoring lane
+34. production hosted release publishing now has a dedicated browser-worker lane: Vercel owns the platform app, Railway owns the realtime server and the release browser worker, and release screenshot capture plus OpenAI image moderation both pass on live production publish
+35. the hosted platform game record is now a first-class machine contract: `/api/cli/games` supports list/create, `/api/cli/games/[slugOrId]` supports inspect/update, `@air-jam/devtools-core` exposes typed hosted-game helpers plus local metadata defaults, and `create-airjam` now ships `airjam game list|inspect|create|update` so release publishing no longer depends on the dashboard just to register a target game
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

@@ -66,6 +66,36 @@ test("create-airjam keeps ai-pack help", () => {
   assert.match(output, /--manifest-url <url>/);
 });
 
+test("create-airjam exposes game list help", () => {
+  const output = runCliHelp("game", "list");
+
+  assert.match(output, /Usage: airjam game list/);
+  assert.match(output, /--platform-url <url>/);
+});
+
+test("create-airjam exposes game create help", () => {
+  const output = runCliHelp("game", "create");
+
+  assert.match(output, /Usage: airjam game create/);
+  assert.match(output, /--dir <path>/);
+  assert.match(output, /--template-id <id>/);
+});
+
+test("create-airjam exposes game inspect help", () => {
+  const output = runCliHelp("game", "inspect");
+
+  assert.match(output, /Usage: airjam game inspect/);
+  assert.match(output, /--game <slug-or-id>/);
+});
+
+test("create-airjam exposes game update help", () => {
+  const output = runCliHelp("game", "update");
+
+  assert.match(output, /Usage: airjam game update/);
+  assert.match(output, /--clear-template-id/);
+  assert.match(output, /--clear-preview-url/);
+});
+
 test("create-airjam keeps release bundle help", () => {
   const output = runCliHelp("release", "bundle");
 

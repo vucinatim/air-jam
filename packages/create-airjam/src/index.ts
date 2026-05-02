@@ -1,18 +1,24 @@
 import {
+  AirJamPlatformApiError,
   bundleLocalRelease,
+  createPlatformGame,
   getDevStatus,
   getPlatformAuthStoragePath,
   getPlatformMachineProfile,
+  inspectPlatformGame,
   inspectLocalRelease,
   inspectPlatformRelease,
+  listPlatformGames,
   listPlatformReleaseTargets,
   listPlatformReleases,
   loginPlatformWithDeviceFlow,
+  readLocalHostedGameDefaults,
   logoutPlatformMachineSession,
   publishPlatformRelease,
   readStoredPlatformMachineSession,
   resetLocalDev,
   submitPlatformRelease,
+  updatePlatformGame,
   validateLocalRelease,
   type AirJamLocalReleaseIssue,
 } from "@air-jam/devtools-core";
@@ -394,6 +400,307 @@ const runReleaseListCommand = async ({
   }
 };
 
+const printHostedGame = ({
+  game,
+  heading,
+}: {
+  game: {
+    id: string;
+    slug: string | null;
+    name: string;
+    description: string | null;
+    url: string | null;
+    arcadeVisibility: "hidden" | "listed";
+    sourceUrl: string | null;
+    templateId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  heading: string;
+}) => {
+  console.log(kleur.green(`\n✓ ${heading}\n`));
+  console.log(`ID: ${kleur.cyan(game.id)}`);
+  console.log(`Name: ${kleur.cyan(game.name)}`);
+  console.log(`Slug: ${kleur.cyan(game.slug ?? "(none)")}`);
+  console.log(`Arcade visibility: ${kleur.cyan(game.arcadeVisibility)}`);
+  console.log(`Description: ${kleur.cyan(game.description ?? "(none)")}`);
+  console.log(`Preview URL: ${kleur.cyan(game.url ?? "(none)")}`);
+  console.log(`Source URL: ${kleur.cyan(game.sourceUrl ?? "(none)")}`);
+  console.log(`Template ID: ${kleur.cyan(game.templateId ?? "(none)")}`);
+  console.log(`Created: ${kleur.cyan(game.createdAt)}`);
+  console.log(`Updated: ${kleur.cyan(game.updatedAt)}`);
+};
+
+const resolveCreateGameInput = async ({
+  dir,
+  name,
+  slug,
+  description,
+  previewUrl,
+  sourceUrl,
+  templateId,
+  arcadeVisibility,
+}: {
+  dir?: string;
+  name?: string;
+  slug?: string;
+  description?: string;
+  previewUrl?: string;
+  sourceUrl?: string;
+  templateId?: string;
+  arcadeVisibility?: "hidden" | "listed";
+}) => {
+  const localDefaults = dir
+    ? await readLocalHostedGameDefaults({
+        cwd: path.resolve(dir),
+      })
+    : null;
+
+  const resolvedName =
+    name?.trim() ||
+    localDefaults?.metadata.name ||
+    localDefaults?.template.name ||
+    null;
+  if (!resolvedName) {
+    throw new Error(
+      "Game name is required. Pass --name or point --dir at a game with declared metadata.",
+    );
+  }
+
+  return {
+    input: {
+      name: resolvedName,
+      ...(slug?.trim() || localDefaults?.metadata.slug
+        ? { slug: slug?.trim() || localDefaults?.metadata.slug! }
+        : {}),
+      ...(description !== undefined
+        ? description.trim()
+          ? { description: description.trim() }
+          : {}
+        : localDefaults?.metadata.description || localDefaults?.template.description
+          ? {
+              description:
+                localDefaults?.metadata.description ||
+                localDefaults?.template.description!,
+            }
+          : {}),
+      ...(previewUrl?.trim() ? { url: previewUrl.trim() } : {}),
+      ...(sourceUrl?.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
+      ...(templateId?.trim() || localDefaults?.template.id
+        ? { templateId: templateId?.trim() || localDefaults?.template.id! }
+        : {}),
+      ...(arcadeVisibility ? { arcadeVisibility } : {}),
+    },
+    localDefaults,
+  };
+};
+
+const runGameListCommand = async ({
+  platformUrl,
+}: {
+  platformUrl?: string;
+}) => {
+  const result = await listPlatformGames({ platformUrl });
+
+  console.log(kleur.green("\n✓ Hosted games\n"));
+
+  if (result.games.length === 0) {
+    console.log(kleur.dim("No owned hosted games found."));
+    return;
+  }
+
+  for (const game of result.games) {
+    console.log(
+      `${kleur.cyan(game.id)}  ${game.slug ? kleur.yellow(game.slug) : kleur.dim("(no slug)")}  ${game.name}  ${kleur.dim(game.arcadeVisibility)}`,
+    );
+  }
+};
+
+const runGameInspectCommand = async ({
+  platformUrl,
+  game,
+}: {
+  platformUrl?: string;
+  game: string;
+}) => {
+  const result = await inspectPlatformGame({
+    platformUrl,
+    slugOrId: game,
+  });
+
+  printHostedGame({
+    game: result.game,
+    heading: "Hosted game",
+  });
+};
+
+const runGameCreateCommand = async ({
+  platformUrl,
+  dir,
+  name,
+  slug,
+  description,
+  previewUrl,
+  sourceUrl,
+  templateId,
+  arcadeVisibility,
+}: {
+  platformUrl?: string;
+  dir?: string;
+  name?: string;
+  slug?: string;
+  description?: string;
+  previewUrl?: string;
+  sourceUrl?: string;
+  templateId?: string;
+  arcadeVisibility?: "hidden" | "listed";
+}) => {
+  const { input } = await resolveCreateGameInput({
+    dir,
+    name,
+    slug,
+    description,
+    previewUrl,
+    sourceUrl,
+    templateId,
+    arcadeVisibility,
+  });
+
+  const result = await createPlatformGame({
+    platformUrl,
+    input,
+  });
+
+  printHostedGame({
+    game: result.game,
+    heading: "Hosted game created",
+  });
+};
+
+const resolveUpdateGamePatch = ({
+  name,
+  slug,
+  description,
+  clearDescription = false,
+  previewUrl,
+  clearPreviewUrl = false,
+  sourceUrl,
+  clearSourceUrl = false,
+  templateId,
+  clearTemplateId = false,
+  arcadeVisibility,
+}: {
+  name?: string;
+  slug?: string;
+  description?: string;
+  clearDescription?: boolean;
+  previewUrl?: string;
+  clearPreviewUrl?: boolean;
+  sourceUrl?: string;
+  clearSourceUrl?: boolean;
+  templateId?: string;
+  clearTemplateId?: boolean;
+  arcadeVisibility?: "hidden" | "listed";
+}) => {
+  if (description !== undefined && clearDescription) {
+    throw new Error("Use either --description or --clear-description, not both.");
+  }
+  if (previewUrl !== undefined && clearPreviewUrl) {
+    throw new Error("Use either --preview-url or --clear-preview-url, not both.");
+  }
+  if (sourceUrl !== undefined && clearSourceUrl) {
+    throw new Error("Use either --source-url or --clear-source-url, not both.");
+  }
+  if (templateId !== undefined && clearTemplateId) {
+    throw new Error("Use either --template-id or --clear-template-id, not both.");
+  }
+
+  const patch = {
+    ...(name?.trim() ? { name: name.trim() } : {}),
+    ...(slug?.trim() ? { slug: slug.trim() } : {}),
+    ...(description !== undefined
+      ? { description: description.trim() || null }
+      : clearDescription
+        ? { description: null }
+        : {}),
+    ...(previewUrl !== undefined
+      ? { url: previewUrl.trim() || null }
+      : clearPreviewUrl
+        ? { url: null }
+        : {}),
+    ...(sourceUrl !== undefined
+      ? { sourceUrl: sourceUrl.trim() || null }
+      : clearSourceUrl
+        ? { sourceUrl: null }
+        : {}),
+    ...(templateId !== undefined
+      ? { templateId: templateId.trim() || null }
+      : clearTemplateId
+        ? { templateId: null }
+        : {}),
+    ...(arcadeVisibility ? { arcadeVisibility } : {}),
+  };
+
+  if (Object.keys(patch).length === 0) {
+    throw new Error("No hosted game changes were provided.");
+  }
+
+  return patch;
+};
+
+const runGameUpdateCommand = async ({
+  platformUrl,
+  game,
+  name,
+  slug,
+  description,
+  clearDescription,
+  previewUrl,
+  clearPreviewUrl,
+  sourceUrl,
+  clearSourceUrl,
+  templateId,
+  clearTemplateId,
+  arcadeVisibility,
+}: {
+  platformUrl?: string;
+  game: string;
+  name?: string;
+  slug?: string;
+  description?: string;
+  clearDescription?: boolean;
+  previewUrl?: string;
+  clearPreviewUrl?: boolean;
+  sourceUrl?: string;
+  clearSourceUrl?: boolean;
+  templateId?: string;
+  clearTemplateId?: boolean;
+  arcadeVisibility?: "hidden" | "listed";
+}) => {
+  const result = await updatePlatformGame({
+    platformUrl,
+    slugOrId: game,
+    input: resolveUpdateGamePatch({
+      name,
+      slug,
+      description,
+      clearDescription,
+      previewUrl,
+      clearPreviewUrl,
+      sourceUrl,
+      clearSourceUrl,
+      templateId,
+      clearTemplateId,
+      arcadeVisibility,
+    }),
+  });
+
+  printHostedGame({
+    game: result.game,
+    heading: "Hosted game updated",
+  });
+};
+
 const runReleaseInspectCommand = async ({
   platformUrl,
   releaseId,
@@ -454,16 +761,39 @@ const runReleaseSubmitCommand = async ({
   skipBuild?: boolean;
   publish?: boolean;
 }) => {
-  const result = await submitPlatformRelease({
-    platformUrl,
-    slugOrId: game,
-    versionLabel,
-    cwd: path.resolve(dir || process.cwd()),
-    distDir,
-    bundlePath: bundle,
-    skipBuild,
-    publish,
-  });
+  const resolvedCwd = path.resolve(dir || process.cwd());
+  let result;
+
+  try {
+    result = await submitPlatformRelease({
+      platformUrl,
+      slugOrId: game,
+      versionLabel,
+      cwd: resolvedCwd,
+      distDir,
+      bundlePath: bundle,
+      skipBuild,
+      publish,
+    });
+  } catch (error) {
+    if (error instanceof AirJamPlatformApiError && error.code === "not_found") {
+      let createHint = "Run `airjam game create --name \"Your Game\" --slug your-game` first.";
+
+      try {
+        const localDefaults = await readLocalHostedGameDefaults({ cwd: resolvedCwd });
+        const hintedSlug = localDefaults.metadata.slug ?? game;
+        createHint = `Run \`airjam game create --dir ${resolvedCwd}${platformUrl ? ` --platform-url ${platformUrl}` : ""}\` to register this local game first, then retry with \`--game ${hintedSlug}\`.`;
+      } catch {
+        // Best-effort hint only.
+      }
+
+      throw new Error(
+        `No owned hosted game matched "${game}". ${createHint}`,
+      );
+    }
+
+    throw error;
+  }
 
   console.log(kleur.green("\n✓ Hosted release submitted\n"));
   console.log(`Bundle: ${kleur.cyan(result.bundlePath)}`);
@@ -879,6 +1209,137 @@ const buildProgram = () => {
 
   aiPackCommand.action(() => {
     aiPackCommand.outputHelp();
+  });
+
+  const gameCommand = program
+    .command("game")
+    .description("Manage hosted Air Jam game records on the platform");
+
+  gameCommand
+    .command("list")
+    .description("List owned hosted games")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      await runGameListCommand(
+        resolveActionOptions<{
+          platformUrl?: string;
+        }>(options),
+      );
+    });
+
+  gameCommand
+    .command("inspect")
+    .description("Inspect one owned hosted game")
+    .requiredOption("--game <slug-or-id>", "Owned hosted game slug or ID")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        game: string;
+      }>(options);
+
+      await runGameInspectCommand({
+        platformUrl: resolved.platformUrl,
+        game: resolved.game,
+      });
+    });
+
+  gameCommand
+    .command("create")
+    .description("Create a hosted game record for release publishing")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .option("--dir <path>", "Local game project directory for metadata defaults")
+    .option("--name <name>", "Hosted game display name")
+    .option("--slug <slug>", "Hosted game slug")
+    .option("--description <text>", "Catalog description/tagline")
+    .option("--preview-url <url>", "Private creator preview URL")
+    .option("--source-url <url>", "Source repository URL")
+    .option("--template-id <id>", "Template ID shown for developer actions")
+    .option(
+      "--arcade-visibility <visibility>",
+      "Initial arcade visibility (hidden or listed)",
+    )
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        dir?: string;
+        name?: string;
+        slug?: string;
+        description?: string;
+        previewUrl?: string;
+        sourceUrl?: string;
+        templateId?: string;
+        arcadeVisibility?: "hidden" | "listed";
+      }>(options);
+
+      await runGameCreateCommand({
+        platformUrl: resolved.platformUrl,
+        dir: resolved.dir,
+        name: resolved.name,
+        slug: resolved.slug,
+        description: resolved.description,
+        previewUrl: resolved.previewUrl,
+        sourceUrl: resolved.sourceUrl,
+        templateId: resolved.templateId,
+        arcadeVisibility: resolved.arcadeVisibility,
+      });
+    });
+
+  gameCommand
+    .command("update")
+    .description("Update core hosted game metadata")
+    .requiredOption("--game <slug-or-id>", "Owned hosted game slug or ID")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .option("--name <name>", "Hosted game display name")
+    .option("--slug <slug>", "Hosted game slug")
+    .option("--description <text>", "Catalog description/tagline")
+    .option("--clear-description", "Clear the catalog description", false)
+    .option("--preview-url <url>", "Private creator preview URL")
+    .option("--clear-preview-url", "Clear the private preview URL", false)
+    .option("--source-url <url>", "Source repository URL")
+    .option("--clear-source-url", "Clear the source repository URL", false)
+    .option("--template-id <id>", "Template ID shown for developer actions")
+    .option("--clear-template-id", "Clear the template ID", false)
+    .option(
+      "--arcade-visibility <visibility>",
+      "Arcade visibility (hidden or listed)",
+    )
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        game: string;
+        name?: string;
+        slug?: string;
+        description?: string;
+        clearDescription?: boolean;
+        previewUrl?: string;
+        clearPreviewUrl?: boolean;
+        sourceUrl?: string;
+        clearSourceUrl?: boolean;
+        templateId?: string;
+        clearTemplateId?: boolean;
+        arcadeVisibility?: "hidden" | "listed";
+      }>(options);
+
+      await runGameUpdateCommand({
+        platformUrl: resolved.platformUrl,
+        game: resolved.game,
+        name: resolved.name,
+        slug: resolved.slug,
+        description: resolved.description,
+        clearDescription: resolved.clearDescription,
+        previewUrl: resolved.previewUrl,
+        clearPreviewUrl: resolved.clearPreviewUrl,
+        sourceUrl: resolved.sourceUrl,
+        clearSourceUrl: resolved.clearSourceUrl,
+        templateId: resolved.templateId,
+        clearTemplateId: resolved.clearTemplateId,
+        arcadeVisibility: resolved.arcadeVisibility,
+      });
+    });
+
+  gameCommand.action(() => {
+    gameCommand.outputHelp();
   });
 
   const releaseCommand = program

@@ -111,7 +111,7 @@ export const requestPlatformMachineApi = async <T>({
 }: {
   baseUrl: string;
   pathname: string;
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH";
   body?: unknown;
   token?: string;
   schema: { parse: (value: unknown) => T };

@@ -1,14 +1,13 @@
 import { db } from "@/db";
-import { gameReleases, games } from "@/db/schema";
-import { parseGameConfigLenient } from "@/lib/games/game-config-contract";
+import { gameReleases } from "@/db/schema";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
-import type {
-  PlatformMachineOwnedGameSummary,
-  PlatformMachineReleaseSummary,
-} from "@air-jam/sdk/platform-machine";
-import { desc, eq } from "drizzle-orm";
+import type { PlatformMachineReleaseSummary } from "@air-jam/sdk/platform-machine";
+import { eq } from "drizzle-orm";
 import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
-import { assertOwnedGameBySlugOrId } from "../games/assert-owned-game-by-slug-or-id";
+import {
+  assertOwnedGameBySlugOrIdForMachine,
+  serializeOwnedGameForMachine,
+} from "../games/machine-game";
 import { assertOwnedRelease } from "./assert-owned-release";
 import { getReleaseDetails } from "./get-release-details";
 import {
@@ -16,22 +15,6 @@ import {
   requestReleaseUploadTarget,
 } from "./release-artifact-service";
 import { publishRelease } from "./release-status-service";
-
-const toMachineOwnedGameSummary = (game: typeof games.$inferSelect) => {
-  const config = parseGameConfigLenient(game.config);
-
-  return {
-    id: game.id,
-    slug: game.slug ?? null,
-    name: game.name,
-    sourceUrl: config.sourceUrl ?? null,
-    templateId: config.templateId ?? null,
-    createdAt: game.createdAt.toISOString(),
-    updatedAt: game.updatedAt.toISOString(),
-  } satisfies PlatformMachineOwnedGameSummary;
-};
-
-export const serializeOwnedGameForMachine = toMachineOwnedGameSummary;
 
 export const serializeReleaseForMachine = (
   release: NonNullable<Awaited<ReturnType<typeof getReleaseDetails>>>,
@@ -50,7 +33,7 @@ export const serializeReleaseForMachine = (
     publishedAt: release.publishedAt?.toISOString() ?? null,
     quarantinedAt: release.quarantinedAt?.toISOString() ?? null,
     archivedAt: release.archivedAt?.toISOString() ?? null,
-    game: toMachineOwnedGameSummary(release.game),
+    game: serializeOwnedGameForMachine(release.game),
     artifact: artifact
       ? {
           id: artifact.id,
@@ -102,16 +85,6 @@ export const serializeReleaseForMachine = (
   } satisfies PlatformMachineReleaseSummary;
 };
 
-export const listOwnedGamesForMachine = async (userId: string) => {
-  const ownedGames = await db
-    .select()
-    .from(games)
-    .where(eq(games.userId, userId))
-    .orderBy(desc(games.updatedAt));
-
-  return ownedGames.map(toMachineOwnedGameSummary);
-};
-
 const toMachineNotFoundError = (message: string) =>
   new PlatformMachineAuthError({
     code: "not_found",
@@ -132,20 +105,6 @@ const toMachineValidationError = (message: string) =>
     message,
     status: 400,
   });
-
-export const assertOwnedGameBySlugOrIdForMachine = async ({
-  slugOrId,
-  userId,
-}: {
-  slugOrId: string;
-  userId: string;
-}) => {
-  try {
-    return await assertOwnedGameBySlugOrId(slugOrId, userId);
-  } catch {
-    throw toMachineNotFoundError(`No owned game matched "${slugOrId.trim()}".`);
-  }
-};
 
 export const assertOwnedReleaseForMachine = async ({
   releaseId,
@@ -179,7 +138,7 @@ export const listOwnedReleasesForMachine = async ({
   );
 
   return {
-    game: toMachineOwnedGameSummary(game),
+    game: serializeOwnedGameForMachine(game),
     releases: releaseDetails
       .filter(
         (

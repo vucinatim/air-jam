@@ -3,10 +3,15 @@ import type {
   AirJamAgentActionPayloadKind,
 } from "@air-jam/sdk";
 import type {
+  PlatformMachineCreateOwnedGameInput,
+  PlatformMachineCreateOwnedGameResult,
+  PlatformMachineGetOwnedGameResult,
   PlatformMachineGetReleaseResult,
   PlatformMachineListOwnedGamesResult,
   PlatformMachineListReleasesResult,
   PlatformMachinePublishReleaseResult,
+  PlatformMachineUpdateOwnedGameInput,
+  PlatformMachineUpdateOwnedGameResult,
 } from "@air-jam/sdk/platform-machine";
 
 export type AirJamProjectMode = "monorepo" | "standalone-game" | "unknown";
@@ -76,6 +81,27 @@ export type AirJamGameInspection = AirJamGameSummary & {
   metadataExportLikely: boolean;
   controllerPathLikely: string | null;
   qualityGates: AirJamQualityGate[];
+};
+
+export type AirJamLocalHostedGameDefaults = {
+  projectDir: string;
+  configPath: string | null;
+  manifestPath: string | null;
+  packageJsonPath: string | null;
+  packageName: string | null;
+  metadata: {
+    name: string | null;
+    slug: string | null;
+    description: string | null;
+    category: string | null;
+    tags: string[];
+  };
+  template: {
+    id: string | null;
+    name: string | null;
+    description: string | null;
+    category: string | null;
+  };
 };
 
 export type AirJamQualityGate =
@@ -174,6 +200,30 @@ export type ListPlatformReleaseTargetsOptions = {
   token?: string;
 };
 
+export type ListPlatformGamesOptions = {
+  platformUrl?: string;
+  token?: string;
+};
+
+export type InspectPlatformGameOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+};
+
+export type CreatePlatformGameOptions = {
+  platformUrl?: string;
+  token?: string;
+  input: PlatformMachineCreateOwnedGameInput;
+};
+
+export type UpdatePlatformGameOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+  input: PlatformMachineUpdateOwnedGameInput;
+};
+
 export type ListPlatformReleasesOptions = {
   platformUrl?: string;
   token?: string;
@@ -212,6 +262,14 @@ export type ListPlatformReleasesResult = PlatformMachineListReleasesResult;
 export type InspectPlatformReleaseResult = PlatformMachineGetReleaseResult;
 
 export type PublishPlatformReleaseResult = PlatformMachinePublishReleaseResult;
+
+export type ListPlatformGamesResult = PlatformMachineListOwnedGamesResult;
+
+export type InspectPlatformGameResult = PlatformMachineGetOwnedGameResult;
+
+export type CreatePlatformGameResult = PlatformMachineCreateOwnedGameResult;
+
+export type UpdatePlatformGameResult = PlatformMachineUpdateOwnedGameResult;
 
 export type SubmitPlatformReleaseResult = {
   bundlePath: string;
