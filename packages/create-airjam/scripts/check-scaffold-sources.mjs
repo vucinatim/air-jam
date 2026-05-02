@@ -12,7 +12,6 @@ import {
 
 const AGENT_CONTRACT_PATH = "src/game/contracts/agent.ts";
 const CONFIG_PATH = "src/airjam.config.ts";
-const VISUAL_SCENARIOS_PATH = "src/game/contracts/visual-scenarios.ts";
 
 const readFileIfPresent = (filePath) =>
   fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : null;
@@ -108,20 +107,6 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
         );
       }
 
-      const sourceHasVisualScenarios = fs.existsSync(
-        path.join(gameDir, VISUAL_SCENARIOS_PATH),
-      );
-      const archiveHasVisualScenarios = archiveEntries.has(
-        VISUAL_SCENARIOS_PATH,
-      );
-      if (sourceHasVisualScenarios !== archiveHasVisualScenarios) {
-        missing.push(
-          sourceHasVisualScenarios
-            ? `scaffold template ${templateId} lost ${VISUAL_SCENARIOS_PATH} during packaging`
-            : `scaffold template ${templateId} unexpectedly added ${VISUAL_SCENARIOS_PATH} during packaging`,
-        );
-      }
-
       if (!configSource) {
         missing.push(
           `scaffold template ${templateId} is missing ${CONFIG_PATH}`,
@@ -130,9 +115,6 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
       }
 
       const declaresAgent = configSource.includes("agent:");
-      const declaresVisualScenarios = configSource.includes(
-        "visualScenariosModule:",
-      );
 
       if (sourceHasAgentContract !== declaresAgent) {
         missing.push(
@@ -142,11 +124,9 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
         );
       }
 
-      if (sourceHasVisualScenarios !== declaresVisualScenarios) {
+      if (configSource.includes("visualScenariosModule:")) {
         missing.push(
-          sourceHasVisualScenarios
-            ? `scaffold template ${templateId} ships ${VISUAL_SCENARIOS_PATH} but ${CONFIG_PATH} does not declare visualScenariosModule`
-            : `scaffold template ${templateId} declares visualScenariosModule without shipping ${VISUAL_SCENARIOS_PATH}`,
+          `scaffold template ${templateId} declares visualScenariosModule; visual harness is internal/experimental and must not ship in scaffolded templates`,
         );
       }
     }

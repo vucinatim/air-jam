@@ -7,8 +7,7 @@ Related docs:
 
 1. [Public Arcade Release Strategy](../strategy/public-arcade-release-strategy.md)
 2. [Deployment and Monetization Strategy](../strategy/deployment-and-monetization-strategy.md)
-3. [Air Jam MCP And Agent Devtools Plan](./air-jam-mcp-and-agent-devtools-plan.md)
-4. [Work Ledger](../work-ledger.md)
+3. [Work Ledger](../work-ledger.md)
 
 ## Purpose
 
@@ -72,7 +71,7 @@ The repo already has a real hosted-release foundation.
 11. focused tests now cover the remote release client sequence end to end, including draft creation, presigned upload handoff, finalize, and publish
 12. hosted release runtime gating is now explicit at the SDK topology boundary, so browser log sinks and preview-controller workspace do not auto-boot inside hosted/self-hosted production builds
 13. the platform moderation story is now intentionally fail-closed in docs as well as code: skipped moderation leaves the release failed instead of publishing with warnings
-14. hosted release HTML bootstrap now publishes one explicit `hosted-release` runtime topology for the current surface, and both the SDK resolver and harness runtime consume that before any looser env/window inference; a fresh local published Pong release no longer emits `__airjam/dev/harness/*` or `__airjam/dev/browser-logs` traffic and connects its host socket directly to the configured backend origin
+14. hosted release HTML bootstrap now publishes one explicit `hosted-release` runtime topology for the current surface, and runtime consumers use that before any looser env/window inference; a fresh local published Pong release no longer emits dev-control or browser-log traffic and connects its host socket directly to the configured backend origin
 15. release moderation now has one explicit policy switch: screenshot capture remains required, but `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=disabled` allows deterministic local capture-only releases to become `ready` without calling OpenAI, while `openai` remains the default mode for real automated image-policy enforcement
 16. that local capture-only path is now proven end to end too: a fresh generated Pong release finalized `ready`, published `live`, and recorded `artifact_validation: passed`, `screenshot_capture: passed`, and `image_moderation: warning`
 17. the hosted release CLI lane is now proven end to end against the local platform: real device auth, real submit, real finalize, real publish, and real hosted browser verification
@@ -509,7 +508,6 @@ This repo already has the right owners in place:
 3. `@air-jam/mcp-server` already has:
    - mode-aware tool registration
    - task support wiring in `src/server.ts`
-   - one existing task-backed tool (`airjam.capture_visuals`)
 
 That means Phase 4 should be additive and narrow:
 

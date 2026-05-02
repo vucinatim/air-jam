@@ -99,15 +99,11 @@ describe("createAirJamApp", () => {
       metadata,
       controllerPath: "controller",
       agent,
-      visualScenariosModule: "./game/contracts/visual-scenarios.ts",
     });
 
     expect(airjam.controllerPath).toBe("/controller");
     expect(airjam.metadata?.slug).toBe("fixture-game");
     expect(airjam.agent).toBe(agent);
-    expect(airjam.visualScenariosModule).toBe(
-      "./game/contracts/visual-scenarios.ts",
-    );
   });
 
   it("publishes and reads runtime inspection contracts through one SDK key", () => {

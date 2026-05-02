@@ -610,7 +610,6 @@ export const airjam = createAirJamApp({
   controllerPath: "/controller",
   // Optional agent-facing contracts belong here too.
   // agent: agentContract,
-  // visualScenariosModule: "./game/contracts/visual-scenarios.ts",
   input: {
     schema: gameInputSchema,
   },

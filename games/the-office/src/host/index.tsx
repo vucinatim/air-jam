@@ -7,16 +7,11 @@
  * host is just chrome over the networked `useSpaceStore` state plus the
  * match-clock / pending-task hooks in `./hooks/use-office-game-runtime`.
  */
-import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { AudioRuntime } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { useState } from "react";
-import { gameMetadata } from "../airjam.config";
-import { agentContract } from "../game/contracts/agent";
 import { OFFICE_SOUND_MANIFEST } from "../game/contracts/sounds";
-import { theOfficeVisualHarnessBridge } from "../game/contracts/visual-bridge";
-import { useSpaceStore } from "../game/stores";
 import { OfficeHostGameplaySurface } from "./components/host-gameplay-surface";
 import { OfficeHostOverlays } from "./components/host-overlays";
 import { OfficeHostPlayerStrip } from "./components/host-player-strip";
@@ -39,21 +34,6 @@ function OfficeHostScreen() {
 
   return (
     <>
-      <VisualHarnessRuntime
-        gameId={gameMetadata.slug}
-        agent={{
-          contract: agentContract,
-          stores: {
-            default: useSpaceStore,
-          },
-        }}
-        bridge={theOfficeVisualHarnessBridge}
-        context={{
-          host: session.host,
-          matchPhase: session.matchPhase,
-          runtimeState: session.runtimeState,
-        }}
-      />
       <SurfaceViewport className="bg-[#fdf6e3]">
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
           <OfficeHostTopHud timeRemainingMs={matchClock.timeRemainingMs} />

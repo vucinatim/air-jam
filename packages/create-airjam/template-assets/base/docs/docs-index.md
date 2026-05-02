@@ -39,7 +39,6 @@ For broader public framework docs, use the hosted docs site after checking these
 10. [R3F 3D Scene](./r3f-3d-scene.md)
 11. [Canvas 2D Gameplay](./canvas-2d-gameplay.md)
 12. [Preview Controllers](./preview-controllers.md)
-13. [Harness Visual Workflows](./harness-visual.md)
 
 ## Hosted Canonical Docs
 

@@ -319,17 +319,29 @@ describe("server game lifecycle", () => {
       "ctrl_switch_1",
     );
 
-    const secondPauseStatePromise = harness.waitForEvent<{
+    const secondPauseStatePromise = harness.waitForEventMatching<{
       roomId: string;
       state: { runtimeState: "paused" | "playing" };
-    }>(childHostTwo, "server:state", 2_000);
+    }>(
+      childHostTwo,
+      "server:state",
+      (payload) =>
+        payload.roomId === roomId && payload.state.runtimeState === "paused",
+      2_000,
+    );
     masterHost.emit("host:system", { roomId, command: "pause" });
     const secondPauseState = await secondPauseStatePromise;
 
-    const resumeStatePromise = harness.waitForEvent<{
+    const resumeStatePromise = harness.waitForEventMatching<{
       roomId: string;
       state: { runtimeState: "paused" | "playing" };
-    }>(childHostTwo, "server:state", 2_000);
+    }>(
+      childHostTwo,
+      "server:state",
+      (payload) =>
+        payload.roomId === roomId && payload.state.runtimeState === "playing",
+      2_000,
+    );
     masterHost.emit("host:system", { roomId, command: "resume" });
     const resumeState = await resumeStatePromise;
 

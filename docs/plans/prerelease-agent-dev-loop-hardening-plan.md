@@ -6,11 +6,8 @@ Status: active prerelease hardening, core startup/agent-guidance slice landed
 Related docs:
 
 1. [Work Ledger](../work-ledger.md)
-2. [Agent Control System Rewrite Plan](./agent-control-system-rewrite-plan.md)
-3. [Air Jam MCP And Agent Devtools Plan](./air-jam-mcp-and-agent-devtools-plan.md)
-4. [SDK Game Authoring Ergonomics Plan](./sdk-game-authoring-ergonomics-plan.md)
-5. [AI-Native Development Workflow](../systems/ai-native-development-workflow.md)
-6. [Harness Visual Contract](../systems/harness-visual-contract.md)
+2. [SDK Game Authoring Ergonomics Plan](./sdk-game-authoring-ergonomics-plan.md)
+3. [AI-Native Development Workflow](../systems/ai-native-development-workflow.md)
 
 ## Purpose
 
@@ -128,6 +125,7 @@ Landed in the first implementation slice:
 12. the packaged minimal scaffold already ships a wired `src/game/contracts/agent.ts` semantic contract, and create-airjam CLI tests now cover the new `status` and `reset local` recovery command help surfaces
 13. devtools-core now has direct coverage proving status reports unmanaged known-port listeners and `resetLocalDev` stops a likely stale local dev listener through an isolated test port, without touching real `4000`/`5173` processes
 14. the repo root now carries the same concrete local agent workflow through `AGENTS.md` and `CLAUDE.md`, so external agents testing this repo get the one-command dev path, preview-controller guidance, semantic-contract guidance, and reset/log recovery path before reading generated-template docs
+15. the separate visual-harness isolation pass is complete: generated projects and first-party games no longer present visual harness files, config, or guidance as part of the normal local agent-development path, and any remaining visual tooling is explicitly internal experimental infrastructure
 
 ## Workstream 1. One Dev Command
 
@@ -176,7 +174,7 @@ Tasks:
    - no host room/page is active
    - join URL cannot be resolved
    - room closed while connecting
-   - runtime or harness lease is held elsewhere
+   - runtime lease is held elsewhere
 2. include likely owner process/session details when available
 3. point failures at `airjam.status`, reset, and canonical logs
 4. avoid generic "another session may own the lease" messages when the actual issue is missing host state

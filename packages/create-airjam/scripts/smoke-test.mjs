@@ -312,7 +312,6 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       });
       cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
-      cliArgs.push(`--dep-spec=@air-jam/harness=file:${harnessTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/mcp-server=file:${mcpServerTarball}`);
       cliArgs.push(`--dep-spec=create-airjam=file:${createAirJamTarball}`);
       cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
@@ -338,9 +337,6 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       );
       cliArgs.push(
         `--dep-spec=@air-jam/server=link:${path.join(repoRoot, "packages", "server")}`,
-      );
-      cliArgs.push(
-        `--dep-spec=@air-jam/harness=link:${path.join(repoRoot, "packages", "harness")}`,
       );
       cliArgs.push(
         `--dep-spec=@air-jam/mcp-server=link:${path.join(repoRoot, "packages", "mcp-server")}`,

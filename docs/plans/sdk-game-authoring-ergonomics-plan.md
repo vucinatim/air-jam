@@ -242,7 +242,7 @@ What it does not do:
 
 1. it does not affect socket connection lifetime
 2. it does not stop controller input forwarding
-3. it does not power visual harness internals
+3. it does not power internal browser-proof tooling
 4. it does not provide a machine-readable agent contract
 5. it does not own game lifecycle truth
 

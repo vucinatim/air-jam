@@ -14,10 +14,6 @@ const serverPackageJsonPath = path.resolve(
   packageRoot,
   "../server/package.json",
 );
-const harnessPackageJsonPath = path.resolve(
-  packageRoot,
-  "../harness/package.json",
-);
 const mcpServerPackageJsonPath = path.resolve(
   packageRoot,
   "../mcp-server/package.json",
@@ -36,7 +32,6 @@ const manifest = {
   "create-airjam": readPackageVersion(createAirJamPackageJsonPath),
   "@air-jam/sdk": readPackageVersion(sdkPackageJsonPath),
   "@air-jam/server": readPackageVersion(serverPackageJsonPath),
-  "@air-jam/harness": readPackageVersion(harnessPackageJsonPath),
   "@air-jam/mcp-server": readPackageVersion(mcpServerPackageJsonPath),
 };
 

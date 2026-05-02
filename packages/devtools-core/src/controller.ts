@@ -1203,7 +1203,7 @@ export const connectController = async ({
     });
   } catch (error) {
     if (canUseIsolatedOwner && isRoomNotFoundJoinError(error)) {
-      const owner = await startIsolatedHarnessOwner({
+      const owner = await startIsolatedRuntimeOwner({
         cwd,
         gameId: harnessSession?.gameId ?? gameId,
         mode,
@@ -1219,7 +1219,7 @@ export const connectController = async ({
       return await connectWithJoinUrl({
         joinUrlString: owner.controllerJoinUrl,
         ownedHarnessProcess: owner.process,
-        snapshot: owner.snapshot,
+        snapshot: null,
       });
     }
 

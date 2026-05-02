@@ -237,7 +237,7 @@ Use the managed devtools flow for MCP and agent work:
 The rule is:
 
 1. both flows must reuse the same shared runtime owners in `packages/devtools-core/runtime/`
-2. neither flow should rebuild topology, stack startup, visual capture startup, or process helper logic privately
+2. neither flow should rebuild topology, stack startup, browser-proof startup, or process helper logic privately
 3. if behavior diverges, fix the shared runtime owner first
 4. only unify the lifecycle styles themselves if there is real user or agent friction; do not collapse them just to remove a distinction that is now legitimate
 

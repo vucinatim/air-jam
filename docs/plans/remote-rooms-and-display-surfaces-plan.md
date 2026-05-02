@@ -10,8 +10,7 @@ Related docs:
 3. [Deployment and Monetization Strategy](../strategy/deployment-and-monetization-strategy.md)
 4. [Public Arcade Release Strategy](../strategy/public-arcade-release-strategy.md)
 5. [Remote Rooms Prerelease Future-Proofing Plan](./remote-rooms-prerelease-future-proofing-plan.md)
-6. [Air Jam MCP And Agent Devtools Plan](./air-jam-mcp-and-agent-devtools-plan.md)
-7. [Work Ledger](../work-ledger.md)
+6. [Work Ledger](../work-ledger.md)
 
 ## Purpose
 
@@ -653,8 +652,7 @@ Features:
 8. interpolation helpers
 9. optional binding helpers for distributed-screen clients
 10. play-mode metadata for catalog and platform UX
-11. visual harness support for display surfaces
-12. docs and scaffold examples
+11. docs and scaffold examples
 
 This is the first phase where game authors may add `src/display/` or an equivalent distributed-screen surface.
 

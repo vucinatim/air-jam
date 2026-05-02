@@ -255,7 +255,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.inspect_game": {
       description:
-        "Inspect one Air Jam game, including config path, visual support, inferred controller route, and available quality gates.",
+        "Inspect one Air Jam game, including config path, inferred controller route, agent-facing metadata, and available quality gates.",
       inputSchema: INSPECT_GAME_INPUT_SCHEMA,
       run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
         withJsonText(await inspectGame({ cwd, gameId })),
@@ -456,14 +456,14 @@ export const buildToolDefinitions = ({
     },
     "airjam.list_visual_scenarios": {
       description:
-        "Load one game's visual scenario pack and list scenario ids plus harness action metadata for any published bridge controls.",
+        "Internal experimental visual harness tool: load one game's visual scenario pack and list scenario ids plus harness action metadata.",
       inputSchema: INSPECT_GAME_INPUT_SCHEMA,
       run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
         withJsonText(await listVisualScenarios({ cwd, gameId })),
     },
     "airjam.capture_visuals": {
       description:
-        "Run Air Jam visual capture for one game and return artifact metadata and screenshot paths.",
+        "Internal experimental visual harness tool: run Air Jam visual capture for one game and return artifact metadata and screenshot paths. Prefer embedded browser screenshots for normal visual proof.",
       inputSchema: captureVisualsInputSchema,
       execution: {
         taskSupport: "required",
@@ -473,7 +473,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.open_game_session": {
       description:
-        "Open one high-level Air Jam game session by connecting a virtual controller and discovering any published semantic or harness control surfaces for the same room.",
+        "Open one high-level Air Jam game session by connecting a virtual controller and discovering published semantic game actions for the same room.",
       inputSchema: openGameSessionInputSchema,
       run: async (input: z.infer<typeof openGameSessionInputSchema>) =>
         withJsonText(await openGameSession(input)),
@@ -487,7 +487,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.read_game_session": {
       description:
-        "Read one high-level Air Jam game session, including runtime controller state plus any available semantic game snapshot and harness snapshot surfaces.",
+        "Read one high-level Air Jam game session, including runtime controller state plus any available semantic game snapshot.",
       inputSchema: readGameSessionInputSchema,
       run: async (input: z.infer<typeof readGameSessionInputSchema>) =>
         withJsonText(await readGameSession(input)),
@@ -508,7 +508,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.list_visual_capture_summaries": {
       description:
-        "List existing Air Jam visual capture summaries already written under .airjam/artifacts/visual.",
+        "Internal experimental visual harness tool: list existing visual capture summaries already written under .airjam/artifacts/visual.",
       inputSchema: z.object({
         cwd: z.string().optional(),
       }),
@@ -517,7 +517,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.read_visual_capture_summary": {
       description:
-        "Read one Air Jam visual capture summary for a game from .airjam/artifacts/visual/<game>/capture-summary.json.",
+        "Internal experimental visual harness tool: read one visual capture summary for a game from .airjam/artifacts/visual/<game>/capture-summary.json.",
       inputSchema: INSPECT_GAME_INPUT_SCHEMA,
       run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
         withJsonText(await readVisualCaptureSummary({ cwd, gameId })),
@@ -547,15 +547,11 @@ export const getRegisteredToolNamesForProjectMode = (
       "airjam.status",
       "airjam.reset_local",
       "airjam.topology",
-      "airjam.list_visual_scenarios",
-      "airjam.capture_visuals",
       "airjam.open_game_session",
       "airjam.send_game_session_input",
       "airjam.read_game_session",
       "airjam.invoke_game_session_action",
       "airjam.close_game_session",
-      "airjam.list_visual_capture_summaries",
-      "airjam.read_visual_capture_summary",
     ] as const;
   }
 
@@ -580,15 +576,11 @@ export const getRegisteredToolNamesForProjectMode = (
       "airjam.status",
       "airjam.reset_local",
       "airjam.topology",
-      "airjam.list_visual_scenarios",
-      "airjam.capture_visuals",
       "airjam.open_game_session",
       "airjam.send_game_session_input",
       "airjam.read_game_session",
       "airjam.invoke_game_session_action",
       "airjam.close_game_session",
-      "airjam.list_visual_capture_summaries",
-      "airjam.read_visual_capture_summary",
     ] as const;
   }
 

@@ -35,7 +35,7 @@ The target is a game that reads as a proper Air Jam reference implementation:
 10. match-end transition checks
 11. simulation stepping
 12. rendering
-13. visual harness runtime context
+13. local preview/runtime context
 14. lobby overlay UI
 15. ended overlay UI
 16. paused overlay UI
@@ -250,7 +250,7 @@ Steps:
 8. Extract lobby overlay to `host/components/lobby-screen.tsx`.
 9. Extract ended overlay to `host/components/ended-screen.tsx`.
 10. Extract pause overlay to `host/components/paused-overlay.tsx`.
-11. Keep `host/index.tsx` responsible for `AudioRuntime`, visual harness, music playlist, surface composition, phase switching, and preview workspace.
+11. Keep `host/index.tsx` responsible for `AudioRuntime`, music playlist, surface composition, phase switching, and preview workspace.
 
 Completed:
 

@@ -13,9 +13,8 @@ The project-local Air Jam MCP is the intended agent-facing path for:
 3. canonical log reads
 4. dev process lifecycle and status
 5. runtime topology inspection
-6. visual scenario discovery
-7. visual capture execution and artifact inspection
-8. quality-gate execution
+6. live game-session reads and semantic action invocation
+7. quality-gate execution
 
 The goal is to keep agents on explicit Air Jam contracts instead of forcing them to rediscover repo commands.
 
@@ -39,15 +38,12 @@ Use the Air Jam MCP first for:
 5. `start_dev`
 6. `status`
 7. `topology`
-8. `list_visual_scenarios`
-9. `capture_visuals`
-10. `open_game_session`
-11. `send_game_session_input`
-12. `read_game_session`
-13. `invoke_game_session_action`
-14. `close_game_session`
-15. `run_quality_gate`
-16. visual capture summary inspection
+8. `open_game_session`
+9. `send_game_session_input`
+10. `read_game_session`
+11. `invoke_game_session_action`
+12. `close_game_session`
+13. `run_quality_gate`
 
 Use direct shell commands only when:
 
@@ -86,13 +82,9 @@ For runtime or multiplayer issues:
 11. if an isolated harness or runtime ownership tool times out, check Air Jam status/log/reset tooling before treating it as gameplay bug
 12. after editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state
 
-## Visual Staging Rule
+## Semantic Staging Rule
 
 `src/game/contracts/agent.ts` is the primary agent-facing contract.
-
-`src/game/contracts/visual-scenarios.ts` is the default visual-proof entrypoint.
-
-`src/game/contracts/visual-bridge.ts` is optional. Use it only when a game needs a small runtime-local bridge that should stay separate from semantic agent actions.
 
 When you own the game code and the existing host staging surface is too thin:
 
@@ -103,13 +95,10 @@ When you own the game code and the existing host staging surface is too thin:
 5. if the verb is a host-owned staging/reset action rather than a player verb, publish it with `agentAction.host(...)` so it becomes a canonical `host:*` session action instead of a bridge action
 6. `resultDescription` should describe the expected semantic effect for agents and humans; it is not automatic runtime result data
 7. if a semantic action must return actual runtime result data, the underlying store action should return `acceptAirJamAction(result)` and callers should read that result from the acknowledgement or session action response
-8. add a bridge action only when the scenario truly needs runtime-local visual/bootstrap behavior that does not belong in the semantic contract
 
 ## Semantic Game Rule
 
 If the scaffolded template includes `src/game/contracts/agent.ts`, treat `src/airjam.config.ts` as the canonical agent manifest and the template-owned contract file as the portable implementation it wires through `agent`.
-
-If the template includes visual scenarios, the same config should explicitly declare `visualScenariosModule` instead of making devtools guess a convention path.
 
 That contract is template-owned. Do not create a second generated agent surface on top of it, and do not rely on devtools guessing its filesystem path when the config already declares it.
 
@@ -126,8 +115,6 @@ If a clean-slate project does not ship those files yet but the game is growing b
 1. add `src/game/contracts/agent.ts` early
 2. wire it through `src/airjam.config.ts` `agent`
 3. publish a small semantic action set for the important game verbs instead of leaving them implicit in visible UI only
-4. add `src/game/contracts/visual-scenarios.ts` once repeatable visual proof becomes useful
-5. add `src/game/contracts/visual-bridge.ts` only if those scenarios still need a true runtime-local bridge
 
 ## Quality Rule
 
@@ -136,9 +123,7 @@ Before finishing meaningful work:
 1. run the smallest matching `airjam.run_quality_gate`
 2. prefer focused checks first
 3. broaden to the heavier project checks only when the change warrants it
-4. for host/controller UI or gameplay presentation changes, run `airjam.capture_visuals` before sign-off
-5. `airjam.capture_visuals` is a task-backed MCP tool; use a task-capable client flow for long-running captures instead of assuming a plain blocking request
-6. if your MCP client cannot execute task-backed tools, switch to a task-capable MCP client or run the equivalent Air Jam CLI or repo visual command directly
+4. for host/controller UI or gameplay presentation changes, verify the visible browser preview before sign-off
 
 ## Notes
 

@@ -96,7 +96,7 @@ Current mapping:
 1. remaining implementation work currently means:
    1. no broad feature implementation plan remains active
    2. the only active late implementation/improvement track is [Final Prerelease Hardening And Cleanup Plan](./final-prerelease-hardening-and-cleanup-plan.md)
-   3. deferred visual-harness-driven cleanup stays in Stage 3 polish or later cleanup, not Stage 1 implementation
+   3. deferred browser-proof and polish cleanup stays in Stage 3 polish or later cleanup, not Stage 1 implementation
 2. prerelease devex and SDK checks should happen after cleanup/polish, not before unfinished implementation
 3. prerelease security checks should happen after the product shape is settled enough that findings do not churn with large feature edits
 4. hosted upload, media/blogs, deployment, and launch distribution are late-stage release execution, not active prerelease implementation
@@ -231,7 +231,7 @@ These are already done enough that they should not stay as parallel prerelease t
 7. public Arcade hosted release lane, managed media lane, moderation/reporting hooks, and dashboard IA reset baseline
 8. shared preview controllers across platform, repo-host, and scaffold-host flows
 9. prerelease SDK surface classification is complete: exported experimental leaves are explicit, and the machine-facing runtime-control/runtime-inspection/runtime-observability/contracts-v2 seams remain intentionally private until a first-party consumer lands
-10. systems closeout is complete enough to archive: SDK/runtime cleanup is done, built-mode visual capture reuses unchanged game builds, and deferred harness cleanup now belongs to the later polish stage
+10. systems closeout is complete enough to archive: SDK/runtime cleanup is done, browser proof infrastructure is stable enough for prerelease, and deferred experimental cleanup now belongs to the later polish stage
 
 ## Completed Baselines (Phases 1–5)
 

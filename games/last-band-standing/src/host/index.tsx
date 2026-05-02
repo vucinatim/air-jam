@@ -7,16 +7,11 @@
  * wrapper in `./youtube` handles cued playback without exposing
  * the iframe API directly to the rest of the code.
  */
-import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { AudioRuntime } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { AnimatePresence } from "framer-motion";
-import { gameMetadata } from "../airjam.config";
-import { agentContract } from "../game/contracts/agent";
 import { soundManifest } from "../game/contracts/sounds";
-import { lastBandStandingVisualHarnessBridge } from "../game/contracts/visual-bridge";
-import { useGameStore } from "../game/stores";
 import { FullscreenToggle } from "./components/fullscreen-toggle";
 import { HostGameOver } from "./components/host-game-over";
 import { HostLobby } from "./components/host-lobby";
@@ -39,21 +34,6 @@ const HostScreen = () => {
 
   return (
     <>
-      <VisualHarnessRuntime
-        gameId={gameMetadata.slug}
-        agent={{
-          contract: agentContract,
-          stores: {
-            default: useGameStore,
-          },
-        }}
-        bridge={lastBandStandingVisualHarnessBridge}
-        context={{
-          host: runtime.host,
-          matchPhase: runtime.shellPhase,
-          runtimeState: runtime.runtimeState,
-        }}
-      />
       <SurfaceViewport className="bg-background">
         <main className="bg-background text-foreground flex h-full w-full flex-col overflow-hidden">
           {runtime.phase !== "lobby" && <HostTopBar />}

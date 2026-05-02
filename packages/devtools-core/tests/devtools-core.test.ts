@@ -114,7 +114,7 @@ const createStandaloneDevFixture = async (): Promise<{
   port: number;
 }> => {
   const root = await createTempRoot();
-  const port = 43251;
+  const port = await getAvailablePort();
   await writeJson(path.join(root, "package.json"), {
     name: "solo-fixture",
     type: "module",
@@ -705,7 +705,6 @@ describe("inspectProject", () => {
       "games",
       "logs",
       "runtime",
-      "visual",
       "quality",
       "ai-pack",
     ]);
@@ -734,37 +733,9 @@ describe("listGames and inspectGame", () => {
     expect(game.configPath).toMatch(/src\/airjam\.config\.ts$/);
     expect(game.metadataExportLikely).toBe(true);
     expect(game.controllerPathLikely).toBe("/controller");
-    expect(game.visual.hasContract).toBe(true);
+    expect(game).not.toHaveProperty("visual");
     expect(game.qualityGates).toContain("typecheck");
     expect(game.qualityGates).toContain("release-check");
-  });
-
-  it("does not infer visual agent support from a file that config does not publish", async () => {
-    const root = await createTempRoot();
-    await writeJson(path.join(root, "package.json"), {
-      name: "unpublished-visual-fixture",
-      type: "module",
-      dependencies: {
-        "@air-jam/sdk": "^1.0.0",
-      },
-    });
-    await mkdir(path.join(root, "src"), { recursive: true });
-    await mkdir(path.join(root, "visual"), { recursive: true });
-    await writeFile(
-      path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { controllerPath: "/controller" };\n',
-      "utf8",
-    );
-    await writeFile(
-      path.join(root, "visual", "scenarios.ts"),
-      "export const visualHarness = { gameId: 'unpublished-visual-fixture', bridge: { gameId: 'unpublished-visual-fixture', actions: {} }, scenarios: [] };\n",
-      "utf8",
-    );
-
-    const game = await inspectGame({ cwd: root });
-
-    expect(game.visual.hasContract).toBe(false);
-    expect(game.visual.hasScenarios).toBe(false);
   });
 
   it("lists the current game in standalone mode", async () => {
@@ -945,22 +916,52 @@ process.on("SIGINT", shutdown);
 });
 
 describe("visual scenarios", () => {
-  it("lists game-owned visual scenarios for a repo game", async () => {
+  it("does not publish visual scenarios for repo games by default", async () => {
+    await expect(
+      listVisualScenarios({
+        cwd: path.resolve(__dirname, "../../.."),
+        gameId: "pong",
+      }),
+    ).rejects.toThrow(/No visual harness published/);
+  });
+
+  it("lists explicitly published visual scenarios for an internal fixture", async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      name: "published-visual-fixture",
+      type: "module",
+      dependencies: {
+        "@air-jam/sdk": "^1.0.0",
+      },
+    });
+    await mkdir(path.join(root, "src", "game", "contracts"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(root, "src", "airjam.config.ts"),
+      'export const airjam = { metadata: { slug: "published-visual-fixture" }, controllerPath: "/controller", visualScenariosModule: "./game/contracts/visual-scenarios" };\n',
+      "utf8",
+    );
+    await writeFile(
+      path.join(root, "src", "game", "contracts", "visual-scenarios.ts"),
+      "export const visualHarness = { agent: {}, scenarios: [{ id: 'lobby', description: 'Lobby state', run: async () => {} }] };\n",
+      "utf8",
+    );
+
     const scenarios = await listVisualScenarios({
-      cwd: path.resolve(__dirname, "../../.."),
-      gameId: "pong",
+      cwd: root,
     });
 
-    expect(scenarios.gameId).toBe("pong");
+    expect(scenarios.gameId).toBe("published-visual-fixture");
     expect(scenarios.hasBridgeActions).toBe(false);
     expect(scenarios.scenarioModulePath).toMatch(
-      /game\/contracts\/visual-scenarios\.ts$/,
+      /game\/contracts\/visual-scenarios(?:\.ts)?$/,
     );
     expect(scenarios.bridgeActions).toEqual([]);
     expect(scenarios.actionMetadata).toEqual([]);
-    expect(scenarios.scenarios.map((scenario) => scenario.scenarioId)).toEqual(
-      expect.arrayContaining(["lobby", "playing", "ended"]),
-    );
+    expect(scenarios.scenarios.map((scenario) => scenario.scenarioId)).toEqual([
+      "lobby",
+    ]);
   });
 
   it("does not fall back to visual scenario files when config does not publish them", async () => {
@@ -1423,7 +1424,7 @@ describe("agent contracts", () => {
     await disconnectController({
       controllerSessionId: connected.controllerSessionId,
     });
-  });
+  }, 20_000);
 
   it("does not infer an agent contract from a file that config does not publish", async () => {
     const root = await createTempRoot();

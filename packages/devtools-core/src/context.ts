@@ -153,7 +153,6 @@ const collectCapabilities = (
       "games",
       "logs",
       "runtime",
-      "visual",
       "quality",
       "repo-workspace",
       "ai-pack",
@@ -161,15 +160,7 @@ const collectCapabilities = (
   }
 
   if (context.mode === "standalone-game") {
-    return [
-      "project",
-      "games",
-      "logs",
-      "runtime",
-      "visual",
-      "quality",
-      "ai-pack",
-    ];
+    return ["project", "games", "logs", "runtime", "quality", "ai-pack"];
   }
 
   return ["project"];

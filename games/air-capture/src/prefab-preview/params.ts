@@ -1,5 +1,3 @@
-import type { PrefabCaptureVariants } from "@air-jam/harness/visual";
-
 export const AIR_CAPTURE_PREFAB_CAPTURE_SURFACE = "prefab";
 export const AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID =
   "air-capture-prefab-capture-stage";
@@ -14,7 +12,7 @@ export const buildAirCapturePrefabCaptureUrl = ({
 }: {
   hostUrl: string;
   prefabId: string;
-  variants: PrefabCaptureVariants;
+  variants: Record<string, string>;
 }): string => {
   const url = new URL(hostUrl);
   url.searchParams.set(

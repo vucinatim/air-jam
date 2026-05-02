@@ -500,6 +500,7 @@ describe("server room lifecycle", () => {
     );
     expect(firstJoinAck.ok).toBe(true);
     controllerA.disconnect();
+    await harness.expectNoEvent(host, "server:controllerLeft", 15);
 
     const controllerB = await harness.connectSocket();
     const conflictAck = await harness.emitWithAck<ControllerJoinAck>(

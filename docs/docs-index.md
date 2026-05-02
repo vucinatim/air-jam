@@ -19,7 +19,6 @@ Core system docs:
 7. [Environment Contracts](./systems/env-contracts.md)
 8. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
 9. [Composition Shell Contract](./systems/composition-shell-contract.md)
-10. [Visual Proof And Host Staging Contract](./systems/harness-visual-contract.md)
 
 Strategy and operations:
 
@@ -45,10 +44,8 @@ Active architecture cleanup plans:
 
 Planned future architecture tracks:
 
-1. [Air Jam MCP And Agent Devtools Plan](./plans/air-jam-mcp-and-agent-devtools-plan.md)
-2. [Agent Control System Rewrite Plan](./plans/agent-control-system-rewrite-plan.md)
-3. [Remote Rooms And Display Surfaces Plan](./plans/remote-rooms-and-display-surfaces-plan.md)
-4. [Hosted Release CLI And MCP Plan](./plans/hosted-release-cli-and-mcp-plan.md)
+1. [Remote Rooms And Display Surfaces Plan](./plans/remote-rooms-and-display-surfaces-plan.md)
+2. [Hosted Release CLI And MCP Plan](./plans/hosted-release-cli-and-mcp-plan.md)
 
 Prerelease future-proofing guides:
 
@@ -88,14 +85,16 @@ Archived recent baseline plans and completed implementation snapshots:
 9. [Showcase Games Release Readiness Plan](./archive/showcase-games-release-readiness-plan-2026-04-09.md)
 10. [Showcase Games Release Readiness Checklist](./archive/showcase-games-release-readiness-checklist-2026-04-09.md)
 11. [SDK Extraction Clean-Swap Plan](./archive/sdk-extraction-clean-swap-plan-2026-04-09.md)
-12. [Visual Review Harness Plan](./archive/visual-review-harness-plan-2026-04-09.md)
-13. [Controller Preview Dock Plan](./archive/controller-preview-dock-plan-2026-04-09.md)
-14. [Controller Preview Workspace Plan](./archive/controller-preview-workspace-plan-2026-04-14.md)
-15. [Agent Runtime Contract Plan](./archive/agent-runtime-contract-plan-2026-04-09.md)
-16. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
-17. [Game UI Scaling Plan](./archive/game-ui-scaling-plan-2026-04-15.md)
-18. [Stage 3 Polish Plan](./archive/stage-3-polish-plan-2026-04-15.md)
-19. [SDK Audio And Music Standardization Plan](./archive/sdk-audio-and-music-standardization-plan-2026-04-19.md)
+12. [Controller Preview Dock Plan](./archive/controller-preview-dock-plan-2026-04-09.md)
+13. [Controller Preview Workspace Plan](./archive/controller-preview-workspace-plan-2026-04-14.md)
+14. [Agent Runtime Contract Plan](./archive/agent-runtime-contract-plan-2026-04-09.md)
+15. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
+16. [Game UI Scaling Plan](./archive/game-ui-scaling-plan-2026-04-15.md)
+17. [Stage 3 Polish Plan](./archive/stage-3-polish-plan-2026-04-15.md)
+18. [SDK Audio And Music Standardization Plan](./archive/sdk-audio-and-music-standardization-plan-2026-04-19.md)
+19. [Visual Harness Isolation Plan](./archive/visual-harness-isolation-plan-2026-05-02.md)
+20. [Agent Control System Rewrite Plan](./archive/agent-control-system-rewrite-plan-2026-05-02.md)
+21. [Air Jam MCP And Agent Devtools Plan](./archive/air-jam-mcp-and-agent-devtools-plan-2026-05-02.md)
 
 Completed transitions / reference plans:
 

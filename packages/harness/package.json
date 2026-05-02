@@ -1,7 +1,7 @@
 {
   "name": "@air-jam/harness",
   "version": "1.0.0",
-  "description": "Air Jam harness contracts and visual capture runtime",
+  "description": "Air Jam internal automation support",
   "private": false,
   "type": "module",
   "license": "MIT",

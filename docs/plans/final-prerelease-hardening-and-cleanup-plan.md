@@ -182,7 +182,7 @@ Rules:
 
 Done when:
 
-1. `air-capture` no longer carries avoidable dev-harness ownership in its shipped app path
+1. `air-capture` no longer carries avoidable dev-runtime ownership in its shipped app path
 2. every kept experimental export has a documented reason to exist now
 3. this pass ends with a cleaner release surface, not a larger architecture debate
 

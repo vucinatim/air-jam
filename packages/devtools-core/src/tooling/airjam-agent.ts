@@ -12,6 +12,10 @@ type AirJamConfigModule = {
   default?: AirJamApp;
 };
 
+type InternalVisualHarnessDeclaration = {
+  visualScenariosModule?: unknown;
+};
+
 const readPublishedAgent = (
   airjam: AirJamApp,
 ): {
@@ -19,7 +23,11 @@ const readPublishedAgent = (
   visualScenariosModule: string | null;
 } => ({
   agent: airjam.agent ?? null,
-  visualScenariosModule: airjam.visualScenariosModule ?? null,
+  visualScenariosModule:
+    ((airjam as InternalVisualHarnessDeclaration).visualScenariosModule as
+      | string
+      | null
+      | undefined) ?? null,
 });
 
 const isVisualScenarioPack = (

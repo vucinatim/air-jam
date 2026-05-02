@@ -19,11 +19,8 @@ Prefer the Air Jam MCP for:
 2. unified dev log reads
 3. dev process start/stop/status
 4. topology inspection
-5. visual scenario discovery
-6. visual capture execution
-7. live game-session reads and host staging action invocation
-8. quality gates
-9. visual capture summary inspection
+5. live game-session reads and host staging action invocation
+6. quality gates
 
 If the game does not yet expose the control an agent needs, prefer adding a small game-owned host staging action over automating the visible browser UI.
 
@@ -41,8 +38,6 @@ After editing host-only runtime refs, physics loops, or `useHostActionListener` 
 Use secondary browser MCPs such as Chrome DevTools only when that first-party browser tooling is unavailable or when lower-level DOM, network, or performance inspection is required.
 
 If a clean-slate project becomes non-trivial, add a small `src/game/contracts/agent.ts` surface and wire it through `src/airjam.config.ts` `agent` before the game's important semantics drift into UI-only flows.
-
-Remember that `airjam.capture_visuals` is task-backed. If your MCP client cannot execute task-backed tools, switch to a task-capable client or run the equivalent Air Jam CLI or repo visual command directly.
 
 Prefer direct shell commands for:
 

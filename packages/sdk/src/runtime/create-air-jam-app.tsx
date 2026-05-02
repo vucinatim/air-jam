@@ -53,14 +53,6 @@ export interface CreateAirJamAppOptions<
    * Optional semantic agent contract published by the app.
    */
   agent?: AirJamAgentContract;
-  /**
-   * Explicit module specifier for the app's visual scenario pack.
-   *
-   * This stays as a module reference instead of an imported object because
-   * visual scenario packs are Node-only authoring artifacts that should not
-   * be pulled into the browser bundle through `airjam.config.ts`.
-   */
-  visualScenariosModule?: string;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -82,7 +74,6 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   controllerPath: string;
   capabilities?: AirJamGameCapabilityManifest;
   agent?: AirJamAgentContract;
-  visualScenariosModule?: string;
 }
 
 const resolveControllerPath = (controllerPath?: string): string => {
@@ -190,7 +181,6 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   controllerPath: requestedControllerPath,
   capabilities,
   agent,
-  visualScenariosModule,
   input,
   errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
@@ -266,6 +256,5 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     controllerPath,
     capabilities,
     agent,
-    visualScenariosModule,
   };
 };

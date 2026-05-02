@@ -7,9 +7,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 1. `src/airjam.config.ts`
 2. `src/game/contracts/agent.ts` if it exists
 3. `docs/state-lanes-cookbook.md` when you are deciding where state or effects belong
-4. `src/game/contracts/visual-scenarios.ts` if it exists
-5. `src/game/contracts/visual-bridge.ts` only if it exists too
-6. `docs/agent-mcp.md` when you need exact MCP operations
+4. `docs/agent-mcp.md` when you need exact MCP operations
 
 ## Five-Step Mental Model
 
@@ -17,7 +15,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 2. Need structured game state: use `airjam.open_game_session` then `airjam.read_game_session`.
 3. Need to trigger a semantic game verb: use `airjam.invoke_game_session_action` with a `player:*` action id.
 4. Need deterministic host staging or reset actions: use `host:*` session actions when the game exposes them.
-5. Need repeatable screenshots or visual proof: use visual scenarios and `airjam.capture_visuals`.
+5. Need visual proof: use the embedded browser or browser tooling screenshots.
 
 ## Launch Rule
 
@@ -31,16 +29,10 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 ## Canonical Files
 
 `src/airjam.config.ts`
-: Declares the runtime, metadata, controller path, semantic game contract, and optional visual scenarios.
+: Declares the runtime, metadata, controller path, and semantic game contract.
 
 `src/game/contracts/agent.ts`
 : Owns the semantic agent contract. Keep snapshot projection and semantic actions here.
-
-`src/game/contracts/visual-scenarios.ts`
-: Optional Playwright-side visual capture scenarios. Prefer `context.agent.invoke(...)` for semantic setup and keep bridge usage limited to runtime-local visual/bootstrap state.
-
-`src/game/contracts/visual-bridge.ts`
-: Optional browser-safe runtime-local bridge for visual workflows that cannot be expressed cleanly through the semantic agent contract.
 
 ## Action Rules
 
@@ -57,9 +49,8 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 
 ## Import Rules
 
-1. Browser/runtime code imports harness runtime symbols from `@air-jam/harness/runtime`.
-2. Visual scenario files import Playwright-side helpers from `@air-jam/harness/visual`.
-3. If you need imperative live replicated state in React-owned agent code, use `useStore.useLiveStateRef()`.
+1. Browser/runtime code imports runtime symbols from the normal Air Jam packages used by the template.
+2. If you need imperative live replicated state in React-owned agent code, use `useStore.useLiveStateRef()`.
 
 ## Browser + MCP Pairing
 
@@ -70,8 +61,3 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 5. Add multiple preview controllers from the host preview workspace when you need multiple local players; do not open unrelated OS browser tabs unless the user asks for tabs.
 6. Use visible preview controllers for UI smoke proof with real browser click/drag/release gestures.
 7. Do not synthesize pointer events into controller iframes from parent-page eval; use semantic game actions when reliable gameplay proof matters.
-
-## Task-Backed Rule
-
-`airjam.capture_visuals` is task-backed. Use a task-capable MCP client flow for it.
-If your current client cannot run task-backed MCP tools, use a task-capable client or a direct Air Jam CLI/repo visual command instead of treating that limitation as a game bug.

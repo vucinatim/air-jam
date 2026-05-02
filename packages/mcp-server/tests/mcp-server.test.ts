@@ -105,9 +105,6 @@ describe("createAirJamMcpServer", () => {
       "airjam.inspect_game_agent_contract",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
-      "airjam.list_visual_scenarios",
-    );
-    expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.open_game_session",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
@@ -140,17 +137,17 @@ describe("createAirJamMcpServer", () => {
     expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.invoke_game_action",
     );
-    expect(
-      listed.tools.find((tool) => tool.name === "airjam.capture_visuals")
-        ?.execution,
-    ).toEqual({
-      taskSupport: "required",
-    });
-    expect(
-      listed.tools.find((tool) => tool.name === "airjam.capture_visuals")
-        ?.description,
-    ).toContain(
-      "Requires an MCP client with task-backed tool execution support.",
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.list_visual_scenarios",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.capture_visuals",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.list_visual_capture_summaries",
+    );
+    expect(listed.tools.map((tool) => tool.name)).not.toContain(
+      "airjam.read_visual_capture_summary",
     );
   });
 

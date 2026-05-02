@@ -34,9 +34,8 @@ This plan starts only after:
 Current automated prerequisite status:
 
 1. full `pnpm run check:release` passed on 2026-04-19 against the prerelease state before the late Arcade navbar, controller UI, preview-controller, local CSP, and controller idle-layout fixes; focused platform security tests, SDK viewport tests/build, platform typecheck, and platform production build passed after those fixes
-2. all five launch games have green automated `arcade-built` visual captures
-3. `air-capture` has a green automated secure `arcade-built` visual capture
-4. the remaining work in this plan is intentionally manual product proof, hosted upload proof, live deploy validation, and final go / no-go recording
+2. all five launch games have prior automated browser proof artifacts from the prerelease hardening pass
+3. the remaining work in this plan is intentionally manual product proof, hosted upload proof, live deploy validation, and final go / no-go recording
 
 ## Scope
 

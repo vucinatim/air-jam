@@ -8,7 +8,6 @@ import {
   readPackageJson,
   resolveCandidatePath,
 } from "./fs-utils.js";
-import { inspectAirJamAgentConfig } from "./tooling/airjam-agent-inspection.js";
 import type {
   AirJamGameInspection,
   AirJamGameSummary,
@@ -44,33 +43,6 @@ const getConfigPath = async (rootDir: string): Promise<string | null> =>
     "airjam.config.mjs",
   ]);
 
-const getVisualSupport = async ({
-  rootDir,
-  configPath,
-}: {
-  rootDir: string;
-  configPath: string | null;
-}): Promise<AirJamGameSummary["visual"]> => {
-  const explicitVisualScenarios = configPath
-    ? await inspectAirJamAgentConfig(configPath)
-        .then((inspection) => inspection.visualScenariosModulePath)
-        .catch(() => null)
-    : null;
-
-  return {
-    hasContract: Boolean(explicitVisualScenarios),
-    hasScenarios: Boolean(explicitVisualScenarios),
-    hasPrefabs: Boolean(
-      await resolveCandidatePath(rootDir, [
-        "visual/prefabs.ts",
-        "visual/prefabs.tsx",
-        "visual/prefabs.js",
-        "visual/prefabs.mjs",
-      ]),
-    ),
-  };
-};
-
 const readRepoGameSummary = async (
   rootDir: string,
 ): Promise<AirJamGameSummary | null> => {
@@ -96,7 +68,6 @@ const readRepoGameSummary = async (
     scaffold: toBooleanOrNull(manifest.scaffold),
     manifestPath,
     configPath,
-    visual: await getVisualSupport({ rootDir, configPath }),
   };
 };
 
@@ -116,10 +87,6 @@ const readStandaloneGameSummary = async (
     scaffold: null,
     manifestPath: null,
     configPath,
-    visual: await getVisualSupport({
-      rootDir: context.rootDir,
-      configPath,
-    }),
   };
 };
 

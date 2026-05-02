@@ -8,8 +8,7 @@ Related docs:
 1. [Work Ledger](../work-ledger.md)
 2. [V1 Release Launch Plan](./v1-release-launch-plan.md)
 3. [Final Release Checks Plan](./final-release-checks-plan.md)
-4. [Air Jam MCP And Agent Devtools Plan](./air-jam-mcp-and-agent-devtools-plan.md)
-5. [SDK Game Authoring Ergonomics Plan](./sdk-game-authoring-ergonomics-plan.md)
+4. [SDK Game Authoring Ergonomics Plan](./sdk-game-authoring-ergonomics-plan.md)
 
 ## Purpose
 

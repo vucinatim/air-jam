@@ -37,6 +37,12 @@ export interface ServerTestHarness {
     event: string,
     timeoutMs?: number,
   ) => Promise<TPayload>;
+  waitForEventMatching: <TPayload>(
+    socket: GenericSocket,
+    event: string,
+    predicate: (payload: TPayload) => boolean,
+    timeoutMs?: number,
+  ) => Promise<TPayload>;
   expectNoEvent: (
     socket: GenericSocket,
     event: string,
@@ -160,6 +166,32 @@ export const setupServerTestHarness = (
     });
   };
 
+  const waitForEventMatching = async <TPayload>(
+    socket: GenericSocket,
+    event: string,
+    predicate: (payload: TPayload) => boolean,
+    timeoutMs = 750,
+  ): Promise<TPayload> => {
+    return await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        socket.off(event, onEvent);
+        reject(new Error(`Timed out waiting for matching ${event}`));
+      }, timeoutMs);
+
+      const onEvent = (...args: unknown[]) => {
+        const payload = args[0] as TPayload;
+        if (!predicate(payload)) {
+          return;
+        }
+        clearTimeout(timeout);
+        socket.off(event, onEvent);
+        resolve(payload);
+      };
+
+      socket.on(event, onEvent);
+    });
+  };
+
   const expectNoEvent = async (
     socket: GenericSocket,
     event: string,
@@ -189,6 +221,7 @@ export const setupServerTestHarness = (
     bootstrapHost,
     emitWithAck,
     waitForEvent,
+    waitForEventMatching,
     expectNoEvent,
     delay,
     getBaseUrl: () => baseUrl,

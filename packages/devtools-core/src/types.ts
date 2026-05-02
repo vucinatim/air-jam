@@ -41,7 +41,6 @@ export type AirJamCapabilityGroup =
   | "games"
   | "logs"
   | "runtime"
-  | "visual"
   | "quality"
   | "repo-workspace"
   | "ai-pack";
@@ -69,11 +68,6 @@ export type AirJamGameSummary = {
   scaffold: boolean | null;
   manifestPath: string | null;
   configPath: string | null;
-  visual: {
-    hasContract: boolean;
-    hasScenarios: boolean;
-    hasPrefabs: boolean;
-  };
 };
 
 export type AirJamGameInspection = AirJamGameSummary & {

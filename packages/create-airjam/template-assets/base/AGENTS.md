@@ -63,14 +63,12 @@ Use the one that matches the current problem.
 Use the Air Jam MCP first for Air Jam-native workflows:
 
 1. inspect the project and available games
-2. inspect one game's config and visual support
+2. inspect one game's config and semantic agent contract
 3. read the canonical unified dev logs
 4. start dev, inspect dev status, and inspect runtime topology
-5. list visual scenarios and run visual captures
-6. read live game-session snapshots and invoke host staging actions when a game exposes them
-7. run focused quality gates
-8. inspect visual capture summaries when they exist
-9. read action metadata before guessing payloads or intended effects
+5. read live game-session snapshots and invoke host staging actions when a game exposes them
+6. run focused quality gates
+7. read action metadata before guessing payloads or intended effects
 
 Start with:
 
@@ -101,11 +99,8 @@ For local host/controller UI work:
 When a clean-slate game stops being trivial:
 
 1. add `src/game/contracts/agent.ts` and wire it through `src/airjam.config.ts` `agent` once the game has named phases, semantic actions, or non-trivial lobby/setup rules
-2. add `src/game/contracts/visual-scenarios.ts` once repeatable visual proof would materially help iteration
-3. add `src/game/contracts/visual-bridge.ts` only if those scenarios still need a true runtime-local visual/bootstrap bridge
-4. prefer these small explicit agent seams over leaving important semantics trapped in UI-only flows
-5. remember that `airjam.capture_visuals` is task-backed; if your MCP client cannot execute task-backed tools, switch to a task-capable client or run the equivalent Air Jam CLI or repo visual command directly
-6. make multiplayer games startable or ready-able from controllers; the host screen should not be the only place where play begins
+2. prefer these small explicit agent seams over leaving important semantics trapped in UI-only flows
+3. make multiplayer games startable or ready-able from controllers; the host screen should not be the only place where play begins
 
 ## Game Agent Contract Rule
 

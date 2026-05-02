@@ -1,6 +1,10 @@
 import path from "node:path";
 import { loadAirJamAppConfig } from "./airjam-agent.js";
 
+type InternalVisualHarnessDeclaration = {
+  visualScenariosModule?: unknown;
+};
+
 export type AirJamAgentDeclaration = {
   hasAgent: boolean;
   visualScenariosModulePath: string | null;
@@ -10,7 +14,8 @@ export const inspectAirJamAgentDeclaration = async (
   configPath: string,
 ): Promise<AirJamAgentDeclaration> => {
   const airjam = await loadAirJamAppConfig(configPath);
-  const moduleSpecifier = airjam.visualScenariosModule ?? null;
+  const moduleSpecifier =
+    (airjam as InternalVisualHarnessDeclaration).visualScenariosModule ?? null;
 
   if (
     moduleSpecifier !== null &&
