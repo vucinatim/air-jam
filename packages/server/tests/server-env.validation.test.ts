@@ -33,6 +33,16 @@ describe("loadServerEnv", () => {
     expect(config.remoteDatabaseBlocked).toBe(false);
   });
 
+  it("accepts a partial app-local env file shape", () => {
+    const config = loadServerEnv({
+      AIR_JAM_AUTH_MODE: "disabled",
+      DATABASE_URL: "",
+    });
+
+    expect(config.authMode).toBe("disabled");
+    expect(config.databaseUrl).toBeUndefined();
+  });
+
   it("blocks a non-local database url by default outside production", () => {
     const config = loadServerEnv({
       AIR_JAM_AUTH_MODE: "disabled",

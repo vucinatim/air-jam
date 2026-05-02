@@ -2,8 +2,7 @@ const BOT_LOGGING_STORAGE_KEY = "airjam:prototype:bot-logging";
 
 const isDevelopmentRuntime = (): boolean => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
+    const meta = import.meta as ImportMeta & { env?: { DEV?: boolean } };
     if (meta?.env && typeof meta.env.DEV === "boolean") {
       return meta.env.DEV;
     }

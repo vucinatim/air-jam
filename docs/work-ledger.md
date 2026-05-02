@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-27
+Last updated: 2026-04-30
 Status: active
 
 This is the single active repo-wide ledger.
@@ -60,6 +60,7 @@ Plans:
 2. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
 3. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 4. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
+5. [Prerelease Agent Dev Loop Hardening Plan](./plans/prerelease-agent-dev-loop-hardening-plan.md)
 
 Immediate next work:
 
@@ -67,6 +68,7 @@ Immediate next work:
 2. upload/prove the hosted game path through the dashboard
 3. finish release media/blogs and the final landing-page overlook
 4. merge into `master`, deploy, and run live validation in the canonical release order
+5. harden the local agent/dev loop enough that the next external one-shot game test starts from one command, one visible preview surface, and one reset path
 
 Latest progress inside this focus:
 
@@ -103,6 +105,7 @@ Latest progress inside this focus:
 31. the next publishing step is now explicitly planned as MCP Phase 4 on top of the landed release core and CLI: release doctor/validate/bundle/list/inspect/submit/publish plus `auth_status`, with only bundle and submit task-backed and no separate MCP-native login flow
 32. MCP release Phase 4 is now landed: standalone generated projects expose task-backed `release_bundle` and `release_submit` plus the blocking release/auth tools over `pnpm mcp`, monorepo MCP stays on the remote release surface instead of pretending the repo root is a publishable app, and real stdio QA against a generated Pong project now completes with structured release metadata even when platform finalize ends in `failed`
 33. the late game-structure alignment pass is complete: `the-office` now follows the canonical ownership model, `code-review` now publishes a semantic agent contract from config, Last Band Standing no longer ships the YouTube test route, and Air Capture's leftover debug/input seams are narrowed into the intended game-owned locations
+34. visual-proof authoring now lives under the same contract namespace as semantic agent control: first-party visual scenarios moved from top-level `visual/scenarios.ts` to `src/game/contracts/visual-scenarios.ts`, optional runtime-local bridge files now live at `src/game/contracts/visual-bridge.ts`, scaffold/docs/tooling point at that contract-adjacent layout, and the old separate `visual/` authoring center is gone from the live path
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 
@@ -284,6 +287,7 @@ Latest progress inside this track:
 22. the next DX-clarity slice is landed too: semantic game contracts now use `agentAction.participant(...)` as the canonical builder name, the scaffold/docs pack now includes a dedicated state-lanes cookbook, first-read docs now show canonical `acceptAirJamAction(...)` / `rejectAirJamAction(...)` usage, `resultDescription` is explicitly documented as effect-description metadata rather than implicit runtime result data, and isolated harness/runtime ownership timeouts now tell developers to close the previous game session before treating the failure as a gameplay bug
 23. the public API-pruning slice is landed too: the SDK root now keeps only the neutral agent authoring API, agent-inspection helpers moved to `@air-jam/sdk/agent-tooling`, `createAirJamApp(...)` now publishes `controllerPath`, `agent`, and `visualScenariosModule` as flat top-level fields instead of nested `game.*`, and first-party configs/scaffolds/devtools all now read that one strict shape
 24. the final naming-cleanup slice is now landed too: the public authoring story is now consistently `agent`, not `machine`, file/module names and helper scripts were renamed repo-wide to that vocabulary, active docs/template guidance now teach only the `agent` surface, and the only remaining `machine` references in live code are intentional unrelated leaves such as `platform-machine` or historical notes about removed aliases
+25. the visual-proof staging collapse is now landed too: semantic agent contracts now support first-class `agentAction.host(...)` actions, `VisualHarnessRuntime` now binds full synced stores through `agent={{ contract, stores }}` and derives the host dispatch lane internally, high-level game sessions expose those actions as canonical `host:*` actions, migrated visual scenarios now stage through `context.agent.invoke(...)`, and runtime-local bridges are reduced toward bootstrap/inspection-only responsibilities
 25. the workspace build-race hardening slice is now landed too: shared dependency builds for `@air-jam/sdk` and `@air-jam/devtools-core` now go through a tiny locked `scripts/ensure-workspace-package-build.mjs` helper with per-package freshness stamps, so parallel package `typecheck`/`build` runs no longer race `tsup` clean operations against the same `dist/` folder
 
 ### Planned Future Systems Track. Hosted Release CLI And MCP
@@ -397,6 +401,16 @@ The audit confirmed:
 18. semantic game-session action inspection is now clearer in practice: high-level `invoke_game_session_action` results distinguish acknowledgement observation from gameplay outcome, and surface whether a committed post-action snapshot was observed, so `host_ack_missing` no longer looks indistinguishable from a rejected action when state actually changed
 19. local controller ownership is now being hardened deliberately instead of left implicit: controller provenance is becoming explicit, virtual/MCP controllers are being split from human reconnect semantics, and the next local-dev recovery work is a visible controller-session roster plus a generic room-reset escape hatch
 20. local host recovery now has a real first-class kill path: hosts can remove controllers explicitly, preview workspace can surface the room controller roster with source-aware kick controls, and stale virtual-tooling sessions no longer require mystery background restarts just to unblock manual testing
+21. visual scenarios are now being collapsed onto the canonical agent/session lane instead of treating the harness bridge as a second semantic control system: the harness runner exposes `context.agent`, Pong's deterministic visual staging now uses canonical session actions, and the bridge is being reduced toward runtime-local bootstrap/visual-only responsibilities
+22. the visual authoring story is now cleaner and more minimal in practice: `defineVisualHarness({ agent, scenarios })` is the default shape, `bridge` is optional, `context.agent.read()` / `waitFor()` expose the projected agent snapshot directly, and first-party games like `pong`, `air-capture`, and `code-review` no longer carry empty or unnecessary visual bridge surfaces just to stage deterministic captures
+23. `@air-jam/harness` is now a real built package instead of a source-export package in live Node paths: its public exports resolve to `dist/*`, its build now emits every exported subpath (`index`, `visual`, `runtime`, `dev-control`), and workspace scripts ensure `@air-jam/sdk` is built first so standalone local dev no longer crashes on `ERR_UNKNOWN_FILE_EXTENSION` when a game imports harness surfaces through the normal package boundary
+24. the post-refactor QA proof is now real instead of inferred: fresh `last-band-standing` standalone visual capture was rerun on 2026-04-30, wrote a new `ended` artifact set under `.airjam/artifacts/visual/last-band-standing/`, and full repo `lint` plus `typecheck` passed afterward on the prerelease tree
+25. fresh tarball-scaffold manual QA on 2026-04-30 found and fixed two real generated-consumer regressions before the browser proof was truly clean: `create-airjam dev --preview-managed` now passes the loaded project env into the background server process, and `@air-jam/server` now resolves `.env.local` from the actual app `cwd` instead of the installed package path; a second consumer-path fix also landed in `create-airjam`/server env schemas so omitted optional env keys stay optional under the scaffolded project's installed `zod@4.4.x` rather than failing with `expected nonoptional`
+26. semantic `host:*` actions are now first-class on the normal game-session lane even for fresh minimal/no-harness projects: `openGameSession(...).actions` exposes the host semantic lane without requiring a harness session, invocation routes through the dedicated `controller:host_action_rpc` server path with host actor semantics, and a fresh 2026-04-30 tarball-scaffolded `minimal` project proved the full path end to end by updating a replicated host announcement banner through the session handle and showing the new banner text in the live browser host surface
+27. live browser-host acknowledgements are now fixed at the transport layer too: the root cause was a server-side Socket.IO ack parsing bug where per-socket `socket.timeout(...).emit(...)` acknowledgements were incorrectly read as broadcast response arrays, which turned real accepted host acknowledgements into `host_ack_missing`; after the 2026-04-30 fix in `register-realtime-handlers.ts`, the same fresh tarball-scaffolded minimal project returned `host-acknowledged` / `accepted` for `host:set_announcement` and updated the visible host UI banner to `ACK FIXED`
+28. immediate post-invocation `readGameSession({ requestSync: true })` reads are now actually strong instead of accidentally eventual: the root cause was twofold in the state-sync lane itself, where store snapshots were unversioned/un-correlated (so a late older `airjam:state_sync` could overwrite a newer cached snapshot) and devtools commit observation was fingerprinting local receive `updatedAt` timestamps instead of real store versions; the 2026-04-30 fix added monotonic per-store `revision` numbers plus optional `requestId` correlation to sync request/response payloads, controller/runtime now ignore older revisions and wait for the matching sync response, and focused SDK/server/devtools regression coverage now proves a stale late sync can no longer make the next session read jump backward
+29. host reconnect now restores replicated store state instead of silently booting from initializer state after refresh/disconnect: room sessions cache the latest replicated `airjam:state_sync` payload per store domain, reconnecting hosts are rehydrated from that room-owned cache through the normal sync channel, host store bindings now adopt higher-revision sync payloads so their next local emit continues from the restored revision, and a fresh 2026-04-30 tarball-scaffolded `minimal` project proved the full browser-use path end to end by showing `Shared Taps 1` + `SESSION QA OK` in the visible host UI, then preserving both across a full page reload/reconnect
+30. embedded preview controllers now treat the canonical join URL and the local iframe origin as separate concerns: the share/join URL remains authoritative for room/capability validation, but preview-controller iframes are rebased onto the current host-page origin so browser tooling can interact with them without cross-origin iframe input failures; focused preview URL + manager coverage now proves the local embed origin can differ cleanly from the external phone join origin without weakening allowed-origin validation
 
 ## Documentation Hygiene Tasks
 

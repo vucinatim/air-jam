@@ -679,8 +679,8 @@ Do not move game-specific staging flows into MCP.
 
 Game-specific staging belongs in:
 
-1. `visual/contract.ts`
-2. `visual/scenarios.ts`
+1. `src/game/contracts/visual-bridge.ts`
+2. `src/game/contracts/visual-scenarios.ts`
 3. game-owned helper modules
 
 MCP should discover and run those contracts.

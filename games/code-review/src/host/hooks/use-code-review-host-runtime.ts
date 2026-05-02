@@ -98,7 +98,6 @@ export const useCodeReviewHostRuntime = ({
       stepMatchFrame({
         state: gameStateRef.current,
         participants: slotParticipants,
-        participantBySlot,
         hpState: hpRef.current,
         koState: koRef.current,
         dt: deltaMs,

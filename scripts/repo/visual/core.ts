@@ -1,8 +1,8 @@
 import {
   getRepoVisualArtifactRoot,
-  runRepoVisualCaptureCommand,
   startRepoVisualStack as startRepoVisualStackAtRoot,
 } from "../../../packages/devtools-core/runtime/repo-visual.mjs";
+import { captureVisuals } from "../../../packages/devtools-core/src/visual.ts";
 import { repoRoot } from "../lib/paths.mjs";
 
 export const VISUAL_ARTIFACT_ROOT = getRepoVisualArtifactRoot({
@@ -26,7 +26,7 @@ export const runVisualCaptureCommand = (options: {
   mode?: "standalone-dev" | "arcade-built";
   secure?: boolean;
 }) =>
-  runRepoVisualCaptureCommand({
-    rootDir: repoRoot,
+  captureVisuals({
+    cwd: repoRoot,
     ...options,
   });

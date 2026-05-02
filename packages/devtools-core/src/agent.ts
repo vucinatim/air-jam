@@ -219,6 +219,62 @@ export const readGameSnapshot = async ({
   };
 };
 
+export const resolveGameActionPayload = async ({
+  cwd = process.cwd(),
+  gameId,
+  actionId,
+  payload,
+}: {
+  cwd?: string;
+  gameId: string;
+  actionId: string;
+  payload?: unknown;
+}): Promise<JsonObject | undefined> => {
+  const contract = await inspectGameAgentContract({
+    cwd,
+    gameId,
+  });
+  if (!contract.hasContract) {
+    throw new Error(`Game "${gameId}" does not publish an agent contract yet.`);
+  }
+
+  const action = contract.actions.find(
+    (candidate) => candidate.actionId === actionId,
+  );
+  if (!action) {
+    throw new Error(`Unknown game action "${actionId}" for game "${gameId}".`);
+  }
+
+  if (action.payload.kind === "none") {
+    return undefined;
+  }
+
+  const game = await inspectGame({
+    cwd,
+    gameId,
+  });
+
+  return (
+    runGameAgentHelper<{
+      payload: JsonObject | null;
+    }>({
+      cwd: game.rootDir,
+      configPath: game.configPath,
+      operation: "resolve-input",
+      args: [
+        "--game-id",
+        gameId,
+        "--action-id",
+        actionId,
+        "--payload-base64",
+        Buffer.from(JSON.stringify(payload ?? null), "utf8").toString(
+          "base64url",
+        ),
+      ],
+    }).payload ?? undefined
+  );
+};
+
 export const invokeGameAction = async ({
   controllerSessionId,
   actionId,
@@ -257,31 +313,12 @@ export const invokeGameAction = async ({
     timeoutMs,
   });
 
-  const resolvedPayload =
-    action.payload.kind === "none"
-      ? undefined
-      : (runGameAgentHelper<{
-          payload: JsonObject | null;
-        }>({
-          cwd: session.cwd,
-          configPath: (
-            await inspectGame({
-              cwd: session.cwd,
-              gameId: session.gameId,
-            })
-          ).configPath,
-          operation: "resolve-input",
-          args: [
-            "--game-id",
-            session.gameId,
-            "--action-id",
-            actionId,
-            "--payload-base64",
-            Buffer.from(JSON.stringify(payload ?? null), "utf8").toString(
-              "base64url",
-            ),
-          ],
-        }).payload ?? undefined);
+  const resolvedPayload = await resolveGameActionPayload({
+    cwd: session.cwd,
+    gameId: session.gameId,
+    actionId,
+    payload,
+  });
 
   const result = await invokeControllerAction({
     controllerSessionId,
@@ -307,6 +344,7 @@ export const invokeGameAction = async ({
   return {
     ...result,
     actionId,
+    lane: "player",
     acknowledgementObservation,
     outcome,
     snapshotBefore,

@@ -15,7 +15,7 @@ const stableStoreSnapshotFingerprint = (
     snapshot.rawStores
       .map((entry) => ({
         storeDomain: entry.storeDomain,
-        updatedAt: entry.updatedAt,
+        revision: entry.revision,
       }))
       .sort((left, right) => left.storeDomain.localeCompare(right.storeDomain)),
   );

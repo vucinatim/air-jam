@@ -30,7 +30,7 @@ export const airjam = createAirJamApp({
   metadata: gameMetadata,
   controllerPath: "/controller",
   agent: agentContract,
-  visualScenariosModule: "../visual/scenarios.ts",
+  visualScenariosModule: "./game/contracts/visual-scenarios.ts",
   input: {
     schema: gameInputSchema,
     behavior: {

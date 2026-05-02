@@ -26,6 +26,7 @@ const createSnapshot = (
         score: 0,
       },
       updatedAt: "2026-04-28T00:00:00.000Z",
+      revision: 0,
     },
   ],
   ...overrides,
@@ -79,6 +80,7 @@ describe("game action observation helpers", () => {
             score: 1,
           },
           updatedAt: "2026-04-28T00:00:01.000Z",
+          revision: 1,
         },
       ],
     });

@@ -1,10 +1,13 @@
 import type { Page } from "@playwright/test";
+import type { AirJamAgentContract, AnyAirJamAgentContract } from "@air-jam/sdk";
 import type {
   AnyVisualHarnessBridgeDefinition,
   InferVisualHarnessBridgeActions,
   InferVisualHarnessBridgeSnapshot,
   VisualHarnessActionInvokerMap,
 } from "../core/bridge-contract.js";
+
+export type { AnyAirJamAgentContract } from "@air-jam/sdk";
 
 export type VisualHarnessMode = "standalone-dev" | "arcade-built";
 
@@ -46,6 +49,61 @@ export type VisualHarnessPageSurface = {
   embedded: boolean;
 };
 
+export type InferVisualScenarioSnapshot<TAgent> =
+  TAgent extends AirJamAgentContract<
+    infer TSnapshot,
+    infer _TStores
+  >
+    ? TSnapshot
+    : never;
+
+export type VisualScenarioAgentActionDescriptor = {
+  actionId: string;
+  lane: "player" | "host";
+  source: "semantic-game" | "visual-harness";
+  description: string | null;
+  availability: string | null;
+  payload: {
+    kind: "none" | "boolean" | "number" | "string" | "enum" | "json";
+    description: string | null;
+    allowedValues?: string[];
+  };
+  resultDescription: string | null;
+};
+
+export type VisualScenarioAgentInvocation<TSnapshot = Record<string, unknown>> = {
+  actionId: string;
+  lane: "player" | "host";
+  outcome: string | null;
+  acknowledgementObservation: string | null;
+  snapshotBefore: TSnapshot | null;
+  snapshotAfter: TSnapshot | null;
+  snapshotAfterStatus:
+    | "committed-update-observed"
+    | "no-new-commit-before-timeout"
+    | null;
+};
+
+export type VisualScenarioAgent<TSnapshot = Record<string, unknown>> = {
+  listActions: () => Promise<readonly VisualScenarioAgentActionDescriptor[]>;
+  read: () => Promise<TSnapshot>;
+  waitFor: (
+    predicate: (
+      snapshot: TSnapshot,
+    ) => boolean | Promise<boolean>,
+    description?: string,
+    timeout?: number,
+  ) => Promise<TSnapshot>;
+  invoke: (
+    actionId: string,
+    payload?: unknown,
+    options?: {
+      timeoutMs?: number;
+    },
+  ) => Promise<VisualScenarioAgentInvocation<TSnapshot>>;
+  close: () => Promise<void>;
+};
+
 export type VisualScenarioBridge<
   TBridge extends AnyVisualHarnessBridgeDefinition,
 > = {
@@ -63,11 +121,12 @@ export type VisualScenarioBridge<
 };
 
 export type VisualScenarioContext<
-  TBridge extends AnyVisualHarnessBridgeDefinition =
-    AnyVisualHarnessBridgeDefinition,
+  TAgent extends AnyAirJamAgentContract = AnyAirJamAgentContract,
+  TBridge extends AnyVisualHarnessBridgeDefinition | null =
+    AnyVisualHarnessBridgeDefinition | null,
 > = {
   gameId: string;
-  scenario: VisualScenario<TBridge>;
+  scenario: VisualScenario<TAgent, TBridge>;
   scenarioDir: string;
   urls: VisualHarnessUrls;
   host: VisualHarnessPageSurface;
@@ -77,7 +136,10 @@ export type VisualScenarioContext<
   note: (value: string) => void;
   sleep: (ms: number) => Promise<void>;
   ensureControllerInteractive: () => Promise<void>;
-  bridge: VisualScenarioBridge<TBridge>;
+  agent: VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>;
+  bridge: TBridge extends AnyVisualHarnessBridgeDefinition
+    ? VisualScenarioBridge<TBridge>
+    : null;
   captureHost: (
     viewportName: string,
     viewport: VisualViewport,
@@ -92,20 +154,23 @@ export type VisualScenarioContext<
 };
 
 export type VisualScenario<
-  TBridge extends AnyVisualHarnessBridgeDefinition =
-    AnyVisualHarnessBridgeDefinition,
+  TAgent extends AnyAirJamAgentContract = AnyAirJamAgentContract,
+  TBridge extends AnyVisualHarnessBridgeDefinition | null =
+    AnyVisualHarnessBridgeDefinition | null,
 > = {
   id: string;
   description?: string;
-  run: (context: VisualScenarioContext<TBridge>) => Promise<void>;
+  run: (context: VisualScenarioContext<TAgent, TBridge>) => Promise<void>;
 };
 
 export type VisualScenarioPack<
-  TBridge extends AnyVisualHarnessBridgeDefinition =
-    AnyVisualHarnessBridgeDefinition,
+  TAgent extends AnyAirJamAgentContract = AnyAirJamAgentContract,
+  TBridge extends AnyVisualHarnessBridgeDefinition | null =
+    AnyVisualHarnessBridgeDefinition | null,
 > = {
-  bridge: TBridge;
-  scenarios: ReadonlyArray<VisualScenario<TBridge>>;
+  agent: TAgent;
+  bridge?: TBridge;
+  scenarios: ReadonlyArray<VisualScenario<TAgent, TBridge>>;
 };
 
 export type VisualCaptureScenarioMetadata = {

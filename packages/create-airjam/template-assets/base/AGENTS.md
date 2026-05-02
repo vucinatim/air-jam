@@ -126,9 +126,10 @@ For local host/controller UI work:
 When a clean-slate game stops being trivial:
 
 1. add `src/game/contracts/agent.ts` and wire it through `src/airjam.config.ts` `agent` once the game has named phases, semantic actions, or non-trivial lobby/setup rules
-2. add `visual/contract.ts` and `visual/scenarios.ts` once deterministic staging, reset actions, or repeatable visual proof would materially help iteration
-3. prefer these small explicit agent seams over leaving important semantics trapped in UI-only flows
-4. remember that `airjam.capture_visuals` is task-backed; if your MCP client cannot execute task-backed tools, switch to a task-capable client or run the equivalent Air Jam CLI or repo visual command directly
+2. add `src/game/contracts/visual-scenarios.ts` once repeatable visual proof would materially help iteration
+3. add `src/game/contracts/visual-bridge.ts` only if those scenarios still need a true runtime-local visual/bootstrap bridge
+4. prefer these small explicit agent seams over leaving important semantics trapped in UI-only flows
+5. remember that `airjam.capture_visuals` is task-backed; if your MCP client cannot execute task-backed tools, switch to a task-capable client or run the equivalent Air Jam CLI or repo visual command directly
 
 ## Game Agent Contract Rule
 

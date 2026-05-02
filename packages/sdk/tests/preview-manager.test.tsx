@@ -17,6 +17,7 @@ describe("usePreviewControllerManager", () => {
     const { result } = renderHook(() =>
       usePreviewControllerManager({
         joinUrl: "https://platform.example/controller?room=ROOM1",
+        embedOrigin: "http://localhost:5173",
       }),
     );
 
@@ -41,6 +42,9 @@ describe("usePreviewControllerManager", () => {
     );
     expect(result.current.sessions[0]?.displayScale).toBeCloseTo(
       DEFAULT_PREVIEW_CONTROLLER_SCALE,
+    );
+    expect(result.current.sessions[0]?.url).toContain(
+      "http://localhost:5173/controller?room=ROOM1",
     );
   });
 

@@ -37,25 +37,48 @@ const trimToUndefined = (value: unknown): string | undefined => {
   return normalized.length > 0 ? normalized : undefined;
 };
 
+const optionalEnvString = z
+  .string()
+  .optional()
+  .transform((value) => trimToUndefined(value));
+
+const createOptionalEnumSchema = <TValues extends readonly [string, ...string[]]>(
+  envKey: string,
+  values: TValues,
+) =>
+  optionalEnvString.transform((value, context) => {
+    if (!value) {
+      return undefined;
+    }
+
+    if (!values.includes(value)) {
+      context.addIssue({
+        code: "custom",
+        message: `${envKey} must be one of: ${values.join(", ")}.`,
+      });
+      return z.NEVER;
+    }
+
+    return value as TValues[number];
+  });
+
 const createPositiveIntegerSchema = (envKey: string, fallback: number) =>
-  z
-    .preprocess(trimToUndefined, z.string().optional())
-    .transform((value, context) => {
-      if (!value) {
-        return fallback;
-      }
+  optionalEnvString.transform((value, context) => {
+    if (!value) {
+      return fallback;
+    }
 
-      const parsed = Number.parseInt(value, 10);
-      if (!Number.isInteger(parsed) || parsed <= 0) {
-        context.addIssue({
-          code: "custom",
-          message: `${envKey} must be a positive integer.`,
-        });
-        return z.NEVER;
-      }
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      context.addIssue({
+        code: "custom",
+        message: `${envKey} must be a positive integer.`,
+      });
+      return z.NEVER;
+    }
 
-      return parsed;
-    });
+    return parsed;
+  });
 
 const normalizeAllowedOrigins = (
   rawAllowedOrigins: string | undefined,
@@ -92,7 +115,7 @@ const resolveAuthMode = ({
 
 const rawServerEnvSchema = z
   .object({
-    NODE_ENV: z.preprocess(trimToUndefined, z.string().optional()),
+    NODE_ENV: optionalEnvString,
     PORT: createPositiveIntegerSchema("PORT", 4000),
     AIR_JAM_RATE_LIMIT_WINDOW_MS: createPositiveIntegerSchema(
       "AIR_JAM_RATE_LIMIT_WINDOW_MS",
@@ -110,43 +133,37 @@ const rawServerEnvSchema = z
       "AIR_JAM_STATIC_APP_RATE_LIMIT_MAX",
       120,
     ),
-    AIR_JAM_ALLOWED_ORIGINS: z.preprocess(
-      trimToUndefined,
-      z.string().optional(),
+    AIR_JAM_ALLOWED_ORIGINS: optionalEnvString,
+    AIR_JAM_DEV_LOG_COLLECTOR: createOptionalEnumSchema(
+      "AIR_JAM_DEV_LOG_COLLECTOR",
+      ["enabled", "disabled"],
     ),
-    AIR_JAM_DEV_LOG_COLLECTOR: z.preprocess(
-      trimToUndefined,
-      z.enum(["enabled", "disabled"]).optional(),
+    AIR_JAM_DEV_LOG_DIR: optionalEnvString,
+    AIR_JAM_AUTH_MODE: createOptionalEnumSchema("AIR_JAM_AUTH_MODE", [
+      "disabled",
+      "required",
+    ]),
+    AIR_JAM_TRUST_PROXY_HEADERS: createOptionalEnumSchema(
+      "AIR_JAM_TRUST_PROXY_HEADERS",
+      ["auto", "enabled", "disabled"],
     ),
-    AIR_JAM_DEV_LOG_DIR: z.preprocess(trimToUndefined, z.string().optional()),
-    AIR_JAM_AUTH_MODE: z.preprocess(
-      trimToUndefined,
-      z.enum(["disabled", "required"]).optional(),
+    AIR_JAM_ALLOW_REMOTE_DATABASE: createOptionalEnumSchema(
+      "AIR_JAM_ALLOW_REMOTE_DATABASE",
+      ["enabled", "disabled"],
     ),
-    AIR_JAM_TRUST_PROXY_HEADERS: z.preprocess(
-      trimToUndefined,
-      z.enum(["auto", "enabled", "disabled"]).optional(),
-    ),
-    AIR_JAM_ALLOW_REMOTE_DATABASE: z.preprocess(
-      trimToUndefined,
-      z.enum(["enabled", "disabled"]).optional(),
-    ),
-    AIR_JAM_MASTER_KEY: z.preprocess(trimToUndefined, z.string().optional()),
-    AIR_JAM_HOST_GRANT_SECRET: z.preprocess(
-      trimToUndefined,
-      z.string().optional(),
-    ),
-    DATABASE_URL: z.preprocess(trimToUndefined, z.string().optional()),
-    AIR_JAM_LOG_LEVEL: z.preprocess(trimToUndefined, z.string().optional()),
-    AIR_JAM_MAINTENANCE_MODE: z.preprocess(
-      trimToUndefined,
-      z.enum(["enabled", "disabled"]).optional(),
+    AIR_JAM_MASTER_KEY: optionalEnvString,
+    AIR_JAM_HOST_GRANT_SECRET: optionalEnvString,
+    DATABASE_URL: optionalEnvString,
+    AIR_JAM_LOG_LEVEL: optionalEnvString,
+    AIR_JAM_MAINTENANCE_MODE: createOptionalEnumSchema(
+      "AIR_JAM_MAINTENANCE_MODE",
+      ["enabled", "disabled"],
     ),
   })
   .superRefine((value, context) => {
     const nodeEnv = value.NODE_ENV ?? "development";
     const authMode = resolveAuthMode({
-      configuredAuthMode: value.AIR_JAM_AUTH_MODE,
+      configuredAuthMode: value.AIR_JAM_AUTH_MODE as AuthMode | undefined,
       nodeEnv,
     });
     const databasePolicy = resolveServerRuntimeDatabaseUrl({
@@ -200,7 +217,7 @@ export const loadServerEnv = (
 
   const nodeEnv = parsed.NODE_ENV ?? "development";
   const authMode = resolveAuthMode({
-    configuredAuthMode: parsed.AIR_JAM_AUTH_MODE,
+    configuredAuthMode: parsed.AIR_JAM_AUTH_MODE as AuthMode | undefined,
     nodeEnv,
   });
   const databasePolicy = resolveServerRuntimeDatabaseUrl({
@@ -223,7 +240,9 @@ export const loadServerEnv = (
       : nodeEnv !== "production",
     devLogDir: parsed.AIR_JAM_DEV_LOG_DIR,
     authMode,
-    proxyHeaderTrustMode: parsed.AIR_JAM_TRUST_PROXY_HEADERS ?? "auto",
+    proxyHeaderTrustMode:
+      (parsed.AIR_JAM_TRUST_PROXY_HEADERS as ProxyHeaderTrustMode | undefined) ??
+      "auto",
     remoteDatabaseBlocked: databasePolicy.remoteDatabaseBlocked,
     masterKey: parsed.AIR_JAM_MASTER_KEY,
     hostGrantSecret: parsed.AIR_JAM_HOST_GRANT_SECRET,

@@ -3,10 +3,16 @@ import {
   inspectGameAgentContract,
   invokeGameAction,
   readGameSnapshot,
+  resolveGameActionPayload,
 } from "./agent.js";
+import {
+  classifyGameActionOutcome,
+  computeGameSnapshotObservation,
+} from "./game-action-observation.js";
 import {
   connectController,
   disconnectController,
+  invokeHostAction,
   readRuntimeSnapshot,
   sendControllerInput,
 } from "./controller.js";
@@ -47,6 +53,13 @@ type InternalGameSession = {
       }
     | {
         lane: "host";
+        kind: "semantic-host";
+        actionId: string;
+        actionName: string;
+        storeDomain: string;
+      }
+    | {
+        lane: "host";
         kind: "harness";
         actionName: string;
       }
@@ -63,21 +76,44 @@ const toHostSessionActionId = (actionName: string): string => `host:${actionName
 const describePlayerSessionActions = (
   gameActions: AirJamGameAgentActionDescriptor[],
 ): AirJamGameSessionActionDescriptor[] =>
-  gameActions.map((action) => ({
-    actionId: toPlayerSessionActionId(action.actionId),
-    lane: "player" as const,
-    source: "semantic-game" as const,
-    description: action.description,
-    availability: action.availability,
-    payload: {
-      kind: action.payload.kind,
-      description: action.payload.description,
-      ...(action.payload.allowedValues
-        ? { allowedValues: [...action.payload.allowedValues] }
-        : {}),
-    },
-    resultDescription: action.resultDescription,
-  }));
+  gameActions
+    .filter((action) => action.target.kind === "participant")
+    .map((action) => ({
+      actionId: toPlayerSessionActionId(action.actionId),
+      lane: "player" as const,
+      source: "semantic-game" as const,
+      description: action.description,
+      availability: action.availability,
+      payload: {
+        kind: action.payload.kind,
+        description: action.payload.description,
+        ...(action.payload.allowedValues
+          ? { allowedValues: [...action.payload.allowedValues] }
+          : {}),
+      },
+      resultDescription: action.resultDescription,
+    }));
+
+const describeSemanticHostSessionActions = (
+  gameActions: AirJamGameAgentActionDescriptor[],
+): AirJamGameSessionActionDescriptor[] =>
+  gameActions
+    .filter((action) => action.target.kind === "host")
+    .map((action) => ({
+      actionId: toHostSessionActionId(action.actionId),
+      lane: "host" as const,
+      source: "semantic-game" as const,
+      description: action.description,
+      availability: action.availability,
+      payload: {
+        kind: action.payload.kind,
+        description: action.payload.description,
+        ...(action.payload.allowedValues
+          ? { allowedValues: [...action.payload.allowedValues] }
+          : {}),
+      },
+      resultDescription: action.resultDescription,
+    }));
 
 const describeHostSessionActions = (
   harnessActions: AirJamHarnessSnapshotInspection["actions"],
@@ -98,29 +134,45 @@ const describeHostSessionActions = (
     resultDescription: action.resultDescription,
   }));
 
-const buildActionRegistryFromSessionActions = (
-  actions: AirJamGameSessionActionDescriptor[],
-): InternalGameSession["actionRegistry"] => {
+const buildActionRegistry = ({
+  gameActions,
+  harnessActions,
+}: {
+  gameActions: AirJamGameAgentActionDescriptor[];
+  harnessActions: AirJamHarnessSnapshotInspection["actions"];
+}): InternalGameSession["actionRegistry"] => {
   const registry = new Map<
     string,
     InternalGameSession["actionRegistry"] extends Map<string, infer T> ? T : never
   >();
-  for (const action of actions) {
-    if (action.lane === "player") {
-      registry.set(action.actionId, {
+
+  for (const action of gameActions) {
+    if (action.target.kind === "participant") {
+      registry.set(toPlayerSessionActionId(action.actionId), {
         lane: "player",
         kind: "game",
-        actionId: action.actionId.slice("player:".length),
+        actionId: action.actionId,
       });
       continue;
     }
 
-    registry.set(action.actionId, {
+    registry.set(toHostSessionActionId(action.actionId), {
       lane: "host",
-      kind: "harness",
-      actionName: action.actionId.slice("host:".length),
+      kind: "semantic-host",
+      actionId: action.actionId,
+      actionName: action.target.actionName,
+      storeDomain: action.target.storeDomain ?? "default",
     });
   }
+
+  for (const action of harnessActions) {
+    registry.set(toHostSessionActionId(action.name), {
+      lane: "host",
+      kind: "harness",
+      actionName: action.name,
+    });
+  }
+
   return registry;
 };
 
@@ -211,7 +263,11 @@ const buildOpenSummary = async ({
 }: {
   options: OpenGameSessionOptions;
   controllerSession: Awaited<ReturnType<typeof connectController>>;
-}): Promise<AirJamGameSessionSummary> => {
+}): Promise<{
+  summary: AirJamGameSessionSummary;
+  gameActions: AirJamGameAgentActionDescriptor[];
+  harnessActions: AirJamHarnessSnapshotInspection["actions"];
+}> => {
   const resolvedGameId = controllerSession.gameId ?? options.gameId ?? null;
   const agentContract =
     resolvedGameId !== null
@@ -237,35 +293,43 @@ const buildOpenSummary = async ({
   const harnessActions = harnessSnapshot?.actions ?? [];
   const actions = [
     ...describePlayerSessionActions(gameActions),
+    ...describeSemanticHostSessionActions(gameActions),
     ...describeHostSessionActions(harnessActions),
   ];
 
   return {
-    gameSessionId: randomUUID(),
-    cwd: options.cwd ?? process.cwd(),
-    gameId: resolvedGameId,
-    controllerSessionId: controllerSession.controllerSessionId,
-    projectMode: controllerSession.projectMode,
-    mode: controllerSession.mode,
-    topologyMode: controllerSession.topologyMode,
-    secure: controllerSession.secure,
-    process: controllerSession.process,
-    roomId: controllerSession.roomId,
-    controllerId: controllerSession.controllerId,
-    deviceId: controllerSession.deviceId,
-    controllerJoinUrl: controllerSession.controllerJoinUrl,
-    socketOrigin: controllerSession.socketOrigin,
-    connected: controllerSession.connected,
-    connectedAt: controllerSession.connectedAt,
-    disconnectedAt: controllerSession.disconnectedAt,
-    disconnectReason: controllerSession.disconnectReason,
-    harnessSessionId: harnessSnapshot?.sessionId ?? options.harnessSessionId ?? null,
-    harnessControlSurface:
-      harnessSnapshot?.controlSurface ??
-      (controllerSession.harnessSnapshot ? "isolated-session" : null),
-    hasHarnessBridge: Boolean(harnessSnapshot ?? controllerSession.harnessSnapshot),
-    hasAgentContract: Boolean(agentContract?.hasContract),
-    actions,
+    summary: {
+      gameSessionId: randomUUID(),
+      cwd: options.cwd ?? process.cwd(),
+      gameId: resolvedGameId,
+      controllerSessionId: controllerSession.controllerSessionId,
+      projectMode: controllerSession.projectMode,
+      mode: controllerSession.mode,
+      topologyMode: controllerSession.topologyMode,
+      secure: controllerSession.secure,
+      process: controllerSession.process,
+      roomId: controllerSession.roomId,
+      controllerId: controllerSession.controllerId,
+      deviceId: controllerSession.deviceId,
+      controllerJoinUrl: controllerSession.controllerJoinUrl,
+      socketOrigin: controllerSession.socketOrigin,
+      connected: controllerSession.connected,
+      connectedAt: controllerSession.connectedAt,
+      disconnectedAt: controllerSession.disconnectedAt,
+      disconnectReason: controllerSession.disconnectReason,
+      harnessSessionId:
+        harnessSnapshot?.sessionId ?? options.harnessSessionId ?? null,
+      harnessControlSurface:
+        harnessSnapshot?.controlSurface ??
+        (controllerSession.harnessSnapshot ? "isolated-session" : null),
+      hasHarnessBridge: Boolean(
+        harnessSnapshot ?? controllerSession.harnessSnapshot,
+      ),
+      hasAgentContract: Boolean(agentContract?.hasContract),
+      actions,
+    },
+    gameActions,
+    harnessActions,
   };
 };
 
@@ -273,7 +337,7 @@ export const openGameSession = async (
   options: OpenGameSessionOptions = {},
 ): Promise<AirJamGameSessionSummary> => {
   const controllerSession = await connectController(options);
-  const summary = await buildOpenSummary({
+  const { summary, gameActions, harnessActions } = await buildOpenSummary({
     options,
     controllerSession,
   });
@@ -290,7 +354,10 @@ export const openGameSession = async (
         ? { harnessSessionId: summary.harnessSessionId }
         : {}),
     },
-    actionRegistry: buildActionRegistryFromSessionActions(summary.actions),
+    actionRegistry: buildActionRegistry({
+      gameActions,
+      harnessActions,
+    }),
   });
 
   return summary;
@@ -333,6 +400,7 @@ export const readGameSession = async ({
   const nextHarnessActions = harnessSnapshot?.actions ?? [];
   const nextActions = [
     ...describePlayerSessionActions(nextGameActions),
+    ...describeSemanticHostSessionActions(nextGameActions),
     ...describeHostSessionActions(nextHarnessActions),
   ];
   session.summary = toSummary(session, {
@@ -348,7 +416,10 @@ export const readGameSession = async ({
       session.summary.hasHarnessBridge || Boolean(harnessSnapshot),
     actions: nextActions,
   });
-  session.actionRegistry = buildActionRegistryFromSessionActions(nextActions);
+  session.actionRegistry = buildActionRegistry({
+    gameActions: nextGameActions,
+    harnessActions: nextHarnessActions,
+  });
 
   return {
     ...session.summary,
@@ -407,6 +478,65 @@ export const invokeGameSessionAction = async (
       invocation,
     };
   }
+  if (resolvedAction.kind === "semantic-host") {
+    const snapshotBefore = await readGameSnapshot({
+      controllerSessionId: session.summary.controllerSessionId,
+      requestSync: true,
+      timeoutMs: options.timeoutMs,
+    });
+    const resolvedPayload =
+      session.lookup.gameId !== undefined
+        ? await resolveGameActionPayload({
+            cwd: session.lookup.cwd,
+            gameId: session.lookup.gameId,
+            actionId: resolvedAction.actionId,
+            payload: options.payload,
+          })
+        : undefined;
+    const result = await invokeHostAction({
+      controllerSessionId: session.summary.controllerSessionId,
+      actionName: resolvedAction.actionName,
+      storeDomain: resolvedAction.storeDomain,
+      payload: resolvedPayload,
+    });
+    const snapshotAfter = await readGameSnapshot({
+      controllerSessionId: session.summary.controllerSessionId,
+      requestSync: true,
+      timeoutMs: options.timeoutMs,
+    });
+    const { snapshotAfterStatus, observedStateChange } =
+      computeGameSnapshotObservation({
+        snapshotBefore,
+        snapshotAfter,
+      });
+    const acknowledgement = result.acknowledgement;
+    const { acknowledgementObservation, outcome } = classifyGameActionOutcome({
+      acknowledgement,
+      observedStateChange,
+    });
+
+    return {
+      ...session.summary,
+      actionId: options.actionId,
+      lane: "host",
+      invocation: {
+        ...session.summary,
+        actionId: resolvedAction.actionId,
+        lane: "host",
+        actionName: resolvedAction.actionName,
+        storeDomain: resolvedAction.storeDomain,
+        ...(options.payload !== undefined ? { payload: options.payload } : {}),
+        sentAt: new Date().toISOString(),
+        acknowledgement,
+        acknowledgementObservation,
+        outcome,
+        snapshotBefore,
+        snapshotAfter,
+        snapshotAfterStatus,
+        observedStateChange,
+      },
+    };
+  }
   if (!session.summary.hasHarnessBridge) {
     throw new Error(
       `Game session "${options.gameSessionId}" does not have a host action surface available.`,
@@ -428,6 +558,13 @@ export const invokeGameSessionAction = async (
     ...session.summary.actions.filter((action) => action.source === "semantic-game"),
     ...describeHostSessionActions(invocation.actions),
   ];
+  const contract =
+    session.summary.hasAgentContract && session.lookup.gameId
+      ? await inspectGameAgentContract({
+          cwd: session.lookup.cwd,
+          gameId: session.lookup.gameId,
+        }).catch(() => null)
+      : null;
 
   session.summary = toSummary(session, {
     harnessSessionId: invocation.sessionId ?? session.summary.harnessSessionId,
@@ -435,7 +572,10 @@ export const invokeGameSessionAction = async (
     hasHarnessBridge: true,
     actions: nextActions,
   });
-  session.actionRegistry = buildActionRegistryFromSessionActions(nextActions);
+  session.actionRegistry = buildActionRegistry({
+    gameActions: contract?.actions ?? [],
+    harnessActions: invocation.actions,
+  });
 
   return {
     ...session.summary,

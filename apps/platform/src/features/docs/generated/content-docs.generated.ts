@@ -170,7 +170,7 @@ const generatedContentDocsDocuments = [
         slug: "2-start-local-development",
         depth: 2,
         excerpt:
-          "The scaffold uses one command for the normal local loop. It starts the local Air Jam server and the game together. That command starts: the local Air Jam server on http://localhost:4000 the game on http://localhost:5173",
+          "The scaffold uses one command for the normal local loop. It starts the local Air Jam server and the game together. That command starts: the local Air Jam server on http://localhost:4000 the game on http://localhost:5173…",
       },
       {
         title: "3. Play the Game",
@@ -1504,6 +1504,13 @@ const generatedContentDocsDocuments = [
           "Keep all networked mutations inside actions. Always dispatch via useActions(); do not call state.actions. directly. Use one payload object per action for stable evolution. Root payloads must be omitted or plain objects.…",
       },
       {
+        title: "Accept And Reject Examples",
+        slug: "accept-and-reject-examples",
+        depth: 2,
+        excerpt:
+          "If a store action returns void, Air Jam treats it as accepted. Return rejectAirJamAction(...) when the semantic action should fail with a clear machine-readable reason, and return acceptAirJamAction(result) when the…",
+      },
+      {
         title: "Embedded Arcade Runtimes",
         slug: "embedded-arcade-runtimes",
         depth: 2,
@@ -1515,7 +1522,7 @@ const generatedContentDocsDocuments = [
         slug: "api-summary",
         depth: 2,
         excerpt:
-          "createAirJamStore(initializer) returns: Zustand-compatible hook for selectors. useActions() dispatch map with () => void or (payloadObject) => void signatures. T must include an actions object with host handlers (ctx,…",
+          "createAirJamStore(initializer) returns: Zustand-compatible hook for selectors. useActions() dispatch map with () => void or (payloadObject) => void signatures. asPlayer(controllerId) host-only dispatch map for explicit…",
       },
     ],
     loadComponent: () => import("@content/docs/sdk/networked-state/page.mdx"),

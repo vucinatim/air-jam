@@ -12,7 +12,9 @@ import { AudioRuntime } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { useState } from "react";
-import { theOfficeVisualHarnessBridge } from "../../visual/contract";
+import { agentContract } from "../game/contracts/agent";
+import { theOfficeVisualHarnessBridge } from "../game/contracts/visual-bridge";
+import { useSpaceStore } from "../game/stores";
 import { gameMetadata } from "../airjam.config";
 import { OFFICE_SOUND_MANIFEST } from "../game/contracts/sounds";
 import { OfficeHostGameplaySurface } from "./components/host-gameplay-surface";
@@ -39,12 +41,17 @@ function OfficeHostScreen() {
     <>
       <VisualHarnessRuntime
         gameId={gameMetadata.slug}
+        agent={{
+          contract: agentContract,
+          stores: {
+            default: useSpaceStore,
+          },
+        }}
         bridge={theOfficeVisualHarnessBridge}
         context={{
           host: session.host,
           matchPhase: session.matchPhase,
           runtimeState: session.runtimeState,
-          storeActions: session.storeActions,
         }}
       />
       <SurfaceViewport className="bg-[#fdf6e3]">

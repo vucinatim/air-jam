@@ -123,6 +123,7 @@ export const agentContract = defineAirJamAgentContract({
         "start_match",
         "return_to_lobby",
         "restart_match",
+        "host:finish_match",
       ],
     };
   },
@@ -187,6 +188,20 @@ export const agentContract = defineAirJamAgentContract({
           "Restart the Office match immediately from the ended state.",
         availability: "Ended phase.",
         resultDescription: "The game restarts into a fresh playing state.",
+      },
+    ),
+    finish_match: agentAction.host(
+      {
+        actionName: "finishMatch",
+        storeDomain: DEFAULT_STORE_DOMAIN,
+      },
+      {
+        input: agentActionInput.none(),
+        description:
+          "End the current Office shift immediately and transition to the ended state.",
+        availability: "Host-side staging only. Visual proof and deterministic QA helper.",
+        resultDescription:
+          "The active shift ends immediately and the ended-state UI becomes visible.",
       },
     ),
   },

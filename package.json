@@ -15,7 +15,7 @@
     "logs": "node scripts/repo/cli.mjs workspace logs",
     "build": "pnpm -r build",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:happy-path",
-    "lint": "pnpm -r lint",
+    "lint": "eslint . && pnpm --filter platform lint",
     "guard:canonical": "node scripts/repo/cli.mjs standards canonical",
     "smoke:browser": "playwright test --config playwright.smoke.config.ts",
     "playwright:install": "playwright install --with-deps chromium",

@@ -1,10 +1,9 @@
 /**
  * Host surface for pong. The host owns the authoritative simulation loop,
- * local countdown, canvas renderer, visual harness, and host-only controls.
+ * local countdown, canvas renderer, and host-only controls.
  * Screen components read the replicated store/session data they render instead
  * of receiving large prop bundles from this hub.
  */
-import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import {
   AudioRuntime,
   useAirJamHost,
@@ -13,8 +12,6 @@ import {
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { pongVisualHarnessBridge } from "../../visual/contract";
-import { gameMetadata } from "../airjam.config";
 import { gameInputSchema } from "../game/contracts/input";
 import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
 import {
@@ -44,7 +41,6 @@ export function HostView() {
 }
 
 function PongHost() {
-  const host = useAirJamHost<typeof gameInputSchema>();
   const players = useAirJamHost((state) => state.players);
   const runtimeState = useAirJamHost((state) => state.runtimeState);
   const getInput = useGetInput<typeof gameInputSchema>();
@@ -115,16 +111,6 @@ function PongHost() {
 
   return (
     <>
-      <VisualHarnessRuntime
-        gameId={gameMetadata.slug}
-        bridge={pongVisualHarnessBridge}
-        context={{
-          host,
-          matchPhase,
-          runtimeState,
-          actions,
-        }}
-      />
       <SurfaceViewport className="bg-[#02030a]">
         {matchPhase === "lobby" ? (
           <LobbyScreen />

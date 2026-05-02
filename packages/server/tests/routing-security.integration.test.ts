@@ -201,6 +201,119 @@ describe("server routing and security", () => {
     await harness.expectNoEvent(host, "airjam:action_rpc");
   });
 
+  it("routes host semantic action RPCs to the active host with host actor semantics", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_host_semantic_1",
+        nickname: "HostSemantic",
+        capabilityToken: createAck.controllerCapability?.token,
+      },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    controller.emit("controller:host_action_rpc", {
+      roomId,
+      actionName: "finishMatch",
+      payload: undefined,
+      storeDomain: "default",
+    });
+
+    const forwarded = await harness.waitForEvent<{
+      actionName: string;
+      payload: unknown;
+      storeDomain: string;
+      actor: { id: string; role: "controller" | "host" };
+    }>(host, "airjam:action_rpc");
+
+    expect(forwarded.actionName).toBe("finishMatch");
+    expect(forwarded.storeDomain).toBe("default");
+    expect(forwarded.actor).toEqual({
+      id: "host",
+      role: "host",
+    });
+    expect(forwarded.payload).toBeUndefined();
+  });
+
+  it("returns the host semantic action acknowledgement from the active host", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const controller = await harness.connectSocket();
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    const joinAck = await harness.emitWithAck<ControllerJoinAck>(
+      controller,
+      "controller:join",
+      {
+        roomId,
+        controllerId: "ctrl_host_semantic_ack_1",
+        nickname: "HostSemanticAck",
+        capabilityToken: createAck.controllerCapability?.token,
+      },
+    );
+    expect(joinAck.ok).toBe(true);
+
+    host.once("airjam:action_rpc", (...args: unknown[]) => {
+      const callback = args[1] as
+        | ((
+            ack: {
+              ok: boolean;
+              status: "accepted" | "rejected";
+              source: "host";
+              result?: { ok: true };
+            },
+          ) => void)
+        | undefined;
+      callback?.({
+        ok: true,
+        status: "accepted",
+        source: "host",
+        result: { ok: true },
+      });
+    });
+
+    const ack = await harness.emitWithAck<{
+      ok: boolean;
+      status: "accepted" | "rejected";
+      source: "host" | "server" | "client";
+      result?: { ok: true };
+      reason?: string;
+    }>(controller, "controller:host_action_rpc", {
+      roomId,
+      actionName: "finishMatch",
+      payload: undefined,
+      storeDomain: "default",
+    });
+
+    expect(ack).toEqual({
+      ok: true,
+      status: "accepted",
+      source: "host",
+      result: { ok: true },
+    });
+  });
+
   it("routes namespaced arcade actions to master host during game focus", async () => {
     const masterHost = await harness.connectSocket();
     expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);

@@ -7,8 +7,9 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 1. `src/airjam.config.ts`
 2. `src/game/contracts/agent.ts` if it exists
 3. `docs/state-lanes-cookbook.md` when you are deciding where state or effects belong
-4. `visual/contract.ts` and `visual/scenarios.ts` only if they exist
-5. `docs/agent-mcp.md` when you need exact MCP operations
+4. `src/game/contracts/visual-scenarios.ts` if it exists
+5. `src/game/contracts/visual-bridge.ts` only if it exists too
+6. `docs/agent-mcp.md` when you need exact MCP operations
 
 ## Five-Step Mental Model
 
@@ -33,16 +34,16 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 `src/game/contracts/agent.ts`
 : Owns the semantic agent contract. Keep snapshot projection and semantic actions here.
 
-`visual/contract.ts`
-: Optional browser-safe host staging surface for deterministic visual workflows and visual proof only.
+`src/game/contracts/visual-scenarios.ts`
+: Optional Playwright-side visual capture scenarios. Prefer `context.agent.invoke(...)` for semantic setup and keep bridge usage limited to runtime-local visual/bootstrap state.
 
-`visual/scenarios.ts`
-: Optional Playwright-side visual capture scenarios.
+`src/game/contracts/visual-bridge.ts`
+: Optional browser-safe runtime-local bridge for visual workflows that cannot be expressed cleanly through the semantic agent contract.
 
 ## Action Rules
 
 1. `player:*` actions act like a player or a semantic controller verb.
-2. `host:*` actions are deterministic host staging actions. They are optional and exist to support precise setup or visual proof, not to replace the semantic contract.
+2. `host:*` actions are deterministic semantic host actions. Define them with `agentAction.host(...)` when the game needs precise host staging or reset verbs for testing, visual proof, or controlled setup.
 3. Store action dispatch returns an acknowledgement. Check it when outcome matters.
 4. For `airjam.invoke_game_session_action`, prefer the returned normalized `outcome` over guessing from the raw acknowledgement alone. A missing host acknowledgement with observed committed state change is still a meaningful success signal, not an automatic rejection.
 5. `ctx.actorId` always means the dispatcher. If host code dispatches with `useStore.useActions()`, then `ctx.actorId` is the host.

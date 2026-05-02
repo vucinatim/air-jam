@@ -112,8 +112,7 @@ const resolveNodeEnvMode = (): string | undefined => {
 
 const resolveImportMetaDev = (): boolean | undefined => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
+    const meta = import.meta as ImportMeta & { env?: { DEV?: boolean } };
     if (meta?.env && typeof meta.env.DEV === "boolean") {
       return meta.env.DEV;
     }

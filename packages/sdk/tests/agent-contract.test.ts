@@ -197,4 +197,41 @@ describe("agentAction", () => {
       }),
     ).toThrow(/Invalid option/);
   });
+
+  it("builds explicit host-target actions for deterministic host-side staging", () => {
+    const action = agentAction.host(
+      {
+        actionName: "finishMatch",
+        storeDomain: "default",
+      },
+      {
+        input: agentActionInput.none(),
+        description: "Finish the active match immediately.",
+        availability: "Host-side staging only.",
+        resultDescription: "The game transitions into the ended phase.",
+      },
+    );
+
+    expect(action.target).toEqual({
+      kind: "host",
+      actionName: "finishMatch",
+      storeDomain: "default",
+    });
+
+    expect(describeAirJamAgentAction(action)).toEqual({
+      description: "Finish the active match immediately.",
+      payload: {
+        kind: "none",
+      },
+      resultDescription: "The game transitions into the ended phase.",
+    });
+
+    expect(
+      resolveAirJamAgentActionPayload(action, undefined, {
+        gameId: "the-office",
+        actionName: "finish_match",
+        contractKind: "agent",
+      }),
+    ).toBeUndefined();
+  });
 });

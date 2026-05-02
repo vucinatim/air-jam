@@ -40,6 +40,8 @@ export interface PrefabPlacementDescriptor {
 
 export interface PrefabDefinition<
   TProps,
+  // Existential wildcard for prefab render contracts that may take additional renderer-specific arguments.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TRenderContract extends (...args: any[]) => unknown = PrefabRenderFn<TProps>,
 > {
   id: string;
@@ -56,11 +58,14 @@ export interface PrefabDefinition<
 
 export type PrefabCatalog = readonly PrefabDefinition<
   unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (...args: any[]) => unknown
 >[];
 
 export const definePrefab = <
   TProps,
+  // Existential wildcard for prefab render contracts that may take additional renderer-specific arguments.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TRenderContract extends (...args: any[]) => unknown = PrefabRenderFn<TProps>,
 >(
   definition: PrefabDefinition<TProps, TRenderContract>,
@@ -69,6 +74,7 @@ export const definePrefab = <
 export const createPrefabCatalog = <
   const TPrefabs extends readonly PrefabDefinition<
     unknown,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (...args: any[]) => unknown
   >[],
 >(

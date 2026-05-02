@@ -152,11 +152,17 @@ function useOwnedAudio<M extends SoundManifest>(
 
   useEffect(() => {
     if (role && roomId) {
-      const socket =
+      const directSocket = getSocket(role);
+      if (!directSocket) {
+        manager.setSocket(null, roomId, role);
+        return;
+      }
+
+      const realtimeClient =
         role === "controller"
-          ? getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole))
-          : getHostRealtimeClient((runtimeRole) => getSocket(runtimeRole));
-      manager.setSocket(socket, roomId, role);
+          ? getControllerRealtimeClient(() => directSocket)
+          : getHostRealtimeClient(() => directSocket);
+      manager.setSocket(realtimeClient, roomId, role);
     }
   }, [manager, role, roomId, getSocket]);
 
@@ -222,7 +228,12 @@ function useRemoteSound<M extends SoundManifest>(
       return null;
     }
 
-    return getControllerRealtimeClient((runtimeRole) => getSocket(runtimeRole));
+    const directSocket = getSocket("controller");
+    if (!directSocket) {
+      return null;
+    }
+
+    return getControllerRealtimeClient(() => directSocket);
   }, [getSocket, role]);
   const enabled = role === "controller" && connectionStatus === "connected";
 

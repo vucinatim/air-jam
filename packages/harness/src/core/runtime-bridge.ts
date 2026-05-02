@@ -1,5 +1,7 @@
 export const VISUAL_HARNESS_BRIDGE_KEY = "__airJamVisualHarness";
 export const VISUAL_HARNESS_ACTIONS_KEY = "__airJamVisualHarnessActions";
+export const VISUAL_HARNESS_AGENT_HOST_ACTION_PREFIX =
+  "__airJamAgentHostAction__:";
 export const VISUAL_HARNESS_ENABLE_PARAM = "aj_visual_harness";
 export const VISUAL_HARNESS_ENABLE_VALUE = "enabled";
 

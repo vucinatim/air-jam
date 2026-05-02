@@ -10,7 +10,27 @@ const trimToUndefined = (value) => {
   return normalized.length > 0 ? normalized : undefined;
 };
 
-const optionalEnvValue = z.preprocess(trimToUndefined, z.string().optional());
+const optionalEnvValue = z
+  .string()
+  .optional()
+  .transform((value) => trimToUndefined(value));
+
+const optionalEnumFromEnv = (envKey, values) =>
+  optionalEnvValue.transform((value, context) => {
+    if (!value) {
+      return undefined;
+    }
+
+    if (!values.includes(value)) {
+      context.addIssue({
+        code: "custom",
+        message: `${envKey} must be one of: ${values.join(", ")}.`,
+      });
+      return z.NEVER;
+    }
+
+    return value;
+  });
 
 const positiveIntegerFromEnv = (envKey, fallback) =>
   optionalEnvValue.transform((value, context) => {
@@ -32,10 +52,10 @@ const positiveIntegerFromEnv = (envKey, fallback) =>
 
 const createAirJamRuntimeEnvSchema = z.object({
   VITE_PORT: positiveIntegerFromEnv("VITE_PORT", 5173),
-  AIR_JAM_SECURE_MODE: z.preprocess(
-    trimToUndefined,
-    z.enum(["local", "tunnel"]).optional(),
-  ),
+  AIR_JAM_SECURE_MODE: optionalEnumFromEnv("AIR_JAM_SECURE_MODE", [
+    "local",
+    "tunnel",
+  ]),
   AIR_JAM_MKCERT_TRUST_STORES: optionalEnvValue,
   AIR_JAM_SECURE_PUBLIC_HOST: optionalEnvValue,
   CLOUDFLARE_TUNNEL_NAME: optionalEnvValue,

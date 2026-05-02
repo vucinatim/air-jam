@@ -46,6 +46,7 @@ import type {
   AirJamStateSyncPayload,
   AirJamStateSyncRequestPayload,
   ControllerActionRpcPayload,
+  HostActionRpcPayload,
   ControllerStateSyncRequestPayload,
   HostStateSyncPayload,
 } from "./sync";
@@ -110,6 +111,10 @@ export interface ClientToServerEvents {
   "host:state_sync": (payload: HostStateSyncPayload) => void;
   "controller:action_rpc": (
     payload: ControllerActionRpcPayload,
+    callback?: (ack: AirJamActionInvocationResult) => void,
+  ) => void;
+  "controller:host_action_rpc": (
+    payload: HostActionRpcPayload,
     callback?: (ack: AirJamActionInvocationResult) => void,
   ) => void;
   "controller:state_sync_request": (

@@ -1,15 +1,12 @@
 /**
  * Host surface for Code Review. The host owns the authoritative simulation,
- * canvas renderer, visual harness context, and host-only preview controls.
+ * canvas renderer, and host-only preview controls.
  * Runtime details live in host hooks so this route stays a small composition
  * hub instead of a mixed engine/UI file.
  */
 import { AudioRuntime, MusicPlaylist, useAirJamHost } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
-import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
-import { codeReviewVisualHarnessBridge } from "../../visual/contract";
-import { gameMetadata } from "../airjam.config";
 import { gameInputSchema } from "../game/contracts/input";
 import {
   CODE_REVIEW_MUSIC_TRACKS,
@@ -37,7 +34,6 @@ export function HostView() {
 function CodeReviewHost() {
   const host = useAirJamHost<typeof gameInputSchema>();
   const matchPhase = useGameStore((state) => state.matchPhase);
-  const scores = useGameStore((state) => state.scores);
   const actions = useGameStore.useActions();
 
   const canvas = useCodeReviewCanvas();
@@ -57,17 +53,6 @@ function CodeReviewHost() {
 
   return (
     <div className="host-view-shell">
-      <VisualHarnessRuntime
-        gameId={gameMetadata.slug}
-        bridge={codeReviewVisualHarnessBridge}
-        context={{
-          host,
-          matchPhase,
-          runtimeState: host.runtimeState,
-          actions,
-          scores,
-        }}
-      />
       <MusicPlaylist
         fadeMs={800}
         playing={!audio.audioMuted}

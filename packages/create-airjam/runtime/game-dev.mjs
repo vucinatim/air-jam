@@ -119,7 +119,7 @@ const startGameIfNeeded = async (
   return true;
 };
 
-const ensurePreviewManagedServer = async ({ cwd, serverPort }) => {
+const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
   const hasExistingServer = await isPortOpen(serverPort);
   if (hasExistingServer) {
     console.log(`[dev] Reusing existing preview-managed server on :${serverPort}`);
@@ -134,7 +134,11 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort }) => {
   const logFd = fs.openSync(logFile, "a");
   const child = spawn("pnpm", ["exec", "air-jam-server"], {
     cwd,
-    env: process.env,
+    env: {
+      ...process.env,
+      ...env,
+      PORT: String(serverPort),
+    },
     detached: true,
     stdio: ["ignore", logFd, logFd],
   });
@@ -356,6 +360,7 @@ export const runGameDevCli = async ({
       await ensurePreviewManagedServer({
         cwd,
         serverPort,
+        env,
       });
       if (previewManagedPorts?.usesPreviewProxy) {
         console.log(

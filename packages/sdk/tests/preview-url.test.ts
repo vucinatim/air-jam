@@ -21,6 +21,21 @@ describe("preview controller launch helpers", () => {
     );
   });
 
+  it("can rebase embedded preview controllers onto a host-local origin", () => {
+    const result = buildPreviewControllerUrl({
+      joinUrl:
+        "https://platform.example/controller?room=ROOM2&aj_controller_cap=cap_123",
+      controllerId: "ctrl_preview_1",
+      previewDeviceId: "pd_preview_1",
+      embedOrigin: "http://localhost:5173",
+      allowedOrigins: ["https://platform.example"],
+    });
+
+    expect(result).toBe(
+      "http://localhost:5173/controller?room=ROOM2&aj_controller_cap=cap_123&controllerId=ctrl_preview_1&aj_preview=1&aj_preview_device=pd_preview_1",
+    );
+  });
+
   it("rejects invalid preview controller join urls", () => {
     expect(
       buildPreviewControllerUrl({

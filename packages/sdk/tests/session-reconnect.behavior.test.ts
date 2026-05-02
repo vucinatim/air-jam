@@ -16,6 +16,15 @@ import {
 } from "../src/runtime/session-runtimes";
 import { createAirJamStore } from "../src/state/connection-store";
 
+interface MockSocket {
+  connected: boolean;
+  on: ReturnType<typeof vi.fn>;
+  off: ReturnType<typeof vi.fn>;
+  emit: ReturnType<typeof vi.fn>;
+  connect: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+}
+
 const mocked = vi.hoisted(() => ({
   createMockSocket: () => {
     type Listener = (...args: unknown[]) => void;
@@ -51,8 +60,8 @@ const mocked = vi.hoisted(() => ({
     return socket;
   },
   store: null as ReturnType<typeof createAirJamStore> | null,
-  controllerSocket: null as any,
-  hostSocket: null as any,
+  controllerSocket: null as MockSocket | null,
+  hostSocket: null as MockSocket | null,
   useAirJamContext: vi.fn(),
   useAssertSessionScope: vi.fn(),
   useClaimSessionRuntimeOwner: vi.fn(),
@@ -187,7 +196,7 @@ describe("session reconnect behavior", () => {
     });
 
     const stateHandler = mocked.controllerSocket.on.mock.calls.find(
-      ([event]: [string]) => event === "server:state",
+      ([event]) => event === "server:state",
     )?.[1] as
       | ((payload: {
           roomId: string;
@@ -205,7 +214,7 @@ describe("session reconnect behavior", () => {
     expect(result.current.runtimeState).toBe("playing");
 
     const disconnectHandler = mocked.controllerSocket.on.mock.calls.find(
-      ([event]: [string]) => event === "disconnect",
+      ([event]) => event === "disconnect",
     )?.[1] as ((reason?: string) => void) | undefined;
     expect(disconnectHandler).toBeDefined();
 
@@ -230,7 +239,7 @@ describe("session reconnect behavior", () => {
     });
 
     const welcomeHandler = mocked.controllerSocket.on.mock.calls.find(
-      ([event]: [string]) => event === "server:welcome",
+      ([event]) => event === "server:welcome",
     )?.[1] as
       | ((payload: {
           controllerId: string;
@@ -272,7 +281,7 @@ describe("session reconnect behavior", () => {
     });
 
     const joinedHandler = mocked.controllerSocket.on.mock.calls.find(
-      ([event]: [string]) => event === "server:controllerJoined",
+      ([event]) => event === "server:controllerJoined",
     )?.[1] as
       | ((payload: {
           controllerId: string;
@@ -280,7 +289,7 @@ describe("session reconnect behavior", () => {
         }) => void)
       | undefined;
     const leftHandler = mocked.controllerSocket.on.mock.calls.find(
-      ([event]: [string]) => event === "server:controllerLeft",
+      ([event]) => event === "server:controllerLeft",
     )?.[1] as ((payload: { controllerId: string }) => void) | undefined;
     expect(joinedHandler).toBeDefined();
     expect(leftHandler).toBeDefined();
@@ -428,7 +437,7 @@ describe("session reconnect behavior", () => {
     ).toBe(false);
     expect(
       mocked.hostSocket.emit.mock.calls.filter(
-        ([event]: [string, ...unknown[]]) => event === "host:state",
+        ([event]) => event === "host:state",
       ),
     ).toHaveLength(1);
   });
@@ -553,19 +562,19 @@ describe("session reconnect behavior", () => {
     await waitFor(() => {
       expect(
         mocked.hostSocket.emit.mock.calls.filter(
-          ([event]: [string, ...unknown[]]) => event === "host:bootstrap",
+          ([event]) => event === "host:bootstrap",
         ),
       ).toHaveLength(1);
     });
 
     expect(
       mocked.hostSocket.emit.mock.calls.filter(
-        ([event]: [string, ...unknown[]]) => event === "host:createRoom",
+        ([event]) => event === "host:createRoom",
       ),
     ).toHaveLength(1);
     expect(
       mocked.hostSocket.emit.mock.calls.filter(
-        ([event]: [string, ...unknown[]]) => event === "host:reconnect",
+        ([event]) => event === "host:reconnect",
       ),
     ).toHaveLength(0);
   });
@@ -619,7 +628,7 @@ describe("session reconnect behavior", () => {
       "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
     );
 
-    const { result } = renderHook(() => useAirJamHost(), {
+    const { result, unmount } = renderHook(() => useAirJamHost(), {
       wrapper: createHostWrapper(),
     });
 
@@ -628,6 +637,8 @@ describe("session reconnect behavior", () => {
         "https://platform.example/controller?room=ROOM1",
       );
     });
+
+    unmount();
   });
 
   it("uses the embedded host bridge without opening a direct host socket", async () => {

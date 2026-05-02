@@ -6,8 +6,8 @@
  *     to `HostScreen`.
  *  2. `HostScreen` pulls the three networked stores (match, capture-the-flag
  *     state, player/roster) and wires them to: the 3D `GameScene`, the bot
- *     manager, the harness bridge, and the lobby / countdown / ended
- *     overlays picked by `matchPhase`.
+ *     manager, and the lobby / countdown / ended overlays picked by
+ *     `matchPhase`.
  *  3. Local phase transition effects reset the match runtime. `useMatchCountdown`
  *     owns the countdown lifecycle.
  *  4. `useBotManager` runs the bot AI loop on the host against the same
@@ -16,15 +16,12 @@
  * Heaviest piece: the 3D scene under `../game/engine/game-scene`. It's lazy-
  * loaded so the lobby surface renders before Rapier initialises.
  */
-import { VisualHarnessRuntime } from "@air-jam/harness/runtime";
 import { useAudioRuntimeControls, useAudioRuntimeStatus } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import type { Dispatch, JSX, SetStateAction } from "react";
 import { Suspense, lazy, memo, useCallback, useState } from "react";
-import { gameMetadata } from "../airjam.config";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
-import { airCaptureVisualHarnessBridge } from "../../visual/contract";
 import { HostAudioProvider } from "../game/audio/host-audio";
 import { useHostAudio } from "../game/audio/use-host-audio";
 import {
@@ -150,16 +147,6 @@ const HostViewContent = ({
 
   return (
     <>
-      <VisualHarnessRuntime
-        gameId={gameMetadata.slug}
-        bridge={airCaptureVisualHarnessBridge}
-        context={{
-          host: hostRuntime.host,
-          matchPhase: hostRuntime.matchPhase,
-          runtimeState: hostRuntime.runtimeState,
-          matchActions: hostRuntime.matchActions,
-        }}
-      />
       <SurfaceViewport className="bg-background">
         <div className="bg-background relative h-full w-full overflow-hidden">
           {hostRuntime.shouldRenderGameplayStage ? (

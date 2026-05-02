@@ -1,4 +1,5 @@
 import type {
+  AnyAirJamAgentContract,
   AnyVisualHarnessBridgeDefinition,
   VisualScenarioPack,
 } from "@air-jam/harness/visual";
@@ -7,17 +8,31 @@ import { loadVisualScenarioPackFromConfig } from "./airjam-agent.js";
 
 export const loadVisualScenarioPack = async (
   modulePath: string,
-): Promise<VisualScenarioPack<AnyVisualHarnessBridgeDefinition>> => {
+): Promise<
+  VisualScenarioPack<
+    AnyAirJamAgentContract,
+    AnyVisualHarnessBridgeDefinition | null
+  >
+> => {
   const loaded = (await import(pathToFileURL(modulePath).href)) as {
-    visualHarness?: VisualScenarioPack<AnyVisualHarnessBridgeDefinition>;
-    visualScenarios?: VisualScenarioPack<AnyVisualHarnessBridgeDefinition>;
-    harness?: VisualScenarioPack<AnyVisualHarnessBridgeDefinition>;
+    visualHarness?: VisualScenarioPack<
+      AnyAirJamAgentContract,
+      AnyVisualHarnessBridgeDefinition | null
+    >;
+    visualScenarios?: VisualScenarioPack<
+      AnyAirJamAgentContract,
+      AnyVisualHarnessBridgeDefinition | null
+    >;
+    harness?: VisualScenarioPack<
+      AnyAirJamAgentContract,
+      AnyVisualHarnessBridgeDefinition | null
+    >;
   };
 
   const scenarioPack =
     loaded.visualHarness ?? loaded.visualScenarios ?? loaded.harness ?? null;
 
-  if (!scenarioPack || !scenarioPack.bridge || !Array.isArray(scenarioPack.scenarios)) {
+  if (!scenarioPack || !scenarioPack.agent || !Array.isArray(scenarioPack.scenarios)) {
     throw new Error(`Invalid Air Jam visual scenario pack at ${modulePath}.`);
   }
 
@@ -30,7 +45,12 @@ export const loadVisualScenarioPackFromModuleOrConfig = async ({
 }: {
   modulePath?: string | null;
   configPath?: string | null;
-}): Promise<VisualScenarioPack<AnyVisualHarnessBridgeDefinition>> => {
+}): Promise<
+  VisualScenarioPack<
+    AnyAirJamAgentContract,
+    AnyVisualHarnessBridgeDefinition | null
+  >
+> => {
   if (configPath) {
     return loadVisualScenarioPackFromConfig(configPath);
   }

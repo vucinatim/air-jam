@@ -243,6 +243,7 @@ export const agentContract = defineAirJamAgentContract({
         "start_match",
         "submit_guess",
         "reset_lobby",
+        "host:force_game_over",
       ],
     };
   },
@@ -327,6 +328,20 @@ export const agentContract = defineAirJamAgentContract({
         availability: "Any phase.",
         resultDescription:
           "The match returns to the lobby and clears current round progress.",
+      },
+    ),
+    force_game_over: agentAction.host(
+      {
+        actionName: "forceGameOver",
+        storeDomain: DEFAULT_STORE_DOMAIN,
+      },
+      {
+        input: agentActionInput.none(),
+        description:
+          "Finish the current match immediately and transition to the final game-over state.",
+        availability: "Host-side staging only. Visual proof and deterministic QA helper.",
+        resultDescription:
+          "The current match ends immediately and the game-over screen becomes available.",
       },
     ),
   },

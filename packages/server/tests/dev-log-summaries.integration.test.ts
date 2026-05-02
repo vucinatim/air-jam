@@ -139,11 +139,13 @@ describe("dev log summaries", () => {
       roomId,
       storeDomain: "game",
       data: { score: 1 },
+      revision: 0,
     });
     host.emit("host:state_sync", {
       roomId,
       storeDomain: "game",
       data: { score: 2 },
+      revision: 1,
     });
 
     await new Promise((resolve) => setTimeout(resolve, 80));

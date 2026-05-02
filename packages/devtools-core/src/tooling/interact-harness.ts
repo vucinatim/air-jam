@@ -79,10 +79,15 @@ const scenarioPack = await loadVisualScenarioPackFromModuleOrConfig({
   modulePath,
   configPath,
 });
-const availableActions = Object.keys(scenarioPack.bridge.actions ?? {});
+const availableActions = Object.keys(scenarioPack.bridge?.actions ?? {});
 const actionMetadata = describeVisualHarnessActions(
-  scenarioPack.bridge.actions ?? {},
+  scenarioPack.bridge?.actions ?? {},
 );
+if (!scenarioPack.bridge && operation === "invoke") {
+  throw new Error(
+    `Game "${gameId}" does not publish a visual bridge action surface.`,
+  );
+}
 if (actionName && !availableActions.includes(actionName)) {
   throw new Error(
     `Unknown harness action "${actionName}" for "${gameId}". Available actions: ${availableActions.join(", ") || "(none)"}`,

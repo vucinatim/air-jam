@@ -7,6 +7,10 @@ import {
   type Page,
 } from "@playwright/test";
 import {
+  AIR_JAM_RUNTIME_INSPECTION_KEY,
+  readRuntimeInspectionContract,
+} from "@air-jam/sdk";
+import {
   VISUAL_HARNESS_ACTIONS_KEY,
   VISUAL_HARNESS_BRIDGE_KEY,
   VISUAL_HARNESS_ENABLE_PARAM,
@@ -122,6 +126,34 @@ const readRuntimeHref = async ({
   return game.locator("body").evaluate(() => window.location.href);
 };
 
+const readHostRuntimeInspection = async ({
+  page,
+  game,
+  embedded,
+}: {
+  page: Page;
+  game: VisualQuerySurface;
+  embedded: boolean;
+}) => {
+  const rawInspection = embedded
+    ? await game
+        .locator("body")
+        .evaluate(
+          (_, key) =>
+            (window as unknown as Record<string, unknown>)[key] ?? null,
+          AIR_JAM_RUNTIME_INSPECTION_KEY,
+        )
+    : await page.evaluate(
+        (key) => (window as unknown as Record<string, unknown>)[key] ?? null,
+        AIR_JAM_RUNTIME_INSPECTION_KEY,
+      );
+
+  const inspection = readRuntimeInspectionContract({
+    [AIR_JAM_RUNTIME_INSPECTION_KEY]: rawInspection,
+  });
+  return inspection?.role === "host" ? inspection : null;
+};
+
 export const readVisualHarnessSessionBridgeSnapshot = async <
   TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
 >({
@@ -233,6 +265,17 @@ const resolveControllerJoinUrl = async ({
     resolvedJoinUrl = bridgeSnapshot?.controllerJoinUrl ?? null;
 
     if (!resolvedJoinUrl) {
+      const inspection = await readHostRuntimeInspection({
+        page: hostPage,
+        game: hostGame,
+        embedded: hostEmbedded,
+      });
+      if (inspection?.joinUrlStatus === "ready" && inspection.joinUrl) {
+        resolvedJoinUrl = inspection.joinUrl;
+      }
+    }
+
+    if (!resolvedJoinUrl) {
       const hostRuntimeHref = await readRuntimeHref({
         page: hostPage,
         game: hostGame,
@@ -251,7 +294,7 @@ const resolveControllerJoinUrl = async ({
 
   if (!resolvedJoinUrl) {
     throw new Error(
-      "Could not resolve a controller join URL from the harness bridge snapshot or host runtime URL.",
+      "Could not resolve a controller join URL from the harness bridge snapshot, host runtime inspection contract, or host runtime URL.",
     );
   }
 
@@ -277,6 +320,7 @@ export type OpenVisualHarnessHostSessionResult = {
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl"> & {
     controllerJoinUrl: string | null;
   };
+  harnessSessionId: string | null;
   host: VisualHarnessPageSurface;
   readBridgeSnapshot: <
     TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
@@ -297,6 +341,7 @@ export type OpenVisualHarnessHostSessionResult = {
 
 export type OpenVisualHarnessSessionResult = {
   urls: VisualHarnessUrls;
+  harnessSessionId: string | null;
   host: VisualHarnessPageSurface;
   controller: VisualHarnessPageSurface & {
     fullscreenPromptDismissed: boolean;
@@ -352,6 +397,42 @@ const openVisualHarnessHostSurface = async ({
   }
 };
 
+const readVisualHarnessSessionId = async ({
+  page,
+  game,
+  embedded,
+}: {
+  page: Page;
+  game: VisualQuerySurface;
+  embedded: boolean;
+}): Promise<string | null> => {
+  const key = "__airJamVisualHarnessSessionId__";
+
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const candidate = embedded
+      ? await game
+          .locator("body")
+          .evaluate(
+            (_, nextKey) =>
+              (window as unknown as Record<string, unknown>)[nextKey] ?? null,
+            key,
+          )
+      : await page.evaluate(
+          (nextKey) =>
+            (window as unknown as Record<string, unknown>)[nextKey] ?? null,
+          key,
+        );
+
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate;
+    }
+
+    await page.waitForTimeout(250);
+  }
+
+  return null;
+};
+
 export const openVisualHarnessHostSession = async ({
   browser,
   urls,
@@ -368,6 +449,11 @@ export const openVisualHarnessHostSession = async ({
       ...urls,
       controllerJoinUrl: null,
     },
+    harnessSessionId: await readVisualHarnessSessionId({
+      page: host.page,
+      game: host.game,
+      embedded: host.embedded,
+    }),
     host,
     readBridgeSnapshot: () =>
       readVisualHarnessSessionBridgeSnapshot({
@@ -459,6 +545,7 @@ export const openVisualHarnessSession = async ({
         ...hostSession.urls,
         controllerJoinUrl,
       },
+      harnessSessionId: hostSession.harnessSessionId,
       host: hostSession.host,
       controller,
       readBridgeSnapshot: hostSession.readBridgeSnapshot,

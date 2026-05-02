@@ -26,6 +26,7 @@ const createSession = (): RoomSession => ({
   },
   focus: "SYSTEM",
   controllers: new Map(),
+  replicatedStoreSnapshots: new Map(),
   maxPlayers: 8,
   runtimeState: "paused",
   stateVersion: 0,
@@ -64,7 +65,7 @@ describe("room session domain lifecycle", () => {
     });
   });
 
-  it("resets stale runtime state when starting a new game launch", () => {
+  it("resets stale runtime state and starts a new launch in playing state", () => {
     const session = createSession();
     session.runtimeState = "playing";
     session.controllerOrientation = "landscape";
@@ -77,7 +78,7 @@ describe("room session domain lifecycle", () => {
 
     expect(launchAttempt).toEqual({ ok: true });
     expect(session.lifecycleState).toBe("GAME_LAUNCH_PENDING");
-    expect(session.runtimeState).toBe("paused");
+    expect(session.runtimeState).toBe("playing");
     expect(session.controllerOrientation).toBe("portrait");
   });
 

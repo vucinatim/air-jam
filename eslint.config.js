@@ -20,6 +20,9 @@ export default defineConfig([
     ".next-smoke",
     ".next-smoke/**",
     "**/.next-smoke/**",
+    ".airjam",
+    ".airjam/**",
+    "**/.airjam/**",
     "out",
     "out/**",
     "**/out/**",
@@ -55,6 +58,7 @@ export default defineConfig([
     },
     extends: [js.configs.recommended, tseslint.configs.recommended],
     rules: {
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -91,6 +95,7 @@ export default defineConfig([
     rules: {
       "react-hooks/refs": "off",
       "react-hooks/purity": "off",
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -122,6 +127,7 @@ export default defineConfig([
     },
     extends: [js.configs.recommended, tseslint.configs.recommended],
     rules: {
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {

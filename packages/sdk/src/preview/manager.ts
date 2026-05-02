@@ -51,6 +51,7 @@ export interface UsePreviewControllerManagerOptions {
   enabled?: boolean;
   maxControllers?: number;
   allowedOrigins?: readonly string[];
+  embedOrigin?: string | null;
 }
 
 export interface UsePreviewControllerManagerResult {
@@ -301,6 +302,7 @@ export const usePreviewControllerManager = ({
   enabled = true,
   maxControllers = 2,
   allowedOrigins,
+  embedOrigin,
 }: UsePreviewControllerManagerOptions): UsePreviewControllerManagerResult => {
   const [sessions, setSessions] = useState<PreviewControllerSession[]>([]);
   const nextSessionIdRef = useRef(1);
@@ -351,6 +353,7 @@ export const usePreviewControllerManager = ({
         const launch = createPreviewControllerLaunch({
           joinUrl,
           allowedOrigins,
+          embedOrigin,
         });
         if (!launch) {
           return current;
@@ -393,7 +396,7 @@ export const usePreviewControllerManager = ({
       });
 
       return nextSession;
-    }, [allowedOrigins, enabled, joinUrl, maxControllers]);
+    }, [allowedOrigins, embedOrigin, enabled, joinUrl, maxControllers]);
 
   const removePreviewController = useCallback((id: string) => {
     setSessions((current) =>

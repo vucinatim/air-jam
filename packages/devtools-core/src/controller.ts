@@ -4,6 +4,7 @@ import type {
   ControllerJoinAck,
   ControllerJoinedNotice,
   ControllerLeaveAck,
+  HostActionRpcPayload,
   ControllerStateMessage,
   ControllerWelcomePayload,
   PlayerProfile,
@@ -47,6 +48,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type ControllerSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
+type PendingStateSyncWaiter = {
+  requestId: string;
+  minimumRevision: number;
+  resolve: (snapshot: AirJamRuntimeStoreSnapshot | null) => void;
+};
+
 type InternalControllerSession = {
   cwd: string;
   summary: AirJamVirtualControllerSessionSummary;
@@ -57,10 +64,7 @@ type InternalControllerSession = {
   controllerState: JsonObject | null;
   players: JsonObject[];
   storeSnapshots: Map<string, AirJamRuntimeStoreSnapshot>;
-  pendingSyncWaiters: Map<
-    string,
-    Set<(snapshot: AirJamRuntimeStoreSnapshot | null) => void>
-  >;
+  pendingSyncWaiters: Map<string, Set<PendingStateSyncWaiter>>;
   lastSignal: JsonObject | null;
   lastError: JsonObject | null;
   isolatedHarnessOwner: ChildProcess | null;
@@ -256,6 +260,28 @@ const emitControllerActionWithAck = async ({
     }, timeoutMs);
 
     socket.emit("controller:action_rpc", payload, (ack) => {
+      clearTimeout(timeout);
+      resolve(ack);
+    });
+  });
+
+const emitHostActionWithAck = async ({
+  socket,
+  payload,
+  timeoutMs,
+}: {
+  socket: ControllerSocket;
+  payload: HostActionRpcPayload;
+  timeoutMs: number;
+}): Promise<Parameters<NonNullable<Parameters<ClientToServerEvents["controller:host_action_rpc"]>[1]>>[0]> =>
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(
+        new Error("Timed out waiting for host action acknowledgement."),
+      );
+    }, timeoutMs);
+
+    socket.emit("controller:host_action_rpc", payload, (ack) => {
       clearTimeout(timeout);
       resolve(ack);
     });
@@ -781,38 +807,71 @@ export const inspectControllerSessionContext = (
 const waitForStateSync = async ({
   session,
   storeDomain,
+  minimumRevision,
   timeoutMs,
 }: {
   session: InternalControllerSession;
   storeDomain: string;
+  minimumRevision: number;
   timeoutMs: number;
 }): Promise<AirJamRuntimeStoreSnapshot | null> =>
   await new Promise<AirJamRuntimeStoreSnapshot | null>((resolve) => {
+    const requestId = randomUUID();
     const waiters = session.pendingSyncWaiters.get(storeDomain) ?? new Set();
     const timeout = setTimeout(() => {
-      waiters.delete(onSync);
+      waiters.delete(waiter);
       if (waiters.size === 0) {
         session.pendingSyncWaiters.delete(storeDomain);
       }
       resolve(null);
     }, timeoutMs);
 
-    const onSync = (snapshot: AirJamRuntimeStoreSnapshot | null) => {
-      clearTimeout(timeout);
-      waiters.delete(onSync);
-      if (waiters.size === 0) {
-        session.pendingSyncWaiters.delete(storeDomain);
-      }
-      resolve(snapshot);
+    const waiter: PendingStateSyncWaiter = {
+      requestId,
+      minimumRevision,
+      resolve: (snapshot) => {
+        clearTimeout(timeout);
+        waiters.delete(waiter);
+        if (waiters.size === 0) {
+          session.pendingSyncWaiters.delete(storeDomain);
+        }
+        resolve(snapshot);
+      },
     };
 
-    waiters.add(onSync);
+    waiters.add(waiter);
     session.pendingSyncWaiters.set(storeDomain, waiters);
     session.socket.emit("controller:state_sync_request", {
       roomId: session.summary.roomId,
       storeDomain,
+      requestId,
     });
   });
+
+const resolvePendingStateSyncWaiters = ({
+  session,
+  snapshot,
+  requestId,
+}: {
+  session: InternalControllerSession;
+  snapshot: AirJamRuntimeStoreSnapshot;
+  requestId?: string;
+}): void => {
+  const waiters = session.pendingSyncWaiters.get(snapshot.storeDomain);
+  if (!waiters) {
+    return;
+  }
+
+  for (const waiter of Array.from(waiters)) {
+    if (requestId !== waiter.requestId) {
+      continue;
+    }
+    if (snapshot.revision < waiter.minimumRevision) {
+      continue;
+    }
+    waiter.resolve(snapshot);
+  }
+};
 
 const attachSocketListeners = (session: InternalControllerSession): void => {
   session.socket.on("server:welcome", (payload: ControllerWelcomePayload) => {
@@ -856,21 +915,26 @@ const attachSocketListeners = (session: InternalControllerSession): void => {
   });
 
   session.socket.on("airjam:state_sync", (payload: AirJamStateSyncPayload) => {
+    const previousSnapshot = session.storeSnapshots.get(payload.storeDomain);
+    if (
+      previousSnapshot &&
+      payload.revision < previousSnapshot.revision
+    ) {
+      return;
+    }
+
     const snapshot: AirJamRuntimeStoreSnapshot = {
       storeDomain: payload.storeDomain,
       data: { ...payload.data },
       updatedAt: nowIso(),
+      revision: payload.revision,
     };
     session.storeSnapshots.set(payload.storeDomain, snapshot);
-    const waiters = session.pendingSyncWaiters.get(payload.storeDomain);
-    if (!waiters) {
-      return;
-    }
-
-    for (const waiter of waiters) {
-      waiter(snapshot);
-    }
-    session.pendingSyncWaiters.delete(payload.storeDomain);
+    resolvePendingStateSyncWaiters({
+      session,
+      snapshot,
+      requestId: payload.requestId,
+    });
   });
 
   session.socket.on("disconnect", (reason) => {
@@ -884,7 +948,7 @@ const attachSocketListeners = (session: InternalControllerSession): void => {
     );
     for (const waiters of session.pendingSyncWaiters.values()) {
       for (const waiter of waiters) {
-        waiter(null);
+        waiter.resolve(null);
       }
     }
     session.pendingSyncWaiters.clear();
@@ -1218,6 +1282,46 @@ export const invokeControllerAction = async ({
   };
 };
 
+export const invokeHostAction = async ({
+  controllerSessionId,
+  actionName,
+  storeDomain,
+  payload,
+}: {
+  controllerSessionId: string;
+  actionName: string;
+  storeDomain: string;
+  payload?: Record<string, unknown>;
+}): Promise<InvokeControllerActionResult> => {
+  const session = getRequiredSession(controllerSessionId);
+  if (!session.summary.connected) {
+    throw new Error(
+      `Air Jam controller session "${controllerSessionId}" is not connected.`,
+    );
+  }
+
+  const normalizedPayload = payload ? { ...payload } : undefined;
+  const acknowledgement = await emitHostActionWithAck({
+    socket: session.socket,
+    payload: {
+      roomId: session.summary.roomId,
+      actionName,
+      payload: normalizedPayload,
+      storeDomain,
+    },
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+  });
+
+  return {
+    ...buildSessionSummary(session),
+    actionName,
+    storeDomain,
+    ...(normalizedPayload ? { payload: normalizedPayload } : {}),
+    sentAt: nowIso(),
+    acknowledgement,
+  };
+};
+
 export const readRuntimeSnapshot = async ({
   controllerSessionId,
   storeDomains = [],
@@ -1237,9 +1341,12 @@ export const readRuntimeSnapshot = async ({
   if (requestSync && normalizedStoreDomains.length > 0) {
     const syncResults = await Promise.all(
       normalizedStoreDomains.map(async (storeDomain) => {
+        const minimumRevision =
+          session.storeSnapshots.get(storeDomain)?.revision ?? 0;
         const result = await waitForStateSync({
           session,
           storeDomain,
+          minimumRevision,
           timeoutMs,
         });
         return {

@@ -66,10 +66,9 @@ const getNodeEnv = (): Record<string, string | undefined> | undefined => {
 
 const getViteEnv = (): ImportMetaEnv | undefined => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
+    const meta = import.meta as ImportMeta & { env?: ImportMetaEnv };
     if (meta && typeof meta.env === "object") {
-      return meta.env as ImportMetaEnv;
+      return meta.env;
     }
   } catch {
     return undefined;

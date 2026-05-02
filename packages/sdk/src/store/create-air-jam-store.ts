@@ -75,9 +75,11 @@ export interface AirJamActionAcceptance<TResult = unknown> {
   result?: TResult;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AirJamActionHandler = (
   ctx: AirJamActionContext,
+  // Internal existential handler shape for heterogenous action maps.
+  // Store authors still get precise payload types through inference at the public API.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any,
 ) => unknown;
 type AirJamActionMap = Record<string, AirJamActionHandler>;
@@ -670,7 +672,11 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     resolvedStoreDomain: string;
   }): StoreRuntimeBinding => {
     if (role === "host") {
-      const flushHostStateSync = (): void => {
+      let syncedStateData = stripActionsFromState(store.getState());
+      let syncedStateSignature = JSON.stringify(syncedStateData);
+      let syncRevision = 0;
+
+      const emitHostStateSync = (requestId?: string): void => {
         const runtime = runtimeSnapshotRef.current;
         if (
           runtime.role !== "host" ||
@@ -682,12 +688,21 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           return;
         }
 
-        const stateData = stripActionsFromState(store.getState());
         runtime.socket.emit("host:state_sync", {
           roomId,
-          data: stateData,
+          data: syncedStateData,
           storeDomain: resolvedStoreDomain,
+          revision: syncRevision,
+          ...(requestId ? { requestId } : {}),
         });
+      };
+
+      const flushHostStateSync = (requestId?: string): void => {
+        emitHostStateSync(requestId);
+      };
+
+      const handleControllerJoined = (): void => {
+        flushHostStateSync();
       };
 
       const unsubscribe = store.subscribe((newState) => {
@@ -702,12 +717,16 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           return;
         }
 
-        const { actions, ...stateData } = newState;
-        runtime.socket.emit("host:state_sync", {
-          roomId,
-          data: stateData,
-          storeDomain: resolvedStoreDomain,
-        });
+        const stateData = stripActionsFromState(newState);
+        const nextSignature = JSON.stringify(stateData);
+        if (nextSignature === syncedStateSignature) {
+          return;
+        }
+
+        syncedStateData = stateData;
+        syncedStateSignature = nextSignature;
+        syncRevision += 1;
+        emitHostStateSync();
       });
 
       const handleAction = (
@@ -793,6 +812,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       const handleStateSyncRequest = (payload: {
         roomId: string;
         storeDomain: string;
+        requestId?: string;
       }): void => {
         if (payload.roomId !== roomId) {
           return;
@@ -800,10 +820,38 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         if (payload.storeDomain !== resolvedStoreDomain) {
           return;
         }
-        flushHostStateSync();
+        flushHostStateSync(payload.requestId);
       };
 
-      socket.on("server:controllerJoined", flushHostStateSync);
+      const handleSync = (payload: AirJamStateSyncPayload) => {
+        if (payload.roomId !== roomId) {
+          return;
+        }
+        if (payload.storeDomain !== resolvedStoreDomain) {
+          return;
+        }
+        if (payload.revision < syncRevision) {
+          return;
+        }
+
+        const nextStateData = stripActionsFromState(payload.data as Partial<T>);
+        const nextSignature = JSON.stringify(nextStateData);
+        const currentSignature = JSON.stringify(
+          stripActionsFromState(store.getState()),
+        );
+        syncRevision = payload.revision;
+        syncedStateData = nextStateData;
+        syncedStateSignature = nextSignature;
+
+        if (nextSignature === currentSignature) {
+          return;
+        }
+
+        store.setState(nextStateData);
+      };
+
+      socket.on("server:controllerJoined", handleControllerJoined);
+      socket.on("airjam:state_sync", handleSync);
       socket.on("airjam:state_sync_request", handleStateSyncRequest);
       socket.on("airjam:action_rpc", handleAction);
 
@@ -812,17 +860,24 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         flushHostStateSync,
         cleanup: () => {
           unsubscribe();
-          socket.off("server:controllerJoined", flushHostStateSync);
+          socket.off("server:controllerJoined", handleControllerJoined);
+          socket.off("airjam:state_sync", handleSync);
           socket.off("airjam:state_sync_request", handleStateSyncRequest);
           socket.off("airjam:action_rpc", handleAction);
         },
       };
     }
 
+    let latestSyncRevision = -1;
+
     const handleSync = (payload: AirJamStateSyncPayload) => {
       if (payload.storeDomain !== resolvedStoreDomain) {
         return;
       }
+      if (payload.revision < latestSyncRevision) {
+        return;
+      }
+      latestSyncRevision = payload.revision;
       const stateData = stripActionsFromState(payload.data as Partial<T>);
       store.setState(stateData);
     };

@@ -23,9 +23,8 @@ interface ProcessLike {
 
 const readDevelopmentRuntime = (): boolean => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
-    const env = meta?.env as ImportMetaEnv | undefined;
+    const meta = import.meta as ImportMeta & { env?: ImportMetaEnv };
+    const env = meta.env;
     if (typeof env?.DEV === "boolean") {
       return env.DEV;
     }

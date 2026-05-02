@@ -108,6 +108,7 @@ export const registerHostLifecycleHandlers = (
       controllerCapability: issueControllerPrivilegedCapability(uuidv4()),
       activeGameId: startsInGameFocus ? analytics.gameId : undefined,
       controllers: new Map(),
+      replicatedStoreSnapshots: new Map(),
       maxPlayers,
       runtimeState: startsInGameFocus ? "playing" : "paused",
       stateVersion: 0,
@@ -124,6 +125,15 @@ export const registerHostLifecycleHandlers = (
 
   const buildHostControllerSnapshot = (session: RoomSession) =>
     listRoomControllerPresences(session);
+
+  const emitReplicatedStoreSnapshotsToHost = (
+    targetSocket: typeof socket,
+    session: RoomSession,
+  ): void => {
+    for (const snapshot of session.replicatedStoreSnapshots.values()) {
+      targetSocket.emit("airjam:state_sync", snapshot);
+    }
+  };
 
   const getControllerCapabilityForAck = (session: RoomSession) =>
     buildControllerCapabilityForHostAck(session, uuidv4);
@@ -781,6 +791,7 @@ export const registerHostLifecycleHandlers = (
           controllerCapability: getControllerCapabilityForAck(session),
         });
         socket.emit("server:state", buildRoomStateMessage(roomId, session));
+        emitReplicatedStoreSnapshotsToHost(socket, session);
         io.to(roomId).emit("server:roomReady", { roomId });
       } else {
         logHostEvent(
@@ -1353,6 +1364,7 @@ export const registerHostLifecycleHandlers = (
           });
 
           socket.emit("server:state", buildRoomStateMessage(roomId, session));
+          emitReplicatedStoreSnapshotsToHost(socket, session);
         }, 100);
 
         callback({ ok: true, roomId });
@@ -1468,6 +1480,7 @@ export const registerHostLifecycleHandlers = (
       });
 
       socket.emit("server:state", buildRoomStateMessage(roomId, session));
+      emitReplicatedStoreSnapshotsToHost(socket, session);
     }, 100);
 
     callback({ ok: true, roomId });

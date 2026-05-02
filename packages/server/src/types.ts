@@ -1,4 +1,5 @@
 import type {
+  AirJamStateSyncPayload,
   ChildHostCapability,
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
@@ -69,6 +70,7 @@ export interface RoomSession {
   /** Set when a game is launched from the system host (`system:launchGame`). */
   activeGameId?: string;
   controllers: Map<string, ControllerSession>;
+  replicatedStoreSnapshots: Map<string, AirJamStateSyncPayload>;
   maxPlayers: number;
   runtimeState: RuntimeState;
   stateVersion: number;

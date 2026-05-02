@@ -12,7 +12,9 @@ import { AudioRuntime } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { AnimatePresence } from "framer-motion";
-import { lastBandStandingVisualHarnessBridge } from "../../visual/contract";
+import { agentContract } from "../game/contracts/agent";
+import { lastBandStandingVisualHarnessBridge } from "../game/contracts/visual-bridge";
+import { useGameStore } from "../game/stores";
 import { gameMetadata } from "../airjam.config";
 import { soundManifest } from "../game/contracts/sounds";
 import { FullscreenToggle } from "./components/fullscreen-toggle";
@@ -39,12 +41,17 @@ const HostScreen = () => {
     <>
       <VisualHarnessRuntime
         gameId={gameMetadata.slug}
+        agent={{
+          contract: agentContract,
+          stores: {
+            default: useGameStore,
+          },
+        }}
         bridge={lastBandStandingVisualHarnessBridge}
         context={{
           host: runtime.host,
           matchPhase: runtime.shellPhase,
           runtimeState: runtime.runtimeState,
-          actions: runtime.actions,
         }}
       />
       <SurfaceViewport className="bg-background">

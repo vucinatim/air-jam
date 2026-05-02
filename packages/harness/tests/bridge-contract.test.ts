@@ -108,4 +108,21 @@ describe("defineVisualHarnessBridge", () => {
       matchPhase: "lobby",
     });
   });
+
+  it("defaults actions to an empty map when a bridge only publishes snapshot state", () => {
+    const bridge = defineVisualHarnessBridge({
+      selectSnapshot: (_context: Record<string, never>) => ({
+        roomId: "room-2",
+        controllerJoinUrl: null,
+        matchPhase: "playing",
+        runtimeState: "playing",
+      }),
+    });
+
+    expect(bridge.actions).toEqual({});
+    expect(bridge.selectSnapshot({})).toMatchObject({
+      roomId: "room-2",
+      matchPhase: "playing",
+    });
+  });
 });

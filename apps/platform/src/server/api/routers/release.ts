@@ -29,7 +29,7 @@ import {
   publishRelease,
   quarantineRelease,
 } from "@/server/releases/release-status-service";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
   RATE_LIMITS,

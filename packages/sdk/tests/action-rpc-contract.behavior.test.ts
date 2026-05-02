@@ -7,6 +7,14 @@ describe("controller action RPC contract", () => {
       controllerActionRpcSchema.safeParse({
         roomId: "ROOM1",
         actionName: "startMatch",
+        storeDomain: "game.match",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      controllerActionRpcSchema.safeParse({
+        roomId: "ROOM1",
+        actionName: "startMatch",
         payload: undefined,
         storeDomain: "game.match",
       }).success,

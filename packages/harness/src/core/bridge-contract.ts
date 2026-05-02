@@ -1,5 +1,6 @@
 import {
   agentActionInput,
+  type AnyAirJamAgentContract,
   type AirJamAgentActionCustomOptions,
 } from "@air-jam/sdk";
 import {
@@ -15,6 +16,10 @@ import {
   type AirJamAgentActionPayloadMetadata,
 } from "@air-jam/sdk/agent-tooling";
 import type { VisualHarnessBridgeSnapshot } from "./runtime-bridge.js";
+import type {
+  VisualScenario,
+  VisualScenarioPack,
+} from "../visual/types.js";
 
 type VisualHarnessActionParseMeta = AirJamAgentActionParseMeta;
 
@@ -46,6 +51,8 @@ export type VisualHarnessActionDefinition<
 
 export type VisualHarnessActionDefinitions<TContext> = Record<
   string,
+  // Existential wildcard for heterogenous published harness actions.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   VisualHarnessActionDefinition<TContext, any, any>
 >;
 
@@ -58,39 +65,57 @@ export type VisualHarnessBridgeDefinition<
   actions: TActions;
 };
 
+type VisualHarnessBridgeInput<
+  TContext,
+  TSnapshot extends VisualHarnessBridgeSnapshot,
+  TActions extends VisualHarnessActionDefinitions<TContext>,
+> = {
+  selectSnapshot: (context: TContext) => TSnapshot;
+  actions?: TActions;
+};
+
 export type AnyVisualHarnessBridgeDefinition = VisualHarnessBridgeDefinition<
+  // Existential wildcard for arbitrary bridge context/snapshot/action shapes.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any,
   VisualHarnessBridgeSnapshot,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   VisualHarnessActionDefinitions<any>
 >;
 
 export type InferVisualHarnessBridgeContext<TBridge> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TBridge extends VisualHarnessBridgeDefinition<infer TContext, any, any>
     ? TContext
     : never;
 
 export type InferVisualHarnessBridgeSnapshot<TBridge> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TBridge extends VisualHarnessBridgeDefinition<any, infer TSnapshot, any>
     ? TSnapshot
     : never;
 
 export type InferVisualHarnessBridgeActions<TBridge> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TBridge extends VisualHarnessBridgeDefinition<any, any, infer TActions>
     ? TActions
     : never;
 
 export type InferVisualHarnessActionPayload<TAction> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TAction extends VisualHarnessActionDefinition<any, infer TPayload, any>
     ? TPayload
     : never;
 
 export type InferVisualHarnessActionResult<TAction> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TAction extends VisualHarnessActionDefinition<any, any, infer TResult>
     ? Awaited<TResult>
     : never;
 
 type VisualHarnessActionInvoker<TAction> =
   TAction extends VisualHarnessActionDefinition<
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any,
     infer TPayload,
     infer TResult
@@ -312,24 +337,25 @@ export const defineVisualHarnessBridge = <
   TSnapshot extends VisualHarnessBridgeSnapshot,
   const TActions extends VisualHarnessActionDefinitions<TContext>,
 >(
-  bridge: VisualHarnessBridgeDefinition<TContext, TSnapshot, TActions>,
-): VisualHarnessBridgeDefinition<TContext, TSnapshot, TActions> => bridge;
+  bridge: VisualHarnessBridgeInput<TContext, TSnapshot, TActions>,
+): VisualHarnessBridgeDefinition<TContext, TSnapshot, TActions> => ({
+  selectSnapshot: bridge.selectSnapshot,
+  actions: (bridge.actions ?? {}) as TActions,
+});
 
 export const defineVisualHarness = <
-  TBridge extends AnyVisualHarnessBridgeDefinition,
-  TScenario extends {
-    id: string;
-    run: (...args: any[]) => Promise<void>;
-  },
-  TPack extends {
-    bridge: TBridge;
-    scenarios: ReadonlyArray<TScenario>;
-  },
+  TAgent extends AnyAirJamAgentContract,
+  TBridge extends AnyVisualHarnessBridgeDefinition | null,
 >(
-  pack: TPack,
-): TPack => pack;
+  pack: {
+    agent: TAgent;
+    bridge?: TBridge;
+    scenarios: ReadonlyArray<VisualScenario<TAgent, TBridge>>;
+  },
+): VisualScenarioPack<TAgent, TBridge> => pack;
 
 export const describeVisualHarnessActions = <
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TActions extends VisualHarnessActionDefinitions<any>,
 >(
   actions: TActions,

@@ -167,6 +167,7 @@ export {
   type AirJamAgentActionTarget,
   type AirJamAgentContract,
   type AirJamAgentJsonObject,
+  type AnyAirJamAgentContract,
   type AirJamAgentContractPayloadKind,
   type AirJamAgentContractPayloadMetadata,
   type AirJamAgentResolvedActionContract,

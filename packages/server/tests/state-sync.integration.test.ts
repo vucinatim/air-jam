@@ -53,25 +53,85 @@ describe("server state sync", () => {
       roomId,
       data: { phase: "playing", score: 5 },
       storeDomain: "default",
+      revision: 0,
     });
 
     const payloadA = await harness.waitForEvent<{
       roomId: string;
       data: Record<string, unknown>;
       storeDomain: string;
+      revision: number;
     }>(controllerA, "airjam:state_sync");
     const payloadB = await harness.waitForEvent<{
       roomId: string;
       data: Record<string, unknown>;
       storeDomain: string;
+      revision: number;
     }>(controllerB, "airjam:state_sync");
 
     expect(payloadA.roomId).toBe(roomId);
     expect(payloadB.roomId).toBe(roomId);
     expect(payloadA.storeDomain).toBe("default");
     expect(payloadB.storeDomain).toBe("default");
+    expect(payloadA.revision).toBe(0);
+    expect(payloadB.revision).toBe(0);
     expect(payloadA.data).toEqual({ phase: "playing", score: 5 });
     expect(payloadB.data).toEqual({ phase: "playing", score: 5 });
+  });
+
+  it("replays cached replicated store snapshots to a reconnecting host", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+
+    expect(createAck.ok).toBe(true);
+    const roomId = createAck.roomId!;
+
+    host.emit("host:state_sync", {
+      roomId,
+      data: { phase: "playing", announcement: "SESSION QA OK" },
+      storeDomain: "default",
+      revision: 2,
+    });
+
+    await harness.delay(25);
+    host.disconnect();
+
+    const reconnectingHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(reconnectingHost)).ok).toBe(true);
+
+    const restoredSyncPromise = harness.waitForEvent<{
+      roomId: string;
+      data: Record<string, unknown>;
+      storeDomain: string;
+      revision: number;
+    }>(reconnectingHost, "airjam:state_sync");
+
+    const reconnectAck = await harness.emitWithAck<{
+      ok: boolean;
+      roomId?: string;
+    }>(reconnectingHost, "host:reconnect", {
+      roomId,
+    });
+
+    expect(reconnectAck).toMatchObject({
+      ok: true,
+      roomId,
+    });
+
+    const restoredSync = await restoredSyncPromise;
+
+    expect(restoredSync).toEqual({
+      roomId,
+      data: { phase: "playing", announcement: "SESSION QA OK" },
+      storeDomain: "default",
+      revision: 2,
+    });
   });
 
   it("ignores forged host state sync from non-host sockets", async () => {
@@ -99,6 +159,8 @@ describe("server state sync", () => {
     attacker.emit("host:state_sync", {
       roomId,
       data: { hacked: true },
+      storeDomain: "default",
+      revision: 0,
     });
 
     await harness.expectNoEvent(controller, "airjam:state_sync");
@@ -128,6 +190,7 @@ describe("server state sync", () => {
     const hostRequestPromise = harness.waitForEvent<{
       roomId: string;
       storeDomain: string;
+      requestId?: string;
     }>(host, "airjam:state_sync_request");
 
     controller.emit("controller:state_sync_request", {
@@ -138,6 +201,24 @@ describe("server state sync", () => {
     await expect(hostRequestPromise).resolves.toEqual({
       roomId,
       storeDomain: "default",
+    });
+
+    const correlatedRequestPromise = harness.waitForEvent<{
+      roomId: string;
+      storeDomain: string;
+      requestId?: string;
+    }>(host, "airjam:state_sync_request");
+
+    controller.emit("controller:state_sync_request", {
+      roomId,
+      storeDomain: "default",
+      requestId: "sync_req_fixture",
+    });
+
+    await expect(correlatedRequestPromise).resolves.toEqual({
+      roomId,
+      storeDomain: "default",
+      requestId: "sync_req_fixture",
     });
 
     attacker.emit("controller:state_sync_request", {

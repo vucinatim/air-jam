@@ -52,6 +52,7 @@ Latest progress:
 22. the latest DX-clarity slice is now landed too: semantic game contracts now use `agentAction.participant(...)` as the canonical builder name, the docs pack now ships a dedicated state-lanes cookbook, `acceptAirJamAction(...)` / `rejectAirJamAction(...)` have first-read worked examples, `resultDescription` is now documented as effect-description metadata rather than implicit runtime result data, and isolated harness/runtime ownership timeouts now tell builders to close the previous game session before treating the issue as gameplay breakage
 23. the public API-pruning slice is now landed too: the SDK root now exposes only the neutral agent authoring surface (`defineAirJamAgentContract`, `defineAirJamAgentStores`, `agentStore`, `agentAction`, `agentActionInput`), agent-inspection helpers moved to the dedicated `@air-jam/sdk/agent-tooling` subpath, `createAirJamApp(...)` now publishes `controllerPath`, `agent`, and `visualScenariosModule` as flat top-level fields instead of nested `game.*`, and first-party games/devtools/scaffolds now follow that single strict path
 24. the final naming-cleanup slice is now landed too: the public contract story is now consistently `agent`, not `machine`, repo file/module names and helper scripts were renamed to match that vocabulary, and active docs/template guidance now teach only the `agent` surface instead of a mixed `machine`/`agent` story
+25. the visual-proof staging collapse is now landed too: semantic agent contracts now support first-class `agentAction.host(...)` actions, `VisualHarnessRuntime` now binds full synced stores through `agent={{ contract, stores }}` and derives the host dispatch lane internally, high-level game sessions expose those actions as canonical `host:*` actions, migrated visual scenarios now stage through `context.agent.invoke(...)`, and runtime-local bridges are reduced toward bootstrap/inspection-only responsibilities
 
 ## Why This Rewrite Exists
 
@@ -806,7 +807,7 @@ Target game-owned files:
 
 1. `src/game/contracts/agent.ts`
 2. `src/airjam.config.ts`
-3. optional `visual/scenarios.ts` only when visual capture matters
+3. optional `src/game/contracts/visual-scenarios.ts` only when visual capture matters
 
 The contract file should own:
 
@@ -1088,8 +1089,10 @@ Those three fixes reduce the most immediate friction while also preparing the co
 
 1. migrate first-party games to the new contract shape
 2. migrate visual scenario consumers onto the same contract
-3. remove obsolete paths and compatibility layers aggressively
-4. keep only the minimum temporary adapters needed for a bounded cutover
+3. make `context.agent` the canonical semantic setup surface inside visual scenarios so the harness bridge shrinks toward runtime-local bootstrap and visual-only responsibilities
+4. make `defineVisualHarness({ agent, scenarios })` the default authoring shape, with `bridge` optional instead of structurally assumed
+5. remove obsolete paths and compatibility layers aggressively
+6. keep only the minimum temporary adapters needed for a bounded cutover
 
 ## Migration Rules
 

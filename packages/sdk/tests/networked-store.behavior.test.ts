@@ -262,6 +262,7 @@ describe("createAirJamStore networked behavior", () => {
         roomId: "ROOM1",
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
         data: { count: 3 },
+        revision: 0,
       });
     });
 
@@ -283,6 +284,7 @@ describe("createAirJamStore networked behavior", () => {
         roomId: "ROOM1",
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
         data: { count: 5 },
+        revision: 0,
       });
     });
 
@@ -483,11 +485,14 @@ describe("createAirJamStore networked behavior", () => {
       (call) => call.event === "host:state_sync",
     );
     expect(syncCalls.length).toBeGreaterThanOrEqual(1);
-    expect(syncCalls[0]?.args[0]).toEqual({
-      roomId: "ROOM1",
-      data: { phase: "lobby" },
-      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
-    });
+    expect(syncCalls[0]?.args[0]).toEqual(
+      expect.objectContaining({
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 0,
+        data: expect.objectContaining({ phase: "lobby" }),
+      }),
+    );
 
     unmount();
   });
@@ -629,6 +634,116 @@ describe("createAirJamStore networked behavior", () => {
         roomId: "ROOM1",
         data: { phase: "playing" },
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 0,
+      });
+    });
+
+    expect(result.current).toBe("playing");
+
+    unmount();
+  });
+
+  it("restores host state from a newer replicated sync payload", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const { result, unmount } = renderHook(() =>
+      useStore((state) => state.phase),
+    );
+
+    expect(result.current).toBe("lobby");
+
+    act(() => {
+      hostSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 3,
+      });
+    });
+
+    expect(result.current).toBe("playing");
+
+    act(() => {
+      hostSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "lobby" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 2,
+      });
+    });
+
+    expect(result.current).toBe("playing");
+
+    unmount();
+  });
+
+  it("emits newer host revisions after restoring replicated state", () => {
+    mockedContext.state.role = "host";
+
+    const useStore = createTestStore();
+    const { unmount } = renderHook(() => useStore((state) => state.phase));
+
+    act(() => {
+      hostSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 4,
+      });
+    });
+
+    const syncCountBefore = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    ).length;
+
+    act(() => {
+      void useStore.getState().actions.setPhase({
+        actorId: "host",
+        role: "host",
+        connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+      }, { phase: "results" });
+    });
+
+    const syncCalls = hostSocket.emitted.filter(
+      (call) => call.event === "host:state_sync",
+    );
+    const latestSync = syncCalls.at(-1);
+
+    expect(syncCalls.length).toBeGreaterThan(syncCountBefore);
+    expect(latestSync?.args[0]).toMatchObject({
+      roomId: "ROOM1",
+      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      revision: 5,
+      data: { phase: "results" },
+    });
+
+    unmount();
+  });
+
+  it("ignores older controller state sync revisions after a newer snapshot is applied", () => {
+    const useStore = createTestStore();
+    const { result, unmount } = renderHook(() =>
+      useStore((state) => state.phase),
+    );
+
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "playing" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 2,
+      });
+    });
+
+    expect(result.current).toBe("playing");
+
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "lobby" },
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 1,
       });
     });
 
@@ -646,6 +761,7 @@ describe("createAirJamStore networked behavior", () => {
         roomId: "ROOM1",
         data: { phase: "playing" },
         storeDomain: "arcade.surface",
+        revision: 0,
       });
     });
 
@@ -656,6 +772,7 @@ describe("createAirJamStore networked behavior", () => {
         roomId: "ROOM1",
         data: { phase: "playing" },
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 0,
       });
     });
 

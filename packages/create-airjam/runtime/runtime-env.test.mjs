@@ -13,6 +13,18 @@ test("loadCreateAirJamRuntimeEnv parses defaults", () => {
   assert.equal(runtimeEnv.AIR_JAM_SECURE_MODE, undefined);
 });
 
+test("loadCreateAirJamRuntimeEnv accepts a partial .env-style object", () => {
+  const runtimeEnv = loadCreateAirJamRuntimeEnv({
+    env: {
+      VITE_AIR_JAM_SERVER_URL: "",
+    },
+    boundary: "create-airjam.runtime-test",
+  });
+
+  assert.equal(runtimeEnv.VITE_PORT, 5173);
+  assert.equal(runtimeEnv.VITE_AIR_JAM_SERVER_URL, undefined);
+});
+
 test("loadCreateAirJamRuntimeEnv rejects invalid secure mode", () => {
   assert.throws(
     () =>

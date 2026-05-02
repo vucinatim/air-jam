@@ -15,6 +15,7 @@ export interface WorkspaceEnvCandidates {
 export interface LoadWorkspaceEnvOptions {
   processEnv?: Record<string, string | undefined>;
   candidates?: WorkspaceEnvCandidates;
+  cwd?: string;
 }
 
 const DEFAULT_ENV_CANDIDATES: WorkspaceEnvCandidates = {
@@ -25,17 +26,27 @@ const DEFAULT_ENV_CANDIDATES: WorkspaceEnvCandidates = {
 const loadedEnvCandidates = new Set<string>();
 
 export const resolveWorkspaceEnvCandidatePaths = ({
+  cwd,
   candidates = DEFAULT_ENV_CANDIDATES,
-}: Pick<LoadWorkspaceEnvOptions, "candidates"> = {}) => [
-  candidates.rootEnvLocal,
-  candidates.serverEnv,
-];
+}: Pick<LoadWorkspaceEnvOptions, "candidates" | "cwd"> = {}) => {
+  const resolvedPaths = [];
+
+  if (cwd) {
+    resolvedPaths.push(resolve(cwd, ".env.local"));
+  }
+
+  resolvedPaths.push(candidates.rootEnvLocal, candidates.serverEnv);
+
+  return [...new Set(resolvedPaths)];
+};
 
 export const loadWorkspaceEnv = ({
   processEnv = process.env,
   candidates = DEFAULT_ENV_CANDIDATES,
+  cwd = process.cwd(),
 }: LoadWorkspaceEnvOptions = {}): void => {
   for (const candidate of resolveWorkspaceEnvCandidatePaths({
+    cwd,
     candidates,
   })) {
     if (loadedEnvCandidates.has(candidate)) {

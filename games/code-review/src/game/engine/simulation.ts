@@ -187,7 +187,6 @@ const createBotInput = (
 type StepMatchFrameOptions = {
   state: RuntimePlayerState;
   participants: SlotParticipant[];
-  participantBySlot: Partial<Record<PlayerKey, SlotParticipant>>;
   hpState: HpState;
   koState: {
     active: boolean;
@@ -207,7 +206,6 @@ type StepMatchFrameOptions = {
 export const stepMatchFrame = ({
   state,
   participants,
-  participantBySlot,
   hpState,
   koState,
   dt,

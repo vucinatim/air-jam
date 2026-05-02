@@ -125,10 +125,9 @@ const toViteEnvLike = (source?: ViteEnvSource): ViteEnvLike | undefined => {
 
 const readViteEnv = (): ViteEnvLike | null => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const candidate = import.meta as any;
+    const candidate = import.meta as ImportMeta & { env?: ViteEnvLike };
     if (candidate && typeof candidate.env === "object") {
-      return candidate.env as ViteEnvLike;
+      return candidate.env;
     }
   } catch {
     return null;

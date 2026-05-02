@@ -22,6 +22,11 @@ host-side accessory that speeds up local iteration and public tryout.
 3. preview controllers are not a fake simulator or second topology
 4. production should stay explicit opt-in
 
+Embedded preview controllers intentionally rebase that controller route onto the
+current host-page origin. The shared/join URL stays canonical for phones and
+external browsers, but the local iframe should stay same-origin with the host so
+browser tooling can interact with it reliably.
+
 If a game behaves differently under a preview controller, treat that as a sign
 the game may be relying on an accidental controller-origin assumption.
 

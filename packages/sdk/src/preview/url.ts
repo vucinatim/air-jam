@@ -15,6 +15,7 @@ export interface BuildPreviewControllerUrlOptions {
   controllerId: string;
   previewDeviceId?: string | null;
   allowedOrigins?: readonly string[];
+  embedOrigin?: string | null;
 }
 
 export interface PreviewControllerLaunch extends PreviewControllerIdentity {
@@ -38,6 +39,7 @@ export const buildPreviewControllerUrl = ({
   controllerId,
   previewDeviceId,
   allowedOrigins,
+  embedOrigin,
 }: BuildPreviewControllerUrlOptions): string | null => {
   const normalizedJoinUrl = normalizeRuntimeUrl(joinUrl);
   if (!normalizedJoinUrl) {
@@ -53,7 +55,33 @@ export const buildPreviewControllerUrl = ({
     return null;
   }
 
-  return appendRuntimeQueryParams(normalizedJoinUrl, {
+  const previewBaseUrl = (() => {
+    if (!embedOrigin) {
+      return normalizedJoinUrl;
+    }
+
+    // Preview controllers are an embedded local tooling surface, not the
+    // canonical phone/share URL. Keep joinUrl authoritative for validation and
+    // room/capability params, but rebase the iframe onto the current app origin
+    // so browser tooling can interact with it without cross-origin iframe
+    // restrictions.
+    const normalizedEmbedOrigin = getRuntimeUrlOrigin(embedOrigin);
+    if (!normalizedEmbedOrigin) {
+      return null;
+    }
+
+    const nextUrl = new URL(normalizedJoinUrl);
+    const nextOrigin = new URL(normalizedEmbedOrigin);
+    nextUrl.protocol = nextOrigin.protocol;
+    nextUrl.host = nextOrigin.host;
+    return nextUrl.toString();
+  })();
+
+  if (!previewBaseUrl) {
+    return null;
+  }
+
+  return appendRuntimeQueryParams(previewBaseUrl, {
     controllerId,
     [AIR_JAM_PREVIEW_FLAG_QUERY_PARAM]: "1",
     [AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM]: previewDeviceId,
@@ -63,9 +91,11 @@ export const buildPreviewControllerUrl = ({
 export const createPreviewControllerLaunch = ({
   joinUrl,
   allowedOrigins,
+  embedOrigin,
 }: {
   joinUrl: string;
   allowedOrigins?: readonly string[];
+  embedOrigin?: string | null;
 }): PreviewControllerLaunch | null => {
   const identity = createPreviewControllerIdentity();
   const url = buildPreviewControllerUrl({
@@ -73,6 +103,7 @@ export const createPreviewControllerLaunch = ({
     controllerId: identity.controllerId,
     previewDeviceId: identity.deviceId,
     allowedOrigins,
+    embedOrigin,
   });
 
   if (!url) {

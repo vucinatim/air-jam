@@ -386,7 +386,7 @@ export type AirJamHarnessActionDescriptor = {
 export type AirJamGameAgentActionDescriptor = {
   actionId: string;
   target: {
-    kind: "participant";
+    kind: "participant" | "host";
     actionName: string;
     storeDomain: string;
   };
@@ -449,6 +449,7 @@ export type AirJamGameActionOutcome =
 
 export type InvokeGameActionResult = AirJamVirtualControllerSessionSummary & {
   actionId: string;
+  lane: "player" | "host";
   actionName: string;
   storeDomain: string;
   payload?: unknown;
@@ -660,6 +661,7 @@ export type AirJamRuntimeStoreSnapshot = {
   storeDomain: string;
   data: JsonObject;
   updatedAt: string;
+  revision: number;
 };
 
 export type AirJamVirtualControllerSessionSummary = {

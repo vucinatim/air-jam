@@ -368,6 +368,9 @@ export const GamePlayer = ({
       const playerNotices: ControllerJoinedNotice[] = players.map((player) => ({
         controllerId: player.id,
         nickname: player.label,
+        source: "preview",
+        connected: true,
+        resumeLeaseExpiresAt: null,
         player,
       }));
 

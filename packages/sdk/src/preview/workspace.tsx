@@ -31,6 +31,7 @@ import {
 
 export interface PreviewControllerWorkspaceProps {
   joinUrl: string | null;
+  embedOrigin?: string | null;
   controllers?: readonly ControllerPresenceNotice[];
   onRemoveController?: (controllerId: string) => Promise<unknown> | unknown;
   onResetRoom?: () => Promise<unknown> | unknown;
@@ -64,6 +65,7 @@ interface ResizeState {
 
 export const PreviewControllerWorkspace = ({
   joinUrl,
+  embedOrigin,
   controllers = [],
   onRemoveController,
   onResetRoom,
@@ -85,6 +87,9 @@ export const PreviewControllerWorkspace = ({
   );
   const [resettingRoom, setResettingRoom] = useState(false);
   const dockRef = useRef<HTMLDivElement | null>(null);
+  const resolvedEmbedOrigin =
+    embedOrigin ??
+    (typeof window !== "undefined" ? window.location.origin : null);
   const {
     sessions,
     canSpawn,
@@ -101,6 +106,7 @@ export const PreviewControllerWorkspace = ({
     markPreviewControllerFailed,
   } = usePreviewControllerManager({
     joinUrl,
+    embedOrigin: resolvedEmbedOrigin,
     enabled,
     maxControllers,
   });

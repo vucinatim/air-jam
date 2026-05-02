@@ -3,6 +3,14 @@ import {
   readRuntimeTopologyFromWindow,
 } from "@air-jam/runtime-topology";
 import {
+  type AirJamSyncedStoreHook,
+  type AnyAirJamAgentContract,
+} from "@air-jam/sdk";
+import { resolveAirJamAgentActionPayload } from "@air-jam/sdk/agent-tooling";
+import {
+  Fragment,
+  createElement,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -24,6 +32,7 @@ import {
   publishVisualHarnessBridgeSnapshot,
   readVisualHarnessBridgeSnapshot,
   type PublishedVisualHarnessBridgeSnapshot,
+  VISUAL_HARNESS_AGENT_HOST_ACTION_PREFIX,
   VISUAL_HARNESS_ENABLE_PARAM,
   VISUAL_HARNESS_ENABLE_VALUE,
 } from "../core/runtime-bridge.js";
@@ -51,8 +60,7 @@ const isVisualHarnessRuntimeEnabled = (): boolean => {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
+    const meta = import.meta as ImportMeta & { env?: { DEV?: boolean } };
     if (meta?.env?.DEV === true) {
       return true;
     }
@@ -81,14 +89,34 @@ type CommittedSnapshotObservation = {
   status: DevHarnessSnapshotAfterStatus;
 };
 
+type VisualHarnessHostActionDispatcher = (
+  ...args: never[]
+) => Promise<unknown>;
+
+type AnyVisualHarnessSyncedStoreHook =
+  // Existential wildcard for arbitrary synced store shapes bound into the visual runtime.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  AirJamSyncedStoreHook<any>;
+
+export type VisualHarnessAgentRuntimeBinding = {
+  contract: AnyAirJamAgentContract;
+  stores: Record<string, AnyVisualHarnessSyncedStoreHook>;
+};
+
 export type VisualHarnessRuntimeProps<
   TBridge extends AnyVisualHarnessBridgeDefinition,
 > = {
   gameId: string;
+  agent?: VisualHarnessAgentRuntimeBinding | null;
   bridge: TBridge;
   context: InferVisualHarnessBridgeContext<TBridge>;
   enabled?: boolean;
 };
+
+type PublishedHostAgentActionMap = Record<
+  string,
+  (payload?: unknown) => Promise<unknown>
+>;
 
 const createPublishedActionMap = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
@@ -119,10 +147,66 @@ const createPublishedActionMap = <
   };
 };
 
+const createPublishedHostAgentActionMap = ({
+  gameId,
+  agent,
+  boundAgentStoreActionDispatchersRef,
+}: {
+  gameId: string;
+  agent?: VisualHarnessAgentRuntimeBinding | null;
+  boundAgentStoreActionDispatchersRef: MutableRefObject<
+    Record<string, Record<string, VisualHarnessHostActionDispatcher>>
+  >;
+}): PublishedHostAgentActionMap => {
+  if (!agent) {
+    return {};
+  }
+
+  const actionEntries = Object.entries(agent.contract.actions)
+    .filter(([, action]) => action.target.kind === "host")
+    .map(([actionId, action]) => {
+      const actionName = `${VISUAL_HARNESS_AGENT_HOST_ACTION_PREFIX}${actionId}`;
+      const publishedAction = async (payload?: unknown) => {
+        const storeDomain = action.target.storeDomain ?? "default";
+        const storeDispatch =
+          boundAgentStoreActionDispatchersRef.current[storeDomain];
+        const dispatcher = storeDispatch?.[action.target.actionName];
+        if (typeof dispatcher !== "function") {
+          throw new Error(
+            `Missing host action dispatcher for semantic agent action "${actionId}" on store "${storeDomain}".`,
+          );
+        }
+
+        const resolvedPayload = resolveAirJamAgentActionPayload(action, payload, {
+          gameId,
+          actionName: actionId,
+          contractKind: "agent",
+        });
+        const invokeDispatcher = dispatcher as (
+          payload?: unknown,
+        ) => Promise<unknown>;
+
+        if (action.input.metadata.payload.kind === "none") {
+          return invokeDispatcher();
+        }
+
+        return invokeDispatcher(resolvedPayload);
+      };
+
+      return [actionName, publishedAction] as const;
+    });
+
+  return Object.fromEntries(actionEntries);
+};
+
 const useVisualHarnessRuntime = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
 >(
   gameId: string,
+  agent: VisualHarnessAgentRuntimeBinding | null | undefined,
+  boundAgentStoreActionDispatchersRef: MutableRefObject<
+    Record<string, Record<string, VisualHarnessHostActionDispatcher>>
+  >,
   bridge: TBridge,
   context: InferVisualHarnessBridgeContext<TBridge>,
   options?: UseVisualHarnessRuntimeOptions,
@@ -142,6 +226,15 @@ const useVisualHarnessRuntime = <
   const publishedActions = useMemo(
     () => createPublishedActionMap(gameId, bridge, contextRef),
     [bridge, gameId],
+  );
+  const publishedHostAgentActions = useMemo(
+    () =>
+      createPublishedHostAgentActionMap({
+        gameId,
+        agent,
+        boundAgentStoreActionDispatchersRef,
+      }),
+    [agent, gameId, boundAgentStoreActionDispatchersRef],
   );
   const devControlClientRef = useRef<VisualHarnessDevControlClient | null>(
     null,
@@ -209,7 +302,8 @@ const useVisualHarnessRuntime = <
       waitForCommittedSnapshot,
       listActions: () => describeVisualHarnessActions(bridge.actions),
       invokeAction: (actionName, payload) => {
-        const action = publishedActions[actionName];
+        const action =
+          publishedActions[actionName] ?? publishedHostAgentActions[actionName];
         if (typeof action !== "function") {
           throw new Error(`Missing harness action "${actionName}".`);
         }
@@ -243,11 +337,14 @@ const useVisualHarnessRuntime = <
       return;
     }
 
-    publishVisualHarnessBridgeActions(publishedActions);
+    publishVisualHarnessBridgeActions({
+      ...publishedActions,
+      ...publishedHostAgentActions,
+    });
     return () => {
       clearVisualHarnessBridgeActions();
     };
-  }, [enabled, publishedActions]);
+  }, [enabled, publishedActions, publishedHostAgentActions]);
 
   useEffect(() => {
     if (!enabled) {
@@ -273,12 +370,101 @@ export const VisualHarnessRuntime = <
   TBridge extends AnyVisualHarnessBridgeDefinition,
 >({
   gameId,
+  agent,
   bridge,
   context,
   enabled,
 }: VisualHarnessRuntimeProps<TBridge>) => {
-  useVisualHarnessRuntime(gameId, bridge, context, { enabled });
-  return null;
+  const boundAgentStoreActionDispatchersRef = useRef<
+    Record<string, Record<string, VisualHarnessHostActionDispatcher>>
+  >({});
+  const bindHostActionStore = useCallback(
+    (
+      storeDomain: string,
+      actions: Record<string, VisualHarnessHostActionDispatcher>,
+    ) => {
+      boundAgentStoreActionDispatchersRef.current[storeDomain] = actions;
+    },
+    [],
+  );
+  const unbindHostActionStore = useCallback((storeDomain: string) => {
+    delete boundAgentStoreActionDispatchersRef.current[storeDomain];
+  }, []);
+
+  useVisualHarnessRuntime(
+    gameId,
+    agent,
+    boundAgentStoreActionDispatchersRef,
+    bridge,
+    context,
+    {
+      enabled,
+    },
+  );
+
+  return agent
+    ? createElement(VisualHarnessAgentStoreBindings, {
+        stores: agent.stores,
+        bindHostActionStore,
+        unbindHostActionStore,
+      })
+    : null;
 };
 
 export { bridgeAction, defineVisualHarnessBridge };
+
+const VisualHarnessAgentStoreBinding = ({
+  storeDomain,
+  store,
+  bindHostActionStore,
+  unbindHostActionStore,
+}: {
+  storeDomain: string;
+  store: AnyVisualHarnessSyncedStoreHook;
+  bindHostActionStore: (
+    storeDomain: string,
+    actions: Record<string, VisualHarnessHostActionDispatcher>,
+  ) => void;
+  unbindHostActionStore: (storeDomain: string) => void;
+}) => {
+  const actions = store.useActions();
+
+  useEffect(() => {
+    bindHostActionStore(
+      storeDomain,
+      actions as unknown as Record<string, VisualHarnessHostActionDispatcher>,
+    );
+    return () => {
+      unbindHostActionStore(storeDomain);
+    };
+  }, [actions, bindHostActionStore, storeDomain, unbindHostActionStore]);
+
+  return null;
+};
+
+const VisualHarnessAgentStoreBindings = ({
+  stores,
+  bindHostActionStore,
+  unbindHostActionStore,
+}: {
+  stores: Record<string, AnyVisualHarnessSyncedStoreHook>;
+  bindHostActionStore: (
+    storeDomain: string,
+    actions: Record<string, VisualHarnessHostActionDispatcher>,
+  ) => void;
+  unbindHostActionStore: (storeDomain: string) => void;
+}) => (
+  createElement(
+    Fragment,
+    null,
+    ...Object.entries(stores).map(([storeDomain, store]) =>
+      createElement(VisualHarnessAgentStoreBinding, {
+        key: storeDomain,
+        storeDomain,
+        store,
+        bindHostActionStore,
+        unbindHostActionStore,
+      }),
+    ),
+  )
+);

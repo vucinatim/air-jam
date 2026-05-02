@@ -76,7 +76,7 @@ For runtime or multiplayer issues:
 5. prefer `airjam.topology` over manually reconstructing local endpoints
 6. when you need to drive a live game, use `airjam.open_game_session`, `airjam.send_game_session_input`, `airjam.read_game_session`, `airjam.invoke_game_session_action`, and `airjam.close_game_session`
 7. use the unified session action metadata from `airjam.open_game_session` and `airjam.read_game_session` before guessing payload shapes
-8. session action ids are lane-prefixed on purpose: `player:<actionId>` for semantic player-lane actions and `host:<actionName>` for deterministic host staging actions
+8. session action ids are lane-prefixed on purpose: `player:<actionId>` for semantic player-lane actions and `host:<actionId>` for semantic host-lane staging actions
 9. when a compatible local Air Jam dev session is already running, the official harness/session tools should attach to that live stack instead of trying to start a duplicate dev server
 10. `pnpm run dev:preview` exists specifically for browser/preview tools that cannot supervise the normal multi-process `pnpm run dev` path cleanly
 11. read the returned action `outcome` together with `acknowledgementObservation` and `snapshotAfterStatus`: a missing host acknowledgement is not the same thing as semantic rejection if the post-action snapshot shows committed state change
@@ -86,16 +86,20 @@ For runtime or multiplayer issues:
 
 `src/game/contracts/agent.ts` is the primary agent-facing contract.
 
-`visual/contract.ts` is optional. Use it only when you need deterministic host staging or visual-proof helpers that should stay separate from semantic player verbs.
+`src/game/contracts/visual-scenarios.ts` is the default visual-proof entrypoint.
+
+`src/game/contracts/visual-bridge.ts` is optional. Use it only when a game needs a small runtime-local bridge that should stay separate from semantic agent actions.
 
 When you own the game code and the existing host staging surface is too thin:
 
-1. add a small game-owned host staging action instead of automating the visible browser UI
+1. add a small game-owned semantic action instead of automating the visible browser UI whenever the intent is really part of the game contract
 2. prefer explicit verbs like `returnToLobby`, `startRound`, `setScore`, or `finishMatch`
 3. include action descriptions and payload descriptions so future agents can discover the contract without source diving
 4. for schema-backed semantic action payloads, prefer `agentActionInput.zod(...)` over ad hoc custom parsers when Zod already expresses the shape cleanly
-5. `resultDescription` should describe the expected semantic effect for agents and humans; it is not automatic runtime result data
-6. if a semantic action must return actual runtime result data, the underlying store action should return `acceptAirJamAction(result)` and callers should read that result from the acknowledgement or session action response
+5. if the verb is a host-owned staging/reset action rather than a player verb, publish it with `agentAction.host(...)` so it becomes a canonical `host:*` session action instead of a bridge action
+6. `resultDescription` should describe the expected semantic effect for agents and humans; it is not automatic runtime result data
+7. if a semantic action must return actual runtime result data, the underlying store action should return `acceptAirJamAction(result)` and callers should read that result from the acknowledgement or session action response
+8. add a bridge action only when the scenario truly needs runtime-local visual/bootstrap behavior that does not belong in the semantic contract
 
 ## Semantic Game Rule
 
@@ -118,7 +122,8 @@ If a clean-slate project does not ship those files yet but the game is growing b
 1. add `src/game/contracts/agent.ts` early
 2. wire it through `src/airjam.config.ts` `agent`
 3. publish a small semantic action set for the important game verbs instead of leaving them implicit in visible UI only
-4. add `visual/contract.ts` and `visual/scenarios.ts` only once deterministic host staging or repeatable visual proof becomes useful
+4. add `src/game/contracts/visual-scenarios.ts` once repeatable visual proof becomes useful
+5. add `src/game/contracts/visual-bridge.ts` only if those scenarios still need a true runtime-local bridge
 
 ## Quality Rule
 

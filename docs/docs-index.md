@@ -35,6 +35,7 @@ Release-critical plans:
 1. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
 2. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
 3. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
+4. [Prerelease Agent Dev Loop Hardening Plan](./plans/prerelease-agent-dev-loop-hardening-plan.md)
 
 Active architecture cleanup plans:
 

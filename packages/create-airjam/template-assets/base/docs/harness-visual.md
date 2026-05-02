@@ -2,25 +2,38 @@
 
 These files are optional.
 
-Use them only when the semantic game contract in `src/game/contracts/agent.ts` is not enough by itself because you need deterministic host staging or repeatable visual proof.
+Start with `src/game/contracts/visual-scenarios.ts` only.
 
-The visual proof workflow has two game-owned files:
+Add `src/game/contracts/visual-bridge.ts` only if a game truly needs a small runtime-local bridge that cannot be expressed cleanly through the semantic agent contract in `src/game/contracts/agent.ts`.
 
-1. `visual/contract.ts`
-2. `visual/scenarios.ts`
+Deterministic host-side staging belongs in the semantic agent contract now. If a scenario needs a precise host verb like `finishMatch`, `returnToLobby`, or `seedRound`, publish it with `agentAction.host(...)` and invoke it through `context.agent.invoke("host:...")`.
 
-## `visual/contract.ts`
+## `src/game/contracts/visual-bridge.ts` (Optional)
 
-This is the single source of truth for the optional browser-published host staging surface that visual proof can read and invoke.
+This is the single source of truth for the optional browser-published runtime-local bridge surface that visual proof can read and invoke.
 
 Put here:
 
-1. the snapshot shape
-2. typed host staging actions
+1. the minimal runtime-local snapshot shape
+2. only the bridge actions that truly cannot live in the semantic agent contract
 3. payload validation
 4. short action metadata so agents can discover what each action does
 
-Mount `<VisualHarnessRuntime gameId={gameMetadata.slug} />` from the host and keep the host free of raw bridge `useEffect` plumbing.
+Mount `<VisualHarnessRuntime gameId={gameMetadata.slug} />` from the host and keep the host free of raw bridge `useEffect` plumbing. When the game exposes semantic host actions, also pass the contract plus the synced stores that own those actions:
+
+```tsx
+<VisualHarnessRuntime
+  gameId={gameMetadata.slug}
+  agent={{
+    contract: agentContract,
+    stores: {
+      default: useGameStore,
+    },
+  }}
+  bridge={visualBridge}
+  context={...}
+/>
+```
 
 Import rule:
 
@@ -39,28 +52,36 @@ Host effect rule:
 
 Preferred action shape:
 
-1. publish clear verbs like `returnToLobby`, `startMatch`, `setScore`, or `spawnBot`
+1. publish clear runtime-local verbs only for true browser/runtime-local needs like `spawnBot`, `seedDebugState`, or visual-only toggles
 2. keep payloads small and explicit
 3. add action descriptions and payload descriptions in the bridge definition
-4. expose host-side reset actions when your game has multi-phase flows, so agents do not need to restart dev just to move back to a testable state
-5. do not move core semantic game verbs here if they belong in `src/game/contracts/agent.ts`
+4. do not move core semantic game verbs here if they belong in `src/game/contracts/agent.ts`
+5. prefer `context.agent.invoke("player:...")` or `context.agent.invoke("host:...")` from scenarios whenever the semantic agent contract already describes the action cleanly
 
-## `visual/scenarios.ts`
+## `src/game/contracts/visual-scenarios.ts`
 
 This is the scenario entrypoint used by repo and MCP visual capture.
 
 Use:
 
-1. `defineVisualHarness({ bridge, scenarios })`
-2. `context.bridge.actions.*(...)` for deterministic host staging
-3. `context.bridge.waitFor(...)` for bridge-driven waits
-4. normal Playwright selectors for game-specific UI flows
+1. `defineVisualHarness({ agent, scenarios })` as the default shape
+2. `defineVisualHarness({ agent, bridge, scenarios })` only when the game truly needs a runtime-local bridge
+3. `context.agent.invoke(...)` and `context.agent.waitFor(...)` for canonical semantic setup and waits
+4. `context.bridge.read()` or `context.bridge.waitFor(...)` only for runtime-local visual/bootstrap state that is not part of the semantic agent snapshot
+5. `context.bridge.actions.*(...)` only when the scenario truly needs runtime-local behavior that cannot be modeled cleanly as a semantic `player:*` or `host:*` action
+6. normal Playwright selectors for game-specific UI flows
 
 Game identity rule:
 
 1. treat `gameMetadata.slug` in `src/airjam.config.ts` as the canonical game id
 2. pass that id into `<VisualHarnessRuntime gameId={gameMetadata.slug} />`
 3. do not repeat `gameId` inside visual bridge or visual scenario pack definitions
+
+Authoring rule:
+
+1. keep `src/game/contracts/visual-scenarios.ts` as a thin consumer of the semantic agent contract
+2. do not invent a second semantic control language inside the bridge
+3. if scenario setup can be described as a semantic game verb, add it to `src/game/contracts/agent.ts` instead of adding a bridge action
 
 Keep selectors explicit and game-owned.
 

@@ -51,12 +51,12 @@ process.stdout.write(
     {
       hasVisualHarness: true,
       gameId: effectiveGameId,
-      bridgeActions: Object.keys(scenarioPack.bridge.actions ?? {}),
+      bridgeActions: Object.keys(scenarioPack.bridge?.actions ?? {}),
       actionMetadata: describeVisualHarnessActions(
-        scenarioPack.bridge.actions ?? {},
+        scenarioPack.bridge?.actions ?? {},
       ),
       hasBridgeActions:
-        Object.keys(scenarioPack.bridge.actions ?? {}).length > 0,
+        Object.keys(scenarioPack.bridge?.actions ?? {}).length > 0,
       scenarios: scenarioPack.scenarios.map(
         (scenario: { id: string; description?: string }) => ({
           scenarioId: scenario.id,

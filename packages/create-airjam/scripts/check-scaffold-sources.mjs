@@ -12,7 +12,7 @@ import {
 
 const AGENT_CONTRACT_PATH = "src/game/contracts/agent.ts";
 const CONFIG_PATH = "src/airjam.config.ts";
-const VISUAL_SCENARIOS_PATH = "visual/scenarios.ts";
+const VISUAL_SCENARIOS_PATH = "src/game/contracts/visual-scenarios.ts";
 
 const readFileIfPresent = (filePath) =>
   fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : null;

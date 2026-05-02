@@ -20,11 +20,11 @@ export type AirJamAgentStoreDeclaration<TStore extends object = object> = {
 
 export type AirJamAgentStoreDeclarations = Record<
   string,
-  AirJamAgentStoreDeclaration<any>
+  AirJamAgentStoreDeclaration<object>
 >;
 
 export type AirJamAgentActionTarget = {
-  kind: "participant";
+  kind: "participant" | "host";
   actionName: string;
   storeDomain?: string;
 };
@@ -62,8 +62,13 @@ export type AirJamAgentResolvedActionContract<
   toPayload?: (input: TInput) => TPayload;
 };
 
-export type AirJamAgentActionContract =
-  AirJamAgentResolvedActionContract<any, any>;
+// Existential wildcard for heterogenous action contracts.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AirJamAgentActionContract = AirJamAgentResolvedActionContract<any, any>;
+
+// Existential wildcard for published agent contracts with arbitrary snapshot/store shapes.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyAirJamAgentContract = AirJamAgentContract<any, any>;
 
 export type AirJamAgentContractActionOptions<TInput, TPayload = TInput> =
   AirJamAgentActionOptions & {
@@ -103,7 +108,7 @@ export const defineAirJamAgentStores = <
 ): TDeclarations => stores;
 
 export const listAirJamAgentStoreDomains = (
-  contract: AirJamAgentContract<any, any>,
+  contract: AnyAirJamAgentContract,
 ): string[] => Object.keys(contract.stores);
 
 export const describeAirJamAgentAction = (
@@ -134,6 +139,21 @@ export const agentAction = {
   ): AirJamAgentResolvedActionContract<TInput, TPayload> => ({
     target: {
       kind: "participant",
+      actionName: target.actionName,
+      ...(target.storeDomain ? { storeDomain: target.storeDomain } : {}),
+    },
+    description: options.description,
+    availability: options.availability,
+    input: options.input,
+    toPayload: options.toPayload,
+    resultDescription: options.resultDescription,
+  }),
+  host: <TInput, TPayload = TInput>(
+    target: Omit<AirJamAgentActionTarget, "kind">,
+    options: AirJamAgentContractActionOptions<TInput, TPayload>,
+  ): AirJamAgentResolvedActionContract<TInput, TPayload> => ({
+    target: {
+      kind: "host",
       actionName: target.actionName,
       ...(target.storeDomain ? { storeDomain: target.storeDomain } : {}),
     },

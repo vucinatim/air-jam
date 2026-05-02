@@ -30,6 +30,7 @@ export default defineConfig([
     rules: {
       "react-hooks/refs": "off",
       "react-hooks/purity": "off",
+      "@typescript-eslint/no-explicit-any": "error",
       ...prettierConfig.rules,
     },
   },
