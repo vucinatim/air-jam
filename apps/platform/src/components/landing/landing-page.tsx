@@ -1,3 +1,4 @@
+import { LandingAgentDemo } from "@/components/landing/landing-agent-demo";
 import { LandingBatteries } from "@/components/landing/landing-batteries";
 import { LandingCoreLoop } from "@/components/landing/landing-core-loop";
 import { LandingFinalCta } from "@/components/landing/landing-final-cta";
@@ -22,6 +23,7 @@ export const LandingPage = ({
       <LandingHero />
       <main>
         <LandingCoreLoop />
+        <LandingAgentDemo />
         <LandingGameShowcase />
         <LandingBatteries />
         <LandingSdkProofs proofCodes={sdkProofCodes} />
