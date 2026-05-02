@@ -32,7 +32,11 @@ export const loadVisualScenarioPack = async (
   const scenarioPack =
     loaded.visualHarness ?? loaded.visualScenarios ?? loaded.harness ?? null;
 
-  if (!scenarioPack || !scenarioPack.agent || !Array.isArray(scenarioPack.scenarios)) {
+  if (
+    !scenarioPack ||
+    !scenarioPack.agent ||
+    !Array.isArray(scenarioPack.scenarios)
+  ) {
     throw new Error(`Invalid Air Jam visual scenario pack at ${modulePath}.`);
   }
 

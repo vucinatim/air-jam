@@ -3,7 +3,7 @@ import type {
   AnyVisualHarnessBridgeDefinition,
   VisualScenarioPack,
 } from "@air-jam/harness/visual";
-import type { AirJamApp, AirJamAgentContract } from "@air-jam/sdk";
+import type { AirJamAgentContract, AirJamApp } from "@air-jam/sdk";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -62,9 +62,7 @@ export const loadAgentContractFromConfig = async (
   const contract = readPublishedAgent(airjam).agent;
 
   if (!contract) {
-    throw new Error(
-      `Air Jam config "${configPath}" does not publish agent.`,
-    );
+    throw new Error(`Air Jam config "${configPath}" does not publish agent.`);
   }
 
   return contract;

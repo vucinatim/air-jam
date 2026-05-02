@@ -1,4 +1,5 @@
 import {
+  Bot,
   ChevronDown,
   ChevronUp,
   MonitorSmartphone,
@@ -8,13 +9,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import type { ControllerPresenceNotice } from "../protocol";
 import {
   shellInsetPanelClassName,
   shellPanelClassName,
   shellUtilityButtonClassName,
 } from "../components/shell-classes";
 import { Button } from "../components/ui/button";
+import type { ControllerPresenceNotice } from "../protocol";
 import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
@@ -23,7 +24,10 @@ import {
   type PreviewControllerBounds,
   type PreviewControllerResizeHandle,
 } from "./layout";
-import { usePreviewControllerManager } from "./manager";
+import {
+  usePreviewControllerManager,
+  type PreviewControllerSession,
+} from "./manager";
 import {
   PreviewControllerWindow,
   previewControllerWindowStateLabel,
@@ -63,6 +67,36 @@ interface ResizeState {
   pointerId: number;
 }
 
+type ControllerRosterSource = "phone" | "preview" | "virtual";
+
+interface ControllerRosterItem {
+  id: string;
+  controllerId: string;
+  label: string;
+  source: ControllerRosterSource;
+  connected: boolean;
+  resumable: boolean;
+  session: PreviewControllerSession | null;
+  controller: ControllerPresenceNotice | null;
+}
+
+const getControllerSourceLabel = (source: ControllerRosterSource): string => {
+  if (source === "virtual") {
+    return "Agent";
+  }
+  return source === "preview" ? "Preview" : "Phone";
+};
+
+const getControllerSourceIcon = (source: ControllerRosterSource) => {
+  if (source === "virtual") {
+    return Bot;
+  }
+  if (source === "preview") {
+    return MonitorSmartphone;
+  }
+  return Smartphone;
+};
+
 export const PreviewControllerWorkspace = ({
   joinUrl,
   embedOrigin,
@@ -82,9 +116,9 @@ export const PreviewControllerWorkspace = ({
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
   const [launcherOpen, setLauncherOpen] = useState(false);
-  const [removingControllerId, setRemovingControllerId] = useState<string | null>(
-    null,
-  );
+  const [removingControllerId, setRemovingControllerId] = useState<
+    string | null
+  >(null);
   const [resettingRoom, setResettingRoom] = useState(false);
   const dockRef = useRef<HTMLDivElement | null>(null);
   const resolvedEmbedOrigin =
@@ -172,6 +206,55 @@ export const PreviewControllerWorkspace = ({
       ),
     [controllers],
   );
+  const controllerRoster = useMemo((): ControllerRosterItem[] => {
+    const sessionsByControllerId = new Map(
+      sortedSessions.map((session) => [session.controllerId, session]),
+    );
+    const controllerItems = sortedControllers.map((controller) => {
+      const session =
+        sessionsByControllerId.get(controller.controllerId) ?? null;
+      return {
+        id: controller.controllerId,
+        controllerId: controller.controllerId,
+        label:
+          controller.player?.label ??
+          controller.nickname ??
+          controller.controllerId,
+        source: controller.source,
+        connected: controller.connected,
+        resumable: Boolean(controller.resumeLeaseExpiresAt),
+        session,
+        controller,
+      };
+    });
+    const connectedControllerIds = new Set(
+      sortedControllers.map((controller) => controller.controllerId),
+    );
+    const pendingPreviewItems = sortedSessions
+      .filter((session) => !connectedControllerIds.has(session.controllerId))
+      .map((session) => ({
+        id: session.id,
+        controllerId: session.controllerId,
+        label: session.label,
+        source: "preview" as const,
+        connected: session.surfaceState === "ready",
+        resumable: false,
+        session,
+        controller: null,
+      }));
+
+    return [...controllerItems, ...pendingPreviewItems].sort((left, right) => {
+      if (left.source !== right.source) {
+        const weight: Record<ControllerRosterSource, number> = {
+          phone: 0,
+          preview: 1,
+          virtual: 2,
+        };
+        return weight[left.source] - weight[right.source];
+      }
+      return left.label.localeCompare(right.label);
+    });
+  }, [sortedControllers, sortedSessions]);
 
   if (!enabled || !mounted || typeof document === "undefined") {
     return null;
@@ -379,12 +462,12 @@ export const PreviewControllerWorkspace = ({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold tracking-[0.18em] text-white/54 uppercase">
-                      Preview controllers
+                      Controller dock
                     </p>
                     <p className="mt-2 text-sm text-white/86">
-                      {sessions.length === 0
-                        ? "No preview controllers yet"
-                        : `${sessions.length} controller${sessions.length === 1 ? "" : "s"} available`}
+                      {controllerRoster.length === 0
+                        ? "No controllers yet"
+                        : `${controllerRoster.length} controller${controllerRoster.length === 1 ? "" : "s"} visible`}
                     </p>
                   </div>
                   {sessions.length > 0 ? (
@@ -404,7 +487,7 @@ export const PreviewControllerWorkspace = ({
               </div>
 
               <div className="space-y-4">
-                {sortedControllers.length > 0 || onResetRoom ? (
+                {controllerRoster.length > 0 || onResetRoom ? (
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -412,9 +495,9 @@ export const PreviewControllerWorkspace = ({
                           Room controllers
                         </p>
                         <p className="mt-2 text-sm text-white/86">
-                          {sortedControllers.length === 0
+                          {controllerRoster.length === 0
                             ? "No controllers in this room"
-                            : `${sortedControllers.length} in this room`}
+                            : `${controllerRoster.length} controller${controllerRoster.length === 1 ? "" : "s"}`}
                         </p>
                       </div>
                       {onResetRoom ? (
@@ -438,127 +521,139 @@ export const PreviewControllerWorkspace = ({
                       ) : null}
                     </div>
                     <div className="space-y-2">
-                      {sortedControllers.map((controller) => (
-                        <div
-                          key={controller.controllerId}
-                          className={cn(
-                            "flex items-center gap-2.5 rounded-2xl px-3 py-2.5",
-                            shellInsetPanelClassName,
-                          )}
-                        >
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70">
-                            <Smartphone className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="truncate text-sm font-semibold text-white/92">
-                                {controller.player?.label ??
-                                  controller.nickname ??
-                                  controller.controllerId}
-                              </span>
-                              <span className="rounded-full border border-white/12 bg-white/6 px-1.5 py-0.5 text-[9px] leading-none font-semibold tracking-[0.12em] text-white/70 uppercase">
-                                {controller.source}
-                              </span>
+                      {controllerRoster.map((item) => {
+                        const SourceIcon = getControllerSourceIcon(item.source);
+                        const previewSession = item.session;
+                        return (
+                          <div
+                            key={item.id}
+                            data-airjam-controller-row
+                            data-controller-id={item.controllerId}
+                            data-controller-source={item.source}
+                            className={cn(
+                              "flex items-center gap-2.5 rounded-2xl px-3 py-2.5",
+                              shellInsetPanelClassName,
+                            )}
+                          >
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70">
+                              <SourceIcon className="h-4 w-4" />
                             </div>
-                            <p className="mt-1 text-[10px] tracking-[0.14em] text-white/50 uppercase">
-                              {controller.connected ? "Connected" : "Disconnected"}
-                              {controller.resumeLeaseExpiresAt ? " · resumable" : ""}
-                            </p>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-sm font-semibold text-white/92">
+                                  {item.label}
+                                </span>
+                                <span
+                                  data-airjam-controller-source-badge
+                                  className="rounded-full border border-white/12 bg-white/6 px-1.5 py-0.5 text-[9px] leading-none font-semibold tracking-[0.12em] text-white/70 uppercase"
+                                >
+                                  {getControllerSourceLabel(item.source)}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "h-1.5 w-1.5 rounded-full",
+                                    item.session?.surfaceState === "failed"
+                                      ? "bg-amber-300"
+                                      : item.connected
+                                        ? "bg-emerald-300"
+                                        : "bg-white/45",
+                                  )}
+                                />
+                              </div>
+                              <p className="mt-1 text-[10px] tracking-[0.14em] text-white/50 uppercase">
+                                {item.session?.minimized
+                                  ? "Minimized"
+                                  : item.session?.active
+                                    ? "Focused"
+                                    : item.session
+                                      ? previewControllerWindowStateLabel[
+                                          item.session.surfaceState
+                                        ]
+                                      : item.connected
+                                        ? "Connected"
+                                        : "Disconnected"}
+                                {item.resumable ? " · resumable" : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {previewSession ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "h-7 rounded-full px-3 text-[10px]",
+                                    shellUtilityButtonClassName,
+                                  )}
+                                  onClick={() =>
+                                    previewSession.minimized
+                                      ? restorePreviewController(
+                                          previewSession.id,
+                                        )
+                                      : focusPreviewController(
+                                          previewSession.id,
+                                        )
+                                  }
+                                >
+                                  {previewSession.minimized
+                                    ? "Restore"
+                                    : "Focus"}
+                                </Button>
+                              ) : null}
+                              {item.controller && onRemoveController ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 rounded-full px-3 text-[10px] text-rose-200 hover:bg-rose-400/10 hover:text-rose-100 disabled:text-white/35"
+                                  disabled={
+                                    removingControllerId ===
+                                    item.controller.controllerId
+                                  }
+                                  onClick={async () => {
+                                    if (!item.controller) {
+                                      return;
+                                    }
+                                    try {
+                                      setRemovingControllerId(
+                                        item.controller.controllerId,
+                                      );
+                                      await onRemoveController(
+                                        item.controller.controllerId,
+                                      );
+                                    } finally {
+                                      setRemovingControllerId((current) =>
+                                        current ===
+                                        item.controller?.controllerId
+                                          ? null
+                                          : current,
+                                      );
+                                    }
+                                  }}
+                                >
+                                  Kick
+                                </Button>
+                              ) : null}
+                              {previewSession ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="h-7 w-7 rounded-full text-white/68 hover:bg-white/8 hover:text-white"
+                                  onClick={() =>
+                                    removePreviewController(previewSession.id)
+                                  }
+                                  title={`Close ${item.label}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                            </div>
                           </div>
-                          {onRemoveController ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 rounded-full px-3 text-[10px] text-rose-200 hover:bg-rose-400/10 hover:text-rose-100 disabled:text-white/35"
-                              disabled={removingControllerId === controller.controllerId}
-                              onClick={async () => {
-                                try {
-                                  setRemovingControllerId(controller.controllerId);
-                                  await onRemoveController(controller.controllerId);
-                                } finally {
-                                  setRemovingControllerId((current) =>
-                                    current === controller.controllerId ? null : current,
-                                  );
-                                }
-                              }}
-                            >
-                              Kick
-                            </Button>
-                          ) : null}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <div className="h-px bg-white/10" />
-                  </div>
-                ) : null}
-
-                {sortedSessions.length > 0 ? (
-                  <div className="space-y-3">
-                    {sortedSessions.map((session) => (
-                      <div
-                        key={session.id}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-2xl px-3 py-2.5",
-                          shellInsetPanelClassName,
-                        )}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-semibold text-white/92">
-                              {session.label}
-                            </span>
-                            <span
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full",
-                                session.surfaceState === "failed"
-                                  ? "bg-amber-300"
-                                  : session.surfaceState === "ready"
-                                    ? "bg-emerald-300"
-                                    : "bg-white/45",
-                              )}
-                            />
-                          </div>
-                          <p className="mt-1 text-[10px] tracking-[0.14em] text-white/50 uppercase">
-                            {session.minimized
-                              ? "Minimized"
-                              : session.active
-                                ? "Focused"
-                                : previewControllerWindowStateLabel[
-                                    session.surfaceState
-                                  ]}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                              "h-7 rounded-full px-3 text-[10px]",
-                              shellUtilityButtonClassName,
-                            )}
-                            onClick={() =>
-                              session.minimized
-                                ? restorePreviewController(session.id)
-                                : focusPreviewController(session.id)
-                            }
-                          >
-                            {session.minimized ? "Restore" : "Focus"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="h-7 w-7 rounded-full text-white/68 hover:bg-white/8 hover:text-white"
-                            onClick={() => removePreviewController(session.id)}
-                            title={`Close ${session.label}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 ) : (
                   <div className={cn("px-4 py-4", shellInsetPanelClassName)}>

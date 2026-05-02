@@ -1,9 +1,9 @@
 import {
+  agentAction,
+  agentActionInput,
+  agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-  agentAction,
-  agentStore,
-  agentActionInput,
 } from "@air-jam/sdk";
 import type { MinimalState } from "../store";
 

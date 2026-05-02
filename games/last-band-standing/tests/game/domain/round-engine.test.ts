@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   buildRoundResults,
   calculateCorrectGuessPoints,
@@ -8,6 +7,7 @@ import {
   type PlayerAnswer,
   type RoundWindow,
 } from "@/game/domain/round-engine";
+import { describe, expect, it } from "vitest";
 
 const makeWindow = (startMs: number, durationMs: number): RoundWindow => ({
   startedAtMs: startMs,

@@ -6,10 +6,6 @@ import {
   resolveGameActionPayload,
 } from "./agent.js";
 import {
-  classifyGameActionOutcome,
-  computeGameSnapshotObservation,
-} from "./game-action-observation.js";
-import {
   connectController,
   disconnectController,
   invokeHostAction,
@@ -17,6 +13,10 @@ import {
   sendControllerInput,
 } from "./controller.js";
 import { getTopology } from "./dev.js";
+import {
+  classifyGameActionOutcome,
+  computeGameSnapshotObservation,
+} from "./game-action-observation.js";
 import type {
   AirJamGameAgentActionDescriptor,
   AirJamGameSessionActionDescriptor,
@@ -69,9 +69,11 @@ type InternalGameSession = {
 const DEFAULT_TIMEOUT_MS = 5_000;
 const gameSessions = new Map<string, InternalGameSession>();
 
-const toPlayerSessionActionId = (actionId: string): string => `player:${actionId}`;
+const toPlayerSessionActionId = (actionId: string): string =>
+  `player:${actionId}`;
 
-const toHostSessionActionId = (actionName: string): string => `host:${actionName}`;
+const toHostSessionActionId = (actionName: string): string =>
+  `host:${actionName}`;
 
 const describePlayerSessionActions = (
   gameActions: AirJamGameAgentActionDescriptor[],
@@ -143,7 +145,9 @@ const buildActionRegistry = ({
 }): InternalGameSession["actionRegistry"] => {
   const registry = new Map<
     string,
-    InternalGameSession["actionRegistry"] extends Map<string, infer T> ? T : never
+    InternalGameSession["actionRegistry"] extends Map<string, infer T>
+      ? T
+      : never
   >();
 
   for (const action of gameActions) {
@@ -380,12 +384,11 @@ export const readGameSession = async ({
         timeoutMs,
       })
     : null;
-  const registeredHarnessSnapshot = await readRegisteredHarnessSnapshotIfAvailable(
-    {
+  const registeredHarnessSnapshot =
+    await readRegisteredHarnessSnapshotIfAvailable({
       session,
       timeoutMs,
-    },
-  );
+    });
   const harnessSnapshot =
     registeredHarnessSnapshot ??
     (runtimeSnapshot.harnessSnapshot && session.summary.gameId
@@ -555,7 +558,9 @@ export const invokeGameSessionAction = async (
     timeoutMs: options.timeoutMs,
   });
   const nextActions = [
-    ...session.summary.actions.filter((action) => action.source === "semantic-game"),
+    ...session.summary.actions.filter(
+      (action) => action.source === "semantic-game",
+    ),
     ...describeHostSessionActions(invocation.actions),
   ];
   const contract =

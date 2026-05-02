@@ -1,6 +1,3 @@
-import {
-  inferControllerSourceFromDeviceId,
-} from "@air-jam/sdk/protocol";
 import type {
   ChildHostCapability,
   ControllerPresenceNotice,
@@ -11,6 +8,7 @@ import type {
   PlayerProfile,
   RoomCode,
 } from "@air-jam/sdk/protocol";
+import { inferControllerSourceFromDeviceId } from "@air-jam/sdk/protocol";
 import type { Server } from "socket.io";
 import type {
   ControllerSession,

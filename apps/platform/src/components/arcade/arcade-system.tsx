@@ -131,9 +131,7 @@ const pushArcadeGameHistoryEntry = (
   }
 
   const gamePath = getArcadeGameHistoryPath(game);
-  const currentPath = normalizeArcadeHistoryPathname(
-    window.location.pathname,
-  );
+  const currentPath = normalizeArcadeHistoryPathname(window.location.pathname);
   const currentSurface = getArcadeHistorySurface(window.location.pathname);
   const currentState = getCurrentHistoryState();
   const isCurrentGameEntry =
@@ -638,12 +636,7 @@ export const ArcadeSystem = ({
       overlay: preferredBrowserOverlay,
     });
     resetRuntimeAfterExit();
-  }, [
-    getPreferredBrowserOverlay,
-    mode,
-    resetRuntimeAfterExit,
-    surfaceActions,
-  ]);
+  }, [getPreferredBrowserOverlay, mode, resetRuntimeAfterExit, surfaceActions]);
 
   const closeGame = useCallback(() => {
     returnToBrowserSurface();

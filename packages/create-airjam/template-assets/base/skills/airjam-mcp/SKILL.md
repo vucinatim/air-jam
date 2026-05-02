@@ -31,8 +31,12 @@ If the template ships `src/game/contracts/agent.ts`, treat that file as the cano
 
 When local UI verification matters, pair the Air Jam MCP with the current agent or client's built-in browser or in-app browser tooling first.
 
-If that browser or preview tool wants to launch the local app command itself and expects one foreground web process, use `pnpm run dev:preview` instead of raw `vite` or the normal multi-process `pnpm run dev`.
-`pnpm run dev:preview` is local HTTP only. If you need HTTPS/secure dev, use the normal `pnpm run dev -- --secure` flow.
+If that browser or preview tool wants to launch the local app command itself, use `pnpm run dev`.
+Do not use raw `vite` for normal Air Jam development because it skips the local Air Jam backend.
+If you need HTTPS/secure dev, use the normal `pnpm run dev -- --secure` flow.
+For Claude Code or similar preview surfaces, keep host and preview controllers in the same visible preview screen when possible. Add multiple preview-controller windows from the host workspace for multiple local players instead of opening unrelated OS browser tabs unless the user asks for tabs.
+For visible controller UI smoke proof, use real browser click/drag/release gestures on preview controllers. Do not synthesize pointer events into controller iframes from parent-page eval.
+After editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state.
 
 Use secondary browser MCPs such as Chrome DevTools only when that first-party browser tooling is unavailable or when lower-level DOM, network, or performance inspection is required.
 

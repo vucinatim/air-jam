@@ -8,8 +8,8 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -148,7 +148,9 @@ const releaseLock = async (lockDir) => {
 const main = async () => {
   const packageName = process.argv[2]?.trim();
   if (!packageName) {
-    throw new Error("Usage: node scripts/ensure-workspace-package-build.mjs <package-name>");
+    throw new Error(
+      "Usage: node scripts/ensure-workspace-package-build.mjs <package-name>",
+    );
   }
 
   const packageDir = await findWorkspacePackageDir(packageName);

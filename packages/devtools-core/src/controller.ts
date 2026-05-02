@@ -1,19 +1,19 @@
+import type { HostRuntimeInspectionContract } from "@air-jam/sdk";
 import type {
   AirJamStateSyncPayload,
   ClientToServerEvents,
   ControllerJoinAck,
   ControllerJoinedNotice,
   ControllerLeaveAck,
-  HostActionRpcPayload,
   ControllerStateMessage,
   ControllerWelcomePayload,
+  HostActionRpcPayload,
   PlayerProfile,
   PlayerUpdatedNotice,
   ServerErrorPayload,
   ServerToClientEvents,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
-import type { HostRuntimeInspectionContract } from "@air-jam/sdk";
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -251,7 +251,11 @@ const emitControllerActionWithAck = async ({
   socket: ControllerSocket;
   payload: Parameters<ClientToServerEvents["controller:action_rpc"]>[0];
   timeoutMs: number;
-}): Promise<Parameters<NonNullable<Parameters<ClientToServerEvents["controller:action_rpc"]>[1]>>[0]> =>
+}): Promise<
+  Parameters<
+    NonNullable<Parameters<ClientToServerEvents["controller:action_rpc"]>[1]>
+  >[0]
+> =>
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(
@@ -273,12 +277,16 @@ const emitHostActionWithAck = async ({
   socket: ControllerSocket;
   payload: HostActionRpcPayload;
   timeoutMs: number;
-}): Promise<Parameters<NonNullable<Parameters<ClientToServerEvents["controller:host_action_rpc"]>[1]>>[0]> =>
+}): Promise<
+  Parameters<
+    NonNullable<
+      Parameters<ClientToServerEvents["controller:host_action_rpc"]>[1]
+    >
+  >[0]
+> =>
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(
-        new Error("Timed out waiting for host action acknowledgement."),
-      );
+      reject(new Error("Timed out waiting for host action acknowledgement."));
     }, timeoutMs);
 
     socket.emit("controller:host_action_rpc", payload, (ack) => {
@@ -668,7 +676,7 @@ const startIsolatedRuntimeOwner = async ({
           : "";
         reject(
           new Error(
-            "Timed out waiting for isolated runtime ownership. Another local game session may still own the isolated runtime lease. Close the previous game session and try again." +
+            "Timed out waiting for isolated runtime ownership. Another local game session may still own the isolated runtime lease, or no host page may be available to create a room. Run `pnpm exec airjam status` to inspect local dev processes; if the state looks stale, run `pnpm exec airjam reset local` and then reopen the host page." +
               stderrSuffix,
           ),
         );
@@ -916,10 +924,7 @@ const attachSocketListeners = (session: InternalControllerSession): void => {
 
   session.socket.on("airjam:state_sync", (payload: AirJamStateSyncPayload) => {
     const previousSnapshot = session.storeSnapshots.get(payload.storeDomain);
-    if (
-      previousSnapshot &&
-      payload.revision < previousSnapshot.revision
-    ) {
+    if (previousSnapshot && payload.revision < previousSnapshot.revision) {
       return;
     }
 
@@ -1164,7 +1169,7 @@ export const connectController = async ({
   if (!resolvedJoinUrl) {
     if (!canUseIsolatedOwner) {
       throw new Error(
-        "Unable to resolve a controller join URL. Provide roomId or controllerJoinUrl, or open a visual host staging surface first.",
+        "Unable to resolve a controller join URL. Open the host page first so a room exists, or provide roomId/controllerJoinUrl explicitly. If a stale dev process may be holding the local runtime, run `pnpm exec airjam status` and then `pnpm exec airjam reset local`.",
       );
     }
 

@@ -9,6 +9,8 @@ export const AIR_JAM_IFRAME_HEADERS = {
 };
 
 const AIR_JAM_VITE_PROFILES = new Set(["default", "three"]);
+const DEFAULT_CHUNK_WARNING_LIMIT_KB = 1000;
+const THREE_PROFILE_CHUNK_WARNING_LIMIT_KB = 2500;
 
 const resolveThreeProfileManualChunk = (id) => {
   if (id.includes("/zod/") || id.includes("/packages/sdk/src/")) {
@@ -71,6 +73,7 @@ const resolveThreeProfileManualChunk = (id) => {
 const resolveBuildConfig = (profile) => {
   if (profile === "three") {
     return {
+      chunkSizeWarningLimit: THREE_PROFILE_CHUNK_WARNING_LIMIT_KB,
       rollupOptions: {
         output: {
           manualChunks: resolveThreeProfileManualChunk,
@@ -79,7 +82,9 @@ const resolveBuildConfig = (profile) => {
     };
   }
 
-  return undefined;
+  return {
+    chunkSizeWarningLimit: DEFAULT_CHUNK_WARNING_LIMIT_KB,
+  };
 };
 
 const createSharedDevServerConfig = ({ env, port }) => ({
@@ -106,7 +111,7 @@ export const createAirJamViteConfig = ({
   const build = resolveBuildConfig(profile);
 
   return {
-    ...(build ? { build } : {}),
+    build,
     server: {
       ...createSharedDevServerConfig({ env, port }),
       proxy: getAirJamDevProxyOptions(env),

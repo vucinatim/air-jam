@@ -78,7 +78,7 @@ import { gameMetadata } from "../airjam.config";
     matchPhase,
     runtimeState,
   }}
-/>
+/>;
 ```
 
 That means the host no longer owns:

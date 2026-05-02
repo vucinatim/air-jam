@@ -5,8 +5,8 @@ import type {
 } from "../../hooks/use-air-jam-host";
 import type {
   ConnectionStatus,
-  ControllerPresenceNotice,
   ControllerOrientation,
+  ControllerPresenceNotice,
   PlayerProfile,
   RoomCode,
   RunMode,

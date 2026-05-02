@@ -232,22 +232,18 @@ export type AirJamPlatformAuthStatus = {
   platformBaseUrl: string | null;
   clientName: string | null;
   storedAt: string | null;
-  user:
-    | {
-        id: string;
-        name: string;
-        email: string;
-        role: "creator" | "ops_admin";
-      }
-    | null;
-  session:
-    | {
-        id: string;
-        expiresAt: string;
-        createdAt: string;
-        userAgent: string;
-      }
-    | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "creator" | "ops_admin";
+  } | null;
+  session: {
+    id: string;
+    expiresAt: string;
+    createdAt: string;
+    userAgent: string;
+  } | null;
 };
 
 export type CommandResult = {
@@ -350,12 +346,34 @@ export type StopDevResult = {
   stopped: AirJamManagedDevProcess[];
 };
 
+export type AirJamUnmanagedDevProcess = {
+  pid: number;
+  ports: number[];
+  command: string | null;
+  startedAt: string | null;
+  ageMs: number | null;
+  managed: false;
+};
+
 export type GetDevStatusOptions = {
   cwd?: string;
 };
 
 export type AirJamDevStatus = {
   processes: AirJamManagedDevProcess[];
+  unmanagedProcesses: AirJamUnmanagedDevProcess[];
+  knownPorts: number[];
+};
+
+export type ResetLocalDevOptions = {
+  cwd?: string;
+};
+
+export type ResetLocalDevResult = {
+  stoppedManaged: AirJamManagedDevProcess[];
+  stoppedUnmanaged: AirJamUnmanagedDevProcess[];
+  remainingUnmanaged: AirJamUnmanagedDevProcess[];
+  knownPorts: number[];
 };
 
 export type GetTopologyOptions = {
@@ -782,9 +800,7 @@ export type SendGameSessionInputResult = AirJamGameSessionSummary & {
 export type InvokeGameSessionActionResult = AirJamGameSessionSummary & {
   actionId: string;
   lane: "player" | "host";
-  invocation:
-    | InvokeGameActionResult
-    | AirJamHarnessActionInvocation;
+  invocation: InvokeGameActionResult | AirJamHarnessActionInvocation;
 };
 
 export type CloseGameSessionResult = {

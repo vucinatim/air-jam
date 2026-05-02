@@ -1,6 +1,6 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
 import { tarballDir, tarballSetsDir } from "./paths.mjs";
 import { runCommand } from "./shell.mjs";
 
@@ -8,7 +8,10 @@ export const toTarballBaseName = (packageName) =>
   packageName.replace(/^@/, "").replace(/\//g, "-");
 
 const toTarballSetTimestamp = (date = new Date()) =>
-  date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
 
 export const createTarballSetDir = ({ prefix = "local" } = {}) => {
   fs.mkdirSync(tarballSetsDir, { recursive: true });
@@ -49,7 +52,10 @@ export const writeTarballSetManifest = ({ setDir, setId, tarballs }) => {
   return manifestPath;
 };
 
-export const packWorkspacePackage = (packageDir, { outDir = tarballDir } = {}) => {
+export const packWorkspacePackage = (
+  packageDir,
+  { outDir = tarballDir } = {},
+) => {
   fs.mkdirSync(outDir, { recursive: true });
 
   const packageJson = JSON.parse(

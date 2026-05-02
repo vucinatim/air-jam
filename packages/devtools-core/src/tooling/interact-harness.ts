@@ -1,8 +1,8 @@
 import {
-  type DevHarnessSnapshotAfterStatus,
   describeVisualHarnessActions,
   launchHarnessBrowser,
   openVisualHarnessHostSession,
+  type DevHarnessSnapshotAfterStatus,
   type VisualHarnessMode,
 } from "@air-jam/harness/visual";
 import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";

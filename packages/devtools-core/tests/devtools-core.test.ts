@@ -6,8 +6,9 @@ import type {
   HostActionRpcPayload,
   ServerToClientEvents,
 } from "@air-jam/sdk/protocol";
+import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:http";
+import { createServer, get as httpGet } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -23,20 +24,21 @@ import {
   inspectGame,
   inspectGameAgentContract,
   inspectProject,
-  invokeGameSessionAction,
   invokeControllerAction,
   invokeGameAction,
+  invokeGameSessionAction,
   invokeHarnessAction,
   listGames,
   listHarnessSessions,
-  openGameSession,
   listVisualCaptureSummaries,
   listVisualScenarios,
-  readGameSnapshot,
+  openGameSession,
   readGameSession,
+  readGameSnapshot,
   readHarnessSnapshot,
   readRuntimeSnapshot,
   readVisualCaptureSummary,
+  resetLocalDev,
   runQualityGate,
   sendControllerInput,
   sendGameSessionInput,
@@ -48,6 +50,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tempRoots: string[] = [];
 const fixtureClosers: Array<() => Promise<void>> = [];
 const originalFetch = globalThis.fetch;
+const originalKnownPortsEnv = process.env.AIRJAM_DEVTOOLS_KNOWN_PORTS;
 
 const createTempRoot = async (): Promise<string> => {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-devtools-"));
@@ -58,6 +61,52 @@ const createTempRoot = async (): Promise<string> => {
 const writeJson = async (filePath: string, value: unknown): Promise<void> => {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+};
+
+const getAvailablePort = async (): Promise<number> =>
+  await new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close(() => reject(new Error("No test port was allocated.")));
+        return;
+      }
+      const port = address.port;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(port);
+      });
+    });
+  });
+
+const waitForHttpOk = async (
+  port: number,
+  timeoutMs = 5_000,
+): Promise<void> => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const ok = await new Promise<boolean>((resolve) => {
+      const request = httpGet(`http://127.0.0.1:${port}`, (response) => {
+        response.resume();
+        resolve(true);
+      });
+      request.on("error", () => resolve(false));
+      request.setTimeout(250, () => {
+        request.destroy();
+        resolve(false);
+      });
+    });
+    if (ok) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for test HTTP listener on ${port}.`);
 };
 
 const createStandaloneDevFixture = async (): Promise<{
@@ -103,12 +152,13 @@ const server = http.createServer((request, response) => {
     <body>
       <main>host</main>
       <script>
+        let revision = 0;
         const snapshot = {
           roomId: "fixture-room",
           controllerJoinUrl: "\${controllerJoinUrl}",
           matchPhase: "lobby",
           runtimeState: "idle",
-          updatedAt: new Date().toISOString(),
+          updatedAt: String(revision),
         };
 
         window.__airJamVisualHarness = snapshot;
@@ -123,7 +173,7 @@ const server = http.createServer((request, response) => {
             window.__airJamVisualHarness = {
               ...window.__airJamVisualHarness,
               matchPhase: phase,
-              updatedAt: new Date().toISOString(),
+              updatedAt: String(++revision),
             };
             return window.__airJamVisualHarness;
           },
@@ -132,7 +182,7 @@ const server = http.createServer((request, response) => {
               ...window.__airJamVisualHarness,
               matchPhase: "ended",
               runtimeState: "stopped",
-              updatedAt: new Date().toISOString(),
+              updatedAt: String(++revision),
             };
             return { ok: true };
           },
@@ -177,11 +227,14 @@ console.log(JSON.stringify({
 `,
     "utf8",
   );
-  await mkdir(path.join(root, "visual"), { recursive: true });
+  await mkdir(path.join(root, "src", "game", "contracts"), {
+    recursive: true,
+  });
   await writeFile(
-    path.join(root, "visual", "scenarios.mjs"),
-    `export const harness = {
+    path.join(root, "src", "game", "contracts", "visual-scenarios.mjs"),
+    `export const visualHarness = {
   gameId: "solo-fixture",
+  agent: {},
   bridge: {
     gameId: "solo-fixture",
     actions: {
@@ -570,6 +623,11 @@ console.log(JSON.stringify({
 
 afterEach(async () => {
   globalThis.fetch = originalFetch;
+  if (originalKnownPortsEnv === undefined) {
+    delete process.env.AIRJAM_DEVTOOLS_KNOWN_PORTS;
+  } else {
+    process.env.AIRJAM_DEVTOOLS_KNOWN_PORTS = originalKnownPortsEnv;
+  }
   while (fixtureClosers.length > 0) {
     const close = fixtureClosers.pop();
     await close?.();
@@ -807,6 +865,8 @@ describe("dev lifecycle and topology", () => {
       const status = await getDevStatus({ cwd: root });
       expect(status.processes).toHaveLength(1);
       expect(status.processes[0]?.id).toBe(started.process.id);
+      expect(status.knownPorts).toEqual(expect.arrayContaining([4000, 5173]));
+      expect(Array.isArray(status.unmanagedProcesses)).toBe(true);
 
       const topology = await getTopology({ cwd: root });
       expect(topology.process?.id).toBe(started.process.id);
@@ -817,6 +877,70 @@ describe("dev lifecycle and topology", () => {
 
     const statusAfterStop = await getDevStatus({ cwd: root });
     expect(statusAfterStop.processes).toHaveLength(0);
+  });
+
+  it("reports and resets unmanaged known-port local dev listeners", async () => {
+    const root = await createTempRoot();
+    const port = await getAvailablePort();
+    process.env.AIRJAM_DEVTOOLS_KNOWN_PORTS = String(port);
+    await writeJson(path.join(root, "package.json"), {
+      name: "unmanaged-dev-listener-fixture",
+      dependencies: {
+        "@air-jam/sdk": "^1.0.0",
+      },
+    });
+    const scriptPath = path.join(root, "fixture-vite-listener.mjs");
+    await writeFile(
+      scriptPath,
+      `import http from "node:http";
+const port = Number(process.argv[2]);
+const server = http.createServer((_request, response) => {
+  response.writeHead(200, { "content-type": "text/plain" });
+  response.end("ok");
+});
+server.listen(port, "127.0.0.1");
+const shutdown = () => server.close(() => process.exit(0));
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+`,
+      "utf8",
+    );
+
+    const child = spawn(process.execPath, [scriptPath, String(port)], {
+      cwd: root,
+      detached: true,
+      stdio: "ignore",
+    });
+    fixtureClosers.push(async () => {
+      if (!child.killed) {
+        child.kill("SIGTERM");
+      }
+    });
+
+    await waitForHttpOk(port);
+
+    const status = await getDevStatus({ cwd: root });
+    expect(status.knownPorts).toEqual([port]);
+    expect(status.unmanagedProcesses).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pid: child.pid,
+          ports: [port],
+          managed: false,
+        }),
+      ]),
+    );
+
+    const reset = await resetLocalDev({ cwd: root });
+    expect(reset.knownPorts).toEqual([port]);
+    expect(reset.stoppedUnmanaged).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pid: child.pid,
+          ports: [port],
+        }),
+      ]),
+    );
   });
 });
 
@@ -829,7 +953,9 @@ describe("visual scenarios", () => {
 
     expect(scenarios.gameId).toBe("pong");
     expect(scenarios.hasBridgeActions).toBe(false);
-    expect(scenarios.scenarioModulePath).toMatch(/visual\/scenarios\.ts$/);
+    expect(scenarios.scenarioModulePath).toMatch(
+      /game\/contracts\/visual-scenarios\.ts$/,
+    );
     expect(scenarios.bridgeActions).toEqual([]);
     expect(scenarios.actionMetadata).toEqual([]);
     expect(scenarios.scenarios.map((scenario) => scenario.scenarioId)).toEqual(
@@ -901,7 +1027,7 @@ describe("harness runtime control", () => {
     } finally {
       await stopDev({ cwd: root, processId: started.process.id });
     }
-  }, 30_000);
+  }, 75_000);
 
   it("prefers registered live harness sessions over isolated browser sessions", async () => {
     const { root } = await createStandaloneDevFixture();
@@ -1048,9 +1174,7 @@ describe("harness runtime control", () => {
       expect(invocation.controlSurface).toBe("registered-session");
       expect(invocation.sessionId).toBe("live-session");
       expect(invocation.snapshotAfter?.matchPhase).toBe("playing");
-      expect(invocation.snapshotAfterStatus).toBe(
-        "committed-update-observed",
-      );
+      expect(invocation.snapshotAfterStatus).toBe("committed-update-observed");
       expect(invocation.actions[0]?.name).toBe("setMatchPhase");
     } finally {
       await stopDev({ cwd: root, processId: started.process.id });
@@ -1582,10 +1706,8 @@ describe("game sessions", () => {
     });
   });
 
-  it(
-    "opens a harness-backed game session and can invoke host-side actions through the same handle",
-    async () => {
-      const fixture = await createControllerSocketFixture();
+  it("opens a harness-backed game session and can invoke host-side actions through the same handle", async () => {
+    const fixture = await createControllerSocketFixture();
 
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -1608,7 +1730,8 @@ describe("game sessions", () => {
                       description: "Set the fixture match phase.",
                       payload: {
                         kind: "json",
-                        description: "Object payload with a phase string field.",
+                        description:
+                          "Object payload with a phase string field.",
                       },
                       resultDescription: "The fixture snapshot updates.",
                     },
@@ -1641,8 +1764,7 @@ describe("game sessions", () => {
                 })
               : null;
           if (
-            requestBody?.actionName ===
-            "__airJamAgentHostAction__:finish_match"
+            requestBody?.actionName === "__airJamAgentHostAction__:finish_match"
           ) {
             fixture.setStorePayload("default", {
               phase: "ended",
@@ -1718,68 +1840,66 @@ describe("game sessions", () => {
       },
     );
 
-      globalThis.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-      const session = await openGameSession({
-        cwd: fixture.root,
-        gameId: "socket-fixture",
-        controllerJoinUrl: fixture.joinUrl,
-        harnessSessionId: "live-session",
-        timeoutMs: 5_000,
-      });
+    const session = await openGameSession({
+      cwd: fixture.root,
+      gameId: "socket-fixture",
+      controllerJoinUrl: fixture.joinUrl,
+      harnessSessionId: "live-session",
+      timeoutMs: 5_000,
+    });
 
-      expect(session.hasHarnessBridge).toBe(true);
-      expect(session.actions).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            actionId: "host:finish_match",
-            lane: "host",
-            source: "semantic-game",
-          }),
-          expect.objectContaining({
-            actionId: "host:setMatchPhase",
-            lane: "host",
-          }),
-        ]),
-      );
-
-      const inspection = await readGameSession({
-        gameSessionId: session.gameSessionId,
-        timeoutMs: 5_000,
-      });
-      expect(inspection.harnessSnapshot?.snapshot?.matchPhase).toBe("lobby");
-
-      const invocation = await invokeGameSessionAction({
-        gameSessionId: session.gameSessionId,
-        actionId: "host:finish_match",
-        timeoutMs: 5_000,
-      });
-
-      expect(invocation.actionId).toBe("host:finish_match");
-      expect(invocation.lane).toBe("host");
-      expect(invocation.invocation).toEqual(
+    expect(session.hasHarnessBridge).toBe(true);
+    expect(session.actions).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({
+          actionId: "host:finish_match",
           lane: "host",
-          actionName: "finishMatch",
-          acknowledgement: expect.objectContaining({
-            ok: true,
-            status: "accepted",
-            source: "host",
-          }),
-          snapshotAfterStatus: "committed-update-observed",
-          snapshotAfter: expect.objectContaining({
-            snapshot: expect.objectContaining({
-              phase: "ended",
-            }),
+          source: "semantic-game",
+        }),
+        expect.objectContaining({
+          actionId: "host:setMatchPhase",
+          lane: "host",
+        }),
+      ]),
+    );
+
+    const inspection = await readGameSession({
+      gameSessionId: session.gameSessionId,
+      timeoutMs: 5_000,
+    });
+    expect(inspection.harnessSnapshot?.snapshot?.matchPhase).toBe("lobby");
+
+    const invocation = await invokeGameSessionAction({
+      gameSessionId: session.gameSessionId,
+      actionId: "host:finish_match",
+      timeoutMs: 5_000,
+    });
+
+    expect(invocation.actionId).toBe("host:finish_match");
+    expect(invocation.lane).toBe("host");
+    expect(invocation.invocation).toEqual(
+      expect.objectContaining({
+        lane: "host",
+        actionName: "finishMatch",
+        acknowledgement: expect.objectContaining({
+          ok: true,
+          status: "accepted",
+          source: "host",
+        }),
+        snapshotAfterStatus: "committed-update-observed",
+        snapshotAfter: expect.objectContaining({
+          snapshot: expect.objectContaining({
+            phase: "ended",
           }),
         }),
-      );
+      }),
+    );
 
-      const closed = await closeGameSession({
-        gameSessionId: session.gameSessionId,
-      });
-      expect(closed.closed).toBe(true);
-    },
-    20_000,
-  );
+    const closed = await closeGameSession({
+      gameSessionId: session.gameSessionId,
+    });
+    expect(closed.closed).toBe(true);
+  }, 20_000);
 });

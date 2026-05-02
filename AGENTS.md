@@ -94,6 +94,40 @@ Use that path for:
 
 Keep that browser workflow as the canonical path for interactive local UI work in this repo.
 
+## Local Agent Dev Loop Rule
+
+For local Air Jam game/dev-loop work, use one normal front door:
+
+```bash
+pnpm run dev
+```
+
+Do not replace it with raw `vite`, and do not choose preview-specific dev commands for normal work. If a browser or preview tool wants to launch the app command itself, still give it `pnpm run dev`.
+
+For visible controller UI smoke tests:
+
+1. use the visible preview controllers in the browser surface
+2. interact through real browser click, drag, and release gestures
+3. do not synthesize pointer events into controller iframes from parent-page eval
+
+For reliable gameplay, physics, scoring, reset, and state assertions:
+
+1. use the semantic agent contract
+2. use Air Jam MCP game-session actions such as `airjam.open_game_session`, `airjam.read_game_session`, `airjam.invoke_game_session_action`, and `airjam.close_game_session`
+3. treat preview controllers as visual UI proof, not the primary automation lane
+
+If local runtime state feels stale, first use status/log/reset tooling before debugging gameplay:
+
+```bash
+pnpm run status
+pnpm run reset:local
+pnpm exec air-jam-server logs --view=signal
+```
+
+After editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm run reset:local` if actions appear duplicated or rendered state no longer matches replicated state.
+
+Multiplayer games should be startable or ready-able from controllers. The host screen should not be the only place where play begins.
+
 ## Documentation Discipline
 
 1. Keep long-term product direction in `docs/vision.md`.

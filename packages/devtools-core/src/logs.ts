@@ -37,6 +37,20 @@ export const readDevLogs = async (
     cwd: context.rootDir,
   });
 
+  const missingLogMessage = `${result.stderr}\n${result.stdout}`;
+  if (!result.ok && /Dev log file not found:/i.test(missingLogMessage)) {
+    const message =
+      "Air Jam dev logs are not ready yet. Start local dev with `pnpm run dev`, then retry logs after the server creates `.airjam/logs/dev-latest.ndjson`.";
+    return {
+      ...result,
+      exitCode: 0,
+      ok: true,
+      stdout: message,
+      stderr: "",
+      lines: [message],
+    };
+  }
+
   const allLines = result.stdout.split(/\r?\n/).filter(Boolean);
   const lines =
     typeof options.tail === "number" && options.tail >= 0

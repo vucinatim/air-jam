@@ -8,7 +8,12 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCommandResult } from "./commands.js";
-import { getTopology, startDev, stopDev, tryAttachToRunningDev } from "./dev.js";
+import {
+  getTopology,
+  startDev,
+  stopDev,
+  tryAttachToRunningDev,
+} from "./dev.js";
 import { pathExists, readJsonFile } from "./fs-utils.js";
 import { inspectGame, readVisualCaptureSummary } from "./games.js";
 import { inspectAirJamAgentConfig } from "./tooling/airjam-agent-inspection.js";
@@ -132,9 +137,9 @@ const resolveVisualSource = async ({
   configPath: string | null;
 }): Promise<ResolvedVisualSource | null> => {
   if (configPath) {
-    const scenarioModulePath = await inspectAirJamAgentConfig(
-      configPath,
-    ).then((inspection) => inspection.visualScenariosModulePath);
+    const scenarioModulePath = await inspectAirJamAgentConfig(configPath).then(
+      (inspection) => inspection.visualScenariosModulePath,
+    );
     if (scenarioModulePath) {
       return {
         configPath,
@@ -516,17 +521,17 @@ export const readHarnessSnapshot = async ({
         };
       }
 
-        const helperResult = runHarnessSessionHelper<{
+      const helperResult = runHarnessSessionHelper<{
         gameId: string;
         actions: AirJamHarnessSnapshotInspection["actions"];
         availableActions: string[];
         roomId: string | null;
         controllerJoinUrl: string | null;
         snapshot: Record<string, unknown> | null;
-        }>({
-          operation: "read",
-          gameId: game.id,
-          configPath: visualSource.configPath,
+      }>({
+        operation: "read",
+        gameId: game.id,
+        configPath: visualSource.configPath,
         scenarioModulePath: visualSource.scenarioModulePath,
         topology: session.topology,
         roomId: normalizedRoomId,

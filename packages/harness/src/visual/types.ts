@@ -1,5 +1,5 @@
-import type { Page } from "@playwright/test";
 import type { AirJamAgentContract, AnyAirJamAgentContract } from "@air-jam/sdk";
+import type { Page } from "@playwright/test";
 import type {
   AnyVisualHarnessBridgeDefinition,
   InferVisualHarnessBridgeActions,
@@ -50,10 +50,7 @@ export type VisualHarnessPageSurface = {
 };
 
 export type InferVisualScenarioSnapshot<TAgent> =
-  TAgent extends AirJamAgentContract<
-    infer TSnapshot,
-    infer _TStores
-  >
+  TAgent extends AirJamAgentContract<infer TSnapshot, infer _TStores>
     ? TSnapshot
     : never;
 
@@ -71,26 +68,25 @@ export type VisualScenarioAgentActionDescriptor = {
   resultDescription: string | null;
 };
 
-export type VisualScenarioAgentInvocation<TSnapshot = Record<string, unknown>> = {
-  actionId: string;
-  lane: "player" | "host";
-  outcome: string | null;
-  acknowledgementObservation: string | null;
-  snapshotBefore: TSnapshot | null;
-  snapshotAfter: TSnapshot | null;
-  snapshotAfterStatus:
-    | "committed-update-observed"
-    | "no-new-commit-before-timeout"
-    | null;
-};
+export type VisualScenarioAgentInvocation<TSnapshot = Record<string, unknown>> =
+  {
+    actionId: string;
+    lane: "player" | "host";
+    outcome: string | null;
+    acknowledgementObservation: string | null;
+    snapshotBefore: TSnapshot | null;
+    snapshotAfter: TSnapshot | null;
+    snapshotAfterStatus:
+      | "committed-update-observed"
+      | "no-new-commit-before-timeout"
+      | null;
+  };
 
 export type VisualScenarioAgent<TSnapshot = Record<string, unknown>> = {
   listActions: () => Promise<readonly VisualScenarioAgentActionDescriptor[]>;
   read: () => Promise<TSnapshot>;
   waitFor: (
-    predicate: (
-      snapshot: TSnapshot,
-    ) => boolean | Promise<boolean>,
+    predicate: (snapshot: TSnapshot) => boolean | Promise<boolean>,
     description?: string,
     timeout?: number,
   ) => Promise<TSnapshot>;

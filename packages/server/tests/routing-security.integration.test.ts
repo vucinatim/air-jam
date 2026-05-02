@@ -276,14 +276,12 @@ describe("server routing and security", () => {
 
     host.once("airjam:action_rpc", (...args: unknown[]) => {
       const callback = args[1] as
-        | ((
-            ack: {
-              ok: boolean;
-              status: "accepted" | "rejected";
-              source: "host";
-              result?: { ok: true };
-            },
-          ) => void)
+        | ((ack: {
+            ok: boolean;
+            status: "accepted" | "rejected";
+            source: "host";
+            result?: { ok: true };
+          }) => void)
         | undefined;
       callback?.({
         ok: true,

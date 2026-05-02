@@ -1,10 +1,10 @@
 import {
   type AirJamAgentActionInputDefinition,
   type AirJamAgentActionMetadata,
+  type AirJamAgentActionOptions,
   type AirJamAgentActionParseMeta,
   type AirJamAgentActionPayloadKind,
   type AirJamAgentActionPayloadMetadata,
-  type AirJamAgentActionOptions,
 } from "./agent-action.js";
 
 export type AirJamAgentJsonObject = Record<string, unknown>;
@@ -63,19 +63,24 @@ export type AirJamAgentResolvedActionContract<
 };
 
 // Existential wildcard for heterogenous action contracts.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AirJamAgentActionContract = AirJamAgentResolvedActionContract<any, any>;
+/* eslint-disable @typescript-eslint/no-explicit-any -- These aliases intentionally erase generic action and store shapes at contract boundaries. */
+export type AirJamAgentActionContract = AirJamAgentResolvedActionContract<
+  any,
+  any
+>;
 
 // Existential wildcard for published agent contracts with arbitrary snapshot/store shapes.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyAirJamAgentContract = AirJamAgentContract<any, any>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
-export type AirJamAgentContractActionOptions<TInput, TPayload = TInput> =
-  AirJamAgentActionOptions & {
-    availability?: string;
-    input: AirJamAgentActionInputDefinition<TInput>;
-    toPayload?: (input: TInput) => TPayload;
-  };
+export type AirJamAgentContractActionOptions<
+  TInput,
+  TPayload = TInput,
+> = AirJamAgentActionOptions & {
+  availability?: string;
+  input: AirJamAgentActionInputDefinition<TInput>;
+  toPayload?: (input: TInput) => TPayload;
+};
 
 export type AirJamAgentSnapshotContext<
   TStores extends AirJamAgentStores = AirJamAgentStores,
@@ -86,7 +91,8 @@ export type AirJamAgentSnapshotContext<
 
 export type AirJamAgentContract<
   TSnapshot extends AirJamAgentJsonObject = AirJamAgentJsonObject,
-  TStoreDeclarations extends AirJamAgentStoreDeclarations = AirJamAgentStoreDeclarations,
+  TStoreDeclarations extends AirJamAgentStoreDeclarations =
+    AirJamAgentStoreDeclarations,
 > = {
   stores: TStoreDeclarations;
   snapshotDescription?: string;
@@ -98,7 +104,9 @@ export type AirJamAgentContract<
   actions: Record<string, AirJamAgentActionContract>;
 };
 
-export const agentStore = <TStore extends object>(): AirJamAgentStoreDeclaration<TStore> =>
+export const agentStore = <
+  TStore extends object,
+>(): AirJamAgentStoreDeclaration<TStore> =>
   ({}) as AirJamAgentStoreDeclaration<TStore>;
 
 export const defineAirJamAgentStores = <
@@ -113,15 +121,14 @@ export const listAirJamAgentStoreDomains = (
 
 export const describeAirJamAgentAction = (
   action: AirJamAgentActionContract,
-): AirJamAgentActionMetadata =>
-  ({
-    description: action.description ?? action.input.metadata.description,
-    payload: {
-      ...action.input.metadata.payload,
-    },
-    resultDescription:
-      action.resultDescription ?? action.input.metadata.resultDescription,
-  });
+): AirJamAgentActionMetadata => ({
+  description: action.description ?? action.input.metadata.description,
+  payload: {
+    ...action.input.metadata.payload,
+  },
+  resultDescription:
+    action.resultDescription ?? action.input.metadata.resultDescription,
+});
 
 export const resolveAirJamAgentActionPayload = (
   action: AirJamAgentActionContract,

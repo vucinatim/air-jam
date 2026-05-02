@@ -32,7 +32,6 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   external: ["react", "react-dom"],
-  treeshake: true,
   define: {
     __AIR_JAM_SDK_VERSION__: JSON.stringify(packageJson.version),
   },

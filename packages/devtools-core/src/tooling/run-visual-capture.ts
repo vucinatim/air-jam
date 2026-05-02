@@ -62,9 +62,7 @@ const scenarioPack = (await loadVisualScenarioPackFromModuleOrConfig({
 const mode =
   requestedMode === "arcade-test" ? "arcade-built" : "standalone-dev";
 
-const asSnapshotRecord = (
-  snapshot: unknown,
-): Record<string, unknown> | null =>
+const asSnapshotRecord = (snapshot: unknown): Record<string, unknown> | null =>
   snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
     ? (snapshot as Record<string, unknown>)
     : null;
@@ -157,7 +155,8 @@ const createScenarioAgentSession = async ({
         snapshotBefore:
           "snapshotBefore" in invocation
             ? asSnapshotRecord(
-                invocation.snapshotBefore?.snapshot ?? invocation.snapshotBefore,
+                invocation.snapshotBefore?.snapshot ??
+                  invocation.snapshotBefore,
               )
             : null,
         snapshotAfter:
@@ -214,7 +213,8 @@ try {
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
   process.exit(0);
 } catch (error) {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+  const message =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
   process.stderr.write(`${message}\n`);
   process.exit(1);
 }

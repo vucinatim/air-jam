@@ -16,12 +16,12 @@ import {
 import type {
   AnyAirJamAgentContract,
   InferVisualScenarioSnapshot,
-  VisualScenarioAgent,
   VisualCaptureScenarioMetadata,
   VisualCaptureSummary,
   VisualHarnessMode,
   VisualHarnessUrls,
   VisualScenario,
+  VisualScenarioAgent,
   VisualScenarioBridge,
   VisualScenarioContext,
   VisualScenarioPack,

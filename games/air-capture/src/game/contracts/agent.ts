@@ -1,15 +1,15 @@
 import {
-  defineAirJamAgentContract,
-  defineAirJamAgentStores,
   agentAction,
   agentActionInput,
   agentStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
 } from "@air-jam/sdk";
 import { getMatchReadiness, getTeamCounts } from "../domain/match-readiness";
 import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../domain/team";
 import type {
-  MatchSummary,
   MatchStateSnapshot,
+  MatchSummary,
   TeamAssignment,
 } from "../stores/match/match-store-types";
 
@@ -64,7 +64,8 @@ export const agentContract = defineAirJamAgentContract({
     if (!state) {
       return {
         matchPhase: "unavailable",
-        summary: "Default replicated Air Capture match store is not available yet.",
+        summary:
+          "Default replicated Air Capture match store is not available yet.",
       };
     }
 
@@ -75,7 +76,8 @@ export const agentContract = defineAirJamAgentContract({
         ? {
             playerId: controllerId,
             teamId: state.teamAssignments[controllerId].teamId,
-            teamLabel: TEAM_CONFIG[state.teamAssignments[controllerId].teamId].label,
+            teamLabel:
+              TEAM_CONFIG[state.teamAssignments[controllerId].teamId].label,
           }
         : null;
 
@@ -239,7 +241,8 @@ export const agentContract = defineAirJamAgentContract({
         ),
         description:
           "Finish the current Air Capture match with an explicit winner and final scoreline.",
-        availability: "Playing only. Useful for deterministic QA and visual proof.",
+        availability:
+          "Playing only. Useful for deterministic QA and visual proof.",
         resultDescription:
           "The match ends and publishes the requested winner and scores.",
       },

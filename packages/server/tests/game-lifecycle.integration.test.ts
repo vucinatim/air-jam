@@ -377,6 +377,7 @@ describe("server game lifecycle", () => {
     );
     expect(joinOneAck.ok).toBe(true);
 
+    process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = "500";
     childOne.disconnect();
     await harness.delay(20);
 

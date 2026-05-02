@@ -429,7 +429,9 @@ export const parseControllerBridgeResponseMessage = (
   value: unknown,
 ): ControllerBridgeResponseMessage | null => {
   const result = bridgeResponseSchema.safeParse(value);
-  return result.success ? (result.data as ControllerBridgeResponseMessage) : null;
+  return result.success
+    ? (result.data as ControllerBridgeResponseMessage)
+    : null;
 };
 
 export const parseControllerBridgeCloseMessage = (

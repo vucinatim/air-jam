@@ -254,38 +254,35 @@ export const SurfaceViewport = ({
     ],
   );
 
-  const scale = useMemo(
-    () => {
-      const scaleMode =
-        sessionScope === "controller"
-          ? effectiveOrientation === "portrait"
-            ? "width"
-            : "height"
-          : "fit";
+  const scale = useMemo(() => {
+    const scaleMode =
+      sessionScope === "controller"
+        ? effectiveOrientation === "portrait"
+          ? "width"
+          : "height"
+        : "fit";
 
-      return resolveSurfaceViewportScale({
-        availableWidth: availableSize.width,
-        availableHeight: availableSize.height,
-        referenceWidth: referenceSize.width,
-        referenceHeight: referenceSize.height,
-        scaleMode,
-        uiScaleMultiplier,
-        minScale,
-        maxScale,
-      });
-    },
-    [
-      availableSize.height,
-      availableSize.width,
-      effectiveOrientation,
-      maxScale,
-      minScale,
-      referenceSize.height,
-      referenceSize.width,
-      sessionScope,
+    return resolveSurfaceViewportScale({
+      availableWidth: availableSize.width,
+      availableHeight: availableSize.height,
+      referenceWidth: referenceSize.width,
+      referenceHeight: referenceSize.height,
+      scaleMode,
       uiScaleMultiplier,
-    ],
-  );
+      minScale,
+      maxScale,
+    });
+  }, [
+    availableSize.height,
+    availableSize.width,
+    effectiveOrientation,
+    maxScale,
+    minScale,
+    referenceSize.height,
+    referenceSize.width,
+    sessionScope,
+    uiScaleMultiplier,
+  ]);
 
   return (
     <div

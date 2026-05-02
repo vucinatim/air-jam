@@ -185,7 +185,11 @@ export const registerDisconnectHandler = (
             }
             currentController.pendingDisconnectTimer = undefined;
             currentSession.controllers.delete(controller.controllerId);
-            emitControllerLeftNotice(io, currentSession, controller.controllerId);
+            emitControllerLeftNotice(
+              io,
+              currentSession,
+              controller.controllerId,
+            );
             runtimeUsagePublisher.publish(
               createRoomRuntimeUsageEvent(currentSession, {
                 kind: "controller_left",

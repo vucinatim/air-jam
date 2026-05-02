@@ -81,10 +81,75 @@ const getDefaultPublicHost = (env, gamePort) => {
   return `http://${detectedIp}:${gamePort}`;
 };
 
+const readListeningPid = (port) => {
+  try {
+    const output = execFileSync(
+      "lsof",
+      ["-nP", `-tiTCP:${port}`, "-sTCP:LISTEN"],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    )
+      .trim()
+      .split("\n")
+      .find(Boolean);
+    const pid = Number.parseInt(output ?? "", 10);
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+};
+
+const readProcessSummary = (pid) => {
+  if (!pid) {
+    return null;
+  }
+
+  try {
+    const command = execFileSync("ps", ["-p", String(pid), "-o", "command="], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const etimesOutput = execFileSync(
+      "ps",
+      ["-p", String(pid), "-o", "etimes="],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    ).trim();
+    const ageSeconds = Number.parseInt(etimesOutput, 10);
+    return {
+      pid,
+      command: command || null,
+      ageSeconds: Number.isFinite(ageSeconds) ? ageSeconds : null,
+    };
+  } catch {
+    return { pid, command: null, ageSeconds: null };
+  }
+};
+
+const formatProcessSummary = (summary) => {
+  if (!summary) {
+    return "unknown process";
+  }
+
+  const age =
+    typeof summary.ageSeconds === "number"
+      ? `, age ${Math.floor(summary.ageSeconds / 60)}m${summary.ageSeconds % 60}s`
+      : "";
+  const command = summary.command ? `, command: ${summary.command}` : "";
+  return `pid ${summary.pid}${age}${command}`;
+};
+
 const startServerIfNeeded = async (processGroup, serverPort) => {
   const hasExistingServer = await isPortOpen(serverPort);
   if (hasExistingServer) {
-    console.log(`[dev] Reusing existing server on :${serverPort}`);
+    const summary = readProcessSummary(readListeningPid(serverPort));
+    console.warn(
+      `[dev] Reusing existing server on :${serverPort} (${formatProcessSummary(summary)}). If this looks stale, run "pnpm exec airjam reset local".`,
+    );
     return false;
   }
 
@@ -122,7 +187,10 @@ const startGameIfNeeded = async (
 const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
   const hasExistingServer = await isPortOpen(serverPort);
   if (hasExistingServer) {
-    console.log(`[dev] Reusing existing preview-managed server on :${serverPort}`);
+    const summary = readProcessSummary(readListeningPid(serverPort));
+    console.warn(
+      `[dev] Reusing existing preview-managed server on :${serverPort} (${formatProcessSummary(summary)}). If this looks stale, run "pnpm exec airjam reset local".`,
+    );
     return false;
   }
 
@@ -161,7 +229,9 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
     "utf8",
   );
 
-  console.log(`[dev] Started preview-managed background server on :${serverPort}`);
+  console.log(
+    `[dev] Started preview-managed background server on :${serverPort}`,
+  );
   console.log(`[dev] Background server log: ${logFile}`);
   return true;
 };

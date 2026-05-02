@@ -38,7 +38,8 @@ export const LobbyPanel = ({ onRequestPermissions }: LobbyPanelProps) => {
   const actions = useGameStore.useActions();
   const teams = useCodeReviewControllerTeams();
   const controlsDisabled = connectionStatus !== "connected";
-  const canStartMatch = connectionStatus === "connected" && teams.readiness.canStart;
+  const canStartMatch =
+    connectionStatus === "connected" && teams.readiness.canStart;
 
   const joinTeam = (team: TeamId) => {
     actions.joinTeam({ team });

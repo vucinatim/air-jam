@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-04-30
+Last updated: 2026-05-02
 Status: active
 
 This is the single active repo-wide ledger.
@@ -106,6 +106,7 @@ Latest progress inside this focus:
 32. MCP release Phase 4 is now landed: standalone generated projects expose task-backed `release_bundle` and `release_submit` plus the blocking release/auth tools over `pnpm mcp`, monorepo MCP stays on the remote release surface instead of pretending the repo root is a publishable app, and real stdio QA against a generated Pong project now completes with structured release metadata even when platform finalize ends in `failed`
 33. the late game-structure alignment pass is complete: `the-office` now follows the canonical ownership model, `code-review` now publishes a semantic agent contract from config, Last Band Standing no longer ships the YouTube test route, and Air Capture's leftover debug/input seams are narrowed into the intended game-owned locations
 34. visual-proof authoring now lives under the same contract namespace as semantic agent control: first-party visual scenarios moved from top-level `visual/scenarios.ts` to `src/game/contracts/visual-scenarios.ts`, optional runtime-local bridge files now live at `src/game/contracts/visual-bridge.ts`, scaffold/docs/tooling point at that contract-adjacent layout, and the old separate `visual/` authoring center is gone from the live path
+35. the first prerelease agent/dev-loop hardening slice is landed and validation-clean for the touched packages: generated projects and the repo root now point agents at one normal `pnpm run dev` path, generated/root agent and Claude guidance tells agents to use visible preview controllers only through real click/drag/release gestures and semantic agent actions for reliable gameplay proof, local status/reset now exposes and cleans stale known-port listeners, session/log errors are more actionable, the preview controller dock now shows phone, preview, and virtual/agent controllers in one source-badged roster, the packaged minimal scaffold already ships a wired semantic agent contract, create-airjam CLI tests cover the new recovery command help surfaces, devtools-core directly tests unmanaged-listener status/reset behavior on an isolated test port, and the SDK test nullability blocker that was preventing package typecheck is fixed
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 
@@ -288,7 +289,7 @@ Latest progress inside this track:
 23. the public API-pruning slice is landed too: the SDK root now keeps only the neutral agent authoring API, agent-inspection helpers moved to `@air-jam/sdk/agent-tooling`, `createAirJamApp(...)` now publishes `controllerPath`, `agent`, and `visualScenariosModule` as flat top-level fields instead of nested `game.*`, and first-party configs/scaffolds/devtools all now read that one strict shape
 24. the final naming-cleanup slice is now landed too: the public authoring story is now consistently `agent`, not `machine`, file/module names and helper scripts were renamed repo-wide to that vocabulary, active docs/template guidance now teach only the `agent` surface, and the only remaining `machine` references in live code are intentional unrelated leaves such as `platform-machine` or historical notes about removed aliases
 25. the visual-proof staging collapse is now landed too: semantic agent contracts now support first-class `agentAction.host(...)` actions, `VisualHarnessRuntime` now binds full synced stores through `agent={{ contract, stores }}` and derives the host dispatch lane internally, high-level game sessions expose those actions as canonical `host:*` actions, migrated visual scenarios now stage through `context.agent.invoke(...)`, and runtime-local bridges are reduced toward bootstrap/inspection-only responsibilities
-25. the workspace build-race hardening slice is now landed too: shared dependency builds for `@air-jam/sdk` and `@air-jam/devtools-core` now go through a tiny locked `scripts/ensure-workspace-package-build.mjs` helper with per-package freshness stamps, so parallel package `typecheck`/`build` runs no longer race `tsup` clean operations against the same `dist/` folder
+26. the workspace build-race hardening slice is now landed too: shared dependency builds for `@air-jam/sdk` and `@air-jam/devtools-core` now go through a tiny locked `scripts/ensure-workspace-package-build.mjs` helper with per-package freshness stamps, so parallel package `typecheck`/`build` runs no longer race `tsup` clean operations against the same `dist/` folder
 
 ### Planned Future Systems Track. Hosted Release CLI And MCP
 

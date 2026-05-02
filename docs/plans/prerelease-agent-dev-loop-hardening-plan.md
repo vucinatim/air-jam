@@ -1,7 +1,7 @@
 # Prerelease Agent Dev Loop Hardening Plan
 
 Last updated: 2026-05-02  
-Status: planned prerelease hardening
+Status: active prerelease hardening, core startup/agent-guidance slice landed
 
 Related docs:
 
@@ -107,6 +107,27 @@ Games can combine replicated state with host-only refs for physics/runtime state
 This is not necessarily a release blocker, but the dev loop needs either a fix or a clear reset story.
 
 ## Prerelease Workstreams
+
+## Current Progress
+
+Landed in the first implementation slice:
+
+1. generated projects now present `pnpm run dev` as the single normal local launch path
+2. `dev:preview` is removed from scaffolded `package.json` output and de-emphasized as advanced/internal where it still exists
+3. generated `AGENTS.md`, `CLAUDE.md`, first-read docs, and MCP skill guidance now explain the intended split:
+   - visible preview controllers for real click/drag/release UI smoke proof
+   - semantic agent contract for reliable gameplay, physics, scoring, reset, and state assertions
+4. `airjam status` and MCP `airjam.status` now expose unmanaged listeners on known local Air Jam ports
+5. `airjam reset local` and MCP `airjam.reset_local` provide one best-effort cleanup path for stale local dev state
+6. dev startup reuse warnings now include owner PID/age/command context
+7. early log reads now return a "logs not ready yet" message instead of treating a missing log file as a hard failure
+8. session/bootstrap errors now point agents at status/reset and distinguish missing host/bootstrap state from stale lease suspicion more clearly
+9. the preview controller dock now presents phone, preview, and virtual/agent controllers as one roster with source badges and row-level controls
+10. generated guidance now tells agents to hard refresh or reset after host-only runtime, physics, or `useHostActionListener` edits if HMR creates duplicated effects or half-state
+11. the SDK package validation caveat from this slice is cleared; SDK source and test typechecks now pass alongside the SDK runtime test suite
+12. the packaged minimal scaffold already ships a wired `src/game/contracts/agent.ts` semantic contract, and create-airjam CLI tests now cover the new `status` and `reset local` recovery command help surfaces
+13. devtools-core now has direct coverage proving status reports unmanaged known-port listeners and `resetLocalDev` stops a likely stale local dev listener through an isolated test port, without touching real `4000`/`5173` processes
+14. the repo root now carries the same concrete local agent workflow through `AGENTS.md` and `CLAUDE.md`, so external agents testing this repo get the one-command dev path, preview-controller guidance, semantic-contract guidance, and reset/log recovery path before reading generated-template docs
 
 ## Workstream 1. One Dev Command
 

@@ -698,11 +698,14 @@ describe("createAirJamStore networked behavior", () => {
     ).length;
 
     act(() => {
-      void useStore.getState().actions.setPhase({
-        actorId: "host",
-        role: "host",
-        connectedPlayerIds: ["ctrl_1", "ctrl_2"],
-      }, { phase: "results" });
+      void useStore.getState().actions.setPhase(
+        {
+          actorId: "host",
+          role: "host",
+          connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+        },
+        { phase: "results" },
+      );
     });
 
     const syncCalls = hostSocket.emitted.filter(
@@ -1230,11 +1233,9 @@ describe("createAirJamStore networked behavior", () => {
       phase: "lobby",
       actions: {
         failPhaseChange: (_ctx, { phase }) =>
-          rejectAirJamAction(
-            "phase_locked",
-            `Phase "${phase}" is locked.`,
-            { phase },
-          ),
+          rejectAirJamAction("phase_locked", `Phase "${phase}" is locked.`, {
+            phase,
+          }),
       },
     }));
 

@@ -441,14 +441,18 @@ describe("server room lifecycle", () => {
     const previousRoomId = createAck.roomId!;
 
     const controller = await harness.connectSocket();
-    const hostLeftPromise = harness.waitForEvent<{ roomId: string; reason: string }>(
-      controller,
-      "server:hostLeft",
-    );
+    const hostLeftPromise = harness.waitForEvent<{
+      roomId: string;
+      reason: string;
+    }>(controller, "server:hostLeft");
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId: previousRoomId, controllerId: "ctrl_reset_1", nickname: "Reset Me" },
+      {
+        roomId: previousRoomId,
+        controllerId: "ctrl_reset_1",
+        nickname: "Reset Me",
+      },
     );
     expect(joinAck.ok).toBe(true);
 

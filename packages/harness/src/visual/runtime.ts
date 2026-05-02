@@ -25,18 +25,18 @@ import {
   type InferVisualHarnessBridgeActions,
   type InferVisualHarnessBridgeContext,
 } from "../core/bridge-contract.js";
+import type { DevHarnessSnapshotAfterStatus } from "../core/dev-control.js";
 import {
+  VISUAL_HARNESS_AGENT_HOST_ACTION_PREFIX,
+  VISUAL_HARNESS_ENABLE_PARAM,
+  VISUAL_HARNESS_ENABLE_VALUE,
   clearVisualHarnessBridgeActions,
   clearVisualHarnessBridgeSnapshot,
   publishVisualHarnessBridgeActions,
   publishVisualHarnessBridgeSnapshot,
   readVisualHarnessBridgeSnapshot,
   type PublishedVisualHarnessBridgeSnapshot,
-  VISUAL_HARNESS_AGENT_HOST_ACTION_PREFIX,
-  VISUAL_HARNESS_ENABLE_PARAM,
-  VISUAL_HARNESS_ENABLE_VALUE,
 } from "../core/runtime-bridge.js";
-import type { DevHarnessSnapshotAfterStatus } from "../core/dev-control.js";
 import { VisualHarnessDevControlClient } from "./dev-control-client.js";
 
 type VisualHarnessDevWindow = Window & {
@@ -89,9 +89,7 @@ type CommittedSnapshotObservation = {
   status: DevHarnessSnapshotAfterStatus;
 };
 
-type VisualHarnessHostActionDispatcher = (
-  ...args: never[]
-) => Promise<unknown>;
+type VisualHarnessHostActionDispatcher = (...args: never[]) => Promise<unknown>;
 
 type AnyVisualHarnessSyncedStoreHook =
   // Existential wildcard for arbitrary synced store shapes bound into the visual runtime.
@@ -177,11 +175,15 @@ const createPublishedHostAgentActionMap = ({
           );
         }
 
-        const resolvedPayload = resolveAirJamAgentActionPayload(action, payload, {
-          gameId,
-          actionName: actionId,
-          contractKind: "agent",
-        });
+        const resolvedPayload = resolveAirJamAgentActionPayload(
+          action,
+          payload,
+          {
+            gameId,
+            actionName: actionId,
+            contractKind: "agent",
+          },
+        );
         const invokeDispatcher = dispatcher as (
           payload?: unknown,
         ) => Promise<unknown>;
@@ -262,38 +264,38 @@ const useVisualHarnessRuntime = <
 
   const waitForCommittedSnapshot = (previousUpdatedAt: string | null) =>
     new Promise<CommittedSnapshotObservation>((resolve) => {
-        const currentSnapshot = snapshotRef.current;
-        if (
-          previousUpdatedAt === null ||
-          currentSnapshot?.updatedAt !== previousUpdatedAt
-        ) {
-          resolve({
-            snapshot: currentSnapshot,
-            status: "committed-update-observed",
-          });
-          return;
-        }
-
-        const timeoutId = setTimeout(() => {
-          snapshotWaitersRef.current = snapshotWaitersRef.current.filter(
-            (waiter) => waiter.timeoutId !== timeoutId,
-          );
-          resolve({
-            snapshot: snapshotRef.current,
-            status: "no-new-commit-before-timeout",
-          });
-        }, 1_500);
-
-        snapshotWaitersRef.current.push({
-          previousUpdatedAt,
-          resolve: (snapshot) =>
-            resolve({
-              snapshot,
-              status: "committed-update-observed",
-            }),
-          timeoutId,
+      const currentSnapshot = snapshotRef.current;
+      if (
+        previousUpdatedAt === null ||
+        currentSnapshot?.updatedAt !== previousUpdatedAt
+      ) {
+        resolve({
+          snapshot: currentSnapshot,
+          status: "committed-update-observed",
         });
+        return;
+      }
+
+      const timeoutId = setTimeout(() => {
+        snapshotWaitersRef.current = snapshotWaitersRef.current.filter(
+          (waiter) => waiter.timeoutId !== timeoutId,
+        );
+        resolve({
+          snapshot: snapshotRef.current,
+          status: "no-new-commit-before-timeout",
+        });
+      }, 1_500);
+
+      snapshotWaitersRef.current.push({
+        previousUpdatedAt,
+        resolve: (snapshot) =>
+          resolve({
+            snapshot,
+            status: "committed-update-observed",
+          }),
+        timeoutId,
       });
+    });
 
   if (!devControlClientRef.current) {
     devControlClientRef.current = new VisualHarnessDevControlClient({
@@ -453,7 +455,7 @@ const VisualHarnessAgentStoreBindings = ({
     actions: Record<string, VisualHarnessHostActionDispatcher>,
   ) => void;
   unbindHostActionStore: (storeDomain: string) => void;
-}) => (
+}) =>
   createElement(
     Fragment,
     null,
@@ -466,5 +468,4 @@ const VisualHarnessAgentStoreBindings = ({
         unbindHostActionStore,
       }),
     ),
-  )
-);
+  );

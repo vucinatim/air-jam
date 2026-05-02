@@ -5,7 +5,8 @@ import {
 
 export const runRepoPackLocalCommand = () => {
   buildLocalScaffoldPackageSet();
-  const { manifestPath, setDir, setId, tarballs } = packLocalScaffoldPackageSet();
+  const { manifestPath, setDir, setId, tarballs } =
+    packLocalScaffoldPackageSet();
 
   console.log("");
   console.log(`Local tarballs ready in immutable set ${setId}:`);

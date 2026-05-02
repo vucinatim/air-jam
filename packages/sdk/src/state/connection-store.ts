@@ -2,8 +2,8 @@ import { create, type StoreApi } from "zustand";
 import type {
   ConnectionRole,
   ConnectionStatus,
-  ControllerPresenceNotice,
   ControllerOrientation,
+  ControllerPresenceNotice,
   HostArcadeSessionSnapshot,
   PlayerProfile,
   RunMode,
@@ -124,7 +124,9 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
           nextSessions[existingIndex] = controller;
           return { controllerSessions: nextSessions };
         }
-        return { controllerSessions: [...state.controllerSessions, controller] };
+        return {
+          controllerSessions: [...state.controllerSessions, controller],
+        };
       }),
     removeControllerSession: (controllerId) =>
       set((state) => ({

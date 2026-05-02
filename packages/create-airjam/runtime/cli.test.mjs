@@ -43,6 +43,22 @@ test("create-airjam exposes topology help", () => {
   assert.match(output, /standalone-dev/);
 });
 
+test("create-airjam exposes status help", () => {
+  const output = runCliHelp("status");
+
+  assert.match(output, /Usage: airjam status/);
+  assert.match(output, /--dir <path>/);
+  assert.match(output, /known-port status/);
+});
+
+test("create-airjam exposes reset local help", () => {
+  const output = runCliHelp("reset", "local");
+
+  assert.match(output, /Usage: airjam reset local/);
+  assert.match(output, /--dir <path>/);
+  assert.match(output, /stale known-port/);
+});
+
 test("create-airjam keeps ai-pack help", () => {
   const output = runCliHelp("ai-pack", "status");
 

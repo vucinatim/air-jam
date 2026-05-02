@@ -8,10 +8,10 @@ import {
   createControllerBridgeCloseMessage,
   createControllerBridgeEmitMessage,
   createControllerBridgeRequestMessage,
-  parseControllerBridgeResponseMessage,
   parseControllerBridgeAttachMessage,
   parseControllerBridgeCloseMessage,
   parseControllerBridgeEventMessage,
+  parseControllerBridgeResponseMessage,
   type ControllerBridgeClientEventArgs,
   type ControllerBridgeClientEventName,
   type ControllerBridgeServerEventArgs,
@@ -274,7 +274,8 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       );
     }
 
-    const requestId = globalThis.crypto?.randomUUID?.() ??
+    const requestId =
+      globalThis.crypto?.randomUUID?.() ??
       `ack-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
     return new Promise<TAck>((resolve, reject) => {
@@ -473,7 +474,9 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
     for (const pending of this.pendingAcks.values()) {
       clearTimeout(pending.timeoutId);
       pending.reject(
-        new Error("Embedded controller bridge disconnected before acknowledgement."),
+        new Error(
+          "Embedded controller bridge disconnected before acknowledgement.",
+        ),
       );
     }
     this.pendingAcks.clear();

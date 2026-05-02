@@ -25,11 +25,11 @@ import { useAssertSessionScope } from "../context/session-scope";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
-  HostControllerActionAck,
-  HostRegistrationAck,
   ControllerPresenceNotice,
   ControllerStatePayload,
   HapticSignalPayload,
+  HostControllerActionAck,
+  HostRegistrationAck,
   PlayerProfile,
   RoomCode,
   RunMode,
@@ -314,9 +314,9 @@ export function useAirJamHost<
       return selector ? selector(hostState) : hostState;
     }),
   );
-  const runtime = useContext(hostRuntimeContext) as
-    | AirJamHostRuntimeControls<TSchema>
-    | null;
+  const runtime = useContext(
+    hostRuntimeContext,
+  ) as AirJamHostRuntimeControls<TSchema> | null;
   if (!runtime) {
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",

@@ -559,10 +559,7 @@ export const useGameStore = createAirJamStore((set) => ({
     fire: ({ actorId }) =>
       set((state) => {
         if (!actorId || state.aliveByPlayerId[actorId] === false) {
-          return rejectAirJamAction(
-            "player_dead",
-            "Dead players cannot fire.",
-          );
+          return rejectAirJamAction("player_dead", "Dead players cannot fire.");
         }
 
         return acceptAirJamAction({ cooldownMs: 4500 });

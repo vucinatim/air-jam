@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { openSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
@@ -16,9 +16,12 @@ import type {
   AirJamProjectContext,
   AirJamRuntimeTopology,
   AirJamSurfaceUrlSummary,
+  AirJamUnmanagedDevProcess,
   GetDevStatusOptions,
   GetTopologyOptions,
   JsonObject,
+  ResetLocalDevOptions,
+  ResetLocalDevResult,
   StartDevOptions,
   StartDevResult,
   StopDevOptions,
@@ -39,6 +42,8 @@ type RawTopologyCommandResult = {
 
 const DEVTOOLS_SCHEMA_VERSION = 1 as const;
 const START_TIMEOUT_MS = 120_000;
+const KNOWN_LOCAL_DEV_PORTS = [4000, 5173] as const;
+const KNOWN_PORTS_ENV = "AIRJAM_DEVTOOLS_KNOWN_PORTS";
 const DEFAULT_CONTROLLER_PATH = "/controller";
 const MONOREPO_RUNTIME_CLI_PATH = path.join(
   "packages",
@@ -84,6 +89,97 @@ const isProcessAlive = (pid: number): boolean => {
   } catch {
     return false;
   }
+};
+
+const readCommandOutput = (command: string, args: string[]): string | null => {
+  try {
+    return runCommandResult({
+      command,
+      args,
+      cwd: process.cwd(),
+    }).stdout.trim();
+  } catch {
+    return null;
+  }
+};
+
+const readListeningPidsForPort = (port: number): number[] => {
+  const output = readCommandOutput("lsof", [
+    "-nP",
+    `-tiTCP:${port}`,
+    "-sTCP:LISTEN",
+  ]);
+  if (!output) {
+    return [];
+  }
+
+  return output
+    .split(/\r?\n/)
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter((value) => Number.isInteger(value) && value > 0);
+};
+
+const readProcessCommand = (pid: number): string | null => {
+  const output = readCommandOutput("ps", ["-p", String(pid), "-o", "command="]);
+  return output && output.length > 0 ? output : null;
+};
+
+const readProcessAgeMs = (pid: number): number | null => {
+  const output = readCommandOutput("ps", ["-p", String(pid), "-o", "etimes="]);
+  const seconds = output ? Number.parseInt(output.trim(), 10) : Number.NaN;
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null;
+};
+
+const getKnownLocalDevPorts = (): number[] => {
+  const rawPorts = process.env[KNOWN_PORTS_ENV];
+  if (!rawPorts) {
+    return [...KNOWN_LOCAL_DEV_PORTS];
+  }
+
+  const ports = rawPorts
+    .split(",")
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter((value) => Number.isInteger(value) && value > 0);
+  return ports.length > 0
+    ? Array.from(new Set(ports))
+    : [...KNOWN_LOCAL_DEV_PORTS];
+};
+
+const isLikelyAirJamLocalDevCommand = (command: string | null): boolean => {
+  if (!command) {
+    return false;
+  }
+
+  return /(^|\W)(@air-jam\/server|air-jam-server|airjam|vite|create-airjam|workspace-runtime-cli)(\W|$)/.test(
+    command,
+  );
+};
+
+const listKnownPortListeners = (): AirJamUnmanagedDevProcess[] => {
+  const byPid = new Map<number, Set<number>>();
+
+  for (const port of getKnownLocalDevPorts()) {
+    for (const pid of readListeningPidsForPort(port)) {
+      const ports = byPid.get(pid) ?? new Set<number>();
+      ports.add(port);
+      byPid.set(pid, ports);
+    }
+  }
+
+  return Array.from(byPid.entries())
+    .map(([pid, ports]) => {
+      const ageMs = readProcessAgeMs(pid);
+      return {
+        pid,
+        ports: Array.from(ports).sort((left, right) => left - right),
+        command: readProcessCommand(pid),
+        startedAt:
+          ageMs !== null ? new Date(Date.now() - ageMs).toISOString() : null,
+        ageMs,
+        managed: false as const,
+      };
+    })
+    .sort((left, right) => left.pid - right.pid);
 };
 
 const killManagedProcess = (pid: number): void => {
@@ -527,8 +623,14 @@ export const getDevStatus = async ({
   cwd = process.cwd(),
 }: GetDevStatusOptions = {}): Promise<AirJamDevStatus> => {
   const context = await detectProjectContext({ cwd });
+  const managedProcesses = await listManagedProcessesForRoot(context.rootDir);
+  const managedPids = new Set(managedProcesses.map((entry) => entry.pid));
   return {
-    processes: await listManagedProcessesForRoot(context.rootDir),
+    processes: managedProcesses,
+    unmanagedProcesses: listKnownPortListeners().filter(
+      (entry) => !managedPids.has(entry.pid),
+    ),
+    knownPorts: getKnownLocalDevPorts(),
   };
 };
 
@@ -754,5 +856,47 @@ export const stopDev = async ({
 
   return {
     stopped: selected,
+  };
+};
+
+export const resetLocalDev = async ({
+  cwd = process.cwd(),
+}: ResetLocalDevOptions = {}): Promise<ResetLocalDevResult> => {
+  const context = await detectProjectContext({ cwd });
+  const stoppedManaged = (await stopDev({ cwd: context.rootDir })).stopped;
+  const managedPids = new Set(stoppedManaged.map((entry) => entry.pid));
+  const unmanaged = listKnownPortListeners().filter(
+    (entry) => !managedPids.has(entry.pid),
+  );
+  const stoppedUnmanaged: AirJamUnmanagedDevProcess[] = [];
+
+  for (const processInfo of unmanaged) {
+    if (!isLikelyAirJamLocalDevCommand(processInfo.command)) {
+      continue;
+    }
+    killManagedProcess(processInfo.pid);
+    stoppedUnmanaged.push(processInfo);
+  }
+
+  await rm(
+    path.join(context.rootDir, ".airjam", "preview-managed-server.json"),
+    {
+      force: true,
+    },
+  ).catch(() => undefined);
+
+  const stoppedPids = new Set([
+    ...stoppedManaged.map((entry) => entry.pid),
+    ...stoppedUnmanaged.map((entry) => entry.pid),
+  ]);
+  const remainingUnmanaged = listKnownPortListeners().filter(
+    (entry) => !stoppedPids.has(entry.pid),
+  );
+
+  return {
+    stoppedManaged,
+    stoppedUnmanaged,
+    remainingUnmanaged,
+    knownPorts: getKnownLocalDevPorts(),
   };
 };

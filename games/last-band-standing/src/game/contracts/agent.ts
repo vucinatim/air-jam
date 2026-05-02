@@ -1,9 +1,9 @@
 import {
+  agentAction,
+  agentActionInput,
+  agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-  agentAction,
-  agentStore,
-  agentActionInput,
 } from "@air-jam/sdk";
 import {
   defaultSelectedSongBucketIds,
@@ -339,7 +339,8 @@ export const agentContract = defineAirJamAgentContract({
         input: agentActionInput.none(),
         description:
           "Finish the current match immediately and transition to the final game-over state.",
-        availability: "Host-side staging only. Visual proof and deterministic QA helper.",
+        availability:
+          "Host-side staging only. Visual proof and deterministic QA helper.",
         resultDescription:
           "The current match ends immediately and the game-over screen becomes available.",
       },

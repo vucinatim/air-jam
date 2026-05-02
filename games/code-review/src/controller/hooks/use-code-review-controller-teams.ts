@@ -15,9 +15,7 @@ export const useCodeReviewControllerTeams = () => {
   const teamAssignments = useGameStore((state) => state.teamAssignments);
   const botCounts = useGameStore((state) => state.botCounts);
 
-  const myAssignment = controllerId
-    ? teamAssignments[controllerId]
-    : null;
+  const myAssignment = controllerId ? teamAssignments[controllerId] : null;
   const myProfile = controllerId
     ? (players.find((player) => player.id === controllerId) ?? null)
     : null;

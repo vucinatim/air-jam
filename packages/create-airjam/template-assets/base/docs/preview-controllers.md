@@ -56,6 +56,17 @@ In the normal local loop:
 3. a real controller client opens in the host-local preview workspace
 4. you can still join the same room from a phone or another browser tab
 
+For Claude Code or other agent preview surfaces, keep this flow in the same
+visible host preview screen when possible. The point is to let the user see the
+agent operate the host plus preview controllers together. Add more local players
+with more preview-controller windows before reaching for separate OS browser
+tabs.
+
+Agents should use real browser click, drag, and release gestures against the
+visible controller UI. They should not synthesize pointer events into controller
+iframes from parent-page eval; that path is brittle around iframe boundaries,
+pointer capture, and React event timing.
+
 The preview workspace supports:
 
 1. multiple floating controller windows
@@ -112,3 +123,4 @@ That leaf currently owns:
 2. do not inject fake controller state directly into gameplay
 3. do not move preview layout/session state into replicated game state
 4. do not assume preview-controller APIs are stable root-SDK contracts
+5. do not use preview controllers as the primary semantic gameplay test path when the game exposes an agent contract

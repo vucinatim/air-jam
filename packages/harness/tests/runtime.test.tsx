@@ -13,8 +13,8 @@ import {
   VISUAL_HARNESS_ENABLE_VALUE,
   readVisualHarnessBridgeSnapshot,
 } from "../src/core/runtime-bridge";
-import { VisualHarnessDevControlClient } from "../src/visual/dev-control-client";
 import { VisualHarnessRuntime } from "../src/runtime";
+import { VisualHarnessDevControlClient } from "../src/visual/dev-control-client";
 
 Object.assign(globalThis, {
   IS_REACT_ACT_ENVIRONMENT: true,

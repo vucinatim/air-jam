@@ -1,9 +1,9 @@
 import {
+  agentAction,
+  agentActionInput,
+  agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-  agentAction,
-  agentStore,
-  agentActionInput,
 } from "@air-jam/sdk";
 import {
   getPlayerById,
@@ -135,10 +135,7 @@ export const agentContract = defineAirJamAgentContract({
       },
       {
         input: agentActionInput.enum(
-          PLAYERS.map((player) => player.id) as [
-            string,
-            ...string[],
-          ],
+          PLAYERS.map((player) => player.id) as [string, ...string[]],
           {
             payloadDescription: "The coworker to control.",
           },
@@ -199,7 +196,8 @@ export const agentContract = defineAirJamAgentContract({
         input: agentActionInput.none(),
         description:
           "End the current Office shift immediately and transition to the ended state.",
-        availability: "Host-side staging only. Visual proof and deterministic QA helper.",
+        availability:
+          "Host-side staging only. Visual proof and deterministic QA helper.",
         resultDescription:
           "The active shift ends immediately and the ended-state UI becomes visible.",
       },

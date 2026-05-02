@@ -1,11 +1,4 @@
 export {
-  describeAirJamAgentAction,
-  listAirJamAgentStoreDomains,
-  resolveAirJamAgentActionPayload,
-  type AirJamAgentActionContract,
-  type AirJamAgentContract,
-} from "./agent/agent-contract";
-export {
   createAgentActionMetadata,
   defineAgentActionInput,
   describeAgentActionInputs,
@@ -17,6 +10,11 @@ export {
   type AirJamAgentActionPayloadKind,
   type AirJamAgentActionPayloadMetadata,
 } from "./agent/agent-action";
-export type {
-  AirJamAgentActionCustomOptions,
-} from "./agent/agent-action";
+export type { AirJamAgentActionCustomOptions } from "./agent/agent-action";
+export {
+  describeAirJamAgentAction,
+  listAirJamAgentStoreDomains,
+  resolveAirJamAgentActionPayload,
+  type AirJamAgentActionContract,
+  type AirJamAgentContract,
+} from "./agent/agent-contract";

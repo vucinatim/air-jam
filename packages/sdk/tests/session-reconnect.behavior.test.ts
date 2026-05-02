@@ -60,8 +60,8 @@ const mocked = vi.hoisted(() => ({
     return socket;
   },
   store: null as ReturnType<typeof createAirJamStore> | null,
-  controllerSocket: null as MockSocket | null,
-  hostSocket: null as MockSocket | null,
+  controllerSocket: null as unknown as MockSocket,
+  hostSocket: null as unknown as MockSocket,
   useAirJamContext: vi.fn(),
   useAssertSessionScope: vi.fn(),
   useClaimSessionRuntimeOwner: vi.fn(),

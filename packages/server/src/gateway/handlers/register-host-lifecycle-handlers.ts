@@ -5,10 +5,10 @@ import {
   hostBootstrapSchema,
   hostCreateRoomSchema,
   hostJoinAsChildSchema,
-  hostRemoveControllerSchema,
   hostReconnectSchema,
-  hostResetRoomSchema,
   hostRegisterSystemSchema,
+  hostRemoveControllerSchema,
+  hostResetRoomSchema,
   systemLaunchGameSchema,
   type AirJamDevLogEventName,
   type HostActivateEmbeddedGamePayload,
@@ -16,14 +16,14 @@ import {
   type HostBootstrapPayload,
   type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
-  type HostRemoveControllerPayload,
   type HostReconnectPayload,
   type HostRegisterSystemPayload,
   type HostRegistrationAck,
+  type HostRemoveControllerPayload,
+  type HostResetRoomPayload,
   type HostSessionKind,
   type PlayerProfile,
   type SystemLaunchGamePayload,
-  type HostResetRoomPayload,
 } from "@air-jam/sdk/protocol";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -649,8 +649,13 @@ export const registerHostLifecycleHandlers = (
         );
       }
       callback(buildHostRegistrationAck(session));
-      socket.emit("server:state", buildRoomStateMessage(session.roomId, session));
-      io.to(session.roomId).emit("server:roomReady", { roomId: session.roomId });
+      socket.emit(
+        "server:state",
+        buildRoomStateMessage(session.roomId, session),
+      );
+      io.to(session.roomId).emit("server:roomReady", {
+        roomId: session.roomId,
+      });
     },
   );
 
@@ -1044,7 +1049,9 @@ export const registerHostLifecycleHandlers = (
 
       if (controllerSession.socketId) {
         roomManager.deleteController(controllerSession.socketId);
-        const controllerSocket = io.sockets.sockets.get(controllerSession.socketId);
+        const controllerSocket = io.sockets.sockets.get(
+          controllerSession.socketId,
+        );
         if (controllerSocket) {
           delete controllerSocket.data.controllerAuthority;
           controllerSocket.leave(roomId);

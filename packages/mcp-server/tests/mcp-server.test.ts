@@ -99,6 +99,9 @@ describe("createAirJamMcpServer", () => {
     );
     expect(listed.tools.map((tool) => tool.name)).toContain("airjam.start_dev");
     expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.reset_local",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.inspect_game_agent_contract",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
@@ -146,7 +149,9 @@ describe("createAirJamMcpServer", () => {
     expect(
       listed.tools.find((tool) => tool.name === "airjam.capture_visuals")
         ?.description,
-    ).toContain("Requires an MCP client with task-backed tool execution support.");
+    ).toContain(
+      "Requires an MCP client with task-backed tool execution support.",
+    );
   });
 
   it("registers standalone release tools for standalone game projects", async () => {
@@ -193,11 +198,15 @@ describe("createAirJamMcpServer", () => {
     expect(
       listed.tools.find((tool) => tool.name === "airjam.release_bundle")
         ?.description,
-    ).toContain("Requires an MCP client with task-backed tool execution support.");
+    ).toContain(
+      "Requires an MCP client with task-backed tool execution support.",
+    );
     expect(
       listed.tools.find((tool) => tool.name === "airjam.release_submit")
         ?.description,
-    ).toContain("Requires an MCP client with task-backed tool execution support.");
+    ).toContain(
+      "Requires an MCP client with task-backed tool execution support.",
+    );
   });
 
   it("runs inspect_project through MCP", async () => {

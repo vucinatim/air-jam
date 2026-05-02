@@ -29,7 +29,8 @@ export const AIRJAM_HOST_BRIDGE_ATTACH = "AIRJAM_HOST_BRIDGE_ATTACH" as const;
 export const AIRJAM_HOST_BRIDGE_EVENT = "AIRJAM_HOST_BRIDGE_EVENT" as const;
 export const AIRJAM_HOST_BRIDGE_EMIT = "AIRJAM_HOST_BRIDGE_EMIT" as const;
 export const AIRJAM_HOST_BRIDGE_CLOSE = "AIRJAM_HOST_BRIDGE_CLOSE" as const;
-export const AIRJAM_HOST_BRIDGE_RESPONSE = "AIRJAM_HOST_BRIDGE_RESPONSE" as const;
+export const AIRJAM_HOST_BRIDGE_RESPONSE =
+  "AIRJAM_HOST_BRIDGE_RESPONSE" as const;
 
 export const hostBridgeClientEvents = [
   "host:state",

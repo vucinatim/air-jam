@@ -62,8 +62,11 @@ When local UI verification matters:
 2. prefer visible host/controller browser sessions over hidden automation when you need to verify what a player actually sees
 3. pair that browser workflow with Air Jam MCP for logs, topology, snapshots, host staging actions, and quality gates
 4. use secondary browser MCPs such as Chrome DevTools only when the first-party browser tooling is unavailable or when you need lower-level DOM, network, or performance diagnostics
-5. if your browser/preview tool wants to launch the local app command itself, prefer `pnpm run dev:preview` over raw `vite` so the local Air Jam backend still exists while the browser tool gets one foreground web process
-6. `pnpm run dev:preview` is a local HTTP browser-tool path, not the secure-dev path; use normal `pnpm run dev -- --secure` when HTTPS is required
+5. if your browser/preview tool wants to launch the local app command itself, use `pnpm run dev`
+6. do not use raw `vite` for normal Air Jam development because it skips the local Air Jam backend
+7. use normal `pnpm run dev -- --secure` when HTTPS is required
+8. use visible preview controllers for controller UI smoke proof with real browser click/drag/release gestures
+9. do not synthesize pointer events into controller iframes from parent-page eval; use semantic game actions when reliable gameplay proof matters
 
 ## Debugging Rule
 
@@ -78,9 +81,9 @@ For runtime or multiplayer issues:
 7. use the unified session action metadata from `airjam.open_game_session` and `airjam.read_game_session` before guessing payload shapes
 8. session action ids are lane-prefixed on purpose: `player:<actionId>` for semantic player-lane actions and `host:<actionId>` for semantic host-lane staging actions
 9. when a compatible local Air Jam dev session is already running, the official harness/session tools should attach to that live stack instead of trying to start a duplicate dev server
-10. `pnpm run dev:preview` exists specifically for browser/preview tools that cannot supervise the normal multi-process `pnpm run dev` path cleanly
-11. read the returned action `outcome` together with `acknowledgementObservation` and `snapshotAfterStatus`: a missing host acknowledgement is not the same thing as semantic rejection if the post-action snapshot shows committed state change
-12. if an isolated harness or runtime ownership tool times out, assume another session may still own that lease first; close the previous game session before treating it as a gameplay bug
+10. read the returned action `outcome` together with `acknowledgementObservation` and `snapshotAfterStatus`: a missing host acknowledgement is not the same thing as semantic rejection if the post-action snapshot shows committed state change
+11. if an isolated harness or runtime ownership tool times out, check Air Jam status/log/reset tooling before treating it as gameplay bug
+12. after editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state
 
 ## Visual Staging Rule
 

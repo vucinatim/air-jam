@@ -19,7 +19,7 @@ test("createAirJamViteConfig default profile keeps Air Jam dev contract minimal"
     config.server.proxy["/socket.io"].target,
     "http://127.0.0.1:4000",
   );
-  assert.equal(config.build, undefined);
+  assert.equal(config.build.chunkSizeWarningLimit, 1000);
 });
 
 test("createAirJamViteConfig three profile keeps core runtime buckets stable", () => {

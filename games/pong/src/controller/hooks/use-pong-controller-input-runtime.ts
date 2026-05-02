@@ -30,8 +30,7 @@ export const usePongControllerInputRuntime = ({
       });
     },
     {
-      enabled:
-        connectionStatus === "connected" && runtimeState === "playing",
+      enabled: connectionStatus === "connected" && runtimeState === "playing",
       intervalMs: PONG_CONTROLLER_INPUT_TICK_MS,
     },
   );

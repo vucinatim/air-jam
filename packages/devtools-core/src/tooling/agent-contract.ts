@@ -1,6 +1,4 @@
-import {
-  type AirJamAgentContract,
-} from "@air-jam/sdk";
+import { type AirJamAgentContract } from "@air-jam/sdk";
 import {
   describeAirJamAgentAction,
   listAirJamAgentStoreDomains,
@@ -8,8 +6,8 @@ import {
 } from "@air-jam/sdk/agent-tooling";
 import { pathToFileURL } from "node:url";
 import {
-  loadAirJamAppConfig,
   loadAgentContractFromConfig,
+  loadAirJamAppConfig,
   resolveAirJamConfigGameId,
 } from "./airjam-agent.js";
 
@@ -53,7 +51,7 @@ const inspectedConfig =
     : null;
 
 const resolvedContract: AirJamAgentContract | null = inspectedConfig
-  ? inspectedConfig.agent ?? null
+  ? (inspectedConfig.agent ?? null)
   : configPath
     ? await loadAgentContractFromConfig(configPath)
     : await resolveContractFromModule(contractPath!);
@@ -229,4 +227,6 @@ if (operation === "resolve-input") {
   process.exit(0);
 }
 
-throw new Error(`Unknown Air Jam agent contract helper operation "${operation}".`);
+throw new Error(
+  `Unknown Air Jam agent contract helper operation "${operation}".`,
+);

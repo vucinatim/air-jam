@@ -75,7 +75,12 @@ const readPackageJson = (packageDir) =>
   JSON.parse(fs.readFileSync(path.join(packageDir, "package.json"), "utf8"));
 
 const resolveInstalledWorkspacePackageJsonPath = (packageDir, packageName) =>
-  path.join(packageDir, "node_modules", ...packageName.split("/"), "package.json");
+  path.join(
+    packageDir,
+    "node_modules",
+    ...packageName.split("/"),
+    "package.json",
+  );
 
 const listMissingInstalledWorkspaceLinks = (packageDir) => {
   const packageJson = readPackageJson(packageDir);

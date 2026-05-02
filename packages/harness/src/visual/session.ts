@@ -1,4 +1,8 @@
 import {
+  AIR_JAM_RUNTIME_INSPECTION_KEY,
+  readRuntimeInspectionContract,
+} from "@air-jam/sdk";
+import {
   chromium,
   type Browser,
   type BrowserContext,
@@ -6,10 +10,6 @@ import {
   type FrameLocator,
   type Page,
 } from "@playwright/test";
-import {
-  AIR_JAM_RUNTIME_INSPECTION_KEY,
-  readRuntimeInspectionContract,
-} from "@air-jam/sdk";
 import {
   VISUAL_HARNESS_ACTIONS_KEY,
   VISUAL_HARNESS_BRIDGE_KEY,

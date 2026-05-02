@@ -1,12 +1,10 @@
 import {
   bundleLocalRelease,
   captureVisuals,
+  closeGameSession,
   getDevStatus,
   getPlatformMachineAuthStatus,
   getTopology,
-  openGameSession,
-  readGameSession,
-  sendGameSessionInput,
   inspectGame,
   inspectGameAgentContract,
   inspectLocalRelease,
@@ -18,15 +16,18 @@ import {
   listPlatformReleases,
   listVisualCaptureSummaries,
   listVisualScenarios,
+  openGameSession,
   publishPlatformRelease,
   readDevLogs,
+  readGameSession,
   readVisualCaptureSummary,
+  resetLocalDev,
   runQualityGate,
+  sendGameSessionInput,
   startDev,
   stopDev,
   submitPlatformRelease,
   validateLocalRelease,
-  closeGameSession,
   type AirJamProjectMode,
   type AirJamQualityGate,
 } from "@air-jam/devtools-core";
@@ -430,12 +431,21 @@ export const buildToolDefinitions = ({
     },
     "airjam.status": {
       description:
-        "List Air Jam dev processes currently known to the local devtools registry.",
+        "List Air Jam dev processes plus unmanaged listeners on known local Air Jam ports.",
       inputSchema: z.object({
         cwd: z.string().optional(),
       }),
       run: async ({ cwd }: { cwd?: string }) =>
         withJsonText(await getDevStatus({ cwd })),
+    },
+    "airjam.reset_local": {
+      description:
+        "Best-effort cleanup for local Air Jam dev state: stop managed dev processes and stale known-port Air Jam listeners.",
+      inputSchema: z.object({
+        cwd: z.string().optional(),
+      }),
+      run: async ({ cwd }: { cwd?: string }) =>
+        withJsonText(await resetLocalDev({ cwd })),
     },
     "airjam.topology": {
       description:
@@ -535,6 +545,7 @@ export const getRegisteredToolNamesForProjectMode = (
       "airjam.start_dev",
       "airjam.stop_dev",
       "airjam.status",
+      "airjam.reset_local",
       "airjam.topology",
       "airjam.list_visual_scenarios",
       "airjam.capture_visuals",
@@ -567,6 +578,7 @@ export const getRegisteredToolNamesForProjectMode = (
       "airjam.start_dev",
       "airjam.stop_dev",
       "airjam.status",
+      "airjam.reset_local",
       "airjam.topology",
       "airjam.list_visual_scenarios",
       "airjam.capture_visuals",

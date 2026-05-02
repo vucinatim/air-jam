@@ -474,7 +474,7 @@ Non-goals:
 1. do not weaken the normal reconnect lease for real phone controllers
 2. do not overload `PlayerProfile` with transport/session metadata
 3. do not make game authors build custom per-game cleanup actions just to recover local dev
-5. one state-lanes cookbook plus stronger first-read docs for `useHostTick` and accept/reject
+4. one state-lanes cookbook plus stronger first-read docs for `useHostTick` and accept/reject
 
 ### 7. Tighten Typed Snapshot And Store-Domain Access
 

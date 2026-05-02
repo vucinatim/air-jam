@@ -48,7 +48,8 @@ export const computeGameSnapshotObservation = ({
   const fingerprintAfter = stableStoreSnapshotFingerprint(snapshotAfter);
   const dataFingerprintBefore =
     stableStoreSnapshotDataFingerprint(snapshotBefore);
-  const dataFingerprintAfter = stableStoreSnapshotDataFingerprint(snapshotAfter);
+  const dataFingerprintAfter =
+    stableStoreSnapshotDataFingerprint(snapshotAfter);
   const projectedSnapshotBefore = JSON.stringify(snapshotBefore.snapshot);
   const projectedSnapshotAfter = JSON.stringify(snapshotAfter.snapshot);
 

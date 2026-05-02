@@ -14,15 +14,15 @@ import type { ServerErrorPayload } from "./errors";
 import type {
   HostActivateEmbeddedGamePayload,
   HostBootstrapAck,
-  HostControllerActionAck,
   HostBootstrapPayload,
+  HostControllerActionAck,
   HostCreateRoomPayload,
   HostJoinAsChildPayload,
-  HostRemoveControllerPayload,
   HostReconnectPayload,
-  HostResetRoomPayload,
   HostRegisterSystemPayload,
   HostRegistrationAck,
+  HostRemoveControllerPayload,
+  HostResetRoomPayload,
   HostSocketAuthority,
   SystemLaunchGameAck,
   SystemLaunchGamePayload,
@@ -46,8 +46,8 @@ import type {
   AirJamStateSyncPayload,
   AirJamStateSyncRequestPayload,
   ControllerActionRpcPayload,
-  HostActionRpcPayload,
   ControllerStateSyncRequestPayload,
+  HostActionRpcPayload,
   HostStateSyncPayload,
 } from "./sync";
 

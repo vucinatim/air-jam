@@ -104,7 +104,7 @@ type InvalidActionPayloadKeys<TActions extends AirJamActionMap> = {
     ? IsValidActionPayloadType<TPayload> extends true
       ? never
       : K
-      : K;
+    : K;
 }[keyof TActions];
 
 type InvalidActionPayloadKeyNames<TActions extends AirJamActionMap> = Extract<
@@ -114,8 +114,7 @@ type InvalidActionPayloadKeyNames<TActions extends AirJamActionMap> = Extract<
 
 type AirJamInvalidActionPayloadDiagnostic<TActions extends AirJamActionMap> = {
   readonly __airJamInvalidActionPayloads__: InvalidActionPayloadKeyNames<TActions>;
-  readonly __airJamActionPayloadRule__:
-    "Networked store action payloads must be omitted or one plain object payload. Unions like T | undefined, arrays, and primitives are not valid payload roots.";
+  readonly __airJamActionPayloadRule__: "Networked store action payloads must be omitted or one plain object payload. Unions like T | undefined, arrays, and primitives are not valid payload roots.";
 };
 
 type AirJamNetworkedState<TActions extends AirJamActionMap = AirJamActionMap> =
@@ -129,13 +128,17 @@ type AirJamActionDispatchMap<TActions extends AirJamActionMap> = {
     payload: infer TPayload,
   ) => infer TResult
     ? [TPayload] extends [undefined]
-      ? () => Promise<AirJamActionInvocationResult<InferAirJamActionResult<TResult>>>
+      ? () => Promise<
+          AirJamActionInvocationResult<InferAirJamActionResult<TResult>>
+        >
       : TPayload extends readonly unknown[]
         ? never
         : TPayload extends object
           ? (
               payload: TPayload,
-            ) => Promise<AirJamActionInvocationResult<InferAirJamActionResult<TResult>>>
+            ) => Promise<
+              AirJamActionInvocationResult<InferAirJamActionResult<TResult>>
+            >
           : never
     : never;
 };
@@ -207,9 +210,7 @@ interface HostActionListenerRegistration<TActions extends AirJamActionMap> {
 export type AirJamSyncedStoreHook<T extends AirJamNetworkedState> = {
   <U>(selector?: (state: T) => U): U;
   useActions: () => AirJamActionDispatchMap<T["actions"]>;
-  asPlayer: (
-    controllerId: string,
-  ) => AirJamActionDispatchMap<T["actions"]>;
+  asPlayer: (controllerId: string) => AirJamActionDispatchMap<T["actions"]>;
   getState: () => T;
   subscribe: StoreApi<T>["subscribe"];
   subscribeHostActions: (
@@ -496,19 +497,18 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
               result,
               "host",
             );
-            const typedActionName =
-              actionName as AirJamActionName<T["actions"]>;
-            notifyHostActionListeners(
-              {
-                actionName: typedActionName,
-                payload: normalizedPayload,
-                context,
-                acknowledgement,
-                invocationKind: "local",
-                roomId: runtime.roomId,
-                storeDomain: runtime.resolvedStoreDomain,
-              } as AirJamHostActionEvent<T["actions"], typeof typedActionName>,
-            );
+            const typedActionName = actionName as AirJamActionName<
+              T["actions"]
+            >;
+            notifyHostActionListeners({
+              actionName: typedActionName,
+              payload: normalizedPayload,
+              context,
+              acknowledgement,
+              invocationKind: "local",
+              roomId: runtime.roomId,
+              storeDomain: runtime.resolvedStoreDomain,
+            } as AirJamHostActionEvent<T["actions"], typeof typedActionName>);
             return acknowledgement;
           } catch (error) {
             const acknowledgement = {
@@ -518,24 +518,23 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
               reason: "handler_error",
               message: error instanceof Error ? error.message : String(error),
             } satisfies AirJamActionInvocationResult;
-            const typedActionName =
-              actionName as AirJamActionName<T["actions"]>;
-            notifyHostActionListeners(
-              {
-                actionName: typedActionName,
-                payload: normalizedPayload,
-                context: {
-                  actorId:
-                    mode.kind === "player" ? mode.controllerId.trim() : "host",
-                  role: mode.kind === "player" ? "controller" : "host",
-                  connectedPlayerIds: runtime.connectedPlayerIds,
-                },
-                acknowledgement,
-                invocationKind: "local",
-                roomId: runtime.roomId,
-                storeDomain: runtime.resolvedStoreDomain,
-              } as AirJamHostActionEvent<T["actions"], typeof typedActionName>,
-            );
+            const typedActionName = actionName as AirJamActionName<
+              T["actions"]
+            >;
+            notifyHostActionListeners({
+              actionName: typedActionName,
+              payload: normalizedPayload,
+              context: {
+                actorId:
+                  mode.kind === "player" ? mode.controllerId.trim() : "host",
+                role: mode.kind === "player" ? "controller" : "host",
+                connectedPlayerIds: runtime.connectedPlayerIds,
+              },
+              acknowledgement,
+              invocationKind: "local",
+              roomId: runtime.roomId,
+              storeDomain: runtime.resolvedStoreDomain,
+            } as AirJamHostActionEvent<T["actions"], typeof typedActionName>);
             return acknowledgement;
           }
         }
@@ -759,27 +758,23 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
 
         try {
           const context = toActionContext(payload, runtime.connectedPlayerIds);
-          const result = actionFn(
-            context,
-            payload.payload,
-          );
+          const result = actionFn(context, payload.payload);
           const acknowledgement = normalizeAirJamActionInvocationResult(
             result,
             "host",
           );
-          const actionName =
-            payload.actionName as AirJamActionName<T["actions"]>;
-          notifyHostActionListeners(
-            {
-              actionName,
-              payload: payload.payload,
-              context,
-              acknowledgement,
-              invocationKind: "rpc",
-              roomId,
-              storeDomain: resolvedStoreDomain,
-            } as AirJamHostActionEvent<T["actions"], typeof actionName>,
-          );
+          const actionName = payload.actionName as AirJamActionName<
+            T["actions"]
+          >;
+          notifyHostActionListeners({
+            actionName,
+            payload: payload.payload,
+            context,
+            acknowledgement,
+            invocationKind: "rpc",
+            roomId,
+            storeDomain: resolvedStoreDomain,
+          } as AirJamHostActionEvent<T["actions"], typeof actionName>);
           callback?.(acknowledgement);
         } catch (error) {
           const acknowledgement = {
@@ -787,25 +782,21 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
             status: "rejected",
             source: "host",
             reason: "handler_error",
-            message:
-              error instanceof Error ? error.message : String(error),
+            message: error instanceof Error ? error.message : String(error),
           } satisfies AirJamActionInvocationResult;
-          const actionName =
-            payload.actionName as AirJamActionName<T["actions"]>;
-          notifyHostActionListeners(
-            {
-              actionName,
-              payload: payload.payload,
-              context: toActionContext(payload, runtime.connectedPlayerIds),
-              acknowledgement,
-              invocationKind: "rpc",
-              roomId,
-              storeDomain: resolvedStoreDomain,
-            } as AirJamHostActionEvent<T["actions"], typeof actionName>,
-          );
-          callback?.(
+          const actionName = payload.actionName as AirJamActionName<
+            T["actions"]
+          >;
+          notifyHostActionListeners({
+            actionName,
+            payload: payload.payload,
+            context: toActionContext(payload, runtime.connectedPlayerIds),
             acknowledgement,
-          );
+            invocationKind: "rpc",
+            roomId,
+            storeDomain: resolvedStoreDomain,
+          } as AirJamHostActionEvent<T["actions"], typeof actionName>);
+          callback?.(acknowledgement);
         }
       };
 
@@ -1123,12 +1114,9 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     const actionNamesKey = options?.actionNames?.join("\u0000") ?? "";
 
     useEffect(() => {
-      return subscribeHostActions(
-        (event) => {
-          listenerRef.current(event);
-        },
-        options,
-      );
+      return subscribeHostActions((event) => {
+        listenerRef.current(event);
+      }, options);
     }, [actionNamesKey, includeRejected, options]);
   };
   const useLiveStateRef = (): MutableRefObject<T> => {

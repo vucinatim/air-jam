@@ -42,7 +42,9 @@ const optionalEnvString = z
   .optional()
   .transform((value) => trimToUndefined(value));
 
-const createOptionalEnumSchema = <TValues extends readonly [string, ...string[]]>(
+const createOptionalEnumSchema = <
+  TValues extends readonly [string, ...string[]],
+>(
   envKey: string,
   values: TValues,
 ) =>
@@ -241,8 +243,9 @@ export const loadServerEnv = (
     devLogDir: parsed.AIR_JAM_DEV_LOG_DIR,
     authMode,
     proxyHeaderTrustMode:
-      (parsed.AIR_JAM_TRUST_PROXY_HEADERS as ProxyHeaderTrustMode | undefined) ??
-      "auto",
+      (parsed.AIR_JAM_TRUST_PROXY_HEADERS as
+        | ProxyHeaderTrustMode
+        | undefined) ?? "auto",
     remoteDatabaseBlocked: databasePolicy.remoteDatabaseBlocked,
     masterKey: parsed.AIR_JAM_MASTER_KEY,
     hostGrantSecret: parsed.AIR_JAM_HOST_GRANT_SECRET,

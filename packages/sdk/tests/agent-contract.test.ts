@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+  agentAction,
+  agentActionInput,
+  agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-  agentAction,
-  agentStore,
-  agentActionInput,
 } from "../src";
 import {
   describeAirJamAgentAction,
@@ -136,11 +136,15 @@ describe("agentAction", () => {
     });
 
     expect(
-      resolveAirJamAgentActionPayload(action, { team: "team2", count: 3 }, {
-        gameId: "code-review",
-        actionName: "set_bot_count",
-        contractKind: "agent",
-      }),
+      resolveAirJamAgentActionPayload(
+        action,
+        { team: "team2", count: 3 },
+        {
+          gameId: "code-review",
+          actionName: "set_bot_count",
+          contractKind: "agent",
+        },
+      ),
     ).toEqual({
       team: "team2",
       count: 3,
@@ -179,22 +183,30 @@ describe("agentAction", () => {
     });
 
     expect(
-      resolveAirJamAgentActionPayload(action, { team: "team2", count: 3 }, {
-        gameId: "code-review",
-        actionName: "set_bot_count",
-        contractKind: "agent",
-      }),
+      resolveAirJamAgentActionPayload(
+        action,
+        { team: "team2", count: 3 },
+        {
+          gameId: "code-review",
+          actionName: "set_bot_count",
+          contractKind: "agent",
+        },
+      ),
     ).toEqual({
       team: "team2",
       count: 3,
     });
 
     expect(() =>
-      resolveAirJamAgentActionPayload(action, { team: "team3", count: 3 }, {
-        gameId: "code-review",
-        actionName: "set_bot_count",
-        contractKind: "agent",
-      }),
+      resolveAirJamAgentActionPayload(
+        action,
+        { team: "team3", count: 3 },
+        {
+          gameId: "code-review",
+          actionName: "set_bot_count",
+          contractKind: "agent",
+        },
+      ),
     ).toThrow(/Invalid option/);
   });
 

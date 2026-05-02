@@ -1,7 +1,7 @@
 import {
   agentActionInput,
-  type AnyAirJamAgentContract,
   type AirJamAgentActionCustomOptions,
+  type AnyAirJamAgentContract,
 } from "@air-jam/sdk";
 import {
   createAgentActionMetadata,
@@ -15,11 +15,8 @@ import {
   type AirJamAgentActionPayloadKind,
   type AirJamAgentActionPayloadMetadata,
 } from "@air-jam/sdk/agent-tooling";
+import type { VisualScenario, VisualScenarioPack } from "../visual/types.js";
 import type { VisualHarnessBridgeSnapshot } from "./runtime-bridge.js";
-import type {
-  VisualScenario,
-  VisualScenarioPack,
-} from "../visual/types.js";
 
 type VisualHarnessActionParseMeta = AirJamAgentActionParseMeta;
 
@@ -346,13 +343,11 @@ export const defineVisualHarnessBridge = <
 export const defineVisualHarness = <
   TAgent extends AnyAirJamAgentContract,
   TBridge extends AnyVisualHarnessBridgeDefinition | null,
->(
-  pack: {
-    agent: TAgent;
-    bridge?: TBridge;
-    scenarios: ReadonlyArray<VisualScenario<TAgent, TBridge>>;
-  },
-): VisualScenarioPack<TAgent, TBridge> => pack;
+>(pack: {
+  agent: TAgent;
+  bridge?: TBridge;
+  scenarios: ReadonlyArray<VisualScenario<TAgent, TBridge>>;
+}): VisualScenarioPack<TAgent, TBridge> => pack;
 
 export const describeVisualHarnessActions = <
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

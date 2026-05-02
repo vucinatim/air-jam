@@ -12,9 +12,7 @@ import { agentContract } from "./agent";
 
 type PongVisualContext = VisualScenarioContext<typeof agentContract>;
 
-const prepareLobbyState = async (
-  context: PongVisualContext,
-): Promise<void> => {
+const prepareLobbyState = async (context: PongVisualContext): Promise<void> => {
   await waitForHostText(context, "Join On Phone");
   await context.ensureControllerInteractive();
 
@@ -45,9 +43,7 @@ const preparePlayingState = async (
   await context.sleep(750);
 };
 
-const prepareEndedState = async (
-  context: PongVisualContext,
-): Promise<void> => {
+const prepareEndedState = async (context: PongVisualContext): Promise<void> => {
   await prepareLobbyState(context);
 
   await context.agent.invoke("player:set_points_to_win", 1);

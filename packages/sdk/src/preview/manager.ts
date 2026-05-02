@@ -7,9 +7,9 @@ import {
   DEFAULT_PREVIEW_CONTROLLER_SCALE,
   PREVIEW_WINDOW_TITLEBAR_HEIGHT,
   getDefaultPreviewWindowBounds,
-  getPreviewControllerScaleForResize,
   getPreviewControllerScaleConstraints,
   getPreviewControllerScaleForBounds,
+  getPreviewControllerScaleForResize,
   getPreviewControllerViewportSize,
   getPreviewWindowBoundsForScale,
   getPreviewWindowSizeConstraints,
@@ -479,10 +479,7 @@ export const usePreviewControllerManager = ({
           });
           const nextWindowBounds = getPreviewWindowBounds(
             session.orientation,
-            getPreviewControllerScaleForBounds(
-              session.orientation,
-              nextBounds,
-            ),
+            getPreviewControllerScaleForBounds(session.orientation, nextBounds),
           );
 
           return {

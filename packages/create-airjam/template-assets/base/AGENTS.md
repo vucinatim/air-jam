@@ -120,8 +120,12 @@ For local host/controller UI work:
 3. use the Air Jam MCP alongside browser work for logs, topology, host staging actions, runtime inspection, and quality gates
 4. use secondary browser MCPs such as Chrome DevTools only when the built-in browser tooling is unavailable or when low-level DOM, network, or performance inspection is required
 5. do not treat browser automation as the primary game-control path when a host staging action or semantic game action can express the intent directly
-6. if a browser/preview tool wants to launch the local app command itself and expects one foreground web process, use `pnpm run dev:preview` instead of `pnpm run dev`
-7. `pnpm run dev:preview` is local HTTP only; if you need HTTPS/secure dev, use the normal `pnpm run dev -- --secure` flow instead
+6. if a browser/preview tool wants to launch the local app command itself, still use `pnpm run dev`; do not fall back to raw `vite` or a separate preview-only script
+7. for Claude Code or similar preview surfaces, keep host and preview controllers in the same visible preview screen when possible; add multiple preview controllers from the host preview workspace instead of opening unrelated OS browser tabs unless the user asks for tabs
+8. for visible controller UI smoke tests, interact with preview controllers through real browser click/drag/release gestures; do not synthesize pointer events into controller iframes from parent-page eval
+9. for reliable gameplay, physics, scoring, reset, and state assertions, use the semantic agent contract and Air Jam MCP game-session actions
+10. if local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code: `pnpm exec airjam status`, `pnpm exec airjam reset local`, and `pnpm exec air-jam-server logs --view=signal`
+11. after editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state
 
 When a clean-slate game stops being trivial:
 
@@ -130,6 +134,7 @@ When a clean-slate game stops being trivial:
 3. add `src/game/contracts/visual-bridge.ts` only if those scenarios still need a true runtime-local visual/bootstrap bridge
 4. prefer these small explicit agent seams over leaving important semantics trapped in UI-only flows
 5. remember that `airjam.capture_visuals` is task-backed; if your MCP client cannot execute task-backed tools, switch to a task-capable client or run the equivalent Air Jam CLI or repo visual command directly
+6. make multiplayer games startable or ready-able from controllers; the host screen should not be the only place where play begins
 
 ## Game Agent Contract Rule
 

@@ -10,6 +10,8 @@
     "arcade:dev": "node scripts/repo/cli.mjs workspace arcade:dev",
     "arcade:test": "node scripts/repo/cli.mjs workspace arcade:test",
     "topology": "node scripts/repo/cli.mjs workspace topology",
+    "status": "pnpm --filter @air-jam/devtools-core build && pnpm --filter create-airjam exec tsx src/index.ts status --dir .",
+    "reset:local": "pnpm --filter @air-jam/devtools-core build && pnpm --filter create-airjam exec tsx src/index.ts reset local --dir .",
     "mcp": "node scripts/run-repo-mcp.mjs",
     "secure:init": "node scripts/repo/cli.mjs workspace secure:init",
     "logs": "node scripts/repo/cli.mjs workspace logs",

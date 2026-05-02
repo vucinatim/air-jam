@@ -106,6 +106,7 @@ const transformMdxToLocalMarkdown = (value) => {
   const lines = value.split(/\r?\n/);
   const output = [];
   let inCodeFence = false;
+  let strippedElementDepth = 0;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -129,11 +130,21 @@ const transformMdxToLocalMarkdown = (value) => {
       continue;
     }
 
-    if (/^<[^>]+>$/.test(trimmed) || /^<\/[^>]+>$/.test(trimmed)) {
+    if (/^<\/[^>]+>$/.test(trimmed)) {
+      strippedElementDepth = Math.max(0, strippedElementDepth - 1);
       continue;
     }
 
-    output.push(line);
+    if (/^<[^>]+>$/.test(trimmed)) {
+      if (!trimmed.endsWith("/>")) {
+        strippedElementDepth += 1;
+      }
+      continue;
+    }
+
+    output.push(
+      strippedElementDepth > 0 && line.startsWith("  ") ? line.slice(2) : line,
+    );
   }
 
   return output.join("\n");

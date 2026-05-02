@@ -1,9 +1,9 @@
 import {
+  agentAction,
+  agentActionInput,
+  agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-  agentAction,
-  agentStore,
-  agentActionInput,
 } from "@air-jam/sdk";
 import { getMatchReadiness } from "../domain/match-readiness";
 import { getTeamLabel, type TeamId } from "../domain/team";
@@ -127,7 +127,8 @@ export const agentContract = defineAirJamAgentContract({
         toPayload: (team) => ({
           team,
         }),
-        description: "Assign the current controller to a Pong team in the lobby.",
+        description:
+          "Assign the current controller to a Pong team in the lobby.",
         availability: "Lobby only. Requires a connected controller identity.",
         resultDescription:
           "The controller joins the requested team if a slot is available.",
@@ -230,7 +231,8 @@ export const agentContract = defineAirJamAgentContract({
       },
       {
         input: agentActionInput.none(),
-        description: "Return the Pong match to the lobby without restarting dev.",
+        description:
+          "Return the Pong match to the lobby without restarting dev.",
         availability: "Any phase.",
         resultDescription:
           "The match returns to the lobby with scores cleared and the current roster preserved.",

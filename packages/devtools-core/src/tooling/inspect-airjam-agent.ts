@@ -13,9 +13,7 @@ const getFlagValue = (flag: string): string | null => {
 const configPath = getFlagValue("--config");
 
 if (!configPath) {
-  throw new Error(
-    "Missing required --config input for Air Jam agent helper.",
-  );
+  throw new Error("Missing required --config input for Air Jam agent helper.");
 }
 
 const inspection = await inspectAirJamAgentDeclaration(configPath);

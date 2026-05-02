@@ -13,9 +13,9 @@ import {
   createHostBridgeAttachMessage,
   createHostBridgeCloseMessage,
   createHostBridgeResponseMessage,
-  parseHostBridgeResponseMessage,
   parseHostBridgeEmitMessage,
   parseHostBridgeRequestMessage,
+  parseHostBridgeResponseMessage,
   type AirJamRealtimeClient,
   type HostBridgeServerEventName,
 } from "@air-jam/sdk/arcade/bridge/host";
@@ -355,14 +355,20 @@ export const GamePlayer = ({
             ...(message.payload.args as never[]),
             (ack: unknown) => {
               port.postMessage(
-                createHostBridgeResponseMessage(message.payload.requestId!, ack),
+                createHostBridgeResponseMessage(
+                  message.payload.requestId!,
+                  ack,
+                ),
               );
             },
           );
           return;
         }
 
-        hostSocket.emit(message.payload.event, ...(message.payload.args as never[]));
+        hostSocket.emit(
+          message.payload.event,
+          ...(message.payload.args as never[]),
+        );
       };
 
       const playerNotices: ControllerJoinedNotice[] = players.map((player) => ({

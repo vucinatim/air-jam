@@ -33,14 +33,8 @@ That command starts:
 1. the local Air Jam server on `http://localhost:4000`
 2. the game on `http://localhost:5173`
 
-If your browser or agent preview tool wants to launch the app itself and expects one foreground web process, use:
-
-```bash
-pnpm run dev:preview
-```
-
-That mode keeps the Air Jam server running in the background and leaves Vite as the single foreground process on `http://localhost:5173`.
-It is a local HTTP preview-tool path only. For HTTPS/secure local dev, stay on the normal `pnpm run dev -- --secure` flow.
+If your browser or agent preview tool wants to launch the app command itself, still use `pnpm run dev`.
+Do not fall back to raw `vite` or a separate preview-only script; the normal Air Jam dev runner is the one supported local path.
 
 ## 3. Play the Game
 

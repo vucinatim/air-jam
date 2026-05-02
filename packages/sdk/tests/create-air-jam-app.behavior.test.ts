@@ -2,17 +2,17 @@ import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+  agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-  agentStore,
 } from "../src/agent/agent-contract";
 import { defineAirJamGameMetadata } from "../src/metadata";
-import { createAirJamApp } from "../src/runtime/create-air-jam-app";
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
 } from "../src/runtime-inspection";
+import { createAirJamApp } from "../src/runtime/create-air-jam-app";
 
 describe("createAirJamApp", () => {
   it("normalizes controller path and provides defaults", () => {

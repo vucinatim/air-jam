@@ -53,9 +53,7 @@ type VisualHarnessDevControlClientOptions = {
   gameId: string;
   role?: DevHarnessRole;
   readSnapshot: () => PublishedVisualHarnessBridgeSnapshot | null;
-  waitForCommittedSnapshot: (
-    previousUpdatedAt: string | null,
-  ) => Promise<{
+  waitForCommittedSnapshot: (previousUpdatedAt: string | null) => Promise<{
     snapshot: PublishedVisualHarnessBridgeSnapshot | null;
     status: DevHarnessSnapshotAfterStatus;
   }>;

@@ -1,13 +1,11 @@
 import { z } from "zod";
 import type {
-  ControllerPresenceNotice,
-} from "./notices";
-import type {
   ControllerPrivilegedCapability,
   PlayerProfile,
 } from "./controller";
 import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
+import type { ControllerPresenceNotice } from "./notices";
 
 export const hostSessionKindSchema = z.enum(["game", "system"]);
 export type HostSessionKind = z.infer<typeof hostSessionKindSchema>;

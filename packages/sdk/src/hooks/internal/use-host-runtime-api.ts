@@ -10,9 +10,9 @@ import {
 import { updateDevBrowserLogContext } from "../../dev/browser-log-sink";
 import { emitAirJamDiagnostic } from "../../diagnostics";
 import type {
-  ControllerPresenceNotice,
   ControllerInputEvent,
   ControllerJoinedNotice,
+  ControllerPresenceNotice,
   ControllerPrivilegedCapability,
   ControllerStateMessage,
   ControllerStatePayload,
@@ -33,8 +33,8 @@ import {
   ErrorCode,
   hostBootstrapSchema,
   hostCreateRoomSchema,
-  hostRemoveControllerSchema,
   hostReconnectSchema,
+  hostRemoveControllerSchema,
   hostResetRoomSchema,
   roomCodeSchema,
 } from "../../protocol";
@@ -133,10 +133,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   const setRegisteredRoomId = useStore(store, (s) => s.setRegisteredRoomId);
 
   const hydrateHostRoster = useCallback(
-    (
-      players?: PlayerProfile[],
-      controllers?: ControllerPresenceNotice[],
-    ) => {
+    (players?: PlayerProfile[], controllers?: ControllerPresenceNotice[]) => {
       const latestState = store.getState();
       latestState.resetPlayers();
       players?.forEach((player) => {
@@ -672,7 +669,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                 if (ack.ok && ack.roomId) {
                   latestState.setStatus("connected");
                   latestState.setRoomId(ack.roomId);
-            hydrateHostRoster(ack.players, ack.controllers);
+                  hydrateHostRoster(ack.players, ack.controllers);
                   setControllerCapability(ack.controllerCapability ?? null);
                   latestState.setHostArcadeRestore(
                     ack.arcadeSession

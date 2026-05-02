@@ -21,10 +21,11 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 
 ## Launch Rule
 
-1. If you are starting local dev yourself in a normal terminal, use `pnpm run dev`.
-2. If your browser or preview tool wants to launch the app command itself and expects one foreground web process, use `pnpm run dev:preview`.
-3. `pnpm run dev:preview` is a local HTTP browser-tool mode. If you need HTTPS/secure dev, use the normal `pnpm run dev -- --secure` flow instead.
-4. Do not replace the Air Jam dev flow with raw `pnpm exec vite` unless you intentionally want frontend-only rendering without the local Air Jam backend.
+1. Use `pnpm run dev` for normal local development, including browser or preview tools that launch the app command themselves.
+2. Do not replace the Air Jam dev flow with raw `pnpm exec vite` unless you intentionally want frontend-only rendering without the local Air Jam backend.
+3. If you need HTTPS/secure local dev, use `pnpm run dev -- --secure`.
+4. If local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code.
+5. After editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state.
 
 ## Canonical Files
 
@@ -64,6 +65,10 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 1. Browser is the visual truth.
 2. Air Jam MCP is the agent-control and runtime-inspection path.
 3. Use both together instead of forcing browser automation to do semantic work.
+4. In Claude Code or similar preview surfaces, keep host and preview controllers in the same visible preview screen when possible.
+5. Add multiple preview controllers from the host preview workspace when you need multiple local players; do not open unrelated OS browser tabs unless the user asks for tabs.
+6. Use visible preview controllers for UI smoke proof with real browser click/drag/release gestures.
+7. Do not synthesize pointer events into controller iframes from parent-page eval; use semantic game actions when reliable gameplay proof matters.
 
 ## Task-Backed Rule
 

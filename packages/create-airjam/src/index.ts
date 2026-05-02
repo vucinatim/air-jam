@@ -1,5 +1,6 @@
 import {
   bundleLocalRelease,
+  getDevStatus,
   getPlatformAuthStoragePath,
   getPlatformMachineProfile,
   inspectLocalRelease,
@@ -10,6 +11,7 @@ import {
   logoutPlatformMachineSession,
   publishPlatformRelease,
   readStoredPlatformMachineSession,
+  resetLocalDev,
   submitPlatformRelease,
   validateLocalRelease,
   type AirJamLocalReleaseIssue,
@@ -748,11 +750,6 @@ const runScaffoldCommand = async (
   );
   console.log(
     kleur.cyan(
-      "  pnpm run dev:preview # Optional: preview-managed browser/agent dev",
-    ),
-  );
-  console.log(
-    kleur.cyan(
       "  pnpm run dev -- --web-only  # Optional: official backend only",
     ),
   );
@@ -1132,6 +1129,32 @@ const buildProgram = () => {
   });
 
   program
+    .command("status")
+    .description("Show local Air Jam dev process and known-port status")
+    .option("--dir <path>", "Project directory to inspect")
+    .action(async (options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string }>(options);
+      const status = await getDevStatus({ cwd: input.dir });
+      console.log(JSON.stringify(status, null, 2));
+    });
+
+  const resetCommand = program
+    .command("reset")
+    .description("Reset local Air Jam development state");
+
+  resetCommand
+    .command("local")
+    .description(
+      "Stop managed dev processes and stale known-port Air Jam local listeners",
+    )
+    .option("--dir <path>", "Project directory to reset")
+    .action(async (options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string }>(options);
+      const result = await resetLocalDev({ cwd: input.dir });
+      console.log(JSON.stringify(result, null, 2));
+    });
+
+  program
     .command("dev")
     .description("Run project-local Air Jam game development")
     .argument("[passthrough...]", "Additional runtime flags")
@@ -1144,7 +1167,7 @@ const buildProgram = () => {
     )
     .option(
       "--preview-managed",
-      "Start preview-friendly dev with a background server and foreground Vite",
+      "Advanced/internal: start foreground Vite with a background server",
       false,
     )
     .option("--web-only", "Start only the game app", false)

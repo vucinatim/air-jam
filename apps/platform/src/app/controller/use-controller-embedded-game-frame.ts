@@ -323,7 +323,10 @@ export function useControllerEmbeddedGameFrame({
           return;
         }
 
-        socket.emit(message.payload.event, ...(message.payload.args as never[]));
+        socket.emit(
+          message.payload.event,
+          ...(message.payload.args as never[]),
+        );
       };
 
       const session = controllerSessionRef.current;
