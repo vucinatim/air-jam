@@ -41,12 +41,6 @@ export function LoginScreen({ nextPath }: LoginScreenProps) {
     () => normalizePostAuthPath(nextPath || DEFAULT_POST_AUTH_PATH),
     [nextPath],
   );
-  const callbackURL = useMemo(() => {
-    if (typeof window === "undefined") {
-      return safeNextPath;
-    }
-    return new URL(safeNextPath, window.location.origin).toString();
-  }, [safeNextPath]);
 
   const handleAuth = async (action: "signin" | "signup") => {
     setLoadingAction(action);
@@ -87,10 +81,15 @@ export function LoginScreen({ nextPath }: LoginScreenProps) {
     setLoadingAction("github");
     setError(null);
     try {
-      await authClient.signIn.social({
+      const result = await authClient.signIn.social({
         provider: "github",
-        callbackURL,
+        callbackURL: safeNextPath,
       });
+
+      if (result?.error) {
+        setError(result.error.message || "GitHub sign-in could not be started.");
+        setLoadingAction(null);
+      }
     } catch {
       setError("GitHub sign-in could not be started.");
       setLoadingAction(null);

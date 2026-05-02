@@ -386,3 +386,8 @@ Remaining:
 3. If a plan is completed, superseded, or only blocked on manual proof, archive it.
 4. Keep this file ordered by real execution priority, not by category alone.
 5. Keep `docs/suggestions.md` limited to durable non-critical follow-ups.
+# 2026-05-03 - Auth origin hardening
+
+- tightened Better Auth base URL and trusted-origin resolution so auth no longer depends on a single implicit prod origin
+- switched GitHub social sign-in to use the normalized internal post-auth path rather than an absolute callback URL
+- follows from the production `INVALID_CALLBACKURL` failure on `www.air-jam.app`
