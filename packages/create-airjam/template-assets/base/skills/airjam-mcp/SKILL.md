@@ -31,7 +31,7 @@ If the template ships `src/game/contracts/agent.ts`, treat that file as the cano
 
 When local UI verification matters, pair the Air Jam MCP with the current agent or client's built-in browser or in-app browser tooling first.
 
-If that browser or preview tool wants to launch the local app command itself, use `pnpm run dev`.
+If Claude Code Desktop preview launches the app, use the committed `.claude/launch.json`; it runs Air Jam's preview-managed adapter for Claude Preview. If another browser or preview tool wants a launch command, use `pnpm run dev`.
 Do not use raw `vite` for normal Air Jam development because it skips the local Air Jam backend.
 If you need HTTPS/secure dev, use the normal `pnpm run dev -- --secure` flow.
 For Claude Code or similar preview surfaces, keep host and preview controllers in the same visible preview screen when possible. Add multiple preview-controller windows from the host workspace for multiple local players instead of opening unrelated OS browser tabs unless the user asks for tabs.

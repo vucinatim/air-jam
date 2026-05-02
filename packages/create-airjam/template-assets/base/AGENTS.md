@@ -11,11 +11,10 @@ The goal is to keep the game easy to grow, easy to test, and easy to refactor as
 For any non-trivial task, read these in order:
 
 1. `docs/agent-gold-path.md`
-2. `plan.md`
-3. `docs/docs-index.md`
-4. `skills/index.md`
-5. the relevant code you are about to change
-6. the template `README.md` if it includes a concrete starter module map
+2. `docs/docs-index.md`
+3. `skills/index.md`
+4. the relevant code you are about to change
+5. the template `README.md` if it includes a concrete starter module map
 
 Do not treat chat history as the source of truth for project state.
 
@@ -23,45 +22,16 @@ Do not treat chat history as the source of truth for project state.
 
 For meaningful work:
 
-1. read the current `plan.md`
-2. inspect the existing structure before coding
-3. consult the smallest relevant local docs slice
-4. consult the matching skill only when the task fits that skill boundary
-5. if the repo includes starter modules that already demonstrate the boundary, extend those before creating a new home for the work
-6. refactor first if the requested change clearly does not fit the current structure
-7. implement the smallest correct change
-8. update `plan.md`
-9. record durable follow-ups in `suggestions.md`
-10. run relevant validation
+1. inspect the existing structure before coding
+2. consult the smallest relevant local docs slice
+3. consult the matching skill only when the task fits that skill boundary
+4. if the repo includes starter modules that already demonstrate the boundary, extend those before creating a new home for the work
+5. refactor first if the requested change clearly does not fit the current structure
+6. implement the smallest correct change
+7. keep durable notes in the user's requested place, or create a focused plan document only when the task genuinely needs one
+8. run relevant validation
 
-## Canonical Local Files
-
-### `plan.md`
-
-This is the active ledger.
-
-Use it for:
-
-1. current goal
-2. active checklist
-3. progress notes
-4. architecture decisions
-5. blockers
-6. next actions
-
-### `suggestions.md`
-
-This is the durable improvement backlog.
-
-Use it for:
-
-1. refactor opportunities
-2. architecture improvements
-3. DX upgrades
-4. performance follow-ups
-5. testing gaps
-
-Do not use it as the current task tracker.
+## Canonical Local Guidance
 
 ### `docs/`
 
@@ -120,12 +90,13 @@ For local host/controller UI work:
 3. use the Air Jam MCP alongside browser work for logs, topology, host staging actions, runtime inspection, and quality gates
 4. use secondary browser MCPs such as Chrome DevTools only when the built-in browser tooling is unavailable or when low-level DOM, network, or performance inspection is required
 5. do not treat browser automation as the primary game-control path when a host staging action or semantic game action can express the intent directly
-6. if a browser/preview tool wants to launch the local app command itself, still use `pnpm run dev`; do not fall back to raw `vite` or a separate preview-only script
-7. for Claude Code or similar preview surfaces, keep host and preview controllers in the same visible preview screen when possible; add multiple preview controllers from the host preview workspace instead of opening unrelated OS browser tabs unless the user asks for tabs
-8. for visible controller UI smoke tests, interact with preview controllers through real browser click/drag/release gestures; do not synthesize pointer events into controller iframes from parent-page eval
-9. for reliable gameplay, physics, scoring, reset, and state assertions, use the semantic agent contract and Air Jam MCP game-session actions
-10. if local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code: `pnpm exec airjam status`, `pnpm exec airjam reset local`, and `pnpm exec air-jam-server logs --view=signal`
-11. after editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state
+6. if Claude Code Desktop preview launches the app, use the committed `.claude/launch.json`; it runs the normal dev command with the preview-managed adapter Claude Preview needs
+7. for other browser/preview tools that ask for a launch command, use `pnpm run dev`; do not fall back to raw `vite` or a separate preview-only script
+8. for Claude Code or similar preview surfaces, keep host and preview controllers in the same visible preview screen when possible; add multiple preview controllers from the host preview workspace instead of opening unrelated OS browser tabs unless the user asks for tabs
+9. for visible controller UI smoke tests, interact with preview controllers through real browser click/drag/release gestures; do not synthesize pointer events into controller iframes from parent-page eval
+10. for reliable gameplay, physics, scoring, reset, and state assertions, use the semantic agent contract and Air Jam MCP game-session actions
+11. if local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code: `pnpm exec airjam status`, `pnpm exec airjam reset local`, and `pnpm exec air-jam-server logs --view=signal`
+12. after editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state
 
 When a clean-slate game stops being trivial:
 

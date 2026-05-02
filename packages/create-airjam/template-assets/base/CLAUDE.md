@@ -14,7 +14,15 @@ Open the host at `http://localhost:5173`.
 
 Do not use raw `vite` for normal Air Jam work. It skips the local Air Jam server.
 
-Do not create or prefer a separate preview-specific dev command. If Claude Code asks for a launch command for its preview/browser surface, give it `pnpm run dev` and open `http://localhost:5173`.
+Do not create or prefer a separate preview-specific package script.
+
+Claude Code Desktop preview is already configured through `.claude/launch.json`. Use that preview configuration when opening the embedded preview. It runs:
+
+```bash
+pnpm run dev -- --preview-managed
+```
+
+This keeps Vite as the foreground process for Claude Preview while Air Jam manages the local server in the background. Humans and normal terminal workflows should still use `pnpm run dev`.
 
 Use these recovery commands before debugging gameplay code when local runtime state looks stale:
 

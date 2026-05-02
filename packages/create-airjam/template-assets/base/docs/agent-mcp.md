@@ -62,11 +62,12 @@ When local UI verification matters:
 2. prefer visible host/controller browser sessions over hidden automation when you need to verify what a player actually sees
 3. pair that browser workflow with Air Jam MCP for logs, topology, snapshots, host staging actions, and quality gates
 4. use secondary browser MCPs such as Chrome DevTools only when the first-party browser tooling is unavailable or when you need lower-level DOM, network, or performance diagnostics
-5. if your browser/preview tool wants to launch the local app command itself, use `pnpm run dev`
-6. do not use raw `vite` for normal Air Jam development because it skips the local Air Jam backend
-7. use normal `pnpm run dev -- --secure` when HTTPS is required
-8. use visible preview controllers for controller UI smoke proof with real browser click/drag/release gestures
-9. do not synthesize pointer events into controller iframes from parent-page eval; use semantic game actions when reliable gameplay proof matters
+5. if Claude Code Desktop preview launches the app, use the committed `.claude/launch.json`
+6. if another browser/preview tool wants a launch command, use `pnpm run dev`
+7. do not use raw `vite` for normal Air Jam development because it skips the local Air Jam backend
+8. use normal `pnpm run dev -- --secure` when HTTPS is required
+9. use visible preview controllers for controller UI smoke proof with real browser click/drag/release gestures
+10. do not synthesize pointer events into controller iframes from parent-page eval; use semantic game actions when reliable gameplay proof matters
 
 ## Debugging Rule
 

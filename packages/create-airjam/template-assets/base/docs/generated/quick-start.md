@@ -33,8 +33,9 @@ That command starts:
 1. the local Air Jam server on `http://localhost:4000`
 2. the game on `http://localhost:5173`
 
-If your browser or agent preview tool wants to launch the app command itself, still use `pnpm run dev`.
-Do not fall back to raw `vite` or a separate preview-only script; the normal Air Jam dev runner is the one supported local path.
+If Claude Code Desktop preview launches the app, use the committed `.claude/launch.json`. It still goes through the normal Air Jam dev runner, but adds the preview-managed adapter Claude Preview needs.
+
+For other browser or agent preview tools that ask for a launch command, use `pnpm run dev`. Do not fall back to raw `vite` or a separate preview-only script.
 
 ## 3. Play the Game
 
@@ -100,7 +101,7 @@ pnpm exec airjam ai-pack diff --dir .
 pnpm exec airjam ai-pack update --dir .
 ```
 
-`ai-pack:update` replaces AI-pack-managed files such as local docs, skills, and `AGENTS.md` with the current canonical versions. It is intentionally a replace operation, not a merge tool, and it does not own your local `plan.md` or `suggestions.md`.
+`ai-pack:update` replaces AI-pack-managed files such as local docs, skills, and `AGENTS.md` with the current canonical versions. It is intentionally a replace operation, not a merge tool, and it does not own user-created project notes.
 
 ### Server not connecting locally
 

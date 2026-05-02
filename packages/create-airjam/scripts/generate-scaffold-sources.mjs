@@ -20,6 +20,7 @@ const DEFAULT_EXCLUDES = new Set([
   "coverage",
   "dist",
   "dist-ssr",
+  "airjam-template.json",
   "node_modules",
   "package-lock.json",
   "pnpm-lock.yaml",

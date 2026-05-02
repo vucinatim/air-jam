@@ -14,8 +14,7 @@ export const basePackRoot = path.join(
 export const requiredBasePackPaths = [
   "AGENTS.md",
   "_gitignore",
-  "plan.md",
-  "suggestions.md",
+  ".claude/launch.json",
   ".airjam/ai-pack.json",
   "docs/debug-and-testing.md",
   "docs/development-loop.md",
@@ -25,7 +24,6 @@ export const requiredBasePackPaths = [
   "docs/iconography.md",
   "skills/airjam-mcp/SKILL.md",
   "skills/index.md",
-  "skills/plan-ledger/SKILL.md",
   "skills/airjam-docs-workflow/SKILL.md",
   "skills/game-architecture/SKILL.md",
   "skills/game-state-and-rendering/SKILL.md",

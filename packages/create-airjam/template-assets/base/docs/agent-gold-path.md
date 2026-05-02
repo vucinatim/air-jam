@@ -21,11 +21,12 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 
 ## Launch Rule
 
-1. Use `pnpm run dev` for normal local development, including browser or preview tools that launch the app command themselves.
-2. Do not replace the Air Jam dev flow with raw `pnpm exec vite` unless you intentionally want frontend-only rendering without the local Air Jam backend.
-3. If you need HTTPS/secure local dev, use `pnpm run dev -- --secure`.
-4. If local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code.
-5. After editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state.
+1. Use `pnpm run dev` for normal local development.
+2. Use the committed `.claude/launch.json` when Claude Code Desktop preview launches the app. It runs `pnpm run dev -- --preview-managed` so Claude Preview sees Vite as the foreground process while Air Jam manages the local server in the background.
+3. Do not replace the Air Jam dev flow with raw `pnpm exec vite` unless you intentionally want frontend-only rendering without the local Air Jam backend.
+4. If you need HTTPS/secure local dev, use `pnpm run dev -- --secure`.
+5. If local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code.
+6. After editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state.
 
 ## Canonical Files
 
