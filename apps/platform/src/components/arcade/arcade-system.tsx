@@ -40,7 +40,10 @@ import {
 } from "./arcade-browser-overlay-preference";
 import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
-import { useArcadePlatformSettingsStore } from "./arcade-platform-settings-store";
+import {
+  setArcadePlatformSettings,
+  useArcadePlatformSettingsStore,
+} from "./arcade-platform-settings-store";
 import {
   ARCADE_BROWSER_PATH,
   EXIT_COOLDOWN_MS,
@@ -289,7 +292,6 @@ export const ArcadeSystem = ({
     return Array.from(lanes.values());
   }, [activePings]);
   const surfaceActions = useArcadeSurfaceStore.useActions();
-  const platformSettingsActions = useArcadePlatformSettingsStore.useActions();
   const lastRoomIdForSurfaceRef = useRef<string | null>(null);
   const pingRemovalTimeoutsRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
@@ -836,8 +838,8 @@ export const ArcadeSystem = ({
   }, [launchGame]);
 
   useEffect(() => {
-    platformSettingsActions.setSettings(platformSettings);
-  }, [platformSettings, platformSettingsActions]);
+    setArcadePlatformSettings(platformSettings);
+  }, [platformSettings]);
 
   useEffect(() => {
     if (surfaceKind !== "browser" && settingsOpen) {

@@ -52,6 +52,9 @@ import type {
   JoinUrlStatus,
 } from "../use-air-jam-host";
 
+const HOST_BOOTSTRAP_TIMEOUT_MESSAGE =
+  "Host bootstrap timed out. The deployed Air Jam server may be out of sync with this client.";
+
 export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   options: AirJamHostOptions,
   hookName: string,
@@ -554,9 +557,41 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         return;
       }
 
-      const bootstrapAck = await new Promise<HostBootstrapAck>((resolve) => {
-        socket.emit("host:bootstrap", bootstrapPayload, resolve);
-      });
+      let bootstrapAck: HostBootstrapAck;
+      try {
+        bootstrapAck = await socket.emitWithAck<HostBootstrapAck>(
+          "host:bootstrap",
+          bootstrapPayload,
+        );
+      } catch (error) {
+        const latestState = store.getState();
+        const message =
+          error instanceof Error &&
+          error.message.includes(
+            'Timed out waiting for acknowledgement for realtime event "host:bootstrap".',
+          )
+            ? HOST_BOOTSTRAP_TIMEOUT_MESSAGE
+            : error instanceof Error
+              ? error.message
+              : "Failed to authorize host";
+        emitAirJamDiagnostic({
+          code: "AJ_HOST_BOOTSTRAP_FAILED",
+          severity: "error",
+          message,
+          details: {
+            stage: "bootstrap_ack_timeout",
+            hasAppId: Boolean(config.appId),
+            hasHostGrantEndpoint: Boolean(config.hostGrantEndpoint),
+          },
+        });
+        latestState.setError(message);
+        latestState.setStatus("disconnected");
+        latestState.clearHostArcadeRestore();
+        setRegisteredRoomId(null);
+        setDevHostTraceId(undefined);
+        setControllerCapability(null);
+        return;
+      }
 
       if (!bootstrapAck.ok) {
         const latestState = store.getState();

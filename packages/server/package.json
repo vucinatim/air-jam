@@ -29,11 +29,11 @@
     "logs:dev": "tsx scripts/dev-logs.ts",
     "analytics:rebuild": "tsx scripts/runtime-usage-rebuild.ts",
     "start": "node dist/cli.js",
-    "build": "tsup",
-    "test": "vitest run --config vitest.config.ts",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "perf:sanity": "tsx scripts/perf-sanity.ts",
-    "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "prepublishOnly": "node scripts/prepublish.js && pnpm build"
   },
   "dependencies": {

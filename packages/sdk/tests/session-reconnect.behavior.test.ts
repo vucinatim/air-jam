@@ -155,6 +155,7 @@ describe("session reconnect behavior", () => {
     mocked.store = null;
     resetControllerRealtimeClientForTests();
     resetHostRealtimeClientForTests();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -530,6 +531,35 @@ describe("session reconnect behavior", () => {
 
     expect(result.current.lastError).toBe(
       "Unauthorized: Invalid or Missing App ID",
+    );
+    expect(diagnostics).toContain("AJ_HOST_BOOTSTRAP_FAILED");
+    unsubscribe();
+  });
+
+  it("surfaces a compatibility error when host bootstrap never acknowledges", async () => {
+    vi.useFakeTimers();
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      diagnostics.push(diagnostic.code);
+    });
+
+    mocked.hostSocket.emit.mockImplementation((event: string) => {
+      if (event === "host:bootstrap") {
+        return;
+      }
+    });
+
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_001);
+    });
+
+    expect(result.current.connectionStatus).toBe("disconnected");
+    expect(result.current.lastError).toBe(
+      "Host bootstrap timed out. The deployed Air Jam server may be out of sync with this client.",
     );
     expect(diagnostics).toContain("AJ_HOST_BOOTSTRAP_FAILED");
     unsubscribe();
