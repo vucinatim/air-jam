@@ -8,8 +8,6 @@ import rehypeMdxCodeProps from "rehype-mdx-code-props";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 
-const DEFAULT_RENDERER = `import React from 'react'`;
-
 const rehypeShikiOptions = {
   themes: { light: "one-dark-pro", dark: "one-dark-pro" },
   addLanguageClass: true,
@@ -40,5 +38,5 @@ export async function compileMdxSource(content, { development = false } = {}) {
     ],
   });
 
-  return `${DEFAULT_RENDERER}\n${result}`;
+  return String(result);
 }
