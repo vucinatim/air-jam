@@ -110,6 +110,7 @@ Latest progress inside this focus:
 34. production hosted release publishing now has a dedicated browser-worker lane: Vercel owns the platform app, Railway owns the realtime server and the release browser worker, and release screenshot capture plus OpenAI image moderation both pass on live production publish
 35. the hosted platform game record is now a first-class machine contract: `/api/cli/games` supports list/create, `/api/cli/games/[slugOrId]` supports inspect/update, `@air-jam/devtools-core` exposes typed hosted-game helpers plus local metadata defaults, and `create-airjam` now ships `airjam game list|inspect|create|update` so release publishing no longer depends on the dashboard just to register a target game
 36. the public hosted catalog is now fully live on production: all six first-party games have hosted records, live releases, Arcade visibility, source links, and template copy commands, and the legacy app host is now being collapsed onto `airjam.io` as the canonical public domain
+37. hosted release bundling now vendors remote font CSS/assets into the artifact at bundle time, so published Arcade releases can keep the strict platform CSP while still supporting Google Fonts-style authoring inputs
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

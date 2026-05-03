@@ -52,7 +52,7 @@ export const HostPreviewControllerWorkspace = ({
       onActiveOpacityChange={(activeOpacity) =>
         platformSettingsOwner?.updatePreviewControllers({ activeOpacity })
       }
-      className={cn("top-4 right-4 z-60 sm:top-6 sm:right-6", className)}
+      className={cn("right-4 bottom-4 z-60 sm:right-6 sm:bottom-6", className)}
       {...props}
     />
   );

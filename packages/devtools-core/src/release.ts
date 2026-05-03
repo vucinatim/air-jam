@@ -16,8 +16,19 @@ import {
   hostedReleaseArtifactManifestSchema,
   type HostedReleaseArtifactManifest,
 } from "@air-jam/sdk/release";
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, readdir, stat } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import * as yauzl from "yauzl";
 import yazl from "yazl";
@@ -51,6 +62,18 @@ import type {
 } from "./types.js";
 
 const IGNORED_ARCHIVE_PATHS = ["__MACOSX/", ".DS_Store"] as const;
+const VENDORED_FONT_ASSET_DIR = "assets/airjam-vendored/fonts";
+const REMOTE_FONT_STYLESHEET_HOSTS = new Set(["fonts.googleapis.com"]);
+const REMOTE_FONT_ASSET_HOSTS = new Set(["fonts.gstatic.com"]);
+const REMOTE_CSS_IMPORT_PATTERN =
+  /@import\s*(?:url\(\s*)?(?<quote>["']?)(?<url>https?:\/\/[^"')\s]+)\k<quote>\s*\)?\s*;/g;
+const REMOTE_CSS_URL_PATTERN =
+  /url\(\s*(?<quote>["']?)(?<url>https?:\/\/[^"')\s]+)\k<quote>\s*\)/g;
+const FONT_ASSET_EXTENSION_PATTERN =
+  /\.(woff2?|ttf|otf|eot)(?:[?#].*)?$/i;
+const CSS_EXTENSION_PATTERN = /\.css(?:[?#].*)?$/i;
+const FONT_FETCH_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 const sanitizePathSegment = (value: string): string =>
   value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
@@ -156,6 +179,295 @@ const collectDirectoryFiles = async (sourceDir: string): Promise<string[]> => {
   }
 
   return files;
+};
+
+const hashContent = (value: string): string =>
+  createHash("sha256").update(value).digest("hex").slice(0, 16);
+
+const ensurePosixRelativePath = (fromDir: string, toPath: string): string =>
+  path.relative(fromDir, toPath).replace(/\\/g, "/");
+
+const isRemoteFontStylesheetUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return (
+      REMOTE_FONT_STYLESHEET_HOSTS.has(url.hostname) ||
+      CSS_EXTENSION_PATTERN.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isRemoteFontAssetUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return (
+      REMOTE_FONT_ASSET_HOSTS.has(url.hostname) ||
+      FONT_ASSET_EXTENSION_PATTERN.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const inferFileExtensionFromContentType = (
+  contentType: string | null,
+): string | null => {
+  if (!contentType) {
+    return null;
+  }
+
+  const normalized = contentType.toLowerCase();
+  if (normalized.includes("text/css")) {
+    return ".css";
+  }
+  if (normalized.includes("font/woff2")) {
+    return ".woff2";
+  }
+  if (normalized.includes("font/woff")) {
+    return ".woff";
+  }
+  if (normalized.includes("font/ttf")) {
+    return ".ttf";
+  }
+  if (normalized.includes("font/otf")) {
+    return ".otf";
+  }
+  if (normalized.includes("application/vnd.ms-fontobject")) {
+    return ".eot";
+  }
+  if (normalized.includes("application/octet-stream")) {
+    return null;
+  }
+
+  return null;
+};
+
+const inferFileExtensionFromUrl = (value: string): string | null => {
+  try {
+    const { pathname } = new URL(value);
+    const matched = pathname.match(/\.(woff2?|ttf|otf|eot|css)$/i);
+    return matched ? matched[0]!.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchRemoteAsset = async (value: string) => {
+  const response = await fetch(value, {
+    headers: {
+      "user-agent": FONT_FETCH_USER_AGENT,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch remote font asset ${value} (${response.status}).`,
+    );
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return {
+    buffer,
+    contentType: response.headers.get("content-type"),
+  };
+};
+
+type VendoredFontState = {
+  cssByUrl: Map<string, string>;
+  assetByUrl: Map<string, string>;
+};
+
+const rewriteCssAsync = async ({
+  css,
+  replacePattern,
+  replacer,
+}: {
+  css: string;
+  replacePattern: RegExp;
+  replacer: (match: RegExpExecArray) => Promise<string>;
+}): Promise<string> => {
+  const pieces: string[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const pattern = new RegExp(replacePattern.source, replacePattern.flags);
+
+  while ((match = pattern.exec(css)) !== null) {
+    const matchedText = match[0];
+    const index = match.index;
+    pieces.push(css.slice(lastIndex, index));
+    pieces.push(await replacer(match));
+    lastIndex = index + matchedText.length;
+  }
+
+  pieces.push(css.slice(lastIndex));
+  return pieces.join("");
+};
+
+const vendorRemoteFontAsset = async ({
+  assetUrl,
+  bundleRoot,
+  state,
+}: {
+  assetUrl: string;
+  bundleRoot: string;
+  state: VendoredFontState;
+}): Promise<string> => {
+  const cached = state.assetByUrl.get(assetUrl);
+  if (cached) {
+    return cached;
+  }
+
+  const { buffer, contentType } = await fetchRemoteAsset(assetUrl);
+  const extension =
+    inferFileExtensionFromContentType(contentType) ||
+    inferFileExtensionFromUrl(assetUrl) ||
+    ".bin";
+  const fileName = `${hashContent(assetUrl)}${extension}`;
+  const relativePath = path.posix.join(VENDORED_FONT_ASSET_DIR, fileName);
+  const absolutePath = path.join(bundleRoot, relativePath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, buffer);
+  state.assetByUrl.set(assetUrl, relativePath);
+  return relativePath;
+};
+
+const vendorRemoteFontStylesheet = async ({
+  stylesheetUrl,
+  bundleRoot,
+  state,
+}: {
+  stylesheetUrl: string;
+  bundleRoot: string;
+  state: VendoredFontState;
+}): Promise<string> => {
+  const cached = state.cssByUrl.get(stylesheetUrl);
+  if (cached) {
+    return cached;
+  }
+
+  const { buffer, contentType } = await fetchRemoteAsset(stylesheetUrl);
+  if (contentType && !contentType.toLowerCase().includes("text/css")) {
+    throw new Error(
+      `Expected remote stylesheet ${stylesheetUrl} to return CSS but received ${contentType}.`,
+    );
+  }
+
+  const stylesheetText = buffer.toString("utf8");
+  const rewrittenCss = await rewriteCssAsync({
+    css: stylesheetText,
+    replacePattern: REMOTE_CSS_URL_PATTERN,
+    replacer: async (match) => {
+      const remoteUrl = match.groups?.url?.trim();
+      if (!remoteUrl) {
+        return match[0];
+      }
+
+      const absoluteUrl = new URL(remoteUrl, stylesheetUrl).toString();
+      const assetPath = await vendorRemoteFontAsset({
+        assetUrl: absoluteUrl,
+        bundleRoot,
+        state,
+      });
+      return `url("./${path.posix.basename(assetPath)}")`;
+    },
+  });
+
+  const relativePath = path.posix.join(
+    VENDORED_FONT_ASSET_DIR,
+    `${hashContent(stylesheetUrl)}.css`,
+  );
+  const absolutePath = path.join(bundleRoot, relativePath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, rewrittenCss, "utf8");
+  state.cssByUrl.set(stylesheetUrl, relativePath);
+  return relativePath;
+};
+
+const vendorCssFontDependencies = async ({
+  bundleRoot,
+}: {
+  bundleRoot: string;
+}): Promise<void> => {
+  const files = await collectDirectoryFiles(bundleRoot);
+  const cssFiles = files.filter((filePath) => filePath.endsWith(".css"));
+  const state: VendoredFontState = {
+    cssByUrl: new Map(),
+    assetByUrl: new Map(),
+  };
+
+  for (const cssFilePath of cssFiles) {
+    const originalCss = await readFile(cssFilePath, "utf8");
+    const cssDir = path.dirname(cssFilePath);
+
+    let rewrittenCss = await rewriteCssAsync({
+      css: originalCss,
+      replacePattern: REMOTE_CSS_IMPORT_PATTERN,
+      replacer: async (match) => {
+        const remoteUrl = match.groups?.url?.trim();
+        if (!remoteUrl || !isRemoteFontStylesheetUrl(remoteUrl)) {
+          return match[0];
+        }
+
+        const vendoredStylesheet = await vendorRemoteFontStylesheet({
+          stylesheetUrl: remoteUrl,
+          bundleRoot,
+          state,
+        });
+        const relativeImport = ensurePosixRelativePath(cssDir, path.join(bundleRoot, vendoredStylesheet));
+        return `@import url("${relativeImport}");`;
+      },
+    });
+
+    rewrittenCss = await rewriteCssAsync({
+      css: rewrittenCss,
+      replacePattern: REMOTE_CSS_URL_PATTERN,
+      replacer: async (match) => {
+        const remoteUrl = match.groups?.url?.trim();
+        if (!remoteUrl || !isRemoteFontAssetUrl(remoteUrl)) {
+          return match[0];
+        }
+
+        const vendoredAsset = await vendorRemoteFontAsset({
+          assetUrl: remoteUrl,
+          bundleRoot,
+          state,
+        });
+        const relativeAssetPath = ensurePosixRelativePath(
+          cssDir,
+          path.join(bundleRoot, vendoredAsset),
+        );
+        return `url("${relativeAssetPath}")`;
+      },
+    });
+
+    if (rewrittenCss !== originalCss) {
+      await writeFile(cssFilePath, rewrittenCss, "utf8");
+    }
+  }
+};
+
+const materializeBundleSourceTree = async ({
+  sourceDir,
+}: {
+  sourceDir: string;
+}): Promise<string> => {
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), "airjam-hosted-release-bundle-"),
+  );
+  const bundleRoot = path.join(tempRoot, "dist");
+  const files = await collectDirectoryFiles(sourceDir);
+
+  for (const sourcePath of files) {
+    const relativePath = path.relative(sourceDir, sourcePath);
+    const targetPath = path.join(bundleRoot, relativePath);
+    await mkdir(path.dirname(targetPath), { recursive: true });
+    await copyFile(sourcePath, targetPath);
+  }
+
+  await vendorCssFontDependencies({ bundleRoot });
+  return bundleRoot;
 };
 
 const isIgnoredArchiveEntry = (archivePath: string): boolean =>
@@ -763,38 +1075,46 @@ const writeHostedReleaseBundle = async ({
   sourceDir: string;
   outputFile: string;
 }): Promise<void> => {
-  const files = await collectDirectoryFiles(sourceDir);
-  const zipFile = new yazl.ZipFile();
-  await mkdir(path.dirname(outputFile), { recursive: true });
-  const output = createWriteStream(outputFile);
+  const bundleSourceDir = await materializeBundleSourceTree({ sourceDir });
 
-  const closePromise = new Promise<void>((resolve, reject) => {
-    output.on("close", resolve);
-    output.on("error", reject);
-    zipFile.outputStream.on("error", reject);
-  });
+  try {
+    const files = await collectDirectoryFiles(bundleSourceDir);
+    const zipFile = new yazl.ZipFile();
+    await mkdir(path.dirname(outputFile), { recursive: true });
+    const output = createWriteStream(outputFile);
 
-  zipFile.outputStream.pipe(output);
+    const closePromise = new Promise<void>((resolve, reject) => {
+      output.on("close", resolve);
+      output.on("error", reject);
+      zipFile.outputStream.on("error", reject);
+    });
 
-  for (const filePath of files) {
-    const relativePath = path.relative(sourceDir, filePath).replace(/\\/g, "/");
-    if (!relativePath || relativePath === HOSTED_RELEASE_MANIFEST_PATH) {
-      continue;
+    zipFile.outputStream.pipe(output);
+
+    for (const filePath of files) {
+      const relativePath = path
+        .relative(bundleSourceDir, filePath)
+        .replace(/\\/g, "/");
+      if (!relativePath || relativePath === HOSTED_RELEASE_MANIFEST_PATH) {
+        continue;
+      }
+
+      zipFile.addFile(filePath, relativePath);
     }
 
-    zipFile.addFile(filePath, relativePath);
+    zipFile.addBuffer(
+      Buffer.from(
+        `${JSON.stringify(createHostedReleaseArtifactManifest(), null, 2)}\n`,
+        "utf8",
+      ),
+      HOSTED_RELEASE_MANIFEST_PATH,
+    );
+    zipFile.end();
+
+    await closePromise;
+  } finally {
+    await rm(path.dirname(bundleSourceDir), { recursive: true, force: true });
   }
-
-  zipFile.addBuffer(
-    Buffer.from(
-      `${JSON.stringify(createHostedReleaseArtifactManifest(), null, 2)}\n`,
-      "utf8",
-    ),
-    HOSTED_RELEASE_MANIFEST_PATH,
-  );
-  zipFile.end();
-
-  await closePromise;
 };
 
 export const inspectLocalRelease = async ({

@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import * as yauzl from "yauzl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   bundleLocalRelease,
@@ -23,9 +24,11 @@ const createTempRoot = async (): Promise<string> => {
 const createReleaseFixture = async ({
   controllerPath = "/controller",
   metadata = true,
+  css = null,
 }: {
   controllerPath?: string;
   metadata?: boolean;
+  css?: string | null;
 } = {}) => {
   const root = await createTempRoot();
   await mkdir(path.join(root, "src"), { recursive: true });
@@ -68,8 +71,64 @@ const createReleaseFixture = async ({
     "utf8",
   );
 
+  if (css) {
+    await writeFile(path.join(root, "dist", "assets", "app.css"), css, "utf8");
+  }
+
   return root;
 };
+
+const readZipEntries = async (
+  archivePath: string,
+): Promise<Map<string, Buffer>> =>
+  new Promise((resolve, reject) => {
+    yauzl.open(archivePath, { lazyEntries: true }, (error, zipFile) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      if (!zipFile) {
+        reject(new Error("Missing zip file handle."));
+        return;
+      }
+
+      const entries = new Map<string, Buffer>();
+
+      zipFile.readEntry();
+      zipFile.on("entry", (entry) => {
+        if (/\/$/.test(entry.fileName)) {
+          zipFile.readEntry();
+          return;
+        }
+
+        zipFile.openReadStream(entry, (streamError, stream) => {
+          if (streamError) {
+            reject(streamError);
+            return;
+          }
+
+          if (!stream) {
+            reject(new Error(`Missing zip entry stream for ${entry.fileName}`));
+            return;
+          }
+
+          const chunks: Buffer[] = [];
+          stream.on("data", (chunk) => {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          });
+          stream.on("end", () => {
+            entries.set(entry.fileName, Buffer.concat(chunks));
+            zipFile.readEntry();
+          });
+          stream.on("error", reject);
+        });
+      });
+
+      zipFile.once("end", () => resolve(entries));
+      zipFile.once("error", reject);
+    });
+  });
 
 const createMonorepoFixture = async (): Promise<string> => {
   const root = await createTempRoot();
@@ -205,6 +264,67 @@ describe("local release tooling", () => {
         controller: "/controller",
       },
     });
+  });
+
+  it("vendors remote font stylesheets and font assets into the hosted release bundle", async () => {
+    const root = await createReleaseFixture({
+      css: '@import"https://fonts.googleapis.com/css2?family=Chewy&display=swap";\n.title { font-family: "Chewy", sans-serif; }\n',
+    });
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === "https://fonts.googleapis.com/css2?family=Chewy&display=swap") {
+        return new Response(
+          '@font-face{font-family:"Chewy";src:url(https://fonts.gstatic.com/s/chewy/v1/chewy.woff2) format("woff2");}\n',
+          {
+            status: 200,
+            headers: {
+              "content-type": "text/css; charset=utf-8",
+            },
+          },
+        );
+      }
+
+      if (url === "https://fonts.gstatic.com/s/chewy/v1/chewy.woff2") {
+        return new Response(Buffer.from("font-bytes"), {
+          status: 200,
+          headers: {
+            "content-type": "font/woff2",
+          },
+        });
+      }
+
+      throw new Error(`Unexpected fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const bundled = await bundleLocalRelease({
+      cwd: root,
+      skipBuild: true,
+    });
+    const entries = await readZipEntries(bundled.outputFile);
+    const cssEntry = entries.get("assets/app.css");
+
+    expect(cssEntry?.toString("utf8")).not.toContain("fonts.googleapis.com");
+    expect(cssEntry?.toString("utf8")).toMatch(
+      /@import url\("airjam-vendored\/fonts\/[a-f0-9]{16}\.css"\);/,
+    );
+
+    const vendoredCssEntry = [...entries.keys()].find((entry) =>
+      /^assets\/airjam-vendored\/fonts\/[a-f0-9]{16}\.css$/.test(entry),
+    );
+    const vendoredFontEntry = [...entries.keys()].find((entry) =>
+      /^assets\/airjam-vendored\/fonts\/[a-f0-9]{16}\.woff2$/.test(entry),
+    );
+
+    expect(vendoredCssEntry).toBeTruthy();
+    expect(vendoredFontEntry).toBeTruthy();
+    expect(entries.get(vendoredFontEntry!)?.toString("utf8")).toBe(
+      "font-bytes",
+    );
+    expect(entries.get(vendoredCssEntry!)?.toString("utf8")).not.toContain(
+      "fonts.gstatic.com",
+    );
   });
 
   it("lists owned hosted release targets through the agent API", async () => {
