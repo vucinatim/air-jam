@@ -41,3 +41,7 @@ apps/platform/.next-smoke/
 # TypeScript incremental build artifacts
 *.tsbuildinfo
 .vercel
+
+# Private blog drafts not published on the platform (e.g. dev.to cross-posts)
+content/blog/every-phone-a-game-controller/
+

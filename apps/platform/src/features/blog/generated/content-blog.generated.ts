@@ -5,6 +5,10 @@ import {
   airJamOneBlogPost,
   metadata as airJamOneMetadata,
 } from "@content/blog/airjam-1-0/post.meta";
+import {
+  storyOfBuildingAirJamBlogPost,
+  metadata as storyOfBuildingAirJamMetadata,
+} from "@content/blog/story-of-building-airjam/post.meta";
 
 import { createBlogPostMetadata, hydrateBlogPost } from "../metadata";
 import type { BlogSource } from "../source";
@@ -17,6 +21,21 @@ const generatedContentBlogDocuments = [
     ),
     sourcePath: "content/blog/airjam-1-0/post.mdx",
     loadComponent: () => import("@content/blog/airjam-1-0/post.mdx"),
+  },
+  {
+    post: hydrateBlogPost(
+      storyOfBuildingAirJamBlogPost,
+      "story-of-building-airjam",
+    ),
+    metadata: createBlogPostMetadata(
+      hydrateBlogPost(
+        storyOfBuildingAirJamMetadata,
+        "story-of-building-airjam",
+      ),
+    ),
+    sourcePath: "content/blog/story-of-building-airjam/post.mdx",
+    loadComponent: () =>
+      import("@content/blog/story-of-building-airjam/post.mdx"),
   },
 ];
 
