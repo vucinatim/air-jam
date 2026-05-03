@@ -13,7 +13,7 @@
     "createAirjamVersion": null
   },
   "update": {
-    "manifestUrl": "https://air-jam.app/ai-pack/manifest.json",
-    "docsBaseUrl": "https://air-jam.app/docs"
+    "manifestUrl": "https://airjam.io/ai-pack/manifest.json",
+    "docsBaseUrl": "https://airjam.io/docs"
   }
 }

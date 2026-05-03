@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/for-agents/state-and-rendering/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/for-agents/state-and-rendering -->
+<!-- Canonical public doc: https://airjam.io/docs/for-agents/state-and-rendering -->
 
 # State and Rendering
 

@@ -92,7 +92,7 @@ const sha256ForFile = async (filePath) => {
 
 export async function generatePlatformAiPackArtifacts({
   targetRoot = platformPublicAiPackRoot,
-  siteUrl = "https://air-jam.app",
+  siteUrl = "https://airjam.io",
 } = {}) {
   const baseManifest = await readJson(baseAiPackManifestPath);
   const createAirJamPackage = await readJson(createAirJamPackageJsonPath);

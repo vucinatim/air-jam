@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/how-it-works/host-system/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/how-it-works/host-system -->
+<!-- Canonical public doc: https://airjam.io/docs/how-it-works/host-system -->
 
 # Host System
 

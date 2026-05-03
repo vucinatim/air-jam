@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/getting-started/debugging/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/getting-started/debugging -->
+<!-- Canonical public doc: https://airjam.io/docs/getting-started/debugging -->
 
 # Debugging and Logs
 

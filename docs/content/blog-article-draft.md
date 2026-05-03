@@ -190,16 +190,16 @@ npx create-airjam my-game
 
 This scaffolds a working Pong game with a local development server, the SDK, and documentation -- including instructions optimized for AI coding assistants. Run `pnpm run dev`, scan the QR code with your phone, and you're playing in under a minute.
 
-**Deploy anywhere.** The free public server at `api.air-jam.app` means you can host your game on Vercel, Netlify, or anywhere that serves a static site. Sign up at [air-jam.app](https://air-jam.app), register your game in the dashboard, and you get an app ID automatically.
+**Deploy anywhere.** The free public server at `api.airjam.io` means you can host your game on Vercel, Netlify, or anywhere that serves a static site. Sign up at [airjam.io](https://airjam.io), register your game in the dashboard, and you get an app ID automatically.
 
-**Play the game jam games.** All three games from our jam -- Code Review, Last Band Standing, and The Office -- are available in the [Air Jam Arcade](https://air-jam.app/arcade). One room, one QR code, all the games.
+**Play the game jam games.** All three games from our jam -- Code Review, Last Band Standing, and The Office -- are available in the [Air Jam Arcade](https://airjam.io/arcade). One room, one QR code, all the games.
 
 **Links:**
 
 - [GitHub](https://github.com/vucinatim/airjam) -- source code, issues, discussions
-- [Documentation](https://air-jam.app/docs) -- guides, architecture, SDK reference
-- [Platform](https://air-jam.app) -- sign up, register games, get app IDs
-- [Arcade](https://air-jam.app/arcade) -- play published games
+- [Documentation](https://airjam.io/docs) -- guides, architecture, SDK reference
+- [Platform](https://airjam.io) -- sign up, register games, get app IDs
+- [Arcade](https://airjam.io/arcade) -- play published games
 - npm: [`@air-jam/sdk`](https://www.npmjs.com/package/@air-jam/sdk) / [`@air-jam/server`](https://www.npmjs.com/package/@air-jam/server) / [`create-airjam`](https://www.npmjs.com/package/create-airjam)
 
 If you build something with it, I'd genuinely love to see it. And if you run your own game jam -- send me the screenshots.

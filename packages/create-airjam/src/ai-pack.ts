@@ -70,7 +70,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DEFAULT_AI_PACK_ROOT_MANIFEST_URL =
-  "https://air-jam.app/ai-pack/manifest.json";
+  "https://airjam.io/ai-pack/manifest.json";
 const PACKAGED_AI_PACK_ROOT = path.resolve(
   __dirname,
   "..",

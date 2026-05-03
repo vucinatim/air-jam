@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/getting-started/quick-start/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/getting-started/quick-start -->
+<!-- Canonical public doc: https://airjam.io/docs/getting-started/quick-start -->
 
 # Quick Start
 
@@ -137,7 +137,7 @@ When you're ready to share your game, first connect it to the official Air Jam c
 
     ```bash
     VITE_AIR_JAM_APP_ID=your_app_id_here
-    VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
+    VITE_AIR_JAM_SERVER_URL=https://api.airjam.io
     ```
 
 The SDK handles production bootstrap automatically from that `appId`. You do not need to mint tokens or add auth code in your game.

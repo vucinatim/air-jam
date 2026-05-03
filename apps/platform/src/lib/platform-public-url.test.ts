@@ -10,7 +10,7 @@ describe("resolvePlatformPublicUrl", () => {
       resolvePlatformPublicUrl({
         NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "http://127.0.0.1:3400",
         NEXT_PUBLIC_APP_URL: "http://localhost:3000",
-        VERCEL_URL: "air-jam.app",
+        VERCEL_URL: "airjam.io",
       }),
     ).toBe("http://127.0.0.1:3400");
   });
@@ -19,7 +19,7 @@ describe("resolvePlatformPublicUrl", () => {
     expect(
       resolvePlatformPublicUrl({
         NEXT_PUBLIC_APP_URL: "https://air-jam.example",
-        VERCEL_URL: "preview.air-jam.app",
+        VERCEL_URL: "preview.airjam.io",
       }),
     ).toBe("https://air-jam.example");
   });
@@ -27,9 +27,9 @@ describe("resolvePlatformPublicUrl", () => {
   it("normalizes bare VERCEL_URL values to https origins", () => {
     expect(
       resolvePlatformPublicUrl({
-        VERCEL_URL: "preview.air-jam.app",
+        VERCEL_URL: "preview.airjam.io",
       }),
-    ).toBe("https://preview.air-jam.app");
+    ).toBe("https://preview.airjam.io");
   });
 
   it("falls back to localhost when nothing is configured", () => {

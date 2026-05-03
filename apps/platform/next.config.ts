@@ -107,7 +107,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@air-jam/sdk"],
   env: {
     // Expose VERCEL_URL to the client as NEXT_PUBLIC_APP_URL so we can auto-detect the domain
-    // VERCEL_URL is automatically set by Vercel (includes custom domains like air-jam.app)
+    // VERCEL_URL is automatically set by Vercel (includes custom domains like airjam.io)
     NEXT_PUBLIC_APP_URL: resolvedAppUrl,
     NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY:
       resolvePlatformShellTopologyEnv("platform-host"),

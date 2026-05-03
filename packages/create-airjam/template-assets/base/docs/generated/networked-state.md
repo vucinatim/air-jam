@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/sdk/networked-state/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/sdk/networked-state -->
+<!-- Canonical public doc: https://airjam.io/docs/sdk/networked-state -->
 
 # Networked State
 

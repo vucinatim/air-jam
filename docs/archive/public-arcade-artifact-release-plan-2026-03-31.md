@@ -1173,7 +1173,7 @@ V1 decision:
 
 V1 shape:
 
-1. `https://releases.air-jam.app/g/{gameId}/r/{releaseId}/...`
+1. `https://airjam.io/releases/g/{gameId}/r/{releaseId}/...`
 
 Notes:
 

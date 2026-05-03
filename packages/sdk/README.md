@@ -102,7 +102,7 @@ There are two canonical production modes:
 Static `appId` mode is the default. Set:
 
 ```bash
-VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
+VITE_AIR_JAM_SERVER_URL=https://api.airjam.io
 VITE_AIR_JAM_APP_ID=aj_app_your_app_id
 ```
 
@@ -653,5 +653,5 @@ Optional future-facing game capability metadata should also live here, but the s
 
 ## Full Docs
 
-- Platform docs: https://air-jam.app/docs
+- Platform docs: https://airjam.io/docs
 - Monorepo docs index: `docs/docs-index.md`

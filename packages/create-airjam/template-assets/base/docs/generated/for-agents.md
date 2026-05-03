@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/for-agents/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/for-agents -->
+<!-- Canonical public doc: https://airjam.io/docs/for-agents -->
 
 # For Agents
 
@@ -31,6 +31,6 @@ Hosts run in your game, inputs are routed through the Air Jam server, and your g
 ## Machine Discovery
 
 - [AI Pack Manifest](/ai-pack/manifest.json)
-- [LLMs Index](https://air-jam.app/llms.txt)
-- [Sitemap](https://air-jam.app/sitemap.xml)
-- [Robots](https://air-jam.app/robots.txt)
+- [LLMs Index](https://airjam.io/llms.txt)
+- [Sitemap](https://airjam.io/sitemap.xml)
+- [Robots](https://airjam.io/robots.txt)

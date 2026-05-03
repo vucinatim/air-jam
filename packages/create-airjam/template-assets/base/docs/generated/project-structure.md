@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/for-agents/project-structure/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/for-agents/project-structure -->
+<!-- Canonical public doc: https://airjam.io/docs/for-agents/project-structure -->
 
 # Project Structure
 

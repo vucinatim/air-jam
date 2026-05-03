@@ -60,8 +60,6 @@ Current public origins:
 
 1. `https://airjam.io`
 2. `https://www.airjam.io`
-3. `https://www.air-jam.app`
-4. `https://air-jam.app`
 
 Important env ownership:
 
@@ -95,7 +93,7 @@ Should not own:
 
 Current public origin:
 
-1. `https://api.air-jam.app`
+1. `https://api.airjam.io`
 
 Recommended build contract:
 

@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/sdk/input-system/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/sdk/input-system -->
+<!-- Canonical public doc: https://airjam.io/docs/sdk/input-system -->
 
 # Input System
 

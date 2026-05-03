@@ -264,18 +264,18 @@ games are the ones you play with people in the room.
 
 ## Resolved Links & References
 
-- **Platform:** https://air-jam.app
-- **Docs:** https://air-jam.app/docs
-- **Arcade:** https://air-jam.app/arcade (all published games playable here)
+- **Platform:** https://airjam.io
+- **Docs:** https://airjam.io/docs
+- **Arcade:** https://airjam.io/arcade (all published games playable here)
 - **GitHub:** https://github.com/vucinatim/airjam
-- **Server:** wss://api.air-jam.app (free public server)
+- **Server:** wss://api.airjam.io (free public server)
 - **npm packages:**
   - `@air-jam/sdk` -- https://www.npmjs.com/package/@air-jam/sdk
   - `@air-jam/server` -- https://www.npmjs.com/package/@air-jam/server
   - `create-airjam` -- https://www.npmjs.com/package/create-airjam
 - **Scaffold command:** `npx create-airjam my-game`
-- **App IDs:** Sign up at air-jam.app, create a game in dashboard, app ID auto-generated
-- **Game jam games:** Will all be published and playable at air-jam.app/arcade
+- **App IDs:** Sign up at airjam.io, create a game in dashboard, app ID auto-generated
+- **Game jam games:** Will all be published and playable at airjam.io/arcade
 
 ## Remaining Questions
 

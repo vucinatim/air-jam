@@ -8,18 +8,18 @@ describe("resolveAuthBaseUrl", () => {
   it("prefers BETTER_AUTH_URL when configured", () => {
     expect(
       resolveAuthBaseUrl({
-        BETTER_AUTH_URL: "https://www.air-jam.app",
-        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://air-jam.app",
+        BETTER_AUTH_URL: "https://airjam.io",
+        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://airjam.io",
       }),
-    ).toBe("https://www.air-jam.app");
+    ).toBe("https://airjam.io");
   });
 
   it("falls back to the platform public URL", () => {
     expect(
       resolveAuthBaseUrl({
-        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://www.air-jam.app",
+        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://airjam.io",
       }),
-    ).toBe("https://www.air-jam.app");
+    ).toBe("https://airjam.io");
   });
 });
 
@@ -27,15 +27,15 @@ describe("resolveAuthTrustedOrigins", () => {
   it("collects the base url, public host, and explicit trusted origins", () => {
     expect(
       resolveAuthTrustedOrigins({
-        BETTER_AUTH_URL: "https://www.air-jam.app",
-        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://air-jam.app",
+        BETTER_AUTH_URL: "https://airjam.io",
+        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://airjam.io",
         BETTER_AUTH_TRUSTED_ORIGINS:
-          "https://preview.air-jam.app, https://www.air-jam.app",
+          "https://preview.airjam.io, https://airjam.io",
       }),
     ).toEqual([
-      "https://www.air-jam.app",
-      "https://air-jam.app",
-      "https://preview.air-jam.app",
+      "https://airjam.io",
+      "https://airjam.io",
+      "https://preview.airjam.io",
     ]);
   });
 

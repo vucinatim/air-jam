@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/getting-started/introduction/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/getting-started/introduction -->
+<!-- Canonical public doc: https://airjam.io/docs/getting-started/introduction -->
 
 # Introduction
 

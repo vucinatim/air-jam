@@ -100,7 +100,7 @@ const localDocPathBySlug = new Map(
   exportedDocs.map((entry) => [entry.slug, entry.output]),
 );
 
-const hostedDocUrl = (slug) => `https://air-jam.app/docs/${slug}`;
+const hostedDocUrl = (slug) => `https://airjam.io/docs/${slug}`;
 
 const transformMdxToLocalMarkdown = (value) => {
   const lines = value.split(/\r?\n/);
@@ -169,7 +169,7 @@ const rewriteDocLinks = (value, currentOutputFile) =>
     .replace(
       /\]\((\/(llms\.txt|sitemap\.xml|robots\.txt))\)/g,
       (_match, href) => {
-        return `](https://air-jam.app${href})`;
+        return `](https://airjam.io${href})`;
       },
     );
 

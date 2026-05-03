@@ -40,3 +40,4 @@ apps/platform/.next-smoke/
 
 # TypeScript incremental build artifacts
 *.tsbuildinfo
+.vercel

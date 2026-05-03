@@ -109,7 +109,7 @@ Latest progress inside this focus:
 33. the visual-harness isolation pass is complete and archived: generated projects no longer ship visual harness files/config/docs, first-party games no longer publish visual harness contracts by default, the public SDK/devtools story no longer advertises visual harness as a normal path, and the remaining harness code is now intentionally internal experimental infrastructure instead of a public authoring lane
 34. production hosted release publishing now has a dedicated browser-worker lane: Vercel owns the platform app, Railway owns the realtime server and the release browser worker, and release screenshot capture plus OpenAI image moderation both pass on live production publish
 35. the hosted platform game record is now a first-class machine contract: `/api/cli/games` supports list/create, `/api/cli/games/[slugOrId]` supports inspect/update, `@air-jam/devtools-core` exposes typed hosted-game helpers plus local metadata defaults, and `create-airjam` now ships `airjam game list|inspect|create|update` so release publishing no longer depends on the dashboard just to register a target game
-36. the public hosted catalog is now fully live on production: all six first-party games have hosted records, live releases, Arcade visibility, source links, and template copy commands, and the old `air-jam.app` host is now being collapsed onto `airjam.io` as the canonical public domain
+36. the public hosted catalog is now fully live on production: all six first-party games have hosted records, live releases, Arcade visibility, source links, and template copy commands, and the legacy app host is now being collapsed onto `airjam.io` as the canonical public domain
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 
@@ -391,4 +391,4 @@ Remaining:
 
 - tightened Better Auth base URL and trusted-origin resolution so auth no longer depends on a single implicit prod origin
 - switched GitHub social sign-in to use the normalized internal post-auth path rather than an absolute callback URL
-- follows from the production `INVALID_CALLBACKURL` failure on `www.air-jam.app`
+- follows from the production callback-origin failure during the public-domain cutover

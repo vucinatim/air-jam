@@ -124,7 +124,7 @@ Email becomes necessary only if we add:
 If and when email is needed:
 
 1. use Resend first for simplicity
-2. use the `air-jam.app` domain with proper SPF/DKIM
+2. use the `airjam.io` domain with proper SPF/DKIM
 3. defer SES or lower-level mail infrastructure unless email volume or control actually demands it
 
 ## UI Decision

@@ -48,7 +48,7 @@ export const LandingHero = () => {
   return (
     <>
       <Navbar />
-      <section className="relative flex min-h-[min(100dvh,900px)] items-center justify-center overflow-hidden pt-16">
+      <section className="relative flex min-h-dvh items-center justify-center overflow-hidden pt-16">
         <HeroScene />
 
         <div className="relative z-10 mb-16 flex max-w-4xl flex-col items-center gap-6 px-4 pb-16 text-center sm:mb-24 sm:pb-42">

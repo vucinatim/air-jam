@@ -42,13 +42,13 @@ For broader public framework docs, use the hosted docs site after checking these
 
 ## Hosted Canonical Docs
 
-1. [Introduction](https://air-jam.app/docs/getting-started/introduction)
-2. [Quick Start](https://air-jam.app/docs/getting-started/quick-start)
-3. [Architecture](https://air-jam.app/docs/how-it-works/architecture)
-4. [Host System](https://air-jam.app/docs/how-it-works/host-system)
-5. [SDK Hooks](https://air-jam.app/docs/sdk/hooks)
-6. [Input System](https://air-jam.app/docs/sdk/input-system)
-7. [Networked State](https://air-jam.app/docs/sdk/networked-state)
+1. [Introduction](https://airjam.io/docs/getting-started/introduction)
+2. [Quick Start](https://airjam.io/docs/getting-started/quick-start)
+3. [Architecture](https://airjam.io/docs/how-it-works/architecture)
+4. [Host System](https://airjam.io/docs/how-it-works/host-system)
+5. [SDK Hooks](https://airjam.io/docs/sdk/hooks)
+6. [Input System](https://airjam.io/docs/sdk/input-system)
+7. [Networked State](https://airjam.io/docs/sdk/networked-state)
 
 ## Usage Rule
 

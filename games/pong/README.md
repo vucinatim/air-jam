@@ -85,10 +85,10 @@ Important:
 
 If you prefer to use the official Air Jam server instead of running locally:
 
-1. Get your app ID from the [Air Jam Platform](https://air-jam.app)
+1. Get your app ID from the [Air Jam Platform](https://airjam.io)
 2. Set in `.env.local`:
    ```bash
-   VITE_AIR_JAM_SERVER_URL=https://api.air-jam.app
+   VITE_AIR_JAM_SERVER_URL=https://api.airjam.io
    VITE_AIR_JAM_APP_ID=your-app-id-here
    ```
 3. Start web-only mode:
@@ -422,8 +422,8 @@ The built files will be in the `dist/` directory.
 
 ## Learn More
 
-- [Air Jam Documentation](https://air-jam.app/docs)
-- [Platform](https://air-jam.app)
+- [Air Jam Documentation](https://airjam.io/docs)
+- [Platform](https://airjam.io)
 - [Examples](https://github.com/vucinatim/airjam/tree/main/apps)
 
 ## License

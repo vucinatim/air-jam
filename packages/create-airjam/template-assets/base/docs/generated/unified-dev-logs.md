@@ -1,5 +1,5 @@
 <!-- Generated from content/docs/getting-started/dev-logs/page.mdx. Do not edit directly. -->
-<!-- Canonical public doc: https://air-jam.app/docs/getting-started/dev-logs -->
+<!-- Canonical public doc: https://airjam.io/docs/getting-started/dev-logs -->
 
 # Unified Dev Logs
 

@@ -82,8 +82,8 @@ Claude Code scaffolds the game, opens preview, uses the controllers, and gets to
       },
       {
         icon: "bot",
-        title: "LLM-friendly by design",
-        body: "Schema-driven APIs and typed contracts mean AI tools can read, generate, and modify your game code reliably.",
+        title: "First-class agent support",
+        body: "Typed agent contracts let coding agents read state and play your game to verify it works.",
       },
     ],
   },
@@ -171,6 +171,6 @@ const inputSchema = z.object({
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
-  game: { controllerPath: "/controller" },
+  controllerPath: "/controller",
   input: { schema: inputSchema },
 });`;

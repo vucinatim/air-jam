@@ -1174,7 +1174,7 @@ const generatedContentDocsDocuments = [
         slug: "playerprofile",
         depth: 3,
         excerpt:
-          "interface PlayerProfile { id: string; label: string; color: string; nickname?: string;",
+          "interface PlayerProfile { id: string; label: string; color?: string; avatarId?: string;",
       },
       {
         title: "ConnectionStatus",
@@ -1201,7 +1201,7 @@ const generatedContentDocsDocuments = [
         slug: "toastsignalpayload",
         depth: 3,
         excerpt:
-          'interface ToastSignalPayload { title: string; message?: string; variant?: "default" | "success" | "destructive";',
+          "interface ToastSignalPayload { message: string; color?: string; duration?: number;",
       },
     ],
     loadComponent: () => import("@content/docs/sdk/hooks/page.mdx"),
