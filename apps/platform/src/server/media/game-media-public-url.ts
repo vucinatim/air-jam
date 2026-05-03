@@ -1,5 +1,6 @@
 import type { GameMediaKind } from "@/lib/games/game-media-contract";
 import { buildGameMediaUrl } from "@/lib/games/game-media-url";
+import { resolvePlatformPublicUrl } from "@/lib/platform-public-url";
 
 export const buildManagedGameMediaUrl = ({
   gameId,
@@ -14,8 +15,11 @@ export const buildManagedGameMediaUrl = ({
     return null;
   }
 
-  return buildGameMediaUrl({
-    gameId,
-    kind,
-  });
+  return new URL(
+    buildGameMediaUrl({
+      gameId,
+      kind,
+    }),
+    resolvePlatformPublicUrl(),
+  ).toString();
 };
