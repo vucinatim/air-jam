@@ -148,6 +148,83 @@ export type PlatformMachineOwnedGameSummary = z.infer<
   typeof platformMachineOwnedGameSummarySchema
 >;
 
+export const platformMachineGameMediaKindSchema = z.enum([
+  "thumbnail",
+  "cover",
+  "preview_video",
+]);
+
+export type PlatformMachineGameMediaKind = z.infer<
+  typeof platformMachineGameMediaKindSchema
+>;
+
+export const platformMachineGameMediaStatusSchema = z.enum([
+  "draft",
+  "uploading",
+  "ready",
+  "failed",
+  "archived",
+]);
+
+export type PlatformMachineGameMediaStatus = z.infer<
+  typeof platformMachineGameMediaStatusSchema
+>;
+
+export const platformMachineOwnedGameMediaActiveSchema = z.object({
+  thumbnailMediaAssetId: z.string().min(1).nullable(),
+  coverMediaAssetId: z.string().min(1).nullable(),
+  previewVideoMediaAssetId: z.string().min(1).nullable(),
+});
+
+export type PlatformMachineOwnedGameMediaActive = z.infer<
+  typeof platformMachineOwnedGameMediaActiveSchema
+>;
+
+export const platformMachineOwnedGameMediaAssetSchema = z.object({
+  id: z.string().min(1),
+  gameId: z.string().min(1),
+  kind: platformMachineGameMediaKindSchema,
+  status: platformMachineGameMediaStatusSchema,
+  originalFilename: z.string().min(1),
+  mimeType: z.string().min(1),
+  sizeBytes: z.number().int().nonnegative(),
+  checksum: z.string().min(1).nullable(),
+  width: z.number().int().nullable(),
+  height: z.number().int().nullable(),
+  durationSeconds: z.number().int().nullable(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+  activeAssetId: z.string().min(1).nullable(),
+  isActive: z.boolean(),
+  publicUrl: z.string().url().nullable(),
+});
+
+export type PlatformMachineOwnedGameMediaAsset = z.infer<
+  typeof platformMachineOwnedGameMediaAssetSchema
+>;
+
+export const platformMachineGetOwnedGameMediaResultSchema = z.object({
+  game: platformMachineOwnedGameSummarySchema,
+  active: platformMachineOwnedGameMediaActiveSchema,
+  assets: z.array(platformMachineOwnedGameMediaAssetSchema),
+});
+
+export type PlatformMachineGetOwnedGameMediaResult = z.infer<
+  typeof platformMachineGetOwnedGameMediaResultSchema
+>;
+
+export const platformMachineRequestOwnedGameMediaUploadTargetInputSchema =
+  z.object({
+    kind: platformMachineGameMediaKindSchema,
+    originalFilename: z.string().trim().min(1).max(255),
+    contentType: z.string().trim().min(1).max(120),
+    sizeBytes: z.number().int().positive(),
+  });
+
+export type PlatformMachineRequestOwnedGameMediaUploadTargetInput = z.infer<
+  typeof platformMachineRequestOwnedGameMediaUploadTargetInputSchema
+>;
+
 export const platformMachineReleaseArtifactSchema = z.object({
   id: z.string().min(1),
   releaseId: z.string().min(1),
@@ -358,6 +435,27 @@ export const platformMachineRequestReleaseUploadTargetResultSchema = z.object({
 
 export type PlatformMachineRequestReleaseUploadTargetResult = z.infer<
   typeof platformMachineRequestReleaseUploadTargetResultSchema
+>;
+
+export const platformMachineRequestOwnedGameMediaUploadTargetResultSchema =
+  z.object({
+    game: platformMachineOwnedGameSummarySchema,
+    asset: platformMachineOwnedGameMediaAssetSchema,
+    upload: platformMachineReleaseUploadTargetSchema,
+  });
+
+export type PlatformMachineRequestOwnedGameMediaUploadTargetResult = z.infer<
+  typeof platformMachineRequestOwnedGameMediaUploadTargetResultSchema
+>;
+
+export const platformMachineMutateOwnedGameMediaAssetResultSchema = z.object({
+  game: platformMachineOwnedGameSummarySchema,
+  active: platformMachineOwnedGameMediaActiveSchema,
+  asset: platformMachineOwnedGameMediaAssetSchema,
+});
+
+export type PlatformMachineMutateOwnedGameMediaAssetResult = z.infer<
+  typeof platformMachineMutateOwnedGameMediaAssetResultSchema
 >;
 
 export const platformMachineFinalizeReleaseUploadResultSchema = z.object({

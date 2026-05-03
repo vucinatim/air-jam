@@ -6,6 +6,7 @@ export * from "./game-session.js";
 export * from "./games.js";
 export * from "./logs.js";
 export * from "./platform-auth.js";
+export * from "./platform-game-media.js";
 export * from "./platform-games.js";
 export * from "./quality.js";
 export * from "./release.js";

@@ -96,6 +96,28 @@ test("create-airjam exposes game update help", () => {
   assert.match(output, /--clear-preview-url/);
 });
 
+test("create-airjam exposes game media inspect help", () => {
+  const output = runCliHelp("game", "media", "inspect");
+
+  assert.match(output, /Usage: airjam game media inspect/);
+  assert.match(output, /--game <slug-or-id>/);
+});
+
+test("create-airjam exposes game media upload help", () => {
+  const output = runCliHelp("game", "media", "upload");
+
+  assert.match(output, /Usage: airjam game media upload/);
+  assert.match(output, /--thumbnail <path>/);
+  assert.match(output, /--preview-video <path>/);
+});
+
+test("create-airjam exposes game media clear help", () => {
+  const output = runCliHelp("game", "media", "clear");
+
+  assert.match(output, /Usage: airjam game media clear/);
+  assert.match(output, /--kind <kind>/);
+});
+
 test("create-airjam keeps release bundle help", () => {
   const output = runCliHelp("release", "bundle");
 

@@ -149,6 +149,7 @@ export async function GET(
       content: body.toString("utf8"),
       gameId,
       releaseId,
+      contentType,
     });
 
     return new Response(rewritten, {

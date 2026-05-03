@@ -6,7 +6,11 @@ import type {
   PlatformMachineCreateOwnedGameInput,
   PlatformMachineCreateOwnedGameResult,
   PlatformMachineGetOwnedGameResult,
+  PlatformMachineGetOwnedGameMediaResult,
   PlatformMachineGetReleaseResult,
+  PlatformMachineMutateOwnedGameMediaAssetResult,
+  PlatformMachineRequestOwnedGameMediaUploadTargetInput,
+  PlatformMachineRequestOwnedGameMediaUploadTargetResult,
   PlatformMachineListOwnedGamesResult,
   PlatformMachineListReleasesResult,
   PlatformMachinePublishReleaseResult,
@@ -225,6 +229,34 @@ export type UpdatePlatformGameOptions = {
   input: PlatformMachineUpdateOwnedGameInput;
 };
 
+export type InspectPlatformGameMediaOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+};
+
+export type RequestPlatformGameMediaUploadTargetOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+  input: PlatformMachineRequestOwnedGameMediaUploadTargetInput;
+};
+
+export type MutatePlatformGameMediaAssetOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+  assetId: string;
+};
+
+export type UploadPlatformGameMediaFileOptions = {
+  platformUrl?: string;
+  token?: string;
+  slugOrId: string;
+  kind: "thumbnail" | "cover" | "preview_video";
+  filePath: string;
+};
+
 export type ListPlatformReleasesOptions = {
   platformUrl?: string;
   token?: string;
@@ -257,6 +289,15 @@ export type SubmitPlatformReleaseOptions = {
 
 export type ListPlatformReleaseTargetsResult =
   PlatformMachineListOwnedGamesResult;
+
+export type InspectPlatformGameMediaResult =
+  PlatformMachineGetOwnedGameMediaResult;
+
+export type RequestPlatformGameMediaUploadTargetResult =
+  PlatformMachineRequestOwnedGameMediaUploadTargetResult;
+
+export type MutatePlatformGameMediaAssetResult =
+  PlatformMachineMutateOwnedGameMediaAssetResult;
 
 export type ListPlatformReleasesResult = PlatformMachineListReleasesResult;
 

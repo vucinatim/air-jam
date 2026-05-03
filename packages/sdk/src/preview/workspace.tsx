@@ -458,67 +458,53 @@ export const PreviewControllerWorkspace = ({
             style={{ pointerEvents: "auto" }}
           >
             <div className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold tracking-[0.18em] text-white/54 uppercase">
-                      Controller dock
-                    </p>
-                    <p className="mt-2 text-sm text-white/86">
-                      {controllerRoster.length === 0
-                        ? "No controllers yet"
-                        : `${controllerRoster.length} controller${controllerRoster.length === 1 ? "" : "s"} visible`}
-                    </p>
-                  </div>
-                  {sessions.length > 0 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="h-7 w-7 shrink-0 rounded-full text-white/72 hover:bg-white/8 hover:text-white"
-                      onClick={() => clearPreviewControllers()}
-                      title="Close all preview controllers"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="h-px bg-white/10" />
-              </div>
-
               <div className="space-y-4">
                 {controllerRoster.length > 0 || onResetRoom ? (
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-[11px] font-semibold tracking-[0.18em] text-white/54 uppercase">
-                          Room controllers
+                          Controllers
                         </p>
                         <p className="mt-2 text-sm text-white/86">
                           {controllerRoster.length === 0
-                            ? "No controllers in this room"
-                            : `${controllerRoster.length} controller${controllerRoster.length === 1 ? "" : "s"}`}
+                            ? "No controllers yet"
+                            : `${controllerRoster.length} controller${controllerRoster.length === 1 ? "" : "s"} connected`}
                         </p>
                       </div>
-                      {onResetRoom ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 shrink-0 rounded-full px-3 text-[10px] text-amber-100 hover:bg-amber-400/10 hover:text-amber-50 disabled:text-white/35"
-                          disabled={resettingRoom}
-                          onClick={async () => {
-                            try {
-                              setResettingRoom(true);
-                              await onResetRoom();
-                            } finally {
-                              setResettingRoom(false);
-                            }
-                          }}
-                        >
-                          Reset room
-                        </Button>
-                      ) : null}
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {onResetRoom ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-[10px] text-amber-100 hover:bg-amber-400/10 hover:text-amber-50 disabled:text-white/35"
+                            disabled={resettingRoom}
+                            onClick={async () => {
+                              try {
+                                setResettingRoom(true);
+                                await onResetRoom();
+                              } finally {
+                                setResettingRoom(false);
+                              }
+                            }}
+                          >
+                            Reset room
+                          </Button>
+                        ) : null}
+                        {sessions.length > 0 ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-7 w-7 rounded-full text-white/72 hover:bg-white/8 hover:text-white"
+                            onClick={() => clearPreviewControllers()}
+                            title="Close all preview controllers"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       {controllerRoster.map((item) => {
@@ -563,20 +549,20 @@ export const PreviewControllerWorkspace = ({
                               <p className="mt-1 text-[10px] tracking-[0.14em] text-white/50 uppercase">
                                 {item.session?.minimized
                                   ? "Minimized"
-                                  : item.session?.active
-                                    ? "Focused"
-                                    : item.session
-                                      ? previewControllerWindowStateLabel[
+                                  : item.session
+                                    ? item.session.surfaceState === "ready"
+                                      ? "Visible"
+                                      : previewControllerWindowStateLabel[
                                           item.session.surfaceState
                                         ]
-                                      : item.connected
-                                        ? "Connected"
-                                        : "Disconnected"}
+                                    : item.connected
+                                      ? "Connected"
+                                      : "Disconnected"}
                                 {item.resumable ? " · resumable" : ""}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              {previewSession ? (
+                              {previewSession?.minimized ? (
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -586,18 +572,10 @@ export const PreviewControllerWorkspace = ({
                                     shellUtilityButtonClassName,
                                   )}
                                   onClick={() =>
-                                    previewSession.minimized
-                                      ? restorePreviewController(
-                                          previewSession.id,
-                                        )
-                                      : focusPreviewController(
-                                          previewSession.id,
-                                        )
+                                    restorePreviewController(previewSession.id)
                                   }
                                 >
-                                  {previewSession.minimized
-                                    ? "Restore"
-                                    : "Focus"}
+                                  Restore
                                 </Button>
                               ) : null}
                               {item.controller && onRemoveController ? (
