@@ -1,6 +1,6 @@
 {
   "name": "create-airjam",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "description": "CLI to scaffold Air Jam game projects",
   "type": "module",
   "license": "MIT",

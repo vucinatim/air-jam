@@ -45,6 +45,7 @@ Active architecture cleanup plans:
 3. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
 4. [Landing, Arcade, and Controller Polish Plan](./plans/landing-arcade-controller-polish-plan-2026-05-03.md)
 5. [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
+6. [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
 
 Planned future architecture tracks:
 

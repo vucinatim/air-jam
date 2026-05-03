@@ -32,11 +32,7 @@ describe("resolveAuthTrustedOrigins", () => {
         BETTER_AUTH_TRUSTED_ORIGINS:
           "https://preview.airjam.io, https://airjam.io",
       }),
-    ).toEqual([
-      "https://airjam.io",
-      "https://airjam.io",
-      "https://preview.airjam.io",
-    ]);
+    ).toEqual(["https://airjam.io", "https://preview.airjam.io"]);
   });
 
   it("includes the deployment url when explicit hosts are absent", () => {

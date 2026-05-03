@@ -17,7 +17,7 @@ This is the canonical path.
 
 It is:
 
-1. manual to trigger
+1. GitHub-native to trigger
 2. token-free for npm publishing
 3. validated by the full release gate before publish
 4. followed by package-specific git tags and GitHub releases
@@ -28,9 +28,14 @@ Local manual publishing is fallback-only.
 
 Trusted publishing must be configured separately on npm for:
 
-1. `@air-jam/sdk`
-2. `@air-jam/server`
-3. `create-airjam`
+1. `@air-jam/runtime-topology`
+2. `@air-jam/env`
+3. `@air-jam/sdk`
+4. `@air-jam/harness`
+5. `@air-jam/devtools-core`
+6. `@air-jam/mcp-server`
+7. `@air-jam/server`
+8. `create-airjam`
 
 ## One-Time Manual Setup On npm
 
@@ -88,14 +93,42 @@ pnpm check:release
 
 Publish from the exact commit you want tagged and released.
 
-### 4. Trigger GitHub Actions manually
+### 4. Trigger GitHub Actions
 
-Use the `Publish Packages` workflow and choose one of:
+There are two canonical entrypaths.
 
-1. `sdk`
-2. `server`
-3. `create-airjam`
-4. `all`
+#### Manual workflow dispatch
+
+Use the `Publish Packages` workflow directly, or trigger it through `gh`.
+
+Examples:
+
+```bash
+pnpm release:public
+```
+
+```bash
+gh workflow run publish-packages.yml -f package=all-public -f channel=latest
+```
+
+#### Automated tag-triggered release
+
+Create and push a canonical public release tag.
+
+Examples:
+
+```bash
+pnpm release:public:tag
+```
+
+```bash
+pnpm run repo -- release tag --channel next
+```
+
+Tag mapping:
+
+1. `release/public-v<version>` -> full public graph to `latest`
+2. `release/public-next-v<version>` -> full public graph to `next`
 
 ### 5. What the workflow does
 
@@ -106,7 +139,7 @@ The workflow:
 3. runs the strict server perf sanity gate inside that release check, including reconnect churn coverage
 4. validates the browser-level Arcade happy-path smoke inside that gate
 5. resolves the selected package set explicitly
-6. publishes only the selected package job(s) to npm via trusted publishing
+6. publishes the selected package set in dependency order to npm via trusted publishing
 7. creates matching package-specific git tag(s)
 8. creates matching package-specific GitHub release(s)
 
@@ -114,15 +147,20 @@ The workflow:
 
 Package tags are:
 
-1. `sdk-v<version>`
-2. `server-v<version>`
-3. `create-airjam-v<version>`
+1. `runtime-topology-v<version>`
+2. `env-v<version>`
+3. `sdk-v<version>`
+4. `harness-v<version>`
+5. `devtools-core-v<version>`
+6. `mcp-server-v<version>`
+7. `server-v<version>`
+8. `create-airjam-v<version>`
 
 Examples:
 
-1. `sdk-v1.2.0`
-2. `server-v1.2.0`
-3. `create-airjam-v1.2.0`
+1. `sdk-v0.9.0`
+2. `server-v0.9.0`
+3. `create-airjam-v0.9.0`
 
 ## Failure Notes
 

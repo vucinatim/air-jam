@@ -448,8 +448,8 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 interface PlayerProfile {
   id: string; // Unique controller ID
   label: string; // Display name (e.g., "Player 1")
-  color: string; // Assigned color (e.g., "#FF5733")
-  nickname?: string; // Optional player-provided nickname
+  color?: string; // Assigned color (e.g., "#FF5733")
+  avatarId?: string; // Preset avatar id chosen by the player
 }
 ```
 
@@ -483,8 +483,8 @@ interface HapticSignalPayload {
 
 ```typescript
 interface ToastSignalPayload {
-  title: string;
-  message?: string;
-  variant?: "default" | "success" | "destructive";
+  message: string;
+  color?: string; // Optional accent color (e.g., "#22c55e")
+  duration?: number; // Optional duration in ms
 }
 ```

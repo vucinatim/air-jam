@@ -95,9 +95,9 @@ describe("embedded host bridge runtime", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(client.connected).toBe(true);
+    await vi.waitFor(() => {
+      expect(client.connected).toBe(true);
+    });
     expect(connectSpy).toHaveBeenCalledTimes(1);
     expect(runtimeEvents.events).toEqual(
       expect.arrayContaining([
@@ -121,19 +121,19 @@ describe("embedded host bridge runtime", () => {
       command: "pause",
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(parentMessages).toContainEqual({
-      type: "AIRJAM_HOST_BRIDGE_EMIT",
-      payload: {
-        event: "host:system",
-        args: [
-          {
-            roomId: "ROOM1",
-            command: "pause",
-          },
-        ],
-      },
+    await vi.waitFor(() => {
+      expect(parentMessages).toContainEqual({
+        type: "AIRJAM_HOST_BRIDGE_EMIT",
+        payload: {
+          event: "host:system",
+          args: [
+            {
+              roomId: "ROOM1",
+              command: "pause",
+            },
+          ],
+        },
+      });
     });
 
     runtimeEvents.cleanup();

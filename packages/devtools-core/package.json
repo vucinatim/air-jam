@@ -1,6 +1,6 @@
 {
   "name": "@air-jam/devtools-core",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "description": "Shared Air Jam devtools operations for repo CLIs, MCP adapters, and generated projects",
   "private": false,
   "type": "module",

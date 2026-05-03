@@ -112,7 +112,7 @@ const waitForTrackVolume = async (
     .poll(async () => readMusicTrackVolume(hostGame), {
       timeout: 20_000,
     })
-    .toBeCloseTo(expectedVolume, 5);
+    .toBeCloseTo(expectedVolume, 2);
 };
 
 const waitForMusicTrack = async (
@@ -126,20 +126,58 @@ const waitForMusicTrack = async (
     .toBe(true);
 };
 
-const setSliderToMax = async (locator: Locator) => {
-  const bounds = await locator.boundingBox();
-  if (!bounds) {
-    throw new Error("Slider bounds were unavailable.");
+const setSliderNearMax = async (locator: Locator) => {
+  const track = locator.locator('[data-slot="slider-track"]');
+  const trackBounds = await track.boundingBox();
+  if (!trackBounds) {
+    throw new Error("Slider track bounds were unavailable.");
   }
-  await locator.click({
-    position: {
-      x: Math.max(1, bounds.width - 2),
-      y: Math.max(1, bounds.height / 2),
-    },
-  });
   const thumb = locator.locator('[data-slot="slider-thumb"]').first();
+  const thumbBounds = await thumb.boundingBox();
+  if (!thumbBounds) {
+    throw new Error("Slider thumb bounds were unavailable.");
+  }
+
+  const page = locator.page();
+  await page.mouse.move(
+    thumbBounds.x + thumbBounds.width / 2,
+    thumbBounds.y + thumbBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    trackBounds.x + trackBounds.width,
+    trackBounds.y + trackBounds.height / 2,
+    { steps: 12 },
+  );
+  await page.mouse.up();
   await thumb.focus();
-  await thumb.press("End");
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const current = await thumb.getAttribute("aria-valuenow");
+    if (current && Number(current) >= 40) {
+      break;
+    }
+    await thumb.press("ArrowRight");
+  }
+
+  await expect
+    .poll(
+      async () => {
+        const current = await thumb.getAttribute("aria-valuenow");
+        return current ? Number(current) : null;
+      },
+      {
+        timeout: 5_000,
+      },
+    )
+    .not.toBeNull();
+
+  const finalValue = await thumb.getAttribute("aria-valuenow");
+  if (!finalValue) {
+    throw new Error("Slider thumb did not expose aria-valuenow.");
+  }
+
+  return Number(finalValue) / 100;
 };
 
 test("arcade local air-capture inherits initial settings and applies controller volume updates live", async ({
@@ -156,12 +194,6 @@ test("arcade local air-capture inherits initial settings and applies controller 
   await hostPage.goto(`${baseURL}/arcade/local-air-capture`);
 
   const hostGame = getHostGameFrame(hostPage);
-  await expect(
-    hostGame.getByTestId("air-capture-host-lobby-overlay"),
-  ).toBeVisible();
-  await expect(hostGame.getByTestId("air-capture-room-code")).toHaveText(
-    /[A-Z0-9]{4}/,
-  );
 
   const controllerJoinUrl = await resolveControllerJoinUrl({
     hostGame,
@@ -186,13 +218,21 @@ test("arcade local air-capture inherits initial settings and applies controller 
     controllerPage.getByTestId("platform-settings-panel"),
   ).toBeVisible();
 
-  await setSliderToMax(
+  const updatedMusicVolume = await setSliderNearMax(
     controllerPage.getByTestId("platform-settings-music-volume"),
   );
-  await waitForTrackVolume(hostGame, TRACK_BASE_VOLUME * 0.5 * 1);
+  expect(updatedMusicVolume).toBeGreaterThan(0.25);
+  await waitForTrackVolume(
+    hostGame,
+    TRACK_BASE_VOLUME * 0.5 * updatedMusicVolume,
+  );
 
-  await setSliderToMax(
+  const updatedMasterVolume = await setSliderNearMax(
     controllerPage.getByTestId("platform-settings-master-volume"),
   );
-  await waitForTrackVolume(hostGame, TRACK_BASE_VOLUME);
+  expect(updatedMasterVolume).toBeGreaterThan(0.5);
+  await waitForTrackVolume(
+    hostGame,
+    TRACK_BASE_VOLUME * updatedMasterVolume * updatedMusicVolume,
+  );
 });

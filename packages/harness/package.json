@@ -1,6 +1,6 @@
 {
   "name": "@air-jam/harness",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "description": "Air Jam internal automation support",
   "private": false,
   "type": "module",
