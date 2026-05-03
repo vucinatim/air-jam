@@ -14,21 +14,27 @@ const QUOTED_BARE_ASSET_URL_PATTERN = new RegExp(
 export const rewriteRootRelativeAssetUrlsInText = ({
   content,
   basePath,
+  rewriteBareRelativeAssetUrls = true,
 }: {
   content: string;
   basePath: string;
+  rewriteBareRelativeAssetUrls?: boolean;
 }): string => {
   const relativeBasePath = basePath.replace(/^\/+/, "");
 
-  return content
-    .replaceAll(
-      QUOTED_ASSET_URL_PATTERN,
-      (_, prefix: string, assetPath: string) =>
-        `${prefix}${basePath}/${assetPath}`,
-    )
-    .replaceAll(
-      QUOTED_BARE_ASSET_URL_PATTERN,
-      (_, prefix: string, assetPath: string) =>
-        `${prefix}${relativeBasePath}/${assetPath}`,
-    );
+  const rewrittenRootRelativeUrls = content.replaceAll(
+    QUOTED_ASSET_URL_PATTERN,
+    (_, prefix: string, assetPath: string) =>
+      `${prefix}${basePath}/${assetPath}`,
+  );
+
+  if (!rewriteBareRelativeAssetUrls) {
+    return rewrittenRootRelativeUrls;
+  }
+
+  return rewrittenRootRelativeUrls.replaceAll(
+    QUOTED_BARE_ASSET_URL_PATTERN,
+    (_, prefix: string, assetPath: string) =>
+      `${prefix}${relativeBasePath}/${assetPath}`,
+  );
 };

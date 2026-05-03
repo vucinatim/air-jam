@@ -55,19 +55,25 @@ export const rewriteHostedReleaseTextAssetUrls = ({
   content,
   gameId,
   releaseId,
+  contentType,
 }: {
   content: string;
   gameId: string;
   releaseId: string;
+  contentType?: string;
 }): string => {
   const hostedBasePath = buildHostedReleaseBasePath({
     gameId,
     releaseId,
   });
+  const normalizedContentType = contentType?.toLowerCase() ?? "";
+  const rewriteBareRelativeAssetUrls =
+    !normalizedContentType.includes("text/css");
 
   return rewriteRootRelativeAssetUrlsInText({
     content,
     basePath: hostedBasePath,
+    rewriteBareRelativeAssetUrls,
   });
 };
 

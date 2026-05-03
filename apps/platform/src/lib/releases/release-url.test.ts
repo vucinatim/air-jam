@@ -103,6 +103,7 @@ describe("rewriteHostedReleaseTextAssetUrls", () => {
         'const deps=["assets/index-DPOFnepx.js","assets/code-review-store-Jwj-6tv7.js"]',
       gameId: "game-1",
       releaseId: "release-1",
+      contentType: "application/javascript",
     });
 
     expect(rewritten).toContain(
@@ -110,6 +111,23 @@ describe("rewriteHostedReleaseTextAssetUrls", () => {
     );
     expect(rewritten).toContain(
       '"releases/g/game-1/r/release-1/assets/code-review-store-Jwj-6tv7.js"',
+    );
+  });
+
+  it("preserves css-relative vendored font imports while still rewriting root-relative urls", () => {
+    const rewritten = rewriteHostedReleaseTextAssetUrls({
+      content:
+        '@import"url("airjam-vendored/fonts/2ec07463ff721840.css")";body{background:url("/sprites/end.png")}',
+      gameId: "game-1",
+      releaseId: "release-1",
+      contentType: "text/css",
+    });
+
+    expect(rewritten).toContain(
+      '@import"url("airjam-vendored/fonts/2ec07463ff721840.css")"',
+    );
+    expect(rewritten).toContain(
+      'url("/releases/g/game-1/r/release-1/sprites/end.png")',
     );
   });
 });
