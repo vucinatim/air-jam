@@ -36,6 +36,12 @@ const cleanupPlayerSystems = (controllerId: string) => {
   useCaptureTheFlagStore.getState().removePlayer(controllerId);
 };
 
+const areProfilesEqual = (left: PlayerProfile, right: PlayerProfile): boolean =>
+  left.id === right.id &&
+  left.label === right.label &&
+  left.color === right.color &&
+  left.avatarId === right.avatarId;
+
 export const useGameStore = create<GameState>((set) => ({
   players: [],
   roundId: 0,
@@ -54,6 +60,15 @@ export const useGameStore = create<GameState>((set) => ({
         const ctfStore = useCaptureTheFlagStore.getState();
         const teamId =
           ctfStore.getPlayerTeam(controllerId) ?? existing.teamId ?? "solaris";
+        const nextColor = TEAM_CONFIG[teamId].color;
+        if (
+          existing.source === "connected" &&
+          existing.teamId === teamId &&
+          existing.color === nextColor &&
+          areProfilesEqual(existing.profile, profile)
+        ) {
+          return state;
+        }
         return {
           players: state.players.map(
             (player): PlayerSlot =>
@@ -62,7 +77,7 @@ export const useGameStore = create<GameState>((set) => ({
                     ...player,
                     profile,
                     teamId,
-                    color: TEAM_CONFIG[teamId].color,
+                    color: nextColor,
                     source: "connected",
                   }
                 : player,
@@ -120,6 +135,15 @@ export const useGameStore = create<GameState>((set) => ({
         const ctfStore = useCaptureTheFlagStore.getState();
         const teamId =
           ctfStore.getPlayerTeam(controllerId) ?? existing.teamId ?? "solaris";
+        const nextColor = TEAM_CONFIG[teamId].color;
+        if (
+          existing.source === "bot" &&
+          existing.teamId === teamId &&
+          existing.color === nextColor &&
+          areProfilesEqual(existing.profile, profile)
+        ) {
+          return state;
+        }
         return {
           players: state.players.map(
             (player): PlayerSlot =>
@@ -128,7 +152,7 @@ export const useGameStore = create<GameState>((set) => ({
                     ...player,
                     profile,
                     teamId,
-                    color: TEAM_CONFIG[teamId].color,
+                    color: nextColor,
                     source: "bot",
                   }
                 : player,
