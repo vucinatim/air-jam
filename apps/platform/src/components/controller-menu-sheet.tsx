@@ -66,7 +66,6 @@ interface ControllerMenuSheetProps {
   sharedPlatformSettings: PlatformSettingsSnapshot | null;
   onUpdateSharedPlatformSettings: (patch: {
     audio?: Partial<PlatformSettingsSnapshot["audio"]>;
-    accessibility?: Partial<PlatformSettingsSnapshot["accessibility"]>;
     feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
   }) => void;
 }
@@ -398,10 +397,11 @@ export function ControllerMenuSheet({
     ? "flex-col bg-black"
     : "flex-col bg-black/97";
   const overlayPanelClass = cn(
-    "flex h-full w-full flex-col",
+    "touch-auto flex h-full w-full flex-col",
     highContrast ? "border-t border-white/15 bg-black" : "bg-black/97",
   );
-  const overlayBodyClass = "min-h-0 flex-1 overflow-y-auto px-3 py-6";
+  const overlayBodyClass =
+    "touch-auto min-h-0 flex-1 overflow-y-auto px-3 py-6";
   const notchIconTransition = reducedMotion
     ? { duration: 0.01 }
     : { duration: 0.15 };
@@ -858,9 +858,6 @@ export function ControllerMenuSheet({
                         settings={sharedPlatformSettings}
                         onUpdateAudio={(audio) =>
                           onUpdateSharedPlatformSettings({ audio })
-                        }
-                        onUpdateAccessibility={(accessibility) =>
-                          onUpdateSharedPlatformSettings({ accessibility })
                         }
                         onUpdateFeedback={(feedback) =>
                           onUpdateSharedPlatformSettings({ feedback })

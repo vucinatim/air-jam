@@ -35,7 +35,6 @@ interface ControllerPageLayoutProps {
   sharedPlatformSettings: PlatformSettingsSnapshot | null;
   onUpdateSharedPlatformSettings: (patch: {
     audio?: Partial<PlatformSettingsSnapshot["audio"]>;
-    accessibility?: Partial<PlatformSettingsSnapshot["accessibility"]>;
     feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
   }) => void;
   onMove: (vector: { x: number; y: number }) => void;
@@ -79,7 +78,7 @@ export function ControllerPageLayout({
   const layout = (
     <div
       className={cn(
-        "text-foreground relative flex h-full min-h-0 w-full touch-none flex-col overflow-hidden bg-black select-none",
+        "text-foreground relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-black select-none",
         highContrast && "contrast-125",
       )}
     >

@@ -43,7 +43,7 @@ export function ControllerIdleSurface({
 }: ControllerIdleSurfaceProps) {
   return (
     <div
-      className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-between overflow-hidden px-4"
+      className="relative z-10 flex h-full min-h-0 w-full touch-none flex-col items-center justify-between overflow-hidden px-4"
       style={idleSurfaceStyle}
     >
       <div className="shrink-0 text-center opacity-30">

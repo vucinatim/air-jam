@@ -13,9 +13,6 @@ interface PlatformSettingsPanelProps {
   settings?: PlatformSettingsSnapshot;
   readOnly?: boolean;
   onUpdateAudio?: (patch: Partial<PlatformSettingsSnapshot["audio"]>) => void;
-  onUpdateAccessibility?: (
-    patch: Partial<PlatformSettingsSnapshot["accessibility"]>,
-  ) => void;
   onUpdateFeedback?: (
     patch: Partial<PlatformSettingsSnapshot["feedback"]>,
   ) => void;
@@ -77,13 +74,8 @@ function OwnedPlatformSettingsPanel({
   PlatformSettingsPanelProps,
   "className" | "compact" | "showPreviewControllerSettings"
 >) {
-  const {
-    settings,
-    updateAudio,
-    updateAccessibility,
-    updateFeedback,
-    updatePreviewControllers,
-  } = usePlatformSettings();
+  const { settings, updateAudio, updateFeedback, updatePreviewControllers } =
+    usePlatformSettings();
 
   return (
     <PlatformSettingsPanelBody
@@ -91,7 +83,6 @@ function OwnedPlatformSettingsPanel({
       className={className}
       compact={compact}
       onUpdateAudio={updateAudio}
-      onUpdateAccessibility={updateAccessibility}
       onUpdateFeedback={updateFeedback}
       onUpdatePreviewControllers={updatePreviewControllers}
       showPreviewControllerSettings={showPreviewControllerSettings}
@@ -105,7 +96,6 @@ function PlatformSettingsPanelBody({
   compact = false,
   readOnly = false,
   onUpdateAudio,
-  onUpdateAccessibility,
   onUpdateFeedback,
   onUpdatePreviewControllers,
   showPreviewControllerSettings = false,
@@ -117,7 +107,7 @@ function PlatformSettingsPanelBody({
     <section
       data-testid="platform-settings-panel"
       className={cn(
-        "rounded-2xl border bg-black/40 p-4 backdrop-blur-sm sm:p-5",
+        "touch-auto rounded-2xl border bg-black/40 p-4 backdrop-blur-sm sm:p-5",
         highContrast ? "border-white/30" : "border-white/10",
         className,
       )}
@@ -202,24 +192,6 @@ function PlatformSettingsPanelBody({
           disabled={readOnly}
           onCheckedChange={(checked) =>
             onUpdateFeedback?.({ hapticsEnabled: checked })
-          }
-        />
-        <SettingsToggleRow
-          title="Reduced motion"
-          description="Prefer simpler platform transitions and fewer movement-heavy animations."
-          checked={settings.accessibility.reducedMotion}
-          disabled={readOnly}
-          onCheckedChange={(checked) =>
-            onUpdateAccessibility?.({ reducedMotion: checked })
-          }
-        />
-        <SettingsToggleRow
-          title="High contrast"
-          description="Increase visual contrast in platform chrome and settings surfaces."
-          checked={settings.accessibility.highContrast}
-          disabled={readOnly}
-          onCheckedChange={(checked) =>
-            onUpdateAccessibility?.({ highContrast: checked })
           }
         />
       </div>

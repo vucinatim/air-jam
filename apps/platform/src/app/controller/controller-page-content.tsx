@@ -134,7 +134,6 @@ export function ControllerPageContent({
   const handleRemotePlatformSettingsPatch = useCallback(
     (patch: {
       audio?: Partial<PlatformSettingsSnapshot["audio"]>;
-      accessibility?: Partial<PlatformSettingsSnapshot["accessibility"]>;
       feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
     }) => {
       emitArcadeAction(

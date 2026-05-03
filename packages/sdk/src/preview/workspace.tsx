@@ -544,22 +544,26 @@ export const PreviewControllerWorkspace = ({
                                         ? "bg-emerald-300"
                                         : "bg-white/45",
                                   )}
+                                  title={
+                                    item.session?.minimized
+                                      ? "Minimized"
+                                      : item.session
+                                        ? item.session.surfaceState === "ready"
+                                          ? "Visible"
+                                          : previewControllerWindowStateLabel[
+                                              item.session.surfaceState
+                                            ]
+                                        : item.connected
+                                          ? "Connected"
+                                          : "Disconnected"
+                                  }
                                 />
+                                {item.resumable ? (
+                                  <span className="rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] leading-none font-semibold tracking-[0.12em] text-white/55 uppercase">
+                                    Resume
+                                  </span>
+                                ) : null}
                               </div>
-                              <p className="mt-1 text-[10px] tracking-[0.14em] text-white/50 uppercase">
-                                {item.session?.minimized
-                                  ? "Minimized"
-                                  : item.session
-                                    ? item.session.surfaceState === "ready"
-                                      ? "Visible"
-                                      : previewControllerWindowStateLabel[
-                                          item.session.surfaceState
-                                        ]
-                                    : item.connected
-                                      ? "Connected"
-                                      : "Disconnected"}
-                                {item.resumable ? " · resumable" : ""}
-                              </p>
                             </div>
                             <div className="flex items-center gap-2">
                               {previewSession?.minimized ? (

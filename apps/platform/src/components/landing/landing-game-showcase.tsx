@@ -4,6 +4,10 @@ import { landingCopy } from "@/components/landing/landing-content";
 import { Reveal } from "@/components/landing/landing-motion";
 import { SectionHeader } from "@/components/landing/landing-section-header";
 import { Button } from "@/components/ui/button";
+import {
+  getPublicGameDisplayName,
+  selectFeaturedPublicGames,
+} from "@/lib/public-game-presentation";
 import { api } from "@/trpc/react";
 import { Gamepad2, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -94,7 +98,9 @@ const GameCard = ({ game, index, onHover }: GameCardProps) => {
           ) : null}
         </div>
         <div className="p-5">
-          <h3 className="text-lg font-semibold tracking-tight">{game.name}</h3>
+          <h3 className="text-lg font-semibold tracking-tight">
+            {getPublicGameDisplayName(game)}
+          </h3>
           {game.ownerName ? (
             <p className="text-muted-foreground mt-1 text-sm">
               {game.ownerName}
@@ -109,7 +115,7 @@ const GameCard = ({ game, index, onHover }: GameCardProps) => {
 export const LandingGameShowcase = () => {
   const { gameShowcase } = landingCopy;
   const { data: games, isLoading } = api.game.getAllPublic.useQuery();
-  const featured = games?.slice(0, 3) ?? [];
+  const featured = selectFeaturedPublicGames(games ?? []);
   const [hoveredMedia, setHoveredMedia] = useState<HoveredMedia | null>(null);
 
   const hasBg = hoveredMedia?.videoUrl || hoveredMedia?.imageUrl;

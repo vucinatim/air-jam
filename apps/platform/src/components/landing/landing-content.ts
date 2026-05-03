@@ -46,6 +46,13 @@ build something playable, get friends in fast, play it together, tweak it, and g
     subtitle: `A real one-shot build in a minimal Air Jam project. <br/>
 Claude Code scaffolds the game, opens preview, uses the controllers, and gets to a working result.`,
     videoSrc: "/videos/claude-demo.mp4",
+    prompts: [
+      "use Air Jam logs to debug this room",
+      "publish this game to my account",
+      "change the arcade thumbnail and preview video",
+      "play the game yourself and fix runtime bugs",
+      "open the hosted release and verify the controller flow",
+    ],
     bullets: [
       "Minimal project start",
       "Real preview and controllers",

@@ -4,9 +4,10 @@ Current core docs:
 
 1. [Vision](./vision.md)
 2. [Framework Paradigm](./framework-paradigm.md)
-3. [Work Ledger](./work-ledger.md)
-4. [Monorepo Operating System](./monorepo-operating-system.md)
-5. [Suggestions](./suggestions.md)
+3. [Air Jam Framework Capabilities](./airjam-framework-capabilities.md)
+4. [Work Ledger](./work-ledger.md)
+5. [Monorepo Operating System](./monorepo-operating-system.md)
+6. [Suggestions](./suggestions.md)
 
 Core system docs:
 
@@ -42,6 +43,7 @@ Active architecture cleanup plans:
 1. [SDK Game Authoring Ergonomics Plan](./plans/sdk-game-authoring-ergonomics-plan.md)
 2. [Code Review Reference Cleanup Plan](./plans/code-review-reference-cleanup-plan.md)
 3. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
+4. [Landing, Arcade, and Controller Polish Plan](./plans/landing-arcade-controller-polish-plan-2026-05-03.md)
 
 Planned future architecture tracks:
 

@@ -1,6 +1,11 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { buildCreateAirJamTemplateCommand } from "@/lib/create-airjam-template-command";
 import { cn } from "@/lib/utils";
 import { AudioRuntime, useAudio, type SoundManifest } from "@air-jam/sdk";
@@ -189,7 +194,7 @@ const GameBrowserContent = ({
       ref={scrollRootRef}
       onScroll={emitScrollTop}
       className={cn(
-        "relative z-10 flex h-full flex-col overflow-y-auto px-12 pt-2 pb-12 transition-all duration-500",
+        "relative z-10 flex h-full flex-col overflow-y-auto px-12 pt-2 pb-12 transition-all duration-500 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         isVisible
           ? "scale-100 opacity-100"
           : "pointer-events-none scale-95 opacity-0",
@@ -336,21 +341,29 @@ const GameBrowserContent = ({
                         </a>
                       ) : null}
                       {templateCommand ? (
-                        <button
-                          type="button"
-                          className={DEVELOPER_ACTION_CLASS}
-                          onClick={(event) =>
-                            void copyTemplateCommand(event, game)
-                          }
-                          aria-label={`Copy create-airjam command for ${game.name}`}
-                          title={didCopyTemplate ? "Copied" : templateCommand}
-                        >
-                          {didCopyTemplate ? (
-                            <Check className="size-4" aria-hidden />
-                          ) : (
-                            <Code2 className="size-4" aria-hidden />
-                          )}
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={DEVELOPER_ACTION_CLASS}
+                              onClick={(event) =>
+                                void copyTemplateCommand(event, game)
+                              }
+                              aria-label={`Copy create-airjam command for ${game.name}`}
+                            >
+                              {didCopyTemplate ? (
+                                <Check className="size-4" aria-hidden />
+                              ) : (
+                                <Code2 className="size-4" aria-hidden />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" sideOffset={8}>
+                            <span className="font-mono">
+                              {didCopyTemplate ? "Copied" : templateCommand}
+                            </span>
+                          </TooltipContent>
+                        </Tooltip>
                       ) : null}
                     </div>
                   ) : null}
