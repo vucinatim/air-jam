@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RoomPlatformSettingsSnapshot } from "../settings/platform-settings";
 import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
 
@@ -48,6 +49,18 @@ export const controllerStateSchema = z.object({
   state: z.object({
     orientation: controllerOrientationSchema.optional(),
     message: z.string().optional(),
+    roomSettings: z
+      .object({
+        audio: z.object({
+          masterVolume: z.number().min(0).max(1),
+          musicVolume: z.number().min(0).max(1),
+          sfxVolume: z.number().min(0).max(1),
+        }),
+        previewControllers: z.object({
+          activeOpacity: z.number().min(0).max(1),
+        }),
+      })
+      .optional(),
     runtimeState: z.enum(["paused", "playing"]).optional(),
     stateVersion: z.number().int().nonnegative().optional(),
   }),
@@ -58,6 +71,7 @@ export type ControllerStateMessage = z.infer<typeof controllerStateSchema>;
 export type ControllerStatePayload = z.infer<
   typeof controllerStateSchema
 >["state"];
+export type ControllerRoomSettingsState = RoomPlatformSettingsSnapshot;
 
 export const controllerJoinSchema = z.object({
   roomId: roomCodeSchema,

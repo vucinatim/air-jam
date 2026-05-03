@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
+import { getPlatformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { toArcadeGame } from "@/lib/arcade-game-mapper";
 import { api } from "@/trpc/react";
 import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 
 export default function PlayGamePage({
   params,
@@ -90,6 +90,7 @@ export default function PlayGamePage({
     controllerUrl: game.controllerUrl,
   });
   const canReportPublicRelease = game.launchSource === "hosted_release";
+  const sessionConfig = useMemo(() => getPlatformArcadeHostSessionConfig(), []);
 
   const handleSubmitReport = async () => {
     try {
@@ -126,7 +127,7 @@ export default function PlayGamePage({
 
   return (
     <PlatformSettingsRuntime persistence="local">
-      <AirJamHostRuntime {...platformArcadeHostSessionConfig}>
+      <AirJamHostRuntime {...sessionConfig}>
         <div className="flex h-screen flex-col bg-slate-950">
           {/* Preview Header - Block element, z-100 to stay above SDK overlay */}
           <div className="relative z-100">

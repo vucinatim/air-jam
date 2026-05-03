@@ -22,16 +22,22 @@ export {
   type MusicPlaylistProps,
 } from "./audio/music";
 export {
+  DEFAULT_ROOM_PLATFORM_SETTINGS,
   DEFAULT_PLATFORM_SETTINGS,
   getEffectiveAudioVolume,
+  mergeRoomPlatformSettingsSnapshot,
+  toRoomPlatformSettingsSnapshot,
 } from "./settings/platform-settings";
 export type {
   PlatformAccessibilitySettings,
   PlatformAudioSettings,
   PlatformFeedbackSettings,
+  PlatformPreviewControllerSettings,
+  PartialRoomPlatformSettingsPatch,
   PlatformSettings,
   PlatformSettingsPersistence,
   PlatformSettingsSnapshot,
+  RoomPlatformSettingsSnapshot,
 } from "./settings/platform-settings";
 export {
   PlatformSettingsBoundary,

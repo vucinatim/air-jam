@@ -34,6 +34,7 @@ type ControllerInspectionApi = Pick<
   | "lastError"
   | "runtimeState"
   | "controllerOrientation"
+  | "roomSettings"
   | "stateMessage"
   | "players"
   | "selfPlayer"
@@ -63,6 +64,7 @@ export interface ControllerRuntimeInspectionContract {
   runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
   stateMessage?: string;
+  roomSettings: ControllerInspectionApi["roomSettings"];
 }
 
 export type RuntimeInspectionContract =
@@ -99,6 +101,7 @@ export const createControllerRuntimeInspectionContract = (
   runtimeState: api.runtimeState,
   controllerOrientation: api.controllerOrientation,
   stateMessage: api.stateMessage,
+  roomSettings: api.roomSettings,
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -128,7 +131,10 @@ const isControllerRuntimeInspectionContract = (
   typeof value.connectionStatus === "string" &&
   Array.isArray(value.players) &&
   typeof value.runtimeState === "string" &&
-  typeof value.controllerOrientation === "string";
+  typeof value.controllerOrientation === "string" &&
+  isRecord(value.roomSettings) &&
+  isRecord(value.roomSettings.audio) &&
+  isRecord(value.roomSettings.previewControllers);
 
 export const readRuntimeInspectionContract = (
   target: object,

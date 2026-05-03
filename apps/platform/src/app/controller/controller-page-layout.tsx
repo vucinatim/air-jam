@@ -2,11 +2,15 @@
 
 import { ControllerFullscreenPrompt } from "@/components/controller-fullscreen-prompt";
 import { ControllerMenuSheet } from "@/components/controller-menu-sheet";
+import type {
+  ControllerLocalSettingsSnapshot,
+} from "@/lib/controller-local-settings";
 import { cn } from "@/lib/utils";
 import type {
   AirJamControllerApi,
   ControllerOrientation,
-  PlatformSettingsSnapshot,
+  PartialRoomPlatformSettingsPatch,
+  RoomPlatformSettingsSnapshot,
 } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { useState, type RefObject } from "react";
@@ -21,7 +25,7 @@ interface ControllerPageLayoutProps {
   documentFullscreen: boolean;
   activeUrl: string | null;
   controller: AirJamControllerApi;
-  emitArcadeAction: (action: string, payload?: Record<string, unknown>) => void;
+  emitArcadeAction: (action: string, payload?: unknown) => void;
   hasControllerCapability: boolean;
   controllerOrientation: ControllerOrientation;
   iframeRef: RefObject<HTMLIFrameElement | null>;
@@ -30,13 +34,13 @@ interface ControllerPageLayoutProps {
   controllerIframeFailed: boolean;
   hostQrVisible: boolean;
   hapticsEnabled: boolean;
-  reducedMotion: boolean;
-  highContrast: boolean;
-  sharedPlatformSettings: PlatformSettingsSnapshot | null;
-  onUpdateSharedPlatformSettings: (patch: {
-    audio?: Partial<PlatformSettingsSnapshot["audio"]>;
-    feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
-  }) => void;
+  roomPlatformSettings: RoomPlatformSettingsSnapshot | null;
+  roomPlatformSettingsReadOnly: boolean;
+  onUpdateRoomPlatformSettings: (patch: PartialRoomPlatformSettingsPatch) => void;
+  controllerLocalSettings: ControllerLocalSettingsSnapshot;
+  onUpdateControllerLocalSettings: (
+    patch: Partial<ControllerLocalSettingsSnapshot>,
+  ) => void;
   onMove: (vector: { x: number; y: number }) => void;
   onConfirm: () => void;
   onConfirmRelease: () => void;
@@ -58,10 +62,11 @@ export function ControllerPageLayout({
   controllerIframeFailed,
   hostQrVisible,
   hapticsEnabled,
-  reducedMotion,
-  highContrast,
-  sharedPlatformSettings,
-  onUpdateSharedPlatformSettings,
+  roomPlatformSettings,
+  roomPlatformSettingsReadOnly,
+  onUpdateRoomPlatformSettings,
+  controllerLocalSettings,
+  onUpdateControllerLocalSettings,
   onMove,
   onConfirm,
   onConfirmRelease,
@@ -79,7 +84,6 @@ export function ControllerPageLayout({
     <div
       className={cn(
         "text-foreground relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-black select-none",
-        highContrast && "contrast-125",
       )}
     >
       <>
@@ -101,10 +105,11 @@ export function ControllerPageLayout({
           dialogPortalContainer={portalContainer}
           hostQrVisible={hostQrVisible}
           hapticsEnabled={hapticsEnabled}
-          reducedMotion={reducedMotion}
-          highContrast={highContrast}
-          sharedPlatformSettings={sharedPlatformSettings}
-          onUpdateSharedPlatformSettings={onUpdateSharedPlatformSettings}
+          roomPlatformSettings={roomPlatformSettings}
+          roomPlatformSettingsReadOnly={roomPlatformSettingsReadOnly}
+          onUpdateRoomPlatformSettings={onUpdateRoomPlatformSettings}
+          controllerLocalSettings={controllerLocalSettings}
+          onUpdateControllerLocalSettings={onUpdateControllerLocalSettings}
         />
       </>
 

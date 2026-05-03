@@ -62,6 +62,7 @@ Plans:
 4. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
 5. [Prerelease Agent Dev Loop Hardening Plan](./plans/prerelease-agent-dev-loop-hardening-plan.md)
 6. [Landing, Arcade, and Controller Polish Plan](./plans/landing-arcade-controller-polish-plan-2026-05-03.md)
+7. [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
 
 Immediate next work:
 
@@ -73,6 +74,7 @@ Immediate next work:
 6. turn the now-live deployment split into an explicit production topology and env contract, including the dedicated release moderation/browser-runtime lane
 7. remove the dashboard-only hosted game creation gap so platform game records can be created and maintained cleanly from the `airjam` CLI before release submission
 8. complete the bounded landing/Arcade/controller polish pass, including the Arcade settings interactivity fix, explicit landing featured games, controller chrome tightening, and removal of dead settings controls
+9. refactor controller settings ownership so host-owned room settings and controller-local settings become explicit contracts instead of one ambiguous shared surface
 
 Latest progress inside this focus:
 
@@ -115,6 +117,7 @@ Latest progress inside this focus:
 37. hosted release bundling now vendors remote font CSS/assets into the artifact at bundle time, so published Arcade releases can keep the strict platform CSP while still supporting Google Fonts-style authoring inputs
 38. hosted game media is now a first-class machine/CLI lane: the platform exposes owned-game media inspect/upload/finalize/assign/archive endpoints under `/api/cli/games/[slugOrId]/media`, `@air-jam/devtools-core` exposes typed helpers including one-shot file upload, and `create-airjam` now ships `airjam game media inspect|upload|clear` so thumbnails, covers, and preview videos no longer require dashboard-only setup
 39. the bounded landing/Arcade/controller polish pass is now landed locally: landing featured games are explicit and the agent demo now cycles real Air Jam workflow prompts, Arcade hides its visible scrollbar and exposes exact template commands on hover while renaming `Minimal` to `Minimal Template` publicly, preview-controller roster rows are compressed to one line, and controller settings interactivity is no longer blocked by page-wide touch suppression leaking into the shared sheet surface
+40. controller settings debugging exposed a deeper ownership gap: the intended product model needs both host-owned room settings and controller-local device settings, but the current controller sheet still mixes those domains without an explicit mirrored host-settings contract; the bounded refactor is now tracked in [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

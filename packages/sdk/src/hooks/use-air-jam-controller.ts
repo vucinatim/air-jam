@@ -28,6 +28,7 @@ import type {
   ConnectionStatus,
   ControllerLeaveAck,
   ControllerOrientation,
+  ControllerRoomSettingsState,
   ControllerStatePayload,
   ControllerUpdatePlayerProfileAck,
   PlayerProfile,
@@ -114,6 +115,8 @@ export interface AirJamControllerApi {
   controllerOrientation: ControllerOrientation;
   /** Optional message from the host (e.g., "Get Ready!") */
   stateMessage?: string;
+  /** Current host-owned room settings mirrored onto the controller. */
+  roomSettings: ControllerRoomSettingsState;
   /**
    * Send a system command to the host.
    *
@@ -160,6 +163,7 @@ export interface AirJamControllerState {
   runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
   stateMessage?: string;
+  roomSettings: ControllerRoomSettingsState;
   players: PlayerProfile[];
   selfPlayer: PlayerProfile | null;
 }
@@ -188,6 +192,7 @@ const toControllerState = (state: AirJamStore): AirJamControllerState => {
     runtimeState: state.runtimeState,
     controllerOrientation: state.controllerOrientation,
     stateMessage: state.stateMessage,
+    roomSettings: state.roomSettings,
     players: state.players,
     selfPlayer,
   };

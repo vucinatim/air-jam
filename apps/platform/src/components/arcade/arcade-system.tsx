@@ -2,7 +2,7 @@
 
 import {
   arcadeInputSchema,
-  platformArcadeHostSessionConfig,
+  getPlatformArcadeHostSessionConfig,
 } from "@/lib/airjam-session-config";
 import {
   toggleDocumentFullscreen,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/use-document-fullscreen";
 import { cn } from "@/lib/utils";
 import {
+  toRoomPlatformSettingsSnapshot,
   useAirJamHost,
   useAudio,
   useAudioRuntimeControls,
@@ -212,6 +213,10 @@ export const ArcadeSystem = ({
   className,
   previewControllersEnabled = false,
 }: ArcadeSystemProps) => {
+  const platformArcadeHostSessionConfig = useMemo(
+    () => getPlatformArcadeHostSessionConfig(),
+    [],
+  );
   const runtime = useArcadeRuntimeManager({
     games,
     mode,
@@ -302,8 +307,6 @@ export const ArcadeSystem = ({
   const {
     settings: platformSettings,
     updateAudio,
-    updateAccessibility,
-    updateFeedback,
     updatePreviewControllers,
   } = usePlatformSettings();
   const reducedMotion = accessibility.reducedMotion;
@@ -479,13 +482,15 @@ export const ArcadeSystem = ({
     if (surfaceKind === "browser") {
       host.sendState({
         message: currentGame ? currentGame.name : undefined,
+        roomSettings: toRoomPlatformSettingsSnapshot(platformSettings),
       });
     } else if (surfaceKind === "game" && activeGame) {
       host.sendState({
         message: activeGame.name,
+        roomSettings: toRoomPlatformSettingsSnapshot(platformSettings),
       });
     }
-  }, [games, state.selectedIndex, surfaceKind, host, activeGame]);
+  }, [games, state.selectedIndex, surfaceKind, host, activeGame, platformSettings]);
 
   // Canonical host polling loop for browser navigation.
   useHostTick({
@@ -734,11 +739,12 @@ export const ArcadeSystem = ({
             closeGame();
           }
           return;
-        case airJamArcadePlatformActions.updatePlatformSettings: {
+        case airJamArcadePlatformActions.updateRoomSettings: {
           const patch = event.payload as {
             audio?: Partial<PlatformSettingsSnapshot["audio"]>;
-            accessibility?: Partial<PlatformSettingsSnapshot["accessibility"]>;
-            feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
+            previewControllers?: Partial<
+              PlatformSettingsSnapshot["previewControllers"]
+            >;
           } | null;
           if (!patch) {
             return;
@@ -746,11 +752,8 @@ export const ArcadeSystem = ({
           if (patch.audio) {
             updateAudio(patch.audio);
           }
-          if (patch.accessibility) {
-            updateAccessibility(patch.accessibility);
-          }
-          if (patch.feedback) {
-            updateFeedback(patch.feedback);
+          if (patch.previewControllers) {
+            updatePreviewControllers(patch.previewControllers);
           }
           return;
         }
@@ -766,9 +769,8 @@ export const ArcadeSystem = ({
       qrVisible,
       surfaceKind,
       surfaceActions,
-      updateAccessibility,
       updateAudio,
-      updateFeedback,
+      updatePreviewControllers,
       writePreferredBrowserOverlay,
     ],
   );

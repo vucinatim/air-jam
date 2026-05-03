@@ -14,7 +14,7 @@ export const airJamArcadePlatformActions = {
   showQr: "airjam.arcade.show_qr",
   hideQr: "airjam.arcade.hide_qr",
   exitGame: "airjam.arcade.exit_game",
-  updatePlatformSettings: "airjam.arcade.update_platform_settings",
+  updateRoomSettings: "airjam.arcade.update_room_settings",
 } as const;
 
 export type AirJamArcadePlatformActionName =

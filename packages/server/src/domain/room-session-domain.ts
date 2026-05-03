@@ -461,6 +461,7 @@ export const emitRoomState = (
     state: {
       runtimeState: session.runtimeState,
       orientation: session.controllerOrientation,
+      roomSettings: session.roomSettings,
       stateVersion: session.stateVersion,
       ...(message !== undefined ? { message } : {}),
     },
@@ -478,6 +479,7 @@ export const buildRoomStateMessage = (
   state: {
     runtimeState: session.runtimeState,
     orientation: session.controllerOrientation,
+    roomSettings: session.roomSettings,
     stateVersion: session.stateVersion,
     ...(message !== undefined ? { message } : {}),
   },

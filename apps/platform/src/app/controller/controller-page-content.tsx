@@ -1,6 +1,5 @@
 "use client";
 
-import { useArcadePlatformSettingsStore } from "@/components/arcade/arcade-platform-settings-store";
 import {
   getControllerLocalProfileClientSnapshot,
   writeControllerLocalProfile,
@@ -8,15 +7,18 @@ import {
 import { triggerLocalHaptic } from "@/lib/local-haptics";
 import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import {
+  type PartialRoomPlatformSettingsPatch,
   useAirJamController,
   useControllerTick,
-  useInheritedPlatformSettings,
   useInputWriter,
-  type PlatformSettingsSnapshot,
 } from "@air-jam/sdk";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import { useCallback, useEffect, useRef } from "react";
+import {
+  useControllerLocalSettings,
+  type ControllerLocalSettingsSnapshot,
+} from "@/lib/controller-local-settings";
 import {
   ControllerPageLayout,
   type ControllerPageSurfaceMode,
@@ -36,10 +38,8 @@ export function ControllerPageContent({
 }: ControllerPageContentProps) {
   const documentFullscreen = useDocumentFullscreen();
   const controller = useAirJamController();
-  const localPlatformSettings = useInheritedPlatformSettings();
-  const sharedPlatformSettings = useArcadePlatformSettingsStore(
-    (state) => state.settings,
-  );
+  const { settings: controllerLocalSettings, updateSettings } =
+    useControllerLocalSettings();
   const writeInput = useInputWriter();
 
   const {
@@ -104,7 +104,7 @@ export function ControllerPageContent({
   );
 
   const emitArcadeAction = useCallback(
-    (actionName: string, payload?: Record<string, unknown>) => {
+    (actionName: string, payload?: unknown) => {
       if (
         !controller.socket ||
         !controller.socket.connected ||
@@ -123,33 +123,36 @@ export function ControllerPageContent({
     [controller.roomId, controller.socket],
   );
 
-  const usesRemotePlatformSettings =
+  const canSendRemotePlatformSettings =
     controller.connectionStatus === "connected" && !!controller.roomId;
-  const effectivePlatformSettings = usesRemotePlatformSettings
-    ? sharedPlatformSettings
-    : localPlatformSettings;
-  const accessibility = effectivePlatformSettings.accessibility;
-  const feedback = effectivePlatformSettings.feedback;
+  const roomSettings = controller.roomSettings;
+  const hapticsEnabled = controllerLocalSettings.hapticsEnabled;
 
-  const handleRemotePlatformSettingsPatch = useCallback(
-    (patch: {
-      audio?: Partial<PlatformSettingsSnapshot["audio"]>;
-      feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
-    }) => {
-      emitArcadeAction(
-        airJamArcadePlatformActions.updatePlatformSettings,
-        patch,
-      );
+  const handleRoomPlatformSettingsPatch = useCallback(
+    (patch: PartialRoomPlatformSettingsPatch) => {
+      if (canSendRemotePlatformSettings) {
+        emitArcadeAction(
+          airJamArcadePlatformActions.updateRoomSettings,
+          patch,
+        );
+      }
     },
-    [emitArcadeAction],
+    [canSendRemotePlatformSettings, emitArcadeAction],
+  );
+
+  const handleControllerLocalSettingsPatch = useCallback(
+    (patch: Partial<ControllerLocalSettingsSnapshot>) => {
+      updateSettings(patch);
+    },
+    [updateSettings],
   );
 
   const handleArcadePing = useCallback(() => {
-    if (feedback.hapticsEnabled) {
+    if (hapticsEnabled) {
       triggerLocalHaptic("tap");
     }
     emitArcadeAction(airJamArcadePlatformActions.ping);
-  }, [emitArcadeAction, feedback.hapticsEnabled]);
+  }, [emitArcadeAction, hapticsEnabled]);
 
   return (
     <ControllerPageLayout
@@ -166,13 +169,12 @@ export function ControllerPageContent({
       controllerIframePending={controllerIframePending}
       controllerIframeFailed={controllerIframeFailed}
       hostQrVisible={hostQrVisible}
-      hapticsEnabled={feedback.hapticsEnabled}
-      reducedMotion={accessibility.reducedMotion}
-      highContrast={accessibility.highContrast}
-      sharedPlatformSettings={
-        usesRemotePlatformSettings ? sharedPlatformSettings : null
-      }
-      onUpdateSharedPlatformSettings={handleRemotePlatformSettingsPatch}
+      hapticsEnabled={hapticsEnabled}
+      roomPlatformSettings={hasControllerCapability ? roomSettings : null}
+      roomPlatformSettingsReadOnly={!canSendRemotePlatformSettings}
+      onUpdateRoomPlatformSettings={handleRoomPlatformSettingsPatch}
+      controllerLocalSettings={controllerLocalSettings}
+      onUpdateControllerLocalSettings={handleControllerLocalSettingsPatch}
       onMove={(vector) => {
         vectorRef.current = vector;
       }}

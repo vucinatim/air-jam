@@ -1,56 +1,27 @@
 "use client";
 
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import type { PlatformSettingsSnapshot } from "@air-jam/sdk";
+import type {
+  PlatformAudioSettings,
+  PlatformPreviewControllerSettings,
+  PlatformSettingsSnapshot,
+  RoomPlatformSettingsSnapshot,
+} from "@air-jam/sdk";
 import { usePlatformSettings } from "@air-jam/sdk";
 import { Slider, VolumeControls } from "@air-jam/sdk/ui";
 
 interface PlatformSettingsPanelProps {
   className?: string;
   compact?: boolean;
-  settings?: PlatformSettingsSnapshot;
+  settings?: PlatformSettingsSnapshot | RoomPlatformSettingsSnapshot;
   readOnly?: boolean;
-  onUpdateAudio?: (patch: Partial<PlatformSettingsSnapshot["audio"]>) => void;
-  onUpdateFeedback?: (
-    patch: Partial<PlatformSettingsSnapshot["feedback"]>,
-  ) => void;
+  onUpdateAudio?: (patch: Partial<PlatformAudioSettings>) => void;
   onUpdatePreviewControllers?: (
-    patch: Partial<PlatformSettingsSnapshot["previewControllers"]>,
+    patch: Partial<PlatformPreviewControllerSettings>,
   ) => void;
   showPreviewControllerSettings?: boolean;
 }
-
-interface SettingsToggleRowProps {
-  title: string;
-  description: string;
-  checked: boolean;
-  disabled?: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}
-
-const SettingsToggleRow = ({
-  title,
-  description,
-  checked,
-  disabled = false,
-  onCheckedChange,
-}: SettingsToggleRowProps) => (
-  <div className="flex items-start justify-between gap-4">
-    <div className="space-y-1">
-      <p className="text-sm font-medium text-white">{title}</p>
-      <p className="text-xs leading-5 text-slate-400">{description}</p>
-    </div>
-    <Switch
-      checked={checked}
-      disabled={disabled}
-      onCheckedChange={onCheckedChange}
-      aria-label={title}
-      className="mt-0.5"
-    />
-  </div>
-);
 
 export function PlatformSettingsPanel(props: PlatformSettingsPanelProps) {
   if (props.settings) {
@@ -74,7 +45,7 @@ function OwnedPlatformSettingsPanel({
   PlatformSettingsPanelProps,
   "className" | "compact" | "showPreviewControllerSettings"
 >) {
-  const { settings, updateAudio, updateFeedback, updatePreviewControllers } =
+  const { settings, updateAudio, updatePreviewControllers } =
     usePlatformSettings();
 
   return (
@@ -83,7 +54,6 @@ function OwnedPlatformSettingsPanel({
       className={className}
       compact={compact}
       onUpdateAudio={updateAudio}
-      onUpdateFeedback={updateFeedback}
       onUpdatePreviewControllers={updatePreviewControllers}
       showPreviewControllerSettings={showPreviewControllerSettings}
     />
@@ -96,12 +66,12 @@ function PlatformSettingsPanelBody({
   compact = false,
   readOnly = false,
   onUpdateAudio,
-  onUpdateFeedback,
   onUpdatePreviewControllers,
   showPreviewControllerSettings = false,
 }: Required<Pick<PlatformSettingsPanelProps, "settings">> &
   Omit<PlatformSettingsPanelProps, "settings">) {
-  const highContrast = settings.accessibility.highContrast;
+  const highContrast =
+    "accessibility" in settings ? settings.accessibility.highContrast : false;
 
   return (
     <section
@@ -114,14 +84,11 @@ function PlatformSettingsPanelBody({
     >
       <div className="space-y-1">
         <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
-          Shared settings
+          Room settings
         </p>
-        <h3 className="text-lg font-semibold text-white">
-          Arcade + game defaults
-        </h3>
+        <h3 className="text-lg font-semibold text-white">Audio defaults</h3>
         <p className="max-w-xl text-sm leading-6 text-slate-400">
-          Persist locally in the platform and inherit into embedded Air Jam
-          games.
+          Affect the host room and embedded Air Jam game surfaces.
         </p>
       </div>
 
@@ -181,20 +148,6 @@ function PlatformSettingsPanelBody({
           </div>
         </>
       ) : null}
-
-      <Separator className="my-4 bg-white/10" />
-
-      <div className="space-y-4">
-        <SettingsToggleRow
-          title="Controller haptics"
-          description="Enable local vibration feedback in platform controller surfaces."
-          checked={settings.feedback.hapticsEnabled}
-          disabled={readOnly}
-          onCheckedChange={(checked) =>
-            onUpdateFeedback?.({ hapticsEnabled: checked })
-          }
-        />
-      </div>
     </section>
   );
 }

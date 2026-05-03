@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../src/settings/platform-settings";
 import {
   createControllerRuntimeControlContract,
   createHostRuntimeControlContract,
@@ -134,6 +135,7 @@ describe("runtime contracts", () => {
       lastError: undefined,
       runtimeState: "playing",
       controllerOrientation: "landscape",
+      roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
       stateMessage: "Go",
     });
 
@@ -147,6 +149,7 @@ describe("runtime contracts", () => {
       lastError: undefined,
       runtimeState: "playing",
       controllerOrientation: "landscape",
+      roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
       stateMessage: "Go",
     });
   });

@@ -1,9 +1,11 @@
 import { create, type StoreApi } from "zustand";
+import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
 import type {
   ConnectionRole,
   ConnectionStatus,
   ControllerOrientation,
   ControllerPresenceNotice,
+  ControllerRoomSettingsState,
   HostArcadeSessionSnapshot,
   PlayerProfile,
   RunMode,
@@ -24,6 +26,7 @@ export interface AirJamStore {
   runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
   stateMessage?: string;
+  roomSettings: ControllerRoomSettingsState;
   players: PlayerProfile[];
   controllerSessions: ControllerPresenceNotice[];
   lastError?: string;
@@ -46,6 +49,7 @@ export interface AirJamStore {
   setRuntimeState: (state: RuntimeState) => void;
   setControllerOrientation: (orientation: ControllerOrientation) => void;
   setStateMessage: (message?: string) => void;
+  setRoomSettings: (settings: ControllerRoomSettingsState) => void;
   setError: (message?: string) => void;
   upsertPlayer: (player: PlayerProfile) => void;
   removePlayer: (playerId: string) => void;
@@ -71,6 +75,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     runtimeState: "playing",
     controllerOrientation: "portrait",
     stateMessage: undefined,
+    roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
     players: [],
     controllerSessions: [],
     lastError: undefined,
@@ -96,6 +101,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     setControllerOrientation: (controllerOrientation) =>
       set({ controllerOrientation }),
     setStateMessage: (stateMessage) => set({ stateMessage }),
+    setRoomSettings: (roomSettings) => set({ roomSettings }),
     setError: (message) => set({ lastError: message }),
     upsertPlayer: (player) =>
       set((state) => {
@@ -140,6 +146,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
         runtimeState: "playing",
         controllerOrientation: "portrait",
         stateMessage: undefined,
+        roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
       }),
     setRegisteredRoomId: (roomId) => set({ registeredRoomId: roomId }),
   }));

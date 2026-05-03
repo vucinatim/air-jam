@@ -1,3 +1,4 @@
+import type { RoomPlatformSettingsSnapshot } from "@air-jam/sdk";
 import type {
   AirJamStateSyncPayload,
   ChildHostCapability,
@@ -75,6 +76,7 @@ export interface RoomSession {
   runtimeState: RuntimeState;
   stateVersion: number;
   controllerOrientation: ControllerOrientation;
+  roomSettings: RoomPlatformSettingsSnapshot;
   lifecycleState: RoomLifecycleState;
   /** Deferred teardown when child host socket drops (Socket.IO reconnect grace). */
   pendingChildTeardownTimer?: ReturnType<typeof setTimeout>;

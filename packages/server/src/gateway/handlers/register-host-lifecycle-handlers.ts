@@ -1,3 +1,4 @@
+import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "@air-jam/sdk";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   ErrorCode,
@@ -113,6 +114,7 @@ export const registerHostLifecycleHandlers = (
       runtimeState: startsInGameFocus ? "playing" : "paused",
       stateVersion: 0,
       controllerOrientation: "portrait",
+      roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
       lifecycleState: startsInGameFocus ? "GAME_ACTIVE" : "SYSTEM_IDLE",
     };
   };

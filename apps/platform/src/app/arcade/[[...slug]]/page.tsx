@@ -5,7 +5,7 @@ import {
   ArcadeSystem,
   type ArcadeGame,
 } from "@/components/arcade";
-import { platformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
+import { getPlatformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import {
   getLocalReferenceArcadeGame,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/local-reference-games";
 import { api } from "@/trpc/react";
 import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
-import { use } from "react";
+import { use, useMemo } from "react";
 
 export default function ArcadePage({
   params,
@@ -49,10 +49,11 @@ export default function ArcadePage({
   const hostRouteIntent = slugOrId
     ? { kind: "game" as const, gameId: initialGameId ?? null }
     : { kind: "browser" as const };
+  const sessionConfig = useMemo(() => getPlatformArcadeHostSessionConfig(), []);
 
   return (
     <PlatformSettingsRuntime persistence="local">
-      <AirJamHostRuntime {...platformArcadeHostSessionConfig}>
+      <AirJamHostRuntime {...sessionConfig}>
         <ArcadeAudioRuntime>
           <ArcadeSystem
             games={arcadeGames}

@@ -5,7 +5,7 @@ import {
   embeddedBridgeForwardShouldClose,
   shouldRejectControllerBridgeHandshake,
 } from "@/components/arcade/embedded-bridge-surface-guard";
-import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
+import { getPlatformControllerSessionConfig } from "@/lib/airjam-session-config";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
 import type { AirJamControllerApi, ControllerOrientation } from "@air-jam/sdk";
@@ -78,6 +78,10 @@ const arcadeSurfaceKey = (surface: {
 export function useControllerEmbeddedGameFrame({
   controller,
 }: UseControllerEmbeddedGameFrameOptions): ControllerEmbeddedGameFrameState {
+  const platformControllerSessionConfig = useMemo(
+    () => getPlatformControllerSessionConfig(),
+    [],
+  );
   const arcadeSurface = useArcadeSurfaceStore(
     useShallow((state) => ({
       kind: state.kind,

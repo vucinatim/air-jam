@@ -1,6 +1,7 @@
 "use client";
 
 import { ControllerMenuNotch } from "@/components/controller-menu-notch";
+import { ControllerLocalSettingsPanel } from "@/components/controller-local-settings-panel";
 import { PlatformSettingsPanel } from "@/components/platform-settings-panel";
 import {
   AlertDialog,
@@ -23,6 +24,7 @@ import {
   writeControllerLocalProfile,
   type ControllerPersistedProfile,
 } from "@/lib/controller-local-profile";
+import type { ControllerLocalSettingsSnapshot } from "@/lib/controller-local-settings";
 import { CONTROLLER_AVATAR_PRESETS } from "@/lib/controller-profile-presets";
 import { triggerLocalHaptic } from "@/lib/local-haptics";
 import { parseRoomFromQrText } from "@/lib/parse-room-from-qr-text";
@@ -30,8 +32,9 @@ import { toggleDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import { cn } from "@/lib/utils";
 import {
   type AirJamControllerApi,
-  type PlatformSettingsSnapshot,
+  type PartialRoomPlatformSettingsPatch,
   type PlayerProfile,
+  type RoomPlatformSettingsSnapshot,
 } from "@air-jam/sdk";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import { getDiceBearAdventurerNeutralUrl, PlayerAvatar } from "@air-jam/sdk/ui";
@@ -54,20 +57,20 @@ interface ControllerMenuSheetProps {
   routeRoomId: string | null;
   activeUrl: string | null;
   controller: AirJamControllerApi;
-  emitArcadeAction: (action: string) => void;
+  emitArcadeAction: (action: string, payload?: unknown) => void;
   hasControllerCapability: boolean;
   documentFullscreen: boolean;
   dialogPortalContainer?: HTMLElement | null;
   /** Host arcade join QR overlay is visible (replicated `ArcadeSurfaceState.overlay === "qr"`). */
   hostQrVisible: boolean;
   hapticsEnabled: boolean;
-  reducedMotion: boolean;
-  highContrast: boolean;
-  sharedPlatformSettings: PlatformSettingsSnapshot | null;
-  onUpdateSharedPlatformSettings: (patch: {
-    audio?: Partial<PlatformSettingsSnapshot["audio"]>;
-    feedback?: Partial<PlatformSettingsSnapshot["feedback"]>;
-  }) => void;
+  roomPlatformSettings: RoomPlatformSettingsSnapshot | null;
+  roomPlatformSettingsReadOnly: boolean;
+  onUpdateRoomPlatformSettings: (patch: PartialRoomPlatformSettingsPatch) => void;
+  controllerLocalSettings: ControllerLocalSettingsSnapshot;
+  onUpdateControllerLocalSettings: (
+    patch: Partial<ControllerLocalSettingsSnapshot>,
+  ) => void;
 }
 
 /** Shared top-left: avatar + “Room” label, status dot, room code (sheet + floating bar). */
@@ -126,10 +129,11 @@ export function ControllerMenuSheet({
   dialogPortalContainer,
   hostQrVisible,
   hapticsEnabled,
-  reducedMotion,
-  highContrast,
-  sharedPlatformSettings,
-  onUpdateSharedPlatformSettings,
+  roomPlatformSettings,
+  roomPlatformSettingsReadOnly,
+  onUpdateRoomPlatformSettings,
+  controllerLocalSettings,
+  onUpdateControllerLocalSettings,
 }: ControllerMenuSheetProps) {
   const router = useRouter();
 
@@ -393,21 +397,16 @@ export function ControllerMenuSheet({
   const topChromeStyle: CSSProperties | undefined = documentFullscreen
     ? undefined
     : { paddingTop: "0.5rem" };
-  const overlayFrameClass = highContrast
-    ? "flex-col bg-black"
-    : "flex-col bg-black/97";
-  const overlayPanelClass = cn(
-    "touch-auto flex h-full w-full flex-col",
-    highContrast ? "border-t border-white/15 bg-black" : "bg-black/97",
-  );
+  const overlayFrameClass = "flex-col bg-black/97";
+  const overlayPanelClass = "touch-auto flex h-full w-full flex-col bg-black/97";
   const overlayBodyClass =
     "touch-auto min-h-0 flex-1 overflow-y-auto px-3 py-6";
-  const notchIconTransition = reducedMotion
-    ? { duration: 0.01 }
-    : { duration: 0.15 };
-  const overlayTransition = reducedMotion
-    ? { duration: 0.01 }
-    : { type: "spring" as const, stiffness: 420, damping: 38 };
+  const notchIconTransition = { duration: 0.15 };
+  const overlayTransition = {
+    type: "spring" as const,
+    stiffness: 420,
+    damping: 38,
+  };
 
   const overlayChrome = (
     <header
@@ -633,9 +632,9 @@ export function ControllerMenuSheet({
                 "pointer-events-auto fixed inset-0 z-50 flex",
                 overlayFrameClass,
               )}
-              initial={reducedMotion ? { opacity: 0 } : { y: "-100%" }}
-              animate={reducedMotion ? { opacity: 1 } : { y: 0 }}
-              exit={reducedMotion ? { opacity: 0 } : { y: "-100%" }}
+              initial={{ y: "-100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "-100%" }}
               transition={overlayTransition}
             >
               <div className={overlayPanelClass}>
@@ -853,19 +852,24 @@ export function ControllerMenuSheet({
                       </div>
                     </section>
 
-                    {hasControllerCapability && sharedPlatformSettings ? (
+                    {hasControllerCapability && roomPlatformSettings ? (
                       <PlatformSettingsPanel
-                        settings={sharedPlatformSettings}
+                        settings={roomPlatformSettings}
+                        readOnly={roomPlatformSettingsReadOnly}
                         onUpdateAudio={(audio) =>
-                          onUpdateSharedPlatformSettings({ audio })
+                          onUpdateRoomPlatformSettings({ audio })
                         }
-                        onUpdateFeedback={(feedback) =>
-                          onUpdateSharedPlatformSettings({ feedback })
+                        onUpdatePreviewControllers={(previewControllers) =>
+                          onUpdateRoomPlatformSettings({ previewControllers })
                         }
+                        showPreviewControllerSettings
                       />
-                    ) : hasControllerCapability ? (
-                      <PlatformSettingsPanel />
                     ) : null}
+
+                    <ControllerLocalSettingsPanel
+                      settings={controllerLocalSettings}
+                      onUpdateSettings={onUpdateControllerLocalSettings}
+                    />
                   </div>
                 </div>
               </div>

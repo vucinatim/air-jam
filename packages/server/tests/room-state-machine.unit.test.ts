@@ -1,3 +1,4 @@
+import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "@air-jam/sdk";
 import type { Server } from "socket.io";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -31,6 +32,7 @@ const createSession = (): RoomSession => ({
   runtimeState: "paused",
   stateVersion: 0,
   controllerOrientation: "portrait",
+  roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
   lifecycleState: "SYSTEM_IDLE",
 });
 
@@ -182,10 +184,12 @@ describe("room session domain lifecycle", () => {
 
     const first = emitRoomState(io, session.roomId, session);
     expect(first.state.stateVersion).toBe(1);
+    expect(first.state.roomSettings).toEqual(DEFAULT_ROOM_PLATFORM_SETTINGS);
     expect(session.stateVersion).toBe(1);
     expect(emit).toHaveBeenCalledWith("server:state", first);
 
     const snapshot = buildRoomStateMessage(session.roomId, session);
     expect(snapshot.state.stateVersion).toBe(1);
+    expect(snapshot.state.roomSettings).toEqual(DEFAULT_ROOM_PLATFORM_SETTINGS);
   });
 });

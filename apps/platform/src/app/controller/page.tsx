@@ -1,12 +1,12 @@
 "use client";
 
-import { platformControllerSessionConfig } from "@/lib/airjam-session-config";
+import { getPlatformControllerSessionConfig } from "@/lib/airjam-session-config";
 import {
   getControllerLocalProfileClientSnapshot,
   getControllerLocalProfileServerSnapshot,
   subscribeControllerLocalProfile,
 } from "@/lib/controller-local-profile";
-import { AirJamControllerRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
+import { AirJamControllerRuntime } from "@air-jam/sdk";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useSyncExternalStore } from "react";
 import { ControllerPageContent } from "./controller-page-content";
@@ -26,23 +26,25 @@ function ControllerPageInner({
     getControllerLocalProfileClientSnapshot,
     getControllerLocalProfileServerSnapshot,
   );
+  const sessionConfig = useMemo(
+    () => getPlatformControllerSessionConfig(),
+    [],
+  );
 
   return (
-    <PlatformSettingsRuntime persistence="local">
-      <AirJamControllerRuntime
-        {...platformControllerSessionConfig}
-        roomId={routeRoomId ?? undefined}
-        capabilityToken={routeControllerCapabilityToken}
-        nickname={localProfile.label}
-        avatarId={localProfile.avatarId}
-      >
-        <ControllerPageContent
-          routeRoomId={routeRoomId}
-          hasControllerCapability={Boolean(routeControllerCapabilityToken)}
-          surfaceMode={surfaceMode}
-        />
-      </AirJamControllerRuntime>
-    </PlatformSettingsRuntime>
+    <AirJamControllerRuntime
+      {...sessionConfig}
+      roomId={routeRoomId ?? undefined}
+      capabilityToken={routeControllerCapabilityToken}
+      nickname={localProfile.label}
+      avatarId={localProfile.avatarId}
+    >
+      <ControllerPageContent
+        routeRoomId={routeRoomId}
+        hasControllerCapability={Boolean(routeControllerCapabilityToken)}
+        surfaceMode={surfaceMode}
+      />
+    </AirJamControllerRuntime>
   );
 }
 

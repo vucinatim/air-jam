@@ -705,6 +705,9 @@ export const useControllerRuntimeApi = (
       if (payload.state.message !== undefined) {
         latestState.setStateMessage(payload.state.message);
       }
+      if (payload.state.roomSettings) {
+        latestState.setRoomSettings(payload.state.roomSettings);
+      }
       onStateRef.current?.(payload.state);
     };
 

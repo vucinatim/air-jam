@@ -556,6 +556,9 @@ export const registerRealtimeHandlers = (
     if (state.orientation) {
       session.controllerOrientation = state.orientation;
     }
+    if (state.roomSettings) {
+      session.roomSettings = state.roomSettings;
+    }
     const broadcastPayload = emitRoomState(io, roomId, session, {
       message: state.message,
     });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createPrefabCatalog, definePrefab } from "../src/prefabs";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
+import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../src/settings/platform-settings";
 import {
   createHostRuntimeControlContract,
   useControllerRuntimeControlContract,
@@ -45,6 +46,7 @@ describe("runtime experimental subpaths", () => {
       lastError: undefined,
       runtimeState: "playing",
       controllerOrientation: "landscape",
+      roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
       stateMessage: "Ready",
     });
 

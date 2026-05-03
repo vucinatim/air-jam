@@ -1,4 +1,8 @@
-import { parseRuntimeTopology } from "@air-jam/runtime-topology";
+import {
+  isLocalDevControlSurfaceTopology,
+  parseRuntimeTopology,
+  resolveRuntimeTopology,
+} from "@air-jam/runtime-topology";
 import { z } from "zod";
 
 export const arcadeInputSchema = z.object({
@@ -9,7 +13,7 @@ export const arcadeInputSchema = z.object({
   action: z.boolean(),
 });
 
-const resolvePlatformTopology = (
+export const resolvePlatformTopology = (
   envKey:
     | "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY"
     | "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
@@ -24,25 +28,41 @@ const resolvePlatformTopology = (
     );
   }
 
-  return parseRuntimeTopology(serialized);
+  const topology = parseRuntimeTopology(serialized);
+  if (
+    typeof window === "undefined" ||
+    !isLocalDevControlSurfaceTopology(topology) ||
+    topology.proxyStrategy !== "platform-proxy"
+  ) {
+    return topology;
+  }
+
+  const actualOrigin = window.location.origin;
+  if (!actualOrigin || actualOrigin === topology.appOrigin) {
+    return topology;
+  }
+
+  return resolveRuntimeTopology({
+    ...topology,
+    appOrigin: actualOrigin,
+    socketOrigin: actualOrigin,
+  });
 };
 
-export const platformControllerSessionConfig = {
+export const getPlatformControllerSessionConfig = () => ({
   topology: resolvePlatformTopology(
     "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
   ),
   appId: process.env.NEXT_PUBLIC_AIR_JAM_APP_ID,
   hostGrantEndpoint: process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT,
-};
+});
 
-export const platformArcadeHostSessionConfig = {
-  topology: resolvePlatformTopology(
-    "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY",
-  ),
+export const getPlatformArcadeHostSessionConfig = () => ({
+  topology: resolvePlatformTopology("NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY"),
   appId: process.env.NEXT_PUBLIC_AIR_JAM_APP_ID,
   hostGrantEndpoint: process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT,
   hostSessionKind: "system" as const,
   input: {
     schema: arcadeInputSchema,
   },
-};
+});

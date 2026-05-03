@@ -27,6 +27,15 @@ export interface PlatformSettings {
 }
 
 export type PlatformSettingsSnapshot = PlatformSettings;
+export interface RoomPlatformSettingsSnapshot {
+  audio: PlatformAudioSettings;
+  previewControllers: PlatformPreviewControllerSettings;
+}
+
+export interface PartialRoomPlatformSettingsPatch {
+  audio?: Partial<PlatformAudioSettings>;
+  previewControllers?: Partial<PlatformPreviewControllerSettings>;
+}
 
 export const PLATFORM_SETTINGS_STORAGE_KEY = "air-jam-platform-settings";
 export const LEGACY_AUDIO_SETTINGS_STORAGE_KEY = "air-jam-volume-settings";
@@ -47,6 +56,11 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsSnapshot = {
   previewControllers: {
     activeOpacity: 1,
   },
+};
+
+export const DEFAULT_ROOM_PLATFORM_SETTINGS: RoomPlatformSettingsSnapshot = {
+  audio: DEFAULT_PLATFORM_SETTINGS.audio,
+  previewControllers: DEFAULT_PLATFORM_SETTINGS.previewControllers,
 };
 
 type PartialPlatformAudioSettings = Partial<PlatformAudioSettings>;
@@ -170,6 +184,30 @@ export const getEffectiveAudioVolume = (
     category === "music" ? settings.musicVolume : settings.sfxVolume;
   return clamp01(settings.masterVolume) * clamp01(categoryVolume);
 };
+
+export const toRoomPlatformSettingsSnapshot = (
+  settings: PlatformSettingsSnapshot,
+): RoomPlatformSettingsSnapshot => ({
+  audio: settings.audio,
+  previewControllers: settings.previewControllers,
+});
+
+export const mergeRoomPlatformSettingsSnapshot = (
+  current: RoomPlatformSettingsSnapshot,
+  patch: PartialRoomPlatformSettingsPatch,
+): RoomPlatformSettingsSnapshot => ({
+  audio: normalizeAudioSettings(
+    { ...current.audio, ...patch.audio },
+    current.audio,
+  ),
+  previewControllers: normalizePreviewControllerSettings(
+    {
+      ...current.previewControllers,
+      ...patch.previewControllers,
+    },
+    current.previewControllers,
+  ),
+});
 
 const tryParseJson = (raw: string | null): unknown => {
   if (!raw) {
