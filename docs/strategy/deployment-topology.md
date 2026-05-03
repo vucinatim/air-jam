@@ -1,6 +1,6 @@
 # Deployment Topology
 
-Last updated: 2026-05-02
+Last updated: 2026-05-03
 Status: active
 
 This document defines the intended production topology for Air Jam and the cleanup path from the current state to a more deterministic deployment system.
@@ -58,8 +58,10 @@ Should not own:
 
 Current public origins:
 
-1. `https://www.air-jam.app`
-2. `https://air-jam.app`
+1. `https://airjam.io`
+2. `https://www.airjam.io`
+3. `https://www.air-jam.app`
+4. `https://air-jam.app`
 
 Important env ownership:
 

@@ -126,6 +126,22 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "air-jam.app" }],
+        destination: "https://airjam.io/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.air-jam.app" }],
+        destination: "https://airjam.io/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     const backendUrl = process.env.AIR_JAM_DEV_PROXY_BACKEND_URL?.trim();
     if (!backendUrl) {
