@@ -285,7 +285,7 @@ describe("dev browser log sink", () => {
 
     await new Promise<void>((resolve, reject) => {
       socket!.once("connect", () => resolve());
-      socket!.once("connect_error", (error) => reject(error));
+      socket!.once("connect_error", (error: Error) => reject(error));
     });
 
     const bootstrapAck = await new Promise<{ ok: boolean; traceId?: string }>(
@@ -313,7 +313,7 @@ describe("dev browser log sink", () => {
 
     await new Promise<void>((resolve, reject) => {
       controllerSocket.once("connect", () => resolve());
-      controllerSocket.once("connect_error", (error) => reject(error));
+      controllerSocket.once("connect_error", (error: Error) => reject(error));
     });
 
     const controllerJoinAck = await new Promise<{
