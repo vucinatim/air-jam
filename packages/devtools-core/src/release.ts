@@ -187,6 +187,14 @@ const hashContent = (value: string): string =>
 const ensurePosixRelativePath = (fromDir: string, toPath: string): string =>
   path.relative(fromDir, toPath).replace(/\\/g, "/");
 
+const ensureExplicitRelativeUrl = (value: string): string => {
+  if (!value || value.startsWith("./") || value.startsWith("../")) {
+    return value;
+  }
+
+  return `./${value}`;
+};
+
 const isRemoteFontStylesheetUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
@@ -415,7 +423,12 @@ const vendorCssFontDependencies = async ({
           bundleRoot,
           state,
         });
-        const relativeImport = ensurePosixRelativePath(cssDir, path.join(bundleRoot, vendoredStylesheet));
+        const relativeImport = ensureExplicitRelativeUrl(
+          ensurePosixRelativePath(
+            cssDir,
+            path.join(bundleRoot, vendoredStylesheet),
+          ),
+        );
         return `@import url("${relativeImport}");`;
       },
     });
@@ -434,9 +447,11 @@ const vendorCssFontDependencies = async ({
           bundleRoot,
           state,
         });
-        const relativeAssetPath = ensurePosixRelativePath(
-          cssDir,
-          path.join(bundleRoot, vendoredAsset),
+        const relativeAssetPath = ensureExplicitRelativeUrl(
+          ensurePosixRelativePath(
+            cssDir,
+            path.join(bundleRoot, vendoredAsset),
+          ),
         );
         return `url("${relativeAssetPath}")`;
       },

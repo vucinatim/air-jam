@@ -307,7 +307,7 @@ describe("local release tooling", () => {
 
     expect(cssEntry?.toString("utf8")).not.toContain("fonts.googleapis.com");
     expect(cssEntry?.toString("utf8")).toMatch(
-      /@import url\("airjam-vendored\/fonts\/[a-f0-9]{16}\.css"\);/,
+      /@import url\("\.\/airjam-vendored\/fonts\/[a-f0-9]{16}\.css"\);/,
     );
 
     const vendoredCssEntry = [...entries.keys()].find((entry) =>
