@@ -44,7 +44,7 @@ build something playable, get friends in fast, play it together, tweak it, and g
   agentDemo: {
     title: "From Prompt to Playable",
     subtitle: `A real one-shot build in a minimal Air Jam project. <br/>
-Claude Code scaffolds the game, opens preview, uses the controllers, and gets to a working result.`,
+Claude Code scaffolds the game, opens preview, and gets it playable.`,
     videoSrc: "/videos/claude-demo.mp4",
     prompts: [
       "use Air Jam logs to debug this room",

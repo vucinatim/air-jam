@@ -1,4 +1,4 @@
-# AirConsole stopped growing. I'm building what comes next.
+# Story of building Air Jam
 
 _Notes from rebuilding the phone-as-controller arcade as an open-source, AI-native framework — and what the rebuild taught me about where this category is going._
 
@@ -28,25 +28,23 @@ The first one is exactly the kind of thing you don't want anyone — human or LL
 
 The framework's job, then, is to absorb the first problem so completely that nobody — least of all an agent — has to think about it again. Air Jam is mostly an attempt to do that.
 
-## What LLMs change, and what they don't.
+## What LLMs change.
 
-In 2023 I wrote off "build the whole platform myself" as unrealistic. Real-time multiplayer infrastructure plus a hosted arcade plus the games to run on it isn't a weekend project. By 2024–25 the agents got noticeably better — not the parlor-trick demos from a year before, actually capable, agentic, able to hold a real codebase in their head and ship changes that compiled and made sense the next morning.
+In 2023 I wrote off "build the whole platform myself" as unrealistic. Real-time multiplayer infrastructure plus a hosted arcade plus the games to run on it isn't a weekend project for one person. By 2024–25 that stopped being true.
 
-It's worth being precise about what changed and what didn't. LLMs did not get good at writing greenfield multiplayer infrastructure. They still don't, in my experience. What they got good at is operating inside a well-shaped codebase: extending existing patterns, writing the next layer of a game when the layer below is solid, iterating on creative work with a tight feedback loop.
+LLMs are capable of writing pretty much any of this if you steer them well. Multiplayer infrastructure included. The catch is that good steering takes real time and attention, and you don't want to be doing it from scratch every time someone wants to build a new game. That's the whole point of a framework — do the steering work once, shape the substrate carefully, and then everything built on top is fast for humans and agents both.
 
-That's the substrate-vs-surface distinction this whole project is built on. The substrate has to be hand-designed and hand-maintained, with strong contracts and minimal hidden state. Once that exists, the surface — the games, the controllers, most of the platform UI — can largely be agent-driven.
+So the practical effect of LLMs getting better isn't "now anyone can build a multiplayer game from nothing." It's "now one person plus an agent can do the careful substrate work that used to need a small team — and once that substrate exists, the cost of making any individual game on top of it collapses."
 
-In other words: LLMs don't make this category cheaper to inhabit. They make it cheaper to inhabit _provided someone has done the substrate work_.
+Air Jam is mostly an attempt to do that careful substrate work, well, once.
 
-## Friction is the moat.
+## The arcade is the product, not the SDK.
 
 The first version of Air Jam I built leaned on a "developers host their own games anywhere" model. Build a game, deploy it on Vercel or Netlify, point it at a central server with an API key. That path still works — it's the answer to "why does the platform have API keys" for the four people who will ever ask.
 
 It also wasn't really the dream. The thing AirConsole did best wasn't its SDK. It was the arcade itself: one room, one QR code, all the games sitting there. You don't pick a game and load a controller — you join a room and the games come to you.
 
-This sounds like a UX detail. It isn't. In the party-game context, friction _is_ the entire moat. If joining a game takes more than ten seconds, the moment passes — the friend who suggested it loses social capital, the group's already drifting back to phones, and you're not playing tonight. AirConsole's five-second join is the product. Everything else is plumbing.
-
-The lesson generalizes badly to enterprise software but cleanly to anything social and ad-hoc. If your product depends on a group of humans deciding to do something together in the next thirty seconds, your real competitor is the group's attention span, not other products.
+That's not a nice-to-have feature, that's the thing the product is. If joining a game takes thirty seconds instead of five, the moment passes — people drift back to their phones, the friend who suggested it gives up, and you don't play that night. AirConsole's instant join is what makes party games happen at all. Everything underneath it is just plumbing to support that.
 
 The shape of Air Jam followed from this. The arcade isn't a feature on top of the SDK; it's the product. The SDK exists to make the arcade fillable.
 
@@ -88,12 +86,16 @@ We ran a game jam at zerodays — the agency I work at. Nine of us, three teams,
 
 The thing that was genuinely surprising — more than the games themselves — was the shift in tone around AI in the office. A lot of the people there had been cautious about AI before that day. The jam didn't argue with any of those concerns; it just put AI in a different context. Nobody was using it to ship faster or replace anything. They were using it to make something funny and personal that we then played together. The mood shifted a few degrees and stayed shifted.
 
-The dedicated post about the jam is [here](./blog-article-draft.md), with the actual game writeups. The point I'd make in this one is narrower: when the substrate is shaped right, the human creative energy goes entirely into the game design. People don't think about WebSockets or input pipelines, because they don't have to. That's the thing I want to be true about more software, party games being a small and pleasant proof of concept.
+The dedicated post about the jam is [here](./blog-article-draft.md), with the actual game writeups. All three of those games are now shipped as templates in the framework, alongside Pong, Air Capture, and a minimal starter — six in total, which means anyone running `npx create-airjam` today scaffolds from one of them and is playing on their phone in under a minute.
+
+The point I'd make in this article is narrower: when the substrate is shaped right, the human creative energy goes entirely into the game design. People don't think about WebSockets or input pipelines, because they don't have to. That's the thing I want to be true about more software, party games being a small and pleasant proof of concept.
 
 ## Where it stands.
 
-Air Jam is heading toward a closed release. It's open source. The arcade is coming online and the first three games are real. If you're building anything in the AI-native developer-tools direction, I'd be curious what you make of the agent contracts and the topology model — both of those decisions ate a lot of time and I don't think the right answers there are settled in the industry yet.
+Air Jam is open source and heading toward its first public release. The arcade is live at [airjam.io](https://airjam.io) — you can scan the QR code and play the six template games right now. The framework, server, SDK, and platform live in the monorepo at [github.com/vucinatim/airjam](https://github.com/vucinatim/airjam). The fastest way to build a game on top of it is `npx create-airjam <game-name>`, which scaffolds from one of the templates and gives you a working room you can join from your phone in about a minute.
+
+If you're building anything in the AI-native developer-tools direction, I'd be curious what you make of the agent contracts and the runtime topology model — those two decisions ate a lot of time and I don't think the right answers there are settled in the industry yet.
 
 If you build something with it, send it over. If you run a jam, send the screenshots.
 
-> _[Final media: arcade screenshot or QR. Earlier visuals: Claude Code demo video at the LLMs section, GitHub diff stat at the 1,500-file rewrite, three game thumbnails at the jam section, recursive-loop diagram at the recursive-bet section.]_
+> _[Media plan — Claude Code demo video at the "What LLMs change" section, GitHub diff stat at the 1,500-file rewrite, three jam game thumbnails at the "What it feels like when it works" section, recursive-loop diagram at the recursive-bet section, arcade screenshot or QR at the closing.]_
