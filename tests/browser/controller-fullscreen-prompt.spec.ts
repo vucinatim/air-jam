@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openArcadeHost } from "./helpers/open-arcade-host";
 
 test("controller page prompts for fullscreen when opened from a room link", async ({
   browser,
@@ -6,11 +7,13 @@ test("controller page prompts for fullscreen when opened from a room link", asyn
 }) => {
   const context = await browser.newContext();
   const hostPage = await context.newPage();
-
-  await hostPage.goto(`${baseURL}/arcade/local-pong`);
-  const hostGame = hostPage.frameLocator(
-    'iframe[data-testid="arcade-host-game-frame"]',
-  );
+  const hostGame = await openArcadeHost({
+    page: hostPage,
+    baseURL,
+    path: "/arcade/local-pong",
+    readyTestId: "pong-host-room-code",
+  });
+  const platformBaseUrl = baseURL ?? "";
   await expect(hostGame.getByTestId("pong-host-room-code")).toHaveText(
     /[A-Z0-9]{4}/,
   );
@@ -24,7 +27,7 @@ test("controller page prompts for fullscreen when opened from a room link", asyn
 
   const controllerPage = await context.newPage();
   await controllerPage.goto(
-    `${baseURL}/controller?room=${encodeURIComponent(roomCode)}`,
+    `${platformBaseUrl}/controller?room=${encodeURIComponent(roomCode)}`,
   );
 
   await expect(

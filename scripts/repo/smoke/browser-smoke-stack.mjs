@@ -2,6 +2,7 @@
 
 import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
+import http from "node:http";
 import net from "node:net";
 import path from "node:path";
 import { repoRoot } from "../lib/paths.mjs";
@@ -25,16 +26,23 @@ const readPort = (name, fallback) => {
 };
 
 const platformPort = readPort("AIRJAM_SMOKE_PLATFORM_PORT", 3400);
+const readyPort = readPort("AIRJAM_SMOKE_READY_PORT", 3499);
 const serverPort = readPort("AIRJAM_SMOKE_SERVER_PORT", 4400);
 const pongPort = readPort("AIRJAM_SMOKE_PONG_PORT", 5400);
 const airCapturePort = readPort("AIRJAM_SMOKE_AIR_CAPTURE_PORT", 5401);
-const stackPorts = [platformPort, serverPort, pongPort, airCapturePort];
+const stackPorts = [
+  readyPort,
+  platformPort,
+  serverPort,
+  pongPort,
+  airCapturePort,
+];
 
 const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
+const readyBaseUrl = `http://127.0.0.1:${readyPort}`;
 const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
 const pongBaseUrl = `http://127.0.0.1:${pongPort}`;
 const airCaptureBaseUrl = `http://127.0.0.1:${airCapturePort}`;
-const publicGamesQueryUrl = `${platformBaseUrl}/api/trpc/game.getAllPublic?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D`;
 
 const baseEnv = {
   ...process.env,
@@ -44,6 +52,36 @@ const baseEnv = {
 
 const processes = [];
 let shuttingDown = false;
+const readyState = {
+  status: "booting",
+  completedChecks: [],
+  pendingChecks: [
+    "server health",
+    "air-capture route",
+    "pong route",
+    "platform root",
+    "platform local pong",
+    "platform local air-capture",
+    "platform controller",
+  ],
+  error: null,
+};
+const readinessServer = http.createServer((_request, response) => {
+  const isReady = readyState.status === "ready";
+  response.writeHead(isReady ? 200 : 503, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  response.end(
+    JSON.stringify({
+      ready: isReady,
+      status: readyState.status,
+      completedChecks: readyState.completedChecks,
+      pendingChecks: readyState.pendingChecks,
+      error: readyState.error,
+    }),
+  );
+});
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -118,6 +156,13 @@ const waitForUrl = async (url, label, timeoutMs = 45_000) => {
   throw new Error(`Timed out waiting for ${label} at ${url}`);
 };
 
+const markCheckCompleted = (label) => {
+  readyState.completedChecks.push(label);
+  readyState.pendingChecks = readyState.pendingChecks.filter(
+    (pendingLabel) => pendingLabel !== label,
+  );
+};
+
 const shutdown = (code = 0) => {
   if (shuttingDown) {
     return;
@@ -168,6 +213,7 @@ const startProcess = (name, args, env = {}) => {
 
 const main = async () => {
   await assertPortsFree();
+  readinessServer.listen(readyPort, "127.0.0.1");
   rmSync(path.join(repoRoot, "apps/platform", platformDistDir), {
     force: true,
     recursive: true,
@@ -179,6 +225,7 @@ const main = async () => {
     PORT: String(serverPort),
   });
   await waitForUrl(`${serverBaseUrl}/health`, "Air Jam server");
+  markCheckCompleted("server health");
 
   startProcess(
     "air-capture",
@@ -198,6 +245,7 @@ const main = async () => {
     },
   );
   await waitForUrl(airCaptureBaseUrl, "Air Capture", 90_000);
+  markCheckCompleted("air-capture route");
 
   startProcess(
     "pong",
@@ -217,6 +265,7 @@ const main = async () => {
     },
   );
   await waitForUrl(pongBaseUrl, "Pong template");
+  markCheckCompleted("pong route");
 
   startProcess("platform", ["pnpm", "--filter", "platform", "dev:no-db"], {
     PORT: String(platformPort),
@@ -228,24 +277,29 @@ const main = async () => {
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: pongBaseUrl,
   });
   await waitForUrl(platformBaseUrl, "platform root", 120_000);
+  markCheckCompleted("platform root");
   await waitForUrl(
     `${platformBaseUrl}/arcade/local-pong`,
     "platform local pong",
     120_000,
   );
+  markCheckCompleted("platform local pong");
   await waitForUrl(
     `${platformBaseUrl}/arcade/local-air-capture`,
     "platform local air capture",
     120_000,
   );
+  markCheckCompleted("platform local air-capture");
   await waitForUrl(
     `${platformBaseUrl}/controller`,
     "platform controller",
     120_000,
   );
-  await waitForUrl(publicGamesQueryUrl, "platform public games query", 120_000);
+  markCheckCompleted("platform controller");
 
+  readyState.status = "ready";
   console.log("[browser-smoke] Local browser smoke stack is ready.");
+  console.log(`[browser-smoke] Readiness probe: ${readyBaseUrl}/ready`);
 };
 
 process.on("SIGINT", () => shutdown(0));
@@ -254,6 +308,8 @@ process.on("SIGTERM", () => shutdown(0));
 try {
   await main();
 } catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
+  readyState.status = "failed";
+  readyState.error = error instanceof Error ? error.message : String(error);
+  console.error(readyState.error);
   shutdown(1);
 }

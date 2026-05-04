@@ -3,10 +3,10 @@ import {
   test,
   type BrowserContext,
   type Locator,
-  type Page,
 } from "@playwright/test";
 import { dismissControllerFullscreenPrompt } from "./helpers/controller-fullscreen";
 import { resolveControllerJoinUrl } from "./helpers/controller-join-url";
+import { openArcadeHost } from "./helpers/open-arcade-host";
 
 const PLATFORM_SETTINGS_STORAGE_KEY = "air-jam-platform-settings";
 const TRACK_BASE_VOLUME = 0.4;
@@ -69,9 +69,6 @@ const installAudioProbe = async (
     },
   );
 };
-
-const getHostGameFrame = (page: Page) =>
-  page.frameLocator('iframe[data-testid="arcade-host-game-frame"]');
 
 const getControllerGameFrame = (page: Page) =>
   page.frameLocator('iframe[data-testid="arcade-controller-game-frame"]');
@@ -191,9 +188,12 @@ test("arcade local air-capture inherits initial settings and applies controller 
   await installAudioProbe(context, baseURL);
 
   const hostPage = await context.newPage();
-  await hostPage.goto(`${baseURL}/arcade/local-air-capture`);
-
-  const hostGame = getHostGameFrame(hostPage);
+  const hostGame = await openArcadeHost({
+    page: hostPage,
+    baseURL,
+    path: "/arcade/local-air-capture",
+    readyTestId: "air-capture-host-lobby-overlay",
+  });
 
   const controllerJoinUrl = await resolveControllerJoinUrl({
     hostGame,

@@ -1,6 +1,7 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { dismissControllerFullscreenPrompt } from "./helpers/controller-fullscreen";
 import { resolveControllerJoinUrl } from "./helpers/controller-join-url";
+import { openArcadeHost } from "./helpers/open-arcade-host";
 
 const joinTeamUntilAssigned = async (joinTeamButton: Locator) => {
   await expect(async () => {
@@ -15,22 +16,20 @@ test("arcade local pong host and controller complete the happy path", async ({
 }) => {
   const context = await browser.newContext();
   const hostPage = await context.newPage();
-
-  await hostPage.goto(`${baseURL}/arcade/local-pong`);
-  const hostGame = hostPage.frameLocator(
-    'iframe[data-testid="arcade-host-game-frame"]',
-  );
-  await expect(hostGame.getByTestId("pong-host-lobby-screen")).toBeVisible();
+  const hostGame = await openArcadeHost({
+    page: hostPage,
+    baseURL,
+    path: "/arcade/local-pong",
+    readyTestId: "pong-host-lobby-screen",
+  });
+  const platformBaseUrl = baseURL ?? "";
 
   await expect(hostGame.getByTestId("pong-host-room-code")).toHaveText(
     /[A-Z0-9]{4}/,
   );
-  if (!baseURL) {
-    throw new Error("Playwright baseURL was not configured.");
-  }
   const controllerJoinUrl = await resolveControllerJoinUrl({
     hostGame,
-    baseURL,
+    baseURL: platformBaseUrl,
   });
 
   const controllerPage = await context.newPage();
