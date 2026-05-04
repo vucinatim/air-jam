@@ -19,7 +19,6 @@ import type {
   PlatformMachineOwnedGameMediaActive,
   PlatformMachineOwnedGameMediaAsset,
 } from "@air-jam/sdk/platform-machine";
-import { desc, eq } from "drizzle-orm";
 import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
 
 const toMachineNotFoundError = (message: string) =>

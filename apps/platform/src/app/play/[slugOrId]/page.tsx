@@ -51,6 +51,7 @@ export default function PlayGamePage({
     title: string;
     description: string;
   } | null>(null);
+  const sessionConfig = useMemo(() => getPlatformArcadeHostSessionConfig(), []);
 
   if (isLoading) {
     return (
@@ -90,7 +91,6 @@ export default function PlayGamePage({
     controllerUrl: game.controllerUrl,
   });
   const canReportPublicRelease = game.launchSource === "hosted_release";
-  const sessionConfig = useMemo(() => getPlatformArcadeHostSessionConfig(), []);
 
   const handleSubmitReport = async () => {
     try {

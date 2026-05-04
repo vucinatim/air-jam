@@ -543,32 +543,23 @@ const resolveCreateGameInput = async ({
     );
   }
 
+  const resolvedSlug = slug?.trim() || localDefaults?.metadata.slug;
+  const resolvedDescription =
+    description !== undefined
+      ? description.trim() || undefined
+      : localDefaults?.metadata.description ||
+        localDefaults?.template.description;
+  const resolvedSourceUrl = sourceUrl?.trim() || localDefaults?.sourceUrl;
+  const resolvedTemplateId = templateId?.trim() || localDefaults?.template.id;
+
   return {
     input: {
       name: resolvedName,
-      ...(slug?.trim() || localDefaults?.metadata.slug
-        ? { slug: slug?.trim() || localDefaults?.metadata.slug! }
-        : {}),
-      ...(description !== undefined
-        ? description.trim()
-          ? { description: description.trim() }
-          : {}
-        : localDefaults?.metadata.description || localDefaults?.template.description
-          ? {
-              description:
-                localDefaults?.metadata.description ||
-                localDefaults?.template.description!,
-            }
-          : {}),
+      ...(resolvedSlug ? { slug: resolvedSlug } : {}),
+      ...(resolvedDescription ? { description: resolvedDescription } : {}),
       ...(previewUrl?.trim() ? { url: previewUrl.trim() } : {}),
-      ...(sourceUrl?.trim()
-        ? { sourceUrl: sourceUrl.trim() }
-        : localDefaults?.sourceUrl
-          ? { sourceUrl: localDefaults.sourceUrl }
-          : {}),
-      ...(templateId?.trim() || localDefaults?.template.id
-        ? { templateId: templateId?.trim() || localDefaults?.template.id! }
-        : {}),
+      ...(resolvedSourceUrl ? { sourceUrl: resolvedSourceUrl } : {}),
+      ...(resolvedTemplateId ? { templateId: resolvedTemplateId } : {}),
       ...(arcadeVisibility ? { arcadeVisibility } : {}),
     },
     localDefaults,

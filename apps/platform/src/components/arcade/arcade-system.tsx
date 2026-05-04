@@ -43,7 +43,6 @@ import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
 import {
   setArcadePlatformSettings,
-  useArcadePlatformSettingsStore,
 } from "./arcade-platform-settings-store";
 import {
   ARCADE_BROWSER_PATH,

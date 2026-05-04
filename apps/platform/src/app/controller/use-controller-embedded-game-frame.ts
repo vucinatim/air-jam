@@ -187,6 +187,7 @@ export function useControllerEmbeddedGameFrame({
     arcadeSurface.kind,
     controller.controllerId,
     controller.roomId,
+    platformControllerSessionConfig.topology,
   ]);
 
   const controllerIframeSrc =

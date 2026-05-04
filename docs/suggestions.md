@@ -48,6 +48,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 42. Run the external-agent acceptance test again against a fresh local `minimal` scaffold now that it ships `src/game/contracts/agent.ts`, the gold-path doc, and the host-action listener seam, then record the exact remaining confusion points before deciding whether Phase 4 is truly complete.
 43. Add one first-class preflight for semantic session bootstrap browser requirements so `open_game_session` and hidden host ownership fail with a direct "install Playwright Chromium" style fix or automatically provision the needed browser, instead of surfacing a raw missing-executable stack from internal runtime helpers.
 44. Add a tiny preview-managed lifecycle command set such as `airjam dev:preview status|stop` (or an equivalent `airjam dev --preview-managed --status|--stop`) so background local Air Jam servers do not turn into mystery port owners during repeated agent/browser sessions.
+45. Collapse the platform docs/blog MDX render path onto one explicit runtime contract shared by Next build and Vitest so CI does not depend on fragile alignment between custom loader aliases, generated content imports, and React JSX runtime resolution details.
 
 ## Framework Boundary Follow-Ups
 

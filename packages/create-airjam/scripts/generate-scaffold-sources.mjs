@@ -3,13 +3,13 @@
 import fse from "fs-extra";
 import os from "node:os";
 import path from "node:path";
-import yazl from "yazl";
 import {
   loadScaffoldableRepoGameManifests,
   scaffoldTemplatesRoot as outputRoot,
   scaffoldSourcesRoot,
   scaffoldTemplateManifestPath,
 } from "./lib/scaffold-source-manifests.mjs";
+import { writeTemplateArchive } from "./lib/template-archive.mjs";
 
 const DEFAULT_EXCLUDES = new Set([
   ".airjam",
@@ -57,50 +57,6 @@ const shouldExclude = ({ relativePath, basename, manifestExcludes }) => {
       basename === entry ||
       firstSegment === entry,
   );
-};
-
-const collectFiles = async (sourceDir) => {
-  const entries = await fse.readdir(sourceDir);
-  const files = [];
-
-  for (const entry of entries.sort()) {
-    const absolutePath = path.join(sourceDir, entry);
-    const stats = await fse.stat(absolutePath);
-    if (stats.isDirectory()) {
-      files.push(...(await collectFiles(absolutePath)));
-      continue;
-    }
-    files.push(absolutePath);
-  }
-
-  return files;
-};
-
-const writeTemplateArchive = async ({ sourceDir, outputFile }) => {
-  const files = await collectFiles(sourceDir);
-  const zipFile = new yazl.ZipFile();
-
-  await fse.ensureDir(path.dirname(outputFile));
-
-  const output = fse.createWriteStream(outputFile);
-  const closePromise = new Promise((resolve, reject) => {
-    output.on("close", resolve);
-    output.on("error", reject);
-    zipFile.outputStream.on("error", reject);
-  });
-
-  zipFile.outputStream.pipe(output);
-
-  for (const filePath of files) {
-    const relativePath = path.relative(sourceDir, filePath).replace(/\\/g, "/");
-    if (!relativePath) {
-      continue;
-    }
-    zipFile.addFile(filePath, relativePath);
-  }
-
-  zipFile.end();
-  await closePromise;
 };
 
 const main = async () => {

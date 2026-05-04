@@ -2,7 +2,6 @@ import { db } from "@/db";
 import { gameReleases } from "@/db/schema";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import type { PlatformMachineReleaseSummary } from "@air-jam/sdk/platform-machine";
-import { eq } from "drizzle-orm";
 import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
 import {
   assertOwnedGameBySlugOrIdForMachine,
