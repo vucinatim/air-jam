@@ -174,32 +174,60 @@ jobs:
           RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           printf '%s' "$PACKAGES_JSON" > /tmp/airjam-public-packages.json
 
           while IFS=$'\t' read -r ID PACKAGE_NAME PACKAGE_FILTER WORKING_DIRECTORY VERSION TAG RELEASE_NAME; do
-            git rev-parse "$TAG" >/dev/null 2>&1 && {
-              echo "Tag $TAG already exists"
-              exit 1
-            }
+            PUBLISHED_ON_NPM=0
+            LOCAL_TAG_EXISTS=0
+            REMOTE_TAG_EXISTS=0
+            RELEASE_EXISTS=0
 
             if npm view "${PACKAGE_NAME}@${VERSION}" version >/dev/null 2>&1; then
-              echo "${PACKAGE_NAME}@${VERSION} is already published on npm"
+              PUBLISHED_ON_NPM=1
+              echo "${PACKAGE_NAME}@${VERSION} is already published on npm; reconciling tag and release state"
+            fi
+
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              LOCAL_TAG_EXISTS=1
+            fi
+
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+              REMOTE_TAG_EXISTS=1
+            fi
+
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              RELEASE_EXISTS=1
+            fi
+
+            if [ "$PUBLISHED_ON_NPM" -eq 0 ] && [ "$REMOTE_TAG_EXISTS" -eq 1 ]; then
+              echo "Tag $TAG already exists remotely, but ${PACKAGE_NAME}@${VERSION} is not published on npm"
               exit 1
             fi
 
-            pnpm --filter "${PACKAGE_FILTER}..." build
+            if [ "$PUBLISHED_ON_NPM" -eq 0 ]; then
+              pnpm --filter "${PACKAGE_FILTER}..." build
 
-            (
-              cd "${WORKING_DIRECTORY}"
-              pnpm publish --access public --tag "${RELEASE_CHANNEL}" --provenance --no-git-checks
-            )
+              (
+                cd "${WORKING_DIRECTORY}"
+                pnpm publish --access public --tag "${RELEASE_CHANNEL}" --provenance --no-git-checks
+              )
+            fi
 
-            git tag "$TAG"
-            git push origin "$TAG"
+            if [ "$LOCAL_TAG_EXISTS" -eq 0 ]; then
+              git tag "$TAG"
+            fi
 
-            gh release create "$TAG" \
-              --title "$RELEASE_NAME" \
-              --generate-notes
+            if [ "$REMOTE_TAG_EXISTS" -eq 0 ]; then
+              git push origin "$TAG"
+            fi
+
+            if [ "$RELEASE_EXISTS" -eq 0 ]; then
+              gh release create "$TAG" \
+                --title "$RELEASE_NAME" \
+                --generate-notes
+            fi
           done < <(node <<'EOF'
           const fs = require("node:fs");
           const packages = JSON.parse(fs.readFileSync("/tmp/airjam-public-packages.json", "utf8"));
