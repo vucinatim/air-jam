@@ -315,10 +315,16 @@ Full contribution workflow and standards: [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ### Submitting a Pull Request
 
-1. Ensure all checks pass (`pnpm check:release`)
+1. Ensure the normal CI contract passes (`pnpm check:ci`)
 2. Write clear commit messages
 3. Update documentation if needed
 4. Submit a PR with a clear description of changes
+
+For normal pull requests, the lightweight CI contract is:
+
+```bash
+pnpm check:ci
+```
 
 ### Release Validation
 

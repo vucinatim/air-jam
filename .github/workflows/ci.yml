@@ -30,9 +30,6 @@ jobs:
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
 
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Content Source Integrity
         run: pnpm --filter platform content:check-generated
 
@@ -45,5 +42,11 @@ jobs:
       - name: Canonical Guard
         run: pnpm guard:canonical
 
-      - name: Release Contract
-        run: pnpm check:release
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Perf Sanity
+        run: pnpm run repo -- perf sanity

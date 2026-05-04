@@ -20,6 +20,7 @@
     "release:public:tag": "node scripts/repo/cli.mjs release tag --channel latest",
     "release:public:tag:next": "node scripts/repo/cli.mjs release tag --channel next",
     "build": "pnpm -r build",
+    "check:ci": "pnpm --filter platform content:check-generated && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm run repo -- perf sanity",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:happy-path",
     "lint": "eslint . && pnpm --filter platform lint",
     "guard:canonical": "node scripts/repo/cli.mjs standards canonical",

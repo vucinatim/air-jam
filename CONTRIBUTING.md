@@ -17,16 +17,12 @@ Thanks for contributing.
    ```
 3. Run the checks you need while developing:
    ```bash
-   pnpm typecheck
-   pnpm lint
-   pnpm test
-   pnpm test:scaffold
-   pnpm run repo -- perf sanity
-   pnpm build
+   pnpm check:ci
    ```
-4. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
-5. `pnpm run repo -- perf sanity` is the canonical local server perf check.
-6. `pnpm check:release` now includes the strict perf gate with reconnect churn coverage.
+4. `pnpm check:ci` mirrors the lightweight GitHub CI contract: content integrity, typecheck, lint, canonical guard, tests, build, and non-strict perf sanity.
+5. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
+6. `pnpm run repo -- perf sanity` is the canonical local server perf check.
+7. `pnpm check:release` remains the heavyweight prerelease gate with strict perf, browser smoke, and scaffold smoke.
 
 ## Development Workflow
 
@@ -41,13 +37,16 @@ Thanks for contributing.
 2. `pnpm lint` passes.
 3. `pnpm build` passes.
 4. `pnpm test` passes.
-5. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
-6. Tests relevant to your change pass.
-7. Documentation is updated if behavior/API changed.
-8. PR description explains:
-   - what changed
-   - why it changed
-   - how it was validated
+5. `pnpm check:ci` passes for normal PR validation.
+6. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
+7. `pnpm check:release` passes before publish or for release-sensitive changes.
+8. Tests relevant to your change pass.
+9. Documentation is updated if behavior/API changed.
+10. PR description explains:
+
+- what changed
+- why it changed
+- how it was validated
 
 ## Coding Standards
 

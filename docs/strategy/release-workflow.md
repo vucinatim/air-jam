@@ -89,6 +89,12 @@ Recommended:
 pnpm check:release
 ```
 
+For normal pull-request validation, use the lighter CI contract:
+
+```bash
+pnpm check:ci
+```
+
 ### 3. Merge the release commit
 
 Publish from the exact commit you want tagged and released.
