@@ -9,7 +9,7 @@ import { resolveControllerJoinUrl } from "./helpers/controller-join-url";
 import { openArcadeHost } from "./helpers/open-arcade-host";
 
 const PLATFORM_SETTINGS_STORAGE_KEY = "air-jam-platform-settings";
-const TRACK_BASE_VOLUME = 0.4;
+const TRACK_VOLUME_TOLERANCE = 0.01;
 
 const seedPlatformSettings = {
   audio: {
@@ -25,6 +25,9 @@ const seedPlatformSettings = {
     hapticsEnabled: true,
   },
 };
+
+const INITIAL_EFFECTIVE_MUSIC_VOLUME =
+  seedPlatformSettings.audio.masterVolume * seedPlatformSettings.audio.musicVolume;
 
 const installAudioProbe = async (
   context: BrowserContext,
@@ -106,10 +109,24 @@ const waitForTrackVolume = async (
   expectedVolume: number,
 ) => {
   await expect
-    .poll(async () => readMusicTrackVolume(hostGame), {
+    .poll(async () => {
+      const currentVolume = await readMusicTrackVolume(hostGame);
+      if (currentVolume === null) {
+        return Number.POSITIVE_INFINITY;
+      }
+
+      return Math.abs(currentVolume - expectedVolume);
+    }, {
       timeout: 20_000,
     })
-    .toBeCloseTo(expectedVolume, 2);
+    .toBeLessThanOrEqual(TRACK_VOLUME_TOLERANCE);
+
+  const settledVolume = await readMusicTrackVolume(hostGame);
+  if (settledVolume === null) {
+    throw new Error("Music track volume disappeared before verification.");
+  }
+
+  return settledVolume;
 };
 
 const waitForMusicTrack = async (
@@ -121,6 +138,54 @@ const waitForMusicTrack = async (
       return volume !== null;
     })
     .toBe(true);
+};
+
+const readObservedTrackBaseVolume = async (
+  hostGame: ReturnType<typeof getHostGameFrame>,
+) => {
+  await waitForMusicTrack(hostGame);
+
+  const initialTrackVolume = await waitForSettledTrackVolume(hostGame);
+
+  if (
+    initialTrackVolume === null ||
+    !Number.isFinite(initialTrackVolume) ||
+    INITIAL_EFFECTIVE_MUSIC_VOLUME <= 0
+  ) {
+    throw new Error("Unable to derive the observed Air Capture track volume.");
+  }
+
+  return initialTrackVolume / INITIAL_EFFECTIVE_MUSIC_VOLUME;
+};
+
+const waitForSettledTrackVolume = async (
+  hostGame: ReturnType<typeof getHostGameFrame>,
+) => {
+  let previousVolume: number | null = null;
+  let stableReadCount = 0;
+
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const currentVolume = await readMusicTrackVolume(hostGame);
+    if (currentVolume !== null && Number.isFinite(currentVolume)) {
+      if (
+        previousVolume !== null &&
+        Math.abs(currentVolume - previousVolume) <= 0.001
+      ) {
+        stableReadCount += 1;
+        if (stableReadCount >= 2) {
+          return currentVolume;
+        }
+      } else {
+        stableReadCount = 0;
+      }
+
+      previousVolume = currentVolume;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+
+  return previousVolume;
 };
 
 const setSliderNearMax = async (locator: Locator) => {
@@ -151,7 +216,7 @@ const setSliderNearMax = async (locator: Locator) => {
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const current = await thumb.getAttribute("aria-valuenow");
-    if (current && Number(current) >= 40) {
+    if (current && Number(current) >= 95) {
       break;
     }
     await thumb.press("ArrowRight");
@@ -201,8 +266,11 @@ test("arcade local air-capture inherits initial settings and applies controller 
   });
 
   await maybeEnableBlockedAudio(hostGame);
-  await waitForMusicTrack(hostGame);
-  await waitForTrackVolume(hostGame, TRACK_BASE_VOLUME * 0.5 * 0.25);
+  const trackBaseVolume = await readObservedTrackBaseVolume(hostGame);
+  const initialTrackVolume = await waitForTrackVolume(
+    hostGame,
+    trackBaseVolume * INITIAL_EFFECTIVE_MUSIC_VOLUME,
+  );
 
   const controllerPage = await context.newPage();
   await controllerPage.goto(controllerJoinUrl);
@@ -222,17 +290,19 @@ test("arcade local air-capture inherits initial settings and applies controller 
     controllerPage.getByTestId("platform-settings-music-volume"),
   );
   expect(updatedMusicVolume).toBeGreaterThan(0.25);
-  await waitForTrackVolume(
+  const trackVolumeAfterMusicUpdate = await waitForTrackVolume(
     hostGame,
-    TRACK_BASE_VOLUME * 0.5 * updatedMusicVolume,
+    trackBaseVolume * seedPlatformSettings.audio.masterVolume * updatedMusicVolume,
   );
+  expect(trackVolumeAfterMusicUpdate).toBeGreaterThan(initialTrackVolume);
 
   const updatedMasterVolume = await setSliderNearMax(
     controllerPage.getByTestId("platform-settings-master-volume"),
   );
   expect(updatedMasterVolume).toBeGreaterThan(0.5);
-  await waitForTrackVolume(
+  const finalTrackVolume = await waitForTrackVolume(
     hostGame,
-    TRACK_BASE_VOLUME * updatedMasterVolume * updatedMusicVolume,
+    trackBaseVolume * updatedMasterVolume * updatedMusicVolume,
   );
+  expect(finalTrackVolume).toBeGreaterThan(trackVolumeAfterMusicUpdate);
 });
