@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { execFileSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { preparePlatformGeneratedArtifacts } from "../../../scripts/platform/lib/platform-generated-prepare.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "../../..");
-const repoCliPath = path.join(repoRoot, "scripts", "repo", "cli.mjs");
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -17,10 +17,11 @@ if (!command) {
   );
 }
 
-execFileSync("node", [repoCliPath, "platform", "generated", "prepare"], {
-  cwd: repoRoot,
-  stdio: "inherit",
-});
+const result = await preparePlatformGeneratedArtifacts();
+
+console.log(
+  `✓ Platform generated artifacts are ready (${result.channel}@${result.packVersion}, ${result.fileCount} files)`,
+);
 
 const child = spawn(command, args, {
   cwd: process.cwd(),
