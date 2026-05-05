@@ -79,13 +79,21 @@ This workflow publishes the versions that already exist in:
 
 ### 2. Run local validation before release
 
-Recommended deep local gate:
+Recommended final local gate:
+
+```bash
+pnpm check:release:doctor
+```
+
+This command first enforces `pnpm install --frozen-lockfile`, then runs the real local prerelease gate. That keeps simple dependency drift from first surfacing on GitHub Actions.
+
+The underlying heavy local gate is:
 
 ```bash
 pnpm check:release
 ```
 
-This is the real local prerelease gate. It includes strict perf, browser Playwright smoke, and scaffold tarball smoke.
+It includes strict perf, browser Playwright smoke, and scaffold tarball smoke.
 
 GitHub publish uses a lighter remote sanity gate:
 

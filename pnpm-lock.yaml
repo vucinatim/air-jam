@@ -864,6 +864,9 @@ importers:
       prompts:
         specifier: ^2.4.2
         version: 2.4.2
+      tsx:
+        specifier: ^4.20.6
+        version: 4.20.6
       yauzl:
         specifier: ^3.2.1
         version: 3.2.1
@@ -892,9 +895,6 @@ importers:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)
-      tsx:
-        specifier: ^4.19.2
-        version: 4.20.6
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

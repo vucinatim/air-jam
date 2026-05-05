@@ -23,7 +23,8 @@ Thanks for contributing.
 5. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
 6. `pnpm run repo -- perf sanity` is the canonical local server perf check.
 7. `pnpm check:release` remains the deeper local prerelease gate with strict perf, browser smoke, and full scaffold tarball smoke.
-8. `pnpm check:release:publish` is the lightweight GitHub publish-path sanity gate: typecheck, build, and server lifecycle/routing smoke only.
+8. `pnpm check:release:doctor` is the final local release command because it first enforces a clean `pnpm install --frozen-lockfile` before running the heavy prerelease gate.
+9. `pnpm check:release:publish` is the lightweight GitHub publish-path sanity gate: typecheck, build, and server lifecycle/routing smoke only.
 
 ## Development Workflow
 
@@ -41,7 +42,8 @@ Thanks for contributing.
 5. `pnpm check:ci` passes for normal PR validation.
 6. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
 7. `pnpm check:release:publish` passes for the lightweight GitHub package-publish path when you touch the publish workflow itself.
-8. `pnpm check:release` passes before final release sign-off, especially for package/scaffold/browser-sensitive changes.
+8. `pnpm check:release:doctor` passes before final release sign-off so lockfile drift is caught locally instead of by GitHub Actions.
+9. `pnpm check:release` still passes when you need to rerun the heavy local gate without the extra clean-install preflight.
 9. Tests relevant to your change pass.
 10. Documentation is updated if behavior/API changed.
 11. PR description explains:

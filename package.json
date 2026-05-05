@@ -22,6 +22,7 @@
     "build": "pnpm -r build",
     "check:ci": "pnpm --filter platform content:check-generated && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm run repo -- perf sanity",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:release",
+    "check:release:doctor": "pnpm install --frozen-lockfile && pnpm check:release",
     "check:release:publish": "pnpm typecheck && pnpm build && pnpm smoke:server",
     "lint": "eslint . && pnpm --filter platform lint",
     "guard:canonical": "node scripts/repo/cli.mjs standards canonical",
