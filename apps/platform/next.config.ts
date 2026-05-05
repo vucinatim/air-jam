@@ -142,6 +142,12 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/:path*",
+        has: [{ type: "host", value: "www.airjam.io" }],
+        destination: "https://airjam.io/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
         has: [{ type: "host", value: "air-jam.app" }],
         destination: "https://airjam.io/:path*",
         permanent: true,
