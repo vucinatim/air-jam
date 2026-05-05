@@ -1,585 +1,158 @@
-# Air Jam
+<p align="center">
+  <img src="./apps/platform/public/images/airjam-logo.png" alt="Air Jam" width="160" />
+</p>
 
-**Turn smartphones into game controllers.** Air Jam is an open-source platform for building multiplayer games where computers/TVs act as the host display and smartphones become game controllers—no app downloads required.
+<h1 align="center">Air Jam</h1>
 
-## What is Air Jam?
+<p align="center">
+  Open source React framework and platform for multiplayer party games with smartphones as controllers.
+</p>
 
-Air Jam enables developers to create **"AirConsole-style" multiplayer games** with minimal setup. Players simply scan a QR code to join, and their phones instantly become controllers. Perfect for:
+<p align="center">
+  <a href="https://github.com/vucinatim/air-jam/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/vucinatim/air-jam/ci.yml?branch=main&label=ci" alt="CI status" />
+  </a>
+  <a href="https://www.npmjs.com/package/create-airjam">
+    <img src="https://img.shields.io/npm/v/create-airjam?label=create-airjam" alt="create-airjam npm version" />
+  </a>
+  <a href="https://airjam.io">
+    <img src="https://img.shields.io/badge/site-airjam.io-00d3f3" alt="airjam.io" />
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/vucinatim/air-jam" alt="MIT License" />
+  </a>
+</p>
 
-- 🎮 Party games and local multiplayer experiences
-- 🏢 Interactive installations and events
-- 🎓 Educational games and workshops
-- 🎪 Arcade-style gaming experiences
+<p align="center">
+  <a href="https://airjam.io">Website</a>
+  ·
+  <a href="https://airjam.io/docs/getting-started/introduction">Docs</a>
+  ·
+  <a href="https://github.com/vucinatim/air-jam/discussions">Discussions</a>
+  ·
+  <a href="https://github.com/vucinatim/air-jam/issues">Issues</a>
+</p>
 
-### Key Features
+## What Air Jam Is
 
-- **Zero App Download**: Players join by scanning a QR code—no app store required
-- **Instant Multiplayer**: Seamlessly connect up to 8 smartphones as controllers
-- **Developer Friendly**: Built with modern web technologies (React, TypeScript)
-- **Type Safe**: End-to-end type safety with Zod schema validation
-- **Performance Optimized**: Latching system ensures no input is ever missed
-- **Haptic Feedback**: Send vibration patterns to controllers for game events
-- **Real-time Communication**: WebSocket-based server for low-latency gameplay
+Air Jam lets you build multiplayer games where:
 
-## Project Structure
+- the host runs on a laptop, desktop, or TV
+- players join instantly by scanning a QR code
+- smartphones become game controllers in the browser
+- you ship without native mobile apps or app-store installs
 
-This is a monorepo managed with pnpm workspaces:
+It is designed for party games, couch multiplayer, installations, classroom games, playtesting, and AI-assisted game iteration.
 
-```
-air-jam/
-├── apps/
-│   └── platform/           # Next.js platform web app (developer portal, game catalog)
-├── games/
-│   ├── air-capture/        # Advanced first-party reference game
-│   ├── pong/               # Canonical starter game
-│   └── ...                 # Additional repo-owned games and showcase imports
-├── packages/
-│   ├── sdk/                # Core SDK for building games (@air-jam/sdk)
-│   ├── server/             # WebSocket server for game connections
-│   └── create-airjam/      # CLI tool to scaffold new games
-```
+## What You Get
 
-## Getting Started
+- `@air-jam/sdk` for controller input, replicated state, runtime helpers, and host/controller contracts
+- `@air-jam/server` for real-time multiplayer session handling
+- `@air-jam/mcp-server` for agent and tooling integration
+- `create-airjam` for scaffolding new games from production templates
+- `airjam.io` for docs, hosted games, and the Arcade catalog
 
-### Installation
+## Create A Game
 
 ```bash
-# Clone the repository
+npx create-airjam@latest my-game
+cd my-game
+pnpm install
+pnpm run dev
+```
+
+Choose a template explicitly if you want a stronger starting point:
+
+```bash
+npx create-airjam@latest my-game --template pong
+npx create-airjam@latest my-game --template air-capture
+```
+
+Then open the host locally, scan the QR code with your phone, and start playing.
+
+## Why Air Jam
+
+- No controller app download
+- Real-time multiplayer built for room-scale play
+- Strong host/controller contracts instead of ad hoc browser glue
+- React + TypeScript + Zod end to end
+- First-party reference games you can actually learn from
+- A path toward AI-native game creation, testing, and publishing workflows
+
+## Public Packages
+
+Air Jam’s supported public npm surface is intentionally small:
+
+- [`@air-jam/sdk`](https://www.npmjs.com/package/@air-jam/sdk)
+- [`@air-jam/server`](https://www.npmjs.com/package/@air-jam/server)
+- [`@air-jam/mcp-server`](https://www.npmjs.com/package/@air-jam/mcp-server)
+- [`create-airjam`](https://www.npmjs.com/package/create-airjam)
+
+Everything else in the monorepo should be treated as internal implementation detail.
+
+## Repo Development
+
+If you want to work on Air Jam itself:
+
+```bash
 git clone https://github.com/vucinatim/air-jam.git
 cd air-jam
-
-# Install dependencies
 pnpm install
 ```
 
-### Development
-
-#### Running The Full Local Stack
-
-The repo has three explicit local workflows:
-
-1. `pnpm standalone:dev --game=<id>` runs live standalone workspace dev:
-   SDK watch, server, and the selected game's direct Vite dev server.
-2. `pnpm arcade:dev --game=<id>` runs live Arcade workspace dev:
-   SDK watch, server, platform, and the selected game's direct Vite dev server embedded through Arcade.
-3. `pnpm arcade:test --game=<id>` runs built Arcade validation:
-   it builds the selected game and serves that built output through the platform's
-   local Arcade route.
-
-All of these now resolve through one explicit runtime topology contract instead of each surface guessing from page origin. The canonical fields are:
-
-1. `appOrigin`
-2. `backendOrigin`
-3. `socketOrigin`
-4. `publicHost`
-5. `assetBasePath`
-6. `runtimeMode`
-7. `surfaceRole`
-8. `proxyStrategy`
-
-Use the top-level workspace launcher for the canonical repo flows:
+Useful top-level workflows:
 
 ```bash
-# Start live standalone workspace dev for one repo-owned game
-pnpm standalone:dev --game=pong
-pnpm standalone:dev --game=code-review --secure
-
-# Start live Arcade workspace dev through the platform shell
 pnpm arcade:dev --game=air-capture
-pnpm arcade:dev --game=code-review --secure
-
-# Start live Arcade workspace dev and also open Drizzle Studio
-pnpm arcade:dev --game=pong --db-studio
-
-# Stable local Arcade integration testing with the built game
+pnpm standalone:dev --game=pong
 pnpm arcade:test --game=code-review
-
-# Secure local Arcade integration when a game needs secure browser APIs
-pnpm secure:init
-pnpm arcade:test --game=code-review --secure
-
-# Inspect the resolved topology for a run mode
-pnpm topology --game=code-review --mode=arcade-built
-
-# Read the canonical unified dev log
 pnpm logs --view=signal
 ```
 
-The output is prefixed by process name, so server logs remain visible in the shared terminal.
-Use `pnpm standalone:dev` when you want the game without the platform shell.
-Use `pnpm arcade:dev` when you want live iteration through the real Arcade shell.
-Use `pnpm arcade:test` when you need the built game running inside real Arcade with host/controller validation.
-Secure local Arcade uses trusted local HTTPS via `mkcert`.
-Use `pnpm topology -- ...` when you need to inspect which origin each surface actually uses.
-
-If you need standalone secure game dev instead of Arcade integration, use the game-local scripts:
-
-```bash
-cd games/code-review
-pnpm secure:init
-pnpm dev -- --secure
-```
-
-If you need tunnel fallback for a standalone game dev server, use the game-local scripts instead:
-
-```bash
-cd games/code-review
-pnpm secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev
-pnpm dev -- --secure --secure-mode=tunnel
-```
-
-#### Running the Platform
-
-The platform includes the developer portal, game catalog, and documentation:
-
-```bash
-# Run only the platform app through the repo CLI
-pnpm run repo -- workspace service platform
-
-# Or run platform-specific commands directly
-pnpm --filter platform dev:no-db
-pnpm --filter platform dev:db
-```
-
-#### Local Dev Postgres
-
-Air Jam now ships one optional repo-owned local Postgres for development:
-
-```bash
-pnpm run repo -- db up
-pnpm run repo -- db url
-pnpm run repo -- db down
-pnpm run repo -- db reset
-```
-
-Details:
-
-1. data lives under `.airjam/postgres/dev/`
-2. `db reset` is the explicit “wipe local state” path
-3. prerelease can continue pointing `DATABASE_URL` at production intentionally
-4. after release, the intended default is to point local development at this repo-owned Postgres
-
-#### Switching Between Prod-Connected And Local DB
-
-Current prerelease default:
-
-1. `apps/platform/.env.local` and `packages/server/.env` may intentionally keep `DATABASE_URL` pointed at the production-connected database
-2. that is acceptable before release when you want to inspect or shape the real prerelease state
-3. destructive analytics tests are already isolated and do not rely on that shared `DATABASE_URL`
-
-When you want to switch normal development to the repo-owned local Postgres:
-
-1. start the database:
-
-```bash
-pnpm run repo -- db up
-```
-
-2. print the local connection string:
-
-```bash
-pnpm run repo -- db url
-```
-
-3. copy that value into:
-   1. `apps/platform/.env.local`
-   2. `packages/server/.env`
-
-With the current defaults, the local URL is:
-
-```env
-postgresql://postgres:postgres@127.0.0.1:55432/airjam
-```
-
-4. restart the platform/server processes after changing `DATABASE_URL`
-
-If you want to wipe local DB state completely:
-
-```bash
-pnpm run repo -- db reset
-```
-
-That removes the local Postgres data under `.airjam/postgres/dev/` and recreates a clean database on next boot.
-
-**Environment Variables** (create `.env.local` in `apps/platform/`):
-
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/airjam
-
-# Authentication (BetterAuth)
-BETTER_AUTH_SECRET=your-secret-key
-BETTER_AUTH_URL=http://localhost:3000
-GITHUB_CLIENT_ID=your-github-oauth-client-id
-GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
-
-# Server connection
-NEXT_PUBLIC_AIR_JAM_SERVER_URL=http://localhost:4000
-NEXT_PUBLIC_AIR_JAM_APP_ID=aj_app_your_platform_app_id
-
-# Optional stronger signed host-grant mode
-NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
-```
-
-#### Running the Development Server
-
-The server handles WebSocket connections for games:
-
-```bash
-# Start only the server (runs on http://localhost:4000)
-pnpm run repo -- workspace service server
-```
-
-**Environment Variables** (create `.env` in `packages/server/`):
-
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/airjam
-
-# Optional stronger signed host-grant mode
-AIR_JAM_HOST_GRANT_SECRET=your-signing-secret
-```
-
-If you set `AIR_JAM_AUTH_MODE=required`, the server now fails fast on boot unless at least one auth backend is configured:
-
-- `DATABASE_URL` for static `appId` bootstrap
-- `AIR_JAM_HOST_GRANT_SECRET` for signed host grants
-- `AIR_JAM_MASTER_KEY` only as a legacy fallback
-
-#### Running the Prototype Game
-
-Reference implementation showcasing SDK capabilities:
-
-```bash
-# Start live Arcade workspace dev with air-capture selected
-pnpm arcade:dev --game=air-capture
-```
-
-### Building a Game
-
-The easiest way to create a new game is using the CLI:
-
-```bash
-npx create-airjam my-game
-npx create-airjam my-game --template=pong
-npx create-airjam my-game --template=air-capture
-cd my-game
-pnpm install
-```
-
-This scaffolds a complete project with:
-
-- A real source-game template such as `pong` or `air-capture`
-- Local development server setup
-- SDK configuration
-- Documentation and AI instructions
-
-### Internal Template Workflow
-
-Inside this monorepo, scaffoldable games now live under `games/` as normal source
-games, and `create-airjam` exports them through one shared pipeline.
-
-The canonical workflow is:
-
-- Develop scaffoldable games in-place under `games/`.
-- Keep Air Jam-specific Vite behavior in the shared `create-airjam/runtime/vite-config.mjs` helper rather than duplicating proxy, HTTPS, iframe, or chunk-policy logic per game.
-- Use `pnpm test:scaffold` to prove all scaffoldable games export cleanly against local packages.
-- Use `pnpm test:scaffold:tarball` to prove scaffolds work against packed unpublished artifacts.
-- Use `pnpm run repo -- pack local` to produce local tarballs under `.airjam/tarballs/`.
-
-Useful local scaffold helpers:
-
-```bash
-pnpm run repo -- scaffold local my-local-game --source workspace
-pnpm run repo -- scaffold local my-local-game --source workspace --template air-capture
-pnpm run repo -- scaffold local ../scratch/my-airjam-game --source tarball
-```
-
-Repo-only maintenance helpers now live behind the internal workspace CLI:
-
-```bash
-pnpm run repo -- --help
-```
-
-That keeps game source, scaffold generation, workspace development, and pre-publish
-verification on one path instead of relying on duplicate template trees or hidden
-publish-time rewrites.
-
-See the [SDK README](./packages/sdk/README.md) for detailed usage.
-
-## Contributing
-
-We welcome contributions! Here's how you can help:
-
-Full contribution workflow and standards: [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-### Submitting a Pull Request
-
-1. Ensure the normal CI contract passes (`pnpm check:ci`)
-2. Write clear commit messages
-3. Update documentation if needed
-4. Submit a PR with a clear description of changes
-
-For normal pull requests, the lightweight CI contract is:
+For the normal quality gate:
 
 ```bash
 pnpm check:ci
 ```
 
-### Release Validation
-
-Run the canonical release check before shipping:
+For the full local release gate:
 
 ```bash
 pnpm check:release
 ```
 
-That includes:
+## Monorepo Shape
 
-- workspace typechecks
-- automated tests
-- workspace builds
-- strict server perf sanity, including reconnect churn
-- a lightweight happy-path smoke flow
-
-If you only want the smoke flow:
-
-```bash
-pnpm smoke:happy-path
+```text
+apps/
+  platform/        airjam.io platform, docs, dashboard, Arcade
+games/
+  ...              first-party games and scaffold sources
+packages/
+  sdk/             public game framework
+  server/          public realtime server
+  mcp-server/      public MCP surface
+  create-airjam/   public scaffolding CLI
 ```
-
-### Server Perf Sanity
-
-Run the canonical local server perf benchmark:
-
-```bash
-pnpm run repo -- perf sanity
-```
-
-Optional flags:
-
-- `--controllers=<n>` (default `8`)
-- `--hz=<n>` events/sec per controller (default `30`)
-- `--durationMs=<n>` measurement duration in ms (default `90000`)
-- `--warmupMs=<n>` warmup duration in ms (default `3000`)
-- `--reconnectControllers=<n>` reconnect-churn controller count (default `4`, capped by `--controllers`)
-- `--reconnectCycles=<n>` reconnect-churn cycle count (default `10`)
-- `--reconnectPauseMs=<n>` pause between disconnect and reconnect (default `25`)
-- `--strict` to return non-zero exit when committed thresholds are exceeded
-
-`pnpm check:release` now runs `pnpm run repo -- perf sanity --strict`, so the
-baseline input path and reconnect churn both participate in release confidence.
-
-### Areas for Contribution
-
-- 🐛 Bug fixes
-- ✨ New features for the SDK
-- 📚 Documentation improvements
-- 🎨 UI/UX enhancements for the platform
-- 🧪 Test coverage
-- 🌐 Internationalization
-- 🎮 Example games and templates
-
-## Deployment
-
-### Platform Deployment
-
-The platform is a Next.js application that can be deployed to Vercel, Railway, or any Node.js hosting provider.
-
-#### Deploying to Vercel
-
-1. **Connect your repository** to Vercel
-2. **Set root directory** to `apps/platform`
-3. **Configure environment variables**:
-   - `DATABASE_URL`: PostgreSQL connection string
-   - `BETTER_AUTH_SECRET`: Random secret for authentication
-   - `BETTER_AUTH_URL`: Your production URL (e.g., `https://your-domain.com`)
-   - `GITHUB_CLIENT_ID`: GitHub OAuth app client ID
-   - `GITHUB_CLIENT_SECRET`: GitHub OAuth app client secret
-   - `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL (e.g., `https://server.your-domain.com`)
-   - `NEXT_PUBLIC_AIR_JAM_APP_ID`: Your platform App ID
-   - `NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT`: Optional signed host-grant endpoint for stricter host auth
-
-4. **Build settings**:
-   - Framework Preset: Next.js
-   - Build Command: `cd ../.. && pnpm install && pnpm --filter platform build`
-   - Output Directory: `.next`
-
-Use the package build command, not raw `next build`. The platform build generates content sources and hosted AI-pack artifacts as part of the build.
-
-#### Database Setup
-
-The platform requires PostgreSQL. You can use:
-
-- **Railway**: Easy PostgreSQL setup
-- **Vercel Postgres**: Integrated with Vercel deployments
-- **Supabase**: Free tier available
-- **Neon**: Serverless Postgres
-
-After setting up the database, run migrations:
-
-```bash
-cd apps/platform
-pnpm drizzle-kit push
-```
-
-#### Minimal Backup Posture
-
-For prerelease use, Air Jam keeps the backup posture intentionally simple:
-
-```bash
-pnpm run repo -- platform db-backup
-```
-
-This writes a local custom-format `pg_dump` export into `backups/platform/`.
-
-It uses:
-
-1. `DATABASE_URL` from your shell, if set
-2. otherwise `apps/platform/.env.local`
-3. otherwise `apps/platform/.env`
-
-This is not a full backup system. It is the minimum reliable manual export path for the platform database until a stronger managed-backup posture is justified.
-
-#### Server Deployment
-
-The server can be deployed as a Node.js application:
-
-1. **Build the server**:
-
-   ```bash
-   cd packages/server
-   pnpm build
-   ```
-
-2. **Deploy to Railway/Render/Fly.io**:
-
-- Set `DATABASE_URL` for app ID lookup and optional origin policy
-- Optionally set `AIR_JAM_HOST_GRANT_SECRET` if you want signed host-grant mode
-- (Optional) Set `AIR_JAM_ALLOWED_ORIGINS` to your app domains
-- Set `PORT` (defaults to 4000)
-- Run `node dist/cli.js` or `pnpm start`
-
-3. **Or use the npm package**:
-   ```bash
-   npm install -g @air-jam/server
-   air-jam-server
-   ```
-
-#### Environment Variables Summary
-
-**Platform** (`apps/platform`):
-
-- `DATABASE_URL`: PostgreSQL connection
-- `BETTER_AUTH_SECRET`: Auth secret
-- `BETTER_AUTH_URL`: Production URL
-- `GITHUB_CLIENT_ID`: GitHub OAuth app client ID
-- `GITHUB_CLIENT_SECRET`: GitHub OAuth app client secret
-- `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Server URL
-- `NEXT_PUBLIC_AIR_JAM_APP_ID`: Public app ID for platform host bootstrap
-- `NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT`: Optional signed host-grant endpoint
-
-**Server** (`packages/server`):
-
-- `DATABASE_URL`: PostgreSQL connection (enables app ID lookup and optional origin policy)
-- `AIR_JAM_ANALYTICS_TEST_DATABASE_URL`: Optional override for destructive analytics integration tests (default: disposable Docker Postgres)
-- `AIR_JAM_AUTH_MODE`: `disabled` | `required` (default auto: disabled in local dev, required in production)
-- `AIR_JAM_HOST_GRANT_SECRET`: Optional secret for stronger signed host-grant mode
-- `AIR_JAM_ALLOWED_ORIGINS`: Optional comma-separated CORS allowlist (default `*`)
-- `AIR_JAM_RATE_LIMIT_WINDOW_MS`: Optional rate-limit window in ms (default: `60000`)
-- `AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX`: Optional max host registration attempts per window (default: `30`)
-- `AIR_JAM_STATIC_APP_RATE_LIMIT_MAX`: Optional max bootstrap/lifecycle attempts per app+origin scope in static mode (default: `120`)
-- `AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX`: Optional max controller joins per window (default: `120`)
-- `AIR_JAM_LOG_LEVEL`: Optional server log level (`fatal` | `error` | `warn` | `info` | `debug` | `trace`, default: `info`)
-- `AIR_JAM_DEV_LOG_COLLECTOR`: Optional unified dev log collector mode (`enabled` | `disabled`, default: enabled outside production)
-- `AIR_JAM_DEV_LOG_DIR`: Optional unified dev log output directory (default: `./.airjam/logs`, canonical file: `dev-latest.ndjson`)
-- `PORT`: Server port (default: 4000)
-
-#### Dev Log Viewer
-
-When the dev log collector is enabled, the server writes the canonical local debug stream to:
-
-- `.airjam/logs/dev-latest.ndjson`
-
-Use the built-in viewer to inspect it:
-
-```bash
-pnpm exec air-jam-server logs --view=signal
-pnpm run repo -- workspace logs
-pnpm exec air-jam-server logs --follow
-pnpm exec air-jam-server logs --trace=host_abc123
-pnpm exec air-jam-server logs --source=browser --level=warn
-pnpm exec air-jam-server logs --source=workspace --process=platform --view=signal
-```
-
-### Game Deployment
-
-Games built with Air Jam are static web applications. Deploy to:
-
-- **Vercel**: Connect your game repository
-- **Netlify**: Drag and drop or Git integration
-- **GitHub Pages**: Free hosting for open-source games
-- **Cloudflare Pages**: Fast global CDN
-
-Set environment variables:
-
-- `VITE_AIR_JAM_SERVER_URL` or `NEXT_PUBLIC_AIR_JAM_SERVER_URL`: Your server URL
-- `VITE_AIR_JAM_APP_ID` or `NEXT_PUBLIC_AIR_JAM_APP_ID`: Your public app ID
-
-### Published Game Media
-
-For v1, published game listing media is URL-based.
-
-If you want thumbnails, cover images, or preview videos in the dashboard and Arcade browser, the intended flow is:
-
-1. host those files yourself with the game deployment
-2. keep them in the game's public static assets, for example `public/media/`
-3. paste the deployed absolute URLs into the game settings in the Air Jam dashboard
-
-Example:
-
-- `https://your-game.vercel.app/media/thumbnail.jpg`
-- `https://your-game.vercel.app/media/cover.jpg`
-- `https://your-game.vercel.app/media/preview.mp4`
-
-Air Jam does not manage media uploads yet. That is intentional for v1 so game publishing stays simple and the platform does not need a full asset-storage product before release.
 
 ## Documentation
 
-- **[Project Docs Index](./docs/docs-index.md)**: Planning, workflow, and supporting docs
-- **[Performance Baseline](./docs/strategy/performance-baseline.md)**: Optional local perf sanity snapshots
-- **[SDK Documentation](./packages/sdk/README.md)**: Complete SDK reference
-- **[Platform Docs](./apps/platform/src/app/docs/)**: Full documentation in the platform app
-- **[Architecture Guide](./apps/platform/src/app/docs/how-it-works/architecture/page.mdx)**: System design overview
+- [Getting Started](https://airjam.io/docs/getting-started/introduction)
+- [Architecture](https://airjam.io/docs/how-it-works/architecture)
+- [Contributing](./CONTRIBUTING.md)
+- [Security Policy](./SECURITY.md)
+- [Docs Index](./docs/docs-index.md)
 
-## Project Policies
+## Contributing
 
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)**: Contribution workflow and quality expectations
-- **[LICENSE](./LICENSE)**: Project license terms
-- **[SECURITY.md](./SECURITY.md)**: Vulnerability reporting and security policy
-- **[AGENTS.md](./AGENTS.md)**: General engineering contract for coding agents
+Issues, discussions, documentation improvements, SDK improvements, reference games, and tooling work are all welcome.
+
+Before opening a PR:
+
+1. run `pnpm check:ci`
+2. keep changes focused
+3. update docs when behavior or contracts change
 
 ## License
 
-[MIT License](./LICENSE)
-
-## Support
-
-- 🐛 **Issues**: [GitHub Issues](https://github.com/vucinatim/air-jam/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/vucinatim/air-jam/discussions)
-- 📧 **Email**: tim.vucina@gmail.com
-
-## Acknowledgments
-
-Built with:
-
-- [React](https://react.dev/)
-- [Next.js](https://nextjs.org/)
-- [Socket.IO](https://socket.io/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Zod](https://zod.dev/)
-- [Drizzle ORM](https://orm.drizzle.team/)
-
----
-
-**Made with ❤️ by the Air Jam community**
+[MIT](./LICENSE)
