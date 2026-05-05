@@ -6,7 +6,7 @@
  * Dependency source resolution happens at scaffold time, not publish time.
  */
 
-import { rm } from "node:fs/promises";
+import { access, readdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,8 +26,9 @@ async function cleanupTemplateArtifacts(templatePath) {
 
 async function main() {
   try {
-    // Update all template package.json files
-    const { readdir } = await import("node:fs/promises");
+    // Newer scaffold packaging ships generated archives instead of a raw templates directory.
+    // Keep the legacy cleanup path for older local layouts, but treat its absence as a valid no-op.
+    await access(templatesDir);
     const templates = await readdir(templatesDir, { withFileTypes: true });
 
     for (const template of templates) {
@@ -39,6 +40,10 @@ async function main() {
 
     console.log("✓ Template artifacts cleaned for publishing");
   } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      console.log("✓ No legacy templates directory to clean for publishing");
+      return;
+    }
     console.error("Error in prepublish script:", error);
     process.exit(1);
   }
