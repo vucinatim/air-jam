@@ -22,7 +22,8 @@ Thanks for contributing.
 4. `pnpm check:ci` mirrors the lightweight GitHub CI contract: content integrity, typecheck, lint, canonical guard, tests, build, and non-strict perf sanity.
 5. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
 6. `pnpm run repo -- perf sanity` is the canonical local server perf check.
-7. `pnpm check:release` remains the heavyweight prerelease gate with strict perf, browser smoke, and scaffold smoke.
+7. `pnpm check:release` remains the deeper local prerelease gate with strict perf, browser smoke, and scaffold smoke.
+8. `pnpm check:release:publish` is the GitHub publish-path gate: strict perf, server lifecycle/routing smoke, and scaffold smoke without Playwright browser install.
 
 ## Development Workflow
 
@@ -39,10 +40,11 @@ Thanks for contributing.
 4. `pnpm test` passes.
 5. `pnpm check:ci` passes for normal PR validation.
 6. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
-7. `pnpm check:release` passes before publish or for release-sensitive changes.
-8. Tests relevant to your change pass.
-9. Documentation is updated if behavior/API changed.
-10. PR description explains:
+7. `pnpm check:release:publish` passes for the GitHub package-publish path.
+8. `pnpm check:release` passes before final release sign-off or when browser-level release smoke matters.
+9. Tests relevant to your change pass.
+10. Documentation is updated if behavior/API changed.
+11. PR description explains:
 
 - what changed
 - why it changed

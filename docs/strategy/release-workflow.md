@@ -19,7 +19,7 @@ It is:
 
 1. GitHub-native to trigger
 2. token-free for npm publishing
-3. validated by the full release gate before publish
+3. validated by the publish gate before publish
 4. followed by package-specific git tags and GitHub releases
 
 Local manual publishing is fallback-only.
@@ -28,14 +28,10 @@ Local manual publishing is fallback-only.
 
 Trusted publishing must be configured separately on npm for:
 
-1. `@air-jam/runtime-topology`
-2. `@air-jam/env`
-3. `@air-jam/sdk`
-4. `@air-jam/harness`
-5. `@air-jam/devtools-core`
-6. `@air-jam/mcp-server`
-7. `@air-jam/server`
-8. `create-airjam`
+1. `@air-jam/sdk`
+2. `@air-jam/mcp-server`
+3. `@air-jam/server`
+4. `create-airjam`
 
 ## One-Time Manual Setup On npm
 
@@ -52,7 +48,7 @@ For each package:
    3. Workflow filename: `publish-packages.yml`
    4. Environment name: leave blank
 
-Repeat that for all three published packages.
+Repeat that for all four published packages.
 
 Important:
 
@@ -83,10 +79,18 @@ This workflow publishes the versions that already exist in:
 
 ### 2. Run local validation if desired
 
-Recommended:
+Recommended deep local gate:
 
 ```bash
 pnpm check:release
+```
+
+This includes browser Playwright smoke and scaffold smoke.
+
+For publish-path validation without browser installation, use:
+
+```bash
+pnpm check:release:publish
 ```
 
 For normal pull-request validation, use the lighter CI contract:
@@ -141,26 +145,24 @@ Tag mapping:
 The workflow:
 
 1. installs dependencies
-2. runs `pnpm check:release`
-3. runs the strict server perf sanity gate inside that release check, including reconnect churn coverage
-4. validates the browser-level Arcade happy-path smoke inside that gate
+2. runs `pnpm check:release:publish`
+3. runs the strict server perf sanity gate inside that publish check, including reconnect churn coverage
+4. validates server lifecycle/routing smoke plus scaffold/package smoke inside that gate
 5. resolves the selected package set explicitly
 6. publishes the selected package set in dependency order to npm via trusted publishing
 7. creates matching package-specific git tag(s)
 8. creates matching package-specific GitHub release(s)
 
+Browser Playwright smoke remains part of the deeper local `pnpm check:release` gate, not the GitHub package-publish critical path.
+
 ## Tag Format
 
 Package tags are:
 
-1. `runtime-topology-v<version>`
-2. `env-v<version>`
-3. `sdk-v<version>`
-4. `harness-v<version>`
-5. `devtools-core-v<version>`
-6. `mcp-server-v<version>`
-7. `server-v<version>`
-8. `create-airjam-v<version>`
+1. `sdk-v<version>`
+2. `mcp-server-v<version>`
+3. `server-v<version>`
+4. `create-airjam-v<version>`
 
 Examples:
 

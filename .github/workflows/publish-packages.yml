@@ -10,11 +10,7 @@ on:
         type: choice
         options:
           - all-public
-          - runtime-topology
-          - env
           - sdk
-          - harness
-          - devtools-core
           - mcp-server
           - server
           - create-airjam
@@ -120,11 +116,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Validate Release
-        run: pnpm check:release
+        run: pnpm check:release:publish
 
   publish:
     runs-on: ubuntu-latest
