@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a focused improvement to Air Jam.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Explain the user or developer pain clearly.
+      placeholder: Scaffolding a game should...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the simplest solution you think would work.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention any other approaches or tradeoffs.
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+      description: Links, screenshots, prior discussions, or related issues.

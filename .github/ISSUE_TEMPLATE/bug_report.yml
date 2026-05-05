@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible problem in Air Jam.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the bug and the behavior you expected instead.
+      placeholder: The host QR overlay stays visible after...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce it
+      description: Include clear steps, commands, URLs, and templates if relevant.
+      placeholder: |
+        1. Run `pnpm run dev`
+        2. Open ...
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, browser, Node version, package version, or deployment target if relevant.
+      placeholder: macOS 15, Chrome 136, Node 22.22.0, create-airjam 0.9.2
+  - type: textarea
+    id: notes
+    attributes:
+      label: Extra context
+      description: Logs, screenshots, or related links.
+
