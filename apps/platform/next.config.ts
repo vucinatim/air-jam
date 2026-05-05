@@ -130,6 +130,18 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
+        has: [{ type: "host", value: "air-jam.vercel.app" }],
+        destination: "https://airjam.io/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "air-jam-timvucina.vercel.app" }],
+        destination: "https://airjam.io/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
         has: [{ type: "host", value: "air-jam.app" }],
         destination: "https://airjam.io/:path*",
         permanent: true,
