@@ -18,7 +18,7 @@
     "access": "public"
   },
   "bin": {
-    "airjam-mcp": "./dist/cli.js"
+    "airjam-mcp": "./bin/airjam-mcp.mjs"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -34,6 +34,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "src"
   ],
@@ -41,7 +42,7 @@
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
@@ -54,6 +55,7 @@
     "@air-jam/devtools-core": "workspace:^",
     "@types/node": "^24.10.1",
     "tsup": "^8.5.1",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "vitest": "^3.2.4"
   }

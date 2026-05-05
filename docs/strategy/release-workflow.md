@@ -87,6 +87,17 @@ pnpm check:release:doctor
 
 This command first enforces `pnpm install --frozen-lockfile`, then runs the real local prerelease gate. That keeps simple dependency drift from first surfacing on GitHub Actions.
 
+It also runs two fast structural contracts before the heavy gate:
+
+1. `pnpm test:repo-contracts`
+2. `pnpm check:platform:deploy`
+
+Those exist specifically to catch mistakes that were previously hidden by local workspace state:
+
+1. workflow toolchain drift versus `packageManager`
+2. missing workspace bin entrypoints before build
+3. hosted platform deploy coupling that only appears in a clean copy
+
 The underlying heavy local gate is:
 
 ```bash
@@ -103,9 +114,10 @@ pnpm check:release:publish
 
 This is intentionally not the full prerelease sweep. It keeps only:
 
-1. typecheck
-2. build
-3. server lifecycle/routing smoke
+1. repo contract tests
+2. clean platform build
+3. typecheck
+4. server lifecycle/routing smoke
 
 For normal pull-request validation, use the lighter CI contract:
 
@@ -170,6 +182,7 @@ The heavy prerelease checks stay local:
 1. strict perf sanity
 2. scaffold tarball smoke
 3. browser Playwright smoke
+4. hermetic platform deploy check
 
 That is deliberate. GitHub publish should confirm the repo still builds and the server release path is sane, not rerun every expensive local sign-off gate.
 

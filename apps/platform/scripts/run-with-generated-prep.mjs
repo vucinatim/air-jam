@@ -1,13 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { preparePlatformGeneratedArtifacts } from "../../../scripts/platform/lib/platform-generated-prepare.mjs";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, "../../..");
 
 const [command, ...args] = process.argv.slice(2);
 

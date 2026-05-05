@@ -5,7 +5,7 @@ Thanks for contributing.
 ## Prerequisites
 
 1. Node.js 20+
-2. pnpm 9+
+2. pnpm via Corepack (`corepack enable`)
 3. PostgreSQL (for platform/server flows that need DB)
 
 ## Local Setup
@@ -23,8 +23,9 @@ Thanks for contributing.
 5. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
 6. `pnpm run repo -- perf sanity` is the canonical local server perf check.
 7. `pnpm check:release` remains the deeper local prerelease gate with strict perf, browser smoke, and full scaffold tarball smoke.
-8. `pnpm check:release:doctor` is the final local release command because it first enforces a clean `pnpm install --frozen-lockfile` before running the heavy prerelease gate.
-9. `pnpm check:release:publish` is the lightweight GitHub publish-path sanity gate: typecheck, build, and server lifecycle/routing smoke only.
+8. `pnpm check:platform:deploy` is the hermetic local deploy contract for the hosted platform. It copies the repo into a clean temp workspace, runs a frozen-lockfile install, fails on workspace bin warnings, and builds `apps/platform`.
+9. `pnpm check:release:doctor` is the final local release command because it first enforces a clean `pnpm install --frozen-lockfile`, runs repo contract tests, runs the hermetic platform deploy check, and only then runs the heavy prerelease gate.
+10. `pnpm check:release:publish` is the lightweight GitHub publish-path sanity gate: repo contract tests, clean platform build, typecheck, and server lifecycle/routing smoke.
 
 ## Development Workflow
 
@@ -41,12 +42,14 @@ Thanks for contributing.
 4. `pnpm test` passes.
 5. `pnpm check:ci` passes for normal PR validation.
 6. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
-7. `pnpm check:release:publish` passes for the lightweight GitHub package-publish path when you touch the publish workflow itself.
-8. `pnpm check:release:doctor` passes before final release sign-off so lockfile drift is caught locally instead of by GitHub Actions.
-9. `pnpm check:release` still passes when you need to rerun the heavy local gate without the extra clean-install preflight.
-9. Tests relevant to your change pass.
-10. Documentation is updated if behavior/API changed.
-11. PR description explains:
+7. `pnpm test:repo-contracts` passes when you touch workspace entrypoints, workflow toolchains, or other repo-level contracts.
+8. `pnpm check:platform:deploy` passes for deployment-sensitive changes so Vercel is not the first clean environment to reveal coupling.
+9. `pnpm check:release:publish` passes for the lightweight GitHub package-publish path when you touch release or publish behavior.
+10. `pnpm check:release:doctor` passes before final release sign-off so lockfile drift and clean-room deploy issues are caught locally instead of by GitHub Actions.
+11. `pnpm check:release` still passes when you need to rerun the heavy local gate without the extra clean-install preflight.
+12. Tests relevant to your change pass.
+13. Documentation is updated if behavior/API changed.
+14. PR description explains:
 
 - what changed
 - why it changed

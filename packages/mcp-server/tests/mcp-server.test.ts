@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach } from "vitest";
-import { createAirJamMcpServer, inspectMcpProjectSetup } from "../src/index.js";
+import { createAirJamMcpServer, inspectMcpProjectSetup } from "../dist/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tempRoots: string[] = [];
@@ -245,7 +245,7 @@ describe("createAirJamMcpServer", () => {
     });
   });
 
-  it("gates standalone-only mode schemas at server construction time", async () => {
+  it("exposes arcade-capable dev modes for monorepo game projects", async () => {
     const standaloneProjectRoot = path.resolve(
       __dirname,
       "../../../games/pong",
@@ -271,7 +271,7 @@ describe("createAirJamMcpServer", () => {
     );
 
     expect(startDevTool).toBeDefined();
-    expect(JSON.stringify(startDevTool?.inputSchema ?? {})).not.toContain(
+    expect(JSON.stringify(startDevTool?.inputSchema ?? {})).toContain(
       "arcade-dev",
     );
   });

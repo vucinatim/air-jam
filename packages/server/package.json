@@ -18,7 +18,7 @@
     "access": "public"
   },
   "bin": {
-    "air-jam-server": "./dist/cli.js"
+    "air-jam-server": "./bin/air-jam-server.mjs"
   },
   "main": "dist/index.js",
   "exports": {
@@ -29,6 +29,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "src/project-cli/vite-config.mjs",
     "src/project-cli/vite-config.d.mts",
@@ -39,7 +40,7 @@
     "dev": "tsx src/main.ts",
     "logs:dev": "tsx scripts/dev-logs.ts",
     "analytics:rebuild": "tsx scripts/runtime-usage-rebuild.ts",
-    "start": "node dist/cli.js",
+    "start": "node ./bin/air-jam-server.mjs",
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
     "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",

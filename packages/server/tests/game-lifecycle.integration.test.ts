@@ -403,10 +403,16 @@ describe("server game lifecycle", () => {
 
     await harness.expectNoEvent(controller, "disconnect", 120);
 
-    const pausePromise = harness.waitForEvent<{
+    const pausePromise = harness.waitForEventMatching<{
       roomId: string;
       state: { runtimeState: "paused" | "playing" };
-    }>(childTwo, "server:state", 2_000);
+    }>(
+      childTwo,
+      "server:state",
+      (payload) =>
+        payload.roomId === roomId && payload.state.runtimeState === "paused",
+      2_000,
+    );
     masterHost.emit("host:system", { roomId, command: "pause" });
     const pauseState = await pausePromise;
     expect(pauseState.roomId).toBe(roomId);

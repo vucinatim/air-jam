@@ -43,7 +43,7 @@ const waitFor = async (
 };
 
 const startServerProcess = ({ cwd, port }) => {
-  const child = spawn("pnpm", ["exec", "air-jam-server"], {
+  const child = spawn("pnpm", ["exec", "air-jam-server", "start"], {
     cwd,
     env: {
       ...process.env,

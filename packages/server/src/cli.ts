@@ -177,7 +177,7 @@ export const createServerCli = (): Command => {
 
 export const formatCliHelp = (): string => createServerCli().helpInformation();
 
-const main = async (): Promise<number> => {
+export const runServerCli = async (): Promise<number> => {
   loadWorkspaceEnv();
   await createServerCli().parseAsync(normalizeCliArgv(process.argv));
   const exitCode = process.exitCode;
@@ -204,7 +204,7 @@ const resolveIsDirectRun = (): boolean => {
 const isDirectRun = resolveIsDirectRun();
 
 if (isDirectRun) {
-  void main().then((exitCode) => {
+  void runServerCli().then((exitCode) => {
     process.exitCode = exitCode;
   });
 }
