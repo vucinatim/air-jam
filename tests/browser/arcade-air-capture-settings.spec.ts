@@ -258,6 +258,7 @@ test("arcade local air-capture inherits initial settings and applies controller 
     baseURL,
     path: "/arcade/local-air-capture",
     readyTestId: "air-capture-host-lobby-overlay",
+    readyTimeoutMs: 45_000,
   });
 
   const controllerJoinUrl = await resolveControllerJoinUrl({

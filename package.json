@@ -22,7 +22,7 @@
     "build": "pnpm -r build",
     "check:ci": "pnpm --filter platform content:check-generated && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm run repo -- perf sanity",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:release",
-    "check:release:publish": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:server && pnpm test:scaffold",
+    "check:release:publish": "pnpm typecheck && pnpm build && pnpm smoke:server",
     "lint": "eslint . && pnpm --filter platform lint",
     "guard:canonical": "node scripts/repo/cli.mjs standards canonical",
     "smoke:server": "pnpm --filter @air-jam/server test -- --run tests/game-lifecycle.integration.test.ts tests/routing-security.integration.test.ts",

@@ -21,6 +21,8 @@ const run = (command, cwd) => {
   });
 };
 
+const quoteArg = (value) => JSON.stringify(value);
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const waitFor = async (
@@ -243,6 +245,30 @@ const packWorkspacePackage = ({ packageDir, outDir }) => {
   return path.join(outDir, created[created.length - 1]);
 };
 
+const installPackedCli = ({ createAirJamTarball, overrides, installDir }) => {
+  fs.mkdirSync(installDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(installDir, "package.json"),
+    JSON.stringify(
+      {
+        name: "create-airjam-cli-smoke",
+        private: true,
+        pnpm: {
+          overrides: Object.fromEntries(
+            Object.entries(overrides).map(([name, tarballPath]) => [
+              name,
+              `file:${tarballPath}`,
+            ]),
+          ),
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  run(`pnpm add ${quoteArg(`file:${createAirJamTarball}`)}`, installDir);
+};
+
 const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
   const cliEntry = path.join(
     repoRoot,
@@ -263,17 +289,17 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
   );
   const projectName = "smoke-airjam-app";
   const projectArg = path.join("nested", projectName);
-  const projectDir = path.join(tempRoot, projectArg);
+  let scaffoldRoot = tempRoot;
+  let projectDir = path.join(scaffoldRoot, projectArg);
 
   try {
     console.log(`\n[scaffold smoke] template=${template} source=${source}`);
     const cliArgs = [
-      "node",
-      JSON.stringify(cliEntry),
-      JSON.stringify(projectArg),
+      projectArg,
       "--template",
       template,
     ];
+    let cliCommand = `node ${quoteArg(cliEntry)}`;
 
     if (source !== "registry") {
       cliArgs.push("--skip-install");
@@ -301,10 +327,29 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         packageDir: path.join(repoRoot, "packages", "mcp-server"),
         outDir: tarballDir,
       });
+      const cliInstallDir = path.join(tempRoot, "create-airjam-cli");
+      installPackedCli({
+        createAirJamTarball,
+        overrides: {
+          "@air-jam/sdk": sdkTarball,
+          "@air-jam/server": serverTarball,
+          "@air-jam/mcp-server": mcpServerTarball,
+        },
+        installDir: cliInstallDir,
+      });
+      scaffoldRoot = cliInstallDir;
+      projectDir = path.join(scaffoldRoot, projectArg);
+      cliCommand = "pnpm exec create-airjam";
       cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/mcp-server=file:${mcpServerTarball}`);
       cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
+      cliArgs.push(`--override-spec=@air-jam/server=file:${serverTarball}`);
+      cliArgs.push(`--override-spec=@air-jam/mcp-server=file:${mcpServerTarball}`);
+      run(
+        [cliCommand, ...cliArgs.map(quoteArg)].join(" "),
+        cliInstallDir,
+      );
     } else if (source === "workspace") {
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
@@ -331,9 +376,16 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       cliArgs.push(
         `--override-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
       );
+      run(
+        [cliCommand, ...cliArgs.map(quoteArg)].join(" "),
+        tempRoot,
+      );
+    } else {
+      run(
+        [cliCommand, ...cliArgs.map(quoteArg)].join(" "),
+        scaffoldRoot,
+      );
     }
-
-    run(cliArgs.join(" "), tempRoot);
 
     const expectedAgentContract =
       resolveTemplateAgentContractExpectation(template);

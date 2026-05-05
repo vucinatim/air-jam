@@ -28,7 +28,14 @@ import type {
 } from "./types.js";
 
 const require = createRequire(import.meta.url);
-const tsxLoaderPath = require.resolve("tsx/esm");
+
+const resolveTsxLoaderPath = (): string | null => {
+  try {
+    return require.resolve("tsx/esm");
+  } catch {
+    return null;
+  }
+};
 
 const normalizeGithubRemoteUrl = (value: string): string | null => {
   const trimmed = value.trim();
@@ -154,6 +161,11 @@ const loadGameMetadataFromConfig = async (
   configPath: string | null,
 ): Promise<AirJamGameMetadata | null> => {
   if (!configPath) {
+    return null;
+  }
+
+  const tsxLoaderPath = resolveTsxLoaderPath();
+  if (!tsxLoaderPath) {
     return null;
   }
 

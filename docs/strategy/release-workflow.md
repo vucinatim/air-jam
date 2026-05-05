@@ -77,7 +77,7 @@ This workflow publishes the versions that already exist in:
 2. `packages/server/package.json`
 3. `packages/create-airjam/package.json`
 
-### 2. Run local validation if desired
+### 2. Run local validation before release
 
 Recommended deep local gate:
 
@@ -85,13 +85,19 @@ Recommended deep local gate:
 pnpm check:release
 ```
 
-This includes browser Playwright smoke and scaffold smoke.
+This is the real local prerelease gate. It includes strict perf, browser Playwright smoke, and scaffold tarball smoke.
 
-For publish-path validation without browser installation, use:
+GitHub publish uses a lighter remote sanity gate:
 
 ```bash
 pnpm check:release:publish
 ```
+
+This is intentionally not the full prerelease sweep. It keeps only:
+
+1. typecheck
+2. build
+3. server lifecycle/routing smoke
 
 For normal pull-request validation, use the lighter CI contract:
 
@@ -146,14 +152,18 @@ The workflow:
 
 1. installs dependencies
 2. runs `pnpm check:release:publish`
-3. runs the strict server perf sanity gate inside that publish check, including reconnect churn coverage
-4. validates server lifecycle/routing smoke plus scaffold/package smoke inside that gate
-5. resolves the selected package set explicitly
-6. publishes the selected package set in dependency order to npm via trusted publishing
-7. creates matching package-specific git tag(s)
-8. creates matching package-specific GitHub release(s)
+3. resolves the selected package set explicitly
+4. publishes the selected package set in dependency order to npm via trusted publishing
+5. creates matching package-specific git tag(s)
+6. creates matching package-specific GitHub release(s)
 
-Browser Playwright smoke remains part of the deeper local `pnpm check:release` gate, not the GitHub package-publish critical path.
+The heavy prerelease checks stay local:
+
+1. strict perf sanity
+2. scaffold tarball smoke
+3. browser Playwright smoke
+
+That is deliberate. GitHub publish should confirm the repo still builds and the server release path is sane, not rerun every expensive local sign-off gate.
 
 ## Tag Format
 

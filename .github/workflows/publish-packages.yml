@@ -82,7 +82,7 @@ jobs:
           echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
           echo "channel=$RELEASE_CHANNEL" >> "$GITHUB_OUTPUT"
 
-  validate-release:
+  validate-publish:
     runs-on: ubuntu-latest
     needs: prepare
     permissions:
@@ -116,14 +116,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate Release
+      - name: Validate Publish Path
         run: pnpm check:release:publish
 
   publish:
     runs-on: ubuntu-latest
     needs:
       - prepare
-      - validate-release
+      - validate-publish
     permissions:
       contents: write
       id-token: write
