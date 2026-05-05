@@ -9,39 +9,11 @@ const rootDir = path.resolve(
 
 const PUBLIC_PACKAGE_DEFINITIONS = [
   {
-    id: "runtime-topology",
-    packageName: "@air-jam/runtime-topology",
-    packageFilter: "@air-jam/runtime-topology",
-    workingDirectory: "packages/runtime-topology",
-    tagPrefix: "runtime-topology",
-  },
-  {
-    id: "env",
-    packageName: "@air-jam/env",
-    packageFilter: "@air-jam/env",
-    workingDirectory: "packages/env",
-    tagPrefix: "env",
-  },
-  {
     id: "sdk",
     packageName: "@air-jam/sdk",
     packageFilter: "@air-jam/sdk",
     workingDirectory: "packages/sdk",
     tagPrefix: "sdk",
-  },
-  {
-    id: "harness",
-    packageName: "@air-jam/harness",
-    packageFilter: "@air-jam/harness",
-    workingDirectory: "packages/harness",
-    tagPrefix: "harness",
-  },
-  {
-    id: "devtools-core",
-    packageName: "@air-jam/devtools-core",
-    packageFilter: "@air-jam/devtools-core",
-    workingDirectory: "packages/devtools-core",
-    tagPrefix: "devtools-core",
   },
   {
     id: "mcp-server",

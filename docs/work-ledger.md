@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-05-03
+Last updated: 2026-05-05
 Status: active
 
 This is the single active repo-wide ledger.
@@ -64,6 +64,7 @@ Plans:
 6. [Landing, Arcade, and Controller Polish Plan](./plans/landing-arcade-controller-polish-plan-2026-05-03.md)
 7. [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
 8. [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
+9. [Public Package Surface Rationalization Plan](./plans/public-package-surface-rationalization-plan-2026-05-05.md)
 
 Immediate next work:
 
@@ -77,6 +78,7 @@ Immediate next work:
 8. complete the bounded landing/Arcade/controller polish pass, including the Arcade settings interactivity fix, explicit landing featured games, controller chrome tightening, and removal of dead settings controls
 9. refactor controller settings ownership so host-owned room settings and controller-local settings become explicit contracts instead of one ambiguous shared surface
 10. turn the current partial npm publish workflow into the first supported public package lane so `npx create-airjam` works from `latest` while legacy npm versions remain installable-but-unsupported
+11. finish the supported `0.9.0` release from the narrowed four-package surface
 
 Latest progress inside this focus:
 
@@ -121,6 +123,8 @@ Latest progress inside this focus:
 39. the bounded landing/Arcade/controller polish pass is now landed locally: landing featured games are explicit and the agent demo now cycles real Air Jam workflow prompts, Arcade hides its visible scrollbar and exposes exact template commands on hover while renaming `Minimal` to `Minimal Template` publicly, preview-controller roster rows are compressed to one line, and controller settings interactivity is no longer blocked by page-wide touch suppression leaking into the shared sheet surface
 40. controller settings debugging exposed a deeper ownership gap: the intended product model needs both host-owned room settings and controller-local device settings, but the current controller sheet still mixes those domains without an explicit mirrored host-settings contract; the bounded refactor is now tracked in [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
 41. the npm/package release story is now explicitly split from general prerelease execution: old published npm versions should remain installable but unsupported, the first real public package lane should make plain `npx create-airjam` work from `latest`, and the required package graph / GitHub workflow / deprecation steps are tracked in [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
+42. the intended long-term public npm surface is now narrowed further to four products only: `@air-jam/sdk`, `@air-jam/server`, `@air-jam/mcp-server`, and `create-airjam`; the required packaging refactor and the deprecation path for already-published low-level packages are now tracked in [Public Package Surface Rationalization Plan](./plans/public-package-surface-rationalization-plan-2026-05-05.md)
+43. the four-package surface rationalization is now complete in both repo and registry terms: the full `pnpm check:release` path passed after the packaging refactor, scaffold tarball smoke proved fresh apps only install the four supported public packages, and `@air-jam/env@0.9.0` plus `@air-jam/runtime-topology@0.9.0` are now deprecated on npm with guidance toward the supported surface
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

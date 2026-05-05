@@ -5,6 +5,8 @@ export default defineConfig({
   format: ["esm"],
   clean: true,
   shims: true,
+  platform: "node",
+  noExternal: ["@air-jam/devtools-core"],
   banner: {
     js: "#!/usr/bin/env node",
   },

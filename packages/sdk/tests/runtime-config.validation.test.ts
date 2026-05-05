@@ -1,7 +1,7 @@
 import {
   AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY,
   resolveRuntimeTopology,
-} from "@air-jam/runtime-topology";
+} from "@air-jam/sdk/runtime-topology";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   onAirJamDiagnostic,

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import React from "react";

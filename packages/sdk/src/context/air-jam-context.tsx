@@ -46,8 +46,8 @@ import type {
   ResolvedAirJamRuntimeTopology,
   RuntimeTopologyInput,
   SurfaceRole,
-} from "@air-jam/runtime-topology";
-import { isLocalDevControlSurfaceTopology } from "@air-jam/runtime-topology";
+} from "../runtime-topology";
+import { isLocalDevControlSurfaceTopology } from "../runtime-topology";
 import {
   createContext,
   useCallback,

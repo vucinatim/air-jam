@@ -1,4 +1,4 @@
-import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { describe, expect, it } from "vitest";
 import {
   createArcadeBridgeInitMessage,

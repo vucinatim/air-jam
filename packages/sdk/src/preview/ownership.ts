@@ -1,7 +1,7 @@
 import {
   isLocalDevControlSurfaceRuntimeMode,
   type ResolvedAirJamRuntimeTopology,
-} from "@air-jam/runtime-topology";
+} from "../runtime-topology";
 import { parseOptionalArcadeSurfaceFromSearchParams } from "../runtime/arcade-runtime-url";
 
 export type HostPreviewControllerWorkspaceEnabled = boolean | "auto";

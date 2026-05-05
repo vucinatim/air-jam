@@ -1,9 +1,7 @@
 {
   "name": "@air-jam/env",
   "version": "0.9.0",
-  "publishConfig": {
-    "access": "public"
-  },
+  "private": true,
   "description": "Shared Air Jam environment parsing and validation helpers",
   "type": "module",
   "license": "MIT",

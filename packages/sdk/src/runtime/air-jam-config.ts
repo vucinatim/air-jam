@@ -8,7 +8,7 @@ import {
   type ResolvedAirJamRuntimeTopology,
   type RuntimeTopologyInput,
   type SurfaceRole,
-} from "@air-jam/runtime-topology";
+} from "../runtime-topology";
 import { DEFAULT_MAX_PLAYERS } from "../constants";
 import {
   createAirJamDiagnosticError,

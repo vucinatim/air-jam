@@ -2,7 +2,7 @@
 import {
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
-} from "@air-jam/runtime-topology";
+} from "@air-jam/sdk/runtime-topology";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionScopeContext } from "../src/context/session-scope";

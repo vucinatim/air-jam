@@ -2,7 +2,7 @@ import {
   isLocalDevControlSurfaceTopology,
   type ProxyStrategy,
   type ResolvedAirJamRuntimeTopology,
-} from "@air-jam/runtime-topology";
+} from "../runtime-topology";
 import {
   onAirJamDiagnostic,
   type AirJamDiagnostic,

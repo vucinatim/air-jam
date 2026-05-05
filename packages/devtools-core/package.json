@@ -2,7 +2,7 @@
   "name": "@air-jam/devtools-core",
   "version": "0.9.0",
   "description": "Shared Air Jam devtools operations for repo CLIs, MCP adapters, and generated projects",
-  "private": false,
+  "private": true,
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -14,13 +14,58 @@
   "bugs": {
     "url": "https://github.com/vucinatim/airjam/issues"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./agent": {
+      "types": "./dist/agent.d.ts",
+      "import": "./dist/agent.js"
+    },
+    "./context": {
+      "types": "./dist/context.d.ts",
+      "import": "./dist/context.js"
+    },
+    "./dev": {
+      "types": "./dist/dev.d.ts",
+      "import": "./dist/dev.js"
+    },
+    "./game-session": {
+      "types": "./dist/game-session.d.ts",
+      "import": "./dist/game-session.js"
+    },
+    "./games": {
+      "types": "./dist/games.d.ts",
+      "import": "./dist/games.js"
+    },
+    "./logs": {
+      "types": "./dist/logs.d.ts",
+      "import": "./dist/logs.js"
+    },
+    "./platform-auth": {
+      "types": "./dist/platform-auth.d.ts",
+      "import": "./dist/platform-auth.js"
+    },
+    "./platform-game-media": {
+      "types": "./dist/platform-game-media.d.ts",
+      "import": "./dist/platform-game-media.js"
+    },
+    "./platform-games": {
+      "types": "./dist/platform-games.d.ts",
+      "import": "./dist/platform-games.js"
+    },
+    "./quality": {
+      "types": "./dist/quality.d.ts",
+      "import": "./dist/quality.js"
+    },
+    "./release": {
+      "types": "./dist/release.d.ts",
+      "import": "./dist/release.js"
+    },
+    "./visual": {
+      "types": "./dist/visual.d.ts",
+      "import": "./dist/visual.js"
     }
   },
   "main": "./dist/index.js",

@@ -124,6 +124,11 @@
       "import": "./dist/agent-tooling.js",
       "require": "./dist/agent-tooling.cjs"
     },
+    "./runtime-topology": {
+      "types": "./dist/runtime-topology.d.ts",
+      "import": "./dist/runtime-topology.js",
+      "require": "./dist/runtime-topology.cjs"
+    },
     "./styles.css": "./src/styles.css"
   },
   "files": [
@@ -180,6 +185,9 @@
       "agent-tooling": [
         "dist/agent-tooling.d.ts"
       ],
+      "runtime-topology": [
+        "dist/runtime-topology.d.ts"
+      ],
       "preview": [
         "dist/preview.d.ts"
       ]
@@ -193,7 +201,6 @@
     "dev": "tsup --watch --no-clean"
   },
   "dependencies": {
-    "@air-jam/runtime-topology": "workspace:^",
     "@radix-ui/react-slider": "^1.3.6",
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",

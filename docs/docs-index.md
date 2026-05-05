@@ -46,6 +46,7 @@ Active architecture cleanup plans:
 4. [Landing, Arcade, and Controller Polish Plan](./plans/landing-arcade-controller-polish-plan-2026-05-03.md)
 5. [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
 6. [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
+7. [Public Package Surface Rationalization Plan](./plans/public-package-surface-rationalization-plan-2026-05-05.md)
 
 Planned future architecture tracks:
 

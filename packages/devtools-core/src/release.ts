@@ -61,6 +61,8 @@ import type {
   ValidateLocalReleaseOptions,
 } from "./types.js";
 
+export type { AirJamLocalReleaseIssue } from "./types.js";
+
 const IGNORED_ARCHIVE_PATHS = ["__MACOSX/", ".DS_Store"] as const;
 const VENDORED_FONT_ASSET_DIR = "assets/airjam-vendored/fonts";
 const REMOTE_FONT_STYLESHEET_HOSTS = new Set(["fonts.googleapis.com"]);

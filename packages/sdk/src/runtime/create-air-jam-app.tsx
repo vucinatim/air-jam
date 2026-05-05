@@ -1,5 +1,5 @@
-import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
-import { resolveProjectRuntimeTopology } from "@air-jam/runtime-topology";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
+import { resolveProjectRuntimeTopology } from "../runtime-topology";
 import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
 import type { AirJamAgentContract } from "../agent/agent-contract";

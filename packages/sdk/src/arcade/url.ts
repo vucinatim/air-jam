@@ -1,5 +1,5 @@
-import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
-import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
+import { runtimeTopologyToQueryParams } from "../runtime-topology";
 import type { ChildHostCapability } from "../protocol";
 import {
   appendRuntimeQueryParams,

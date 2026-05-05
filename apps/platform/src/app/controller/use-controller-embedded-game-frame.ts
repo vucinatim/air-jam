@@ -7,7 +7,7 @@ import {
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { getPlatformControllerSessionConfig } from "@/lib/airjam-session-config";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
-import { runtimeTopologyToQueryParams } from "@air-jam/runtime-topology";
+import { runtimeTopologyToQueryParams } from "@air-jam/sdk/runtime-topology";
 import type { AirJamControllerApi, ControllerOrientation } from "@air-jam/sdk";
 import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,

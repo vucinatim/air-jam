@@ -26,6 +26,7 @@ export default defineConfig({
     "src/platform-machine.ts",
     "src/preview.ts",
     "src/agent-tooling.ts",
+    "src/runtime-topology.ts",
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files

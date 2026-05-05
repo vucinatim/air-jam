@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { serializeRuntimeTopology } from "@air-jam/runtime-topology";
+import { serializeRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { resolvePlatformTopology } from "./airjam-session-config";
 
 const ORIGINAL_WINDOW = globalThis.window;

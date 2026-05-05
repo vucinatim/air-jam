@@ -1,4 +1,4 @@
-import { inspectProject } from "@air-jam/devtools-core";
+import { inspectProject } from "@air-jam/devtools-core/context";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {

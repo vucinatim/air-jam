@@ -6,7 +6,7 @@ import {
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { cn } from "@/lib/utils";
-import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
+import type { ResolvedAirJamRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { useInheritedPlatformSettings, type PlayerProfile } from "@air-jam/sdk";
 import {
   AIRJAM_HOST_BRIDGE_EVENT,

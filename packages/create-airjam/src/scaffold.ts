@@ -183,12 +183,10 @@ export const normalizeScaffoldPackageJson = ({
   pkg,
   serverVersion,
   mcpServerVersion,
-  createAirJamVersion,
 }: {
   pkg: ScaffoldPackageJson;
   serverVersion?: string;
   mcpServerVersion?: string;
-  createAirJamVersion: string;
 }): ScaffoldPackageJson => {
   const existingScripts =
     typeof pkg.scripts === "object" && pkg.scripts
@@ -213,9 +211,11 @@ export const normalizeScaffoldPackageJson = ({
 
   const nextScripts = {
     ...existingScripts,
-    dev: "pnpm exec airjam dev",
-    topology: "pnpm exec airjam topology",
-    "secure:init": "pnpm exec airjam secure:init",
+    dev: "pnpm exec air-jam-server dev",
+    topology: "pnpm exec air-jam-server topology",
+    "secure:init": "pnpm exec air-jam-server secure:init",
+    status: "pnpm exec air-jam-server status",
+    "reset:local": "pnpm exec air-jam-server reset local",
     mcp: "pnpm exec airjam-mcp",
   };
 
@@ -227,7 +227,6 @@ export const normalizeScaffoldPackageJson = ({
     ...(mcpServerVersion
       ? { "@air-jam/mcp-server": `^${mcpServerVersion}` }
       : {}),
-    "create-airjam": `^${createAirJamVersion}`,
   };
 
   return {

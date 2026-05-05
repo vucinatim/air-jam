@@ -21,24 +21,35 @@
     "air-jam-server": "./dist/cli.js"
   },
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./vite-config": {
+      "types": "./src/project-cli/vite-config.d.mts",
+      "import": "./src/project-cli/vite-config.mjs"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src/project-cli/vite-config.mjs",
+    "src/project-cli/vite-config.d.mts",
+    "src/project-cli/vite-https.mjs",
+    "src/project-cli/vite-https.d.mts"
   ],
   "scripts": {
     "dev": "tsx src/main.ts",
     "logs:dev": "tsx scripts/dev-logs.ts",
     "analytics:rebuild": "tsx scripts/runtime-usage-rebuild.ts",
     "start": "node dist/cli.js",
-    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
-    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && vitest run --config vitest.config.ts",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "perf:sanity": "tsx scripts/perf-sanity.ts",
-    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
-    "prepublishOnly": "node scripts/prepublish.js && pnpm build"
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm build",
+    "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
+    "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
   },
   "dependencies": {
-    "@air-jam/env": "workspace:^",
-    "@air-jam/harness": "workspace:^",
     "@air-jam/sdk": "workspace:*",
     "color": "^5.0.3",
     "commander": "^14.0.0",
@@ -53,6 +64,9 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@air-jam/devtools-core": "workspace:^",
+    "@air-jam/env": "workspace:^",
+    "@air-jam/harness": "workspace:^",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^24.10.1",

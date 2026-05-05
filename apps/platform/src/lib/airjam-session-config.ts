@@ -2,7 +2,7 @@ import {
   isLocalDevControlSurfaceTopology,
   parseRuntimeTopology,
   resolveRuntimeTopology,
-} from "@air-jam/runtime-topology";
+} from "@air-jam/sdk/runtime-topology";
 import { z } from "zod";
 
 export const arcadeInputSchema = z.object({

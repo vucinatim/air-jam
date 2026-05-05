@@ -3,7 +3,7 @@ import {
   AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY,
   resolveRuntimeTopology,
   serializeRuntimeTopology,
-} from "@air-jam/runtime-topology";
+} from "@air-jam/sdk/runtime-topology";
 import { HOSTED_RELEASE_CONTROLLER_PATH } from "@air-jam/sdk/release";
 
 export const RELEASES_PATH_PREFIX = "/releases";

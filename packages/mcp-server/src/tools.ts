@@ -1,38 +1,56 @@
 import {
-  bundleLocalRelease,
-  captureVisuals,
-  closeGameSession,
-  getDevStatus,
-  getPlatformMachineAuthStatus,
-  getTopology,
-  inspectGame,
   inspectGameAgentContract,
-  inspectLocalRelease,
-  inspectPlatformRelease,
-  inspectProject,
-  invokeGameSessionAction,
-  listGames,
-  listPlatformReleaseTargets,
-  listPlatformReleases,
-  listVisualCaptureSummaries,
-  listVisualScenarios,
-  openGameSession,
-  publishPlatformRelease,
-  readDevLogs,
-  readGameSession,
-  readVisualCaptureSummary,
+} from "@air-jam/devtools-core/agent";
+import { inspectProject } from "@air-jam/devtools-core/context";
+import {
+  getDevStatus,
+  getTopology,
   resetLocalDev,
-  runQualityGate,
-  sendGameSessionInput,
   startDev,
   stopDev,
+} from "@air-jam/devtools-core/dev";
+import {
+  closeGameSession,
+  invokeGameSessionAction,
+  openGameSession,
+  readGameSession,
+  sendGameSessionInput,
+} from "@air-jam/devtools-core/game-session";
+import {
+  inspectGame,
+  listGames,
+  listVisualCaptureSummaries,
+  readVisualCaptureSummary,
+} from "@air-jam/devtools-core/games";
+import { readDevLogs } from "@air-jam/devtools-core/logs";
+import { getPlatformMachineAuthStatus } from "@air-jam/devtools-core/platform-auth";
+import { runQualityGate } from "@air-jam/devtools-core/quality";
+import {
+  bundleLocalRelease,
+  inspectLocalRelease,
+  inspectPlatformRelease,
+  listPlatformReleaseTargets,
+  listPlatformReleases,
+  publishPlatformRelease,
   submitPlatformRelease,
   validateLocalRelease,
-  type AirJamProjectMode,
-  type AirJamQualityGate,
-} from "@air-jam/devtools-core";
+} from "@air-jam/devtools-core/release";
+import {
+  captureVisuals,
+  listVisualScenarios,
+} from "@air-jam/devtools-core/visual";
 import type { ToolExecution } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+
+type AirJamProjectMode = "monorepo" | "standalone-game" | "unknown";
+type AirJamQualityGate =
+  | "typecheck"
+  | "lint"
+  | "test"
+  | "build"
+  | "format-check"
+  | "scaffold-smoke"
+  | "release-check";
 
 export type AirJamMcpToolDefinition = {
   description: string;

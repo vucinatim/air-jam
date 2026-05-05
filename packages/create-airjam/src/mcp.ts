@@ -1,9 +1,9 @@
-import { inspectProject } from "@air-jam/devtools-core";
+import { inspectProject } from "@air-jam/devtools-core/context";
 import {
   AIRJAM_PROJECT_MCP_FILE,
   inspectMcpProjectSetup,
   writeProjectLocalMcpConfig,
-} from "@air-jam/mcp-server";
+} from "@air-jam/mcp-server/config";
 import kleur from "kleur";
 
 const printConfigSnippet = (value: unknown): void => {

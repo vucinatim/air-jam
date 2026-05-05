@@ -1,35 +1,43 @@
 import {
-  AirJamPlatformApiError,
-  archivePlatformGameMediaAsset,
-  bundleLocalRelease,
   createPlatformGame,
-  getDevStatus,
-  getPlatformAuthStoragePath,
-  getPlatformMachineProfile,
-  inspectPlatformGameMedia,
   inspectPlatformGame,
+  listPlatformGames,
+  readLocalHostedGameDefaults,
+  updatePlatformGame,
+} from "@air-jam/devtools-core/platform-games";
+import { getDevStatus, resetLocalDev } from "@air-jam/devtools-core/dev";
+import {
+  bundleLocalRelease,
   inspectLocalRelease,
   inspectPlatformRelease,
-  listPlatformGames,
   listPlatformReleaseTargets,
   listPlatformReleases,
-  loginPlatformWithDeviceFlow,
-  readLocalHostedGameDefaults,
-  logoutPlatformMachineSession,
   publishPlatformRelease,
-  readStoredPlatformMachineSession,
-  resetLocalDev,
   submitPlatformRelease,
-  uploadPlatformGameMediaFile,
-  updatePlatformGame,
   validateLocalRelease,
   type AirJamLocalReleaseIssue,
-} from "@air-jam/devtools-core";
-import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
+} from "@air-jam/devtools-core/release";
+import {
+  AirJamPlatformApiError,
+  getPlatformAuthStoragePath,
+  getPlatformMachineProfile,
+  loginPlatformWithDeviceFlow,
+  logoutPlatformMachineSession,
+  readStoredPlatformMachineSession,
+} from "@air-jam/devtools-core/platform-auth";
+import {
+  archivePlatformGameMediaAsset,
+  inspectPlatformGameMedia,
+  uploadPlatformGameMediaFile,
+} from "@air-jam/devtools-core/platform-game-media";
+import {
+  formatEnvValidationError,
+  isEnvValidationError,
+} from "./internal/env-validation";
 import {
   AIRJAM_PROJECT_MCP_FILE,
   createProjectLocalMcpConfig,
-} from "@air-jam/mcp-server";
+} from "@air-jam/mcp-server/config";
 import { Command, type OptionValues } from "commander";
 import fs from "fs-extra";
 import kleur from "kleur";
@@ -1198,7 +1206,6 @@ const runScaffoldCommand = async (
       pkg,
       serverVersion: manifest["@air-jam/server"],
       mcpServerVersion: manifest["@air-jam/mcp-server"],
-      createAirJamVersion,
     });
     normalizedPkg.name = packageName;
     normalizedPkg.dependencies = normalizeWorkspaceSpecs(

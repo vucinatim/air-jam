@@ -1,4 +1,4 @@
-import { EnvValidationError } from "@air-jam/env";
+import { EnvValidationError } from "./internal/env-validation.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";

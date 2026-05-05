@@ -1,5 +1,4 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createAirJamMcpServer } from "./server.js";
 
 const HELP_TEXT = `Usage: airjam-mcp [options]
 
@@ -16,6 +15,7 @@ if (argv.includes("--help") || argv.includes("-h")) {
   process.exit(0);
 }
 
+const { createAirJamMcpServer } = await import("./server.js");
 const server = await createAirJamMcpServer();
 const transport = new StdioServerTransport();
 

@@ -1,4 +1,4 @@
-import { validateEnv } from "@air-jam/env";
+import { validateEnv } from "./internal/env-validation.mjs";
 import { z } from "zod";
 
 const trimToUndefined = (value) => {

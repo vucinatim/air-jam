@@ -1,4 +1,4 @@
-import { resolveProjectRuntimeTopology } from "@air-jam/runtime-topology";
+import { resolveProjectRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import path from "node:path";
 import {
   detectLocalIpv4,

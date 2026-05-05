@@ -1,7 +1,7 @@
 import {
   resolveRuntimeTopology,
   serializeRuntimeTopology,
-} from "@air-jam/runtime-topology";
+} from "@air-jam/sdk/runtime-topology";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import { resolvePlatformPublicUrl } from "./src/lib/platform-public-url";

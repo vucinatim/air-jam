@@ -27,6 +27,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
     }
   },
   "files": [
@@ -35,16 +39,19 @@
   ],
   "scripts": {
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup",
+    "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
+    "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@air-jam/devtools-core": "workspace:^",
     "@modelcontextprotocol/sdk": "1.29.0",
+    "socket.io-client": "^4.8.1",
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@air-jam/devtools-core": "workspace:^",
     "@types/node": "^24.10.1",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",

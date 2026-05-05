@@ -1,4 +1,4 @@
-import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import type { RoomCode } from "../protocol";
 import { roomCodeSchema } from "../protocol";
 import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";

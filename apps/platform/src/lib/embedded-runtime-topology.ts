@@ -2,7 +2,7 @@ import {
   resolveRuntimeTopology,
   type ResolvedAirJamRuntimeTopology,
   type SurfaceRole,
-} from "@air-jam/runtime-topology";
+} from "@air-jam/sdk/runtime-topology";
 
 const resolveAssetBasePath = (runtimeUrl: string): string => {
   const parsed = new URL(runtimeUrl);

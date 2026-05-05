@@ -1,8 +1,8 @@
-import type { ResolvedAirJamRuntimeTopology } from "@air-jam/runtime-topology";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import {
   parseRuntimeTopologyFromSearchParams,
   resolveRuntimeTopology,
-} from "@air-jam/runtime-topology";
+} from "../runtime-topology";
 import type { PlayerProfile } from "../protocol";
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
 import { parseOptionalArcadeSurfaceFromSearchParams } from "./arcade-runtime-url";

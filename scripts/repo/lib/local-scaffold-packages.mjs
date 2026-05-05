@@ -27,29 +27,9 @@ export const localScaffoldPackages = [
     directDependency: true,
   },
   {
-    packageName: "@air-jam/harness",
-    packageDir: repoPackageDir("packages", "harness"),
-    directDependency: true,
-  },
-  {
     packageName: "@air-jam/mcp-server",
     packageDir: repoPackageDir("packages", "mcp-server"),
     directDependency: true,
-  },
-  {
-    packageName: "@air-jam/devtools-core",
-    packageDir: repoPackageDir("packages", "devtools-core"),
-    directDependency: false,
-  },
-  {
-    packageName: "@air-jam/env",
-    packageDir: repoPackageDir("packages", "env"),
-    directDependency: false,
-  },
-  {
-    packageName: "@air-jam/runtime-topology",
-    packageDir: repoPackageDir("packages", "runtime-topology"),
-    directDependency: false,
   },
   {
     packageName: "create-airjam",
@@ -63,9 +43,10 @@ const localScaffoldPackageByName = new Map(
 );
 
 const localScaffoldBuildFilters = [
+  "@air-jam/sdk",
+  "@air-jam/mcp-server",
   "create-airjam",
   "server",
-  "@air-jam/harness",
 ];
 
 const exactVersion = (value) =>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { resolveRuntimeTopology } from "@air-jam/runtime-topology";
+import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import {
   fireEvent,
   render,

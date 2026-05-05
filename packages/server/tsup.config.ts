@@ -10,6 +10,8 @@ export default defineConfig({
   dts: false, // Server is a CLI tool, not a library
   clean: true,
   sourcemap: true,
+  platform: "node",
+  noExternal: ["@air-jam/devtools-core", "@air-jam/env", "@air-jam/harness"],
   // Add shebang only to CLI file after build
   onSuccess: async () => {
     const cliPath = "dist/cli.js";

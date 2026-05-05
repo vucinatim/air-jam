@@ -7,7 +7,7 @@ describe("server cli", () => {
     const cli = createServerCli();
     expect(
       cli.commands.map((command: { name: () => string }) => command.name()),
-    ).toEqual(["start", "logs"]);
+    ).toEqual(["start", "logs", "status", "reset", "dev", "secure:init", "topology"]);
   });
 
   it("renders top-level help with logs command", () => {
@@ -15,10 +15,23 @@ describe("server cli", () => {
     expect(formatCliHelp()).toContain(
       "Read the canonical unified dev log stream",
     );
+    expect(formatCliHelp()).toContain("dev [options] [passthrough...]");
+    expect(formatCliHelp()).toContain("secure:init [options] [passthrough...]");
+    expect(formatCliHelp()).toContain("topology [options]");
   });
 
   it("describes the default start behavior in help output", () => {
     expect(formatCliHelp()).toContain("Start the Air Jam server");
+  });
+
+  it("documents project runtime helper commands in help output", () => {
+    expect(formatCliHelp()).toContain(
+      "Show local Air Jam dev process and known-port status",
+    );
+    expect(formatCliHelp()).toContain("Reset local Air Jam development state");
+    expect(formatCliHelp()).toContain(
+      "Run project-local Air Jam game development",
+    );
   });
 
   it("normalizes pnpm double-dash forwarding for logs subcommand", () => {
