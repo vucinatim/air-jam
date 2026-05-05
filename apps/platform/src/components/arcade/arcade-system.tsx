@@ -29,7 +29,7 @@ import type {
   SystemLaunchGameAck,
 } from "@air-jam/sdk/protocol";
 import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
-import { PlayerAvatar, RoomQrCode } from "@air-jam/sdk/ui";
+import { JoinQrOverlay, PlayerAvatar } from "@air-jam/sdk/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -1118,79 +1118,21 @@ export const ArcadeSystem = ({
               </motion.div>
             </motion.div>
           )}
-          {qrVisible && (
-            <motion.div
-              key="arcade-join-qr-overlay"
-              role="dialog"
-              aria-modal="true"
-              aria-label={
-                host.roomId
-                  ? `Join room ${host.roomId}`
-                  : "Scan QR code to join as controller"
-              }
-              className="absolute inset-0 z-50 flex cursor-pointer flex-col items-center justify-center bg-black/85 px-6 backdrop-blur-md"
-              initial={{ opacity: 0, y: -18 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -14 }}
-              transition={
-                reducedMotion
-                  ? { duration: 0.01 }
-                  : ARCADE_QR_OVERLAY_MOTION_TRANSITION
-              }
-              onClick={handleQrOverlayDismiss}
-            >
-              <div
-                className="flex cursor-default flex-col items-center gap-6"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
-                    Join room
-                  </p>
-                  <p className="text-2xl font-semibold tracking-tight text-white tabular-nums">
-                    {host.roomId || "----"}
-                  </p>
-                </div>
-                {joinQrStatus === "loading" ? (
-                  <div
-                    className="flex flex-col items-center justify-center gap-3 rounded-lg border border-white/25 bg-white/6 text-sm text-white/70 shadow-sm"
-                    style={{
-                      width: ARCADE_QR_OVERLAY_SIZE,
-                      height: ARCADE_QR_OVERLAY_SIZE,
-                    }}
-                  >
-                    <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-white/85" />
-                    <span>Preparing join QR…</span>
-                  </div>
-                ) : arcadeJoinUrl ? (
-                  <RoomQrCode
-                    value={arcadeJoinUrl}
-                    size={ARCADE_QR_OVERLAY_SIZE}
-                    padding={2}
-                    foregroundColor="#111827"
-                    backgroundColor="#ffffff"
-                    alt="QR code to join this room as a controller"
-                    className="rounded-lg border border-white/25 bg-white/6 shadow-sm"
-                  />
-                ) : (
-                  <div
-                    className="flex items-center justify-center rounded-lg border border-white/25 bg-white/6 text-sm text-white/70 shadow-sm"
-                    style={{
-                      width: ARCADE_QR_OVERLAY_SIZE,
-                      height: ARCADE_QR_OVERLAY_SIZE,
-                    }}
-                  >
-                    {joinQrStatus === "unavailable"
-                      ? "QR unavailable"
-                      : "Preparing join QR…"}
-                  </div>
-                )}
-                <p className="max-w-xs text-center text-sm text-slate-400">
-                  Scan with your phone to connect as a controller
-                </p>
-              </div>
-            </motion.div>
-          )}
+          {qrVisible ? (
+            <JoinQrOverlay
+              open={qrVisible}
+              value={arcadeJoinUrl}
+              status={joinQrStatus}
+              roomId={host.roomId}
+              roomLabel="Join room"
+              onClose={handleQrOverlayDismiss}
+              description="Scan with your phone to connect as a controller"
+              loadingLabel="Preparing join QR…"
+              unavailableLabel="QR unavailable"
+              qrAlt="QR code to join this room as a controller"
+              size={ARCADE_QR_OVERLAY_SIZE}
+            />
+          ) : null}
         </AnimatePresence>
 
         <div

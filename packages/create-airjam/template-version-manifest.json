@@ -1,6 +1,6 @@
 {
-  "create-airjam": "0.9.1",
-  "@air-jam/sdk": "0.9.1",
-  "@air-jam/server": "0.9.1",
-  "@air-jam/mcp-server": "0.9.1"
+  "create-airjam": "0.9.2",
+  "@air-jam/sdk": "0.9.2",
+  "@air-jam/server": "0.9.2",
+  "@air-jam/mcp-server": "0.9.2"
 }

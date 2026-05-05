@@ -1,6 +1,6 @@
 {
   "name": "@air-jam/mcp-server",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Official Air Jam MCP server for project inspection, logs, quality gates, and visual artifacts",
   "private": false,
   "type": "module",

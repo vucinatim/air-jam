@@ -175,18 +175,27 @@ describe("host join url behavior", () => {
     const onClose = vi.fn();
 
     render(
-      createElement(JoinQrOverlay, {
-        open: true,
-        value: "https://platform.example/controller?room=ROOM1",
-        roomId: "ROOM1",
-        onClose,
-      }),
+      createElement(
+        "div",
+        { className: "pointer-events-none" },
+        createElement(JoinQrOverlay, {
+          open: true,
+          value: "https://platform.example/controller?room=ROOM1",
+          roomId: "ROOM1",
+          onClose,
+        }),
+      ),
     );
 
-    expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByText("ROOM1")).toBeTruthy();
+    const dialog = screen.getByRole("dialog");
 
-    fireEvent.click(screen.getByRole("dialog"));
+    expect(dialog).toBeTruthy();
+    expect(dialog.className).toContain("pointer-events-auto");
+    expect(dialog.className).toContain("fixed");
+    expect(screen.getByText("ROOM1")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^close$/i })).toBeNull();
+
+    fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

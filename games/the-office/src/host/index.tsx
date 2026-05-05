@@ -7,10 +7,9 @@
  * host is just chrome over the networked `useSpaceStore` state plus the
  * match-clock / pending-task hooks in `./hooks/use-office-game-runtime`.
  */
-import { AudioRuntime } from "@air-jam/sdk";
+import { AudioRuntime, useHostAudioMutePreference } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
-import { useState } from "react";
 import { OFFICE_SOUND_MANIFEST } from "../game/contracts/sounds";
 import { OfficeHostGameplaySurface } from "./components/host-gameplay-surface";
 import { OfficeHostOverlays } from "./components/host-overlays";
@@ -29,7 +28,7 @@ export function HostView() {
 
 function OfficeHostScreen() {
   const session = useOfficeHostSession();
-  const [audioMuted, setAudioMuted] = useState(false);
+  const audioPreference = useHostAudioMutePreference("the-office");
   const matchClock = useOfficeActiveMatchClock();
 
   return (
@@ -38,7 +37,7 @@ function OfficeHostScreen() {
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
           <OfficeHostTopHud timeRemainingMs={matchClock.timeRemainingMs} />
           <OfficeHostGameplaySurface
-            muted={audioMuted}
+            muted={audioPreference.muted}
             session={session}
             matchClock={matchClock}
           />
@@ -49,8 +48,8 @@ function OfficeHostScreen() {
       <HostPreviewControllerWorkspace
         dockAccessory={
           <HostMuteButton
-            muted={audioMuted}
-            onToggle={() => setAudioMuted((previous) => !previous)}
+            muted={audioPreference.muted}
+            onToggle={audioPreference.toggleMuted}
           />
         }
       />

@@ -16,11 +16,15 @@
  * Heaviest piece: the 3D scene under `../game/engine/game-scene`. It's lazy-
  * loaded so the lobby surface renders before Rapier initialises.
  */
-import { useAudioRuntimeControls, useAudioRuntimeStatus } from "@air-jam/sdk";
+import {
+  useAudioRuntimeControls,
+  useAudioRuntimeStatus,
+  useHostAudioMutePreference,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
-import type { Dispatch, JSX, SetStateAction } from "react";
-import { Suspense, lazy, memo, useCallback, useState } from "react";
+import type { JSX } from "react";
+import { Suspense, lazy, memo, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { HostAudioProvider } from "../game/audio/host-audio";
 import { useHostAudio } from "../game/audio/use-host-audio";
@@ -129,10 +133,10 @@ const GameplayStage = memo(function GameplayStage({
 
 const HostViewContent = ({
   audioMuted,
-  setAudioMuted,
+  toggleAudioMuted,
 }: {
   audioMuted: boolean;
-  setAudioMuted: Dispatch<SetStateAction<boolean>>;
+  toggleAudioMuted: () => void;
 }): JSX.Element => {
   const audio = useHostAudio();
   const audioRuntimeStatus = useAudioRuntimeStatus();
@@ -140,10 +144,6 @@ const HostViewContent = ({
   const hostRuntime = useAirCaptureHostRuntime({
     playAudio: (soundId) => audio.play(soundId),
   });
-
-  const toggleAudio = useCallback(() => {
-    setAudioMuted((current) => !current);
-  }, [setAudioMuted]);
 
   return (
     <>
@@ -230,7 +230,7 @@ const HostViewContent = ({
       </SurfaceViewport>
       <HostPreviewControllerWorkspace
         dockAccessory={
-          <HostMuteButton muted={audioMuted} onToggle={toggleAudio} />
+          <HostMuteButton muted={audioMuted} onToggle={toggleAudioMuted} />
         }
       />
     </>
@@ -238,11 +238,14 @@ const HostViewContent = ({
 };
 
 export const HostView = (): JSX.Element => {
-  const [audioMuted, setAudioMuted] = useState(false);
+  const audioPreference = useHostAudioMutePreference("air-capture");
 
   return (
-    <HostAudioProvider muted={audioMuted}>
-      <HostViewContent audioMuted={audioMuted} setAudioMuted={setAudioMuted} />
+    <HostAudioProvider muted={audioPreference.muted}>
+      <HostViewContent
+        audioMuted={audioPreference.muted}
+        toggleAudioMuted={audioPreference.toggleMuted}
+      />
     </HostAudioProvider>
   );
 };

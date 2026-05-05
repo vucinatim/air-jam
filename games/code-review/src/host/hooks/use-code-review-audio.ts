@@ -1,5 +1,5 @@
-import { useAudio } from "@air-jam/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useAudio, useHostAudioMutePreference } from "@air-jam/sdk";
+import { useCallback, useEffect, useRef } from "react";
 import type {
   CodeReviewSfxId,
   CodeReviewSoundId,
@@ -7,14 +7,14 @@ import type {
 import type { CodeReviewMatchPhase } from "../../game/stores/code-review-store-types";
 
 export const useCodeReviewAudio = (matchPhase: CodeReviewMatchPhase) => {
-  const [audioMuted, setAudioMuted] = useState(false);
+  const audioPreference = useHostAudioMutePreference("code-review");
   const audio = useAudio<CodeReviewSoundId>();
-  const audioMutedRef = useRef(false);
+  const audioMutedRef = useRef(audioPreference.muted);
 
   useEffect(() => {
-    audioMutedRef.current = audioMuted;
-    audio.mute(audioMuted);
-  }, [audio, audioMuted]);
+    audioMutedRef.current = audioPreference.muted;
+    audio.mute(audioPreference.muted);
+  }, [audio, audioPreference.muted]);
 
   const playSfx = useCallback(
     (key: CodeReviewSfxId) => {
@@ -50,8 +50,8 @@ export const useCodeReviewAudio = (matchPhase: CodeReviewMatchPhase) => {
   }, [matchPhase, playSfx]);
 
   return {
-    audioMuted,
+    audioMuted: audioPreference.muted,
     playSfxFromRef,
-    toggleAudioMuted: () => setAudioMuted((previous) => !previous),
+    toggleAudioMuted: audioPreference.toggleMuted,
   };
 };

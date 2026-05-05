@@ -1,8 +1,8 @@
 import { MATCH_START_COUNTDOWN_SEC } from "@/game/constants";
 import { type GamePhase } from "@/game/domain/types";
 import { type RoundReveal } from "@/game/stores/types";
-import { useAudio } from "@air-jam/sdk";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useAudio, useHostAudioMutePreference } from "@air-jam/sdk";
+import { useEffect, useRef } from "react";
 
 interface UseHostAudioCuesInput {
   phase: GamePhase;
@@ -18,14 +18,14 @@ export const useHostAudioCues = ({
   countdownSeconds,
 }: UseHostAudioCuesInput) => {
   const audio = useAudio();
-  const [muted, setMuted] = useState(false);
+  const audioPreference = useHostAudioMutePreference("last-band-standing");
   const previousPhaseRef = useRef<string>(phase);
   const previousMatchCountdownRef = useRef<number | null>(null);
   const previousCountdownRef = useRef<number | null>(null);
 
   useEffect(() => {
-    audio.mute(muted);
-  }, [audio, muted]);
+    audio.mute(audioPreference.muted);
+  }, [audio, audioPreference.muted]);
 
   useEffect(() => {
     const previousPhase = previousPhaseRef.current;
@@ -83,9 +83,8 @@ export const useHostAudioCues = ({
     previousCountdownRef.current = countdownSeconds;
   }, [audio, phase, countdownSeconds]);
 
-  const toggleMuted = useCallback(() => {
-    setMuted((previous) => !previous);
-  }, []);
-
-  return { muted, toggleMuted };
+  return {
+    muted: audioPreference.muted,
+    toggleMuted: audioPreference.toggleMuted,
+  };
 };

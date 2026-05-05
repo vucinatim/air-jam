@@ -90,6 +90,10 @@ export {
   type HostTickInfo,
   type HostTickOptions,
 } from "./hooks/use-host-tick";
+export {
+  useHostAudioMutePreference,
+  type HostAudioMutePreference,
+} from "./hooks/use-host-audio-mute-preference";
 export { useInputWriter } from "./hooks/use-input-writer";
 export { usePlayers } from "./hooks/use-players";
 export { useRoom, type RoomState } from "./hooks/use-room";
