@@ -45,7 +45,7 @@ air-jam/
 
 ```bash
 # Clone the repository
-git clone https://github.com/vucinatim/airjam.git
+git clone https://github.com/vucinatim/air-jam.git
 cd air-jam
 
 # Install dependencies
@@ -565,8 +565,8 @@ Air Jam does not manage media uploads yet. That is intentional for v1 so game pu
 
 ## Support
 
-- 🐛 **Issues**: [GitHub Issues](https://github.com/vucinatim/airjam/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/vucinatim/airjam/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/vucinatim/air-jam/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/vucinatim/air-jam/discussions)
 - 📧 **Email**: tim.vucina@gmail.com
 
 ## Acknowledgments

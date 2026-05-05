@@ -85,7 +85,7 @@ describe("platform game tooling", () => {
     execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
     execFileSync(
       "git",
-      ["remote", "add", "origin", "https://github.com/vucinatim/airjam.git"],
+      ["remote", "add", "origin", "https://github.com/vucinatim/air-jam.git"],
       { cwd: root },
     );
 
@@ -96,7 +96,7 @@ describe("platform game tooling", () => {
     expect(defaults.metadata.description).toBe("Clean-slate starter.");
     expect(defaults.template.id).toBe("minimal");
     expect(defaults.sourceUrl).toBe(
-      "https://github.com/vucinatim/airjam/tree/main/games/minimal",
+      "https://github.com/vucinatim/air-jam/tree/main/games/minimal",
     );
   });
 

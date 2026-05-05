@@ -92,7 +92,7 @@ The point I'd make in this article is narrower: when the substrate is shaped rig
 
 ## Where it stands.
 
-Air Jam is open source and heading toward its first public release. The arcade is live at [airjam.io](https://airjam.io) — you can scan the QR code and play the six template games right now. The framework, server, SDK, and platform live in the monorepo at [github.com/vucinatim/airjam](https://github.com/vucinatim/airjam). The fastest way to build a game on top of it is `npx create-airjam <game-name>`, which scaffolds from one of the templates and gives you a working room you can join from your phone in about a minute.
+Air Jam is open source and heading toward its first public release. The arcade is live at [airjam.io](https://airjam.io) — you can scan the QR code and play the six template games right now. The framework, server, SDK, and platform live in the monorepo at [github.com/vucinatim/air-jam](https://github.com/vucinatim/air-jam). The fastest way to build a game on top of it is `npx create-airjam <game-name>`, which scaffolds from one of the templates and gives you a working room you can join from your phone in about a minute.
 
 If you're building anything in the AI-native developer-tools direction, I'd be curious what you make of the agent contracts and the runtime topology model — those two decisions ate a lot of time and I don't think the right answers there are settled in the industry yet.
 

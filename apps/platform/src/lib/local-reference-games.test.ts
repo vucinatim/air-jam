@@ -20,7 +20,7 @@ describe("local reference games", () => {
       catalogSource: "local_dev",
       catalogBadgeLabel: "Local Dev",
       sourceUrl:
-        "https://github.com/vucinatim/airjam/tree/main/games/air-capture",
+        "https://github.com/vucinatim/air-jam/tree/main/games/air-capture",
       templateId: "air-capture",
     });
   });
@@ -61,13 +61,13 @@ describe("local reference games", () => {
     expect(games[1]?.url).toBe("http://127.0.0.1:4173");
     expect(games[1]?.controllerUrl).toBe("http://127.0.0.1:4173/controller");
     expect(games[1]?.sourceUrl).toBe(
-      "https://github.com/vucinatim/airjam/tree/main/games/pong",
+      "https://github.com/vucinatim/air-jam/tree/main/games/pong",
     );
     expect(games[1]?.templateId).toBe("pong");
     expect(games[2]?.url).toBe("http://127.0.0.1:4174");
     expect(games[2]?.controllerUrl).toBe("http://127.0.0.1:4174/controller");
     expect(games[2]?.sourceUrl).toBe(
-      "https://github.com/vucinatim/airjam/tree/main/games/code-review",
+      "https://github.com/vucinatim/air-jam/tree/main/games/code-review",
     );
     expect(games[2]?.templateId).toBe("code-review");
   });

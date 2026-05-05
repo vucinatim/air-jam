@@ -196,7 +196,7 @@ This scaffolds a working Pong game with a local development server, the SDK, and
 
 **Links:**
 
-- [GitHub](https://github.com/vucinatim/airjam) -- source code, issues, discussions
+- [GitHub](https://github.com/vucinatim/air-jam) -- source code, issues, discussions
 - [Documentation](https://airjam.io/docs) -- guides, architecture, SDK reference
 - [Platform](https://airjam.io) -- sign up, register games, get app IDs
 - [Arcade](https://airjam.io/arcade) -- play published games

@@ -7,12 +7,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vucinatim/airjam.git",
+    "url": "git+https://github.com/vucinatim/air-jam.git",
     "directory": "packages/release-browser-worker"
   },
-  "homepage": "https://github.com/vucinatim/airjam#readme",
+  "homepage": "https://github.com/vucinatim/air-jam#readme",
   "bugs": {
-    "url": "https://github.com/vucinatim/airjam/issues"
+    "url": "https://github.com/vucinatim/air-jam/issues"
   },
   "bin": {
     "air-jam-release-browser-worker": "./dist/cli.js"

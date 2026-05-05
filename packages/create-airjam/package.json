@@ -6,12 +6,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vucinatim/airjam.git",
+    "url": "git+https://github.com/vucinatim/air-jam.git",
     "directory": "packages/create-airjam"
   },
-  "homepage": "https://github.com/vucinatim/airjam#readme",
+  "homepage": "https://github.com/vucinatim/air-jam#readme",
   "bugs": {
-    "url": "https://github.com/vucinatim/airjam/issues"
+    "url": "https://github.com/vucinatim/air-jam/issues"
   },
   "keywords": [
     "air-jam",

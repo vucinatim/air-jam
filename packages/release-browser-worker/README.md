@@ -27,7 +27,7 @@ Create a dedicated Railway service for this package.
 
 Recommended setup:
 
-1. source repo: `vucinatim/airjam`
+1. source repo: `vucinatim/air-jam`
 2. branch: `main`
 3. root directory: repo root
 4. config-as-code path: `/packages/release-browser-worker/railway.json`

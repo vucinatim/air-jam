@@ -24,7 +24,7 @@ export default function DocsLayout({
             <DynamicBreadcrumbs />
           </div>
           <Link
-            href="https://github.com/vucinatim/airjam"
+            href="https://github.com/vucinatim/air-jam"
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground transition-colors"

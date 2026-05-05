@@ -424,7 +424,7 @@ The built files will be in the `dist/` directory.
 
 - [Air Jam Documentation](https://airjam.io/docs)
 - [Platform](https://airjam.io)
-- [Examples](https://github.com/vucinatim/airjam/tree/main/apps)
+- [Examples](https://github.com/vucinatim/air-jam/tree/main/apps)
 
 ## License
 

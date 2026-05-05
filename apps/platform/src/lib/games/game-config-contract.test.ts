@@ -9,11 +9,11 @@ describe("game config contract", () => {
   it("accepts optional developer catalog metadata", () => {
     expect(
       parseGameConfig({
-        sourceUrl: "https://github.com/vucinatim/airjam/tree/main/games/pong",
+        sourceUrl: "https://github.com/vucinatim/air-jam/tree/main/games/pong",
         templateId: "pong",
       }),
     ).toEqual({
-      sourceUrl: "https://github.com/vucinatim/airjam/tree/main/games/pong",
+      sourceUrl: "https://github.com/vucinatim/air-jam/tree/main/games/pong",
       templateId: "pong",
     });
   });
