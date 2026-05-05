@@ -1,19 +1,26 @@
 const MINIMAL_TEMPLATE_SLUG = "minimal";
+const ZERO_DAYS_CREATOR_LABEL = "AirJam + zerodays";
 
 const FEATURED_PUBLIC_GAME_SLUGS = [
+  "air-capture",
   "last-band-standing",
   "code-review",
   "the-office",
 ] as const;
 
+const ZERO_DAYS_GAME_SLUGS = new Set([
+  "last-band-standing",
+  "code-review",
+  "the-office",
+]);
+
 interface PublicGamePresentationShape {
   name: string;
   slug?: string | null;
+  ownerName?: string | null;
 }
 
-export const getPublicGameDisplayName = <
-  T extends PublicGamePresentationShape,
->(
+export const getPublicGameDisplayName = <T extends PublicGamePresentationShape>(
   game: T,
 ): string => {
   if (game.slug === MINIMAL_TEMPLATE_SLUG) {
@@ -21,6 +28,16 @@ export const getPublicGameDisplayName = <
   }
 
   return game.name;
+};
+
+export const getPublicGameOwnerName = <T extends PublicGamePresentationShape>(
+  game: T,
+): string | null => {
+  if (game.slug && ZERO_DAYS_GAME_SLUGS.has(game.slug)) {
+    return ZERO_DAYS_CREATOR_LABEL;
+  }
+
+  return game.ownerName ?? null;
 };
 
 export const selectFeaturedPublicGames = <

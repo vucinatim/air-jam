@@ -30,4 +30,39 @@ describe("buildManagedGameMediaUrl", () => {
       }),
     ).toBeNull();
   });
+
+  it("returns a relative URL when no public origin is configured", () => {
+    const originalPublicHost = process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
+    const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const originalVercelUrl = process.env.VERCEL_URL;
+    delete process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.VERCEL_URL;
+
+    expect(
+      buildManagedGameMediaUrl({
+        gameId: "game-123",
+        assetId: "asset-123",
+        kind: "preview_video",
+      }),
+    ).toBe("/media/g/game-123/preview-video");
+
+    if (originalPublicHost === undefined) {
+      delete process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
+    } else {
+      process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST = originalPublicHost;
+    }
+
+    if (originalAppUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
+    }
+
+    if (originalVercelUrl === undefined) {
+      delete process.env.VERCEL_URL;
+    } else {
+      process.env.VERCEL_URL = originalVercelUrl;
+    }
+  });
 });

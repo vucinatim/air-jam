@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getPublicGameDisplayName,
+  getPublicGameOwnerName,
   selectFeaturedPublicGames,
 } from "./public-game-presentation";
 
@@ -24,15 +25,35 @@ describe("public game presentation", () => {
     ).toBe("Pong");
   });
 
+  it("overrides curated public creator labels where needed", () => {
+    expect(
+      getPublicGameOwnerName({
+        name: "Last Band Standing",
+        slug: "last-band-standing",
+        ownerName: "AirJam",
+      }),
+    ).toBe("AirJam + zerodays");
+
+    expect(
+      getPublicGameOwnerName({
+        name: "Pong",
+        slug: "pong",
+        ownerName: "AirJam",
+      }),
+    ).toBe("AirJam");
+  });
+
   it("returns featured landing games in curated order", () => {
     const games = [
       { name: "Pong", slug: "pong" },
+      { name: "Air Capture", slug: "air-capture" },
       { name: "The Office", slug: "the-office" },
       { name: "Last Band Standing", slug: "last-band-standing" },
       { name: "Code Review", slug: "code-review" },
     ];
 
     expect(selectFeaturedPublicGames(games)).toEqual([
+      { name: "Air Capture", slug: "air-capture" },
       { name: "Last Band Standing", slug: "last-band-standing" },
       { name: "Code Review", slug: "code-review" },
       { name: "The Office", slug: "the-office" },

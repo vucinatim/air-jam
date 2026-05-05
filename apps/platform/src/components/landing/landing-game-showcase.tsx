@@ -6,6 +6,7 @@ import { SectionHeader } from "@/components/landing/landing-section-header";
 import { Button } from "@/components/ui/button";
 import {
   getPublicGameDisplayName,
+  getPublicGameOwnerName,
   selectFeaturedPublicGames,
 } from "@/lib/public-game-presentation";
 import { api } from "@/trpc/react";
@@ -34,9 +35,25 @@ type GameCardProps = {
   onHover: (media: HoveredMedia | null) => void;
 };
 
+const playPreviewVideo = (video: HTMLVideoElement) => {
+  const playPromise = video.play();
+  if (!playPromise) {
+    return;
+  }
+
+  void playPromise.catch((error: unknown) => {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return;
+    }
+
+    console.error(error);
+  });
+};
+
 const GameCard = ({ game, index, onHover }: GameCardProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const href = game.slug ? `/arcade/${game.slug}` : "/arcade";
+  const creatorName = getPublicGameOwnerName(game);
 
   const handleMouseEnter = () => {
     onHover({
@@ -45,7 +62,7 @@ const GameCard = ({ game, index, onHover }: GameCardProps) => {
     });
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
-      void videoRef.current.play();
+      playPreviewVideo(videoRef.current);
     }
   };
 
@@ -92,7 +109,7 @@ const GameCard = ({ game, index, onHover }: GameCardProps) => {
               muted
               loop
               playsInline
-              preload="none"
+              preload="auto"
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
             />
           ) : null}
@@ -101,10 +118,8 @@ const GameCard = ({ game, index, onHover }: GameCardProps) => {
           <h3 className="text-lg font-semibold tracking-tight">
             {getPublicGameDisplayName(game)}
           </h3>
-          {game.ownerName ? (
-            <p className="text-muted-foreground mt-1 text-sm">
-              {game.ownerName}
-            </p>
+          {creatorName ? (
+            <p className="text-muted-foreground mt-1 text-sm">{creatorName}</p>
           ) : null}
         </div>
       </Link>
@@ -173,7 +188,7 @@ export const LandingGameShowcase = () => {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {featured.map((game, i) => (
                 <GameCard
                   key={game.id}

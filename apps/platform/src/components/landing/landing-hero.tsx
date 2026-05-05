@@ -7,6 +7,7 @@ import { TextCycle } from "@/components/landing/text-cycle";
 import { Navbar } from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { copyToClipboard } from "@/lib/copy-to-clipboard";
 import { trackWebsiteEvent } from "@/lib/website-analytics";
 import { Check, Copy } from "lucide-react";
 import Link from "next/link";
@@ -17,9 +18,14 @@ const COMMAND = "npx create-airjam@latest";
 function CopyCommand() {
   const [copied, setCopied] = useState(false);
 
-  const copy = useCallback(() => {
-    void navigator.clipboard.writeText(COMMAND);
+  const copy = useCallback(async () => {
+    const didCopy = await copyToClipboard(COMMAND);
     trackWebsiteEvent("landing_copy_command_clicked");
+    if (!didCopy) {
+      setCopied(false);
+      return;
+    }
+
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);
@@ -28,9 +34,9 @@ function CopyCommand() {
     <button
       type="button"
       onClick={copy}
-      className="group/copy flex cursor-pointer items-center gap-3 rounded-full border border-zinc-700/90 bg-zinc-900/75 px-5 py-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md transition-colors hover:border-zinc-500 hover:bg-zinc-800/85"
+      className="group/copy flex cursor-pointer items-center gap-3 rounded-full border border-zinc-700/90 bg-zinc-900/75 px-5 py-2.5 text-left shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md transition-colors hover:border-zinc-500 hover:bg-zinc-800/85"
     >
-      <span className="font-mono text-sm text-zinc-300 select-all sm:text-[15px]">
+      <span className="font-mono text-sm text-zinc-300 select-none sm:text-[15px]">
         {COMMAND}
       </span>
       {copied ? (

@@ -1,5 +1,8 @@
 import type { ArcadeGame } from "@/components/arcade";
-import { getPublicGameDisplayName } from "@/lib/public-game-presentation";
+import {
+  getPublicGameDisplayName,
+  getPublicGameOwnerName,
+} from "@/lib/public-game-presentation";
 
 type ArcadeGameSource = {
   id: string;
@@ -21,7 +24,7 @@ export const toArcadeGame = (game: ArcadeGameSource): ArcadeGame => ({
   name: getPublicGameDisplayName(game),
   url: game.url,
   controllerUrl: game.controllerUrl,
-  ownerName: game.ownerName,
+  ownerName: getPublicGameOwnerName(game),
   thumbnailUrl: game.thumbnailUrl,
   videoUrl: game.videoUrl,
   slug: game.slug,

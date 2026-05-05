@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { copyToClipboard } from "@/lib/copy-to-clipboard";
 import { buildCreateAirJamTemplateCommand } from "@/lib/create-airjam-template-command";
 import { cn } from "@/lib/utils";
 import { AudioRuntime, useAudio, type SoundManifest } from "@air-jam/sdk";
@@ -171,9 +172,8 @@ const GameBrowserContent = ({
       const command = buildCreateAirJamTemplateCommand(game.templateId);
       if (!command) return;
 
-      try {
-        await navigator.clipboard.writeText(command);
-      } catch {
+      const didCopy = await copyToClipboard(command);
+      if (!didCopy) {
         return;
       }
 

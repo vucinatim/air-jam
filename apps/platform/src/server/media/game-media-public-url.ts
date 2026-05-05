@@ -15,11 +15,21 @@ export const buildManagedGameMediaUrl = ({
     return null;
   }
 
+  const mediaPath = buildGameMediaUrl({
+    gameId,
+    kind,
+  });
+  const hasExplicitPublicOrigin = Boolean(
+    process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST ||
+      process.env.VERCEL_URL,
+  );
+
+  if (!hasExplicitPublicOrigin) {
+    return mediaPath;
+  }
+
   return new URL(
-    buildGameMediaUrl({
-      gameId,
-      kind,
-    }),
+    mediaPath,
     resolvePlatformPublicUrl(),
   ).toString();
 };

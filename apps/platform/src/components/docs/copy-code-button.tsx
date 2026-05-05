@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { copyToClipboard } from "@/lib/copy-to-clipboard";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
@@ -17,7 +18,12 @@ export function CopyCodeButton({ code }: CopyCodeButtonProps) {
     }
 
     try {
-      await navigator.clipboard.writeText(code);
+      const didCopy = await copyToClipboard(code);
+      if (!didCopy) {
+        setCopied(false);
+        return;
+      }
+
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
