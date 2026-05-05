@@ -13,6 +13,12 @@ const packagesToCheck = [
   "packages/server/package.json",
   "packages/mcp-server/package.json",
 ];
+const wrapperPrepCommands = new Map([
+  [
+    "packages/server/package.json",
+    ["node", ["scripts/ensure-workspace-package-build.mjs", "@air-jam/sdk"]],
+  ],
+]);
 
 test("workspace package bin entrypoints exist before build", () => {
   for (const relativePackageJsonPath of packagesToCheck) {
@@ -33,13 +39,33 @@ test("workspace package bin entrypoints exist before build", () => {
   }
 });
 
-test("workspace bin wrappers execute CLI help without requiring prebuilt dist state", () => {
+test("workspace bin wrappers execute CLI help in a clean workspace checkout", () => {
   const expectations = new Map([
     ["packages/server/package.json", "air-jam-server"],
     ["packages/mcp-server/package.json", "airjam-mcp"],
   ]);
 
   for (const relativePackageJsonPath of packagesToCheck) {
+    const prep = wrapperPrepCommands.get(relativePackageJsonPath);
+    if (prep) {
+      const [command, args] = prep;
+      const prepResult = spawnSync(command, args, {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          NO_COLOR: "1",
+          FORCE_COLOR: "0",
+        },
+      });
+
+      assert.equal(
+        prepResult.status,
+        0,
+        `${relativePackageJsonPath} prep failed: ${prepResult.stderr || prepResult.stdout}`,
+      );
+    }
+
     const packageJsonPath = path.join(repoRoot, relativePackageJsonPath);
     const packageDir = path.dirname(packageJsonPath);
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
