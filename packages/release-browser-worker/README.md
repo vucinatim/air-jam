@@ -55,6 +55,7 @@ Optional env:
 3. `AIRJAM_BROWSER_WORKER_HEADLESS`
 4. `AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX`
 5. `AIRJAM_BROWSER_WORKER_EXECUTABLE_PATH`
+6. `AIRJAM_BROWSER_WORKER_ACCESS_TOKEN`
 
 In Railway, `PORT` is normally injected automatically and should be preferred.
 
@@ -63,8 +64,12 @@ In Railway, `PORT` is normally injected automatically and should be preferred.
 Once the service is live, set:
 
 1. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
+2. `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN`
 
 on the platform deployment to the worker's public websocket endpoint.
+
+`AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN` must match
+`AIRJAM_BROWSER_WORKER_ACCESS_TOKEN` on the worker deployment.
 
 Example shape:
 

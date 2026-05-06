@@ -96,6 +96,7 @@ const releaseStorageEnvSchema = z
 const releaseModerationEnvSchema = z
   .object({
     AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: optionalEnvValue,
+    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: optionalEnvValue,
     AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH: optionalEnvValue,
     AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: requiredEnvValue(
       "AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN",
@@ -139,6 +140,18 @@ const releaseModerationEnvSchema = z
     }
 
     if (
+      value.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT &&
+      !value.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN"],
+        message:
+          "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN is required when AIRJAM_RELEASES_BROWSER_WS_ENDPOINT is configured.",
+      });
+    }
+
+    if (
       value.AIRJAM_RELEASES_IMAGE_MODERATION_MODE === "openai" &&
       !value.OPENAI_API_KEY
     ) {
@@ -154,6 +167,7 @@ const releaseModerationEnvSchema = z
     internalAccessSecret: value.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN,
     browserLaunch: {
       wsEndpoint: value.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null,
+      accessToken: value.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN ?? null,
       executablePath: value.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null,
       navigationTimeoutMs: value.AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS,
       waitAfterLoadMs: value.AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS,
@@ -183,6 +197,7 @@ const releaseModerationEnvSchema = z
 
 const releaseModerationAvailabilityProbeSchema = z.object({
   AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: optionalEnvValue,
+  AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: optionalEnvValue,
   AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH: optionalEnvValue,
   AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: optionalEnvValue,
   AIRJAM_RELEASES_IMAGE_MODERATION_MODE: releaseImageModerationModeFromEnv,

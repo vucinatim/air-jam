@@ -10,6 +10,7 @@ export type ReleaseModerationConfig = {
   publicBaseUrl: string;
   browserLaunch: {
     wsEndpoint: string | null;
+    accessToken: string | null;
     executablePath: string | null;
     navigationTimeoutMs: number;
     waitAfterLoadMs: number;
@@ -55,6 +56,8 @@ export const getReleaseModerationAvailability = () => {
 
   const probe = loadReleaseModerationAvailabilityProbeEnv();
   const wsEndpoint = probe.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null;
+  const browserAccessToken =
+    probe.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN ?? null;
   const executablePath = probe.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null;
   const internalAccessSecret =
     probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
@@ -66,6 +69,15 @@ export const getReleaseModerationAvailability = () => {
       available: false,
       reason:
         "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_WS_ENDPOINT or AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH to enable it.",
+    };
+    return cachedReleaseModerationAvailability;
+  }
+
+  if (wsEndpoint && !browserAccessToken) {
+    cachedReleaseModerationAvailability = {
+      available: false,
+      reason:
+        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN when AIRJAM_RELEASES_BROWSER_WS_ENDPOINT is used.",
     };
     return cachedReleaseModerationAvailability;
   }

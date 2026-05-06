@@ -4,9 +4,10 @@ import {
 } from "@air-jam/sdk/runtime-topology";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
-import { resolvePlatformPublicUrl } from "./src/lib/platform-public-url";
+import { resolvePlatformDeploymentConfig } from "./src/lib/platform-deployment-config";
 
-const resolvedAppUrl = resolvePlatformPublicUrl(process.env);
+const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
+const resolvedAppUrl = deploymentConfig.platformPublicUrl;
 
 const resolvePlatformShellTopologyEnv = (
   surfaceRole: "platform-host" | "platform-controller",
@@ -25,8 +26,7 @@ const resolvePlatformShellTopologyEnv = (
       runtimeMode: "hosted-release",
       surfaceRole,
       appOrigin: resolvedAppUrl,
-      backendOrigin:
-        process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL?.trim() || resolvedAppUrl,
+      backendOrigin: deploymentConfig.backendPublicUrl,
       publicHost: resolvedAppUrl,
       secureTransport: resolvedAppUrl.startsWith("https://"),
       proxyStrategy: "none",
@@ -113,9 +113,9 @@ const nextConfig: NextConfig = {
       resolvePlatformShellTopologyEnv("platform-host"),
     NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY:
       resolvePlatformShellTopologyEnv("platform-controller"),
-    NEXT_PUBLIC_AUTH_GITHUB_ENABLED:
-      process.env.NEXT_PUBLIC_AUTH_GITHUB_ENABLED ||
-      (process.env.GITHUB_CLIENT_ID ? "true" : "false"),
+    NEXT_PUBLIC_AUTH_GITHUB_ENABLED: deploymentConfig.githubAuthEnabled
+      ? "true"
+      : "false",
   },
   async headers() {
     const allowInsecureDevFrames = process.env.NODE_ENV !== "production";

@@ -1,6 +1,6 @@
 # Deployment Topology
 
-Last updated: 2026-05-03
+Last updated: 2026-05-06
 Status: active
 
 This document defines the intended production topology for Air Jam and the cleanup path from the current state to a more deterministic deployment system.
@@ -109,6 +109,10 @@ pnpm --filter @air-jam/server... build
 pnpm --filter @air-jam/server start
 ```
 
+Config-as-code path:
+
+1. `/packages/server/railway.json`
+
 ### 3. Release Screenshot / Moderation Worker
 
 Provider: `Railway` or equivalent long-lived process host  
@@ -132,10 +136,17 @@ The platform should talk to it through one explicit browser endpoint:
 
 1. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
 
+Worker access should now also be treated as an explicit auth boundary:
+
+1. the worker should expose only discovery/health routes unauthenticated
+2. proxied HTTP/WebSocket browser access should require a bearer token
+3. the platform should provide that token through `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN`
+
 The repo now includes a dedicated worker package and Dockerfile for this role:
 
 1. package: `packages/release-browser-worker`
 2. Dockerfile: `packages/release-browser-worker/Dockerfile`
+3. Railway config-as-code: `/packages/release-browser-worker/railway.json`
 
 ### 4. Storage
 
@@ -159,6 +170,11 @@ Current live shape:
 4. release screenshot/moderation runtime is not yet properly provisioned as a production subsystem
 
 This means the overall topology direction is correct, but the operational clarity is not complete yet.
+
+One important current truth from the preview rollout:
+
+1. the repo now has service-level config-as-code for both the realtime server and the release browser worker
+2. the live Railway project still needs those config-as-code paths pinned explicitly in the provider so preview and production deploys stop depending on the currently stored service build configuration
 
 ## Current Problems
 

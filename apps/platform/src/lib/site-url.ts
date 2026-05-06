@@ -1,8 +1,11 @@
 import {
   PLATFORM_PUBLIC_URL_FALLBACK,
-  resolvePlatformPublicUrl,
-} from "./platform-public-url";
+  resolvePlatformDeploymentConfig,
+} from "./platform-deployment-config";
 
 export function getSiteUrl(): string {
-  return resolvePlatformPublicUrl(process.env) || PLATFORM_PUBLIC_URL_FALLBACK;
+  return (
+    resolvePlatformDeploymentConfig(process.env).platformPublicUrl ||
+    PLATFORM_PUBLIC_URL_FALLBACK
+  );
 }

@@ -4,6 +4,7 @@ import { URL } from "node:url";
 import httpProxy from "http-proxy";
 import type { BrowserServer } from "playwright-core";
 import { chromium } from "playwright-core";
+import { isAuthorized } from "./access-control";
 import { loadBrowserWorkerEnv, type BrowserWorkerEnv } from "./env";
 
 export type ReleaseBrowserWorkerHandle = {
@@ -120,11 +121,27 @@ export const startReleaseBrowserWorker = async (
         return;
       }
 
+      if (!isAuthorized({ request, accessToken: config.accessToken })) {
+        writeJson(response, 401, {
+          ok: false,
+          error: "unauthorized",
+        });
+        return;
+      }
+
       proxy.web(request, response);
     },
   );
 
   server.on("upgrade", (request, socket, head) => {
+    if (!isAuthorized({ request, accessToken: config.accessToken })) {
+      socket.write(
+        "HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n",
+      );
+      socket.destroy();
+      return;
+    }
+
     proxy.ws(request, socket, head);
   });
 
