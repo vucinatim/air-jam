@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { landingCopy } from "@/components/landing/landing-content";
 import { Reveal } from "@/components/landing/landing-motion";

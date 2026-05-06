@@ -1,8 +1,9 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { resolveHeroFrameDelta } from "./frame-step";
 import { GridFloor } from "./grid-floor";
 import { Mountains } from "./mountains";
 import { Ship } from "./ship";
@@ -27,8 +28,10 @@ const BASE_CAM_Z = 12;
 const MOBILE_CAM_Z_EXTRA = 8; // Z goes 12 → 24
 const MOBILE_CAM_Y_EXTRA = 4; // Y goes  4 →  8  (keeps the same angle)
 const MOBILE_LOOKAT_Y_LIFT = 3; // aim well above ship so it sits near bottom
+const HERO_MAX_DPR = 1.5;
+const MOBILE_HERO_MEDIA_QUERY = "(pointer: coarse), (max-width: 767px)";
 
-function SceneContent() {
+function SceneContent({ shadowMapSize }: { shadowMapSize: number }) {
   const shipGroupRef = useRef<THREE.Group>(null);
   const mouse = useRef(new THREE.Vector2());
   const targetMouse = useRef(new THREE.Vector2());
@@ -47,8 +50,9 @@ function SceneContent() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!shipGroupRef.current) return;
+    const dt = resolveHeroFrameDelta(delta);
 
     const time = state.clock.getElapsedTime();
 
@@ -102,12 +106,15 @@ function SceneContent() {
     const targetCamZ = BASE_CAM_Z + m * MOBILE_CAM_Z_EXTRA;
     const targetCamY = BASE_CAM_Y + m * MOBILE_CAM_Y_EXTRA;
 
-    state.camera.position.z += (targetCamZ - state.camera.position.z) * 0.08;
-    state.camera.position.y += (targetCamY - state.camera.position.y) * 0.08;
+    const cameraLerp = Math.min(1, dt * 5);
+    state.camera.position.z +=
+      (targetCamZ - state.camera.position.z) * cameraLerp;
+    state.camera.position.y +=
+      (targetCamY - state.camera.position.y) * cameraLerp;
 
     // Ship stays at its original world position -- only hover bob on Y
     shipGroupRef.current.position.y +=
-      (hoverBob - shipGroupRef.current.position.y) * 0.1;
+      (hoverBob - shipGroupRef.current.position.y) * Math.min(1, dt * 6);
 
     // Update Camera (Lag & Tilt)
     // On mobile, aim the camera above the ship so it sits in the lower
@@ -115,7 +122,8 @@ function SceneContent() {
     const lookAtYLift = m * MOBILE_LOOKAT_Y_LIFT;
 
     state.camera.position.x +=
-      (shipGroupRef.current.position.x * 0.5 - state.camera.position.x) * 0.06;
+      (shipGroupRef.current.position.x * 0.5 - state.camera.position.x) *
+      Math.min(1, dt * 4);
     state.camera.lookAt(
       shipGroupRef.current.position.x * 0.6,
       shipGroupRef.current.position.y + lookAtYLift,
@@ -130,8 +138,8 @@ function SceneContent() {
         position={[10, 20, 10]}
         intensity={2}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
       />
 
       <Ship groupRef={shipGroupRef} />
@@ -142,21 +150,47 @@ function SceneContent() {
   );
 }
 
-export const HeroScene = () => {
+type HeroSceneProps = {
+  paused?: boolean;
+};
+
+export const HeroScene = ({ paused = false }: HeroSceneProps) => {
+  const [isMobileHero, setIsMobileHero] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(MOBILE_HERO_MEDIA_QUERY);
+    const update = () => setIsMobileHero(mediaQuery.matches);
+
+    update();
+    mediaQuery.addEventListener("change", update);
+
+    return () => {
+      mediaQuery.removeEventListener("change", update);
+    };
+  }, []);
+
   const dpr =
-    typeof window !== "undefined" ? Math.min(window.devicePixelRatio, 2) : 1;
+    typeof window !== "undefined"
+      ? Math.min(window.devicePixelRatio, isMobileHero ? HERO_MAX_DPR : 2)
+      : 1;
+  const shadowMapSize = isMobileHero ? 1024 : 2048;
 
   return (
-    <div className="absolute inset-0 -z-10">
+    <div className="pointer-events-none absolute inset-0 -z-10 [contain:layout_paint_size]">
       <Canvas
         gl={{ antialias: true }}
         shadows
         camera={{ position: [0, 4.0, 12.0], fov: 60 }}
         dpr={dpr}
+        frameloop={paused ? "never" : "always"}
       >
         <color attach="background" args={[0x020205]} />
         <fog attach="fog" args={[0x020205, 20, 120]} />
-        <SceneContent />
+        <SceneContent shadowMapSize={shadowMapSize} />
       </Canvas>
     </div>
   );
