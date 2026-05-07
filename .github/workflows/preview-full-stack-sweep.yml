@@ -54,6 +54,9 @@ jobs:
       - name: Build preview CLI runtime prerequisites
         run: pnpm --filter sdk build
 
+      - name: Install provider CLIs
+        run: npm install -g @railway/cli@4.51.0 vercel@52.0.0
+
       - name: Link Railway project context
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
