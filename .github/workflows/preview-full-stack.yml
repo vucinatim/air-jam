@@ -78,6 +78,14 @@ jobs:
       - name: Install provider CLIs
         run: npm install -g vercel@52.0.0
 
+      - name: Verify provider auth
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          pnpm exec vercel whoami --token "$VERCEL_TOKEN"
+          pnpm run repo -- railway whoami --json
+
       - name: Bring preview up
         env:
           PREVIEW_BASE_DOMAIN: ${{ inputs.preview_base_domain || vars.PREVIEW_BASE_DOMAIN }}
