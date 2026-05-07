@@ -14,7 +14,8 @@ test("createPreviewManifest returns stable per-pr names and prefixes", () => {
   assert.equal(manifest.git.branchSlug, "codex-preview-system");
   assert.equal(manifest.git.commitShortSha, "abcdef123456");
   assert.equal(manifest.vercel.deployTag, "pr-42-abcdef123456");
-  assert.equal(manifest.vercel.previewHost, "pr-42.preview.airjam.io");
+  assert.equal(manifest.vercel.previewHost, "full-pr-42.preview.airjam.io");
+  assert.equal(manifest.vercel.legacyPreviewHost, "pr-42.preview.airjam.io");
   assert.equal(manifest.railway.sourceEnvironmentName, "production");
   assert.equal(manifest.railway.environmentName, "preview-pr-42");
   assert.equal(manifest.database.branchName, "pr-42");

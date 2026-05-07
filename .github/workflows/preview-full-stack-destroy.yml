@@ -165,7 +165,7 @@ jobs:
               marker,
               "## Full-stack preview destroyed",
               "",
-              `- App alias: ${result.manifest.vercel.previewHost}`,
+              `- Full-stack app alias: ${result.manifest.vercel.previewHost}`,
               `- Railway env: \`${result.manifest.railway.environmentName}\``,
               `- Preview schema: \`${result.manifest.database.schemaName}\``,
             ].join("\n");

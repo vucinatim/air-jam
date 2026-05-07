@@ -88,7 +88,7 @@ Immediate next work:
   - preview DB schema creation succeeded
   - server and browser-worker deploys succeeded
   - Vercel preview deploy succeeded
-  - `pr-4.preview.airjam.io` was aliased successfully
+  - `full-pr-4.preview.airjam.io` was aliased successfully
   - server, worker, platform, and alias verification all passed
 - the validation then tore the preview back down cleanly:
   - the PR alias was removed

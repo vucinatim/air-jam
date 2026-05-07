@@ -224,6 +224,15 @@ const resolveDeploymentReference = (deployment) =>
 const resolveDeploymentId = (deployment) =>
   deployment?.uid ?? deployment?.id ?? deployment?.deploymentId ?? null;
 
+const getPreviewAliasHosts = (manifest) => {
+  const hosts = [
+    manifest?.vercel?.previewHost,
+    manifest?.vercel?.legacyPreviewHost,
+  ].filter(Boolean);
+
+  return [...new Set(hosts)];
+};
+
 const hasLocalVercelAuth = () => {
   const result = runCommandResult("vercel", ["whoami"], {
     encoding: "utf8",
@@ -309,6 +318,14 @@ export const deployPreviewPlatform = ({
     if (manifest.vercel.previewHost) {
       actions.push(`would alias deployment to ${manifest.vercel.previewHost}`);
     }
+    if (
+      manifest.vercel.legacyPreviewHost &&
+      manifest.vercel.legacyPreviewHost !== manifest.vercel.previewHost
+    ) {
+      actions.push(
+        `would remove legacy alias ${manifest.vercel.legacyPreviewHost} if present`,
+      );
+    }
 
     return {
       previewId: manifest.previewId,
@@ -377,6 +394,23 @@ export const deployPreviewPlatform = ({
   const deploymentReference = resolveDeploymentReference(deployment);
   if (!deploymentReference) {
     throw new Error("Vercel deploy did not return a deployment reference.");
+  }
+
+  if (
+    manifest.vercel.legacyPreviewHost &&
+    manifest.vercel.legacyPreviewHost !== manifest.vercel.previewHost
+  ) {
+    const legacyAliasRemoval = runVercelCommand({
+      args: ["alias", "remove", manifest.vercel.legacyPreviewHost, "--yes"],
+      token: controlPlaneState.controlPlane.vercelToken,
+      scope: vercelScope,
+      tolerateAliasMissing: true,
+    });
+    actions.push(
+      legacyAliasRemoval.tolerated
+        ? `legacy alias ${manifest.vercel.legacyPreviewHost} already absent`
+        : `removed legacy alias ${manifest.vercel.legacyPreviewHost}`,
+    );
   }
 
   if (manifest.vercel.previewHost) {
@@ -449,7 +483,9 @@ export const destroyPreviewPlatform = ({
   const missingInputs = hasVercelAuth ? [] : ["VERCEL_TOKEN or local Vercel auth"];
 
   if (!apply) {
-    actions.push(`would remove alias ${manifest.vercel.previewHost}`);
+    for (const host of getPreviewAliasHosts(manifest)) {
+      actions.push(`would remove alias ${host}`);
+    }
     actions.push(`would remove deployments tagged ${manifest.previewId}`);
     return {
       previewId: manifest.previewId,
@@ -470,17 +506,17 @@ export const destroyPreviewPlatform = ({
     };
   }
 
-  if (manifest.vercel.previewHost) {
+  for (const host of getPreviewAliasHosts(manifest)) {
     const aliasRemoval = runVercelCommand({
-      args: ["alias", "remove", manifest.vercel.previewHost, "--yes"],
+      args: ["alias", "remove", host, "--yes"],
       token,
       scope: vercelScope,
       tolerateAliasMissing: true,
     });
     actions.push(
       aliasRemoval.tolerated
-        ? `alias ${manifest.vercel.previewHost} already absent`
-        : `removed alias ${manifest.vercel.previewHost}`,
+        ? `alias ${host} already absent`
+        : `removed alias ${host}`,
     );
   }
 

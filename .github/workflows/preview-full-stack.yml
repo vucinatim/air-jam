@@ -159,7 +159,7 @@ jobs:
               marker,
               `## Full-stack preview ${result.ready ? "ready" : "provisioned"}`,
               "",
-              `- App: https://${result.runtime.previewHost}`,
+              `- Full-stack app: https://${result.runtime.previewHost}`,
               `- Server: https://${result.runtime.serverPublicDomain}`,
               `- Worker: https://${result.runtime.workerPublicDomain}`,
               `- Railway env: \`${result.manifest.railway.environmentName}\``,

@@ -41,7 +41,7 @@ test("renderPreviewTemplate replaces stable preview placeholders", () => {
         schemaName: "preview_pr_42",
       },
       vercel: {
-        previewHost: "pr-42.preview.airjam.io",
+        previewHost: "full-pr-42.preview.airjam.io",
       },
       git: {
         branchSlug: "codex-preview-system",
@@ -51,7 +51,7 @@ test("renderPreviewTemplate replaces stable preview placeholders", () => {
 
   assert.equal(
     rendered,
-    "postgres://db/pr-42?pr=42&branch=codex-preview-system&schema=preview_pr_42&host=pr-42.preview.airjam.io",
+    "postgres://db/pr-42?pr=42&branch=codex-preview-system&schema=preview_pr_42&host=full-pr-42.preview.airjam.io",
   );
 });
 
@@ -63,7 +63,7 @@ test("renderPreviewTemplate supports the legacy PR placeholder", () => {
       schemaName: "preview_pr_42",
     },
     vercel: {
-      previewHost: "pr-42.preview.airjam.io",
+      previewHost: "full-pr-42.preview.airjam.io",
     },
     git: {
       branchSlug: "codex-preview-system",
