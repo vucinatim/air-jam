@@ -40,6 +40,10 @@ test("createPreviewOverrideContract derives canonical preview overrides from pro
     "https://air-jam-server-preview-pr-42.up.railway.app",
   );
   assert.equal(
+    contract.overrides.platform.env.AIRJAM_FULL_STACK_PREVIEW_HOST,
+    "full-pr-42.preview.airjam.io",
+  );
+  assert.equal(
     contract.overrides.platform.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT,
     "wss://air-jam-release-browser-worker-preview-pr-42.up.railway.app/ws",
   );

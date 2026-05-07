@@ -1,9 +1,6 @@
 import { createLoginHref } from "@/lib/auth-redirect";
 import { isInactiveFullStackPreviewRequest } from "@/lib/full-stack-preview-guard";
-import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
 import { type NextRequest, NextResponse } from "next/server";
-
-const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
 
 const INACTIVE_PREVIEW_HTML = `<!doctype html>
 <html lang="en">
@@ -77,7 +74,7 @@ export async function proxy(request: NextRequest) {
   if (
     isInactiveFullStackPreviewRequest({
       requestHost: request.headers.get("host"),
-      configuredPlatformPublicUrl: deploymentConfig.platformPublicUrl,
+      activePreviewHost: process.env.AIRJAM_FULL_STACK_PREVIEW_HOST,
     })
   ) {
     return new NextResponse(INACTIVE_PREVIEW_HTML, {

@@ -9,19 +9,6 @@ const normalizeHost = (value: string | null | undefined): string | null => {
   return trimmed.toLowerCase();
 };
 
-const extractHostFromUrl = (rawUrl: string | null | undefined): string | null => {
-  const trimmed = rawUrl?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  try {
-    return normalizeHost(new URL(trimmed).host);
-  } catch {
-    return null;
-  }
-};
-
 export const isManagedFullStackPreviewHost = (
   requestHost: string | null | undefined,
 ): boolean => {
@@ -35,10 +22,10 @@ export const isManagedFullStackPreviewHost = (
 
 export const isInactiveFullStackPreviewRequest = ({
   requestHost,
-  configuredPlatformPublicUrl,
+  activePreviewHost,
 }: {
   requestHost: string | null | undefined;
-  configuredPlatformPublicUrl: string | null | undefined;
+  activePreviewHost: string | null | undefined;
 }): boolean => {
   const normalizedRequestHost = normalizeHost(requestHost);
   if (!normalizedRequestHost) {
@@ -49,10 +36,10 @@ export const isInactiveFullStackPreviewRequest = ({
     return false;
   }
 
-  const configuredHost = extractHostFromUrl(configuredPlatformPublicUrl);
-  if (!configuredHost) {
+  const normalizedActivePreviewHost = normalizeHost(activePreviewHost);
+  if (!normalizedActivePreviewHost) {
     return true;
   }
 
-  return normalizedRequestHost !== configuredHost;
+  return normalizedRequestHost !== normalizedActivePreviewHost;
 };
