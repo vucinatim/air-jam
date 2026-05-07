@@ -113,7 +113,7 @@ pnpm exec airjam ai-pack update --dir .
 
 1. Ensure `VITE_AIR_JAM_APP_ID` is set in your host platform.
 2. Ensure the server URL points at your real Air Jam backend.
-3. Generate/re-copy the App ID from Dashboard if bootstrap fails.
+3. Re-copy the App ID from your game's dashboard settings if bootstrap fails.
 
 ### QR / controller join URL issues
 
@@ -121,23 +121,24 @@ pnpm exec airjam ai-pack update --dir .
 2. If testing on phone outside localhost, set `VITE_AIR_JAM_PUBLIC_HOST` (or use `pnpm run dev -- --secure`).
 3. For SPA hosting, ensure rewrites route `/controller?room=XXXX` to your app entry.
 
-## 5. Connect Your Game To The Cloud
+## 5. Connect Your Game To Air Jam Services
 
-When you're ready to share your game, first connect it to the official Air Jam cloud.
+When you're ready to share your game outside local development, first register your game with Air Jam so the runtime has a stable hosted identity.
 
-1.  **Create a Game Profile**:
+1.  **Create a game record**:
     - Go to the [Platform Dashboard](/dashboard)
-    - Create a profile and a new game
-    - Copy your **App ID**
+    - Create a game if you do not already have one
+    - Copy its **App ID**
 
-2.  **Deploy the Client Or Keep A Preview URL**:
+2.  **Choose your distribution lane**:
     - Deploy your game to a static hosting provider like Vercel, Netlify, or GitHub Pages.
-    - Or keep using a creator-only preview URL in the Dashboard while you are iterating.
-    - Set the following environment variables in your deployment settings:
+    - Use that self-hosted URL for normal private review and iteration.
+    - If you want public Air Jam Arcade distribution, publish a hosted release artifact in step 6 below.
+    - For self-hosted deployments, set the following environment variables:
 
     ```bash
     VITE_AIR_JAM_APP_ID=your_app_id_here
-    VITE_AIR_JAM_SERVER_URL=https://api.airjam.io
+    VITE_AIR_JAM_SERVER_URL=https://api.airjam.io # or your own Air Jam backend
     ```
 
 The SDK handles production bootstrap automatically from that `appId`. You do not need to mint tokens or add auth code in your game.
@@ -225,7 +226,7 @@ The hosted artifact contract is fixed:
 - host entry at `/`
 - controller entry at `/controller`
 
-3. Go to your game's **Arcade Releases** page in the [Dashboard](/dashboard).
+3. Go to your game's **Releases** page in the [Dashboard](/dashboard).
 4. Upload the generated zip artifact.
 5. Make the validated release live.
 6. Upload managed thumbnail, cover, and preview media in the Dashboard.
