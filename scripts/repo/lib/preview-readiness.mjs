@@ -135,7 +135,7 @@ export const gatherPreviewReadiness = async (env = process.env) => {
 
   if (!railwayToken.token) {
     railwayErrors.push(
-      "Missing Railway API token. Set RAILWAY_API_TOKEN or RAILWAY_TOKEN, or log in locally with the Railway CLI.",
+      "Missing Railway API token. Set RAILWAY_API_TOKEN or RAILWAY_TOKEN.",
     );
   } else if (!railwayProjectId) {
     railwayErrors.push("Missing RAILWAY_PROJECT_ID.");

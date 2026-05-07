@@ -1,7 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-
 const DEFAULT_RAILWAY_API_ENDPOINT =
   "https://backboard.railway.com/graphql/v2";
 
@@ -14,21 +10,6 @@ const TERMINAL_FAILURE_DEPLOYMENT_STATUSES = new Set([
   "SKIPPED",
   "NEEDS_APPROVAL",
 ]);
-
-const readRailwayCliAccessToken = () => {
-  const configPath = path.join(os.homedir(), ".railway", "config.json");
-  if (!fs.existsSync(configPath)) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    const token = parsed?.user?.accessToken;
-    return typeof token === "string" && token.trim().length > 0 ? token : null;
-  } catch {
-    return null;
-  }
-};
 
 export const resolveRailwayApiToken = (env = process.env) => {
   const explicitApiToken = env.RAILWAY_API_TOKEN?.trim();
@@ -44,14 +25,6 @@ export const resolveRailwayApiToken = (env = process.env) => {
     return {
       token: explicitToken,
       source: "env:RAILWAY_TOKEN",
-    };
-  }
-
-  const cliAccessToken = readRailwayCliAccessToken();
-  if (cliAccessToken) {
-    return {
-      token: cliAccessToken,
-      source: "cli-config",
     };
   }
 
@@ -100,7 +73,7 @@ export const createRailwayApiClient = ({
   const assertToken = () => {
     if (!resolvedToken) {
       throw new RailwayApiError(
-        "Missing Railway API token. Set RAILWAY_API_TOKEN or RAILWAY_TOKEN, or log in with the Railway CLI locally.",
+        "Missing Railway API token. Set RAILWAY_API_TOKEN or RAILWAY_TOKEN.",
       );
     }
   };

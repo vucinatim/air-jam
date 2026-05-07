@@ -110,9 +110,8 @@ export const registerRailwayCommands = (program) => {
     .option("--json", "Print raw JSON")
     .action(async (options) => {
       const client = createRailwayApiClient();
-      const environments = await client.listEnvironments({
-        projectId: options.project,
-      });
+      const project = await client.getProject(options.project);
+      const environments = project.environments;
 
       if (options.json) {
         printJson(environments);
@@ -259,4 +258,3 @@ export const registerRailwayCommands = (program) => {
 
   return railwayCommand;
 };
-
