@@ -84,6 +84,9 @@ export const gatherPreviewReadiness = () => {
       "preview-full-stack-destroy.yml",
     ),
   );
+  const hasPreviewSweepWorkflow = fs.existsSync(
+    path.join(repoRoot, ".github", "workflows", "preview-full-stack-sweep.yml"),
+  );
   const vercelProject =
     vercelLink?.projectId && vercelLink?.orgId
       ? runJsonCommand("vercel", [
@@ -156,6 +159,7 @@ export const gatherPreviewReadiness = () => {
       hasWorkerRailwayConfig,
       hasPreviewWorkflow,
       hasPreviewDestroyWorkflow,
+      hasPreviewSweepWorkflow,
     },
     github: {
       secrets: githubSecrets.ok ? githubSecrets.value : null,
@@ -215,6 +219,9 @@ export const summarizePreviewReadiness = (readiness) => {
   );
   lines.push(
     `- Preview destroy workflow: ${readiness.repo.hasPreviewDestroyWorkflow ? "present" : "missing"}`,
+  );
+  lines.push(
+    `- Preview sweep workflow: ${readiness.repo.hasPreviewSweepWorkflow ? "present" : "missing"}`,
   );
   lines.push("");
 

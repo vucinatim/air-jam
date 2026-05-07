@@ -90,10 +90,31 @@ const runVercelCommand = ({ args, token, tolerateAliasMissing = false }) => {
   );
 };
 
-const listPreviewDeployments = ({ previewId, token }) => {
+const runVercelText = ({ args, token }) => {
+  const authArgs = token ? ["--token", token] : [];
+  const result = runCommandResult(
+    "vercel",
+    [...args, ...authArgs, "--non-interactive"],
+    {
+      encoding: "utf8",
+      stdio: "pipe",
+    },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(
+      `vercel ${args.join(" ")} failed${result.stderr ? `: ${result.stderr.trim()}` : ""}`,
+    );
+  }
+
+  return `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
+};
+
+const listPreviewDeployments = ({ projectName, previewId, token }) => {
   const payload = runVercelJson({
     args: [
       "list",
+      projectName,
       "--meta",
       `airjamPreviewId=${previewId}`,
       "--format",
@@ -103,6 +124,68 @@ const listPreviewDeployments = ({ previewId, token }) => {
   });
 
   return payload.deployments ?? [];
+};
+
+export const listAllPreviewDeployments = ({
+  projectName,
+  token,
+  maxPages = 20,
+} = {}) => {
+  const deployments = [];
+  let next = null;
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const payload = runVercelJson({
+      args: [
+        "list",
+        projectName,
+        "--format",
+        "json",
+        ...(next ? ["--next", String(next)] : []),
+      ],
+      token,
+    });
+
+    deployments.push(...(payload.deployments ?? []));
+    next = payload.pagination?.next ?? null;
+    if (!next) {
+      break;
+    }
+  }
+
+  return deployments.filter((deployment) => deployment?.meta?.airjamPreviewId);
+};
+
+export const listPreviewAliases = ({
+  token,
+  limit = 100,
+  maxPages = 20,
+} = {}) => {
+  const aliases = [];
+  let next = null;
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const payload = runVercelJson({
+      args: [
+        "alias",
+        "ls",
+        "--format",
+        "json",
+        "--limit",
+        String(limit),
+        ...(next ? ["--next", String(next)] : []),
+      ],
+      token,
+    });
+
+    aliases.push(...(payload.aliases ?? []));
+    next = payload.pagination?.next ?? null;
+    if (!next) {
+      break;
+    }
+  }
+
+  return aliases;
 };
 
 const resolveDeploymentReference = (deployment) =>
@@ -255,6 +338,7 @@ export const deployPreviewPlatform = ({
   });
 
   const deployments = listPreviewDeployments({
+    projectName: manifest.vercel.projectName,
     previewId: manifest.previewId,
     token: controlPlaneState.controlPlane.vercelToken,
   });
@@ -291,6 +375,24 @@ export const deployPreviewPlatform = ({
       reference: deploymentReference,
     },
   };
+};
+
+export const previewAliasExists = ({
+  host,
+  token,
+} = {}) => {
+  if (!host) {
+    return false;
+  }
+
+  const output = runVercelText({
+    args: ["alias", "ls"],
+    token,
+  });
+
+  return output
+    .split("\n")
+    .some((line) => line.trim().split(/\s+/).includes(host));
 };
 
 export const destroyPreviewPlatform = ({
@@ -349,26 +451,21 @@ export const destroyPreviewPlatform = ({
     );
   }
 
-  const deployments = runVercelJson({
-    args: [
-      "list",
-      "--meta",
-      `airjamPreviewId=${manifest.previewId}`,
-      "--format",
-      "json",
-    ],
+  const deployments = listPreviewDeployments({
+    projectName: manifest.vercel.projectName,
+    previewId: manifest.previewId,
     token,
   });
-  const deploymentIds = (deployments.deployments ?? [])
-    .map((deployment) => resolveDeploymentId(deployment))
+  const deploymentReferences = deployments
+    .map((deployment) => resolveDeploymentReference(deployment))
     .filter(Boolean);
 
-  if (deploymentIds.length > 0) {
+  if (deploymentReferences.length > 0) {
     runVercelCommand({
-      args: ["remove", ...deploymentIds, "--yes"],
+      args: ["remove", ...deploymentReferences, "--yes"],
       token,
     });
-    actions.push(`removed ${deploymentIds.length} vercel deployment(s)`);
+    actions.push(`removed ${deploymentReferences.length} vercel deployment(s)`);
   } else {
     actions.push("no vercel deployments found for preview");
   }
@@ -379,6 +476,6 @@ export const destroyPreviewPlatform = ({
     apply,
     missingInputs,
     actions,
-    removedDeploymentIds: deploymentIds,
+    removedDeployments: deploymentReferences,
   };
 };

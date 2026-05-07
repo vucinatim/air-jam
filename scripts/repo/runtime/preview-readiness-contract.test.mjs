@@ -38,6 +38,7 @@ test("summarizePreviewReadiness produces a readable missing-state summary", () =
       hasWorkerRailwayConfig: true,
       hasPreviewWorkflow: true,
       hasPreviewDestroyWorkflow: true,
+      hasPreviewSweepWorkflow: true,
     },
     github: {
       secrets: [],
@@ -86,4 +87,5 @@ test("summarizePreviewReadiness produces a readable missing-state summary", () =
   assert.match(summary, /Preview env strategy: dynamic-deploy-env/);
   assert.match(summary, /Preview deployment protection disabled: no/);
   assert.match(summary, /Preview deployment protection mode: all_except_custom_domains/);
+  assert.match(summary, /Preview sweep workflow: present/);
 });

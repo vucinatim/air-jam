@@ -56,6 +56,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 50. Refactor `packages/server/src/index.ts` into a thinner composition root by extracting health/dev endpoints, auth/runtime wiring, and socket bootstrap composition into narrower infrastructure modules, so the server remains the canonical deployable runtime without also being the place where every operational concern is assembled inline.
 51. Once the canonical bot runtime track begins implementation, add one small shared eval corpus and latency benchmark harness for bot observation -> intent -> controller loops on M1 Pro class hardware, so local-first claims stay grounded in repeatable measurements instead of intuition.
 52. Keep the future bot-driver contract intentionally narrower than the semantic agent contract surface: only extract shared intent primitives once at least two real games need them, so Air Capture does not accidentally hardcode its gameplay semantics into the framework too early.
+53. Revisit Railway selected-service sync only if Railway exposes a real automatable primitive for it; the 2026-05-06 validation showed that `serviceDuplicate` is not that primitive because it creates global `(... Copy)` services instead of syncing the canonical app services into a preview environment.
+54. If real preview usage still leaks resources despite the destroy workflow and the scheduled sweeper, add the smallest possible diagnostics pass first, such as age-tagged stale-preview reporting in `preview doctor`, instead of introducing another preview lifecycle.
 
 ## Framework Boundary Follow-Ups
 

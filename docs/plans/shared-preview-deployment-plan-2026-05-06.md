@@ -1,6 +1,6 @@
 # On-Demand Full-Stack PR Preview Plan
 
-Last updated: 2026-05-06  
+Last updated: 2026-05-07  
 Status: active  
 Owner: platform / infra / auth
 
@@ -40,27 +40,23 @@ facts.
       `pnpm run repo -- preview plan --pr <number>`
    2. a readiness doctor:
       `pnpm run repo -- preview doctor`
-   3. Railway environment lifecycle helpers built around production duplication:
-      `pnpm run repo -- preview railway-prepare --pr <number>`
-      `pnpm run repo -- preview railway-deploy --pr <number>`
-      and
-      `pnpm run repo -- preview railway-destroy --pr <number>`
 7. Vercel preview runtime env should now be treated as a dynamic deploy-time injection contract, not as a pre-populated global Vercel preview-env surface
 8. Railway preview isolation is environment-scoped, while service identity is project-global; preview environments should reuse the canonical service names instead of trying to clone per-environment duplicate services
-9. the canonical Railway preview path is now:
+9. the current repo-owned Railway preview path is:
    1. duplicate `production` into `preview-pr-<number>`
    2. apply the explicit preview override set
    3. deploy the preview services into that duplicated environment
-10. the repo maintainer CLI now has canonical high-level preview lifecycle commands:
+10. the current repo-owned Railway preview lifecycle remains the preferred operational path until Railway exposes a cleaner selected-service sync model that does not duplicate database services or inherit unsealed production variables by default
+11. the repo maintainer CLI now has canonical high-level preview lifecycle commands:
    1. `pnpm run repo -- preview up --pr <number>`
    2. `pnpm run repo -- preview down --pr <number>`
-11. the repo now also has repo-owned preview primitives for:
+12. the repo now also has repo-owned preview primitives under the hood for:
    1. preview database schema create/drop
    2. Vercel preview deploy/alias cleanup
    3. PR-close preview teardown workflow wiring
-12. `preview.airjam.io` DNS and `*.preview.airjam.io` DNS now exist in Namecheap and are attached in Vercel
-13. Railway production now points at the repo-owned config-as-code paths for both the realtime server and the browser worker
-14. a real disposable fake-PR proof already validated:
+13. `preview.airjam.io` DNS and `*.preview.airjam.io` DNS now exist in Namecheap and are attached in Vercel
+14. Railway production now points at the repo-owned config-as-code paths for both the realtime server and the browser worker
+15. a real disposable fake-PR proof already validated:
    1. Railway environment duplication from `production`
    2. preview Postgres schema creation
    3. realtime server deploy into `preview-pr-424242`
@@ -68,7 +64,7 @@ facts.
    5. Railway public domain resolution for both services
    6. Vercel preview-tagged platform deployments and alias creation
    7. a public preview alias at `pr-424242.preview.airjam.io` returning `200`
-15. the disposable proof environment and preview schema were torn back down after validation, so provider state is back to a clean `production`-only baseline
+16. the disposable proof environment and preview schema were torn back down after validation, so provider state is back to a clean `production`-only baseline
 
 ### Provider Truths Now Locked In
 
@@ -78,9 +74,70 @@ These are now confirmed provider-side facts, not open rollout questions:
 2. the browser worker service uses `/packages/release-browser-worker/railway.json`
 3. Vercel preview hosts must remain publicly accessible, which means Deployment Protection has to stay disabled for this project unless the preview lane is redesigned around authenticated review access
 
+## Railway-Native PR Environment Validation Findings
+
+A live provider validation pass was run against PR `#4` after enabling Railway PR
+environments with `production` as the base environment.
+
+What worked:
+
+1. Railway created an ephemeral environment automatically on PR reopen
+2. Railway named it predictably as `air-jam-pr-4`
+3. Railway automatically provisioned per-environment Railway public domains for services that already had base-environment Railway domains
+4. the browser worker eventually built and passed as a native PR-environment deployment
+5. Railway deleted the ephemeral environment cleanly once the PR-environment run was torn back down
+
+What did not fit the intended preview contract:
+
+1. Railway duplicated every service in the project into the PR environment, including both database services and their volumes
+2. unsealed production variables were copied into the PR environment before repo-owned preview overrides could be applied
+3. the realtime server deployment was skipped initially because Railway gated the service deploy on the PR check suite state
+4. Railway's native deployment status surfaced an awkward mismatch during validation: GitHub checks reported a successful server deploy while the Railway CLI still showed no active server deployment and the service domain returned Railway fallback `404` responses
+5. Vercel's native preview deploy remained orthogonal to the Railway PR environment; it still did not know about the preview-safe backend/storage contract without repo-owned orchestration
+6. direct API experimentation against an empty Railway environment showed that `serviceDuplicate` creates new global `(... Copy)` services instead of syncing the canonical `air-jam-server` and `air-jam-release-browser-worker` services into the target environment
+7. deleting the bad proof environment cleaned those duplicate copy-services back out automatically, which is good operationally, but it still confirms that `serviceDuplicate` is the wrong primitive for this repo
+
+Conclusion from the validation:
+
+1. Railway-native PR environments are useful as a provider primitive, but they are not clean enough to become the canonical preview lane by themselves
+2. the repo still needs an explicit preview reconciliation layer even if Railway-native PR environments are ever reintroduced
+3. the biggest structural problem is database duplication; as long as the production project contains live database services, any provider-native environment duplication path will over-provision preview infrastructure and fight the desired shared-preview-DB-plus-per-PR-schema model
+4. the empty-environment path remains interesting in theory because Railway documents selected-service sync, but it is not yet proven through a stable public automation primitive for this repo
+5. because of that, the repo-owned ephemeral preview lane remains the canonical implementation until a better supported Railway sync path is proven end to end
+
 ## Current Implementation State
 
 The preview lane is now materially implemented.
+
+### 2026-05-07 Validation Closeout
+
+A fresh end-to-end provider proof was rerun after the latest hardening fixes and
+then torn back down again. The canonical repo-owned path is now validated
+through:
+
+1. preview Railway environment creation from `production`
+2. preview schema creation on the shared preview Postgres lane
+3. preview override application for server and browser worker
+4. detached Railway service deploys for server and worker
+5. Vercel preview deploy plus exact PR-host alias creation
+6. verification across:
+   1. server health
+   2. worker health
+   3. platform HTTP readiness
+   4. exact PR alias presence
+7. teardown across:
+   1. PR alias removal
+   2. PR-tagged Vercel deployment removal
+   3. preview schema drop
+   4. Railway environment deletion
+
+The hardening points that proved necessary in practice are now part of the
+canonical implementation:
+
+1. do not treat a `200` on `pr-<n>.preview.airjam.io` as sufficient success while `*.preview.airjam.io` exists; exact PR alias presence must be part of readiness
+2. remove Vercel preview deployments by deployment reference, because the CLI list payload does not reliably expose deployment IDs
+3. use JSON-mode Railway variable writes, because plain-text `railway variable set` can stall in automation even when the write itself is valid
+4. allow a longer Railway environment-name release window after deletion, because fixed `preview-pr-<n>` names can remain unavailable briefly after successful teardown
 
 Repo-owned pieces now exist for:
 
@@ -88,18 +145,59 @@ Repo-owned pieces now exist for:
 2. preview override planning
 3. provider readiness auditing
 4. preview DB schema lifecycle
-5. Railway `production` duplication and teardown
+5. transitional Railway `production` duplication and teardown
 6. Railway preview service deploy orchestration
 7. Vercel preview deploy, metadata tagging, and alias cleanup
 8. maintainer-triggered preview create and preview destroy GitHub workflows
+9. a scheduled preview sweep workflow that reconciles open PRs against provider state and destroys orphaned preview resources
 
 The remaining work is mostly operational hardening, not architecture invention.
+
+The biggest remaining architectural decision is no longer theoretical. After live
+validation, pure Railway-native PR environments are not yet clean enough to be
+the canonical lane because they duplicate database services, inherit unsealed
+production variables, and can race with repo-owned preview overrides.
+
+The current repo-owned orchestration therefore remains the operational and
+architectural baseline until we prove a cleaner replacement through a supported
+Railway primitive, not just by inference from partial GraphQL behavior.
 
 Current known edges:
 
 1. the preview control plane must keep Vercel Deployment Protection disabled for this project, otherwise preview aliases will quietly resolve to `401` even when the deploy/alias flow itself is correct
 2. the repo now has a readiness check for that Vercel protection state, so future regressions should fail in `preview doctor` before they waste a preview run
 3. Railway deploy staging now uses crash-safe backup/restore state under `.airjam/`, so interrupted preview deploys should no longer strand generated root `railway.json`, `.railwayignore`, or package deploy-stamp files in the repo
+
+## Canonical Operator Path
+
+For maintainers, the preview system should now be understood as exactly:
+
+1. `pnpm run repo -- preview doctor`
+2. `pnpm run repo -- preview up --pr <number> --apply`
+3. review the resulting preview
+4. let auto-destroy run on PR close/merge, or run `pnpm run repo -- preview down --pr <number> --apply` if you want it gone sooner
+
+Lower-level Railway, Vercel, and database preview seams still exist in code as
+implementation internals, but they are no longer part of the intended operator
+surface or the happy path.
+
+## Cleanup Guarantees
+
+The intended cleanup policy is:
+
+1. PR close/merge triggers automatic preview teardown through `.github/workflows/preview-full-stack-destroy.yml`
+2. maintainers can run `preview down` early when a review is finished
+3. teardown is idempotent, so retries are safe
+4. a fully cleaned preview means:
+   1. Railway is back to `production` only
+   2. the PR-specific preview alias is gone
+   3. the PR-tagged Vercel deployment set is gone
+   4. the PR-specific preview schema is gone
+5. the scheduled orphan sweeper is the cleanup backstop if the PR-close destroy path ever misses a resource; it is not a second preview paradigm
+
+That sweeper now exists as `.github/workflows/preview-full-stack-sweep.yml` and
+uses one hidden reconciliation command internally instead of introducing another
+maintainer-facing preview mode.
 
 ## Why This Exists
 
@@ -130,6 +228,10 @@ This plan defines the simpler rule:
 3. no cheap automatic partial preview lane as part of the main system
 4. one preview type only
 5. that preview type is full-stack, isolated, on-demand, and per-PR
+
+For Railway specifically, “isolated” should currently mean repo-owned
+ephemeral environments with strict override-and-teardown discipline rather than
+either provider-native PR environments or long-lived shared backend state.
 
 ## Goal
 
@@ -279,6 +381,14 @@ Behavior:
 3. the environment is temporary
 4. it is destroyed automatically when the PR closes or merges
 
+The canonical backend lifecycle should be:
+
+1. the repo creates an ephemeral Railway environment per preview from the production topology
+2. the repo immediately applies a fixed preview override contract so duplicated production resources are never used as-is
+3. the repo deploys the preview app services into that environment
+4. Vercel owns the platform app deployment artifact itself
+5. the repo owns cross-provider orchestration, verification, aliasing, and cleanup guarantees
+
 This lane exists because the repo contains multiple real deployable surfaces.
 
 A valid preview for this repo must be able to represent:
@@ -332,6 +442,42 @@ A PR preview should include:
 This means preview remains honest about the real product topology instead of
 pretending one app deploy is the whole system.
 
+## Preferred Provider Ownership
+
+The system should prefer provider-native lifecycle when the provider offers the
+right primitive.
+
+### Railway
+
+Preferred role:
+
+1. own PR environment lifecycle
+2. auto-create temporary backend environments for trusted PRs
+3. auto-delete those backend environments when PRs close or merge
+
+The repo should not try to out-own Railway here unless the native model proves
+insufficient.
+
+### Vercel
+
+Preferred role:
+
+1. own app deployment lifecycle
+2. continue allowing normal PR/preview deployments
+3. let the repo attach the canonical review alias such as `pr-<number>.preview.airjam.io`
+
+### Repo-owned orchestration
+
+The repo should keep owning:
+
+1. trusted-PR gating
+2. preview env contract rendering
+3. preview DB schema lifecycle
+4. Vercel alias binding
+5. verification
+6. PR comments/status
+7. stale-resource cleanup
+
 ## Provider-Default Preview Policy
 
 The plan must be explicit about provider behavior.
@@ -374,7 +520,7 @@ Provider target:
 
 Preview requirement:
 
-1. PR-specific server environment
+1. Railway PR environment for the trusted PR
 2. no production data access
 
 ### Browser Worker
@@ -385,7 +531,7 @@ Provider target:
 
 Preview requirement:
 
-1. PR-specific worker environment when release screenshot/moderation behavior is in scope
+1. Railway PR environment worker surface when release screenshot/moderation behavior is in scope
 2. no production-only coupling
 
 ### Database
@@ -395,13 +541,25 @@ Preview requirement:
 1. PR-specific isolated database surface
 2. never production DB
 
-Preferred shape:
+Preferred v1 shape:
 
-1. per-PR database branch if the provider supports it cleanly
+1. one dedicated non-production preview database
+2. per-PR schema isolation inside that preview database
+3. the same migrations/contracts as production
 
-Acceptable fallback:
+Optional later upgrade:
 
-1. another clearly isolated non-production equivalent if branch DBs are not available yet
+1. per-PR database branches if the provider path becomes clean and worth the extra complexity
+
+Explicit non-goal:
+
+1. do not live-sync production data into PR previews
+2. do not allow preview to fall back to production DB under any circumstance
+
+If realistic data becomes necessary later, the only acceptable direction is:
+
+1. occasional sanitized preview-baseline refresh
+2. never unsanitized live production data access from preview
 
 ### Storage
 
@@ -410,6 +568,12 @@ Preview requirement:
 1. dedicated preview R2 bucket
 2. PR-specific key prefix such as `pr/<number>/...`
 3. no production object reuse
+
+This should follow the same data policy as the database:
+
+1. isolated preview storage only
+2. no production storage fallback
+3. no hidden reuse of production write paths
 
 ## Auth Strategy
 
@@ -539,12 +703,19 @@ not:
 When the PR closes or merges:
 
 1. PR app preview lifecycle should end normally with the provider
-2. PR server environment should be destroyed
-3. PR browser-worker environment should be destroyed
-4. PR DB branch or equivalent isolation surface should be removed
+2. Railway PR environment should be deleted by Railway
+3. PR DB schema or equivalent isolation surface should be removed
+4. PR-specific Vercel alias should be removed
 5. PR storage namespace should be cleaned up when appropriate
+6. PR preview comment/status should be updated or removed as designed
 
 Cleanup should be automatic once preview was provisioned.
+
+The repo should also have a stale-sweep story for failures:
+
+1. detect orphan preview DB schemas with no matching open PR
+2. detect orphan preview aliases with no matching open PR
+3. detect orphan preview comments if they are used as canonical status surfaces
 
 ## Fork PR Policy
 
@@ -611,6 +782,27 @@ Workflow:
 7. let automation clean it up on close/merge
 
 That is the whole model.
+
+## Transitional Note
+
+The current implementation already proves the full-stack preview lane using
+repo-owned Railway environment duplication.
+
+After validating Railway-native PR environments and the wrong
+`serviceDuplicate` API path, that repo-owned lane is no longer just a fallback.
+It is the current canonical implementation because it is the only one we have
+proven to be:
+
+1. full-stack
+2. preview-safe
+3. deterministic enough to automate
+4. cleanly tear-downable
+
+The intended direction is now:
+
+1. keep the current duplication path as the canonical operational lane
+2. keep watching Railway for a real selected-service sync primitive that can replace it cleanly
+3. only switch away once that replacement is proven end to end, including DB, storage, auth, and cleanup safety
 
 ## Execution Workstreams
 

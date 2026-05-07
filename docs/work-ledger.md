@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-05-06
+Last updated: 2026-05-07
 Status: active
 
 This is the single active repo-wide ledger.
@@ -65,7 +65,7 @@ Plans:
 7. [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
 8. [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
 9. [Public Package Surface Rationalization Plan](./plans/public-package-surface-rationalization-plan-2026-05-05.md)
-10. [Shared Preview Deployment Plan](./plans/shared-preview-deployment-plan-2026-05-06.md)
+10. [On-Demand Full-Stack PR Preview Plan](./plans/shared-preview-deployment-plan-2026-05-06.md)
 
 Immediate next work:
 
@@ -78,6 +78,29 @@ Immediate next work:
 7. remove the dashboard-only hosted game creation gap so platform game records can be created and maintained cleanly from the `airjam` CLI before release submission
 8. complete the bounded landing/Arcade/controller polish pass, including the Arcade settings interactivity fix, explicit landing featured games, controller chrome tightening, and removal of dead settings controls
 9. refactor controller settings ownership so host-owned room settings and controller-local settings become explicit contracts instead of one ambiguous shared surface
+
+# 2026-05-07 - Preview Infra Validation Closeout
+
+- the on-demand full-stack preview lane was revalidated end to end against the canonical repo-owned Railway duplication path:
+  - `preview up` created `preview-pr-4`
+  - preview DB schema creation succeeded
+  - server and browser-worker deploys succeeded
+  - Vercel preview deploy succeeded
+  - `pr-4.preview.airjam.io` was aliased successfully
+  - server, worker, platform, and alias verification all passed
+- the validation then tore the preview back down cleanly:
+  - the PR alias was removed
+  - the PR-tagged Vercel deployment was removed
+  - the preview schema was dropped
+  - the Railway environment was deleted
+  - Railway returned to a `production`-only baseline
+- the final hardening changes proved necessary and are now part of the canonical preview lane:
+  - Vercel preview verification now requires exact PR alias presence instead of trusting a wildcard-host `200`
+  - Vercel preview teardown removes deployments by deployment reference, not by IDs that the CLI does not reliably return
+  - Railway preview variable injection now uses JSON-mode `railway variable set` calls because the plain-text CLI path can stall
+  - Railway preview environment recreation now tolerates longer post-delete name-release lag for fixed `preview-pr-<n>` environment names
+  - the public preview CLI surface is now reduced to `preview doctor`, `preview up`, and `preview down`; lower-level provider/database seams stay internal
+  - a scheduled preview sweep workflow now reconciles open trusted PRs against provider state and destroys orphaned preview resources instead of leaving Railway/Vercel drift to manual cleanup
 10. turn the current partial npm publish workflow into the first supported public package lane so `npx create-airjam` works from `latest` while legacy npm versions remain installable-but-unsupported
 11. finish the supported `0.9.0` release from the narrowed four-package surface
 12. stand up the on-demand isolated full-stack PR preview lane so PR review no longer depends on local full-stack setup and does not require a staging branch
@@ -130,9 +153,12 @@ Latest progress inside this focus:
 43. the npm/package release story is now explicitly split from general prerelease execution: old published npm versions should remain installable but unsupported, the first real public package lane should make plain `npx create-airjam` work from `latest`, and the required package graph / GitHub workflow / deprecation steps are tracked in [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
 44. the intended long-term public npm surface is now narrowed further to four products only: `@air-jam/sdk`, `@air-jam/server`, `@air-jam/mcp-server`, and `create-airjam`; the required packaging refactor and the deprecation path for already-published low-level packages are now tracked in [Public Package Surface Rationalization Plan](./plans/public-package-surface-rationalization-plan-2026-05-05.md)
 45. the four-package surface rationalization is now complete in both repo and registry terms: the full `pnpm check:release` path passed after the packaging refactor, scaffold tarball smoke proved fresh apps only install the four supported public packages, and `@air-jam/env@0.9.0` plus `@air-jam/runtime-topology@0.9.0` are now deprecated on npm with guidance toward the supported surface
-46. the on-demand full-stack PR preview contract is now documented explicitly in [Shared Preview Deployment Plan](./plans/shared-preview-deployment-plan-2026-05-06.md): the repo should use one canonical preview type only, that preview should be maintainer-triggered, isolated, and full-stack, preview auth should stay simple and explicit, and open-source fork PRs should not automatically receive privileged preview access
-47. the first repo-owned preview provisioning primitives now exist: platform deploy identity is centralized, the release browser worker uses explicit bearer-token auth, the maintainer CLI can now emit a canonical preview manifest, a redacted preview plan, a readiness doctor, and Railway preview-environment prepare/deploy/destroy commands built around duplicating `production`, and the preview workflow now captures both manifest and plan artifacts instead of assuming a preconfigured global preview-env surface
+46. the on-demand full-stack PR preview contract is now documented explicitly in [On-Demand Full-Stack PR Preview Plan](./plans/shared-preview-deployment-plan-2026-05-06.md): the repo should use one canonical preview type only, that preview should be maintainer-triggered, isolated, and full-stack, preview auth should stay simple and explicit, and open-source fork PRs should not automatically receive privileged preview access
+47. the first repo-owned preview provisioning primitives now exist: platform deploy identity is centralized, the release browser worker uses explicit bearer-token auth, the repo owns a canonical preview manifest, redacted preview plan, readiness doctor, DB schema lifecycle, Railway duplicate/deploy/destroy internals, Vercel deploy/destroy internals, and create/destroy/sweep GitHub workflows, and the preview system no longer depends on a preconfigured global preview-env surface
 48. the live provider spike also pinned one important Railway constraint into the plan: preview isolation should happen at the Railway environment layer while reusing the canonical project service names, because service identity is project-global and should not be cloned per preview environment
+49. the preview plan now locks preview data policy explicitly: schema/storage isolation is required, live production data sync is not part of the design, and the repo-owned ephemeral full-stack preview lane remains the clean working baseline
+50. live validation against Railway-native PR environments exposed the real tradeoff instead of leaving it abstract: Railway does create and clean up ephemeral PR environments automatically, but it also duplicates the project's database services/volumes, copies unsealed production vars into the PR environment before repo-owned preview overrides can run, and can gate app deploys on PR check-suite state; because of that, provider-native PR environments are now treated as a useful primitive rather than the canonical preview lane
+51. the follow-up validation also disproved the wrong “empty env + `serviceDuplicate`” escape hatch: creating an empty Railway environment works, but `serviceDuplicate` spawns new global `(... Copy)` services instead of syncing the canonical app services into the target environment; those copies were cleaned automatically when the proof environment was deleted, and the plan now keeps repo-owned duplication as canonical until Railway exposes a real selected-service sync primitive we can prove end to end
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

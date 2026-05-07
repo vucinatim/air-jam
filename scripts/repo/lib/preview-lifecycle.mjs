@@ -9,6 +9,7 @@ import { createPreviewManifest } from "./preview-manifest.mjs";
 import {
   deployPreviewPlatform,
   destroyPreviewPlatform,
+  previewAliasExists,
 } from "./preview-vercel.mjs";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,11 +69,43 @@ const verifyPreviewHttpSurface = async ({
   return lastResult;
 };
 
+const verifyPreviewAlias = async ({
+  previewHost,
+  env,
+  retries = 10,
+  retryDelayMs = 3000,
+}) => {
+  let lastResult = null;
+
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    const ok = previewAliasExists({
+      host: previewHost,
+      token: env.VERCEL_TOKEN,
+    });
+    lastResult = {
+      label: "platform-alias",
+      previewHost,
+      attempt,
+      ok,
+    };
+    if (ok) {
+      return lastResult;
+    }
+
+    if (attempt < retries) {
+      await wait(retryDelayMs);
+    }
+  }
+
+  return lastResult;
+};
+
 export const verifyPreviewDeployment = async ({
   manifest,
   serverPublicDomain,
   workerPublicDomain,
   previewHost,
+  env = process.env,
 }) => {
   const serverUrl = serverPublicDomain
     ? `https://${serverPublicDomain}/health`
@@ -100,6 +133,12 @@ export const verifyPreviewDeployment = async ({
         url: platformUrl,
       })
     : null;
+  const alias = previewHost
+    ? await verifyPreviewAlias({
+        previewHost,
+        env,
+      })
+    : null;
 
   return {
     previewId: manifest.previewId,
@@ -107,8 +146,9 @@ export const verifyPreviewDeployment = async ({
       server,
       worker,
       platform,
+      alias,
     },
-    ready: [server, worker, platform]
+    ready: [server, worker, platform, alias]
       .filter(Boolean)
       .every((entry) => entry?.ok === true),
   };
@@ -129,7 +169,7 @@ export const bringPreviewUp = async ({
     previewBaseDomain: previewBaseDomain ?? env.PREVIEW_BASE_DOMAIN,
   });
 
-  const railwayPrepare = preparePreviewRailwayEnvironment({
+  const railwayPrepare = await preparePreviewRailwayEnvironment({
     prNumber,
     branchName,
     commitSha,
@@ -209,6 +249,7 @@ export const bringPreviewUp = async ({
         serverPublicDomain,
         workerPublicDomain,
         previewHost: manifest.vercel.previewHost,
+        env,
       })
     : {
         previewId: manifest.previewId,

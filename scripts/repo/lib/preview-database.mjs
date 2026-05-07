@@ -16,6 +16,42 @@ const createPreviewDatabaseClient = (databaseUrl) =>
     onnotice: () => {},
   });
 
+const resolvePreviewDatabaseUrl = (env = process.env) => {
+  const preview = createPreviewOverrideContract({
+    prNumber: 1,
+    branchName: "preview/sweep",
+    commitSha: "previewsweep000000000000000000000000000000",
+    previewBaseDomain: env.PREVIEW_BASE_DOMAIN ?? "preview.airjam.io",
+    env,
+  });
+
+  return (
+    preview.overrides.railway.services["air-jam-server"].DATABASE_URL ?? null
+  );
+};
+
+export const listPreviewSchemas = async ({
+  env = process.env,
+} = {}) => {
+  const databaseUrl = resolvePreviewDatabaseUrl(env);
+  if (!databaseUrl) {
+    return [];
+  }
+
+  const sql = createPreviewDatabaseClient(databaseUrl);
+  try {
+    const rows = await sql`
+      select nspname
+      from pg_namespace
+      where nspname like 'preview_pr_%'
+      order by nspname asc
+    `;
+    return rows.map((row) => row.nspname);
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+};
+
 export const preparePreviewDatabase = async ({
   prNumber,
   branchName,
