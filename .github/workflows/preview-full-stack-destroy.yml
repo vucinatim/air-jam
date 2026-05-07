@@ -125,7 +125,7 @@ jobs:
             args+=(--preview-base-domain "$PREVIEW_BASE_DOMAIN")
           fi
 
-          pnpm run repo -- "${args[@]}" > preview-down.json
+          pnpm --silent run repo -- "${args[@]}" > preview-down.json
 
       - name: Upload preview teardown result
         uses: actions/upload-artifact@v4
@@ -149,7 +149,13 @@ jobs:
         with:
           script: |
             const fs = require("node:fs");
-            const result = JSON.parse(fs.readFileSync("preview-down.json", "utf8"));
+            const raw = fs.readFileSync("preview-down.json", "utf8").trim();
+            const startIndex = raw.search(/[\\[{]/);
+            if (startIndex === -1) {
+              throw new Error("preview-down.json did not contain JSON output");
+            }
+
+            const result = JSON.parse(raw.slice(startIndex));
             const marker = `<!-- airjam-preview:${result.previewId} -->`;
             const body = [
               marker,
