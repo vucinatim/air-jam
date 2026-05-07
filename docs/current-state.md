@@ -71,13 +71,14 @@ These are now baseline truths, not open architecture debates:
    2. [documentation-taxonomy.md](./documentation-taxonomy.md) for the live docs category map
    3. explicit reference docs for:
       1. the platform control plane
-      2. the hosted release pipeline
-      3. platform identity and auth
-      4. documentation and AI-pack delivery
-      5. runtime topology and inspection
-      6. semantic agent sessions
-      7. game metadata and media presentation
-      8. local, hosted-release, and agent development loops
+      2. the platform docs surface
+      3. the hosted release pipeline
+      4. platform identity and auth
+      5. documentation and AI-pack delivery
+      6. runtime topology and inspection
+      7. semantic agent sessions
+      8. game metadata and media presentation
+      9. local, hosted-release, and agent development loops
 
 ## What Is Still Open
 

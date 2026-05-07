@@ -9,6 +9,9 @@ Related docs:
 2. [../framework-paradigm.md](../framework-paradigm.md)
 3. [../guides/agent-development-guide.md](../guides/agent-development-guide.md)
 4. [../capability-inventory.md](../capability-inventory.md)
+5. [./platform-docs-surface-architecture.md](./platform-docs-surface-architecture.md)
+6. [../contracts/ai-pack-manifest-contract.md](../contracts/ai-pack-manifest-contract.md)
+7. [../guides/ai-pack-workflow-guide.md](../guides/ai-pack-workflow-guide.md)
 
 ## Purpose
 
@@ -44,6 +47,8 @@ This layer owns:
 1. hosted documentation pages
 2. discoverable public explanations
 3. human-facing learning surfaces
+4. typed docs registry and metadata-backed routing
+5. machine-readable docs endpoints such as manifest and search-index routes
 
 ### AI Pack Layer
 
@@ -53,6 +58,8 @@ This layer owns:
 2. `llms.txt`
 3. docs manifest and search index surfaces
 4. generated project-facing agent docs
+5. hosted AI-pack manifests and file bundles
+6. local AI-pack drift and update workflow
 
 ## Why This Matters
 
@@ -73,3 +80,5 @@ Those audiences overlap, but they do not consume documentation the same way.
 3. Keep machine-oriented docs explicit instead of assuming browser scraping.
 4. Prefer one stable concept explained well over duplicating the same idea
    across many weak pages.
+5. Keep the hosted docs registry and the hosted AI pack aligned as delivery
+   outputs of one canonical guidance system.

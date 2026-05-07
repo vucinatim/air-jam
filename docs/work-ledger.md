@@ -102,6 +102,16 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
   - architecture and contracts for structure
   - guides for operational usage
 
+## 2026-05-08 - Platform And AI-Pack Docs Audit Tightened
+
+- audited the platform-facing docs and AI-pack-facing docs and found the main missing gap was not broad vision but concrete delivery-surface explanation
+- added:
+  - [architecture/platform-docs-surface-architecture.md](./architecture/platform-docs-surface-architecture.md)
+  - [contracts/ai-pack-manifest-contract.md](./contracts/ai-pack-manifest-contract.md)
+  - [guides/ai-pack-workflow-guide.md](./guides/ai-pack-workflow-guide.md)
+- tightened [architecture/documentation-and-ai-pack-architecture.md](./architecture/documentation-and-ai-pack-architecture.md) so it now explains the hosted docs registry, machine endpoints, hosted AI-pack manifests, and local AI-pack workflow more explicitly
+- updated [apps/platform/README.md](../apps/platform/README.md) so the platform app now points at the real public docs and AI-pack reference surfaces instead of leaving those contracts mostly implicit in code
+
 ## 2026-05-08 - Full-Stack Preview System Verified From `main`
 
 - ran a real hosted smoke test from `main` itself through a temporary PR

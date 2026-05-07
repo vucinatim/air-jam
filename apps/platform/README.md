@@ -64,8 +64,28 @@ should auto-appear without an explicit override.
 
 ## Notes
 
-1. Controller chrome in Arcade embedded-game mode follows host-driven session orientation, not just the arcade surface launch hint. See [docs/platform-controller-presentation.md](../../docs/systems/platform-controller-presentation.md).
-2. Product architecture and strategy live in [docs/framework-paradigm.md](../../docs/framework-paradigm.md) and [docs/deployment-and-monetization-strategy.md](../../docs/strategy/deployment-and-monetization-strategy.md).
+1. Controller chrome in Arcade embedded-game mode follows host-driven session orientation, not just the arcade surface launch hint. The live shell/runtime rules are covered by [arcade-surface-contract.md](../../docs/contracts/arcade-surface-contract.md) and [composition-shell-contract.md](../../docs/contracts/composition-shell-contract.md).
+2. Product architecture and strategy live in [framework-paradigm.md](../../docs/framework-paradigm.md), [platform-control-plane-architecture.md](../../docs/architecture/platform-control-plane-architecture.md), and [deployment-and-monetization-strategy.md](../../docs/strategy/deployment-and-monetization-strategy.md).
+
+## Public Docs And AI Pack Surface
+
+The platform also owns the public docs delivery surface and the hosted AI-pack
+delivery surface.
+
+Important public routes:
+
+1. `/docs`
+2. `/docs-manifest`
+3. `/docs-search-index`
+4. `/llms.txt`
+5. `/ai-pack/manifest.json`
+
+Reference docs:
+
+1. [platform-docs-surface-architecture.md](../../docs/architecture/platform-docs-surface-architecture.md)
+2. [documentation-and-ai-pack-architecture.md](../../docs/architecture/documentation-and-ai-pack-architecture.md)
+3. [ai-pack-manifest-contract.md](../../docs/contracts/ai-pack-manifest-contract.md)
+4. [ai-pack-workflow-guide.md](../../docs/guides/ai-pack-workflow-guide.md)
 
 ## Website Analytics (Optional)
 
