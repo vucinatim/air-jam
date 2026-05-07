@@ -55,13 +55,7 @@ jobs:
         run: pnpm --filter sdk build
 
       - name: Install provider CLIs
-        run: npm install -g @railway/cli@4.51.0 vercel@52.0.0
-
-      - name: Link Railway project context
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
-        run: railway link --project "$RAILWAY_PROJECT_ID" --environment production
+        run: npm install -g vercel@52.0.0
 
       - name: Sweep orphaned previews
         env:

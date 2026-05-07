@@ -135,8 +135,8 @@ export const registerPreviewCommands = (program) => {
       "Inspect current repo/provider readiness for the on-demand full-stack preview lane",
     )
     .option("--json", "Print raw JSON instead of a summary")
-    .action((options) => {
-      const readiness = gatherPreviewReadiness();
+    .action(async (options) => {
+      const readiness = await gatherPreviewReadiness();
       if (options.json) {
         printJson(readiness);
         return;

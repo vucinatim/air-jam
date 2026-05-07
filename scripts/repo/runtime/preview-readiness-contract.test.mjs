@@ -59,6 +59,7 @@ test("summarizePreviewReadiness produces a readable missing-state summary", () =
       errors: [],
     },
     railway: {
+      tokenSource: "env:RAILWAY_TOKEN",
       environmentNames: ["production"],
       serviceNames: ["air-jam-server", "air-jam-release-browser-worker"],
       hasProductionEnvironment: true,
@@ -84,6 +85,7 @@ test("summarizePreviewReadiness produces a readable missing-state summary", () =
     /Missing preview resource alternatives: PREVIEW_R2_ACCOUNT_ID or PREVIEW_R2_ENDPOINT/,
   );
   assert.match(summary, /Has production base environment: yes/);
+  assert.match(summary, /Token source: env:RAILWAY_TOKEN/);
   assert.match(summary, /Preview env strategy: dynamic-deploy-env/);
   assert.match(summary, /Preview deployment protection disabled: no/);
   assert.match(summary, /Preview deployment protection mode: all_except_custom_domains/);

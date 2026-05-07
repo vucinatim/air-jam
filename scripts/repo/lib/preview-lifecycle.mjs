@@ -181,6 +181,7 @@ export const bringPreviewUp = async ({
     throw new Error(
       `Preview Railway environment is not ready for ${manifest.previewId}: ` +
         [
+          ...railwayPrepare.missingStructureInputs,
           ...railwayPrepare.missingProjectServices,
           ...railwayPrepare.missingRailwayOverrideInputs,
         ].join(", "),
@@ -201,24 +202,28 @@ export const bringPreviewUp = async ({
     );
   }
 
-  const railwayDeploy = deployPreviewRailwayServices({
+  const railwayDeploy = await deployPreviewRailwayServices({
     prNumber,
     branchName,
     commitSha,
     previewBaseDomain: previewBaseDomain ?? env.PREVIEW_BASE_DOMAIN,
+    environmentId: railwayPrepare.environmentId,
+    env,
     apply,
   });
 
   const serverPublicDomain = apply
     ? await waitForRailwayServicePublicDomain({
-        environmentName: manifest.railway.environmentName,
+        environmentId: railwayPrepare.environmentId,
         serviceName: manifest.railway.services.server,
+        env,
       })
     : `${manifest.railway.services.server}-${manifest.railway.environmentName}.up.railway.app`;
   const workerPublicDomain = apply
     ? await waitForRailwayServicePublicDomain({
-        environmentName: manifest.railway.environmentName,
+        environmentId: railwayPrepare.environmentId,
         serviceName: manifest.railway.services.browserWorker,
+        env,
       })
     : `${manifest.railway.services.browserWorker}-${manifest.railway.environmentName}.up.railway.app`;
   if (apply && (!serverPublicDomain || !workerPublicDomain)) {
@@ -313,8 +318,9 @@ export const tearPreviewDown = async ({
     env,
     apply,
   });
-  const railwayDestroy = destroyPreviewRailwayEnvironment({
+  const railwayDestroy = await destroyPreviewRailwayEnvironment({
     environmentName: manifest.railway.environmentName,
+    env,
     apply,
   });
 

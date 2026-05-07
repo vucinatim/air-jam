@@ -1,8 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-import { runCommandResult } from "./shell.mjs";
 import { createPreviewOverrideContract } from "./preview-override-contract.mjs";
-import { repoRoot } from "./paths.mjs";
+import { createRailwayApiClient } from "./railway-api.mjs";
 
 const collectMissingRailwayOverrideInputs = ({ controlPlaneState }) => {
   const missing = [];
@@ -20,462 +17,17 @@ const collectMissingRailwayOverrideInputs = ({ controlPlaneState }) => {
   return missing;
 };
 
-const PREVIEW_RAILWAY_SERVICE_PACKAGE_PATHS = {
-  "air-jam-server": "packages/server",
-  "air-jam-release-browser-worker": "packages/release-browser-worker",
-};
-
-const PREVIEW_RAILWAY_SERVICE_CONFIG_PATHS = {
-  "air-jam-server": "packages/server/railway.json",
-  "air-jam-release-browser-worker": "packages/release-browser-worker/railway.json",
-};
-
-const PREVIEW_RAILWAY_SERVICE_ALLOWED_UPLOAD_PATHS = {
-  "air-jam-server": [
-    "package.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    "tsconfig.base.json",
-    "scripts/**",
-    "packages/server/**",
-    "packages/sdk/**",
-    "packages/devtools-core/**",
-    "packages/harness/**",
-    "packages/env/**",
-    "packages/runtime-topology/**",
-  ],
-  "air-jam-release-browser-worker": [
-    "package.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    "tsconfig.base.json",
-    "packages/release-browser-worker/**",
-    "packages/env/**",
-  ],
-};
-
-const PREVIEW_RAILWAY_STAGING_DIR = path.join(
-  repoRoot,
-  ".airjam",
-  "preview-railway-staging",
-);
-const PREVIEW_RAILWAY_STAGING_STATE_PATH = path.join(
-  PREVIEW_RAILWAY_STAGING_DIR,
-  "state.json",
-);
-
-const ensureDirectory = (targetPath) => {
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-};
-
-const sanitizeBackupPath = (targetRelativePath) =>
-  targetRelativePath
-    .split(path.sep)
-    .join("__")
-    .replace(/[\\/]/g, "__");
-
-const loadPreviewRailwayStagingState = ({
-  stagingStatePath = PREVIEW_RAILWAY_STAGING_STATE_PATH,
-} = {}) => {
-  if (!fs.existsSync(stagingStatePath)) {
-    return null;
-  }
-
-  return JSON.parse(fs.readFileSync(stagingStatePath, "utf8"));
-};
-
-const removePreviewRailwayStagingArtifacts = ({
-  stagingDir = PREVIEW_RAILWAY_STAGING_DIR,
-} = {}) => {
-  fs.rmSync(stagingDir, { recursive: true, force: true });
-};
-
-export const recoverPreviewRailwayStagingArtifacts = ({
-  baseDir = repoRoot,
-  stagingDir = PREVIEW_RAILWAY_STAGING_DIR,
-  stagingStatePath = PREVIEW_RAILWAY_STAGING_STATE_PATH,
-} = {}) => {
-  const state = loadPreviewRailwayStagingState({ stagingStatePath });
-  if (!state) {
-    return false;
-  }
-
-  for (const entry of state.entries ?? []) {
-    const targetPath = path.join(baseDir, entry.targetRelativePath);
-
-    if (entry.existedBefore && entry.backupRelativePath) {
-      const backupPath = path.join(stagingDir, entry.backupRelativePath);
-      if (!fs.existsSync(backupPath)) {
-        throw new Error(
-          `Missing preview Railway staging backup for ${entry.targetRelativePath}`,
-        );
-      }
-
-      ensureDirectory(targetPath);
-      fs.copyFileSync(backupPath, targetPath);
-      continue;
-    }
-
-    fs.rmSync(targetPath, { force: true });
-  }
-
-  removePreviewRailwayStagingArtifacts({ stagingDir });
-
-  return true;
-};
-
-const createPreviewRailwayStagingSession = ({
-  baseDir = repoRoot,
-  stagingDir = PREVIEW_RAILWAY_STAGING_DIR,
-  stagingStatePath = PREVIEW_RAILWAY_STAGING_STATE_PATH,
-} = {}) => {
-  recoverPreviewRailwayStagingArtifacts({
-    baseDir,
-    stagingDir,
-    stagingStatePath,
-  });
-
-  fs.mkdirSync(stagingDir, { recursive: true });
-
-  const entries = [];
-
-  const persistState = () => {
-    fs.writeFileSync(
-      stagingStatePath,
-      JSON.stringify(
-        {
-          entries,
-          generatedAt: new Date().toISOString(),
-        },
-        null,
-        2,
-      ),
-    );
-  };
-
-  const registerTarget = (targetRelativePath) => {
-    const existing = entries.find(
-      (entry) => entry.targetRelativePath === targetRelativePath,
-    );
-    if (existing) {
-      return existing;
-    }
-
-    const targetPath = path.join(baseDir, targetRelativePath);
-    const existedBefore = fs.existsSync(targetPath);
-    const entry = {
-      targetRelativePath,
-      existedBefore,
-      backupRelativePath: null,
-    };
-
-    if (existedBefore) {
-      entry.backupRelativePath = path.join(
-        "backups",
-        sanitizeBackupPath(targetRelativePath),
-      );
-      const backupPath = path.join(stagingDir, entry.backupRelativePath);
-      ensureDirectory(backupPath);
-      fs.copyFileSync(targetPath, backupPath);
-    }
-
-    entries.push(entry);
-    persistState();
-
-    return entry;
-  };
-
-  return {
-    writeFile({ targetRelativePath, contents }) {
-      registerTarget(targetRelativePath);
-      const targetPath = path.join(baseDir, targetRelativePath);
-      ensureDirectory(targetPath);
-      fs.writeFileSync(targetPath, contents);
-    },
-    copyFile({ sourceRelativePath, targetRelativePath }) {
-      registerTarget(targetRelativePath);
-      const sourcePath = path.join(baseDir, sourceRelativePath);
-      const targetPath = path.join(baseDir, targetRelativePath);
-      ensureDirectory(targetPath);
-      fs.copyFileSync(sourcePath, targetPath);
-    },
-    cleanup() {
-      recoverPreviewRailwayStagingArtifacts({
-        baseDir,
-        stagingDir,
-        stagingStatePath,
-      });
-    },
-  };
-};
-
-const createPreviewDeployStamp = ({ serviceName, manifest, stagingSession }) => {
-  const relativePackagePath = PREVIEW_RAILWAY_SERVICE_PACKAGE_PATHS[serviceName];
-  if (!relativePackagePath) {
-    throw new Error(`Unsupported preview Railway service: ${serviceName}`);
-  }
-
-  stagingSession.writeFile({
-    targetRelativePath: path.join(
-      relativePackagePath,
-      ".airjam-preview-deploy.json",
-    ),
-    contents: JSON.stringify(
-      {
-        previewId: manifest.previewId,
-        prNumber: manifest.prNumber,
-        serviceName,
-        generatedAt: new Date().toISOString(),
-        commitSha: manifest.git.commitSha,
-      },
-      null,
-      2,
-    ),
-  });
-};
-
-const stagePreviewRailwayConfig = ({ serviceName, stagingSession }) => {
-  const relativeConfigPath = PREVIEW_RAILWAY_SERVICE_CONFIG_PATHS[serviceName];
-  if (!relativeConfigPath) {
-    throw new Error(`Unsupported preview Railway service config: ${serviceName}`);
-  }
-
-  stagingSession.copyFile({
-    sourceRelativePath: relativeConfigPath,
-    targetRelativePath: "railway.json",
-  });
-};
-
-const stagePreviewRailwayIgnore = ({ serviceName, stagingSession }) => {
-  const allowedPaths = PREVIEW_RAILWAY_SERVICE_ALLOWED_UPLOAD_PATHS[serviceName];
-  if (!allowedPaths) {
-    throw new Error(`Unsupported preview Railway upload shape: ${serviceName}`);
-  }
-
-  const unignoredPaths = new Set([
-    "!package.json",
-    "!pnpm-lock.yaml",
-    "!pnpm-workspace.yaml",
-    "!tsconfig.base.json",
-  ]);
-
-  for (const entry of allowedPaths) {
-    const normalized = entry.endsWith("/**")
-      ? entry.replace(/\/\*\*$/, "")
-      : entry;
-    const segments = normalized.split("/");
-
-    for (let index = 1; index < segments.length; index += 1) {
-      unignoredPaths.add(`!${segments.slice(0, index).join("/")}`);
-    }
-
-    unignoredPaths.add(`!${normalized}`);
-    if (entry.endsWith("/**")) {
-      unignoredPaths.add(`!${entry}`);
-    }
-  }
-
-  const ignoreContents = ["*", ...unignoredPaths].join("\n");
-
-  stagingSession.writeFile({
-    targetRelativePath: ".railwayignore",
-    contents: `${ignoreContents}\n`,
-  });
-};
-
-const parseJson = ({ command, args, stdout }) => {
-  try {
-    return JSON.parse(stdout || "null");
-  } catch (error) {
-    throw new Error(
-      `Failed to parse JSON output from ${command} ${args.join(" ")}: ${error.message}`,
-    );
-  }
-};
-
-const runRailwayJson = (args) => {
-  const result = runCommandResult("railway", args, {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  if (result.status !== 0) {
-    throw new Error(
-      `railway ${args.join(" ")} failed${result.stderr ? `: ${result.stderr.trim()}` : ""}`,
-    );
-  }
-
-  return parseJson({
-    command: "railway",
-    args,
-    stdout: result.stdout,
-  });
-};
-
-const runRailwayCommand = (args) => {
-  const result = runCommandResult("railway", args, {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  if (result.status !== 0) {
-    throw new Error(
-      `railway ${args.join(" ")} failed${result.stderr ? `: ${result.stderr.trim()}` : ""}`,
-    );
-  }
-
-  return result.stdout?.trim() ?? "";
-};
+const mapByName = (entries) =>
+  new Map(entries.map((entry) => [entry.name, entry]));
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const listRailwayEnvironments = () => {
-  const value = runRailwayJson(["environment", "list", "--json"]);
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  return Array.isArray(value?.environments) ? value.environments : [];
-};
-
-export const listPreviewRailwayEnvironmentNames = () =>
-  listRailwayEnvironments()
-    .map((entry) => entry.name)
-    .filter((name) => /^preview-pr-\d+$/.test(name));
-
-const listRailwayServices = () => runRailwayJson(["service", "list", "--json"]);
-
-const createRailwayEnvironmentFromProduction = ({
-  environmentName,
-  sourceEnvironmentName,
-}) =>
-  runRailwayCommand([
-    "environment",
-    "new",
-    environmentName,
-    "--duplicate",
-    sourceEnvironmentName,
-  ]);
-
-const createRailwayEnvironmentFromProductionWithRetry = async ({
-  environmentName,
-  sourceEnvironmentName,
-  retries = 20,
-  retryDelayMs = 3000,
-}) => {
-  for (let attempt = 1; attempt <= retries; attempt += 1) {
-    try {
-      createRailwayEnvironmentFromProduction({
-        environmentName,
-        sourceEnvironmentName,
-      });
-      return {
-        created: true,
-        attempt,
-      };
-    } catch (error) {
-      const conflict =
-        /environment with that name already exists/i.test(error.message) ||
-        /already exists/i.test(error.message);
-      if (!conflict) {
-        throw error;
-      }
-
-      const environments = listRailwayEnvironments();
-      if (environments.some((entry) => entry.name === environmentName)) {
-        return {
-          created: false,
-          attempt,
-          reusedExistingEnvironment: true,
-        };
-      }
-
-      if (attempt >= retries) {
-        throw new Error(
-          `Railway has not released preview environment name "${environmentName}" yet; retry the preview in a moment.`,
-        );
-      }
-
-      await wait(retryDelayMs);
-    }
-  }
-
-  throw new Error(`Failed to create preview Railway environment ${environmentName}.`);
-};
-
-const deleteRailwayEnvironment = (environmentName) =>
-  runRailwayCommand(["environment", "delete", environmentName, "--yes"]);
-
-const setRailwayVariables = ({ environmentName, serviceName, variables }) => {
-  const entries = Object.entries(variables).filter(([, value]) => value != null);
-  if (entries.length === 0) {
-    return;
-  }
-
-  for (const [key, value] of entries) {
-    runRailwayJson([
-      "variable",
-      "set",
-      "--environment",
-      environmentName,
-      "--service",
-      serviceName,
-      "--skip-deploys",
-      "--json",
-      `${key}=${value}`,
-    ]);
-  }
-};
-
-export const resolveRailwayServicePublicDomain = ({
-  environmentName,
-  serviceName,
-}) => {
-  const variables = runRailwayJson([
-    "variable",
-    "list",
-    "--environment",
-    environmentName,
-    "--service",
-    serviceName,
-    "--json",
-  ]);
-
-  return (
-    variables.RAILWAY_PUBLIC_DOMAIN ??
-    variables.RAILWAY_STATIC_URL ??
-    null
-  );
-};
-
-export const waitForRailwayServicePublicDomain = async ({
-  environmentName,
-  serviceName,
-  retries = 30,
-  retryDelayMs = 2000,
-}) => {
-  for (let attempt = 1; attempt <= retries; attempt += 1) {
-    const domain = resolveRailwayServicePublicDomain({
-      environmentName,
-      serviceName,
-    });
-    if (domain) {
-      return domain;
-    }
-
-    if (attempt < retries) {
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-    }
-  }
-
-  return null;
-};
-
-export const preparePreviewRailwayEnvironment = async ({
+const resolveRailwayPreviewContext = ({
   prNumber,
   branchName,
   commitSha,
   previewBaseDomain,
   env = process.env,
-  apply = false,
 }) => {
   const preview = createPreviewOverrideContract({
     prNumber,
@@ -489,151 +41,344 @@ export const preparePreviewRailwayEnvironment = async ({
     controlPlaneState,
     overrides: { railway: railwayOverrides },
   } = preview;
+
+  return {
+    preview,
+    manifest,
+    controlPlaneState,
+    railwayOverrides,
+    projectId: controlPlaneState.controlPlane.railwayProjectId,
+  };
+};
+
+const getProjectSnapshot = async ({ api, projectId }) => {
+  const project = await api.getProject(projectId);
+  return {
+    project,
+    servicesByName: mapByName(project.services),
+    environmentsByName: mapByName(project.environments),
+  };
+};
+
+const getEnvironmentInstanceByServiceName = ({
+  environment,
+  serviceName,
+}) =>
+  environment.serviceInstances.find((entry) => entry.serviceName === serviceName) ??
+  null;
+
+export const listPreviewRailwayEnvironmentNames = async ({
+  env = process.env,
+} = {}) => {
+  const api = createRailwayApiClient({ env });
+  const projectId = env.RAILWAY_PROJECT_ID?.trim();
+  if (!projectId) {
+    throw new Error("Missing RAILWAY_PROJECT_ID.");
+  }
+
+  const environments = await api.listEnvironments({ projectId });
+  return environments
+    .map((entry) => entry.name)
+    .filter((name) => /^preview-pr-\d+$/.test(name));
+};
+
+export const resolveRailwayServicePublicDomain = async ({
+  environmentId,
+  serviceName,
+  env = process.env,
+}) => {
+  const api = createRailwayApiClient({ env });
+  return api.resolveServicePublicDomain({
+    environmentId,
+    serviceName,
+  });
+};
+
+export const waitForRailwayServicePublicDomain = async ({
+  environmentId,
+  serviceName,
+  env = process.env,
+  retries = 30,
+  retryDelayMs = 2000,
+}) => {
+  const api = createRailwayApiClient({ env });
+  return api.waitForServicePublicDomain({
+    environmentId,
+    serviceName,
+    retries,
+    retryDelayMs,
+  });
+};
+
+export const preparePreviewRailwayEnvironment = async ({
+  prNumber,
+  branchName,
+  commitSha,
+  previewBaseDomain,
+  env = process.env,
+  apply = false,
+}) => {
+  const {
+    manifest,
+    controlPlaneState,
+    railwayOverrides,
+    projectId,
+  } = resolveRailwayPreviewContext({
+    prNumber,
+    branchName,
+    commitSha,
+    previewBaseDomain,
+    env,
+  });
+
   const missingRailwayOverrideInputs = collectMissingRailwayOverrideInputs({
     controlPlaneState,
   });
-
+  const missingStructureInputs = [];
   const actions = [];
   const projectServiceNames = Object.keys(railwayOverrides.services);
-  const environmentsBefore = apply ? listRailwayEnvironments() : [];
-  const existedBefore = apply
-    ? environmentsBefore.some(
-        (entry) => entry.name === railwayOverrides.environmentName,
-      )
-    : false;
 
-  const projectServices = apply ? listRailwayServices() : [];
-  const serviceNamesBefore = apply
-    ? projectServices.map((entry) => entry.name)
-    : [...projectServiceNames];
-  const missingProjectServices = apply
-    ? projectServiceNames.filter((name) => !serviceNamesBefore.includes(name))
-    : [];
+  if (!projectId) {
+    missingStructureInputs.push("RAILWAY_PROJECT_ID");
+  }
 
-  if (!existedBefore) {
-    if (apply) {
-      const creation = await createRailwayEnvironmentFromProductionWithRetry({
-        environmentName: railwayOverrides.environmentName,
-        sourceEnvironmentName: railwayOverrides.sourceEnvironmentName,
-      });
-      actions.push(
-        creation.created
-          ? `duplicated ${railwayOverrides.sourceEnvironmentName} into ${railwayOverrides.environmentName}`
-          : `reused existing ${railwayOverrides.environmentName} after Railway name-conflict lag`,
-      );
-    } else {
+  let environmentId = null;
+  let existedBefore = false;
+  let existsAfter = false;
+  let serviceNamesBefore = [...projectServiceNames];
+  let missingProjectServices = [];
+
+  if (!apply || missingStructureInputs.length > 0) {
+    if (!apply) {
       actions.push(
         `would duplicate ${railwayOverrides.sourceEnvironmentName} into ${railwayOverrides.environmentName}`,
       );
+      for (const [serviceName, serviceOverrides] of Object.entries(
+        railwayOverrides.services,
+      )) {
+        actions.push(
+          `would apply ${Object.keys(serviceOverrides).length} preview overrides to ${serviceName}`,
+        );
+      }
     }
+
+    return {
+      previewId: manifest.previewId,
+      environmentId,
+      environmentName: railwayOverrides.environmentName,
+      sourceEnvironmentName: railwayOverrides.sourceEnvironmentName,
+      apply,
+      existedBefore,
+      existsAfter: apply ? existsAfter : true,
+      missingRailwayOverrideInputs,
+      missingStructureInputs,
+      serviceNamesBefore,
+      missingProjectServices,
+      actions,
+      environmentReady:
+        missingProjectServices.length === 0 &&
+        missingRailwayOverrideInputs.length === 0 &&
+        missingStructureInputs.length === 0 &&
+        (apply ? existsAfter : true),
+    };
   }
 
-  if (apply && missingRailwayOverrideInputs.length === 0) {
+  const api = createRailwayApiClient({ env });
+  const {
+    servicesByName,
+    environmentsByName,
+  } = await getProjectSnapshot({ api, projectId });
+
+  serviceNamesBefore = [...servicesByName.keys()];
+  missingProjectServices = projectServiceNames.filter(
+    (name) => !servicesByName.has(name),
+  );
+
+  const sourceEnvironment = environmentsByName.get(
+    railwayOverrides.sourceEnvironmentName,
+  );
+  if (!sourceEnvironment) {
+    missingStructureInputs.push(
+      `source environment ${railwayOverrides.sourceEnvironmentName}`,
+    );
+  }
+
+  let targetEnvironment = environmentsByName.get(railwayOverrides.environmentName);
+  existedBefore = Boolean(targetEnvironment);
+
+  if (
+    !targetEnvironment &&
+    missingProjectServices.length === 0 &&
+    missingRailwayOverrideInputs.length === 0 &&
+    missingStructureInputs.length === 0
+  ) {
+    targetEnvironment = await api.createEnvironment({
+      projectId,
+      name: railwayOverrides.environmentName,
+      sourceEnvironmentId: sourceEnvironment.id,
+    });
+    actions.push(
+      `duplicated ${railwayOverrides.sourceEnvironmentName} into ${railwayOverrides.environmentName}`,
+    );
+  }
+
+  if (targetEnvironment) {
+    environmentId = targetEnvironment.id;
+    existsAfter = true;
+  }
+
+  if (
+    environmentId &&
+    missingProjectServices.length === 0 &&
+    missingRailwayOverrideInputs.length === 0
+  ) {
     for (const [serviceName, serviceOverrides] of Object.entries(
       railwayOverrides.services,
     )) {
-      setRailwayVariables({
-        environmentName: railwayOverrides.environmentName,
-        serviceName,
+      const service = servicesByName.get(serviceName);
+      if (!service) {
+        continue;
+      }
+
+      await api.upsertVariableCollection({
+        projectId,
+        environmentId,
+        serviceId: service.id,
         variables: serviceOverrides,
+        skipDeploys: true,
       });
       actions.push(
         `applied ${Object.keys(serviceOverrides).length} preview overrides to ${serviceName}`,
       );
     }
-  } else if (!apply) {
-    for (const [serviceName, serviceOverrides] of Object.entries(
-      railwayOverrides.services,
-    )) {
-      actions.push(
-        `would apply ${Object.keys(serviceOverrides).length} preview overrides to ${serviceName}`,
-      );
-    }
   }
-
-  const existsAfter = apply
-    ? listRailwayEnvironments().some(
-        (entry) => entry.name === railwayOverrides.environmentName,
-      )
-    : true;
 
   return {
     previewId: manifest.previewId,
+    environmentId,
     environmentName: railwayOverrides.environmentName,
     sourceEnvironmentName: railwayOverrides.sourceEnvironmentName,
     apply,
     existedBefore,
     existsAfter,
     missingRailwayOverrideInputs,
+    missingStructureInputs,
     serviceNamesBefore,
     missingProjectServices,
     actions,
     environmentReady:
       missingProjectServices.length === 0 &&
       missingRailwayOverrideInputs.length === 0 &&
-      (apply ? existsAfter : true),
+      missingStructureInputs.length === 0 &&
+      existsAfter,
   };
 };
 
-export const destroyPreviewRailwayEnvironment = ({
+export const destroyPreviewRailwayEnvironment = async ({
   environmentName,
+  env = process.env,
   apply = false,
 }) => {
-  const environmentsBefore = apply ? listRailwayEnvironments() : [];
-  const existedBefore = apply
-    ? environmentsBefore.some((entry) => entry.name === environmentName)
-    : true;
+  const projectId = env.RAILWAY_PROJECT_ID?.trim() ?? null;
   const actions = [];
 
-  if (!existedBefore) {
-    if (!apply) {
-      actions.push(`would delete environment ${environmentName}`);
-    }
-
+  if (!projectId) {
     return {
       environmentName,
+      environmentId: null,
       apply,
       existedBefore: false,
       existsAfter: false,
       actions,
+      missingStructureInputs: ["RAILWAY_PROJECT_ID"],
     };
   }
 
-  if (apply) {
-    deleteRailwayEnvironment(environmentName);
-    actions.push(`deleted environment ${environmentName}`);
-  } else {
+  if (!apply) {
     actions.push(`would delete environment ${environmentName}`);
+    return {
+      environmentName,
+      environmentId: null,
+      apply,
+      existedBefore: true,
+      existsAfter: false,
+      actions,
+      missingStructureInputs: [],
+    };
   }
 
-  const existsAfter = apply
-    ? listRailwayEnvironments().some((entry) => entry.name === environmentName)
-    : false;
+  const api = createRailwayApiClient({ env });
+  const environments = await api.listEnvironments({ projectId });
+  const targetEnvironment =
+    environments.find((entry) => entry.name === environmentName) ?? null;
+  const existedBefore = Boolean(targetEnvironment);
+
+  if (!targetEnvironment) {
+    return {
+      environmentName,
+      environmentId: null,
+      apply,
+      existedBefore: false,
+      existsAfter: false,
+      actions,
+      missingStructureInputs: [],
+    };
+  }
+
+  await api.deleteEnvironment({
+    environmentId: targetEnvironment.id,
+  });
+  actions.push(`deleted environment ${environmentName}`);
+
+  for (let attempt = 1; attempt <= 30; attempt += 1) {
+    const remaining = await api.listEnvironments({ projectId });
+    if (!remaining.some((entry) => entry.name === environmentName)) {
+      return {
+        environmentName,
+        environmentId: targetEnvironment.id,
+        apply,
+        existedBefore,
+        existsAfter: false,
+        actions,
+        missingStructureInputs: [],
+      };
+    }
+
+    if (attempt < 30) {
+      await wait(2000);
+    }
+  }
 
   return {
     environmentName,
+    environmentId: targetEnvironment.id,
     apply,
     existedBefore,
-    existsAfter,
+    existsAfter: true,
     actions,
+    missingStructureInputs: [],
   };
 };
 
-export const deployPreviewRailwayServices = ({
+export const deployPreviewRailwayServices = async ({
   prNumber,
   branchName,
   commitSha,
   previewBaseDomain,
+  environmentId = null,
   selectedServices = "all",
+  env = process.env,
   apply = false,
 } = {}) => {
-  const preview = createPreviewOverrideContract({
+  const {
+    manifest,
+  } = resolveRailwayPreviewContext({
     prNumber,
     branchName,
     commitSha,
     previewBaseDomain,
+    env,
   });
-  const { manifest } = preview;
   const allServices = Object.values(manifest.railway.services);
   const serviceNames =
     selectedServices === "all"
@@ -644,64 +389,78 @@ export const deployPreviewRailwayServices = ({
 
   const actions = [];
 
+  if (!apply) {
+    for (const serviceName of serviceNames) {
+      actions.push(
+        `would deploy ${serviceName} into ${manifest.railway.environmentName} from commit ${manifest.git.commitSha}`,
+      );
+    }
+
+    return {
+      previewId: manifest.previewId,
+      environmentId,
+      environmentName: manifest.railway.environmentName,
+      serviceNames,
+      apply,
+      deployments: [],
+      actions,
+    };
+  }
+
+  if (!environmentId) {
+    throw new Error(
+      `Missing Railway environment id for ${manifest.previewId} deployment.`,
+    );
+  }
+
+  const api = createRailwayApiClient({ env });
+  const environment = await api.getEnvironment(environmentId);
+  const deployments = [];
+
   for (const serviceName of serviceNames) {
-    const relativePackagePath = PREVIEW_RAILWAY_SERVICE_PACKAGE_PATHS[serviceName];
-    const relativeConfigPath = PREVIEW_RAILWAY_SERVICE_CONFIG_PATHS[serviceName];
-    if (!relativePackagePath) {
-      throw new Error(`Unsupported preview Railway service: ${serviceName}`);
+    const instance = getEnvironmentInstanceByServiceName({
+      environment,
+      serviceName,
+    });
+    if (!instance) {
+      throw new Error(
+        `Missing Railway service instance ${serviceName} in ${manifest.railway.environmentName}.`,
+      );
     }
 
-    if (!apply) {
-      actions.push(
-        `would deploy ${serviceName} into ${manifest.railway.environmentName} using ${relativeConfigPath}`,
+    const deploymentId = await api.triggerServiceDeployment({
+      environmentId,
+      serviceId: instance.serviceId,
+      commitSha: manifest.git.commitSha,
+    });
+    const deployment = await api.waitForDeployment({
+      deploymentId,
+    });
+    if (!deployment.ok) {
+      throw new Error(
+        `Railway deployment failed for ${serviceName} in ${manifest.railway.environmentName}: ${deployment.deployment?.status ?? "unknown"}`,
       );
-      continue;
     }
 
-    const stagingSession = createPreviewRailwayStagingSession();
-    try {
-      createPreviewDeployStamp({ serviceName, manifest, stagingSession });
-      stagePreviewRailwayConfig({ serviceName, stagingSession });
-      stagePreviewRailwayIgnore({ serviceName, stagingSession });
-
-      // Keep Railway deploys detached and let the repo own readiness checks.
-      // The CLI's attached/CI modes can hold the parent process open even after
-      // the deployment is healthy, which makes preview automation look hung.
-      const result = runCommandResult(
-        "railway",
-        [
-          "up",
-          "--environment",
-          manifest.railway.environmentName,
-          "--service",
-          serviceName,
-          "--detach",
-        ],
-        {
-          stdio: "inherit",
-          cwd: repoRoot,
-        },
-      );
-
-      if (result.status !== 0) {
-        throw new Error(
-          `railway up failed for ${serviceName} in ${manifest.railway.environmentName}`,
-        );
-      }
-
-      actions.push(
-        `deployed ${serviceName} into ${manifest.railway.environmentName} using ${relativeConfigPath}`,
-      );
-    } finally {
-      stagingSession.cleanup();
-    }
+    deployments.push({
+      serviceName,
+      serviceId: instance.serviceId,
+      deploymentId,
+      status: deployment.deployment?.status ?? null,
+    });
+    actions.push(
+      `deployed ${serviceName} into ${manifest.railway.environmentName} from commit ${manifest.git.commitSha}`,
+    );
   }
 
   return {
     previewId: manifest.previewId,
+    environmentId,
     environmentName: manifest.railway.environmentName,
     serviceNames,
     apply,
+    deployments,
     actions,
   };
 };
+

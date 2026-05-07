@@ -90,7 +90,8 @@ export const sweepPreviews = async ({
   const artifactMap = new Map();
 
   const railwayEnvironmentNames =
-    discovery.railwayEnvironmentNames ?? listPreviewRailwayEnvironmentNames();
+    discovery.railwayEnvironmentNames ??
+    (await listPreviewRailwayEnvironmentNames({ env }));
   for (const environmentName of railwayEnvironmentNames) {
     const prNumber = extractRailwayPrNumber(environmentName);
     if (!prNumber) {
