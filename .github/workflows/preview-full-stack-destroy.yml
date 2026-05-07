@@ -19,6 +19,9 @@ permissions:
   issues: write
   pull-requests: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: preview-pr-${{ github.event.pull_request.number || github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: false
@@ -32,7 +35,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == format('{0}/{1}', github.repository_owner, github.event.repository.name)
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Resolve pull request metadata
         id: pr
@@ -71,9 +74,10 @@ jobs:
             core.setOutput("sha", sha ?? "");
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
+          package-manager-cache: false
 
       - name: Enable corepack
         run: corepack enable
@@ -85,13 +89,7 @@ jobs:
         run: pnpm --filter sdk build
 
       - name: Install provider CLIs
-        run: npm install -g @railway/cli@4.51.0 vercel@52.0.0
-
-      - name: Link Railway project context
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
-        run: railway link --project "$RAILWAY_PROJECT_ID" --environment production
+        run: npm install -g vercel@52.0.0
 
       - name: Tear preview down
         env:
@@ -131,10 +129,10 @@ jobs:
             args+=(--preview-base-domain "$PREVIEW_BASE_DOMAIN")
           fi
 
-          pnpm run repo -- "${args[@]}" > preview-down.json
+          pnpm --silent run repo -- "${args[@]}" > preview-down.json
 
       - name: Upload preview teardown result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: preview-down-pr-${{ steps.pr.outputs.number }}
           path: preview-down.json
@@ -155,13 +153,19 @@ jobs:
         with:
           script: |
             const fs = require("node:fs");
-            const result = JSON.parse(fs.readFileSync("preview-down.json", "utf8"));
+            const raw = fs.readFileSync("preview-down.json", "utf8").trim();
+            const startIndex = raw.search(/[\\[{]/);
+            if (startIndex === -1) {
+              throw new Error("preview-down.json did not contain JSON output");
+            }
+
+            const result = JSON.parse(raw.slice(startIndex));
             const marker = `<!-- airjam-preview:${result.previewId} -->`;
             const body = [
               marker,
               "## Full-stack preview destroyed",
               "",
-              `- App alias: ${result.manifest.vercel.previewHost}`,
+              `- Full-stack app alias: ${result.manifest.vercel.previewHost}`,
               `- Railway env: \`${result.manifest.railway.environmentName}\``,
               `- Preview schema: \`${result.manifest.database.schemaName}\``,
             ].join("\n");

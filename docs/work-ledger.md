@@ -66,6 +66,7 @@ Plans:
 8. [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
 9. [Public Package Surface Rationalization Plan](./plans/public-package-surface-rationalization-plan-2026-05-05.md)
 10. [On-Demand Full-Stack PR Preview Plan](./plans/shared-preview-deployment-plan-2026-05-06.md)
+11. [Railway API Foundation And Agentic OS Plan](./plans/railway-api-foundation-and-agentic-os-plan-2026-05-07.md)
 
 Immediate next work:
 
@@ -78,6 +79,7 @@ Immediate next work:
 7. remove the dashboard-only hosted game creation gap so platform game records can be created and maintained cleanly from the `airjam` CLI before release submission
 8. complete the bounded landing/Arcade/controller polish pass, including the Arcade settings interactivity fix, explicit landing featured games, controller chrome tightening, and removal of dead settings controls
 9. refactor controller settings ownership so host-owned room settings and controller-local settings become explicit contracts instead of one ambiguous shared surface
+10. replace the preview lane's Railway CLI transport with a shared Railway Public API foundation that can later serve the wider agentic operating system through both CLI and MCP adapters
 
 # 2026-05-07 - Preview Infra Validation Closeout
 
@@ -86,7 +88,7 @@ Immediate next work:
   - preview DB schema creation succeeded
   - server and browser-worker deploys succeeded
   - Vercel preview deploy succeeded
-  - `pr-4.preview.airjam.io` was aliased successfully
+  - `full-pr-4.preview.airjam.io` was aliased successfully
   - server, worker, platform, and alias verification all passed
 - the validation then tore the preview back down cleanly:
   - the PR alias was removed
@@ -159,6 +161,7 @@ Latest progress inside this focus:
 49. the preview plan now locks preview data policy explicitly: schema/storage isolation is required, live production data sync is not part of the design, and the repo-owned ephemeral full-stack preview lane remains the clean working baseline
 50. live validation against Railway-native PR environments exposed the real tradeoff instead of leaving it abstract: Railway does create and clean up ephemeral PR environments automatically, but it also duplicates the project's database services/volumes, copies unsealed production vars into the PR environment before repo-owned preview overrides can run, and can gate app deploys on PR check-suite state; because of that, provider-native PR environments are now treated as a useful primitive rather than the canonical preview lane
 51. the follow-up validation also disproved the wrong “empty env + `serviceDuplicate`” escape hatch: creating an empty Railway environment works, but `serviceDuplicate` spawns new global `(... Copy)` services instead of syncing the canonical app services into the target environment; those copies were cleaned automatically when the proof environment was deleted, and the plan now keeps repo-owned duplication as canonical until Railway exposes a real selected-service sync primitive we can prove end to end
+52. hosted preview validation finally narrowed the remaining blocker down to the Railway transport layer itself: Railway API tokens authenticate successfully against the Railway Public API, but the Railway CLI rejects the same valid tokens for the project-link/context path, so the next correct move is the shared [Railway API Foundation And Agentic OS Plan](./plans/railway-api-foundation-and-agentic-os-plan-2026-05-07.md) rather than more token or workflow guesswork
 
 ### Current Active Systems Track. Final Prerelease Hardening And Cleanup
 

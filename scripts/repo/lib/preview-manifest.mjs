@@ -55,6 +55,7 @@ export const createPreviewManifest = ({
 } = {}) => {
   const normalizedPrNumber = toPositiveInteger(prNumber);
   const previewId = `pr-${normalizedPrNumber}`;
+  const previewHostLabel = `full-pr-${normalizedPrNumber}`;
   const railwayEnvironmentName = `preview-pr-${normalizedPrNumber}`;
   const branchSlug = trimToUndefined(branchName)
     ? slugify(branchName)
@@ -78,7 +79,8 @@ export const createPreviewManifest = ({
       projectName: vercelLink?.projectName ?? "air-jam",
       projectId: vercelLink?.projectId ?? null,
       deployTag,
-      previewHost: appendSubdomain(previewBaseDomain, previewId),
+      previewHost: appendSubdomain(previewBaseDomain, previewHostLabel),
+      legacyPreviewHost: appendSubdomain(previewBaseDomain, previewId),
     },
     railway: {
       projectName: "air-jam",

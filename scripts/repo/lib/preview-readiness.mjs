@@ -9,6 +9,10 @@ import {
   PREVIEW_RESOURCE_VARIABLE_NAMES,
   resolvePreviewGithubConfigReadiness,
 } from "./preview-control-plane.mjs";
+import {
+  createRailwayApiClient,
+  resolveRailwayApiToken,
+} from "./railway-api.mjs";
 import { runCommandResult } from "./shell.mjs";
 
 const readJsonIfExists = (filePath) => {
@@ -63,7 +67,7 @@ export const EXPECTED_RAILWAY_SERVICE_NAMES = [
 ];
 export const EXPECTED_RAILWAY_BASE_ENVIRONMENT_NAME = "production";
 
-export const gatherPreviewReadiness = () => {
+export const gatherPreviewReadiness = async (env = process.env) => {
   const vercelLink = readJsonIfExists(
     path.join(repoRoot, ".vercel", "project.json"),
   );
@@ -111,35 +115,40 @@ export const gatherPreviewReadiness = () => {
     "--json",
     "name,updatedAt,value",
   ]);
-  const railwayEnvironments = runJsonCommand("railway", [
-    "environment",
-    "list",
-    "--json",
-  ]);
-  const railwayServices = runJsonCommand("railway", [
-    "service",
-    "list",
-    "--json",
-  ]);
   const availableGithubSecretNames = githubSecrets.ok
     ? new Set(githubSecrets.value.map((entry) => entry.name))
     : new Set();
   const availableGithubVariableNames = githubVariables.ok
     ? new Set(githubVariables.value.map((entry) => entry.name))
     : new Set();
-  const railwayEnvironmentEntries = railwayEnvironments.ok
-    ? Array.isArray(railwayEnvironments.value)
-      ? railwayEnvironments.value
-      : Array.isArray(railwayEnvironments.value?.environments)
-        ? railwayEnvironments.value.environments
-        : []
-    : [];
-  const railwayEnvironmentNames = railwayEnvironments.ok
-    ? railwayEnvironmentEntries.map((entry) => entry.name)
-    : [];
-  const railwayServiceNames = railwayServices.ok
-    ? railwayServices.value.map((entry) => entry.name)
-    : [];
+  const railwayErrors = [];
+  let railwayEnvironmentNames = [];
+  let railwayServiceNames = [];
+  const railwayToken = resolveRailwayApiToken(env);
+  const githubVariableMap = githubVariables.ok
+    ? new Map(githubVariables.value.map((entry) => [entry.name, entry.value]))
+    : new Map();
+  const railwayProjectId =
+    env.RAILWAY_PROJECT_ID?.trim() ??
+    githubVariableMap.get("RAILWAY_PROJECT_ID")?.trim() ??
+    null;
+
+  if (!railwayToken.token) {
+    railwayErrors.push(
+      "Missing Railway API token. Set RAILWAY_API_TOKEN or RAILWAY_TOKEN.",
+    );
+  } else if (!railwayProjectId) {
+    railwayErrors.push("Missing RAILWAY_PROJECT_ID.");
+  } else {
+    try {
+      const railwayApi = createRailwayApiClient({ env });
+      const project = await railwayApi.getProject(railwayProjectId);
+      railwayEnvironmentNames = project.environments.map((entry) => entry.name);
+      railwayServiceNames = project.services.map((entry) => entry.name);
+    } catch (error) {
+      railwayErrors.push(error.message);
+    }
+  }
 
   const githubReadiness = resolvePreviewGithubConfigReadiness({
     secretNames: [...availableGithubSecretNames],
@@ -186,14 +195,12 @@ export const gatherPreviewReadiness = () => {
       errors: vercelProject.ok ? [] : [vercelProject.error],
     },
     railway: {
+      tokenSource: railwayToken.source,
       environmentNames: railwayEnvironmentNames,
       serviceNames: railwayServiceNames,
       hasProductionEnvironment,
       missingServices: missingRailwayServices,
-      errors: [
-        ...(railwayEnvironments.ok ? [] : [railwayEnvironments.error]),
-        ...(railwayServices.ok ? [] : [railwayServices.error]),
-      ],
+      errors: railwayErrors,
     },
   };
 };
@@ -260,6 +267,7 @@ export const summarizePreviewReadiness = (readiness) => {
   lines.push("");
 
   lines.push("Railway");
+  lines.push(`- Token source: ${readiness.railway.tokenSource ?? "missing"}`);
   lines.push(
     `- Environments: ${readiness.railway.environmentNames.join(", ") || "none"}`,
   );

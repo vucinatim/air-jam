@@ -12,6 +12,7 @@ export const runCommand = (command, args, options = {}) =>
     cwd: options.cwd ?? repoRoot,
     stdio: options.stdio ?? "inherit",
     encoding: options.encoding,
+    maxBuffer: options.maxBuffer,
     env: {
       ...baseEnv(),
       ...(options.env ?? {}),
@@ -23,6 +24,7 @@ export const runCommandResult = (command, args, options = {}) =>
     cwd: options.cwd ?? repoRoot,
     stdio: options.stdio ?? "inherit",
     encoding: options.encoding ?? "utf8",
+    maxBuffer: options.maxBuffer,
     env: {
       ...baseEnv(),
       ...(options.env ?? {}),

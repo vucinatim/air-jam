@@ -43,7 +43,9 @@ const extractPreviewIdPrNumber = (previewId) => {
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const extractAliasPrNumber = ({ alias, previewBaseDomain }) => {
-  const pattern = new RegExp(`^pr-(\\d+)\\.${escapeRegex(previewBaseDomain)}$`);
+  const pattern = new RegExp(
+    `^(?:pr-|full-pr-)(\\d+)\\.${escapeRegex(previewBaseDomain)}$`,
+  );
   const match = pattern.exec(alias);
   return match ? Number.parseInt(match[1], 10) : null;
 };
@@ -90,7 +92,8 @@ export const sweepPreviews = async ({
   const artifactMap = new Map();
 
   const railwayEnvironmentNames =
-    discovery.railwayEnvironmentNames ?? listPreviewRailwayEnvironmentNames();
+    discovery.railwayEnvironmentNames ??
+    (await listPreviewRailwayEnvironmentNames({ env }));
   for (const environmentName of railwayEnvironmentNames) {
     const prNumber = extractRailwayPrNumber(environmentName);
     if (!prNumber) {

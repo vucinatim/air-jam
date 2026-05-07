@@ -17,6 +17,9 @@ permissions:
   issues: write
   pull-requests: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: preview-pr-${{ github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: false
@@ -57,14 +60,15 @@ jobs:
             core.setOutput("sha", pr.head.sha);
 
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.pr.outputs.sha }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
+          package-manager-cache: false
 
       - name: Enable corepack
         run: corepack enable
@@ -76,13 +80,16 @@ jobs:
         run: pnpm --filter sdk build
 
       - name: Install provider CLIs
-        run: npm install -g @railway/cli@4.51.0 vercel@52.0.0
+        run: npm install -g vercel@52.0.0
 
-      - name: Link Railway project context
+      - name: Verify provider auth
         env:
+          VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
-        run: railway link --project "$RAILWAY_PROJECT_ID" --environment production
+        run: |
+          pnpm exec vercel whoami --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN"
+          pnpm run repo -- railway whoami --json
 
       - name: Bring preview up
         env:
@@ -92,6 +99,7 @@ jobs:
           PREVIEW_R2_BUCKET: ${{ vars.PREVIEW_R2_BUCKET }}
           PREVIEW_R2_ACCOUNT_ID: ${{ vars.PREVIEW_R2_ACCOUNT_ID }}
           PREVIEW_R2_ENDPOINT: ${{ vars.PREVIEW_R2_ENDPOINT }}
+          VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           PREVIEW_AIR_JAM_MASTER_KEY: ${{ secrets.PREVIEW_AIR_JAM_MASTER_KEY }}
@@ -116,10 +124,10 @@ jobs:
             args+=(--preview-base-domain "$PREVIEW_BASE_DOMAIN")
           fi
 
-          pnpm run repo -- "${args[@]}" > preview-up.json
+          pnpm --silent run repo -- "${args[@]}" > preview-up.json
 
       - name: Upload preview result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: preview-up-pr-${{ steps.pr.outputs.number }}
           path: preview-up.json
@@ -139,13 +147,19 @@ jobs:
         with:
           script: |
             const fs = require("node:fs");
-            const result = JSON.parse(fs.readFileSync("preview-up.json", "utf8"));
+            const raw = fs.readFileSync("preview-up.json", "utf8").trim();
+            const startIndex = raw.search(/[\\[{]/);
+            if (startIndex === -1) {
+              throw new Error("preview-up.json did not contain JSON output");
+            }
+
+            const result = JSON.parse(raw.slice(startIndex));
             const marker = `<!-- airjam-preview:${result.previewId} -->`;
             const body = [
               marker,
               `## Full-stack preview ${result.ready ? "ready" : "provisioned"}`,
               "",
-              `- App: https://${result.runtime.previewHost}`,
+              `- Full-stack app: https://${result.runtime.previewHost}`,
               `- Server: https://${result.runtime.serverPublicDomain}`,
               `- Worker: https://${result.runtime.workerPublicDomain}`,
               `- Railway env: \`${result.manifest.railway.environmentName}\``,

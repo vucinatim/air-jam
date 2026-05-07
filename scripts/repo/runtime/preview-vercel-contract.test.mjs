@@ -35,11 +35,18 @@ test("deployPreviewPlatform dry-run produces canonical alias target", () => {
     apply: false,
   });
 
-  assert.equal(result.previewHost, "pr-42.preview.airjam.io");
+  assert.equal(result.previewHost, "full-pr-42.preview.airjam.io");
   assert.deepEqual(result.missingInputs, []);
   assert.equal(result.deploymentReady, true);
   assert.match(result.actions[0], /would deploy platform preview pr-42/);
-  assert.match(result.actions[1], /would alias deployment to pr-42.preview.airjam.io/);
+  assert.match(
+    result.actions[1],
+    /would alias deployment to full-pr-42.preview.airjam.io/,
+  );
+  assert.match(
+    result.actions[2],
+    /would remove legacy alias pr-42.preview.airjam.io if present/,
+  );
 });
 
 test("destroyPreviewPlatform dry-run targets preview-tagged deployments", () => {
@@ -52,6 +59,10 @@ test("destroyPreviewPlatform dry-run targets preview-tagged deployments", () => 
   });
 
   assert.deepEqual(result.missingInputs, []);
-  assert.match(result.actions[0], /would remove alias pr-42.preview.airjam.io/);
-  assert.match(result.actions[1], /would remove deployments tagged pr-42/);
+  assert.match(
+    result.actions[0],
+    /would remove alias full-pr-42.preview.airjam.io/,
+  );
+  assert.match(result.actions[1], /would remove alias pr-42.preview.airjam.io/);
+  assert.match(result.actions[2], /would remove deployments tagged pr-42/);
 });

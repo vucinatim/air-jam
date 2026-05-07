@@ -31,7 +31,10 @@ test("createPreviewOverrideContract derives canonical preview overrides from pro
 
   assert.equal(contract.manifest.railway.sourceEnvironmentName, "production");
   assert.equal(contract.manifest.railway.environmentName, "preview-pr-42");
-  assert.equal(contract.runtime.previewAppOrigin, "https://pr-42.preview.airjam.io");
+  assert.equal(
+    contract.runtime.previewAppOrigin,
+    "https://full-pr-42.preview.airjam.io",
+  );
   assert.equal(
     contract.overrides.platform.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL,
     "https://air-jam-server-preview-pr-42.up.railway.app",

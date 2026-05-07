@@ -32,7 +32,7 @@ test("bringPreviewUp dry-run orchestrates the canonical full-stack flow", async 
   assert.equal(result.previewId, "pr-42");
   assert.equal(result.railwayPrepare.environmentName, "preview-pr-42");
   assert.equal(result.databasePrepare.schemaName, "preview_pr_42");
-  assert.equal(result.runtime.previewHost, "pr-42.preview.airjam.io");
+  assert.equal(result.runtime.previewHost, "full-pr-42.preview.airjam.io");
   assert.equal(result.ready, true);
   assert.match(result.platformDeploy.actions[0], /would deploy platform preview pr-42/);
 });
@@ -47,7 +47,10 @@ test("tearPreviewDown dry-run orchestrates the canonical cleanup flow", async ()
   });
 
   assert.equal(result.previewId, "pr-42");
-  assert.match(result.platformDestroy.actions[0], /would remove alias pr-42.preview.airjam.io/);
+  assert.match(
+    result.platformDestroy.actions[0],
+    /would remove alias full-pr-42.preview.airjam.io/,
+  );
   assert.match(result.databaseDestroy.actions[0], /would drop schema preview_pr_42 cascade/);
   assert.match(result.railwayDestroy.actions[0], /would delete environment preview-pr-42/);
 });

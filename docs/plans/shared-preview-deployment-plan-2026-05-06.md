@@ -63,7 +63,7 @@ facts.
    4. browser worker deploy into `preview-pr-424242`
    5. Railway public domain resolution for both services
    6. Vercel preview-tagged platform deployments and alias creation
-   7. a public preview alias at `pr-424242.preview.airjam.io` returning `200`
+   7. a public full-stack preview alias at `full-pr-424242.preview.airjam.io` returning `200`
 16. the disposable proof environment and preview schema were torn back down after validation, so provider state is back to a clean `production`-only baseline
 
 ### Provider Truths Now Locked In
@@ -134,7 +134,7 @@ through:
 The hardening points that proved necessary in practice are now part of the
 canonical implementation:
 
-1. do not treat a `200` on `pr-<n>.preview.airjam.io` as sufficient success while `*.preview.airjam.io` exists; exact PR alias presence must be part of readiness
+1. do not treat a `200` on a wildcard preview host as sufficient success; the exact full-stack alias such as `full-pr-<n>.preview.airjam.io` must be part of readiness
 2. remove Vercel preview deployments by deployment reference, because the CLI list payload does not reliably expose deployment IDs
 3. use JSON-mode Railway variable writes, because plain-text `railway variable set` can stall in automation even when the write itself is valid
 4. allow a longer Railway environment-name release window after deletion, because fixed `preview-pr-<n>` names can remain unavailable briefly after successful teardown
