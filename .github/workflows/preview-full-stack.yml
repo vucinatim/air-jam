@@ -17,6 +17,9 @@ permissions:
   issues: write
   pull-requests: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: preview-pr-${{ github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: false
@@ -57,12 +60,12 @@ jobs:
             core.setOutput("sha", pr.head.sha);
 
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.pr.outputs.sha }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
 
@@ -123,7 +126,7 @@ jobs:
           pnpm --silent run repo -- "${args[@]}" > preview-up.json
 
       - name: Upload preview result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: preview-up-pr-${{ steps.pr.outputs.number }}
           path: preview-up.json
