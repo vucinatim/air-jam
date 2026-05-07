@@ -1,6 +1,8 @@
 import { createPreviewOverrideContract } from "./preview-override-contract.mjs";
 import { runCommandResult } from "./shell.mjs";
 
+const VERCEL_CLI_MAX_BUFFER = 1024 * 1024 * 20;
+
 const parseLeadingJson = (value, label) => {
   const source = value?.trim();
   if (!source) {
@@ -40,6 +42,7 @@ const runVercelJson = ({ args, token }) => {
     {
       encoding: "utf8",
       stdio: "pipe",
+      maxBuffer: VERCEL_CLI_MAX_BUFFER,
     },
   );
   if (result.status !== 0) {
@@ -59,6 +62,7 @@ const runVercelCommand = ({ args, token, tolerateAliasMissing = false }) => {
     {
       encoding: "utf8",
       stdio: "pipe",
+      maxBuffer: VERCEL_CLI_MAX_BUFFER,
     },
   );
 
@@ -98,6 +102,7 @@ const runVercelText = ({ args, token }) => {
     {
       encoding: "utf8",
       stdio: "pipe",
+      maxBuffer: VERCEL_CLI_MAX_BUFFER,
     },
   );
 
