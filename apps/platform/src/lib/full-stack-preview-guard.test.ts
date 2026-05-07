@@ -17,7 +17,7 @@ describe("full stack preview guard", () => {
     expect(
       isInactiveFullStackPreviewRequest({
         requestHost: "full-pr-10.preview.airjam.io",
-        configuredPlatformPublicUrl: "https://full-pr-10.preview.airjam.io",
+        activePreviewHost: "full-pr-10.preview.airjam.io",
       }),
     ).toBe(false);
   });
@@ -26,8 +26,7 @@ describe("full stack preview guard", () => {
     expect(
       isInactiveFullStackPreviewRequest({
         requestHost: "full-pr-10.preview.airjam.io",
-        configuredPlatformPublicUrl:
-          "https://air-jam-git-main-timvucina.vercel.app",
+        activePreviewHost: "full-pr-999.preview.airjam.io",
       }),
     ).toBe(true);
   });
@@ -36,7 +35,7 @@ describe("full stack preview guard", () => {
     expect(
       isInactiveFullStackPreviewRequest({
         requestHost: "full-pr-10.preview.airjam.io",
-        configuredPlatformPublicUrl: null,
+        activePreviewHost: null,
       }),
     ).toBe(true);
   });
@@ -45,14 +44,13 @@ describe("full stack preview guard", () => {
     expect(
       isInactiveFullStackPreviewRequest({
         requestHost: "airjam.io",
-        configuredPlatformPublicUrl: "https://airjam.io",
+        activePreviewHost: null,
       }),
     ).toBe(false);
     expect(
       isInactiveFullStackPreviewRequest({
         requestHost: "air-jam-git-main-timvucina.vercel.app",
-        configuredPlatformPublicUrl:
-          "https://air-jam-git-main-timvucina.vercel.app",
+        activePreviewHost: null,
       }),
     ).toBe(false);
   });

@@ -68,6 +68,7 @@ export const createPreviewOverrideContract = ({
     env: {
       NODE_ENV: "production",
       DATABASE_URL: controlPlaneState.rendered.databaseUrl,
+      AIRJAM_FULL_STACK_PREVIEW_HOST: manifest.vercel.previewHost,
       NEXT_PUBLIC_AIR_JAM_APP_ID: controlPlane.previewAppId,
       NEXT_PUBLIC_APP_URL: previewAppOrigin,
       NEXT_PUBLIC_AIR_JAM_SERVER_URL: serverPublicUrl,
