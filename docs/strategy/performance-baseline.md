@@ -1,7 +1,7 @@
 # Air Jam Performance Baseline
 
 Last updated: 2026-04-04
-Status: active release gate
+Status: release-gate baseline
 
 This document tracks the committed local server perf sanity contract.
 

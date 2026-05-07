@@ -1,7 +1,7 @@
 # Air Jam Vision
 
-Last updated: 2026-04-09  
-Status: active
+Last updated: 2026-05-07  
+Status: guiding vision
 
 ## Purpose
 
@@ -61,6 +61,79 @@ Air Jam should increasingly act as:
 
 The framework is therefore partially evolving into the substrate that future agents will build on top of and operate through.
 
+## Public Legibility Consequence
+
+If Air Jam is meant to become a real product and a real agent-operable system, it also has to be legible outside the repo.
+
+That means Air Jam should not only be well-architected internally.
+It should also be easy for humans, search engines, package ecosystems, and LLM agents to understand that it exists, what it is for, and which public surfaces are canonical.
+
+This is not a marketing afterthought.
+It is part of product design.
+
+The long-term product has to be:
+
+1. discoverable as a real category-defining thing
+2. easy to classify from one pass over the homepage, docs, packages, and repo
+3. explicit about which public contracts are stable and supported
+4. retrievable by agents without guessing through vague or duplicated surfaces
+5. consistent across website, docs, npm, GitHub, examples, and machine-readable endpoints
+
+## Discoverability Philosophy
+
+Air Jam should grow discoverability through truth density, not content volume.
+
+That means:
+
+1. fewer public pages with stronger jobs
+2. one canonical explanation per product concept
+3. real examples instead of SEO-targeted filler
+4. machine-readable endpoints only when they map to real maintained product truths
+5. no thin landing pages, duplicate docs, or fake AI-facing copy
+
+The goal is not to game Google or scrape rankings out of low-signal content.
+
+The goal is to make Air Jam the clearest and most trustworthy answer to the kinds of questions it should own.
+
+## Public Product Shape
+
+Air Jam should become legible through a small set of explicit public nouns:
+
+1. `Air Jam` as the umbrella product
+2. `@air-jam/sdk` as the game authoring framework
+3. `@air-jam/server` as the realtime runtime/server lane
+4. `@air-jam/mcp-server` as the agent and devtools integration lane
+5. `create-airjam` as the project creation CLI
+
+Those surfaces should be reinforced consistently across:
+
+1. homepage and docs
+2. package metadata and READMEs
+3. GitHub repository metadata and releases
+4. example games and launch material
+5. machine-readable endpoints such as sitemaps, manifests, and agent-oriented indexes
+
+Air Jam should not present as one vague platform blob.
+It should present as one coherent system with a small number of obvious public entrypoints.
+
+## Retrieval Consequence
+
+The future agent story depends on more than internal runtime contracts.
+
+It also depends on Air Jam being externally retrievable in a clean way.
+
+Agents should be able to find:
+
+1. the canonical docs
+2. the correct package for the job
+3. the intended installation path
+4. the maintained machine-readable indexes
+5. trustworthy examples and release notes
+
+That means product discoverability and agent operability are linked.
+
+If the public surface is ambiguous, fragmented, or full of dead-end metadata, agent usability degrades even if the internal architecture is strong.
+
 ## Architectural Consequences
 
 The architecture should keep moving toward these rules:
@@ -72,6 +145,7 @@ The architecture should keep moving toward these rules:
 5. local preview, hosted preview, authoritative release, and publish workflows should share one coherent model
 6. human workflows and agent workflows should use the same core contracts whenever possible
 7. browser automation should be a fallback, not the primary long-term control path
+8. public docs, package surfaces, and machine-readable endpoints should reflect the real architecture instead of drifting into a second inconsistent story
 
 ## Future Agent Control Model
 
@@ -99,3 +173,9 @@ When making architecture decisions now, prefer the option that makes Air Jam eas
 4. an agent-operable game creation and testing harness
 
 If a solution makes the human UI work today but hides the real contract from future agents, it is probably the wrong long-term direction.
+
+The same rule applies to public product surfaces.
+
+If a discoverability tactic increases noise, duplicates explanation, or creates a misleading public story, it is probably the wrong direction even if it might help short-term traffic.
+
+Air Jam should become easier to find by becoming more canonical, more explicit, and more structurally honest.

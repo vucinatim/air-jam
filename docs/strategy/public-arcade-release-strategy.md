@@ -1,15 +1,15 @@
 # Air Jam Public Arcade Release Strategy
 
 Last updated: 2026-03-30  
-Status: active strategy
+Status: stable strategy
 
 Related docs:
 
 1. [Framework Paradigm](../framework-paradigm.md)
 2. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-3. [Auth Capability Plan (Archived)](../archive/auth-capability-plan-2026-03-31.md)
-4. [AI Studio Architecture](../systems/ai-studio-architecture.md)
-5. [Public Arcade Artifact Release Plan (Archived)](../archive/public-arcade-artifact-release-plan-2026-03-31.md)
+3. [Auth Capability Plan (Archived)](../archive/2026-03-31-auth-capability-plan.md)
+4. [Vision](../vision.md)
+5. [Public Arcade Artifact Release Plan (Archived)](../archive/2026-03-31-public-arcade-artifact-release-plan.md)
 
 ## Purpose
 

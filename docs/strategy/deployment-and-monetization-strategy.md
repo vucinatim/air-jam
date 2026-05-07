@@ -1,14 +1,14 @@
 # Air Jam Deployment and Monetization Strategy
 
 Last updated: 2026-03-30  
-Status: active strategy
+Status: stable strategy
 
 Related docs:
 
-1. [Framework Paradigm](./framework-paradigm.md)
-2. [Auth Capability Plan (Archived)](../archive/auth-capability-plan-2026-03-31.md)
+1. [Framework Paradigm](../framework-paradigm.md)
+2. [Auth Capability Plan (Archived)](../archive/2026-03-31-auth-capability-plan.md)
 3. [Public Arcade Release Strategy](./public-arcade-release-strategy.md)
-4. [AI Studio Architecture](../systems/ai-studio-architecture.md)
+4. [Vision](../vision.md)
 5. [Docs Index](../docs-index.md)
 
 ## Purpose

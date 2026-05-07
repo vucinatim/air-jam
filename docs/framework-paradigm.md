@@ -1,7 +1,7 @@
 # Air Jam Framework Paradigm
 
 Last updated: 2026-03-30  
-Status: active
+Status: stable reference
 
 ## Purpose
 
