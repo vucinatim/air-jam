@@ -75,6 +75,12 @@ jobs:
       - name: Build preview CLI runtime prerequisites
         run: pnpm --filter sdk build
 
+      - name: Link Railway project context
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+        run: railway link --project "$RAILWAY_PROJECT_ID" --environment production
+
       - name: Bring preview up
         env:
           PREVIEW_BASE_DOMAIN: ${{ inputs.preview_base_domain || vars.PREVIEW_BASE_DOMAIN }}
