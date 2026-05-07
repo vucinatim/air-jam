@@ -19,7 +19,7 @@ export const LandingPage = ({
   equationCodeBlock,
 }: LandingPageProps) => {
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div className="min-h-svh overflow-x-hidden">
       <LandingHero />
       <main>
         <LandingCoreLoop />

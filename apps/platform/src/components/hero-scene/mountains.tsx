@@ -3,6 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { resolveHeroFrameDelta } from "./frame-step";
 
 const WORLD_CONFIG = {
   SPEED: 24, // units per second (0.4 per frame at 60fps)
@@ -113,8 +114,10 @@ export const Mountains = () => {
   const chunksRef = useRef(chunks);
 
   useFrame((state, delta) => {
+    const dt = resolveHeroFrameDelta(delta);
+
     chunksRef.current.forEach((chunk) => {
-      chunk.position.z += WORLD_CONFIG.SPEED * delta;
+      chunk.position.z += WORLD_CONFIG.SPEED * dt;
 
       // Reset when fully behind camera
       // Camera Z is ~12. Chunk extends +/- 100 from center.

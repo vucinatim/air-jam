@@ -3,6 +3,7 @@
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { resolveHeroFrameDelta } from "./frame-step";
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -208,6 +209,7 @@ function EngineParticles({
 
   useFrame((state, delta) => {
     if (!meshRef.current || !objectRef.current) return;
+    const dt = resolveHeroFrameDelta(delta);
 
     const worldPos = new Vector3();
     const worldQuat = new THREE.Quaternion();
@@ -220,7 +222,7 @@ function EngineParticles({
     } else {
       shipVelocity.current
         .subVectors(worldPos, prevPos.current)
-        .divideScalar(delta);
+        .divideScalar(Math.max(dt, Number.EPSILON));
     }
     prevPos.current.copy(worldPos);
 
@@ -256,7 +258,7 @@ function EngineParticles({
     const sizesArray = meshRef.current.geometry.attributes.particleSize
       .array as Float32Array;
 
-    emissionTimer.current += delta * currentEmissionRate;
+    emissionTimer.current += dt * currentEmissionRate;
     let emitCount = Math.floor(emissionTimer.current);
     emissionTimer.current -= emitCount;
 
@@ -292,10 +294,10 @@ function EngineParticles({
       } else {
         // Update living particles
         const lifeSpeed = isIdle ? 1.5 : 1.0;
-        agesArray[i] += (delta / config.lifetime) * lifeSpeed;
-        positionsArray[i * 3] += velocities[i].x * delta;
-        positionsArray[i * 3 + 1] += velocities[i].y * delta;
-        positionsArray[i * 3 + 2] += velocities[i].z * delta;
+        agesArray[i] += (dt / config.lifetime) * lifeSpeed;
+        positionsArray[i * 3] += velocities[i].x * dt;
+        positionsArray[i * 3 + 1] += velocities[i].y * dt;
+        positionsArray[i * 3 + 2] += velocities[i].z * dt;
       }
     }
 

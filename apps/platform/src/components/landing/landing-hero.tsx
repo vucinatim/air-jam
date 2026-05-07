@@ -11,9 +11,11 @@ import { copyToClipboard } from "@/lib/copy-to-clipboard";
 import { trackWebsiteEvent } from "@/lib/website-analytics";
 import { Check, Copy } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const COMMAND = "npx create-airjam@latest";
+const HERO_PAUSE_BOTTOM_THRESHOLD_PX = 0;
+const HERO_RESUME_BOTTOM_THRESHOLD_PX = 180;
 
 function CopyCommand() {
   const [copied, setCopied] = useState(false);
@@ -50,12 +52,55 @@ function CopyCommand() {
 
 export const LandingHero = () => {
   const { hero } = landingCopy;
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const [heroPaused, setHeroPaused] = useState(false);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const bounds = entry?.boundingClientRect;
+        if (
+          typeof window !== "undefined" &&
+          /Android/i.test(window.navigator.userAgent) &&
+          bounds
+        ) {
+          setHeroPaused((current) => {
+            const shouldPause =
+              bounds.bottom <= HERO_PAUSE_BOTTOM_THRESHOLD_PX
+                ? true
+                : bounds.bottom >= HERO_RESUME_BOTTOM_THRESHOLD_PX
+                  ? false
+                  : current;
+
+            return shouldPause;
+          });
+        }
+      },
+      {
+        threshold: [0, 0.01, 0.25, 0.5, 0.75, 1],
+      },
+    );
+
+    observer.observe(section);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   return (
     <>
       <Navbar />
-      <section className="relative flex min-h-dvh items-center justify-center overflow-hidden pt-16">
-        <HeroScene />
+      <section
+        ref={sectionRef}
+        className="relative flex min-h-svh items-center justify-center overflow-hidden pt-16"
+      >
+        <HeroScene paused={heroPaused} />
 
         <div className="relative z-10 mb-16 flex max-w-4xl flex-col items-center gap-6 px-4 pb-16 text-center sm:mb-24 sm:pb-42">
           <div className="from-airjam-cyan/12 via-airjam-cyan/6 absolute top-1/2 left-1/2 -z-10 h-72 w-full max-w-136 -translate-x-1/2 -translate-y-1/2 rounded-full bg-radial to-transparent blur-3xl" />

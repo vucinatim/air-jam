@@ -3,6 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { resolveHeroFrameDelta } from "./frame-step";
 
 const WORLD_CONFIG = {
   SPEED: 24, // units per second (0.4 per frame at 60fps)
@@ -38,13 +39,14 @@ export const Starfield = () => {
 
   useFrame((state, delta) => {
     if (starsRef.current) {
+      const dt = resolveHeroFrameDelta(delta);
       const positions = starsRef.current.geometry.attributes.position
         .array as Float32Array;
       const count = positions.length / 3;
 
       for (let i = 0; i < count; i++) {
         // Move Z
-        positions[i * 3 + 2] += WORLD_CONFIG.SPEED * 0.5 * delta;
+        positions[i * 3 + 2] += WORLD_CONFIG.SPEED * 0.5 * dt;
 
         // Check boundary (Camera is at ~12)
         if (positions[i * 3 + 2] > 10) {

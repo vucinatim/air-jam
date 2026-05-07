@@ -32,7 +32,11 @@ type HoveredMedia = {
 type GameCardProps = {
   game: Game;
   index: number;
+  hasVideo: boolean;
+  hasThumbnail: boolean;
   onHover: (media: HoveredMedia | null) => void;
+  onImageError: (gameId: string) => void;
+  onVideoError: (gameId: string) => void;
 };
 
 const playPreviewVideo = (video: HTMLVideoElement) => {
@@ -50,17 +54,25 @@ const playPreviewVideo = (video: HTMLVideoElement) => {
   });
 };
 
-const GameCard = ({ game, index, onHover }: GameCardProps) => {
+const GameCard = ({
+  game,
+  index,
+  hasVideo,
+  hasThumbnail,
+  onHover,
+  onImageError,
+  onVideoError,
+}: GameCardProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const href = game.slug ? `/arcade/${game.slug}` : "/arcade";
   const creatorName = getPublicGameOwnerName(game);
 
   const handleMouseEnter = () => {
     onHover({
-      videoUrl: game.videoUrl,
-      imageUrl: game.coverUrl ?? game.thumbnailUrl,
+      videoUrl: hasVideo ? game.videoUrl : null,
+      imageUrl: game.coverUrl ?? (hasThumbnail ? game.thumbnailUrl : null),
     });
-    if (videoRef.current) {
+    if (hasVideo && videoRef.current) {
       videoRef.current.currentTime = 0;
       playPreviewVideo(videoRef.current);
     }
@@ -88,29 +100,32 @@ const GameCard = ({ game, index, onHover }: GameCardProps) => {
       >
         <div className="bg-muted/30 relative aspect-video w-full overflow-hidden">
           <div className="absolute inset-0 z-10 bg-linear-to-t from-black/40 via-transparent to-transparent" />
-          {game.thumbnailUrl ? (
+          {hasThumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element -- remote arcade thumbnails from user-provided URLs
             <img
-              src={game.thumbnailUrl}
+              src={game.thumbnailUrl!}
               alt=""
               className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${
-                game.videoUrl ? "group-hover:opacity-0" : ""
+                hasVideo ? "group-hover:opacity-0" : ""
               }`}
+              loading="lazy"
+              onError={() => onImageError(game.id)}
             />
           ) : (
             <div className="flex h-full items-center justify-center">
               <Gamepad2 className="text-muted-foreground/40 h-14 w-14" />
             </div>
           )}
-          {game.videoUrl ? (
+          {hasVideo ? (
             <video
               ref={videoRef}
-              src={game.videoUrl}
+              src={game.videoUrl!}
               muted
               loop
               playsInline
               preload="auto"
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              onError={() => onVideoError(game.id)}
             />
           ) : null}
         </div>
@@ -132,6 +147,12 @@ export const LandingGameShowcase = () => {
   const { data: games, isLoading } = api.game.getAllPublic.useQuery();
   const featured = selectFeaturedPublicGames(games ?? []);
   const [hoveredMedia, setHoveredMedia] = useState<HoveredMedia | null>(null);
+  const [imageLoadErrors, setImageLoadErrors] = useState<
+    Record<string, boolean>
+  >({});
+  const [videoLoadErrors, setVideoLoadErrors] = useState<
+    Record<string, boolean>
+  >({});
 
   const hasBg = hoveredMedia?.videoUrl || hoveredMedia?.imageUrl;
 
@@ -189,14 +210,34 @@ export const LandingGameShowcase = () => {
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2">
-              {featured.map((game, i) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  index={i}
-                  onHover={setHoveredMedia}
-                />
-              ))}
+              {featured.map((game, i) => {
+                const hasThumbnail =
+                  !!game.thumbnailUrl && !imageLoadErrors[game.id];
+                const hasVideo = !!game.videoUrl && !videoLoadErrors[game.id];
+
+                return (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    index={i}
+                    hasVideo={hasVideo}
+                    hasThumbnail={hasThumbnail}
+                    onHover={setHoveredMedia}
+                    onImageError={(gameId) =>
+                      setImageLoadErrors((current) => ({
+                        ...current,
+                        [gameId]: true,
+                      }))
+                    }
+                    onVideoError={(gameId) =>
+                      setVideoLoadErrors((current) => ({
+                        ...current,
+                        [gameId]: true,
+                      }))
+                    }
+                  />
+                );
+              })}
             </div>
           )}
         </div>
