@@ -101,6 +101,7 @@ jobs:
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
 
       - name: Ensure npm CLI Supports Trusted Publishing
         run: |
@@ -136,6 +137,7 @@ jobs:
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
 
       - name: Ensure npm CLI Supports Trusted Publishing
         run: |
