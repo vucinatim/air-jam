@@ -22,6 +22,13 @@ const mapByName = (entries) =>
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const NON_TERMINAL_DEPLOYMENT_STATUSES = new Set([
+  "BUILDING",
+  "DEPLOYING",
+  "INITIALIZING",
+  "QUEUED",
+]);
+
 const resolveRailwayPreviewContext = ({
   prNumber,
   branchName,
@@ -436,9 +443,15 @@ export const deployPreviewRailwayServices = async ({
     const deployment = await api.waitForDeployment({
       deploymentId,
     });
-    if (!deployment.ok) {
+    const deploymentStatus = deployment.deployment?.status ?? null;
+    const deploymentStillProgressing =
+      deployment.timeout === true ||
+      (deploymentStatus != null &&
+        NON_TERMINAL_DEPLOYMENT_STATUSES.has(deploymentStatus));
+
+    if (!deployment.ok && !deploymentStillProgressing) {
       throw new Error(
-        `Railway deployment failed for ${serviceName} in ${manifest.railway.environmentName}: ${deployment.deployment?.status ?? "unknown"}`,
+        `Railway deployment failed for ${serviceName} in ${manifest.railway.environmentName}: ${deploymentStatus ?? "unknown"}`,
       );
     }
 
@@ -446,10 +459,19 @@ export const deployPreviewRailwayServices = async ({
       serviceName,
       serviceId: instance.serviceId,
       deploymentId,
-      status: deployment.deployment?.status ?? null,
+      status: deploymentStatus,
+      pending:
+        deployment.ok !== true && deploymentStillProgressing === true,
     });
+    if (deployment.ok) {
+      actions.push(
+        `deployed ${serviceName} into ${manifest.railway.environmentName} from commit ${manifest.git.commitSha}`,
+      );
+      continue;
+    }
+
     actions.push(
-      `deployed ${serviceName} into ${manifest.railway.environmentName} from commit ${manifest.git.commitSha}`,
+      `deployment for ${serviceName} is still reporting ${deploymentStatus ?? "in progress"}; continuing to domain and health verification`,
     );
   }
 
@@ -463,4 +485,3 @@ export const deployPreviewRailwayServices = async ({
     actions,
   };
 };
-
