@@ -3,6 +3,16 @@ import { runCommandResult } from "./shell.mjs";
 
 const VERCEL_CLI_MAX_BUFFER = 1024 * 1024 * 20;
 
+const resolveVercelScope = (env = process.env) =>
+  env.PREVIEW_VERCEL_SCOPE?.trim() ||
+  env.VERCEL_SCOPE?.trim() ||
+  null;
+
+const createVercelAuthArgs = ({ token, scope }) => [
+  ...(scope ? ["--scope", scope] : []),
+  ...(token ? ["--token", token] : []),
+];
+
 const parseLeadingJson = (value, label) => {
   const source = value?.trim();
   if (!source) {
@@ -34,8 +44,8 @@ const toVercelEnvArgs = ({ flag, envMap }) =>
     .filter(([, value]) => value != null)
     .flatMap(([key, value]) => [flag, `${key}=${value}`]);
 
-const runVercelJson = ({ args, token }) => {
-  const authArgs = token ? ["--token", token] : [];
+const runVercelJson = ({ args, token, scope = null }) => {
+  const authArgs = createVercelAuthArgs({ token, scope });
   const result = runCommandResult(
     "vercel",
     [...args, ...authArgs, "--non-interactive"],
@@ -54,8 +64,13 @@ const runVercelJson = ({ args, token }) => {
   return parseLeadingJson(result.stdout, `vercel ${args.join(" ")}`);
 };
 
-const runVercelCommand = ({ args, token, tolerateAliasMissing = false }) => {
-  const authArgs = token ? ["--token", token] : [];
+const runVercelCommand = ({
+  args,
+  token,
+  scope = null,
+  tolerateAliasMissing = false,
+}) => {
+  const authArgs = createVercelAuthArgs({ token, scope });
   const result = runCommandResult(
     "vercel",
     [...args, ...authArgs, "--non-interactive"],
@@ -94,8 +109,8 @@ const runVercelCommand = ({ args, token, tolerateAliasMissing = false }) => {
   );
 };
 
-const runVercelText = ({ args, token }) => {
-  const authArgs = token ? ["--token", token] : [];
+const runVercelText = ({ args, token, scope = null }) => {
+  const authArgs = createVercelAuthArgs({ token, scope });
   const result = runCommandResult(
     "vercel",
     [...args, ...authArgs, "--non-interactive"],
@@ -115,7 +130,7 @@ const runVercelText = ({ args, token }) => {
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
 };
 
-const listPreviewDeployments = ({ projectName, previewId, token }) => {
+const listPreviewDeployments = ({ projectName, previewId, token, scope }) => {
   const payload = runVercelJson({
     args: [
       "list",
@@ -126,6 +141,7 @@ const listPreviewDeployments = ({ projectName, previewId, token }) => {
       "json",
     ],
     token,
+    scope,
   });
 
   return payload.deployments ?? [];
@@ -134,6 +150,7 @@ const listPreviewDeployments = ({ projectName, previewId, token }) => {
 export const listAllPreviewDeployments = ({
   projectName,
   token,
+  scope = null,
   maxPages = 20,
 } = {}) => {
   const deployments = [];
@@ -149,6 +166,7 @@ export const listAllPreviewDeployments = ({
         ...(next ? ["--next", String(next)] : []),
       ],
       token,
+      scope,
     });
 
     deployments.push(...(payload.deployments ?? []));
@@ -163,6 +181,7 @@ export const listAllPreviewDeployments = ({
 
 export const listPreviewAliases = ({
   token,
+  scope = null,
   limit = 100,
   maxPages = 20,
 } = {}) => {
@@ -181,6 +200,7 @@ export const listPreviewAliases = ({
         ...(next ? ["--next", String(next)] : []),
       ],
       token,
+      scope,
     });
 
     aliases.push(...(payload.aliases ?? []));
@@ -233,6 +253,7 @@ export const deployPreviewPlatform = ({
     env,
   });
   const { manifest, controlPlaneState, overrides } = preview;
+  const vercelScope = resolveVercelScope(env);
   const hasVercelAuth =
     Boolean(controlPlaneState.controlPlane.vercelToken) || hasLocalVercelAuth();
   const runtimeMissingInputs = [];
@@ -340,12 +361,14 @@ export const deployPreviewPlatform = ({
       ...buildEnvArgs,
     ],
     token: controlPlaneState.controlPlane.vercelToken,
+    scope: vercelScope,
   });
 
   const deployments = listPreviewDeployments({
     projectName: manifest.vercel.projectName,
     previewId: manifest.previewId,
     token: controlPlaneState.controlPlane.vercelToken,
+    scope: vercelScope,
   });
   const deployment = [...deployments].sort(
     (left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0),
@@ -360,6 +383,7 @@ export const deployPreviewPlatform = ({
     runVercelCommand({
       args: ["alias", "set", deploymentReference, manifest.vercel.previewHost],
       token: controlPlaneState.controlPlane.vercelToken,
+      scope: vercelScope,
     });
     actions.push(`aliased deployment to ${manifest.vercel.previewHost}`);
   }
@@ -385,6 +409,7 @@ export const deployPreviewPlatform = ({
 export const previewAliasExists = ({
   host,
   token,
+  scope = null,
 } = {}) => {
   if (!host) {
     return false;
@@ -393,6 +418,7 @@ export const previewAliasExists = ({
   const output = runVercelText({
     args: ["alias", "ls"],
     token,
+    scope: scope ?? resolveVercelScope(),
   });
 
   return output
@@ -418,6 +444,7 @@ export const destroyPreviewPlatform = ({
   const { manifest, controlPlaneState } = preview;
   const actions = [];
   const token = controlPlaneState.controlPlane.vercelToken;
+  const vercelScope = resolveVercelScope(env);
   const hasVercelAuth = Boolean(token) || hasLocalVercelAuth();
   const missingInputs = hasVercelAuth ? [] : ["VERCEL_TOKEN or local Vercel auth"];
 
@@ -447,6 +474,7 @@ export const destroyPreviewPlatform = ({
     const aliasRemoval = runVercelCommand({
       args: ["alias", "remove", manifest.vercel.previewHost, "--yes"],
       token,
+      scope: vercelScope,
       tolerateAliasMissing: true,
     });
     actions.push(
@@ -460,6 +488,7 @@ export const destroyPreviewPlatform = ({
     projectName: manifest.vercel.projectName,
     previewId: manifest.previewId,
     token,
+    scope: vercelScope,
   });
   const deploymentReferences = deployments
     .map((deployment) => resolveDeploymentReference(deployment))
@@ -469,6 +498,7 @@ export const destroyPreviewPlatform = ({
     runVercelCommand({
       args: ["remove", ...deploymentReferences, "--yes"],
       token,
+      scope: vercelScope,
     });
     actions.push(`removed ${deploymentReferences.length} vercel deployment(s)`);
   } else {

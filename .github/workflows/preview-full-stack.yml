@@ -80,10 +80,11 @@ jobs:
 
       - name: Verify provider auth
         env:
+          VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          pnpm exec vercel whoami --token "$VERCEL_TOKEN"
+          pnpm exec vercel whoami --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN"
           pnpm run repo -- railway whoami --json
 
       - name: Bring preview up
@@ -94,6 +95,7 @@ jobs:
           PREVIEW_R2_BUCKET: ${{ vars.PREVIEW_R2_BUCKET }}
           PREVIEW_R2_ACCOUNT_ID: ${{ vars.PREVIEW_R2_ACCOUNT_ID }}
           PREVIEW_R2_ENDPOINT: ${{ vars.PREVIEW_R2_ENDPOINT }}
+          VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           PREVIEW_AIR_JAM_MASTER_KEY: ${{ secrets.PREVIEW_AIR_JAM_MASTER_KEY }}
