@@ -442,6 +442,8 @@ export const deployPreviewRailwayServices = async ({
     });
     const deployment = await api.waitForDeployment({
       deploymentId,
+      retries: 15,
+      retryDelayMs: 2000,
     });
     const deploymentStatus = deployment.deployment?.status ?? null;
     const deploymentStillProgressing =
