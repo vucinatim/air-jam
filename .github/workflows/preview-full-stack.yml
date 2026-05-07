@@ -72,6 +72,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build preview CLI runtime prerequisites
+        run: pnpm --filter sdk build
+
       - name: Bring preview up
         env:
           PREVIEW_BASE_DOMAIN: ${{ inputs.preview_base_domain || vars.PREVIEW_BASE_DOMAIN }}
