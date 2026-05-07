@@ -1,6 +1,6 @@
 import type { GameMediaKind } from "@/lib/games/game-media-contract";
 import { buildGameMediaUrl } from "@/lib/games/game-media-url";
-import { resolvePlatformPublicUrl } from "@/lib/platform-public-url";
+import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
 
 export const buildManagedGameMediaUrl = ({
   gameId,
@@ -19,17 +19,11 @@ export const buildManagedGameMediaUrl = ({
     gameId,
     kind,
   });
-  const hasExplicitPublicOrigin = Boolean(
-    process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST ||
-      process.env.VERCEL_URL,
-  );
+  const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
 
-  if (!hasExplicitPublicOrigin) {
+  if (!deploymentConfig.hasExplicitPlatformPublicOrigin) {
     return mediaPath;
   }
 
-  return new URL(
-    mediaPath,
-    resolvePlatformPublicUrl(),
-  ).toString();
+  return new URL(mediaPath, deploymentConfig.platformPublicUrl).toString();
 };

@@ -43,7 +43,13 @@ export const captureReleaseScreenshot = async ({
   });
 
   const browser = config.browserLaunch.wsEndpoint
-    ? await chromium.connect(config.browserLaunch.wsEndpoint)
+    ? await chromium.connect(config.browserLaunch.wsEndpoint, {
+        headers: config.browserLaunch.accessToken
+          ? {
+              authorization: `Bearer ${config.browserLaunch.accessToken}`,
+            }
+          : undefined,
+      })
     : await chromium.launch({
         headless: true,
         executablePath: config.browserLaunch.executablePath ?? undefined,

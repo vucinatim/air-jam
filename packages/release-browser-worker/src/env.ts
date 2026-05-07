@@ -49,6 +49,7 @@ const workerEnvSchema = z
       false,
     ),
     AIRJAM_BROWSER_WORKER_EXECUTABLE_PATH: optionalEnvValue,
+    AIRJAM_BROWSER_WORKER_ACCESS_TOKEN: optionalEnvValue,
   })
   .superRefine((value, context) => {
     const portSource = value.PORT ?? value.AIRJAM_BROWSER_WORKER_PORT;
@@ -75,6 +76,7 @@ const workerEnvSchema = z
       headless: value.AIRJAM_BROWSER_WORKER_HEADLESS,
       chromiumSandbox: value.AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX,
       executablePath: value.AIRJAM_BROWSER_WORKER_EXECUTABLE_PATH ?? null,
+      accessToken: value.AIRJAM_BROWSER_WORKER_ACCESS_TOKEN ?? null,
     };
   });
 

@@ -4,6 +4,7 @@ import {
   resolveRuntimeTopology,
 } from "@air-jam/sdk/runtime-topology";
 import { z } from "zod";
+import { resolvePlatformDeploymentConfig } from "./platform-deployment-config";
 
 export const arcadeInputSchema = z.object({
   vector: z.object({
@@ -49,20 +50,28 @@ export const resolvePlatformTopology = (
   });
 };
 
-export const getPlatformControllerSessionConfig = () => ({
-  topology: resolvePlatformTopology(
-    "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
-  ),
-  appId: process.env.NEXT_PUBLIC_AIR_JAM_APP_ID,
-  hostGrantEndpoint: process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT,
-});
+export const getPlatformControllerSessionConfig = () => {
+  const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
 
-export const getPlatformArcadeHostSessionConfig = () => ({
-  topology: resolvePlatformTopology("NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY"),
-  appId: process.env.NEXT_PUBLIC_AIR_JAM_APP_ID,
-  hostGrantEndpoint: process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT,
-  hostSessionKind: "system" as const,
-  input: {
-    schema: arcadeInputSchema,
-  },
-});
+  return {
+    topology: resolvePlatformTopology(
+      "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
+    ),
+    appId: deploymentConfig.appId,
+  };
+};
+
+export const getPlatformArcadeHostSessionConfig = () => {
+  const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
+
+  return {
+    topology: resolvePlatformTopology(
+      "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY",
+    ),
+    appId: deploymentConfig.appId,
+    hostSessionKind: "system" as const,
+    input: {
+      schema: arcadeInputSchema,
+    },
+  };
+};

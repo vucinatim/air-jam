@@ -1,0 +1,171 @@
+name: Preview Full Stack
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number"
+        required: true
+        type: string
+      preview_base_domain:
+        description: "Optional base domain override (for example: preview.airjam.io)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: preview-pr-${{ github.event.inputs.pr_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  preview-up:
+    name: Preview Up
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve pull request metadata
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = Number.parseInt(core.getInput("pr_number"), 10);
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed(`Invalid PR number: ${core.getInput("pr_number")}`);
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+
+            const isTrusted =
+              pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
+            if (!isTrusted) {
+              core.setFailed(
+                `PR #${prNumber} is from ${pr.head.repo.full_name}. Full-stack preview is only supported for same-repo trusted PRs.`,
+              );
+              return;
+            }
+
+            core.setOutput("number", String(pr.number));
+            core.setOutput("branch", pr.head.ref);
+            core.setOutput("sha", pr.head.sha);
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bring preview up
+        env:
+          PREVIEW_BASE_DOMAIN: ${{ inputs.preview_base_domain || vars.PREVIEW_BASE_DOMAIN }}
+          PREVIEW_AIR_JAM_APP_ID: ${{ vars.PREVIEW_AIR_JAM_APP_ID }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          PREVIEW_R2_BUCKET: ${{ vars.PREVIEW_R2_BUCKET }}
+          PREVIEW_R2_ACCOUNT_ID: ${{ vars.PREVIEW_R2_ACCOUNT_ID }}
+          PREVIEW_R2_ENDPOINT: ${{ vars.PREVIEW_R2_ENDPOINT }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          PREVIEW_AIR_JAM_MASTER_KEY: ${{ secrets.PREVIEW_AIR_JAM_MASTER_KEY }}
+          PREVIEW_BETTER_AUTH_SECRET: ${{ secrets.PREVIEW_BETTER_AUTH_SECRET }}
+          PREVIEW_RELEASES_INTERNAL_ACCESS_TOKEN: ${{ secrets.PREVIEW_RELEASES_INTERNAL_ACCESS_TOKEN }}
+          PREVIEW_RELEASES_BROWSER_ACCESS_TOKEN: ${{ secrets.PREVIEW_RELEASES_BROWSER_ACCESS_TOKEN }}
+          PREVIEW_DATABASE_URL_TEMPLATE: ${{ secrets.PREVIEW_DATABASE_URL_TEMPLATE }}
+          PREVIEW_R2_ACCESS_KEY_ID: ${{ secrets.PREVIEW_R2_ACCESS_KEY_ID }}
+          PREVIEW_R2_SECRET_ACCESS_KEY: ${{ secrets.PREVIEW_R2_SECRET_ACCESS_KEY }}
+        run: |
+          args=(
+            preview
+            up
+            --pr "${{ steps.pr.outputs.number }}"
+            --branch "${{ steps.pr.outputs.branch }}"
+            --sha "${{ steps.pr.outputs.sha }}"
+            --apply
+            --json
+          )
+
+          if [ -n "$PREVIEW_BASE_DOMAIN" ]; then
+            args+=(--preview-base-domain "$PREVIEW_BASE_DOMAIN")
+          fi
+
+          pnpm run repo -- "${args[@]}" > preview-up.json
+
+      - name: Upload preview result
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-up-pr-${{ steps.pr.outputs.number }}
+          path: preview-up.json
+
+      - name: Write summary
+        run: |
+          echo "## Full-stack preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "PR #${{ steps.pr.outputs.number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat preview-up.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview status on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("node:fs");
+            const result = JSON.parse(fs.readFileSync("preview-up.json", "utf8"));
+            const marker = `<!-- airjam-preview:${result.previewId} -->`;
+            const body = [
+              marker,
+              `## Full-stack preview ${result.ready ? "ready" : "provisioned"}`,
+              "",
+              `- App: https://${result.runtime.previewHost}`,
+              `- Server: https://${result.runtime.serverPublicDomain}`,
+              `- Worker: https://${result.runtime.workerPublicDomain}`,
+              `- Railway env: \`${result.manifest.railway.environmentName}\``,
+              `- Preview schema: \`${result.manifest.database.schemaName}\``,
+              "",
+              "Verification:",
+              `- Platform: ${result.verification.checks?.platform?.ok ? "ok" : "pending"}`,
+              `- Server: ${result.verification.checks?.server?.ok ? "ok" : "pending"}`,
+              `- Worker: ${result.verification.checks?.worker?.ok ? "ok" : "pending"}`,
+            ].join("\n");
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number.parseInt("${{ steps.pr.outputs.number }}", 10),
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) => comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number.parseInt("${{ steps.pr.outputs.number }}", 10),
+              body,
+            });
