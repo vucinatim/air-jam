@@ -51,6 +51,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build preview CLI runtime prerequisites
+        run: pnpm --filter sdk build
+
       - name: Sweep orphaned previews
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
