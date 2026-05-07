@@ -14,6 +14,9 @@ const rootPackageJson = JSON.parse(
 const workflowFiles = [
   ".github/workflows/ci.yml",
   ".github/workflows/publish-packages.yml",
+  ".github/workflows/preview-full-stack.yml",
+  ".github/workflows/preview-full-stack-destroy.yml",
+  ".github/workflows/preview-full-stack-sweep.yml",
 ];
 const lockfileSource = fs.readFileSync(
   path.join(repoRoot, "pnpm-lock.yaml"),
@@ -63,4 +66,33 @@ test("workflows use corepack-driven pnpm instead of hardcoded setup versions", (
       `${relativePath} should not pin pnpm separately from packageManager`,
     );
   }
+});
+
+test("preview-full-stack workflow checks out the pull request head sha", () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, ".github/workflows/preview-full-stack.yml"),
+    "utf8",
+  );
+
+  const resolveIndex = source.indexOf("Resolve pull request metadata");
+  const checkoutIndex = source.indexOf("Checkout PR head");
+
+  assert.notEqual(
+    resolveIndex,
+    -1,
+    "preview-full-stack workflow should resolve pull request metadata",
+  );
+  assert.notEqual(
+    checkoutIndex,
+    -1,
+    "preview-full-stack workflow should check out the PR head",
+  );
+  assert.ok(
+    resolveIndex < checkoutIndex,
+    "preview-full-stack workflow should resolve PR metadata before checkout",
+  );
+  assert.ok(
+    source.includes("ref: ${{ steps.pr.outputs.sha }}"),
+    "preview-full-stack workflow should check out the exact PR head sha",
+  );
 });
