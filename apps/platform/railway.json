@@ -16,7 +16,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "cd /app/apps/platform/.next/standalone && node apps/platform/server.js",
+    "startCommand": "node /app/apps/platform/.next/standalone/apps/platform/server.js",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
