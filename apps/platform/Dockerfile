@@ -17,6 +17,5 @@ RUN pnpm --filter platform build
 WORKDIR /app/apps/platform
 
 ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
 
 CMD ["node", "/app/apps/platform/.next/standalone/apps/platform/server.js"]
