@@ -1,143 +1,74 @@
 # Air Jam Docs Index
 
-Current core docs:
+Last updated: 2026-05-08  
+Status: current navigation
 
-1. [Vision](./vision.md)
-2. [Framework Paradigm](./framework-paradigm.md)
-3. [Air Jam Framework Capabilities](./airjam-framework-capabilities.md)
-4. [Work Ledger](./work-ledger.md)
-5. [Monorepo Operating System](./monorepo-operating-system.md)
-6. [Suggestions](./suggestions.md)
+This is the canonical navigation entry for the Air Jam repository.
 
-Core system docs:
+## Read First
 
-1. [Arcade Surface Contract](./systems/arcade-surface-contract.md)
-2. [AI-Native Development Workflow](./systems/ai-native-development-workflow.md)
-3. [Documentation Architecture](./systems/documentation-architecture.md)
-4. [Analytics Architecture](./systems/analytics-architecture.md)
-5. [AI Studio Architecture](./systems/ai-studio-architecture.md)
-6. [Platform Controller Presentation](./systems/platform-controller-presentation.md)
-7. [Environment Contracts](./systems/env-contracts.md)
-8. [Legacy Game Migration Guide](./systems/legacy-game-migration-guide.md)
-9. [Composition Shell Contract](./systems/composition-shell-contract.md)
+Use this order for fast orientation:
 
-Strategy and operations:
+1. [../README.md](../README.md)
+2. [current-state.md](./current-state.md)
+3. [working-agreements.md](./working-agreements.md)
+4. [documentation-taxonomy.md](./documentation-taxonomy.md)
+5. the relevant active plan
+6. [work-ledger.md](./work-ledger.md) only if historical context is needed
 
-1. [Release Workflow](./strategy/release-workflow.md)
-2. [Performance Baseline](./strategy/performance-baseline.md)
-3. [Deployment Topology](./strategy/deployment-topology.md)
-4. [Deployment and Monetization Strategy](./strategy/deployment-and-monetization-strategy.md)
-5. [Production Observability Baseline](./strategy/production-observability-baseline.md)
-6. [Public Arcade Release Strategy](./strategy/public-arcade-release-strategy.md)
-7. [Project Review (2026-04-15)](./strategy/project-review-2026-04-15.md)
+Default agent loop:
 
-Release-critical plans:
+1. orient from the read-first path
+2. open only the relevant active plan
+3. implement and validate
+4. update history or current-state only if the operating rules require it
 
-1. [V1 Release Launch Plan](./plans/v1-release-launch-plan.md)
-2. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
-3. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
-4. [Prerelease Agent Dev Loop Hardening Plan](./plans/prerelease-agent-dev-loop-hardening-plan.md)
+## Active Now
 
-Active architecture cleanup plans:
+This is the single plan that currently governs work:
 
-1. [SDK Game Authoring Ergonomics Plan](./plans/sdk-game-authoring-ergonomics-plan.md)
-2. [Code Review Reference Cleanup Plan](./plans/code-review-reference-cleanup-plan.md)
-3. [Last Band Standing Polish Plan](./plans/last-band-standing-polish-plan.md)
-4. [Landing, Arcade, and Controller Polish Plan](./plans/landing-arcade-controller-polish-plan-2026-05-03.md)
-5. [Controller And Platform Settings Ownership Plan](./plans/controller-platform-settings-ownership-plan-2026-05-03.md)
-6. [NPM Public Release And Automation Plan](./plans/npm-public-release-and-automation-plan-2026-05-03.md)
-7. [Public Package Surface Rationalization Plan](./plans/public-package-surface-rationalization-plan-2026-05-05.md)
+1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
 
-Planned future architecture tracks:
+## Planned Next
 
-1. [Remote Rooms And Display Surfaces Plan](./plans/remote-rooms-and-display-surfaces-plan.md)
-2. [Hosted Release CLI And MCP Plan](./plans/hosted-release-cli-and-mcp-plan.md)
+These are real next-step tracks, but not the current execution focus:
 
-Prerelease future-proofing guides:
+1. concrete GTM and discoverability execution derived from:
+   1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
+   2. [discoverability-vision.md](./discoverability-vision.md)
+2. creator-attribution polish for Arcade trust and self-promotion
+3. future architecture work is intentionally non-current and now lives as archive/history rather than as live release planning
 
-1. [Remote Rooms Prerelease Future-Proofing Plan](./plans/remote-rooms-prerelease-future-proofing-plan.md)
+## Core Docs
 
-Canonical release sequence:
+1. [vision.md](./vision.md)
+2. [discoverability-vision.md](./discoverability-vision.md)
+3. [framework-paradigm.md](./framework-paradigm.md)
+4. [capability-inventory.md](./capability-inventory.md)
+5. [monorepo-operating-system.md](./monorepo-operating-system.md)
 
-1. implementation
-2. fixes
-3. UI/gameplay polish
-4. prerelease cleanup
-5. prerelease devex/SDK checks
-6. prerelease security checks
-7. final prerelease overpass
-8. final docs alignment
-9. uploads / media / landing overlook
-10. merge, deploy, live test, and launch distribution
+## Operating Surfaces
 
-Active prerelease implementation plan:
+1. [current-state.md](./current-state.md)
+2. [working-agreements.md](./working-agreements.md)
+3. [documentation-taxonomy.md](./documentation-taxonomy.md)
+4. [work-ledger.md](./work-ledger.md)
+5. [suggestions.md](./suggestions.md)
 
-1. [Final Prerelease Hardening And Cleanup Plan](./plans/final-prerelease-hardening-and-cleanup-plan.md)
+## Reference Directories
 
-Final release-proof plan:
+1. `docs/plans/`
+2. `docs/architecture/`
+3. `docs/contracts/`
+4. `docs/guides/`
+5. `docs/strategy/`
+6. `docs/content/`
+7. `docs/archive/`
 
-1. [Final Release Checks Plan](./plans/final-release-checks-plan.md)
+Use the capability inventory for breadth and these directories for the cleaner
+explanatory layer around the same implemented surface.
 
-Archived recent baseline plans and completed implementation snapshots:
+## Rule
 
-1. [Game Source Scaffolding Plan](./archive/game-source-scaffolding-plan-2026-04-07.md)
-2. [ZeroDays Game Import And Template Promotion Plan](./archive/zerodays-game-import-template-promotion-plan-2026-04-07.md)
-3. [Local Runtime Workflow Modes Plan](./archive/local-runtime-workflow-modes-plan-2026-04-07.md)
-4. [Runtime Topology And Endpoint Contract Plan](./archive/runtime-topology-and-endpoint-contract-plan-2026-04-07.md)
-5. [Controller Reconnect And Resume Plan](./archive/controller-reconnect-resume-plan-2026-04-07.md)
-6. [Standard Lifecycle Contract Plan](./archive/standard-lifecycle-contract-plan-2026-04-09.md)
-7. [Composition Shell Contract Plan](./archive/composition-shell-contract-plan-2026-04-09.md)
-8. [Public Release Security Hardening Plan](./archive/public-release-security-hardening-plan-2026-04-09.md)
-9. [Showcase Games Release Readiness Plan](./archive/showcase-games-release-readiness-plan-2026-04-09.md)
-10. [Showcase Games Release Readiness Checklist](./archive/showcase-games-release-readiness-checklist-2026-04-09.md)
-11. [SDK Extraction Clean-Swap Plan](./archive/sdk-extraction-clean-swap-plan-2026-04-09.md)
-12. [Controller Preview Dock Plan](./archive/controller-preview-dock-plan-2026-04-09.md)
-13. [Controller Preview Workspace Plan](./archive/controller-preview-workspace-plan-2026-04-14.md)
-14. [Agent Runtime Contract Plan](./archive/agent-runtime-contract-plan-2026-04-09.md)
-15. [Prerelease Systems Closeout Plan](./archive/prerelease-systems-closeout-plan-2026-04-09.md)
-16. [Game UI Scaling Plan](./archive/game-ui-scaling-plan-2026-04-15.md)
-17. [Stage 3 Polish Plan](./archive/stage-3-polish-plan-2026-04-15.md)
-18. [SDK Audio And Music Standardization Plan](./archive/sdk-audio-and-music-standardization-plan-2026-04-19.md)
-19. [Visual Harness Isolation Plan](./archive/visual-harness-isolation-plan-2026-05-02.md)
-20. [Agent Control System Rewrite Plan](./archive/agent-control-system-rewrite-plan-2026-05-02.md)
-21. [Air Jam MCP And Agent Devtools Plan](./archive/air-jam-mcp-and-agent-devtools-plan-2026-05-02.md)
-
-Completed transitions / reference plans:
-
-1. [Arcade Architecture Reset Summary](./archive/arcade-architecture-reset-summary.md)
-2. [AI-Native Template System Rollout](./archive/ai-native-template-system-rollout-2026-03-29.md)
-3. [Logging System Rollout](./archive/logging-system-rollout-2026-03-29.md)
-4. [Shared Local Secure Dev Plan](./archive/shared-local-secure-dev-plan-2026-04-03.md)
-5. [Documentation Migration Plan](./archive/documentation-migration-plan-2026-03-27.md)
-6. [Root Workspace CLI Consolidation Plan](./archive/root-workspace-cli-consolidation-plan-2026-04-04.md)
-7. [Postgres Dev And Analytics Test DB Plan](./archive/postgres-dev-and-analytics-test-db-plan-2026-04-04.md)
-8. [Controller Capability And Perf Hardening Plan](./archive/controller-capability-and-perf-hardening-plan-2026-04-04.md)
-9. [Analytics Implementation Plan](./archive/analytics-implementation-plan-2026-03-27.md)
-10. [Documentation Hardening Plan (Archived)](./archive/documentation-hardening-plan-2026-03-29.md)
-11. [Landing Page Polish Plan (Archived)](./archive/landing-page-polish-plan-2026-03-29.md)
-12. [Legacy Game Migration Working Notes (Archived)](./archive/legacy-game-migration-working-notes-2026-03-29.md)
-13. [Release Prep Plan (Archived)](./archive/release-prep-plan-2026-03-31.md)
-14. [V1 Closeout Plan (Archived)](./archive/v1-closeout-plan-2026-03-31.md)
-15. [Release-Facing Polish Plan (Archived)](./archive/release-polish-plan-2026-03-31.md)
-16. [Air Capture Reference Refactor Plan (Archived)](./archive/air-capture-reference-refactor-plan-2026-03-31.md)
-17. [Platform Dashboard Account Auth Plan (Archived)](./archive/platform-dashboard-account-auth-plan-2026-03-31.md)
-18. [Platform Settings Runtime Plan (Archived)](./archive/platform-settings-runtime-plan-2026-03-31.md)
-19. [SDK Runtime Ownership Reset Plan (Archived)](./archive/sdk-runtime-ownership-plan-2026-03-31.md)
-20. [Public Arcade Artifact Release Plan (Archived)](./archive/public-arcade-artifact-release-plan-2026-03-31.md)
-21. [Auth Capability Plan (Archived)](./archive/auth-capability-plan-2026-03-31.md)
-22. [SDK Composability Plan (Archived)](./archive/sdk-composability-plan-2026-03-31.md)
-23. [SDK RPC Action Contract Plan (Archived)](./archive/sdk-rpc-action-contract-plan-2026-03-31.md)
-
-Content drafts:
-
-1. [Blog Article Draft](./content/blog-article-draft.md)
-2. [V1 Release Article Outline](./content/v1-release-article-outline.md)
-
-Archived / historical docs:
-
-1. [Arcade Architecture Reset Tracker (2026-03-26)](./archive/arcade-architecture-reset-tracker-2026-03-26.md)
-2. [Arcade Runtime Full Transition Plan](./archive/arcade-runtime-full-transition-plan.md)
-3. [Arcade Controller Overlay Plan](./archive/arcade-controller-overlay-plan.md)
-4. [SDK Surface Plan](./archive/sdk-surface-plan.md)
-5. [Framework Usage Review (2026-03-21)](./archive/framework-usage-review-2026-03-21.md)
-6. [Archive README](./archive/README.md)
+Keep this file compact.
+It should point to the right surfaces, not re-list every file in the repo.

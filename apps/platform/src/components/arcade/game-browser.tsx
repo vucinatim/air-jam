@@ -1,5 +1,6 @@
 "use client";
 
+import { PublicGameCreatorStrip } from "@/components/catalog/public-game-creator-strip";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
@@ -14,6 +15,7 @@ import { Check, Code2, Gamepad2, Github } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  memo,
   useRef,
   useState,
   type MouseEvent,
@@ -48,7 +50,7 @@ interface GameBrowserProps {
  * Renders a grid of game cards for the arcade browser.
  * Users can click on cards to select and launch games.
  */
-export const GameBrowser = ({
+export const GameBrowser = memo(function GameBrowser({
   games,
   selectedIndex,
   isVisible,
@@ -56,7 +58,7 @@ export const GameBrowser = ({
   onSelectGame,
   header,
   onScrollTopChange,
-}: GameBrowserProps) => {
+}: GameBrowserProps) {
   return (
     <AudioRuntime manifest={ARCADE_SOUND_MANIFEST}>
       <GameBrowserContent
@@ -70,7 +72,7 @@ export const GameBrowser = ({
       />
     </AudioRuntime>
   );
-};
+});
 
 const GameBrowserContent = ({
   games,
@@ -84,6 +86,7 @@ const GameBrowserContent = ({
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const lastEmittedAtTopRef = useRef<boolean | null>(null);
   const copyFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -147,7 +150,12 @@ const GameBrowserContent = ({
     if (!onScrollTopChange) return;
     const el = scrollRootRef.current;
     if (!el) return;
-    onScrollTopChange(el.scrollTop <= SCROLL_TOP_THRESHOLD_PX);
+    const atTop = el.scrollTop <= SCROLL_TOP_THRESHOLD_PX;
+    if (lastEmittedAtTopRef.current === atTop) {
+      return;
+    }
+    lastEmittedAtTopRef.current = atTop;
+    onScrollTopChange(atTop);
   }, [onScrollTopChange]);
 
   useEffect(() => {
@@ -206,8 +214,7 @@ const GameBrowserContent = ({
         <div className="absolute top-0 right-0 left-0 z-50 p-4">{header}</div>
       )}
 
-      {/* Title: in flow, directly under arcade chrome gutter */}
-      <header className="z-40 flex shrink-0 flex-col items-center pb-5 text-center">
+      <header className="z-40 flex shrink-0 flex-col items-center pt-14 pb-5 text-center">
         <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
           Air Jam <span className="text-airjam-cyan font-bold">Arcade</span>
         </h1>
@@ -367,6 +374,13 @@ const GameBrowserContent = ({
                       ) : null}
                     </div>
                   ) : null}
+
+                  <div className="absolute top-3 left-3 z-20">
+                    <PublicGameCreatorStrip
+                      game={game}
+                      onClick={(event) => event.stopPropagation()}
+                    />
+                  </div>
 
                   <div className="absolute right-0 bottom-0 left-0 p-4">
                     {game.catalogBadgeLabel ? (

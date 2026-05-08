@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getPublicGameCreators,
   getPublicGameDisplayName,
   getPublicGameOwnerName,
   selectFeaturedPublicGames,
@@ -41,6 +42,24 @@ describe("public game presentation", () => {
         ownerName: "AirJam",
       }),
     ).toBe("AirJam");
+  });
+
+  it("returns curated creator stacks for public games", () => {
+    expect(
+      getPublicGameCreators({
+        name: "Code Review",
+        slug: "code-review",
+        ownerName: "AirJam",
+      }).map((creator) => creator.name),
+    ).toEqual(["Tim Kalan", "Žiga Pk", "Miha Majetić"]);
+
+    expect(
+      getPublicGameCreators({
+        name: "Pong",
+        slug: "pong",
+        ownerName: "AirJam",
+      }).map((creator) => creator.name),
+    ).toEqual(["Tim Vučina"]);
   });
 
   it("returns featured landing games in curated order", () => {

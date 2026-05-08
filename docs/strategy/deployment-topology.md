@@ -1,7 +1,7 @@
 # Deployment Topology
 
 Last updated: 2026-05-06
-Status: active
+Status: canonical topology
 
 This document defines the intended production topology for Air Jam and the cleanup path from the current state to a more deterministic deployment system.
 
@@ -171,7 +171,7 @@ Current live shape:
 
 This means the overall topology direction is correct, but the operational clarity is not complete yet.
 
-One important current truth from the preview rollout:
+One important current fact from the preview rollout:
 
 1. the repo now has service-level config-as-code for both the realtime server and the release browser worker
 2. the live Railway project still needs those config-as-code paths pinned explicitly in the provider so preview and production deploys stop depending on the currently stored service build configuration

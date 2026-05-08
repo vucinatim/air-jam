@@ -80,6 +80,7 @@ export type PlatformDeploymentConfig = {
   authTrustedOrigins: string[];
   githubAuthEnabled: boolean;
   appId: string | undefined;
+  systemHostGrantEndpoint: string | undefined;
 };
 
 export const PLATFORM_PUBLIC_URL_FALLBACK = LOCAL_FALLBACK;
@@ -129,5 +130,8 @@ export const resolvePlatformDeploymentConfig = (
       ),
     ),
     appId: trimToUndefined(env.NEXT_PUBLIC_AIR_JAM_APP_ID),
+    systemHostGrantEndpoint:
+      trimToUndefined(env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT) ??
+      (env.NODE_ENV === "production" ? "/api/airjam/host-grant" : undefined),
   };
 };

@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeRuntimeTopology } from "@air-jam/sdk/runtime-topology";
-import { resolvePlatformTopology } from "./airjam-session-config";
+import {
+  getPlatformArcadeHostSessionConfig,
+  resolvePlatformTopology,
+} from "./airjam-session-config";
 
 const ORIGINAL_WINDOW = globalThis.window;
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 
 describe("resolvePlatformTopology", () => {
   beforeEach(() => {
     delete process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY;
     delete process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY;
+    delete process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT;
+    process.env.NODE_ENV = ORIGINAL_NODE_ENV;
 
     if (ORIGINAL_WINDOW === undefined) {
       // @ts-expect-error test cleanup
@@ -60,5 +66,23 @@ describe("resolvePlatformTopology", () => {
     expect(topology.appOrigin).toBe("http://localhost:3000");
     expect(topology.socketOrigin).toBe("http://localhost:3000");
     expect(topology.publicHost).toBe("http://192.168.0.33:3000");
+  });
+
+  it("prefers the platform host grant endpoint for the arcade system in production", () => {
+    process.env.NODE_ENV = "production";
+    process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY =
+      serializeRuntimeTopology({
+        runtimeMode: "hosted-release",
+        surfaceRole: "platform-host",
+        appOrigin: "https://airjam.io",
+        backendOrigin: "https://api.airjam.io",
+        publicHost: "https://airjam.io",
+        proxyStrategy: "none",
+      });
+
+    const config = getPlatformArcadeHostSessionConfig();
+
+    expect(config.hostGrantEndpoint).toBe("/api/airjam/host-grant");
+    expect(config.hostSessionKind).toBe("system");
   });
 });

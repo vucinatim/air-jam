@@ -48,6 +48,14 @@ export const createPlatformSecurityHeaders = ({
   const frameAncestors = allowInsecureDevFrames
     ? "frame-ancestors 'self' http: https:"
     : "frame-ancestors 'self'";
+  const scriptSrcHosts = [
+    "https://cloud.umami.is",
+    "https://va.vercel-scripts.com",
+    ...(allowInsecureDevFrames ? ["https://unpkg.com"] : []),
+  ].join(" ");
+  const workerSrc = allowInsecureDevFrames
+    ? "worker-src 'self' blob:"
+    : "worker-src 'self'";
 
   // Baseline CSP tuned for the real Air Jam embed model:
   // - the platform shell iframes game release content from the same origin
@@ -66,12 +74,13 @@ export const createPlatformSecurityHeaders = ({
   // routes should not override it unless there is a concrete product reason.
   const contentSecurityPolicy = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cloud.umami.is https://va.vercel-scripts.com",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${scriptSrcHosts}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     connectSrc,
     "media-src 'self' blob: https:",
+    workerSrc,
     frameSrc,
     frameAncestors,
     "object-src 'none'",

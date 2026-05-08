@@ -74,4 +74,25 @@ describe("resolvePlatformDeploymentConfig", () => {
       appId: "airjam-preview-app",
     });
   });
+
+  it("defaults the platform system host grant endpoint in production", () => {
+    expect(
+      resolvePlatformDeploymentConfig({
+        NODE_ENV: "production",
+      }).systemHostGrantEndpoint,
+    ).toBe("/api/airjam/host-grant");
+
+    expect(
+      resolvePlatformDeploymentConfig({
+        NODE_ENV: "production",
+        NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT: "https://auth.airjam.io/grant",
+      }).systemHostGrantEndpoint,
+    ).toBe("https://auth.airjam.io/grant");
+
+    expect(
+      resolvePlatformDeploymentConfig({
+        NODE_ENV: "development",
+      }).systemHostGrantEndpoint,
+    ).toBeUndefined();
+  });
 });

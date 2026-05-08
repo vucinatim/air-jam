@@ -1,11 +1,11 @@
 # Air Jam Release Workflow
 
 Last updated: 2026-03-27
-Status: active
+Status: canonical workflow
 
 Related docs:
 
-1. [Release Prep Plan (Archived)](../archive/release-prep-plan-2026-03-31.md)
+1. [Release Prep Plan (Archived)](../archive/2026-03-31-release-prep-plan.md)
 2. [Monorepo Operating System](../monorepo-operating-system.md)
 3. [Docs Index](../docs-index.md)
 

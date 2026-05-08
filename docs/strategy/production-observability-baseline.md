@@ -1,12 +1,12 @@
 # Air Jam Production Observability Baseline
 
 Last updated: 2026-03-29  
-Status: active strategy
+Status: stable baseline
 
 Related docs:
 
 1. [Framework Paradigm](../framework-paradigm.md)
-2. [Analytics Architecture](../systems/analytics-architecture.md)
+2. [Analytics Architecture](../architecture/analytics-architecture.md)
 3. [Release Workflow](./release-workflow.md)
 4. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
 5. [Docs Index](../docs-index.md)
@@ -98,7 +98,7 @@ This is mainly for:
 
 Use Air Jam's own runtime analytics system as the authoritative usage and product-truth layer.
 
-Reference: [Analytics Architecture](../systems/analytics-architecture.md)
+Reference: [Analytics Architecture](../architecture/analytics-architecture.md)
 
 Why:
 

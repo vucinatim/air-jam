@@ -1,5 +1,10 @@
+import {
+  getCuratedPublicGameAttribution,
+  type PublicGameAttribution,
+  type PublicGameCreator,
+} from "@/lib/public-game-creators";
+
 const MINIMAL_TEMPLATE_SLUG = "minimal";
-const ZERO_DAYS_CREATOR_LABEL = "AirJam + zerodays";
 
 const FEATURED_PUBLIC_GAME_SLUGS = [
   "air-capture",
@@ -7,12 +12,6 @@ const FEATURED_PUBLIC_GAME_SLUGS = [
   "code-review",
   "the-office",
 ] as const;
-
-const ZERO_DAYS_GAME_SLUGS = new Set([
-  "last-band-standing",
-  "code-review",
-  "the-office",
-]);
 
 interface PublicGamePresentationShape {
   name: string;
@@ -33,11 +32,43 @@ export const getPublicGameDisplayName = <T extends PublicGamePresentationShape>(
 export const getPublicGameOwnerName = <T extends PublicGamePresentationShape>(
   game: T,
 ): string | null => {
-  if (game.slug && ZERO_DAYS_GAME_SLUGS.has(game.slug)) {
-    return ZERO_DAYS_CREATOR_LABEL;
+  const attribution = getCuratedPublicGameAttribution(game.slug);
+  if (attribution?.label) {
+    return attribution.label;
   }
 
   return game.ownerName ?? null;
+};
+
+export const getPublicGameCreators = <T extends PublicGamePresentationShape>(
+  game: T,
+): readonly PublicGameCreator[] => {
+  const attribution = getCuratedPublicGameAttribution(game.slug);
+  if (attribution?.creators?.length) {
+    return attribution.creators;
+  }
+
+  if (!game.ownerName?.trim()) {
+    return [];
+  }
+
+  return [{ name: game.ownerName.trim() }];
+};
+
+export const getPublicGameAttribution = <
+  T extends PublicGamePresentationShape,
+>(
+  game: T,
+): PublicGameAttribution | null => {
+  const creators = getPublicGameCreators(game);
+  if (creators.length === 0) {
+    return null;
+  }
+
+  return {
+    label: getPublicGameOwnerName(game) ?? undefined,
+    creators,
+  };
 };
 
 export const selectFeaturedPublicGames = <

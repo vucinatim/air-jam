@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { memo } from "react";
 
 interface ArcadeChromeProps {
   roomId?: string;
@@ -36,7 +37,7 @@ interface ArcadeChromeProps {
   highContrast?: boolean;
 }
 
-export const ArcadeChrome = ({
+export const ArcadeChrome = memo(function ArcadeChrome({
   roomId,
   players,
   connectionStatus,
@@ -50,7 +51,7 @@ export const ArcadeChrome = ({
   className,
   listAtTop,
   highContrast = false,
-}: ArcadeChromeProps) => {
+}: ArcadeChromeProps) {
   const showElevatedBar = !listAtTop;
   const iconButtonClassName =
     "size-8 shrink-0 border-white/20 bg-black/20 p-0 text-white hover:bg-white/10";
@@ -58,14 +59,14 @@ export const ArcadeChrome = ({
   return (
     <header
       className={cn(
-        "px-4 py-2 transition-[background-color,backdrop-filter,border-color] duration-200 ease-out",
+        "px-4 py-2 backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-500 ease-out",
         showElevatedBar
           ? highContrast
-            ? "border-b border-white/20 bg-black/90 backdrop-blur-md"
-            : "border-b border-white/10 bg-black/80 backdrop-blur-md"
+            ? "border-b border-white/20 bg-black/72 shadow-[0_10px_30px_rgba(0,0,0,0.28)]"
+            : "border-b border-white/10 bg-black/55 shadow-[0_10px_30px_rgba(0,0,0,0.18)]"
           : highContrast
-            ? "border-b border-white/10"
-            : "border-b border-transparent",
+            ? "border-b border-white/10 bg-black/15"
+            : "border-b border-transparent bg-black/10",
         className,
       )}
     >
@@ -169,4 +170,4 @@ export const ArcadeChrome = ({
       </div>
     </header>
   );
-};
+});

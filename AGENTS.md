@@ -131,21 +131,28 @@ Multiplayer games should be startable or ready-able from controllers. The host s
 ## Documentation Discipline
 
 1. Keep long-term product direction in `docs/vision.md`.
-2. Keep intended architecture in `docs/framework-paradigm.md`.
-3. Keep the single active repo-wide execution ledger in `docs/work-ledger.md`.
-4. Keep the durable follow-up backlog in `docs/suggestions.md`.
-5. Keep monorepo workflow guidance in `docs/monorepo-operating-system.md`.
-6. Keep navigation pointers in `docs/docs-index.md`.
-7. Treat `docs/plans/*.md` as bounded system plans, not duplicate global trackers.
-8. Move completed/superseded plan snapshots to `docs/archive/`.
-9. Update docs in the same change when contracts or behavior change.
+2. Keep discoverability direction in `docs/discoverability-vision.md`.
+3. Keep intended architecture in `docs/framework-paradigm.md`.
+4. Keep the canonical quick current snapshot in `docs/current-state.md`.
+5. Keep historical progress and milestone memory in `docs/work-ledger.md`.
+6. Keep the stable repo operating system rules in `docs/working-agreements.md`.
+7. Keep the durable follow-up backlog in `docs/suggestions.md`.
+8. Keep monorepo workflow guidance in `docs/monorepo-operating-system.md`.
+9. Keep navigation pointers in `docs/docs-index.md`.
+10. Keep live doc taxonomy and naming rules centralized in `docs/documentation-taxonomy.md`.
+11. Treat `docs/plans/*.md` as bounded system plans, not duplicate global trackers.
+12. When a plan is meaningfully closed, superseded, or no longer governing current work, move it to `docs/archive/` before shifting focus to the next major track.
+13. Archive plan snapshots with a date-first filename: `YYYY-MM-DD-semantic-name.md`.
+14. Update docs in the same change when contracts or behavior change.
 
 ## Follow-Up Tracking Rule
 
-1. Put current work and status changes in `docs/work-ledger.md`.
-2. Put multi-step active tracks in `docs/plans/`.
-3. Put only durable non-critical follow-ups in `docs/suggestions.md`.
-4. Do not turn `docs/suggestions.md` into a second active task tracker.
+1. Put the quick current repo snapshot in `docs/current-state.md`.
+2. Put historical progress and phase-close notes in `docs/work-ledger.md`.
+3. Put multi-step active tracks in `docs/plans/`.
+4. Put only durable non-critical follow-ups in `docs/suggestions.md`.
+5. Do not turn `docs/suggestions.md` into a second active task tracker.
+6. Before moving to a different major track, archive any plan that has effectively finished or stopped governing current work.
 
 ## Decision Rule
 

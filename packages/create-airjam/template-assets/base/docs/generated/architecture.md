@@ -17,7 +17,7 @@ Arcade is an Air Jam app around another Air Jam app.
 
 **Key Features:**
 
-- **Developer Portal** - Account management, app ID issuance, analytics
+- **Dashboard and hosted control plane** - Account management, game records, release records, managed media, analytics
 - **Game Catalog** - Submit, manage, and discover Air Jam games
 - **Arcade Mode** - Browse and launch games from a unified interface
 - **Controller Runtime** - Persistent mobile wrapper that loads game controllers
