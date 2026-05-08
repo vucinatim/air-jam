@@ -47,13 +47,16 @@ export const PublicGameCreatorStrip = ({
 
   const visibleCreators = creators.slice(0, maxVisible);
   const overflow = creators.length - visibleCreators.length;
+  const isSingleCreator = creators.length === 1 && overflow === 0;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "inline-flex rounded-full border border-white/12 bg-black/50 px-1.5 py-1 shadow-lg backdrop-blur-md",
+            isSingleCreator
+              ? "inline-flex rounded-full border border-white/12 bg-black/50 p-1 shadow-lg backdrop-blur-md"
+              : "inline-flex rounded-full border border-white/12 bg-black/50 px-1.5 py-1 shadow-lg backdrop-blur-md",
             className,
           )}
           onClick={onClick}

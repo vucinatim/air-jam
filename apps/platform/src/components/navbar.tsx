@@ -15,7 +15,7 @@ import { Menu, MessagesSquare, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 
 const MENU_EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -67,7 +67,7 @@ const socialNavItems = [
   },
 ];
 
-export const Navbar = () => {
+export const Navbar = memo(function Navbar() {
   const { interceptDashboardNavigation } = useDashboardAccess();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -326,4 +326,4 @@ export const Navbar = () => {
       </nav>
     </>
   );
-};
+});

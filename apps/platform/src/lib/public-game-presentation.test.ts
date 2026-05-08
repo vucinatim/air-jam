@@ -33,7 +33,7 @@ describe("public game presentation", () => {
         slug: "last-band-standing",
         ownerName: "AirJam",
       }),
-    ).toBe("Tim Vučina + zerodays");
+    ).toBe("AirJam + zerodays");
 
     expect(
       getPublicGameOwnerName({
@@ -41,7 +41,7 @@ describe("public game presentation", () => {
         slug: "pong",
         ownerName: "AirJam",
       }),
-    ).toBe("Tim Vučina");
+    ).toBe("AirJam");
   });
 
   it("returns curated creator stacks for public games", () => {
@@ -51,7 +51,7 @@ describe("public game presentation", () => {
         slug: "code-review",
         ownerName: "AirJam",
       }).map((creator) => creator.name),
-    ).toEqual(["Tim Vučina", "zerodays"]);
+    ).toEqual(["Tim Kalan", "Žiga Pk", "Miha Majetić"]);
 
     expect(
       getPublicGameCreators({

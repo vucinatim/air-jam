@@ -41,9 +41,7 @@ import {
 } from "./arcade-browser-overlay-preference";
 import { ArcadeChrome } from "./arcade-chrome";
 import { ArcadeLoader } from "./arcade-loader";
-import {
-  setArcadePlatformSettings,
-} from "./arcade-platform-settings-store";
+import { setArcadePlatformSettings } from "./arcade-platform-settings-store";
 import {
   ARCADE_BROWSER_PATH,
   EXIT_COOLDOWN_MS,
@@ -75,9 +73,6 @@ type ArcadeHostRouteIntent =
 
 /** Pixel size for the join QR in the full-screen overlay (below arcade chrome). */
 const ARCADE_QR_OVERLAY_SIZE = 260;
-
-/** Top padding for game browser so content clears the overlaid chrome bar (~py-2 + logo/room row). */
-const ARCADE_BROWSER_CHROME_GUTTER_PT = "pt-14";
 
 const ARCADE_QR_OVERLAY_MOTION_TRANSITION = {
   duration: 0.18,
@@ -489,7 +484,14 @@ export const ArcadeSystem = ({
         roomSettings: toRoomPlatformSettingsSnapshot(platformSettings),
       });
     }
-  }, [games, state.selectedIndex, surfaceKind, host, activeGame, platformSettings]);
+  }, [
+    games,
+    state.selectedIndex,
+    surfaceKind,
+    host,
+    activeGame,
+    platformSettings,
+  ]);
 
   // Canonical host polling loop for browser navigation.
   useHostTick({
@@ -813,6 +815,18 @@ export const ArcadeSystem = ({
     }
   }, [surfaceActions, surfaceKind, writePreferredBrowserOverlay]);
 
+  const handleSelectBrowserGame = useCallback(
+    (game: ArcadeGame, idx: number) => {
+      setSelectedIndex(idx);
+      launchGame(game);
+    },
+    [launchGame, setSelectedIndex],
+  );
+
+  const handleBrowserListTopChange = useCallback((atTop: boolean) => {
+    setBrowserListAtTop((current) => (current === atTop ? current : atTop));
+  }, []);
+
   useEffect(() => {
     if (!host.socket) {
       return;
@@ -1135,12 +1149,7 @@ export const ArcadeSystem = ({
           ) : null}
         </AnimatePresence>
 
-        <div
-          className={cn(
-            "absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden",
-            isBrowserChromeVisible && ARCADE_BROWSER_CHROME_GUTTER_PT,
-          )}
-        >
+        <div className="absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden">
           {/* Browser View (only in arcade mode or when game view is hidden) */}
           {mode === "arcade" && (
             <GameBrowser
@@ -1148,12 +1157,9 @@ export const ArcadeSystem = ({
               selectedIndex={state.selectedIndex}
               isVisible={surfaceKind === "browser"}
               reducedMotion={reducedMotion}
-              onSelectGame={(game, idx) => {
-                setSelectedIndex(idx);
-                launchGame(game);
-              }}
+              onSelectGame={handleSelectBrowserGame}
               header={header}
-              onScrollTopChange={setBrowserListAtTop}
+              onScrollTopChange={handleBrowserListTopChange}
             />
           )}
         </div>

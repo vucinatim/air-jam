@@ -4,7 +4,10 @@ import { TRPCReactProvider } from "@/trpc/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+
+const REACT_SCAN_ENABLED = false;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,14 +40,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const enableReactScan =
+    process.env.NODE_ENV !== "production" && REACT_SCAN_ENABLED;
+
   return (
     <html lang="en" className="dark">
-      {/* <head>
-        <script
-          crossOrigin="anonymous"
-          src="//unpkg.com/react-scan/dist/auto.global.js"
-        />
-      </head> */}
+      {enableReactScan ? (
+        <head>
+          <Script
+            id="react-scan"
+            crossOrigin="anonymous"
+            src="https://unpkg.com/react-scan/dist/auto.global.js"
+            strategy="afterInteractive"
+          />
+        </head>
+      ) : null}
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground min-h-dvh antialiased`}
       >

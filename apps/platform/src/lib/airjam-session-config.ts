@@ -69,6 +69,7 @@ export const getPlatformArcadeHostSessionConfig = () => {
       "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY",
     ),
     appId: deploymentConfig.appId,
+    hostGrantEndpoint: deploymentConfig.systemHostGrantEndpoint,
     hostSessionKind: "system" as const,
     input: {
       schema: arcadeInputSchema,

@@ -24,12 +24,65 @@ const timVucina: PublicGameCreator = {
   initials: "TV",
 };
 
-const zerodays: PublicGameCreator = {
-  name: "zerodays",
-  githubHandle: "zerodays",
-  githubUrl: githubProfileUrl("zerodays"),
-  avatarUrl: githubAvatarUrl("zerodays"),
-  initials: "ZD",
+const timKalan: PublicGameCreator = {
+  name: "Tim Kalan",
+  githubHandle: "timkalan",
+  githubUrl: githubProfileUrl("timkalan"),
+  avatarUrl: githubAvatarUrl("timkalan"),
+  initials: "TK",
+};
+
+const domenKoscak: PublicGameCreator = {
+  name: "Domen Koščak",
+  githubHandle: "domenkoscak",
+  githubUrl: githubProfileUrl("domenkoscak"),
+  avatarUrl: githubAvatarUrl("domenkoscak"),
+  initials: "DK",
+};
+
+const vaneSkubic: PublicGameCreator = {
+  name: "Vane Skubic",
+  githubHandle: "VaneSkubic",
+  githubUrl: githubProfileUrl("VaneSkubic"),
+  avatarUrl: githubAvatarUrl("VaneSkubic"),
+  initials: "VS",
+};
+
+const zigApk: PublicGameCreator = {
+  name: "Žiga Pk",
+  githubHandle: "zigapk",
+  githubUrl: githubProfileUrl("zigapk"),
+  avatarUrl: githubAvatarUrl("zigapk"),
+  initials: "ŽP",
+};
+
+const mihaMajetic: PublicGameCreator = {
+  name: "Miha Majetić",
+  githubHandle: "mihamajetic",
+  githubUrl: githubProfileUrl("mihamajetic"),
+  avatarUrl: githubAvatarUrl("mihamajetic"),
+  initials: "MM",
+};
+
+const matejM: PublicGameCreator = {
+  name: "Matej M",
+  githubHandle: "matejm",
+  githubUrl: githubProfileUrl("matejm"),
+  avatarUrl: githubAvatarUrl("matejm"),
+  initials: "MM",
+};
+
+const drobilc: PublicGameCreator = {
+  name: "Drobilc",
+  githubHandle: "drobilc",
+  githubUrl: githubProfileUrl("drobilc"),
+  avatarUrl: githubAvatarUrl("drobilc"),
+  initials: "DR",
+};
+
+const spelaBuh: PublicGameCreator = {
+  name: "Špela Buh",
+  initials: "ŠB",
 };
 
 /**
@@ -40,24 +93,24 @@ export const curatedPublicGameAttributions: Readonly<
   Record<string, PublicGameAttribution>
 > = {
   "air-capture": {
-    label: "Tim Vučina",
+    label: "AirJam",
     creators: [timVucina],
   },
   pong: {
-    label: "Tim Vučina",
+    label: "AirJam",
     creators: [timVucina],
   },
   "code-review": {
-    label: "Tim Vučina + zerodays",
-    creators: [timVucina, zerodays],
+    label: "AirJam + zerodays",
+    creators: [mihaMajetic, zigApk, timKalan],
   },
   "last-band-standing": {
-    label: "Tim Vučina + zerodays",
-    creators: [timVucina, zerodays],
+    label: "AirJam + zerodays",
+    creators: [timVucina, vaneSkubic, domenKoscak],
   },
   "the-office": {
-    label: "Tim Vučina + zerodays",
-    creators: [timVucina, zerodays],
+    label: "AirJam + zerodays",
+    creators: [matejM, spelaBuh, drobilc],
   },
 };
 
