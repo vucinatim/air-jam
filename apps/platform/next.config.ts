@@ -1,3 +1,4 @@
+import path from "node:path";
 import {
   resolveRuntimeTopology,
   serializeRuntimeTopology,
@@ -5,6 +6,8 @@ import {
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import { resolvePlatformDeploymentConfig } from "./src/lib/platform-deployment-config";
+
+const repoRoot = path.resolve(process.cwd(), "../..");
 
 const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
 const resolvedAppUrl = deploymentConfig.platformPublicUrl;
@@ -112,11 +115,12 @@ export const createPlatformSecurityHeaders = ({
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  output: "standalone",
+  outputFileTracingRoot: repoRoot,
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   transpilePackages: ["@air-jam/sdk"],
   env: {
-    // Expose VERCEL_URL to the client as NEXT_PUBLIC_APP_URL so we can auto-detect the domain
-    // VERCEL_URL is automatically set by Vercel (includes custom domains like airjam.io)
+    // Publish the resolved public app URL as one canonical client-visible identity.
     NEXT_PUBLIC_APP_URL: resolvedAppUrl,
     NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY:
       resolvePlatformShellTopologyEnv("platform-host"),

@@ -32,16 +32,50 @@ describe("resolvePlatformDeploymentConfig", () => {
     });
   });
 
+  it("falls back to the Railway public domain before Vercel deployment identity", () => {
+    expect(
+      resolvePlatformDeploymentConfig({
+        RAILWAY_PUBLIC_DOMAIN: "platform-production.up.railway.app",
+        VERCEL_URL: "airjam-git-main-timvucina.vercel.app",
+      }),
+    ).toMatchObject({
+      platformPublicUrl: "https://platform-production.up.railway.app",
+      backendPublicUrl: "https://platform-production.up.railway.app",
+      authBaseUrl: "https://platform-production.up.railway.app",
+      hasExplicitPlatformPublicOrigin: true,
+    });
+  });
+
+  it("prefers the Railway public domain inside Railway preview environments", () => {
+    expect(
+      resolvePlatformDeploymentConfig({
+        RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-17",
+        RAILWAY_PUBLIC_DOMAIN: "air-jam-platform-air-jam-pr-17.up.railway.app",
+        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST:
+          "https://air-jam-platform-production.up.railway.app",
+        NEXT_PUBLIC_APP_URL:
+          "https://air-jam-platform-production.up.railway.app",
+        BETTER_AUTH_URL: "https://air-jam-platform-production.up.railway.app",
+      }),
+    ).toMatchObject({
+      platformPublicUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
+      authBaseUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
+      hasExplicitPlatformPublicOrigin: true,
+    });
+  });
+
   it("collects trusted origins from every relevant deployment identity source", () => {
     expect(
       resolvePlatformDeploymentConfig({
         NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://preview.airjam.io",
+        RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
         VERCEL_URL: "airjam-git-main-timvucina.vercel.app",
         BETTER_AUTH_TRUSTED_ORIGINS:
           "https://foo.airjam.io, https://preview.airjam.io",
       }).authTrustedOrigins,
     ).toEqual([
       "https://preview.airjam.io",
+      "https://platform-preview.up.railway.app",
       "https://airjam-git-main-timvucina.vercel.app",
       "https://foo.airjam.io",
     ]);

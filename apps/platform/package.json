@@ -9,6 +9,7 @@
     "dev:no-db": "pnpm run dev:app",
     "build": "node ./scripts/run-with-generated-prep.mjs next build",
     "start": "next start",
+    "start:standalone": "cd .next/standalone && node apps/platform/server.js",
     "lint": "eslint",
     "typecheck": "node ./scripts/run-with-generated-prep.mjs tsc --noEmit",
     "test": "node ./scripts/run-with-generated-prep.mjs vitest run --config vitest.config.ts"
