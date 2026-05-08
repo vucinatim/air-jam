@@ -19,9 +19,19 @@ describe("resolvePlatformPublicUrl", () => {
     expect(
       resolvePlatformPublicUrl({
         NEXT_PUBLIC_APP_URL: "https://air-jam.example",
+        RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
         VERCEL_URL: "preview.airjam.io",
       }),
     ).toBe("https://air-jam.example");
+  });
+
+  it("falls back to the Railway public domain before Vercel", () => {
+    expect(
+      resolvePlatformPublicUrl({
+        RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
+        VERCEL_URL: "preview.airjam.io",
+      }),
+    ).toBe("https://platform-preview.up.railway.app");
   });
 
   it("normalizes bare VERCEL_URL values to https origins", () => {

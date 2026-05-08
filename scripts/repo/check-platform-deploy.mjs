@@ -94,6 +94,17 @@ const main = async () => {
       label: "Hermetic platform build",
     });
 
+    const standaloneServerEntry = path.join(
+      checkoutRoot,
+      "apps/platform/.next/standalone/apps/platform/server.js",
+    );
+
+    if (!fs.existsSync(standaloneServerEntry)) {
+      throw new Error(
+        "Hermetic platform build did not emit .next/standalone/server.js.",
+      );
+    }
+
     process.stdout.write("✓ Hermetic platform deploy contract passed\n");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });

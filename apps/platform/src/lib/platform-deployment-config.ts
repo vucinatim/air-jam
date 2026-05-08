@@ -91,6 +91,7 @@ export const resolvePlatformDeploymentConfig = (
   const explicitPublicUrl =
     normalizePublicUrl(env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST) ??
     normalizePublicUrl(env.NEXT_PUBLIC_APP_URL) ??
+    normalizePublicUrl(env.RAILWAY_PUBLIC_DOMAIN) ??
     normalizePublicUrl(env.VERCEL_URL);
 
   const platformPublicUrl = explicitPublicUrl ?? PLATFORM_PUBLIC_URL_FALLBACK;
@@ -104,6 +105,7 @@ export const resolvePlatformDeploymentConfig = (
     authBaseUrl,
     normalizeOrigin(env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST),
     normalizeOrigin(env.NEXT_PUBLIC_APP_URL),
+    normalizeOrigin(env.RAILWAY_PUBLIC_DOMAIN),
     normalizeOrigin(env.VERCEL_URL),
     ...splitTrustedOrigins(env.BETTER_AUTH_TRUSTED_ORIGINS),
   ]) {
