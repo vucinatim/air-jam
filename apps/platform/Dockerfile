@@ -19,4 +19,4 @@ WORKDIR /app/apps/platform
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-CMD ["sh", "-lc", "cd .next/standalone && node apps/platform/server.js"]
+CMD ["sh", "-lc", "cd /app/apps/platform/.next/standalone && node apps/platform/server.js"]
