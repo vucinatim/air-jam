@@ -112,6 +112,17 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
 - tightened [architecture/documentation-and-ai-pack-architecture.md](./architecture/documentation-and-ai-pack-architecture.md) so it now explains the hosted docs registry, machine endpoints, hosted AI-pack manifests, and local AI-pack workflow more explicitly
 - updated [apps/platform/README.md](../apps/platform/README.md) so the platform app now points at the real public docs and AI-pack reference surfaces instead of leaving those contracts mostly implicit in code
 
+## 2026-05-08 - Public Story Alignment Tightened
+
+- aligned the release plan's public-surface closeout around one primary story:
+  - Air Jam is an open AI-native framework for multiplayer games controlled by phones
+- tightened the public docs intro and agent entrypoint so they now lead with the AI-native framework model instead of a more generic platform/framework phrasing
+- tightened the framework launch article draft so it now foregrounds:
+  - shared human-and-agent runtime contracts
+  - AI-native development as the actual differentiator
+  - the clearer split between self-hosting and hosted Arcade publishing
+- lightly reinforced the same story in the origin-story article draft so the long-form content does not drift back toward a simpler but weaker "just a framework" explanation
+
 ## 2026-05-08 - Full-Stack Preview System Verified From `main`
 
 - ran a real hosted smoke test from `main` itself through a temporary PR

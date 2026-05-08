@@ -89,6 +89,7 @@ The important remaining work is now late-stage and launch-facing:
 3. finish the late prerelease cleanup only where the final proof finds real blockers
 4. execute the release-facing landing, media, article, and discoverability work after the go / no-go pass
 5. decide which small user-facing polish items still deserve inclusion before launch, such as creator attribution enhancements
+6. keep the public story aligned around the AI-native framework thesis instead of drifting back into generic platform/framework language
 
 ## Active Now
 

@@ -150,6 +150,17 @@ This includes:
 5. origin-story article
 6. final docs alignment for the public product story
 
+The public story should align around one primary claim:
+
+- Air Jam is an open AI-native framework for multiplayer games controlled by phones.
+
+The supporting public explanation should stay consistent:
+
+1. humans and agents use the same runtime, input, state, inspection, and release model
+2. self-hosting and hosted Arcade publishing are two clear distribution lanes
+3. Arcade is the hosted public product surface, not a separate framework model
+4. `Dashboard` should be the normal creator-facing noun; reserve `control plane` for architecture/reference docs
+
 Optional only if cheap and high-signal:
 
 1. creator-attribution polish for Arcade trust and self-promotion

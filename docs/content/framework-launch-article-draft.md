@@ -1,14 +1,24 @@
-# What If Every Phone in the Room Was a Game Controller?
+# What If Every Phone In The Room Was A Game Controller?
 
-_Building an open-source framework for the age of vibe-coded party games._
+_Building an open AI-native framework for multiplayer games controlled by
+phones._
 
 ---
 
-Every phone in your pocket has a gyroscope, a touchscreen, speakers, a vibration motor, and a browser. That's a game controller. A pretty good one, actually -- and every person in the room already has one.
+Every phone in your pocket has a gyroscope, a touchscreen, speakers, a
+vibration motor, and a browser. That's a game controller. A pretty good one,
+actually -- and every person in the room already has one.
 
-That thought is the entire premise behind Air Jam: an open-source framework for building multiplayer games where a computer or TV runs the game, and players join instantly from their phones by scanning a QR code. No app downloads. No Bluetooth pairing. No account creation. You scan, you play.
+That thought is the entire premise behind Air Jam: an open AI-native framework
+for multiplayer games where a computer or TV runs the game, players join
+instantly from their phones by scanning a QR code, and humans and coding agents
+work against the same runtime contracts. No app downloads. No Bluetooth
+pairing. No account creation. You scan, you play.
 
-I built it because I wanted to see what happens when you remove every barrier between "I have a game idea" and "we're all playing it together in the same room." Especially now, when AI can write most of the code for you.
+I built it because I wanted to see what happens when you remove every barrier
+between "I have a game idea" and "we're all playing it together in the same
+room." Especially now, when AI can write most of the code for you -- if the
+framework underneath is designed to make that possible instead of fighting it.
 
 <!-- [VISUAL: Architecture diagram -- Host screen <-> Server <-> Phone controllers] -->
 
@@ -16,7 +26,11 @@ I built it because I wanted to see what happens when you remove every barrier be
 
 The concept isn't new. AirConsole proved years ago that phones-as-controllers work beautifully for party games. But AirConsole is a closed commercial platform -- you build games for _their_ ecosystem, on _their_ terms.
 
-I wanted the open-source version. Something anyone could use, extend, and deploy anywhere. But more than that, I wanted it designed for a specific moment in time: the one we're living in right now, where developers are increasingly working alongside LLMs to write code.
+I wanted the open-source version. Something anyone could use, extend, and
+deploy anywhere. But more than that, I wanted it designed for the moment we're
+actually in now: one where developers increasingly work alongside LLMs, and
+where the shape of the framework determines whether those agents are a real
+multiplier or just glorified autocomplete.
 
 Here's the thing about making a multiplayer game that uses phones as controllers -- there are really two problems:
 
@@ -26,7 +40,11 @@ Here's the thing about making a multiplayer game that uses phones as controllers
 
 Problem #1 is exactly the kind of thing you don't want an LLM figuring out from scratch every time. It's systems-level code with subtle edge cases. Problem #2 is exactly the kind of thing LLMs are great at helping with -- creative, iterative, visual, fun.
 
-So Air Jam solves #1 completely. The networking, the rooms, the input pipeline, the state sync -- it's all handled. You bring the game. And if you're working with an AI assistant, it can focus entirely on the part that matters: making something people want to play.
+So Air Jam solves #1 completely. The networking, the rooms, the input pipeline,
+the state sync -- it's all handled. You bring the game. And if you're working
+with an AI assistant, it can focus on the part that matters: making something
+people want to play, then testing, inspecting, and shipping it on the same
+substrate.
 
 ## How It Works
 
@@ -87,7 +105,9 @@ export const usePongStore = createAirJamStore<PongState>((set) => ({
 
 Both the host and the controller import this same hook. The host mutates state directly. The controller's calls get proxied over the network. You don't write any networking code -- it just works.
 
-This is the thing that makes vibe-coding these games practical. An LLM doesn't need to understand WebSocket protocols or message serialization. It just writes a Zustand store. The framework handles the rest.
+This is the thing that makes AI-native game building practical. An LLM doesn't
+need to understand WebSocket protocols or message serialization. It just writes
+a Zustand store. The framework handles the rest.
 
 ## The Decisions That Make It Work
 
@@ -120,11 +140,14 @@ I mentioned `createAirJamStore` above, but it's worth emphasizing what it actual
 
 This means you get a host-authoritative multiplayer architecture -- the kind that prevents cheating and keeps state consistent -- without writing any networking code. The API is identical to regular Zustand. If you know how to write a React state hook, you know how to build multiplayer game state with Air Jam.
 
-### Headless by Default
+### Headless By Default
 
 The SDK is now intentionally headless. Runtime behavior lives in hooks and session providers (`useAirJamHost`, `useAirJamController`, `HostSessionProvider`, `ControllerSessionProvider`), and your app owns the UI completely.
 
-That gives one unambiguous architecture: the framework handles networking, room lifecycle, input latching, and state sync; your game handles layout, controls, and visual design.
+That gives one unambiguous architecture: the framework handles networking, room
+lifecycle, input latching, and state sync; your game handles layout, controls,
+and visual design. That clean split is also what makes the framework legible to
+agents instead of only to humans who already know the codebase.
 
 ## What People Built With It
 
@@ -166,7 +189,10 @@ The game was built by two developers, with our non-developer colleague writing a
 
 Three genres. A fighting game with gyroscope movement, a quiz show with simple buttons, and a cooperative sim with a D-pad. All built in one day with the same framework by teams that had never used it before. The controllers look completely different, the game logic is completely different, but the underlying infrastructure is the same.
 
-That's what I was building toward. Not a framework that makes one kind of game. A framework that handles the parts that are always the same -- the networking, the rooms, the input pipeline, the state sync -- and gets out of the way for the parts that should be different every time.
+That's what I was building toward. Not just a framework that makes one kind of
+game. A framework that handles the parts that are always the same -- the
+networking, the rooms, the input pipeline, the state sync -- and exposes them
+through contracts that both humans and agents can drive.
 
 ## What I Took Away From All of This
 
@@ -190,7 +216,9 @@ npx create-airjam my-game
 
 This scaffolds a working Pong game with a local development server, the SDK, and documentation -- including instructions optimized for AI coding assistants. Run `pnpm run dev`, scan the QR code with your phone, and you're playing in under a minute.
 
-**Deploy anywhere.** The free public server at `api.airjam.io` means you can host your game on Vercel, Netlify, or anywhere that serves a static site. Sign up at [airjam.io](https://airjam.io), register your game in the dashboard, and you get an app ID automatically.
+**Deploy or publish.** You can self-host your game on Vercel, Netlify, or
+anywhere that serves a static site and point it at the hosted Air Jam backend,
+or package a hosted release and publish it through the Air Jam Arcade.
 
 **Play the game jam games.** All three games from our jam -- Code Review, Last Band Standing, and The Office -- are available in the [Air Jam Arcade](https://airjam.io/arcade). One room, one QR code, all the games.
 
@@ -198,7 +226,7 @@ This scaffolds a working Pong game with a local development server, the SDK, and
 
 - [GitHub](https://github.com/vucinatim/air-jam) -- source code, issues, discussions
 - [Documentation](https://airjam.io/docs) -- guides, architecture, SDK reference
-- [Platform](https://airjam.io) -- sign up, register games, get app IDs
+- [Platform](https://airjam.io) -- docs, dashboard, hosted releases, Arcade
 - [Arcade](https://airjam.io/arcade) -- play published games
 - npm: [`@air-jam/sdk`](https://www.npmjs.com/package/@air-jam/sdk) / [`@air-jam/server`](https://www.npmjs.com/package/@air-jam/server) / [`create-airjam`](https://www.npmjs.com/package/create-airjam)
 

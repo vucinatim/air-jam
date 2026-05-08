@@ -26,7 +26,10 @@ The useful thing the experience did was clarify the shape of the problem. There 
 
 The first one is exactly the kind of thing you don't want anyone — human or LLM — solving from scratch every time. The second is exactly the kind of thing you _do_ want LLMs helping with, because it's creative and iterative and the failure modes are visible.
 
-The framework's job, then, is to absorb the first problem so completely that nobody — least of all an agent — has to think about it again. Air Jam is mostly an attempt to do that.
+The framework's job, then, is to absorb the first problem so completely that
+nobody — least of all an agent — has to think about it again. Air Jam is
+mostly an attempt to do that, and to do it in a way that makes the same runtime
+legible to humans and agents both.
 
 ## What LLMs change.
 
@@ -34,9 +37,13 @@ In 2023 I wrote off "build the whole platform myself" as unrealistic. Real-time 
 
 LLMs are capable of writing pretty much any of this if you steer them well. Multiplayer infrastructure included. The catch is that good steering takes real time and attention, and you don't want to be doing it from scratch every time someone wants to build a new game. That's the whole point of a framework — do the steering work once, shape the substrate carefully, and then everything built on top is fast for humans and agents both.
 
-So the practical effect of LLMs getting better isn't "now anyone can build a multiplayer game from nothing." It's "now one person plus an agent can do the careful substrate work that used to need a small team — and once that substrate exists, the cost of making any individual game on top of it collapses."
+So the practical effect of LLMs getting better isn't "now anyone can build a
+multiplayer game from nothing." It's "now one person plus an agent can do the
+careful substrate work that used to need a small team — and once that substrate
+exists, the cost of making any individual game on top of it collapses."
 
-Air Jam is mostly an attempt to do that careful substrate work, well, once.
+Air Jam is mostly an attempt to do that careful substrate work, well, once, in
+an openly inspectable way that future agents can keep building on.
 
 ## The arcade is the product, not the SDK.
 

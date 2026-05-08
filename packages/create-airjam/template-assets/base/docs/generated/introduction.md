@@ -3,13 +3,14 @@
 
 # Introduction
 
-Air Jam is a platform for building **"AirConsole-style" multiplayer games** where a computer/TV acts as the host display and smartphones become game controllers. The platform enables developers to create interactive games with minimal setup while providing players with an intuitive, scan-and-play experience.
+Air Jam is an open **AI-native framework for multiplayer games controlled by phones**. A computer or TV acts as the host display, smartphones become the controllers, and both humans and coding agents build against the same runtime, input, state, and release model.
 
 ## Key Features
 
 - **Zero App Download**: Players join by scanning a QR code—no app store required
 - **Instant Multiplayer**: Seamlessly connect up to 8 smartphones as controllers
 - **Developer Friendly**: Built with modern web technologies (React, TypeScript)
+- **AI-Native By Design**: Humans and agents share explicit contracts for runtime, input, logs, and release workflows
 - **Type Safe**: End-to-end type safety with Zod schema validation
 - **Performance Optimized**: Tap-safe button input with fixed tick cadence
 - **Haptic Feedback**: Send vibration patterns to controllers for game events
