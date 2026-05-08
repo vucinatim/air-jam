@@ -1,5 +1,6 @@
 "use client";
 
+import { PublicGameCreatorStrip } from "@/components/catalog/public-game-creator-strip";
 import { landingCopy } from "@/components/landing/landing-content";
 import { Reveal } from "@/components/landing/landing-motion";
 import { SectionHeader } from "@/components/landing/landing-section-header";
@@ -90,8 +91,11 @@ const GameCard = ({
     <Reveal
       delay={index * 0.06}
       margin="-40px"
-      className="border-border/40 bg-card/15 group hover:border-airjam-cyan/30 flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
+      className="border-border/40 bg-card/15 group relative flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:border-airjam-cyan/30 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
     >
+      <div className="absolute top-3 left-3 z-20">
+        <PublicGameCreatorStrip game={game} />
+      </div>
       <Link
         href={href}
         className="block"

@@ -79,7 +79,7 @@ const generatedContentDocsDocuments = [
         slug: "introduction",
         depth: 1,
         excerpt:
-          'Air Jam is a platform for building "AirConsole-style" multiplayer games where a computer/TV acts as the host display and smartphones become game controllers. The platform enables developers to create interactive games…',
+          "Air Jam is an open AI-native framework for multiplayer games controlled by phones. A computer or TV acts as the host display, smartphones become the controllers, and both humans and coding agents build against the same…",
       },
       {
         title: "Key Features",
@@ -219,7 +219,7 @@ const generatedContentDocsDocuments = [
         slug: "app-id-errors-in-deployed-environments",
         depth: 3,
         excerpt:
-          "Ensure VITEAIRJAMAPPID is set in your host platform. Ensure the server URL points at your real Air Jam backend. Generate/re-copy the App ID from Dashboard if bootstrap fails.",
+          "Ensure VITEAIRJAMAPPID is set in your host platform. Ensure the server URL points at your real Air Jam backend. Re-copy the App ID from your game's dashboard settings if bootstrap fails.",
       },
       {
         title: "QR / controller join URL issues",
@@ -229,11 +229,11 @@ const generatedContentDocsDocuments = [
           "Confirm host and controller are on the same room code. If testing on phone outside localhost, set VITEAIRJAMPUBLICHOST (or use pnpm run dev -- --secure). For SPA hosting, ensure rewrites route /controller?room=XXXX to…",
       },
       {
-        title: "5. Connect Your Game To The Cloud",
-        slug: "5-connect-your-game-to-the-cloud",
+        title: "5. Connect Your Game To Air Jam Services",
+        slug: "5-connect-your-game-to-air-jam-services",
         depth: 2,
         excerpt:
-          "When you're ready to share your game, first connect it to the official Air Jam cloud. Create a Game Profile: Go to the Platform Dashboard Create a profile and a new game Copy your App ID Deploy the Client Or Keep A…",
+          "When you're ready to share your game outside local development, first register it with Air Jam so the runtime has a stable hosted identity. Create a game record: Go to the Platform Dashboard Create a game if you do not…",
       },
       {
         title: "Optional: Stronger Signed Host Bootstrap",
@@ -780,14 +780,14 @@ const generatedContentDocsDocuments = [
         slug: "components",
         depth: 2,
         excerpt:
-          "1. Platform (apps/platform) Role: Central hub for the Air Jam ecosystem Technology: Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Developer Portal - Account management, app ID…",
+          "1. Platform (apps/platform) Role: Central hub for the Air Jam ecosystem Technology: Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Dashboard and hosted control plane - Account…",
       },
       {
         title: "1. Platform (apps/platform)",
         slug: "1-platform-appsplatform",
         depth: 3,
         excerpt:
-          "Role: Central hub for the Air Jam ecosystem Technology: Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Developer Portal - Account management, app ID issuance, analytics Game Catalog -…",
+          "Role: Central hub for the Air Jam ecosystem Technology: Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM) Key Features: Dashboard and hosted control plane - Account management, game records, release…",
       },
       {
         title: "2. Server (packages/server)",
@@ -1537,14 +1537,14 @@ const generatedContentDocsDocuments = [
         slug: "for-agents",
         depth: 1,
         excerpt:
-          "This page is the fastest entrypoint for LLM agents and automation tools. What Air Jam Is Air Jam is a multiplayer game platform and SDK where players join sessions by scanning a QR code on their phone. Hosts run in your…",
+          "This page is the fastest entrypoint for LLM agents and automation tools. What Air Jam Is Air Jam is an open AI-native framework for multiplayer games controlled by phones. Hosts run in your game, inputs are routed…",
       },
       {
         title: "What Air Jam Is",
         slug: "what-air-jam-is",
         depth: 2,
         excerpt:
-          "Air Jam is a multiplayer game platform and SDK where players join sessions by scanning a QR code on their phone. Hosts run in your game, inputs are routed through the Air Jam server, and your game consumes typed…",
+          "Air Jam is an open AI-native framework for multiplayer games controlled by phones. Hosts run in your game, inputs are routed through the Air Jam server, and both humans and agents work against typed controller, runtime,…",
       },
       {
         title: "Read These First",

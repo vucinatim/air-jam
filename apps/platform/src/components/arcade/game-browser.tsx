@@ -1,5 +1,6 @@
 "use client";
 
+import { PublicGameCreatorStrip } from "@/components/catalog/public-game-creator-strip";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
@@ -367,6 +368,13 @@ const GameBrowserContent = ({
                       ) : null}
                     </div>
                   ) : null}
+
+                  <div className="absolute top-3 left-3 z-20">
+                    <PublicGameCreatorStrip
+                      game={game}
+                      onClick={(event) => event.stopPropagation()}
+                    />
+                  </div>
 
                   <div className="absolute right-0 bottom-0 left-0 p-4">
                     {game.catalogBadgeLabel ? (

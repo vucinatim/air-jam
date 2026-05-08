@@ -123,6 +123,12 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
   - the clearer split between self-hosting and hosted Arcade publishing
 - lightly reinforced the same story in the origin-story article draft so the long-form content does not drift back toward a simpler but weaker "just a framework" explanation
 
+## 2026-05-08 - Public Creator Attribution Added
+
+- added a shared public creator-attribution registry and presentation layer for Arcade and landing cards
+- public game cards now support real GitHub-linked avatar attribution stacks instead of only a flat creator label
+- the current curated data is intentionally owned in one file so zerodays game attribution can be adjusted without touching multiple UI surfaces
+
 ## 2026-05-08 - Full-Stack Preview System Verified From `main`
 
 - ran a real hosted smoke test from `main` itself through a temporary PR
