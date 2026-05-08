@@ -1,9 +1,15 @@
 # Deployment Topology
 
-Last updated: 2026-05-06
+Last updated: 2026-05-08  
 Status: canonical topology
 
-This document defines the intended production topology for Air Jam and the cleanup path from the current state to a more deterministic deployment system.
+Related docs:
+
+1. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
+2. [Production Observability Baseline](./production-observability-baseline.md)
+3. [Post-v1 Topology Roadmap](./post-v1-topology-roadmap.md)
+
+This document defines the production topology that now matters.
 
 ## Goal
 
@@ -11,20 +17,20 @@ Production should be explicit and boring.
 
 That means:
 
-1. each production service has one clear responsibility
-2. each service has one clear source path in the repo
+1. one provider owns deploy lifecycle for the first-party product surface
+2. each service has one clear responsibility
 3. build and start commands are explicit
 4. required environment variables are explicit
 5. cross-service dependencies are explicit
-6. release publishing should not depend on hidden fallbacks or platform guesswork
+6. previews use the provider's native lifecycle unless there is a proven reason not to
 
 ## Canonical Topology
 
 Air Jam production should be split into four surfaces:
 
-1. `Vercel` for the platform app
+1. `Railway` for the platform app
 2. `Railway` for the realtime/API server
-3. `Railway` or an equivalent long-lived runtime for release screenshot capture and image moderation
+3. `Railway` for the release screenshot and moderation worker
 4. `R2` for hosted release artifacts and managed media
 
 That split matches the actual workload boundaries:
@@ -38,7 +44,7 @@ That split matches the actual workload boundaries:
 
 ### 1. Platform App
 
-Provider: `Vercel`  
+Provider: `Railway`  
 Repo ownership: `apps/platform`
 
 Responsibilities:
@@ -47,7 +53,7 @@ Responsibilities:
 2. Arcade
 3. dashboard
 4. auth flows
-5. hosted release submission/finalize/publish orchestration
+5. hosted release submission, finalize, and publish orchestration
 6. managed media routes
 
 Should not own:
@@ -56,7 +62,7 @@ Should not own:
 2. screenshot browser runtime
 3. direct release artifact storage
 
-Current public origins:
+Public origins:
 
 1. `https://airjam.io`
 2. `https://www.airjam.io`
@@ -78,9 +84,9 @@ Repo ownership: `packages/server`
 
 Responsibilities:
 
-1. websocket/session lifecycle
+1. websocket and session lifecycle
 2. room creation and bootstrap
-3. host/controller traffic
+3. host and controller traffic
 4. authoritative multiplayer coordination
 5. server-side auth validation for multiplayer access
 
@@ -91,23 +97,9 @@ Should not own:
 3. release moderation browser processes
 4. managed media presentation
 
-Current public origin:
+Public origin:
 
 1. `https://api.airjam.io`
-
-Recommended build contract:
-
-1. install from repo root with workspace awareness
-2. build with explicit pnpm workspace filtering
-3. start only the server package
-
-Recommended commands:
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter @air-jam/server... build
-pnpm --filter @air-jam/server start
-```
 
 Config-as-code path:
 
@@ -115,13 +107,13 @@ Config-as-code path:
 
 ### 3. Release Screenshot / Moderation Worker
 
-Provider: `Railway` or equivalent long-lived process host  
+Provider: `Railway`  
 Repo ownership: `packages/release-browser-worker`
 
 Responsibilities:
 
 1. open hosted release URLs in a real browser
-2. capture release screenshots during finalize/publish
+2. capture release screenshots during finalize and publish
 3. support image moderation evaluation
 
 Should not own:
@@ -130,23 +122,15 @@ Should not own:
 2. platform page rendering
 3. release artifact persistence
 
-This is a first-class production subsystem, not a side effect of the platform app.
+Worker access is an explicit auth boundary:
 
-The platform should talk to it through one explicit browser endpoint:
-
-1. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
-
-Worker access should now also be treated as an explicit auth boundary:
-
-1. the worker should expose only discovery/health routes unauthenticated
-2. proxied HTTP/WebSocket browser access should require a bearer token
+1. health and discovery can remain narrow unauthenticated routes
+2. proxied HTTP and WebSocket browser access should require a bearer token
 3. the platform should provide that token through `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN`
 
-The repo now includes a dedicated worker package and Dockerfile for this role:
+Config-as-code path:
 
-1. package: `packages/release-browser-worker`
-2. Dockerfile: `packages/release-browser-worker/Dockerfile`
-3. Railway config-as-code: `/packages/release-browser-worker/railway.json`
+1. `/packages/release-browser-worker/railway.json`
 
 ### 4. Storage
 
@@ -156,70 +140,40 @@ Responsibilities:
 
 1. hosted release bundles
 2. release assets
-3. managed media for thumbnail / cover / preview video
+3. managed media for thumbnail, cover, and preview video
 
 Storage should remain dumb infrastructure. Presentation and access policy stay in the platform app.
 
+## Canonical Preview Model
+
+Previews should be Railway-native.
+
+That means:
+
+1. Railway PR environments are enabled at the project level
+2. focused PR environments stay off unless Railway proves they are reliable enough
+3. preview environments use the same service set as production
+4. the repo does not own custom `full-pr-*` aliases or a separate preview lifecycle
+
 ## Current Production State
 
-Current live shape:
+The intended live shape is now also the deployment shape:
 
-1. `Vercel` hosts the platform app
-2. `Railway` hosts the realtime server and Postgres
-3. `R2` is used for release/media storage
-4. release screenshot/moderation runtime is not yet properly provisioned as a production subsystem
+1. Railway hosts the platform app
+2. Railway hosts the realtime server and Postgres
+3. Railway hosts the release browser worker
+4. R2 stores release and media objects
 
-This means the overall topology direction is correct, but the operational clarity is not complete yet.
-
-One important current fact from the preview rollout:
-
-1. the repo now has service-level config-as-code for both the realtime server and the release browser worker
-2. the live Railway project still needs those config-as-code paths pinned explicitly in the provider so preview and production deploys stop depending on the currently stored service build configuration
-
-## Current Problems
-
-The main issues are not the provider choices. The issues are implicit deployment contracts.
-
-### 1. Too Much Platform Guessing
-
-We already hit production issues caused by hidden fallback behavior, for example:
-
-1. public host resolution falling back to `VERCEL_URL`
-2. QR/controller URLs being generated from the wrong host when `NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST` was missing
-
-That is a sign that important deployment identity is still too implicit.
-
-### 2. Release Moderation Is Not Yet A Real Service
-
-Hosted release publishing currently depends on browser screenshot capability, but that browser runtime is not yet deployed as a dedicated production unit.
-
-As a result:
-
-1. release doctor and artifact validation can pass
-2. release finalize/publish can still fail
-3. the failure mode is operational rather than game-specific
-
-### 3. Realtime Deploy Truth Needs To Be Easier To Audit
-
-The realtime server deploy path should be easy to explain in one sentence:
-
-1. what repo path it builds from
-2. what commands it runs
-3. what env it needs
-4. when it redeploys
-
-If any of that requires memory or dashboard archaeology, the setup is not clean enough.
+The remaining operational work is domain cutover and steady-state validation, not another topology redesign.
 
 ## Clean Production Contract
 
 The intended production contract is:
 
-1. `Vercel` owns only `apps/platform`
-2. `Railway` owns only the realtime/API server process plus Postgres
-3. a dedicated browser worker owns only screenshot/moderation browser runtime
-4. `R2` owns only release/media object storage
-
-No production capability should depend on one service accidentally doing another service's job.
+1. Railway owns the first-party app services
+2. R2 owns only release and media object storage
+3. no production capability should depend on provider-specific fallbacks such as `VERCEL_URL`
+4. the repo owns inspection and validation, not a second deploy control plane
 
 ## Environment Ownership Matrix
 
@@ -242,6 +196,8 @@ Platform-only env should include at least:
 13. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
 14. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
 15. `OPENAI_API_KEY` when image moderation is enabled
+16. `AIR_JAM_SYSTEM_APP_ID`
+17. `AIR_JAM_HOST_GRANT_SECRET`
 
 ### Realtime Server Env
 
@@ -251,13 +207,13 @@ Server-only env should include at least:
 2. `AIR_JAM_MASTER_KEY`
 3. `AIR_JAM_AUTH_MODE`
 4. `AIR_JAM_ALLOWED_ORIGINS`
+5. `AIR_JAM_HOST_GRANT_SECRET`
 
 The realtime server should not need the platform's release-storage or moderation env.
 
 ### Browser Worker Env
 
 Worker-specific env should be limited to whatever the browser service needs to run safely, such as:
-
 1. browser process settings
 2. optional access token or shared secret for callers
 3. any worker-level observability config
@@ -279,20 +235,20 @@ Document and audit the current live shape:
 
 This document is the first step of that freeze.
 
-### Phase 2. Make Existing Services Deterministic
+### Phase 2. Make Railway Services Deterministic
 
-For `Vercel`:
+For the platform:
 
-1. keep `apps/platform` as the only root
-2. explicitly document all required production env
-3. avoid relying on fallback host resolution in production
+1. keep `apps/platform` as the only platform service root
+2. build with standalone Next output and one explicit start command
+3. avoid provider-specific host fallbacks in production
 
-For `Railway` realtime:
+For the realtime server:
 
-1. keep one service for the realtime/API server
+1. keep one service for the realtime and API process
 2. build from repo root with explicit workspace commands
 3. keep env ownership narrow and server-specific
-4. keep `main` autodeploy, but only after the service contract is pinned clearly
+4. keep `main` autodeploy only after the service contract is pinned clearly
 
 ### Phase 3. Extract Browser Moderation Into A Real Subsystem
 
@@ -326,19 +282,19 @@ Production identity should be queryable, not guessed from symptoms.
 
 The next practical hardening steps are:
 
-1. audit the exact release moderation/browser endpoint contract from code
-2. choose the browser worker implementation shape
-3. provision that worker as a dedicated deployable service
-4. wire the platform env to it
-5. re-test hosted release publish with a fresh release
+1. complete `airjam.io` and `www.airjam.io` Railway domain cutover
+2. verify production routes on the Railway-hosted platform surface
+3. keep `railway doctor` as the single deploy inspection front door
+4. re-test hosted release publish with a fresh release
+5. remove remaining stale docs and operational notes that still describe the old split-provider preview model
 
 ## Non-Goals
 
 This cleanup does not require:
 
-1. moving the platform app off Vercel
-2. moving the realtime server off Railway
-3. collapsing all services into one runtime
-4. coupling release moderation into the realtime server
+1. reintroducing a repo-owned preview up or down lifecycle
+2. minting custom preview aliases
+3. splitting Arcade out of the platform yet
+4. extracting the API and auth services during the deployment reset
 
-Those moves would make the system less clear, not more.
+Those are separate decisions and should not be mixed into the Railway consolidation block.

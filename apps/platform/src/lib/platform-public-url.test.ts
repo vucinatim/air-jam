@@ -10,17 +10,15 @@ describe("resolvePlatformPublicUrl", () => {
       resolvePlatformPublicUrl({
         NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "http://127.0.0.1:3400",
         NEXT_PUBLIC_APP_URL: "http://localhost:3000",
-        VERCEL_URL: "airjam.io",
       }),
     ).toBe("http://127.0.0.1:3400");
   });
 
-  it("falls back to NEXT_PUBLIC_APP_URL before VERCEL_URL", () => {
+  it("falls back to NEXT_PUBLIC_APP_URL before Railway host detection", () => {
     expect(
       resolvePlatformPublicUrl({
         NEXT_PUBLIC_APP_URL: "https://air-jam.example",
         RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
-        VERCEL_URL: "preview.airjam.io",
       }),
     ).toBe("https://air-jam.example");
   });
@@ -37,21 +35,12 @@ describe("resolvePlatformPublicUrl", () => {
     ).toBe("https://air-jam-platform-air-jam-pr-17.up.railway.app");
   });
 
-  it("falls back to the Railway public domain before Vercel", () => {
+  it("falls back to the Railway public domain when no explicit public host is set", () => {
     expect(
       resolvePlatformPublicUrl({
         RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
-        VERCEL_URL: "preview.airjam.io",
       }),
     ).toBe("https://platform-preview.up.railway.app");
-  });
-
-  it("normalizes bare VERCEL_URL values to https origins", () => {
-    expect(
-      resolvePlatformPublicUrl({
-        VERCEL_URL: "preview.airjam.io",
-      }),
-    ).toBe("https://preview.airjam.io");
   });
 
   it("falls back to localhost when nothing is configured", () => {

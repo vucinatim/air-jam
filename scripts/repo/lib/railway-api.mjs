@@ -187,6 +187,11 @@ export const createRailwayApiClient = ({
           project(id: $id) {
             id
             name
+            prDeploys
+            focusedPrEnvironments
+            botPrEnvironments
+            baseEnvironmentId
+            primaryEnvironmentId
             workspace {
               id
               name
@@ -274,6 +279,8 @@ export const createRailwayApiClient = ({
                   serviceName
                   rootDirectory
                   railwayConfigFile
+                  startCommand
+                  healthcheckPath
                   source {
                     repo
                     image

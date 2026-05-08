@@ -96,8 +96,7 @@ export const resolvePlatformDeploymentConfig = (
     (isRailwayPreviewEnvironment ? railwayPublicUrl : null) ??
     normalizePublicUrl(env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST) ??
     normalizePublicUrl(env.NEXT_PUBLIC_APP_URL) ??
-    railwayPublicUrl ??
-    normalizePublicUrl(env.VERCEL_URL);
+    railwayPublicUrl;
 
   const platformPublicUrl = explicitPublicUrl ?? PLATFORM_PUBLIC_URL_FALLBACK;
   const platformPublicOrigin =
@@ -112,7 +111,6 @@ export const resolvePlatformDeploymentConfig = (
     normalizeOrigin(env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST),
     normalizeOrigin(env.NEXT_PUBLIC_APP_URL),
     normalizeOrigin(env.RAILWAY_PUBLIC_DOMAIN),
-    normalizeOrigin(env.VERCEL_URL),
     ...splitTrustedOrigins(env.BETTER_AUTH_TRUSTED_ORIGINS),
   ]) {
     if (value) {

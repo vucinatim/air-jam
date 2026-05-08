@@ -34,10 +34,12 @@ describe("buildManagedGameMediaUrl", () => {
   it("returns a relative URL when no public origin is configured", () => {
     const originalPublicHost = process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
     const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-    const originalVercelUrl = process.env.VERCEL_URL;
+    const originalRailwayPublicDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+    const originalRailwayEnvironmentName = process.env.RAILWAY_ENVIRONMENT_NAME;
     delete process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
     delete process.env.NEXT_PUBLIC_APP_URL;
-    delete process.env.VERCEL_URL;
+    delete process.env.RAILWAY_PUBLIC_DOMAIN;
+    delete process.env.RAILWAY_ENVIRONMENT_NAME;
 
     expect(
       buildManagedGameMediaUrl({
@@ -59,10 +61,16 @@ describe("buildManagedGameMediaUrl", () => {
       process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
     }
 
-    if (originalVercelUrl === undefined) {
-      delete process.env.VERCEL_URL;
+    if (originalRailwayPublicDomain === undefined) {
+      delete process.env.RAILWAY_PUBLIC_DOMAIN;
     } else {
-      process.env.VERCEL_URL = originalVercelUrl;
+      process.env.RAILWAY_PUBLIC_DOMAIN = originalRailwayPublicDomain;
+    }
+
+    if (originalRailwayEnvironmentName === undefined) {
+      delete process.env.RAILWAY_ENVIRONMENT_NAME;
+    } else {
+      process.env.RAILWAY_ENVIRONMENT_NAME = originalRailwayEnvironmentName;
     }
   });
 });

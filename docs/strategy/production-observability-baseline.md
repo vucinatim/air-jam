@@ -1,15 +1,14 @@
 # Air Jam Production Observability Baseline
 
-Last updated: 2026-03-29  
+Last updated: 2026-05-08  
 Status: stable baseline
 
 Related docs:
 
 1. [Framework Paradigm](../framework-paradigm.md)
 2. [Analytics Architecture](../architecture/analytics-architecture.md)
-3. [Release Workflow](./release-workflow.md)
-4. [Deployment and Monetization Strategy](./deployment-and-monetization-strategy.md)
-5. [Docs Index](../docs-index.md)
+3. [Deployment Topology](./deployment-topology.md)
+4. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
 
 ## Purpose
 
@@ -29,9 +28,10 @@ Air Jam should not adopt a large generic observability stack by default.
 The current product stage needs:
 
 1. external uptime truth
-2. simple frontend traffic and performance visibility
-3. authoritative runtime usage truth
-4. straightforward provider log access for debugging
+2. lightweight public-site traffic visibility
+3. lightweight public-site performance visibility
+4. authoritative runtime usage truth
+5. straightforward provider log access for debugging
 
 It does not yet need:
 
@@ -50,7 +50,7 @@ Use Better Stack as the external uptime authority.
 
 Why:
 
-1. it lives outside the Vercel and Railway footprint
+1. it lives outside the Railway footprint
 2. it answers the simplest high-value question first: is the product up
 3. it avoids self-hosting another operational service before release
 
@@ -60,15 +60,15 @@ Expected checks:
 2. platform login page
 3. runtime server health endpoint
 
-### 2. Vercel Web Analytics
+### 2. Umami Website Analytics
 
-Use Vercel Web Analytics for public-site traffic and high-level frontend usage visibility.
+Use Umami for public-site traffic and high-level frontend usage visibility.
 
 Why:
 
 1. it is lightweight
-2. it fits the Vercel-hosted platform surface directly
-3. it helps validate public release reach without introducing a second product analytics worldview
+2. it is already the platform's explicit website analytics integration
+3. it gives enough public-surface signal without introducing a second product-truth system
 
 This is for:
 
@@ -78,23 +78,7 @@ This is for:
 
 This is not the source of truth for gameplay usage or monetization-facing metrics.
 
-### 3. Vercel Speed Insights
-
-Use Vercel Speed Insights for frontend performance visibility on the hosted platform surface.
-
-Why:
-
-1. it gives enough signal on real-site responsiveness
-2. it keeps performance visibility tied to the actual deployed frontend
-3. it is much lower-friction than a custom RUM or tracing rollout
-
-This is mainly for:
-
-1. landing page
-2. docs
-3. dashboard/login surfaces
-
-### 4. Air Jam Runtime Analytics
+### 3. Air Jam Runtime Analytics
 
 Use Air Jam's own runtime analytics system as the authoritative usage and product-truth layer.
 
@@ -113,9 +97,9 @@ This remains the canonical source for:
 3. eligible playtime
 4. game-level creator analytics
 
-### 5. Provider Logs
+### 4. Provider Logs
 
-Use Vercel logs, Railway logs, and the existing Air Jam local/dev log systems for operational debugging.
+Use Railway logs and the existing Air Jam local and dev log systems for operational debugging.
 
 Why:
 
@@ -145,12 +129,13 @@ Deferred because:
 2. PostHog would introduce a second product analytics model too early
 3. the current product stage does not need advanced funnel tooling badly enough
 
-### 3. Google Analytics
+### 3. Custom RUM Or Performance Stack
 
 Deferred because:
 
-1. the current need is product credibility and uptime, not full marketing attribution
-2. Vercel Web Analytics is enough for the current public-site baseline
+1. Railway hosting does not force a separate RUM choice yet
+2. the current public surface can live with simple website analytics plus manual performance verification
+3. we should add a dedicated performance tool only when real pain appears
 
 ### 4. Custom Observability Infrastructure
 
@@ -179,8 +164,8 @@ Default rule:
 Add more observability only when one of these becomes true:
 
 1. production failures are hard to diagnose from existing logs
-2. platform frontend regressions are not explainable from Speed Insights and provider logs
-3. creator/product questions require richer hosted rollups than the current analytics surface provides
+2. platform frontend regressions are not explainable from existing website analytics and provider logs
+3. creator and product questions require richer hosted rollups than the current analytics surface provides
 4. support load grows enough that structured error correlation becomes clearly worth it
 
 ## Current Recommendation
@@ -188,9 +173,8 @@ Add more observability only when one of these becomes true:
 For prerelease and the first meaningful wave of public users, the right Air Jam observability stack is:
 
 1. Better Stack uptime
-2. Vercel Web Analytics
-3. Vercel Speed Insights
-4. Air Jam runtime analytics
-5. provider logs
+2. Umami website analytics
+3. Air Jam runtime analytics
+4. provider logs
 
 Anything more should wait for real evidence.
