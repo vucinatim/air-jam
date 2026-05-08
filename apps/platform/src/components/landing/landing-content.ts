@@ -75,7 +75,7 @@ Claude Code scaffolds the game, opens preview, and gets it playable.`,
       {
         icon: "arcade",
         title: "Publish to the Arcade",
-        body: "Ship your game to the Arcade with one command. Players discover and play it instantly.",
+        body: "Bundle your game, publish it to the Arcade, and let players discover and play it instantly.",
       },
       {
         icon: "chart",
