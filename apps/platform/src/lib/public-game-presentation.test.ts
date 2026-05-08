@@ -51,7 +51,7 @@ describe("public game presentation", () => {
         slug: "code-review",
         ownerName: "AirJam",
       }).map((creator) => creator.name),
-    ).toEqual(["Tim Kalan", "Žiga Pk", "Miha Majetić"]);
+    ).toEqual(["Miha Majetić", "Žiga Pk", "Tim Kalan"]);
 
     expect(
       getPublicGameCreators({

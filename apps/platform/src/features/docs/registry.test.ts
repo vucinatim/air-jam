@@ -87,7 +87,7 @@ describe("docs registry", () => {
     );
 
     expect(headingEntry?.description).toContain(
-      "multiplayer game platform and SDK",
+      "open AI-native framework for multiplayer games controlled by phones",
     );
   });
 
