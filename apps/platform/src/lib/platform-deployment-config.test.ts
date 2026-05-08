@@ -46,6 +46,24 @@ describe("resolvePlatformDeploymentConfig", () => {
     });
   });
 
+  it("prefers the Railway public domain inside Railway preview environments", () => {
+    expect(
+      resolvePlatformDeploymentConfig({
+        RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-17",
+        RAILWAY_PUBLIC_DOMAIN: "air-jam-platform-air-jam-pr-17.up.railway.app",
+        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST:
+          "https://air-jam-platform-production.up.railway.app",
+        NEXT_PUBLIC_APP_URL:
+          "https://air-jam-platform-production.up.railway.app",
+        BETTER_AUTH_URL: "https://air-jam-platform-production.up.railway.app",
+      }),
+    ).toMatchObject({
+      platformPublicUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
+      authBaseUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
+      hasExplicitPlatformPublicOrigin: true,
+    });
+  });
+
   it("collects trusted origins from every relevant deployment identity source", () => {
     expect(
       resolvePlatformDeploymentConfig({

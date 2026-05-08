@@ -88,17 +88,23 @@ export const PLATFORM_PUBLIC_URL_FALLBACK = LOCAL_FALLBACK;
 export const resolvePlatformDeploymentConfig = (
   env: NodeJS.ProcessEnv = process.env,
 ): PlatformDeploymentConfig => {
+  const railwayEnvironmentName = trimToUndefined(env.RAILWAY_ENVIRONMENT_NAME);
+  const isRailwayPreviewEnvironment =
+    Boolean(railwayEnvironmentName) && railwayEnvironmentName !== "production";
+  const railwayPublicUrl = normalizePublicUrl(env.RAILWAY_PUBLIC_DOMAIN);
   const explicitPublicUrl =
+    (isRailwayPreviewEnvironment ? railwayPublicUrl : null) ??
     normalizePublicUrl(env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST) ??
     normalizePublicUrl(env.NEXT_PUBLIC_APP_URL) ??
-    normalizePublicUrl(env.RAILWAY_PUBLIC_DOMAIN) ??
+    railwayPublicUrl ??
     normalizePublicUrl(env.VERCEL_URL);
 
   const platformPublicUrl = explicitPublicUrl ?? PLATFORM_PUBLIC_URL_FALLBACK;
   const platformPublicOrigin =
     normalizeOrigin(platformPublicUrl) ?? PLATFORM_PUBLIC_URL_FALLBACK;
   const authBaseUrl =
-    normalizeOrigin(env.BETTER_AUTH_URL) ?? platformPublicOrigin;
+    (isRailwayPreviewEnvironment ? null : normalizeOrigin(env.BETTER_AUTH_URL)) ??
+    platformPublicOrigin;
 
   const authTrustedOrigins = new Set<string>();
   for (const value of [
