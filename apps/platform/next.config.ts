@@ -12,6 +12,34 @@ const repoRoot = path.resolve(process.cwd(), "../..");
 const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
 const resolvedAppUrl = deploymentConfig.platformPublicUrl;
 
+// TEMP build-arg propagation diagnostic
+if (process.env.RAILWAY_ENVIRONMENT_NAME || process.env.CI) {
+  // eslint-disable-next-line no-console
+  console.log(
+    "[next.config DIAG] env present:",
+    JSON.stringify(
+      Object.fromEntries(
+        Object.keys(process.env)
+          .filter(
+            (k) =>
+              k.startsWith("NEXT_PUBLIC_") ||
+              k.startsWith("RAILWAY_") ||
+              k === "BETTER_AUTH_SECRET" ||
+              k === "BETTER_AUTH_URL",
+          )
+          .map((k) => [
+            k,
+            k === "BETTER_AUTH_SECRET"
+              ? `<len=${(process.env[k] ?? "").length}>`
+              : process.env[k],
+          ]),
+      ),
+      null,
+      2,
+    ),
+  );
+}
+
 const resolvePlatformShellTopologyEnv = (
   surfaceRole: "platform-host" | "platform-controller",
 ) => {
