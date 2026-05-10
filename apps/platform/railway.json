@@ -17,7 +17,6 @@
   },
   "deploy": {
     "startCommand": "node /app/apps/platform/.next/standalone/apps/platform/server.js",
-    "preDeployCommand": "if [ \"$RAILWAY_ENVIRONMENT_NAME\" != \"production\" ]; then cd /app/apps/platform && pnpm exec drizzle-kit migrate --config drizzle.config.ts; fi",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
