@@ -4,7 +4,6 @@ import {
   resolveRuntimeTopology,
 } from "@air-jam/sdk/runtime-topology";
 import { z } from "zod";
-import { resolvePlatformDeploymentConfig } from "./platform-deployment-config";
 
 export const arcadeInputSchema = z.object({
   vector: z.object({
@@ -50,26 +49,38 @@ export const resolvePlatformTopology = (
   });
 };
 
-export const getPlatformControllerSessionConfig = () => {
-  const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
+// These reads must use literal `process.env.X` references so Next.js can
+// statically replace them at build time. Calling
+// `resolvePlatformDeploymentConfig(process.env)` from client code does not
+// work — Next.js only inlines literal accesses, not parameter passes.
+const trimOrUndefined = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
 
+const resolveClientAppId = () =>
+  trimOrUndefined(process.env.NEXT_PUBLIC_AIR_JAM_APP_ID);
+
+const resolveClientHostGrantEndpoint = () =>
+  trimOrUndefined(process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT) ??
+  "/api/airjam/host-grant";
+
+export const getPlatformControllerSessionConfig = () => {
   return {
     topology: resolvePlatformTopology(
       "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
     ),
-    appId: deploymentConfig.appId,
+    appId: resolveClientAppId(),
   };
 };
 
 export const getPlatformArcadeHostSessionConfig = () => {
-  const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
-
   return {
     topology: resolvePlatformTopology(
       "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY",
     ),
-    appId: deploymentConfig.appId,
-    hostGrantEndpoint: deploymentConfig.systemHostGrantEndpoint,
+    appId: resolveClientAppId(),
+    hostGrantEndpoint: resolveClientHostGrantEndpoint(),
     hostSessionKind: "system" as const,
     input: {
       schema: arcadeInputSchema,
