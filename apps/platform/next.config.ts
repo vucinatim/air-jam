@@ -121,6 +121,9 @@ const nextConfig: NextConfig = {
   env: {
     // Publish the resolved public app URL as one canonical client-visible identity.
     NEXT_PUBLIC_APP_URL: resolvedAppUrl,
+    // Explicitly bake the App ID rather than relying on Next.js auto-inlining,
+    // which is not firing in this Dockerfile + Turbopack build.
+    NEXT_PUBLIC_AIR_JAM_APP_ID: deploymentConfig.appId ?? "",
     NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY:
       resolvePlatformShellTopologyEnv("platform-host"),
     NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY:
