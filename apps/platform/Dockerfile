@@ -2,6 +2,21 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
+# Public env vars baked into the Next.js client bundle at build time.
+# Railway passes service variables as --build-arg; these ARG declarations
+# expose them to `pnpm --filter platform build` so next.config.ts can
+# resolve the production topology instead of falling back to localhost.
+ARG NEXT_PUBLIC_AIR_JAM_SERVER_URL
+ARG NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_AIR_JAM_APP_ID
+ARG NEXT_PUBLIC_AUTH_GITHUB_ENABLED
+ENV NEXT_PUBLIC_AIR_JAM_SERVER_URL=$NEXT_PUBLIC_AIR_JAM_SERVER_URL \
+    NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST=$NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST \
+    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    NEXT_PUBLIC_AIR_JAM_APP_ID=$NEXT_PUBLIC_AIR_JAM_APP_ID \
+    NEXT_PUBLIC_AUTH_GITHUB_ENABLED=$NEXT_PUBLIC_AUTH_GITHUB_ENABLED
+
 RUN corepack enable
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
