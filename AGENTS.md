@@ -47,6 +47,33 @@ This vision has architectural consequences now:
 5. Add or update tests when behavior changes.
 6. Keep public APIs and documentation aligned.
 
+## Repo CLI Rule
+
+When doing repo maintenance work, check `package.json` first for a dedicated
+repo-native CLI before reaching for ad hoc commands or third-party CLIs.
+
+In this repo, the canonical maintainer entrypoint is:
+
+```bash
+pnpm run repo -- --help
+```
+
+Use that surface to discover and prefer repo-owned operations when they exist.
+
+For Railway work specifically, prefer the repo-native Railway toolkit over the
+generic Railway CLI:
+
+```bash
+pnpm run repo -- railway --help
+```
+
+Current Railway helpers include:
+
+1. `whoami`
+2. `project`
+3. `env`
+4. `vars`
+
 ## Parallel Work Rule
 
 When work is naturally separable, agents should use parallel execution by default rather than treating it as optional.
