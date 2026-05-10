@@ -12,10 +12,20 @@ const TERMINAL_FAILURE_DEPLOYMENT_STATUSES = new Set([
 ]);
 
 export const resolveRailwayApiToken = (env = process.env) => {
+  const projectToken = env.RAILWAY_PROJECT_TOKEN?.trim();
+  if (projectToken) {
+    return {
+      token: projectToken,
+      kind: "project",
+      source: "env:RAILWAY_PROJECT_TOKEN",
+    };
+  }
+
   const explicitApiToken = env.RAILWAY_API_TOKEN?.trim();
   if (explicitApiToken) {
     return {
       token: explicitApiToken,
+      kind: "account",
       source: "env:RAILWAY_API_TOKEN",
     };
   }
@@ -24,12 +34,14 @@ export const resolveRailwayApiToken = (env = process.env) => {
   if (explicitToken) {
     return {
       token: explicitToken,
+      kind: "account",
       source: "env:RAILWAY_TOKEN",
     };
   }
 
   return {
     token: null,
+    kind: null,
     source: null,
   };
 };
@@ -64,19 +76,26 @@ export class RailwayApiError extends Error {
 export const createRailwayApiClient = ({
   env = process.env,
   token = undefined,
+  tokenKind = undefined,
   endpoint = env.RAILWAY_API_ENDPOINT ?? DEFAULT_RAILWAY_API_ENDPOINT,
   fetchImpl = fetch,
 } = {}) => {
-  const resolvedToken =
-    token ?? resolveRailwayApiToken(env).token ?? null;
+  const resolved = resolveRailwayApiToken(env);
+  const resolvedToken = token ?? resolved.token ?? null;
+  const resolvedKind = tokenKind ?? resolved.kind ?? "account";
 
   const assertToken = () => {
     if (!resolvedToken) {
       throw new RailwayApiError(
-        "Missing Railway API token. Set RAILWAY_API_TOKEN or RAILWAY_TOKEN.",
+        "Missing Railway API token. Set RAILWAY_API_TOKEN, RAILWAY_TOKEN, or RAILWAY_PROJECT_TOKEN.",
       );
     }
   };
+
+  const authHeaders = () =>
+    resolvedKind === "project"
+      ? { "Project-Access-Token": resolvedToken }
+      : { Authorization: `Bearer ${resolvedToken}` };
 
   const request = async ({ query, variables = {} }) => {
     assertToken();
@@ -84,7 +103,7 @@ export const createRailwayApiClient = ({
     const response = await fetchImpl(endpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${resolvedToken}`,
+        ...authHeaders(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ query, variables }),
