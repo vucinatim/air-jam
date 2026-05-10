@@ -128,13 +128,15 @@ export const resolvePlatformDeploymentConfig = (
     backendPublicUrl,
     authBaseUrl,
     authTrustedOrigins: [...authTrustedOrigins],
-    githubAuthEnabled: resolveBooleanEnv(
-      env.NEXT_PUBLIC_AUTH_GITHUB_ENABLED,
-      Boolean(
-        trimToUndefined(env.GITHUB_CLIENT_ID) &&
-          trimToUndefined(env.GITHUB_CLIENT_SECRET),
-      ),
-    ),
+    githubAuthEnabled: isRailwayPreviewEnvironment
+      ? false
+      : resolveBooleanEnv(
+          env.NEXT_PUBLIC_AUTH_GITHUB_ENABLED,
+          Boolean(
+            trimToUndefined(env.GITHUB_CLIENT_ID) &&
+              trimToUndefined(env.GITHUB_CLIENT_SECRET),
+          ),
+        ),
     appId: trimToUndefined(env.NEXT_PUBLIC_AIR_JAM_APP_ID),
     systemHostGrantEndpoint:
       trimToUndefined(env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT) ??

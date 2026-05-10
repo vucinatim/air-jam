@@ -1,0 +1,73 @@
+name: PR preview comment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  comment:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_PROJECT_TOKEN: ${{ secrets.RAILWAY_PROJECT_TOKEN }}
+      RAILWAY_PROJECT_ID: 0b0761f9-9bb1-4d4f-8191-50d43cccdee7
+      RAILWAY_PLATFORM_SERVICE_ID: 5966dcb6-88cb-49d6-a1fa-60ca78c533ac
+      ENV_NAME: air-jam-pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Resolve preview environment
+        id: env
+        run: |
+          if [ -z "$RAILWAY_PROJECT_TOKEN" ]; then
+            echo "::warning::RAILWAY_PROJECT_TOKEN secret missing — skipping preview comment."
+            exit 0
+          fi
+
+          for attempt in $(seq 1 20); do
+            response=$(curl -fsS -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Project-Access-Token: $RAILWAY_PROJECT_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "{\"query\":\"query{ environments(projectId: \\\"$RAILWAY_PROJECT_ID\\\", isEphemeral: true){ edges{ node{ id name } } } }\"}")
+            env_id=$(echo "$response" | jq -r --arg name "$ENV_NAME" '.data.environments.edges[].node | select(.name == $name) | .id')
+            if [ -n "$env_id" ] && [ "$env_id" != "null" ]; then
+              echo "env_id=$env_id" >> "$GITHUB_OUTPUT"
+              break
+            fi
+            sleep 6
+          done
+
+          if [ -z "${env_id:-}" ]; then
+            echo "::warning::Ephemeral environment $ENV_NAME did not appear within 2 minutes."
+          fi
+
+      - name: Resolve preview URL
+        id: url
+        if: steps.env.outputs.env_id
+        env:
+          ENV_ID: ${{ steps.env.outputs.env_id }}
+        run: |
+          response=$(curl -fsS -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Project-Access-Token: $RAILWAY_PROJECT_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "{\"query\":\"query{ domains(projectId: \\\"$RAILWAY_PROJECT_ID\\\", environmentId: \\\"$ENV_ID\\\", serviceId: \\\"$RAILWAY_PLATFORM_SERVICE_ID\\\"){ serviceDomains{ domain } customDomains{ domain } } }\"}")
+          domain=$(echo "$response" | jq -r '
+            (.data.domains.customDomains[0].domain // .data.domains.serviceDomains[0].domain) // empty
+          ')
+          if [ -n "$domain" ]; then
+            echo "url=https://$domain" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sticky preview comment
+        if: steps.url.outputs.url
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: railway-preview
+          message: |
+            ### Railway preview
+
+            - Preview: ${{ steps.url.outputs.url }}
+            - Environment: `${{ env.ENV_NAME }}`
+
+            GitHub OAuth is disabled on previews. Each PR gets its own Postgres clone; migrations run on every deploy.
