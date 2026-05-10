@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Last updated: 2026-05-08  
+Last updated: 2026-05-10  
 Status: active guide
 
 Related docs:
@@ -34,14 +34,23 @@ Persistent infrastructure remains external:
 
 ## Canonical Preview Model
 
-Previews should be Railway-native.
+Previews are Railway-native.
 
 That means:
 
 1. PR environments are enabled at the project level
 2. focused PR environments are disabled unless Railway proves they are reliable enough
-3. each PR environment contains the same service set as production
+3. each PR environment contains the same service set as production, including its own ephemeral Postgres
 4. the repo does not mint custom `full-pr-*` aliases or own preview teardown
+
+### Behavior on PR open
+
+1. Railway clones every service into an ephemeral environment named `air-jam-pr-<number>`.
+2. The platform `preDeployCommand` runs `drizzle-kit migrate` against the ephemeral Postgres so each preview boots with current schema. This step is gated to non-production environments and never touches the live DB.
+3. `resolvePlatformDeploymentConfig` detects `RAILWAY_ENVIRONMENT_NAME != "production"` and forces `githubAuthEnabled = false`. Avoids the GitHub OAuth wildcard-callback problem and keeps preview auth simple.
+4. `.github/workflows/preview-comment.yml` polls Railway, resolves the platform service domain in the new environment, and posts a sticky preview-URL comment on the PR.
+
+The workflow needs a single repo secret: `RAILWAY_PROJECT_TOKEN` (a Railway project-scoped token).
 
 ## Repo Commands
 

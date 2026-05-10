@@ -1,8 +1,13 @@
 # On-Demand Full-Stack PR Preview Plan
 
-Last updated: 2026-05-08  
-Status: completed operational baseline  
+Last updated: 2026-05-10  
+Status: superseded — see [Railway Deployment Guide](../guides/railway-deployment-guide.md)  
 Owner: platform / infra / auth
+
+> Superseded (2026-05-10): the repo-owned full-stack preview orchestration described below
+> was removed in commit `1d3af46 Simplify Railway deployment surface`. Previews are now
+> Railway-native ephemeral environments with a thin GitHub Action that comments the
+> preview URL. Document kept for historical context only.
 
 Related docs:
 
