@@ -88,7 +88,6 @@ export const resolvePlatformBaseUrl = (
     process.env.AIR_JAM_PLATFORM_URL ||
     process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.VERCEL_URL ||
     LOCAL_PLATFORM_FALLBACK;
 
   try {
