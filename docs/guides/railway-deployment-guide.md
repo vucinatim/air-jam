@@ -46,11 +46,15 @@ That means:
 ### Behavior on PR open
 
 1. Railway clones every service into an ephemeral environment named `air-jam-pr-<number>`.
-2. The platform `preDeployCommand` runs `drizzle-kit migrate` against the ephemeral Postgres so each preview boots with current schema. This step is gated to non-production environments and never touches the live DB.
+2. The ephemeral Postgres boots empty. Migrations are intentionally not run automatically — the prior `preDeployCommand` approach created real risk of touching production schema, and the value of auto-migrated previews is small relative to that risk. PRs that need DB state should seed it manually via `psql "$DATABASE_PUBLIC_URL" < seed.sql` against the ephemeral DB.
 3. `resolvePlatformDeploymentConfig` detects `RAILWAY_ENVIRONMENT_NAME != "production"` and forces `githubAuthEnabled = false`. Avoids the GitHub OAuth wildcard-callback problem and keeps preview auth simple.
 4. `.github/workflows/preview-comment.yml` polls Railway, resolves the platform service domain in the new environment, and posts a sticky preview-URL comment on the PR.
 
 The workflow needs a single repo secret: `RAILWAY_PROJECT_TOKEN` (a Railway project-scoped token).
+
+### Production schema management
+
+Production schema is migration-managed (Drizzle Kit). The `drizzle.__drizzle_migrations` tracking table is the source of truth for what has been applied. New migrations land via `drizzle-kit migrate` run manually against `DATABASE_PUBLIC_URL` from a maintainer's machine, never via the deploy pipeline.
 
 ## Repo Commands
 
