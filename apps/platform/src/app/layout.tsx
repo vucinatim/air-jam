@@ -1,7 +1,6 @@
 import { WebsiteAnalytics } from "@/components/analytics/website-analytics";
 import { getSiteUrl } from "@/lib/site-url";
 import { TRPCReactProvider } from "@/trpc/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
@@ -60,7 +59,6 @@ export default function RootLayout({
       >
         <TRPCReactProvider>{children}</TRPCReactProvider>
         <WebsiteAnalytics />
-        <SpeedInsights />
       </body>
     </html>
   );

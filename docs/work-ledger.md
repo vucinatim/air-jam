@@ -31,6 +31,27 @@ Before the 2026-05-08 repo operating system reset, the repo already had these ma
 
 For the detailed pre-reset execution story, use the archived ledger snapshot above.
 
+## 2026-05-08 - Railway Consolidation Simplified The Deploy Model
+
+- finished the Block 1 deployment reset in practice:
+  - the platform now runs on Railway alongside the realtime server and release browser worker
+  - Railway native PR environments are now the canonical preview model
+  - the repo no longer treats Vercel plus Railway plus a custom preview control plane as one deploy system
+- removed the repo-owned full-stack preview control plane from the active surface:
+  - deleted the preview workflows
+  - deleted the repo preview command and preview helper modules
+  - deleted the preview-specific runtime contract tests
+- replaced the old preview-oriented inspection story with a simpler Railway-first one:
+  - kept the direct Railway API client
+  - added `pnpm run repo -- railway doctor` as the canonical deploy inspection front door
+- removed stale Vercel-specific runtime assumptions from the deployable platform surface:
+  - removed `VERCEL_URL` fallback identity logic
+  - removed Vercel Speed Insights integration
+  - removed the leftover full-stack preview host guard
+- rewrote the live deployment docs around one simpler truth:
+  - Railway is now the deploy and preview provider for the first-party app surfaces
+  - the repo should own validation and config clarity, not a second preview lifecycle
+
 ## 2026-05-08 - Repo Operating System Reset Closed
 
 - closed the repo operating-system reset by separating:
@@ -128,6 +149,19 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
 - added a shared public creator-attribution registry and presentation layer for Arcade and landing cards
 - public game cards now support real GitHub-linked avatar attribution stacks instead of only a flat creator label
 - the current curated data is intentionally owned in one file so zerodays game attribution can be adjusted without touching multiple UI surfaces
+
+## 2026-05-08 - Post-V1 Topology Roadmap Written
+
+- wrote [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md) as the canonical post-v1 application-topology roadmap
+- locked the intended sequencing instead of treating deployment simplification, Arcade isolation, and API/auth extraction as one blended future refactor:
+  - Block 1: move the current platform stack fully onto Railway
+  - Block 2: isolate Arcade into its own app boundary
+  - Block 3: extract API and auth into a dedicated backend service
+- explicitly kept this roadmap out of `docs/plans/` so the repo still has one active release plan while the future architecture direction remains visible and non-current
+- recorded the current recommendation on service boundaries:
+  - do not remove tRPC during the Railway migration
+  - revisit tRPC only once a real separate API service exists
+  - use `yu-gi-ai` as the stronger long-term reference for a split API/app/auth package shape, not as a signal to do all of that immediately
 
 ## 2026-05-08 - Full-Stack Preview System Verified From `main`
 

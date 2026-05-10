@@ -62,7 +62,7 @@ test("resolveServicePublicDomain prefers custom domains, then service domains, t
                   serviceId: "service-1",
                   serviceName: "air-jam-server",
                   domains: {
-                    customDomains: [{ domain: "full-pr-42.preview.airjam.io" }],
+                    customDomains: [{ domain: "api.airjam.io" }],
                     serviceDomains: [
                       { domain: "air-jam-server-preview-pr-42.up.railway.app" },
                     ],
@@ -84,7 +84,7 @@ test("resolveServicePublicDomain prefers custom domains, then service domains, t
     environmentId: "env-1",
     serviceName: "air-jam-server",
   });
-  assert.equal(domain, "full-pr-42.preview.airjam.io");
+  assert.equal(domain, "api.airjam.io");
 });
 
 test("waitForDeployment returns success once the deployment reaches a terminal success state", async () => {

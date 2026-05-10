@@ -53,7 +53,6 @@ export const createPlatformSecurityHeaders = ({
     : "frame-ancestors 'self'";
   const scriptSrcHosts = [
     "https://cloud.umami.is",
-    "https://va.vercel-scripts.com",
     ...(allowInsecureDevFrames ? ["https://unpkg.com"] : []),
   ].join(" ");
   const workerSrc = allowInsecureDevFrames
@@ -70,7 +69,7 @@ export const createPlatformSecurityHeaders = ({
   //   during local smoke/dev, Socket.IO still uses loopback http polling
   // - creator-provided media URLs may live on any https host
   // - Sentry SDK is bundled; DSN traffic is a generic https: connect target
-  // - first-party product telemetry loads explicit Umami and Vercel scripts
+  // - first-party product telemetry loads the explicit Umami script only
   //
   // `'unsafe-inline'` and `'unsafe-eval'` are required for Next.js runtime
   // bootstrap scripts. Keep this as the single authoritative CSP — individual

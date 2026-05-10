@@ -34,9 +34,9 @@ Air Jam is no longer blocked on core platform architecture.
 These are already true:
 
 1. the framework, platform, realtime server, browser worker, and hosted release model are real
-2. the on-demand full-stack preview lane is operational
-3. the Railway API-backed preview control surface is operational
-4. the dashboard, release records, artifacts, managed media, and hosted serving path all exist
+2. the dashboard, release records, artifacts, managed media, and hosted serving path all exist
+3. the Railway-hosted platform, realtime server, and browser worker topology is real
+4. Railway native PR environments are the canonical preview model
 5. the repo operating system is reset and the live docs surface is now much cleaner
 
 The remaining work is late-stage product proof and release execution, not more broad platform building.

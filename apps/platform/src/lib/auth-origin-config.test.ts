@@ -39,11 +39,7 @@ describe("resolveAuthTrustedOrigins", () => {
     expect(
       resolveAuthTrustedOrigins({
         RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
-        VERCEL_URL: "airjam-git-main-timvucina.vercel.app",
       }),
-    ).toEqual([
-      "https://platform-preview.up.railway.app",
-      "https://airjam-git-main-timvucina.vercel.app",
-    ]);
+    ).toEqual(["https://platform-preview.up.railway.app"]);
   });
 });

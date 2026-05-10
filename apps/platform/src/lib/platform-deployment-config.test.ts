@@ -32,11 +32,10 @@ describe("resolvePlatformDeploymentConfig", () => {
     });
   });
 
-  it("falls back to the Railway public domain before Vercel deployment identity", () => {
+  it("falls back to the Railway public domain when no explicit public host is set", () => {
     expect(
       resolvePlatformDeploymentConfig({
         RAILWAY_PUBLIC_DOMAIN: "platform-production.up.railway.app",
-        VERCEL_URL: "airjam-git-main-timvucina.vercel.app",
       }),
     ).toMatchObject({
       platformPublicUrl: "https://platform-production.up.railway.app",
@@ -69,14 +68,12 @@ describe("resolvePlatformDeploymentConfig", () => {
       resolvePlatformDeploymentConfig({
         NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://preview.airjam.io",
         RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
-        VERCEL_URL: "airjam-git-main-timvucina.vercel.app",
         BETTER_AUTH_TRUSTED_ORIGINS:
           "https://foo.airjam.io, https://preview.airjam.io",
       }).authTrustedOrigins,
     ).toEqual([
       "https://preview.airjam.io",
       "https://platform-preview.up.railway.app",
-      "https://airjam-git-main-timvucina.vercel.app",
       "https://foo.airjam.io",
     ]);
   });

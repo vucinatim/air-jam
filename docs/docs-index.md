@@ -37,7 +37,9 @@ These are real next-step tracks, but not the current execution focus:
    1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
    2. [discoverability-vision.md](./discoverability-vision.md)
 2. creator-attribution polish for Arcade trust and self-promotion
-3. future architecture work is intentionally non-current and now lives as archive/history rather than as live release planning
+3. post-v1 architecture work is intentionally non-current and now lives in:
+   1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
+4. do not treat future topology work as a second live execution plan while [plans/v1-release-plan.md](./plans/v1-release-plan.md) is still current
 
 ## Core Docs
 

@@ -20,10 +20,163 @@ const resolveProjectId = (options, env = process.env) => {
   return options.project ?? env.RAILWAY_PROJECT_ID ?? null;
 };
 
+const summarizeServiceInstance = (instance) => {
+  const customDomains = instance.domains?.customDomains ?? [];
+  const serviceDomains = instance.domains?.serviceDomains ?? [];
+
+  return {
+    serviceId: instance.serviceId,
+    serviceName: instance.serviceName,
+    railwayConfigFile: instance.railwayConfigFile ?? null,
+    rootDirectory: instance.rootDirectory ?? null,
+    startCommand: instance.startCommand ?? null,
+    healthcheckPath: instance.healthcheckPath ?? null,
+    deployment: instance.latestDeployment
+      ? {
+          id: instance.latestDeployment.id,
+          status: instance.latestDeployment.status,
+          staticUrl: instance.latestDeployment.staticUrl ?? null,
+          url: instance.latestDeployment.url ?? null,
+        }
+      : null,
+    customDomains: customDomains.map((entry) => entry.domain),
+    serviceDomains: serviceDomains.map((entry) => entry.domain),
+  };
+};
+
+const isManagedApplicationService = (summary) => {
+  return Boolean(summary.railwayConfigFile);
+};
+
+const formatServiceStatus = (summary) => {
+  const deploymentStatus = summary.deployment?.status ?? "missing";
+  const publicDomains = [...new Set([
+    ...summary.customDomains,
+    ...summary.serviceDomains,
+    summary.deployment?.staticUrl ?? null,
+  ].filter(Boolean))];
+
+  return [
+    `${summary.serviceName}: ${deploymentStatus}`,
+    summary.railwayConfigFile
+      ? `  config: ${summary.railwayConfigFile}`
+      : null,
+    summary.healthcheckPath ? `  health: ${summary.healthcheckPath}` : null,
+    publicDomains.length > 0 ? `  public: ${publicDomains.join(", ")}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+};
+
 export const registerRailwayCommands = (program) => {
   const railwayCommand = program
     .command("railway")
     .description("Repo-owned Railway Public API helpers");
+
+  railwayCommand
+    .command("doctor")
+    .description("Summarize the canonical Railway deployment surface for this repo")
+    .option("--project <id>", "Railway project id")
+    .option("--json", "Print raw JSON")
+    .action(async (options) => {
+      const projectId = resolveProjectId(options);
+      if (!projectId) {
+        throw new Error("Missing --project and no RAILWAY_PROJECT_ID is set.");
+      }
+
+      const client = createRailwayApiClient();
+      const project = await client.getProject(projectId);
+      const environments = await client.listEnvironments({ projectId });
+      const primaryEnvironmentId =
+        project.primaryEnvironmentId ??
+        project.baseEnvironmentId ??
+        environments.find((entry) => entry.name === "production")?.id ??
+        null;
+
+      if (!primaryEnvironmentId) {
+        throw new Error(
+          `Could not resolve the primary Railway environment for project ${project.name}.`,
+        );
+      }
+
+      const primaryEnvironment = await client.getEnvironment(primaryEnvironmentId);
+      const allServiceSummaries = primaryEnvironment.serviceInstances.map(
+        summarizeServiceInstance,
+      );
+      const applicationServices = allServiceSummaries.filter(
+        isManagedApplicationService,
+      );
+      const infrastructureServices = allServiceSummaries.filter(
+        (summary) => !isManagedApplicationService(summary),
+      );
+
+      const result = {
+        project: {
+          id: project.id,
+          name: project.name,
+          workspace: project.workspace?.name ?? null,
+          prDeploys: Boolean(project.prDeploys),
+          focusedPrEnvironments: Boolean(project.focusedPrEnvironments),
+          botPrEnvironments: Boolean(project.botPrEnvironments),
+          baseEnvironmentId: project.baseEnvironmentId ?? null,
+          primaryEnvironmentId: project.primaryEnvironmentId ?? null,
+        },
+        environments: {
+          primary: {
+            id: primaryEnvironment.id,
+            name: primaryEnvironment.name,
+            isEphemeral: primaryEnvironment.isEphemeral,
+          },
+          ephemeral: environments
+            .filter((entry) => entry.isEphemeral)
+            .map((entry) => ({
+              id: entry.id,
+              name: entry.name,
+            })),
+        },
+        applicationServices,
+        infrastructureServices: infrastructureServices.map((summary) => ({
+          serviceId: summary.serviceId,
+          serviceName: summary.serviceName,
+          deployment: summary.deployment,
+        })),
+      };
+
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+
+      console.log(`${result.project.name} (${result.project.id})`);
+      console.log(`Workspace: ${result.project.workspace ?? "-"}`);
+      console.log(
+        `Primary environment: ${result.environments.primary.name} (${result.environments.primary.id})`,
+      );
+      console.log(
+        `PR environments: ${result.project.prDeploys ? "enabled" : "disabled"}`,
+      );
+      console.log(
+        `Focused PR environments: ${result.project.focusedPrEnvironments ? "enabled" : "disabled"}`,
+      );
+      console.log(
+        `Bot PR environments: ${result.project.botPrEnvironments ? "enabled" : "disabled"}`,
+      );
+      console.log(
+        `Open ephemeral environments: ${result.environments.ephemeral.map((entry) => entry.name).join(", ") || "none"}`,
+      );
+      console.log("");
+
+      console.log(
+        `Managed application services: ${applicationServices.length}`,
+      );
+      console.log(`Infrastructure services: ${infrastructureServices.length}`);
+      console.log("");
+
+      for (const summary of applicationServices) {
+        console.log(formatServiceStatus(summary));
+        console.log("");
+      }
+    });
 
   railwayCommand
     .command("whoami")
