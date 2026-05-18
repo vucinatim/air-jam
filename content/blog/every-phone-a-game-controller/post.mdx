@@ -244,6 +244,12 @@ This scaffolds a working game with a local development server, the SDK, and docu
 
 **Deploy your own.** Sign up at [airjam.io](https://airjam.io), register your game in the dashboard, and you get an API key automatically. You can host the game wherever you like (Vercel, Netlify, anywhere that serves a static site) and point it at the platform.
 
+**A few more things worth knowing:**
+
+- **Hosted release pipeline.** `airjam release validate | bundle | submit | publish` takes a game from source to live on the platform, with artifact validation, screenshot capture, and image moderation in between.
+- **Analytics out of the box.** Every published game gets an event-sourced runtime ledger and dashboard panels. No SDK to install.
+- **Agent-reachable end-to-end.** The same pipeline is exposed as MCP tools, so an AI assistant can scaffold a game, build it, validate it, and publish it without a human in the upload path.
+
 **Links:**
 
 - [GitHub](https://github.com/vucinatim/air-jam): source code, issues, discussions

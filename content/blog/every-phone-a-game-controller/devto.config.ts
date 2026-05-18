@@ -13,7 +13,7 @@ export const devtoConfig = {
   // Title and description used in the dev.to YAML frontmatter. These can
   // differ from the canonical post.meta.ts (e.g. a punchier dev.to headline).
   title:
-    "What If Every Phone in the Room Was a Game Controller (in the age of AI)?",
+    "What If Every Phone in the Room Was a Game Controller — in the Age of AI?",
   description:
     "Building an open-source framework for the age of vibe-coded party games, and what nine developers built with it in seven hours.",
   // Lowercase, alphanumeric, max 4. Dev.to convention.

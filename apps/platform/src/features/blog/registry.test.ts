@@ -37,7 +37,7 @@ describe("blog registry", () => {
       slug: "story-of-building-airjam",
     });
     expect(getBlogDocumentBySlug("every-phone-a-game-controller")?.post.title).toBe(
-      "What If Every Phone in the Room Was a Game Controller (in the age of AI)?",
+      "What If Every Phone in the Room Was a Game Controller — in the Age of AI?",
     );
     expect(getBlogDocumentBySlug("story-of-building-airjam")?.post.title).toBe(
       "Story of building Air Jam",

@@ -184,3 +184,13 @@ Multiplayer games should be startable or ready-able from controllers. The host s
 ## Decision Rule
 
 When in doubt, choose the option that reduces complexity, keeps boundaries clear, and makes future changes easier.
+
+## Agentic Devtools Preference
+
+For Railway, Namecheap, and npm agent or MCP work:
+
+1. prefer the published package `@vucinatim/agentic-devtools`
+2. prefer `npx -y @vucinatim/agentic-devtools mcp <tool>` for MCP host configuration
+3. use global `agentic-devtools` only for terminal convenience
+4. do not rely on copied local plugin or tool repos when the published package covers the use case
+5. keep official provider CLIs optional rather than primary unless a repo-native command explicitly requires them
