@@ -68,9 +68,13 @@ export const metadata = ${exportName};
 
 function renderDevtoConfig({ title }) {
   const safeTitle = title.replace(/"/g, '\\"');
-  return `import type { DevtoConfig } from "@/features/blog/devto-config";
+  return `// Dev.to syndication config. Consumed by the export-devto command.
+// Plain object on purpose: no TS annotations, no imports, so the content-dir
+// ESLint parser is happy and the exporter can load it from outside the
+// platform's tsconfig scope. The platform-side type definition at
+// apps/platform/src/features/blog/devto-config.ts documents the shape.
 
-export const devtoConfig: DevtoConfig = {
+export const devtoConfig = {
   title: "${safeTitle}",
   description: "One-sentence description for dev.to's article card and meta description.",
   // Lowercase alphanumeric, max 4. Dev.to convention.
