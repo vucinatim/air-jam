@@ -7,7 +7,7 @@ export const airJamOneBlogPost = defineBlogPost({
   publishedAt: "2026-03-27T12:00:00+01:00",
   author: "Air Jam Team",
   tags: ["release", "platform", "sdk"],
-  published: true,
+  published: false,
 });
 
 export const metadata = airJamOneBlogPost;

@@ -1,0 +1,254 @@
+import { metadata } from "./post.meta";
+
+export { metadata };
+
+Every phone in your pocket has a gyroscope, a touchscreen, speakers, a vibration motor, and a browser. That's a game controller. A pretty good one, actually, and every person in the room already has one.
+
+That thought is the entire premise behind Air Jam: an open-source framework for building multiplayer games where a computer or TV runs the game, and players join instantly from their phones by scanning a QR code. No app downloads. No Bluetooth pairing. No account creation. You scan, you play.
+
+I built it because I wanted to see what happens when you remove every barrier between "I have a game idea" and "we're all playing it together in the same room." Especially now, when AI can write most of the code for you.
+
+![Claude Code building an Air Jam game live](/blog-assets/every-phone-a-game-controller/claude-demo.gif)
+
+## Why Build This?
+
+The concept isn't new. AirConsole proved years ago that phones-as-controllers work beautifully for party games. But AirConsole is a closed commercial platform, you build games for _their_ ecosystem, on _their_ terms.
+
+I wanted the open-source version. Something anyone could use, extend, and deploy anywhere. But more than that, I wanted it designed for a specific moment in time: the one we're living in right now, where developers are increasingly working alongside LLMs to write code.
+
+Here's the thing about making a multiplayer game that uses phones as controllers. There are really two problems:
+
+1. **The infrastructure.** WebSocket connections, room management, input synchronization, state replication across devices, handling disconnections and reconnections, latching inputs so button presses aren't lost between network ticks and game frames. This is genuinely hard to get right, and it's the same problem no matter what game you're building.
+
+2. **The actual game.** The creative part. The rules, the visuals, the controller layout, the thing that makes people laugh or yell or lean forward in their chairs.
+
+Problem #1 is exactly the kind of thing you don't want an LLM figuring out from scratch every time. It's systems-level code with subtle edge cases. Problem #2 is exactly the kind of thing LLMs are great at helping with: creative, iterative, visual, fun.
+
+So Air Jam solves #1 completely. The networking, the rooms, the input pipeline, the state sync, all of it is handled. You bring the game. And if you're working with an AI assistant, it can focus entirely on the part that matters: making something people want to play.
+
+(If you want the longer story of how Air Jam got here, with the AirConsole couch days, the painful Unity SDK detour, and the 1,500-file rewrite that made it AI-native, the origin story lives at [airjam.io/blog/story-of-building-airjam](https://airjam.io/blog/story-of-building-airjam).)
+
+## How It Works
+
+![How Air Jam works: a host screen with a QR code, players' phones as controllers, inputs flow to the host, shared state broadcasts back](/blog-assets/every-phone-a-game-controller/architecture.svg)
+
+The setup is simple. A game is a React app with two views: one for the host screen (the computer/TV running the game) and one for the controller (the phone). You define what data the controller sends to the host with a Zod schema, configure your runtime, and you're done with the networking.
+
+Here's the input schema from Pong, the starter template that ships with the framework:
+
+```ts
+import { z } from "zod";
+
+export const gameInputSchema = z.object({
+  direction: z.number().min(-1).max(1),
+});
+```
+
+That's it. A paddle direction. The schema is the contract between the phone and the game.
+
+The app config wraps the SDK setup into a single `airjam` object that exposes the host and controller boundary components:
+
+```ts
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { gameInputSchema } from "./game/contracts/input";
+
+export const airjam = createAirJamApp({
+  runtime: env.vite(import.meta.env),
+  controllerPath: "/controller",
+  input: {
+    schema: gameInputSchema,
+  },
+});
+```
+
+Then in your routes:
+
+```tsx
+import { airjam } from "./airjam.config";
+
+<Routes>
+  <Route
+    path="/"
+    element={
+      <airjam.Host>
+        <HostView />
+      </airjam.Host>
+    }
+  />
+  <Route
+    path={airjam.paths.controller}
+    element={
+      <airjam.Controller>
+        <ControllerView />
+      </airjam.Controller>
+    }
+  />
+</Routes>
+```
+
+On the host side, you call `useAirJamHost()` and you get the connected players, runtime state, and everything else the host owns. You read validated controller input through `useGetInput()`. On the controller side, `useInputWriter()` plus `useControllerTick()` is the entire input publishing API. That's the whole networking surface for basic games.
+
+When you need shared state, scores, team assignments, game phases, there's `createAirJamStore`. It works like Zustand (because it _is_ Zustand under the hood), but the store automatically syncs between all devices. The host is always the source of truth. When a controller calls an action, it's transparently sent as an RPC to the host, executed there, and the result broadcasts back to everyone.
+
+```ts
+import { createAirJamStore } from "@air-jam/sdk";
+
+export const usePongStore = createAirJamStore<PongState>((set) => ({
+  scores: { team1: 0, team2: 0 },
+  teamAssignments: {},
+
+  actions: {
+    joinTeam: ({ actorId, connectedPlayerIds }, { team }) => {
+      set((state) => reduceJoinTeam(state, { actorId, connectedPlayerIds, team }));
+    },
+    scorePoint: (_ctx, { team }) =>
+      set((state) => ({
+        scores: { ...state.scores, [team]: state.scores[team] + 1 },
+      })),
+  },
+}));
+```
+
+Both the host and the controller import this same hook. The host mutates state directly. The controller's calls get proxied over the network. Action handlers receive a host-side context object (actor identity, connected players) so authorization decisions stay in one place. You don't write any networking code, it just works.
+
+This is the thing that makes vibe-coding these games practical. An LLM doesn't need to understand WebSocket protocols or message serialization. It just writes a Zustand-shaped store and a Zod schema. The framework handles the rest.
+
+## Build a Game in 4 Steps
+
+This is what the workflow actually looks like end-to-end:
+
+**1. Scaffold.** One command:
+
+```bash
+npx create-airjam my-game
+```
+
+Pick a template (Pong is the simplest, Air Capture the most ambitious), `pnpm install`, and you have a working game.
+
+**2. Describe.** Open the project in Claude Code, Cursor, or whichever assistant you use. Air Jam ships agent-friendly docs in `docs/for-agents/` so the LLM doesn't have to reverse-engineer the SDK. Tell it what game you want.
+
+**3. Iterate.** Run `pnpm run dev`. It boots the host and the signal server locally. Scan the QR code from your phone. Now the AI iterates on code while you test on a real device, with real input, in real time. That's the loop that makes the difference, and it's the one most game prototyping setups don't give you.
+
+**4. Share.** Deploy as a static site to Vercel, Netlify, or anywhere. Sign up at [airjam.io](https://airjam.io), register the game in your dashboard for an API key, point your build at it, and anyone with the room code can play from their phone.
+
+The framework owns the unfun part. The AI owns the boilerplate. You own the design.
+
+## The Decisions That Make It Work
+
+A few design choices that turned out to matter a lot:
+
+### Input Behavior Modes
+
+This one is subtle but important. Game loops typically run at 60 frames per second. Network events from phones arrive whenever they arrive, asynchronously, on their own schedule. A quick button tap might arrive, get written to the input buffer, and then get cleared by the next network tick before the game loop ever reads it. From the player's perspective: "I pressed the button and nothing happened."
+
+Air Jam's input system solves this with declarative behavior modes per field:
+
+- **`pulse`** is the default for booleans. When a tap arrives, it stays "true" until the host's game loop reads it via `getInput()`. That read consumes the pulse and resets it. No tap is ever lost, no matter how the timing lines up between the network and the game loop.
+- **`latest`** is for held continuous values like a defend button or a held trigger. The latest value the controller published wins.
+- **`hold`** keeps a non-zero value alive for a tick or two after the controller publishes a zero, which catches quick flick gestures on joysticks that would otherwise be missed.
+
+You configure it on the schema:
+
+```ts
+input: {
+  schema: gameInputSchema,
+  behavior: {
+    latest: ["defend"],
+  },
+},
+```
+
+It's a small thing, but it's the difference between a game that feels responsive and one that feels broken.
+
+### Transparent State Sync
+
+`createAirJamStore` is worth emphasizing because of what it actually does under the hood. On the host, the store behaves like a normal Zustand store. On controllers, every action call is intercepted and turned into an RPC message sent to the host via the WebSocket server. The host executes the action (it's the single source of truth, with the actor's identity injected from the server), and the resulting state change is broadcast to all controllers.
+
+You get a host-authoritative multiplayer architecture, the kind that prevents cheating and keeps state consistent, without writing any networking code. The API is identical to regular Zustand. If you know how to write a React state hook, you know how to build multiplayer game state with Air Jam.
+
+### Composable Shell Primitives
+
+Air Jam ships a set of small UI primitives, not a monolithic shell. There are pieces for what every game needs: showing a QR code and room code, listing connected players, managing connection status, locking screen orientation, fullscreen toggles, lifecycle action clusters (start/pause/reset), and a `SurfaceViewport` that handles orientation and safe-area layout.
+
+Pieces like `RoomQrCode`, `JoinUrlField`, `ConnectionStatusPill`, `LifecycleActionGroup`, and `SurfaceViewport` compose into whatever shell your game wants. You can stand a playable surface up in minutes without thinking about layout, or rebuild the whole thing your own way and keep the framework's runtime guarantees.
+
+## What People Built With It
+
+To test whether any of this actually works in practice, we ran a game jam at zerodays, the software dev agency where I work. Nine developers, three teams, seven hours. Everyone used AI assistants (Claude, Codex, Kimi, Cursor) in whatever dev environment they preferred. The only rule: build a game with Air Jam.
+
+What came out was three completely different games. A fighting game, a music quiz, and a cooperative office sim. All built with the same SDK, all using phones as controllers, all playable by the end of the day.
+
+### "Code Review", A Boxing Game
+
+![Code Review gameplay](/blog-assets/every-phone-a-game-controller/code-review.gif)
+
+The name is a developer in-joke. It's a top-down pixel-art boxing game where the two teams are the **Coders** and the **Reviewers**. You tilt your phone to move your fighter around the ring (gyroscope input), and your phone's screen shows punch and defend buttons.
+
+The combat has a satisfying risk/reward layer: blocking halves incoming damage, but if you get hit while blocking, your next punch does double damage with a golden glow effect. During playtesting, people discovered that if two players cornered a third, they could bounce them back and forth with punches, a completely unintended mechanic that immediately became everyone's favorite strategy.
+
+What's interesting from a framework perspective: this game uses the phone's gyroscope for movement and touch buttons for actions, all flowing through the same input schema. The `latest` behavior on the defend button keeps it feeling like a real held trigger, while the default `pulse` behavior on punches ensures rapid taps never get dropped.
+
+### "Last Band Standing", A Music Quiz
+
+![Last Band Standing gameplay](/blog-assets/every-phone-a-game-controller/last-band-standing.gif)
+
+A Kahoot-style music trivia game. A YouTube video plays on the host screen, but the video is blurred, you can hear the song but can't see the music video. Players race to identify either the song or the artist from four options on their phones. Faster correct answers score more points.
+
+The song bank is over 80 tracks deep, ranging from Bohemian Rhapsody to Rick Roll to Slovenian turbo-folk, which got some of the biggest laughs when they came up. There's a streak system where the top-scoring player gets a fire animation on their avatar.
+
+This game shows the framework working for something completely different from real-time action. The controller is just four answer buttons. The game is round-based, not continuous. The same SDK that handles gyroscope-driven boxing handles a quiz show.
+
+### "The Office", A Cooperative Office Sim
+
+![The Office gameplay](/blog-assets/every-phone-a-game-controller/the-office.gif)
+
+This one was a favorite. It's basically Overcooked, but set in a tech office, specifically, _our_ tech office. You move characters around an office layout completing tasks to earn money, managing your energy and happiness stats to stay alive.
+
+The characters are real members of the zerodays team, with their actual photos as avatars and custom skill profiles. The PM is rated 5/5 at meetings and 1/5 at coding. The developers are the opposite. Tasks include "Vibe Coding" (400 EUR), "Fix the internet" (250 EUR), and "Clean the coffee machine" (0 EUR, because of course that pays nothing). The entire game is in Slovenian, right down to the death notifications.
+
+And yes, you can literally die of boredom if you don't play enough FIFA on the in-game PlayStation. The happiness meter drains randomly and the only cure is a break.
+
+The game was built by two developers, with our non-developer colleague writing all the character profiles and skill ratings. The framework handled the networking and input, they just focused on making something funny and personal.
+
+### The Point
+
+Three genres. A fighting game with gyroscope movement, a quiz show with simple buttons, and a cooperative sim with a D-pad. All built in one day with the same framework by teams that had never used it before. The controllers look completely different, the game logic is completely different, but the underlying infrastructure is the same.
+
+That's what I was building toward. Not a framework that makes one kind of game. A framework that handles the parts that are always the same (the networking, the rooms, the input pipeline, the state sync) and gets out of the way for the parts that should be different every time.
+
+All three jam games now ship as official starter templates in the framework, alongside Pong, Air Capture, and a minimal starter, for six templates in total. Anyone running `npx create-airjam` today scaffolds from one of them.
+
+## What I Took Away From All of This
+
+The thing that surprised me most wasn't the technical stuff. The framework worked about as well as I'd hoped, the input behavior modes were invisible (which is the point), the state sync held up, and the composable primitives gave people a running start.
+
+What surprised me was how _personal_ the games became. When the framework handles all the infrastructure, the creative energy goes entirely into game design. That's how you end up with your coworkers' faces as game characters and "death by boredom" as a mechanic. People weren't thinking about WebSockets. They were thinking about what would be funny, what would make a good moment when everyone plays together.
+
+That's the part worth emphasizing, because it matters beyond this specific project. There's a lot of conversation right now about AI-assisted development, what it enables, what it threatens, where it's going. Most of that conversation is abstract. This was concrete: people in a room, building things that only exist to be played together, in person, with friends. The AI helped write the code. The humans decided what the code should do. And then they played it together and laughed.
+
+That's a pretty good use of the technology.
+
+## Try It
+
+Air Jam is fully open-source and free to use.
+
+**Start a new game in one command:**
+
+```bash
+npx create-airjam my-game
+```
+
+This scaffolds a working game with a local development server, the SDK, and documentation, including instructions optimized for AI coding assistants. Run `pnpm run dev`, scan the QR code with your phone, and you're playing in under a minute.
+
+**Play the game jam games right now.** All three jam games (Code Review, Last Band Standing, and The Office) are available alongside Pong, Air Capture, and the minimal starter in the [Air Jam Arcade](https://airjam.io). One room, one QR code, all the games.
+
+**Deploy your own.** Sign up at [airjam.io](https://airjam.io), register your game in the dashboard, and you get an API key automatically. You can host the game wherever you like (Vercel, Netlify, anywhere that serves a static site) and point it at the platform.
+
+**Links:**
+
+- [GitHub](https://github.com/vucinatim/air-jam): source code, issues, discussions
+- [airjam.io](https://airjam.io): platform, arcade, dashboard, docs
+- [Origin story](https://airjam.io/blog/story-of-building-airjam): the longer "why this exists" article
+- npm: [`@air-jam/sdk`](https://www.npmjs.com/package/@air-jam/sdk), [`@air-jam/server`](https://www.npmjs.com/package/@air-jam/server), [`create-airjam`](https://www.npmjs.com/package/create-airjam)
+
+If you build something with it, I'd genuinely love to see it. And a star on [GitHub](https://github.com/vucinatim/air-jam) helps more than you'd think.

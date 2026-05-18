@@ -6,6 +6,10 @@ import {
   metadata as airJamOneMetadata,
 } from "@content/blog/airjam-1-0/post.meta";
 import {
+  everyPhoneAGameControllerBlogPost,
+  metadata as everyPhoneAGameControllerMetadata,
+} from "@content/blog/every-phone-a-game-controller/post.meta";
+import {
   storyOfBuildingAirJamBlogPost,
   metadata as storyOfBuildingAirJamMetadata,
 } from "@content/blog/story-of-building-airjam/post.meta";
@@ -21,6 +25,21 @@ const generatedContentBlogDocuments = [
     ),
     sourcePath: "content/blog/airjam-1-0/post.mdx",
     loadComponent: () => import("@content/blog/airjam-1-0/post.mdx"),
+  },
+  {
+    post: hydrateBlogPost(
+      everyPhoneAGameControllerBlogPost,
+      "every-phone-a-game-controller",
+    ),
+    metadata: createBlogPostMetadata(
+      hydrateBlogPost(
+        everyPhoneAGameControllerMetadata,
+        "every-phone-a-game-controller",
+      ),
+    ),
+    sourcePath: "content/blog/every-phone-a-game-controller/post.mdx",
+    loadComponent: () =>
+      import("@content/blog/every-phone-a-game-controller/post.mdx"),
   },
   {
     post: hydrateBlogPost(

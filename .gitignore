@@ -42,6 +42,8 @@ apps/platform/.next-smoke/
 *.tsbuildinfo
 .vercel
 
-# Private blog drafts not published on the platform (e.g. dev.to cross-posts)
-content/blog/every-phone-a-game-controller/
+# Per-article cross-post artifacts (generated dev.to markdown, working media).
+# The canonical post.mdx, post.meta.ts, and devto.config.ts ARE tracked.
+content/blog/*/dev-to.md
+content/blog/*/media/
 
