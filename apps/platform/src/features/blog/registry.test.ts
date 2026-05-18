@@ -23,20 +23,22 @@ describe("blog registry", () => {
     const posts = getBlogPosts();
 
     expect(posts.map((post) => post.slug)).toEqual([
+      "every-phone-a-game-controller",
       "story-of-building-airjam",
-      "airjam-1-0",
     ]);
   });
 
   it("resolves blog documents and static params from slugs", () => {
     expect(getBlogDocuments()).toHaveLength(2);
     expect(getBlogStaticParams()).toContainEqual({
-      slug: "airjam-1-0",
+      slug: "every-phone-a-game-controller",
     });
     expect(getBlogStaticParams()).toContainEqual({
       slug: "story-of-building-airjam",
     });
-    expect(getBlogDocumentBySlug("airjam-1-0")?.post.title).toBe("Air Jam 1.0");
+    expect(getBlogDocumentBySlug("every-phone-a-game-controller")?.post.title).toBe(
+      "What If Every Phone in the Room Was a Game Controller (in the age of AI)?",
+    );
     expect(getBlogDocumentBySlug("story-of-building-airjam")?.post.title).toBe(
       "Story of building Air Jam",
     );
@@ -44,15 +46,17 @@ describe("blog registry", () => {
   });
 
   it("builds structured data for blog posts", () => {
-    const post = getBlogPosts().find((entry) => entry.slug === "airjam-1-0");
+    const post = getBlogPosts().find(
+      (entry) => entry.slug === "story-of-building-airjam",
+    );
 
     expect(post).toBeDefined();
     expect(buildBlogJsonLd(post!)).toMatchObject({
       "@type": "BlogPosting",
-      headline: "Air Jam 1.0",
+      headline: "Story of building Air Jam",
       author: {
         "@type": "Person",
-        name: "Air Jam Team",
+        name: "Tim Vučina",
       },
     });
   });
