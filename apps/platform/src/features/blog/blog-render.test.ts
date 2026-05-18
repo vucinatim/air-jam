@@ -11,7 +11,10 @@ describe("blog render validation", () => {
       const html = renderToStaticMarkup(createElement(Component));
 
       expect(html.length).toBeGreaterThan(0);
-      expect(html).toContain("<h1");
+      // Articles must render with at least one section heading. The page
+      // layout renders the article title in its own <h1>, so MDX bodies are
+      // free to start at any heading level.
+      expect(html).toMatch(/<h[1-6]/);
     }
   }, 30_000);
 });
