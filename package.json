@@ -45,6 +45,7 @@
     "@air-jam/runtime-topology": "workspace:^",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.10.1",
     "commander": "^14.0.0",
     "eslint": "^9.39.1",
