@@ -34,8 +34,8 @@ COPY docs ./docs
 
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter platform build \
- && cp -r /app/apps/platform/.next/static /app/apps/platform/.next/standalone/apps/platform/.next/static \
- && cp -r /app/apps/platform/public /app/apps/platform/.next/standalone/apps/platform/public
+ && cp -rT /app/apps/platform/.next/static /app/apps/platform/.next/standalone/apps/platform/.next/static \
+ && cp -rT /app/apps/platform/public /app/apps/platform/.next/standalone/apps/platform/public
 
 WORKDIR /app/apps/platform
 
