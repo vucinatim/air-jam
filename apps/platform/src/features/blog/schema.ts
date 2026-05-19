@@ -13,6 +13,15 @@ export const blogHrefSchema = z
   .regex(blogHrefPattern)
   .transform((href) => href as `/blog/${string}`);
 
+const coverImageSchema = z.object({
+  src: z.string().min(1).startsWith("/"),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  alt: z.string().min(1).optional(),
+});
+
+export type BlogPostCoverImage = z.infer<typeof coverImageSchema>;
+
 export const blogPostDefinitionSchema = z.object({
   title: z.string().min(1),
   summary: z.string().min(1),
@@ -20,6 +29,7 @@ export const blogPostDefinitionSchema = z.object({
   author: z.string().min(1),
   tags: z.array(z.string().min(1)).min(1),
   published: z.boolean().default(true),
+  coverImage: coverImageSchema.optional(),
 });
 
 export const blogPostSchema = blogPostDefinitionSchema.extend({

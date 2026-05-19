@@ -18,14 +18,79 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = getSiteUrl();
+const siteName = "Air Jam";
+const siteTitle =
+  "Air Jam — Phone-controller multiplayer games for the AI era";
+const siteDescription =
+  "Open-source framework for QR-code multiplayer party games. Networking, rooms, and input pipelines handled — bring the game, deploy anywhere, play on any phone.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(getSiteUrl()),
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "Air Jam Platform",
+    default: siteTitle,
     template: "%s | Air Jam",
   },
-  description:
-    "Air Jam docs and platform for QR-code multiplayer controllers and SDK integration.",
+  description: siteDescription,
+  applicationName: siteName,
+  authors: [{ name: "Tim Vučina", url: "https://github.com/vucinatim" }],
+  creator: "Tim Vučina",
+  publisher: siteName,
+  alternates: {
+    canonical: siteUrl,
+  },
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName,
+    title: siteTitle,
+    description: siteDescription,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDescription,
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon",
+  },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: siteName,
+  url: siteUrl,
+  logo: `${siteUrl}/images/airjam-logo.png`,
+  sameAs: [
+    "https://github.com/vucinatim/air-jam",
+    "https://www.npmjs.com/package/@air-jam/sdk",
+    "https://www.npmjs.com/package/@air-jam/server",
+    "https://www.npmjs.com/package/create-airjam",
+    "https://dev.to/zerodays",
+    "https://zerodays.dev",
+  ],
+};
+
+const softwareApplicationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: siteName,
+  applicationCategory: "GameApplication",
+  operatingSystem: "Web",
+  url: siteUrl,
+  description: siteDescription,
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  author: {
+    "@type": "Person",
+    name: "Tim Vučina",
+  },
 };
 
 export const viewport: Viewport = {
@@ -57,6 +122,18 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground min-h-dvh antialiased`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(softwareApplicationJsonLd),
+          }}
+        />
         <TRPCReactProvider>{children}</TRPCReactProvider>
         <WebsiteAnalytics />
       </body>

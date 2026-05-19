@@ -17,8 +17,8 @@ export const LandingSiteFooter = () => {
               © {new Date().getFullYear()} Air Jam. All rights reserved.
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            <div className="flex flex-wrap items-center justify-center gap-6">
+          <div className="flex flex-col items-center gap-5 md:flex-row md:flex-wrap md:justify-center md:gap-6">
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
               <Link
                 href="/docs"
                 className="text-muted-foreground hover:text-foreground text-sm transition-colors"
@@ -45,7 +45,7 @@ export const LandingSiteFooter = () => {
                 Blog
               </Link>
             </div>
-            <div className="border-border/50 ml-2 flex items-center gap-4 border-l pl-6">
+            <div className="md:border-border/50 flex items-center gap-4 md:ml-2 md:border-l md:pl-6">
               <Link
                 href="https://www.npmjs.com/package/@air-jam/sdk"
                 target="_blank"
