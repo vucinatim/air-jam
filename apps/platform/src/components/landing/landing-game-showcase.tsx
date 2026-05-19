@@ -47,10 +47,7 @@ function useMobileCenteredGameId(
   const [centeredId, setCenteredId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!enabled) {
-      setCenteredId(null);
-      return;
-    }
+    if (!enabled) return;
     if (typeof window === "undefined") return;
     const container = containerRef.current;
     if (!container) return;
@@ -100,7 +97,7 @@ function useMobileCenteredGameId(
     };
   }, [enabled, containerRef, gameIdsKey]);
 
-  return centeredId;
+  return enabled ? centeredId : null;
 }
 
 type Game = {
