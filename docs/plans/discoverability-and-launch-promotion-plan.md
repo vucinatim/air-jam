@@ -215,7 +215,7 @@ Other surfaces:
 - [ ] Identify and contact a Product Hunt hunter (target launch: TBD, post 1.x metadata work) — pending
 - [ ] Prepare PH assets: demo video, GIFs, screenshots, tagline — pending
 - [ ] Submit origin story to Lobsters and Indie Hackers — pending
-- [ ] Schedule Reddit posts (r/gamedev, r/webdev) with non-launch framing — pending
+- [ ] Schedule Reddit posts (r/SideProject, r/IndieDev Day 1; r/gamedev, r/webdev Day 2+) — pending, see [Section 3.6](#36-launch-week-distribution-sequence) for the full sequence + templates
 
 ---
 
@@ -289,6 +289,62 @@ This is the single highest-leverage promotion action available. Do not do it on 
 
 > **Note on canonical URL choice:** the dev.to article's frontmatter explicitly sets `canonical_url: https://airjam.io/blog/every-phone-a-game-controller`. So airjam.io is the canonical home, and **every mirror points at airjam.io** (not at dev.to). This is the correct setup — airjam.io collects Google authority for the article.
 
+### 3.6 Launch-week distribution sequence
+
+This is the recommended day-by-day fire-order across HN, Reddit, and remaining channels. Designed to (a) preserve HN Show HN's "OP is the author" framing, (b) avoid burning multiple platforms with rushed posts on the same evening, and (c) keep posts crisp by spacing them to fresh-energy mornings.
+
+**Day 1 — HN morning (Tue or Wed, 8–10am Pacific)**
+
+- Post the **origin story** (`https://airjam.io/blog/story-of-building-airjam`) as **Show HN**, not the dev.to launch piece.
+- Use one of the prepared title drafts in Section 3.4.
+- Write a first comment from yourself (the OP) within 60s of posting. Short, friendly, points at the most interesting technical decision (the 1,500-file rewrite / agent-first design principle).
+- Respond to every reply for the first 4 hours.
+- **Do not** post to other platforms while HN is in its first hour — the HN attention should be undivided, and any external link to a non-HN URL during that window dilutes the story.
+
+**Day 1 — Reddit afternoon (same day, after HN settles ~4 hours in)**
+
+Two low-risk subs in parallel. Different audiences from HN, won't cannibalize.
+
+- **r/SideProject** (~250k members) — friendly "I made this" sub. Use the template below.
+- **r/IndieDev** (~600k members) — indie game dev audience. Same template, light edit.
+
+**Day 2–3 — Reddit higher-quality subs (Thu/Fri, US morning)**
+
+These require more thoughtful framing — wait until you can write them fresh.
+
+- **r/gamedev** (~1.7M members) — *not* "we launched", but "what I learned building a phone-controller multiplayer framework with AI in the loop". Lead with the infra-vs-creative split from the origin story.
+- **r/webdev** (~2M members) — same idea, framed for the web audience.
+
+Skip `r/programming` (too anti-self-promo) and `r/javascript`/`r/reactjs` (poor fit for the framework story).
+
+**Day 4+ — Niche / curated surfaces**
+
+- **Lobsters** — invite-only but the audience overlaps heavily with HN. Submit the origin story.
+- **Indie Hackers** — build-in-public post linking the origin story.
+
+### 3.6.1 Ready-to-paste templates
+
+**r/SideProject post (3 min effort, low-risk)**
+
+> **Title**: I built an open-source AirConsole alternative — every phone in the room becomes a game controller
+>
+> **Body**:
+> Spent the last few months building [Air Jam](https://airjam.io) — open-source framework for QR-code phone-controller multiplayer party games. You run it, players scan a QR with their phones, everyone joins as a controller. Six template games ship with it.
+>
+> It's free, MIT, runs anywhere. Built so AI assistants (Claude Code, Cursor) can write games on it without reinventing networking each time.
+>
+> Site: https://airjam.io · Repo: https://github.com/vucinatim/air-jam
+>
+> Would love feedback / stars if you find it interesting.
+
+**r/IndieDev post** — same content, slight reframing toward indie game dev audience: lead with the jam-game outcomes (Code Review, Last Band Standing, The Office) as proof that the framework lets you ship a real game in a day.
+
+**r/gamedev post** (Day 2+, more thoughtful framing — *not* a launch announcement)
+
+> **Title**: What I learned building a phone-controller multiplayer framework with AI in the loop
+>
+> **Body**: link to the origin story post on airjam.io. Pull one or two reflective beats into the body text (the infra-vs-creative split, the 1,500-file rewrite, the agent-first design principle). Frame as a post-mortem / lessons-learned, not as an ad for a product.
+
 ---
 
 ## Execution order (suggested)
@@ -302,7 +358,7 @@ This plan is large but the dependencies are loose. A sensible order:
 
 ### Top of next-session queue (priority order)
 
-1. **HN Show HN with origin story** (Section 3.4) — Tuesday or Wednesday morning Pacific, 8–10am. Use the origin story post, not the dev.to launch piece. Prepare 3 title drafts + first-comment text ahead of time. Highest-leverage single action remaining.
+1. **Launch-week distribution sequence** ([Section 3.6](#36-launch-week-distribution-sequence)) — the day-by-day fire order: HN Show HN morning → r/SideProject + r/IndieDev afternoon → r/gamedev + r/webdev on Day 2–3. Single highest-leverage cluster of work remaining. Templates already drafted.
 2. **Medium cross-post** (Section 3.3) — ~15 min. Import from dev.to URL, set canonical to `airjam.io/blog/every-phone-a-game-controller`, publish.
 3. **`/docs/why-air-jam` page** (Section 2.1) — the on-site search landing page for `"open source airconsole alternative"`. H1 + body uses the framing honestly with a real comparison.
 4. **`modelcontextprotocol/servers` PR** (Section 2.2) — official MCP registry. Air Jam's MCP server (`@air-jam/mcp-server`) is a strong fit.
