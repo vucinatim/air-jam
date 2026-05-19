@@ -13,7 +13,95 @@ import {
 import { api } from "@/trpc/react";
 import { Gamepad2, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+
+// Full-section blurred-video background was a paint-heavy effect with
+// inconsistent perf across devices. Disabled for now; flip back when
+// the cost has been audited. Hover-side state is still wired so re-enabling
+// is a one-line change.
+const BLURRED_BACKGROUND_ENABLED = false;
+
+function useIsHoverCapable(): boolean {
+  const [canHover, setCanHover] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setCanHover(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+  return canHover;
+}
+
+/**
+ * On touch devices, autoplay one card at a time — whichever is closest
+ * to the viewport center. Returns null when no card is meaningfully
+ * centered (nothing on screen, or all cards are far from the center).
+ */
+function useMobileCenteredGameId(
+  enabled: boolean,
+  containerRef: RefObject<HTMLDivElement | null>,
+  gameIdsKey: string,
+): string | null {
+  const [centeredId, setCenteredId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      setCenteredId(null);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const pickCentered = () => {
+      const cards = Array.from(
+        container.querySelectorAll<HTMLElement>("[data-game-id]"),
+      );
+      if (cards.length === 0) {
+        setCenteredId(null);
+        return;
+      }
+      const viewportCenter = window.innerHeight / 2;
+      let best: { id: string; dist: number } | null = null;
+      for (const card of cards) {
+        const rect = card.getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+        const cardCenter = rect.top + rect.height / 2;
+        const dist = Math.abs(cardCenter - viewportCenter);
+        if (!best || dist < best.dist) {
+          best = { id: card.dataset.gameId ?? "", dist };
+        }
+      }
+      if (best && best.dist < window.innerHeight * 0.35) {
+        setCenteredId(best.id);
+      } else {
+        setCenteredId(null);
+      }
+    };
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        pickCentered();
+        ticking = false;
+      });
+    };
+
+    pickCentered();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [enabled, containerRef, gameIdsKey]);
+
+  return centeredId;
+}
 
 type Game = {
   id: string;
@@ -35,6 +123,8 @@ type GameCardProps = {
   index: number;
   hasVideo: boolean;
   hasThumbnail: boolean;
+  canHover: boolean;
+  isMobileActive: boolean;
   onHover: (media: HoveredMedia | null) => void;
   onImageError: (gameId: string) => void;
   onVideoError: (gameId: string) => void;
@@ -60,6 +150,8 @@ const GameCard = ({
   index,
   hasVideo,
   hasThumbnail,
+  canHover,
+  isMobileActive,
   onHover,
   onImageError,
   onVideoError,
@@ -68,7 +160,22 @@ const GameCard = ({
   const href = game.slug ? `/arcade/${game.slug}` : "/arcade";
   const creatorName = getPublicGameOwnerName(game);
 
+  // Mobile / touch: play when this card becomes the centered one in the viewport.
+  useEffect(() => {
+    if (canHover) return;
+    const video = videoRef.current;
+    if (!video || !hasVideo) return;
+    if (isMobileActive) {
+      video.currentTime = 0;
+      playPreviewVideo(video);
+    } else {
+      video.pause();
+      video.currentTime = 0;
+    }
+  }, [canHover, isMobileActive, hasVideo]);
+
   const handleMouseEnter = () => {
+    if (!canHover) return;
     onHover({
       videoUrl: hasVideo ? game.videoUrl : null,
       imageUrl: game.coverUrl ?? (hasThumbnail ? game.thumbnailUrl : null),
@@ -80,6 +187,7 @@ const GameCard = ({
   };
 
   const handleMouseLeave = () => {
+    if (!canHover) return;
     onHover(null);
     if (videoRef.current) {
       videoRef.current.pause();
@@ -87,62 +195,76 @@ const GameCard = ({
     }
   };
 
+  const showVideoOverlay = canHover
+    ? "opacity-0 group-hover:opacity-100"
+    : isMobileActive
+      ? "opacity-100"
+      : "opacity-0";
+
+  const fadeThumbnail = hasVideo
+    ? canHover
+      ? "group-hover:opacity-0"
+      : isMobileActive
+        ? "opacity-0"
+        : ""
+    : "";
+
   return (
-    <Reveal
-      delay={index * 0.06}
-      margin="-40px"
-      className="border-border/40 bg-card/15 group relative flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:border-airjam-cyan/30 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
-    >
-      <div className="absolute top-3 left-3 z-20">
-        <PublicGameCreatorStrip game={game} />
-      </div>
-      <Link
-        href={href}
-        className="block"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+    <div data-game-id={game.id}>
+      <Reveal
+        delay={index * 0.06}
+        margin="-40px"
+        className="border-border/40 bg-card/15 group relative flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:border-airjam-cyan/30 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
       >
-        <div className="bg-muted/30 relative aspect-video w-full overflow-hidden">
-          <div className="absolute inset-0 z-10 bg-linear-to-t from-black/40 via-transparent to-transparent" />
-          {hasThumbnail ? (
-            // eslint-disable-next-line @next/next/no-img-element -- remote arcade thumbnails from user-provided URLs
-            <img
-              src={game.thumbnailUrl!}
-              alt=""
-              className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${
-                hasVideo ? "group-hover:opacity-0" : ""
-              }`}
-              loading="lazy"
-              onError={() => onImageError(game.id)}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Gamepad2 className="text-muted-foreground/40 h-14 w-14" />
-            </div>
-          )}
-          {hasVideo ? (
-            <video
-              ref={videoRef}
-              src={game.videoUrl!}
-              muted
-              loop
-              playsInline
-              preload="auto"
-              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-              onError={() => onVideoError(game.id)}
-            />
-          ) : null}
+        <div className="absolute top-3 left-3 z-20">
+          <PublicGameCreatorStrip game={game} />
         </div>
-        <div className="p-5">
-          <h3 className="text-lg font-semibold tracking-tight">
-            {getPublicGameDisplayName(game)}
-          </h3>
-          {creatorName ? (
-            <p className="text-muted-foreground mt-1 text-sm">{creatorName}</p>
-          ) : null}
-        </div>
-      </Link>
-    </Reveal>
+        <Link
+          href={href}
+          className="block"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="bg-muted/30 relative aspect-video w-full overflow-hidden">
+            <div className="absolute inset-0 z-10 bg-linear-to-t from-black/40 via-transparent to-transparent" />
+            {hasThumbnail ? (
+              // eslint-disable-next-line @next/next/no-img-element -- remote arcade thumbnails from user-provided URLs
+              <img
+                src={game.thumbnailUrl!}
+                alt=""
+                className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${fadeThumbnail}`}
+                loading="lazy"
+                onError={() => onImageError(game.id)}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <Gamepad2 className="text-muted-foreground/40 h-14 w-14" />
+              </div>
+            )}
+            {hasVideo ? (
+              <video
+                ref={videoRef}
+                src={game.videoUrl!}
+                muted
+                loop
+                playsInline
+                preload={canHover ? "auto" : "metadata"}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${showVideoOverlay}`}
+                onError={() => onVideoError(game.id)}
+              />
+            ) : null}
+          </div>
+          <div className="p-5">
+            <h3 className="text-lg font-semibold tracking-tight">
+              {getPublicGameDisplayName(game)}
+            </h3>
+            {creatorName ? (
+              <p className="text-muted-foreground mt-1 text-sm">{creatorName}</p>
+            ) : null}
+          </div>
+        </Link>
+      </Reveal>
+    </div>
   );
 };
 
@@ -150,6 +272,14 @@ export const LandingGameShowcase = () => {
   const { gameShowcase } = landingCopy;
   const { data: games, isLoading } = api.game.getAllPublic.useQuery();
   const featured = selectFeaturedPublicGames(games ?? []);
+  const canHover = useIsHoverCapable();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const gameIdsKey = featured.map((g) => g.id).join(",");
+  const mobileCenteredId = useMobileCenteredGameId(
+    !canHover,
+    gridRef,
+    gameIdsKey,
+  );
   const [hoveredMedia, setHoveredMedia] = useState<HoveredMedia | null>(null);
   const [imageLoadErrors, setImageLoadErrors] = useState<
     Record<string, boolean>
@@ -162,31 +292,33 @@ export const LandingGameShowcase = () => {
 
   return (
     <section className="relative overflow-hidden py-20 sm:py-28">
-      {/* Blurred background that crossfades to hovered game's video or cover */}
-      <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-500"
-        style={{ opacity: hasBg ? 1 : 0 }}
-      >
-        {hoveredMedia?.videoUrl ? (
-          <video
-            key={hoveredMedia.videoUrl}
-            src={hoveredMedia.videoUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="h-full w-full scale-110 object-cover blur-3xl"
-          />
-        ) : hoveredMedia?.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- decorative blurred background
-          <img
-            src={hoveredMedia.imageUrl}
-            alt=""
-            className="h-full w-full scale-110 object-cover blur-3xl"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-black/76" />
-      </div>
+      {/* Blurred background that crossfades to hovered game's video or cover. Currently gated off entirely. */}
+      {BLURRED_BACKGROUND_ENABLED && canHover ? (
+        <div
+          className="pointer-events-none absolute inset-0 transition-opacity duration-500"
+          style={{ opacity: hasBg ? 1 : 0 }}
+        >
+          {hoveredMedia?.videoUrl ? (
+            <video
+              key={hoveredMedia.videoUrl}
+              src={hoveredMedia.videoUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="h-full w-full scale-110 object-cover blur-3xl"
+            />
+          ) : hoveredMedia?.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- decorative blurred background
+            <img
+              src={hoveredMedia.imageUrl}
+              alt=""
+              className="h-full w-full scale-110 object-cover blur-3xl"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-black/76" />
+        </div>
+      ) : null}
 
       <div className="relative container mx-auto max-w-6xl px-4">
         <SectionHeader
@@ -213,7 +345,7 @@ export const LandingGameShowcase = () => {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div ref={gridRef} className="grid gap-6 sm:grid-cols-2">
               {featured.map((game, i) => {
                 const hasThumbnail =
                   !!game.thumbnailUrl && !imageLoadErrors[game.id];
@@ -226,6 +358,8 @@ export const LandingGameShowcase = () => {
                     index={i}
                     hasVideo={hasVideo}
                     hasThumbnail={hasThumbnail}
+                    canHover={canHover}
+                    isMobileActive={!canHover && mobileCenteredId === game.id}
                     onHover={setHoveredMedia}
                     onImageError={(gameId) =>
                       setImageLoadErrors((current) => ({

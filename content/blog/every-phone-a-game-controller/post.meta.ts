@@ -8,6 +8,12 @@ export const everyPhoneAGameControllerBlogPost = defineBlogPost({
   author: "Tim Vučina",
   tags: ["opensource", "react", "ai", "gamedev"],
   published: true,
+  coverImage: {
+    src: "/blog-assets/every-phone-a-game-controller/cover.png",
+    width: 1000,
+    height: 420,
+    alt: "Air Jam — every phone in the room is a game controller",
+  },
 });
 
 export const metadata = everyPhoneAGameControllerBlogPost;

@@ -332,6 +332,29 @@ export const ArcadeSystem = ({
     [mode, autoLaunch, initialGameId],
   );
 
+  // First-visit nudge: when the arcade is ready and no controllers are
+  // connected yet, auto-open the QR overlay so a fresh visitor lands directly
+  // on the join-by-phone moment instead of staring at a Show-QR button. Fires
+  // at most once per session; respects an explicit "hidden" preference.
+  // Works for both /arcade and /arcade/<slug> deep-links since the user always
+  // needs a phone before any game is meaningfully playable.
+  const arcadeAutoQrFiredRef = useRef(false);
+  useEffect(() => {
+    if (arcadeAutoQrFiredRef.current) return;
+    if (mode !== "arcade") return;
+    if (joinQrStatus !== "ready") return;
+    if (host.players.length > 0) return;
+    if (getPreferredBrowserOverlay() === "hidden") return;
+    arcadeAutoQrFiredRef.current = true;
+    surfaceActions.setOverlay({ overlay: "qr" });
+  }, [
+    joinQrStatus,
+    host.players.length,
+    mode,
+    getPreferredBrowserOverlay,
+    surfaceActions,
+  ]);
+
   useEffect(() => {
     if (!host.roomId || !host.socket?.connected) {
       return;

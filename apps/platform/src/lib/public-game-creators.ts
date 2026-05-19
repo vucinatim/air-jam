@@ -82,6 +82,9 @@ const drobilc: PublicGameCreator = {
 
 const spelaBuh: PublicGameCreator = {
   name: "Špela Buh",
+  githubHandle: "spelabuh",
+  githubUrl: githubProfileUrl("spelabuh"),
+  avatarUrl: githubAvatarUrl("spelabuh"),
   initials: "ŠB",
 };
 
