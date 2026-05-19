@@ -1,8 +1,42 @@
 # Discoverability and Launch Promotion Plan
 
-Last updated: 2026-05-19
-Status: actionable plan
+Last updated: 2026-05-19 (post-launch session)
+Status: actionable plan with first-pass execution complete
 Companion to: [discoverability-vision.md](../discoverability-vision.md)
+
+## Session log
+
+### 2026-05-19 — launch day polish + discoverability foundation
+
+**Shipped** (merged to `main` via [#30](https://github.com/vucinatim/air-jam/pull/30) and the [Dockerfile hotfix #31](https://github.com/vucinatim/air-jam/pull/31)):
+
+- Section 1 site polish: real root title + description, OG/Twitter cards (1200×630 card with logo + tagline + cyan accent + terminal-style footer), `Organization` + `SoftwareApplication` JSON-LD, apple-touch-icon, web manifest, `robots.ts` AI crawler rules
+- Blog post coverImage schema + per-post `BlogPosting.image` + Twitter/OG images wired (`every-phone-a-game-controller` ships with its cover.png)
+- GitHub repo description + 19 topics including `airconsole-alternative`, `airconsole`, `phone-controller`, `mobile-controller`, `qr-code`, `mcp`, `ai-native`, `nextjs`, `gamedev`, `party-games`, `vibe-coding`
+- npm package metadata: tightened descriptions + expanded keywords on `@air-jam/sdk`, `@air-jam/server`, `create-airjam` (effective next publish)
+- Search Console: verified airjam.io under **both** zerodays work account and personal account as parallel verified owners (two TXT records at root)
+- Bing Webmaster Tools: imported from Google Search Console (no separate verification)
+- Hashnode mirror: cross-posted launch article at `vucinatim.hashnode.dev` with canonical pointing to `airjam.io/blog/every-phone-a-game-controller`
+- Awesome-list PR #1: [punkpeye/awesome-mcp-servers#6633](https://github.com/punkpeye/awesome-mcp-servers/pull/6633) — Gaming section, awaiting maintainer review
+- Personal DMs to friends (some sent, no stars yet — expected; star-velocity comes from cold reach, not warm DMs)
+
+**Polish that came up during execution** (not in original plan, but shipped):
+
+- Mobile footer fix: nav + social icons now always stack on mobile (was cramping on wider phones)
+- Mobile landing perf: per-card video + blurred-background gated on `(hover: hover) and (pointer: fine)`; on touch, IntersectionObserver-style scroll pass autoplays whichever card is closest to viewport center; full-section blurred-video background feature-flagged off
+- Arcade auto-opens QR overlay for fresh visitors when `joinUrlStatus` is ready and no controllers are connected
+- Špela Buh's GitHub credit added to arcade attributions + launch post
+- **Critical Dockerfile fix**: `cp -r` → `cp -rT` for `public/` and `.next/static` (the old form nested the source inside the existing Next standalone directory, so most `public/` assets were returning 404 on prod — including the dev.to article's images). Hotfix shipped as [#31](https://github.com/vucinatim/air-jam/pull/31).
+
+**Attempted but blocked**:
+
+- `appcypher/awesome-mcp-servers` — fork created, branch pushed, but the maintainer disabled community PRs. Fork cleaned up.
+- `hesreallyhim/awesome-claude-code` — mid-restructure, README is a stub with "TODO" for the new ToC. No place to PR. Revisit in a few weeks.
+- `Calinou/awesome-gamedev` — last pushed 17+ months ago, likely abandoned. Skipped.
+
+**Discussed, not implemented** (worth a future session):
+
+- Preview-server CORS architecture. PR-30 surfaced an infra bug: the server isn't deployed per PR (watchPatterns excludes platform changes), so PR previews can't reach a working signal server. Even if it deployed, CORS allow-list would block the PR-specific platform origin. Recommended path: shared persistent preview-server environment + pattern-based CORS allowlist in `normalizeAllowedOrigins`. See discussion in session transcript.
 
 ## Purpose
 
@@ -81,15 +115,15 @@ For each blog post: `BlogPosting` JSON-LD on the post page with `author`, `dateP
 
 #### 1.6 Checklist
 
-- [ ] Rewrite root `title` + `description` in `apps/platform/src/app/layout.tsx`
-- [ ] Add `openGraph` + `twitter` blocks to root metadata
-- [ ] Create `opengraph-image.tsx` and `twitter-image.tsx`
-- [ ] Wire per-route `generateMetadata` for blog, docs, arcade
-- [ ] Add `Organization` + `SoftwareApplication` JSON-LD to root layout
-- [ ] Add `BlogPosting` JSON-LD to blog post template
-- [ ] Add `apple-touch-icon.png` and `manifest.webmanifest`
-- [ ] Manually verify with [Google's Rich Results test](https://search.google.com/test/rich-results) and [opengraph.xyz](https://www.opengraph.xyz/)
-- [ ] Request re-indexing in Google Search Console after deploy
+- [x] Rewrite root `title` + `description` in `apps/platform/src/app/layout.tsx` — shipped: `"Air Jam — Phone-controller multiplayer games for the AI era"` (60 chars)
+- [x] Add `openGraph` + `twitter` blocks to root metadata
+- [x] Create `opengraph-image.tsx` and `twitter-image.tsx`
+- [/] Wire per-route `generateMetadata` for blog, docs, arcade — **partial**: blog done with per-post `coverImage`. Docs/arcade still inherit site defaults.
+- [x] Add `Organization` + `SoftwareApplication` JSON-LD to root layout
+- [x] Add `BlogPosting` JSON-LD to blog post template — includes `image`, `ImageObject` publisher logo, `mainEntityOfPage`
+- [x] Add `apple-touch-icon.png` and `manifest.webmanifest` — shipped as `apple-icon.tsx` + `manifest.ts` via Next file conventions
+- [ ] Manually verify with [Google's Rich Results test](https://search.google.com/test/rich-results) and [opengraph.xyz](https://www.opengraph.xyz/) — pending; one-off check, ~5 min
+- [ ] Request re-indexing in Google Search Console after deploy — pending; submit launch article + origin story URLs explicitly
 
 ---
 
@@ -110,12 +144,12 @@ Light, foundation-level only at this stage. We are not buying ads, building back
 
 #### Checklist
 
-- [ ] Verify property in Google Search Console, submit `sitemap.xml`
-- [ ] Same for Bing Webmaster Tools
-- [ ] Update GitHub repo description + topics to include "airconsole-alternative" framing
-- [ ] Update npm package descriptions + keywords
-- [ ] Author `/docs/why-air-jam` (or equivalent) with the framing in H1 + body
-- [ ] Audit all docs routes render under SSR with JS disabled
+- [x] Verify property in Google Search Console, submit `sitemap.xml` — verified under both work + personal accounts as parallel verified owners (two TXT records at root)
+- [x] Same for Bing Webmaster Tools — imported from Google Search Console (no separate verification)
+- [x] Update GitHub repo description + topics to include "airconsole-alternative" framing — 19 topics, including `airconsole-alternative`, `airconsole`, `phone-controller`, `mobile-controller`, `qr-code`, `mcp`, `ai-native`, `nextjs`, `gamedev`, `party-games`, `vibe-coding`
+- [x] Update npm package descriptions + keywords — committed; effective on next `release:public` cycle
+- [ ] Author `/docs/why-air-jam` (or equivalent) with the framing in H1 + body — pending; **high-value remaining item** (own search landing page for `"open source airconsole alternative"`)
+- [ ] Audit all docs routes render under SSR with JS disabled — pending; quick spot-check task
 
 ### 2.2 Agent / LLM discoverability
 
@@ -135,12 +169,12 @@ This is the surface where Air Jam has an unusual structural advantage — the fr
 
 #### Checklist
 
-- [ ] Generate `/llms.txt` and `/llms-full.txt` at build time from docs MDX
-- [ ] Link `ai-pack` from docs nav and home page agent section
-- [ ] Audit `robots.ts` to explicitly allow major AI crawlers
-- [ ] Submit MCP connector to `modelcontextprotocol/servers`
-- [ ] Submit MCP connector to `punkpeye/awesome-mcp-servers`
-- [ ] Verify Anthropic / OpenAI / Perplexity can fetch and summarize the home page cleanly (test with each)
+- [/] Generate `/llms.txt` and `/llms-full.txt` at build time from docs MDX — **partial**: `/llms.txt` exists in repo; not yet generated from docs MDX. `/llms-full.txt` not yet shipped.
+- [ ] Link `ai-pack` from docs nav and home page agent section — pending
+- [x] Audit `robots.ts` to explicitly allow major AI crawlers — explicit rules for `GPTBot`, `ChatGPT-User`, `OAI-SearchBot`, `ClaudeBot`, `Claude-Web`, `anthropic-ai`, `PerplexityBot`, `Perplexity-User`, `Google-Extended`, `Applebot-Extended`, `CCBot`, `Bytespider`, `DuckAssistBot`, `Meta-ExternalAgent`
+- [ ] Submit MCP connector to `modelcontextprotocol/servers` — pending; official registry, worth doing
+- [x] Submit MCP connector to `punkpeye/awesome-mcp-servers` — PR [#6633](https://github.com/punkpeye/awesome-mcp-servers/pull/6633) open, awaiting review
+- [ ] Verify Anthropic / OpenAI / Perplexity can fetch and summarize the home page cleanly — pending; spot-check with each, 5 min each
 
 ### 2.3 Curated lists and registries
 
@@ -170,13 +204,18 @@ Other surfaces:
 
 #### Checklist
 
-- [ ] Update GitHub repo topics
-- [ ] Update npm package keywords across `@air-jam/sdk`, `@air-jam/server`, `create-airjam`
-- [ ] Open PRs to each `awesome-*` list listed above
-- [ ] Identify and contact a Product Hunt hunter (target launch: TBD, post 1.x metadata work)
-- [ ] Prepare PH assets: demo video, GIFs, screenshots, tagline
-- [ ] Submit origin story to Lobsters and Indie Hackers
-- [ ] Schedule Reddit posts (r/gamedev, r/webdev) with non-launch framing
+- [x] Update GitHub repo topics — 19 topics, see Session log
+- [x] Update npm package keywords across `@air-jam/sdk`, `@air-jam/server`, `create-airjam` — effective next publish
+- [/] Open PRs to each `awesome-*` list listed above — **partial / re-scoped**:
+  - [x] `punkpeye/awesome-mcp-servers` (87k ⭐) — PR [#6633](https://github.com/punkpeye/awesome-mcp-servers/pull/6633) open
+  - ⏭️ `appcypher/awesome-mcp-servers` (5.5k ⭐) — maintainer disabled community PRs; fork cleaned up
+  - ⏭️ `hesreallyhim/awesome-claude-code` (44k ⭐) — mid-restructure, ToC removed pending rewrite; revisit later
+  - ⏭️ `Calinou/awesome-gamedev` (3k ⭐) — 17+ months stale, likely abandoned
+  - [ ] `awesome-nextjs`, `awesome-react`, `awesome-typescript`, `awesome-self-hosted`, `awesome-opensource-games` — not yet evaluated; need to confirm activity first
+- [ ] Identify and contact a Product Hunt hunter (target launch: TBD, post 1.x metadata work) — pending
+- [ ] Prepare PH assets: demo video, GIFs, screenshots, tagline — pending
+- [ ] Submit origin story to Lobsters and Indie Hackers — pending
+- [ ] Schedule Reddit posts (r/gamedev, r/webdev) with non-launch framing — pending
 
 ---
 
@@ -235,18 +274,20 @@ This is the single highest-leverage promotion action available. Do not do it on 
 
 #### 3.5 Checklist
 
-- [ ] Set/confirm 4 tags on dev.to (webdev, opensource, javascript|typescript, gamedev)
-- [ ] Set/confirm 1000×420 cover image on dev.to
-- [ ] Author X/Twitter thread linking dev.to, post
-- [ ] LinkedIn version of the post, link dev.to
-- [ ] Bluesky + Mastodon versions
-- [ ] zerodays Slack share, ask for reactions
-- [ ] 5–10 targeted DMs to relevant network
-- [ ] Cross-post to Hashnode with `canonical_url = dev.to URL`
-- [ ] Cross-post to Medium with canonical link to dev.to
-- [ ] Submit origin story to HN as Show HN (Tuesday/Wednesday morning Pacific, with prepared title + first comment)
-- [ ] Respond to every dev.to comment within hours for first 72 hours
-- [ ] Respond to every HN comment for first 4 hours after submission
+- [x] Set/confirm 4 tags on dev.to — `opensource, react, ai, gamedev`
+- [x] Set/confirm 1000×420 cover image on dev.to
+- ⏭️ Author X/Twitter thread linking dev.to, post — **explicitly skipped** (0-follower account, low ROI vs. effort/cringe; documented as user preference)
+- ⏭️ LinkedIn version of the post, link dev.to — skipped, same reason
+- ⏭️ Bluesky + Mastodon versions — skipped, same reason
+- [ ] zerodays Slack share, ask for reactions — pending
+- [x] 5–10 targeted DMs to relevant network — friends DMed
+- [x] Cross-post to Hashnode with canonical link — live at `vucinatim.hashnode.dev`, canonical points to `airjam.io/blog/every-phone-a-game-controller` (note: **canonical is airjam.io**, not dev.to — see note below)
+- [ ] Cross-post to Medium with canonical link — pending; ~15 min remaining
+- [ ] Submit origin story to HN as Show HN (Tuesday/Wednesday morning Pacific, with prepared title + first comment) — pending; **the highest-leverage unactioned move**
+- [ ] Respond to every dev.to comment within hours for first 72 hours — ongoing
+- [ ] Respond to every HN comment for first 4 hours after submission — when HN happens
+
+> **Note on canonical URL choice:** the dev.to article's frontmatter explicitly sets `canonical_url: https://airjam.io/blog/every-phone-a-game-controller`. So airjam.io is the canonical home, and **every mirror points at airjam.io** (not at dev.to). This is the correct setup — airjam.io collects Google authority for the article.
 
 ---
 
@@ -254,10 +295,20 @@ This is the single highest-leverage promotion action available. Do not do it on 
 
 This plan is large but the dependencies are loose. A sensible order:
 
-1. **This week**: Section 1 (site polish — metadata, OG image, JSON-LD) and Section 3.1–3.3 (dev.to tags, cross-posts, social amplification). Both can ship in parallel.
-2. **Next week**: Section 2.2 (agent surfaces — `llms.txt`, MCP registries, `robots.ts` audit) and Section 2.3 (curated list PRs).
-3. **2–3 weeks out**: Section 3.4 (HN Show HN), after metadata + OG cards are live so the link previews well when HN comments are shared elsewhere.
+1. ~~**This week**: Section 1 (site polish — metadata, OG image, JSON-LD) and Section 3.1–3.3 (dev.to tags, cross-posts, social amplification). Both can ship in parallel.~~ ✅ **Done 2026-05-19** (except Medium cross-post).
+2. **Next week** (revised): the high-leverage items below in priority order.
+3. ~~2–3 weeks out: HN Show HN~~ — bumped up; metadata + OG cards are live, so HN can go in next session.
 4. **Post 1.x release / when v1 lands**: Product Hunt launch (Section 2.3), with all metadata, OG cards, MCP registry presence, and `awesome-*` PRs already shipped — so anyone who clicks through lands on a complete, professional surface.
+
+### Top of next-session queue (priority order)
+
+1. **HN Show HN with origin story** (Section 3.4) — Tuesday or Wednesday morning Pacific, 8–10am. Use the origin story post, not the dev.to launch piece. Prepare 3 title drafts + first-comment text ahead of time. Highest-leverage single action remaining.
+2. **Medium cross-post** (Section 3.3) — ~15 min. Import from dev.to URL, set canonical to `airjam.io/blog/every-phone-a-game-controller`, publish.
+3. **`/docs/why-air-jam` page** (Section 2.1) — the on-site search landing page for `"open source airconsole alternative"`. H1 + body uses the framing honestly with a real comparison.
+4. **`modelcontextprotocol/servers` PR** (Section 2.2) — official MCP registry. Air Jam's MCP server (`@air-jam/mcp-server`) is a strong fit.
+5. **Preview-server CORS architecture fix** (see Session log) — affects future contributors more than current users; cheap to do; unblocks per-PR full-stack testing.
+6. **Manual validators** (Section 1.6) — drop `airjam.io` through [Google Rich Results test](https://search.google.com/test/rich-results) and [opengraph.xyz](https://www.opengraph.xyz/). Confirm JSON-LD + OG cards render. Request indexing of the two launch posts.
+7. **`/llms.txt` + `/llms-full.txt`** (Section 2.2) — generate at build time from docs MDX. Link from docs nav.
 
 ## Definition of done
 
