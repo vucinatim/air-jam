@@ -1,0 +1,58 @@
+# Keep the Docker build context small. Everything in here is excluded
+# before the build daemon sees the repo. Without this, the root
+# node_modules alone is ~1.7 GB and every Railway build re-uploads it.
+
+# Dependencies (re-installed inside the image)
+**/node_modules
+
+# Build output
+**/dist
+**/.next
+**/.next-smoke
+**/.turbo
+**/build
+**/out
+**/.output
+
+# pnpm
+.pnpm-store
+
+# Test + smoke artifacts
+test-results
+playwright-report
+**/coverage
+**/.nyc_output
+
+# Local-only runtime state
+backups
+.airjam
+**/.cache
+
+# Editor / OS
+.git
+.gitignore
+.github
+.vscode
+.idea
+**/.DS_Store
+
+# Logs
+**/*.log
+**/npm-debug.log*
+**/pnpm-debug.log*
+**/yarn-debug.log*
+
+# Local env (the Dockerfile reads build args, not files)
+.env
+.env.local
+.env.*.local
+**/.env.local
+
+# Repo governance files that no build step reads.
+# (Do NOT add *.md here — docs/*.md feeds the platform's AI pack
+# generator and content/**/*.mdx feeds the docs/blog routes.)
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
+AGENTS.md
+CLAUDE.md

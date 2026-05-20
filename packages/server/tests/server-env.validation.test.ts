@@ -77,4 +77,27 @@ describe("loadServerEnv", () => {
       }),
     ).toThrow(EnvValidationError);
   });
+
+  it("forces allowedOrigins='*' on Railway PR preview environments", () => {
+    // Production AIR_JAM_ALLOWED_ORIGINS gets cloned into PR envs by
+    // Railway; the server must ignore the inherited prod value so
+    // socket.io from the sibling preview platform isn't blocked.
+    const config = loadServerEnv({
+      AIR_JAM_AUTH_MODE: "disabled",
+      AIR_JAM_ALLOWED_ORIGINS: "https://airjam.io",
+      RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-42",
+    });
+
+    expect(config.allowedOrigins).toBe("*");
+  });
+
+  it("respects AIR_JAM_ALLOWED_ORIGINS on Railway production", () => {
+    const config = loadServerEnv({
+      AIR_JAM_AUTH_MODE: "disabled",
+      AIR_JAM_ALLOWED_ORIGINS: "https://airjam.io",
+      RAILWAY_ENVIRONMENT_NAME: "production",
+    });
+
+    expect(config.allowedOrigins).toEqual(["https://airjam.io"]);
+  });
 });
