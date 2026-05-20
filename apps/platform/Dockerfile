@@ -46,7 +46,10 @@ COPY games/pong/package.json                    ./games/pong/
 COPY games/the-office/package.json              ./games/the-office/
 COPY games/last-band-standing/package.json      ./games/last-band-standing/
 
-RUN --mount=type=cache,id=airjam-pnpm-store,target=/root/.local/share/pnpm/store \
+# Cache mount id must be `s/<railway-service-id>-<suffix>` so Railway's
+# Metal builder accepts it. The id is hardcoded per service (env vars
+# are not allowed in cache mount ids). Service id below = platform.
+RUN --mount=type=cache,id=s/5966dcb6-88cb-49d6-a1fa-60ca78c533ac-pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
 # ============================================================================
