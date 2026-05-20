@@ -48,10 +48,9 @@ backups
 .env.*.local
 **/.env.local
 
-# Docs / dev-only repo files that aren't needed inside the image.
-# (Keep `content/` and `docs/` — the platform build reads them.)
-*.md
-!README.md
+# Repo governance files that no build step reads.
+# (Do NOT add *.md here — docs/*.md feeds the platform's AI pack
+# generator and content/**/*.mdx feeds the docs/blog routes.)
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md
