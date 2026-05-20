@@ -46,6 +46,12 @@ COPY games/pong/package.json                    ./games/pong/
 COPY games/the-office/package.json              ./games/the-office/
 COPY games/last-band-standing/package.json      ./games/last-band-standing/
 
+# apps/platform has a file: dep on ./loader (turbopack-mdx-loader).
+# pnpm install scandir's the target at lockfile-resolve time, so the
+# loader directory must exist on disk before install runs. It's tiny
+# (~12K) — copy the whole dir, not just the package.json.
+COPY apps/platform/loader ./apps/platform/loader
+
 # Cache mount id must be `s/<railway-service-id>-<suffix>` so Railway's
 # Metal builder accepts it. The id is hardcoded per service (env vars
 # are not allowed in cache mount ids). Service id below = platform.
