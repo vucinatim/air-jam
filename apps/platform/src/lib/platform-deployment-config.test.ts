@@ -60,7 +60,22 @@ describe("resolvePlatformDeploymentConfig", () => {
       platformPublicUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
       authBaseUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
       hasExplicitPlatformPublicOrigin: true,
+      isRailwayPreviewEnvironment: true,
     });
+  });
+
+  it("does not flag the Railway production environment as a preview", () => {
+    expect(
+      resolvePlatformDeploymentConfig({
+        RAILWAY_ENVIRONMENT_NAME: "production",
+      }).isRailwayPreviewEnvironment,
+    ).toBe(false);
+  });
+
+  it("does not flag environments without a Railway environment name as previews", () => {
+    expect(
+      resolvePlatformDeploymentConfig({}).isRailwayPreviewEnvironment,
+    ).toBe(false);
   });
 
   it("collects trusted origins from every relevant deployment identity source", () => {
