@@ -1,11 +1,64 @@
-FROM node:20-bookworm-slim
+# syntax=docker/dockerfile:1.7
+#
+# Three-stage build for the Air Jam platform Next.js app.
+#
+# Why three stages:
+# - `deps` installs the pnpm workspace using only package.json + lockfile,
+#   so the install layer stays cached across deploys unless deps change.
+# - `builder` runs `next build` with the deps already installed.
+# - `runtime` ships only the Next.js standalone output — no source, no
+#   dev deps, no pnpm — for a small image and fast Railway cold start.
+#
+# BuildKit cache mounts persist the pnpm content-addressed store across
+# builds even when the install layer is invalidated, so package downloads
+# don't repeat from the registry.
 
+ARG NODE_IMAGE=node:20-bookworm-slim
+
+# ============================================================================
+# Stage 1: deps — install workspace dependencies
+# ============================================================================
+FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 
+RUN corepack enable
+
+# Workspace manifests only. Any source-only change leaves this layer cached.
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+COPY apps/platform/package.json                 ./apps/platform/
+COPY packages/sdk/package.json                  ./packages/sdk/
+COPY packages/env/package.json                  ./packages/env/
+COPY packages/server/package.json               ./packages/server/
+COPY packages/harness/package.json              ./packages/harness/
+COPY packages/devtools-core/package.json        ./packages/devtools-core/
+COPY packages/runtime-topology/package.json     ./packages/runtime-topology/
+COPY packages/create-airjam/package.json        ./packages/create-airjam/
+COPY packages/mcp-server/package.json           ./packages/mcp-server/
+COPY packages/bot-lab/package.json              ./packages/bot-lab/
+COPY packages/release-browser-worker/package.json ./packages/release-browser-worker/
+COPY games/air-capture/package.json             ./games/air-capture/
+COPY games/code-review/package.json             ./games/code-review/
+COPY games/minimal/package.json                 ./games/minimal/
+COPY games/pong/package.json                    ./games/pong/
+COPY games/the-office/package.json              ./games/the-office/
+COPY games/last-band-standing/package.json      ./games/last-band-standing/
+
+RUN --mount=type=cache,id=airjam-pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ============================================================================
+# Stage 2: builder — compile the Next.js app
+# ============================================================================
+FROM ${NODE_IMAGE} AS builder
+WORKDIR /app
+
+RUN corepack enable
+
 # Public env vars baked into the Next.js client bundle at build time.
-# Railway passes service variables as --build-arg; these ARG declarations
-# expose them to `pnpm --filter platform build` so next.config.ts can
-# resolve the production topology instead of falling back to localhost.
+# Railway passes these as --build-arg; ARG → ENV exposes them to
+# `pnpm --filter platform build` so next.config.ts can resolve the
+# production topology instead of falling back to localhost.
 ARG NEXT_PUBLIC_AIR_JAM_SERVER_URL
 ARG NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST
 ARG NEXT_PUBLIC_APP_URL
@@ -23,22 +76,37 @@ ENV NEXT_PUBLIC_AIR_JAM_SERVER_URL=$NEXT_PUBLIC_AIR_JAM_SERVER_URL \
     RAILWAY_ENVIRONMENT_NAME=$RAILWAY_ENVIRONMENT_NAME \
     RAILWAY_PUBLIC_DOMAIN=$RAILWAY_PUBLIC_DOMAIN
 
-RUN corepack enable
+# Reuse the installed workspace from the deps stage. node_modules and
+# pnpm's workspace symlinks (node_modules/@air-jam/sdk → packages/sdk,
+# etc.) all come along.
+COPY --from=deps /app /app
 
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
-COPY scripts ./scripts
-COPY apps ./apps
-COPY packages ./packages
-COPY content ./content
-COPY docs ./docs
+# Now overlay the source. Anything below this line invalidates the
+# build cache but leaves the install layer untouched. The pnpm symlinks
+# from the deps stage already point at these paths, so no re-install is
+# needed once the source lands.
+COPY tsconfig.base.json ./
+COPY scripts   ./scripts
+COPY apps      ./apps
+COPY packages  ./packages
+COPY content   ./content
+COPY docs      ./docs
 
-RUN pnpm install --frozen-lockfile
 RUN pnpm --filter platform build \
  && cp -rT /app/apps/platform/.next/static /app/apps/platform/.next/standalone/apps/platform/.next/static \
  && cp -rT /app/apps/platform/public /app/apps/platform/.next/standalone/apps/platform/public
 
-WORKDIR /app/apps/platform
+# ============================================================================
+# Stage 3: runtime — minimal production image
+# ============================================================================
+FROM ${NODE_IMAGE} AS runtime
+WORKDIR /app
 
-ENV HOSTNAME=0.0.0.0
+ENV NODE_ENV=production \
+    HOSTNAME=0.0.0.0
 
-CMD ["node", "/app/apps/platform/.next/standalone/apps/platform/server.js"]
+# Next.js standalone output bundles every traced runtime dependency into
+# its own node_modules tree, so the runtime image needs nothing else.
+COPY --from=builder /app/apps/platform/.next/standalone ./
+
+CMD ["node", "/app/apps/platform/server.js"]
