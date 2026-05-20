@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db";
 import * as schema from "../db/schema";
+import { resolveAuthSecret } from "./auth-secret";
 import { resolvePlatformDeploymentConfig } from "./platform-deployment-config";
 
 const deploymentConfig = resolvePlatformDeploymentConfig(process.env);
@@ -11,6 +12,10 @@ const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
 export const auth = betterAuth({
   baseURL: deploymentConfig.authBaseUrl,
   trustedOrigins: deploymentConfig.authTrustedOrigins,
+  secret: resolveAuthSecret({
+    env: process.env,
+    isRailwayPreviewEnvironment: deploymentConfig.isRailwayPreviewEnvironment,
+  }),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {

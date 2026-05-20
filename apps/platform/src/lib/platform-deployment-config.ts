@@ -79,6 +79,7 @@ export type PlatformDeploymentConfig = {
   authBaseUrl: string;
   authTrustedOrigins: string[];
   githubAuthEnabled: boolean;
+  isRailwayPreviewEnvironment: boolean;
   appId: string | undefined;
   systemHostGrantEndpoint: string | undefined;
 };
@@ -137,6 +138,7 @@ export const resolvePlatformDeploymentConfig = (
               trimToUndefined(env.GITHUB_CLIENT_SECRET),
           ),
         ),
+    isRailwayPreviewEnvironment,
     appId: trimToUndefined(env.NEXT_PUBLIC_AIR_JAM_APP_ID),
     systemHostGrantEndpoint:
       trimToUndefined(env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT) ??
