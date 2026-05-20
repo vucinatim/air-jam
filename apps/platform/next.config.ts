@@ -116,6 +116,14 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   output: "standalone",
   outputFileTracingRoot: repoRoot,
+  // Force drizzle migration SQL + journal into the standalone trace so
+  // scripts/run-platform.mjs can apply migrations against the ephemeral
+  // Postgres on Railway PR previews. These files are read from disk at
+  // runtime (not statically imported) so Next.js wouldn't include them
+  // otherwise.
+  outputFileTracingIncludes: {
+    "/": ["./drizzle/**/*"],
+  },
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   transpilePackages: ["@air-jam/sdk"],
   env: {
