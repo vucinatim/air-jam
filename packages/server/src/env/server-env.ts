@@ -218,6 +218,18 @@ export const loadServerEnv = (
   });
 
   const nodeEnv = parsed.NODE_ENV ?? "development";
+
+  // Railway PR previews clone every service (including this server)
+  // from production, which means production's AIR_JAM_ALLOWED_ORIGINS
+  // (e.g. https://airjam.io) gets inherited and silently blocks the
+  // sibling preview platform's origin. Mirror the platform's preview
+  // detection convention in resolvePlatformDeploymentConfig and open
+  // CORS to "*" on previews so socket.io can connect. Production stays
+  // strict.
+  const railwayEnvironmentName = env.RAILWAY_ENVIRONMENT_NAME?.trim();
+  const isRailwayPreviewEnvironment =
+    Boolean(railwayEnvironmentName) && railwayEnvironmentName !== "production";
+
   const authMode = resolveAuthMode({
     configuredAuthMode: parsed.AIR_JAM_AUTH_MODE as AuthMode | undefined,
     nodeEnv,
@@ -236,7 +248,9 @@ export const loadServerEnv = (
       parsed.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX,
     controllerJoinRateLimitMax: parsed.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX,
     staticAppRateLimitMax: parsed.AIR_JAM_STATIC_APP_RATE_LIMIT_MAX,
-    allowedOrigins: normalizeAllowedOrigins(parsed.AIR_JAM_ALLOWED_ORIGINS),
+    allowedOrigins: isRailwayPreviewEnvironment
+      ? "*"
+      : normalizeAllowedOrigins(parsed.AIR_JAM_ALLOWED_ORIGINS),
     devLogCollectorEnabled: parsed.AIR_JAM_DEV_LOG_COLLECTOR
       ? parsed.AIR_JAM_DEV_LOG_COLLECTOR === "enabled"
       : nodeEnv !== "production",
