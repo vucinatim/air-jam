@@ -7,18 +7,7 @@ import {
   users,
 } from "../db/schema";
 import { auth } from "./auth";
-
-/**
- * Credentials for the seeded preview tester account. Exported so the
- * "Sign in as preview tester" UI button can call signIn with the same
- * values used to create the account here. Public on purpose — previews
- * boot empty databases and never carry real user data.
- */
-export const PREVIEW_TESTER_CREDENTIALS = {
-  email: "preview-tester@airjam.dev",
-  password: "preview-tester-password",
-  name: "Preview Tester",
-} as const;
+import { PREVIEW_TESTER_CREDENTIALS } from "./preview-tester-credentials";
 
 const PREVIEW_GAME_ID = "preview-game-001";
 const PREVIEW_RELEASE_ID = "preview-release-001";

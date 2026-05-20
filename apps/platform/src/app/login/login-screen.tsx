@@ -24,13 +24,19 @@ import { useMemo, useState } from "react";
 
 type LoginScreenProps = {
   nextPath?: string | null;
+  /**
+   * When the platform is running as a Railway PR preview, the server
+   * passes the seeded test account's credentials so the UI can render
+   * a one-click sign-in shortcut. Null in production.
+   */
+  previewTester?: { email: string; password: string } | null;
 };
 
-export function LoginScreen({ nextPath }: LoginScreenProps) {
+export function LoginScreen({ nextPath, previewTester }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loadingAction, setLoadingAction] = useState<
-    "github" | "signin" | "signup" | null
+    "github" | "signin" | "signup" | "preview-tester" | null
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [showEmailFallback, setShowEmailFallback] = useState(false);
@@ -106,6 +112,28 @@ export function LoginScreen({ nextPath }: LoginScreenProps) {
     setShowEmailFallback(false);
   };
 
+  const handlePreviewTesterSignIn = async () => {
+    if (!previewTester) return;
+    setLoadingAction("preview-tester");
+    setError(null);
+    try {
+      await authClient.signIn.email(
+        {
+          email: previewTester.email,
+          password: previewTester.password,
+        },
+        {
+          onSuccess: () => router.push(safeNextPath),
+          onError: (ctx) => setError(ctx.error.message),
+        },
+      );
+    } catch {
+      setError("Preview sign-in could not be started.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <Navbar />
@@ -144,6 +172,29 @@ export function LoginScreen({ nextPath }: LoginScreenProps) {
                   {error}
                 </AlertDescription>
               </Alert>
+            )}
+
+            {previewTester && !showEmailFallback && (
+              <div className="space-y-2 rounded-lg border border-amber-400/30 bg-amber-950/30 p-4">
+                <p className="text-xs font-medium tracking-wide text-amber-200 uppercase">
+                  Preview environment
+                </p>
+                <p className="text-xs text-amber-100/80">
+                  GitHub sign-in is disabled. Use the seeded tester account to
+                  explore the platform.
+                </p>
+                <Button
+                  variant="default"
+                  className="h-10 w-full rounded-lg bg-amber-400 text-sm font-medium text-zinc-950 hover:bg-amber-300"
+                  onClick={() => void handlePreviewTesterSignIn()}
+                  disabled={loadingAction !== null}
+                >
+                  {loadingAction === "preview-tester" && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Sign in as preview tester
+                </Button>
+              </div>
             )}
 
             <div className="space-y-4">
