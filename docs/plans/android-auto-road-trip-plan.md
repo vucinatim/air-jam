@@ -1570,3 +1570,41 @@ Still required to close Goal 3:
 
 1. human listening judgment for the 36 configured clip starts
 2. final visual review across every supported host and phone size
+
+### 2026-07-24 — Versioned Android APK Distribution
+
+Completed:
+
+1. published the current `airjam-mobile` `master` build as the signed,
+   permanent
+   [v1.0.0 GitHub Release](https://github.com/domenkoscak/airjam-mobile/releases/tag/v1.0.0)
+2. verified the published APK with Android's APK signature tooling
+3. configured one stable internal signing identity in GitHub Actions secrets;
+   the secret material is not stored in either repository
+4. extended
+   [mobile draft PR #3](https://github.com/domenkoscak/airjam-mobile/pull/3)
+   with:
+   1. clean-runner tests, lint, and debug APK builds for pull requests
+   2. signed release builds for successful `master` updates
+   3. monotonically increasing Android version codes
+   4. a separate `v1.0.N` GitHub Release for every master build
+   5. a stable
+      [latest APK download](https://github.com/domenkoscak/airjam-mobile/releases/latest/download/airjam-auto.apk)
+      while preserving every older APK on the
+      [Releases page](https://github.com/domenkoscak/airjam-mobile/releases)
+5. replaced the release build's empty host validator with the Android for Cars
+   App Library's standard host allowlist; debug builds still allow DHU and
+   development hosts
+6. documented direct phone installation and rollback
+
+Installation caveat:
+
+1. Domen's existing locally built APK has a different signing identity
+2. he must uninstall that APK once before installing `v1.0.0`
+3. every later GitHub release will then install as a normal in-place update
+
+Release state:
+
+1. `v1.0.0` is available now and represents the unchanged mobile `master`
+2. the automated versioned pipeline is commit `3a0e47a` in the existing draft
+   PR and does not affect `master` until that PR is explicitly merged
