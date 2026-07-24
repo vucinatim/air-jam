@@ -627,76 +627,73 @@ or blocking narrow category selections.
 
 ### Goal 3 Song Candidate Review
 
-Status: awaiting user review. Difficulty scores are provisional and relative to
-this road-trip group. YouTube IDs and clip starts are intentionally deferred
-until the tracks are approved, so rejected songs do not create validation work
-or catalog churn.
+Status: approved by the user and implemented on 2026-07-24. Difficulty scores
+remain curated relative to this road-trip group.
 
-The proposed batch adds 36 songs and brings the validated catalog target from
-144 to exactly 180. It emphasizes medium and hard songs while keeping every
-candidate recognizable enough to produce a fair reveal.
+The approved batch adds 36 songs and brings the validated catalog from 144 to
+exactly 180. It emphasizes medium and hard songs while keeping every addition
+recognizable enough to produce a fair reveal.
 
 Slovenian:
 
-- [ ] Dan D — Voda — difficulty 3
-- [ ] Koala Voice — Go Disco, Go — difficulty 4
-- [ ] Siddharta — Napoj — difficulty 2
-- [ ] Big Foot Mama — Led s severa — difficulty 3
-- [ ] Niet — Lep dan za smrt — difficulty 3
-- [ ] Zmelkoow — Bit — difficulty 3
+- [x] Dan D — Voda — difficulty 3
+- [x] Koala Voice — Go Disco, Go — difficulty 4
+- [x] Siddharta — Napoj — difficulty 2
+- [x] Big Foot Mama — Led s severa — difficulty 3
+- [x] Niet — Lep dan za smrt — difficulty 3
+- [x] Zmelkoow — Bit — difficulty 3
 
 Balkan:
 
-- [ ] Dino Dvornik — Ti si mi u mislima — difficulty 3
-- [ ] Ekatarina Velika — Par godina za nas — difficulty 4
-- [ ] Haustor — Ena — difficulty 4
-- [ ] Buč Kesidi — Nema ljubavi u klubu — difficulty 4
-- [ ] Grše — Mamma Mia — difficulty 3
-- [ ] Let 3 — Mama ŠČ! — difficulty 3
+- [x] Dino Dvornik — Ti si mi u mislima — difficulty 3
+- [x] Ekatarina Velika — Par godina za nas — difficulty 4
+- [x] Haustor — Ena — difficulty 4
+- [x] Buč Kesidi — Nema ljubavi u klubu — difficulty 4
+- [x] Grše — Mamma Mia — difficulty 3
+- [x] Let 3 — Mama ŠČ! — difficulty 3
 
 2010s:
 
-- [ ] M83 — Midnight City — difficulty 3
-- [ ] Tove Lo — Habits (Stay High) — difficulty 3
-- [ ] Milky Chance — Stolen Dance — difficulty 3
-- [ ] alt-J — Breezeblocks — difficulty 4
-- [ ] Portugal. The Man — Feel It Still — difficulty 3
-- [ ] Of Monsters and Men — Little Talks — difficulty 3
+- [x] M83 — Midnight City — difficulty 3
+- [x] Tove Lo — Habits (Stay High) — difficulty 3
+- [x] Milky Chance — Stolen Dance — difficulty 3
+- [x] alt-J — Breezeblocks — difficulty 4
+- [x] Portugal. The Man — Feel It Still — difficulty 3
+- [x] Of Monsters and Men — Little Talks — difficulty 3
 
 Rock / Classics:
 
-- [ ] The Strokes — Reptilia — difficulty 4
-- [ ] The Cure — Just Like Heaven — difficulty 4
-- [ ] Pixies — Where Is My Mind? — difficulty 3
-- [ ] Foo Fighters — Everlong — difficulty 3
-- [ ] Fleetwood Mac — The Chain — difficulty 2
-- [ ] Arctic Monkeys — Fluorescent Adolescent — difficulty 4
+- [x] The Strokes — Reptilia — difficulty 4
+- [x] The Cure — Just Like Heaven — difficulty 4
+- [x] Pixies — Where Is My Mind? — difficulty 3
+- [x] Foo Fighters — Everlong — difficulty 3
+- [x] Fleetwood Mac — The Chain — difficulty 2
+- [x] Arctic Monkeys — Fluorescent Adolescent — difficulty 4
 
 2000s and throwbacks:
 
-- [ ] Modjo — Lady (Hear Me Tonight) — difficulty 3
-- [ ] The Ting Tings — That's Not My Name — difficulty 3
-- [ ] Nelly Furtado — Maneater — difficulty 2
-- [ ] MGMT — Kids — difficulty 3
-- [ ] Depeche Mode — Enjoy the Silence — difficulty 3
-- [ ] Bronski Beat — Smalltown Boy — difficulty 3
+- [x] Modjo — Lady (Hear Me Tonight) — difficulty 3
+- [x] The Ting Tings — That's Not My Name — difficulty 3
+- [x] Nelly Furtado — Maneater — difficulty 2
+- [x] MGMT — Kids — difficulty 3
+- [x] Depeche Mode — Enjoy the Silence — difficulty 3
+- [x] Bronski Beat — Smalltown Boy — difficulty 3
 
 Eurovision and Dance / EDM:
 
-- [ ] Go_A — SHUM — difficulty 3
-- [ ] Mahmood — Soldi — difficulty 3
-- [ ] Daði Freyr — Think About Things — difficulty 3
-- [ ] Eleni Foureira — Fuego — difficulty 3
-- [ ] Benny Benassi presents The Biz — Satisfaction — difficulty 3
-- [ ] Duke Dumont — Ocean Drive — difficulty 4
+- [x] Go_A — SHUM — difficulty 3
+- [x] Mahmood — Soldi — difficulty 3
+- [x] Daði Freyr — Think About Things — difficulty 3
+- [x] Eleni Foureira — Fuego — difficulty 3
+- [x] Benny Benassi presents The Biz — Satisfaction — difficulty 3
+- [x] Duke Dumont — Ocean Drive — difficulty 4
 
-Candidate source research:
+Approved source metadata:
 
-The following metadata is prepared but not yet part of the catalog. All 36
-video ids currently return HTTP 200 through the same YouTube oEmbed check used
-by the repository validator, none duplicates an existing catalog video, and
-none of the canonical artist/title pairs duplicates the current 144 songs.
-Clip starts are provisional until playback is sampled after approval.
+The following metadata is now part of the catalog. All 36 video ids return HTTP
+200 through the same YouTube oEmbed check used by the repository validator,
+none duplicates another catalog video, and none of the canonical artist/title
+pairs duplicates the original 144 songs.
 
 | Artist              | Song                   | YouTube source                                | Start |
 | ------------------- | ---------------------- | --------------------------------------------- | ----: |
@@ -737,9 +734,9 @@ Clip starts are provisional until playback is sampled after approval.
 | Benny Benassi       | Satisfaction           | [`a0fkNdPiIL4`](https://youtu.be/a0fkNdPiIL4) |   30s |
 | Duke Dumont         | Ocean Drive            | [`KDxJlW6cxRk`](https://youtu.be/KDxJlW6cxRk) |   54s |
 
-The Niet source is the only candidate not hosted by the artist, label, an
-official topic channel, or Eurovision. It is usable according to oEmbed, but it
-must be manually playback-checked or replaced before the song is accepted.
+The Niet source is the only addition not hosted by the artist, label, an
+official topic channel, or Eurovision. It passes both oEmbed and local iframe
+playback checks.
 
 Proposed category treatment:
 
@@ -753,11 +750,10 @@ Proposed category treatment:
 5. a dedicated Hip-hop category is deferred until it has a reviewed minimum
    pack rather than being launched with filler
 
-If the full batch is approved, the projected additions contain three
-difficulty 1-2 songs, twenty-four difficulty 3 songs, and nine difficulty 4-5
-songs. The complete catalog will remain naturally easy-heavy, but the balanced
-selector will produce the intended per-match curve whenever the selected
-category pool supports it.
+The additions contain three difficulty 1-2 songs, twenty-four difficulty 3
+songs, and nine difficulty 4-5 songs. The complete catalog remains naturally
+easy-heavy, but the balanced selector produces the intended per-match curve
+whenever the selected category pool supports it.
 
 Validation:
 
@@ -768,7 +764,8 @@ Validation:
 - [x] preflight all 36 candidate ids through YouTube oEmbed
 - [x] confirm candidate video ids and canonical songs do not duplicate the
       current catalog
-- [ ] manually sample every new category
+- [x] exercise every new source in a real localhost YouTube iframe
+- [x] confirm every clip seeks to its configured start and continues playing
 - [ ] manually sample clip start quality
 
 ## Workstream E: Android Wrapper Hardening
@@ -1523,13 +1520,37 @@ Completed in the first checkpoint:
     2. no proposed video id or canonical song duplicates the current catalog
     3. every song has a provisional clip start ready for post-approval sampling
     4. the Niet upload is explicitly flagged as the only non-official source
+14. received user approval and expanded the catalog from 144 to 180 songs
+15. assigned every addition:
+    1. one explicit answer-fairness category
+    2. curated browsing buckets
+    3. one difficulty score from 1 through 5
+    4. one deterministic clip start
+    5. the final catalog distribution is 69 difficulty-1, 44 difficulty-2, 44
+       difficulty-3, 21 difficulty-4, and 2 difficulty-5 songs
+16. passed the complete catalog validator with zero deterministic issues and
+    180/180 unique YouTube sources reachable through oEmbed
+17. exercised every new source through a localhost YouTube iframe:
+    1. all 36 loaded without a player error
+    2. all 36 sought to the configured clip start
+    3. all 36 entered the playing state and advanced playback
+    4. every source retained at least 30 seconds after its clip start
+18. started a real local match from the expanded catalog; the first randomized
+    round selected the new `Portugal. The Man — Feel It Still` entry, presented
+    four 2010s-only answers, accepted the correct answer, and rendered complete
+    controller and host reveal details
 
 Quality evidence:
 
-1. 51/51 game tests pass
+1. 52/52 game tests pass
 2. game typecheck passes
 3. focused ESLint passes
-4. scoped Prettier and `git diff --check` pass
+4. the production game build passes
+5. the final catalog validator reports zero deterministic issues and 180/180
+   reachable unique YouTube sources
+6. scoped Prettier and `git diff --check` pass
+7. the deterministic 2-, 6-, and 10-player ten-round matches pass against the
+   final 180-song catalog
 
 Framework follow-up:
 
@@ -1547,8 +1568,5 @@ Framework follow-up:
 
 Still required to close Goal 3:
 
-1. user approval or edits to the proposed song slate
-2. approved-song metadata, YouTube, and clip validation
-3. final visual review across every supported host and phone size
-4. rerun the deterministic two-, six-, and ten-player regression matches with
-   the final catalog
+1. human listening judgment for the 36 configured clip starts
+2. final visual review across every supported host and phone size

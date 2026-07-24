@@ -1,24 +1,24 @@
 {
-  "generatedAt": "2026-07-24T15:02:42.109Z",
+  "generatedAt": "2026-07-24T16:41:17.672Z",
   "summary": {
-    "totalSongs": 144,
+    "totalSongs": 180,
     "totalBuckets": 10,
     "catalogIssues": 0,
-    "checkedUniqueVideos": 144,
+    "checkedUniqueVideos": 180,
     "invalidOrBlockedVideos": 0
   },
   "catalogIssues": [],
   "buckets": [
-    { "id": "global-pop", "label": "Global Pop", "songCount": 65 },
-    { "id": "meme", "label": "Meme", "songCount": 19 },
-    { "id": "slovenian", "label": "Slovenian", "songCount": 27 },
-    { "id": "balkan", "label": "Balkan", "songCount": 26 },
-    { "id": "rock-classics", "label": "Rock / Classics", "songCount": 25 },
-    { "id": "throwbacks", "label": "Throwbacks", "songCount": 53 },
-    { "id": "2000s", "label": "2000s", "songCount": 33 },
-    { "id": "2010s", "label": "2010s", "songCount": 42 },
-    { "id": "eurovision", "label": "Eurovision", "songCount": 27 },
-    { "id": "dance-edm", "label": "Dance / EDM", "songCount": 26 }
+    { "id": "global-pop", "label": "Global Pop", "songCount": 77 },
+    { "id": "meme", "label": "Meme", "songCount": 20 },
+    { "id": "slovenian", "label": "Slovenian", "songCount": 33 },
+    { "id": "balkan", "label": "Balkan", "songCount": 32 },
+    { "id": "rock-classics", "label": "Rock / Classics", "songCount": 45 },
+    { "id": "throwbacks", "label": "Throwbacks", "songCount": 71 },
+    { "id": "2000s", "label": "2000s", "songCount": 43 },
+    { "id": "2010s", "label": "2010s", "songCount": 51 },
+    { "id": "eurovision", "label": "Eurovision", "songCount": 32 },
+    { "id": "dance-edm", "label": "Dance / EDM", "songCount": 35 }
   ],
   "quizCategories": [
     {
@@ -38,58 +38,58 @@
     {
       "id": "slovenian",
       "label": "Slovenian",
-      "songCount": 27,
-      "distinctLabels": { "song-title": 27, "artist": 26 },
-      "difficultyCounts": { "1": 4, "2": 9, "3": 7, "4": 7, "5": 0 }
+      "songCount": 33,
+      "distinctLabels": { "song-title": 33, "artist": 30 },
+      "difficultyCounts": { "1": 4, "2": 10, "3": 11, "4": 8, "5": 0 }
     },
     {
       "id": "balkan",
       "label": "Balkan",
-      "songCount": 26,
-      "distinctLabels": { "song-title": 26, "artist": 25 },
-      "difficultyCounts": { "1": 7, "2": 11, "3": 5, "4": 3, "5": 0 }
+      "songCount": 32,
+      "distinctLabels": { "song-title": 32, "artist": 31 },
+      "difficultyCounts": { "1": 7, "2": 11, "3": 8, "4": 6, "5": 0 }
     },
     {
       "id": "rock-classics",
       "label": "Rock / Classics",
-      "songCount": 14,
-      "distinctLabels": { "song-title": 14, "artist": 14 },
-      "difficultyCounts": { "1": 12, "2": 2, "3": 0, "4": 0, "5": 0 }
+      "songCount": 20,
+      "distinctLabels": { "song-title": 20, "artist": 20 },
+      "difficultyCounts": { "1": 12, "2": 3, "3": 2, "4": 3, "5": 0 }
     },
     {
       "id": "throwbacks",
       "label": "Throwbacks",
-      "songCount": 9,
-      "distinctLabels": { "song-title": 9, "artist": 9 },
-      "difficultyCounts": { "1": 8, "2": 1, "3": 0, "4": 0, "5": 0 }
+      "songCount": 11,
+      "distinctLabels": { "song-title": 11, "artist": 11 },
+      "difficultyCounts": { "1": 8, "2": 1, "3": 2, "4": 0, "5": 0 }
     },
     {
       "id": "2000s",
       "label": "2000s",
-      "songCount": 14,
-      "distinctLabels": { "song-title": 14, "artist": 13 },
-      "difficultyCounts": { "1": 8, "2": 5, "3": 1, "4": 0, "5": 0 }
+      "songCount": 18,
+      "distinctLabels": { "song-title": 18, "artist": 17 },
+      "difficultyCounts": { "1": 8, "2": 6, "3": 4, "4": 0, "5": 0 }
     },
     {
       "id": "2010s",
       "label": "2010s",
-      "songCount": 10,
-      "distinctLabels": { "song-title": 10, "artist": 9 },
-      "difficultyCounts": { "1": 10, "2": 0, "3": 0, "4": 0, "5": 0 }
+      "songCount": 16,
+      "distinctLabels": { "song-title": 16, "artist": 15 },
+      "difficultyCounts": { "1": 10, "2": 0, "3": 5, "4": 1, "5": 0 }
     },
     {
       "id": "eurovision",
       "label": "Eurovision",
-      "songCount": 10,
-      "distinctLabels": { "song-title": 10, "artist": 10 },
-      "difficultyCounts": { "1": 3, "2": 5, "3": 2, "4": 0, "5": 0 }
+      "songCount": 14,
+      "distinctLabels": { "song-title": 14, "artist": 14 },
+      "difficultyCounts": { "1": 3, "2": 5, "3": 6, "4": 0, "5": 0 }
     },
     {
       "id": "dance-edm",
       "label": "Dance / EDM",
-      "songCount": 10,
-      "distinctLabels": { "song-title": 10, "artist": 10 },
-      "difficultyCounts": { "1": 3, "2": 4, "3": 2, "4": 0, "5": 1 }
+      "songCount": 12,
+      "distinctLabels": { "song-title": 12, "artist": 12 },
+      "difficultyCounts": { "1": 3, "2": 4, "3": 3, "4": 1, "5": 1 }
     }
   ],
   "results": [
@@ -361,6 +361,25 @@
       }
     },
     {
+      "id": "big-foot-mama-led-s-severa",
+      "title": "Led s severa",
+      "artist": "Big Foot Mama",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ExmoTeC3e5g",
+      "clipStartSeconds": 48,
+      "bucketIds": ["slovenian", "2000s", "rock-classics"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "ExmoTeC3e5g",
+      "canonicalKey": "big foot mama::led s severa",
+      "embed": {
+        "videoId": "ExmoTeC3e5g",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Big Foot Mama - Led s severa\",\"author_name\":\"BigFootMamaOfficial\",\"author_url\":\"https://www.youtube.com/@BigFootMamaOfficial\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"p"
+      }
+    },
+    {
       "id": "big-foot-mama-nisem-vec-s-tabo",
       "title": "Nisem več s tabo",
       "artist": "Big Foot Mama",
@@ -472,6 +491,44 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Queen \\u2013 Bohemian Rhapsody (Official Video Remastered)\",\"author_name\":\"Queen Official\",\"author_url\":\"https://www.youtube.com/@Queen\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\""
+      }
+    },
+    {
+      "id": "breezeblocks-alt-j",
+      "title": "Breezeblocks",
+      "artist": "alt-J",
+      "youtubeUrl": "https://www.youtube.com/watch?v=rVeMiVU77wo",
+      "clipStartSeconds": 48,
+      "bucketIds": ["2010s", "rock-classics"],
+      "quizCategoryId": "2010s",
+      "difficulty": 4,
+      "videoId": "rVeMiVU77wo",
+      "canonicalKey": "alt j::breezeblocks",
+      "embed": {
+        "videoId": "rVeMiVU77wo",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"alt-J (\\u2206) Breezeblocks\",\"author_name\":\"alt-J\",\"author_url\":\"https://www.youtube.com/@altj\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://www.yout"
+      }
+    },
+    {
+      "id": "buc-kesidi-nema-ljubavi-u-klubu",
+      "title": "Nema ljubavi u klubu",
+      "artist": "Buč Kesidi",
+      "youtubeUrl": "https://www.youtube.com/watch?v=CaZOa3KvfA0",
+      "clipStartSeconds": 49,
+      "bucketIds": ["balkan", "2010s", "rock-classics"],
+      "quizCategoryId": "balkan",
+      "difficulty": 4,
+      "videoId": "CaZOa3KvfA0",
+      "canonicalKey": "buc kesidi::nema ljubavi u klubu",
+      "embed": {
+        "videoId": "CaZOa3KvfA0",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Bu\\u010d Kesidi - Nema ljubavi u klubu\",\"author_name\":\"Bu\\u010d Kesidi\",\"author_url\":\"https://www.youtube.com/@buckesidi\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provi"
       }
     },
     {
@@ -722,6 +779,25 @@
       }
     },
     {
+      "id": "dan-d-voda",
+      "title": "Voda",
+      "artist": "Dan D",
+      "youtubeUrl": "https://www.youtube.com/watch?v=rr_x41eIgB4",
+      "clipStartSeconds": 52,
+      "bucketIds": ["slovenian", "2000s", "rock-classics"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "rr_x41eIgB4",
+      "canonicalKey": "dan d::voda",
+      "embed": {
+        "videoId": "rr_x41eIgB4",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Voda\",\"author_name\":\"Dan D - Topic\",\"author_url\":\"https://www.youtube.com/channel/UCdxuPUp2zkFIvev-TwHCy6Q\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"http"
+      }
+    },
+    {
       "id": "dancing-lasha-tumbai-verka-serduchka",
       "title": "Dancing Lasha Tumbai",
       "artist": "Verka Serduchka",
@@ -776,6 +852,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Luis Fonsi - Despacito ft. Daddy Yankee\",\"author_name\":\"LuisFonsiVEVO\",\"author_url\":\"https://www.youtube.com/@LuisFonsiVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"pr"
+      }
+    },
+    {
+      "id": "dino-dvornik-ti-si-mi-u-mislima",
+      "title": "Ti si mi u mislima",
+      "artist": "Dino Dvornik",
+      "youtubeUrl": "https://www.youtube.com/watch?v=pJbOrncVL_Y",
+      "clipStartSeconds": 43,
+      "bucketIds": ["balkan", "dance-edm", "throwbacks"],
+      "quizCategoryId": "balkan",
+      "difficulty": 3,
+      "videoId": "pJbOrncVL_Y",
+      "canonicalKey": "dino dvornik::ti si mi u mislima",
+      "embed": {
+        "videoId": "pJbOrncVL_Y",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Dino Dvornik - Ti si mi u mislima (Official Video)\",\"author_name\":\"Dino Dvornik Official\",\"author_url\":\"https://www.youtube.com/@DinoDvornikOfficial\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"pro"
       }
     },
     {
@@ -855,6 +950,44 @@
       }
     },
     {
+      "id": "ekatarina-velika-par-godina-za-nas",
+      "title": "Par godina za nas",
+      "artist": "Ekatarina Velika",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ooWt0uxF_0I",
+      "clipStartSeconds": 56,
+      "bucketIds": ["balkan", "rock-classics", "throwbacks"],
+      "quizCategoryId": "balkan",
+      "difficulty": 4,
+      "videoId": "ooWt0uxF_0I",
+      "canonicalKey": "ekatarina velika::par godina za nas",
+      "embed": {
+        "videoId": "ooWt0uxF_0I",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Ekatarina Velika  - Par godina za nas (Official Video)\",\"author_name\":\"Ekatarina Velika Official\",\"author_url\":\"https://www.youtube.com/@ekatarinavelika\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\","
+      }
+    },
+    {
+      "id": "enjoy-the-silence-depeche-mode",
+      "title": "Enjoy the Silence",
+      "artist": "Depeche Mode",
+      "youtubeUrl": "https://www.youtube.com/watch?v=aGSKrC7dGcY",
+      "clipStartSeconds": 45,
+      "bucketIds": ["throwbacks", "rock-classics"],
+      "quizCategoryId": "throwbacks",
+      "difficulty": 3,
+      "videoId": "aGSKrC7dGcY",
+      "canonicalKey": "depeche mode::enjoy the silence",
+      "embed": {
+        "videoId": "aGSKrC7dGcY",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Depeche Mode - Enjoy the Silence (Official Video)\",\"author_name\":\"DepecheModeVEVO\",\"author_url\":\"https://www.youtube.com/@DepecheModeVEVO\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\""
+      }
+    },
+    {
       "id": "euphoria-loreen",
       "title": "Euphoria",
       "artist": "Loreen",
@@ -871,6 +1004,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Loreen - Euphoria (LIVE) | Sweden \\ud83c\\uddf8\\ud83c\\uddea | Grand Final | Winner of Eurovision 2012\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\""
+      }
+    },
+    {
+      "id": "everlong-foo-fighters",
+      "title": "Everlong",
+      "artist": "Foo Fighters",
+      "youtubeUrl": "https://www.youtube.com/watch?v=hq0rZ3IiyWw",
+      "clipStartSeconds": 42,
+      "bucketIds": ["rock-classics", "throwbacks"],
+      "quizCategoryId": "rock-classics",
+      "difficulty": 3,
+      "videoId": "hq0rZ3IiyWw",
+      "canonicalKey": "foo fighters::everlong",
+      "embed": {
+        "videoId": "hq0rZ3IiyWw",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Foo Fighters - Everlong\",\"author_name\":\"Foo Fighters\",\"author_url\":\"https://www.youtube.com/@foofighters\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https:"
       }
     },
     {
@@ -912,6 +1064,25 @@
       }
     },
     {
+      "id": "feel-it-still-portugal-the-man",
+      "title": "Feel It Still",
+      "artist": "Portugal. The Man",
+      "youtubeUrl": "https://www.youtube.com/watch?v=pBkHHoOIIn8",
+      "clipStartSeconds": 42,
+      "bucketIds": ["2010s", "global-pop", "rock-classics"],
+      "quizCategoryId": "2010s",
+      "difficulty": 3,
+      "videoId": "pBkHHoOIIn8",
+      "canonicalKey": "portugal the man::feel it still",
+      "embed": {
+        "videoId": "pBkHHoOIIn8",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Portugal. The Man - Feel It Still (Official Music Video)\",\"author_name\":\"Portugal. The Man\",\"author_url\":\"https://www.youtube.com/@Portugal.TheMan\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provi"
+      }
+    },
+    {
       "id": "flirrt-romeo-in-julija",
       "title": "Romeo in Julija",
       "artist": "FLIRRT",
@@ -950,6 +1121,25 @@
       }
     },
     {
+      "id": "fluorescent-adolescent-arctic-monkeys",
+      "title": "Fluorescent Adolescent",
+      "artist": "Arctic Monkeys",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ma9I9VBKPiw",
+      "clipStartSeconds": 47,
+      "bucketIds": ["rock-classics", "2000s", "throwbacks"],
+      "quizCategoryId": "rock-classics",
+      "difficulty": 4,
+      "videoId": "ma9I9VBKPiw",
+      "canonicalKey": "arctic monkeys::fluorescent adolescent",
+      "embed": {
+        "videoId": "ma9I9VBKPiw",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Arctic Monkeys - Fluorescent Adolescent (Official Video)\",\"author_name\":\"Domino Recording Co.\",\"author_url\":\"https://www.youtube.com/@dominorecordco\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"pro"
+      }
+    },
+    {
       "id": "francesca",
       "title": "Francesca",
       "artist": "Hozier",
@@ -966,6 +1156,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Hozier - Francesca (Official Video)\",\"author_name\":\"HozierVEVO\",\"author_url\":\"https://www.youtube.com/@HozierVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url"
+      }
+    },
+    {
+      "id": "fuego-eleni-foureira",
+      "title": "Fuego",
+      "artist": "Eleni Foureira",
+      "youtubeUrl": "https://www.youtube.com/watch?v=eDSgs6syrgg",
+      "clipStartSeconds": 49,
+      "bucketIds": ["eurovision", "dance-edm", "global-pop"],
+      "quizCategoryId": "eurovision",
+      "difficulty": 3,
+      "videoId": "eDSgs6syrgg",
+      "canonicalKey": "eleni foureira::fuego",
+      "embed": {
+        "videoId": "eDSgs6syrgg",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Eleni Foureira - Fuego - Cyprus - Official Music Video - Eurovision 2018\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\",\"height\":113,\"width"
       }
     },
     {
@@ -1026,6 +1235,44 @@
       }
     },
     {
+      "id": "grse-mamma-mia",
+      "title": "Mamma Mia",
+      "artist": "Grše",
+      "youtubeUrl": "https://www.youtube.com/watch?v=QcRbyU6_qB4",
+      "clipStartSeconds": 34,
+      "bucketIds": ["balkan"],
+      "quizCategoryId": "balkan",
+      "difficulty": 3,
+      "videoId": "QcRbyU6_qB4",
+      "canonicalKey": "grse::mamma mia",
+      "embed": {
+        "videoId": "QcRbyU6_qB4",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"GR\\u0160E -  MAMMA MIA (OFFICIAL VIDEO)\",\"author_name\":\"Blockstar\",\"author_url\":\"https://www.youtube.com/@blockstardigital\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"pro"
+      }
+    },
+    {
+      "id": "habits-stay-high-tove-lo",
+      "title": "Habits (Stay High)",
+      "artist": "Tove Lo",
+      "youtubeUrl": "https://www.youtube.com/watch?v=oh2LWWORoiM",
+      "clipStartSeconds": 46,
+      "bucketIds": ["2010s", "global-pop"],
+      "quizCategoryId": "2010s",
+      "difficulty": 3,
+      "videoId": "oh2LWWORoiM",
+      "canonicalKey": "tove lo::habits stay high",
+      "embed": {
+        "videoId": "oh2LWWORoiM",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Tove Lo - Habits (Stay High)\",\"author_name\":\"ToveLoVEVO\",\"author_url\":\"https://www.youtube.com/@ToveLoVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"http"
+      }
+    },
+    {
       "id": "happy-pharrell-williams",
       "title": "Happy",
       "artist": "Pharrell Williams",
@@ -1080,6 +1327,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Hari Mata Hari - Lejla - Bosnia and Herzegovina - Grand Final - Eurovision 2006\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\",\"height\":113"
+      }
+    },
+    {
+      "id": "haustor-ena",
+      "title": "Ena",
+      "artist": "Haustor",
+      "youtubeUrl": "https://www.youtube.com/watch?v=FmUiX2ml838",
+      "clipStartSeconds": 43,
+      "bucketIds": ["balkan", "rock-classics", "throwbacks"],
+      "quizCategoryId": "balkan",
+      "difficulty": 4,
+      "videoId": "FmUiX2ml838",
+      "canonicalKey": "haustor::ena",
+      "embed": {
+        "videoId": "FmUiX2ml838",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Haustor - Ena (Official video)\",\"author_name\":\"Croatia Records\",\"author_url\":\"https://www.youtube.com/@crorec\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"h"
       }
     },
     {
@@ -1311,6 +1577,25 @@
       }
     },
     {
+      "id": "just-like-heaven-the-cure",
+      "title": "Just Like Heaven",
+      "artist": "The Cure",
+      "youtubeUrl": "https://www.youtube.com/watch?v=n3nPiBai66M",
+      "clipStartSeconds": 42,
+      "bucketIds": ["rock-classics", "throwbacks"],
+      "quizCategoryId": "rock-classics",
+      "difficulty": 4,
+      "videoId": "n3nPiBai66M",
+      "canonicalKey": "the cure::just like heaven",
+      "embed": {
+        "videoId": "n3nPiBai66M",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"The Cure - Just Like Heaven\",\"author_name\":\"TheCureVEVO\",\"author_url\":\"https://www.youtube.com/@TheCureVEVO\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"htt"
+      }
+    },
+    {
       "id": "kej-si",
       "title": "Kej si",
       "artist": "Generator",
@@ -1327,6 +1612,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Generator - Kej si\",\"author_name\":\"Generator\",\"author_url\":\"https://www.youtube.com/@Generatormuzike\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://ww"
+      }
+    },
+    {
+      "id": "kids-mgmt",
+      "title": "Kids",
+      "artist": "MGMT",
+      "youtubeUrl": "https://www.youtube.com/watch?v=DngxJlZSpPo",
+      "clipStartSeconds": 28,
+      "bucketIds": ["2000s", "global-pop", "throwbacks"],
+      "quizCategoryId": "2000s",
+      "difficulty": 3,
+      "videoId": "DngxJlZSpPo",
+      "canonicalKey": "mgmt::kids",
+      "embed": {
+        "videoId": "DngxJlZSpPo",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Kids\",\"author_name\":\"MGMT - Topic\",\"author_url\":\"https://www.youtube.com/channel/UCcP74mIhs125nerd5o5Dd-Q\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https"
       }
     },
     {
@@ -1365,6 +1669,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Kingston - Cela ulica nori (Official Video)\",\"author_name\":\"KingstonOfficial\",\"author_url\":\"https://www.youtube.com/@KingstonOfficialSLO\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":"
+      }
+    },
+    {
+      "id": "koala-voice-go-disco-go",
+      "title": "Go Disco, Go",
+      "artist": "Koala Voice",
+      "youtubeUrl": "https://www.youtube.com/watch?v=QscWr0JxWrU",
+      "clipStartSeconds": 35,
+      "bucketIds": ["slovenian", "2010s", "rock-classics"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "QscWr0JxWrU",
+      "canonicalKey": "koala voice::go disco go",
+      "embed": {
+        "videoId": "QscWr0JxWrU",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Koala Voice - Go Disco, Go  (Kangaroo\\u0027s a neighbour - official video)\",\"author_name\":\"Koala Voice\",\"author_url\":\"https://www.youtube.com/@KoalaVoiceband\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\""
       }
     },
     {
@@ -1425,6 +1748,25 @@
       }
     },
     {
+      "id": "lady-hear-me-tonight-modjo",
+      "title": "Lady (Hear Me Tonight)",
+      "artist": "Modjo",
+      "youtubeUrl": "https://www.youtube.com/watch?v=mMfxI3r_LyA",
+      "clipStartSeconds": 36,
+      "bucketIds": ["2000s", "dance-edm", "throwbacks"],
+      "quizCategoryId": "2000s",
+      "difficulty": 3,
+      "videoId": "mMfxI3r_LyA",
+      "canonicalKey": "modjo::lady hear me tonight",
+      "embed": {
+        "videoId": "mMfxI3r_LyA",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Modjo - Lady (Hear Me Tonight) (Official Video)\",\"author_name\":\"ModjoOfficial\",\"author_url\":\"https://www.youtube.com/@ModjoOfficial\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouT"
+      }
+    },
+    {
       "id": "lea-sirk-hvala-ne",
       "title": "Hvala, ne!",
       "artist": "Lea Sirk",
@@ -1482,6 +1824,25 @@
       }
     },
     {
+      "id": "let-3-mama-sc",
+      "title": "Mama ŠČ!",
+      "artist": "Let 3",
+      "youtubeUrl": "https://www.youtube.com/watch?v=AyKj8jA0Qoc",
+      "clipStartSeconds": 42,
+      "bucketIds": ["balkan", "eurovision", "meme", "rock-classics"],
+      "quizCategoryId": "balkan",
+      "difficulty": 3,
+      "videoId": "AyKj8jA0Qoc",
+      "canonicalKey": "let 3::mama sc",
+      "embed": {
+        "videoId": "AyKj8jA0Qoc",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Let 3 - Mama \\u0160\\u010c! | Croatia \\ud83c\\udded\\ud83c\\uddf7 | Official Music Video | Eurovision 2023\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"typ"
+      }
+    },
+    {
       "id": "levitating-dua-lipa",
       "title": "Levitating",
       "artist": "Dua Lipa",
@@ -1517,6 +1878,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Madonna - Like A Prayer (Official Video)\",\"author_name\":\"Madonna\",\"author_url\":\"https://www.youtube.com/@madonna\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\""
+      }
+    },
+    {
+      "id": "little-talks-of-monsters-and-men",
+      "title": "Little Talks",
+      "artist": "Of Monsters and Men",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ghb6eDopW8I",
+      "clipStartSeconds": 52,
+      "bucketIds": ["2010s", "global-pop", "rock-classics"],
+      "quizCategoryId": "2010s",
+      "difficulty": 3,
+      "videoId": "ghb6eDopW8I",
+      "canonicalKey": "of monsters and men::little talks",
+      "embed": {
+        "videoId": "ghb6eDopW8I",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Of Monsters and Men - Little Talks\",\"author_name\":\"OfMonstersAndMenVEVO\",\"author_url\":\"https://www.youtube.com/@OfMonstersAndMenVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"You"
       }
     },
     {
@@ -1615,6 +1995,25 @@
       }
     },
     {
+      "id": "maneater-nelly-furtado",
+      "title": "Maneater",
+      "artist": "Nelly Furtado",
+      "youtubeUrl": "https://www.youtube.com/watch?v=b0XqR7SEE1I",
+      "clipStartSeconds": 45,
+      "bucketIds": ["2000s", "global-pop", "throwbacks"],
+      "quizCategoryId": "2000s",
+      "difficulty": 2,
+      "videoId": "b0XqR7SEE1I",
+      "canonicalKey": "nelly furtado::maneater",
+      "embed": {
+        "videoId": "b0XqR7SEE1I",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Maneater (Radio Version)\",\"author_name\":\"Nelly Furtado - Topic\",\"author_url\":\"https://www.youtube.com/channel/UCWV94Z763GSdhLQ8WIb2JRQ\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"Y"
+      }
+    },
+    {
       "id": "maraaya-here-for-you",
       "title": "Here for You",
       "artist": "Maraaya",
@@ -1669,6 +2068,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Mi2 - \\u010cista jeba\",\"author_name\":\"Glasbena skupina Mi2\",\"author_url\":\"https://www.youtube.com/@skupinaMi2\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"h"
+      }
+    },
+    {
+      "id": "midnight-city-m83",
+      "title": "Midnight City",
+      "artist": "M83",
+      "youtubeUrl": "https://www.youtube.com/watch?v=dX3k_QDnzHE",
+      "clipStartSeconds": 44,
+      "bucketIds": ["2010s", "dance-edm", "global-pop"],
+      "quizCategoryId": "2010s",
+      "difficulty": 3,
+      "videoId": "dX3k_QDnzHE",
+      "canonicalKey": "m83::midnight city",
+      "embed": {
+        "videoId": "dX3k_QDnzHE",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"M83 \\u0027Midnight City\\u0027 Official video\",\"author_name\":\"M83\",\"author_url\":\"https://www.youtube.com/@M83\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"ht"
       }
     },
     {
@@ -1767,6 +2185,25 @@
       }
     },
     {
+      "id": "niet-lep-dan-za-smrt",
+      "title": "Lep dan za smrt",
+      "artist": "Niet",
+      "youtubeUrl": "https://www.youtube.com/watch?v=MJZRYU0geOg",
+      "clipStartSeconds": 52,
+      "bucketIds": ["slovenian", "rock-classics", "throwbacks"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "MJZRYU0geOg",
+      "canonicalKey": "niet::lep dan za smrt",
+      "embed": {
+        "videoId": "MJZRYU0geOg",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Niet - Lep dan za smrt\",\"author_name\":\"SlovenijaPunk\",\"author_url\":\"https://www.youtube.com/@SlovenijaPunk\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"http"
+      }
+    },
+    {
       "id": "nina-puslar-to-mi-je-vsec",
       "title": "To mi je všeč",
       "artist": "Nina Pušlar",
@@ -1783,6 +2220,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Nina Pu\\u0161lar - To mi je v\\u0161e\\u010d (OFFICIAL VIDEO)\",\"author_name\":\"Nina Pu\\u0161lar OFFICIAL\",\"author_url\":\"https://www.youtube.com/@ninapuslar\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\","
+      }
+    },
+    {
+      "id": "ocean-drive-duke-dumont",
+      "title": "Ocean Drive",
+      "artist": "Duke Dumont",
+      "youtubeUrl": "https://www.youtube.com/watch?v=KDxJlW6cxRk",
+      "clipStartSeconds": 54,
+      "bucketIds": ["dance-edm", "2010s", "global-pop"],
+      "quizCategoryId": "dance-edm",
+      "difficulty": 4,
+      "videoId": "KDxJlW6cxRk",
+      "canonicalKey": "duke dumont::ocean drive",
+      "embed": {
+        "videoId": "KDxJlW6cxRk",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Duke Dumont - Ocean Drive\",\"author_name\":\"DukeDumontVEVO\",\"author_url\":\"https://www.youtube.com/@DukeDumontVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":"
       }
     },
     {
@@ -1996,6 +2452,25 @@
       }
     },
     {
+      "id": "reptilia-the-strokes",
+      "title": "Reptilia",
+      "artist": "The Strokes",
+      "youtubeUrl": "https://www.youtube.com/watch?v=b8-tXG8KrWs",
+      "clipStartSeconds": 35,
+      "bucketIds": ["rock-classics", "2000s", "throwbacks"],
+      "quizCategoryId": "rock-classics",
+      "difficulty": 4,
+      "videoId": "b8-tXG8KrWs",
+      "canonicalKey": "the strokes::reptilia",
+      "embed": {
+        "videoId": "b8-tXG8KrWs",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"The Strokes - Reptilia (Official HD Video)\",\"author_name\":\"thestrokesVEVO\",\"author_url\":\"https://www.youtube.com/@thestrokesVEVO\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube"
+      }
+    },
+    {
       "id": "rise-like-a-phoenix-conchita-wurst",
       "title": "Rise Like a Phoenix",
       "artist": "Conchita Wurst",
@@ -2126,6 +2601,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Darude - Sandstorm\",\"author_name\":\"Darude\",\"author_url\":\"https://www.youtube.com/@darude\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://www.youtube.co"
+      }
+    },
+    {
+      "id": "satisfaction-benny-benassi",
+      "title": "Satisfaction",
+      "artist": "Benny Benassi presents The Biz",
+      "youtubeUrl": "https://www.youtube.com/watch?v=a0fkNdPiIL4",
+      "clipStartSeconds": 30,
+      "bucketIds": ["dance-edm", "2000s", "throwbacks"],
+      "quizCategoryId": "dance-edm",
+      "difficulty": 3,
+      "videoId": "a0fkNdPiIL4",
+      "canonicalKey": "benny benassi presents the biz::satisfaction",
+      "embed": {
+        "videoId": "a0fkNdPiIL4",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Benny Benassi - Satisfaction\",\"author_name\":\"Ultra Records\",\"author_url\":\"https://www.youtube.com/@ultrarecords\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":"
       }
     },
     {
@@ -2281,6 +2775,25 @@
       }
     },
     {
+      "id": "shum-go-a",
+      "title": "SHUM",
+      "artist": "Go_A",
+      "youtubeUrl": "https://www.youtube.com/watch?v=U7-dxzp6Jvs",
+      "clipStartSeconds": 48,
+      "bucketIds": ["eurovision", "dance-edm"],
+      "quizCategoryId": "eurovision",
+      "difficulty": 3,
+      "videoId": "U7-dxzp6Jvs",
+      "canonicalKey": "go a::shum",
+      "embed": {
+        "videoId": "U7-dxzp6Jvs",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Go_A - SHUM - Ukraine \\ud83c\\uddfa\\ud83c\\udde6 Official Music Video - Eurovision 2021\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\",\"heigh"
+      }
+    },
+    {
       "id": "siddharta-na-soncu",
       "title": "Na soncu",
       "artist": "Siddharta",
@@ -2297,6 +2810,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Siddharta - Na Soncu (Nord, 2001)\",\"author_name\":\"Siddharta\",\"author_url\":\"https://www.youtube.com/@SiddhartaOfficial\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider"
+      }
+    },
+    {
+      "id": "siddharta-napoj",
+      "title": "Napoj",
+      "artist": "Siddharta",
+      "youtubeUrl": "https://www.youtube.com/watch?v=G6whSCaK8gQ",
+      "clipStartSeconds": 51,
+      "bucketIds": ["slovenian", "2000s", "rock-classics"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 2,
+      "videoId": "G6whSCaK8gQ",
+      "canonicalKey": "siddharta::napoj",
+      "embed": {
+        "videoId": "G6whSCaK8gQ",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Siddharta - Napoj (Official Video)\",\"author_name\":\"Siddharta\",\"author_url\":\"https://www.youtube.com/@SiddhartaOfficial\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provide"
       }
     },
     {
@@ -2338,6 +2870,25 @@
       }
     },
     {
+      "id": "smalltown-boy-bronski-beat",
+      "title": "Smalltown Boy",
+      "artist": "Bronski Beat",
+      "youtubeUrl": "https://www.youtube.com/watch?v=88sARuFu-tc",
+      "clipStartSeconds": 50,
+      "bucketIds": ["throwbacks", "dance-edm"],
+      "quizCategoryId": "throwbacks",
+      "difficulty": 3,
+      "videoId": "88sARuFu-tc",
+      "canonicalKey": "bronski beat::smalltown boy",
+      "embed": {
+        "videoId": "88sARuFu-tc",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Bronski Beat - Smalltown Boy (Official Video)\",\"author_name\":\"London Records\",\"author_url\":\"https://www.youtube.com/@londonrecords\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTu"
+      }
+    },
+    {
       "id": "smells-like-teen-spirit",
       "title": "Smells Like Teen Spirit",
       "artist": "Nirvana",
@@ -2354,6 +2905,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Nirvana - Smells Like Teen Spirit (Official Music Video)\",\"author_name\":\"NirvanaVEVO\",\"author_url\":\"https://www.youtube.com/@NirvanaVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":"
+      }
+    },
+    {
+      "id": "soldi-mahmood",
+      "title": "Soldi",
+      "artist": "Mahmood",
+      "youtubeUrl": "https://www.youtube.com/watch?v=22lISUXgSUw",
+      "clipStartSeconds": 54,
+      "bucketIds": ["eurovision", "global-pop"],
+      "quizCategoryId": "eurovision",
+      "difficulty": 3,
+      "videoId": "22lISUXgSUw",
+      "canonicalKey": "mahmood::soldi",
+      "embed": {
+        "videoId": "22lISUXgSUw",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Mahmood - Soldi (Prod. Dardust \\u0026 Charlie Charles)\",\"author_name\":\"MahmoodVEVO\",\"author_url\":\"https://www.youtube.com/@MahmoodVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"Y"
       }
     },
     {
@@ -2392,6 +2962,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Bee Gees - Stayin\\u0027 Alive (Official Video)\",\"author_name\":\"beegees\",\"author_url\":\"https://www.youtube.com/@beegees\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provide"
+      }
+    },
+    {
+      "id": "stolen-dance-milky-chance",
+      "title": "Stolen Dance",
+      "artist": "Milky Chance",
+      "youtubeUrl": "https://www.youtube.com/watch?v=iX-QaNzd-0Y",
+      "clipStartSeconds": 45,
+      "bucketIds": ["2010s", "global-pop"],
+      "quizCategoryId": "2010s",
+      "difficulty": 3,
+      "videoId": "iX-QaNzd-0Y",
+      "canonicalKey": "milky chance::stolen dance",
+      "embed": {
+        "videoId": "iX-QaNzd-0Y",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Milky Chance - Stolen Dance (Official 4K Music Video)\",\"author_name\":\"Milky Chance Official\",\"author_url\":\"https://www.youtube.com/@MilkyChance\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider"
       }
     },
     {
@@ -2471,6 +3060,25 @@
       }
     },
     {
+      "id": "thats-not-my-name-the-ting-tings",
+      "title": "That's Not My Name",
+      "artist": "The Ting Tings",
+      "youtubeUrl": "https://www.youtube.com/watch?v=v1c2OfAzDTI",
+      "clipStartSeconds": 45,
+      "bucketIds": ["2000s", "global-pop", "throwbacks"],
+      "quizCategoryId": "2000s",
+      "difficulty": 3,
+      "videoId": "v1c2OfAzDTI",
+      "canonicalKey": "the ting tings::that s not my name",
+      "embed": {
+        "videoId": "v1c2OfAzDTI",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"The Ting Tings - That\\u0027s Not My Name (Official Video)\",\"author_name\":\"TheTingTingsVEVO\",\"author_url\":\"https://www.youtube.com/@TheTingTingsVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"prov"
+      }
+    },
+    {
       "id": "the-7th-element",
       "title": "The 7th Element",
       "artist": "Vitas",
@@ -2487,6 +3095,44 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Vitas - The 7th Element\",\"author_name\":\"VITAS\",\"author_url\":\"https://www.youtube.com/@vitas.official\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://ww"
+      }
+    },
+    {
+      "id": "the-chain-fleetwood-mac",
+      "title": "The Chain",
+      "artist": "Fleetwood Mac",
+      "youtubeUrl": "https://www.youtube.com/watch?v=xwTPvcPYaOo",
+      "clipStartSeconds": 170,
+      "bucketIds": ["rock-classics", "throwbacks"],
+      "quizCategoryId": "rock-classics",
+      "difficulty": 2,
+      "videoId": "xwTPvcPYaOo",
+      "canonicalKey": "fleetwood mac::the chain",
+      "embed": {
+        "videoId": "xwTPvcPYaOo",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Fleetwood Mac - The Chain (Official Audio)\",\"author_name\":\"Fleetwood Mac\",\"author_url\":\"https://www.youtube.com/@fleetwoodmac\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\""
+      }
+    },
+    {
+      "id": "think-about-things-dadi-freyr",
+      "title": "Think About Things",
+      "artist": "Daði Freyr",
+      "youtubeUrl": "https://www.youtube.com/watch?v=1HU7ocv3S2o",
+      "clipStartSeconds": 39,
+      "bucketIds": ["eurovision", "dance-edm", "global-pop"],
+      "quizCategoryId": "eurovision",
+      "difficulty": 3,
+      "videoId": "1HU7ocv3S2o",
+      "canonicalKey": "daði freyr::think about things",
+      "embed": {
+        "videoId": "1HU7ocv3S2o",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Da\\u00f0i og Gagnamagni\\u00f0 - Think About Things - Iceland \\ud83c\\uddee\\ud83c\\uddf8 - Official Video - Eurovision 2020\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@Eurovisio"
       }
     },
     {
@@ -2661,6 +3307,25 @@
       }
     },
     {
+      "id": "where-is-my-mind-pixies",
+      "title": "Where Is My Mind?",
+      "artist": "Pixies",
+      "youtubeUrl": "https://www.youtube.com/watch?v=OJ62RzJkYUo",
+      "clipStartSeconds": 40,
+      "bucketIds": ["rock-classics", "throwbacks"],
+      "quizCategoryId": "rock-classics",
+      "difficulty": 3,
+      "videoId": "OJ62RzJkYUo",
+      "canonicalKey": "pixies::where is my mind",
+      "embed": {
+        "videoId": "OJ62RzJkYUo",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Pixies - Where Is My Mind? (Official Lyric Video)\",\"author_name\":\"PixiesOfficial\",\"author_url\":\"https://www.youtube.com/@PixiesOfficialTV\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\""
+      }
+    },
+    {
       "id": "wild-dances-ruslana",
       "title": "Wild Dances",
       "artist": "Ruslana",
@@ -2810,6 +3475,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"M\\u00e5neskin - Zitti E Buoni (LIVE) | Italy \\ud83c\\uddee\\ud83c\\uddf9 | Grand Final | Winner of Eurovision 2021\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongCont"
+      }
+    },
+    {
+      "id": "zmelkoow-bit",
+      "title": "Bit",
+      "artist": "Zmelkoow",
+      "youtubeUrl": "https://www.youtube.com/watch?v=1HnMi9iYxSs",
+      "clipStartSeconds": 44,
+      "bucketIds": ["slovenian", "rock-classics", "throwbacks"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "1HnMi9iYxSs",
+      "canonicalKey": "zmelkoow::bit",
+      "embed": {
+        "videoId": "1HnMi9iYxSs",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Zmelkoow - Bit ( Official video)\",\"author_name\":\"Zmelkoow Official\",\"author_url\":\"https://www.youtube.com/@ZmelkoowOfficial\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"pr"
       }
     },
     {
