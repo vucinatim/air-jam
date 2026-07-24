@@ -83,12 +83,12 @@ These are now baseline truths, not open architecture debates:
       permissive fallback
    4. Unicode-safe canonical normalization
    5. deterministic catalog validation and randomized option-generation tests
-   6. 144 canonical songs across ten independently playable categories
-   7. 27 Slovenian songs and 26 Balkan songs
+   6. 206 canonical songs across ten independently playable categories
+   7. 59 Slovenian songs and 26 Balkan songs
    8. explicit deterministic clip timing on every catalog entry
    9. complete two-, six-, and ten-player ten-round semantic match proofs
-   10. a compact all-player host reveal and scrollable ten-player controller
-       standings
+   10. a clean host answer reveal, controller-owned all-player between-round
+       rankings, and scrollable ten-player final standings
 8. the Android Auto road-trip implementation is structurally in place:
    1. Arcade owns an exact typed `?qr=open` launch contract
    2. Arcade and Last Band Standing respond to short-wide dimensions and safe
