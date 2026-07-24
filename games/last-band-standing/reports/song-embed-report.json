@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-07-24T18:38:15.840Z",
+  "generatedAt": "2026-07-24T19:39:33.483Z",
   "summary": {
-    "totalSongs": 180,
+    "totalSongs": 206,
     "totalBuckets": 10,
     "catalogIssues": 0,
-    "checkedUniqueVideos": 180,
+    "checkedUniqueVideos": 206,
     "invalidOrBlockedVideos": 0
   },
   "catalogIssues": [],
   "buckets": [
     { "id": "global-pop", "label": "Global Pop", "songCount": 77 },
     { "id": "meme", "label": "Meme", "songCount": 20 },
-    { "id": "slovenian", "label": "Slovenian", "songCount": 33 },
+    { "id": "slovenian", "label": "Slovenian", "songCount": 59 },
     { "id": "balkan", "label": "Balkan", "songCount": 32 },
     { "id": "rock-classics", "label": "Rock / Classics", "songCount": 45 },
     { "id": "throwbacks", "label": "Throwbacks", "songCount": 71 },
@@ -38,9 +38,9 @@
     {
       "id": "slovenian",
       "label": "Slovenian",
-      "songCount": 33,
-      "distinctLabels": { "song-title": 33, "artist": 30 },
-      "difficultyCounts": { "1": 4, "2": 10, "3": 11, "4": 8, "5": 0 }
+      "songCount": 59,
+      "distinctLabels": { "song-title": 59, "artist": 42 },
+      "difficultyCounts": { "1": 4, "2": 12, "3": 18, "4": 19, "5": 6 }
     },
     {
       "id": "balkan",
@@ -94,6 +94,44 @@
   ],
   "results": [
     {
+      "id": "adi-smolar-dalec-je-za-naju-pomlad",
+      "title": "Daleč je za naju pomlad",
+      "artist": "Adi Smolar",
+      "youtubeUrl": "https://www.youtube.com/watch?v=F-9Nz3qlXnY",
+      "clipStartSeconds": 40,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 2,
+      "videoId": "F-9Nz3qlXnY",
+      "canonicalKey": "adi smolar::dalec je za naju pomlad",
+      "embed": {
+        "videoId": "F-9Nz3qlXnY",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Dale\\u010d je za naju pomlad\",\"author_name\":\"Adi Smolar - Topic\",\"author_url\":\"https://www.youtube.com/channel/UCABp7iuDH3vALPpK5uePplQ\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\""
+      }
+    },
+    {
+      "id": "adi-smolar-je-treba-delat",
+      "title": "Je treba delat",
+      "artist": "Adi Smolar",
+      "youtubeUrl": "https://www.youtube.com/watch?v=G0D9JyiauOQ",
+      "clipStartSeconds": 32,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "G0D9JyiauOQ",
+      "canonicalKey": "adi smolar::je treba delat",
+      "embed": {
+        "videoId": "G0D9JyiauOQ",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Je treba delat\",\"author_name\":\"Adi Smolar - Topic\",\"author_url\":\"https://www.youtube.com/channel/UCABp7iuDH3vALPpK5uePplQ\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"prov"
+      }
+    },
+    {
       "id": "all-my-friends-are-dead",
       "title": "All My Friends Are Dead",
       "artist": "MRFY",
@@ -130,6 +168,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Smash Mouth - All Star\",\"author_name\":\"SmashMouthVEVO\",\"author_url\":\"https://www.youtube.com/@SmashMouthVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"ht"
+      }
+    },
+    {
+      "id": "alo-stari-nea-vem-kam",
+      "title": "Nea vem kam",
+      "artist": "Alo!Stari",
+      "youtubeUrl": "https://www.youtube.com/watch?v=vv_2MzCNq08",
+      "clipStartSeconds": 35,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "vv_2MzCNq08",
+      "canonicalKey": "alo stari::nea vem kam",
+      "embed": {
+        "videoId": "vv_2MzCNq08",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Alo!Stari - Nea Vem Kam\",\"author_name\":\"Alo!Stari\",\"author_url\":\"https://www.youtube.com/@AloStari\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://www."
       }
     },
     {
@@ -320,6 +377,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Barbie \\u0026 Ken\",\"author_name\":\"MIKI\\u010c - Topic\",\"author_url\":\"https://www.youtube.com/channel/UC5DK8PRwO4BrmxhxyZ6rTrQ\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"p"
+      }
+    },
+    {
+      "id": "batista-cadillac-magnolije",
+      "title": "Magnolije",
+      "artist": "Batista Cadillac",
+      "youtubeUrl": "https://www.youtube.com/watch?v=cVJBsbPjysg",
+      "clipStartSeconds": 35,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "cVJBsbPjysg",
+      "canonicalKey": "batista cadillac::magnolije",
+      "embed": {
+        "videoId": "cVJBsbPjysg",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Batista Cadillac - Magnolije\",\"author_name\":\"SonicTribe\",\"author_url\":\"https://www.youtube.com/@sonictribe6553\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\""
       }
     },
     {
@@ -567,6 +643,63 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Carly Rae Jepsen - Call Me Maybe\",\"author_name\":\"CarlyRaeJepsenVEVO\",\"author_url\":\"https://www.youtube.com/@CarlyRaeJepsenVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\","
+      }
+    },
+    {
+      "id": "capital-crew-chardonnay",
+      "title": "Chardonnay",
+      "artist": "Capital Crew",
+      "youtubeUrl": "https://www.youtube.com/watch?v=FKOl-DV_PG4",
+      "clipStartSeconds": 33,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 5,
+      "videoId": "FKOl-DV_PG4",
+      "canonicalKey": "capital crew::chardonnay",
+      "embed": {
+        "videoId": "FKOl-DV_PG4",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Capital Crew - Chardonnay (Official Video)\",\"author_name\":\"Capital Crew\",\"author_url\":\"https://www.youtube.com/@cptlcrew\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provi"
+      }
+    },
+    {
+      "id": "capital-crew-cptlj",
+      "title": "CPTLJ",
+      "artist": "Capital Crew",
+      "youtubeUrl": "https://www.youtube.com/watch?v=b49wksb95eo",
+      "clipStartSeconds": 26,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "b49wksb95eo",
+      "canonicalKey": "capital crew::cptlj",
+      "embed": {
+        "videoId": "b49wksb95eo",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Capital Crew - \\u0022CPTLJ\\u0022 (Official Video)\",\"author_name\":\"Capital Crew\",\"author_url\":\"https://www.youtube.com/@cptlcrew\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\""
+      }
+    },
+    {
+      "id": "cedahuci-ce-hoces-grem",
+      "title": "Če hočeš, grem",
+      "artist": "Čedahuči",
+      "youtubeUrl": "https://www.youtube.com/watch?v=FRB_8PiwThU",
+      "clipStartSeconds": 40,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 5,
+      "videoId": "FRB_8PiwThU",
+      "canonicalKey": "cedahuci::ce hoces grem",
+      "embed": {
+        "videoId": "FRB_8PiwThU",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"\\u010cEDAHU\\u010cI - \\u010ce ho\\u010de\\u0161, grem\",\"author_name\":\"hexanina\",\"author_url\":\"https://www.youtube.com/@hexanina\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"p"
       }
     },
     {
@@ -969,6 +1102,44 @@
       }
     },
     {
+      "id": "emkej-marleybor",
+      "title": "Marleybor",
+      "artist": "Emkej",
+      "youtubeUrl": "https://www.youtube.com/watch?v=FkfWRnrntIo",
+      "clipStartSeconds": 30,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 5,
+      "videoId": "FkfWRnrntIo",
+      "canonicalKey": "emkej::marleybor",
+      "embed": {
+        "videoId": "FkfWRnrntIo",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"EMKEJ - MARLEYBOR (PROD. BY VID TURICA)\",\"author_name\":\"EMKEJ\",\"author_url\":\"https://www.youtube.com/@EMKEJ_WUDISBAN\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_"
+      }
+    },
+    {
+      "id": "emkej-one-love",
+      "title": "One Love",
+      "artist": "Emkej",
+      "youtubeUrl": "https://www.youtube.com/watch?v=Ih8qMtDgIME",
+      "clipStartSeconds": 30,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "Ih8qMtDgIME",
+      "canonicalKey": "emkej::one love",
+      "embed": {
+        "videoId": "Ih8qMtDgIME",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"EMKEJ - ONE LOVE + POLONA [VIDEO]\",\"author_name\":\"EMKEJ\",\"author_url\":\"https://www.youtube.com/@EMKEJ_WUDISBAN\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\""
+      }
+    },
+    {
       "id": "enjoy-the-silence-depeche-mode",
       "title": "Enjoy the Silence",
       "artist": "Depeche Mode",
@@ -1061,6 +1232,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Alexander Rybak - Fairytale (Norway - Official Video - Eurovision Song Contest 2009)\",\"author_name\":\"EurovisionFanTV\",\"author_url\":\"https://www.youtube.com/@EurovisionFanTV\",\"type\":\"video\",\"height\":113,\"width\":"
+      }
+    },
+    {
+      "id": "fed-horses-ti-ne-poznas-konjev",
+      "title": "Ti ne poznaš konjev",
+      "artist": "Fed Horses",
+      "youtubeUrl": "https://www.youtube.com/watch?v=JfhHB9aF_QU",
+      "clipStartSeconds": 41,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 5,
+      "videoId": "JfhHB9aF_QU",
+      "canonicalKey": "fed horses::ti ne poznas konjev",
+      "embed": {
+        "videoId": "JfhHB9aF_QU",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Fed Horses - Ti ne poznas\\u030c konjev (Official Audio)\",\"author_name\":\"Fed Horses\",\"author_url\":\"https://www.youtube.com/@fedhorses\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"You"
       }
     },
     {
@@ -1178,6 +1368,44 @@
       }
     },
     {
+      "id": "gal-gjurin-dusa-in-telo",
+      "title": "Duša in telo",
+      "artist": "Gal Gjurin",
+      "youtubeUrl": "https://www.youtube.com/watch?v=Sx4hQPa88ws",
+      "clipStartSeconds": 42,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "Sx4hQPa88ws",
+      "canonicalKey": "gal gjurin::dusa in telo",
+      "embed": {
+        "videoId": "Sx4hQPa88ws",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Gal Gjurin \\u0022DU\\u0160A IN TELO\\u0022 -- Videospot\",\"author_name\":\"Gal George Gjurin\",\"author_url\":\"https://www.youtube.com/@GalGeorgeGjurin\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider"
+      }
+    },
+    {
+      "id": "gal-gjurin-kaj-vse-bi-dal",
+      "title": "Kaj vse bi dal",
+      "artist": "Gal Gjurin",
+      "youtubeUrl": "https://www.youtube.com/watch?v=wE4M9j_dSRY",
+      "clipStartSeconds": 43,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "wE4M9j_dSRY",
+      "canonicalKey": "gal gjurin::kaj vse bi dal",
+      "embed": {
+        "videoId": "wE4M9j_dSRY",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"KAJ VSE BI DAL - Official lyrics video - Gal George Gjurin\",\"author_name\":\"Gal George Gjurin\",\"author_url\":\"https://www.youtube.com/@GalGeorgeGjurin\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"pro"
+      }
+    },
+    {
       "id": "game-over-ubila-si-del-mene",
       "title": "Ubila si del mene",
       "artist": "Game Over",
@@ -1270,6 +1498,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Tove Lo - Habits (Stay High)\",\"author_name\":\"ToveLoVEVO\",\"author_url\":\"https://www.youtube.com/@ToveLoVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"http"
+      }
+    },
+    {
+      "id": "hamo-tribute-2-love-rozice",
+      "title": "Rožice",
+      "artist": "Hamo & Tribute 2 Love",
+      "youtubeUrl": "https://www.youtube.com/watch?v=g17YxxD85io",
+      "clipStartSeconds": 40,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "g17YxxD85io",
+      "canonicalKey": "hamo tribute 2 love::rozice",
+      "embed": {
+        "videoId": "g17YxxD85io",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Hamo \\u0026 Tribute 2 Love - Ro\\u017eice\",\"author_name\":\"Hamo \\u0026 Tribute 2 Love\",\"author_url\":\"https://www.youtube.com/@HamoTribute2love\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_na"
       }
     },
     {
@@ -1558,6 +1805,25 @@
       }
     },
     {
+      "id": "jet-black-diamonds-se-zadnjic",
+      "title": "Še zadnjič",
+      "artist": "Jet Black Diamonds",
+      "youtubeUrl": "https://www.youtube.com/watch?v=IhHIAmOgH4A",
+      "clipStartSeconds": 43,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "IhHIAmOgH4A",
+      "canonicalKey": "jet black diamonds::se zadnjic",
+      "embed": {
+        "videoId": "IhHIAmOgH4A",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Jet Black Diamonds - \\u0160E ZADNJI\\u010c (Official video)\",\"author_name\":\"Jet Black Diamonds\",\"author_url\":\"https://www.youtube.com/@jetblackdiamonds\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"p"
+      }
+    },
+    {
       "id": "joker-out-carpe-diem",
       "title": "Carpe Diem",
       "artist": "Joker Out",
@@ -1688,6 +1954,63 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Koala Voice - Go Disco, Go  (Kangaroo\\u0027s a neighbour - official video)\",\"author_name\":\"Koala Voice\",\"author_url\":\"https://www.youtube.com/@KoalaVoiceband\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\""
+      }
+    },
+    {
+      "id": "kokosy-lana-ne",
+      "title": "Lana ne",
+      "artist": "KOKOSY",
+      "youtubeUrl": "https://www.youtube.com/watch?v=buwqxCJ6mKQ",
+      "clipStartSeconds": 35,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "buwqxCJ6mKQ",
+      "canonicalKey": "kokosy::lana ne",
+      "embed": {
+        "videoId": "buwqxCJ6mKQ",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"KOKOSY - Lana ne\",\"author_name\":\"KOKOSY\",\"author_url\":\"https://www.youtube.com/@KOKOSYbend\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://www.youtube."
+      }
+    },
+    {
+      "id": "kokosy-mislim-nate",
+      "title": "Mislim nate",
+      "artist": "KOKOSY",
+      "youtubeUrl": "https://www.youtube.com/watch?v=eRMrfQ_di7E",
+      "clipStartSeconds": 40,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "eRMrfQ_di7E",
+      "canonicalKey": "kokosy::mislim nate",
+      "embed": {
+        "videoId": "eRMrfQ_di7E",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"KOKOSY - Mislim nate\",\"author_name\":\"KOKOSY\",\"author_url\":\"https://www.youtube.com/@KOKOSYbend\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://www.yout"
+      }
+    },
+    {
+      "id": "kokosy-planeti-se-vrtijo",
+      "title": "Planeti se vrtijo",
+      "artist": "KOKOSY",
+      "youtubeUrl": "https://www.youtube.com/watch?v=Pdl9wdxjzFw",
+      "clipStartSeconds": 36,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "Pdl9wdxjzFw",
+      "canonicalKey": "kokosy::planeti se vrtijo",
+      "embed": {
+        "videoId": "Pdl9wdxjzFw",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"KOKOSY - Planeti se vrtijo\",\"author_name\":\"KOKOSY\",\"author_url\":\"https://www.youtube.com/@KOKOSYbend\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://ww"
       }
     },
     {
@@ -2147,6 +2470,101 @@
       }
     },
     {
+      "id": "mrfy-fat-kid",
+      "title": "Fat Kid",
+      "artist": "MRFY",
+      "youtubeUrl": "https://www.youtube.com/watch?v=wmnvoMwnTDQ",
+      "clipStartSeconds": 34,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "wmnvoMwnTDQ",
+      "canonicalKey": "mrfy::fat kid",
+      "embed": {
+        "videoId": "wmnvoMwnTDQ",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Fat Kid\",\"author_name\":\"MRFY - Topic\",\"author_url\":\"https://www.youtube.com/channel/UCGS1q2P8zBqwgUQTG4r_YbA\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"ht"
+      }
+    },
+    {
+      "id": "mrfy-umru-zate",
+      "title": "Umru zate",
+      "artist": "MRFY",
+      "youtubeUrl": "https://www.youtube.com/watch?v=i5R_zRhcOVs",
+      "clipStartSeconds": 36,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "i5R_zRhcOVs",
+      "canonicalKey": "mrfy::umru zate",
+      "embed": {
+        "videoId": "i5R_zRhcOVs",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"MRFY - UMRU ZATE\",\"author_name\":\"SonicTribe\",\"author_url\":\"https://www.youtube.com/@sonictribe6553\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https://www."
+      }
+    },
+    {
+      "id": "mrfy-zaljubila",
+      "title": "Zaljubila",
+      "artist": "MRFY",
+      "youtubeUrl": "https://www.youtube.com/watch?v=_xXvutuerHk",
+      "clipStartSeconds": 42,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "_xXvutuerHk",
+      "canonicalKey": "mrfy::zaljubila",
+      "embed": {
+        "videoId": "_xXvutuerHk",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"MRFY - Zaljubila (Official Music Video)\",\"author_name\":\"\\uff34\\uff32\\uff21\\uff33\\uff28 \\u65b0 \\u30c9\\u30e9\\u30b4\\u30f3\",\"author_url\":\"https://www.youtube.com/@trash-gang\",\"type\":\"video\",\"height\":113,\"width\":200"
+      }
+    },
+    {
+      "id": "mrigo-ghet-fonkdat",
+      "title": "Fonkdat",
+      "artist": "Mrigo & Ghet",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ktnsm-wV5pc",
+      "clipStartSeconds": 31,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 5,
+      "videoId": "ktnsm-wV5pc",
+      "canonicalKey": "mrigo ghet::fonkdat",
+      "embed": {
+        "videoId": "ktnsm-wV5pc",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"MRIGO \\u0026 GHET - \\u0022FONKDAT\\u0022 ft. DRILL (Official Video)\",\"author_name\":\"Mrigo Ghet\",\"author_url\":\"https://www.youtube.com/@mrighet\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_n"
+      }
+    },
+    {
+      "id": "mrigo-ghet-pazim-premagan",
+      "title": "Pazim/Premagan",
+      "artist": "Mrigo & Ghet",
+      "youtubeUrl": "https://www.youtube.com/watch?v=vPbqkNJQZmM",
+      "clipStartSeconds": 28,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "vPbqkNJQZmM",
+      "canonicalKey": "mrigo ghet::pazim premagan",
+      "embed": {
+        "videoId": "vPbqkNJQZmM",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"MRIGO \\u0026 GHET - PAZIM/PREMAGAN (Official Video - MRIGZ \\u0027N\\u0027 GHET HITZ, 2011)\",\"author_name\":\"Mrigo Ghet\",\"author_url\":\"https://www.youtube.com/@mrighet\",\"type\":\"video\",\"height\":113,\"width\":200,\"ver"
+      }
+    },
+    {
       "id": "najjaci-si",
       "title": "NAJJACI SI",
       "artist": "MIKIC",
@@ -2204,6 +2622,25 @@
       }
     },
     {
+      "id": "nina-puslar-ni-ona",
+      "title": "Ni ona",
+      "artist": "Nina Pušlar",
+      "youtubeUrl": "https://www.youtube.com/watch?v=zork30wQiaY",
+      "clipStartSeconds": 43,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 3,
+      "videoId": "zork30wQiaY",
+      "canonicalKey": "nina puslar::ni ona",
+      "embed": {
+        "videoId": "zork30wQiaY",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Nina Pu\\u0161lar - Ni Ona (Official Video)\",\"author_name\":\"Nika \",\"author_url\":\"https://www.youtube.com/@NikaRecordsTV\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provide"
+      }
+    },
+    {
       "id": "nina-puslar-to-mi-je-vsec",
       "title": "To mi je všeč",
       "artist": "Nina Pušlar",
@@ -2220,6 +2657,25 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"Nina Pu\\u0161lar - To mi je v\\u0161e\\u010d (OFFICIAL VIDEO)\",\"author_name\":\"Nina Pu\\u0161lar OFFICIAL\",\"author_url\":\"https://www.youtube.com/@ninapuslar\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\","
+      }
+    },
+    {
+      "id": "nina-puslar-tople-oci",
+      "title": "Tople oči",
+      "artist": "Nina Pušlar",
+      "youtubeUrl": "https://www.youtube.com/watch?v=uPwXHMlYiR8",
+      "clipStartSeconds": 45,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 2,
+      "videoId": "uPwXHMlYiR8",
+      "canonicalKey": "nina puslar::tople oci",
+      "embed": {
+        "videoId": "uPwXHMlYiR8",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Nina Pu\\u0161lar - Tople o\\u010di (Official video)\",\"author_name\":\"Nina Pu\\u0161lar OFFICIAL\",\"author_url\":\"https://www.youtube.com/@ninapuslar\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider"
       }
     },
     {
@@ -2696,6 +3152,44 @@
         "status": "ok",
         "httpStatus": 200,
         "detail": "{\"title\":\"The White Stripes - Seven Nation Army (Official Music Video)\",\"author_name\":\"The White Stripes\",\"author_url\":\"https://www.youtube.com/@thewhitestripes\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"p"
+      }
+    },
+    {
+      "id": "severa-gjurin-ali-je-se-kaj-prostora-tam-na-jugu",
+      "title": "Ali je še kaj prostora tam na jugu",
+      "artist": "Severa Gjurin",
+      "youtubeUrl": "https://www.youtube.com/watch?v=2BfCVgmROiU",
+      "clipStartSeconds": 38,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 5,
+      "videoId": "2BfCVgmROiU",
+      "canonicalKey": "severa gjurin::ali je se kaj prostora tam na jugu",
+      "embed": {
+        "videoId": "2BfCVgmROiU",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Ali je \\u0161e kaj prostora tam na jugu - Severa Gjurin\",\"author_name\":\"Severa Gjurin\",\"author_url\":\"https://www.youtube.com/@SeveraYoutube\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_nam"
+      }
+    },
+    {
+      "id": "severa-gjurin-kadar-sva-sama",
+      "title": "Kadar sva sama",
+      "artist": "Severa Gjurin",
+      "youtubeUrl": "https://www.youtube.com/watch?v=JDguoN6zJM0",
+      "clipStartSeconds": 42,
+      "bucketIds": ["slovenian"],
+      "quizCategoryId": "slovenian",
+      "difficulty": 4,
+      "videoId": "JDguoN6zJM0",
+      "canonicalKey": "severa gjurin::kadar sva sama",
+      "embed": {
+        "videoId": "JDguoN6zJM0",
+        "embeddable": true,
+        "status": "ok",
+        "httpStatus": 200,
+        "detail": "{\"title\":\"Olivija - Kadar Sva Sama (Official Video)\",\"author_name\":\"Nika \",\"author_url\":\"https://www.youtube.com/@NikaRecordsTV\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider"
       }
     },
     {

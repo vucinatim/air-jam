@@ -161,9 +161,9 @@ Verified locally on 2026-07-24:
    reference-size scaling
 6. Arcade and Last Band Standing already expose controller-owned selection,
    ready, start, answer, restart, and return flows
-7. Last Band Standing now has 144 canonical songs across ten independently
+7. Last Band Standing now has 206 canonical songs across ten independently
    playable categories
-8. deterministic validation reports zero catalog issues and 144/144 unique
+8. deterministic validation reports zero catalog issues and 206/206 unique
    YouTube videos accepted by oEmbed
 9. Last Band Standing now uses a compact two-column lobby on short landscape
    surfaces and an adaptive player strip for up to ten players
@@ -754,6 +754,59 @@ The additions contain three difficulty 1-2 songs, twenty-four difficulty 3
 songs, and nine difficulty 4-5 songs. The complete catalog remains naturally
 easy-heavy, but the balanced selector produces the intended per-match curve
 whenever the selected category pool supports it.
+
+#### Second Approved Slovenian Expansion
+
+Status: approved and implemented on 2026-07-24.
+
+This batch adds 26 Slovenian tracks, taking that answer category from 33 to 59
+songs and the complete catalog from 180 to 206. It deliberately introduces
+more indie, rock, hip-hop, and difficulty 4-5 material without adding a new
+category or changing the answer contract.
+
+| Artist                | Song                               | Difficulty | YouTube source                                | Start |
+| --------------------- | ---------------------------------- | ---------: | --------------------------------------------- | ----: |
+| MRFY                  | Umru zate                          |          3 | [`i5R_zRhcOVs`](https://youtu.be/i5R_zRhcOVs) |   36s |
+| MRFY                  | Zaljubila                          |          3 | [`_xXvutuerHk`](https://youtu.be/_xXvutuerHk) |   42s |
+| MRFY                  | Fat Kid                            |          4 | [`wmnvoMwnTDQ`](https://youtu.be/wmnvoMwnTDQ) |   34s |
+| Adi Smolar            | Daleč je za naju pomlad            |          2 | [`F-9Nz3qlXnY`](https://youtu.be/F-9Nz3qlXnY) |   40s |
+| Adi Smolar            | Je treba delat                     |          3 | [`G0D9JyiauOQ`](https://youtu.be/G0D9JyiauOQ) |   32s |
+| Severa Gjurin         | Kadar sva sama                     |          4 | [`JDguoN6zJM0`](https://youtu.be/JDguoN6zJM0) |   42s |
+| Severa Gjurin         | Ali je še kaj prostora tam na jugu |          5 | [`2BfCVgmROiU`](https://youtu.be/2BfCVgmROiU) |   38s |
+| Gal Gjurin            | Kaj vse bi dal                     |          3 | [`wE4M9j_dSRY`](https://youtu.be/wE4M9j_dSRY) |   43s |
+| Gal Gjurin            | Duša in telo                       |          4 | [`Sx4hQPa88ws`](https://youtu.be/Sx4hQPa88ws) |   42s |
+| Capital Crew          | CPTLJ                              |          4 | [`b49wksb95eo`](https://youtu.be/b49wksb95eo) |   26s |
+| Capital Crew          | Chardonnay                         |          5 | [`FKOl-DV_PG4`](https://youtu.be/FKOl-DV_PG4) |   33s |
+| Emkej                 | One Love                           |          4 | [`Ih8qMtDgIME`](https://youtu.be/Ih8qMtDgIME) |   30s |
+| Emkej                 | Marleybor                          |          5 | [`FkfWRnrntIo`](https://youtu.be/FkfWRnrntIo) |   30s |
+| Mrigo & Ghet          | Pazim/Premagan                     |          4 | [`vPbqkNJQZmM`](https://youtu.be/vPbqkNJQZmM) |   28s |
+| Mrigo & Ghet          | Fonkdat                            |          5 | [`ktnsm-wV5pc`](https://youtu.be/ktnsm-wV5pc) |   31s |
+| Nina Pušlar           | Tople oči                          |          2 | [`uPwXHMlYiR8`](https://youtu.be/uPwXHMlYiR8) |   45s |
+| Nina Pušlar           | Ni ona                             |          3 | [`zork30wQiaY`](https://youtu.be/zork30wQiaY) |   43s |
+| Hamo & Tribute 2 Love | Rožice                             |          3 | [`g17YxxD85io`](https://youtu.be/g17YxxD85io) |   40s |
+| Batista Cadillac      | Magnolije                          |          4 | [`cVJBsbPjysg`](https://youtu.be/cVJBsbPjysg) |   35s |
+| Jet Black Diamonds    | Še zadnjič                         |          4 | [`IhHIAmOgH4A`](https://youtu.be/IhHIAmOgH4A) |   43s |
+| Alo!Stari             | Nea vem kam                        |          4 | [`vv_2MzCNq08`](https://youtu.be/vv_2MzCNq08) |   35s |
+| Fed Horses            | Ti ne poznaš konjev                |          5 | [`JfhHB9aF_QU`](https://youtu.be/JfhHB9aF_QU) |   41s |
+| Čedahuči              | Če hočeš, grem                     |          5 | [`FRB_8PiwThU`](https://youtu.be/FRB_8PiwThU) |   40s |
+| KOKOSY                | Planeti se vrtijo                  |          3 | [`Pdl9wdxjzFw`](https://youtu.be/Pdl9wdxjzFw) |   36s |
+| KOKOSY                | Lana ne                            |          4 | [`buwqxCJ6mKQ`](https://youtu.be/buwqxCJ6mKQ) |   35s |
+| KOKOSY                | Mislim nate                        |          4 | [`eRMrfQ_di7E`](https://youtu.be/eRMrfQ_di7E) |   40s |
+
+The existing `KOKOSY — Silvo` entry remains, giving the category four KOKOSY
+tracks in total. The resulting Slovenian difficulty distribution is four
+difficulty-1, twelve difficulty-2, eighteen difficulty-3, nineteen
+difficulty-4, and six difficulty-5 songs.
+
+Validation:
+
+- [x] all 26 canonical artist/title pairs are unique
+- [x] all 26 video ids are unique within the complete catalog
+- [x] all sources are currently accepted by YouTube oEmbed
+- [x] deterministic catalog and same-category answer checks pass
+- [x] the complete game test suite, typecheck, and production build pass
+- [x] the local lobby renders the new 206-song total without layout regression
+- [ ] human listening pass over the 26 configured clip starts
 
 Validation:
 
@@ -1738,3 +1791,29 @@ Completed:
 
 One label-hosted studio upload blocked embedding and was replaced with the
 artist's official YouTube-distributed studio track.
+
+### 2026-07-24 — Slovenian Indie, Rock, And Hip-Hop Expansion
+
+Completed:
+
+1. added the user-approved 26-song Slovenian batch documented above
+2. expanded the Slovenian answer category from 33 to 59 songs
+3. expanded the complete catalog from 180 to 206 canonical songs
+4. retained one explicit Slovenian answer-fairness category for every addition
+5. added curated difficulty scores with six new difficulty-5 songs
+6. kept all source data in the existing focused Slovenian catalog module and
+   all quiz metadata in the existing metadata map; no new abstraction was
+   needed
+7. raised the road-trip catalog regression floor from 180 to 200 songs
+8. regenerated the canonical embed report
+9. confirmed 206/206 unique YouTube sources currently pass oEmbed
+10. confirmed zero deterministic catalog issues
+11. passed all 54 game tests, typecheck, and the production build
+12. rendered the live local lobby and confirmed the 206-song count fits the
+    existing short-wide layout without clipping
+
+Still required:
+
+1. listen through the 26 configured starts and adjust any weak, quiet, or
+   spoiler-heavy clip
+2. include the expanded catalog in the final Goal 3 user gameplay pass

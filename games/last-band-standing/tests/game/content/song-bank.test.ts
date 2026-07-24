@@ -18,8 +18,8 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("song bank buckets", () => {
-  it("keeps the expanded road-trip catalog at or above 180 songs", () => {
-    expect(songBank.length).toBeGreaterThanOrEqual(180);
+  it("keeps the expanded road-trip catalog at or above 200 songs", () => {
+    expect(songBank.length).toBeGreaterThanOrEqual(200);
   });
 
   it("keeps every visible song bucket large enough for a default match", () => {
