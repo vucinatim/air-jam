@@ -7,6 +7,8 @@ import { chromium } from "playwright-core";
 import { isAuthorized } from "./access-control";
 import { loadBrowserWorkerEnv, type BrowserWorkerEnv } from "./env";
 
+const PUBLIC_WS_PATH = "/ws";
+
 export type ReleaseBrowserWorkerHandle = {
   wsEndpoint: string;
   close: () => Promise<void>;
@@ -65,6 +67,7 @@ export const startReleaseBrowserWorker = async (
     headless: config.headless,
     host: "127.0.0.1",
     port: 0,
+    wsPath: PUBLIC_WS_PATH,
     chromiumSandbox: config.chromiumSandbox,
     executablePath: config.executablePath ?? undefined,
   });
