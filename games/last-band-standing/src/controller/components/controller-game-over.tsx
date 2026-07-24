@@ -30,7 +30,7 @@ export const ControllerGameOver = () => {
   return (
     <motion.div
       key="game-over"
-      className="flex flex-1 flex-col"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -59,7 +59,10 @@ export const ControllerGameOver = () => {
           )}
         </div>
 
-        <div className="min-h-0 w-full flex-1 overflow-y-auto rounded-2xl pb-2">
+        <div
+          className="min-h-0 w-full flex-1 touch-pan-y overflow-y-auto overscroll-contain rounded-2xl pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
+          data-testid="final-standings-scroll"
+        >
           {rankingPlayerIds.map((playerId, index) => {
             const score = scoreboardByPlayerId[playerId];
             if (!score) return null;
@@ -107,7 +110,7 @@ export const ControllerGameOver = () => {
         </div>
       </div>
 
-      <div className="px-4 pb-4">
+      <div className="shrink-0 px-4 pt-2 pb-4">
         <button
           type="button"
           onClick={actions.resetLobby}

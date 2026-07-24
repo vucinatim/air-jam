@@ -1,4 +1,4 @@
-import { type SongCatalogEntry } from "../song-buckets";
+import { type SongCatalogSourceEntry } from "../song-buckets";
 
 export const coreSongCatalog = [
   {
@@ -143,7 +143,7 @@ export const coreSongCatalog = [
     artist: "Magnifico",
     youtubeUrl: "https://www.youtube.com/watch?v=AmByNZfSYZI",
     clipStartSeconds: 30,
-    bucketIds: ["slovenian", "balkan"],
+    bucketIds: ["slovenian"],
   },
   {
     id: "barbie-and-ken",
@@ -563,4 +563,4 @@ export const coreSongCatalog = [
     clipStartSeconds: 35,
     bucketIds: ["global-pop"],
   },
-] as const satisfies readonly SongCatalogEntry[];
+] as const satisfies readonly SongCatalogSourceEntry[];

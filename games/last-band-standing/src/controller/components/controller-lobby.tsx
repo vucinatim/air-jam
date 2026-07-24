@@ -77,7 +77,7 @@ export const ControllerLobby = () => {
                     className={cn(
                       "flex h-full w-36 snap-center flex-col justify-between rounded-2xl border bg-transparent p-4 text-left transition-all disabled:opacity-60",
                       bucket.selected
-                        ? "border-primary/70 text-foreground"
+                        ? "border-primary bg-primary/10 text-foreground ring-primary/35 ring-1"
                         : "border-border/60 text-muted-foreground",
                     )}
                     aria-pressed={bucket.selected}

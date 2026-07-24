@@ -1,14 +1,11 @@
 import {
-  DEFAULT_OPTION_COUNT,
   DEFAULT_REVEAL_DURATION_SEC,
   DEFAULT_ROUND_DURATION_SEC,
   DEFAULT_TOTAL_ROUNDS,
   MATCH_START_COUNTDOWN_SEC,
 } from "@/game/constants";
-import { hasEnoughRoundOptionLabels } from "@/game/content/round-options";
 import {
   defaultSelectedSongBucketIds,
-  getSongsForBuckets,
   toggleSelectedSongBucketIds,
 } from "@/game/content/song-bank";
 import { rankPlayers } from "@/game/domain/round-engine";
@@ -215,21 +212,11 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
         );
         const playlistSongIds = playlistSelection.songIds;
         const playlistGuessKinds = pickPlaylistGuessKinds(state.totalRounds);
-        const eligibleSongs = getSongsForBuckets(state.selectedSongBucketIds);
         const firstSongId = playlistSongIds[0];
         const firstGuessKind = playlistGuessKinds[0];
-        const hasValidOptionPools = [...new Set(playlistGuessKinds)].every(
-          (guessKind) =>
-            hasEnoughRoundOptionLabels(
-              eligibleSongs,
-              DEFAULT_OPTION_COUNT,
-              guessKind,
-            ),
-        );
 
         if (
           playlistSelection.uniqueSongCount < state.totalRounds ||
-          !hasValidOptionPools ||
           !firstSongId ||
           !firstGuessKind
         ) {
@@ -255,7 +242,6 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
             expectedPlayerIds: activePlayerIds,
             nowMs: roundStartsAtMs,
             roundDurationSec: state.roundDurationSec,
-            eligibleSongs,
           }),
           answersByPlayerId: {},
           roundReveal: null,
@@ -387,7 +373,6 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
             expectedPlayerIds: state.activePlayerIds,
             nowMs: currentTimeMs,
             roundDurationSec: state.roundDurationSec,
-            eligibleSongs: getSongsForBuckets(state.selectedSongBucketIds),
           }),
           answersByPlayerId: {},
           roundReveal: null,

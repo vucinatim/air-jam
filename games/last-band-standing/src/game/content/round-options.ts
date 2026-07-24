@@ -1,12 +1,12 @@
 import { shuffleList } from "@/game/domain/shuffle";
 import { type RoundGuessKind } from "@/game/domain/types";
-import { normalizeSongValue, type SongEntry } from "./song-bank";
+import { normalizeSongValue, songBank, type SongEntry } from "./song-bank";
 
 export interface PickRoundOptionSongIdsOptions {
   correctSongId: string;
   optionCount: number;
   guessKind: RoundGuessKind;
-  eligibleSongs: readonly SongEntry[];
+  catalogSongs?: readonly SongEntry[];
 }
 
 export const normalizeRoundOptionLabel = (value: string): string => {
@@ -21,12 +21,12 @@ export const getRoundOptionLabel = (
 };
 
 export const hasEnoughRoundOptionLabels = (
-  eligibleSongs: readonly SongEntry[],
+  categorySongs: readonly SongEntry[],
   optionCount: number,
   guessKind: RoundGuessKind,
 ): boolean => {
   const distinctLabels = new Set(
-    eligibleSongs.map((song) =>
+    categorySongs.map((song) =>
       normalizeRoundOptionLabel(getRoundOptionLabel(song, guessKind)),
     ),
   );
@@ -36,31 +36,34 @@ export const hasEnoughRoundOptionLabels = (
 };
 
 /**
- * Selects one correct answer and label-distinct distractors from the exact
- * catalog slice that is eligible for the match.
+ * Selects one correct answer and label-distinct distractors from the correct
+ * song's canonical quiz category. Browsing buckets never affect answer pools.
  */
 export const pickRoundOptionSongIds = ({
   correctSongId,
   optionCount,
   guessKind,
-  eligibleSongs,
+  catalogSongs = songBank,
 }: PickRoundOptionSongIdsOptions): string[] => {
   if (optionCount < 2) {
     throw new Error("optionCount must be at least 2.");
   }
 
-  const songsById = new Map(eligibleSongs.map((song) => [song.id, song]));
-  if (songsById.size !== eligibleSongs.length) {
-    throw new Error("Eligible songs must have unique ids.");
+  const songsById = new Map(catalogSongs.map((song) => [song.id, song]));
+  if (songsById.size !== catalogSongs.length) {
+    throw new Error("Catalog songs must have unique ids.");
   }
 
   const correctSong = songsById.get(correctSongId);
   if (!correctSong) {
     throw new Error(
-      `Correct song "${correctSongId}" is not in the eligible song pool.`,
+      `Correct song "${correctSongId}" is not in the song catalog.`,
     );
   }
 
+  const categorySongs = catalogSongs.filter(
+    (song) => song.quizCategoryId === correctSong.quizCategoryId,
+  );
   const selectedSongIds = [correctSong.id];
   const selectedSongIdSet = new Set(selectedSongIds);
   const correctLabel = normalizeRoundOptionLabel(
@@ -77,8 +80,17 @@ export const pickRoundOptionSongIds = ({
   const forcedOptionSong = correctSong.forcedOptionSongId
     ? songsById.get(correctSong.forcedOptionSongId)
     : undefined;
+  if (
+    forcedOptionSong &&
+    forcedOptionSong.quizCategoryId !== correctSong.quizCategoryId
+  ) {
+    throw new Error(
+      `Forced option "${forcedOptionSong.id}" is outside quiz category "${correctSong.quizCategoryId}".`,
+    );
+  }
+
   const remainingSongs = shuffleList(
-    eligibleSongs.filter(
+    categorySongs.filter(
       (song) => song.id !== correctSong.id && song.id !== forcedOptionSong?.id,
     ),
   );
@@ -109,7 +121,7 @@ export const pickRoundOptionSongIds = ({
 
   if (selectedSongIds.length < optionCount) {
     throw new Error(
-      `Not enough distinct ${guessKind} labels to build ${optionCount} options from the eligible song pool.`,
+      `Quiz category "${correctSong.quizCategoryId}" does not have enough distinct ${guessKind} labels to build ${optionCount} options.`,
     );
   }
 

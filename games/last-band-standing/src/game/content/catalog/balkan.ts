@@ -1,4 +1,4 @@
-import type { SongCatalogEntry } from "../song-buckets";
+import type { SongCatalogSourceEntry } from "../song-buckets";
 
 export const balkanSongAdditions = [
   {
@@ -161,4 +161,4 @@ export const balkanSongAdditions = [
     clipStartSeconds: 47,
     bucketIds: ["balkan", "2010s", "dance-edm"],
   },
-] as const satisfies readonly SongCatalogEntry[];
+] as const satisfies readonly SongCatalogSourceEntry[];

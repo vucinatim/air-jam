@@ -80,14 +80,18 @@ These are now baseline truths, not open architecture debates:
       9. local, hosted-release, and agent development loops
 7. Last Band Standing now has a much stronger quiz-content baseline:
    1. one canonical row per song with inline category ownership
-   2. selected-category-union answer pools, with a stricter per-song quiz
-      category correction now planned
-   3. unique visible answer labels with no permissive fallback
+   2. one canonical quiz category and a curated 1-through-5 difficulty for
+      every song
+   3. same-quiz-category answer pools with four unique visible labels and no
+      permissive fallback
    4. Unicode-safe canonical normalization
    5. deterministic catalog validation and randomized option-generation tests
    6. 144 canonical songs across ten independently playable categories
-   7. 27 Slovenian songs and 27 Balkan songs
+   7. 27 Slovenian songs and 26 Balkan songs
    8. explicit deterministic clip timing on every catalog entry
+   9. complete two-, six-, and ten-player ten-round semantic match proofs
+   10. a compact all-player host reveal and scrollable ten-player controller
+       standings
 8. the Android Auto road-trip implementation is structurally in place:
    1. Arcade owns an exact typed `?qr=open` launch contract
    2. Arcade and Last Band Standing respond to short-wide dimensions and safe
@@ -116,9 +120,8 @@ The important remaining work is now late-stage and launch-facing:
 5. execute the release-facing landing, media, article, and discoverability work after the go / no-go pass
 6. decide which small user-facing polish items still deserve inclusion before launch, such as creator attribution enhancements
 7. keep the public story aligned around the AI-native framework thesis instead of drifting back into generic platform/framework language
-8. complete Goal 2 Last Band Standing correctness/results work, then publish
-   the locally and real-car-proven road-trip changes after the focused
-   browser-first gameplay and UI polish pass
+8. complete Goal 3 song curation and focused visual polish, then publish the
+   locally and real-car-proven road-trip changes after explicit approval
 
 ## Active Now
 
@@ -153,8 +156,8 @@ These are real next-step tracks, but they should not displace the launch closeou
 
 ## Immediate Next Steps
 
-1. complete the Last Band Standing correctness, results, content, and UI polish
-   pass, then publish the validated update
+1. complete the user-reviewed Last Band Standing medium/hard song curation and
+   focused UI polish pass, then publish the validated update
 2. run the final manual release proof against the five-game launch set
 3. run the hosted upload and managed media proof on the real platform lane
 4. complete the Railway domain cutover and re-run the production smoke checks

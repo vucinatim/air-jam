@@ -223,3 +223,21 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
 - validated that the empty-environment plus selected-service-sync idea was also not ready because Railway's available primitive created global copy-services instead of reusing the canonical project services
 - locked the architectural conclusion:
   - the repo-owned ephemeral full-stack preview lane remains the canonical implementation until Railway exposes a cleaner supported primitive we can prove end to end
+
+## 2026-07-24 - Android Auto Road Trip Goal 2 Closed
+
+- completed Last Band Standing's correctness and results milestone:
+  - every song now has one canonical quiz category and a curated difficulty
+  - every four-option round stays inside that category with unique visible
+    labels
+  - the host reveal reports every player's result, time, round gain, and total
+  - ten-player controller standings scroll while the lobby action remains
+    pinned
+  - lobby category selection is explicit on host and controller
+- proved complete ten-round matches with two, six, and ten players
+- passed the exact car reveal layouts at `800x480` and `1920x720`
+- passed standings bottom-reachability at all four supported phone sizes
+- opened Air Jam issue #42 for incorrect agent-contract inference when
+  game-session tooling receives a game-local `cwd` without `gameId`
+- moved the active road-trip plan to Goal 3: user-reviewed harder-song curation
+  and focused visual polish

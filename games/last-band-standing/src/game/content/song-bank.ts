@@ -2,7 +2,11 @@ import { z } from "zod";
 import { songCatalog } from "./catalog";
 import { songBuckets, type SongBucketId } from "./song-buckets";
 
-export { songBuckets, type SongBucketId } from "./song-buckets";
+export {
+  songBuckets,
+  type SongBucketId,
+  type SongDifficulty,
+} from "./song-buckets";
 
 const songBucketIdSchema = z.enum(songBuckets.map((bucket) => bucket.id));
 
@@ -56,6 +60,8 @@ const songSchema = z
           });
         }
       }),
+    quizCategoryId: songBucketIdSchema,
+    difficulty: z.number().int().min(1).max(5),
     forcedOptionSongId: z.string().min(1).optional(),
   })
   .superRefine((song, ctx) => {
@@ -63,6 +69,14 @@ const songSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "youtubeUrl must be a YouTube URL.",
+      });
+    }
+
+    if (!song.bucketIds.includes(song.quizCategoryId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["quizCategoryId"],
+        message: "quizCategoryId must also appear in bucketIds.",
       });
     }
   });
@@ -122,6 +136,37 @@ const songBankSchema = z
           path: [index, "forcedOptionSongId"],
           message: "forcedOptionSongId must reference an existing song id.",
         });
+        return;
+      }
+
+      const forcedOptionSong =
+        songs[songIndexById.get(song.forcedOptionSongId)!];
+      if (forcedOptionSong?.quizCategoryId !== song.quizCategoryId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index, "forcedOptionSongId"],
+          message:
+            "forcedOptionSongId must reference a song in the same quiz category.",
+        });
+      }
+    });
+
+    songBuckets.forEach((bucket) => {
+      const quizCategorySongs = songs.filter(
+        (song) => song.quizCategoryId === bucket.id,
+      );
+      const distinctTitles = new Set(
+        quizCategorySongs.map((song) => normalizeSongValue(song.title)),
+      );
+      const distinctArtists = new Set(
+        quizCategorySongs.map((song) => normalizeSongValue(song.artist)),
+      );
+
+      if (distinctTitles.size < 4 || distinctArtists.size < 4) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Quiz category "${bucket.id}" must contain at least four distinct titles and artists.`,
+        });
       }
     });
   });
@@ -143,6 +188,12 @@ export const getSongsForBuckets = (
   return songBank.filter((song) =>
     song.bucketIds.some((bucketId) => selected.has(bucketId)),
   );
+};
+
+export const getSongsForQuizCategory = (
+  quizCategoryId: SongBucketId,
+): SongEntry[] => {
+  return songBank.filter((song) => song.quizCategoryId === quizCategoryId);
 };
 
 export const getSongCanonicalKey = (song: SongEntry): string => {

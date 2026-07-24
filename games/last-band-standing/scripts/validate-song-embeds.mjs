@@ -3,6 +3,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import prettier from "prettier";
 import {
   DEFAULT_OPTION_COUNT,
   DEFAULT_TOTAL_ROUNDS,
@@ -16,6 +17,7 @@ import {
   getSongById,
   getSongCanonicalKey,
   getSongsForBuckets,
+  getSongsForQuizCategory,
   songBank,
   songBuckets,
 } from "../src/game/content/song-bank.ts";
@@ -160,6 +162,34 @@ const validateCatalog = () => {
       }
     });
 
+    if (!declaredBucketIds.has(song.quizCategoryId)) {
+      issues.push({
+        code: "unknown-quiz-category",
+        songId: song.id,
+        bucketId: song.quizCategoryId,
+        message: `Song references undeclared quiz category "${song.quizCategoryId}".`,
+      });
+    } else if (!bucketIds.includes(song.quizCategoryId)) {
+      issues.push({
+        code: "quiz-category-outside-buckets",
+        songId: song.id,
+        bucketId: song.quizCategoryId,
+        message: "A song's quiz category must also appear in its bucketIds.",
+      });
+    }
+
+    if (
+      !Number.isInteger(song.difficulty) ||
+      song.difficulty < 1 ||
+      song.difficulty > 5
+    ) {
+      issues.push({
+        code: "invalid-difficulty",
+        songId: song.id,
+        message: "difficulty must be an integer from 1 through 5.",
+      });
+    }
+
     let parsedUrl = null;
     try {
       parsedUrl = new URL(song.youtubeUrl);
@@ -216,14 +246,13 @@ const validateCatalog = () => {
       });
     }
 
-    const forcedBucketIds = new Set(getBucketIds(forcedSong));
-    if (!bucketIds.some((bucketId) => forcedBucketIds.has(bucketId))) {
+    if (forcedSong.quizCategoryId !== song.quizCategoryId) {
       issues.push({
         code: "forced-option-outside-category",
         songId: song.id,
         relatedSongId: forcedSong.id,
         message:
-          "A forced distractor must share at least one bucket with its source song.",
+          "A forced distractor must use the same canonical quiz category as its source song.",
       });
     }
   });
@@ -267,6 +296,15 @@ const validateCatalog = () => {
       });
     }
 
+    return {
+      id: bucket.id,
+      label: bucket.label,
+      songCount: songs.length,
+    };
+  });
+
+  const quizCategories = songBuckets.map((bucket) => {
+    const songs = getSongsForQuizCategory(bucket.id);
     const distinctLabels = Object.fromEntries(
       roundGuessKinds.map((guessKind) => {
         const labels = new Set(
@@ -281,7 +319,7 @@ const validateCatalog = () => {
             code: "insufficient-distinct-option-labels",
             bucketId: bucket.id,
             guessKind,
-            message: `Bucket "${bucket.label}" needs at least ${DEFAULT_OPTION_COUNT} distinct visible ${guessKind} labels; found ${labels.size}.`,
+            message: `Quiz category "${bucket.label}" needs at least ${DEFAULT_OPTION_COUNT} distinct visible ${guessKind} labels; found ${labels.size}.`,
           });
         }
         return [guessKind, labels.size];
@@ -293,10 +331,16 @@ const validateCatalog = () => {
       label: bucket.label,
       songCount: songs.length,
       distinctLabels,
+      difficultyCounts: Object.fromEntries(
+        [1, 2, 3, 4, 5].map((difficulty) => [
+          difficulty,
+          songs.filter((song) => song.difficulty === difficulty).length,
+        ]),
+      ),
     };
   });
 
-  return { issues, buckets };
+  return { issues, buckets, quizCategories };
 };
 
 const mapWithConcurrency = async (items, concurrency, mapper) => {
@@ -415,11 +459,15 @@ const main = async () => {
     },
     catalogIssues: catalog.issues,
     buckets: catalog.buckets,
+    quizCategories: catalog.quizCategories,
     results,
   };
 
+  const formattedReport = await prettier.format(JSON.stringify(report), {
+    parser: "json",
+  });
   await mkdir(path.dirname(args.output), { recursive: true });
-  await writeFile(args.output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(args.output, formattedReport, "utf8");
 
   console.log(
     `Catalog: ${songBank.length} songs across ${songBuckets.length} buckets`,

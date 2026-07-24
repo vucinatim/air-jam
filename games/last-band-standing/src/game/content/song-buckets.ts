@@ -13,7 +13,9 @@ export const songBuckets = [
 
 export type SongBucketId = (typeof songBuckets)[number]["id"];
 
-export interface SongCatalogEntry {
+export type SongDifficulty = 1 | 2 | 3 | 4 | 5;
+
+export interface SongCatalogSourceEntry {
   id: string;
   title: string;
   artist: string;
@@ -22,3 +24,11 @@ export interface SongCatalogEntry {
   bucketIds: readonly SongBucketId[];
   forcedOptionSongId?: string;
 }
+
+export interface SongQuizMetadata {
+  quizCategoryId: SongBucketId;
+  difficulty: SongDifficulty;
+}
+
+export interface SongCatalogEntry
+  extends SongCatalogSourceEntry, SongQuizMetadata {}

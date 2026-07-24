@@ -1,4 +1,4 @@
-import { type SongCatalogEntry } from "../song-buckets";
+import { type SongCatalogSourceEntry } from "../song-buckets";
 
 export const slovenianSongAdditions = [
   {
@@ -169,4 +169,4 @@ export const slovenianSongAdditions = [
     clipStartSeconds: 55,
     bucketIds: ["slovenian", "2010s"],
   },
-] as const satisfies readonly SongCatalogEntry[];
+] as const satisfies readonly SongCatalogSourceEntry[];

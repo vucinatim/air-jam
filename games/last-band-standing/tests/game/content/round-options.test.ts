@@ -4,8 +4,8 @@ import {
   pickRoundOptionSongIds,
 } from "@/game/content/round-options";
 import {
-  getSongsForBuckets,
-  songBuckets,
+  getSongsForQuizCategory,
+  songBank,
   type SongEntry,
 } from "@/game/content/song-bank";
 import { type RoundGuessKind } from "@/game/domain/types";
@@ -24,18 +24,21 @@ const expectValidOptions = ({
   optionSongIds,
   correctSongId,
   guessKind,
-  eligibleSongs,
+  catalogSongs,
 }: {
   optionSongIds: readonly string[];
   correctSongId: string;
   guessKind: RoundGuessKind;
-  eligibleSongs: readonly SongEntry[];
+  catalogSongs: readonly SongEntry[];
 }): void => {
-  const eligibleSongIds = new Set(eligibleSongs.map((song) => song.id));
+  const correctSong = findSong(catalogSongs, correctSongId);
   const optionLabels = optionSongIds.map((songId) =>
     normalizeRoundOptionLabel(
-      getRoundOptionLabel(findSong(eligibleSongs, songId), guessKind),
+      getRoundOptionLabel(findSong(catalogSongs, songId), guessKind),
     ),
+  );
+  const optionCategories = optionSongIds.map(
+    (songId) => findSong(catalogSongs, songId).quizCategoryId,
   );
 
   expect(optionSongIds).toHaveLength(4);
@@ -43,8 +46,8 @@ const expectValidOptions = ({
   expect(
     optionSongIds.filter((songId) => songId === correctSongId),
   ).toHaveLength(1);
-  expect(optionSongIds.every((songId) => eligibleSongIds.has(songId))).toBe(
-    true,
+  expect(new Set(optionCategories)).toEqual(
+    new Set([correctSong.quizCategoryId]),
   );
   expect(new Set(optionLabels).size).toBe(4);
 };
@@ -66,6 +69,8 @@ const makeSong = ({
   youtubeUrl: `https://www.youtube.com/watch?v=${id}`,
   clipStartSeconds: 30,
   bucketIds: ["global-pop"],
+  quizCategoryId: "global-pop",
+  difficulty: 3,
   ...(forcedOptionSongId ? { forcedOptionSongId } : {}),
 });
 
@@ -78,30 +83,28 @@ describe("round option labels", () => {
 });
 
 describe("round option selection", () => {
-  it("draws every answer from the exact selected category pool", () => {
-    const eligibleSongs = getSongsForBuckets(["slovenian"]);
-    const correctSongId = eligibleSongs[0]?.id;
+  it("draws every answer from the correct song's canonical quiz category", () => {
+    const categorySongs = getSongsForQuizCategory("slovenian");
+    const correctSongId = categorySongs[0]?.id;
     if (!correctSongId) {
-      throw new Error("Expected the Slovenian bucket to contain songs.");
+      throw new Error("Expected the Slovenian quiz category to contain songs.");
     }
 
     const optionSongIds = pickRoundOptionSongIds({
       correctSongId,
       optionCount: 4,
       guessKind: "song-title",
-      eligibleSongs,
     });
 
     expectValidOptions({
       optionSongIds,
       correctSongId,
       guessKind: "song-title",
-      eligibleSongs,
+      catalogSongs: songBank,
     });
   });
 
   it("includes a safe forced distractor for song-title rounds", () => {
-    const eligibleSongs = getSongsForBuckets(["slovenian"]);
     const correctSongId = "all-my-friends-are-dead";
     const forcedOptionSongId = "prjatucki";
 
@@ -109,7 +112,6 @@ describe("round option selection", () => {
       correctSongId,
       optionCount: 4,
       guessKind: "song-title",
-      eligibleSongs,
     });
 
     expect(optionSongIds).toContain(correctSongId);
@@ -118,12 +120,11 @@ describe("round option selection", () => {
       optionSongIds,
       correctSongId,
       guessKind: "song-title",
-      eligibleSongs,
+      catalogSongs: songBank,
     });
   });
 
   it("skips a forced distractor when it would repeat the visible artist", () => {
-    const eligibleSongs = getSongsForBuckets(["slovenian"]);
     const correctSongId = "all-my-friends-are-dead";
     const unsafeForcedOptionSongId = "prjatucki";
 
@@ -131,7 +132,6 @@ describe("round option selection", () => {
       correctSongId,
       optionCount: 4,
       guessKind: "artist",
-      eligibleSongs,
     });
 
     expect(optionSongIds).toContain(correctSongId);
@@ -140,17 +140,17 @@ describe("round option selection", () => {
       optionSongIds,
       correctSongId,
       guessKind: "artist",
-      eligibleSongs,
+      catalogSongs: songBank,
     });
   });
 
-  it("fails when the correct song is outside the eligible pool", () => {
+  it("fails when the correct song is outside the supplied catalog", () => {
     const correctSong = makeSong({
       id: "correct",
       title: "Correct",
       artist: "Correct Artist",
     });
-    const eligibleSongs = [
+    const catalogSongs = [
       makeSong({ id: "a", title: "A", artist: "Artist A" }),
       makeSong({ id: "b", title: "B", artist: "Artist B" }),
       makeSong({ id: "c", title: "C", artist: "Artist C" }),
@@ -162,13 +162,13 @@ describe("round option selection", () => {
         correctSongId: correctSong.id,
         optionCount: 4,
         guessKind: "song-title",
-        eligibleSongs,
+        catalogSongs,
       }),
-    ).toThrow(/not in the eligible song pool/i);
+    ).toThrow(/not in the song catalog/i);
   });
 
   it("fails instead of repeating a visible label when the pool is insufficient", () => {
-    const eligibleSongs = [
+    const catalogSongs = [
       makeSong({ id: "a", title: "A", artist: "Shared Artist" }),
       makeSong({ id: "b", title: "B", artist: "Shared Artist" }),
       makeSong({ id: "c", title: "C", artist: "Artist C" }),
@@ -180,46 +180,41 @@ describe("round option selection", () => {
         correctSongId: "a",
         optionCount: 4,
         guessKind: "artist",
-        eligibleSongs,
+        catalogSongs,
       }),
-    ).toThrow(/not enough distinct artist labels/i);
+    ).toThrow(/does not have enough distinct artist labels/i);
   });
 
-  it("preserves all invariants across every bucket and guess kind", () => {
+  it("preserves every invariant for every song and guess kind", () => {
     const guessKinds: readonly RoundGuessKind[] = ["song-title", "artist"];
 
-    songBuckets.forEach((bucket) => {
-      const eligibleSongs = getSongsForBuckets([bucket.id]);
-
+    songBank.forEach((correctSong) => {
       guessKinds.forEach((guessKind) => {
+        const categorySongs = getSongsForQuizCategory(
+          correctSong.quizCategoryId,
+        );
         const distinctLabels = new Set(
-          eligibleSongs.map((song) =>
+          categorySongs.map((song) =>
             normalizeRoundOptionLabel(getRoundOptionLabel(song, guessKind)),
           ),
         );
         expect(
           distinctLabels.size,
-          `${bucket.id} needs four distinct ${guessKind} labels`,
+          `${correctSong.quizCategoryId} needs four distinct ${guessKind} labels`,
         ).toBeGreaterThanOrEqual(4);
 
-        for (let iteration = 0; iteration < 50; iteration += 1) {
-          const correctSong = eligibleSongs[iteration % eligibleSongs.length];
-          if (!correctSong) {
-            throw new Error(`Expected songs in bucket "${bucket.id}".`);
-          }
-
+        for (let iteration = 0; iteration < 25; iteration += 1) {
           const optionSongIds = pickRoundOptionSongIds({
             correctSongId: correctSong.id,
             optionCount: 4,
             guessKind,
-            eligibleSongs,
           });
 
           expectValidOptions({
             optionSongIds,
             correctSongId: correctSong.id,
             guessKind,
-            eligibleSongs,
+            catalogSongs: songBank,
           });
         }
       });

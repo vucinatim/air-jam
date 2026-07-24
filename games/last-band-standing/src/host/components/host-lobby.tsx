@@ -145,17 +145,29 @@ export const HostLobby = () => {
                   <button
                     key={bucket.id}
                     type="button"
+                    aria-pressed={selected}
                     onClick={() =>
                       actions.toggleSongBucket({ bucketId: bucket.id })
                     }
                     className={cn(
-                      "rounded-xl border px-3 py-2 text-xs font-black tracking-[0.08em] uppercase backdrop-blur-sm transition-all",
+                      "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black tracking-[0.08em] uppercase backdrop-blur-sm transition-all",
                       selected
-                        ? "border-primary/50 bg-primary/20 text-primary"
+                        ? "border-primary bg-primary/30 text-foreground ring-primary/40 ring-1"
                         : "border-border/30 bg-background/35 text-muted-foreground hover:bg-background/55",
                     )}
                   >
-                    {bucket.label}
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none",
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-muted-foreground/50",
+                      )}
+                      aria-hidden="true"
+                    >
+                      {selected ? "✓" : ""}
+                    </span>
+                    <span>{bucket.label}</span>
                   </button>
                 );
               })}
@@ -167,7 +179,7 @@ export const HostLobby = () => {
               )}
             >
               {hasEnoughSongs
-                ? `${uniqueSongCount} unique songs in rotation`
+                ? `${selectedSongBucketIds.length}/${songBuckets.length} categories selected · ${uniqueSongCount} unique songs`
                 : `Need ${totalRounds - uniqueSongCount} more unique songs for ${totalRounds} rounds`}
             </p>
 

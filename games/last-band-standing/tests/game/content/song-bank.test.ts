@@ -3,6 +3,7 @@ import {
   defaultSelectedSongBucketIds,
   getSongCanonicalKey,
   getSongsForBuckets,
+  getSongsForQuizCategory,
   getUniqueSongCountForBuckets,
   getUniqueSongsForBuckets,
   pickSongClipStartSeconds,
@@ -63,6 +64,56 @@ describe("song bank buckets", () => {
       song.bucketIds.forEach((bucketId) => {
         expect(validBucketIds.has(bucketId)).toBe(true);
       });
+      expect(song.bucketIds).toContain(song.quizCategoryId);
+    });
+  });
+
+  it("gives every song one curated difficulty from 1 through 5", () => {
+    songBank.forEach((song) => {
+      expect(Number.isInteger(song.difficulty)).toBe(true);
+      expect(song.difficulty).toBeGreaterThanOrEqual(1);
+      expect(song.difficulty).toBeLessThanOrEqual(5);
+    });
+  });
+
+  it("keeps every quiz category viable for title and artist rounds", () => {
+    songBuckets.forEach((bucket) => {
+      const categorySongs = getSongsForQuizCategory(bucket.id);
+      const titleLabels = new Set(
+        categorySongs.map((song) => song.title.trim().toLocaleLowerCase()),
+      );
+      const artistLabels = new Set(
+        categorySongs.map((song) => song.artist.trim().toLocaleLowerCase()),
+      );
+
+      expect(categorySongs.length, bucket.id).toBeGreaterThanOrEqual(4);
+      expect(
+        titleLabels.size,
+        `${bucket.id} title labels`,
+      ).toBeGreaterThanOrEqual(4);
+      expect(
+        artistLabels.size,
+        `${bucket.id} artist labels`,
+      ).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  it("keeps regional browsing buckets inside their matching language pool", () => {
+    (["slovenian", "balkan"] as const).forEach((bucketId) => {
+      getSongsForBuckets([bucketId]).forEach((song) => {
+        expect(song.quizCategoryId).toBe(bucketId);
+      });
+    });
+  });
+
+  it("keeps forced distractors inside the correct quiz category", () => {
+    songBank.forEach((song) => {
+      if (!song.forcedOptionSongId) return;
+
+      const forcedOption = songBank.find(
+        (candidate) => candidate.id === song.forcedOptionSongId,
+      );
+      expect(forcedOption?.quizCategoryId).toBe(song.quizCategoryId);
     });
   });
 

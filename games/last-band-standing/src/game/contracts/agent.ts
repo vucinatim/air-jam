@@ -13,6 +13,7 @@ import {
   songBuckets,
   type SongBucketId,
 } from "../content/song-bank";
+import { rankPlayers } from "../domain/round-engine";
 
 const DEFAULT_STORE_DOMAIN = "default";
 const stores = defineAirJamAgentStores({
@@ -30,6 +31,7 @@ interface PlayerScore {
   points: number;
   correct: number;
   wrong: number;
+  totalResponseMs: number;
   answeredRounds: number;
 }
 
@@ -39,10 +41,10 @@ interface PlayerAnswer {
 }
 
 interface RoundPlayerResult {
-  correct: boolean;
   optionId: string | null;
   responseMs: number | null;
-  awardedPoints: number;
+  isCorrect: boolean;
+  points: number;
 }
 
 interface ActiveRound {
@@ -55,6 +57,7 @@ interface ActiveRound {
 
 interface RoundReveal {
   roundNumber: number;
+  songId: string;
   guessKind: RoundGuessKind;
   correctOptionId: string;
   correctOptionLabel: string;
@@ -163,57 +166,78 @@ export const agentContract = defineAirJamAgentContract({
     const round =
       state.currentRound === null
         ? null
-        : {
-            roundNumber: state.currentRound.roundNumber,
-            guessKind: state.currentRound.guessKind,
-            prompt: getRoundPrompt(state.currentRound.guessKind),
-            songId: state.currentRound.songId,
-            expectedPlayerIds: [...state.currentRound.expectedPlayerIds],
-            answeredPlayerIds: Object.keys(state.answersByPlayerId),
-            myAnswer:
-              controllerId && state.answersByPlayerId[controllerId]
-                ? {
-                    optionId: state.answersByPlayerId[controllerId].optionId,
-                    answeredAtMs:
-                      state.answersByPlayerId[controllerId].answeredAtMs,
-                  }
-                : null,
-            options: state.currentRound.optionOrder.map((optionSongId) => {
-              const optionSong = getSongById(optionSongId);
-              return {
-                id: optionSongId,
-                label: optionSong
-                  ? getRoundOptionLabel(
-                      optionSong,
-                      state.currentRound!.guessKind,
-                    )
-                  : optionSongId,
-              };
-            }),
-          };
+        : (() => {
+            const currentSong = getSongById(state.currentRound.songId);
+            return {
+              roundNumber: state.currentRound.roundNumber,
+              guessKind: state.currentRound.guessKind,
+              prompt: getRoundPrompt(state.currentRound.guessKind),
+              songId: state.currentRound.songId,
+              quizCategoryId: currentSong?.quizCategoryId ?? null,
+              difficulty: currentSong?.difficulty ?? null,
+              expectedPlayerIds: [...state.currentRound.expectedPlayerIds],
+              answeredPlayerIds: Object.keys(state.answersByPlayerId),
+              myAnswer:
+                controllerId && state.answersByPlayerId[controllerId]
+                  ? {
+                      optionId: state.answersByPlayerId[controllerId].optionId,
+                      answeredAtMs:
+                        state.answersByPlayerId[controllerId].answeredAtMs,
+                    }
+                  : null,
+              options: state.currentRound.optionOrder.map((optionSongId) => {
+                const optionSong = getSongById(optionSongId);
+                return {
+                  id: optionSongId,
+                  label: optionSong
+                    ? getRoundOptionLabel(
+                        optionSong,
+                        state.currentRound!.guessKind,
+                      )
+                    : optionSongId,
+                  quizCategoryId: optionSong?.quizCategoryId ?? null,
+                };
+              }),
+            };
+          })();
 
     const reveal =
       state.roundReveal === null
         ? null
-        : {
-            roundNumber: state.roundReveal.roundNumber,
-            guessKind: state.roundReveal.guessKind,
-            correctOptionId: state.roundReveal.correctOptionId,
-            correctOptionLabel: state.roundReveal.correctOptionLabel,
-            songTitle: state.roundReveal.songTitle,
-            songArtist: state.roundReveal.songArtist,
-            firstCorrectPlayerId: state.roundReveal.firstCorrectPlayerId,
-            firstCorrectPlayerLabel: state.roundReveal.firstCorrectPlayerId
-              ? getLabelForPlayer(
-                  state.roundReveal.firstCorrectPlayerId,
-                  state.playerLabelById,
-                )
-              : null,
-            myResult:
-              controllerId && state.roundReveal.resultsByPlayerId[controllerId]
-                ? state.roundReveal.resultsByPlayerId[controllerId]
+        : (() => {
+            const rankingPlayerIds = rankPlayers(state.scoreboardByPlayerId);
+            const revealedSong = getSongById(state.roundReveal.songId);
+            return {
+              roundNumber: state.roundReveal.roundNumber,
+              guessKind: state.roundReveal.guessKind,
+              correctOptionId: state.roundReveal.correctOptionId,
+              correctOptionLabel: state.roundReveal.correctOptionLabel,
+              songTitle: state.roundReveal.songTitle,
+              songArtist: state.roundReveal.songArtist,
+              quizCategoryId: revealedSong?.quizCategoryId ?? null,
+              difficulty: revealedSong?.difficulty ?? null,
+              firstCorrectPlayerId: state.roundReveal.firstCorrectPlayerId,
+              firstCorrectPlayerLabel: state.roundReveal.firstCorrectPlayerId
+                ? getLabelForPlayer(
+                    state.roundReveal.firstCorrectPlayerId,
+                    state.playerLabelById,
+                  )
                 : null,
-          };
+              myResult:
+                controllerId &&
+                state.roundReveal.resultsByPlayerId[controllerId]
+                  ? state.roundReveal.resultsByPlayerId[controllerId]
+                  : null,
+              results: rankingPlayerIds.map((playerId, index) => ({
+                playerId,
+                playerLabel: getLabelForPlayer(playerId, state.playerLabelById),
+                rank: index + 1,
+                ...state.roundReveal!.resultsByPlayerId[playerId],
+                cumulativePoints:
+                  state.scoreboardByPlayerId[playerId]?.points ?? 0,
+              })),
+            };
+          })();
 
     return {
       phase: state.phase,

@@ -1,4 +1,4 @@
-import { type SongCatalogEntry } from "../song-buckets";
+import { type SongCatalogSourceEntry } from "../song-buckets";
 
 export const internationalSongAdditions = [
   {
@@ -265,4 +265,4 @@ export const internationalSongAdditions = [
     clipStartSeconds: 46,
     bucketIds: ["2010s", "global-pop"],
   },
-] as const satisfies readonly SongCatalogEntry[];
+] as const satisfies readonly SongCatalogSourceEntry[];

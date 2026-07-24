@@ -1,7 +1,7 @@
 # Android Auto Road Trip Plan
 
 Last updated: 2026-07-24
-Status: active; Goal 1 complete and Goal 2 next
+Status: active; Goals 1 and 2 complete, Goal 3 next
 Target: road-trip-ready build for 2026-07-25
 
 Related docs:
@@ -410,7 +410,7 @@ The expanded catalog now has 144 canonical rows across ten categories:
 1. Global Pop: 65
 2. Meme: 19
 3. Slovenian: 27
-4. Balkan: 27
+4. Balkan: 26
 5. Rock / Classics: 25
 6. Throwbacks: 53
 7. 2000s: 33
@@ -1003,7 +1003,7 @@ Completed:
    invariant
 4. expanded the catalog from 70 to 144 canonical songs
 5. expanded Slovenian from 6 to 27 songs
-6. expanded Balkan from 7 to 27 songs
+6. expanded Balkan from 7 to 26 songs
 7. added four independently playable categories:
    1. 2000s
    2. 2010s
@@ -1248,3 +1248,75 @@ Tracking:
    explicit release/PR green light
 
 Next primary goal: Goal 2, Last Band Standing correctness and results.
+
+### 2026-07-24 — Goal 2 Last Band Standing Correctness And Results Closed
+
+Completed:
+
+1. separated browsing eligibility from answer fairness:
+   1. `bucketIds` determine which songs may enter a playlist
+   2. one required `quizCategoryId` determines the only valid distractor pool
+2. added one explicit curated integer `difficulty` from 1 through 5 to all 144
+   songs
+3. made catalog loading reject:
+   1. missing or duplicate quiz metadata
+   2. quiz categories outside a song's declared buckets
+   3. invalid difficulty values
+   4. forced distractors from another quiz category
+   5. quiz categories without four distinct title and artist labels
+4. made round generation select four ID-unique and visible-label-unique options
+   from the correct song's full canonical quiz category
+5. expanded the semantic game snapshot with:
+   1. round quiz category and difficulty
+   2. option quiz categories
+   3. ranked all-player reveal results
+   4. correctness, response time, round points, and cumulative points
+6. replaced the reveal player-card strip with one compact all-player results
+   table showing rank, player, result, response time, round gain, and total
+7. made controller final standings a bounded touch-scroll region with the lobby
+   action pinned outside it
+8. strengthened selected category presentation on both host and controller with
+   checkmarks, contrast, counts, and `aria-pressed`
+9. updated the canonical song validator and report with quiz-category viability
+   and difficulty distributions
+
+Validation evidence:
+
+1. 42/42 game tests pass
+2. exhaustive randomized tests generated 7,200 option sets across every song,
+   both guess kinds, and 25 shuffles each without:
+   1. duplicate IDs
+   2. duplicate visible labels
+   3. missing correct answers
+   4. quiz-category leakage
+3. deterministic catalog validation reports 144 songs, ten browsing buckets,
+   ten viable quiz categories, and zero issues
+4. YouTube oEmbed validation accepts 144/144 unique videos
+5. complete ten-round semantic matches pass with:
+   1. two players using the natural countdown/reveal timers
+   2. six players using a monotonic synthetic clock and correct, wrong, and
+      unanswered outcomes on every reveal
+   3. ten players using the same full result-state matrix
+6. exact `800x480` and `1920x720` reveal probes show all ten rows, the complete
+   scoreboard, and zero layout overflow
+7. exact controller probes pass at `360x800`, `390x844`, `412x915`, and
+   `430x932`; each reaches the last player while the lobby action stays visible
+8. TypeScript, focused ESLint, scoped Prettier, production build, and
+   `git diff --check` pass
+
+Framework follow-up:
+
+1. [Air Jam issue #42](https://github.com/vucinatim/air-jam/issues/42) records
+   that game-session tooling loads the wrong agent contract when a game-local
+   `cwd` is supplied without an explicit `gameId`
+2. explicit `gameId: "last-band-standing"` is the validated non-blocking
+   workaround
+
+Intentional Goal 3 carry-forward:
+
+1. the new difficulty field truthfully exposes that Rock / Classics,
+   Throwbacks, 2000s, and especially 2010s are still easy-heavy
+2. changing that distribution requires the user-facing song curation and
+   medium/hard additions already assigned to Goal 3
+
+Next primary goal: Goal 3, content and visual polish.

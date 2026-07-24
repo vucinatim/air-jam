@@ -9,7 +9,6 @@ import {
   getUniqueSongsForBuckets,
   pickSongClipStartSeconds,
   type SongBucketId,
-  type SongEntry,
 } from "@/game/content/song-bank";
 import { createEmptyScore } from "@/game/domain/player-utils";
 import {
@@ -90,7 +89,6 @@ export interface CreateRoundOptions {
   expectedPlayerIds: string[];
   nowMs: number;
   roundDurationSec: number;
-  eligibleSongs: readonly SongEntry[];
 }
 
 export const createRound = ({
@@ -100,7 +98,6 @@ export const createRound = ({
   expectedPlayerIds,
   nowMs,
   roundDurationSec,
-  eligibleSongs,
 }: CreateRoundOptions): ActiveRound => {
   const song = getSongById(songId);
   if (!song) {
@@ -111,7 +108,6 @@ export const createRound = ({
     correctSongId: song.id,
     optionCount: DEFAULT_OPTION_COUNT,
     guessKind,
-    eligibleSongs,
   });
 
   return {
