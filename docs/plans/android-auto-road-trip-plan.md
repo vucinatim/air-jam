@@ -1,7 +1,7 @@
 # Android Auto Road Trip Plan
 
 Last updated: 2026-07-24
-Status: active; Goals 1 and 2 complete, Goal 3 in progress
+Status: active; Goals 1 through 3 complete, Goal 4 in progress
 Target: road-trip-ready build for 2026-07-25
 
 Related docs:
@@ -955,12 +955,12 @@ GitHub issues:
 
 P0 correctness and usability:
 
-- [ ] make the controller final standings region genuinely scrollable with ten
+- [x] make the controller final standings region genuinely scrollable with ten
       players while keeping placement and the lobby button visible
-- [ ] add `quizCategoryId` and guarantee same-category four-option rounds
-- [ ] add explicit selected-state affordances to lobby category controls:
+- [x] add `quizCategoryId` and guarantee same-category four-option rounds
+- [x] add explicit selected-state affordances to lobby category controls:
       check icon, stronger contrast, selected count, and `aria-pressed`
-- [ ] show readable all-player round rankings on controllers during reveal
+- [x] show readable all-player round rankings on controllers during reveal
 
 The controller reveal ranking should show:
 
@@ -976,11 +976,11 @@ strip; do not put a dense result table on the car display.
 
 P1 polish and content:
 
-- [ ] rebalance typography, spacing, alignment, and visual hierarchy
-- [ ] test long player names and long song/artist labels
-- [ ] classify the existing catalog on a curated 1-5 difficulty scale
-- [ ] review candidate harder songs with the road-trip group's taste
-- [ ] add the approved medium/hard catalog batch and validate clip timing
+- [x] rebalance typography, spacing, alignment, and visual hierarchy
+- [x] test long player names and long song/artist labels
+- [x] classify the existing catalog on a curated 1-5 difficulty scale
+- [x] review candidate harder songs with the road-trip group's taste
+- [x] add the approved medium/hard catalog batch and validate clip timing
 
 P2 stretch:
 
@@ -1817,3 +1817,44 @@ Still required:
 1. listen through the 26 configured starts and adjust any weak, quiet, or
    spoiler-heavy clip
 2. include the expanded catalog in the final Goal 3 user gameplay pass
+
+The user accepted the Goal 3 candidate on 2026-07-24 and explicitly authorized
+Goal 4 merge and production publication. Further clip-start refinement is
+non-blocking release polish rather than a road-trip readiness gate.
+
+### 2026-07-24 — Goal 4 Preflight And Platform Preview Repair
+
+The final PR audit confirmed the existing Railway platform preview failure from
+[Air Jam issue #44](https://github.com/vucinatim/air-jam/issues/44). The
+standalone Next.js image copied `run-platform.mjs` after tracing, so its
+preview-only dynamic imports of `drizzle-orm` and `postgres` were missing at
+runtime even though the application build succeeded.
+
+Implemented:
+
+1. bundle the platform runtime entry and its migration dependency closure into
+   the completed Next.js standalone tree
+2. keep the production image minimal by copying only that completed tree
+3. reject any non-Node external import left in the runtime bundle
+4. extend the hermetic deployment contract to execute the preview migration
+   path against a deliberately closed database port
+5. fail the deployment contract if migration dependencies cannot load before
+   the expected connection refusal
+
+Pre-push evidence:
+
+1. platform tests: 162/162 pass
+2. platform typecheck and lint pass
+3. repository contract tests: 8/8 pass
+4. the bundled production entry starts the standalone Next.js server and
+   returns HTTP 200 from `/api/health`
+5. the bundled preview entry reaches the database query and reports the
+   expected `ECONNREFUSED`, proving `drizzle-orm` and `postgres` load
+6. the clean-checkout hermetic install, platform build, standalone artifact
+   inspection, and preview migration probe pass
+
+Pending:
+
+1. push the repair and confirm the Railway PR platform deployment turns green
+2. run the complete repository release gates
+3. ready, merge, deploy, publish the hosted game release, and smoke production

@@ -116,18 +116,11 @@ WORKDIR /app
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 
-# Next.js standalone output bundles every traced runtime dependency
-# into its own node_modules tree. The standalone trace also includes
-# apps/platform/drizzle/ via `outputFileTracingIncludes` in
-# next.config.ts so scripts/run-platform.mjs can apply migrations on
-# Railway PR preview boot. Production serves HTTP straight from here
-# with nothing else.
+# Next.js standalone output bundles every traced application dependency
+# into its own node_modules tree. The platform build also emits one bundled
+# run-platform.mjs into this tree so preview-only migration dependencies do
+# not depend on Next.js tracing a separately copied script. The trace includes
+# apps/platform/drizzle/ via `outputFileTracingIncludes` in next.config.ts.
 COPY --from=builder /app/apps/platform/.next/standalone ./
-
-# Container entry wrapper. Runs drizzle migrations against the
-# ephemeral Postgres on Railway PR previews, then hands off to the
-# Next.js standalone server. No-op on production. railway.json's
-# startCommand points here.
-COPY --from=builder /app/apps/platform/scripts/run-platform.mjs ./apps/platform/run-platform.mjs
 
 CMD ["node", "/app/apps/platform/run-platform.mjs"]

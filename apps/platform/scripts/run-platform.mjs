@@ -8,15 +8,14 @@
  * docs/guides/railway-deployment-guide.md) so this script is a no-op
  * outside previews.
  *
- * Layout assumption: this file is shipped into the runtime image at
+ * The platform build bundles this file and its migration dependencies into
  *   /app/apps/platform/run-platform.mjs
  * alongside
  *   /app/apps/platform/server.js          (Next.js standalone entry)
  *   /app/apps/platform/drizzle/           (migration SQL files)
  *
- * railway.json's startCommand points at this file. The Dockerfile
- * runtime stage copies both the standalone tree and the drizzle/
- * folder so the paths above resolve.
+ * railway.json's startCommand points at that self-contained entry. The
+ * Dockerfile runtime stage copies only the completed standalone tree.
  */
 
 import path from "node:path";
@@ -39,7 +38,9 @@ if (isRailwayPreviewEnvironment) {
     process.exit(1);
   }
 
-  log(`Running drizzle migrations against preview env "${railwayEnvironmentName}"...`);
+  log(
+    `Running drizzle migrations against preview env "${railwayEnvironmentName}"...`,
+  );
 
   // Dynamic imports keep production cold-start fast — the migrator
   // module and its dependencies aren't loaded outside previews.

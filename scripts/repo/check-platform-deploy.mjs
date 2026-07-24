@@ -66,7 +66,9 @@ const run = ({ args, cwd, label }) => {
 };
 
 const main = async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "airjam-platform-deploy-"));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), "airjam-platform-deploy-"),
+  );
   const checkoutRoot = path.join(tempRoot, "repo");
 
   try {
@@ -102,6 +104,49 @@ const main = async () => {
     if (!fs.existsSync(standaloneServerEntry)) {
       throw new Error(
         "Hermetic platform build did not emit .next/standalone/server.js.",
+      );
+    }
+
+    const runtimeEntry = path.join(
+      checkoutRoot,
+      "apps/platform/.next/standalone/apps/platform/run-platform.mjs",
+    );
+    if (!fs.existsSync(runtimeEntry)) {
+      throw new Error(
+        "Hermetic platform build did not emit the bundled runtime entry.",
+      );
+    }
+
+    const migrationProbe = spawnSync("node", [runtimeEntry], {
+      cwd: checkoutRoot,
+      env: {
+        ...process.env,
+        DATABASE_URL: "postgres://airjam:airjam@127.0.0.1:1/airjam",
+        RAILWAY_ENVIRONMENT_NAME: "air-jam-hermetic-preview",
+      },
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    const migrationProbeOutput = `${migrationProbe.stdout ?? ""}${migrationProbe.stderr ?? ""}`;
+
+    if (migrationProbe.status === 0) {
+      throw new Error(
+        "Bundled runtime migration probe unexpectedly connected to the closed test port.",
+      );
+    }
+    if (
+      migrationProbe.error ||
+      !migrationProbeOutput.includes("ECONNREFUSED")
+    ) {
+      process.stdout.write(migrationProbeOutput);
+      throw new Error(
+        "Bundled runtime entry did not load its migration dependencies before reaching the closed test database.",
+      );
+    }
+    if (migrationProbeOutput.includes("ERR_MODULE_NOT_FOUND")) {
+      process.stdout.write(migrationProbeOutput);
+      throw new Error(
+        "Bundled runtime entry still has a missing migration dependency.",
       );
     }
 
