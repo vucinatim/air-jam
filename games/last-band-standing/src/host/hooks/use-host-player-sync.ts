@@ -9,6 +9,7 @@ interface HostPlayerSyncActions {
 export const useHostPlayerSync = (
   players: PlayerProfile[],
   actions: HostPlayerSyncActions,
+  enabled: boolean,
 ) => {
   const playersForStore = useMemo(
     () => players.map((player) => ({ id: player.id, label: player.label })),
@@ -16,6 +17,10 @@ export const useHostPlayerSync = (
   );
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     actions.setPlayers({ players: playersForStore });
-  }, [actions, playersForStore]);
+  }, [actions, enabled, playersForStore]);
 };

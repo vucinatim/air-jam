@@ -1608,3 +1608,64 @@ Release state:
 1. `v1.0.0` is available now and represents the unchanged mobile `master`
 2. the automated versioned pipeline is commit `3a0e47a` in the existing draft
    PR and does not affect `master` until that PR is explicitly merged
+
+### 2026-07-24 — Goal 3 User-Test Regression Pass
+
+User testing on the real-car screen dimensions found three Goal 3 blockers:
+
+1. the ten host category controls used `auto-fit`, which allowed one awkward
+   near-single row with an orphaned final item
+2. the host player grid stretched a lone player across the entire available
+   width
+3. the ready controller's second action could push Start Match below the
+   visible area because the lobby's outer flex containers did not permit the
+   category region to shrink and scroll
+
+Corrections:
+
+1. short-landscape host lobbies now use an intentional five-by-two category
+   grid
+2. host player tiles wrap from the center at a capped width instead of
+   stretching
+3. the controller lobby now has an explicitly bounded overflow chain; the
+   category list owns scrolling while Unready and Start Match remain pinned
+4. invalid React SVG attribute names in all Last Band Standing logo variants
+   were corrected
+5. initial host/player synchronization now waits for the Air Jam host
+   connection before dispatching the game-store action
+
+Platform console findings:
+
+1. the iframe declared fullscreen twice through both `allow` and
+   `allowFullScreen`; the redundant property was removed
+2. the settings bridge attempted `postMessage` before the game iframe completed
+   its cross-origin navigation, then cached the premature attach key
+3. bridge attachment now occurs from the iframe load event only
+4. [Air Jam issue #45](https://github.com/vucinatim/air-jam/issues/45) is the
+   canonical framework record for regression coverage and lifecycle hardening
+
+Latency evidence:
+
+1. the server's summarized `durationMs` is the span between the first and last
+   event in a five-second aggregation window; it is not per-action latency
+2. temporary in-page probes measured five controller category actions from
+   click to replicated controller state at 32.5-45.1 ms locally
+3. the temporary probes were removed after measurement
+4. the user then found that browser 4G network throttling was likely enabled;
+   this matches the multi-hop delay and the healthy unthrottled measurements
+5. no latency workaround or framework issue is warranted unless a
+   no-throttling retry remains slow
+
+Validation after correction:
+
+1. the `1280x720` in-app browser host shows two balanced category rows and
+   centered capped player tiles
+2. the direct controller view keeps both ready-state actions completely visible
+   while its category region remains scrollable
+3. a clean reload produces none of the pasted fullscreen or bridge warnings,
+   none of the logo attribute errors, and no premature `setPlayers` warning
+4. Last Band Standing typecheck and 52/52 tests pass
+5. Platform typecheck and 162/162 tests pass
+
+Goal 3 remains in progress until the user approves the corrected visuals and
+confirms the phone interaction is responsive with browser throttling disabled.

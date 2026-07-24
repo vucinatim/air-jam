@@ -250,14 +250,6 @@ export const GamePlayer = ({
   ]);
 
   useEffect(() => {
-    if (!iframeSrc || !isVisible) {
-      return;
-    }
-
-    establishBridgeChannel();
-  }, [establishBridgeChannel, iframeSrc, isVisible]);
-
-  useEffect(() => {
     if (!isVisible) {
       return;
     }
@@ -681,7 +673,6 @@ export const GamePlayer = ({
           className="h-full w-full border-none bg-black"
           style={{ backgroundColor: "#000000" }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share; gamepad"
-          allowFullScreen
           onLoad={() => {
             establishBridgeChannel();
           }}
