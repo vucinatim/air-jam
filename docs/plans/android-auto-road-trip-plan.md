@@ -1698,3 +1698,43 @@ Browser proof confirms the corrected host and controller ownership in a live
 local round. The 52 game tests, deterministic 2-, 6-, and 10-player match
 coverage, typecheck, lint, and production build pass. A final large-group
 controller visual check remains part of Goal 3 acceptance.
+
+### 2026-07-24 — Distraction-Free YouTube Playback
+
+Completed:
+
+1. disabled YouTube's visible player controls, keyboard controls, fullscreen
+   button, annotations, and default captions for both lobby backgrounds and
+   active-round playback
+2. made the active-round iframe non-interactive and unfocusable so taps, clicks,
+   and keyboard focus cannot summon YouTube's center play/pause overlay
+3. retained API-driven autoplay, clip seeking, volume control, pause, and error
+   handling
+4. added focused embed URL coverage for both player modes
+5. verified a live local round loads the chrome-free active player at the
+   configured clip start
+6. all 54 game tests, typecheck, lint, formatting, and production build pass
+
+YouTube can still contain subtitles burned directly into a video's image; those
+are part of the source video and cannot be disabled by the embed API.
+
+### 2026-07-24 — Eurovision Source-Level Normalization
+
+The Eurovision bucket mixed mastered music videos with quieter live contest
+recordings, which produced obvious round-to-round volume changes.
+
+Completed:
+
+1. audited all 32 songs available through the Eurovision bucket
+2. replaced all 18 live grand-final, semi-final, and broadcast-performance
+   sources with studio music videos or official distributed studio audio
+3. preserved the 14 entries that already used non-live studio sources
+4. confirmed no Eurovision-bucket source title still identifies itself as a
+   live, grand-final, or semi-final recording
+5. confirmed every replacement retains at least 30 seconds after its configured
+   clip start
+6. regenerated the canonical catalog report with 180/180 unique YouTube sources
+   embeddable and zero deterministic catalog issues
+
+One label-hosted studio upload blocked embedding and was replaced with the
+artist's official YouTube-distributed studio track.

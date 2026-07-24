@@ -66,7 +66,8 @@ export const HostVideoStage = ({
         title={`${activeSong.title} video`}
         src={embedUrl}
         onLoad={onIframeLoad}
-        className="h-full w-full"
+        className="pointer-events-none h-full w-full"
+        tabIndex={-1}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
       />

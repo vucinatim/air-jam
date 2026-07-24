@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-24T16:41:17.672Z",
+  "generatedAt": "2026-07-24T18:34:57.215Z",
   "summary": {
     "totalSongs": 180,
     "totalBuckets": 10,
@@ -801,19 +801,19 @@
       "id": "dancing-lasha-tumbai-verka-serduchka",
       "title": "Dancing Lasha Tumbai",
       "artist": "Verka Serduchka",
-      "youtubeUrl": "https://www.youtube.com/watch?v=hfjHJneVonE",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ELVD_2_eCWE",
       "clipStartSeconds": 49,
       "bucketIds": ["eurovision", "2000s", "dance-edm", "meme", "throwbacks"],
       "quizCategoryId": "eurovision",
       "difficulty": 2,
-      "videoId": "hfjHJneVonE",
+      "videoId": "ELVD_2_eCWE",
       "canonicalKey": "verka serduchka::dancing lasha tumbai",
       "embed": {
-        "videoId": "hfjHJneVonE",
+        "videoId": "ELVD_2_eCWE",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Verka Serduchka - Dancing Lasha Tumbai (LIVE) | Ukraine \\ud83c\\uddfa\\ud83c\\udde6 | Grand Final | Eurovision 2007\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongCon"
+        "detail": "{\"title\":\"VERKA SERDUCHKA - Dancing Lasha Tumbai (Official Video)\",\"author_name\":\"VERKA SERDUCHKA OFFICIAL\",\"author_url\":\"https://www.youtube.com/@VERKASERDUCHKAOFFICIAL\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\""
       }
     },
     {
@@ -991,19 +991,19 @@
       "id": "euphoria-loreen",
       "title": "Euphoria",
       "artist": "Loreen",
-      "youtubeUrl": "https://www.youtube.com/watch?v=Pfo-8z86x80",
+      "youtubeUrl": "https://www.youtube.com/watch?v=bcnWysA9gxo",
       "clipStartSeconds": 55,
       "bucketIds": ["eurovision", "dance-edm", "2010s", "global-pop"],
       "quizCategoryId": "eurovision",
       "difficulty": 1,
-      "videoId": "Pfo-8z86x80",
+      "videoId": "bcnWysA9gxo",
       "canonicalKey": "loreen::euphoria",
       "embed": {
-        "videoId": "Pfo-8z86x80",
+        "videoId": "bcnWysA9gxo",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Loreen - Euphoria (LIVE) | Sweden \\ud83c\\uddf8\\ud83c\\uddea | Grand Final | Winner of Eurovision 2012\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\""
+        "detail": "{\"title\":\"Loreen - Euphoria (Official Music Video)\",\"author_name\":\"Warner Music Sweden\",\"author_url\":\"https://www.youtube.com/@warnersweden\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTub"
       }
     },
     {
@@ -1048,19 +1048,19 @@
       "id": "fairytale-alexander-rybak",
       "title": "Fairytale",
       "artist": "Alexander Rybak",
-      "youtubeUrl": "https://www.youtube.com/watch?v=WXwgZL4zx9o",
+      "youtubeUrl": "https://www.youtube.com/watch?v=mNcJEebwOuE",
       "clipStartSeconds": 48,
       "bucketIds": ["eurovision", "2000s", "global-pop", "throwbacks"],
       "quizCategoryId": "eurovision",
       "difficulty": 1,
-      "videoId": "WXwgZL4zx9o",
+      "videoId": "mNcJEebwOuE",
       "canonicalKey": "alexander rybak::fairytale",
       "embed": {
-        "videoId": "WXwgZL4zx9o",
+        "videoId": "mNcJEebwOuE",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Alexander Rybak - Fairytale (LIVE) | Norway \\ud83c\\uddf3\\ud83c\\uddf4 | Grand Final | Winner of Eurovision 2009\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongConte"
+        "detail": "{\"title\":\"Alexander Rybak - Fairytale (Norway - Official Video - Eurovision Song Contest 2009)\",\"author_name\":\"EurovisionFanTV\",\"author_url\":\"https://www.youtube.com/@EurovisionFanTV\",\"type\":\"video\",\"height\":113,\"width\":"
       }
     },
     {
@@ -1295,38 +1295,38 @@
       "id": "hard-rock-hallelujah-lordi",
       "title": "Hard Rock Hallelujah",
       "artist": "Lordi",
-      "youtubeUrl": "https://www.youtube.com/watch?v=gAh9NRGNhUU",
+      "youtubeUrl": "https://www.youtube.com/watch?v=-6Xl9tBWt54",
       "clipStartSeconds": 52,
       "bucketIds": ["eurovision", "2000s", "rock-classics", "throwbacks"],
       "quizCategoryId": "eurovision",
       "difficulty": 2,
-      "videoId": "gAh9NRGNhUU",
+      "videoId": "-6Xl9tBWt54",
       "canonicalKey": "lordi::hard rock hallelujah",
       "embed": {
-        "videoId": "gAh9NRGNhUU",
+        "videoId": "-6Xl9tBWt54",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Lordi - Hard Rock Hallelujah (LIVE) | Finland \\ud83c\\uddeb\\ud83c\\uddee | Grand Final | Winner of Eurovision 2006\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongCon"
+        "detail": "{\"title\":\"Lordi - Hard Rock Hallelujah\",\"author_name\":\"LordiVEVO\",\"author_url\":\"https://www.youtube.com/@LordiVEVO\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\"https:"
       }
     },
     {
       "id": "hari-mata-hari-lejla",
       "title": "Lejla",
       "artist": "Hari Mata Hari",
-      "youtubeUrl": "https://www.youtube.com/watch?v=SXlIN3mcsH4",
+      "youtubeUrl": "https://www.youtube.com/watch?v=Zz24GrITV8o",
       "clipStartSeconds": 45,
       "bucketIds": ["balkan", "2000s", "eurovision", "throwbacks"],
       "quizCategoryId": "balkan",
       "difficulty": 2,
-      "videoId": "SXlIN3mcsH4",
+      "videoId": "Zz24GrITV8o",
       "canonicalKey": "hari mata hari::lejla",
       "embed": {
-        "videoId": "SXlIN3mcsH4",
+        "videoId": "Zz24GrITV8o",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Hari Mata Hari - Lejla - Bosnia and Herzegovina - Grand Final - Eurovision 2006\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\",\"height\":113"
+        "detail": "{\"title\":\"Hari Mata Hari - Lejla - (Official Video 2005)\",\"author_name\":\"Hari Mata Hari\",\"author_url\":\"https://www.youtube.com/@HariMataHariOfficial\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name"
       }
     },
     {
@@ -1352,19 +1352,19 @@
       "id": "heroes-mans-zelmerlow",
       "title": "Heroes",
       "artist": "Måns Zelmerlöw",
-      "youtubeUrl": "https://www.youtube.com/watch?v=5sGOwFVUU0I",
+      "youtubeUrl": "https://www.youtube.com/watch?v=-nbq6Ur103Q",
       "clipStartSeconds": 54,
       "bucketIds": ["eurovision", "dance-edm", "2010s", "global-pop"],
       "quizCategoryId": "eurovision",
       "difficulty": 3,
-      "videoId": "5sGOwFVUU0I",
+      "videoId": "-nbq6Ur103Q",
       "canonicalKey": "mans zelmerlow::heroes",
       "embed": {
-        "videoId": "5sGOwFVUU0I",
+        "videoId": "-nbq6Ur103Q",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"M\\u00e5ns Zelmerl\\u00f6w - Heroes (LIVE) | Sweden \\ud83c\\uddf8\\ud83c\\uddea | Grand Final | Winner of Eurovision 2015\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSon"
+        "detail": "{\"title\":\"Ma\\u030ans Zelmerlo\\u0308w - Heroes (Official Video)\",\"author_name\":\"Warner Music Sweden\",\"author_url\":\"https://www.youtube.com/@warnersweden\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_n"
       }
     },
     {
@@ -1770,19 +1770,19 @@
       "id": "lea-sirk-hvala-ne",
       "title": "Hvala, ne!",
       "artist": "Lea Sirk",
-      "youtubeUrl": "https://www.youtube.com/watch?v=fBU0_hfST_o",
+      "youtubeUrl": "https://www.youtube.com/watch?v=Xzaa22agPqA",
       "clipStartSeconds": 54,
       "bucketIds": ["slovenian", "2010s", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 3,
-      "videoId": "fBU0_hfST_o",
+      "videoId": "Xzaa22agPqA",
       "canonicalKey": "lea sirk::hvala ne",
       "embed": {
-        "videoId": "fBU0_hfST_o",
+        "videoId": "Xzaa22agPqA",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Lea Sirk - Hvala, ne! (LIVE) | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Grand Final | Eurovision 2018\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"vi"
+        "detail": "{\"title\":\"Lea Sirk - Hvala, ne! (OFFICIAL VIDEO)\",\"author_name\":\"Lea Sirk OFFICIAL\",\"author_url\":\"https://www.youtube.com/@LeaSirkOfficial\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube"
       }
     },
     {
@@ -1960,19 +1960,19 @@
       "id": "maja-keuc-no-one",
       "title": "No One",
       "artist": "Maja Keuc",
-      "youtubeUrl": "https://www.youtube.com/watch?v=5vqjb2OYnYs",
+      "youtubeUrl": "https://www.youtube.com/watch?v=SXjuJXGFST0",
       "clipStartSeconds": 62,
       "bucketIds": ["slovenian", "2010s", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 3,
-      "videoId": "5vqjb2OYnYs",
+      "videoId": "SXjuJXGFST0",
       "canonicalKey": "maja keuc::no one",
       "embed": {
-        "videoId": "5vqjb2OYnYs",
+        "videoId": "SXjuJXGFST0",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Maja Keuc - No One (LIVE) | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Grand Final | Eurovision 2011\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video"
+        "detail": "{\"title\":\"Maja Keuc - No One (Official Music Video)\",\"author_name\":\"MajaKeucOfficial\",\"author_url\":\"https://www.youtube.com/@MajaKeucOfficial\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouT"
       }
     },
     {
@@ -2017,38 +2017,38 @@
       "id": "maraaya-here-for-you",
       "title": "Here for You",
       "artist": "Maraaya",
-      "youtubeUrl": "https://www.youtube.com/watch?v=y1c7gDOaFY0",
+      "youtubeUrl": "https://www.youtube.com/watch?v=3Vv-R0Pmft4",
       "clipStartSeconds": 61,
       "bucketIds": ["slovenian", "2010s", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 3,
-      "videoId": "y1c7gDOaFY0",
+      "videoId": "3Vv-R0Pmft4",
       "canonicalKey": "maraaya::here for you",
       "embed": {
-        "videoId": "y1c7gDOaFY0",
+        "videoId": "3Vv-R0Pmft4",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Maraaya - Here For You (LIVE) | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Grand Final | Eurovision 2015\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"v"
+        "detail": "{\"title\":\"Maraaya - Here For You (Official Audio Video HQ)\",\"author_name\":\"Heaven Music\",\"author_url\":\"https://www.youtube.com/@HeavenMusic\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTub"
       }
     },
     {
       "id": "marija-serifovic-molitva",
       "title": "Molitva",
       "artist": "Marija Šerifović",
-      "youtubeUrl": "https://www.youtube.com/watch?v=FSueQN1QvV4",
+      "youtubeUrl": "https://www.youtube.com/watch?v=Kbi08wfT7mA",
       "clipStartSeconds": 53,
       "bucketIds": ["balkan", "2000s", "eurovision", "throwbacks"],
       "quizCategoryId": "balkan",
       "difficulty": 1,
-      "videoId": "FSueQN1QvV4",
+      "videoId": "Kbi08wfT7mA",
       "canonicalKey": "marija serifovic::molitva",
       "embed": {
-        "videoId": "FSueQN1QvV4",
+        "videoId": "Kbi08wfT7mA",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Marija \\u0160erifovi\\u0107 - Molitva - \\ud83c\\uddf7\\ud83c\\uddf8 Serbia - Grand Final - Eurovision 2007\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"typ"
+        "detail": "{\"title\":\"MARIJA \\u0160ERIFOVI\\u0106 - MOLITVA - (OFFICIAL VIDEO 2020)\",\"author_name\":\"Marija Serifovic\",\"author_url\":\"https://www.youtube.com/@OfficialMarija\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"pro"
       }
     },
     {
@@ -2264,19 +2264,19 @@
       "id": "omar-naber-stop",
       "title": "Stop",
       "artist": "Omar Naber",
-      "youtubeUrl": "https://www.youtube.com/watch?v=qUTIYik9cRA",
+      "youtubeUrl": "https://www.youtube.com/watch?v=l2Mp_ltL36g",
       "clipStartSeconds": 60,
       "bucketIds": ["slovenian", "2000s", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 3,
-      "videoId": "qUTIYik9cRA",
+      "videoId": "l2Mp_ltL36g",
       "canonicalKey": "omar naber::stop",
       "embed": {
-        "videoId": "qUTIYik9cRA",
+        "videoId": "l2Mp_ltL36g",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Omar Naber - Stop (LIVE) | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Semi-Final | Eurovision 2005\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\","
+        "detail": "{\"title\":\"Omar Naber - Stop (Official Video)\",\"author_name\":\"Nika \",\"author_url\":\"https://www.youtube.com/@NikaRecordsTV\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_url\":\""
       }
     },
     {
@@ -2417,19 +2417,19 @@
       "id": "raiven-veronika",
       "title": "Veronika",
       "artist": "Raiven",
-      "youtubeUrl": "https://www.youtube.com/watch?v=l86DxpRnz5M",
+      "youtubeUrl": "https://www.youtube.com/watch?v=uWcSsi7SliI",
       "clipStartSeconds": 59,
       "bucketIds": ["slovenian", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 2,
-      "videoId": "l86DxpRnz5M",
+      "videoId": "uWcSsi7SliI",
       "canonicalKey": "raiven::veronika",
       "embed": {
-        "videoId": "l86DxpRnz5M",
+        "videoId": "uWcSsi7SliI",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Raiven - Veronika (LIVE) | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Grand Final | Eurovision 2024\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\""
+        "detail": "{\"title\":\"Raiven - Veronika | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Official Music Video | Eurovision 2024\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"vide"
       }
     },
     {
@@ -2721,19 +2721,19 @@
       "id": "severina-moja-stikla",
       "title": "Moja štikla",
       "artist": "Severina",
-      "youtubeUrl": "https://www.youtube.com/watch?v=hGp3YfEj_GY",
+      "youtubeUrl": "https://www.youtube.com/watch?v=d-AdbkGKq9E",
       "clipStartSeconds": 39,
       "bucketIds": ["balkan", "2000s", "eurovision", "throwbacks"],
       "quizCategoryId": "balkan",
       "difficulty": 2,
-      "videoId": "hGp3YfEj_GY",
+      "videoId": "d-AdbkGKq9E",
       "canonicalKey": "severina::moja stikla",
       "embed": {
-        "videoId": "hGp3YfEj_GY",
+        "videoId": "d-AdbkGKq9E",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Severina - Moja \\u0160tikla (LIVE) | Croatia \\ud83c\\udded\\ud83c\\uddf7 | Grand Final | Eurovision 2006\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type"
+        "detail": "{\"title\":\"Severina - Moja \\u0161tikla\",\"author_name\":\"DallasRecordsTV\",\"author_url\":\"https://www.youtube.com/@DallasRecordsTV\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_u"
       }
     },
     {
@@ -3158,19 +3158,19 @@
       "id": "tinkara-kovac-round-and-round",
       "title": "Round and Round",
       "artist": "Tinkara Kovač",
-      "youtubeUrl": "https://www.youtube.com/watch?v=CiwM1sY3u0s",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ZMpNkCOMaGU",
       "clipStartSeconds": 58,
       "bucketIds": ["slovenian", "2010s", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 4,
-      "videoId": "CiwM1sY3u0s",
+      "videoId": "ZMpNkCOMaGU",
       "canonicalKey": "tinkara kovac::round and round",
       "embed": {
-        "videoId": "CiwM1sY3u0s",
+        "videoId": "ZMpNkCOMaGU",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Tinkara Kova\\u010d - Round and Round (LIVE) | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Grand Final | Eurovision 2014\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongCont"
+        "detail": "{\"title\":\"Tinkara Kova\\u010d - Round And Round (Slovenia) 2014 Eurovision Song Contest\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\",\"height\":113,\"w"
       }
     },
     {
@@ -3329,19 +3329,19 @@
       "id": "wild-dances-ruslana",
       "title": "Wild Dances",
       "artist": "Ruslana",
-      "youtubeUrl": "https://www.youtube.com/watch?v=10XR67NQcAc",
+      "youtubeUrl": "https://www.youtube.com/watch?v=QYqB1eyN8B4",
       "clipStartSeconds": 43,
       "bucketIds": ["eurovision", "2000s", "dance-edm", "throwbacks"],
       "quizCategoryId": "eurovision",
       "difficulty": 3,
-      "videoId": "10XR67NQcAc",
+      "videoId": "QYqB1eyN8B4",
       "canonicalKey": "ruslana::wild dances",
       "embed": {
-        "videoId": "10XR67NQcAc",
+        "videoId": "QYqB1eyN8B4",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Ruslana - Wild Dances (LIVE) | Ukraine \\ud83c\\uddfa\\ud83c\\udde6 | Grand Final | Winner of Eurovision 2004\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\""
+        "detail": "{\"title\":\"Ruslana - Wild Dances (Official Video)\",\"author_name\":\"Ruslana\",\"author_url\":\"https://www.youtube.com/@RuslanaTube\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"provider_ur"
       }
     },
     {
@@ -3405,19 +3405,19 @@
       "id": "zalagasper-sebi",
       "title": "Sebi",
       "artist": "zalagasper",
-      "youtubeUrl": "https://www.youtube.com/watch?v=vGtPNQ6g6Ng",
+      "youtubeUrl": "https://www.youtube.com/watch?v=vleF8-gAn_U",
       "clipStartSeconds": 54,
       "bucketIds": ["slovenian", "2010s", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 2,
-      "videoId": "vGtPNQ6g6Ng",
+      "videoId": "vleF8-gAn_U",
       "canonicalKey": "zalagasper::sebi",
       "embed": {
-        "videoId": "vGtPNQ6g6Ng",
+        "videoId": "vleF8-gAn_U",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Zala Kralj \\u0026 Ga\\u0161per \\u0160antl - Sebi (LIVE) | Slovenia \\ud83c\\uddf8\\ud83c\\uddee | Grand Final | Eurovision 2019\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@Eurovis"
+        "detail": "{\"title\":\"zalagasper - Sebi (Official Video)\",\"author_name\":\"zalagasperVEVO\",\"author_url\":\"https://www.youtube.com/@zalagaspervevo9009\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"p"
       }
     },
     {
@@ -3443,38 +3443,38 @@
       "id": "zeljko-joksimovic-lane-moje",
       "title": "Lane moje",
       "artist": "Željko Joksimović",
-      "youtubeUrl": "https://www.youtube.com/watch?v=z7OvpjplJ_8",
+      "youtubeUrl": "https://www.youtube.com/watch?v=VmvU2slUc6s",
       "clipStartSeconds": 47,
       "bucketIds": ["balkan", "2000s", "eurovision", "throwbacks"],
       "quizCategoryId": "balkan",
       "difficulty": 1,
-      "videoId": "z7OvpjplJ_8",
+      "videoId": "VmvU2slUc6s",
       "canonicalKey": "zeljko joksimovic::lane moje",
       "embed": {
-        "videoId": "z7OvpjplJ_8",
+        "videoId": "VmvU2slUc6s",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Zeljko Joksimovic - Lane Moje | Serbia \\u0026 Montenegro | Grand Final | Eurovision 2004\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongContest\",\"type\":\"video\",\"he"
+        "detail": "{\"title\":\"Lane Moje\",\"author_name\":\"Zeljko Joksimovic - Topic\",\"author_url\":\"https://www.youtube.com/channel/UCUF5hXuxHzXbA_0_CPHWTcQ\",\"type\":\"video\",\"height\":150,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTube\",\"pr"
       }
     },
     {
       "id": "zitti-e-buoni-maneskin",
       "title": "Zitti e buoni",
       "artist": "Måneskin",
-      "youtubeUrl": "https://www.youtube.com/watch?v=RVH5dn1cxAQ",
+      "youtubeUrl": "https://www.youtube.com/watch?v=QN1odfjtMoo",
       "clipStartSeconds": 48,
       "bucketIds": ["eurovision", "global-pop"],
       "quizCategoryId": "eurovision",
       "difficulty": 2,
-      "videoId": "RVH5dn1cxAQ",
+      "videoId": "QN1odfjtMoo",
       "canonicalKey": "maneskin::zitti e buoni",
       "embed": {
-        "videoId": "RVH5dn1cxAQ",
+        "videoId": "QN1odfjtMoo",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"M\\u00e5neskin - Zitti E Buoni (LIVE) | Italy \\ud83c\\uddee\\ud83c\\uddf9 | Grand Final | Winner of Eurovision 2021\",\"author_name\":\"Eurovision Song Contest\",\"author_url\":\"https://www.youtube.com/@EurovisionSongCont"
+        "detail": "{\"title\":\"M\\u00e5neskin - ZITTI E BUONI (Official Video \\u2013 Sanremo \\u0026 EUROVISION 2021 Winners)\",\"author_name\":\"ManeskinVEVO\",\"author_url\":\"https://www.youtube.com/@ManeskinVEVO\",\"type\":\"video\",\"height\":113,\"width"
       }
     },
     {
