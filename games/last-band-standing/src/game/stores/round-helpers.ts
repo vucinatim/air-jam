@@ -1,12 +1,15 @@
 import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "@/game/constants";
 import {
   getRoundOptionLabel,
+  pickRoundOptionSongIds,
+} from "@/game/content/round-options";
+import {
   getSongById,
   getSongCanonicalKey,
   getUniqueSongsForBuckets,
-  pickRoundOptionSongIds,
   pickSongClipStartSeconds,
   type SongBucketId,
+  type SongEntry,
 } from "@/game/content/song-bank";
 import { createEmptyScore } from "@/game/domain/player-utils";
 import {
@@ -25,6 +28,135 @@ export interface PlaylistSelection {
   uniqueSongCount: number;
 }
 
+export type PlaylistDifficultyBand = "easy" | "medium" | "hard";
+
+export interface PlaylistDifficultyTargets {
+  easy: number;
+  medium: number;
+  hard: number;
+}
+
+const playlistDifficultyBands = ["easy", "medium", "hard"] as const;
+
+const getSongDifficultyBand = (song: SongEntry): PlaylistDifficultyBand => {
+  if (song.difficulty <= 2) {
+    return "easy";
+  }
+
+  if (song.difficulty === 3) {
+    return "medium";
+  }
+
+  return "hard";
+};
+
+export const getPlaylistDifficultyTargets = (
+  count: number,
+): PlaylistDifficultyTargets => {
+  const normalizedCount = Math.max(0, Math.floor(count));
+  const easy = Math.round(normalizedCount * 0.3);
+  const hard = Math.round(normalizedCount * 0.2);
+
+  return {
+    easy,
+    medium: normalizedCount - easy - hard,
+    hard,
+  };
+};
+
+const groupSongsByDifficulty = (
+  songs: readonly SongEntry[],
+): Record<PlaylistDifficultyBand, SongEntry[]> => {
+  const groupedSongs: Record<PlaylistDifficultyBand, SongEntry[]> = {
+    easy: [],
+    medium: [],
+    hard: [],
+  };
+
+  songs.forEach((song) => {
+    groupedSongs[getSongDifficultyBand(song)].push(song);
+  });
+
+  return {
+    easy: shuffleList(groupedSongs.easy),
+    medium: shuffleList(groupedSongs.medium),
+    hard: shuffleList(groupedSongs.hard),
+  };
+};
+
+const buildDifficultyRequests = (
+  targets: PlaylistDifficultyTargets,
+): PlaylistDifficultyBand[] =>
+  shuffleList(
+    playlistDifficultyBands.flatMap((band) =>
+      Array.from({ length: targets[band] }, () => band),
+    ),
+  );
+
+const subtractSelectedDifficulties = (
+  targets: PlaylistDifficultyTargets,
+  selectedSongs: readonly SongEntry[],
+): PlaylistDifficultyTargets => {
+  const remainingTargets = { ...targets };
+
+  selectedSongs.forEach((song) => {
+    const band = getSongDifficultyBand(song);
+    remainingTargets[band] = Math.max(0, remainingTargets[band] - 1);
+  });
+
+  return remainingTargets;
+};
+
+const pickBalancedSongBatch = (
+  count: number,
+  songs: readonly SongEntry[],
+  targets: PlaylistDifficultyTargets,
+): SongEntry[] => {
+  const songsByDifficulty = groupSongsByDifficulty(songs);
+  const selectedSongs: SongEntry[] = [];
+
+  buildDifficultyRequests(targets).forEach((band) => {
+    if (selectedSongs.length >= count) {
+      return;
+    }
+
+    const song = songsByDifficulty[band].pop();
+    if (song) {
+      selectedSongs.push(song);
+    }
+  });
+
+  const fallbackSongs = shuffleList(
+    playlistDifficultyBands.flatMap((band) => songsByDifficulty[band]),
+  );
+
+  return [
+    ...selectedSongs,
+    ...fallbackSongs.slice(0, count - selectedSongs.length),
+  ];
+};
+
+const pickBalancedSongs = (
+  count: number,
+  unplayedSongs: readonly SongEntry[],
+  playedSongs: readonly SongEntry[],
+): SongEntry[] => {
+  const targets = getPlaylistDifficultyTargets(count);
+  const selectedUnplayedSongs = pickBalancedSongBatch(
+    Math.min(count, unplayedSongs.length),
+    unplayedSongs,
+    targets,
+  );
+  const remainingCount = count - selectedUnplayedSongs.length;
+  const selectedPlayedSongs = pickBalancedSongBatch(
+    remainingCount,
+    playedSongs,
+    subtractSelectedDifficulties(targets, selectedUnplayedSongs),
+  );
+
+  return shuffleList([...selectedUnplayedSongs, ...selectedPlayedSongs]);
+};
+
 export const pickPlaylistSongs = (
   count: number,
   selectedSongBucketIds: readonly SongBucketId[],
@@ -40,17 +172,13 @@ export const pickPlaylistSongs = (
   }
 
   const playedSongKeySet = new Set(playedSongKeys);
-  const unplayedSongs = shuffleList(
-    uniqueSongs.filter(
-      (song) => !playedSongKeySet.has(getSongCanonicalKey(song)),
-    ),
+  const unplayedSongs = uniqueSongs.filter(
+    (song) => !playedSongKeySet.has(getSongCanonicalKey(song)),
   );
-  const fallbackSongs = shuffleList(
-    uniqueSongs.filter((song) =>
-      playedSongKeySet.has(getSongCanonicalKey(song)),
-    ),
+  const playedSongs = uniqueSongs.filter((song) =>
+    playedSongKeySet.has(getSongCanonicalKey(song)),
   );
-  const selectedSongs = [...unplayedSongs, ...fallbackSongs].slice(0, count);
+  const selectedSongs = pickBalancedSongs(count, unplayedSongs, playedSongs);
 
   return {
     songIds: selectedSongs.map((song) => song.id),
@@ -80,24 +208,33 @@ export const pickPlaylistGuessKinds = (count: number): RoundGuessKind[] => {
   return shuffleList(guessKinds);
 };
 
-export const createRound = (
-  roundNumber: number,
-  songId: string,
-  guessKind: RoundGuessKind,
-  expectedPlayerIds: string[],
-  nowMs: number,
-  roundDurationSec: number,
-): ActiveRound => {
+export interface CreateRoundOptions {
+  roundNumber: number;
+  songId: string;
+  guessKind: RoundGuessKind;
+  expectedPlayerIds: string[];
+  nowMs: number;
+  roundDurationSec: number;
+}
+
+export const createRound = ({
+  roundNumber,
+  songId,
+  guessKind,
+  expectedPlayerIds,
+  nowMs,
+  roundDurationSec,
+}: CreateRoundOptions): ActiveRound => {
   const song = getSongById(songId);
   if (!song) {
     throw new Error(`Cannot create round for missing song: ${songId}`);
   }
 
-  const optionOrder = pickRoundOptionSongIds(
-    song.id,
-    DEFAULT_OPTION_COUNT,
+  const optionOrder = pickRoundOptionSongIds({
+    correctSongId: song.id,
+    optionCount: DEFAULT_OPTION_COUNT,
     guessKind,
-  );
+  });
 
   return {
     roundNumber,

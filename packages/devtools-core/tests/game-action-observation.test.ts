@@ -12,6 +12,13 @@ const createSnapshot = (
   controllerSessionId: "controller-session-1",
   gameId: "fixture-game",
   snapshotStoreDomains: ["default"],
+  runtimeStoreDomains: ["default"],
+  storeDomainBindings: [
+    {
+      contractStoreDomain: "default",
+      runtimeStoreDomain: "default",
+    },
+  ],
   snapshotDescription: null,
   actions: [],
   snapshot: {

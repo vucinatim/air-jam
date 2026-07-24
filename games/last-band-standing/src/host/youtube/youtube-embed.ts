@@ -1,6 +1,13 @@
 const YOUTUBE_ID_REGEX =
   /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
 const YOUTUBE_EMBED_BASE_URL = "https://www.youtube-nocookie.com/embed";
+const YOUTUBE_GAME_PLAYER_PARAMS = {
+  cc_load_policy: "0",
+  controls: "0",
+  disablekb: "1",
+  fs: "0",
+  iv_load_policy: "3",
+} as const;
 
 /**
  * Extracts the start time in seconds from YouTube URLs (t=25, t=1m5s, etc.).
@@ -55,6 +62,7 @@ export const getYouTubeEmbedUrl = (
     enablejsapi: "1",
     playsinline: "1",
     rel: "0",
+    ...YOUTUBE_GAME_PLAYER_PARAMS,
   });
   if (typeof window !== "undefined") {
     params.set("origin", window.location.origin);
@@ -81,12 +89,11 @@ export const getYouTubeBackgroundEmbedUrl = (
   const params = new URLSearchParams({
     autoplay: "1",
     mute: "1",
-    controls: "0",
-    showinfo: "0",
     rel: "0",
     loop: "1",
     playlist: videoId,
     playsinline: "1",
+    ...YOUTUBE_GAME_PLAYER_PARAMS,
   });
   const start = extractYouTubeStartSeconds(youtubeUrl);
   if (start !== null && start > 0) {

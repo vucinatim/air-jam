@@ -35,10 +35,15 @@ export const HostPlayerStrip = () => {
       ? finalRankingPlayerIds
       : rankPlayers(scoreboardByPlayerId);
   const stripPlayerIds = inGame ? rankingPlayerIds : playerOrder;
+  const isDense = stripPlayerIds.length > 6;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-5">
-      <div className="flex items-stretch justify-center gap-3 overflow-x-auto pt-20 pb-10">
+    <div className="lbs-player-strip pointer-events-none absolute inset-x-0 bottom-0 z-30">
+      <div
+        className="lbs-player-strip-grid"
+        data-dense={isDense}
+        data-player-count={stripPlayerIds.length}
+      >
         <AnimatePresence mode="popLayout">
           {stripPlayerIds.map((playerId, index) => {
             const player =
@@ -81,7 +86,7 @@ export const HostPlayerStrip = () => {
                   scale: { type: "spring", stiffness: 400, damping: 15 },
                 }}
                 className={cn(
-                  "relative min-w-[11rem] rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-white shadow-2xl backdrop-blur-md transition-colors duration-300",
+                  "lbs-player-strip-card relative min-w-0 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-white shadow-2xl backdrop-blur-md transition-colors duration-300",
                   hasAnswered && "ring-primary/50 bg-primary/20 ring-2",
                   roundResult?.isCorrect === true &&
                     "ring-primary/60 bg-primary/25",
@@ -108,11 +113,16 @@ export const HostPlayerStrip = () => {
                     {player ? (
                       <PlayerAvatarWithFire
                         player={player}
-                        size="md"
+                        size={isDense ? "sm" : "md"}
                         showFire={score.hasStreakFire}
                       />
                     ) : (
-                      <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full text-base font-bold">
+                      <div
+                        className={cn(
+                          "bg-muted flex items-center justify-center rounded-full text-base font-bold",
+                          isDense ? "h-10 w-10" : "h-12 w-12",
+                        )}
+                      >
                         {getLabelForPlayer(playerId, playerLabelById).charAt(0)}
                       </div>
                     )}
@@ -122,11 +132,13 @@ export const HostPlayerStrip = () => {
                     <span className="block max-w-[140px] truncate text-base leading-tight font-black">
                       {getLabelForPlayer(playerId, playerLabelById)}
                     </span>
-                    <div className="mt-1 flex flex-col text-lg font-bold tabular-nums">
+                    <div className="lbs-player-score mt-1 flex flex-col text-lg font-bold tabular-nums">
                       <span>{score.points} pts</span>
-                      <span>{score.correct} correct</span>
+                      <span className="lbs-player-secondary">
+                        {score.correct} correct
+                      </span>
                     </div>
-                    <div className="mt-1 text-sm font-medium text-white/70">
+                    <div className="lbs-player-response mt-1 text-sm font-medium text-white/70">
                       {responseLabel
                         ? `Answer ${responseLabel}`
                         : `Avg ${formatAverageResponseTime(

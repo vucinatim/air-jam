@@ -3,8 +3,10 @@ import {
   defaultSelectedSongBucketIds,
   getSongCanonicalKey,
   getSongsForBuckets,
+  getSongsForQuizCategory,
   getUniqueSongCountForBuckets,
   getUniqueSongsForBuckets,
+  pickSongClipStartSeconds,
   songBank,
   songBuckets,
   toggleSelectedSongBucketIds,
@@ -16,9 +18,15 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("song bank buckets", () => {
-  it("keeps every visible song bucket playable", () => {
+  it("keeps the expanded road-trip catalog at or above 200 songs", () => {
+    expect(songBank.length).toBeGreaterThanOrEqual(200);
+  });
+
+  it("keeps every visible song bucket large enough for a default match", () => {
     songBuckets.forEach((bucket) => {
-      expect(getSongsForBuckets([bucket.id]).length).toBeGreaterThan(0);
+      expect(getSongsForBuckets([bucket.id]).length).toBeGreaterThanOrEqual(
+        DEFAULT_TOTAL_ROUNDS,
+      );
     });
   });
 
@@ -28,12 +36,94 @@ describe("song bank buckets", () => {
     );
   });
 
-  it("deduplicates songs by canonical artist and title", () => {
+  it("stores each canonical artist and title pair exactly once", () => {
     const uniqueSongs = getUniqueSongsForBuckets(defaultSelectedSongBucketIds);
     const uniqueKeys = new Set(uniqueSongs.map(getSongCanonicalKey));
 
+    expect(songBank).toHaveLength(uniqueKeys.size);
     expect(uniqueSongs).toHaveLength(uniqueKeys.size);
-    expect(uniqueSongs.length).toBeLessThan(songBank.length);
+  });
+
+  it("stores each song id exactly once", () => {
+    expect(new Set(songBank.map((song) => song.id)).size).toBe(songBank.length);
+    songBank.forEach((song) => {
+      expect(song.id).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    });
+  });
+
+  it("uses an explicit deterministic clip start for every song", () => {
+    songBank.forEach((song) => {
+      expect(Number.isInteger(song.clipStartSeconds)).toBe(true);
+      expect(song.clipStartSeconds).toBeGreaterThanOrEqual(0);
+      expect(pickSongClipStartSeconds(song)).toBe(song.clipStartSeconds);
+    });
+  });
+
+  it("gives every song explicit, valid, non-repeating bucket ownership", () => {
+    const validBucketIds = new Set(songBuckets.map((bucket) => bucket.id));
+
+    songBank.forEach((song) => {
+      expect(song.bucketIds.length).toBeGreaterThan(0);
+      expect(new Set(song.bucketIds).size).toBe(song.bucketIds.length);
+      song.bucketIds.forEach((bucketId) => {
+        expect(validBucketIds.has(bucketId)).toBe(true);
+      });
+      expect(song.bucketIds).toContain(song.quizCategoryId);
+    });
+  });
+
+  it("gives every song one curated difficulty from 1 through 5", () => {
+    songBank.forEach((song) => {
+      expect(Number.isInteger(song.difficulty)).toBe(true);
+      expect(song.difficulty).toBeGreaterThanOrEqual(1);
+      expect(song.difficulty).toBeLessThanOrEqual(5);
+    });
+  });
+
+  it("keeps every quiz category viable for title and artist rounds", () => {
+    songBuckets.forEach((bucket) => {
+      const categorySongs = getSongsForQuizCategory(bucket.id);
+      const titleLabels = new Set(
+        categorySongs.map((song) => song.title.trim().toLocaleLowerCase()),
+      );
+      const artistLabels = new Set(
+        categorySongs.map((song) => song.artist.trim().toLocaleLowerCase()),
+      );
+
+      expect(categorySongs.length, bucket.id).toBeGreaterThanOrEqual(4);
+      expect(
+        titleLabels.size,
+        `${bucket.id} title labels`,
+      ).toBeGreaterThanOrEqual(4);
+      expect(
+        artistLabels.size,
+        `${bucket.id} artist labels`,
+      ).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  it("keeps regional browsing buckets inside their matching language pool", () => {
+    (["slovenian", "balkan"] as const).forEach((bucketId) => {
+      getSongsForBuckets([bucketId]).forEach((song) => {
+        expect(song.quizCategoryId).toBe(bucketId);
+      });
+    });
+  });
+
+  it("keeps forced distractors inside the correct quiz category", () => {
+    songBank.forEach((song) => {
+      if (!song.forcedOptionSongId) return;
+
+      const forcedOption = songBank.find(
+        (candidate) => candidate.id === song.forcedOptionSongId,
+      );
+      expect(forcedOption?.quizCategoryId).toBe(song.quizCategoryId);
+    });
+  });
+
+  it("treats an empty bucket selection as an empty song pool", () => {
+    expect(getSongsForBuckets([])).toEqual([]);
+    expect(getUniqueSongsForBuckets([])).toEqual([]);
   });
 
   it("toggles visible buckets and allows an empty selection", () => {
@@ -56,14 +146,17 @@ describe("playlist selection", () => {
     expect(new Set(playlist.songKeys).size).toBe(DEFAULT_TOTAL_ROUNDS);
   });
 
-  it("does not silently cycle small buckets", () => {
-    const playlist = pickPlaylistSongs(DEFAULT_TOTAL_ROUNDS, ["slovenian"]);
+  it("builds a full non-repeating playlist from every visible bucket", () => {
+    songBuckets.forEach((bucket) => {
+      const playlist = pickPlaylistSongs(DEFAULT_TOTAL_ROUNDS, [bucket.id]);
 
-    expect(playlist.uniqueSongCount).toBe(
-      getUniqueSongCountForBuckets(["slovenian"]),
-    );
-    expect(playlist.uniqueSongCount).toBeLessThan(DEFAULT_TOTAL_ROUNDS);
-    expect(playlist.songIds).toEqual([]);
+      expect(playlist.uniqueSongCount).toBe(
+        getUniqueSongCountForBuckets([bucket.id]),
+      );
+      expect(playlist.songIds).toHaveLength(DEFAULT_TOTAL_ROUNDS);
+      expect(new Set(playlist.songIds).size).toBe(DEFAULT_TOTAL_ROUNDS);
+      expect(new Set(playlist.songKeys).size).toBe(DEFAULT_TOTAL_ROUNDS);
+    });
   });
 
   it("prefers songs that have not appeared in the current session", () => {

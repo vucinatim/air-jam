@@ -46,6 +46,8 @@ export interface PreviewControllerWorkspaceProps {
   dockAccessory?: ReactNode;
   maxControllers?: number;
   launcherLabel?: string;
+  launcherVariant?: "full" | "compact";
+  showLauncherWhenIdle?: boolean;
   waitingLabel?: string;
 }
 
@@ -110,6 +112,8 @@ export const PreviewControllerWorkspace = ({
   dockAccessory,
   maxControllers = 2,
   launcherLabel = "Controllers",
+  launcherVariant = "full",
+  showLauncherWhenIdle = true,
   waitingLabel = "Waiting for room",
 }: PreviewControllerWorkspaceProps) => {
   const [mounted, setMounted] = useState(false);
@@ -199,6 +203,8 @@ export const PreviewControllerWorkspace = ({
     () => sessions.filter((session) => !session.minimized),
     [sessions],
   );
+  const launcherVisible =
+    showLauncherWhenIdle || launcherOpen || sessions.length > 0;
   const sortedControllers = useMemo(
     () =>
       [...controllers].sort((left, right) =>
@@ -417,35 +423,48 @@ export const PreviewControllerWorkspace = ({
           style={{ pointerEvents: "auto" }}
         >
           {dockAccessory}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "rounded-full border border-white/25 bg-black/35 px-3 text-white backdrop-blur-sm hover:bg-black/55 disabled:border-white/10 disabled:bg-black/25 disabled:text-white/40",
-            )}
-            aria-expanded={launcherOpen}
-            aria-label={
-              launcherOpen
-                ? "Hide preview controllers"
-                : "Show preview controllers"
-            }
-            title={!joinUrl ? waitingLabel : launcherLabel}
-            onClick={() => setLauncherOpen((current) => !current)}
-          >
-            <MonitorSmartphone className="h-4 w-4" />
-            <span className="text-[11px] font-semibold tracking-[0.16em] uppercase">
-              {launcherLabel}
-            </span>
-            <span className="rounded-full border border-white/12 bg-white/6 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white/88">
-              {sessions.length}
-            </span>
-            {launcherOpen ? (
-              <ChevronUp className="h-4 w-4 text-white/60" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-white/60" />
-            )}
-          </Button>
+          {launcherVisible ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size={launcherVariant === "compact" ? "icon-sm" : "sm"}
+              className={cn(
+                "relative rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-sm hover:bg-black/55 disabled:border-white/10 disabled:bg-black/25 disabled:text-white/40",
+                launcherVariant === "compact" ? "h-9 w-9 p-0" : "gap-2 px-3",
+              )}
+              aria-expanded={launcherOpen}
+              aria-label={
+                launcherOpen
+                  ? `Hide ${launcherLabel.toLowerCase()}`
+                  : `Show ${launcherLabel.toLowerCase()}`
+              }
+              title={!joinUrl ? waitingLabel : launcherLabel}
+              onClick={() => setLauncherOpen((current) => !current)}
+            >
+              <MonitorSmartphone className="h-4 w-4" />
+              {launcherVariant === "full" ? (
+                <>
+                  <span className="text-[11px] font-semibold tracking-[0.16em] uppercase">
+                    {launcherLabel}
+                  </span>
+                  {sessions.length > 0 ? (
+                    <span className="rounded-full border border-white/12 bg-white/6 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white/88">
+                      {sessions.length}
+                    </span>
+                  ) : null}
+                  {launcherOpen ? (
+                    <ChevronUp className="h-4 w-4 text-white/60" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-white/60" />
+                  )}
+                </>
+              ) : sessions.length > 0 ? (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-white/25 bg-slate-950 px-1 text-[9px] leading-none font-semibold text-white">
+                  {sessions.length}
+                </span>
+              ) : null}
+            </Button>
+          ) : null}
         </div>
 
         {launcherOpen ? (

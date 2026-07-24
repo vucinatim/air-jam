@@ -83,7 +83,7 @@ const ControllerScreen = () => {
 
   return (
     <SurfaceViewport orientation="portrait" className="bg-background">
-      <main className="text-foreground absolute inset-0 flex flex-col p-4">
+      <main className="text-foreground absolute inset-0 flex min-h-0 flex-col overflow-hidden p-4">
         <RuntimeShellHeader
           connectionStatus={connectionStatus}
           leftSlot={
@@ -118,7 +118,7 @@ const ControllerScreen = () => {
               />
             )
           }
-          className="border-border/60 bg-background/90"
+          className="border-border/60 bg-background/90 shrink-0"
         />
         <AnimatePresence mode="wait">
           {phase === "lobby" && <ControllerLobby />}

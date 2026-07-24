@@ -13,6 +13,7 @@ import { useHostRoundEffects } from "./use-host-round-effects";
 export function useHostRoundVideoRuntime() {
   const host = useAirJamHost();
   const players = useAirJamHost((state) => state.players);
+  const connectionStatus = useAirJamHost((state) => state.connectionStatus);
   const runtimeState = useAirJamHost((state) => state.runtimeState);
   const nowMs = useNowTick(NOW_TICK_MS);
 
@@ -48,7 +49,7 @@ export function useHostRoundVideoRuntime() {
       ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
       : 0;
 
-  useHostPlayerSync(players, actions);
+  useHostPlayerSync(players, actions, connectionStatus === "connected");
   useHostRoundEffects({ actions, phase, currentRound, roundReveal });
 
   const hostAudio = useHostAudioCues({

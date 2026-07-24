@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-05-08  
+Last updated: 2026-07-24
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -30,6 +30,30 @@ Before the 2026-05-08 repo operating system reset, the repo already had these ma
 6. the launch set and late prerelease hardening work were already largely complete
 
 For the detailed pre-reset execution story, use the archived ledger snapshot above.
+
+## 2026-07-24 - Android Auto Platform Foundation Closed
+
+- completed Goal 1 of the active
+  [Android Auto road-trip plan](./plans/android-auto-road-trip-plan.md)
+- kept public on-screen controllers as a zero-setup demo while making their
+  launcher contextual:
+  - full discovery in an empty Arcade
+  - compact fallback when appropriate
+  - hidden during phone-connected gameplay
+- made semantic agent sessions resolve Arcade's authoritative active surface and
+  epoch-scoped embedded store domain without changing portable game contracts
+- re-proved local app-ID bootstrap and explicit 16-player Arcade room capacity
+- measured the connected Galaxy S24 fullscreen safe area and kept the
+  controller menu tear top-center below its camera cutout
+- installed and visually confirmed the canonical Air Jam Android launcher icon
+- closed the phase with:
+  - SDK typecheck/build and 270 tests
+  - devtools typecheck/build and 50 tests
+  - Platform typecheck/lint/build and 162 tests
+  - Android unit/lint/debug/release gates
+- recorded the newly found missing root `pnpm run dev` contract as GitHub issue
+  #40 instead of expanding the road-trip scope
+- left all implementation local and unpublished pending explicit user approval
 
 ## 2026-05-08 - Railway Consolidation Simplified The Deploy Model
 
@@ -199,3 +223,21 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
 - validated that the empty-environment plus selected-service-sync idea was also not ready because Railway's available primitive created global copy-services instead of reusing the canonical project services
 - locked the architectural conclusion:
   - the repo-owned ephemeral full-stack preview lane remains the canonical implementation until Railway exposes a cleaner supported primitive we can prove end to end
+
+## 2026-07-24 - Android Auto Road Trip Goal 2 Closed
+
+- completed Last Band Standing's correctness and results milestone:
+  - every song now has one canonical quiz category and a curated difficulty
+  - every four-option round stays inside that category with unique visible
+    labels
+  - the host reveal reports every player's result, time, round gain, and total
+  - ten-player controller standings scroll while the lobby action remains
+    pinned
+  - lobby category selection is explicit on host and controller
+- proved complete ten-round matches with two, six, and ten players
+- passed the exact car reveal layouts at `800x480` and `1920x720`
+- passed standings bottom-reachability at all four supported phone sizes
+- opened Air Jam issue #42 for incorrect agent-contract inference when
+  game-session tooling receives a game-local `cwd` without `gameId`
+- moved the active road-trip plan to Goal 3: user-reviewed harder-song curation
+  and focused visual polish

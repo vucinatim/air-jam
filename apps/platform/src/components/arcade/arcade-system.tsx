@@ -40,8 +40,14 @@ import {
   writeArcadeBrowserOverlayPreference,
 } from "./arcade-browser-overlay-preference";
 import { ArcadeChrome } from "./arcade-chrome";
+import {
+  resolveInitialArcadeBrowserOverlay,
+  type ArcadeLaunchQuery,
+} from "./arcade-launch-query";
+import styles from "./arcade-layout.module.css";
 import { ArcadeLoader } from "./arcade-loader";
 import { setArcadePlatformSettings } from "./arcade-platform-settings-store";
+import { resolveArcadePreviewControllerLauncherPresentation } from "./arcade-preview-controller-launcher";
 import {
   ARCADE_BROWSER_PATH,
   EXIT_COOLDOWN_MS,
@@ -83,6 +89,9 @@ const ARCADE_PING_AVATAR_LIFETIME_MS = 850;
 const ARCADE_MAX_ACTIVE_PINGS = 3;
 const ARCADE_PING_STACK_OFFSET_PX = 38;
 const ARCADE_HISTORY_SURFACE_KEY = "__airJamArcadeSurface";
+const DEFAULT_ARCADE_LAUNCH_QUERY: ArcadeLaunchQuery = {
+  initialOverlay: null,
+};
 
 interface ActiveArcadePing {
   id: string;
@@ -185,6 +194,8 @@ interface ArcadeSystemProps {
   className?: string;
   /** Enable host-local preview controllers for this surface. */
   previewControllersEnabled?: boolean;
+  /** Explicit URL launch request parsed by the owning Arcade route. */
+  launchQuery?: ArcadeLaunchQuery;
 }
 
 /**
@@ -206,6 +217,7 @@ export const ArcadeSystem = ({
   onExitGame,
   className,
   previewControllersEnabled = false,
+  launchQuery = DEFAULT_ARCADE_LAUNCH_QUERY,
 }: ArcadeSystemProps) => {
   const platformArcadeHostSessionConfig = useMemo(
     () => getPlatformArcadeHostSessionConfig(),
@@ -321,6 +333,14 @@ export const ArcadeSystem = ({
     () => readArcadeBrowserOverlayPreference(mode),
     [mode],
   );
+  const getInitialBrowserOverlay = useCallback(
+    () =>
+      resolveInitialArcadeBrowserOverlay(
+        launchQuery,
+        getPreferredBrowserOverlay(),
+      ),
+    [getPreferredBrowserOverlay, launchQuery],
+  );
   const writePreferredBrowserOverlay = useCallback(
     (overlay: "hidden" | "qr") => {
       writeArcadeBrowserOverlayPreference(mode, overlay);
@@ -369,7 +389,7 @@ export const ArcadeSystem = ({
 
     if (previousRoomId !== null && previousRoomId !== host.roomId) {
       surfaceActions.resetHostSurfaceForMode({ mode });
-      surfaceActions.setOverlay({ overlay: getPreferredBrowserOverlay() });
+      surfaceActions.setOverlay({ overlay: getInitialBrowserOverlay() });
       return;
     }
 
@@ -378,9 +398,9 @@ export const ArcadeSystem = ({
     }
 
     surfaceActions.resetHostSurfaceForMode({ mode });
-    surfaceActions.setOverlay({ overlay: getPreferredBrowserOverlay() });
+    surfaceActions.setOverlay({ overlay: getInitialBrowserOverlay() });
   }, [
-    getPreferredBrowserOverlay,
+    getInitialBrowserOverlay,
     host.roomId,
     host.socket?.connected,
     mode,
@@ -976,6 +996,11 @@ export const ArcadeSystem = ({
   }
 
   const isBrowserChromeVisible = showChrome && surfaceKind === "browser";
+  const previewControllerLauncherPresentation =
+    resolveArcadePreviewControllerLauncherPresentation({
+      surfaceKind,
+      controllers: host.controllers,
+    });
 
   // Preview mode: show loading until surface is game with a join token (launch + hydration)
   if (
@@ -1006,6 +1031,7 @@ export const ArcadeSystem = ({
     <div
       className={cn(
         "flex h-full w-full flex-col overflow-hidden bg-slate-950 font-sans text-slate-50",
+        styles.arcadeViewport,
         className,
       )}
     >
@@ -1057,7 +1083,14 @@ export const ArcadeSystem = ({
 
         {/* Optional top header */}
         {header && (
-          <div className="absolute top-0 right-0 left-0 z-70 p-4">{header}</div>
+          <div
+            className={cn(
+              "absolute top-0 right-0 left-0 z-70 p-4",
+              styles.customHeader,
+            )}
+          >
+            {header}
+          </div>
         )}
 
         <div className="pointer-events-none absolute inset-x-0 bottom-8 z-70 flex justify-center px-6">
@@ -1119,7 +1152,10 @@ export const ArcadeSystem = ({
               role="dialog"
               aria-modal="true"
               aria-label="Platform settings"
-              className="absolute inset-0 z-[55] flex justify-end bg-black/45 px-4 py-16 backdrop-blur-sm sm:px-6"
+              className={cn(
+                "absolute inset-0 z-[55] flex justify-end bg-black/45 px-4 py-16 backdrop-blur-sm sm:px-6",
+                styles.settingsOverlay,
+              )}
               initial={{
                 opacity: 0,
                 x: reducedMotion ? 0 : 12,
@@ -1137,7 +1173,7 @@ export const ArcadeSystem = ({
               onClick={() => setSettingsOpen(false)}
             >
               <motion.div
-                className="w-full max-w-md"
+                className={cn("w-full max-w-md", styles.settingsPanel)}
                 initial={{ opacity: 0, y: reducedMotion ? 0 : -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: reducedMotion ? 0 : -8 }}
@@ -1168,6 +1204,12 @@ export const ArcadeSystem = ({
               unavailableLabel="QR unavailable"
               qrAlt="QR code to join this room as a controller"
               size={ARCADE_QR_OVERLAY_SIZE}
+              className={styles.qrOverlay}
+              panelClassName={styles.qrPanel}
+              qrClassName={styles.qrSurface}
+              bodyClassName={styles.qrSurface}
+              messageClassName={styles.qrSurface}
+              descriptionClassName={styles.qrDescription}
             />
           ) : null}
         </AnimatePresence>
@@ -1217,6 +1259,12 @@ export const ArcadeSystem = ({
         <PreviewControllerWorkspace
           enabled={previewControllersEnabled}
           joinUrl={joinQrStatus === "ready" ? arcadeJoinUrl : null}
+          controllers={host.controllers}
+          launcherLabel={previewControllerLauncherPresentation.label}
+          launcherVariant={previewControllerLauncherPresentation.variant}
+          showLauncherWhenIdle={
+            previewControllerLauncherPresentation.showWhenIdle
+          }
           highContrast={highContrast}
           onActiveOpacityChange={(activeOpacity) =>
             updatePreviewControllers({ activeOpacity })

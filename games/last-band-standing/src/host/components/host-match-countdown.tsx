@@ -25,13 +25,13 @@ export const HostMatchCountdown = () => {
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex h-full flex-col items-center justify-center gap-5 px-8 pb-28 text-center">
+      <div className="lbs-stage-content flex h-full flex-col items-center justify-center gap-5 px-8 text-center">
         <p className="text-muted-foreground text-sm tracking-[0.2em] uppercase">
           Round {currentRound.roundNumber}
         </p>
         <motion.div
           key={countdownSeconds}
-          className="title text-primary text-[8rem] leading-none md:text-[11rem]"
+          className="lbs-match-countdown title text-primary text-[8rem] leading-none md:text-[11rem]"
           initial={{ opacity: 0, scale: 0.7 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 320, damping: 18 }}

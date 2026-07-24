@@ -7,6 +7,7 @@ import {
   inspectControllerSessionContext,
   invokeControllerAction,
   readRuntimeSnapshot,
+  resolveControllerSessionGameRuntime,
 } from "./controller.js";
 import {
   classifyGameActionOutcome,
@@ -159,7 +160,11 @@ export const readGameSnapshot = async ({
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: ReadGameSnapshotOptions): Promise<AirJamGameSnapshotInspection> => {
   const session = inspectControllerSessionContext(controllerSessionId);
-  if (!session.gameId) {
+  const runtime = await resolveControllerSessionGameRuntime({
+    controllerSessionId,
+    timeoutMs,
+  });
+  if (!runtime.gameId) {
     throw new Error(
       `Controller session "${controllerSessionId}" is not associated with an Air Jam game.`,
     );
@@ -167,26 +172,43 @@ export const readGameSnapshot = async ({
 
   const contract = await inspectGameAgentContract({
     cwd: session.cwd,
-    gameId: session.gameId,
+    gameId: runtime.gameId,
   });
   if (!contract.hasContract) {
     throw new Error(
-      `Game "${session.gameId}" does not publish an agent contract yet.`,
+      `Game "${runtime.gameId}" does not publish an agent contract yet.`,
     );
   }
 
+  const storeDomainBindings = contract.snapshotStoreDomains.map(
+    (contractStoreDomain) => ({
+      contractStoreDomain,
+      runtimeStoreDomain:
+        contractStoreDomain === "default"
+          ? runtime.defaultStoreDomain
+          : contractStoreDomain,
+    }),
+  );
+  const runtimeStoreDomains = storeDomainBindings.map(
+    (binding) => binding.runtimeStoreDomain,
+  );
   const runtimeSnapshot = await readRuntimeSnapshot({
     controllerSessionId,
-    storeDomains: contract.snapshotStoreDomains,
+    storeDomains: runtimeStoreDomains,
     requestSync,
     timeoutMs,
   });
   const rawStores = runtimeSnapshot.storeSnapshots.filter((snapshot) =>
-    contract.snapshotStoreDomains.includes(snapshot.storeDomain),
+    runtimeStoreDomains.includes(snapshot.storeDomain),
   );
-  const storesPayload = rawStores.reduce<Record<string, JsonObject>>(
-    (nextStores, snapshot) => {
-      nextStores[snapshot.storeDomain] = snapshot.data;
+  const storesPayload = storeDomainBindings.reduce<Record<string, JsonObject>>(
+    (nextStores, binding) => {
+      const snapshot = rawStores.find(
+        (candidate) => candidate.storeDomain === binding.runtimeStoreDomain,
+      );
+      if (snapshot) {
+        nextStores[binding.contractStoreDomain] = snapshot.data;
+      }
       return nextStores;
     },
     {},
@@ -197,7 +219,7 @@ export const readGameSnapshot = async ({
   }>({
     cwd: session.cwd,
     configPath: (
-      await inspectGame({ cwd: session.cwd, gameId: session.gameId })
+      await inspectGame({ cwd: session.cwd, gameId: runtime.gameId })
     ).configPath,
     operation: "project",
     args: [
@@ -210,8 +232,10 @@ export const readGameSnapshot = async ({
 
   return {
     controllerSessionId,
-    gameId: session.gameId,
+    gameId: runtime.gameId,
     snapshotStoreDomains: [...contract.snapshotStoreDomains],
+    runtimeStoreDomains,
+    storeDomainBindings,
     snapshotDescription: contract.snapshotDescription,
     actions: contract.actions,
     snapshot: helperResult.snapshot,
@@ -282,7 +306,11 @@ export const invokeGameAction = async ({
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: InvokeGameActionOptions): Promise<InvokeGameActionResult> => {
   const session = inspectControllerSessionContext(controllerSessionId);
-  if (!session.gameId) {
+  const runtime = await resolveControllerSessionGameRuntime({
+    controllerSessionId,
+    timeoutMs,
+  });
+  if (!runtime.gameId) {
     throw new Error(
       `Controller session "${controllerSessionId}" is not associated with an Air Jam game.`,
     );
@@ -290,11 +318,11 @@ export const invokeGameAction = async ({
 
   const contract = await inspectGameAgentContract({
     cwd: session.cwd,
-    gameId: session.gameId,
+    gameId: runtime.gameId,
   });
   if (!contract.hasContract) {
     throw new Error(
-      `Game "${session.gameId}" does not publish an agent contract yet.`,
+      `Game "${runtime.gameId}" does not publish an agent contract yet.`,
     );
   }
 
@@ -303,7 +331,7 @@ export const invokeGameAction = async ({
   );
   if (!action) {
     throw new Error(
-      `Unknown game action "${actionId}" for game "${session.gameId}".`,
+      `Unknown game action "${actionId}" for game "${runtime.gameId}".`,
     );
   }
 
@@ -315,7 +343,7 @@ export const invokeGameAction = async ({
 
   const resolvedPayload = await resolveGameActionPayload({
     cwd: session.cwd,
-    gameId: session.gameId,
+    gameId: runtime.gameId,
     actionId,
     payload,
   });
@@ -323,7 +351,10 @@ export const invokeGameAction = async ({
   const result = await invokeControllerAction({
     controllerSessionId,
     actionName: action.target.actionName,
-    storeDomain: action.target.storeDomain,
+    storeDomain:
+      snapshotBefore.storeDomainBindings.find(
+        (binding) => binding.contractStoreDomain === action.target.storeDomain,
+      )?.runtimeStoreDomain ?? action.target.storeDomain,
     payload: resolvedPayload,
   });
   const snapshotAfter = await readGameSnapshot({

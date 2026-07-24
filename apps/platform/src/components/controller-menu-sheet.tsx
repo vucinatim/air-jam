@@ -1,7 +1,7 @@
 "use client";
 
-import { ControllerMenuNotch } from "@/components/controller-menu-notch";
 import { ControllerLocalSettingsPanel } from "@/components/controller-local-settings-panel";
+import { ControllerMenuNotch } from "@/components/controller-menu-notch";
 import { PlatformSettingsPanel } from "@/components/platform-settings-panel";
 import {
   AlertDialog,
@@ -66,7 +66,9 @@ interface ControllerMenuSheetProps {
   hapticsEnabled: boolean;
   roomPlatformSettings: RoomPlatformSettingsSnapshot | null;
   roomPlatformSettingsReadOnly: boolean;
-  onUpdateRoomPlatformSettings: (patch: PartialRoomPlatformSettingsPatch) => void;
+  onUpdateRoomPlatformSettings: (
+    patch: PartialRoomPlatformSettingsPatch,
+  ) => void;
   controllerLocalSettings: ControllerLocalSettingsSnapshot;
   onUpdateControllerLocalSettings: (
     patch: Partial<ControllerLocalSettingsSnapshot>,
@@ -394,11 +396,14 @@ export function ControllerMenuSheet({
     };
   }, [scanning]);
 
-  const topChromeStyle: CSSProperties | undefined = documentFullscreen
-    ? undefined
-    : { paddingTop: "0.5rem" };
+  const topChromeStyle: CSSProperties = {
+    paddingTop: documentFullscreen
+      ? "calc(env(safe-area-inset-top, 0px) + 0.5rem)"
+      : "max(0.5rem, env(safe-area-inset-top, 0px))",
+  };
   const overlayFrameClass = "flex-col bg-black/97";
-  const overlayPanelClass = "touch-auto flex h-full w-full flex-col bg-black/97";
+  const overlayPanelClass =
+    "touch-auto flex h-full w-full flex-col bg-black/97";
   const overlayBodyClass =
     "touch-auto min-h-0 flex-1 overflow-y-auto px-3 py-6";
   const notchIconTransition = { duration: 0.15 };

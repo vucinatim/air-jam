@@ -32,13 +32,13 @@ export const HostTopBar = () => {
     : 0;
 
   return (
-    <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5">
+    <header className="lbs-host-top-bar flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5">
       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-visible">
-        <FullLogo size={160} className="text-foreground" />
+        <FullLogo className="lbs-host-top-bar-logo text-foreground" />
       </div>
 
       {isPlaying && currentRound && (
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-6 text-center">
+        <div className="lbs-host-round-meta flex min-w-0 flex-1 items-center justify-center gap-6 text-center">
           <span className="text-muted-foreground text-sm">
             Round {currentRound.roundNumber}/{totalRounds}
           </span>
@@ -49,7 +49,7 @@ export const HostTopBar = () => {
       )}
       <div className="flex min-w-0 flex-1 items-center justify-end">
         {phase === "round-active" && currentRound && (
-          <div className="flex items-center gap-3">
+          <div className="lbs-host-answer-status flex items-center gap-3">
             <span className="text-muted-foreground text-xs">
               {answeredCount}/{currentRound.expectedPlayerIds.length} answered
             </span>

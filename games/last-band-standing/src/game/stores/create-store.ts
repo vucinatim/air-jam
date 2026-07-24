@@ -235,14 +235,14 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
             playlistSelection.songKeys,
           ),
           completedRoundCount: 0,
-          currentRound: createRound(
-            1,
-            firstSongId,
-            firstGuessKind,
-            activePlayerIds,
-            roundStartsAtMs,
-            state.roundDurationSec,
-          ),
+          currentRound: createRound({
+            roundNumber: 1,
+            songId: firstSongId,
+            guessKind: firstGuessKind,
+            expectedPlayerIds: activePlayerIds,
+            nowMs: roundStartsAtMs,
+            roundDurationSec: state.roundDurationSec,
+          }),
           answersByPlayerId: {},
           roundReveal: null,
           scoreboardByPlayerId: createInitialScoreboard(activePlayerIds),
@@ -366,14 +366,14 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
 
         return {
           phase: "round-active",
-          currentRound: createRound(
-            nextRoundNumber,
-            nextSongId,
-            nextGuessKind,
-            state.activePlayerIds,
-            currentTimeMs,
-            state.roundDurationSec,
-          ),
+          currentRound: createRound({
+            roundNumber: nextRoundNumber,
+            songId: nextSongId,
+            guessKind: nextGuessKind,
+            expectedPlayerIds: state.activePlayerIds,
+            nowMs: currentTimeMs,
+            roundDurationSec: state.roundDurationSec,
+          }),
           answersByPlayerId: {},
           roundReveal: null,
         };

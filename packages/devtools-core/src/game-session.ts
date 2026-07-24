@@ -10,6 +10,7 @@ import {
   disconnectController,
   invokeHostAction,
   readRuntimeSnapshot,
+  resolveControllerSessionGameRuntime,
   sendControllerInput,
 } from "./controller.js";
 import { getTopology } from "./dev.js";
@@ -272,7 +273,12 @@ const buildOpenSummary = async ({
   gameActions: AirJamGameAgentActionDescriptor[];
   harnessActions: AirJamHarnessSnapshotInspection["actions"];
 }> => {
-  const resolvedGameId = controllerSession.gameId ?? options.gameId ?? null;
+  const runtime = await resolveControllerSessionGameRuntime({
+    controllerSessionId: controllerSession.controllerSessionId,
+    timeoutMs: options.timeoutMs,
+  });
+  const resolvedGameId =
+    runtime.gameId ?? controllerSession.gameId ?? options.gameId ?? null;
   const agentContract =
     resolvedGameId !== null
       ? await inspectGameAgentContract({
@@ -341,10 +347,19 @@ export const openGameSession = async (
   options: OpenGameSessionOptions = {},
 ): Promise<AirJamGameSessionSummary> => {
   const controllerSession = await connectController(options);
-  const { summary, gameActions, harnessActions } = await buildOpenSummary({
-    options,
-    controllerSession,
-  });
+  let openSummary: Awaited<ReturnType<typeof buildOpenSummary>>;
+  try {
+    openSummary = await buildOpenSummary({
+      options,
+      controllerSession,
+    });
+  } catch (error) {
+    await disconnectController({
+      controllerSessionId: controllerSession.controllerSessionId,
+    }).catch(() => undefined);
+    throw error;
+  }
+  const { summary, gameActions, harnessActions } = openSummary;
 
   gameSessions.set(summary.gameSessionId, {
     summary,
@@ -499,7 +514,11 @@ export const invokeGameSessionAction = async (
     const result = await invokeHostAction({
       controllerSessionId: session.summary.controllerSessionId,
       actionName: resolvedAction.actionName,
-      storeDomain: resolvedAction.storeDomain,
+      storeDomain:
+        snapshotBefore.storeDomainBindings.find(
+          (binding) =>
+            binding.contractStoreDomain === resolvedAction.storeDomain,
+        )?.runtimeStoreDomain ?? resolvedAction.storeDomain,
       payload: resolvedPayload,
     });
     const snapshotAfter = await readGameSnapshot({
@@ -527,7 +546,11 @@ export const invokeGameSessionAction = async (
         actionId: resolvedAction.actionId,
         lane: "host",
         actionName: resolvedAction.actionName,
-        storeDomain: resolvedAction.storeDomain,
+        storeDomain:
+          snapshotBefore.storeDomainBindings.find(
+            (binding) =>
+              binding.contractStoreDomain === resolvedAction.storeDomain,
+          )?.runtimeStoreDomain ?? resolvedAction.storeDomain,
         ...(options.payload !== undefined ? { payload: options.payload } : {}),
         sentAt: new Date().toISOString(),
         acknowledgement,
