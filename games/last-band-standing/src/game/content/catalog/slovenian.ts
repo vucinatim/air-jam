@@ -85,7 +85,7 @@ export const slovenianSongAdditions = [
     id: "maraaya-here-for-you",
     title: "Here for You",
     artist: "Maraaya",
-    youtubeUrl: "https://www.youtube.com/watch?v=3Vv-R0Pmft4",
+    youtubeUrl: "https://www.youtube.com/watch?v=y0MVn4XENkI",
     clipStartSeconds: 61,
     bucketIds: ["slovenian", "2010s", "eurovision"],
   },

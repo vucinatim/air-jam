@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-24T18:34:57.215Z",
+  "generatedAt": "2026-07-24T18:38:15.840Z",
   "summary": {
     "totalSongs": 180,
     "totalBuckets": 10,
@@ -2017,19 +2017,19 @@
       "id": "maraaya-here-for-you",
       "title": "Here for You",
       "artist": "Maraaya",
-      "youtubeUrl": "https://www.youtube.com/watch?v=3Vv-R0Pmft4",
+      "youtubeUrl": "https://www.youtube.com/watch?v=y0MVn4XENkI",
       "clipStartSeconds": 61,
       "bucketIds": ["slovenian", "2010s", "eurovision"],
       "quizCategoryId": "slovenian",
       "difficulty": 3,
-      "videoId": "3Vv-R0Pmft4",
+      "videoId": "y0MVn4XENkI",
       "canonicalKey": "maraaya::here for you",
       "embed": {
-        "videoId": "3Vv-R0Pmft4",
+        "videoId": "y0MVn4XENkI",
         "embeddable": true,
         "status": "ok",
         "httpStatus": 200,
-        "detail": "{\"title\":\"Maraaya - Here For You (Official Audio Video HQ)\",\"author_name\":\"Heaven Music\",\"author_url\":\"https://www.youtube.com/@HeavenMusic\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_name\":\"YouTub"
+        "detail": "{\"title\":\"Maraaya \\u2013 Here For You (Official Music Video) (HD) (HQ)\",\"author_name\":\"BIP Records\",\"author_url\":\"https://www.youtube.com/@biprecordsbe\",\"type\":\"video\",\"height\":113,\"width\":200,\"version\":\"1.0\",\"provider_n"
       }
     },
     {
