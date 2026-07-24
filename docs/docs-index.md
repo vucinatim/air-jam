@@ -25,17 +25,14 @@ Default agent loop:
 
 ## Active Now
 
-The v1 release plan remains the governing product track:
+The v1 release plan is the governing product track:
 
 1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
 
-One short-lived urgent execution plan is active for the 2026-07-25 road trip:
-
-1. [plans/android-auto-road-trip-plan.md](./plans/android-auto-road-trip-plan.md)
-
-Durable Last Band Standing and platform improvements from the road-trip plan
-must feed back into the v1 release proof rather than becoming a parallel product
-architecture.
+The completed Android Auto work is preserved in the
+[2026-07-24 road-trip archive](./archive/2026-07-24-android-auto-road-trip-plan.md).
+Its durable Last Band Standing and platform improvements now feed into the v1
+release proof rather than a parallel product architecture.
 
 ## Planned Next
 

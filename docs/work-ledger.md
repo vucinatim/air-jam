@@ -34,7 +34,7 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
 ## 2026-07-24 - Android Auto Platform Foundation Closed
 
 - completed Goal 1 of the active
-  [Android Auto road-trip plan](./plans/android-auto-road-trip-plan.md)
+  [Android Auto road-trip plan](./archive/2026-07-24-android-auto-road-trip-plan.md)
 - kept public on-screen controllers as a zero-setup demo while making their
   launcher contextual:
   - full discovery in an empty Arcade
@@ -241,3 +241,29 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
   game-session tooling receives a game-local `cwd` without `gameId`
 - moved the active road-trip plan to Goal 3: user-reviewed harder-song curation
   and focused visual polish
+
+## 2026-07-24 - Android Auto Road Trip Release Closed
+
+- completed and archived the
+  [Android Auto road-trip plan](./archive/2026-07-24-android-auto-road-trip-plan.md)
+- merged Air Jam PR #41 after the full release doctor, GitHub CI, and Railway
+  preview checks passed
+- deployed the platform, realtime server, and release browser worker
+  successfully to Railway production
+- repaired two release-time platform defects:
+  - platform previews now use their own Postgres service reference
+  - the release browser worker now exposes one stable authenticated `/ws`
+    endpoint across deploys
+- published Last Band Standing `0.2.1` as the live hosted release:
+  - 206 canonical songs
+  - unique same-category answer options
+  - controller-owned between-round rankings
+  - scrollable final standings
+  - responsive Android Auto and phone layouts
+  - chrome-free YouTube playback
+  - successful artifact validation and canonical screenshot capture
+- merged the Android wrapper PR and published signed GitHub Release `v1.0.2`
+  with a checksum while retaining `v1.0.0` for rollback
+- verified the production platform and realtime health endpoints, public Arcade
+  listing, hosted release render, and authenticated browser-worker connection
+- left only non-blocking human clip-start listening and tuning for later polish

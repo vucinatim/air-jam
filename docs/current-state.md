@@ -25,19 +25,16 @@ For historical progress, use [work-ledger.md](./work-ledger.md).
 
 ## Current Focus
 
-Air Jam is no longer mainly blocked on platform or preview infrastructure.
+Air Jam is no longer blocked on the Android Auto road-trip release or preview
+infrastructure.
 
-The repo is currently focused on four things:
+The repo is currently focused on three things:
 
-1. completing the short-lived
-   [Android Auto road-trip plan](./plans/android-auto-road-trip-plan.md) for
-   2026-07-25 without turning the private wrapper into a new framework
-   architecture
-2. working from the cleaned repo operating system baseline instead of from
+1. working from the cleaned repo operating system baseline instead of from
    historical drift
-3. running the final prerelease manual proof and hosted release proof for the v1
+2. running the final prerelease manual proof and hosted release proof for the v1
    launch set
-4. keeping the now-simpler Railway-first deployment model boring while
+3. keeping the now-simpler Railway-first deployment model boring while
    preparing the launch-facing landing, media, and discoverability execution
    that follows the final proof pass
 
@@ -120,8 +117,6 @@ The important remaining work is now late-stage and launch-facing:
 5. execute the release-facing landing, media, article, and discoverability work after the go / no-go pass
 6. decide which small user-facing polish items still deserve inclusion before launch, such as creator attribution enhancements
 7. keep the public story aligned around the AI-native framework thesis instead of drifting back into generic platform/framework language
-8. complete Goal 3 song curation and focused visual polish, then publish the
-   locally and real-car-proven road-trip changes after explicit approval
 
 ## Active Now
 
@@ -129,17 +124,11 @@ The v1 release plan remains the governing product plan:
 
 1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
 
-One short-lived urgent plan is active for the 2026-07-25 road trip:
-
-1. [plans/android-auto-road-trip-plan.md](./plans/android-auto-road-trip-plan.md)
-
-The road-trip plan may improve Last Band Standing, Arcade presentation, and the
-private Android wrapper, but it must not create a competing Air Jam runtime
-model.
-
 ## Recent Closures
 
-The preview system closeout, Railway API control-surface replacement, and repo operating system reset are closed and archived.
+The Android Auto road-trip release, preview system closeout, Railway API
+control-surface replacement, and repo operating system reset are closed and
+archived.
 
 They should no longer compete with launch execution.
 
@@ -156,8 +145,9 @@ These are real next-step tracks, but they should not displace the launch closeou
 
 ## Immediate Next Steps
 
-1. complete the user-reviewed Last Band Standing medium/hard song curation and
-   focused UI polish pass, then publish the validated update
+1. include the live Last Band Standing `0.2.1` release in the remaining v1
+   launch-set proof
+2. treat further clip-start listening and tuning as non-blocking content polish
 2. run the final manual release proof against the five-game launch set
 3. run the hosted upload and managed media proof on the real platform lane
 4. complete the Railway domain cutover and re-run the production smoke checks

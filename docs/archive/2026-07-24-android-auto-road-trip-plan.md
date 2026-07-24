@@ -1,13 +1,13 @@
 # Android Auto Road Trip Plan
 
 Last updated: 2026-07-24
-Status: active; Goals 1 through 3 complete, Goal 4 in progress
+Status: complete; archived after successful production publication
 Target: road-trip-ready build for 2026-07-25
 
 Related docs:
 
 1. [Current State](../current-state.md)
-2. [Final V1 Release Plan](./v1-release-plan.md)
+2. [Final V1 Release Plan](../plans/v1-release-plan.md)
 3. [Framework Paradigm](../framework-paradigm.md)
 4. [Release Workflow](../strategy/release-workflow.md)
 5. [Working Agreements](../working-agreements.md)
@@ -1873,7 +1873,33 @@ Resolved configuration:
    tests, every workspace build, strict performance sanity, four browser
    smoke tests, and all scaffold smoke builds
 
-Pending:
+Completed:
 
-1. confirm the corrected Railway PR platform deployment turns green
-2. ready, merge, deploy, publish the hosted game release, and smoke production
+1. corrected Railway PR #41 turned green after the platform database reference
+   and standalone runtime fixes
+2. PR #41 was reviewed, passed the complete release doctor and every required
+   GitHub/Railway check, and merged as `f8d584c`
+3. production platform, realtime server, and release browser worker deployments
+   all reached `SUCCESS`
+4. production health checks passed for `airjam.io`, the public Arcade, and
+   `api.airjam.io`
+5. the mobile wrapper PR merged and GitHub Actions published the signed,
+   versioned
+   [v1.0.2 APK](https://github.com/domenkoscak/airjam-mobile/releases/tag/v1.0.2)
+   with a checksum while preserving v1.0.0 for rollback
+6. the hosted-release preflight exposed an unconfigured and unstable browser
+   worker endpoint; [issue #47](https://github.com/vucinatim/air-jam/issues/47)
+   and PR #48 made the endpoint stable at `/ws` and added matching production
+   authentication
+7. the production browser worker advertised `/ws`, rejected unauthenticated
+   requests, and accepted an authenticated Playwright connection
+8. Last Band Standing `0.2.1` passed artifact validation and canonical
+   screenshot capture, then became the live release
+9. the live hosted bundle rendered the complete 206-song category lobby
+10. the production Arcade listed Last Band Standing and created a connected
+    preview controller
+
+Non-blocking follow-up:
+
+1. listen through the newly added clip starts and tune any quiet,
+   spoiler-heavy, or weak starts after the road trip
