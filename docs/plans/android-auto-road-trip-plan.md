@@ -690,6 +690,57 @@ Eurovision and Dance / EDM:
 - [ ] Benny Benassi presents The Biz — Satisfaction — difficulty 3
 - [ ] Duke Dumont — Ocean Drive — difficulty 4
 
+Candidate source research:
+
+The following metadata is prepared but not yet part of the catalog. All 36
+video ids currently return HTTP 200 through the same YouTube oEmbed check used
+by the repository validator, none duplicates an existing catalog video, and
+none of the canonical artist/title pairs duplicates the current 144 songs.
+Clip starts are provisional until playback is sampled after approval.
+
+| Artist              | Song                   | YouTube source                                | Start |
+| ------------------- | ---------------------- | --------------------------------------------- | ----: |
+| Dan D               | Voda                   | [`rr_x41eIgB4`](https://youtu.be/rr_x41eIgB4) |   52s |
+| Koala Voice         | Go Disco, Go           | [`QscWr0JxWrU`](https://youtu.be/QscWr0JxWrU) |   35s |
+| Siddharta           | Napoj                  | [`G6whSCaK8gQ`](https://youtu.be/G6whSCaK8gQ) |   51s |
+| Big Foot Mama       | Led s severa           | [`ExmoTeC3e5g`](https://youtu.be/ExmoTeC3e5g) |   48s |
+| Niet                | Lep dan za smrt        | [`MJZRYU0geOg`](https://youtu.be/MJZRYU0geOg) |   52s |
+| Zmelkoow            | Bit                    | [`1HnMi9iYxSs`](https://youtu.be/1HnMi9iYxSs) |   44s |
+| Dino Dvornik        | Ti si mi u mislima     | [`pJbOrncVL_Y`](https://youtu.be/pJbOrncVL_Y) |   43s |
+| Ekatarina Velika    | Par godina za nas      | [`ooWt0uxF_0I`](https://youtu.be/ooWt0uxF_0I) |   56s |
+| Haustor             | Ena                    | [`FmUiX2ml838`](https://youtu.be/FmUiX2ml838) |   43s |
+| Buč Kesidi          | Nema ljubavi u klubu   | [`CaZOa3KvfA0`](https://youtu.be/CaZOa3KvfA0) |   49s |
+| Grše                | Mamma Mia              | [`QcRbyU6_qB4`](https://youtu.be/QcRbyU6_qB4) |   34s |
+| Let 3               | Mama ŠČ!               | [`AyKj8jA0Qoc`](https://youtu.be/AyKj8jA0Qoc) |   42s |
+| M83                 | Midnight City          | [`dX3k_QDnzHE`](https://youtu.be/dX3k_QDnzHE) |   44s |
+| Tove Lo             | Habits (Stay High)     | [`oh2LWWORoiM`](https://youtu.be/oh2LWWORoiM) |   46s |
+| Milky Chance        | Stolen Dance           | [`iX-QaNzd-0Y`](https://youtu.be/iX-QaNzd-0Y) |   45s |
+| alt-J               | Breezeblocks           | [`rVeMiVU77wo`](https://youtu.be/rVeMiVU77wo) |   48s |
+| Portugal. The Man   | Feel It Still          | [`pBkHHoOIIn8`](https://youtu.be/pBkHHoOIIn8) |   42s |
+| Of Monsters and Men | Little Talks           | [`ghb6eDopW8I`](https://youtu.be/ghb6eDopW8I) |   52s |
+| The Strokes         | Reptilia               | [`b8-tXG8KrWs`](https://youtu.be/b8-tXG8KrWs) |   35s |
+| The Cure            | Just Like Heaven       | [`n3nPiBai66M`](https://youtu.be/n3nPiBai66M) |   42s |
+| Pixies              | Where Is My Mind?      | [`OJ62RzJkYUo`](https://youtu.be/OJ62RzJkYUo) |   40s |
+| Foo Fighters        | Everlong               | [`hq0rZ3IiyWw`](https://youtu.be/hq0rZ3IiyWw) |   42s |
+| Fleetwood Mac       | The Chain              | [`xwTPvcPYaOo`](https://youtu.be/xwTPvcPYaOo) |  170s |
+| Arctic Monkeys      | Fluorescent Adolescent | [`ma9I9VBKPiw`](https://youtu.be/ma9I9VBKPiw) |   47s |
+| Modjo               | Lady (Hear Me Tonight) | [`mMfxI3r_LyA`](https://youtu.be/mMfxI3r_LyA) |   36s |
+| The Ting Tings      | That's Not My Name     | [`v1c2OfAzDTI`](https://youtu.be/v1c2OfAzDTI) |   45s |
+| Nelly Furtado       | Maneater               | [`b0XqR7SEE1I`](https://youtu.be/b0XqR7SEE1I) |   45s |
+| MGMT                | Kids                   | [`DngxJlZSpPo`](https://youtu.be/DngxJlZSpPo) |   28s |
+| Depeche Mode        | Enjoy the Silence      | [`aGSKrC7dGcY`](https://youtu.be/aGSKrC7dGcY) |   45s |
+| Bronski Beat        | Smalltown Boy          | [`88sARuFu-tc`](https://youtu.be/88sARuFu-tc) |   50s |
+| Go_A                | SHUM                   | [`U7-dxzp6Jvs`](https://youtu.be/U7-dxzp6Jvs) |   48s |
+| Mahmood             | Soldi                  | [`22lISUXgSUw`](https://youtu.be/22lISUXgSUw) |   54s |
+| Daði Freyr          | Think About Things     | [`1HU7ocv3S2o`](https://youtu.be/1HU7ocv3S2o) |   39s |
+| Eleni Foureira      | Fuego                  | [`eDSgs6syrgg`](https://youtu.be/eDSgs6syrgg) |   49s |
+| Benny Benassi       | Satisfaction           | [`a0fkNdPiIL4`](https://youtu.be/a0fkNdPiIL4) |   30s |
+| Duke Dumont         | Ocean Drive            | [`KDxJlW6cxRk`](https://youtu.be/KDxJlW6cxRk) |   54s |
+
+The Niet source is the only candidate not hosted by the artist, label, an
+official topic channel, or Eurovision. It is usable according to oEmbed, but it
+must be manually playback-checked or replaced before the song is accepted.
+
 Proposed category treatment:
 
 1. every song keeps one explicit answer-fairness category
@@ -714,6 +765,9 @@ Validation:
 - [x] validate YouTube IDs are unique where appropriate
 - [x] run the embed validator with failure on invalid entries
 - [x] review the generated report
+- [x] preflight all 36 candidate ids through YouTube oEmbed
+- [x] confirm candidate video ids and canonical songs do not duplicate the
+      current catalog
 - [ ] manually sample every new category
 - [ ] manually sample clip start quality
 
@@ -1463,6 +1517,12 @@ Completed in the first checkpoint:
     2. every round accepts all answers and produces a complete reveal
     3. scoring accumulates through all ten rounds
     4. game over ranks and retains every participant
+13. prepared non-committal metadata for all 36 review candidates:
+    1. every proposed video currently passes the repository-equivalent YouTube
+       oEmbed check
+    2. no proposed video id or canonical song duplicates the current catalog
+    3. every song has a provisional clip start ready for post-approval sampling
+    4. the Niet upload is explicitly flagged as the only non-official source
 
 Quality evidence:
 
