@@ -66,7 +66,7 @@ Once the service is live, set:
 1. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
 2. `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN`
 
-on the platform deployment to the worker's public websocket endpoint.
+on the platform deployment to the worker's stable public websocket endpoint.
 
 `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN` must match
 `AIRJAM_BROWSER_WORKER_ACCESS_TOKEN` on the worker deployment.
@@ -74,8 +74,10 @@ on the platform deployment to the worker's public websocket endpoint.
 Example shape:
 
 ```text
-wss://<railway-public-domain>
+wss://<railway-public-domain>/ws
 ```
+
+The `/ws` path is stable across worker restarts and deployments.
 
 ## Local Development
 
