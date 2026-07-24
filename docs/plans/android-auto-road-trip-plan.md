@@ -1,7 +1,7 @@
 # Android Auto Road Trip Plan
 
 Last updated: 2026-07-24
-Status: active; Goals 1 and 2 complete, Goal 3 next
+Status: active; Goals 1 and 2 complete, Goal 3 in progress
 Target: road-trip-ready build for 2026-07-25
 
 Related docs:
@@ -602,14 +602,14 @@ Content rules:
 5. [x] do not enable a category until it meets the round/option minimums
 6. [x] do not keep the same canonical song as multiple catalog rows
 7. [x] document intentional multi-category membership on the one canonical entry
-8. [ ] classify every song with one explicit answer-fairness category
-9. [ ] add a curated integer `difficulty` score from 1 through 5
+8. [x] classify every song with one explicit answer-fairness category
+9. [x] add a curated integer `difficulty` score from 1 through 5
 10. [ ] curate a less obvious road-trip mix instead of only increasing volume
 
 Difficulty target for the default mix:
 
 1. approximately 30% difficulty 1-2 anchors
-2. approximately 50% difficulty 2-4 songs
+2. approximately 50% difficulty 3 songs
 3. approximately 20% difficulty 4-5 songs
 
 The first content pass should rebalance the existing 144 songs before adding a
@@ -617,6 +617,96 @@ large second batch. The score is intentionally a small curated scale rather than
 a false-precision percentage. It can later power simple easy, balanced, and hard
 playlist presets without adding those settings to today's UI. Exact artists and
 tracks require a short group-taste review.
+
+The balanced default selector is now implemented. A ten-round match requests
+three easy, five medium, and two hard songs. It always prefers unplayed songs,
+falls back to other difficulty bands when the selected buckets cannot provide
+the requested mix, and only reuses match-history songs after exhausting the
+unplayed pool. This makes the default game deliberate without adding settings
+or blocking narrow category selections.
+
+### Goal 3 Song Candidate Review
+
+Status: awaiting user review. Difficulty scores are provisional and relative to
+this road-trip group. YouTube IDs and clip starts are intentionally deferred
+until the tracks are approved, so rejected songs do not create validation work
+or catalog churn.
+
+The proposed batch adds 36 songs and brings the validated catalog target from
+144 to exactly 180. It emphasizes medium and hard songs while keeping every
+candidate recognizable enough to produce a fair reveal.
+
+Slovenian:
+
+- [ ] Dan D — Voda — difficulty 3
+- [ ] Koala Voice — Go Disco, Go — difficulty 4
+- [ ] Siddharta — Napoj — difficulty 2
+- [ ] Big Foot Mama — Led s severa — difficulty 3
+- [ ] Niet — Lep dan za smrt — difficulty 3
+- [ ] Zmelkoow — Bit — difficulty 3
+
+Balkan:
+
+- [ ] Dino Dvornik — Ti si mi u mislima — difficulty 3
+- [ ] Ekatarina Velika — Par godina za nas — difficulty 4
+- [ ] Haustor — Ena — difficulty 4
+- [ ] Buč Kesidi — Nema ljubavi u klubu — difficulty 4
+- [ ] Grše — Mamma Mia — difficulty 3
+- [ ] Let 3 — Mama ŠČ! — difficulty 3
+
+2010s:
+
+- [ ] M83 — Midnight City — difficulty 3
+- [ ] Tove Lo — Habits (Stay High) — difficulty 3
+- [ ] Milky Chance — Stolen Dance — difficulty 3
+- [ ] alt-J — Breezeblocks — difficulty 4
+- [ ] Portugal. The Man — Feel It Still — difficulty 3
+- [ ] Of Monsters and Men — Little Talks — difficulty 3
+
+Rock / Classics:
+
+- [ ] The Strokes — Reptilia — difficulty 4
+- [ ] The Cure — Just Like Heaven — difficulty 4
+- [ ] Pixies — Where Is My Mind? — difficulty 3
+- [ ] Foo Fighters — Everlong — difficulty 3
+- [ ] Fleetwood Mac — The Chain — difficulty 2
+- [ ] Arctic Monkeys — Fluorescent Adolescent — difficulty 4
+
+2000s and throwbacks:
+
+- [ ] Modjo — Lady (Hear Me Tonight) — difficulty 3
+- [ ] The Ting Tings — That's Not My Name — difficulty 3
+- [ ] Nelly Furtado — Maneater — difficulty 2
+- [ ] MGMT — Kids — difficulty 3
+- [ ] Depeche Mode — Enjoy the Silence — difficulty 3
+- [ ] Bronski Beat — Smalltown Boy — difficulty 3
+
+Eurovision and Dance / EDM:
+
+- [ ] Go_A — SHUM — difficulty 3
+- [ ] Mahmood — Soldi — difficulty 3
+- [ ] Daði Freyr — Think About Things — difficulty 3
+- [ ] Eleni Foureira — Fuego — difficulty 3
+- [ ] Benny Benassi presents The Biz — Satisfaction — difficulty 3
+- [ ] Duke Dumont — Ocean Drive — difficulty 4
+
+Proposed category treatment:
+
+1. every song keeps one explicit answer-fairness category
+2. cross-era and cross-genre `bucketIds` remain discovery filters only
+3. Let 3 stays answer-fair with Balkan songs even though it can also appear
+   under Eurovision
+4. a Movie / TV category is deferred because the current alternating
+   song-title/artist question contract makes composer questions arbitrarily
+   difficult; it fits the proposed follow-up quiz game better
+5. a dedicated Hip-hop category is deferred until it has a reviewed minimum
+   pack rather than being launched with filler
+
+If the full batch is approved, the projected additions contain three
+difficulty 1-2 songs, twenty-four difficulty 3 songs, and nine difficulty 4-5
+songs. The complete catalog will remain naturally easy-heavy, but the balanced
+selector will produce the intended per-match curve whenever the selected
+category pool supports it.
 
 Validation:
 
@@ -1320,3 +1410,60 @@ Intentional Goal 3 carry-forward:
    medium/hard additions already assigned to Goal 3
 
 Next primary goal: Goal 3, content and visual polish.
+
+### 2026-07-24 — Goal 3 Content And Visual Polish In Progress
+
+Completed in the first checkpoint:
+
+1. audited the current 144-song difficulty distribution:
+   1. 69 difficulty 1
+   2. 41 difficulty 2
+   3. 20 difficulty 3
+   4. 12 difficulty 4
+   5. 2 difficulty 5
+2. implemented an intentional balanced playlist selector:
+   1. a ten-round match requests three difficulty 1-2 songs
+   2. five difficulty 3 songs
+   3. two difficulty 4-5 songs
+   4. unplayed songs remain more important than repeating a perfect band mix
+   5. unavailable bands fall back without blocking narrow category selections
+3. prepared the 36-song review slate above, targeting a final catalog of 180
+   songs; YouTube and clip work remains intentionally pending user approval
+4. replaced the controller lobby's oversized horizontal category carousel with
+   one compact two-column grid that exposes all ten categories at once
+5. expanded controller round reveals with:
+   1. explicit correct, incorrect, or no-answer status
+   2. response time
+   3. the player's submitted answer
+   4. the complete correct artist and title
+   5. the quickest correct player and time
+6. made long active-round and reveal labels wrap instead of clipping
+7. enlarged the host reveal table for wide displays while keeping a dedicated
+   compact grid at `800x480`
+8. verified at `360x800` that the full identity header, name field, all category
+   controls, and pinned ready action remain visible
+9. verified a long `Parni Valjak — Sve još miriše na nju` reveal at `800x480`;
+   every scoreboard column remains visible and the layout has no horizontal
+   overflow
+
+Quality evidence:
+
+1. 47/47 game tests pass
+2. game typecheck passes
+3. focused ESLint passes
+4. scoped Prettier and `git diff --check` pass
+
+Framework follow-up:
+
+1. [Air Jam issue #43](https://github.com/vucinatim/air-jam/issues/43) records
+   that `RuntimeShellHeader` can flex-shrink to zero when controller content has
+   a tall intrinsic layout
+2. Last Band Standing uses a narrow `shrink-0` workaround until the shared
+   component owns that invariant
+
+Still required to close Goal 3:
+
+1. user approval or edits to the proposed song slate
+2. approved-song metadata, YouTube, and clip validation
+3. final visual review across every supported host and phone size
+4. complete two-, six-, and ten-player regression matches with the final catalog

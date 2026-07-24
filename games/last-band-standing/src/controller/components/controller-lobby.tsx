@@ -15,9 +15,9 @@ export const ControllerLobby = () => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-4">
-        <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-4">
-          <div className="border-border/70 bg-card/70 shrink-0 rounded-2xl border p-4 backdrop-blur-sm">
+      <div className="flex min-h-0 flex-1 flex-col px-3 py-3 sm:px-4">
+        <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-3">
+          <div className="shrink-0 px-1">
             <label
               htmlFor="player-name"
               className="text-muted-foreground text-[10px] font-bold tracking-[0.18em] uppercase"
@@ -39,11 +39,11 @@ export const ControllerLobby = () => {
               onBlur={lobby.blurNameInput}
               onChange={(event) => lobby.updateNameDraft(event.target.value)}
               placeholder={lobby.canEditName ? "Enter your name" : "Connecting"}
-              className="border-border bg-background text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring mt-3 h-16 w-full rounded-2xl border px-5 text-[24px] font-black transition outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60"
+              className="border-border/70 bg-card/50 text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring mt-2 h-14 w-full rounded-xl border px-4 text-xl font-black transition outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60"
             />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-2.5">
             <div className="flex shrink-0 items-end justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-muted-foreground text-[10px] font-bold tracking-[0.18em] uppercase">
@@ -66,8 +66,8 @@ export const ControllerLobby = () => {
               </p>
             </div>
 
-            <div className="-mx-3 min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex h-full min-h-[10rem] w-max gap-3 pb-1">
+            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="grid grid-cols-2 gap-2 pb-1">
                 {lobby.bucketOptions.map((bucket) => (
                   <button
                     key={bucket.id}
@@ -75,16 +75,16 @@ export const ControllerLobby = () => {
                     disabled={!lobby.canToggleBuckets}
                     onClick={() => lobby.toggleBucket({ bucketId: bucket.id })}
                     className={cn(
-                      "flex h-full w-36 snap-center flex-col justify-between rounded-2xl border bg-transparent p-4 text-left transition-all disabled:opacity-60",
+                      "flex min-h-14 min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all disabled:opacity-60",
                       bucket.selected
-                        ? "border-primary bg-primary/10 text-foreground ring-primary/35 ring-1"
-                        : "border-border/60 text-muted-foreground",
+                        ? "border-primary/80 bg-primary/10 text-foreground"
+                        : "border-border/60 text-muted-foreground bg-transparent",
                     )}
                     aria-pressed={bucket.selected}
                   >
                     <span
                       className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full border text-sm font-black",
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-black",
                         bucket.selected
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-border bg-background text-muted-foreground",
@@ -92,11 +92,11 @@ export const ControllerLobby = () => {
                     >
                       {bucket.selected ? "✓" : "+"}
                     </span>
-                    <span>
-                      <span className="block text-xl leading-tight font-black">
+                    <span className="min-w-0">
+                      <span className="block text-sm leading-tight font-black break-words">
                         {bucket.label}
                       </span>
-                      <span className="text-muted-foreground mt-2 block text-xs font-bold tracking-[0.12em] uppercase">
+                      <span className="text-muted-foreground mt-1 block text-[10px] font-bold tracking-[0.1em] uppercase">
                         {bucket.songCount} songs
                       </span>
                     </span>
@@ -106,20 +106,17 @@ export const ControllerLobby = () => {
             </div>
           </div>
 
-          <div className="shrink-0 space-y-3">
-            <div className="min-h-[4.75rem]">
+          <div className="shrink-0 space-y-2.5">
+            {lobby.isReady && (
               <ControllerPrimaryAction
                 label="Unready"
                 helper={`${lobby.readyCount}/${lobby.playerCount} ready.`}
-                disabled={!lobby.isReady || !lobby.canReadyToggle}
+                disabled={!lobby.canReadyToggle}
                 onPress={lobby.toggleReady}
-                className={cn(
-                  "mt-0 pt-0",
-                  !lobby.isReady && "pointer-events-none invisible",
-                )}
+                className="mt-0 pt-0"
                 buttonClassName="bg-white text-black hover:bg-white/90 rounded-[1.5rem] shadow-lg disabled:opacity-40"
               />
-            </div>
+            )}
 
             <ControllerPrimaryAction
               label={lobby.isReady ? "Start Match" : "Ready Up"}

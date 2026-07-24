@@ -118,7 +118,7 @@ const ControllerScreen = () => {
               />
             )
           }
-          className="border-border/60 bg-background/90"
+          className="border-border/60 bg-background/90 shrink-0"
         />
         <AnimatePresence mode="wait">
           {phase === "lobby" && <ControllerLobby />}
