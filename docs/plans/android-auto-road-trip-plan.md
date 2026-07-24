@@ -1458,10 +1458,15 @@ Completed in the first checkpoint:
     2. the name input and all ten categories fit above the ready action
     3. the game remains usable even with Chrome's address and navigation bars
        reducing the available viewport
+12. added deterministic complete-match coverage at 2, 6, and 10 players:
+    1. all players ready and enter the same ten-round match
+    2. every round accepts all answers and produces a complete reveal
+    3. scoring accumulates through all ten rounds
+    4. game over ranks and retains every participant
 
 Quality evidence:
 
-1. 48/48 game tests pass
+1. 51/51 game tests pass
 2. game typecheck passes
 3. focused ESLint passes
 4. scoped Prettier and `git diff --check` pass
@@ -1485,4 +1490,5 @@ Still required to close Goal 3:
 1. user approval or edits to the proposed song slate
 2. approved-song metadata, YouTube, and clip validation
 3. final visual review across every supported host and phone size
-4. complete two-, six-, and ten-player regression matches with the final catalog
+4. rerun the deterministic two-, six-, and ten-player regression matches with
+   the final catalog
