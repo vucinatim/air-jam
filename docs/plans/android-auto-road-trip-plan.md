@@ -1853,8 +1853,27 @@ Pre-push evidence:
 6. the clean-checkout hermetic install, platform build, standalone artifact
    inspection, and preview migration probe pass
 
+The pushed repair then exposed a second, independent Railway configuration
+problem recorded in
+[Air Jam issue #46](https://github.com/vucinatim/air-jam/issues/46): the
+platform service stored `DATABASE_URL` as a literal production connection
+string. Railway copied that literal into the PR environment while its
+ephemeral Postgres generated different credentials, so the now-working
+migrator reached Postgres but failed with SQLSTATE `28P01`.
+
+Resolved configuration:
+
+1. changed the production platform variable to the same
+   `${{Postgres.DATABASE_URL}}` service reference already used by the realtime
+   server, so future PR environments resolve their own credentials
+2. corrected the existing PR #41 preview variable and started a fresh deploy
+3. updated the Railway deployment guide with the service-reference invariant
+4. completed `pnpm check:release:doctor`, including the clean deployment
+   contract, monorepo typecheck, 130 server tests, 270 SDK tests, 162 platform
+   tests, every workspace build, strict performance sanity, four browser
+   smoke tests, and all scaffold smoke builds
+
 Pending:
 
-1. push the repair and confirm the Railway PR platform deployment turns green
-2. run the complete repository release gates
-3. ready, merge, deploy, publish the hosted game release, and smoke production
+1. confirm the corrected Railway PR platform deployment turns green
+2. ready, merge, deploy, publish the hosted game release, and smoke production
