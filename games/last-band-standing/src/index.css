@@ -235,103 +235,6 @@
   padding-bottom: clamp(7rem, 22vh, 13rem);
 }
 
-.lbs-reveal-layout {
-  display: grid;
-  width: min(100%, 96rem);
-  height: 100%;
-  margin-inline: auto;
-  grid-template-columns: minmax(14rem, 0.8fr) minmax(28rem, 1.6fr);
-  align-items: center;
-  gap: clamp(1rem, 3vw, 3rem);
-  padding: clamp(1rem, 3vw, 2.5rem);
-}
-
-.lbs-round-reveal-summary {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  text-align: center;
-}
-
-.lbs-reveal-scoreboard {
-  min-width: 0;
-  border-block: 1px solid rgb(255 255 255 / 16%);
-  background: rgb(8 13 18 / 62%);
-  box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 42%);
-  backdrop-filter: blur(1rem);
-}
-
-.lbs-reveal-scoreboard-heading,
-.lbs-reveal-scoreboard-row {
-  display: grid;
-  grid-template-columns:
-    3.25rem minmax(7rem, 1fr) minmax(7rem, 0.85fr)
-    5.5rem 5rem 5rem;
-  align-items: center;
-  column-gap: 0.75rem;
-}
-
-.lbs-reveal-scoreboard-heading {
-  min-height: 2.25rem;
-  padding-inline: 1rem;
-  color: rgb(255 255 255 / 52%);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.lbs-reveal-scoreboard-rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lbs-reveal-scoreboard-row {
-  min-height: 3rem;
-  padding-inline: 1rem;
-  border-top: 1px solid rgb(255 255 255 / 10%);
-  font-size: 1rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.lbs-reveal-scoreboard-row[data-result="correct"] {
-  background: rgb(16 185 129 / 8%);
-}
-
-.lbs-reveal-rank,
-.lbs-reveal-time,
-.lbs-reveal-round-points {
-  color: rgb(255 255 255 / 68%);
-}
-
-.lbs-reveal-player {
-  overflow: hidden;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lbs-reveal-result {
-  overflow: hidden;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lbs-reveal-time,
-.lbs-reveal-round-points,
-.lbs-reveal-total {
-  text-align: right;
-}
-
-.lbs-reveal-total {
-  color: white;
-  font-size: 1.125rem;
-}
-
 @media (orientation: landscape) and (max-height: 760px) {
   .lbs-lobby-layout {
     display: grid;
@@ -432,33 +335,14 @@
     padding-bottom: 7.5rem;
   }
 
-  .lbs-reveal-layout {
-    grid-template-columns: minmax(15rem, 0.7fr) minmax(30rem, 1.7fr);
-    gap: clamp(0.75rem, 2vw, 1.5rem);
-    padding: 0.75rem 1rem;
-  }
-
-  .lbs-round-reveal-summary {
-    gap: 0.4rem;
+  .lbs-round-reveal-card {
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
   }
 
   .lbs-round-reveal-title {
-    font-size: clamp(2rem, 3.5vw, 3.5rem);
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
     line-height: 1.05;
-  }
-
-  .lbs-reveal-scoreboard-heading {
-    min-height: 1.9rem;
-    font-size: 0.7rem;
-  }
-
-  .lbs-reveal-scoreboard-row {
-    min-height: 2.5rem;
-    font-size: clamp(0.9rem, 1vw, 1.125rem);
-  }
-
-  .lbs-reveal-total {
-    font-size: 1rem;
   }
 
   .lbs-match-countdown {
@@ -485,33 +369,5 @@
 
   .lbs-host-answer-status > span:first-child {
     display: none;
-  }
-
-  .lbs-reveal-layout {
-    grid-template-columns: minmax(11rem, 0.65fr) minmax(24rem, 1.8fr);
-    gap: 0.75rem;
-  }
-
-  .lbs-reveal-scoreboard-heading,
-  .lbs-reveal-scoreboard-row {
-    grid-template-columns:
-      2rem minmax(4.5rem, 1fr) minmax(4.75rem, 0.9fr)
-      3.75rem 3.5rem 3.5rem;
-    column-gap: 0.35rem;
-    padding-inline: 0.6rem;
-  }
-
-  .lbs-reveal-scoreboard-heading {
-    min-height: 1.6rem;
-    font-size: 0.6rem;
-  }
-
-  .lbs-reveal-scoreboard-row {
-    min-height: 2.05rem;
-    font-size: 0.8rem;
-  }
-
-  .lbs-reveal-total {
-    font-size: 0.875rem;
   }
 }

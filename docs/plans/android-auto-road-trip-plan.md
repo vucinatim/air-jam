@@ -89,8 +89,8 @@ Scope:
 2. guarantee four unique same-quiz-category answer options
 3. add a curated integer `difficulty` score from 1 through 5
 4. make ten-player controller final standings genuinely scrollable
-5. build one clean host reveal scoreboard for all-player correctness, response
-   time, round points, and cumulative points
+5. build one clean controller reveal ranking for all-player correctness,
+   response time, round points, and cumulative points
 6. make selected lobby categories unmistakable
 7. validate complete 2-, 6-, and 10-player matches
 
@@ -907,10 +907,9 @@ P0 correctness and usability:
 - [ ] add `quizCategoryId` and guarantee same-category four-option rounds
 - [ ] add explicit selected-state affordances to lobby category controls:
       check icon, stronger contrast, selected count, and `aria-pressed`
-- [ ] show a readable all-player round result board on the host during reveal
+- [ ] show readable all-player round rankings on controllers during reveal
 
-The host reveal board should replace the tiny always-on player strip during the
-reveal phase. It should show:
+The controller reveal ranking should show:
 
 1. player rank/name
 2. correct, incorrect, or no answer
@@ -918,8 +917,9 @@ reveal phase. It should show:
 4. points gained this round
 5. cumulative points
 
-Use a compact grid for larger groups. Do not cram those details into the active
-music phase, and do not require scrolling on the car/host display.
+Use a compact bounded list for larger groups. Keep the host's established
+centered correct-answer and quickest-player reveal with its existing player
+strip; do not put a dense result table on the car display.
 
 P1 polish and content:
 
@@ -1330,7 +1330,8 @@ Newly prioritized:
 5. replace selected-category-union distractors with same-quiz-category
    distractors
 6. make selected lobby categories unmistakable
-7. show readable per-player correctness, timing, and points during host reveal
+7. show readable per-player correctness, timing, and points on controllers
+   during reveal
 8. rebalance the catalog toward medium and hard songs
 9. run all normal UI and game-flow validation through the browser-first matrix
 
@@ -1412,8 +1413,9 @@ Completed:
    2. option quiz categories
    3. ranked all-player reveal results
    4. correctness, response time, round points, and cumulative points
-6. replaced the reveal player-card strip with one compact all-player results
-   table showing rank, player, result, response time, round gain, and total
+6. expanded the authoritative reveal state and controller UI with one compact
+   all-player ranking showing rank, player, result, response time, round gain,
+   and total
 7. made controller final standings a bounded touch-scroll region with the lobby
    action pinned outside it
 8. strengthened selected category presentation on both host and controller with
@@ -1438,8 +1440,8 @@ Validation evidence:
    2. six players using a monotonic synthetic clock and correct, wrong, and
       unanswered outcomes on every reveal
    3. ten players using the same full result-state matrix
-6. exact `800x480` and `1920x720` reveal probes show all ten rows, the complete
-   scoreboard, and zero layout overflow
+6. exact `800x480` and `1920x720` host reveal probes keep the centered answer,
+   quickest-player result, and player strip readable without layout overflow
 7. exact controller probes pass at `360x800`, `390x844`, `412x915`, and
    `430x932`; each reaches the last player while the lobby action stays visible
 8. TypeScript, focused ESLint, scoped Prettier, production build, and
@@ -1488,14 +1490,16 @@ Completed in the first checkpoint:
    3. the player's submitted answer
    4. the complete correct artist and title
    5. the quickest correct player and time
+   6. a ranked all-player list with round result, round points, response time,
+      and cumulative points
 6. made long active-round and reveal labels wrap instead of clipping
-7. enlarged the host reveal table for wide displays while keeping a dedicated
-   compact grid at `800x480`
+7. retained the host's centered answer and quickest-player reveal, keeping the
+   detailed all-player results on controllers
 8. verified at `360x800` that the full identity header, name field, all category
    controls, and pinned ready action remain visible
-9. verified a long `Parni Valjak — Sve još miriše na nju` reveal at `800x480`;
-   every scoreboard column remains visible and the layout has no horizontal
-   overflow
+9. verified a long `Parni Valjak — Sve još miriše na nju` host reveal at
+   `800x480`; the answer, quickest-player result, and player strip remain
+   visible without horizontal overflow
 10. completed the exact phone viewport matrix at `360x800`, `390x844`,
     `412x915`, and `430x932`:
     1. unready and ready lobbies expose all ten categories and their pinned
@@ -1669,3 +1673,28 @@ Validation after correction:
 
 Goal 3 remains in progress until the user approves the corrected visuals and
 confirms the phone interaction is responsive with browser throttling disabled.
+
+### 2026-07-24 — Round-Reveal Ownership Correction
+
+The first Goal 2 implementation misread the requested reveal ownership and put
+the detailed all-player table on the host. The intended split is:
+
+1. the host keeps the established centered correct-song reveal, quickest-player
+   result, and bottom player strip
+2. every controller shows the detailed between-round ranking with player rank,
+   result, response time, round points, and cumulative points
+3. the controller ranking owns bounded touch scrolling for larger groups
+
+Corrected:
+
+1. removed the side-by-side host reveal table and restored the previous host
+   composition
+2. added the ranked all-player result list to the controller reveal
+3. kept the current controller subtly highlighted
+4. retained the controller's own result, submitted answer, correct answer,
+   quickest-player result, and next-round countdown
+
+Browser proof confirms the corrected host and controller ownership in a live
+local round. The 52 game tests, deterministic 2-, 6-, and 10-player match
+coverage, typecheck, lint, and production build pass. A final large-group
+controller visual check remains part of Goal 3 acceptance.
