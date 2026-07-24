@@ -1,11 +1,14 @@
 import {
+  DEFAULT_OPTION_COUNT,
   DEFAULT_REVEAL_DURATION_SEC,
   DEFAULT_ROUND_DURATION_SEC,
   DEFAULT_TOTAL_ROUNDS,
   MATCH_START_COUNTDOWN_SEC,
 } from "@/game/constants";
+import { hasEnoughRoundOptionLabels } from "@/game/content/round-options";
 import {
   defaultSelectedSongBucketIds,
+  getSongsForBuckets,
   toggleSelectedSongBucketIds,
 } from "@/game/content/song-bank";
 import { rankPlayers } from "@/game/domain/round-engine";
@@ -212,11 +215,21 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
         );
         const playlistSongIds = playlistSelection.songIds;
         const playlistGuessKinds = pickPlaylistGuessKinds(state.totalRounds);
+        const eligibleSongs = getSongsForBuckets(state.selectedSongBucketIds);
         const firstSongId = playlistSongIds[0];
         const firstGuessKind = playlistGuessKinds[0];
+        const hasValidOptionPools = [...new Set(playlistGuessKinds)].every(
+          (guessKind) =>
+            hasEnoughRoundOptionLabels(
+              eligibleSongs,
+              DEFAULT_OPTION_COUNT,
+              guessKind,
+            ),
+        );
 
         if (
           playlistSelection.uniqueSongCount < state.totalRounds ||
+          !hasValidOptionPools ||
           !firstSongId ||
           !firstGuessKind
         ) {
@@ -235,14 +248,15 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
             playlistSelection.songKeys,
           ),
           completedRoundCount: 0,
-          currentRound: createRound(
-            1,
-            firstSongId,
-            firstGuessKind,
-            activePlayerIds,
-            roundStartsAtMs,
-            state.roundDurationSec,
-          ),
+          currentRound: createRound({
+            roundNumber: 1,
+            songId: firstSongId,
+            guessKind: firstGuessKind,
+            expectedPlayerIds: activePlayerIds,
+            nowMs: roundStartsAtMs,
+            roundDurationSec: state.roundDurationSec,
+            eligibleSongs,
+          }),
           answersByPlayerId: {},
           roundReveal: null,
           scoreboardByPlayerId: createInitialScoreboard(activePlayerIds),
@@ -366,14 +380,15 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
 
         return {
           phase: "round-active",
-          currentRound: createRound(
-            nextRoundNumber,
-            nextSongId,
-            nextGuessKind,
-            state.activePlayerIds,
-            currentTimeMs,
-            state.roundDurationSec,
-          ),
+          currentRound: createRound({
+            roundNumber: nextRoundNumber,
+            songId: nextSongId,
+            guessKind: nextGuessKind,
+            expectedPlayerIds: state.activePlayerIds,
+            nowMs: currentTimeMs,
+            roundDurationSec: state.roundDurationSec,
+            eligibleSongs: getSongsForBuckets(state.selectedSongBucketIds),
+          }),
           answersByPlayerId: {},
           roundReveal: null,
         };

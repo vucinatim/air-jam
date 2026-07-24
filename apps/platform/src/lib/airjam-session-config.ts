@@ -13,6 +13,8 @@ export const arcadeInputSchema = z.object({
   action: z.boolean(),
 });
 
+const PLATFORM_ARCADE_MAX_PLAYERS = 16;
+
 export const resolvePlatformTopology = (
   envKey:
     | "NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY"
@@ -63,7 +65,9 @@ const resolveClientAppId = () =>
 
 const resolveClientHostGrantEndpoint = () =>
   trimOrUndefined(process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT) ??
-  "/api/airjam/host-grant";
+  (process.env.NODE_ENV === "production"
+    ? "/api/airjam/host-grant"
+    : undefined);
 
 export const getPlatformControllerSessionConfig = () => {
   return {
@@ -82,6 +86,9 @@ export const getPlatformArcadeHostSessionConfig = () => {
     appId: resolveClientAppId(),
     hostGrantEndpoint: resolveClientHostGrantEndpoint(),
     hostSessionKind: "system" as const,
+    // The Arcade room exists before a game is selected, so it must support
+    // the full framework capacity rather than the SDK's per-game default.
+    maxPlayers: PLATFORM_ARCADE_MAX_PLAYERS,
     input: {
       schema: arcadeInputSchema,
     },

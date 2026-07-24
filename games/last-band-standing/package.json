@@ -13,7 +13,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "songs:validate": "node ./scripts/validate-song-embeds.mjs"
+    "songs:validate": "pnpm exec tsx ./scripts/validate-song-embeds.mjs"
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",

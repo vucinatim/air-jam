@@ -6,7 +6,6 @@ import {
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
 import { cn } from "@/lib/utils";
-import type { ResolvedAirJamRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { useInheritedPlatformSettings, type PlayerProfile } from "@air-jam/sdk";
 import {
   AIRJAM_HOST_BRIDGE_EVENT,
@@ -44,7 +43,9 @@ import type {
   ServerErrorPayload,
 } from "@air-jam/sdk/protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
+import type { ResolvedAirJamRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { useCallback, useEffect, useRef } from "react";
+import styles from "./arcade-layout.module.css";
 
 export interface GamePlayerGame {
   id: string;
@@ -704,7 +705,12 @@ export const GamePlayer = ({
 
       {/* Default exit overlay (shown on hover) */}
       {showExitOverlay && (
-        <div className="absolute top-4 right-4 z-50 opacity-0 transition-opacity hover:opacity-100">
+        <div
+          className={cn(
+            "absolute top-4 right-4 z-50 opacity-0 transition-opacity hover:opacity-100",
+            styles.gameExitControl,
+          )}
+        >
           <button
             onClick={onExit}
             className="rounded bg-red-600/80 px-4 py-2 text-white shadow-lg backdrop-blur hover:bg-red-600"

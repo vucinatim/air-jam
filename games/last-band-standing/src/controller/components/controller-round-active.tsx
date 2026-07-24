@@ -1,5 +1,6 @@
 import { NOW_TICK_MS } from "@/game/constants";
-import { getRoundOptionLabel, getSongById } from "@/game/content/song-bank";
+import { getRoundOptionLabel } from "@/game/content/round-options";
+import { getSongById } from "@/game/content/song-bank";
 import { useNowTick } from "@/game/hooks/use-now-tick";
 import { useGameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";

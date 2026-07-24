@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeRuntimeTopology } from "@air-jam/sdk/runtime-topology";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getPlatformArcadeHostSessionConfig,
   resolvePlatformTopology,
@@ -13,6 +13,7 @@ describe("resolvePlatformTopology", () => {
     delete process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY;
     delete process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY;
     delete process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT;
+    delete process.env.NEXT_PUBLIC_AIR_JAM_APP_ID;
     process.env.NODE_ENV = ORIGINAL_NODE_ENV;
 
     if (ORIGINAL_WINDOW === undefined) {
@@ -39,8 +40,9 @@ describe("resolvePlatformTopology", () => {
     });
 
     expect(
-      resolvePlatformTopology("NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY")
-        .appOrigin,
+      resolvePlatformTopology(
+        "NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY",
+      ).appOrigin,
     ).toBe("https://airjam.io");
   });
 
@@ -84,5 +86,27 @@ describe("resolvePlatformTopology", () => {
 
     expect(config.hostGrantEndpoint).toBe("/api/airjam/host-grant");
     expect(config.hostSessionKind).toBe("system");
+    expect(config.maxPlayers).toBe(16);
+  });
+
+  it("uses app ID bootstrap for the arcade system in local development", () => {
+    process.env.NODE_ENV = "development";
+    process.env.NEXT_PUBLIC_AIR_JAM_APP_ID = "aj_app_local";
+    process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY =
+      serializeRuntimeTopology({
+        runtimeMode: "arcade-live",
+        surfaceRole: "platform-host",
+        appOrigin: "http://localhost:3000",
+        backendOrigin: "http://127.0.0.1:4000",
+        publicHost: "http://192.168.0.33:3000",
+        proxyStrategy: "platform-proxy",
+      });
+
+    const config = getPlatformArcadeHostSessionConfig();
+
+    expect(config.hostGrantEndpoint).toBeUndefined();
+    expect(config.appId).toBeDefined();
+    expect(config.hostSessionKind).toBe("system");
+    expect(config.maxPlayers).toBe(16);
   });
 });

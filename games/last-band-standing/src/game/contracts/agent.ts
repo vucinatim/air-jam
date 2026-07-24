@@ -5,9 +5,9 @@ import {
   defineAirJamAgentContract,
   defineAirJamAgentStores,
 } from "@air-jam/sdk";
+import { getRoundOptionLabel } from "../content/round-options";
 import {
   defaultSelectedSongBucketIds,
-  getRoundOptionLabel,
   getSongById,
   getUniqueSongCountForBuckets,
   songBuckets,

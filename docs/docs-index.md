@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-05-08  
+Last updated: 2026-07-24
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -25,9 +25,17 @@ Default agent loop:
 
 ## Active Now
 
-This is the single plan that currently governs work:
+The v1 release plan remains the governing product track:
 
 1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
+
+One short-lived urgent execution plan is active for the 2026-07-25 road trip:
+
+1. [plans/android-auto-road-trip-plan.md](./plans/android-auto-road-trip-plan.md)
+
+Durable Last Band Standing and platform improvements from the road-trip plan
+must feed back into the v1 release proof rather than becoming a parallel product
+architecture.
 
 ## Planned Next
 

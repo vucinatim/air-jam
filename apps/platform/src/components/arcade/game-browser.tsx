@@ -13,13 +13,14 @@ import { cn } from "@/lib/utils";
 import { AudioRuntime, useAudio, type SoundManifest } from "@air-jam/sdk";
 import { Check, Code2, Gamepad2, Github } from "lucide-react";
 import {
+  memo,
   useCallback,
   useEffect,
-  memo,
   useRef,
   useState,
   type MouseEvent,
 } from "react";
+import styles from "./arcade-layout.module.css";
 import type { GamePlayerGame } from "./game-player";
 
 const ARCADE_SOUND_MANIFEST: SoundManifest = {
@@ -203,6 +204,7 @@ const GameBrowserContent = ({
       onScroll={emitScrollTop}
       className={cn(
         "relative z-10 flex h-full flex-col overflow-y-auto px-12 pt-2 pb-12 transition-all duration-500 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        styles.browserScroller,
         isVisible
           ? "scale-100 opacity-100"
           : "pointer-events-none scale-95 opacity-0",
@@ -211,19 +213,46 @@ const GameBrowserContent = ({
     >
       {/* Custom header positioned at top */}
       {header && (
-        <div className="absolute top-0 right-0 left-0 z-50 p-4">{header}</div>
+        <div
+          className={cn(
+            "absolute top-0 right-0 left-0 z-50 p-4",
+            styles.customHeader,
+          )}
+        >
+          {header}
+        </div>
       )}
 
-      <header className="z-40 flex shrink-0 flex-col items-center pt-14 pb-5 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+      <header
+        className={cn(
+          "z-40 flex shrink-0 flex-col items-center pt-14 pb-5 text-center",
+          styles.browserMarketing,
+        )}
+      >
+        <h1
+          className={cn(
+            "text-4xl font-semibold tracking-tight text-white md:text-5xl",
+            styles.browserTitle,
+          )}
+        >
           Air Jam <span className="text-airjam-cyan font-bold">Arcade</span>
         </h1>
-        <p className="mt-1.5 max-w-md text-sm tracking-wide text-slate-500">
+        <p
+          className={cn(
+            "mt-1.5 max-w-md text-sm tracking-wide text-slate-500",
+            styles.browserSubtitle,
+          )}
+        >
           Select a game using your phone
         </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3",
+          styles.gameGrid,
+        )}
+      >
         {games.length === 0 ? (
           <div className="col-span-full py-20 text-center text-slate-500">
             No live Arcade releases are listed yet. Upload a release, make it
@@ -266,7 +295,12 @@ const GameBrowserContent = ({
                 }
                 onClick={() => onSelectGame(game, idx)}
               >
-                <CardContent className="relative aspect-video p-0">
+                <CardContent
+                  className={cn(
+                    "relative aspect-video p-0",
+                    styles.gameCardMedia,
+                  )}
+                >
                   <div className="absolute inset-0 bg-slate-900">
                     {hasVideo && (
                       <video
@@ -333,7 +367,12 @@ const GameBrowserContent = ({
                   <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/5" />
 
                   {hasDeveloperActions ? (
-                    <div className="absolute top-3 right-3 z-20 flex gap-2">
+                    <div
+                      className={cn(
+                        "absolute top-3 right-3 z-20 flex gap-2",
+                        styles.gameDeveloperActions,
+                      )}
+                    >
                       {game.sourceUrl ? (
                         <a
                           href={game.sourceUrl}
@@ -375,14 +414,24 @@ const GameBrowserContent = ({
                     </div>
                   ) : null}
 
-                  <div className="absolute top-3 left-3 z-20">
+                  <div
+                    className={cn(
+                      "absolute top-3 left-3 z-20",
+                      styles.gameCreator,
+                    )}
+                  >
                     <PublicGameCreatorStrip
                       game={game}
                       onClick={(event) => event.stopPropagation()}
                     />
                   </div>
 
-                  <div className="absolute right-0 bottom-0 left-0 p-4">
+                  <div
+                    className={cn(
+                      "absolute right-0 bottom-0 left-0 p-4",
+                      styles.gameCardText,
+                    )}
+                  >
                     {game.catalogBadgeLabel ? (
                       <div className="mb-3">
                         <span className="border-airjam-cyan/40 bg-airjam-cyan/12 text-airjam-cyan inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.18em] uppercase">
@@ -390,10 +439,20 @@ const GameBrowserContent = ({
                         </span>
                       </div>
                     ) : null}
-                    <h3 className="line-clamp-2 text-left text-2xl font-bold text-white md:text-3xl">
+                    <h3
+                      className={cn(
+                        "line-clamp-2 text-left text-2xl font-bold text-white md:text-3xl",
+                        styles.gameCardTitle,
+                      )}
+                    >
                       {game.name}
                     </h3>
-                    <p className="text-left text-base font-medium text-slate-200 md:text-lg">
+                    <p
+                      className={cn(
+                        "text-left text-base font-medium text-slate-200 md:text-lg",
+                        styles.gameCardOwner,
+                      )}
+                    >
                       by {game.ownerName || "Unknown Creator"}
                     </p>
                   </div>

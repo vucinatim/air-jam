@@ -74,6 +74,7 @@ export const ControllerMenuNotch = ({
       style={{
         width: isRightPlacement ? NOTCH_H : NOTCH_W,
         height: isRightPlacement ? NOTCH_W : NOTCH_H,
+        top: isRightPlacement ? undefined : "env(safe-area-inset-top, 0px)",
         ...style,
       }}
       onClick={onClick}

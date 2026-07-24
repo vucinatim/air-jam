@@ -5,15 +5,15 @@ import type {
 import type {
   PlatformMachineCreateOwnedGameInput,
   PlatformMachineCreateOwnedGameResult,
-  PlatformMachineGetOwnedGameResult,
   PlatformMachineGetOwnedGameMediaResult,
+  PlatformMachineGetOwnedGameResult,
   PlatformMachineGetReleaseResult,
-  PlatformMachineMutateOwnedGameMediaAssetResult,
-  PlatformMachineRequestOwnedGameMediaUploadTargetInput,
-  PlatformMachineRequestOwnedGameMediaUploadTargetResult,
   PlatformMachineListOwnedGamesResult,
   PlatformMachineListReleasesResult,
+  PlatformMachineMutateOwnedGameMediaAssetResult,
   PlatformMachinePublishReleaseResult,
+  PlatformMachineRequestOwnedGameMediaUploadTargetInput,
+  PlatformMachineRequestOwnedGameMediaUploadTargetResult,
   PlatformMachineUpdateOwnedGameInput,
   PlatformMachineUpdateOwnedGameResult,
 } from "@air-jam/sdk/platform-machine";
@@ -535,7 +535,14 @@ export type ReadGameSnapshotOptions = {
 export type AirJamGameSnapshotInspection = {
   controllerSessionId: string;
   gameId: string;
+  /** Logical store names declared by the game contract. */
   snapshotStoreDomains: string[];
+  /** Concrete replicated store domains used by the active runtime. */
+  runtimeStoreDomains: string[];
+  storeDomainBindings: Array<{
+    contractStoreDomain: string;
+    runtimeStoreDomain: string;
+  }>;
   snapshotDescription: string | null;
   actions: AirJamGameAgentActionDescriptor[];
   snapshot: JsonObject;

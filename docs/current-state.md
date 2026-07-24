@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-05-08  
+Last updated: 2026-07-24
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -27,11 +27,19 @@ For historical progress, use [work-ledger.md](./work-ledger.md).
 
 Air Jam is no longer mainly blocked on platform or preview infrastructure.
 
-The repo is currently focused on three things:
+The repo is currently focused on four things:
 
-1. working from the cleaned repo operating system baseline instead of from historical drift
-2. running the final prerelease manual proof and hosted release proof for the v1 launch set
-3. keeping the now-simpler Railway-first deployment model boring while preparing the launch-facing landing, media, and discoverability execution that follows the final proof pass
+1. completing the short-lived
+   [Android Auto road-trip plan](./plans/android-auto-road-trip-plan.md) for
+   2026-07-25 without turning the private wrapper into a new framework
+   architecture
+2. working from the cleaned repo operating system baseline instead of from
+   historical drift
+3. running the final prerelease manual proof and hosted release proof for the v1
+   launch set
+4. keeping the now-simpler Railway-first deployment model boring while
+   preparing the launch-facing landing, media, and discoverability execution
+   that follows the final proof pass
 
 ## What Is Structurally Done
 
@@ -70,6 +78,32 @@ These are now baseline truths, not open architecture debates:
       7. semantic agent sessions
       8. game metadata and media presentation
       9. local, hosted-release, and agent development loops
+7. Last Band Standing now has a much stronger quiz-content baseline:
+   1. one canonical row per song with inline category ownership
+   2. selected-category-union answer pools, with a stricter per-song quiz
+      category correction now planned
+   3. unique visible answer labels with no permissive fallback
+   4. Unicode-safe canonical normalization
+   5. deterministic catalog validation and randomized option-generation tests
+   6. 144 canonical songs across ten independently playable categories
+   7. 27 Slovenian songs and 27 Balkan songs
+   8. explicit deterministic clip timing on every catalog entry
+8. the Android Auto road-trip implementation is structurally in place:
+   1. Arcade owns an exact typed `?qr=open` launch contract
+   2. Arcade and Last Band Standing respond to short-wide dimensions and safe
+      areas without Android/user-agent branches
+   3. Last Band Standing has a compact ten-player gameplay strip
+   4. the private wrapper uses the URL contract instead of DOM button matching
+   5. the wrapper is rebuilt on Android for Cars App Library 1.7.0 with focused
+      host-navigation tests and zero Android lint errors
+9. the road-trip platform-foundation goal is complete locally:
+   1. the public preview-controller launcher is contextual and disappears
+      during phone-connected gameplay
+   2. semantic Arcade sessions resolve epoch-scoped embedded stores through
+      authoritative `arcade.surface` state
+   3. local bootstrap and 16-player Arcade capacity are re-proven
+   4. the top-center controller menu consumes the real phone safe-area inset
+   5. the Android wrapper carries the canonical installed Air Jam icon
 
 ## What Is Still Open
 
@@ -82,12 +116,23 @@ The important remaining work is now late-stage and launch-facing:
 5. execute the release-facing landing, media, article, and discoverability work after the go / no-go pass
 6. decide which small user-facing polish items still deserve inclusion before launch, such as creator attribution enhancements
 7. keep the public story aligned around the AI-native framework thesis instead of drifting back into generic platform/framework language
+8. complete Goal 2 Last Band Standing correctness/results work, then publish
+   the locally and real-car-proven road-trip changes after the focused
+   browser-first gameplay and UI polish pass
 
 ## Active Now
 
-This is the single plan that should govern current work:
+The v1 release plan remains the governing product plan:
 
 1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
+
+One short-lived urgent plan is active for the 2026-07-25 road trip:
+
+1. [plans/android-auto-road-trip-plan.md](./plans/android-auto-road-trip-plan.md)
+
+The road-trip plan may improve Last Band Standing, Arcade presentation, and the
+private Android wrapper, but it must not create a competing Air Jam runtime
+model.
 
 ## Recent Closures
 
@@ -108,11 +153,14 @@ These are real next-step tracks, but they should not displace the launch closeou
 
 ## Immediate Next Steps
 
-1. run the final manual release proof against the five-game launch set
-2. run the hosted upload and managed media proof on the real platform lane
-3. complete the Railway domain cutover and re-run the production smoke checks
-4. close any real blockers without reopening broad platform work
-5. execute the final landing, media, blog, discoverability, and launch distribution sequence
+1. complete the Last Band Standing correctness, results, content, and UI polish
+   pass, then publish the validated update
+2. run the final manual release proof against the five-game launch set
+3. run the hosted upload and managed media proof on the real platform lane
+4. complete the Railway domain cutover and re-run the production smoke checks
+5. close any real blockers without reopening broad platform work
+6. execute the final landing, media, blog, discoverability, and launch
+   distribution sequence
 
 ## Current Caveats
 

@@ -259,8 +259,13 @@ console.log(JSON.stringify({
 
 const createControllerSocketFixture = async ({
   replayStaleDefaultSyncAfterHostAction = false,
+  embeddedArcadeIdentity = null,
 }: {
   replayStaleDefaultSyncAfterHostAction?: boolean;
+  embeddedArcadeIdentity?: {
+    epoch: number;
+    gameId: string;
+  } | null;
 } = {}): Promise<{
   root: string;
   joinUrl: string;
@@ -388,14 +393,28 @@ const createControllerSocketFixture = async ({
   const receivedHostActions: HostActionRpcPayload[] = [];
   const receivedStateSyncRequests: ControllerStateSyncRequestPayload[] = [];
   const receivedLeaves: { roomId: string; controllerId: string }[] = [];
+  const embeddedGameStoreDomain = embeddedArcadeIdentity
+    ? `aj.embedded.game:${embeddedArcadeIdentity.epoch}:${embeddedArcadeIdentity.gameId}`
+    : null;
   const storePayloads = new Map<string, Record<string, unknown>>([
-    ["default", { phase: "lobby", score: 3 }],
+    [embeddedGameStoreDomain ?? "default", { phase: "lobby", score: 3 }],
     ["scoreboard", { home: 3, away: 1 }],
+    ...(embeddedArcadeIdentity
+      ? [
+          [
+            "arcade.surface",
+            {
+              epoch: embeddedArcadeIdentity.epoch,
+              kind: "game",
+              gameId: embeddedArcadeIdentity.gameId,
+            },
+          ] as const,
+        ]
+      : []),
   ]);
-  const storeRevisions = new Map<string, number>([
-    ["default", 0],
-    ["scoreboard", 0],
-  ]);
+  const storeRevisions = new Map<string, number>(
+    Array.from(storePayloads.keys(), (storeDomain) => [storeDomain, 0]),
+  );
 
   const httpServer = createServer((_request, response) => {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
@@ -492,22 +511,27 @@ const createControllerSocketFixture = async ({
     ).on("controller:host_action_rpc", (payload, callback) => {
       receivedHostActions.push(payload);
       if (payload.actionName === "finishMatch") {
-        const previousDefaultStore = {
-          ...(storePayloads.get("default") ?? {}),
+        const targetStoreDomain = payload.storeDomain;
+        const previousTargetStore = {
+          ...(storePayloads.get(targetStoreDomain) ?? {}),
         };
-        const previousDefaultRevision = storeRevisions.get("default") ?? 0;
-        storePayloads.set("default", {
-          ...previousDefaultStore,
+        const previousTargetRevision =
+          storeRevisions.get(targetStoreDomain) ?? 0;
+        storePayloads.set(targetStoreDomain, {
+          ...previousTargetStore,
           phase: "ended",
         });
-        storeRevisions.set("default", previousDefaultRevision + 1);
-        if (replayStaleDefaultSyncAfterHostAction) {
+        storeRevisions.set(targetStoreDomain, previousTargetRevision + 1);
+        if (
+          replayStaleDefaultSyncAfterHostAction &&
+          targetStoreDomain === "default"
+        ) {
           setTimeout(() => {
             socket.emit("airjam:state_sync", {
               roomId: payload.roomId,
               storeDomain: "default",
-              data: previousDefaultStore,
-              revision: previousDefaultRevision,
+              data: previousTargetStore,
+              revision: previousTargetRevision,
             });
           }, 50);
         }
@@ -1606,6 +1630,104 @@ describe("game sessions", () => {
     });
     expect(closed.closed).toBe(true);
     expect(closed.session.connected).toBe(false);
+  });
+
+  it("discovers the active Arcade game and maps its logical default store to the embedded runtime domain", async () => {
+    const embeddedStoreDomain = "aj.embedded.game:7:socket-fixture";
+    const fixture = await createControllerSocketFixture({
+      embeddedArcadeIdentity: {
+        epoch: 7,
+        gameId: "socket-fixture",
+      },
+    });
+
+    const session = await openGameSession({
+      cwd: fixture.root,
+      gameId: "stale-topology-game",
+      mode: "arcade-dev",
+      controllerJoinUrl: fixture.joinUrl,
+      nickname: "ArcadeAgentCtrl",
+      timeoutMs: 1_000,
+    });
+
+    expect(session.gameId).toBe("socket-fixture");
+
+    const inspection = await readGameSession({
+      gameSessionId: session.gameSessionId,
+      requestSync: true,
+      timeoutMs: 1_000,
+    });
+    expect(inspection.gameSnapshot).toMatchObject({
+      gameId: "socket-fixture",
+      snapshotStoreDomains: ["default"],
+      runtimeStoreDomains: [embeddedStoreDomain],
+      storeDomainBindings: [
+        {
+          contractStoreDomain: "default",
+          runtimeStoreDomain: embeddedStoreDomain,
+        },
+      ],
+      snapshot: {
+        phase: "lobby",
+        score: 3,
+      },
+    });
+
+    await invokeGameSessionAction({
+      gameSessionId: session.gameSessionId,
+      actionId: "player:set_score",
+      payload: 9,
+      timeoutMs: 1_000,
+    });
+    expect(fixture.receivedActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actionName: "setScore",
+          storeDomain: embeddedStoreDomain,
+        }),
+      ]),
+    );
+
+    const hostInvocation = await invokeGameSessionAction({
+      gameSessionId: session.gameSessionId,
+      actionId: "host:finish_match",
+      timeoutMs: 1_000,
+    });
+    expect(hostInvocation.invocation).toEqual(
+      expect.objectContaining({
+        storeDomain: embeddedStoreDomain,
+        acknowledgement: expect.objectContaining({
+          ok: true,
+          status: "accepted",
+          source: "host",
+        }),
+        snapshotAfter: expect.objectContaining({
+          snapshot: expect.objectContaining({
+            phase: "ended",
+          }),
+        }),
+      }),
+    );
+
+    await closeGameSession({
+      gameSessionId: session.gameSessionId,
+    });
+  });
+
+  it("rejects Arcade semantic sessions that do not expose an active surface instead of using a stale game ID", async () => {
+    const fixture = await createControllerSocketFixture();
+
+    await expect(
+      openGameSession({
+        cwd: fixture.root,
+        gameId: "stale-topology-game",
+        mode: "arcade-dev",
+        controllerJoinUrl: fixture.joinUrl,
+        nickname: "ArcadeAgentCtrl",
+        timeoutMs: 50,
+      }),
+    ).rejects.toThrow('did not expose a valid "arcade.surface" snapshot');
+    expect(fixture.receivedLeaves).toHaveLength(1);
   });
 
   it("exposes and invokes semantic host actions without requiring a harness session", async () => {

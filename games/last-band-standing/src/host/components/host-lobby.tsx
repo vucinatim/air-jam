@@ -81,27 +81,24 @@ export const HostLobby = () => {
         <MenuVideoBackground className="absolute inset-0 z-0" />
         <div className="bg-background/40 pointer-events-none absolute inset-0 z-1" />
 
-        <div className="relative z-2 flex h-full w-full flex-col items-center justify-center gap-8 px-4 py-6 sm:py-10">
+        <div
+          className="lbs-lobby-layout relative z-2"
+          data-has-players={hasPlayers}
+        >
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.6 }}
-            className="flex shrink-0 flex-col items-center gap-2"
+            className="lbs-lobby-intro"
           >
-            <VerticalLogo
-              size={hasPlayers ? 150 : 256}
-              className="text-foreground"
-            />
-            <p className="text-muted-foreground pt-2 text-center text-lg">
+            <VerticalLogo className="lbs-lobby-logo text-foreground" />
+            <p className="lbs-lobby-tagline text-muted-foreground text-center text-lg">
               Destroy your friends. Musically speaking, of course.
             </p>
-          </motion.div>
-
-          <div className="flex w-full max-w-[640px] flex-col items-center gap-5">
             <motion.div
               layout
               className={cn(
-                "flex w-full flex-col items-center gap-3",
+                "lbs-lobby-join flex w-full flex-col items-center gap-3",
                 hasPlayers && "opacity-80",
               )}
               transition={{
@@ -137,8 +134,10 @@ export const HostLobby = () => {
                 buttonClassName="border-border/30 bg-background/60 text-foreground hover:bg-background/80"
               />
             </motion.div>
+          </motion.div>
 
-            <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="lbs-lobby-panel">
+            <div className="lbs-lobby-categories">
               {songBuckets.map((bucket) => {
                 const selected = selectedSongBucketIds.includes(bucket.id);
 
@@ -179,7 +178,7 @@ export const HostLobby = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <div className="flex max-w-full flex-wrap items-center justify-center gap-3">
+                <div className="lbs-lobby-players">
                   <AnimatePresence mode="popLayout">
                     {playerOrder.map((playerId, index) => {
                       const player =
@@ -205,7 +204,7 @@ export const HostLobby = () => {
                             delay: index * 0.05,
                           }}
                           className={cn(
-                            "flex min-w-[120px] flex-col items-center gap-2 rounded-2xl border px-5 py-4 backdrop-blur-md transition-all",
+                            "lbs-lobby-player flex min-w-0 flex-col items-center gap-2 rounded-2xl border px-4 py-3 backdrop-blur-md transition-all",
                             isReady
                               ? "border-primary/40 bg-primary/10"
                               : "border-border/40 bg-card/40",
@@ -215,11 +214,11 @@ export const HostLobby = () => {
                             {player ? (
                               <PlayerAvatarWithFire
                                 player={player}
-                                size="md"
+                                size="sm"
                                 showFire={score.hasStreakFire}
                               />
                             ) : (
-                              <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold">
+                              <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full text-base font-bold">
                                 {getLabelForPlayer(
                                   playerId,
                                   playerLabelById,

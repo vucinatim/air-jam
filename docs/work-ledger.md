@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-05-08  
+Last updated: 2026-07-24
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -30,6 +30,30 @@ Before the 2026-05-08 repo operating system reset, the repo already had these ma
 6. the launch set and late prerelease hardening work were already largely complete
 
 For the detailed pre-reset execution story, use the archived ledger snapshot above.
+
+## 2026-07-24 - Android Auto Platform Foundation Closed
+
+- completed Goal 1 of the active
+  [Android Auto road-trip plan](./plans/android-auto-road-trip-plan.md)
+- kept public on-screen controllers as a zero-setup demo while making their
+  launcher contextual:
+  - full discovery in an empty Arcade
+  - compact fallback when appropriate
+  - hidden during phone-connected gameplay
+- made semantic agent sessions resolve Arcade's authoritative active surface and
+  epoch-scoped embedded store domain without changing portable game contracts
+- re-proved local app-ID bootstrap and explicit 16-player Arcade room capacity
+- measured the connected Galaxy S24 fullscreen safe area and kept the
+  controller menu tear top-center below its camera cutout
+- installed and visually confirmed the canonical Air Jam Android launcher icon
+- closed the phase with:
+  - SDK typecheck/build and 270 tests
+  - devtools typecheck/build and 50 tests
+  - Platform typecheck/lint/build and 162 tests
+  - Android unit/lint/debug/release gates
+- recorded the newly found missing root `pnpm run dev` contract as GitHub issue
+  #40 instead of expanding the road-trip scope
+- left all implementation local and unpublished pending explicit user approval
 
 ## 2026-05-08 - Railway Consolidation Simplified The Deploy Model
 

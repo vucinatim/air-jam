@@ -1,4 +1,9 @@
 import type { HostRuntimeInspectionContract } from "@air-jam/sdk";
+import {
+  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  arcadeSurfaceRuntimeIdentitySchema,
+  embeddedReplicatedStoreDomainFromArcadeIdentity,
+} from "@air-jam/sdk/arcade/surface";
 import type {
   AirJamStateSyncPayload,
   ClientToServerEvents,
@@ -809,6 +814,66 @@ export const inspectControllerSessionContext = (
     gameId: session.summary.gameId,
     controllerId: session.summary.controllerId,
     session: buildSessionSummary(session),
+  };
+};
+
+export const resolveControllerSessionGameRuntime = async ({
+  controllerSessionId,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+}: {
+  controllerSessionId: string;
+  timeoutMs?: number;
+}): Promise<{
+  gameId: string | null;
+  defaultStoreDomain: string;
+}> => {
+  const session = getRequiredSession(controllerSessionId);
+  const usesArcadeRuntime =
+    session.summary.mode === "arcade-dev" ||
+    session.summary.mode === "arcade-test" ||
+    session.summary.topologyMode === "arcade-live" ||
+    session.summary.topologyMode === "arcade-built";
+
+  if (!usesArcadeRuntime) {
+    return {
+      gameId: session.summary.gameId,
+      defaultStoreDomain: "default",
+    };
+  }
+
+  const minimumRevision =
+    session.storeSnapshots.get(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN)?.revision ??
+    0;
+  const surfaceSnapshot = await waitForStateSync({
+    session,
+    storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+    minimumRevision,
+    timeoutMs,
+  });
+  const parsedSurface = arcadeSurfaceRuntimeIdentitySchema.safeParse(
+    surfaceSnapshot?.data,
+  );
+
+  if (!parsedSurface.success) {
+    throw new Error(
+      `Arcade controller session "${controllerSessionId}" did not expose a valid "${AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN}" snapshot.`,
+    );
+  }
+
+  if (parsedSurface.data.kind !== "game" || !parsedSurface.data.gameId) {
+    session.summary.gameId = null;
+    throw new Error(
+      `Arcade controller session "${controllerSessionId}" does not currently have an active embedded game.`,
+    );
+  }
+
+  session.summary.gameId = parsedSurface.data.gameId;
+
+  return {
+    gameId: parsedSurface.data.gameId,
+    defaultStoreDomain: embeddedReplicatedStoreDomainFromArcadeIdentity(
+      parsedSurface.data,
+    ),
   };
 };
 

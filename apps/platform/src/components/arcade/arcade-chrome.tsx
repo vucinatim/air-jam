@@ -14,6 +14,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { memo } from "react";
+import styles from "./arcade-layout.module.css";
 
 interface ArcadeChromeProps {
   roomId?: string;
@@ -60,6 +61,7 @@ export const ArcadeChrome = memo(function ArcadeChrome({
     <header
       className={cn(
         "px-4 py-2 backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-500 ease-out",
+        styles.chrome,
         showElevatedBar
           ? highContrast
             ? "border-b border-white/20 bg-black/72 shadow-[0_10px_30px_rgba(0,0,0,0.28)]"
@@ -70,8 +72,13 @@ export const ArcadeChrome = memo(function ArcadeChrome({
         className,
       )}
     >
-      <div className="flex w-full items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div
+        className={cn(
+          "flex w-full items-center justify-between gap-3",
+          styles.chromeInner,
+        )}
+      >
+        <div className={cn("flex items-center gap-3", styles.chromeIdentity)}>
           <Link
             href="/"
             aria-label="Go to Air Jam home"
@@ -82,7 +89,7 @@ export const ArcadeChrome = memo(function ArcadeChrome({
               alt="Air Jam"
               width={160}
               height={40}
-              className="h-7 w-auto object-contain"
+              className={cn("h-7 w-auto object-contain", styles.chromeLogo)}
               priority={false}
             />
           </Link>
@@ -98,14 +105,21 @@ export const ArcadeChrome = memo(function ArcadeChrome({
               {roomId || "----"}
             </p>
             {lastError ? (
-              <p className="max-w-[22rem] text-[11px] leading-tight text-rose-300">
+              <p
+                className={cn(
+                  "max-w-[22rem] text-[11px] leading-tight text-rose-300",
+                  styles.connectionError,
+                )}
+              >
                 {lastError}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div className="flex h-8 items-center gap-3">
+        <div
+          className={cn("flex h-8 items-center gap-3", styles.chromeActions)}
+        >
           <div
             className="flex h-8 items-center gap-3"
             aria-label={`${players.length} player${players.length === 1 ? "" : "s"} joined`}
@@ -158,7 +172,10 @@ export const ArcadeChrome = memo(function ArcadeChrome({
           <Button
             type="button"
             variant="outline"
-            className="h-8 w-24 shrink-0 gap-1 border-white/20 bg-black/20 px-2 text-xs text-white hover:bg-white/10"
+            className={cn(
+              "h-8 w-24 shrink-0 gap-1 border-white/20 bg-black/20 px-2 text-xs text-white hover:bg-white/10",
+              styles.chromeQrButton,
+            )}
             onClick={onToggleQr}
             aria-label={qrVisible ? "Hide join QR" : "Show join QR"}
             title={qrVisible ? "Hide join QR" : "Show join QR"}

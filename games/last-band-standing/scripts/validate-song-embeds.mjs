@@ -1,42 +1,56 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  DEFAULT_OPTION_COUNT,
+  DEFAULT_TOTAL_ROUNDS,
+} from "../src/game/constants.ts";
+import {
+  getRoundOptionLabel,
+  hasEnoughRoundOptionLabels,
+  normalizeRoundOptionLabel,
+} from "../src/game/content/round-options.ts";
+import {
+  getSongById,
+  getSongCanonicalKey,
+  getSongsForBuckets,
+  songBank,
+  songBuckets,
+} from "../src/game/content/song-bank.ts";
+import { roundGuessKinds } from "../src/game/domain/types.ts";
+import { extractYouTubeVideoId } from "../src/host/youtube/youtube-embed.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
-const DEFAULT_SOURCE = path.resolve(
-  projectRoot,
-  "src/game/content/song-bank.ts",
-);
 const DEFAULT_OUTPUT = path.resolve(
   projectRoot,
   "reports/song-embed-report.json",
 );
 const DEFAULT_TIMEOUT_MS = 8_000;
 const DEFAULT_CONCURRENCY = 6;
-
-const YOUTUBE_ID_REGEX =
-  /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
-
-const SONG_ENTRY_REGEX =
-  /\{\s*(?:"id"|id)\s*:\s*"([^"]+)"\s*,\s*(?:"title"|title)\s*:\s*"([^"]+)"\s*,\s*(?:"artist"|artist)\s*:\s*"([^"]+)"\s*,\s*(?:"youtubeUrl"|youtubeUrl)\s*:\s*"([^"]+)"([\s\S]*?)\}/g;
+const YOUTUBE_HOSTS = new Set([
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "youtu.be",
+]);
 
 const usage = () => {
   console.log(
-    `Usage: node ./scripts/validate-song-embeds.mjs [options]\n\nOptions:\n  --source <path>           Song bank source file (default: src/game/content/song-bank.ts)\n  --output <path>           JSON report output path (default: reports/song-embed-report.json)\n  --timeout-ms <number>     HTTP timeout per video check (default: ${DEFAULT_TIMEOUT_MS})\n  --concurrency <number>    Parallel checks (default: ${DEFAULT_CONCURRENCY})\n  --fail-on-invalid         Exit with code 1 when any song is blocked/invalid\n  --help                    Show this help\n`,
+    `Usage: pnpm songs:validate [options]\n\nOptions:\n  --output <path>           JSON report output path (default: reports/song-embed-report.json)\n  --timeout-ms <number>     HTTP timeout per video check (default: ${DEFAULT_TIMEOUT_MS})\n  --concurrency <number>    Parallel checks (default: ${DEFAULT_CONCURRENCY})\n  --skip-embed-checks       Run deterministic catalog checks without YouTube oEmbed requests\n  --fail-on-invalid         Also fail when YouTube reports a video blocked/unavailable\n  --help                    Show this help\n`,
   );
 };
 
 const parseArgs = (argv) => {
   const args = {
-    source: DEFAULT_SOURCE,
     output: DEFAULT_OUTPUT,
     timeoutMs: DEFAULT_TIMEOUT_MS,
     concurrency: DEFAULT_CONCURRENCY,
+    skipEmbedChecks: false,
     failOnInvalid: false,
   };
 
@@ -49,22 +63,14 @@ const parseArgs = (argv) => {
       usage();
       process.exit(0);
     }
-
+    if (token === "--skip-embed-checks") {
+      args.skipEmbedChecks = true;
+      continue;
+    }
     if (token === "--fail-on-invalid") {
       args.failOnInvalid = true;
       continue;
     }
-
-    if (token === "--source") {
-      const value = argv[index + 1];
-      if (!value) {
-        throw new Error("Missing value for --source");
-      }
-      args.source = path.resolve(process.cwd(), value);
-      index += 1;
-      continue;
-    }
-
     if (token === "--output") {
       const value = argv[index + 1];
       if (!value) {
@@ -74,7 +80,6 @@ const parseArgs = (argv) => {
       index += 1;
       continue;
     }
-
     if (token === "--timeout-ms") {
       const value = Number.parseInt(argv[index + 1] ?? "", 10);
       if (!Number.isFinite(value) || value <= 0) {
@@ -84,7 +89,6 @@ const parseArgs = (argv) => {
       index += 1;
       continue;
     }
-
     if (token === "--concurrency") {
       const value = Number.parseInt(argv[index + 1] ?? "", 10);
       if (!Number.isFinite(value) || value <= 0) {
@@ -101,26 +105,198 @@ const parseArgs = (argv) => {
   return args;
 };
 
-const extractVideoId = (youtubeUrl) => {
-  const match = youtubeUrl.match(YOUTUBE_ID_REGEX);
-  return match?.[1] ?? null;
-};
+const getBucketIds = (song) =>
+  Array.isArray(song.bucketIds) ? song.bucketIds : [];
 
-const parseSongEntries = (sourceText) => {
-  const songs = [];
+const validateCatalog = () => {
+  const issues = [];
+  const declaredBucketIds = new Set(songBuckets.map((bucket) => bucket.id));
+  const songIds = new Set(songBank.map((song) => song.id));
+  const songsByCanonicalKey = new Map();
+  const songsByVideoId = new Map();
 
-  for (const match of sourceText.matchAll(SONG_ENTRY_REGEX)) {
-    const [, id, title, artist, youtubeUrl] = match;
-    songs.push({ id, title, artist, youtubeUrl });
+  songBank.forEach((song) => {
+    const canonicalKey = getSongCanonicalKey(song);
+    const existing = songsByCanonicalKey.get(canonicalKey);
+    if (existing) {
+      issues.push({
+        code: "duplicate-canonical-song",
+        songId: song.id,
+        relatedSongId: existing.id,
+        message: `"${song.artist} — ${song.title}" duplicates canonical song "${existing.id}".`,
+      });
+    } else {
+      songsByCanonicalKey.set(canonicalKey, song);
+    }
+
+    const bucketIds = getBucketIds(song);
+    if (bucketIds.length === 0) {
+      issues.push({
+        code: "missing-bucket-ownership",
+        songId: song.id,
+        message: "Every song must explicitly own at least one bucket.",
+      });
+    }
+
+    const seenBucketIds = new Set();
+    bucketIds.forEach((bucketId) => {
+      if (seenBucketIds.has(bucketId)) {
+        issues.push({
+          code: "duplicate-song-bucket",
+          songId: song.id,
+          bucketId,
+          message: `Song declares bucket "${bucketId}" more than once.`,
+        });
+      }
+      seenBucketIds.add(bucketId);
+
+      if (!declaredBucketIds.has(bucketId)) {
+        issues.push({
+          code: "unknown-song-bucket",
+          songId: song.id,
+          bucketId,
+          message: `Song references undeclared bucket "${bucketId}".`,
+        });
+      }
+    });
+
+    let parsedUrl = null;
+    try {
+      parsedUrl = new URL(song.youtubeUrl);
+    } catch {
+      // Reported below as an invalid YouTube URL.
+    }
+    const videoId = extractYouTubeVideoId(song.youtubeUrl);
+    if (
+      !parsedUrl ||
+      parsedUrl.protocol !== "https:" ||
+      !YOUTUBE_HOSTS.has(parsedUrl.hostname) ||
+      !videoId
+    ) {
+      issues.push({
+        code: "invalid-youtube-url",
+        songId: song.id,
+        message:
+          "youtubeUrl must be an HTTPS YouTube watch, share, shorts, or embed URL with an 11-character video id.",
+      });
+    } else {
+      const existingVideoSong = songsByVideoId.get(videoId);
+      if (existingVideoSong) {
+        issues.push({
+          code: "duplicate-youtube-video",
+          songId: song.id,
+          relatedSongId: existingVideoSong.id,
+          message: `YouTube video "${videoId}" is already used by "${existingVideoSong.id}".`,
+        });
+      } else {
+        songsByVideoId.set(videoId, song);
+      }
+    }
+
+    if (!song.forcedOptionSongId) {
+      return;
+    }
+
+    const forcedSong = getSongById(song.forcedOptionSongId);
+    if (!forcedSong || !songIds.has(song.forcedOptionSongId)) {
+      issues.push({
+        code: "missing-forced-option",
+        songId: song.id,
+        relatedSongId: song.forcedOptionSongId,
+        message: `Forced option "${song.forcedOptionSongId}" does not exist.`,
+      });
+      return;
+    }
+    if (forcedSong.id === song.id) {
+      issues.push({
+        code: "self-forced-option",
+        songId: song.id,
+        relatedSongId: forcedSong.id,
+        message: "A song cannot force itself as a distractor.",
+      });
+    }
+
+    const forcedBucketIds = new Set(getBucketIds(forcedSong));
+    if (!bucketIds.some((bucketId) => forcedBucketIds.has(bucketId))) {
+      issues.push({
+        code: "forced-option-outside-category",
+        songId: song.id,
+        relatedSongId: forcedSong.id,
+        message:
+          "A forced distractor must share at least one bucket with its source song.",
+      });
+    }
+  });
+
+  if (getSongsForBuckets([]).length !== 0) {
+    issues.push({
+      code: "empty-bucket-selection-not-empty",
+      message: "getSongsForBuckets([]) must return no songs.",
+    });
   }
 
-  if (songs.length === 0) {
-    throw new Error(
-      "No songs found in source file. Expected raw song objects in src/game/content/song-bank.ts",
+  const buckets = songBuckets.map((bucket) => {
+    const songs = getSongsForBuckets([bucket.id]);
+    const expectedSongIds = songBank
+      .filter((song) => getBucketIds(song).includes(bucket.id))
+      .map((song) => song.id)
+      .sort();
+    const actualSongIds = songs.map((song) => song.id).sort();
+
+    if (actualSongIds.join("\u0000") !== expectedSongIds.join("\u0000")) {
+      issues.push({
+        code: "bucket-selection-mismatch",
+        bucketId: bucket.id,
+        message:
+          "getSongsForBuckets result does not match the songs that explicitly own this bucket.",
+      });
+    }
+
+    if (songs.length === 0) {
+      issues.push({
+        code: "empty-bucket",
+        bucketId: bucket.id,
+        message: `Bucket "${bucket.label}" has no songs.`,
+      });
+    }
+    if (songs.length < DEFAULT_TOTAL_ROUNDS) {
+      issues.push({
+        code: "insufficient-match-length",
+        bucketId: bucket.id,
+        message: `Bucket "${bucket.label}" needs at least ${DEFAULT_TOTAL_ROUNDS} songs for a default match; found ${songs.length}.`,
+      });
+    }
+
+    const distinctLabels = Object.fromEntries(
+      roundGuessKinds.map((guessKind) => {
+        const labels = new Set(
+          songs.map((song) =>
+            normalizeRoundOptionLabel(getRoundOptionLabel(song, guessKind)),
+          ),
+        );
+        if (
+          !hasEnoughRoundOptionLabels(songs, DEFAULT_OPTION_COUNT, guessKind)
+        ) {
+          issues.push({
+            code: "insufficient-distinct-option-labels",
+            bucketId: bucket.id,
+            guessKind,
+            message: `Bucket "${bucket.label}" needs at least ${DEFAULT_OPTION_COUNT} distinct visible ${guessKind} labels; found ${labels.size}.`,
+          });
+        }
+        return [guessKind, labels.size];
+      }),
     );
-  }
 
-  return songs;
+    return {
+      id: bucket.id,
+      label: bucket.label,
+      songCount: songs.length,
+      distinctLabels,
+    };
+  });
+
+  return { issues, buckets };
 };
 
 const mapWithConcurrency = async (items, concurrency, mapper) => {
@@ -140,75 +316,46 @@ const mapWithConcurrency = async (items, concurrency, mapper) => {
   return results;
 };
 
-const checkSong = async (song, timeoutMs) => {
-  const videoId = extractVideoId(song.youtubeUrl);
-  if (!videoId) {
-    return {
-      ...song,
-      videoId: null,
-      embeddable: false,
-      status: "invalid-url",
-      httpStatus: null,
-      detail: "Could not extract a valid YouTube video ID.",
-      fixHint: "Replace youtubeUrl with a valid YouTube watch/share URL.",
-    };
-  }
-
+const checkYouTubeEmbed = async (videoId, timeoutMs) => {
   const canonicalWatchUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const oembedUrl = new URL("https://www.youtube.com/oembed");
   oembedUrl.searchParams.set("url", canonicalWatchUrl);
   oembedUrl.searchParams.set("format", "json");
 
   const abortController = new AbortController();
-  const timeoutHandle = setTimeout(() => {
-    abortController.abort();
-  }, timeoutMs);
+  const timeoutHandle = setTimeout(() => abortController.abort(), timeoutMs);
 
   try {
     const response = await fetch(oembedUrl, {
       signal: abortController.signal,
-      headers: {
-        "user-agent": "air-jam-song-validator/1.0",
-      },
+      headers: { "user-agent": "air-jam-song-validator/2.0" },
     });
-
     const detail = (await response.text()).slice(0, 220);
-
     if (response.ok) {
       return {
-        ...song,
         videoId,
         embeddable: true,
         status: "ok",
         httpStatus: response.status,
         detail: detail || "Embeddable via YouTube oEmbed.",
-        fixHint: null,
       };
     }
 
-    const blockedStatus = response.status === 401 || response.status === 403;
-    const notFoundStatus = response.status === 404;
-
     return {
-      ...song,
       videoId,
       embeddable: false,
-      status: blockedStatus
-        ? "embed-blocked"
-        : notFoundStatus
-          ? "video-not-found"
-          : "oembed-error",
+      status:
+        response.status === 401 || response.status === 403
+          ? "embed-blocked"
+          : response.status === 404
+            ? "video-not-found"
+            : "oembed-error",
       httpStatus: response.status,
       detail: detail || `YouTube oEmbed returned HTTP ${response.status}.`,
-      fixHint: blockedStatus
-        ? "Replace this song with a video that allows embedding."
-        : "Verify the video is still public and available.",
     };
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === "AbortError";
-
     return {
-      ...song,
       videoId,
       embeddable: false,
       status: isTimeout ? "timeout" : "network-error",
@@ -218,8 +365,6 @@ const checkSong = async (song, timeoutMs) => {
         : error instanceof Error
           ? error.message
           : "Unknown network error.",
-      fixHint:
-        "Retry validation. If it persists, manually test this URL in /youtube-test.",
     };
   } finally {
     clearTimeout(timeoutHandle);
@@ -228,84 +373,103 @@ const checkSong = async (song, timeoutMs) => {
 
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
-  const sourceText = await readFile(args.source, "utf8");
-  const songs = parseSongEntries(sourceText);
-
-  const duplicateIds = new Set();
-  const uniqueIds = new Set();
-  songs.forEach((song) => {
-    if (uniqueIds.has(song.id)) {
-      duplicateIds.add(song.id);
-    }
-    uniqueIds.add(song.id);
-  });
-
-  const checked = await mapWithConcurrency(songs, args.concurrency, (song) =>
-    checkSong(song, args.timeoutMs),
+  const catalog = validateCatalog();
+  const songsWithVideoIds = songBank.map((song) => ({
+    ...song,
+    videoId: extractYouTubeVideoId(song.youtubeUrl),
+  }));
+  const uniqueVideoIds = [
+    ...new Set(
+      songsWithVideoIds
+        .map((song) => song.videoId)
+        .filter((videoId) => videoId !== null),
+    ),
+  ];
+  const embedResults = args.skipEmbedChecks
+    ? []
+    : await mapWithConcurrency(uniqueVideoIds, args.concurrency, (videoId) =>
+        checkYouTubeEmbed(videoId, args.timeoutMs),
+      );
+  const embedByVideoId = new Map(
+    embedResults.map((result) => [result.videoId, result]),
   );
-
-  const results = checked
-    .map((entry) => ({
-      ...entry,
-      duplicateId: duplicateIds.has(entry.id),
+  const results = songsWithVideoIds
+    .map((song) => ({
+      ...song,
+      canonicalKey: getSongCanonicalKey(song),
+      embed: song.videoId ? (embedByVideoId.get(song.videoId) ?? null) : null,
     }))
     .sort((left, right) => left.id.localeCompare(right.id));
-
-  const embeddableCount = results.filter((entry) => entry.embeddable).length;
-  const blockedCount = results.filter((entry) => !entry.embeddable).length;
-  const duplicateCount = duplicateIds.size;
+  const invalidEmbedCount = embedResults.filter(
+    (result) => !result.embeddable,
+  ).length;
 
   const report = {
     generatedAt: new Date().toISOString(),
-    sourceFile: path.relative(process.cwd(), args.source),
     summary: {
-      totalSongs: results.length,
-      embeddable: embeddableCount,
-      invalidOrBlocked: blockedCount,
-      duplicateSongIds: duplicateCount,
+      totalSongs: songBank.length,
+      totalBuckets: songBuckets.length,
+      catalogIssues: catalog.issues.length,
+      checkedUniqueVideos: embedResults.length,
+      invalidOrBlockedVideos: invalidEmbedCount,
     },
+    catalogIssues: catalog.issues,
+    buckets: catalog.buckets,
     results,
   };
 
   await mkdir(path.dirname(args.output), { recursive: true });
   await writeFile(args.output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
-  console.log(`Checked ${results.length} songs from ${report.sourceFile}`);
   console.log(
-    `Embeddable: ${embeddableCount} | Invalid/Blocked: ${blockedCount} | Duplicate IDs: ${duplicateCount}`,
+    `Catalog: ${songBank.length} songs across ${songBuckets.length} buckets`,
   );
+  console.log(`Deterministic catalog issues: ${catalog.issues.length}`);
+  if (!args.skipEmbedChecks) {
+    console.log(
+      `YouTube: ${embedResults.length - invalidEmbedCount}/${embedResults.length} unique videos embeddable`,
+    );
+  }
 
-  const invalidEntries = results.filter(
-    (entry) => !entry.embeddable || entry.duplicateId,
-  );
-  if (invalidEntries.length > 0) {
-    console.log("\nSongs needing curation:");
-    invalidEntries.slice(0, 20).forEach((entry) => {
-      const issues = [
-        entry.embeddable ? null : entry.status,
-        entry.duplicateId ? "duplicate-id" : null,
-      ].filter(Boolean);
+  if (catalog.issues.length > 0) {
+    console.log("\nCatalog issues:");
+    catalog.issues.slice(0, 30).forEach((issue) => {
+      const scope = [issue.bucketId, issue.songId].filter(Boolean).join("/");
       console.log(
-        `- ${entry.id} (${issues.join(", ")}) -> ${entry.youtubeUrl}`,
+        `- ${issue.code}${scope ? ` [${scope}]` : ""}: ${issue.message}`,
       );
     });
-    if (invalidEntries.length > 20) {
+    if (catalog.issues.length > 30) {
       console.log(
-        `...and ${invalidEntries.length - 20} more (see JSON report)`,
+        `...and ${catalog.issues.length - 30} more (see JSON report)`,
       );
     }
   }
 
-  const outputLabel = path.relative(process.cwd(), args.output);
-  console.log(`\nReport written to ${outputLabel}`);
+  if (invalidEmbedCount > 0) {
+    console.log("\nVideos needing curation:");
+    embedResults
+      .filter((result) => !result.embeddable)
+      .slice(0, 20)
+      .forEach((result) => {
+        console.log(`- ${result.videoId}: ${result.status}`);
+      });
+  }
 
-  if (args.failOnInvalid && (blockedCount > 0 || duplicateCount > 0)) {
+  console.log(
+    `\nReport written to ${path.relative(process.cwd(), args.output)}`,
+  );
+
+  if (
+    catalog.issues.length > 0 ||
+    (args.failOnInvalid && invalidEmbedCount > 0)
+  ) {
     process.exitCode = 1;
   }
 };
 
 main().catch((error) => {
-  console.error("Song embed validation failed:");
+  console.error("Song catalog validation failed:");
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

@@ -5,6 +5,10 @@ import {
   ArcadeSystem,
   type ArcadeGame,
 } from "@/components/arcade";
+import {
+  parseArcadeLaunchQuery,
+  type ArcadeLaunchQuerySource,
+} from "@/components/arcade/arcade-launch-query";
 import { getPlatformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import {
@@ -17,10 +21,17 @@ import { use, useMemo } from "react";
 
 export default function ArcadePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug?: string[] }>;
+  searchParams: Promise<ArcadeLaunchQuerySource>;
 }) {
   const resolvedParams = use(params);
+  const resolvedSearchParams = use(searchParams);
+  const launchQuery = useMemo(
+    () => parseArcadeLaunchQuery(resolvedSearchParams),
+    [resolvedSearchParams],
+  );
   // Extract slug from optional catch-all (e.g., /arcade/space-battle → ["space-battle"])
   const slugOrId = resolvedParams.slug?.[0];
   const localReferenceGames = getLocalReferenceArcadeGames();
@@ -62,6 +73,7 @@ export default function ArcadePage({
             initialGameId={initialGameId}
             hostRouteIntent={hostRouteIntent}
             autoLaunch={shouldAutoLaunch}
+            launchQuery={launchQuery}
             className="h-screen"
             previewControllersEnabled
           />

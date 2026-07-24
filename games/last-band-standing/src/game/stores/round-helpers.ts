@@ -1,12 +1,15 @@
 import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "@/game/constants";
 import {
   getRoundOptionLabel,
+  pickRoundOptionSongIds,
+} from "@/game/content/round-options";
+import {
   getSongById,
   getSongCanonicalKey,
   getUniqueSongsForBuckets,
-  pickRoundOptionSongIds,
   pickSongClipStartSeconds,
   type SongBucketId,
+  type SongEntry,
 } from "@/game/content/song-bank";
 import { createEmptyScore } from "@/game/domain/player-utils";
 import {
@@ -80,24 +83,36 @@ export const pickPlaylistGuessKinds = (count: number): RoundGuessKind[] => {
   return shuffleList(guessKinds);
 };
 
-export const createRound = (
-  roundNumber: number,
-  songId: string,
-  guessKind: RoundGuessKind,
-  expectedPlayerIds: string[],
-  nowMs: number,
-  roundDurationSec: number,
-): ActiveRound => {
+export interface CreateRoundOptions {
+  roundNumber: number;
+  songId: string;
+  guessKind: RoundGuessKind;
+  expectedPlayerIds: string[];
+  nowMs: number;
+  roundDurationSec: number;
+  eligibleSongs: readonly SongEntry[];
+}
+
+export const createRound = ({
+  roundNumber,
+  songId,
+  guessKind,
+  expectedPlayerIds,
+  nowMs,
+  roundDurationSec,
+  eligibleSongs,
+}: CreateRoundOptions): ActiveRound => {
   const song = getSongById(songId);
   if (!song) {
     throw new Error(`Cannot create round for missing song: ${songId}`);
   }
 
-  const optionOrder = pickRoundOptionSongIds(
-    song.id,
-    DEFAULT_OPTION_COUNT,
+  const optionOrder = pickRoundOptionSongIds({
+    correctSongId: song.id,
+    optionCount: DEFAULT_OPTION_COUNT,
     guessKind,
-  );
+    eligibleSongs,
+  });
 
   return {
     roundNumber,
