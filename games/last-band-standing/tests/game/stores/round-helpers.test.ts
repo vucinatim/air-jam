@@ -1,4 +1,6 @@
+import { DEFAULT_TOTAL_ROUNDS } from "@/game/constants";
 import {
+  defaultSelectedSongBucketIds,
   getSongById,
   getSongCanonicalKey,
   getSongsForBuckets,
@@ -58,6 +60,26 @@ describe("pickPlaylistSongs", () => {
         (songId) => !songs.slice(0, 5).some((song) => song.id === songId),
       ),
     ).toBe(true);
+  });
+
+  it("exhausts the unplayed pool before filling a playlist with repeats", () => {
+    const songs = getSongsForBuckets(defaultSelectedSongBucketIds);
+    const unplayedSongs = songs.slice(-8);
+    const unplayedSongIds = new Set(unplayedSongs.map((song) => song.id));
+    const playedSongKeys = songs
+      .slice(0, -unplayedSongs.length)
+      .map(getSongCanonicalKey);
+    const playlist = pickPlaylistSongs(
+      DEFAULT_TOTAL_ROUNDS,
+      defaultSelectedSongBucketIds,
+      playedSongKeys,
+    );
+
+    expect(playlist.songIds).toHaveLength(DEFAULT_TOTAL_ROUNDS);
+    expect(new Set(playlist.songIds)).toHaveLength(DEFAULT_TOTAL_ROUNDS);
+    expect(
+      playlist.songIds.filter((songId) => unplayedSongIds.has(songId)),
+    ).toHaveLength(unplayedSongs.length);
   });
 });
 

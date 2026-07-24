@@ -1445,10 +1445,23 @@ Completed in the first checkpoint:
 9. verified a long `Parni Valjak — Sve još miriše na nju` reveal at `800x480`;
    every scoreboard column remains visible and the layout has no horizontal
    overflow
+10. completed the exact phone viewport matrix at `360x800`, `390x844`,
+    `412x915`, and `430x932`:
+    1. unready and ready lobbies expose all ten categories and their pinned
+       actions without document overflow
+    2. active rounds keep all four answers visible in a two-by-two grid
+    3. reveal content, long answers, quickest-player details, and the countdown
+       remain readable without clipping or horizontal overflow
+11. verified the lobby on the connected Samsung `SM-S921B` at its physical
+    `1080x2340` capture size:
+    1. the Air Jam identity header remains fully visible
+    2. the name input and all ten categories fit above the ready action
+    3. the game remains usable even with Chrome's address and navigation bars
+       reducing the available viewport
 
 Quality evidence:
 
-1. 47/47 game tests pass
+1. 48/48 game tests pass
 2. game typecheck passes
 3. focused ESLint passes
 4. scoped Prettier and `git diff --check` pass
@@ -1460,6 +1473,12 @@ Framework follow-up:
    a tall intrinsic layout
 2. Last Band Standing uses a narrow `shrink-0` workaround until the shared
    component owns that invariant
+3. [Air Jam issue #44](https://github.com/vucinatim/air-jam/issues/44) records
+   the unrelated Railway platform-preview failure: `run-platform.mjs`
+   dynamically imports migration packages that are absent from the Next
+   standalone runtime image
+4. production remains healthy; the preview-infrastructure repair is deliberately
+   separated from Goal 3 game content and UI work
 
 Still required to close Goal 3:
 
